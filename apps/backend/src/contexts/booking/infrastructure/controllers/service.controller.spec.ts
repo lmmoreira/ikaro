@@ -59,7 +59,7 @@ describe('ServiceController', () => {
       new GetServicesUseCase(repo),
       new GetServiceByIdUseCase(repo),
       new ActivateServiceUseCase(repo, bookingPlatform, txManager),
-      new UpdateServiceUseCase(repo, bookingRepo, bookingPlatform, txManager),
+      new UpdateServiceUseCase(repo, bookingRepo, resourceRepo, bookingPlatform, txManager),
       new DeactivateServiceUseCase(repo, bookingPlatform, txManager),
       new UpdateServiceResourceRequirementsUseCase(repo, resourceRepo, bookingPlatform, txManager),
       new UpdateServiceLegsUseCase(repo, resourceRepo, bookingPlatform, txManager),

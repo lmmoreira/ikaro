@@ -132,6 +132,22 @@ Authorization: Bearer {{managerToken}}
   "description": null
 }
 
+###
+
+### Convert an APPOINTMENT service to SESSION (UC-056) — classResourceSlots required in the same request
+PATCH {{bffUrl}}/v1/services/{{serviceId}}
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "bookingModel": "SESSION",
+  "classResourceSlots": [
+    { "type": "ROOM", "eligibleResourceIds": ["00000000-0000-4000-8000-000000000001"] }
+  ]
+}
+# There is no separate slot-management endpoint this milestone — classResourceSlots can only be
+# supplied where bookingModel itself is set (here, or at POST /v1/services).
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — resource requirements / legs (M22 Cluster 2)
 # ─────────────────────────────────────────────────────────────────────────────

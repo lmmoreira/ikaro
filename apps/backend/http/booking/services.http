@@ -165,6 +165,40 @@ X-Actor-Role: MANAGER
 
 ###
 
+### Convert an APPOINTMENT service to SESSION (UC-056) — classResourceSlots required in the same request
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "bookingModel": "SESSION",
+  "classResourceSlots": [
+    { "type": "ROOM", "eligibleResourceIds": ["00000000-0000-4000-8000-000000000001"] }
+  ]
+}
+# eligibleResourceIds must reference an active ROOM resource ID for this tenant. There is no
+# separate slot-management endpoint this milestone — classResourceSlots can only be supplied
+# where bookingModel itself is set (here, or at POST /services).
+
+###
+
+### 422 — converting to SESSION without classResourceSlots
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "bookingModel": "SESSION"
+}
+
+###
+
 ### Create a SESSION-model service (UC-056)
 POST {{baseUrl}}/services
 Content-Type: application/json

@@ -34,6 +34,7 @@ import {
   BookingServiceResourceTypeUnavailableError,
   BookingServiceSessionNotBookableError,
   BookingSlotUnavailableError,
+  ClassResourceSlotBookingModelMismatchError,
   ClassResourceSlotDuplicateTypeError,
   ClassResourceSlotEmptyPoolError,
   ClassResourceSlotResourceNotActiveError,
@@ -220,6 +221,12 @@ describe('mapBookingError', () => {
 
   it('maps ClassResourceSlotEmptyPoolError to 422', () => {
     const err = call(new ClassResourceSlotEmptyPoolError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ClassResourceSlotBookingModelMismatchError to 422', () => {
+    const err = call(new ClassResourceSlotBookingModelMismatchError('required-for-session'));
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });

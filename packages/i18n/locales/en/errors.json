@@ -71,6 +71,7 @@
   "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_DUPLICATE_TYPE": "classResourceSlots cannot list the same type more than once.",
   "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_RESOURCE_NOT_ACTIVE": "eligibleResourceIds must reference active resources of the matching type.",
   "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_EMPTY_POOL": "eligibleResourceIds must include at least one resource.",
+  "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_BOOKING_MODEL_MISMATCH": "classResourceSlots only applies to a SESSION service, and a SESSION service must include at least one slot.",
   "ADDRESS_POSTAL_CODE_INVALID": "The postal code provided is invalid.",
   "ADDRESS_STATE_INVALID": "The state provided is invalid.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "The neighborhood is required.",

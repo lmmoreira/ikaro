@@ -172,6 +172,32 @@ export class ClassResourceSlotEmptyPoolError extends BookingDomainError {
   }
 }
 
+type ClassResourceSlotBookingModelReason = 'required-for-session' | 'not-allowed-for-appointment';
+
+const CLASS_RESOURCE_SLOT_BOOKING_MODEL_MESSAGES: Record<
+  ClassResourceSlotBookingModelReason,
+  string
+> = {
+  'required-for-session': 'classResourceSlots must include at least one slot for a SESSION service',
+  'not-allowed-for-appointment': 'classResourceSlots only applies to a SESSION service',
+};
+
+// Enforced wherever bookingModel is set (Service.create() and changeBookingModel()) — a SESSION
+// service with no slots would be created un-configurable (there is no separate slot-management
+// endpoint in this milestone, classResourceSlots can only be supplied where bookingModel itself
+// is set), and an APPOINTMENT service silently discarding a supplied classResourceSlots would
+// surprise a caller who mistakenly sent it.
+export class ClassResourceSlotBookingModelMismatchError extends BookingDomainError {
+  constructor(reason: ClassResourceSlotBookingModelReason) {
+    super(
+      CLASS_RESOURCE_SLOT_BOOKING_MODEL_MESSAGES[reason],
+      BookingErrorCode.SERVICE_CLASS_RESOURCE_SLOT_BOOKING_MODEL_MISMATCH,
+      'classResourceSlots',
+    );
+    this.name = 'ClassResourceSlotBookingModelMismatchError';
+  }
+}
+
 export class BookingServiceResourceTypeUnavailableError extends BookingDomainError {
   constructor(type: string) {
     super(

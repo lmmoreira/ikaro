@@ -740,6 +740,13 @@
       "reviewBy": "2026-11-30"
     },
     {
+      "rule": "max-lines-aggregate",
+      "path": "apps/backend/src/contexts/booking/domain/service.aggregate.ts",
+      "rationale": "M22-S01: same shape as booking.aggregate.ts's own exception above — Service's props/create-input interfaces already moved out to service.types.ts, and its own eligibility/booking-model-matching assertions moved out to resource-requirement-availability.ts; the remaining overage is inherent to the aggregate's cohesive method set (create/reconstitute/update/setResourceRequirements/setLegs/setBufferAfterMinutes/changeBookingModel/activate/deactivate), not something a further file split would meaningfully reduce (max-lines-per-function still applies and is enforced/fixed on this file).",
+      "owner": "booking",
+      "reviewBy": "2026-11-30"
+    },
+    {
       "rule": "aggregate-primitive-vo",
       "path": "apps/backend/src/contexts/platform/domain/lead-form-submission.aggregate.ts",
       "property": "ipAddress",

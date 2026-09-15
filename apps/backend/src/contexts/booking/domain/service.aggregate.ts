@@ -20,59 +20,34 @@ import {
 import {
   ActiveResourceIdsByType,
   assertClassResourceSlotsAvailable,
+  assertClassResourceSlotsMatchBookingModel,
   assertResourceRequirementsAvailable,
 } from './resource-requirement-availability';
 import { ResourceRequirement } from './resource-requirement';
 import { ServiceLeg } from './service-leg';
 import { computeLegsTotalSpanMinutes } from './service-leg-span';
+import { CreateServiceProps, ServiceBookingModel, ServiceProps } from './service.types';
 
-export type ServiceBookingModel = 'APPOINTMENT' | 'SESSION';
-
-export interface ServiceProps {
-  id: string;
-  tenantId: string;
-  name: string;
-  description: string | null;
-  price: Money;
-  durationMinutes: number;
-  loyaltyPointsValue: number;
-  requiresPickupAddress: boolean;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  bookingModel: ServiceBookingModel;
-  resourceRequirements: ResourceRequirement[];
-  bufferAfterMinutes: number | null;
-  legs: ServiceLeg[] | null;
-  classResourceSlots: ClassResourceSlot[] | null;
-}
-
-export interface CreateServiceProps {
-  tenantId: string;
-  name: string;
-  price: Money;
-  durationMinutes: number;
-  loyaltyPointsValue: number;
-  requiresPickupAddress?: boolean;
-  isActive?: boolean;
-  description?: string;
-  bookingModel?: ServiceBookingModel;
-  // Tenant's current settings.serviceBufferMinutes, snapshotted by the caller at creation time
-  // (UC-053 step 1). Ignored for a SESSION service.
-  tenantServiceBufferMinutes?: number | null;
-  classResourceSlots?: ClassResourceSlot[];
-  // Resolved by the caller (IResourceRepository.findByTenant) — required whenever
-  // classResourceSlots is non-empty; ignored otherwise. See setResourceRequirements()/setLegs()'s
-  // identical parameter for why this lives outside the aggregate.
-  activeResourceIdsByType?: ActiveResourceIdsByType;
-}
+// Re-exported for the many existing external call sites that import these from this file.
+export type { CreateServiceProps, ServiceBookingModel, ServiceProps };
 
 export class Service extends AggregateRoot {
   private readonly props: ServiceProps;
+  // Tracks whether resourceRequirements/legs/classResourceSlots changed since this instance was
+  // constructed — the repository uses this to skip the child-table wholesale delete+reinsert
+  // (up to 20 legs x 20 requirements x 50 pool IDs = ~20,000 rows) on a save that only touched a
+  // scalar field (name/price/isActive/etc). true on create() (initial children, if any, must be
+  // persisted); false on reconstitute() until a setter below flips it.
+  private childrenDirty: boolean;
 
-  private constructor(props: ServiceProps) {
+  private constructor(props: ServiceProps, childrenDirty: boolean) {
     super();
     this.props = props;
+    this.childrenDirty = childrenDirty;
+  }
+
+  get hasChildrenChanges(): boolean {
+    return this.childrenDirty;
   }
 
   get id(): string {
@@ -138,31 +113,26 @@ export class Service extends AggregateRoot {
     return normalizedName;
   }
 
-  static create({
-    tenantId,
-    name,
-    price,
-    durationMinutes,
-    loyaltyPointsValue,
-    requiresPickupAddress = false,
-    isActive = true,
-    description,
-    bookingModel = 'APPOINTMENT',
-    tenantServiceBufferMinutes = null,
-    classResourceSlots = [],
-    activeResourceIdsByType = new Map(),
-  }: CreateServiceProps): Service {
-    if (!tenantId) throw new TenantIdRequiredError();
-    const normalizedName = Service.validateFields(name, price, durationMinutes, loyaltyPointsValue);
-    // Same eligibility checklist as UC-050's flat case (UC-056 step 3, docs/02-DOMAIN_MODEL.md) —
-    // duplicate-type rejection plus "each eligibleResourceIds entry is an active resource of the
-    // matching type." See resource-requirement-availability.ts's identical treatment of
-    // resourceRequirements/legs.
-    assertClassResourceSlotsAvailable(classResourceSlots, activeResourceIdsByType);
-
+  // Split out of create() to stay under docs/CODE_STANDARDS.md's function-length limit.
+  private static buildCreateProps(
+    input: CreateServiceProps,
+    normalizedName: string,
+    classResourceSlots: ClassResourceSlot[],
+  ): ServiceProps {
+    const {
+      tenantId,
+      price,
+      durationMinutes,
+      loyaltyPointsValue,
+      requiresPickupAddress = false,
+      isActive = true,
+      description,
+      bookingModel = 'APPOINTMENT',
+      tenantServiceBufferMinutes = null,
+    } = input;
     const isSession = bookingModel === 'SESSION';
     const now = new Date();
-    return new Service({
+    return {
       id: uuidv7(),
       tenantId,
       name: normalizedName,
@@ -179,11 +149,33 @@ export class Service extends AggregateRoot {
       bufferAfterMinutes: isSession ? null : tenantServiceBufferMinutes,
       legs: null,
       classResourceSlots: isSession ? classResourceSlots : null,
-    });
+    };
+  }
+
+  static create(input: CreateServiceProps): Service {
+    const {
+      tenantId,
+      name,
+      price,
+      durationMinutes,
+      loyaltyPointsValue,
+      bookingModel = 'APPOINTMENT',
+      classResourceSlots = [],
+      activeResourceIdsByType = new Map(),
+    } = input;
+    if (!tenantId) throw new TenantIdRequiredError();
+    const normalizedName = Service.validateFields(name, price, durationMinutes, loyaltyPointsValue);
+    assertClassResourceSlotsMatchBookingModel(bookingModel, classResourceSlots);
+    // Same eligibility checklist as UC-050's flat case (UC-056 step 3, docs/02-DOMAIN_MODEL.md) —
+    // duplicate-type rejection plus "each eligibleResourceIds entry is an active resource of the
+    // matching type." See resource-requirement-availability.ts's identical treatment of
+    // resourceRequirements/legs.
+    assertClassResourceSlotsAvailable(classResourceSlots, activeResourceIdsByType);
+    return new Service(Service.buildCreateProps(input, normalizedName, classResourceSlots), true);
   }
 
   static reconstitute(props: ServiceProps): Service {
-    return new Service(props);
+    return new Service(props, false);
   }
 
   update(
@@ -220,6 +212,7 @@ export class Service extends AggregateRoot {
     assertResourceRequirementsAvailable(requirements, activeResourceIdsByType);
     this.props.resourceRequirements = [...requirements];
     this.props.updatedAt = new Date();
+    this.childrenDirty = true;
   }
 
   setLegs(legs: ServiceLeg[], activeResourceIdsByType: ActiveResourceIdsByType): number {
@@ -243,6 +236,7 @@ export class Service extends AggregateRoot {
     this.props.resourceRequirements = [];
     this.props.bufferAfterMinutes = null;
     this.props.updatedAt = new Date();
+    this.childrenDirty = true;
     return computeLegsTotalSpanMinutes(orderedLegs);
   }
 
@@ -261,19 +255,33 @@ export class Service extends AggregateRoot {
   // Switching model normalizes the fields that only apply to the other model (mutual-exclusivity
   // invariant, docs/02-DOMAIN_MODEL.md) — never leaves a stale resourceRequirements/legs/buffer
   // behind on a SESSION service, nor a stale classResourceSlots behind on an APPOINTMENT one.
-  changeBookingModel(bookingModel: ServiceBookingModel, hasBookingHistory: boolean): void {
+  // classResourceSlots/activeResourceIdsByType are only meaningful when converting TO SESSION —
+  // same shape as create()'s identical params, resolved by the caller (IResourceRepository.
+  // findByTenant). A conversion to SESSION always requires slots supplied in the same call, since
+  // there is no separate slot-management endpoint this milestone.
+  changeBookingModel(
+    bookingModel: ServiceBookingModel,
+    hasBookingHistory: boolean,
+    classResourceSlots: ClassResourceSlot[] = [],
+    activeResourceIdsByType: ActiveResourceIdsByType = new Map(),
+  ): void {
     if (bookingModel === this.props.bookingModel) return;
     if (hasBookingHistory) throw new BookingServiceBookingModelImmutableError(this.props.id);
+    assertClassResourceSlotsMatchBookingModel(bookingModel, classResourceSlots);
+    if (bookingModel === 'SESSION') {
+      assertClassResourceSlotsAvailable(classResourceSlots, activeResourceIdsByType);
+    }
     this.props.bookingModel = bookingModel;
     if (bookingModel === 'SESSION') {
       this.props.resourceRequirements = [];
       this.props.legs = null;
       this.props.bufferAfterMinutes = null;
-      this.props.classResourceSlots = this.props.classResourceSlots ?? [];
+      this.props.classResourceSlots = classResourceSlots;
     } else {
       this.props.classResourceSlots = null;
     }
     this.props.updatedAt = new Date();
+    this.childrenDirty = true;
   }
 
   deactivate(): void {

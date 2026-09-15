@@ -1,16 +1,19 @@
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import {
   BookingLineBuilder,
   BookingBuilder,
+  ResourceBuilder,
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
 import {
   BookingDomainError,
   BookingServiceBookingModelImmutableError,
   BookingServiceHasLegsError,
+  ClassResourceSlotBookingModelMismatchError,
   ServiceDeactivatedError,
   ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
@@ -25,16 +28,19 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 describe('UpdateServiceUseCase', () => {
   let repo: InMemoryServiceRepository;
   let bookingRepo: InMemoryBookingRepository;
+  let resourceRepo: InMemoryResourceRepository;
   let bookingPlatform: InMemoryBookingPlatformPort;
   let useCase: UpdateServiceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
     bookingRepo = new InMemoryBookingRepository();
+    resourceRepo = new InMemoryResourceRepository();
     bookingPlatform = new InMemoryBookingPlatformPort();
     useCase = new UpdateServiceUseCase(
       repo,
       bookingRepo,
+      resourceRepo,
       bookingPlatform,
       new InMemoryTransactionManager(),
     );
@@ -291,5 +297,44 @@ describe('UpdateServiceUseCase', () => {
     });
 
     expect(result.bookingModel).toBe('APPOINTMENT');
+  });
+
+  it('rejects converting to SESSION without classResourceSlots', async () => {
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withBookingModel('APPOINTMENT')
+      .build();
+    await repo.save(service);
+
+    await expect(
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        bookingModel: 'SESSION',
+      }),
+    ).rejects.toThrow(ClassResourceSlotBookingModelMismatchError);
+  });
+
+  it('converts to SESSION when classResourceSlots is supplied in the same request', async () => {
+    const room = new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build();
+    await resourceRepo.save(room);
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withBookingModel('APPOINTMENT')
+      .build();
+    await repo.save(service);
+
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      bookingModel: 'SESSION',
+      classResourceSlots: [{ type: ResourceType.ROOM, eligibleResourceIds: [room.id] }],
+    });
+
+    expect(result.bookingModel).toBe('SESSION');
   });
 });

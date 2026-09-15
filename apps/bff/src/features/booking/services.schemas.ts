@@ -55,6 +55,9 @@ export const UpdateServiceBodySchema = z
     // file's comment for the settings.serviceBufferMinutes/UC-059 rationale.
     bufferAfterMinutes: z.number().int().nonnegative().optional(),
     bookingModel: BookingModelSchema.optional(),
+    // Only meaningful (and required) when this same request converts bookingModel to SESSION —
+    // mirrors the backend's identical bound (update-service.dto.ts).
+    classResourceSlots: z.array(ClassResourceSlotBodySchema).max(20).optional(),
   })
   .default({});
 

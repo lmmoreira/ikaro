@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BookingModelSchema } from '@ikaro/validation';
+import { BookingModelSchema, ClassResourceSlotSchema } from '@ikaro/validation';
 
 export const UpdateServiceSchema = z
   .object({
@@ -16,6 +16,11 @@ export const UpdateServiceSchema = z
     bufferAfterMinutes: z.number().int().nonnegative().optional(),
     // Immutable once the service has booking history (UC-056 A1) — enforced by the aggregate.
     bookingModel: BookingModelSchema.optional(),
+    // Only meaningful (and required) when this same request converts bookingModel to SESSION —
+    // enforced by the aggregate (Service.changeBookingModel()), not here. There is no separate
+    // slot-management endpoint this milestone, so a SESSION conversion must supply its slots in
+    // the same request.
+    classResourceSlots: z.array(ClassResourceSlotSchema).max(20).optional(),
   })
   .default({});
 

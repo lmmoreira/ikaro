@@ -127,7 +127,12 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     entity: ServiceEntity,
   ): Promise<void> {
     await manager.save(ServiceEntity, entity);
-    await this.syncChildren(manager, service);
+    // Skip the child wholesale-replace entirely when nothing resource-shape-related changed —
+    // a plain name/price/isActive update on a service with the maximum permitted 20 legs x 20
+    // requirements x 50 pool IDs would otherwise rewrite ~20,000 rows on every save.
+    // Service.hasChildrenChanges is true on create() and after setResourceRequirements()/
+    // setLegs()/changeBookingModel(), false otherwise (see service.aggregate.ts).
+    if (service.hasChildrenChanges) await this.syncChildren(manager, service);
   }
 
   // Wholesale replace, per the story's own "replaces resourceRequirements wholesale (not a

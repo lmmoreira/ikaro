@@ -86,6 +86,11 @@ export class ServiceBuilder {
     return this;
   }
 
+  // Simulates an already-persisted row (Service.reconstitute()) — a test that needs
+  // resourceRequirements/legs/classResourceSlots actually written to the DB on save() must call
+  // the matching setter (setResourceRequirements()/setLegs()) on the built instance first, the
+  // same way production code does; the repository only re-syncs child tables when one of those
+  // setters (or changeBookingModel()) was actually called (see typeorm-service.repository.ts).
   build(): Service {
     return Service.reconstitute({
       id: this.id,

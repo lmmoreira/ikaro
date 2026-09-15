@@ -8,6 +8,7 @@ import {
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
+  ClassResourceSlotBookingModelMismatchError,
   ClassResourceSlotDuplicateTypeError,
   ClassResourceSlotResourceNotActiveError,
   ResourceRequirementInvalidError,
@@ -293,6 +294,35 @@ describe('Service', () => {
           activeResourceIdsByType: new Map([[ResourceType.ROOM, new Set(['r-1'])]]),
         }),
       ).toThrow(ClassResourceSlotResourceNotActiveError);
+    });
+
+    it('rejects creating a SESSION service without classResourceSlots', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Yoga',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          bookingModel: 'SESSION',
+        }),
+      ).toThrow(ClassResourceSlotBookingModelMismatchError);
+    });
+
+    it('rejects creating a non-SESSION service with classResourceSlots supplied', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Lavagem',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          classResourceSlots: [
+            ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
+          ],
+          activeResourceIdsByType: new Map([[ResourceType.ROOM, new Set(['r-1'])]]),
+        }),
+      ).toThrow(ClassResourceSlotBookingModelMismatchError);
     });
   });
 
@@ -615,8 +645,28 @@ describe('Service', () => {
         .withTenantId(TENANT)
         .withBookingModel('APPOINTMENT')
         .build();
-      service.changeBookingModel('SESSION', false);
+      service.changeBookingModel(
+        'SESSION',
+        false,
+        [
+          ClassResourceSlot.create({
+            type: ResourceType.ROOM,
+            eligibleResourceIds: ['resource-1'],
+          }),
+        ],
+        activeIds(ResourceType.ROOM),
+      );
       expect(service.bookingModel).toBe('SESSION');
+    });
+
+    it('rejects converting to SESSION without classResourceSlots', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .build();
+      expect(() => service.changeBookingModel('SESSION', false)).toThrow(
+        ClassResourceSlotBookingModelMismatchError,
+      );
     });
 
     it('rejects a bookingModel change once the service has booking history (UC-056 A1)', () => {
@@ -645,11 +695,14 @@ describe('Service', () => {
         .withResourceRequirements([requirement(ResourceType.STAFF)])
         .withBufferAfterMinutes(30)
         .build();
-      service.changeBookingModel('SESSION', false);
+      const slots = [
+        ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['resource-1'] }),
+      ];
+      service.changeBookingModel('SESSION', false, slots, activeIds(ResourceType.ROOM));
       expect(service.resourceRequirements).toEqual([]);
       expect(service.legs).toBeNull();
       expect(service.bufferAfterMinutes).toBeNull();
-      expect(service.classResourceSlots).toEqual([]);
+      expect(service.classResourceSlots).toEqual(slots);
     });
 
     it('clears classResourceSlots when switching to APPOINTMENT (mutual exclusivity)', () => {

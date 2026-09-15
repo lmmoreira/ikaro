@@ -1,12 +1,35 @@
 import { ClassResourceSlot } from './class-resource-slot';
 import {
   BookingServiceResourceTypeUnavailableError,
+  ClassResourceSlotBookingModelMismatchError,
   ClassResourceSlotDuplicateTypeError,
   ClassResourceSlotResourceNotActiveError,
   ResourceRequirementInvalidError,
 } from './errors/booking-domain.error';
 import { ResourceRequirement } from './resource-requirement';
 import { ResourceType } from './resource.types';
+
+// Canonical home for this type — service.types.ts imports it from here (not the other way
+// around) so this file, service.types.ts, and service.aggregate.ts form a one-directional import
+// chain with no cycle.
+export type ServiceBookingModel = 'APPOINTMENT' | 'SESSION';
+
+// classResourceSlots can only ever be supplied where bookingModel itself is set (Service.create()
+// or Service.changeBookingModel()) — there is no separate slot-management endpoint in this
+// milestone — so a SESSION service created/converted with none would be permanently
+// un-configurable, and an APPOINTMENT service silently discarding a supplied classResourceSlots
+// would surprise a caller who mistakenly sent it.
+export function assertClassResourceSlotsMatchBookingModel(
+  bookingModel: ServiceBookingModel,
+  classResourceSlots: ClassResourceSlot[],
+): void {
+  if (bookingModel === 'SESSION' && classResourceSlots.length === 0) {
+    throw new ClassResourceSlotBookingModelMismatchError('required-for-session');
+  }
+  if (bookingModel !== 'SESSION' && classResourceSlots.length > 0) {
+    throw new ClassResourceSlotBookingModelMismatchError('not-allowed-for-appointment');
+  }
+}
 
 // Resolved by the caller (IResourceRepository.findByTenant) — every active resource id per
 // requested type, so the aggregate can validate both "does this type have any active resource"

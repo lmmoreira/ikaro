@@ -5,11 +5,15 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
+import { Service } from '../../domain/service.aggregate';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
+import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { UpdateServiceDto } from '../dtos/update-service.dto';
+import { toClassResourceSlot } from '../dtos/resource-requirement.dto';
 import { ServiceUseCaseResult, toServiceResult } from './service-result.mapper';
+import { resolveActiveResourceIdsByType } from './active-resource-types.util';
 
 export type UpdateServiceUseCaseInput = UpdateServiceDto & {
   id: string;
@@ -25,6 +29,7 @@ export class UpdateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
+    @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(BOOKING_PLATFORM_PORT) private readonly bookingPlatform: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
@@ -66,10 +71,7 @@ export class UpdateServiceUseCase {
         current.setBufferAfterMinutes(input.bufferAfterMinutes);
       }
 
-      if (input.bookingModel !== undefined && input.bookingModel !== current.bookingModel) {
-        const hasBookingHistory = await this.bookingRepo.existsByServiceId(id, tenantId);
-        current.changeBookingModel(input.bookingModel, hasBookingHistory);
-      }
+      await this.applyBookingModelChange(current, id, tenantId, input);
 
       await this.serviceRepo.save(current);
       return current;
@@ -78,5 +80,30 @@ export class UpdateServiceUseCase {
     await this.bookingPlatform.revalidatePublicPages(tenantId);
 
     return toServiceResult(service, locale);
+  }
+
+  // Split out of execute() to stay under docs/CODE_STANDARDS.md's function-length limit — a
+  // SESSION conversion must supply its classResourceSlots in the same request, since there is no
+  // separate slot-management endpoint this milestone (see Service.changeBookingModel()).
+  private async applyBookingModelChange(
+    current: Service,
+    id: string,
+    tenantId: string,
+    input: UpdateServiceUseCaseInput,
+  ): Promise<void> {
+    if (input.bookingModel === undefined || input.bookingModel === current.bookingModel) return;
+    const hasBookingHistory = await this.bookingRepo.existsByServiceId(id, tenantId);
+    const classResourceSlots = (input.classResourceSlots ?? []).map(toClassResourceSlot);
+    const activeResourceIdsByType = await resolveActiveResourceIdsByType(
+      this.resourceRepo,
+      tenantId,
+      classResourceSlots.map((s) => s.type),
+    );
+    current.changeBookingModel(
+      input.bookingModel,
+      hasBookingHistory,
+      classResourceSlots,
+      activeResourceIdsByType,
+    );
   }
 }

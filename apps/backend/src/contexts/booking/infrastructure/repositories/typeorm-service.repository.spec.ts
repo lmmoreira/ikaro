@@ -193,12 +193,15 @@ describe('TypeOrmServiceRepository', () => {
   });
 
   it('save wholesale-replaces resourceRequirements: deletes existing rows, inserts current ones', async () => {
-    const service = new ServiceBuilder()
-      .withTenantId('tenant-1')
-      .withResourceRequirements([
-        ResourceRequirement.create({ type: ResourceType.STAFF, selectionMode: 'AUTO_ANY' }),
-      ])
-      .build();
+    // setResourceRequirements() (not the builder's raw field) so the save actually has children
+    // to sync — Service.hasChildrenChanges is false for a plain reconstitute()'d fixture, mirroring
+    // real production flows where an already-persisted service only re-syncs its child tables
+    // after a setter that actually touches them is called (see typeorm-service.repository.ts).
+    const service = new ServiceBuilder().withTenantId('tenant-1').build();
+    service.setResourceRequirements(
+      [ResourceRequirement.create({ type: ResourceType.STAFF, selectionMode: 'AUTO_ANY' })],
+      new Map([[ResourceType.STAFF, new Set(['staff-1'])]]),
+    );
 
     await repo.save(service);
 
