@@ -89,10 +89,6 @@ describe('ServiceController (integration)', () => {
       expect(body.status).toBe(403);
     });
 
-    // M22-S02: a newly created service's bookingPolicy.defaultApprovalMode is never set — it
-    // resolves from the real tenant's settings.booking.autoApproveEnabled (default false on a
-    // freshly provisioned tenant) through the real BookingPlatformAdapter/TypeORM stack, not the
-    // InMemory doubles the unit tests use.
     it('resolves defaultApprovalMode from the real tenant autoApproveEnabled setting (default false)', async () => {
       const isolatedTenant = await provisionTenant();
       const { body: created } = await request(app.getHttpServer())
@@ -126,6 +122,13 @@ describe('ServiceController (integration)', () => {
         .expect(201);
 
       expect(created.bookingPolicy.defaultApprovalMode).toBe('AUTO_CONFIRM');
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(fetched.bookingPolicy.defaultApprovalMode).toBe('AUTO_CONFIRM');
     });
 
     it('returns 400 when priceAmount is zero', async () => {
