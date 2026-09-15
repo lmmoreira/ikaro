@@ -105,4 +105,25 @@ describe('ServiceBookingIntakeSchema', () => {
       expect(schema.createdAt).toBe(createdAt);
     });
   });
+
+  describe('questions immutability', () => {
+    it('mutating a question object from the input array does not affect the published schema', () => {
+      const question = { fieldKey: 'q1', label: 'Q1', type: 'FREE_TEXT' as const, required: false };
+      const input = publishInput({ questions: [question] });
+      const schema = ServiceBookingIntakeSchema.publish(input);
+
+      question.label = 'Mutated after publish';
+
+      expect(schema.questions[0].label).toBe('Q1');
+    });
+
+    it('mutating a question object from the getter does not affect the schema', () => {
+      const schema = ServiceBookingIntakeSchema.publish(publishInput());
+
+      const questions = schema.questions;
+      questions[0].label = 'Mutated via getter';
+
+      expect(schema.questions[0].label).not.toBe('Mutated via getter');
+    });
+  });
 });

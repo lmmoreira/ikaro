@@ -14,11 +14,19 @@ export class TypeOrmServiceIntakeSchemaRepository implements IServiceIntakeSchem
     private readonly repo: Repository<ServiceBookingIntakeSchemaEntity>,
   ) {}
 
+  // Reads through the active transaction's manager when one is present (e.g. called after
+  // findByIdForUpdate() locks the parent Service inside PublishServiceIntakeSchemaUseCase) —
+  // never the injected repository's own out-of-transaction manager, which would participate in
+  // neither that lock nor its read view. Falls back to the plain repo for callers with no
+  // ambient transaction (matches publish()'s own dual-path shape).
   async findActiveByServiceId(
     serviceId: string,
     tenantId: string,
   ): Promise<ServiceBookingIntakeSchema | null> {
-    const entity = await this.repo.findOne({ where: { serviceId, tenantId, isActive: true } });
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const entity = await manager.findOne(ServiceBookingIntakeSchemaEntity, {
+      where: { serviceId, tenantId, isActive: true },
+    });
     return entity ? this.toDomain(entity) : null;
   }
 
@@ -26,7 +34,8 @@ export class TypeOrmServiceIntakeSchemaRepository implements IServiceIntakeSchem
     serviceId: string,
     tenantId: string,
   ): Promise<ServiceBookingIntakeSchema[]> {
-    const entities = await this.repo.find({
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const entities = await manager.find(ServiceBookingIntakeSchemaEntity, {
       where: { serviceId, tenantId },
       order: { version: 'ASC' },
     });

@@ -140,11 +140,14 @@ export const ServicePricingPolicySchema = z.enum(['FIXED', 'PER_TIME_INCREMENT']
 // explicitly clear back to the inherited tenant/platform default (mirrors UpdateResourceSchema's
 // refId precedent above). Bounds mirror each field's tenant-setting counterpart
 // (docs/21-TENANTS_SETTINGS_SCHEMA.md) where one exists.
-// durationMaxMinutes >= durationMinMinutes is checked here (a format/relational sanity check,
-// same class as uniqueUuidArray's refine above) — the durationPolicy/pricingPolicy pairing
-// invariant (UC-055 A2) is deliberately NOT checked here: it's a domain-level 422
-// (ServiceDurationPolicyRequiresPricingError), same reasoning as UpdateServiceLegsSchema's
-// missing .min(2) above.
+// Every cross-field business invariant (durationMaxMinutes >= durationMinMinutes, the
+// durationPolicy/pricingPolicy pairing, and each policy's own detail-field completeness) is
+// deliberately NOT checked here: PATCH semantics resolve a request against the *current* saved
+// policy before the domain layer ever validates it (update-service-booking-policy.use-case.ts's
+// resolvePolicy()), so a Zod-level check scoped to one request body can't see the fully-resolved
+// state a partial PATCH produces — these are domain-level 422s
+// (ServiceDurationPolicyRequiresPricingError, ServiceBookingPolicyInvalidError), same reasoning
+// as UpdateServiceLegsSchema's missing .min(2) above.
 export const UpdateServiceBookingPolicySchema = z
   .object({
     defaultApprovalMode: ServiceApprovalModeSchema.nullable().optional(),
@@ -164,13 +167,6 @@ export const UpdateServiceBookingPolicySchema = z
     pricePerIncrementAmount: z.number().positive().nullable().optional(),
     minimumChargeAmount: z.number().positive().nullable().optional(),
   })
-  .refine(
-    (data) =>
-      data.durationMinMinutes == null ||
-      data.durationMaxMinutes == null ||
-      data.durationMaxMinutes >= data.durationMinMinutes,
-    { error: 'durationMaxMinutes must be >= durationMinMinutes', path: ['durationMaxMinutes'] },
-  )
   .default({});
 
 // UC-054's typed markers — 'PICKUP_ADDRESS' is the only one defined so far (projects into the

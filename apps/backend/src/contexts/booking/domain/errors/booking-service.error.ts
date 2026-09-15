@@ -272,31 +272,7 @@ export class ServiceLegInvalidError extends BookingDomainError {
   }
 }
 
-// UC-055 A2 — a variable-duration service must declare how it prices; mirrors
-// BookingServiceLegsTooFewError's shape (a single-reason invariant, no Record<Reason,...> map
-// needed).
-export class ServiceDurationPolicyRequiresPricingError extends BookingDomainError {
-  constructor() {
-    super(
-      'durationPolicy=CUSTOMER_SELECTED requires a non-FIXED pricingPolicy',
-      BookingErrorCode.SERVICE_DURATION_POLICY_REQUIRES_PRICING,
-      'pricingPolicy',
-    );
-    this.name = 'ServiceDurationPolicyRequiresPricingError';
-  }
-}
-
-// UC-054/055's shared "bookingModel = APPOINTMENT" precondition — deliberately a distinct code
-// from BookingServiceBookingModelMismatchError above: that one's message/field are specific to
-// resource requirements/legs/buffer and would misrepresent the trigger for a booking-policy or
-// intake-schema call (story-discovery decision, M22-S02, 2026-09-15).
-export class BookingServiceBookingConfigModelMismatchError extends BookingDomainError {
-  constructor(id: string) {
-    super(
-      `Booking policy and booking-intake schema only apply to an APPOINTMENT service: ${id}`,
-      BookingErrorCode.SERVICE_BOOKING_CONFIG_MODEL_MISMATCH,
-      'bookingModel',
-    );
-    this.name = 'BookingServiceBookingConfigModelMismatchError';
-  }
-}
+// ServiceDurationPolicyRequiresPricingError, BookingServiceBookingConfigModelMismatchError, and
+// ServiceBookingPolicyInvalidError (the M22-S02 booking-policy/intake-schema error group) live
+// in booking-service-policy.error.ts (split out to stay under docs/CODE_STANDARDS.md's
+// file-length limit).

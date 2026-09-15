@@ -74,6 +74,7 @@
   "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_BOOKING_MODEL_MISMATCH": "classResourceSlots only applies to a SESSION service, and a SESSION service must include at least one slot.",
   "BOOKING_SERVICE_DURATION_POLICY_REQUIRES_PRICING": "A variable-duration service must also declare a non-default pricing policy.",
   "BOOKING_SERVICE_BOOKING_CONFIG_MODEL_MISMATCH": "Booking policy and booking-intake schema only apply to an appointment-type service.",
+  "BOOKING_SERVICE_BOOKING_POLICY_INVALID": "This booking policy is incomplete or invalid — check the duration/pricing fields for the selected policy.",
   "ADDRESS_POSTAL_CODE_INVALID": "The postal code provided is invalid.",
   "ADDRESS_STATE_INVALID": "The state provided is invalid.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "The neighborhood is required.",

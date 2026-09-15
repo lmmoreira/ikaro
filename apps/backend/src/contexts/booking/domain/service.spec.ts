@@ -13,6 +13,7 @@ import {
   ClassResourceSlotDuplicateTypeError,
   ClassResourceSlotResourceNotActiveError,
   ResourceRequirementInvalidError,
+  ServiceBookingPolicyInvalidError,
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
   ServiceDurationPolicyRequiresPricingError,
@@ -706,6 +707,52 @@ describe('Service', () => {
       expect(() => sessionService.setBookingPolicy(policy())).toThrow(
         BookingServiceBookingConfigModelMismatchError,
       );
+    });
+
+    it('rejects durationMaxMinutes < durationMinMinutes even when resolved from a partial PATCH', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({
+            durationPolicy: 'CUSTOMER_SELECTED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            durationMinMinutes: 120,
+            durationMaxMinutes: 60,
+            durationIncrementMinutes: 15,
+            pricingIncrementMinutes: 15,
+            pricePerIncrementAmount: 10,
+          }),
+        ),
+      ).toThrow(ServiceBookingPolicyInvalidError);
+    });
+
+    it('rejects pricingPolicy=PER_TIME_INCREMENT with no pricingIncrementMinutes/pricePerIncrementAmount', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({
+            durationPolicy: 'CUSTOMER_SELECTED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            durationMinMinutes: 30,
+            durationMaxMinutes: 120,
+            durationIncrementMinutes: 15,
+          }),
+        ),
+      ).toThrow(ServiceBookingPolicyInvalidError);
+    });
+
+    it('rejects durationPolicy=CUSTOMER_SELECTED with no duration bounds/increment set', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({
+            durationPolicy: 'CUSTOMER_SELECTED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            pricingIncrementMinutes: 15,
+            pricePerIncrementAmount: 10,
+          }),
+        ),
+      ).toThrow(ServiceBookingPolicyInvalidError);
     });
   });
 

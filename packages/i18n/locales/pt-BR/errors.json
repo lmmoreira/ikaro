@@ -74,6 +74,7 @@
   "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_BOOKING_MODEL_MISMATCH": "classResourceSlots só se aplica a um serviço SESSION, e um serviço SESSION deve incluir ao menos um slot.",
   "BOOKING_SERVICE_DURATION_POLICY_REQUIRES_PRICING": "Um serviço de duração variável também deve declarar uma política de precificação diferente da padrão.",
   "BOOKING_SERVICE_BOOKING_CONFIG_MODEL_MISMATCH": "Política de agendamento e formulário de triagem só se aplicam a um serviço do tipo agendamento.",
+  "BOOKING_SERVICE_BOOKING_POLICY_INVALID": "Esta política de agendamento está incompleta ou inválida — verifique os campos de duração/precificação para a política selecionada.",
   "ADDRESS_POSTAL_CODE_INVALID": "O CEP informado é inválido.",
   "ADDRESS_STATE_INVALID": "O estado informado é inválido.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "O bairro é obrigatório.",

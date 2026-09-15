@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { ServiceBookingIntakeSchemaEntityBuilder } from '../../../../test/builders/booking/index';
 import { ServiceBookingIntakeSchema } from '../../domain/service-booking-intake-schema';
 import { ServiceBookingIntakeSchemaEntity } from '../entities/service-booking-intake-schema.entity';
@@ -22,10 +23,15 @@ function entity(overrides: { version?: number; isActive?: boolean } = {}) {
 describe('TypeOrmServiceIntakeSchemaRepository', () => {
   let repo: TypeOrmServiceIntakeSchemaRepository;
   let ormRepo: jest.Mocked<Repository<ServiceBookingIntakeSchemaEntity>>;
-  let mockTx: { update: jest.Mock; save: jest.Mock };
+  let mockTx: { update: jest.Mock; save: jest.Mock; findOne: jest.Mock; find: jest.Mock };
 
   beforeEach(async () => {
-    mockTx = { update: jest.fn(), save: jest.fn() };
+    mockTx = {
+      update: jest.fn(),
+      save: jest.fn(),
+      findOne: jest.fn(),
+      find: jest.fn(),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -33,9 +39,9 @@ describe('TypeOrmServiceIntakeSchemaRepository', () => {
         {
           provide: getRepositoryToken(ServiceBookingIntakeSchemaEntity),
           useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
             manager: {
+              findOne: jest.fn(),
+              find: jest.fn(),
               transaction: jest
                 .fn()
                 .mockImplementation(async (cb: (tx: typeof mockTx) => Promise<void>) => cb(mockTx)),
@@ -51,27 +57,47 @@ describe('TypeOrmServiceIntakeSchemaRepository', () => {
 
   describe('findActiveByServiceId', () => {
     it('returns null when no active version exists', async () => {
-      ormRepo.findOne.mockResolvedValue(null);
+      (ormRepo.manager.findOne as jest.Mock).mockResolvedValue(null);
       expect(await repo.findActiveByServiceId(SERVICE_ID, TENANT)).toBeNull();
     });
 
     it('maps the active entity to the domain aggregate', async () => {
-      ormRepo.findOne.mockResolvedValue(entity());
+      (ormRepo.manager.findOne as jest.Mock).mockResolvedValue(entity());
       const schema = await repo.findActiveByServiceId(SERVICE_ID, TENANT);
       expect(schema?.version).toBe(1);
       expect(schema?.serviceId).toBe(SERVICE_ID);
+    });
+
+    it('reads through the active transaction manager, not the repo-level one, when inside a transaction', async () => {
+      const txManager = {
+        findOne: jest.fn().mockResolvedValue(entity({ version: 3 })),
+      } as unknown as EntityManager;
+
+      const schema = await runWithEntityManager(txManager, () =>
+        repo.findActiveByServiceId(SERVICE_ID, TENANT),
+      );
+
+      expect(schema?.version).toBe(3);
+      expect(txManager.findOne).toHaveBeenCalledWith(
+        ServiceBookingIntakeSchemaEntity,
+        expect.objectContaining({
+          where: { serviceId: SERVICE_ID, tenantId: TENANT, isActive: true },
+        }),
+      );
+      expect(ormRepo.manager.findOne).not.toHaveBeenCalled();
     });
   });
 
   describe('findAllByServiceId', () => {
     it('returns every version, oldest first', async () => {
-      ormRepo.find.mockResolvedValue([
+      (ormRepo.manager.find as jest.Mock).mockResolvedValue([
         entity({ version: 1, isActive: false }),
         entity({ version: 2 }),
       ]);
       const schemas = await repo.findAllByServiceId(SERVICE_ID, TENANT);
       expect(schemas.map((s) => s.version)).toEqual([1, 2]);
-      expect(ormRepo.find).toHaveBeenCalledWith(
+      expect(ormRepo.manager.find).toHaveBeenCalledWith(
+        ServiceBookingIntakeSchemaEntity,
         expect.objectContaining({ order: { version: 'ASC' } }),
       );
     });

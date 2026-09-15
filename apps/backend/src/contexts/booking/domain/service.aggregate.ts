@@ -9,6 +9,7 @@ import {
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
+  ServiceBookingPolicyInvalidError,
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
   ServiceDurationInvalidError,
@@ -31,24 +32,20 @@ import { computeLegsTotalSpanMinutes } from './service-leg-span';
 import {
   CreateServiceProps,
   defaultServiceBookingPolicyProps,
-  ServiceApprovalMode,
   ServiceBookingModel,
   ServiceBookingPolicyProps,
-  ServiceDurationPolicy,
-  ServicePricingPolicy,
   ServiceProps,
 } from './service.types';
 
 // Re-exported for the many existing external call sites that import these from this file.
+export type { CreateServiceProps, ServiceBookingModel, ServiceBookingPolicyProps, ServiceProps };
+// Pure re-exports (never used as a type annotation within this file itself) — export...from
+// directly instead of importing-then-re-exporting.
 export type {
-  CreateServiceProps,
   ServiceApprovalMode,
-  ServiceBookingModel,
-  ServiceBookingPolicyProps,
   ServiceDurationPolicy,
   ServicePricingPolicy,
-  ServiceProps,
-};
+} from './service.types';
 
 export class Service extends AggregateRoot {
   private readonly props: ServiceProps;
@@ -283,8 +280,36 @@ export class Service extends AggregateRoot {
     if (policy.durationPolicy === 'CUSTOMER_SELECTED' && policy.pricingPolicy === 'FIXED') {
       throw new ServiceDurationPolicyRequiresPricingError();
     }
+    Service.validateBookingPolicyCompleteness(policy);
     this.props.bookingPolicy = { ...policy };
     this.props.updatedAt = new Date();
+  }
+
+  // Split out of setBookingPolicy() to stay under docs/CODE_STANDARDS.md's function-length
+  // limit. Validates the fully-resolved policy snapshot (not the raw PATCH body — see
+  // ServiceBookingPolicyInvalidError's own comment for why this can't live in Zod).
+  private static validateBookingPolicyCompleteness(policy: ServiceBookingPolicyProps): void {
+    if (
+      policy.durationMinMinutes !== null &&
+      policy.durationMaxMinutes !== null &&
+      policy.durationMaxMinutes < policy.durationMinMinutes
+    ) {
+      throw new ServiceBookingPolicyInvalidError('duration-range-invalid');
+    }
+    if (
+      policy.pricingPolicy === 'PER_TIME_INCREMENT' &&
+      (policy.pricingIncrementMinutes === null || policy.pricePerIncrementAmount === null)
+    ) {
+      throw new ServiceBookingPolicyInvalidError('pricing-increment-details-required');
+    }
+    if (
+      policy.durationPolicy === 'CUSTOMER_SELECTED' &&
+      (policy.durationMinMinutes === null ||
+        policy.durationMaxMinutes === null ||
+        policy.durationIncrementMinutes === null)
+    ) {
+      throw new ServiceBookingPolicyInvalidError('custom-duration-details-required');
+    }
   }
 
   // UC-054 A2 — a one-way flip: publishing a PICKUP_ADDRESS-typed intake question sets this, but

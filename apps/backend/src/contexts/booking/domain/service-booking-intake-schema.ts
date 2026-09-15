@@ -52,7 +52,10 @@ export class ServiceBookingIntakeSchema extends AggregateRoot {
 
   private constructor(props: ServiceBookingIntakeSchemaProps) {
     super();
-    this.props = props;
+    // Clones each question object, not just the array — questions is a plain object literal
+    // (no VO class of its own; see this file's own header comment), so a shared reference would
+    // let a caller mutate a published version's questions after the fact.
+    this.props = { ...props, questions: props.questions.map((q) => ({ ...q })) };
   }
 
   get id(): string {
@@ -68,7 +71,7 @@ export class ServiceBookingIntakeSchema extends AggregateRoot {
     return this.props.version;
   }
   get questions(): ServiceIntakeQuestion[] {
-    return [...this.props.questions];
+    return this.props.questions.map((q) => ({ ...q }));
   }
   get consentText(): string {
     return this.props.consentText;
