@@ -8,6 +8,8 @@ export { ServiceLegEntityBuilder } from './service-leg-entity.builder';
 export { ServiceLegResourceRequirementEntityBuilder } from './service-leg-resource-requirement-entity.builder';
 export { ServiceLegResourceRequirementPoolEntityBuilder } from './service-leg-resource-requirement-pool-entity.builder';
 export { ServiceClassResourcePoolEntityBuilder } from './service-class-resource-pool-entity.builder';
+export { ServiceBookingIntakeSchemaEntityBuilder } from './service-booking-intake-schema-entity.builder';
+export { BookingAttendeeEntityBuilder } from './booking-attendee-entity.builder';
 export { ScheduleClosureBuilder } from './schedule-closure.builder';
 export { ScheduleClosureEntityBuilder } from './schedule-closure-entity.builder';
 export { ScheduleOpeningBuilder } from './schedule-opening.builder';

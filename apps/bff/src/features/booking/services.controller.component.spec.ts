@@ -14,6 +14,25 @@ import { ServiceDetail } from './services.types';
 
 const SERVICE_ID = '10000000-0000-4000-8000-000000000001';
 
+const mockBookingPolicy = {
+  defaultApprovalMode: null,
+  manualHoldMinutes: null,
+  cancellationWindowHoursOverride: null,
+  rescheduleWindowHoursOverride: null,
+  minBookingAdvanceHoursOverride: null,
+  maxBookingAdvanceDaysOverride: null,
+  recurrenceEligible: false,
+  availabilityAlertEligible: false,
+  durationPolicy: 'FIXED' as const,
+  durationMinMinutes: null,
+  durationMaxMinutes: null,
+  durationIncrementMinutes: null,
+  pricingPolicy: 'FIXED' as const,
+  pricingIncrementMinutes: null,
+  pricePerIncrementAmount: null,
+  minimumChargeAmount: null,
+};
+
 const mockServiceDetail: ServiceDetail = {
   id: SERVICE_ID,
   name: 'Lavagem Completa',
@@ -29,6 +48,7 @@ const mockServiceDetail: ServiceDetail = {
   bufferAfterMinutes: 60,
   legs: null,
   classResourceSlots: null,
+  bookingPolicy: mockBookingPolicy,
 };
 
 const mockStaffServiceResponse = {
@@ -46,6 +66,7 @@ const mockStaffServiceResponse = {
   bufferAfterMinutes: 60,
   legs: null,
   classResourceSlots: null,
+  bookingPolicy: mockBookingPolicy,
 };
 
 const validCreateBody = {
@@ -387,6 +408,137 @@ describe('ServicesController (component)', () => {
         .send({ legs: [] });
 
       expect(res.status).toBe(422);
+    });
+  });
+
+  // ─── PATCH /v1/services/:id/booking-policy ──────────────────────────────────
+
+  describe('PATCH /v1/services/:id/booking-policy', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/booking-policy`)
+        .send({ recurrenceEligible: true });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/booking-policy`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
+        .send({ recurrenceEligible: true });
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, calls PATCH /services/:id/booking-policy', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce({
+        id: SERVICE_ID,
+        bookingPolicy: mockBookingPolicy,
+      });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/booking-policy`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ defaultApprovalMode: 'MANUAL_APPROVAL' });
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/booking-policy`,
+        { defaultApprovalMode: 'MANUAL_APPROVAL' },
+      );
+    });
+
+    it('propagates 422 from backend (UC-055 A2)', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HttpException({ title: 'Unprocessable Entity', status: 422 }, 422),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/booking-policy`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ durationPolicy: 'CUSTOMER_SELECTED' });
+
+      expect(res.status).toBe(422);
+    });
+  });
+
+  // ─── POST /v1/services/:id/intake-schema ────────────────────────────────────
+
+  describe('POST /v1/services/:id/intake-schema', () => {
+    const validIntakeSchemaBody = {
+      questions: [
+        {
+          fieldKey: 'accessNeeds',
+          label: 'Necessidades de acesso',
+          type: 'FREE_TEXT',
+          required: false,
+        },
+      ],
+      consentText: 'Concordo com os termos',
+    };
+
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .send(validIntakeSchemaBody);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
+        .send(validIntakeSchemaBody);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 201, calls POST /services/:id/intake-schema', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockResolvedValueOnce({
+        id: 'schema-1',
+        version: 1,
+        questions: validIntakeSchemaBody.questions,
+        consentText: validIntakeSchemaBody.consentText,
+        consentVersion: 1,
+        requiresNamedAttendees: false,
+        participantCountRequired: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send(validIntakeSchemaBody);
+
+      expect(res.status).toBe(201);
+      expect(backendHttpService.post).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/intake-schema`,
+        validIntakeSchemaBody,
+      );
+    });
+
+    it('returns 400 when questions is empty (Zod)', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .post(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ ...validIntakeSchemaBody, questions: [] });
+      expect(res.status).toBe(400);
+    });
+
+    it('propagates 409 from backend when the service is a SESSION service', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockRejectedValueOnce(
+        new HttpException({ title: 'Conflict', status: 409 }, 409),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send(validIntakeSchemaBody);
+
+      expect(res.status).toBe(409);
     });
   });
 

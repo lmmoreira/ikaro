@@ -15,6 +15,8 @@ import {
   ServiceLegResourceRequirementPoolEntity,
 } from '../contexts/booking/infrastructure/entities/service-leg.entity';
 import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
+import { ServiceBookingIntakeSchemaEntity } from '../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingAttendeeEntity } from '../contexts/booking/infrastructure/entities/booking-attendee.entity';
 import { ResourceEntity } from '../contexts/booking/infrastructure/entities/resource.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
@@ -61,6 +63,8 @@ export async function createTestDataSource(): Promise<DataSource> {
       ServiceLegResourceRequirementEntity,
       ServiceLegResourceRequirementPoolEntity,
       ServiceClassResourcePoolEntity,
+      ServiceBookingIntakeSchemaEntity,
+      BookingAttendeeEntity,
       ResourceEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,

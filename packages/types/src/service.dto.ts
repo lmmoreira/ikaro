@@ -25,6 +25,29 @@ export interface ClassResourceSlotItem {
   eligibleResourceIds: string[];
 }
 
+export type ServiceApprovalMode = 'AUTO_CONFIRM' | 'MANUAL_APPROVAL';
+export type ServiceDurationPolicy = 'FIXED' | 'CUSTOMER_SELECTED';
+export type ServicePricingPolicy = 'FIXED' | 'PER_TIME_INCREMENT';
+
+export interface ServiceBookingPolicyItem {
+  defaultApprovalMode: ServiceApprovalMode | null;
+  manualHoldMinutes: number | null;
+  cancellationWindowHoursOverride: number | null;
+  rescheduleWindowHoursOverride: number | null;
+  minBookingAdvanceHoursOverride: number | null;
+  maxBookingAdvanceDaysOverride: number | null;
+  recurrenceEligible: boolean;
+  availabilityAlertEligible: boolean;
+  durationPolicy: ServiceDurationPolicy;
+  durationMinMinutes: number | null;
+  durationMaxMinutes: number | null;
+  durationIncrementMinutes: number | null;
+  pricingPolicy: ServicePricingPolicy;
+  pricingIncrementMinutes: number | null;
+  pricePerIncrementAmount: number | null;
+  minimumChargeAmount: number | null;
+}
+
 export interface CreateServiceRequest {
   name: string;
   description?: string;
@@ -80,6 +103,7 @@ export interface StaffServiceResponse {
   bufferAfterMinutes: number | null;
   legs: ServiceLegItem[] | null;
   classResourceSlots: ClassResourceSlotItem[] | null;
+  bookingPolicy: ServiceBookingPolicyItem;
 }
 
 export interface StaffServiceListResponse {

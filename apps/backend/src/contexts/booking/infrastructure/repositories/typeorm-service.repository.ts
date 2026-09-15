@@ -24,7 +24,8 @@ import {
 } from '../entities/service-resource-requirement.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { loadServiceChildren } from './typeorm-service-child-loader';
-import { emptyChildRows, toChildEntities, toDomain, toEntity } from './typeorm-service.mapper';
+import { toChildEntities } from './typeorm-service-child-entities.mapper';
+import { emptyChildRows, toDomain, toEntity } from './typeorm-service.mapper';
 
 @Injectable()
 export class TypeOrmServiceRepository implements IServiceRepository {

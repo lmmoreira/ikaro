@@ -6,6 +6,7 @@ import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { PlatformModule } from '../../../platform/platform.module';
 import { ServiceEntity } from '../entities/service.entity';
+import { ServiceBookingIntakeSchemaEntity } from '../entities/service-booking-intake-schema.entity';
 
 const TEST_KEY = 'service-integ-test-key-service-xxxx'; // 36 chars
 const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
@@ -426,6 +427,191 @@ describe('ServiceController (integration)', () => {
               resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
             },
           ],
+        })
+        .expect(404);
+      expect(body.status).toBe(404);
+    });
+  });
+
+  // ─── PATCH /services/:id/booking-policy ─────────────────────────────────────
+
+  describe('PATCH /services/:id/booking-policy', () => {
+    it('persists all fields and round-trips via GET /services/:id', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/services/${created.id}/booking-policy`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          defaultApprovalMode: 'MANUAL_APPROVAL',
+          manualHoldMinutes: 30,
+          cancellationWindowHoursOverride: 24,
+          rescheduleWindowHoursOverride: 24,
+          minBookingAdvanceHoursOverride: 2,
+          maxBookingAdvanceDaysOverride: 30,
+          recurrenceEligible: true,
+          availabilityAlertEligible: true,
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 15,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 15,
+          pricePerIncrementAmount: 20,
+          minimumChargeAmount: 40,
+        })
+        .expect(200);
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(fetched.bookingPolicy).toEqual({
+        defaultApprovalMode: 'MANUAL_APPROVAL',
+        manualHoldMinutes: 30,
+        cancellationWindowHoursOverride: 24,
+        rescheduleWindowHoursOverride: 24,
+        minBookingAdvanceHoursOverride: 2,
+        maxBookingAdvanceDaysOverride: 30,
+        recurrenceEligible: true,
+        availabilityAlertEligible: true,
+        durationPolicy: 'CUSTOMER_SELECTED',
+        durationMinMinutes: 30,
+        durationMaxMinutes: 120,
+        durationIncrementMinutes: 15,
+        pricingPolicy: 'PER_TIME_INCREMENT',
+        pricingIncrementMinutes: 15,
+        pricePerIncrementAmount: 20,
+        minimumChargeAmount: 40,
+      });
+    });
+
+    it('returns 422 when durationPolicy=CUSTOMER_SELECTED without a non-FIXED pricingPolicy (UC-055 A2)', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${created.id}/booking-policy`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ durationPolicy: 'CUSTOMER_SELECTED' })
+        .expect(422);
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 404 for a cross-tenant service id', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${entity.id}/booking-policy`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .send({ recurrenceEligible: true })
+        .expect(404);
+      expect(body.status).toBe(404);
+    });
+  });
+
+  // ─── POST /services/:id/intake-schema ───────────────────────────────────────
+
+  describe('POST /services/:id/intake-schema', () => {
+    it('publishes the first version, retrievable via GET /services/:id round-trip on requiresPickupAddress', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body: published } = await request(app.getHttpServer())
+        .post(`/services/${created.id}/intake-schema`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          questions: [
+            {
+              fieldKey: 'pickup',
+              label: 'Endereço de coleta',
+              type: 'PICKUP_ADDRESS',
+              required: true,
+            },
+          ],
+          consentText: 'Concordo com os termos',
+        })
+        .expect(201);
+      expect(published.version).toBe(1);
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+      expect(fetched.requiresPickupAddress).toBe(true);
+    });
+
+    it('publishing twice deactivates the first version; both remain queryable by version', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body: first } = await request(app.getHttpServer())
+        .post(`/services/${created.id}/intake-schema`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          questions: [
+            {
+              fieldKey: 'accessNeeds',
+              label: 'Necessidades de acesso',
+              type: 'FREE_TEXT',
+              required: false,
+            },
+          ],
+          consentText: 'v1',
+        })
+        .expect(201);
+
+      const { body: second } = await request(app.getHttpServer())
+        .post(`/services/${created.id}/intake-schema`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          questions: [
+            { fieldKey: 'other', label: 'Outra pergunta', type: 'FREE_TEXT', required: false },
+          ],
+          consentText: 'v2',
+        })
+        .expect(201);
+
+      expect(first.version).toBe(1);
+      expect(second.version).toBe(2);
+
+      const rows = await ds
+        .getRepository(ServiceBookingIntakeSchemaEntity)
+        .find({ where: { tenantId: isolatedTenant, serviceId: created.id } });
+      expect(rows).toHaveLength(2);
+      expect(rows.find((r) => r.version === 1)?.isActive).toBe(false);
+      expect(rows.find((r) => r.version === 2)?.isActive).toBe(true);
+    });
+
+    it('returns 404 for a cross-tenant service id', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .post(`/services/${entity.id}/intake-schema`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .send({
+          questions: [{ fieldKey: 'q', label: 'Q', type: 'FREE_TEXT', required: false }],
+          consentText: 'Concordo',
         })
         .expect(404);
       expect(body.status).toBe(404);

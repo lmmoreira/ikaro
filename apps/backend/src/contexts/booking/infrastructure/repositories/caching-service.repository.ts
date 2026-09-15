@@ -12,6 +12,7 @@ import { ClassResourceSlot, ClassResourceSlotProps } from '../../domain/class-re
 import { ResourceRequirement, ResourceRequirementProps } from '../../domain/resource-requirement';
 import { Service, ServiceBookingModel } from '../../domain/service.aggregate';
 import { ServiceLeg, ServiceLegReconstituteProps } from '../../domain/service-leg';
+import { ServiceBookingPolicyProps } from '../../domain/service.types';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { TypeOrmServiceRepository } from './typeorm-service.repository';
 
@@ -33,6 +34,7 @@ type ServiceCacheRecord = {
   bufferAfterMinutes: number | null;
   legs: ServiceLegReconstituteProps[] | null;
   classResourceSlots: ClassResourceSlotProps[] | null;
+  bookingPolicy: ServiceBookingPolicyProps;
 };
 
 const CACHEABLE_STATUSES: ServiceStatusFilter[] = ['ACTIVE', 'INACTIVE', 'ANY'];
@@ -40,10 +42,14 @@ const CACHEABLE_STATUSES: ServiceStatusFilter[] = ['ACTIVE', 'INACTIVE', 'ANY'];
 @Injectable()
 export class CachingServiceRepository implements IServiceRepository {
   private static readonly CACHE_TTL_MS = 60_000;
+  // v4 (M22-S02): cache records now also carry bookingPolicy (defaultApprovalMode/
+  // manualHoldMinutes/duration+pricing policy fields/etc) — bumped so no v3 entry (missing this
+  // field) is ever read back with it silently undefined during the rollout. Same discipline as
+  // the v1->v2 and v2->v3 bumps above.
   // v3 (M22-S01): cache records now carry bookingModel/resourceRequirements/bufferAfterMinutes/
   // legs/classResourceSlots — bumped so no v2 entry (missing these fields) is ever read back
   // with them silently undefined during the rollout. Same discipline as the v1->v2 bump above.
-  private static readonly CACHE_KEY_PREFIX = 'booking:service:v3:';
+  private static readonly CACHE_KEY_PREFIX = 'booking:service:v4:';
   private readonly logger = new AppLogger(CachingServiceRepository.name);
 
   constructor(
@@ -175,6 +181,7 @@ export class CachingServiceRepository implements IServiceRepository {
       classResourceSlots: record.classResourceSlots
         ? record.classResourceSlots.map((s) => ClassResourceSlot.reconstitute(s))
         : null,
+      bookingPolicy: record.bookingPolicy,
     });
   }
 
@@ -199,6 +206,7 @@ export class CachingServiceRepository implements IServiceRepository {
       classResourceSlots: service.classResourceSlots
         ? service.classResourceSlots.map((s) => s.toJSON())
         : null,
+      bookingPolicy: service.bookingPolicy,
     };
   }
 }

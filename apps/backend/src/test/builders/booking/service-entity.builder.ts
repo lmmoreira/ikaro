@@ -1,5 +1,10 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
-import { ServiceBookingModel } from '../../../contexts/booking/domain/service.aggregate';
+import {
+  ServiceApprovalMode,
+  ServiceBookingModel,
+  ServiceDurationPolicy,
+  ServicePricingPolicy,
+} from '../../../contexts/booking/domain/service.aggregate';
 import { ServiceEntity } from '../../../contexts/booking/infrastructure/entities/service.entity';
 
 export class ServiceEntityBuilder {
@@ -16,6 +21,22 @@ export class ServiceEntityBuilder {
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
   private bookingModel: ServiceBookingModel = 'APPOINTMENT';
   private bufferAfterMinutes: number | null = 60;
+  private defaultApprovalMode: ServiceApprovalMode | null = null;
+  private manualHoldMinutes: number | null = null;
+  private cancellationWindowHoursOverride: number | null = null;
+  private rescheduleWindowHoursOverride: number | null = null;
+  private minBookingAdvanceHoursOverride: number | null = null;
+  private maxBookingAdvanceDaysOverride: number | null = null;
+  private recurrenceEligible = false;
+  private availabilityAlertEligible = false;
+  private durationPolicy: ServiceDurationPolicy = 'FIXED';
+  private durationMinMinutes: number | null = null;
+  private durationMaxMinutes: number | null = null;
+  private durationIncrementMinutes: number | null = null;
+  private pricingPolicy: ServicePricingPolicy = 'FIXED';
+  private pricingIncrementMinutes: number | null = null;
+  private pricePerIncrementAmount: string | null = null;
+  private minimumChargeAmount: string | null = null;
 
   withId(id: string): this {
     this.id = id;
@@ -72,6 +93,21 @@ export class ServiceEntityBuilder {
     return this;
   }
 
+  withDefaultApprovalMode(defaultApprovalMode: ServiceApprovalMode | null): this {
+    this.defaultApprovalMode = defaultApprovalMode;
+    return this;
+  }
+
+  withDurationPolicy(durationPolicy: ServiceDurationPolicy): this {
+    this.durationPolicy = durationPolicy;
+    return this;
+  }
+
+  withPricingPolicy(pricingPolicy: ServicePricingPolicy): this {
+    this.pricingPolicy = pricingPolicy;
+    return this;
+  }
+
   build(): ServiceEntity {
     const e = new ServiceEntity();
     e.id = this.id;
@@ -87,6 +123,22 @@ export class ServiceEntityBuilder {
     e.updatedAt = this.updatedAt;
     e.bookingModel = this.bookingModel;
     e.bufferAfterMinutes = this.bufferAfterMinutes;
+    e.defaultApprovalMode = this.defaultApprovalMode;
+    e.manualHoldMinutes = this.manualHoldMinutes;
+    e.cancellationWindowHoursOverride = this.cancellationWindowHoursOverride;
+    e.rescheduleWindowHoursOverride = this.rescheduleWindowHoursOverride;
+    e.minBookingAdvanceHoursOverride = this.minBookingAdvanceHoursOverride;
+    e.maxBookingAdvanceDaysOverride = this.maxBookingAdvanceDaysOverride;
+    e.recurrenceEligible = this.recurrenceEligible;
+    e.availabilityAlertEligible = this.availabilityAlertEligible;
+    e.durationPolicy = this.durationPolicy;
+    e.durationMinMinutes = this.durationMinMinutes;
+    e.durationMaxMinutes = this.durationMaxMinutes;
+    e.durationIncrementMinutes = this.durationIncrementMinutes;
+    e.pricingPolicy = this.pricingPolicy;
+    e.pricingIncrementMinutes = this.pricingIncrementMinutes;
+    e.pricePerIncrementAmount = this.pricePerIncrementAmount;
+    e.minimumChargeAmount = this.minimumChargeAmount;
     return e;
   }
 }

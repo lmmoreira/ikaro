@@ -517,6 +517,8 @@
         "ServiceLegResourceRequirementEntity",
         "ServiceLegResourceRequirementPoolEntity",
         "ServiceClassResourcePoolEntity",
+        "ServiceBookingIntakeSchemaEntity",
+        "BookingAttendeeEntity",
         "ResourceEntity",
         "ScheduleClosureEntity",
         "ScheduleOpeningEntity",
@@ -537,7 +539,7 @@
         "LeadFormSubmissionEntity",
         "LeadFormAnswerEntity"
       ],
-      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata."
+      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables."
     },
     {
       "file": "apps/backend/src/test/utils/booking-integration-app.ts",
@@ -553,6 +555,8 @@
         "ServiceLegResourceRequirementEntity",
         "ServiceLegResourceRequirementPoolEntity",
         "ServiceClassResourcePoolEntity",
+        "ServiceBookingIntakeSchemaEntity",
+        "BookingAttendeeEntity",
         "ScheduleClosureEntity",
         "ScheduleOpeningEntity",
         "BookingEntity",
@@ -561,7 +565,7 @@
         "StaffEntity",
         "InboxRecordEntity"
       ],
-      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer/staff read dependencies it needs. StaffEntity was added in M21-S01 for the StaffDeactivatedHandler cross-context integration test (UC-048), which needs a real Staff row to deactivate via DeactivateStaffUseCase. The M22-S01 Service child-table entities (resource requirements, legs, class resource pool) were added so ServiceController's integration spec can exercise PATCH .../resource-requirements and PUT .../legs against real tables."
+      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer/staff read dependencies it needs. StaffEntity was added in M21-S01 for the StaffDeactivatedHandler cross-context integration test (UC-048), which needs a real Staff row to deactivate via DeactivateStaffUseCase. The M22-S01 Service child-table entities (resource requirements, legs, class resource pool) were added so ServiceController's integration spec can exercise PATCH .../resource-requirements and PUT .../legs against real tables. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added so the same spec can exercise PATCH .../booking-policy and POST .../intake-schema against real tables."
     },
     {
       "file": "apps/backend/src/test/utils/customer-integration-app.ts",

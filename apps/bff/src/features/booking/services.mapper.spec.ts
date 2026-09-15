@@ -1,6 +1,25 @@
 import { ServiceDetail } from './services.types';
 import { toStaffServiceListResponse, toStaffServiceResponse } from './services.mapper';
 
+const bookingPolicy = {
+  defaultApprovalMode: null,
+  manualHoldMinutes: null,
+  cancellationWindowHoursOverride: null,
+  rescheduleWindowHoursOverride: null,
+  minBookingAdvanceHoursOverride: null,
+  maxBookingAdvanceDaysOverride: null,
+  recurrenceEligible: false,
+  availabilityAlertEligible: false,
+  durationPolicy: 'FIXED' as const,
+  durationMinMinutes: null,
+  durationMaxMinutes: null,
+  durationIncrementMinutes: null,
+  pricingPolicy: 'FIXED' as const,
+  pricingIncrementMinutes: null,
+  pricePerIncrementAmount: null,
+  minimumChargeAmount: null,
+};
+
 const serviceDetail: ServiceDetail = {
   id: '10000000-0000-4000-8000-000000000001',
   name: 'Lavagem Completa',
@@ -16,6 +35,7 @@ const serviceDetail: ServiceDetail = {
   bufferAfterMinutes: 60,
   legs: null,
   classResourceSlots: null,
+  bookingPolicy,
 };
 
 describe('toStaffServiceResponse()', () => {
@@ -37,6 +57,7 @@ describe('toStaffServiceResponse()', () => {
       bufferAfterMinutes: 60,
       legs: null,
       classResourceSlots: null,
+      bookingPolicy,
     });
   });
 

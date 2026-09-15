@@ -36,6 +36,24 @@ const service: StaffServiceResponse = {
   bufferAfterMinutes: null,
   legs: null,
   classResourceSlots: null,
+  bookingPolicy: {
+    defaultApprovalMode: null,
+    manualHoldMinutes: null,
+    cancellationWindowHoursOverride: null,
+    rescheduleWindowHoursOverride: null,
+    minBookingAdvanceHoursOverride: null,
+    maxBookingAdvanceDaysOverride: null,
+    recurrenceEligible: false,
+    availabilityAlertEligible: false,
+    durationPolicy: 'FIXED',
+    durationMinMinutes: null,
+    durationMaxMinutes: null,
+    durationIncrementMinutes: null,
+    pricingPolicy: 'FIXED',
+    pricingIncrementMinutes: null,
+    pricePerIncrementAmount: null,
+    minimumChargeAmount: null,
+  },
 };
 
 describe('ServiceDeactivatePage', () => {

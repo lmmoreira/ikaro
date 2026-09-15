@@ -1,6 +1,7 @@
 import { GetBookingByIdUseCase } from '../../../booking/application/use-cases/get-booking-by-id.use-case';
 import { GetServicesUseCase } from '../../../booking/application/use-cases/get-services.use-case';
 import { BookingNotFoundError } from '../../../booking/domain/errors/booking-domain.error';
+import { defaultServiceBookingPolicyProps } from '../../../booking/domain/service.types';
 import { LoyaltyBookingAdapter } from './loyalty-booking.adapter';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -40,6 +41,7 @@ describe('LoyaltyBookingAdapter', () => {
           bufferAfterMinutes: 60,
           legs: null,
           classResourceSlots: null,
+          bookingPolicy: defaultServiceBookingPolicyProps(),
         },
       ],
     });

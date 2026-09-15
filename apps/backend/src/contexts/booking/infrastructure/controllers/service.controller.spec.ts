@@ -3,6 +3,7 @@ import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { InMemoryServiceIntakeSchemaRepository } from '../../../../test/repositories/booking/in-memory-service-intake-schema.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
@@ -15,6 +16,8 @@ import { GetServiceByIdUseCase } from '../../application/use-cases/get-service-b
 import { GetServicesUseCase } from '../../application/use-cases/get-services.use-case';
 import { UpdateServiceLegsUseCase } from '../../application/use-cases/update-service-legs.use-case';
 import { UpdateServiceResourceRequirementsUseCase } from '../../application/use-cases/update-service-resource-requirements.use-case';
+import { UpdateServiceBookingPolicyUseCase } from '../../application/use-cases/update-service-booking-policy.use-case';
+import { PublishServiceIntakeSchemaUseCase } from '../../application/use-cases/publish-service-intake-schema.use-case';
 import { UpdateServiceUseCase } from '../../application/use-cases/update-service.use-case';
 import { ServiceController } from './service.controller';
 
@@ -32,10 +35,12 @@ describe('ServiceController', () => {
   let controller: ServiceController;
   let repo: InMemoryServiceRepository;
   let resourceRepo: InMemoryResourceRepository;
+  let intakeSchemaRepo: InMemoryServiceIntakeSchemaRepository;
 
   beforeEach(async () => {
     repo = new InMemoryServiceRepository();
     resourceRepo = new InMemoryResourceRepository();
+    intakeSchemaRepo = new InMemoryServiceIntakeSchemaRepository();
     await resourceRepo.save(
       new ResourceBuilder()
         .withTenantId(TENANT_A)
@@ -63,6 +68,8 @@ describe('ServiceController', () => {
       new DeactivateServiceUseCase(repo, bookingPlatform, txManager),
       new UpdateServiceResourceRequirementsUseCase(repo, resourceRepo, bookingPlatform, txManager),
       new UpdateServiceLegsUseCase(repo, resourceRepo, bookingPlatform, txManager),
+      new UpdateServiceBookingPolicyUseCase(repo, bookingPlatform, txManager),
+      new PublishServiceIntakeSchemaUseCase(repo, intakeSchemaRepo, bookingPlatform, txManager),
     );
   });
 
@@ -239,6 +246,97 @@ describe('ServiceController', () => {
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+  });
+
+  describe('updateBookingPolicy()', () => {
+    it('sets booking policy fields', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.updateBookingPolicy(service.id, {
+        defaultApprovalMode: 'MANUAL_APPROVAL',
+        recurrenceEligible: true,
+      });
+
+      expect(result.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+      expect(result.bookingPolicy.recurrenceEligible).toBe(true);
+    });
+
+    it('maps ServiceDurationPolicyRequiresPricingError to 422 (UC-055 A2)', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const err = await controller
+        .updateBookingPolicy(service.id, { durationPolicy: 'CUSTOMER_SELECTED' })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .updateBookingPolicy('non-existent-id', { recurrenceEligible: true })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('publishIntakeSchema()', () => {
+    const validQuestions = [
+      {
+        fieldKey: 'accessNeeds',
+        label: 'Necessidades de acesso',
+        type: 'FREE_TEXT' as const,
+        required: false,
+      },
+    ];
+
+    it('publishes the first version, starting at 1', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.publishIntakeSchema(service.id, {
+        questions: validQuestions,
+        consentText: 'Concordo com os termos',
+      });
+
+      expect(result.version).toBe(1);
+    });
+
+    it('sets requiresPickupAddress when a PICKUP_ADDRESS question is included (UC-054 A2)', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withRequiresPickupAddress(false)
+        .build();
+      await repo.save(service);
+
+      await controller.publishIntakeSchema(service.id, {
+        questions: [
+          {
+            fieldKey: 'pickup',
+            label: 'Endereço de coleta',
+            type: 'PICKUP_ADDRESS',
+            required: true,
+          },
+        ],
+        consentText: 'Concordo',
+      });
+
+      const updated = await repo.findById(service.id, TENANT_A);
+      expect(updated?.requiresPickupAddress).toBe(true);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .publishIntakeSchema('non-existent-id', {
+          questions: validQuestions,
+          consentText: 'Concordo',
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });
 

@@ -1,4 +1,3 @@
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { Money } from '../../../../shared/value-objects/money';
 import { ClassResourceSlot } from '../../domain/class-resource-slot';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -16,6 +15,7 @@ import {
   ServiceResourceRequirementPoolEntity,
 } from '../entities/service-resource-requirement.entity';
 import { ServiceEntity } from '../entities/service.entity';
+import { applyBookingPolicy, toBookingPolicy } from './typeorm-service-booking-policy.mapper';
 
 export interface ServiceChildRows {
   requirements: ServiceResourceRequirementEntity[];
@@ -65,6 +65,7 @@ export function toDomain(
     bufferAfterMinutes: entity.bufferAfterMinutes,
     legs,
     classResourceSlots,
+    bookingPolicy: toBookingPolicy(entity),
   });
 }
 
@@ -166,111 +167,10 @@ export function toEntity(service: Service): ServiceEntity {
   entity.updatedAt = service.updatedAt;
   entity.bookingModel = service.bookingModel;
   entity.bufferAfterMinutes = service.bufferAfterMinutes;
+  applyBookingPolicy(entity, service.bookingPolicy);
   return entity;
 }
 
-export interface ServiceChildEntities {
-  requirements: ServiceResourceRequirementEntity[];
-  requirementPool: ServiceResourceRequirementPoolEntity[];
-  legs: ServiceLegEntity[];
-  legRequirements: ServiceLegResourceRequirementEntity[];
-  legRequirementPool: ServiceLegResourceRequirementPoolEntity[];
-  classResourcePool: ServiceClassResourcePoolEntity[];
-}
-
-export function toChildEntities(service: Service): ServiceChildEntities {
-  const result: ServiceChildEntities = emptyChildRows();
-  addResourceRequirementRows(result, service);
-  addLegRows(result, service);
-  addClassResourcePoolRows(result, service);
-  return result;
-}
-
-function addResourceRequirementRows(result: ServiceChildEntities, service: Service): void {
-  for (const requirement of service.resourceRequirements) {
-    const row = toRequirementRow(ServiceResourceRequirementEntity, service.tenantId, requirement);
-    row.serviceId = service.id;
-    result.requirements.push(row);
-    result.requirementPool.push(
-      ...toPoolRows(ServiceResourceRequirementPoolEntity, service.tenantId, row.id, requirement),
-    );
-  }
-}
-
-function addLegRows(result: ServiceChildEntities, service: Service): void {
-  for (const leg of service.legs ?? []) {
-    const legRow = new ServiceLegEntity();
-    legRow.id = uuidv7();
-    legRow.tenantId = service.tenantId;
-    legRow.serviceId = service.id;
-    legRow.legIndex = leg.legIndex;
-    legRow.name = leg.name;
-    legRow.durationMinutes = leg.durationMinutes;
-    legRow.transitionGapAfterMinutes = leg.transitionGapAfterMinutes;
-    result.legs.push(legRow);
-
-    for (const requirement of leg.resourceRequirements) {
-      const reqRow = toRequirementRow(
-        ServiceLegResourceRequirementEntity,
-        service.tenantId,
-        requirement,
-      );
-      reqRow.legId = legRow.id;
-      result.legRequirements.push(reqRow);
-      result.legRequirementPool.push(
-        ...toPoolRows(
-          ServiceLegResourceRequirementPoolEntity,
-          service.tenantId,
-          reqRow.id,
-          requirement,
-        ),
-      );
-    }
-  }
-}
-
-function addClassResourcePoolRows(result: ServiceChildEntities, service: Service): void {
-  for (const slot of service.classResourceSlots ?? []) {
-    for (const resourceId of slot.eligibleResourceIds) {
-      const row = new ServiceClassResourcePoolEntity();
-      row.tenantId = service.tenantId;
-      row.serviceId = service.id;
-      row.resourceType = slot.type;
-      row.resourceId = resourceId;
-      result.classResourcePool.push(row);
-    }
-  }
-}
-
-function toRequirementRow<
-  T extends {
-    id: string;
-    tenantId: string;
-    resourceType: ResourceType;
-    selectionMode: ResourceRequirement['selectionMode'];
-    requiredQuantity: number;
-  },
->(EntityClass: new () => T, tenantId: string, requirement: ResourceRequirement): T {
-  const row = new EntityClass();
-  row.id = uuidv7();
-  row.tenantId = tenantId;
-  row.resourceType = requirement.type;
-  row.selectionMode = requirement.selectionMode;
-  row.requiredQuantity = requirement.requiredQuantity;
-  return row;
-}
-
-function toPoolRows<T extends { tenantId: string; requirementId: string; resourceId: string }>(
-  EntityClass: new () => T,
-  tenantId: string,
-  requirementId: string,
-  requirement: ResourceRequirement,
-): T[] {
-  return (requirement.resourcePoolIds ?? []).map((resourceId) => {
-    const row = new EntityClass();
-    row.tenantId = tenantId;
-    row.requirementId = requirementId;
-    row.resourceId = resourceId;
-    return row;
-  });
-}
+// toChildEntities()/ServiceChildEntities and their helpers live in
+// typeorm-service-child-entities.mapper.ts (split out to stay under docs/CODE_STANDARDS.md's
+// file-length limit — that file imports emptyChildRows/ServiceChildRows from here).

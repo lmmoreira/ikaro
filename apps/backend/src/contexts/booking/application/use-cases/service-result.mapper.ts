@@ -2,6 +2,7 @@ import { ClassResourceSlot } from '../../domain/class-resource-slot';
 import { ResourceRequirementProps } from '../../domain/resource-requirement';
 import { Service, ServiceBookingModel } from '../../domain/service.aggregate';
 import { ServiceLegReconstituteProps } from '../../domain/service-leg';
+import { ServiceBookingPolicyProps } from '../../domain/service.types';
 
 // Shared by CreateServiceUseCase and UpdateServiceUseCase — both return the same fully-resolved
 // Service shape (docs/CODE_STANDARDS.md's "extract once a second real caller exists").
@@ -20,6 +21,7 @@ export interface ServiceUseCaseResult {
   bufferAfterMinutes: number | null;
   legs: ServiceLegReconstituteProps[] | null;
   classResourceSlots: ReturnType<ClassResourceSlot['toJSON']>[] | null;
+  bookingPolicy: ServiceBookingPolicyProps;
 }
 
 export function toServiceResult(service: Service, locale: string): ServiceUseCaseResult {
@@ -44,5 +46,6 @@ export function toServiceResult(service: Service, locale: string): ServiceUseCas
     classResourceSlots: service.classResourceSlots
       ? service.classResourceSlots.map((s) => s.toJSON())
       : null,
+    bookingPolicy: service.bookingPolicy,
   };
 }

@@ -4,6 +4,7 @@ import { Money } from '../../../shared/value-objects/money';
 import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text-normalization';
 import { ClassResourceSlot } from './class-resource-slot';
 import {
+  BookingServiceBookingConfigModelMismatchError,
   BookingServiceBookingModelImmutableError,
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
@@ -11,6 +12,7 @@ import {
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
   ServiceDurationInvalidError,
+  ServiceDurationPolicyRequiresPricingError,
   ServiceLegInvalidError,
   ServiceLoyaltyPointsInvalidError,
   ServiceNameRequiredError,
@@ -26,10 +28,27 @@ import {
 import { ResourceRequirement } from './resource-requirement';
 import { ServiceLeg } from './service-leg';
 import { computeLegsTotalSpanMinutes } from './service-leg-span';
-import { CreateServiceProps, ServiceBookingModel, ServiceProps } from './service.types';
+import {
+  CreateServiceProps,
+  defaultServiceBookingPolicyProps,
+  ServiceApprovalMode,
+  ServiceBookingModel,
+  ServiceBookingPolicyProps,
+  ServiceDurationPolicy,
+  ServicePricingPolicy,
+  ServiceProps,
+} from './service.types';
 
 // Re-exported for the many existing external call sites that import these from this file.
-export type { CreateServiceProps, ServiceBookingModel, ServiceProps };
+export type {
+  CreateServiceProps,
+  ServiceApprovalMode,
+  ServiceBookingModel,
+  ServiceBookingPolicyProps,
+  ServiceDurationPolicy,
+  ServicePricingPolicy,
+  ServiceProps,
+};
 
 export class Service extends AggregateRoot {
   private readonly props: ServiceProps;
@@ -98,6 +117,9 @@ export class Service extends AggregateRoot {
   get classResourceSlots(): ClassResourceSlot[] | null {
     return this.props.classResourceSlots ? [...this.props.classResourceSlots] : null;
   }
+  get bookingPolicy(): ServiceBookingPolicyProps {
+    return { ...this.props.bookingPolicy };
+  }
 
   private static validateFields(
     name: string,
@@ -149,6 +171,7 @@ export class Service extends AggregateRoot {
       bufferAfterMinutes: isSession ? null : tenantServiceBufferMinutes,
       legs: null,
       classResourceSlots: isSession ? classResourceSlots : null,
+      bookingPolicy: defaultServiceBookingPolicyProps(),
     };
   }
 
@@ -247,6 +270,30 @@ export class Service extends AggregateRoot {
     if (this.props.legs !== null) throw new BookingServiceHasLegsError(this.props.id);
     if (bufferAfterMinutes < 0) throw new ServiceBufferAfterMinutesInvalidError();
     this.props.bufferAfterMinutes = bufferAfterMinutes;
+    this.props.updatedAt = new Date();
+  }
+
+  // UC-055. Takes a fully-resolved policy object (the use case merges input-vs-current per field
+  // before calling this, same separation as update()'s resolved-args pattern above) — this method
+  // only validates the one cross-field invariant a resolved snapshot can express structurally.
+  setBookingPolicy(policy: ServiceBookingPolicyProps): void {
+    if (this.props.bookingModel !== 'APPOINTMENT') {
+      throw new BookingServiceBookingConfigModelMismatchError(this.props.id);
+    }
+    if (policy.durationPolicy === 'CUSTOMER_SELECTED' && policy.pricingPolicy === 'FIXED') {
+      throw new ServiceDurationPolicyRequiresPricingError();
+    }
+    this.props.bookingPolicy = { ...policy };
+    this.props.updatedAt = new Date();
+  }
+
+  // UC-054 A2 — a one-way flip: publishing a PICKUP_ADDRESS-typed intake question sets this, but
+  // no flow this milestone ever clears it back (the legacy boolean stays the single source of
+  // truth for bookings.pickup_address; docs/13-DATABASE_SCHEMA.md). Compare-before-validate
+  // (CLAUDE.md §8): already-true is a no-op, no updatedAt bump.
+  requirePickupAddress(): void {
+    if (this.props.requiresPickupAddress) return;
+    this.props.requiresPickupAddress = true;
     this.props.updatedAt = new Date();
   }
 

@@ -15,8 +15,10 @@ import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
+  PublishServiceIntakeSchemaResult,
   ServiceDetail,
   ServiceListResponse,
+  UpdateServiceBookingPolicyResult,
   UpdateServiceLegsResult,
   UpdateServiceResourceRequirementsResult,
 } from './services.types';
@@ -24,8 +26,12 @@ import { toStaffServiceListResponse, toStaffServiceResponse } from './services.m
 import {
   CreateServiceBody,
   CreateServiceBodySchema,
+  PublishServiceIntakeSchemaBody,
+  PublishServiceIntakeSchemaBodySchema,
   UpdateServiceBody,
   UpdateServiceBodySchema,
+  UpdateServiceBookingPolicyBody,
+  UpdateServiceBookingPolicyBodySchema,
   UpdateServiceLegsBody,
   UpdateServiceLegsBodySchema,
   UpdateServiceResourceRequirementsBody,
@@ -97,6 +103,34 @@ export class ServicesController {
     @Body(new ZodValidationPipe(UpdateServiceLegsBodySchema)) body: UpdateServiceLegsBody,
   ): Promise<UpdateServiceLegsResult> {
     return this.backendHttp.put<UpdateServiceLegsResult>(`/services/${id}/legs`, body);
+  }
+
+  @Patch(':id/booking-policy')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  async updateBookingPolicy(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceBookingPolicyBodySchema))
+    body: UpdateServiceBookingPolicyBody,
+  ): Promise<UpdateServiceBookingPolicyResult> {
+    return this.backendHttp.patch<UpdateServiceBookingPolicyResult>(
+      `/services/${id}/booking-policy`,
+      body,
+    );
+  }
+
+  @Post(':id/intake-schema')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles('MANAGER', 'STAFF')
+  async publishIntakeSchema(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(PublishServiceIntakeSchemaBodySchema))
+    body: PublishServiceIntakeSchemaBody,
+  ): Promise<PublishServiceIntakeSchemaResult> {
+    return this.backendHttp.post<PublishServiceIntakeSchemaResult>(
+      `/services/${id}/intake-schema`,
+      body,
+    );
   }
 
   @Patch(':id/activate')

@@ -127,3 +127,80 @@ export const UpdateServiceResourceRequirementsSchema = z.object({
 export const UpdateServiceLegsSchema = z.object({
   legs: z.array(ServiceLegSchema).max(20),
 });
+
+// M22-S02 — shared by the backend (update-service-booking-policy.dto.ts,
+// publish-service-intake-schema.dto.ts) and BFF (services.schemas.ts) request schemas for the
+// Service booking-policy/intake-schema endpoints (same direct-reuse pattern as
+// UpdateServiceResourceRequirementsSchema above).
+export const ServiceApprovalModeSchema = z.enum(['AUTO_CONFIRM', 'MANUAL_APPROVAL']);
+export const ServiceDurationPolicySchema = z.enum(['FIXED', 'CUSTOMER_SELECTED']);
+export const ServicePricingPolicySchema = z.enum(['FIXED', 'PER_TIME_INCREMENT']);
+
+// Every override field is independently nullable+optional: omitted = leave unchanged, null =
+// explicitly clear back to the inherited tenant/platform default (mirrors UpdateResourceSchema's
+// refId precedent above). Bounds mirror each field's tenant-setting counterpart
+// (docs/21-TENANTS_SETTINGS_SCHEMA.md) where one exists.
+// durationMaxMinutes >= durationMinMinutes is checked here (a format/relational sanity check,
+// same class as uniqueUuidArray's refine above) — the durationPolicy/pricingPolicy pairing
+// invariant (UC-055 A2) is deliberately NOT checked here: it's a domain-level 422
+// (ServiceDurationPolicyRequiresPricingError), same reasoning as UpdateServiceLegsSchema's
+// missing .min(2) above.
+export const UpdateServiceBookingPolicySchema = z
+  .object({
+    defaultApprovalMode: ServiceApprovalModeSchema.nullable().optional(),
+    manualHoldMinutes: z.number().int().positive().nullable().optional(),
+    cancellationWindowHoursOverride: z.number().int().min(0).max(720).nullable().optional(),
+    rescheduleWindowHoursOverride: z.number().int().min(0).max(720).nullable().optional(),
+    minBookingAdvanceHoursOverride: z.number().int().min(0).max(8760).nullable().optional(),
+    maxBookingAdvanceDaysOverride: z.number().int().min(1).max(365).nullable().optional(),
+    recurrenceEligible: z.boolean().optional(),
+    availabilityAlertEligible: z.boolean().optional(),
+    durationPolicy: ServiceDurationPolicySchema.optional(),
+    durationMinMinutes: z.number().int().positive().nullable().optional(),
+    durationMaxMinutes: z.number().int().positive().nullable().optional(),
+    durationIncrementMinutes: z.number().int().positive().nullable().optional(),
+    pricingPolicy: ServicePricingPolicySchema.optional(),
+    pricingIncrementMinutes: z.number().int().positive().nullable().optional(),
+    pricePerIncrementAmount: z.number().positive().nullable().optional(),
+    minimumChargeAmount: z.number().positive().nullable().optional(),
+  })
+  .refine(
+    (data) =>
+      data.durationMinMinutes == null ||
+      data.durationMaxMinutes == null ||
+      data.durationMaxMinutes >= data.durationMinMinutes,
+    { error: 'durationMaxMinutes must be >= durationMinMinutes', path: ['durationMaxMinutes'] },
+  )
+  .default({});
+
+// UC-054's typed markers — 'PICKUP_ADDRESS' is the only one defined so far (projects into the
+// pre-existing services.requires_pickup_address / bookings.pickup_address columns); the generic
+// shapes cover everything else a booking-intake question needs today.
+export const ServiceIntakeQuestionTypeSchema = z.enum([
+  'FREE_TEXT',
+  'NAMED_ATTENDEES',
+  'PICKUP_ADDRESS',
+]);
+
+export const ServiceIntakeQuestionSchema = z.object({
+  fieldKey: z.string().min(1).max(100),
+  label: z.string().min(1).max(500),
+  type: ServiceIntakeQuestionTypeSchema,
+  required: z.boolean(),
+});
+
+// No upper bound precedent exists for this shape (JSONB, not a normalized child table like
+// resourceRequirements/legs) — 50 is a generous business-context ceiling, same rationale as
+// uniqueUuidArray's own bound above.
+export const PublishServiceIntakeSchemaSchema = z.object({
+  questions: z
+    .array(ServiceIntakeQuestionSchema)
+    .min(1)
+    .max(50)
+    .refine((questions) => new Set(questions.map((q) => q.fieldKey)).size === questions.length, {
+      error: 'fieldKey must be unique across questions',
+    }),
+  consentText: z.string().min(1).max(5000),
+  requiresNamedAttendees: z.boolean().optional(),
+  participantCountRequired: z.boolean().optional(),
+});

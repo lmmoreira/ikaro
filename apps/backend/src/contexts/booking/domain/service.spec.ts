@@ -3,6 +3,7 @@ import { ServiceBuilder } from '../../../test/builders/booking/index';
 import { ClassResourceSlot } from './class-resource-slot';
 import {
   BookingDomainError,
+  BookingServiceBookingConfigModelMismatchError,
   BookingServiceBookingModelImmutableError,
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
@@ -14,8 +15,10 @@ import {
   ResourceRequirementInvalidError,
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
+  ServiceDurationPolicyRequiresPricingError,
   ServiceLegInvalidError,
 } from './errors/booking-domain.error';
+import { defaultServiceBookingPolicyProps, ServiceBookingPolicyProps } from './service.types';
 import { ActiveResourceIdsByType } from './resource-requirement-availability';
 import { ResourceRequirement } from './resource-requirement';
 import { ResourceType } from './resource.types';
@@ -346,6 +349,7 @@ describe('Service', () => {
         bufferAfterMinutes: 60,
         legs: null,
         classResourceSlots: null,
+        bookingPolicy: defaultServiceBookingPolicyProps(),
       });
       expect(service.id).toBe('some-id');
       expect(service.isActive).toBe(false);
@@ -636,6 +640,72 @@ describe('Service', () => {
       const service = new ServiceBuilder().withTenantId(TENANT).build();
       service.setBufferAfterMinutes(0);
       expect(service.bufferAfterMinutes).toBe(0);
+    });
+  });
+
+  describe('setBookingPolicy()', () => {
+    function policy(overrides: Partial<ServiceBookingPolicyProps> = {}): ServiceBookingPolicyProps {
+      return { ...defaultServiceBookingPolicyProps(), ...overrides };
+    }
+
+    it('persists all policy fields', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          defaultApprovalMode: 'MANUAL_APPROVAL',
+          manualHoldMinutes: 30,
+          cancellationWindowHoursOverride: 24,
+          recurrenceEligible: true,
+          availabilityAlertEligible: true,
+        }),
+      );
+      expect(service.bookingPolicy).toEqual(
+        policy({
+          defaultApprovalMode: 'MANUAL_APPROVAL',
+          manualHoldMinutes: 30,
+          cancellationWindowHoursOverride: 24,
+          recurrenceEligible: true,
+          availabilityAlertEligible: true,
+        }),
+      );
+    });
+
+    it('rejects durationPolicy=CUSTOMER_SELECTED with pricingPolicy=FIXED (UC-055 A2)', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({ durationPolicy: 'CUSTOMER_SELECTED', pricingPolicy: 'FIXED' }),
+        ),
+      ).toThrow(ServiceDurationPolicyRequiresPricingError);
+    });
+
+    it('accepts durationPolicy=CUSTOMER_SELECTED with a non-FIXED pricingPolicy', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 15,
+          pricingIncrementMinutes: 15,
+          pricePerIncrementAmount: 10,
+        }),
+      );
+      expect(service.bookingPolicy.durationPolicy).toBe('CUSTOMER_SELECTED');
+    });
+
+    it('rejects on a SESSION service (UC-054/055 shared precondition)', () => {
+      const sessionService = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      expect(() => sessionService.setBookingPolicy(policy())).toThrow(
+        BookingServiceBookingConfigModelMismatchError,
+      );
     });
   });
 

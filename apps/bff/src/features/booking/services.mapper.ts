@@ -57,6 +57,7 @@ export function toStaffServiceResponse(service: ServiceDetail): StaffServiceResp
     classResourceSlots: service.classResourceSlots
       ? service.classResourceSlots.map(toClassResourceSlotItem)
       : null,
+    bookingPolicy: service.bookingPolicy,
   };
 }
 
