@@ -11,7 +11,7 @@ import {
   IServiceRepository,
   ServiceFilters,
 } from '../../application/ports/service-repository.port';
-import { Service } from '../../domain/service.aggregate';
+import { Service, ServiceBookingModel } from '../../domain/service.aggregate';
 import { ServiceClassResourcePoolEntity } from '../entities/service-class-resource-pool.entity';
 import {
   ServiceLegEntity,
@@ -23,13 +23,8 @@ import {
   ServiceResourceRequirementPoolEntity,
 } from '../entities/service-resource-requirement.entity';
 import { ServiceEntity } from '../entities/service.entity';
-import {
-  emptyChildRows,
-  ServiceChildRows,
-  toChildEntities,
-  toDomain,
-  toEntity,
-} from './typeorm-service.mapper';
+import { loadServiceChildren } from './typeorm-service-child-loader';
+import { emptyChildRows, toChildEntities, toDomain, toEntity } from './typeorm-service.mapper';
 
 @Injectable()
 export class TypeOrmServiceRepository implements IServiceRepository {
@@ -43,7 +38,7 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     if (!entity) return null;
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
-    const children = await this.loadChildren(this.repo.manager, tenantId, [id]);
+    const children = await loadServiceChildren(this.repo.manager, tenantId, [id]);
     return toDomain(entity, currency, children.get(id) ?? emptyChildRows());
   }
 
@@ -58,7 +53,7 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     });
     if (!entity) return null;
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
-    const children = await this.loadChildren(manager, tenantId, [id]);
+    const children = await loadServiceChildren(manager, tenantId, [id]);
     return toDomain(entity, currency, children.get(id) ?? emptyChildRows());
   }
 
@@ -66,6 +61,23 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     if (ids.length === 0) return [];
     const entities = await this.repo.find({ where: ids.map((id) => ({ id, tenantId })) });
     return this.hydrateAll(entities, tenantId);
+  }
+
+  async lockBookingModels(
+    ids: string[],
+    tenantId: string,
+  ): Promise<Map<string, ServiceBookingModel>> {
+    if (ids.length === 0) return new Map();
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('lockBookingModels must be called inside an active transaction');
+    }
+    const rows = await manager.find(ServiceEntity, {
+      where: { id: In(ids), tenantId },
+      select: { id: true, bookingModel: true },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return new Map(rows.map((row) => [row.id, row.bookingModel]));
   }
 
   async findAllByTenant(tenantId: string, filters: ServiceFilters = {}): Promise<Service[]> {
@@ -101,7 +113,7 @@ export class TypeOrmServiceRepository implements IServiceRepository {
   private async hydrateAll(entities: ServiceEntity[], tenantId: string): Promise<Service[]> {
     if (!entities.length) return [];
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
-    const children = await this.loadChildren(
+    const children = await loadServiceChildren(
       this.repo.manager,
       tenantId,
       entities.map((e) => e.id),
@@ -150,113 +162,4 @@ export class TypeOrmServiceRepository implements IServiceRepository {
       await manager.save(ServiceClassResourcePoolEntity, children.classResourcePool);
     }
   }
-
-  private async loadChildren(
-    manager: EntityManager,
-    tenantId: string,
-    serviceIds: string[],
-  ): Promise<Map<string, ServiceChildRows>> {
-    const result = new Map<string, ServiceChildRows>(
-      serviceIds.map((id) => [id, emptyChildRows()]),
-    );
-    if (!serviceIds.length) return result;
-
-    const raw = await this.fetchRawChildRows(manager, tenantId, serviceIds);
-    this.groupChildRowsByService(result, raw);
-    return result;
-  }
-
-  private async fetchRawChildRows(
-    manager: EntityManager,
-    tenantId: string,
-    serviceIds: string[],
-  ): Promise<RawServiceChildRows> {
-    const [requirements, legs, classResourcePool] = await Promise.all([
-      manager.find(ServiceResourceRequirementEntity, {
-        where: { tenantId, serviceId: In(serviceIds) },
-      }),
-      manager.find(ServiceLegEntity, { where: { tenantId, serviceId: In(serviceIds) } }),
-      manager.find(ServiceClassResourcePoolEntity, {
-        where: { tenantId, serviceId: In(serviceIds) },
-      }),
-    ]);
-    const { requirementPool, legRequirements, legRequirementPool } =
-      await this.fetchNestedChildRows(manager, tenantId, requirements, legs);
-
-    return {
-      requirements,
-      legs,
-      classResourcePool,
-      requirementPool,
-      legRequirements,
-      legRequirementPool,
-    };
-  }
-
-  private async fetchNestedChildRows(
-    manager: EntityManager,
-    tenantId: string,
-    requirements: ServiceResourceRequirementEntity[],
-    legs: ServiceLegEntity[],
-  ): Promise<
-    Pick<RawServiceChildRows, 'requirementPool' | 'legRequirements' | 'legRequirementPool'>
-  > {
-    const requirementIds = requirements.map((r) => r.id);
-    const legIds = legs.map((l) => l.id);
-    const [requirementPool, legRequirements] = await Promise.all([
-      requirementIds.length
-        ? manager.find(ServiceResourceRequirementPoolEntity, {
-            where: { tenantId, requirementId: In(requirementIds) },
-          })
-        : Promise.resolve([]),
-      legIds.length
-        ? manager.find(ServiceLegResourceRequirementEntity, {
-            where: { tenantId, legId: In(legIds) },
-          })
-        : Promise.resolve([]),
-    ]);
-    const legRequirementIds = legRequirements.map((r) => r.id);
-    const legRequirementPool = legRequirementIds.length
-      ? await manager.find(ServiceLegResourceRequirementPoolEntity, {
-          where: { tenantId, requirementId: In(legRequirementIds) },
-        })
-      : [];
-
-    return { requirementPool, legRequirements, legRequirementPool };
-  }
-
-  private groupChildRowsByService(
-    result: Map<string, ServiceChildRows>,
-    raw: RawServiceChildRows,
-  ): void {
-    const requirementToService = new Map(raw.requirements.map((r) => [r.id, r.serviceId]));
-    const legToService = new Map(raw.legs.map((l) => [l.id, l.serviceId]));
-    const legRequirementToLeg = new Map(raw.legRequirements.map((r) => [r.id, r.legId]));
-
-    for (const row of raw.requirements) result.get(row.serviceId)?.requirements.push(row);
-    for (const row of raw.legs) result.get(row.serviceId)?.legs.push(row);
-    for (const row of raw.classResourcePool) result.get(row.serviceId)?.classResourcePool.push(row);
-    for (const row of raw.requirementPool) {
-      const serviceId = requirementToService.get(row.requirementId);
-      if (serviceId) result.get(serviceId)?.requirementPool.push(row);
-    }
-    for (const row of raw.legRequirements) {
-      const serviceId = legToService.get(row.legId);
-      if (serviceId) result.get(serviceId)?.legRequirements.push(row);
-    }
-    for (const row of raw.legRequirementPool) {
-      const legId = legRequirementToLeg.get(row.requirementId);
-      const serviceId = legId ? legToService.get(legId) : undefined;
-      if (serviceId) result.get(serviceId)?.legRequirementPool.push(row);
-    }
-  }
-}
-
-interface RawServiceChildRows {
-  requirements: ServiceResourceRequirementEntity[];
-  legs: ServiceLegEntity[];
-  classResourcePool: ServiceClassResourcePoolEntity[];
-  requirementPool: ServiceResourceRequirementPoolEntity[];
-  legRequirements: ServiceLegResourceRequirementEntity[];
-  legRequirementPool: ServiceLegResourceRequirementPoolEntity[];
 }

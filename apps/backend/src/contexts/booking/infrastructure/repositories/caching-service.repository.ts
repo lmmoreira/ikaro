@@ -70,6 +70,14 @@ export class CachingServiceRepository implements IServiceRepository {
     return this.repo.findByIdForUpdate(id, tenantId);
   }
 
+  // Pass-through — same reasoning as findByIdForUpdate() above.
+  async lockBookingModels(
+    ids: string[],
+    tenantId: string,
+  ): Promise<Map<string, ServiceBookingModel>> {
+    return this.repo.lockBookingModels(ids, tenantId);
+  }
+
   // Only the unfiltered, status-only shape is cached — the exact call every real hot-path caller
   // makes (public hotsite/chatbot: status 'ACTIVE'; staff dashboard list: status 'ANY'). Same
   // selective scope CachingTenantRepository already uses (caches findById only, bypasses

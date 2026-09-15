@@ -5,11 +5,13 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
+import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { CreateServiceDto } from '../dtos/create-service.dto';
 import { toClassResourceSlot } from '../dtos/resource-requirement.dto';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceUseCaseResult, toServiceResult } from './service-result.mapper';
+import { resolveActiveResourceIdsByType } from './active-resource-types.util';
 
 export type CreateServiceUseCaseInput = CreateServiceDto & {
   tenantId: string;
@@ -24,6 +26,7 @@ export type CreateServiceUseCaseResult = ServiceUseCaseResult;
 export class CreateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(BOOKING_PLATFORM_PORT) private readonly bookingPlatform: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
@@ -32,6 +35,12 @@ export class CreateServiceUseCase {
     const { tenantId, currency, locale } = input;
     const price = Money.from(input.priceAmount, currency);
     const bookingModel = input.bookingModel ?? 'APPOINTMENT';
+    const classResourceSlots = (input.classResourceSlots ?? []).map(toClassResourceSlot);
+    const activeResourceIdsByType = await resolveActiveResourceIdsByType(
+      this.resourceRepo,
+      tenantId,
+      classResourceSlots.map((s) => s.type),
+    );
 
     const service = Service.create({
       tenantId,
@@ -44,7 +53,8 @@ export class CreateServiceUseCase {
       description: input.description,
       bookingModel,
       tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
-      classResourceSlots: (input.classResourceSlots ?? []).map(toClassResourceSlot),
+      classResourceSlots,
+      activeResourceIdsByType,
     });
 
     await this.txManager.run(async () => {

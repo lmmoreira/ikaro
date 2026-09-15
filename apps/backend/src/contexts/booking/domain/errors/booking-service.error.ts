@@ -29,6 +29,20 @@ export class BookingServiceNotInTenantError extends BookingDomainError {
   }
 }
 
+// A SESSION service has no bookable class-session machinery until M24 ships
+// ClassScheduleTemplate/ClassSession (docs/04-USE_CASES.md UC-056 step 3) — until then, the
+// ordinary appointment-booking flow must reject it outright rather than silently create a
+// one-off appointment against what is meant to be a shared-capacity class.
+export class BookingServiceSessionNotBookableError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `SESSION services cannot be booked directly until class scheduling ships: ${id}`,
+      BookingErrorCode.SERVICE_SESSION_NOT_BOOKABLE,
+    );
+    this.name = 'BookingServiceSessionNotBookableError';
+  }
+}
+
 export class ServiceNameRequiredError extends BookingDomainError {
   constructor() {
     super('name is required', BookingErrorCode.SERVICE_NAME_REQUIRED);
@@ -128,6 +142,17 @@ export class ClassResourceSlotDuplicateTypeError extends BookingDomainError {
       'type',
     );
     this.name = 'ClassResourceSlotDuplicateTypeError';
+  }
+}
+
+export class ClassResourceSlotResourceNotActiveError extends BookingDomainError {
+  constructor() {
+    super(
+      'eligibleResourceIds must reference active resources of the matching type',
+      BookingErrorCode.SERVICE_CLASS_RESOURCE_SLOT_RESOURCE_NOT_ACTIVE,
+      'eligibleResourceIds',
+    );
+    this.name = 'ClassResourceSlotResourceNotActiveError';
   }
 }
 

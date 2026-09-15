@@ -16,6 +16,7 @@ import {
   BookingAddressValidationError,
   BookingPhotoNotUploadedError,
   BookingServiceConcurrentModificationError,
+  BookingServiceSessionNotBookableError,
   BookingSlotUnavailableError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -84,20 +85,18 @@ describe('RequestBookingUseCase', () => {
     expect(saved!.customerId).toBeNull();
   });
 
-  it('locks every referenced service (findByIdForUpdate) before saving the booking, closing the bookingModel/first-booking race', async () => {
-    const findByIdForUpdateSpy = jest.spyOn(serviceRepo, 'findByIdForUpdate');
+  it('locks every referenced service (lockBookingModels) before saving the booking, closing the bookingModel/first-booking race', async () => {
+    const lockBookingModelsSpy = jest.spyOn(serviceRepo, 'lockBookingModels');
 
     await useCase.execute(baseInput());
 
-    expect(findByIdForUpdateSpy).toHaveBeenCalledWith(serviceId, TENANT_A);
+    expect(lockBookingModelsSpy).toHaveBeenCalledWith([serviceId], TENANT_A);
   });
 
   it('rejects the booking when the locked service state no longer matches the pre-transaction snapshot (concurrent modification)', async () => {
-    const changedService = new ServiceBuilder()
-      .withTenantId(TENANT_A)
-      .withBookingModel('SESSION')
-      .build();
-    jest.spyOn(serviceRepo, 'findByIdForUpdate').mockResolvedValueOnce(changedService);
+    jest
+      .spyOn(serviceRepo, 'lockBookingModels')
+      .mockResolvedValueOnce(new Map([[serviceId, 'SESSION']]));
 
     await expect(useCase.execute(baseInput())).rejects.toThrow(
       BookingServiceConcurrentModificationError,
@@ -250,6 +249,20 @@ describe('RequestBookingUseCase', () => {
     await expect(
       useCase.execute({ ...baseInput(), serviceIds: [inactive.id] }),
     ).rejects.toBeInstanceOf(BookingServiceNotActiveError);
+  });
+
+  it('throws BookingServiceSessionNotBookableError when the service is a SESSION service', async () => {
+    const sessionService = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withBookingModel('SESSION')
+      .withResourceRequirements([])
+      .withBufferAfterMinutes(null)
+      .withClassResourceSlots([])
+      .build();
+    await serviceRepo.save(sessionService);
+    await expect(
+      useCase.execute({ ...baseInput(), serviceIds: [sessionService.id] }),
+    ).rejects.toBeInstanceOf(BookingServiceSessionNotBookableError);
   });
 
   it('builds lines preserving order — including duplicates', async () => {

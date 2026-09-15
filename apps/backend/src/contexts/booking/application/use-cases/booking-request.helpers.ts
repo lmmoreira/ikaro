@@ -135,22 +135,25 @@ export async function persistRequestedBooking(
       totalDurationMins,
       timezone,
     );
-    // Locks every referenced Service row before this booking becomes its first booking history —
-    // serializes against UpdateServiceUseCase's own findByIdForUpdate()-guarded bookingModel
-    // change, closing the TOCTOU race where a service's model could change concurrently with its
-    // very first booking being created (UC-056's immutable-after-history invariant). Sorted so
-    // every caller locks a multi-service booking's rows in the same order regardless of request
-    // line order — otherwise two concurrent bookings with reversed service order ([A, B] vs
-    // [B, A]) could each hold one lock and deadlock. Re-checks the lock's own fresh read against
-    // the pre-transaction snapshot (not just acquiring-and-discarding it) — a lock only orders
-    // callers who both acquire it, it doesn't make an already-captured in-memory read fresh.
-    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))].sort((a, b) =>
-      a.localeCompare(b),
-    );
+    // Locks every referenced Service row, in one round trip, before this booking becomes its
+    // first booking history — serializes against UpdateServiceUseCase's own
+    // findByIdForUpdate()-guarded bookingModel change, closing the TOCTOU race where a service's
+    // model could change concurrently with its very first booking being created (UC-056's
+    // immutable-after-history invariant). lockBookingModels() issues a single locked
+    // `SELECT ... WHERE id IN (...) FOR UPDATE` rather than N sequential findByIdForUpdate()
+    // calls (each of which would hydrate the full aggregate, including child rows this check
+    // never needs) — one statement locking every matching row also sidesteps the classic
+    // opposite-order deadlock a loop of individual per-row lock statements could otherwise hit
+    // between two concurrent multi-service bookings. Re-checks each lock's fresh bookingModel
+    // against the pre-transaction snapshot (not just acquiring-and-discarding it) — a lock only
+    // orders callers who both acquire it, it doesn't make an already-captured in-memory read
+    // fresh.
+    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
+    const lockedBookingModels = await serviceRepo.lockBookingModels(serviceIds, tenantId);
     for (const serviceId of serviceIds) {
-      const locked = await serviceRepo.findByIdForUpdate(serviceId, tenantId);
+      const lockedModel = lockedBookingModels.get(serviceId);
       const snapshot = serviceMap.get(serviceId);
-      if (!locked || !snapshot || locked.bookingModel !== snapshot.bookingModel) {
+      if (lockedModel === undefined || !snapshot || lockedModel !== snapshot.bookingModel) {
         throw new BookingServiceConcurrentModificationError(serviceId);
       }
     }

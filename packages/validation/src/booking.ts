@@ -82,10 +82,20 @@ export const BookingModelSchema = z.enum(['APPOINTMENT', 'SESSION']);
 // every service load hydrates (typeorm-service.repository.ts), not to model a real product rule.
 // A car wash/small-service-business bundle or leg count is realistically single-digit; 50/20
 // leave generous headroom without allowing an unbounded payload to blow up either side.
+// A duplicate ID inside one of these arrays would otherwise reach a composite-primary-key pool
+// table (service_resource_requirement_pool / service_class_resource_pool) as an unhandled
+// unique-constraint violation (500) instead of a clean 400 — reject it here instead.
+function uniqueUuidArray(max: number) {
+  return z
+    .array(z.uuid())
+    .max(max)
+    .refine((ids) => new Set(ids).size === ids.length, { error: 'must not contain duplicate IDs' });
+}
+
 export const ResourceRequirementSchema = z.object({
   type: ResourceTypeSchema,
   selectionMode: z.enum(['NONE', 'CUSTOMER_CHOICE', 'AUTO_ANY', 'AUTO_FUNGIBLE_POOL']),
-  resourcePoolIds: z.array(z.uuid()).max(50).nullable().optional(),
+  resourcePoolIds: uniqueUuidArray(50).nullable().optional(),
   requiredQuantity: z.number().int().positive().optional(),
 });
 
@@ -99,7 +109,7 @@ export const ServiceLegSchema = z.object({
 
 export const ClassResourceSlotSchema = z.object({
   type: ResourceTypeSchema,
-  eligibleResourceIds: z.array(z.uuid()).max(50),
+  eligibleResourceIds: uniqueUuidArray(50),
 });
 
 // No .min(2) here on purpose — UC-052 A1's "fewer than 2 legs" rejection is a domain-level

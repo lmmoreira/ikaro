@@ -27,12 +27,15 @@ import {
   BookingPhotoNotUploadedError,
   BookingRejectionReasonTooShortError,
   BookingServiceBookingModelImmutableError,
+  BookingServiceBookingModelMismatchError,
   BookingServiceConcurrentModificationError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
+  BookingServiceSessionNotBookableError,
   BookingSlotUnavailableError,
   ClassResourceSlotDuplicateTypeError,
+  ClassResourceSlotResourceNotActiveError,
   ClosureDateInPastError,
   InvalidBookingTransitionError,
   ResourceNotActiveError,
@@ -160,6 +163,18 @@ describe('mapBookingError', () => {
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
   });
 
+  it('maps BookingServiceBookingModelMismatchError to 409', () => {
+    const err = call(new BookingServiceBookingModelMismatchError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceSessionNotBookableError to 409', () => {
+    const err = call(new BookingServiceSessionNotBookableError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
   it('maps BookingServiceConcurrentModificationError to 409', () => {
     const err = call(new BookingServiceConcurrentModificationError('service-1'));
     expect(err).toBeInstanceOf(HttpException);
@@ -192,6 +207,12 @@ describe('mapBookingError', () => {
 
   it('maps ClassResourceSlotDuplicateTypeError to 422', () => {
     const err = call(new ClassResourceSlotDuplicateTypeError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ClassResourceSlotResourceNotActiveError to 422', () => {
+    const err = call(new ClassResourceSlotResourceNotActiveError());
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });

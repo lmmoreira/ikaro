@@ -55,7 +55,7 @@ describe('ServiceController', () => {
     const bookingPlatform = new InMemoryBookingPlatformPort();
     controller = new ServiceController(
       ctx,
-      new CreateServiceUseCase(repo, bookingPlatform, txManager),
+      new CreateServiceUseCase(repo, resourceRepo, bookingPlatform, txManager),
       new GetServicesUseCase(repo),
       new GetServiceByIdUseCase(repo),
       new ActivateServiceUseCase(repo, bookingPlatform, txManager),

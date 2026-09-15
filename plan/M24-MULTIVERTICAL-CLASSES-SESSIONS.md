@@ -416,6 +416,8 @@ Staff/manager list view over generated sessions (scoped "mine" for STAFF, "all" 
 **Description:**
 The biggest story in this milestone — the core session-booking write path. One `POST /class-session-bookings` endpoint branches on caller context: an authenticated customer with a qualifying `ClassAccessContract` books a single contract-funded seat (UC-086); an authenticated customer without one, on a `guestAccessEnabled` service, books pay-per-class (UC-087); an anonymous guest, after email verification, books 1..N named seats (UC-088/097).
 
+**Decided in M22-S01 — leave the existing booking guard as-is.** `RequestBookingUseCase`/`RequestAuthenticatedBookingUseCase` (the `POST /bookings` flat-appointment path) explicitly reject any `SESSION` service with `BookingServiceSessionNotBookableError` (409) — added in M22-S01 once it became clear the appointment flow had no `bookingModel` check at all and could otherwise silently create a bogus one-off appointment against what's meant to be a shared-capacity class. This story's own `POST /class-session-bookings` is the correct, separate booking path for `SESSION` services — **do not remove or relax the M22-S01 guard**; the two endpoints are meant to stay mutually exclusive by `bookingModel`, not have the old one "learn" to handle SESSION services too.
+
 **Aggregate invariants:**
 - `reservedCount`/`reservedNonMemberCount` maintained by the *same* guarded update that creates/cancels this aggregate — never a separately-timed read-then-write (shared with S04's `ClassSession.reservedCount` guard).
 - `WAITLISTED`/`PROMOTION_PENDING` requires non-null `waitlistAccessIntent` — not reachable in this story (waitlist is S08), but the CHECK constraint is created now since it's part of the same table.

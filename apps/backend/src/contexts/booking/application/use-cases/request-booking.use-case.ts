@@ -12,6 +12,7 @@ import { Service } from '../../domain/service.aggregate';
 import {
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
+  BookingServiceSessionNotBookableError,
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
@@ -91,6 +92,9 @@ export class RequestBookingUseCase {
       const service = serviceMap.get(serviceId);
       if (!service) throw new BookingServiceNotInTenantError(serviceId);
       if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
+      if (service.bookingModel !== 'APPOINTMENT') {
+        throw new BookingServiceSessionNotBookableError(serviceId);
+      }
     }
     return serviceMap;
   }

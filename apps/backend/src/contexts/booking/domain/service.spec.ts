@@ -9,6 +9,7 @@ import {
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
   ClassResourceSlotDuplicateTypeError,
+  ClassResourceSlotResourceNotActiveError,
   ResourceRequirementInvalidError,
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
@@ -238,7 +239,7 @@ describe('Service', () => {
       ).toThrow(ClassResourceSlotDuplicateTypeError);
     });
 
-    it('accepts classResourceSlots with distinct types', () => {
+    it('accepts classResourceSlots with distinct types, each an active resource of the matching type', () => {
       const service = Service.create({
         tenantId: TENANT,
         name: 'Yoga',
@@ -250,8 +251,48 @@ describe('Service', () => {
           ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
           ClassResourceSlot.create({ type: ResourceType.STAFF, eligibleResourceIds: ['r-2'] }),
         ],
+        activeResourceIdsByType: new Map([
+          [ResourceType.ROOM, new Set(['r-1'])],
+          [ResourceType.STAFF, new Set(['r-2'])],
+        ]),
       });
       expect(service.classResourceSlots).toHaveLength(2);
+    });
+
+    it('rejects a classResourceSlots type with no active resources', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Yoga',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          bookingModel: 'SESSION',
+          classResourceSlots: [
+            ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
+          ],
+        }),
+      ).toThrow(BookingServiceResourceTypeUnavailableError);
+    });
+
+    it('rejects a classResourceSlots eligibleResourceIds entry that is not an active resource', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Yoga',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          bookingModel: 'SESSION',
+          classResourceSlots: [
+            ClassResourceSlot.create({
+              type: ResourceType.ROOM,
+              eligibleResourceIds: ['not-active'],
+            }),
+          ],
+          activeResourceIdsByType: new Map([[ResourceType.ROOM, new Set(['r-1'])]]),
+        }),
+      ).toThrow(ClassResourceSlotResourceNotActiveError);
     });
   });
 

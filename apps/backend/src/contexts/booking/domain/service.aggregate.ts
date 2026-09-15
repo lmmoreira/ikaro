@@ -8,7 +8,6 @@ import {
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
-  ClassResourceSlotDuplicateTypeError,
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
   ServiceDurationInvalidError,
@@ -20,6 +19,7 @@ import {
 } from './errors/booking-domain.error';
 import {
   ActiveResourceIdsByType,
+  assertClassResourceSlotsAvailable,
   assertResourceRequirementsAvailable,
 } from './resource-requirement-availability';
 import { ResourceRequirement } from './resource-requirement';
@@ -61,6 +61,10 @@ export interface CreateServiceProps {
   // (UC-053 step 1). Ignored for a SESSION service.
   tenantServiceBufferMinutes?: number | null;
   classResourceSlots?: ClassResourceSlot[];
+  // Resolved by the caller (IResourceRepository.findByTenant) — required whenever
+  // classResourceSlots is non-empty; ignored otherwise. See setResourceRequirements()/setLegs()'s
+  // identical parameter for why this lives outside the aggregate.
+  activeResourceIdsByType?: ActiveResourceIdsByType;
 }
 
 export class Service extends AggregateRoot {
@@ -146,17 +150,15 @@ export class Service extends AggregateRoot {
     bookingModel = 'APPOINTMENT',
     tenantServiceBufferMinutes = null,
     classResourceSlots = [],
+    activeResourceIdsByType = new Map(),
   }: CreateServiceProps): Service {
     if (!tenantId) throw new TenantIdRequiredError();
     const normalizedName = Service.validateFields(name, price, durationMinutes, loyaltyPointsValue);
-    // type is the documented grouping key for class-resource-slot persistence
-    // (docs/02-DOMAIN_MODEL.md) — service_class_resource_pool has no separate "slot" identity,
-    // so two same-type slots submitted here could never round-trip distinctly through GET,
-    // which groups pool rows by type (typeorm-service.mapper.ts's toClassResourceSlots()).
-    const slotTypes = classResourceSlots.map((s) => s.type);
-    if (new Set(slotTypes).size !== slotTypes.length) {
-      throw new ClassResourceSlotDuplicateTypeError();
-    }
+    // Same eligibility checklist as UC-050's flat case (UC-056 step 3, docs/02-DOMAIN_MODEL.md) —
+    // duplicate-type rejection plus "each eligibleResourceIds entry is an active resource of the
+    // matching type." See resource-requirement-availability.ts's identical treatment of
+    // resourceRequirements/legs.
+    assertClassResourceSlotsAvailable(classResourceSlots, activeResourceIdsByType);
 
     const isSession = bookingModel === 'SESSION';
     const now = new Date();

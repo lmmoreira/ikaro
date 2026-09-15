@@ -11,6 +11,7 @@ import {
   BookingCustomerNotFoundError,
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
+  BookingServiceSessionNotBookableError,
   CustomerPhoneNotSetError,
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
@@ -170,6 +171,9 @@ export class RequestAuthenticatedBookingUseCase {
       const service = serviceMap.get(serviceId);
       if (!service) throw new BookingServiceNotInTenantError(serviceId);
       if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
+      if (service.bookingModel !== 'APPOINTMENT') {
+        throw new BookingServiceSessionNotBookableError(serviceId);
+      }
     }
     return serviceMap;
   }

@@ -1,5 +1,8 @@
+import { ClassResourceSlot } from './class-resource-slot';
 import {
   BookingServiceResourceTypeUnavailableError,
+  ClassResourceSlotDuplicateTypeError,
+  ClassResourceSlotResourceNotActiveError,
   ResourceRequirementInvalidError,
 } from './errors/booking-domain.error';
 import { ResourceRequirement } from './resource-requirement';
@@ -40,6 +43,32 @@ function assertRequirementAvailable(
   for (const poolId of requirement.resourcePoolIds ?? []) {
     if (!activeIds.has(poolId)) {
       throw new ResourceRequirementInvalidError('pool-id-not-active');
+    }
+  }
+}
+
+// Same shape of check as assertResourceRequirementsAvailable() above, applied to a SESSION
+// service's classResourceSlots (UC-056 step 3: "same eligibility checklist as UC-050's flat
+// case") — service_class_resource_pool has no separate "slot" identity, so an inactive/wrong-
+// tenant eligibleResourceIds entry would otherwise either persist silently or hit the table's
+// composite FK as an unhandled error.
+export function assertClassResourceSlotsAvailable(
+  slots: ClassResourceSlot[],
+  activeResourceIdsByType: ActiveResourceIdsByType,
+): void {
+  const slotTypes = slots.map((s) => s.type);
+  if (new Set(slotTypes).size !== slotTypes.length) {
+    throw new ClassResourceSlotDuplicateTypeError();
+  }
+  for (const slot of slots) {
+    const activeIds = activeResourceIdsByType.get(slot.type);
+    if (!activeIds || activeIds.size === 0) {
+      throw new BookingServiceResourceTypeUnavailableError(slot.type);
+    }
+    for (const resourceId of slot.eligibleResourceIds) {
+      if (!activeIds.has(resourceId)) {
+        throw new ClassResourceSlotResourceNotActiveError();
+      }
     }
   }
 }

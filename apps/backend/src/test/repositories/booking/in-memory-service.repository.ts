@@ -2,7 +2,7 @@ import {
   IServiceRepository,
   ServiceFilters,
 } from '../../../contexts/booking/application/ports/service-repository.port';
-import { Service } from '../../../contexts/booking/domain/service.aggregate';
+import { Service, ServiceBookingModel } from '../../../contexts/booking/domain/service.aggregate';
 
 export class InMemoryServiceRepository implements IServiceRepository {
   private readonly store = new Map<string, Service>();
@@ -23,6 +23,18 @@ export class InMemoryServiceRepository implements IServiceRepository {
   private lookup(id: string, tenantId: string): Service | null {
     const service = this.store.get(id);
     return service?.tenantId === tenantId ? service : null;
+  }
+
+  async lockBookingModels(
+    ids: string[],
+    tenantId: string,
+  ): Promise<Map<string, ServiceBookingModel>> {
+    const result = new Map<string, ServiceBookingModel>();
+    for (const id of ids) {
+      const service = this.lookup(id, tenantId);
+      if (service) result.set(id, service.bookingModel);
+    }
+    return result;
   }
 
   async findByIds(ids: string[], tenantId: string): Promise<Service[]> {

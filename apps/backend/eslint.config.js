@@ -116,6 +116,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/booking/infrastructure/repositories/typeorm-schedule-closure.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-schedule-opening.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-service.repository.ts',
+  'src/contexts/booking/infrastructure/repositories/typeorm-service-child-loader.ts',
   'src/contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers.ts',
   'src/contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint.ts',
   'src/contexts/customer/infrastructure/repositories/typeorm-customer.repository.ts',
