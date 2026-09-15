@@ -89,6 +89,45 @@ describe('ServiceController (integration)', () => {
       expect(body.status).toBe(403);
     });
 
+    // M22-S02: a newly created service's bookingPolicy.defaultApprovalMode is never set — it
+    // resolves from the real tenant's settings.booking.autoApproveEnabled (default false on a
+    // freshly provisioned tenant) through the real BookingPlatformAdapter/TypeORM stack, not the
+    // InMemory doubles the unit tests use.
+    it('resolves defaultApprovalMode from the real tenant autoApproveEnabled setting (default false)', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      expect(created.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(fetched.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+    });
+
+    it('resolves defaultApprovalMode to AUTO_CONFIRM once the tenant enables autoApproveEnabled', async () => {
+      const isolatedTenant = await provisionTenant();
+      await request(app.getHttpServer())
+        .patch('/tenants/settings')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ settings: { booking: { autoApproveEnabled: true } } })
+        .expect(200);
+
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      expect(created.bookingPolicy.defaultApprovalMode).toBe('AUTO_CONFIRM');
+    });
+
     it('returns 400 when priceAmount is zero', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/services')
