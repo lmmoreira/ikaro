@@ -28,4 +28,9 @@ export interface IBookingPlatformPort {
   // getBusinessHoursAndLocale above for a caller validating businessHours mid-transaction —
   // the cached read above is not safe for that.
   getBusinessHoursAndLocaleForUpdate(tenantId: string): Promise<TenantBusinessHoursAndLocale>;
+  // M22-S02: the tenant-wide default a null Service.bookingPolicy.defaultApprovalMode inherits
+  // (docs/21-TENANTS_SETTINGS_SCHEMA.md's settings.booking.autoApproveEnabled — this story is its
+  // first real consumer). Resolved on every read, never persisted onto the service row, so a
+  // later tenant-settings change is picked up immediately without touching every service.
+  getAutoApproveEnabled(tenantId: string): Promise<boolean>;
 }

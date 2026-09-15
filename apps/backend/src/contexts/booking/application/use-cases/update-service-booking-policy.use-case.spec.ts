@@ -67,6 +67,45 @@ describe('UpdateServiceBookingPolicyUseCase', () => {
     expect(result.bookingPolicy.cancellationWindowHoursOverride).toBeNull();
   });
 
+  it('resolves a null defaultApprovalMode from the tenant autoApproveEnabled=true setting on read', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+    bookingPlatform.seedAutoApproveEnabled(TENANT_A, true);
+
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      recurrenceEligible: true,
+    });
+
+    expect(result.bookingPolicy.defaultApprovalMode).toBe('AUTO_CONFIRM');
+  });
+
+  it('resolves a null defaultApprovalMode from the tenant autoApproveEnabled=false setting on read', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+    bookingPlatform.seedAutoApproveEnabled(TENANT_A, false);
+
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      recurrenceEligible: true,
+    });
+
+    expect(result.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+  });
+
+  it('never persists the tenant-inherited defaultApprovalMode onto the service row', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+    bookingPlatform.seedAutoApproveEnabled(TENANT_A, true);
+
+    await useCase.execute({ id: service.id, tenantId: TENANT_A, recurrenceEligible: true });
+
+    const persisted = await serviceRepo.findById(service.id, TENANT_A);
+    expect(persisted?.bookingPolicy.defaultApprovalMode).toBeNull();
+  });
+
   it('rejects durationPolicy=CUSTOMER_SELECTED without a non-FIXED pricingPolicy (UC-055 A2, 422)', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await serviceRepo.save(service);

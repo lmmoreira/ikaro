@@ -79,7 +79,8 @@ export class UpdateServiceUseCase {
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);
 
-    return toServiceResult(service, locale);
+    const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(tenantId);
+    return toServiceResult(service, locale, autoApproveEnabled);
   }
 
   // Split out of execute() to stay under docs/CODE_STANDARDS.md's function-length limit — a

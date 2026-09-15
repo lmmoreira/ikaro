@@ -798,6 +798,18 @@ describe('Service', () => {
       expect(service.bookingPolicy.pricingIncrementMinutes).toBeNull();
       expect(service.bookingPolicy.pricePerIncrementAmount).toBeNull();
     });
+
+    it('clears a stale minimumChargeAmount when pricingPolicy reverts to FIXED', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          durationPolicy: 'FIXED',
+          pricingPolicy: 'FIXED',
+          minimumChargeAmount: 20,
+        }),
+      );
+      expect(service.bookingPolicy.minimumChargeAmount).toBeNull();
+    });
   });
 
   describe('changeBookingModel()', () => {

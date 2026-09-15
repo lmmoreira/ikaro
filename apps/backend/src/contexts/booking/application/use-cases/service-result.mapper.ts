@@ -24,7 +24,26 @@ export interface ServiceUseCaseResult {
   bookingPolicy: ServiceBookingPolicyProps;
 }
 
-export function toServiceResult(service: Service, locale: string): ServiceUseCaseResult {
+// M22-S02: a null bookingPolicy.defaultApprovalMode means "inherit the tenant default" — resolved
+// here, on every read, from settings.booking.autoApproveEnabled (never persisted onto the service
+// row, so a later tenant-settings change is reflected immediately). autoApproveEnabled is the
+// caller's already-fetched IBookingPlatformPort.getAutoApproveEnabled() result, not refetched here.
+export function resolveApprovalMode(
+  policy: ServiceBookingPolicyProps,
+  autoApproveEnabled: boolean,
+): ServiceBookingPolicyProps {
+  if (policy.defaultApprovalMode !== null) return policy;
+  return {
+    ...policy,
+    defaultApprovalMode: autoApproveEnabled ? 'AUTO_CONFIRM' : 'MANUAL_APPROVAL',
+  };
+}
+
+export function toServiceResult(
+  service: Service,
+  locale: string,
+  autoApproveEnabled: boolean,
+): ServiceUseCaseResult {
   return {
     id: service.id,
     name: service.name,
@@ -46,6 +65,6 @@ export function toServiceResult(service: Service, locale: string): ServiceUseCas
     classResourceSlots: service.classResourceSlots
       ? service.classResourceSlots.map((s) => s.toJSON())
       : null,
-    bookingPolicy: service.bookingPolicy,
+    bookingPolicy: resolveApprovalMode(service.bookingPolicy, autoApproveEnabled),
   };
 }

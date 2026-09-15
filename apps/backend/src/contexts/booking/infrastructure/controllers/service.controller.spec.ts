@@ -61,8 +61,8 @@ describe('ServiceController', () => {
     controller = new ServiceController(
       ctx,
       new CreateServiceUseCase(repo, resourceRepo, bookingPlatform, txManager),
-      new GetServicesUseCase(repo),
-      new GetServiceByIdUseCase(repo),
+      new GetServicesUseCase(repo, bookingPlatform),
+      new GetServiceByIdUseCase(repo, bookingPlatform),
       new ActivateServiceUseCase(repo, bookingPlatform, txManager),
       new UpdateServiceUseCase(repo, bookingRepo, resourceRepo, bookingPlatform, txManager),
       new DeactivateServiceUseCase(repo, bookingPlatform, txManager),

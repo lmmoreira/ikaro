@@ -303,6 +303,9 @@ export class Service extends AggregateRoot {
     if (normalized.pricingPolicy === 'FIXED') {
       normalized.pricingIncrementMinutes = null;
       normalized.pricePerIncrementAmount = null;
+      // docs/02-DOMAIN_MODEL.md: "optional floor applied after the per-increment calculation" —
+      // meaningless outside PER_TIME_INCREMENT, same as the two fields above.
+      normalized.minimumChargeAmount = null;
     }
     return normalized;
   }

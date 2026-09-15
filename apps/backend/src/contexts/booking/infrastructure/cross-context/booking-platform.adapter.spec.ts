@@ -1,6 +1,10 @@
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
-import { TenantBuilder } from '../../../../test/builders/platform/index';
+import {
+  TenantBuilder,
+  TenantSettingsPropsBuilder,
+} from '../../../../test/builders/platform/index';
+import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
 import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
@@ -87,6 +91,23 @@ describe('BookingPlatformAdapter', () => {
 
       expect(result.locale).toBe('pt-BR');
       expect(result.businessHours).toEqual(tenant.settings.businessHours);
+    });
+  });
+
+  describe('getAutoApproveEnabled', () => {
+    it('returns settings.booking.autoApproveEnabled for the tenant', async () => {
+      const tenant = new TenantBuilder()
+        .withSettings(
+          TenantSettings.create(
+            new TenantSettingsPropsBuilder().withBooking({ autoApproveEnabled: true }).build(),
+          ),
+        )
+        .build();
+      await repo.save(tenant);
+
+      const result = await adapter.getAutoApproveEnabled(tenant.id);
+
+      expect(result).toBe(true);
     });
   });
 });

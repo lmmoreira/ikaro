@@ -90,10 +90,23 @@ export class AddServiceBookingPolicyAndIntakeSchema1748500000011 implements Migr
         ADD COLUMN IF NOT EXISTS "participant_count" INTEGER
           CHECK ("participant_count" IS NULL OR "participant_count" > 0),
         ADD COLUMN IF NOT EXISTS "consent_accepted_at" TIMESTAMPTZ,
-        ADD COLUMN IF NOT EXISTS "consent_version" INTEGER,
+        ADD COLUMN IF NOT EXISTS "consent_version" INTEGER
+    `);
+    // NOT VALID + a separate VALIDATE CONSTRAINT (expand/contract, docs/13-DATABASE_SCHEMA.md) —
+    // ADD CONSTRAINT alone takes ACCESS EXCLUSIVE for the full existing-row scan; NOT VALID skips
+    // that scan (ACCESS EXCLUSIVE held only for the instant catalog change), and the follow-up
+    // VALIDATE CONSTRAINT takes the much weaker SHARE UPDATE EXCLUSIVE, which still allows
+    // concurrent reads/writes on a `bookings` table that — unlike this migration's other new
+    // tables — already carries production rows.
+    await queryRunner.query(`
+      ALTER TABLE "booking"."bookings"
         ADD CONSTRAINT "CHK_booking_bookings_intake_schema_pair" CHECK (
           ("intake_schema_version" IS NULL) = ("intake_answers" IS NULL)
-        )
+        ) NOT VALID
+    `);
+    await queryRunner.query(`
+      ALTER TABLE "booking"."bookings"
+        VALIDATE CONSTRAINT "CHK_booking_bookings_intake_schema_pair"
     `);
   }
 

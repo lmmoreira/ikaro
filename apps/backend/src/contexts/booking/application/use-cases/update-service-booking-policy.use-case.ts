@@ -8,6 +8,7 @@ import { ServiceBookingPolicyProps } from '../../domain/service.types';
 import { UpdateServiceBookingPolicyDto } from '../dtos/update-service-booking-policy.dto';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { resolveApprovalMode } from './service-result.mapper';
 
 export type UpdateServiceBookingPolicyUseCaseInput = UpdateServiceBookingPolicyDto & {
   id: string;
@@ -53,7 +54,13 @@ export class UpdateServiceBookingPolicyUseCase {
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);
 
-    return { id: service.id, bookingPolicy: service.bookingPolicy };
+    // M22-S02: a null defaultApprovalMode inherits settings.booking.autoApproveEnabled — resolved
+    // on read, never persisted onto the service row.
+    const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(tenantId);
+    return {
+      id: service.id,
+      bookingPolicy: resolveApprovalMode(service.bookingPolicy, autoApproveEnabled),
+    };
   }
 
   // Split out of execute() to stay under docs/CODE_STANDARDS.md's function-length limit.

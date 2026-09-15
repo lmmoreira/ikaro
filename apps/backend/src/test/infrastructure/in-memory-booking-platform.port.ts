@@ -9,6 +9,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   private readonly tenants: ActiveTenantInfo[] = [];
   readonly revalidatedTenantIds: string[] = [];
   private readonly businessHoursAndLocaleByTenant = new Map<string, TenantBusinessHoursAndLocale>();
+  private readonly autoApproveEnabledByTenant = new Map<string, boolean>();
 
   seed(tenants: ActiveTenantInfo[]): void {
     this.tenants.push(...tenants);
@@ -18,9 +19,14 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     this.businessHoursAndLocaleByTenant.set(tenantId, value);
   }
 
+  seedAutoApproveEnabled(tenantId: string, value: boolean): void {
+    this.autoApproveEnabledByTenant.set(tenantId, value);
+  }
+
   clear(): void {
     this.tenants.length = 0;
     this.businessHoursAndLocaleByTenant.clear();
+    this.autoApproveEnabledByTenant.clear();
   }
 
   async findAllActive(): Promise<ActiveTenantInfo[]> {
@@ -52,5 +58,9 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
         locale: 'pt-BR',
       }
     );
+  }
+
+  async getAutoApproveEnabled(tenantId: string): Promise<boolean> {
+    return this.autoApproveEnabledByTenant.get(tenantId) ?? false;
   }
 }
