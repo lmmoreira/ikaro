@@ -133,6 +133,24 @@ export class BookingEntity {
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 
+  // M22-S02 — schema-only in this story (docs/13-DATABASE_SCHEMA.md § Rules for bookings, added
+  // M22 Cluster 2): nothing writes these columns until M23's booking flow exists to snapshot a
+  // service's effective intake schema/consent at submission time.
+  @Column({ name: 'intake_schema_version', type: 'int', nullable: true })
+  intakeSchemaVersion!: number | null;
+
+  @Column({ name: 'intake_answers', type: 'jsonb', nullable: true })
+  intakeAnswers!: Record<string, unknown> | null;
+
+  @Column({ name: 'participant_count', type: 'int', nullable: true })
+  participantCount!: number | null;
+
+  @Column({ name: 'consent_accepted_at', type: 'timestamptz', nullable: true })
+  consentAcceptedAt!: Date | null;
+
+  @Column({ name: 'consent_version', type: 'int', nullable: true })
+  consentVersion!: number | null;
+
   @VersionColumn({ name: 'version', default: 1 })
   version!: number;
 }

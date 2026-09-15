@@ -60,4 +60,9 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
   ): Promise<TenantBusinessHoursAndLocale> {
     return this.getTenantBusinessHoursForUpdate.execute({ tenantId });
   }
+
+  async getAutoApproveEnabled(tenantId: string): Promise<boolean> {
+    const tenant = await this.getTenantById.execute({ tenantId });
+    return tenant.settings.booking.autoApproveEnabled;
+  }
 }

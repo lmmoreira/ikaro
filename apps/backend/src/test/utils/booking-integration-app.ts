@@ -30,6 +30,8 @@ import {
   ServiceLegResourceRequirementPoolEntity,
 } from '../../contexts/booking/infrastructure/entities/service-leg.entity';
 import { ServiceClassResourcePoolEntity } from '../../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
+import { ServiceBookingIntakeSchemaEntity } from '../../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingAttendeeEntity } from '../../contexts/booking/infrastructure/entities/booking-attendee.entity';
 import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
@@ -79,6 +81,8 @@ export async function createBookingIntegrationApp(
           ServiceLegResourceRequirementEntity,
           ServiceLegResourceRequirementPoolEntity,
           ServiceClassResourcePoolEntity,
+          ServiceBookingIntakeSchemaEntity,
+          BookingAttendeeEntity,
           ScheduleClosureEntity,
           ScheduleOpeningEntity,
           BookingEntity,

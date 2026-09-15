@@ -22,6 +22,29 @@ export interface ClassResourceSlotDetail {
   eligibleResourceIds: string[];
 }
 
+export type ServiceApprovalMode = 'AUTO_CONFIRM' | 'MANUAL_APPROVAL';
+export type ServiceDurationPolicy = 'FIXED' | 'CUSTOMER_SELECTED';
+export type ServicePricingPolicy = 'FIXED' | 'PER_TIME_INCREMENT';
+
+export interface ServiceBookingPolicyDetail {
+  defaultApprovalMode: ServiceApprovalMode | null;
+  manualHoldMinutes: number | null;
+  cancellationWindowHoursOverride: number | null;
+  rescheduleWindowHoursOverride: number | null;
+  minBookingAdvanceHoursOverride: number | null;
+  maxBookingAdvanceDaysOverride: number | null;
+  recurrenceEligible: boolean;
+  availabilityAlertEligible: boolean;
+  durationPolicy: ServiceDurationPolicy;
+  durationMinMinutes: number | null;
+  durationMaxMinutes: number | null;
+  durationIncrementMinutes: number | null;
+  pricingPolicy: ServicePricingPolicy;
+  pricingIncrementMinutes: number | null;
+  pricePerIncrementAmount: number | null;
+  minimumChargeAmount: number | null;
+}
+
 export interface ServiceDetail {
   id: string;
   name: string;
@@ -37,6 +60,7 @@ export interface ServiceDetail {
   bufferAfterMinutes: number | null;
   legs: ServiceLegDetail[] | null;
   classResourceSlots: ClassResourceSlotDetail[] | null;
+  bookingPolicy: ServiceBookingPolicyDetail;
 }
 
 export interface ServiceListResponse {
@@ -52,4 +76,29 @@ export interface UpdateServiceLegsResult {
   id: string;
   legs: ServiceLegDetail[];
   totalSpanMinutes: number;
+}
+
+export interface UpdateServiceBookingPolicyResult {
+  id: string;
+  bookingPolicy: ServiceBookingPolicyDetail;
+}
+
+export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'NAMED_ATTENDEES' | 'PICKUP_ADDRESS';
+
+export interface ServiceIntakeQuestionDetail {
+  fieldKey: string;
+  label: string;
+  type: ServiceIntakeQuestionType;
+  required: boolean;
+}
+
+export interface PublishServiceIntakeSchemaResult {
+  id: string;
+  version: number;
+  questions: ServiceIntakeQuestionDetail[];
+  consentText: string;
+  consentVersion: number;
+  requiresNamedAttendees: boolean;
+  participantCountRequired: boolean;
+  createdAt: string;
 }

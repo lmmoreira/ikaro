@@ -2,6 +2,8 @@ import { z } from 'zod';
 import {
   BookingModelSchema,
   ClassResourceSlotSchema as ClassResourceSlotBodySchema,
+  PublishServiceIntakeSchemaSchema as PublishServiceIntakeSchemaBodySchema,
+  UpdateServiceBookingPolicySchema as UpdateServiceBookingPolicyBodySchema,
   UpdateServiceLegsSchema as UpdateServiceLegsBodySchema,
   UpdateServiceResourceRequirementsSchema as UpdateServiceResourceRequirementsBodySchema,
 } from '@ikaro/validation';
@@ -22,6 +24,8 @@ import {
 export {
   BookingModelSchema,
   ClassResourceSlotBodySchema,
+  PublishServiceIntakeSchemaBodySchema,
+  UpdateServiceBookingPolicyBodySchema,
   UpdateServiceLegsBodySchema,
   UpdateServiceResourceRequirementsBodySchema,
 };
@@ -67,3 +71,5 @@ export type UpdateServiceResourceRequirementsBody = z.infer<
   typeof UpdateServiceResourceRequirementsBodySchema
 >;
 export type UpdateServiceLegsBody = z.infer<typeof UpdateServiceLegsBodySchema>;
+export type UpdateServiceBookingPolicyBody = z.infer<typeof UpdateServiceBookingPolicyBodySchema>;
+export type PublishServiceIntakeSchemaBody = z.infer<typeof PublishServiceIntakeSchemaBodySchema>;

@@ -9,6 +9,25 @@ const validCreateBody = {
   loyaltyPointsValue: 10,
 };
 
+const mockBookingPolicy = {
+  defaultApprovalMode: null,
+  manualHoldMinutes: null,
+  cancellationWindowHoursOverride: null,
+  rescheduleWindowHoursOverride: null,
+  minBookingAdvanceHoursOverride: null,
+  maxBookingAdvanceDaysOverride: null,
+  recurrenceEligible: false,
+  availabilityAlertEligible: false,
+  durationPolicy: 'FIXED' as const,
+  durationMinMinutes: null,
+  durationMaxMinutes: null,
+  durationIncrementMinutes: null,
+  pricingPolicy: 'FIXED' as const,
+  pricingIncrementMinutes: null,
+  pricePerIncrementAmount: null,
+  minimumChargeAmount: null,
+};
+
 const mockServiceDetail: ServiceDetail = {
   id: '10000000-0000-4000-8000-000000000001',
   name: 'Lavagem Completa',
@@ -24,6 +43,7 @@ const mockServiceDetail: ServiceDetail = {
   bufferAfterMinutes: 60,
   legs: null,
   classResourceSlots: null,
+  bookingPolicy: mockBookingPolicy,
 };
 
 const SERVICE_ID = '10000000-0000-4000-8000-000000000001';
@@ -57,6 +77,7 @@ describe('ServicesController', () => {
             bufferAfterMinutes: 60,
             legs: null,
             classResourceSlots: null,
+            bookingPolicy: mockBookingPolicy,
           },
         ],
         total: 1,
@@ -196,6 +217,78 @@ describe('ServicesController', () => {
       const controller = new ServicesController(backendHttp);
 
       await expect(controller.updateLegs(SERVICE_ID, { legs: [] })).rejects.toThrow('422');
+    });
+  });
+
+  describe('updateBookingPolicy()', () => {
+    it('calls PATCH /services/:id/booking-policy with body', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue({ id: SERVICE_ID, bookingPolicy: mockBookingPolicy }),
+      });
+      const controller = new ServicesController(backendHttp);
+      const body = { defaultApprovalMode: 'MANUAL_APPROVAL' as const };
+
+      const result = await controller.updateBookingPolicy(SERVICE_ID, body);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/booking-policy`,
+        body,
+      );
+      expect(result.id).toBe(SERVICE_ID);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ patch: jest.fn().mockRejectedValue(new Error('422')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(
+        controller.updateBookingPolicy(SERVICE_ID, { durationPolicy: 'CUSTOMER_SELECTED' }),
+      ).rejects.toThrow('422');
+    });
+  });
+
+  describe('publishIntakeSchema()', () => {
+    const publishBody = {
+      questions: [
+        {
+          fieldKey: 'accessNeeds',
+          label: 'Necessidades de acesso',
+          type: 'FREE_TEXT' as const,
+          required: false,
+        },
+      ],
+      consentText: 'Concordo com os termos',
+    };
+
+    it('calls POST /services/:id/intake-schema with body', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue({
+          id: 'schema-1',
+          version: 1,
+          questions: publishBody.questions,
+          consentText: publishBody.consentText,
+          consentVersion: 1,
+          requiresNamedAttendees: false,
+          participantCountRequired: false,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        }),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      const result = await controller.publishIntakeSchema(SERVICE_ID, publishBody);
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/intake-schema`,
+        publishBody,
+      );
+      expect(result.version).toBe(1);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ post: jest.fn().mockRejectedValue(new Error('409')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(controller.publishIntakeSchema(SERVICE_ID, publishBody)).rejects.toThrow('409');
     });
   });
 

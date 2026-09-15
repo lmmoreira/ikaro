@@ -1,4 +1,5 @@
 import { Money } from '../../../../shared/value-objects/money';
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { GetServicesUseCase } from './get-services.use-case';
@@ -8,11 +9,13 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
 describe('GetServicesUseCase', () => {
   let repo: InMemoryServiceRepository;
+  let bookingPlatform: InMemoryBookingPlatformPort;
   let useCase: GetServicesUseCase;
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new GetServicesUseCase(repo);
+    bookingPlatform = new InMemoryBookingPlatformPort();
+    useCase = new GetServicesUseCase(repo, bookingPlatform);
   });
 
   it('returns only active services when status filter is ACTIVE', async () => {
@@ -75,6 +78,18 @@ describe('GetServicesUseCase', () => {
 
     expect(result.items[0].price.formatted).toBe('R$\u00A0150,00');
     expect(result.items[0].price.currency).toBe('BRL');
+  });
+
+  it('resolves a null bookingPolicy.defaultApprovalMode from the tenant autoApproveEnabled setting for every item', async () => {
+    await repo.save(new ServiceBuilder().withTenantId(TENANT_A).withName('A').build());
+    await repo.save(new ServiceBuilder().withTenantId(TENANT_A).withName('B').build());
+    bookingPlatform.seedAutoApproveEnabled(TENANT_A, false);
+
+    const result = await useCase.execute({ tenantId: TENANT_A });
+
+    expect(
+      result.items.every((item) => item.bookingPolicy.defaultApprovalMode === 'MANUAL_APPROVAL'),
+    ).toBe(true);
   });
 
   it('tenant isolation: does not return services from another tenant', async () => {

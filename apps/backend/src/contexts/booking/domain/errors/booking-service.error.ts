@@ -271,3 +271,8 @@ export class ServiceLegInvalidError extends BookingDomainError {
     this.name = 'ServiceLegInvalidError';
   }
 }
+
+// ServiceDurationPolicyRequiresPricingError, BookingServiceBookingConfigModelMismatchError, and
+// ServiceBookingPolicyInvalidError (the M22-S02 booking-policy/intake-schema error group) live
+// in booking-service-policy.error.ts (split out to stay under docs/CODE_STANDARDS.md's
+// file-length limit).

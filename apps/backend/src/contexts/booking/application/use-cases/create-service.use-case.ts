@@ -63,6 +63,7 @@ export class CreateServiceUseCase {
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);
 
-    return toServiceResult(service, locale);
+    const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(tenantId);
+    return toServiceResult(service, locale, autoApproveEnabled);
   }
 }

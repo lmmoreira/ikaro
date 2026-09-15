@@ -17,6 +17,7 @@ import { RESOURCE_REPOSITORY } from './application/ports/resource-repository.por
 import { SCHEDULE_CLOSURE_REPOSITORY } from './application/ports/schedule-closure-repository.port';
 import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-opening-repository.port';
 import { SERVICE_REPOSITORY } from './application/ports/service-repository.port';
+import { SERVICE_INTAKE_SCHEMA_REPOSITORY } from './application/ports/service-intake-schema-repository.port';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
@@ -50,6 +51,8 @@ import { RemoveScheduleOpeningUseCase } from './application/use-cases/remove-sch
 import { UpdateServiceUseCase } from './application/use-cases/update-service.use-case';
 import { UpdateServiceResourceRequirementsUseCase } from './application/use-cases/update-service-resource-requirements.use-case';
 import { UpdateServiceLegsUseCase } from './application/use-cases/update-service-legs.use-case';
+import { UpdateServiceBookingPolicyUseCase } from './application/use-cases/update-service-booking-policy.use-case';
+import { PublishServiceIntakeSchemaUseCase } from './application/use-cases/publish-service-intake-schema.use-case';
 import { ApproveBookingUseCase } from './application/use-cases/approve-booking.use-case';
 import { RejectBookingUseCase } from './application/use-cases/reject-booking.use-case';
 import { RequestMoreInfoUseCase } from './application/use-cases/request-more-info.use-case';
@@ -80,6 +83,8 @@ import {
   ServiceLegResourceRequirementPoolEntity,
 } from './infrastructure/entities/service-leg.entity';
 import { ServiceClassResourcePoolEntity } from './infrastructure/entities/service-class-resource-pool.entity';
+import { ServiceBookingIntakeSchemaEntity } from './infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingAttendeeEntity } from './infrastructure/entities/booking-attendee.entity';
 import { ResourceEntity } from './infrastructure/entities/resource.entity';
 import { BookingCustomerAdapter } from './infrastructure/cross-context/booking-customer.adapter';
 import { BookingStaffAdapter } from './infrastructure/cross-context/booking-staff.adapter';
@@ -102,6 +107,7 @@ import { TypeOrmTenantLockAdapter } from './infrastructure/repositories/typeorm-
 import { TypeOrmResourceRepository } from './infrastructure/repositories/typeorm-resource.repository';
 import { CachingServiceRepository } from './infrastructure/repositories/caching-service.repository';
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
+import { TypeOrmServiceIntakeSchemaRepository } from './infrastructure/repositories/typeorm-service-intake-schema.repository';
 import { AvailabilityService } from './domain/services/availability.service';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 
@@ -115,6 +121,8 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
       ServiceLegResourceRequirementEntity,
       ServiceLegResourceRequirementPoolEntity,
       ServiceClassResourcePoolEntity,
+      ServiceBookingIntakeSchemaEntity,
+      BookingAttendeeEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
       BookingEntity,
@@ -146,6 +154,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
   providers: [
     TypeOrmServiceRepository,
     { provide: SERVICE_REPOSITORY, useClass: CachingServiceRepository },
+    { provide: SERVICE_INTAKE_SCHEMA_REPOSITORY, useClass: TypeOrmServiceIntakeSchemaRepository },
     { provide: SCHEDULE_CLOSURE_REPOSITORY, useClass: TypeOrmScheduleClosureRepository },
     { provide: SCHEDULE_OPENING_REPOSITORY, useClass: TypeOrmScheduleOpeningRepository },
     { provide: RESOURCE_REPOSITORY, useClass: TypeOrmResourceRepository },
@@ -172,6 +181,8 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     UpdateServiceUseCase,
     UpdateServiceResourceRequirementsUseCase,
     UpdateServiceLegsUseCase,
+    UpdateServiceBookingPolicyUseCase,
+    PublishServiceIntakeSchemaUseCase,
     DeactivateServiceUseCase,
     CloseScheduleUseCase,
     RemoveClosureUseCase,

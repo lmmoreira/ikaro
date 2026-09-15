@@ -4,13 +4,16 @@ import { Money } from '../../../shared/value-objects/money';
 import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text-normalization';
 import { ClassResourceSlot } from './class-resource-slot';
 import {
+  BookingServiceBookingConfigModelMismatchError,
   BookingServiceBookingModelImmutableError,
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
+  ServiceBookingPolicyInvalidError,
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
   ServiceDurationInvalidError,
+  ServiceDurationPolicyRequiresPricingError,
   ServiceLegInvalidError,
   ServiceLoyaltyPointsInvalidError,
   ServiceNameRequiredError,
@@ -26,10 +29,23 @@ import {
 import { ResourceRequirement } from './resource-requirement';
 import { ServiceLeg } from './service-leg';
 import { computeLegsTotalSpanMinutes } from './service-leg-span';
-import { CreateServiceProps, ServiceBookingModel, ServiceProps } from './service.types';
+import {
+  CreateServiceProps,
+  defaultServiceBookingPolicyProps,
+  ServiceBookingModel,
+  ServiceBookingPolicyProps,
+  ServiceProps,
+} from './service.types';
 
 // Re-exported for the many existing external call sites that import these from this file.
-export type { CreateServiceProps, ServiceBookingModel, ServiceProps };
+export type { CreateServiceProps, ServiceBookingModel, ServiceBookingPolicyProps, ServiceProps };
+// Pure re-exports (never used as a type annotation within this file itself) — export...from
+// directly instead of importing-then-re-exporting.
+export type {
+  ServiceApprovalMode,
+  ServiceDurationPolicy,
+  ServicePricingPolicy,
+} from './service.types';
 
 export class Service extends AggregateRoot {
   private readonly props: ServiceProps;
@@ -98,6 +114,9 @@ export class Service extends AggregateRoot {
   get classResourceSlots(): ClassResourceSlot[] | null {
     return this.props.classResourceSlots ? [...this.props.classResourceSlots] : null;
   }
+  get bookingPolicy(): ServiceBookingPolicyProps {
+    return { ...this.props.bookingPolicy };
+  }
 
   private static validateFields(
     name: string,
@@ -149,6 +168,7 @@ export class Service extends AggregateRoot {
       bufferAfterMinutes: isSession ? null : tenantServiceBufferMinutes,
       legs: null,
       classResourceSlots: isSession ? classResourceSlots : null,
+      bookingPolicy: defaultServiceBookingPolicyProps(),
     };
   }
 
@@ -250,11 +270,101 @@ export class Service extends AggregateRoot {
     this.props.updatedAt = new Date();
   }
 
+  // UC-055. Takes a fully-resolved policy object (the use case merges input-vs-current per field
+  // before calling this, same separation as update()'s resolved-args pattern above).
+  setBookingPolicy(policy: ServiceBookingPolicyProps): void {
+    if (this.props.bookingModel !== 'APPOINTMENT') {
+      throw new BookingServiceBookingConfigModelMismatchError(this.props.id);
+    }
+    const normalized = Service.normalizeBookingPolicy(policy);
+    if (normalized.durationPolicy === 'CUSTOMER_SELECTED' && normalized.pricingPolicy === 'FIXED') {
+      throw new ServiceDurationPolicyRequiresPricingError();
+    }
+    Service.validateBookingPolicyCompleteness(normalized);
+    this.props.bookingPolicy = normalized;
+    this.props.updatedAt = new Date();
+  }
+
+  // Split out of setBookingPolicy() to stay under docs/CODE_STANDARDS.md's function-length
+  // limit. Clears detail fields that are meaningless under the resolved policy's own governing
+  // field (docs/02-DOMAIN_MODEL.md: "the four [duration] fields... are meaningless (null) unless
+  // durationPolicy=CUSTOMER_SELECTED") — matches changeBookingModel()'s own clear-on-switch
+  // convention for the same class of mutual-exclusivity invariant, so a PATCH that switches a
+  // policy back to FIXED never silently carries a stale CUSTOMER_SELECTED-era value forward.
+  private static normalizeBookingPolicy(
+    policy: ServiceBookingPolicyProps,
+  ): ServiceBookingPolicyProps {
+    const normalized = { ...policy };
+    if (normalized.durationPolicy === 'FIXED') {
+      normalized.durationMinMinutes = null;
+      normalized.durationMaxMinutes = null;
+      normalized.durationIncrementMinutes = null;
+    }
+    if (normalized.pricingPolicy === 'FIXED') {
+      normalized.pricingIncrementMinutes = null;
+      normalized.pricePerIncrementAmount = null;
+      // docs/02-DOMAIN_MODEL.md: "optional floor applied after the per-increment calculation" —
+      // meaningless outside PER_TIME_INCREMENT, same as the two fields above.
+      normalized.minimumChargeAmount = null;
+    }
+    return normalized;
+  }
+
+  // Split out of setBookingPolicy() to stay under docs/CODE_STANDARDS.md's function-length
+  // limit. Validates the fully-resolved, normalized policy snapshot (not the raw PATCH body —
+  // see ServiceBookingPolicyInvalidError's own comment for why this can't live in Zod).
+  private static validateBookingPolicyCompleteness(policy: ServiceBookingPolicyProps): void {
+    if (
+      policy.durationMinMinutes !== null &&
+      policy.durationMaxMinutes !== null &&
+      policy.durationMaxMinutes < policy.durationMinMinutes
+    ) {
+      throw new ServiceBookingPolicyInvalidError('duration-range-invalid');
+    }
+    if (
+      policy.pricingPolicy === 'PER_TIME_INCREMENT' &&
+      (policy.pricingIncrementMinutes === null || policy.pricePerIncrementAmount === null)
+    ) {
+      throw new ServiceBookingPolicyInvalidError('pricing-increment-details-required');
+    }
+    if (
+      policy.durationPolicy === 'CUSTOMER_SELECTED' &&
+      (policy.durationMinMinutes === null ||
+        policy.durationMaxMinutes === null ||
+        policy.durationIncrementMinutes === null)
+    ) {
+      throw new ServiceBookingPolicyInvalidError('custom-duration-details-required');
+    }
+    // docs/02-DOMAIN_MODEL.md: "pricingPolicy... PER_TIME_INCREMENT requires CUSTOMER_SELECTED"
+    // — the reverse direction of the CUSTOMER_SELECTED-requires-non-FIXED-pricing check above
+    // (ServiceDurationPolicyRequiresPricingError), not the same invariant restated.
+    if (
+      policy.pricingPolicy === 'PER_TIME_INCREMENT' &&
+      policy.durationPolicy !== 'CUSTOMER_SELECTED'
+    ) {
+      throw new ServiceBookingPolicyInvalidError('per-time-increment-requires-custom-duration');
+    }
+  }
+
+  // UC-054 A2 — a one-way flip: publishing a PICKUP_ADDRESS-typed intake question sets this, but
+  // no flow this milestone ever clears it back (the legacy boolean stays the single source of
+  // truth for bookings.pickup_address; docs/13-DATABASE_SCHEMA.md). Compare-before-validate
+  // (CLAUDE.md §8): already-true is a no-op, no updatedAt bump.
+  requirePickupAddress(): void {
+    if (this.props.requiresPickupAddress) return;
+    this.props.requiresPickupAddress = true;
+    this.props.updatedAt = new Date();
+  }
+
   // Compare-before-validate (CLAUDE.md §8): resubmitting the current value is always a no-op,
   // even with booking history. hasBookingHistory is resolved by the caller (existsByServiceId).
   // Switching model normalizes the fields that only apply to the other model (mutual-exclusivity
   // invariant, docs/02-DOMAIN_MODEL.md) — never leaves a stale resourceRequirements/legs/buffer
-  // behind on a SESSION service, nor a stale classResourceSlots behind on an APPOINTMENT one.
+  // behind on a SESSION service, nor a stale classResourceSlots behind on an APPOINTMENT one, nor
+  // a stale bookingPolicy (APPOINTMENT-only, M22-S02) behind on a SESSION one. Resetting
+  // bookingPolicy only needs to happen on the -> SESSION transition: setBookingPolicy() itself
+  // rejects any call on a SESSION service, so it can never drift from defaults while SESSION —
+  // by the time a service switches back to APPOINTMENT, it's already at defaults.
   // classResourceSlots/activeResourceIdsByType are only meaningful when converting TO SESSION —
   // same shape as create()'s identical params, resolved by the caller (IResourceRepository.
   // findByTenant). A conversion to SESSION always requires slots supplied in the same call, since
@@ -277,6 +387,7 @@ export class Service extends AggregateRoot {
       this.props.legs = null;
       this.props.bufferAfterMinutes = null;
       this.props.classResourceSlots = classResourceSlots;
+      this.props.bookingPolicy = defaultServiceBookingPolicyProps();
     } else {
       this.props.classResourceSlots = null;
     }

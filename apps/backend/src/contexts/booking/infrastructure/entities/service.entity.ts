@@ -1,5 +1,10 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
-import { ServiceBookingModel } from '../../domain/service.aggregate';
+import {
+  ServiceApprovalMode,
+  ServiceBookingModel,
+  ServiceDurationPolicy,
+  ServicePricingPolicy,
+} from '../../domain/service.aggregate';
 
 @Entity('services', { schema: 'booking' })
 @Index(['tenantId'])
@@ -44,4 +49,66 @@ export class ServiceEntity {
 
   @Column({ name: 'buffer_after_minutes', type: 'int', nullable: true })
   bufferAfterMinutes!: number | null;
+
+  // M22-S02 — booking-policy fields (UC-055), all null on a SESSION service. See
+  // docs/13-DATABASE_SCHEMA.md § booking.services — modified (M22 Cluster 2).
+  @Column({ name: 'default_approval_mode', type: 'varchar', length: 20, nullable: true })
+  defaultApprovalMode!: ServiceApprovalMode | null;
+
+  @Column({ name: 'manual_hold_minutes', type: 'int', nullable: true })
+  manualHoldMinutes!: number | null;
+
+  @Column({ name: 'cancellation_window_hours_override', type: 'int', nullable: true })
+  cancellationWindowHoursOverride!: number | null;
+
+  @Column({ name: 'reschedule_window_hours_override', type: 'int', nullable: true })
+  rescheduleWindowHoursOverride!: number | null;
+
+  @Column({ name: 'min_booking_advance_hours_override', type: 'int', nullable: true })
+  minBookingAdvanceHoursOverride!: number | null;
+
+  @Column({ name: 'max_booking_advance_days_override', type: 'int', nullable: true })
+  maxBookingAdvanceDaysOverride!: number | null;
+
+  @Column({ name: 'recurrence_eligible', type: 'boolean', default: false })
+  recurrenceEligible!: boolean;
+
+  @Column({ name: 'availability_alert_eligible', type: 'boolean', default: false })
+  availabilityAlertEligible!: boolean;
+
+  @Column({ name: 'duration_policy', type: 'varchar', length: 20, default: 'FIXED' })
+  durationPolicy!: ServiceDurationPolicy;
+
+  @Column({ name: 'duration_min_minutes', type: 'int', nullable: true })
+  durationMinMinutes!: number | null;
+
+  @Column({ name: 'duration_max_minutes', type: 'int', nullable: true })
+  durationMaxMinutes!: number | null;
+
+  @Column({ name: 'duration_increment_minutes', type: 'int', nullable: true })
+  durationIncrementMinutes!: number | null;
+
+  @Column({ name: 'pricing_policy', type: 'varchar', length: 20, default: 'FIXED' })
+  pricingPolicy!: ServicePricingPolicy;
+
+  @Column({ name: 'pricing_increment_minutes', type: 'int', nullable: true })
+  pricingIncrementMinutes!: number | null;
+
+  @Column({
+    name: 'price_per_increment_amount',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  pricePerIncrementAmount!: string | null;
+
+  @Column({
+    name: 'minimum_charge_amount',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  minimumChargeAmount!: string | null;
 }

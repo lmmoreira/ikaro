@@ -2,6 +2,10 @@ import { Service, ServiceBookingModel } from '../../../contexts/booking/domain/s
 import { ClassResourceSlot } from '../../../contexts/booking/domain/class-resource-slot';
 import { ResourceRequirement } from '../../../contexts/booking/domain/resource-requirement';
 import { ServiceLeg } from '../../../contexts/booking/domain/service-leg';
+import {
+  defaultServiceBookingPolicyProps,
+  ServiceBookingPolicyProps,
+} from '../../../contexts/booking/domain/service.types';
 import { Money } from '../../../shared/value-objects/money';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
@@ -20,6 +24,7 @@ export class ServiceBuilder {
   private bufferAfterMinutes: number | null = 60;
   private legs: ServiceLeg[] | null = null;
   private classResourceSlots: ClassResourceSlot[] | null = null;
+  private bookingPolicy: ServiceBookingPolicyProps = defaultServiceBookingPolicyProps();
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -86,6 +91,11 @@ export class ServiceBuilder {
     return this;
   }
 
+  withBookingPolicy(bookingPolicy: Partial<ServiceBookingPolicyProps>): this {
+    this.bookingPolicy = { ...this.bookingPolicy, ...bookingPolicy };
+    return this;
+  }
+
   // Simulates an already-persisted row (Service.reconstitute()) — a test that needs
   // resourceRequirements/legs/classResourceSlots actually written to the DB on save() must call
   // the matching setter (setResourceRequirements()/setLegs()) on the built instance first, the
@@ -109,6 +119,7 @@ export class ServiceBuilder {
       bufferAfterMinutes: this.bufferAfterMinutes,
       legs: this.legs,
       classResourceSlots: this.classResourceSlots,
+      bookingPolicy: this.bookingPolicy,
     });
   }
 }

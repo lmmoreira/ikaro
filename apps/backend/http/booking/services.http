@@ -222,6 +222,114 @@ X-Actor-Role: MANAGER
 # resources).
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — booking policy / booking-intake schema (M22 Cluster 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Set booking policy (UC-055)
+PATCH {{baseUrl}}/services/{{serviceId}}/booking-policy
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "defaultApprovalMode": "MANUAL_APPROVAL",
+  "manualHoldMinutes": 30,
+  "cancellationWindowHoursOverride": null,
+  "recurrenceEligible": true,
+  "availabilityAlertEligible": true
+}
+
+###
+
+### Set a variable-duration booking policy (UC-055 step 4)
+PATCH {{baseUrl}}/services/{{serviceId}}/booking-policy
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "durationPolicy": "CUSTOMER_SELECTED",
+  "durationMinMinutes": 60,
+  "durationMaxMinutes": 480,
+  "durationIncrementMinutes": 30,
+  "pricingPolicy": "PER_TIME_INCREMENT",
+  "pricingIncrementMinutes": 60,
+  "pricePerIncrementAmount": 50.00
+}
+
+###
+
+### 422 — variable duration without a pricing policy (UC-055 A2)
+PATCH {{baseUrl}}/services/{{serviceId}}/booking-policy
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "durationPolicy": "CUSTOMER_SELECTED"
+}
+
+###
+
+### Publish a booking-intake schema (UC-054)
+POST {{baseUrl}}/services/{{serviceId}}/intake-schema
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "questions": [
+    { "fieldKey": "accessNeeds", "label": "Necessidades de acesso", "type": "FREE_TEXT", "required": false }
+  ],
+  "consentText": "Concordo com os termos de agendamento",
+  "requiresNamedAttendees": false,
+  "participantCountRequired": false
+}
+
+###
+
+### Publish a schema with a PICKUP_ADDRESS question — sets requiresPickupAddress (UC-054 A2)
+POST {{baseUrl}}/services/{{serviceId}}/intake-schema
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "questions": [
+    { "fieldKey": "pickup", "label": "Endereço de coleta", "type": "PICKUP_ADDRESS", "required": true }
+  ],
+  "consentText": "Concordo com os termos de agendamento"
+}
+
+###
+
+### 409 — booking-policy/intake-schema on a SESSION service
+PATCH {{baseUrl}}/services/{{serviceId}}/booking-policy
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "recurrenceEligible": true
+}
+# Only valid against an APPOINTMENT service — set serviceId to a SESSION-model service to see
+# 409 BOOKING_SERVICE_BOOKING_CONFIG_MODEL_MISMATCH.
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — activate/deactivate service (UC-013)
 # ─────────────────────────────────────────────────────────────────────────────
 

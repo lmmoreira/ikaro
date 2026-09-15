@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   Between,
   EntityManager,
@@ -164,7 +165,12 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     const nextVersion = booking.version === undefined ? 1 : booking.version + 1;
 
     if (booking.version === undefined) {
-      await manager.insert(BookingEntity, bookingEntity);
+      // Cast matches toUpdateSet()'s own precedent below (and
+      // typeorm-hotsite-config.repository.ts/typeorm-lead-form-config.repository.ts) — TypeORM's
+      // QueryDeepPartialEntity mapped type doesn't resolve cleanly against a JSONB column typed
+      // as Record<string, unknown> (intakeAnswers, M22-S02), even though the runtime value is a
+      // plain BookingEntity.
+      await manager.insert(BookingEntity, bookingEntity as QueryDeepPartialEntity<BookingEntity>);
     } else {
       const currentVersion = booking.version;
       const result = await manager
