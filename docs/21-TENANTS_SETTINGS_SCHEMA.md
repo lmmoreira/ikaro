@@ -76,7 +76,7 @@ Controls booking lifecycle and rules.
 | Key | Type | Default | Min | Max | Description |
 |-----|------|---------|-----|-----|-------------|
 | `cancellationWindowHours` | integer | 48 | 0 | 720 | Hours before appointment when customer can still cancel (0 = no self-cancellation) |
-| `autoApproveEnabled` | boolean | false | — | — | **Reserved — post-MVP only. Currently ignored.** Automatically approve bookings without admin review. |
+| `autoApproveEnabled` | boolean | false | — | — | Tenant-wide default approval mode for appointment bookings — inherited by `Service.defaultApprovalMode` when left `null` (UC-055, consumed starting M22-S02). Editable via dashboard Configurações → Booking since earlier; this is the first consumer. |
 | `minBookingAdvanceHours` | integer | 0 | 0 | 8760 | Minimum hours in advance customer must book (0 = can book same day) |
 | `maxBookingAdvanceDays` | integer | 90 | 1 | 365 | Maximum days in advance customer can book |
 | `serviceBufferMinutes` | integer | 60 | 0 | 120 | Buffer time between service end and next booking (cleaning, prep time) |
