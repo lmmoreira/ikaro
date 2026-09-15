@@ -118,6 +118,61 @@ export class ServiceEntityBuilder {
     return this;
   }
 
+  withManualHoldMinutes(manualHoldMinutes: number | null): this {
+    this.manualHoldMinutes = manualHoldMinutes;
+    return this;
+  }
+
+  withCancellationWindowHoursOverride(cancellationWindowHoursOverride: number | null): this {
+    this.cancellationWindowHoursOverride = cancellationWindowHoursOverride;
+    return this;
+  }
+
+  withRescheduleWindowHoursOverride(rescheduleWindowHoursOverride: number | null): this {
+    this.rescheduleWindowHoursOverride = rescheduleWindowHoursOverride;
+    return this;
+  }
+
+  withMinBookingAdvanceHoursOverride(minBookingAdvanceHoursOverride: number | null): this {
+    this.minBookingAdvanceHoursOverride = minBookingAdvanceHoursOverride;
+    return this;
+  }
+
+  withMaxBookingAdvanceDaysOverride(maxBookingAdvanceDaysOverride: number | null): this {
+    this.maxBookingAdvanceDaysOverride = maxBookingAdvanceDaysOverride;
+    return this;
+  }
+
+  withDurationMinMinutes(durationMinMinutes: number | null): this {
+    this.durationMinMinutes = durationMinMinutes;
+    return this;
+  }
+
+  withDurationMaxMinutes(durationMaxMinutes: number | null): this {
+    this.durationMaxMinutes = durationMaxMinutes;
+    return this;
+  }
+
+  withDurationIncrementMinutes(durationIncrementMinutes: number | null): this {
+    this.durationIncrementMinutes = durationIncrementMinutes;
+    return this;
+  }
+
+  withPricingIncrementMinutes(pricingIncrementMinutes: number | null): this {
+    this.pricingIncrementMinutes = pricingIncrementMinutes;
+    return this;
+  }
+
+  withPricePerIncrementAmount(pricePerIncrementAmount: string | null): this {
+    this.pricePerIncrementAmount = pricePerIncrementAmount;
+    return this;
+  }
+
+  withMinimumChargeAmount(minimumChargeAmount: string | null): this {
+    this.minimumChargeAmount = minimumChargeAmount;
+    return this;
+  }
+
   build(): ServiceEntity {
     const e = new ServiceEntity();
     e.id = this.id;
