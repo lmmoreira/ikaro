@@ -537,6 +537,15 @@ describe('Service', () => {
       expect(totalSpan).toBe(45);
     });
 
+    it('orders legs by legIndex regardless of submission order — both the stored legs and the returned span reflect itinerary order, not array order', () => {
+      // legIndex 1 submitted first, legIndex 0 second.
+      const totalSpan = service.setLegs([leg(1), leg(0)], activeIds(ResourceType.ROOM));
+      // Same 45 as the sorted-submission case above — legIndex 1's gap (the itinerary's last
+      // leg) must never be counted, regardless of array position.
+      expect(totalSpan).toBe(45);
+      expect(service.legs!.map((l) => l.legIndex)).toEqual([0, 1]);
+    });
+
     it('rejects when the service is a SESSION (mutual exclusivity with classResourceSlots)', () => {
       const sessionService = new ServiceBuilder()
         .withTenantId(TENANT)

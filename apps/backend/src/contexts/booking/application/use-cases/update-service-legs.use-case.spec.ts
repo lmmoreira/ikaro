@@ -72,6 +72,23 @@ describe('UpdateServiceLegsUseCase', () => {
     expect(result.totalSpanMinutes).toBe(80);
   });
 
+  it('orders legs by legIndex regardless of submission order (UC-052 — legIndex is itinerary order, not array position)', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+
+    // Submitted with legIndex 1 first — the itinerary is still 0 then 1.
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      legs: [TWO_LEGS[1], TWO_LEGS[0]],
+    });
+
+    expect(result.legs.map((l) => l.legIndex)).toEqual([0, 1]);
+    // Same 80 as the sorted-submission case above — leg 1 (itinerary's last leg, no gap set)
+    // must never have its gap counted, regardless of array position.
+    expect(result.totalSpanMinutes).toBe(80);
+  });
+
   it('reads the service under a row lock (findByIdForUpdate), not a plain findById', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await serviceRepo.save(service);

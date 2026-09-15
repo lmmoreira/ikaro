@@ -41,4 +41,25 @@ describe('computeLegsTotalSpanMinutes()', () => {
     ];
     expect(computeLegsTotalSpanMinutes(legs)).toBe(30);
   });
+
+  it('orders by legIndex regardless of array submission order — the last leg by legIndex, not by array position, is excluded from the gap sum', () => {
+    // legIndex 1 submitted first, legIndex 0 second — itinerary order is still 0 then 1.
+    const legs = [
+      ServiceLeg.create({
+        legIndex: 1,
+        name: 'B',
+        durationMinutes: 50,
+        resourceRequirements: [REQUIREMENT],
+        transitionGapAfterMinutes: 10, // last leg by legIndex — must never be counted
+      }),
+      ServiceLeg.create({
+        legIndex: 0,
+        name: 'A',
+        durationMinutes: 20,
+        resourceRequirements: [REQUIREMENT],
+        transitionGapAfterMinutes: 0,
+      }),
+    ];
+    expect(computeLegsTotalSpanMinutes(legs)).toBe(70); // 20 + 50 + 0, not 80
+  });
 });

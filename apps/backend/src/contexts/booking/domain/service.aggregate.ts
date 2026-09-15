@@ -234,11 +234,16 @@ export class Service extends AggregateRoot {
     for (const leg of legs) {
       assertResourceRequirementsAvailable(leg.resourceRequirements, activeResourceIdsByType);
     }
-    this.props.legs = [...legs];
+    // Stored in legIndex order (not submission order) so this in-memory aggregate always agrees
+    // with what a reload would return — the mapper's own read path sorts by legIndex
+    // (typeorm-service.mapper.ts), and setLegs() only rejects duplicate indexes, never out-of-
+    // order ones, so the caller's array order can't be trusted as itinerary order.
+    const orderedLegs = [...legs].sort((a, b) => a.legIndex - b.legIndex);
+    this.props.legs = orderedLegs;
     this.props.resourceRequirements = [];
     this.props.bufferAfterMinutes = null;
     this.props.updatedAt = new Date();
-    return computeLegsTotalSpanMinutes(legs);
+    return computeLegsTotalSpanMinutes(orderedLegs);
   }
 
   setBufferAfterMinutes(bufferAfterMinutes: number): void {

@@ -153,7 +153,7 @@ export async function persistRequestedBooking(
     for (const serviceId of serviceIds) {
       const lockedModel = lockedBookingModels.get(serviceId);
       const snapshot = serviceMap.get(serviceId);
-      if (lockedModel === undefined || !snapshot || lockedModel !== snapshot.bookingModel) {
+      if (lockedModel === undefined || lockedModel !== snapshot?.bookingModel) {
         throw new BookingServiceConcurrentModificationError(serviceId);
       }
     }
