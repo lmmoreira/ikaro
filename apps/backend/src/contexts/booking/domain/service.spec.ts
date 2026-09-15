@@ -46,6 +46,10 @@ function activeIds(...types: ResourceType[]): ActiveResourceIdsByType {
   return new Map(types.map((type) => [type, new Set(['resource-1'])]));
 }
 
+function policy(overrides: Partial<ServiceBookingPolicyProps> = {}): ServiceBookingPolicyProps {
+  return { ...defaultServiceBookingPolicyProps(), ...overrides };
+}
+
 const TENANT = 'tenant-abc';
 const PRICE = Money.from(150, 'BRL');
 const DURATION = 60;
@@ -645,10 +649,6 @@ describe('Service', () => {
   });
 
   describe('setBookingPolicy()', () => {
-    function policy(overrides: Partial<ServiceBookingPolicyProps> = {}): ServiceBookingPolicyProps {
-      return { ...defaultServiceBookingPolicyProps(), ...overrides };
-    }
-
     it('persists all policy fields', () => {
       const service = new ServiceBuilder().withTenantId(TENANT).build();
       service.setBookingPolicy(
@@ -754,6 +754,50 @@ describe('Service', () => {
         ),
       ).toThrow(ServiceBookingPolicyInvalidError);
     });
+
+    it('rejects pricingPolicy=PER_TIME_INCREMENT with durationPolicy=FIXED (reverse pairing)', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({
+            durationPolicy: 'FIXED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            pricingIncrementMinutes: 15,
+            pricePerIncrementAmount: 10,
+          }),
+        ),
+      ).toThrow(ServiceBookingPolicyInvalidError);
+    });
+
+    it('clears stale duration detail fields when durationPolicy reverts to FIXED', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          durationPolicy: 'FIXED',
+          pricingPolicy: 'FIXED',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 15,
+        }),
+      );
+      expect(service.bookingPolicy.durationMinMinutes).toBeNull();
+      expect(service.bookingPolicy.durationMaxMinutes).toBeNull();
+      expect(service.bookingPolicy.durationIncrementMinutes).toBeNull();
+    });
+
+    it('clears stale pricing detail fields when pricingPolicy reverts to FIXED', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          durationPolicy: 'FIXED',
+          pricingPolicy: 'FIXED',
+          pricingIncrementMinutes: 15,
+          pricePerIncrementAmount: 10,
+        }),
+      );
+      expect(service.bookingPolicy.pricingIncrementMinutes).toBeNull();
+      expect(service.bookingPolicy.pricePerIncrementAmount).toBeNull();
+    });
   });
 
   describe('changeBookingModel()', () => {
@@ -832,6 +876,24 @@ describe('Service', () => {
         .build();
       service.changeBookingModel('APPOINTMENT', false);
       expect(service.classResourceSlots).toBeNull();
+    });
+
+    it('resets bookingPolicy to defaults when switching to SESSION (bookingPolicy is APPOINTMENT-only)', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .build();
+      service.setBookingPolicy(
+        policy({ defaultApprovalMode: 'MANUAL_APPROVAL', recurrenceEligible: true }),
+      );
+      expect(service.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+
+      const slots = [
+        ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['resource-1'] }),
+      ];
+      service.changeBookingModel('SESSION', false, slots, activeIds(ResourceType.ROOM));
+
+      expect(service.bookingPolicy).toEqual(defaultServiceBookingPolicyProps());
     });
   });
 });

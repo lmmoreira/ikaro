@@ -271,23 +271,45 @@ export class Service extends AggregateRoot {
   }
 
   // UC-055. Takes a fully-resolved policy object (the use case merges input-vs-current per field
-  // before calling this, same separation as update()'s resolved-args pattern above) — this method
-  // only validates the one cross-field invariant a resolved snapshot can express structurally.
+  // before calling this, same separation as update()'s resolved-args pattern above).
   setBookingPolicy(policy: ServiceBookingPolicyProps): void {
     if (this.props.bookingModel !== 'APPOINTMENT') {
       throw new BookingServiceBookingConfigModelMismatchError(this.props.id);
     }
-    if (policy.durationPolicy === 'CUSTOMER_SELECTED' && policy.pricingPolicy === 'FIXED') {
+    const normalized = Service.normalizeBookingPolicy(policy);
+    if (normalized.durationPolicy === 'CUSTOMER_SELECTED' && normalized.pricingPolicy === 'FIXED') {
       throw new ServiceDurationPolicyRequiresPricingError();
     }
-    Service.validateBookingPolicyCompleteness(policy);
-    this.props.bookingPolicy = { ...policy };
+    Service.validateBookingPolicyCompleteness(normalized);
+    this.props.bookingPolicy = normalized;
     this.props.updatedAt = new Date();
   }
 
   // Split out of setBookingPolicy() to stay under docs/CODE_STANDARDS.md's function-length
-  // limit. Validates the fully-resolved policy snapshot (not the raw PATCH body — see
-  // ServiceBookingPolicyInvalidError's own comment for why this can't live in Zod).
+  // limit. Clears detail fields that are meaningless under the resolved policy's own governing
+  // field (docs/02-DOMAIN_MODEL.md: "the four [duration] fields... are meaningless (null) unless
+  // durationPolicy=CUSTOMER_SELECTED") — matches changeBookingModel()'s own clear-on-switch
+  // convention for the same class of mutual-exclusivity invariant, so a PATCH that switches a
+  // policy back to FIXED never silently carries a stale CUSTOMER_SELECTED-era value forward.
+  private static normalizeBookingPolicy(
+    policy: ServiceBookingPolicyProps,
+  ): ServiceBookingPolicyProps {
+    const normalized = { ...policy };
+    if (normalized.durationPolicy === 'FIXED') {
+      normalized.durationMinMinutes = null;
+      normalized.durationMaxMinutes = null;
+      normalized.durationIncrementMinutes = null;
+    }
+    if (normalized.pricingPolicy === 'FIXED') {
+      normalized.pricingIncrementMinutes = null;
+      normalized.pricePerIncrementAmount = null;
+    }
+    return normalized;
+  }
+
+  // Split out of setBookingPolicy() to stay under docs/CODE_STANDARDS.md's function-length
+  // limit. Validates the fully-resolved, normalized policy snapshot (not the raw PATCH body —
+  // see ServiceBookingPolicyInvalidError's own comment for why this can't live in Zod).
   private static validateBookingPolicyCompleteness(policy: ServiceBookingPolicyProps): void {
     if (
       policy.durationMinMinutes !== null &&
@@ -310,6 +332,15 @@ export class Service extends AggregateRoot {
     ) {
       throw new ServiceBookingPolicyInvalidError('custom-duration-details-required');
     }
+    // docs/02-DOMAIN_MODEL.md: "pricingPolicy... PER_TIME_INCREMENT requires CUSTOMER_SELECTED"
+    // — the reverse direction of the CUSTOMER_SELECTED-requires-non-FIXED-pricing check above
+    // (ServiceDurationPolicyRequiresPricingError), not the same invariant restated.
+    if (
+      policy.pricingPolicy === 'PER_TIME_INCREMENT' &&
+      policy.durationPolicy !== 'CUSTOMER_SELECTED'
+    ) {
+      throw new ServiceBookingPolicyInvalidError('per-time-increment-requires-custom-duration');
+    }
   }
 
   // UC-054 A2 — a one-way flip: publishing a PICKUP_ADDRESS-typed intake question sets this, but
@@ -326,7 +357,11 @@ export class Service extends AggregateRoot {
   // even with booking history. hasBookingHistory is resolved by the caller (existsByServiceId).
   // Switching model normalizes the fields that only apply to the other model (mutual-exclusivity
   // invariant, docs/02-DOMAIN_MODEL.md) — never leaves a stale resourceRequirements/legs/buffer
-  // behind on a SESSION service, nor a stale classResourceSlots behind on an APPOINTMENT one.
+  // behind on a SESSION service, nor a stale classResourceSlots behind on an APPOINTMENT one, nor
+  // a stale bookingPolicy (APPOINTMENT-only, M22-S02) behind on a SESSION one. Resetting
+  // bookingPolicy only needs to happen on the -> SESSION transition: setBookingPolicy() itself
+  // rejects any call on a SESSION service, so it can never drift from defaults while SESSION —
+  // by the time a service switches back to APPOINTMENT, it's already at defaults.
   // classResourceSlots/activeResourceIdsByType are only meaningful when converting TO SESSION —
   // same shape as create()'s identical params, resolved by the caller (IResourceRepository.
   // findByTenant). A conversion to SESSION always requires slots supplied in the same call, since
@@ -349,6 +384,7 @@ export class Service extends AggregateRoot {
       this.props.legs = null;
       this.props.bufferAfterMinutes = null;
       this.props.classResourceSlots = classResourceSlots;
+      this.props.bookingPolicy = defaultServiceBookingPolicyProps();
     } else {
       this.props.classResourceSlots = null;
     }

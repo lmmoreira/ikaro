@@ -36,7 +36,8 @@ export class BookingServiceBookingConfigModelMismatchError extends BookingDomain
 type ServiceBookingPolicyInvalidReason =
   | 'duration-range-invalid'
   | 'pricing-increment-details-required'
-  | 'custom-duration-details-required';
+  | 'custom-duration-details-required'
+  | 'per-time-increment-requires-custom-duration';
 
 const SERVICE_BOOKING_POLICY_INVALID_MESSAGES: Record<ServiceBookingPolicyInvalidReason, string> = {
   'duration-range-invalid': 'durationMaxMinutes must be >= durationMinMinutes',
@@ -44,12 +45,15 @@ const SERVICE_BOOKING_POLICY_INVALID_MESSAGES: Record<ServiceBookingPolicyInvali
     'pricingPolicy=PER_TIME_INCREMENT requires pricingIncrementMinutes and pricePerIncrementAmount',
   'custom-duration-details-required':
     'durationPolicy=CUSTOMER_SELECTED requires durationMinMinutes, durationMaxMinutes, and durationIncrementMinutes',
+  'per-time-increment-requires-custom-duration':
+    'pricingPolicy=PER_TIME_INCREMENT requires durationPolicy=CUSTOMER_SELECTED',
 };
 
 const SERVICE_BOOKING_POLICY_INVALID_FIELDS: Record<ServiceBookingPolicyInvalidReason, string> = {
   'duration-range-invalid': 'durationMaxMinutes',
   'pricing-increment-details-required': 'pricingIncrementMinutes',
   'custom-duration-details-required': 'durationMinMinutes',
+  'per-time-increment-requires-custom-duration': 'durationPolicy',
 };
 
 // PATCH semantics resolve the request against the current policy before this aggregate ever
