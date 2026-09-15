@@ -8,18 +8,28 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
 import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
-import { ServiceDetail, ServiceListResponse } from './services.types';
+import {
+  ServiceDetail,
+  ServiceListResponse,
+  UpdateServiceLegsResult,
+  UpdateServiceResourceRequirementsResult,
+} from './services.types';
 import { toStaffServiceListResponse, toStaffServiceResponse } from './services.mapper';
 import {
   CreateServiceBody,
   CreateServiceBodySchema,
   UpdateServiceBody,
   UpdateServiceBodySchema,
+  UpdateServiceLegsBody,
+  UpdateServiceLegsBodySchema,
+  UpdateServiceResourceRequirementsBody,
+  UpdateServiceResourceRequirementsBodySchema,
 } from './services.schemas';
 
 // Request Zod schemas moved to services.schemas.ts — re-exported here so existing
@@ -63,6 +73,30 @@ export class ServicesController {
   ): Promise<StaffServiceResponse> {
     const result = await this.backendHttp.patch<ServiceDetail>(`/services/${id}`, body);
     return toStaffServiceResponse(result);
+  }
+
+  @Patch(':id/resource-requirements')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  async updateResourceRequirements(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceResourceRequirementsBodySchema))
+    body: UpdateServiceResourceRequirementsBody,
+  ): Promise<UpdateServiceResourceRequirementsResult> {
+    return this.backendHttp.patch<UpdateServiceResourceRequirementsResult>(
+      `/services/${id}/resource-requirements`,
+      body,
+    );
+  }
+
+  @Put(':id/legs')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  async updateLegs(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceLegsBodySchema)) body: UpdateServiceLegsBody,
+  ): Promise<UpdateServiceLegsResult> {
+    return this.backendHttp.put<UpdateServiceLegsResult>(`/services/${id}/legs`, body);
   }
 
   @Patch(':id/activate')

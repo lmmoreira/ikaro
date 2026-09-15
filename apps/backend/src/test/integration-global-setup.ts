@@ -11,6 +11,16 @@ import { ResourceEntity } from '../contexts/booking/infrastructure/entities/reso
 import { ScheduleClosureEntity } from '../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../contexts/booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../contexts/booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
 import { CreateBookingServices1748000000011 } from '../contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices';
 import { CreateBookingScheduleClosures1748000000012 } from '../contexts/booking/infrastructure/migrations/1748000000012-CreateBookingScheduleClosures';
 import { CreateBookingScheduleOpenings1748000000013 } from '../contexts/booking/infrastructure/migrations/1748000000013-CreateBookingScheduleOpenings';
@@ -18,6 +28,7 @@ import { CreateBookingBookings1748000000014 } from '../contexts/booking/infrastr
 import { CreateBookingResources1748500000007 } from '../contexts/booking/infrastructure/migrations/1748500000007-CreateBookingResources';
 import { BackfillLocationResources1748500000008 } from '../contexts/booking/infrastructure/migrations/1748500000008-BackfillLocationResources';
 import { AddResourceIdToScheduleClosuresAndOpenings1748500000009 } from '../contexts/booking/infrastructure/migrations/1748500000009-AddResourceIdToScheduleClosuresAndOpenings';
+import { AddServiceResourceRequirementsAndLegs1748500000010 } from '../contexts/booking/infrastructure/migrations/1748500000010-AddServiceResourceRequirementsAndLegs';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -117,6 +128,12 @@ export default async function globalSetup(): Promise<void> {
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
       ResourceEntity,
+      ServiceResourceRequirementEntity,
+      ServiceResourceRequirementPoolEntity,
+      ServiceLegEntity,
+      ServiceLegResourceRequirementEntity,
+      ServiceLegResourceRequirementPoolEntity,
+      ServiceClassResourcePoolEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
@@ -159,6 +176,7 @@ export default async function globalSetup(): Promise<void> {
       CreateBookingResources1748500000007,
       BackfillLocationResources1748500000008,
       AddResourceIdToScheduleClosuresAndOpenings1748500000009,
+      AddServiceResourceRequirementsAndLegs1748500000010,
     ],
     synchronize: false,
     migrationsRun: false,

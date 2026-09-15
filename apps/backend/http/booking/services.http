@@ -96,6 +96,132 @@ X-Actor-Role: MANAGER
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — resource requirements / legs / buffer / booking model (M22 Cluster 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Set a flat resource requirement (UC-050)
+PATCH {{baseUrl}}/services/{{serviceId}}/resource-requirements
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "resourceRequirements": [
+    { "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }
+  ]
+}
+
+###
+
+### Set a bundled resource requirement (UC-051)
+PATCH {{baseUrl}}/services/{{serviceId}}/resource-requirements
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "resourceRequirements": [
+    { "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" },
+    { "type": "EQUIPMENT", "selectionMode": "AUTO_ANY" }
+  ]
+}
+
+###
+
+### Set sequential legs (UC-052)
+PUT {{baseUrl}}/services/{{serviceId}}/legs
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "legs": [
+    { "legIndex": 0, "name": "Sauna", "durationMinutes": 20, "resourceRequirements": [{ "type": "ROOM", "selectionMode": "AUTO_ANY" }], "transitionGapAfterMinutes": 10 },
+    { "legIndex": 1, "name": "Massagem", "durationMinutes": 50, "resourceRequirements": [{ "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }], "transitionGapAfterMinutes": 0 }
+  ]
+}
+
+###
+
+### Set the service's buffer override (UC-053)
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "bufferAfterMinutes": 15
+}
+
+###
+
+### Convert an APPOINTMENT service to SESSION (UC-056) — classResourceSlots required in the same request
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "bookingModel": "SESSION",
+  "classResourceSlots": [
+    { "type": "ROOM", "eligibleResourceIds": ["00000000-0000-4000-8000-000000000001"] }
+  ]
+}
+# eligibleResourceIds must reference an active ROOM resource ID for this tenant. There is no
+# separate slot-management endpoint this milestone — classResourceSlots can only be supplied
+# where bookingModel itself is set (here, or at POST /services).
+
+###
+
+### 422 — converting to SESSION without classResourceSlots
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "bookingModel": "SESSION"
+}
+
+###
+
+### Create a SESSION-model service (UC-056)
+POST {{baseUrl}}/services
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "Aula de Yoga",
+  "priceAmount": 60,
+  "durationMinutes": 60,
+  "loyaltyPointsValue": 5,
+  "bookingModel": "SESSION",
+  "classResourceSlots": [
+    { "type": "ROOM", "eligibleResourceIds": ["00000000-0000-4000-8000-000000000001"] }
+  ]
+}
+# eligibleResourceIds must reference an active ROOM resource ID for this tenant — set it to a
+# real one before sending (an empty pool is rejected: a slot can't round-trip with zero
+# resources).
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — activate/deactivate service (UC-013)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -181,4 +307,66 @@ X-Actor-Role: MANAGER
 
 {
   "name": "Tentativa apos desativacao"
+}
+
+###
+
+### 422 — resource requirement references a type with no active resources
+PATCH {{baseUrl}}/services/{{serviceId}}/resource-requirements
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "resourceRequirements": [
+    { "type": "EQUIPMENT", "selectionMode": "AUTO_ANY" }
+  ]
+}
+
+###
+
+### 422 — fewer than 2 legs
+PUT {{baseUrl}}/services/{{serviceId}}/legs
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "legs": [
+    { "legIndex": 0, "name": "Etapa Unica", "durationMinutes": 30, "resourceRequirements": [{ "type": "ROOM", "selectionMode": "AUTO_ANY" }] }
+  ]
+}
+
+###
+
+### 409 — resource-requirements on a service that already has legs
+PATCH {{baseUrl}}/services/{{serviceId}}/resource-requirements
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "resourceRequirements": [
+    { "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }
+  ]
+}
+
+###
+
+### 409 — bookingModel change after the service already has bookings
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "bookingModel": "SESSION"
 }

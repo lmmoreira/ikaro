@@ -49,6 +49,15 @@ export class BackendHttpService {
     );
   }
 
+  async put<T>(path: string, body: unknown): Promise<T> {
+    return this.call(
+      this.http.put<T>(`${this.baseUrl}${path}`, body, {
+        headers: this.headers(),
+        timeout: 10_000,
+      }),
+    );
+  }
+
   async delete<T>(path: string): Promise<T> {
     return this.call(
       this.http.delete<T>(`${this.baseUrl}${path}`, {

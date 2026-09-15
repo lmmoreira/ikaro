@@ -69,3 +69,61 @@ export const UpdateResourceSchema = z
   })
   .strict()
   .default({});
+
+// M22-S01 — shared by the backend (resource-requirement.dto.ts, create-service.dto.ts,
+// update-service.dto.ts, update-service-resource-requirements.dto.ts,
+// update-service-legs.dto.ts) and BFF (services.schemas.ts) request schemas for the
+// Service resource-requirements/legs/booking-model endpoints; both need the identical
+// shape with no per-app deviation (same direct-reuse pattern as CreateResourceSchema above).
+export const BookingModelSchema = z.enum(['APPOINTMENT', 'SESSION']);
+
+// Upper bounds are business-context maxima, not domain-tested limits — no AC specifies an exact
+// number. They exist to cap the wholesale delete/reinsert write and the full-collection read
+// every service load hydrates (typeorm-service.repository.ts), not to model a real product rule.
+// A car wash/small-service-business bundle or leg count is realistically single-digit; 50/20
+// leave generous headroom without allowing an unbounded payload to blow up either side.
+// A duplicate ID inside one of these arrays would otherwise reach a composite-primary-key pool
+// table (service_resource_requirement_pool / service_class_resource_pool) as an unhandled
+// unique-constraint violation (500) instead of a clean 400 — reject it here instead.
+function uniqueUuidArray(max: number) {
+  return z
+    .array(z.uuid())
+    .max(max)
+    .refine((ids) => new Set(ids).size === ids.length, { error: 'must not contain duplicate IDs' });
+}
+
+export const ResourceRequirementSchema = z.object({
+  type: ResourceTypeSchema,
+  selectionMode: z.enum(['NONE', 'CUSTOMER_CHOICE', 'AUTO_ANY', 'AUTO_FUNGIBLE_POOL']),
+  resourcePoolIds: uniqueUuidArray(50).nullable().optional(),
+  requiredQuantity: z.number().int().positive().optional(),
+});
+
+export const ServiceLegSchema = z.object({
+  legIndex: z.number().int().min(0),
+  name: z.string().min(1),
+  durationMinutes: z.number().int().positive(),
+  resourceRequirements: z.array(ResourceRequirementSchema).min(1).max(20),
+  transitionGapAfterMinutes: z.number().int().min(0).optional(),
+});
+
+export const ClassResourceSlotSchema = z.object({
+  type: ResourceTypeSchema,
+  // .min(1) — unlike ResourceRequirement's nullable resourcePoolIds (null = unrestricted, a
+  // meaningful state), eligibleResourceIds has no "unrestricted" fallback: a slot with zero
+  // resources can't round-trip through persistence (service_class_resource_pool has one row per
+  // (service, type, resourceId) — zero resources means zero rows, indistinguishable on reload
+  // from no slot declared at all for that type).
+  eligibleResourceIds: uniqueUuidArray(50).min(1),
+});
+
+// No .min(2) here on purpose — UC-052 A1's "fewer than 2 legs" rejection is a domain-level
+// 422 (BookingServiceLegsTooFewError), not a generic Zod 400; a Zod-level minimum would make
+// that error code unreachable.
+export const UpdateServiceResourceRequirementsSchema = z.object({
+  resourceRequirements: z.array(ResourceRequirementSchema).min(1).max(20),
+});
+
+export const UpdateServiceLegsSchema = z.object({
+  legs: z.array(ServiceLegSchema).max(20),
+});

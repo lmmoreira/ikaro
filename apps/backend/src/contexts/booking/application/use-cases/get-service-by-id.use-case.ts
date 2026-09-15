@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { ServiceUseCaseResult, toServiceResult } from './service-result.mapper';
 
 export type GetServiceByIdUseCaseInput = {
   id: string;
@@ -8,17 +9,7 @@ export type GetServiceByIdUseCaseInput = {
   locale: string;
 };
 
-export interface GetServiceByIdUseCaseResult {
-  id: string;
-  name: string;
-  description: string | null;
-  price: { amount: number; currency: string; formatted: string };
-  durationMinutes: number;
-  loyaltyPointsValue: number;
-  requiresPickupAddress: boolean;
-  isActive: boolean;
-  createdAt: string;
-}
+export type GetServiceByIdUseCaseResult = ServiceUseCaseResult;
 
 @Injectable()
 export class GetServiceByIdUseCase {
@@ -29,20 +20,6 @@ export class GetServiceByIdUseCase {
     const service = await this.serviceRepo.findById(id, tenantId);
     if (!service) throw new ServiceNotFoundError(id);
 
-    return {
-      id: service.id,
-      name: service.name,
-      description: service.description,
-      price: {
-        amount: service.price.amount.toNumber(),
-        currency: service.price.currency,
-        formatted: service.price.format(locale),
-      },
-      durationMinutes: service.durationMinutes,
-      loyaltyPointsValue: service.loyaltyPointsValue,
-      requiresPickupAddress: service.requiresPickupAddress,
-      isActive: service.isActive,
-      createdAt: service.createdAt.toISOString(),
-    };
+    return toServiceResult(service, locale);
   }
 }

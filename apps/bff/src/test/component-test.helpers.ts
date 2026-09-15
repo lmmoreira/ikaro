@@ -55,6 +55,7 @@ export async function createTestApp(): Promise<{
     get: jest.fn(),
     post: jest.fn(),
     patch: jest.fn(),
+    put: jest.fn(),
     delete: jest.fn(),
     getForPublic: jest.fn(),
     postForPublic: jest.fn(),

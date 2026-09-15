@@ -4,6 +4,7 @@ import { Booking } from '../../domain/booking.aggregate';
 import { BookingLineInput } from '../../domain/booking-line.entity';
 import {
   BookingAddressValidationError,
+  BookingServiceConcurrentModificationError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
 import { Service } from '../../domain/service.aggregate';
@@ -13,6 +14,7 @@ import {
   AddressValidationError,
 } from '../../../../shared/value-objects/address';
 import { IBookingRepository } from '../ports/booking-repository.port';
+import { IServiceRepository } from '../ports/service-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import {
   PhotoPromotionOperation,
@@ -27,6 +29,9 @@ export interface PersistRequestedBookingParams {
   totalDurationMins: number;
   timezone: string;
   operations: PhotoPromotionOperation[];
+  // Snapshotted pre-transaction (resolveServices()) — compared against each service's own
+  // freshly-locked state below to detect (not just narrow) a concurrent bookingModel change.
+  serviceMap: Map<string, Service>;
 }
 
 export function createBookingAddress(
@@ -116,9 +121,11 @@ export async function persistRequestedBooking(
   slotConflictService: BookingSlotConflictService,
   bookingRepo: IBookingRepository,
   photoExistenceService: PhotoExistenceService,
+  serviceRepo: IServiceRepository,
   params: PersistRequestedBookingParams,
 ): Promise<void> {
-  const { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations } = params;
+  const { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations, serviceMap } =
+    params;
 
   await txManager.run(async () => {
     await assertRequestedSlotFreeInTransaction(
@@ -128,6 +135,28 @@ export async function persistRequestedBooking(
       totalDurationMins,
       timezone,
     );
+    // Locks every referenced Service row, in one round trip, before this booking becomes its
+    // first booking history — serializes against UpdateServiceUseCase's own
+    // findByIdForUpdate()-guarded bookingModel change, closing the TOCTOU race where a service's
+    // model could change concurrently with its very first booking being created (UC-056's
+    // immutable-after-history invariant). lockBookingModels() issues a single locked
+    // `SELECT ... WHERE id IN (...) FOR UPDATE` rather than N sequential findByIdForUpdate()
+    // calls (each of which would hydrate the full aggregate, including child rows this check
+    // never needs) — one statement locking every matching row also sidesteps the classic
+    // opposite-order deadlock a loop of individual per-row lock statements could otherwise hit
+    // between two concurrent multi-service bookings. Re-checks each lock's fresh bookingModel
+    // against the pre-transaction snapshot (not just acquiring-and-discarding it) — a lock only
+    // orders callers who both acquire it, it doesn't make an already-captured in-memory read
+    // fresh.
+    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
+    const lockedBookingModels = await serviceRepo.lockBookingModels(serviceIds, tenantId);
+    for (const serviceId of serviceIds) {
+      const lockedModel = lockedBookingModels.get(serviceId);
+      const snapshot = serviceMap.get(serviceId);
+      if (lockedModel === undefined || lockedModel !== snapshot?.bookingModel) {
+        throw new BookingServiceConcurrentModificationError(serviceId);
+      }
+    }
     await bookingRepo.save(booking);
     await txManager.scheduleAfterCommit(() =>
       photoExistenceService.executePhotoPromotion(operations),

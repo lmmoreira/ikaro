@@ -4,7 +4,8 @@ import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-re
 
 export const RequestAuthenticatedBookingSchema = z.object({
   scheduledAt: z.iso.datetime(),
-  serviceIds: z.array(z.uuid()).min(1),
+  // Bound — see request-booking.dto.ts's identical comment.
+  serviceIds: z.array(z.uuid()).min(1).max(20),
   pickupAddress: AddressShapeSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
   beforeServicePhotoUrls: BookingTmpPhotoPathsSchema.optional(),

@@ -511,6 +511,13 @@
         "HotsiteConfigEntity",
         "LeadFormConfigEntity",
         "ServiceEntity",
+        "ServiceResourceRequirementEntity",
+        "ServiceResourceRequirementPoolEntity",
+        "ServiceLegEntity",
+        "ServiceLegResourceRequirementEntity",
+        "ServiceLegResourceRequirementPoolEntity",
+        "ServiceClassResourcePoolEntity",
+        "ResourceEntity",
         "ScheduleClosureEntity",
         "ScheduleOpeningEntity",
         "BookingEntity",
@@ -530,7 +537,7 @@
         "LeadFormSubmissionEntity",
         "LeadFormAnswerEntity"
       ],
-      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource."
+      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata."
     },
     {
       "file": "apps/backend/src/test/utils/booking-integration-app.ts",
@@ -540,6 +547,12 @@
         "HotsiteConfigEntity",
         "CustomerEntity",
         "ServiceEntity",
+        "ServiceResourceRequirementEntity",
+        "ServiceResourceRequirementPoolEntity",
+        "ServiceLegEntity",
+        "ServiceLegResourceRequirementEntity",
+        "ServiceLegResourceRequirementPoolEntity",
+        "ServiceClassResourcePoolEntity",
         "ScheduleClosureEntity",
         "ScheduleOpeningEntity",
         "BookingEntity",
@@ -548,7 +561,7 @@
         "StaffEntity",
         "InboxRecordEntity"
       ],
-      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer/staff read dependencies it needs. StaffEntity was added in M21-S01 for the StaffDeactivatedHandler cross-context integration test (UC-048), which needs a real Staff row to deactivate via DeactivateStaffUseCase."
+      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer/staff read dependencies it needs. StaffEntity was added in M21-S01 for the StaffDeactivatedHandler cross-context integration test (UC-048), which needs a real Staff row to deactivate via DeactivateStaffUseCase. The M22-S01 Service child-table entities (resource requirements, legs, class resource pool) were added so ServiceController's integration spec can exercise PATCH .../resource-requirements and PUT .../legs against real tables."
     },
     {
       "file": "apps/backend/src/test/utils/customer-integration-app.ts",
@@ -723,6 +736,13 @@
       "rule": "max-lines-aggregate",
       "path": "apps/backend/src/contexts/booking/domain/booking.aggregate.ts",
       "rationale": "TD37-S05: a domain aggregate with many small, cohesive methods naturally exceeds the 250-line file cap even after extracting every type/mapper that could safely move out (booking.types.ts) — splitting Booking's remaining methods across files to satisfy the metric would fragment one cohesive domain concept, not reduce real complexity (max-lines-per-function still applies and is enforced/fixed on this file).",
+      "owner": "booking",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "max-lines-aggregate",
+      "path": "apps/backend/src/contexts/booking/domain/service.aggregate.ts",
+      "rationale": "M22-S01: same shape as booking.aggregate.ts's own exception above — Service's props/create-input interfaces already moved out to service.types.ts, and its own eligibility/booking-model-matching assertions moved out to resource-requirement-availability.ts; the remaining overage is inherent to the aggregate's cohesive method set (create/reconstitute/update/setResourceRequirements/setLegs/setBufferAfterMinutes/changeBookingModel/activate/deactivate), not something a further file split would meaningfully reduce (max-lines-per-function still applies and is enforced/fixed on this file).",
       "owner": "booking",
       "reviewBy": "2026-11-30"
     },

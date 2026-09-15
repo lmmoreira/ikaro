@@ -27,13 +27,15 @@ export class DeactivateServiceUseCase {
 
   async execute(input: DeactivateServiceUseCaseInput): Promise<DeactivateServiceUseCaseResult> {
     const { id, tenantId } = input;
-    const service = await this.serviceRepo.findById(id, tenantId);
-    if (!service) throw new ServiceNotFoundError(id);
 
-    service.deactivate();
+    const service = await this.txManager.run(async () => {
+      // findByIdForUpdate (not findById) — see activate-service.use-case.ts's identical comment.
+      const current = await this.serviceRepo.findByIdForUpdate(id, tenantId);
+      if (!current) throw new ServiceNotFoundError(id);
 
-    await this.txManager.run(async () => {
-      await this.serviceRepo.save(service);
+      current.deactivate();
+      await this.serviceRepo.save(current);
+      return current;
     });
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);

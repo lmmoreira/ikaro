@@ -48,6 +48,8 @@ import { OpenScheduleUseCase } from './application/use-cases/open-schedule.use-c
 import { RemoveClosureUseCase } from './application/use-cases/remove-closure.use-case';
 import { RemoveScheduleOpeningUseCase } from './application/use-cases/remove-schedule-opening.use-case';
 import { UpdateServiceUseCase } from './application/use-cases/update-service.use-case';
+import { UpdateServiceResourceRequirementsUseCase } from './application/use-cases/update-service-resource-requirements.use-case';
+import { UpdateServiceLegsUseCase } from './application/use-cases/update-service-legs.use-case';
 import { ApproveBookingUseCase } from './application/use-cases/approve-booking.use-case';
 import { RejectBookingUseCase } from './application/use-cases/reject-booking.use-case';
 import { RequestMoreInfoUseCase } from './application/use-cases/request-more-info.use-case';
@@ -68,6 +70,16 @@ import { BookingLineEntity } from './infrastructure/entities/booking-line.entity
 import { ScheduleClosureEntity } from './infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from './infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from './infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from './infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from './infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from './infrastructure/entities/service-class-resource-pool.entity';
 import { ResourceEntity } from './infrastructure/entities/resource.entity';
 import { BookingCustomerAdapter } from './infrastructure/cross-context/booking-customer.adapter';
 import { BookingStaffAdapter } from './infrastructure/cross-context/booking-staff.adapter';
@@ -97,6 +109,12 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
   imports: [
     TypeOrmModule.forFeature([
       ServiceEntity,
+      ServiceResourceRequirementEntity,
+      ServiceResourceRequirementPoolEntity,
+      ServiceLegEntity,
+      ServiceLegResourceRequirementEntity,
+      ServiceLegResourceRequirementPoolEntity,
+      ServiceClassResourcePoolEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
       BookingEntity,
@@ -152,6 +170,8 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     GetServiceByIdUseCase,
     GetBookingByIdUseCase,
     UpdateServiceUseCase,
+    UpdateServiceResourceRequirementsUseCase,
+    UpdateServiceLegsUseCase,
     DeactivateServiceUseCase,
     CloseScheduleUseCase,
     RemoveClosureUseCase,

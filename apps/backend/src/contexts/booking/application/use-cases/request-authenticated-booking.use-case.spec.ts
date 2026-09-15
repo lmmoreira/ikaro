@@ -16,6 +16,7 @@ import {
   BookingAddressValidationError,
   BookingCustomerNotFoundError,
   BookingPhotoNotUploadedError,
+  BookingServiceSessionNotBookableError,
   BookingSlotUnavailableError,
   CustomerPhoneNotSetError,
 } from '../../domain/errors/booking-domain.error';
@@ -244,5 +245,20 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     ]);
 
     await expect(useCase.execute(baseInput())).rejects.toBeInstanceOf(BookingSlotUnavailableError);
+  });
+
+  it('throws BookingServiceSessionNotBookableError when the service is a SESSION service', async () => {
+    const sessionService = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withBookingModel('SESSION')
+      .withResourceRequirements([])
+      .withBufferAfterMinutes(null)
+      .withClassResourceSlots([])
+      .build();
+    await serviceRepo.save(sessionService);
+
+    await expect(
+      useCase.execute({ ...baseInput(), serviceIds: [sessionService.id] }),
+    ).rejects.toBeInstanceOf(BookingServiceSessionNotBookableError);
   });
 });

@@ -1,13 +1,26 @@
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { BookingDomainError } from '../../domain/errors/booking-domain.error';
+import { ResourceBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingDomainError,
+  BookingServiceResourceTypeUnavailableError,
+  ClassResourceSlotBookingModelMismatchError,
+  ClassResourceSlotResourceNotActiveError,
+} from '../../domain/errors/booking-domain.error';
+import { ResourceType } from '../../domain/resource.types';
 import { CreateServiceUseCase } from './create-service.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
-const ctx = { tenantId: TENANT_A, currency: 'BRL', locale: 'pt-BR' };
+const ctx = {
+  tenantId: TENANT_A,
+  currency: 'BRL',
+  locale: 'pt-BR',
+  tenantServiceBufferMinutes: 60,
+};
 
 const baseDto = {
   name: 'Lavagem Completa',
@@ -20,13 +33,20 @@ const baseDto = {
 
 describe('CreateServiceUseCase', () => {
   let repo: InMemoryServiceRepository;
+  let resourceRepo: InMemoryResourceRepository;
   let bookingPlatform: InMemoryBookingPlatformPort;
   let useCase: CreateServiceUseCase;
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
+    resourceRepo = new InMemoryResourceRepository();
     bookingPlatform = new InMemoryBookingPlatformPort();
-    useCase = new CreateServiceUseCase(repo, bookingPlatform, new InMemoryTransactionManager());
+    useCase = new CreateServiceUseCase(
+      repo,
+      resourceRepo,
+      bookingPlatform,
+      new InMemoryTransactionManager(),
+    );
   });
 
   it('revalidates the public pages for the service tenant', async () => {
@@ -103,5 +123,73 @@ describe('CreateServiceUseCase', () => {
     await expect(useCase.execute({ ...baseDto, loyaltyPointsValue: -1, ...ctx })).rejects.toThrow(
       BookingDomainError,
     );
+  });
+
+  it('defaults bookingModel to APPOINTMENT', async () => {
+    const result = await useCase.execute({ ...baseDto, ...ctx });
+    expect(result.bookingModel).toBe('APPOINTMENT');
+  });
+
+  it('snapshots bufferAfterMinutes from the tenant default at creation (UC-053 step 1)', async () => {
+    const result = await useCase.execute({ ...baseDto, ...ctx, tenantServiceBufferMinutes: 45 });
+    expect(result.bufferAfterMinutes).toBe(45);
+  });
+
+  it('creates a SESSION service with classResourceSlots and a null bufferAfterMinutes', async () => {
+    const room = new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build();
+    await resourceRepo.save(room);
+
+    const result = await useCase.execute({
+      ...baseDto,
+      ...ctx,
+      bookingModel: 'SESSION',
+      classResourceSlots: [{ type: 'ROOM', eligibleResourceIds: [room.id] }],
+    });
+    expect(result.bookingModel).toBe('SESSION');
+    expect(result.bufferAfterMinutes).toBeNull();
+    expect(result.classResourceSlots).toEqual([{ type: 'ROOM', eligibleResourceIds: [room.id] }]);
+  });
+
+  it('rejects creating a SESSION service without classResourceSlots', async () => {
+    await expect(useCase.execute({ ...baseDto, ...ctx, bookingModel: 'SESSION' })).rejects.toThrow(
+      ClassResourceSlotBookingModelMismatchError,
+    );
+  });
+
+  it('rejects a classResourceSlots type with no active resources', async () => {
+    await expect(
+      useCase.execute({
+        ...baseDto,
+        ...ctx,
+        bookingModel: 'SESSION',
+        // No ROOM resource exists for this tenant at all — rejected regardless of which ID is
+        // listed here (the type-availability check runs before the per-ID membership check).
+        classResourceSlots: [
+          { type: 'ROOM', eligibleResourceIds: ['00000000-0000-4000-8000-999999999998'] },
+        ],
+      }),
+    ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
+  });
+
+  it('rejects a classResourceSlots eligibleResourceIds entry that is not an active resource of the tenant', async () => {
+    const room = new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build();
+    await resourceRepo.save(room);
+
+    await expect(
+      useCase.execute({
+        ...baseDto,
+        ...ctx,
+        bookingModel: 'SESSION',
+        classResourceSlots: [
+          { type: 'ROOM', eligibleResourceIds: ['00000000-0000-4000-8000-999999999999'] },
+        ],
+      }),
+    ).rejects.toThrow(ClassResourceSlotResourceNotActiveError);
+  });
+
+  it('starts with an empty resourceRequirements array and null legs', async () => {
+    const result = await useCase.execute({ ...baseDto, ...ctx });
+    expect(result.resourceRequirements).toEqual([]);
+    expect(result.legs).toBeNull();
   });
 });

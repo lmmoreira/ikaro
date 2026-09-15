@@ -430,8 +430,8 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket.
 - `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Returns `{ items: [...], total: number }` (`StaffServiceListResponse`) — each item uses `serviceId` (not `id`) and `price: { amount, currency }` (no `formatted`); see `StaffServiceResponse` in `service.dto.ts`. Lives on the bare `/services` path — see `docs/24-BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
 - `GET /services/:id` -> Single service by id, active or inactive (STAFF|MANAGER). `StaffServiceResponse`. `404` if not found or wrong tenant.
-- `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`), and, from M22 Cluster 2, `bookingModel: 'APPOINTMENT'|'SESSION'` (UC-056, default `APPOINTMENT`).
-- `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER). From M22 Cluster 2, also accepts `bufferAfterMinutes` (UC-053).
+- `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`), and, from M22 Cluster 2, `bookingModel: 'APPOINTMENT'|'SESSION'` (UC-056, default `APPOINTMENT`) and, when `bookingModel: 'SESSION'`, `classResourceSlots` (UC-056 step 3 — inert until M24).
+- `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER). From M22 Cluster 2, also accepts `bufferAfterMinutes` (UC-053) and `bookingModel` (UC-056, immutable once the service has booking history).
 - `DELETE /services/:id` -> Deactivate service (STAFF|MANAGER). Returns `204 No Content`.
 
 ### **Service Extensions — M22 Cluster 2 (UC-050–056)**

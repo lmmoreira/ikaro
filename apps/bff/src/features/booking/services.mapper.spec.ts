@@ -11,6 +11,11 @@ const serviceDetail: ServiceDetail = {
   requiresPickupAddress: false,
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
+  bookingModel: 'APPOINTMENT',
+  resourceRequirements: [],
+  bufferAfterMinutes: 60,
+  legs: null,
+  classResourceSlots: null,
 };
 
 describe('toStaffServiceResponse()', () => {
@@ -27,6 +32,11 @@ describe('toStaffServiceResponse()', () => {
       requiresPickupAddress: false,
       isActive: true,
       createdAt: '2026-01-01T00:00:00.000Z',
+      bookingModel: 'APPOINTMENT',
+      resourceRequirements: [],
+      bufferAfterMinutes: 60,
+      legs: null,
+      classResourceSlots: null,
     });
   });
 
@@ -38,6 +48,71 @@ describe('toStaffServiceResponse()', () => {
   it('preserves isActive: false for deactivated services', () => {
     const result = toStaffServiceResponse({ ...serviceDetail, isActive: false });
     expect(result.isActive).toBe(false);
+  });
+
+  it('maps flat resourceRequirements', () => {
+    const result = toStaffServiceResponse({
+      ...serviceDetail,
+      resourceRequirements: [
+        {
+          type: 'STAFF',
+          selectionMode: 'CUSTOMER_CHOICE',
+          resourcePoolIds: null,
+          requiredQuantity: 1,
+        },
+      ],
+    });
+    expect(result.resourceRequirements).toEqual([
+      {
+        type: 'STAFF',
+        selectionMode: 'CUSTOMER_CHOICE',
+        resourcePoolIds: null,
+        requiredQuantity: 1,
+      },
+    ]);
+  });
+
+  it('maps legs with their nested resourceRequirements', () => {
+    const result = toStaffServiceResponse({
+      ...serviceDetail,
+      resourceRequirements: [],
+      bufferAfterMinutes: null,
+      legs: [
+        {
+          legIndex: 0,
+          name: 'Etapa 1',
+          durationMinutes: 20,
+          resourceRequirements: [
+            { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
+          ],
+          transitionGapAfterMinutes: 5,
+        },
+      ],
+    });
+    expect(result.legs).toEqual([
+      {
+        legIndex: 0,
+        name: 'Etapa 1',
+        durationMinutes: 20,
+        resourceRequirements: [
+          { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
+        ],
+        transitionGapAfterMinutes: 5,
+      },
+    ]);
+  });
+
+  it('maps classResourceSlots for a SESSION service', () => {
+    const result = toStaffServiceResponse({
+      ...serviceDetail,
+      bookingModel: 'SESSION',
+      resourceRequirements: [],
+      bufferAfterMinutes: null,
+      classResourceSlots: [{ type: 'ROOM', eligibleResourceIds: ['r-1', 'r-2'] }],
+    });
+    expect(result.classResourceSlots).toEqual([
+      { type: 'ROOM', eligibleResourceIds: ['r-1', 'r-2'] },
+    ]);
   });
 });
 

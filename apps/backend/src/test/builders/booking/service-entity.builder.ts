@@ -1,4 +1,5 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
+import { ServiceBookingModel } from '../../../contexts/booking/domain/service.aggregate';
 import { ServiceEntity } from '../../../contexts/booking/infrastructure/entities/service.entity';
 
 export class ServiceEntityBuilder {
@@ -13,6 +14,8 @@ export class ServiceEntityBuilder {
   private isActive = true;
   private readonly createdAt = new Date('2026-01-01T00:00:00Z');
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
+  private bookingModel: ServiceBookingModel = 'APPOINTMENT';
+  private bufferAfterMinutes: number | null = 60;
 
   withId(id: string): this {
     this.id = id;
@@ -59,6 +62,16 @@ export class ServiceEntityBuilder {
     return this;
   }
 
+  withBookingModel(bookingModel: ServiceBookingModel): this {
+    this.bookingModel = bookingModel;
+    return this;
+  }
+
+  withBufferAfterMinutes(bufferAfterMinutes: number | null): this {
+    this.bufferAfterMinutes = bufferAfterMinutes;
+    return this;
+  }
+
   build(): ServiceEntity {
     const e = new ServiceEntity();
     e.id = this.id;
@@ -72,6 +85,8 @@ export class ServiceEntityBuilder {
     e.isActive = this.isActive;
     e.createdAt = this.createdAt;
     e.updatedAt = this.updatedAt;
+    e.bookingModel = this.bookingModel;
+    e.bufferAfterMinutes = this.bufferAfterMinutes;
     return e;
   }
 }

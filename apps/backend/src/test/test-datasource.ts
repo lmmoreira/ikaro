@@ -5,6 +5,17 @@ import { BookingLineEntity } from '../contexts/booking/infrastructure/entities/b
 import { ScheduleClosureEntity } from '../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../contexts/booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../contexts/booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
+import { ResourceEntity } from '../contexts/booking/infrastructure/entities/resource.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
@@ -44,6 +55,13 @@ export async function createTestDataSource(): Promise<DataSource> {
       HotsiteConfigEntity,
       LeadFormConfigEntity,
       ServiceEntity,
+      ServiceResourceRequirementEntity,
+      ServiceResourceRequirementPoolEntity,
+      ServiceLegEntity,
+      ServiceLegResourceRequirementEntity,
+      ServiceLegResourceRequirementPoolEntity,
+      ServiceClassResourcePoolEntity,
+      ResourceEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
       BookingEntity,

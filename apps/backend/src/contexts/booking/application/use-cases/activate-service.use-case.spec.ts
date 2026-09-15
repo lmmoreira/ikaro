@@ -77,4 +77,17 @@ describe('ActivateServiceUseCase', () => {
     const result = await useCase.execute({ id: service.id, tenantId: TENANT_A });
     expect(result.isActive).toBe(true);
   });
+
+  it('reads the service under a row lock (findByIdForUpdate), not a plain findById', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    service.deactivate();
+    await repo.save(service);
+    const findByIdForUpdateSpy = jest.spyOn(repo, 'findByIdForUpdate');
+    const findByIdSpy = jest.spyOn(repo, 'findById');
+
+    await useCase.execute({ id: service.id, tenantId: TENANT_A });
+
+    expect(findByIdForUpdateSpy).toHaveBeenCalledWith(service.id, TENANT_A);
+    expect(findByIdSpy).not.toHaveBeenCalled();
+  });
 });

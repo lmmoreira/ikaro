@@ -93,6 +93,13 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     };
   }
 
+  async existsByServiceId(serviceId: string, tenantId: string): Promise<boolean> {
+    // TypeORM's count() always discards take/limit/skip before running the COUNT query (see
+    // SelectQueryBuilder.executeCountQuery()) — it would scan/count every matching row instead of
+    // stopping at the first one. existsBy() runs a real EXISTS(...) LIMIT 1 query.
+    return this.lineRepo.existsBy({ serviceId, tenantId });
+  }
+
   private buildWhere(tenantId: string, filters: BookingFilters): FindOptionsWhere<BookingEntity> {
     const where: FindOptionsWhere<BookingEntity> = { tenantId };
     if (filters.status?.length === 1) where.status = filters.status[0];
