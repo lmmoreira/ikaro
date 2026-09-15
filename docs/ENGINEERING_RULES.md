@@ -236,6 +236,28 @@ Migrations that grant privileges to infrastructure-created database roles must e
 
 ---
 
+## Adding a CHECK constraint to an existing table with live rows
+
+A plain `ALTER TABLE ... ADD CONSTRAINT ... CHECK (...)` on a table that already has (or could already have, in staging/prod) real rows takes `ACCESS EXCLUSIVE` for the entire statement, including the full-table scan Postgres runs to validate every existing row against the new constraint — blocking all reads and writes on that table for the scan's duration, not just the instant catalog change a `CHECK` on a brand-new table would need.
+
+Split it into two statements instead:
+
+```sql
+ALTER TABLE "schema"."table"
+  ADD CONSTRAINT "CHK_name" CHECK (...) NOT VALID;
+
+ALTER TABLE "schema"."table"
+  VALIDATE CONSTRAINT "CHK_name";
+```
+
+`NOT VALID` takes `ACCESS EXCLUSIVE` only for the instant catalog write (no scan), and immediately starts enforcing the constraint for every new/updated row. The follow-up `VALIDATE CONSTRAINT` does the historical-row scan under the much weaker `SHARE UPDATE EXCLUSIVE`, which still allows concurrent reads and writes. Both statements belong in the same migration file — this is a two-statement SQL technique, not a multi-migration expand/contract sequence.
+
+This applies even when the constraint's own columns are brand-new (added in the same migration) — if the table itself isn't new, the lock still touches every existing row via the same statement's implicit table-level lock, regardless of whether the referenced columns have any pre-existing non-null data to violate.
+
+**M22-S02 precedent (PR #481 round 3, 2026-09-15):** a migration added `CHK_booking_bookings_intake_schema_pair` directly to the existing `bookings` table in the same `ALTER TABLE` that added the two nullable columns the constraint checks — flagged by Codex as an unnecessary `ACCESS EXCLUSIVE` risk on a table that (unlike this migration's other, wholly new tables) already carries production rows. Fixed by splitting into `NOT VALID` + `VALIDATE CONSTRAINT`. No prior migration in this codebase used this pattern before — check this entry, not `grep`, until a second example exists.
+
+---
+
 ## LIKE/ILIKE pattern escaping for user-supplied search terms
 
 Any user-supplied search term wrapped in a `%...%` LIKE/ILIKE pattern must be escaped first — a caller-controlled `%` or `_` is itself a LIKE wildcard, not literal text, and can defeat a length-based guard that assumes the term is real search content. A minimum-length gate meant to guarantee a `pg_trgm` index has an extractable trigram (e.g. "reject search terms under 3 characters") does not protect against a wildcard-only term like `%%%` — 3 characters, passes the gate, matches every row with zero real selectivity, silently degrading the query to a full scan the index exists specifically to avoid.
