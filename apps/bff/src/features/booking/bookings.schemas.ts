@@ -28,13 +28,14 @@ export const RequestBookingBodySchema = z.object({
   pickupAddress: AddressShapeSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
   scheduledAt: z.iso.datetime(),
-  serviceIds: z.array(z.uuid()).min(1),
+  // Bound — mirrors the backend's identical cap (request-booking.dto.ts).
+  serviceIds: z.array(z.uuid()).min(1).max(20),
   beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
 });
 
 export const AuthenticatedBookingBodySchema = z.object({
   scheduledAt: z.iso.datetime(),
-  serviceIds: z.array(z.uuid()).min(1),
+  serviceIds: z.array(z.uuid()).min(1).max(20),
   pickupAddress: AddressShapeSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
   beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),

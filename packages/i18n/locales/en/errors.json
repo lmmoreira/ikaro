@@ -67,6 +67,7 @@
   "BOOKING_SERVICE_RESOURCE_REQUIREMENT_INVALID": "The resource requirement provided is invalid.",
   "BOOKING_SERVICE_LEG_INVALID": "The leg provided is invalid.",
   "BOOKING_SERVICE_CONCURRENT_MODIFICATION": "This service's configuration changed while this booking was being created. Reload and try again.",
+  "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_DUPLICATE_TYPE": "classResourceSlots cannot list the same type more than once.",
   "ADDRESS_POSTAL_CODE_INVALID": "The postal code provided is invalid.",
   "ADDRESS_STATE_INVALID": "The state provided is invalid.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "The neighborhood is required.",

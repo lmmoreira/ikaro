@@ -1,4 +1,5 @@
 import { ValueObject } from '../../../shared/domain/value-object';
+import { normalizeText } from '../../../shared/utils/text-normalization';
 import { ServiceLegInvalidError } from './errors/booking-service.error';
 import { ResourceRequirement, ResourceRequirementProps } from './resource-requirement';
 
@@ -32,18 +33,25 @@ export class ServiceLeg extends ValueObject<ServiceLegProps> {
   }
 
   static create(props: CreateServiceLegProps): ServiceLeg {
+    const normalizedName = normalizeText(props.name);
+    if (!normalizedName) throw new ServiceLegInvalidError('name-required');
+    if (props.legIndex < 0) throw new ServiceLegInvalidError('leg-index-must-be-non-negative');
     if (props.durationMinutes <= 0) {
       throw new ServiceLegInvalidError('duration-must-be-positive');
     }
     if (props.resourceRequirements.length === 0) {
       throw new ServiceLegInvalidError('requires-resource-requirement');
     }
+    const transitionGapAfterMinutes = props.transitionGapAfterMinutes ?? 0;
+    if (transitionGapAfterMinutes < 0) {
+      throw new ServiceLegInvalidError('transition-gap-must-be-non-negative');
+    }
     return new ServiceLeg({
       legIndex: props.legIndex,
-      name: props.name,
+      name: normalizedName,
       durationMinutes: props.durationMinutes,
       resourceRequirements: [...props.resourceRequirements],
-      transitionGapAfterMinutes: props.transitionGapAfterMinutes ?? 0,
+      transitionGapAfterMinutes,
     });
   }
 

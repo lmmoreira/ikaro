@@ -1,5 +1,6 @@
 import { Money } from '../../../shared/value-objects/money';
 import { ServiceBuilder } from '../../../test/builders/booking/index';
+import { ClassResourceSlot } from './class-resource-slot';
 import {
   BookingDomainError,
   BookingServiceBookingModelImmutableError,
@@ -7,6 +8,7 @@ import {
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
+  ClassResourceSlotDuplicateTypeError,
   ResourceRequirementInvalidError,
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
@@ -217,6 +219,39 @@ describe('Service', () => {
         loyaltyPointsValue: 0,
       });
       expect(service.loyaltyPointsValue).toBe(0);
+    });
+
+    it('rejects classResourceSlots listing the same type more than once (round-trip integrity — type is the persistence grouping key)', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Yoga',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          bookingModel: 'SESSION',
+          classResourceSlots: [
+            ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
+            ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-2'] }),
+          ],
+        }),
+      ).toThrow(ClassResourceSlotDuplicateTypeError);
+    });
+
+    it('accepts classResourceSlots with distinct types', () => {
+      const service = Service.create({
+        tenantId: TENANT,
+        name: 'Yoga',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: POINTS,
+        bookingModel: 'SESSION',
+        classResourceSlots: [
+          ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
+          ClassResourceSlot.create({ type: ResourceType.STAFF, eligibleResourceIds: ['r-2'] }),
+        ],
+      });
+      expect(service.classResourceSlots).toHaveLength(2);
     });
   });
 

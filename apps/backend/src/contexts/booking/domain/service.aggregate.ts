@@ -8,6 +8,7 @@ import {
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
+  ClassResourceSlotDuplicateTypeError,
   ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
   ServiceDurationInvalidError,
@@ -148,6 +149,14 @@ export class Service extends AggregateRoot {
   }: CreateServiceProps): Service {
     if (!tenantId) throw new TenantIdRequiredError();
     const normalizedName = Service.validateFields(name, price, durationMinutes, loyaltyPointsValue);
+    // type is the documented grouping key for class-resource-slot persistence
+    // (docs/02-DOMAIN_MODEL.md) — service_class_resource_pool has no separate "slot" identity,
+    // so two same-type slots submitted here could never round-trip distinctly through GET,
+    // which groups pool rows by type (typeorm-service.mapper.ts's toClassResourceSlots()).
+    const slotTypes = classResourceSlots.map((s) => s.type);
+    if (new Set(slotTypes).size !== slotTypes.length) {
+      throw new ClassResourceSlotDuplicateTypeError();
+    }
 
     const isSession = bookingModel === 'SESSION';
     const now = new Date();

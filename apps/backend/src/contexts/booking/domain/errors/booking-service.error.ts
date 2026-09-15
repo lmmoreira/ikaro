@@ -120,6 +120,17 @@ export class BookingServiceConcurrentModificationError extends BookingDomainErro
   }
 }
 
+export class ClassResourceSlotDuplicateTypeError extends BookingDomainError {
+  constructor() {
+    super(
+      'classResourceSlots cannot list the same type more than once',
+      BookingErrorCode.SERVICE_CLASS_RESOURCE_SLOT_DUPLICATE_TYPE,
+      'type',
+    );
+    this.name = 'ClassResourceSlotDuplicateTypeError';
+  }
+}
+
 export class BookingServiceResourceTypeUnavailableError extends BookingDomainError {
   constructor(type: string) {
     super(
@@ -158,18 +169,29 @@ export class ResourceRequirementInvalidError extends BookingDomainError {
 }
 
 type ServiceLegInvalidReason =
-  'duration-must-be-positive' | 'requires-resource-requirement' | 'duplicate-leg-index';
+  | 'duration-must-be-positive'
+  | 'requires-resource-requirement'
+  | 'duplicate-leg-index'
+  | 'name-required'
+  | 'leg-index-must-be-non-negative'
+  | 'transition-gap-must-be-non-negative';
 
 const SERVICE_LEG_INVALID_MESSAGES: Record<ServiceLegInvalidReason, string> = {
   'duration-must-be-positive': 'durationMinutes must be greater than 0',
   'requires-resource-requirement': 'a leg requires at least one resource requirement',
   'duplicate-leg-index': 'legs cannot repeat the same legIndex',
+  'name-required': 'name is required',
+  'leg-index-must-be-non-negative': 'legIndex must be non-negative',
+  'transition-gap-must-be-non-negative': 'transitionGapAfterMinutes must be non-negative',
 };
 
 const SERVICE_LEG_INVALID_FIELDS: Record<ServiceLegInvalidReason, string> = {
   'duration-must-be-positive': 'durationMinutes',
   'requires-resource-requirement': 'resourceRequirements',
   'duplicate-leg-index': 'legIndex',
+  'name-required': 'name',
+  'leg-index-must-be-non-negative': 'legIndex',
+  'transition-gap-must-be-non-negative': 'transitionGapAfterMinutes',
 };
 
 export class ServiceLegInvalidError extends BookingDomainError {

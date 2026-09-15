@@ -45,6 +45,61 @@ describe('ServiceLeg', () => {
         }),
       ).toThrow(ServiceLegInvalidError);
     });
+
+    it('throws when name is empty or whitespace-only', () => {
+      expect(() =>
+        ServiceLeg.create({
+          legIndex: 0,
+          name: '   ',
+          durationMinutes: 20,
+          resourceRequirements: [REQUIREMENT],
+        }),
+      ).toThrow(ServiceLegInvalidError);
+    });
+
+    it('trims whitespace from name', () => {
+      const leg = ServiceLeg.create({
+        legIndex: 0,
+        name: '  Sauna  ',
+        durationMinutes: 20,
+        resourceRequirements: [REQUIREMENT],
+      });
+      expect(leg.name).toBe('Sauna');
+    });
+
+    it('throws when legIndex is negative', () => {
+      expect(() =>
+        ServiceLeg.create({
+          legIndex: -1,
+          name: 'Sauna',
+          durationMinutes: 20,
+          resourceRequirements: [REQUIREMENT],
+        }),
+      ).toThrow(ServiceLegInvalidError);
+    });
+
+    it('throws when transitionGapAfterMinutes is negative', () => {
+      expect(() =>
+        ServiceLeg.create({
+          legIndex: 0,
+          name: 'Sauna',
+          durationMinutes: 20,
+          resourceRequirements: [REQUIREMENT],
+          transitionGapAfterMinutes: -1,
+        }),
+      ).toThrow(ServiceLegInvalidError);
+    });
+
+    it('allows transitionGapAfterMinutes of zero', () => {
+      const leg = ServiceLeg.create({
+        legIndex: 0,
+        name: 'Sauna',
+        durationMinutes: 20,
+        resourceRequirements: [REQUIREMENT],
+        transitionGapAfterMinutes: 0,
+      });
+      expect(leg.transitionGapAfterMinutes).toBe(0);
+    });
   });
 
   describe('reconstitute()', () => {

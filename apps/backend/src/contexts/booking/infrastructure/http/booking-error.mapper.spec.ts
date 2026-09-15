@@ -32,6 +32,7 @@ import {
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
   BookingSlotUnavailableError,
+  ClassResourceSlotDuplicateTypeError,
   ClosureDateInPastError,
   InvalidBookingTransitionError,
   ResourceNotActiveError,
@@ -185,6 +186,12 @@ describe('mapBookingError', () => {
 
   it('maps ServiceLegInvalidError to 422', () => {
     const err = call(new ServiceLegInvalidError('duration-must-be-positive'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ClassResourceSlotDuplicateTypeError to 422', () => {
+    const err = call(new ClassResourceSlotDuplicateTypeError());
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });

@@ -144,7 +144,9 @@ export async function persistRequestedBooking(
     // [B, A]) could each hold one lock and deadlock. Re-checks the lock's own fresh read against
     // the pre-transaction snapshot (not just acquiring-and-discarding it) — a lock only orders
     // callers who both acquire it, it doesn't make an already-captured in-memory read fresh.
-    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))].sort();
+    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))].sort((a, b) =>
+      a.localeCompare(b),
+    );
     for (const serviceId of serviceIds) {
       const locked = await serviceRepo.findByIdForUpdate(serviceId, tenantId);
       const snapshot = serviceMap.get(serviceId);
