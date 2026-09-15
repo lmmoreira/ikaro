@@ -108,6 +108,16 @@ export class ServiceEntityBuilder {
     return this;
   }
 
+  withRecurrenceEligible(recurrenceEligible: boolean): this {
+    this.recurrenceEligible = recurrenceEligible;
+    return this;
+  }
+
+  withAvailabilityAlertEligible(availabilityAlertEligible: boolean): this {
+    this.availabilityAlertEligible = availabilityAlertEligible;
+    return this;
+  }
+
   build(): ServiceEntity {
     const e = new ServiceEntity();
     e.id = this.id;

@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ServiceBookingIntakeSchemaEntityBuilder } from '../../../../test/builders/booking/index';
 import { ServiceBookingIntakeSchema } from '../../domain/service-booking-intake-schema';
 import { ServiceBookingIntakeSchemaEntity } from '../entities/service-booking-intake-schema.entity';
 import { TypeOrmServiceIntakeSchemaRepository } from './typeorm-service-intake-schema.repository';
@@ -8,20 +9,14 @@ import { TypeOrmServiceIntakeSchemaRepository } from './typeorm-service-intake-s
 const TENANT = 'tenant-abc';
 const SERVICE_ID = 'service-1';
 
-function entity(overrides: Partial<ServiceBookingIntakeSchemaEntity> = {}) {
-  const e = new ServiceBookingIntakeSchemaEntity();
-  e.id = 'schema-1';
-  e.tenantId = TENANT;
-  e.serviceId = SERVICE_ID;
-  e.version = 1;
-  e.questions = [{ fieldKey: 'q1', label: 'Q1', type: 'FREE_TEXT', required: false }];
-  e.consentText = 'Texto';
-  e.consentVersion = 1;
-  e.requiresNamedAttendees = false;
-  e.participantCountRequired = false;
-  e.isActive = true;
-  e.createdAt = new Date('2026-01-01T00:00:00Z');
-  return Object.assign(e, overrides);
+function entity(overrides: { version?: number; isActive?: boolean } = {}) {
+  return new ServiceBookingIntakeSchemaEntityBuilder()
+    .withId('schema-1')
+    .withTenantId(TENANT)
+    .withServiceId(SERVICE_ID)
+    .withVersion(overrides.version ?? 1)
+    .withIsActive(overrides.isActive ?? true)
+    .build();
 }
 
 describe('TypeOrmServiceIntakeSchemaRepository', () => {

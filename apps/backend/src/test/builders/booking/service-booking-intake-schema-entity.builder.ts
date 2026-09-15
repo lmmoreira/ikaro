@@ -15,10 +15,9 @@ export class ServiceBookingIntakeSchemaEntityBuilder {
       required: false,
     },
   ];
-  private consentText = 'Concordo com os termos de agendamento';
-  private consentVersion = 1;
-  private requiresNamedAttendees = false;
-  private participantCountRequired = false;
+  private readonly consentText = 'Concordo com os termos de agendamento';
+  private readonly requiresNamedAttendees = false;
+  private readonly participantCountRequired = false;
   private isActive = true;
   private readonly createdAt = new Date('2026-01-01T00:00:00Z');
 
@@ -39,7 +38,6 @@ export class ServiceBookingIntakeSchemaEntityBuilder {
 
   withVersion(version: number): this {
     this.version = version;
-    this.consentVersion = version;
     return this;
   }
 
@@ -61,7 +59,9 @@ export class ServiceBookingIntakeSchemaEntityBuilder {
     e.version = this.version;
     e.questions = this.questions;
     e.consentText = this.consentText;
-    e.consentVersion = this.consentVersion;
+    // consentVersion always mirrors version — no publish flow in this codebase can make them
+    // diverge (see ServiceBookingIntakeSchema.publish()'s own identical comment).
+    e.consentVersion = this.version;
     e.requiresNamedAttendees = this.requiresNamedAttendees;
     e.participantCountRequired = this.participantCountRequired;
     e.isActive = this.isActive;
