@@ -39,7 +39,7 @@ graph TD
 
 ---
 
-### M22-S01 — `Service` resource requirements/bundles/legs/buffer + booking-model-at-creation
+### M22-S01 — `Service` resource requirements/bundles/legs/buffer + booking-model-at-creation ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
