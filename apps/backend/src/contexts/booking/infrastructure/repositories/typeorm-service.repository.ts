@@ -72,9 +72,15 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     if (!manager) {
       throw new Error('lockBookingModels must be called inside an active transaction');
     }
+    // Ordered by id — Postgres gives no row-lock acquisition order guarantee for an unordered
+    // IN (...) query, so two concurrent baskets referencing overlapping services in different
+    // array orders (booking-request.helpers.ts builds serviceIds from a caller-supplied line
+    // order) could otherwise still acquire locks in different orders and deadlock. A fixed,
+    // caller-independent order closes that regardless of request payload order.
     const rows = await manager.find(ServiceEntity, {
       where: { id: In(ids), tenantId },
       select: { id: true, bookingModel: true },
+      order: { id: 'ASC' },
       lock: { mode: 'pessimistic_write' },
     });
     return new Map(rows.map((row) => [row.id, row.bookingModel]));

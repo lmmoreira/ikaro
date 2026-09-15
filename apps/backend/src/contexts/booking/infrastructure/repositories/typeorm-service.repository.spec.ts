@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import {
   ServiceBuilder,
   ServiceEntityBuilder,
@@ -125,6 +125,49 @@ describe('TypeOrmServiceRepository', () => {
     );
 
     expect(result).toBeNull();
+  });
+
+  it('lockBookingModels throws when called outside an active transaction', async () => {
+    await expect(repo.lockBookingModels(['some-id'], 'tenant-1')).rejects.toThrow(
+      'lockBookingModels must be called inside an active transaction',
+    );
+  });
+
+  it('lockBookingModels returns an empty map without touching the manager when given no ids', async () => {
+    const mockManager = { find: jest.fn() } as unknown as EntityManager;
+
+    const result = await runWithEntityManager(mockManager, () =>
+      repo.lockBookingModels([], 'tenant-1'),
+    );
+
+    expect(result).toEqual(new Map());
+    expect(mockManager.find).not.toHaveBeenCalled();
+  });
+
+  it('lockBookingModels locks every row ordered by id, independent of the input array order', async () => {
+    const mockManager = {
+      find: jest.fn().mockResolvedValue([
+        { id: 'svc-1', bookingModel: 'APPOINTMENT' },
+        { id: 'svc-2', bookingModel: 'SESSION' },
+      ]),
+    } as unknown as EntityManager;
+
+    const result = await runWithEntityManager(mockManager, () =>
+      repo.lockBookingModels(['svc-2', 'svc-1'], 'tenant-1'),
+    );
+
+    expect(result).toEqual(
+      new Map([
+        ['svc-1', 'APPOINTMENT'],
+        ['svc-2', 'SESSION'],
+      ]),
+    );
+    expect(mockManager.find).toHaveBeenCalledWith(ServiceEntity, {
+      where: { id: In(['svc-2', 'svc-1']), tenantId: 'tenant-1' },
+      select: { id: true, bookingModel: true },
+      order: { id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
   });
 
   it('findAllByTenant returns all services for tenant when status is ANY', async () => {
