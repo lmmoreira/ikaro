@@ -64,6 +64,12 @@ export class CachingServiceRepository implements IServiceRepository {
     return this.repo.findByIds(ids, tenantId);
   }
 
+  // Pass-through, same as findById()/findByIds() above — a real row lock must always bypass
+  // this decorator's cache entirely (docs/ENGINEERING_RULES.md's race-condition primitive 2).
+  async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {
+    return this.repo.findByIdForUpdate(id, tenantId);
+  }
+
   // Only the unfiltered, status-only shape is cached — the exact call every real hot-path caller
   // makes (public hotsite/chatbot: status 'ACTIVE'; staff dashboard list: status 'ANY'). Same
   // selective scope CachingTenantRepository already uses (caches findById only, bypasses

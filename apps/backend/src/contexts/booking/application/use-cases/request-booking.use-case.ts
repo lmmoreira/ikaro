@@ -68,6 +68,7 @@ export class RequestBookingUseCase {
       this.slotConflictService,
       this.bookingRepo,
       this.photoExistenceService,
+      this.serviceRepo,
       { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations },
     );
 

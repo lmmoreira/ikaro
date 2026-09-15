@@ -55,6 +55,24 @@ describe('UpdateServiceUseCase', () => {
     expect(bookingPlatform.revalidatedTenantIds).toEqual([TENANT_A]);
   });
 
+  it('reads the service under a row lock (findByIdForUpdate), not a plain findById', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await repo.save(service);
+    const findByIdForUpdateSpy = jest.spyOn(repo, 'findByIdForUpdate');
+    const findByIdSpy = jest.spyOn(repo, 'findById');
+
+    await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      name: 'Novo Nome',
+    });
+
+    expect(findByIdForUpdateSpy).toHaveBeenCalledWith(service.id, TENANT_A);
+    expect(findByIdSpy).not.toHaveBeenCalled();
+  });
+
   it('updates only the provided fields; unspecified fields remain unchanged', async () => {
     const service = new ServiceBuilder()
       .withTenantId(TENANT_A)

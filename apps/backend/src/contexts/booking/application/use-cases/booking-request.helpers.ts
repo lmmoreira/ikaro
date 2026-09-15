@@ -13,6 +13,7 @@ import {
   AddressValidationError,
 } from '../../../../shared/value-objects/address';
 import { IBookingRepository } from '../ports/booking-repository.port';
+import { IServiceRepository } from '../ports/service-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import {
   PhotoPromotionOperation,
@@ -116,6 +117,7 @@ export async function persistRequestedBooking(
   slotConflictService: BookingSlotConflictService,
   bookingRepo: IBookingRepository,
   photoExistenceService: PhotoExistenceService,
+  serviceRepo: IServiceRepository,
   params: PersistRequestedBookingParams,
 ): Promise<void> {
   const { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations } = params;
@@ -128,6 +130,15 @@ export async function persistRequestedBooking(
       totalDurationMins,
       timezone,
     );
+    // Locks every referenced Service row before this booking becomes its first booking history —
+    // serializes against UpdateServiceUseCase's own findByIdForUpdate()-guarded bookingModel
+    // change, closing the TOCTOU race where a service's model could change concurrently with its
+    // very first booking being created (UC-056's immutable-after-history invariant). The locked
+    // read itself is discarded — only its lock matters here, the service's current field values
+    // were already captured into the booking lines before this transaction started.
+    for (const serviceId of new Set(booking.lines.map((line) => line.serviceId))) {
+      await serviceRepo.findByIdForUpdate(serviceId, tenantId);
+    }
     await bookingRepo.save(booking);
     await txManager.scheduleAfterCommit(() =>
       photoExistenceService.executePhotoPromotion(operations),

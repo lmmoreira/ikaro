@@ -68,33 +68,51 @@ export function toDomain(
   });
 }
 
+// Pre-indexes rows by a key once (O(n)), rather than the O(requirements × poolRows) — and, for
+// legs, O(legs × legRequirements × legRequirementPool) — repeated `.filter()` scan the read path
+// used to do per parent row. Every child collection is Zod-bounded (packages/validation/src/
+// booking.ts) but staying linear costs nothing and scales cleanly regardless.
+function groupByKey<T>(rows: T[], keyOf: (row: T) => string): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    const group = map.get(key);
+    if (group) group.push(row);
+    else map.set(key, [row]);
+  }
+  return map;
+}
+
 function poolResourceIds(
-  poolRows: { requirementId: string; resourceId: string }[],
+  poolByRequirementId: Map<string, { resourceId: string }[]>,
   requirementId: string,
 ): string[] | null {
-  const ids = poolRows.filter((p) => p.requirementId === requirementId).map((p) => p.resourceId);
-  return ids.length ? ids : null;
+  const rows = poolByRequirementId.get(requirementId);
+  return rows?.length ? rows.map((p) => p.resourceId) : null;
 }
 
 function toResourceRequirements(
   requirementRows: ServiceResourceRequirementEntity[],
   poolRows: ServiceResourceRequirementPoolEntity[],
 ): ResourceRequirement[] {
+  const poolByRequirementId = groupByKey(poolRows, (p) => p.requirementId);
   return requirementRows.map((row) =>
     ResourceRequirement.reconstitute({
       type: row.resourceType,
       selectionMode: row.selectionMode,
-      resourcePoolIds: poolResourceIds(poolRows, row.id),
+      resourcePoolIds: poolResourceIds(poolByRequirementId, row.id),
       requiredQuantity: row.requiredQuantity,
     }),
   );
 }
 
 function toServiceLegs(children: ServiceChildRows): ServiceLeg[] {
+  const requirementsByLegId = groupByKey(children.legRequirements, (r) => r.legId);
+  const poolByRequirementId = groupByKey(children.legRequirementPool, (p) => p.requirementId);
   return [...children.legs]
     .sort((a, b) => a.legIndex - b.legIndex)
     .map((leg) => {
-      const requirementsForLeg = children.legRequirements.filter((r) => r.legId === leg.id);
+      const requirementsForLeg = requirementsByLegId.get(leg.id) ?? [];
       return ServiceLeg.reconstitute({
         legIndex: leg.legIndex,
         name: leg.name,
@@ -103,7 +121,7 @@ function toServiceLegs(children: ServiceChildRows): ServiceLeg[] {
         resourceRequirements: requirementsForLeg.map((row) => ({
           type: row.resourceType,
           selectionMode: row.selectionMode,
-          resourcePoolIds: poolResourceIds(children.legRequirementPool, row.id),
+          resourcePoolIds: poolResourceIds(poolByRequirementId, row.id),
           requiredQuantity: row.requiredQuantity,
         })),
       });

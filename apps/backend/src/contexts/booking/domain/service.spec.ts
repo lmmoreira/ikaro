@@ -8,6 +8,7 @@ import {
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
   ResourceRequirementInvalidError,
+  ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
   ServiceLegInvalidError,
 } from './errors/booking-domain.error';
@@ -507,6 +508,19 @@ describe('Service', () => {
       expect(() => sessionService.setBufferAfterMinutes(15)).toThrow(
         BookingServiceBookingModelMismatchError,
       );
+    });
+
+    it('rejects a negative buffer', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() => service.setBufferAfterMinutes(-1)).toThrow(
+        ServiceBufferAfterMinutesInvalidError,
+      );
+    });
+
+    it('allows a buffer of zero', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBufferAfterMinutes(0);
+      expect(service.bufferAfterMinutes).toBe(0);
     });
   });
 

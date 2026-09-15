@@ -35,9 +35,6 @@ export class UpdateServiceResourceRequirementsUseCase {
     input: UpdateServiceResourceRequirementsUseCaseInput,
   ): Promise<UpdateServiceResourceRequirementsUseCaseResult> {
     const { id, tenantId } = input;
-    const service = await this.serviceRepo.findById(id, tenantId);
-    if (!service) throw new ServiceNotFoundError(id);
-
     const requirements = input.resourceRequirements.map(toResourceRequirement);
     const activeResourceIdsByType = await resolveActiveResourceIdsByType(
       this.resourceRepo,
@@ -45,10 +42,15 @@ export class UpdateServiceResourceRequirementsUseCase {
       requirements.map((r) => r.type),
     );
 
-    service.setResourceRequirements(requirements, activeResourceIdsByType);
+    const service = await this.txManager.run(async () => {
+      // findByIdForUpdate (not findById) — closes the lost-update race between two concurrent
+      // Service configuration writes (see update-service.use-case.ts's identical comment).
+      const current = await this.serviceRepo.findByIdForUpdate(id, tenantId);
+      if (!current) throw new ServiceNotFoundError(id);
 
-    await this.txManager.run(async () => {
-      await this.serviceRepo.save(service);
+      current.setResourceRequirements(requirements, activeResourceIdsByType);
+      await this.serviceRepo.save(current);
+      return current;
     });
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);

@@ -55,6 +55,28 @@ describe('UpdateServiceResourceRequirementsUseCase', () => {
     expect(result.resourceRequirements[0].type).toBe(ResourceType.STAFF);
   });
 
+  it('reads the service under a row lock (findByIdForUpdate), not a plain findById', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+    const staff = new ResourceBuilder()
+      .withTenantId(TENANT_A)
+      .withType(ResourceType.STAFF)
+      .withRefId(uuidv7())
+      .build();
+    await resourceRepo.save(staff);
+    const findByIdForUpdateSpy = jest.spyOn(serviceRepo, 'findByIdForUpdate');
+    const findByIdSpy = jest.spyOn(serviceRepo, 'findById');
+
+    await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+    });
+
+    expect(findByIdForUpdateSpy).toHaveBeenCalledWith(service.id, TENANT_A);
+    expect(findByIdSpy).not.toHaveBeenCalled();
+  });
+
   it('persists a bundle of 2+ requirements', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await serviceRepo.save(service);

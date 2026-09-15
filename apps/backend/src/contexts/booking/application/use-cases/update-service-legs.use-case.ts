@@ -34,9 +34,6 @@ export class UpdateServiceLegsUseCase {
 
   async execute(input: UpdateServiceLegsUseCaseInput): Promise<UpdateServiceLegsUseCaseResult> {
     const { id, tenantId } = input;
-    const service = await this.serviceRepo.findById(id, tenantId);
-    if (!service) throw new ServiceNotFoundError(id);
-
     const legs = input.legs.map(toServiceLeg);
     const allRequirementTypes = legs.flatMap((leg) => leg.resourceRequirements.map((r) => r.type));
     const activeResourceIdsByType = await resolveActiveResourceIdsByType(
@@ -45,10 +42,15 @@ export class UpdateServiceLegsUseCase {
       allRequirementTypes,
     );
 
-    const totalSpanMinutes = service.setLegs(legs, activeResourceIdsByType);
+    const { service, totalSpanMinutes } = await this.txManager.run(async () => {
+      // findByIdForUpdate (not findById) — closes the lost-update race between two concurrent
+      // Service configuration writes (see update-service.use-case.ts's identical comment).
+      const current = await this.serviceRepo.findByIdForUpdate(id, tenantId);
+      if (!current) throw new ServiceNotFoundError(id);
 
-    await this.txManager.run(async () => {
-      await this.serviceRepo.save(service);
+      const span = current.setLegs(legs, activeResourceIdsByType);
+      await this.serviceRepo.save(current);
+      return { service: current, totalSpanMinutes: span };
     });
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);

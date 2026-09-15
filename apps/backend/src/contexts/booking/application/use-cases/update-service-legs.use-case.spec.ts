@@ -72,6 +72,18 @@ describe('UpdateServiceLegsUseCase', () => {
     expect(result.totalSpanMinutes).toBe(80);
   });
 
+  it('reads the service under a row lock (findByIdForUpdate), not a plain findById', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+    const findByIdForUpdateSpy = jest.spyOn(serviceRepo, 'findByIdForUpdate');
+    const findByIdSpy = jest.spyOn(serviceRepo, 'findById');
+
+    await useCase.execute({ id: service.id, tenantId: TENANT_A, legs: TWO_LEGS });
+
+    expect(findByIdForUpdateSpy).toHaveBeenCalledWith(service.id, TENANT_A);
+    expect(findByIdSpy).not.toHaveBeenCalled();
+  });
+
   it('clears resourceRequirements/bufferAfterMinutes on the service (UC-052 step 3)', async () => {
     const service = new ServiceBuilder()
       .withTenantId(TENANT_A)

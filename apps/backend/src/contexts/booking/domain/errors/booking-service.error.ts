@@ -60,6 +60,17 @@ export class ServiceLoyaltyPointsInvalidError extends BookingDomainError {
   }
 }
 
+export class ServiceBufferAfterMinutesInvalidError extends BookingDomainError {
+  constructor() {
+    super(
+      'bufferAfterMinutes must be non-negative',
+      BookingErrorCode.SERVICE_BUFFER_AFTER_MINUTES_INVALID,
+      'bufferAfterMinutes',
+    );
+    this.name = 'ServiceBufferAfterMinutesInvalidError';
+  }
+}
+
 export class BookingServiceHasLegsError extends BookingDomainError {
   constructor(id: string) {
     super(

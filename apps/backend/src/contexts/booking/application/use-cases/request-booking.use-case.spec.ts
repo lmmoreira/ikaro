@@ -83,6 +83,14 @@ describe('RequestBookingUseCase', () => {
     expect(saved!.customerId).toBeNull();
   });
 
+  it('locks every referenced service (findByIdForUpdate) before saving the booking, closing the bookingModel/first-booking race', async () => {
+    const findByIdForUpdateSpy = jest.spyOn(serviceRepo, 'findByIdForUpdate');
+
+    await useCase.execute(baseInput());
+
+    expect(findByIdForUpdateSpy).toHaveBeenCalledWith(serviceId, TENANT_A);
+  });
+
   it('publishes BookingRequested event after commit', async () => {
     await useCase.execute(baseInput());
     expect(eventBus.published).toHaveLength(1);

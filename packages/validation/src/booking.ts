@@ -77,10 +77,15 @@ export const UpdateResourceSchema = z
 // shape with no per-app deviation (same direct-reuse pattern as CreateResourceSchema above).
 export const BookingModelSchema = z.enum(['APPOINTMENT', 'SESSION']);
 
+// Upper bounds are business-context maxima, not domain-tested limits — no AC specifies an exact
+// number. They exist to cap the wholesale delete/reinsert write and the full-collection read
+// every service load hydrates (typeorm-service.repository.ts), not to model a real product rule.
+// A car wash/small-service-business bundle or leg count is realistically single-digit; 50/20
+// leave generous headroom without allowing an unbounded payload to blow up either side.
 export const ResourceRequirementSchema = z.object({
   type: ResourceTypeSchema,
   selectionMode: z.enum(['NONE', 'CUSTOMER_CHOICE', 'AUTO_ANY', 'AUTO_FUNGIBLE_POOL']),
-  resourcePoolIds: z.array(z.uuid()).nullable().optional(),
+  resourcePoolIds: z.array(z.uuid()).max(50).nullable().optional(),
   requiredQuantity: z.number().int().positive().optional(),
 });
 
@@ -88,22 +93,22 @@ export const ServiceLegSchema = z.object({
   legIndex: z.number().int().min(0),
   name: z.string().min(1),
   durationMinutes: z.number().int().positive(),
-  resourceRequirements: z.array(ResourceRequirementSchema).min(1),
+  resourceRequirements: z.array(ResourceRequirementSchema).min(1).max(20),
   transitionGapAfterMinutes: z.number().int().min(0).optional(),
 });
 
 export const ClassResourceSlotSchema = z.object({
   type: ResourceTypeSchema,
-  eligibleResourceIds: z.array(z.uuid()),
+  eligibleResourceIds: z.array(z.uuid()).max(50),
 });
 
 // No .min(2) here on purpose — UC-052 A1's "fewer than 2 legs" rejection is a domain-level
 // 422 (BookingServiceLegsTooFewError), not a generic Zod 400; a Zod-level minimum would make
 // that error code unreachable.
 export const UpdateServiceResourceRequirementsSchema = z.object({
-  resourceRequirements: z.array(ResourceRequirementSchema).min(1),
+  resourceRequirements: z.array(ResourceRequirementSchema).min(1).max(20),
 });
 
 export const UpdateServiceLegsSchema = z.object({
-  legs: z.array(ServiceLegSchema),
+  legs: z.array(ServiceLegSchema).max(20),
 });

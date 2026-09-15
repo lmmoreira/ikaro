@@ -8,6 +8,7 @@ import {
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
   BookingServiceLegsTooFewError,
+  ServiceBufferAfterMinutesInvalidError,
   ServiceDeactivatedError,
   ServiceDurationInvalidError,
   ServiceLegInvalidError,
@@ -234,6 +235,7 @@ export class Service extends AggregateRoot {
       throw new BookingServiceBookingModelMismatchError(this.props.id);
     }
     if (this.props.legs !== null) throw new BookingServiceHasLegsError(this.props.id);
+    if (bufferAfterMinutes < 0) throw new ServiceBufferAfterMinutesInvalidError();
     this.props.bufferAfterMinutes = bufferAfterMinutes;
     this.props.updatedAt = new Date();
   }

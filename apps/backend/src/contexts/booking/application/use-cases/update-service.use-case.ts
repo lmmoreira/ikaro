@@ -31,42 +31,48 @@ export class UpdateServiceUseCase {
 
   async execute(input: UpdateServiceUseCaseInput): Promise<UpdateServiceUseCaseResult> {
     const { id, tenantId, currency, locale } = input;
-    const service = await this.serviceRepo.findById(id, tenantId);
-    if (!service) throw new ServiceNotFoundError(id);
 
-    const name = input.name ?? service.name;
-    const description = input.description === undefined ? service.description : input.description;
-    const price =
-      input.priceAmount === undefined ? service.price : Money.from(input.priceAmount, currency);
-    const durationMinutes = input.durationMinutes ?? service.durationMinutes;
-    const loyaltyPointsValue = input.loyaltyPointsValue ?? service.loyaltyPointsValue;
-    const requiresPickupAddress = input.requiresPickupAddress ?? service.requiresPickupAddress;
+    const service = await this.txManager.run(async () => {
+      // findByIdForUpdate (not findById) — reads under a real Postgres row lock, held until
+      // this transaction commits. Serializes against any other findByIdForUpdate() caller on the
+      // same row: a concurrent PATCH to this same service (lost-update protection), and
+      // RequestBookingUseCase's own findByIdForUpdate() lock on every service it books
+      // (booking-request.helpers.ts's persistRequestedBooking) — closing the TOCTOU race where a
+      // service's first booking could be created concurrently with a bookingModel change,
+      // violating UC-056's immutable-after-history invariant (mirrors
+      // UpdateTenantSettingsUseCase's identical use of findByIdForUpdate for a cross-use-case
+      // race).
+      const current = await this.serviceRepo.findByIdForUpdate(id, tenantId);
+      if (!current) throw new ServiceNotFoundError(id);
 
-    service.update(
-      name,
-      description,
-      price,
-      durationMinutes,
-      loyaltyPointsValue,
-      requiresPickupAddress,
-    );
+      const name = input.name ?? current.name;
+      const description = input.description === undefined ? current.description : input.description;
+      const price =
+        input.priceAmount === undefined ? current.price : Money.from(input.priceAmount, currency);
+      const durationMinutes = input.durationMinutes ?? current.durationMinutes;
+      const loyaltyPointsValue = input.loyaltyPointsValue ?? current.loyaltyPointsValue;
+      const requiresPickupAddress = input.requiresPickupAddress ?? current.requiresPickupAddress;
 
-    if (input.bufferAfterMinutes !== undefined) {
-      service.setBufferAfterMinutes(input.bufferAfterMinutes);
-    }
+      current.update(
+        name,
+        description,
+        price,
+        durationMinutes,
+        loyaltyPointsValue,
+        requiresPickupAddress,
+      );
 
-    await this.txManager.run(async () => {
-      // Re-checked immediately before save() to narrow (not eliminate) the race against a
-      // concurrent booking-creation request: a booking for this service can still be created
-      // between this read and the commit below, since booking creation doesn't take a lock this
-      // use case could coordinate with. A full fix needs cross-use-case lock coordination, out of
-      // proportionate scope for this story — documented-limitation-acceptable narrow race, same
-      // class as M21-S01's TOCTOU precedent.
-      if (input.bookingModel !== undefined && input.bookingModel !== service.bookingModel) {
-        const hasBookingHistory = await this.bookingRepo.existsByServiceId(id, tenantId);
-        service.changeBookingModel(input.bookingModel, hasBookingHistory);
+      if (input.bufferAfterMinutes !== undefined) {
+        current.setBufferAfterMinutes(input.bufferAfterMinutes);
       }
-      await this.serviceRepo.save(service);
+
+      if (input.bookingModel !== undefined && input.bookingModel !== current.bookingModel) {
+        const hasBookingHistory = await this.bookingRepo.existsByServiceId(id, tenantId);
+        current.changeBookingModel(input.bookingModel, hasBookingHistory);
+      }
+
+      await this.serviceRepo.save(current);
+      return current;
     });
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);

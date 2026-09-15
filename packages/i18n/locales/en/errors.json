@@ -41,6 +41,7 @@
   "BOOKING_SERVICE_PRICE_INVALID": "The service price must be greater than zero.",
   "BOOKING_SERVICE_DURATION_INVALID": "The service duration must be greater than zero.",
   "BOOKING_SERVICE_LOYALTY_POINTS_INVALID": "Loyalty points cannot be negative.",
+  "BOOKING_SERVICE_BUFFER_AFTER_MINUTES_INVALID": "Buffer minutes cannot be negative.",
   "BOOKING_CLOSURE_REASON_INVALID": "The closure reason provided is invalid.",
   "BOOKING_CLOSURE_TIME_RANGE_INCOMPLETE": "Provide both a start and end time, or leave both blank for a full-day closure.",
   "BOOKING_TIME_RANGE_FORMAT_INVALID": "The time must be in HH:MM format.",

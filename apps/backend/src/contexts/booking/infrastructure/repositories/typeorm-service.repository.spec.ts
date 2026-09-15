@@ -1,12 +1,13 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import {
   ServiceBuilder,
   ServiceEntityBuilder,
   ServiceResourceRequirementEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -87,6 +88,43 @@ describe('TypeOrmServiceRepository', () => {
     expect(result!.price.currency).toBe('BRL');
     expect(result!.durationMinutes).toBe(60);
     expect(result!.isActive).toBe(true);
+  });
+
+  it('findByIdForUpdate throws when called outside an active transaction', async () => {
+    await expect(repo.findByIdForUpdate('some-id', 'tenant-1')).rejects.toThrow(
+      'findByIdForUpdate must be called inside an active transaction',
+    );
+  });
+
+  it('findByIdForUpdate locks the row with pessimistic_write via the active EntityManager', async () => {
+    const entity = new ServiceEntityBuilder().withTenantId('tenant-1').build();
+    const mockManager = {
+      findOne: jest.fn().mockResolvedValue(entity),
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as EntityManager;
+
+    const result = await runWithEntityManager(mockManager, () =>
+      repo.findByIdForUpdate(entity.id, 'tenant-1'),
+    );
+
+    expect(result).toBeInstanceOf(Service);
+    expect(mockManager.findOne).toHaveBeenCalledWith(ServiceEntity, {
+      where: { id: entity.id, tenantId: 'tenant-1' },
+      lock: { mode: 'pessimistic_write' },
+    });
+  });
+
+  it('findByIdForUpdate returns null when not found', async () => {
+    const mockManager = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as EntityManager;
+
+    const result = await runWithEntityManager(mockManager, () =>
+      repo.findByIdForUpdate('unknown', 'tenant-1'),
+    );
+
+    expect(result).toBeNull();
   });
 
   it('findAllByTenant returns all services for tenant when status is ANY', async () => {

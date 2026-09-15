@@ -13,6 +13,16 @@ export class InMemoryServiceRepository implements IServiceRepository {
     return service;
   }
 
+  // No real locking in-memory — this double only needs to satisfy the port shape for use-case
+  // unit tests, none of which exercise concurrent access. Deliberately duplicates findById()'s
+  // body instead of delegating to it, so a spy on one method never observes a call to the other —
+  // callers asserting "findByIdForUpdate, not findById" stay meaningful against this double.
+  async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {
+    const service = this.store.get(id);
+    if (service?.tenantId !== tenantId) return null;
+    return service;
+  }
+
   async findByIds(ids: string[], tenantId: string): Promise<Service[]> {
     return ids
       .map((id) => this.store.get(id))

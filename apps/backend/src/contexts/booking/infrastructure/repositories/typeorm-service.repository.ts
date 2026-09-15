@@ -47,6 +47,21 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     return toDomain(entity, currency, children.get(id) ?? emptyChildRows());
   }
 
+  async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('findByIdForUpdate must be called inside an active transaction');
+    }
+    const entity = await manager.findOne(ServiceEntity, {
+      where: { id, tenantId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!entity) return null;
+    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
+    const children = await this.loadChildren(manager, tenantId, [id]);
+    return toDomain(entity, currency, children.get(id) ?? emptyChildRows());
+  }
+
   async findByIds(ids: string[], tenantId: string): Promise<Service[]> {
     if (ids.length === 0) return [];
     const entities = await this.repo.find({ where: ids.map((id) => ({ id, tenantId })) });

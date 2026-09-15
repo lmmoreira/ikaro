@@ -39,7 +39,8 @@ export const CreateServiceBodySchema = z.object({
   requiresPickupAddress: z.boolean().optional(),
   isActive: z.boolean().optional(),
   bookingModel: BookingModelSchema.optional(),
-  classResourceSlots: z.array(ClassResourceSlotBodySchema).optional(),
+  // Max mirrors the backend's identical bound (create-service.dto.ts).
+  classResourceSlots: z.array(ClassResourceSlotBodySchema).max(20).optional(),
 });
 
 export const UpdateServiceBodySchema = z
@@ -50,7 +51,9 @@ export const UpdateServiceBodySchema = z
     durationMinutes: z.number().int().positive().optional(),
     loyaltyPointsValue: z.number().int().min(0).optional(),
     requiresPickupAddress: z.boolean().optional(),
-    bufferAfterMinutes: z.number().int().optional(),
+    // Non-negative to match the backend's identical bound (update-service.dto.ts) — see that
+    // file's comment for the settings.serviceBufferMinutes/UC-059 rationale.
+    bufferAfterMinutes: z.number().int().nonnegative().optional(),
     bookingModel: BookingModelSchema.optional(),
   })
   .default({});
