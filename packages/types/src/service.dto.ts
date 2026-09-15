@@ -46,6 +46,9 @@ export interface UpdateServiceRequest {
   requiresPickupAddress?: boolean;
   bufferAfterMinutes?: number;
   bookingModel?: ServiceBookingModel;
+  // Only meaningful (and required) when this same request converts bookingModel to SESSION —
+  // mirrors CreateServiceRequest's identical field.
+  classResourceSlots?: ClassResourceSlotItem[];
 }
 
 export interface ServiceResponse {
