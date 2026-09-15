@@ -156,6 +156,22 @@ export class ClassResourceSlotResourceNotActiveError extends BookingDomainError 
   }
 }
 
+// An empty eligibleResourceIds can't round-trip: service_class_resource_pool has one row per
+// (service, type, resourceId) — a slot with zero resources has zero rows, so it's indistinguishable
+// from "no slot declared for this type" on reload (typeorm-service.mapper.ts's toClassResourceSlots
+// groups purely by existing pool rows). Reject it here instead of inventing separate slot-identity
+// storage for a case with no real product value while classResourceSlots stays inert until M24.
+export class ClassResourceSlotEmptyPoolError extends BookingDomainError {
+  constructor() {
+    super(
+      'eligibleResourceIds must include at least one resource',
+      BookingErrorCode.SERVICE_CLASS_RESOURCE_SLOT_EMPTY_POOL,
+      'eligibleResourceIds',
+    );
+    this.name = 'ClassResourceSlotEmptyPoolError';
+  }
+}
+
 export class BookingServiceResourceTypeUnavailableError extends BookingDomainError {
   constructor(type: string) {
     super(

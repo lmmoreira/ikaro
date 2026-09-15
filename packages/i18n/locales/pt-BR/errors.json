@@ -70,6 +70,7 @@
   "BOOKING_SERVICE_CONCURRENT_MODIFICATION": "A configuração deste serviço foi alterada enquanto este agendamento estava sendo criado. Recarregue e tente novamente.",
   "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_DUPLICATE_TYPE": "classResourceSlots não pode listar o mesmo tipo mais de uma vez.",
   "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_RESOURCE_NOT_ACTIVE": "eligibleResourceIds deve referenciar recursos ativos do tipo correspondente.",
+  "BOOKING_SERVICE_CLASS_RESOURCE_SLOT_EMPTY_POOL": "eligibleResourceIds deve incluir ao menos um recurso.",
   "ADDRESS_POSTAL_CODE_INVALID": "O CEP informado é inválido.",
   "ADDRESS_STATE_INVALID": "O estado informado é inválido.",
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "O bairro é obrigatório.",

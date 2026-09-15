@@ -155,7 +155,11 @@ describe('CreateServiceUseCase', () => {
         ...baseDto,
         ...ctx,
         bookingModel: 'SESSION',
-        classResourceSlots: [{ type: 'ROOM', eligibleResourceIds: [] }],
+        // No ROOM resource exists for this tenant at all — rejected regardless of which ID is
+        // listed here (the type-availability check runs before the per-ID membership check).
+        classResourceSlots: [
+          { type: 'ROOM', eligibleResourceIds: ['00000000-0000-4000-8000-999999999998'] },
+        ],
       }),
     ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
   });

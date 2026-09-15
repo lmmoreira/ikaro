@@ -1,8 +1,9 @@
 import { ValueObject } from '../../../shared/domain/value-object';
+import { ClassResourceSlotEmptyPoolError } from './errors/booking-service.error';
 import { ResourceType } from './resource.types';
 
 // Inert this milestone (M22 Cluster 2) — nothing reads classResourceSlots until M24 ships
-// ClassScheduleTemplate. No further validation beyond VO shape.
+// ClassScheduleTemplate.
 export interface ClassResourceSlotProps {
   type: ResourceType;
   eligibleResourceIds: string[];
@@ -14,6 +15,10 @@ export class ClassResourceSlot extends ValueObject<ClassResourceSlotProps> {
   }
 
   static create(props: ClassResourceSlotProps): ClassResourceSlot {
+    // A slot with zero eligible resources can't round-trip through persistence (see the error
+    // class's own comment in errors/booking-service.error.ts) — rejected here rather than
+    // silently accepted and then lost.
+    if (props.eligibleResourceIds.length === 0) throw new ClassResourceSlotEmptyPoolError();
     return new ClassResourceSlot({
       type: props.type,
       eligibleResourceIds: [...props.eligibleResourceIds],

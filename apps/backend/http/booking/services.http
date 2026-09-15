@@ -180,9 +180,12 @@ X-Actor-Role: MANAGER
   "loyaltyPointsValue": 5,
   "bookingModel": "SESSION",
   "classResourceSlots": [
-    { "type": "ROOM", "eligibleResourceIds": [] }
+    { "type": "ROOM", "eligibleResourceIds": ["00000000-0000-4000-8000-000000000001"] }
   ]
 }
+# eligibleResourceIds must reference an active ROOM resource ID for this tenant — set it to a
+# real one before sending (an empty pool is rejected: a slot can't round-trip with zero
+# resources).
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — activate/deactivate service (UC-013)

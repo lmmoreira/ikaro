@@ -109,7 +109,12 @@ export const ServiceLegSchema = z.object({
 
 export const ClassResourceSlotSchema = z.object({
   type: ResourceTypeSchema,
-  eligibleResourceIds: uniqueUuidArray(50),
+  // .min(1) — unlike ResourceRequirement's nullable resourcePoolIds (null = unrestricted, a
+  // meaningful state), eligibleResourceIds has no "unrestricted" fallback: a slot with zero
+  // resources can't round-trip through persistence (service_class_resource_pool has one row per
+  // (service, type, resourceId) — zero resources means zero rows, indistinguishable on reload
+  // from no slot declared at all for that type).
+  eligibleResourceIds: uniqueUuidArray(50).min(1),
 });
 
 // No .min(2) here on purpose — UC-052 A1's "fewer than 2 legs" rejection is a domain-level
