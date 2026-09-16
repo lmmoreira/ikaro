@@ -445,4 +445,35 @@ describe('resolveBookingLinesResourceCandidates', () => {
       ),
     ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
   });
+
+  it('throws BookingServiceResourceTypeUnavailableError when a resourcePoolIds member has been deactivated', async () => {
+    const deactivated = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .build();
+    deactivated.deactivate();
+    await resourceRepo.save(deactivated);
+    const service = new ServiceBuilder()
+      .withId('service-1')
+      .withDurationMinutes(30)
+      .withResourceRequirements([
+        ResourceRequirement.create({
+          type: ResourceType.ROOM,
+          selectionMode: 'CUSTOMER_CHOICE',
+          resourcePoolIds: [deactivated.id],
+        }),
+      ])
+      .build();
+
+    await expect(
+      resolveBookingLinesResourceCandidates(
+        resourceRepo,
+        availabilityService,
+        TENANT_ID,
+        SCHEDULED_AT,
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+      ),
+    ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
+  });
 });

@@ -16,12 +16,15 @@ import { rethrowOccupancyInsertError } from './typeorm-resource-occupancy.persis
 
 interface ConflictRow {
   resource_id: string;
-  starts_at: Date;
-  ends_at: Date;
 }
 
 @Injectable()
 export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRepository {
+  // Window-overlap is evaluated in SQL (tstzrange &&, same operator the GIST exclusion
+  // constraint itself uses) rather than fetched-then-filtered-in-JS — each candidate can have a
+  // different window, so the candidate list is unnested into a value set first and joined per
+  // (resource_id, window) pair, letting Postgres use the GIST index instead of a full scan of
+  // every retained HOLD/COMMITTED row for the resource.
   async findConflictingResourceIds(
     tenantId: string,
     candidates: ResourceOccupancyWindow[],
@@ -29,37 +32,38 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
   ): Promise<string[]> {
     if (candidates.length === 0) return [];
     const manager = this.requireActiveManager();
-    const resourceIds = [...new Set(candidates.map((c) => c.resourceId))];
 
     const rows: ConflictRow[] = await manager.query(
       `
-      SELECT ro.resource_id, ro.starts_at, ro.ends_at
-      FROM booking.resource_occupancy ro
+      WITH candidates AS (
+        SELECT * FROM unnest($2::uuid[], $3::timestamptz[], $4::timestamptz[])
+          AS c(resource_id, starts_at, ends_at)
+      )
+      SELECT DISTINCT c.resource_id
+      FROM candidates c
+      JOIN booking.resource_occupancy ro
+        ON ro.tenant_id = $1
+        AND ro.resource_id = c.resource_id
+        AND ro.lock_state IN ('HOLD', 'COMMITTED')
+        AND tstzrange(ro.starts_at, ro.ends_at, '[)') && tstzrange(c.starts_at, c.ends_at, '[)')
       LEFT JOIN booking.booking_line_resource_assignments bla
         ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
-      WHERE ro.tenant_id = $1
-        AND ro.resource_id = ANY($2::uuid[])
-        AND ro.lock_state IN ('HOLD', 'COMMITTED')
-        AND (
-          $3::uuid[] IS NULL
-          OR bla.booking_line_id IS NULL
-          OR NOT (bla.booking_line_id = ANY($3::uuid[]))
-        )
+      WHERE (
+        $5::uuid[] IS NULL
+        OR bla.booking_line_id IS NULL
+        OR NOT (bla.booking_line_id = ANY($5::uuid[]))
+      )
       `,
-      [tenantId, resourceIds, excludeBookingLineIds ?? null],
+      [
+        tenantId,
+        candidates.map((c) => c.resourceId),
+        candidates.map((c) => c.startsAt),
+        candidates.map((c) => c.endsAt),
+        excludeBookingLineIds ?? null,
+      ],
     );
 
-    const conflicting = new Set<string>();
-    for (const candidate of candidates) {
-      const hasOverlap = rows.some(
-        (row) =>
-          row.resource_id === candidate.resourceId &&
-          candidate.startsAt < new Date(row.ends_at) &&
-          new Date(row.starts_at) < candidate.endsAt,
-      );
-      if (hasOverlap) conflicting.add(candidate.resourceId);
-    }
-    return [...conflicting];
+    return rows.map((row) => row.resource_id);
   }
 
   async assign(

@@ -242,7 +242,11 @@ async function lookupResource(
   const cached = ctx.resourceCache.get(id);
   if (cached) return cached;
   const found = await ctx.resourceRepo.findById(id, ctx.tenantId);
-  if (!found) throw new BookingServiceResourceTypeUnavailableError(requirement.type);
+  // Enforced here (not just at the findByTenant(isActive: true) call site) because a fixed
+  // resourcePoolIds requirement trusts its configured ids directly, bypassing that filter — a
+  // resource deactivated after a service was configured must not still be assignable.
+  if (!found || !found.isActive)
+    throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   ctx.resourceCache.set(id, found);
   return found;
 }

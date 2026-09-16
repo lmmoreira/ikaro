@@ -136,14 +136,16 @@ describe('persistRequestedBooking', () => {
     serviceMap: Map<string, ReturnType<ServiceBuilder['build']>>,
   ) =>
     persistRequestedBooking(
-      txManager,
-      slotConflictService,
-      bookingRepo,
-      photoExistenceService,
-      serviceRepo,
-      resourceRepo,
-      occupancyRepo,
-      new AvailabilityService(),
+      {
+        txManager,
+        slotConflictService,
+        bookingRepo,
+        photoExistenceService,
+        serviceRepo,
+        resourceRepo,
+        occupancyRepo,
+        availabilityService: new AvailabilityService(),
+      },
       {
         booking,
         tenantId: TENANT_A,

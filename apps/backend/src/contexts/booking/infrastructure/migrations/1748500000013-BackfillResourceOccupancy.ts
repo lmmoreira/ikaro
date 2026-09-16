@@ -1,11 +1,13 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 // Backfill phase (2 of 3) — docs/13-DATABASE_SCHEMA.md § booking.resource_occupancy migration
-// ordering. Scoped to APPROVED bookings with a still-future scheduled_end_at only — resource_
-// occupancy exists purely to protect FUTURE availability (90-day-past-ends_at GC sweep), so
-// backfilling a PENDING/REJECTED/CANCELLED/COMPLETED or already-past booking would create rows
-// with no business purpose the very next GC sweep would delete. Idempotent via NOT EXISTS: skips
-// any booking line that already has an assignment row, safe to re-run.
+// ordering. Backfills every pre-existing APPROVED booking (M22-S03's own AC — no time-window
+// qualifier), not just ones with a still-future scheduled_end_at: M22-S04's day grid depends on
+// every pre-existing booking having a resource assignment, including past ones, to render
+// historical schedule views. A past-window COMMITTED row poses no exclusivity risk (nothing can
+// schedule into the past) and is swept by the same 90-day-past-ends_at GC as any other row.
+// Idempotent via NOT EXISTS: skips any booking line that already has an assignment row, safe to
+// re-run.
 export class BackfillResourceOccupancy1748500000013 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
@@ -22,7 +24,6 @@ export class BackfillResourceOccupancy1748500000013 implements MigrationInterfac
         JOIN "booking"."resources" r
           ON r."tenant_id" = bl."tenant_id" AND r."type" = 'LOCATION' AND r."is_active"
         WHERE b."status" = 'APPROVED'
-          AND b."scheduled_end_at" > now()
           AND NOT EXISTS (
             SELECT 1 FROM "booking"."booking_line_resource_assignments" existing
             WHERE existing."tenant_id" = bl."tenant_id" AND existing."booking_line_id" = bl."line_id"

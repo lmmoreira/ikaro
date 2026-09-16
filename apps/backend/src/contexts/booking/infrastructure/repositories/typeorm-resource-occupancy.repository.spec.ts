@@ -42,7 +42,7 @@ describe('TypeOrmResourceOccupancyRepository', () => {
       );
     });
 
-    it('returns resource ids whose window overlaps a conflicting row, excluding non-overlapping ones', async () => {
+    it('returns the resource ids the SQL query reports as conflicting, unnesting each candidate window', async () => {
       const overlapping = buildCandidate({ resourceId: 'res-overlap' });
       const free = buildCandidate({
         resourceId: 'res-free',
@@ -50,13 +50,7 @@ describe('TypeOrmResourceOccupancyRepository', () => {
         endsAt: new Date('2026-06-01T15:00:00.000Z'),
       });
       const manager = {
-        query: jest.fn().mockResolvedValue([
-          {
-            resource_id: 'res-overlap',
-            starts_at: new Date('2026-06-01T09:30:00.000Z'),
-            ends_at: new Date('2026-06-01T10:30:00.000Z'),
-          },
-        ]),
+        query: jest.fn().mockResolvedValue([{ resource_id: 'res-overlap' }]),
       } as unknown as EntityManager;
 
       const result = await runWithEntityManager(manager, () =>
@@ -67,20 +61,25 @@ describe('TypeOrmResourceOccupancyRepository', () => {
       expect(manager.query).toHaveBeenCalledWith(expect.any(String), [
         TENANT_ID,
         ['res-overlap', 'res-free'],
+        [overlapping.startsAt, free.startsAt],
+        [overlapping.endsAt, free.endsAt],
         null,
       ]);
     });
 
     it('passes excludeBookingLineIds through when provided', async () => {
       const manager = { query: jest.fn().mockResolvedValue([]) } as unknown as EntityManager;
+      const candidate = buildCandidate();
 
       await runWithEntityManager(manager, () =>
-        repo.findConflictingResourceIds(TENANT_ID, [buildCandidate()], [BOOKING_LINE_ID]),
+        repo.findConflictingResourceIds(TENANT_ID, [candidate], [BOOKING_LINE_ID]),
       );
 
       expect(manager.query).toHaveBeenCalledWith(expect.any(String), [
         TENANT_ID,
-        [buildCandidate().resourceId],
+        [candidate.resourceId],
+        [candidate.startsAt],
+        [candidate.endsAt],
         [BOOKING_LINE_ID],
       ]);
     });

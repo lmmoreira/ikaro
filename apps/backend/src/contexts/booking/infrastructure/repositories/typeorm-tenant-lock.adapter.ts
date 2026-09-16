@@ -21,7 +21,7 @@ export class TypeOrmTenantLockAdapter implements ITenantLockPort {
   // deploy against) — sorted ascending before acquiring so two concurrent callers referencing
   // overlapping resource sets in different array orders can't deadlock against each other.
   async lockResources(tenantId: string, resourceIds: string[]): Promise<void> {
-    const ordered = [...new Set(resourceIds)].sort();
+    const ordered = [...new Set(resourceIds)].sort((a, b) => a.localeCompare(b));
     for (const resourceId of ordered) {
       await this.acquire(`resource:${tenantId}:${resourceId}`);
     }

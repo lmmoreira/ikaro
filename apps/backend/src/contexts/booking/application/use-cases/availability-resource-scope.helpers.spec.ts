@@ -83,22 +83,31 @@ describe('resolveAvailabilityRequirementEntries', () => {
     resourceRepo = new InMemoryResourceRepository();
   });
 
-  it('resolves candidateResourceIds from resourcePoolIds when set, without querying findByTenant', async () => {
+  it('resolves candidateResourceIds from resourcePoolIds, restricted to the active subset', async () => {
+    const active = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .build();
+    await resourceRepo.save(active);
+    const inactive = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .build();
+    inactive.deactivate();
+    await resourceRepo.save(inactive);
     const service = new ServiceBuilder()
       .withResourceRequirements([
         ResourceRequirement.create({
           type: ResourceType.ROOM,
           selectionMode: 'CUSTOMER_CHOICE',
-          resourcePoolIds: ['room-1', 'room-2'],
+          resourcePoolIds: [active.id, inactive.id],
         }),
       ])
       .build();
-    const findByTenantSpy = jest.spyOn(resourceRepo, 'findByTenant');
 
     const entries = await resolveAvailabilityRequirementEntries(service, resourceRepo, TENANT_ID);
 
-    expect(entries).toEqual([{ candidateResourceIds: ['room-1', 'room-2'] }]);
-    expect(findByTenantSpy).not.toHaveBeenCalled();
+    expect(entries).toEqual([{ candidateResourceIds: [active.id] }]);
   });
 
   it('falls back to every active resource of the type when resourcePoolIds is unset', async () => {
@@ -118,6 +127,11 @@ describe('resolveAvailabilityRequirementEntries', () => {
   it('flattens every leg requirement into one entry list for a legged service', async () => {
     const room = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
     await resourceRepo.save(room);
+    const equipment = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.EQUIPMENT)
+      .build();
+    await resourceRepo.save(equipment);
     const service = new ServiceBuilder()
       .withLegs([
         ServiceLeg.create({
@@ -137,7 +151,7 @@ describe('resolveAvailabilityRequirementEntries', () => {
             ResourceRequirement.create({
               type: ResourceType.EQUIPMENT,
               selectionMode: 'CUSTOMER_CHOICE',
-              resourcePoolIds: ['equip-1'],
+              resourcePoolIds: [equipment.id],
             }),
           ],
           transitionGapAfterMinutes: 0,
@@ -149,7 +163,7 @@ describe('resolveAvailabilityRequirementEntries', () => {
 
     expect(entries).toEqual([
       { candidateResourceIds: [room.id] },
-      { candidateResourceIds: ['equip-1'] },
+      { candidateResourceIds: [equipment.id] },
     ]);
   });
 

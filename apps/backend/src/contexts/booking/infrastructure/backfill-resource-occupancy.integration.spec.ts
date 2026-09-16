@@ -126,16 +126,21 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
     expect(occupancy[0].endsAt.toISOString()).toBe(FUTURE_END.toISOString());
   });
 
-  it('does not backfill an APPROVED booking whose scheduled_end_at has already passed', async () => {
+  it('backfills an APPROVED booking whose scheduled_end_at has already passed (M22-S04 day grid dependency)', async () => {
     await runUp();
 
-    const rows = await ds.getRepository(BookingLineResourceAssignmentEntity).find({
-      where: { tenantId: TENANT_A },
+    const assignments = await ds
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .find({ where: { tenantId: TENANT_A, bookingLineId: approvedPastLineId } });
+    expect(assignments).toHaveLength(1);
+
+    const occupancy = await ds.getRepository(ResourceOccupancyEntity).find({
+      where: { tenantId: TENANT_A, bookingLineResourceAssignmentId: assignments[0].id },
     });
-    const bookingLineIds = new Set(rows.map((r) => r.bookingLineId));
-    // The past-approved booking's own line never appears among backfilled assignments, since
-    // resource_occupancy exists purely to protect FUTURE availability.
-    expect([...bookingLineIds]).not.toContain(approvedPastLineId);
+    expect(occupancy).toHaveLength(1);
+    expect(occupancy[0].lockState).toBe('COMMITTED');
+    expect(occupancy[0].startsAt.toISOString()).toBe(PAST_START.toISOString());
+    expect(occupancy[0].endsAt.toISOString()).toBe(PAST_END.toISOString());
   });
 
   it('does not backfill a PENDING or REJECTED booking', async () => {

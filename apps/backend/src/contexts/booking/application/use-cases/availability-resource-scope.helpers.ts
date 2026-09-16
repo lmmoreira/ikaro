@@ -43,14 +43,20 @@ export async function resolveAvailabilityRequirementEntries(
 
   const entries: AvailabilityRequirementEntry[] = [];
   for (const requirement of requirements) {
-    if (requirement.resourcePoolIds && requirement.resourcePoolIds.length > 0) {
-      entries.push({ candidateResourceIds: requirement.resourcePoolIds });
-      continue;
-    }
     const active = await resourceRepo.findByTenant(tenantId, {
       type: requirement.type,
       isActive: true,
     });
+    if (requirement.resourcePoolIds && requirement.resourcePoolIds.length > 0) {
+      // A resource deactivated after the service was configured must not still be surfaced as
+      // available — same invariant resource-occupancy.helpers.ts's lookupResource() enforces on
+      // the write path.
+      const activeIds = new Set(active.map((r) => r.id));
+      entries.push({
+        candidateResourceIds: requirement.resourcePoolIds.filter((id) => activeIds.has(id)),
+      });
+      continue;
+    }
     entries.push({ candidateResourceIds: active.map((r) => r.id) });
   }
   return entries;

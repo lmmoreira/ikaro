@@ -42,6 +42,19 @@ export interface PersistRequestedBookingParams {
   serviceMap: Map<string, Service>;
 }
 
+// Bundled to keep persistRequestedBooking() under SonarCloud's max-parameters threshold (S107) —
+// same shape every caller already builds from its own constructor-injected fields.
+export interface PersistRequestedBookingDeps {
+  txManager: ITransactionManager;
+  slotConflictService: BookingSlotConflictService;
+  bookingRepo: IBookingRepository;
+  photoExistenceService: PhotoExistenceService;
+  serviceRepo: IServiceRepository;
+  resourceRepo: IResourceRepository;
+  occupancyRepo: IResourceOccupancyRepository;
+  availabilityService: AvailabilityService;
+}
+
 export function createBookingAddress(
   props: AddressProps,
   spec: AddressSpec,
@@ -186,23 +199,16 @@ async function resolveAndCheckCandidates(
 }
 
 export async function persistRequestedBooking(
-  txManager: ITransactionManager,
-  slotConflictService: BookingSlotConflictService,
-  bookingRepo: IBookingRepository,
-  photoExistenceService: PhotoExistenceService,
-  serviceRepo: IServiceRepository,
-  resourceRepo: IResourceRepository,
-  occupancyRepo: IResourceOccupancyRepository,
-  availabilityService: AvailabilityService,
+  deps: PersistRequestedBookingDeps,
   params: PersistRequestedBookingParams,
 ): Promise<void> {
   const { booking, tenantId, scheduledAt, operations, serviceMap } = params;
 
-  await txManager.run(async () => {
+  await deps.txManager.run(async () => {
     const candidatesByLine = await resolveAndCheckCandidates(
-      resourceRepo,
-      availabilityService,
-      slotConflictService,
+      deps.resourceRepo,
+      deps.availabilityService,
+      deps.slotConflictService,
       booking,
       tenantId,
       scheduledAt,
@@ -210,20 +216,20 @@ export async function persistRequestedBooking(
     );
 
     const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
-    await lockAndVerifyServiceModels(serviceRepo, serviceIds, tenantId, serviceMap);
-    await bookingRepo.save(booking);
+    await lockAndVerifyServiceModels(deps.serviceRepo, serviceIds, tenantId, serviceMap);
+    await deps.bookingRepo.save(booking);
 
     const holdExpiresAt = resolveHoldExpiresAt(serviceMap);
     await assignBookingLinesOccupancy(
-      occupancyRepo,
+      deps.occupancyRepo,
       candidatesByLine,
       tenantId,
       'HOLD',
       holdExpiresAt,
     );
 
-    await txManager.scheduleAfterCommit(() =>
-      photoExistenceService.executePhotoPromotion(operations),
+    await deps.txManager.scheduleAfterCommit(() =>
+      deps.photoExistenceService.executePhotoPromotion(operations),
     );
   });
 }

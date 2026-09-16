@@ -84,14 +84,16 @@ export class RequestAuthenticatedBookingUseCase {
     );
 
     await persistRequestedBooking(
-      this.txManager,
-      this.slotConflictService,
-      this.bookingRepo,
-      this.photoExistenceService,
-      this.serviceRepo,
-      this.resourceRepo,
-      this.occupancyRepo,
-      this.availabilityService,
+      {
+        txManager: this.txManager,
+        slotConflictService: this.slotConflictService,
+        bookingRepo: this.bookingRepo,
+        photoExistenceService: this.photoExistenceService,
+        serviceRepo: this.serviceRepo,
+        resourceRepo: this.resourceRepo,
+        occupancyRepo: this.occupancyRepo,
+        availabilityService: this.availabilityService,
+      },
       { booking, tenantId, scheduledAt, operations, serviceMap },
     );
 
