@@ -248,6 +248,20 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
     ).resolves.toBeUndefined();
   });
 
+  // The test above necessarily uses two different resource ids (resources.id is a global,
+  // tenant-independent PRIMARY KEY, per CreateBookingResources's own PK_booking_resources — two
+  // tenants can never share one), so it alone can't distinguish "scoped by tenant_id" from
+  // "scoped by resource_id" catching the same case. Assert the constraint's own key list directly.
+  it("the exclusion constraint's key list includes tenant_id, not just resource_id", async () => {
+    const rows: { conkey: string }[] = await dataSource.query(`
+      SELECT pg_get_constraintdef(oid) AS conkey
+      FROM pg_constraint
+      WHERE conname = 'EX_booking_resource_occupancy_locked_window'
+    `);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].conkey).toContain('tenant_id');
+  });
+
   it('commit() flips HOLD to COMMITTED for the given booking lines', async () => {
     const lineId = await seedBookingLine(TENANT_A);
     const start = new Date('2026-06-06T10:00:00.000Z');
