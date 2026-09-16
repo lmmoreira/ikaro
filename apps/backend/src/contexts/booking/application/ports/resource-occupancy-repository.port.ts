@@ -1,5 +1,5 @@
 import { ResourceType } from '../../domain/resource.types';
-import { ResourceOccupancyLockState } from '../../infrastructure/entities/resource-occupancy.entity';
+import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
 
 export const RESOURCE_OCCUPANCY_REPOSITORY = Symbol('IResourceOccupancyRepository');
 

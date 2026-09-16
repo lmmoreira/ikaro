@@ -27,6 +27,10 @@ const FUTURE_START = new Date(Date.now() + 24 * 60 * 60 * 1000);
 const FUTURE_END = new Date(FUTURE_START.getTime() + 60 * 60_000);
 const PAST_START = new Date(Date.now() - 48 * 60 * 60 * 1000);
 const PAST_END = new Date(PAST_START.getTime() + 60 * 60_000);
+// The shared LOCATION resource's turnover — every single-line booking's occupancy row is its own
+// last (only) line, so its backfilled ends_at must include this gap (service buffer stays 0, so
+// GREATEST(buffer, turnover) resolves to this value alone).
+const LOCATION_TURNOVER_MINUTES = 5;
 
 describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
   let app: INestApplication;
@@ -55,11 +59,18 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
     const location = new ResourceEntityBuilder()
       .withTenantId(TENANT_A)
       .withType(ResourceType.LOCATION)
+      .withTurnoverMinutes(LOCATION_TURNOVER_MINUTES)
       .build();
     await ds.getRepository(ResourceEntity).save(location);
     locationResourceId = location.id;
 
-    const service = new ServiceEntityBuilder().withTenantId(TENANT_A).build();
+    // withBufferAfterMinutes(0) keeps the single-line fixtures' expected windows simple — the
+    // buffer/turnover-gap-on-last-line behavior is asserted explicitly by the multi-line test
+    // below, via its own dedicated service/resource with a non-zero buffer and turnover.
+    const service = new ServiceEntityBuilder()
+      .withTenantId(TENANT_A)
+      .withBufferAfterMinutes(0)
+      .build();
     await ds.getRepository(ServiceEntity).save(service);
 
     async function seedBooking(status: string, scheduledAt: Date, scheduledEndAt: Date) {
@@ -158,7 +169,10 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
     expect(occupancy[0].lockState).toBe('COMMITTED');
     expect(occupancy[0].holdExpiresAt).toBeNull();
     expect(occupancy[0].startsAt.toISOString()).toBe(FUTURE_START.toISOString());
-    expect(occupancy[0].endsAt.toISOString()).toBe(FUTURE_END.toISOString());
+    // A single line is trivially its booking's own last line — its ends_at includes the
+    // resource's turnover gap, same as a newly-approved booking's write path would produce.
+    const expectedEnd = new Date(FUTURE_END.getTime() + LOCATION_TURNOVER_MINUTES * 60_000);
+    expect(occupancy[0].endsAt.toISOString()).toBe(expectedEnd.toISOString());
   });
 
   it('backfills an APPROVED booking whose scheduled_end_at has already passed (M22-S04 day grid dependency)', async () => {
@@ -175,7 +189,8 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
     expect(occupancy).toHaveLength(1);
     expect(occupancy[0].lockState).toBe('COMMITTED');
     expect(occupancy[0].startsAt.toISOString()).toBe(PAST_START.toISOString());
-    expect(occupancy[0].endsAt.toISOString()).toBe(PAST_END.toISOString());
+    const expectedEnd = new Date(PAST_END.getTime() + LOCATION_TURNOVER_MINUTES * 60_000);
+    expect(occupancy[0].endsAt.toISOString()).toBe(expectedEnd.toISOString());
   });
 
   it('does not backfill a PENDING or REJECTED booking', async () => {
@@ -215,15 +230,18 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
     });
 
     const firstEnd = new Date(MULTI_LINE_START.getTime() + MULTI_LINE_FIRST_DURATION_MINS * 60_000);
-    const secondEnd = new Date(firstEnd.getTime() + MULTI_LINE_SECOND_DURATION_MINS * 60_000);
+    const secondEndRaw = new Date(firstEnd.getTime() + MULTI_LINE_SECOND_DURATION_MINS * 60_000);
+    const secondEndWithGap = new Date(secondEndRaw.getTime() + LOCATION_TURNOVER_MINUTES * 60_000);
 
     expect(firstOccupancy.startsAt.toISOString()).toBe(MULTI_LINE_START.toISOString());
+    // Not the last line — no turnover gap added, unlike the single-line tests above.
     expect(firstOccupancy.endsAt.toISOString()).toBe(firstEnd.toISOString());
     // The second line starts exactly where the first ends — not the whole booking's window
     // (the bug: both lines sharing scheduled_at/scheduled_end_at would overlap and violate the
-    // GIST exclusion constraint on this shared LOCATION resource).
+    // GIST exclusion constraint on this shared LOCATION resource). Being the last line, its own
+    // ends_at does include the turnover gap.
     expect(secondOccupancy.startsAt.toISOString()).toBe(firstEnd.toISOString());
-    expect(secondOccupancy.endsAt.toISOString()).toBe(secondEnd.toISOString());
+    expect(secondOccupancy.endsAt.toISOString()).toBe(secondEndWithGap.toISOString());
   });
 
   it('is idempotent — running twice does not duplicate rows', async () => {

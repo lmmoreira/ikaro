@@ -1,5 +1,5 @@
 import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
-import { ResourceOccupancyLockState } from '../../infrastructure/entities/resource-occupancy.entity';
+import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
 import { ResolvedLineCandidates } from './resource-occupancy.helpers';
 
 // A request-time HOLD for a degenerate (LOCATION-fallback) service downgrades to REQUESTED,

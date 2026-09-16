@@ -1,9 +1,9 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import {
   ResourceOccupancyEntity,
-  ResourceOccupancyLockState,
   ResourceOccupancySourceType,
 } from '../../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
+import { ResourceOccupancyLockState } from '../../../contexts/booking/domain/resource-occupancy-lock-state';
 import { ResourceType } from '../../../contexts/booking/domain/resource.types';
 
 export class ResourceOccupancyEntityBuilder {

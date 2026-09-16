@@ -7,10 +7,8 @@ import {
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
 } from '../../application/ports/resource-occupancy-repository.port';
-import {
-  ResourceOccupancyEntity,
-  ResourceOccupancyLockState,
-} from '../entities/resource-occupancy.entity';
+import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
+import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { rethrowOccupancyInsertError } from './typeorm-resource-occupancy.persistence-errors';
 
 interface ConflictRow {

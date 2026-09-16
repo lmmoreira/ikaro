@@ -3,7 +3,7 @@ import {
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
 } from '../../../contexts/booking/application/ports/resource-occupancy-repository.port';
-import { ResourceOccupancyLockState } from '../../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
+import { ResourceOccupancyLockState } from '../../../contexts/booking/domain/resource-occupancy-lock-state';
 
 interface StoredOccupancy extends ResourceOccupancyCandidate {
   tenantId: string;

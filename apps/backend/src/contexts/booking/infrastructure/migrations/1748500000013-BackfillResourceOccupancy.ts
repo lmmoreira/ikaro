@@ -38,6 +38,11 @@ export class BackfillResourceOccupancy1748500000013 implements MigrationInterfac
       -- otherwise reject the migration's own inserts for any pre-existing multi-line booking.
       -- line_id is a uuidv7 PK, generated in creation order within the same booking, so ORDER BY
       -- line_id reconstructs the original sequential order.
+      -- The very last line also gets max(service.buffer_after_minutes, resource.turnover_minutes)
+      -- added to its ends_at, same as resource-occupancy.helpers.ts's resolveFlatLineCandidates
+      -- (write path) — never between two lines of the same booking. Without this, a backfilled
+      -- row's ends_at would be gap-free while every newly-approved booking's isn't, letting a new
+      -- booking land with zero buffer right after a pre-existing one.
       line_windows AS (
         SELECT
           ia."id" AS assignment_id,
@@ -53,10 +58,22 @@ export class BackfillResourceOccupancy1748500000013 implements MigrationInterfac
             ), 0) * INTERVAL '1 minute'
           ) AS starts_at,
           b."scheduled_at" + (
-            SUM(bl."duration_mins_at_booking") OVER (
-              PARTITION BY bl."booking_id"
-              ORDER BY bl."line_id"
-              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            (
+              SUM(bl."duration_mins_at_booking") OVER (
+                PARTITION BY bl."booking_id"
+                ORDER BY bl."line_id"
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+              )
+              + CASE
+                  WHEN SUM(bl."duration_mins_at_booking") OVER (
+                         PARTITION BY bl."booking_id"
+                         ORDER BY bl."line_id"
+                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                       )
+                       = SUM(bl."duration_mins_at_booking") OVER (PARTITION BY bl."booking_id")
+                  THEN GREATEST(svc."buffer_after_minutes", res."turnover_minutes")
+                  ELSE 0
+                END
             ) * INTERVAL '1 minute'
           ) AS ends_at
         FROM inserted_assignments ia
@@ -64,6 +81,10 @@ export class BackfillResourceOccupancy1748500000013 implements MigrationInterfac
           ON bl."tenant_id" = ia."tenant_id" AND bl."line_id" = ia."booking_line_id"
         JOIN "booking"."bookings" b
           ON b."tenant_id" = bl."tenant_id" AND b."id" = bl."booking_id"
+        JOIN "booking"."services" svc
+          ON svc."tenant_id" = bl."tenant_id" AND svc."id" = bl."service_id"
+        JOIN "booking"."resources" res
+          ON res."tenant_id" = ia."tenant_id" AND res."id" = ia."resource_id"
       )
       INSERT INTO "booking"."resource_occupancy"
         ("id", "tenant_id", "resource_id", "resource_type", "source_type",
