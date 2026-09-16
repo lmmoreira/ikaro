@@ -96,8 +96,43 @@ if ! echo "$EARLY" | grep -qE 'pending|pass|fail'; then
   sleep 60
 fi
 
+# Re-verify every "pending" row against the underlying Actions Job API before trusting
+# it — `gh pr checks`' aggregate rollup has been observed to print "pending" for tens of
+# seconds after the job's own record already carries a terminal conclusion (confirmed
+# live, PR #482, 2026-09-16: job 104616413571 showed conclusion:"success" while the
+# rollup still printed "pending", stalling this script's loop well past the point where
+# `gh pr view --json mergeStateStatus` already read CLEAN). Only rows whose URL points at
+# a recognizable Actions job get this treatment; a check with no job URL (a Terraform
+# Cloud run, SonarCloud's own dashboard link, etc.) has no equivalent direct endpoint and
+# is trusted as-is. Applied once per poll, reused for both the loop's exit condition and
+# the final summary, so the two never disagree about the same stale row.
+correct_ci_output() {
+  local raw="$1"
+  local corrected=""
+  local name bucket elapsed url job_id conclusion
+  while IFS=$'\t' read -r name bucket elapsed url; do
+    [ -z "$name" ] && continue
+    if [ "$bucket" = "pending" ]; then
+      job_id=$(printf '%s' "$url" | grep -oE '/job/[0-9]+$' | grep -oE '[0-9]+' || true)
+      if [ -n "$job_id" ]; then
+        conclusion=$(gh api "repos/${REPO}/actions/jobs/${job_id}" --jq '.conclusion // empty' 2>/dev/null || true)
+        if [ -n "$conclusion" ]; then
+          if [ "$conclusion" = "success" ] || [ "$conclusion" = "neutral" ] || [ "$conclusion" = "skipped" ]; then
+            bucket="pass"
+          else
+            bucket="fail"
+          fi
+        fi
+      fi
+    fi
+    corrected="${corrected}${name}"$'\t'"${bucket}"$'\t'"${elapsed}"$'\t'"${url}"$'\n'
+  done <<< "$raw"
+  printf '%s' "$corrected"
+}
+
 while true; do
-  CI_OUTPUT=$(gh pr checks "$PR_NUMBER" --repo "$REPO" 2>&1 || true)
+  CI_OUTPUT_RAW=$(gh pr checks "$PR_NUMBER" --repo "$REPO" 2>&1 || true)
+  CI_OUTPUT=$(correct_ci_output "$CI_OUTPUT_RAW")
   CI_PENDING=$(printf '%s\n' "$CI_OUTPUT" | grep -c $'\tpending\t' || true)
 
   CODEX_URL=""
