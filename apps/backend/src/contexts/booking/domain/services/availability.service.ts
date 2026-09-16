@@ -272,6 +272,46 @@ export class AvailabilityService {
     return Math.max(bufferAfterMinutes, turnoverMinutes);
   }
 
+  // A direct free/busy check for one [start, end) window against one resource's (tenant's, when
+  // null/undefined) hours/closures/occupancy — the primitive the resource-scoped read path uses
+  // per line/leg/candidate, instead of calculate()'s own slot-generation loop (built around one
+  // combined duration slid across the day, not an arbitrary caller-supplied window).
+  isWindowFree(
+    date: string,
+    businessHours: BusinessHours,
+    resource: Resource | null | undefined,
+    closures: ScheduleClosure[],
+    opening: ScheduleOpening | null,
+    resourceOpening: ScheduleOpening | null | undefined,
+    window: { start: Date; end: Date },
+    existingOccupancy: ResourceOccupiedSlot[],
+  ): boolean {
+    const effectiveHours = this.resolveEffectiveHours(
+      date,
+      businessHours,
+      resource,
+      closures,
+      opening,
+      resourceOpening,
+    );
+    if (!effectiveHours) return false;
+
+    const timezone = businessHours.timezone;
+    const startHHMM = utcDateToLocalHHMM(window.start, timezone);
+    const endHHMM = utcDateToLocalHHMM(window.end, timezone);
+    if (startHHMM < effectiveHours.open || endHHMM > effectiveHours.close) return false;
+
+    const blockedByClosure = effectiveHours.partialClosures.some((c) =>
+      this.overlaps(startHHMM, endHHMM, c.startTime!.value, c.endTime!.value),
+    );
+    if (blockedByClosure) return false;
+
+    const blockedByOccupancy = existingOccupancy.some(
+      (o) => window.start < o.endsAt && o.startsAt < window.end,
+    );
+    return !blockedByOccupancy;
+  }
+
   // UC-059 step 2 — for a legged service, each leg's own resource turnover applies at that leg's
   // own resource; transitionGapAfterMinutes is independent and additive to the appointment's
   // total span (it determines when the NEXT leg starts, regardless of this leg's own turnover).

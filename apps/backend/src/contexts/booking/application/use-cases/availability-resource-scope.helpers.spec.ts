@@ -1,15 +1,8 @@
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
-import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { ServiceLeg } from '../../domain/service-leg';
-import {
-  isDegenerateService,
-  resolveAvailabilityRequirementEntries,
-} from './availability-resource-scope.helpers';
-
-const TENANT_ID = '00000000-0000-7000-8000-000000000001';
+import { isDegenerateService } from './availability-resource-scope.helpers';
 
 describe('isDegenerateService', () => {
   it('is degenerate when resourceRequirements is empty and there are no legs', () => {
@@ -73,109 +66,5 @@ describe('isDegenerateService', () => {
       ])
       .build();
     expect(isDegenerateService(service)).toBe(false);
-  });
-});
-
-describe('resolveAvailabilityRequirementEntries', () => {
-  let resourceRepo: InMemoryResourceRepository;
-
-  beforeEach(() => {
-    resourceRepo = new InMemoryResourceRepository();
-  });
-
-  it('resolves candidateResourceIds from resourcePoolIds, restricted to the active subset', async () => {
-    const active = new ResourceBuilder()
-      .withTenantId(TENANT_ID)
-      .withType(ResourceType.ROOM)
-      .build();
-    await resourceRepo.save(active);
-    const inactive = new ResourceBuilder()
-      .withTenantId(TENANT_ID)
-      .withType(ResourceType.ROOM)
-      .build();
-    inactive.deactivate();
-    await resourceRepo.save(inactive);
-    const service = new ServiceBuilder()
-      .withResourceRequirements([
-        ResourceRequirement.create({
-          type: ResourceType.ROOM,
-          selectionMode: 'CUSTOMER_CHOICE',
-          resourcePoolIds: [active.id, inactive.id],
-        }),
-      ])
-      .build();
-
-    const entries = await resolveAvailabilityRequirementEntries(service, resourceRepo, TENANT_ID);
-
-    expect(entries).toEqual([{ candidateResourceIds: [active.id] }]);
-  });
-
-  it('falls back to every active resource of the type when resourcePoolIds is unset', async () => {
-    const room = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
-    await resourceRepo.save(room);
-    const service = new ServiceBuilder()
-      .withResourceRequirements([
-        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
-      ])
-      .build();
-
-    const entries = await resolveAvailabilityRequirementEntries(service, resourceRepo, TENANT_ID);
-
-    expect(entries).toEqual([{ candidateResourceIds: [room.id] }]);
-  });
-
-  it('flattens every leg requirement into one entry list for a legged service', async () => {
-    const room = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
-    await resourceRepo.save(room);
-    const equipment = new ResourceBuilder()
-      .withTenantId(TENANT_ID)
-      .withType(ResourceType.EQUIPMENT)
-      .build();
-    await resourceRepo.save(equipment);
-    const service = new ServiceBuilder()
-      .withLegs([
-        ServiceLeg.create({
-          legIndex: 0,
-          name: 'Etapa 1',
-          durationMinutes: 20,
-          resourceRequirements: [
-            ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
-          ],
-          transitionGapAfterMinutes: 0,
-        }),
-        ServiceLeg.create({
-          legIndex: 1,
-          name: 'Etapa 2',
-          durationMinutes: 15,
-          resourceRequirements: [
-            ResourceRequirement.create({
-              type: ResourceType.EQUIPMENT,
-              selectionMode: 'CUSTOMER_CHOICE',
-              resourcePoolIds: [equipment.id],
-            }),
-          ],
-          transitionGapAfterMinutes: 0,
-        }),
-      ])
-      .build();
-
-    const entries = await resolveAvailabilityRequirementEntries(service, resourceRepo, TENANT_ID);
-
-    expect(entries).toEqual([
-      { candidateResourceIds: [room.id] },
-      { candidateResourceIds: [equipment.id] },
-    ]);
-  });
-
-  it('resolves to an empty candidate list when no active resource of the type exists', async () => {
-    const service = new ServiceBuilder()
-      .withResourceRequirements([
-        ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
-      ])
-      .build();
-
-    const entries = await resolveAvailabilityRequirementEntries(service, resourceRepo, TENANT_ID);
-
-    expect(entries).toEqual([{ candidateResourceIds: [] }]);
   });
 });

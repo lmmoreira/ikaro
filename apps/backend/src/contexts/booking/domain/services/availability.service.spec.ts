@@ -699,4 +699,129 @@ describe('AvailabilityService', () => {
       expect(spans[0].endsAtWithTurnover).toEqual(new Date('2026-01-01T12:30:00.000Z'));
     });
   });
+
+  // The resource-scoped read path's per-line/per-leg primitive (M22-S03 round-4 fix) — a direct
+  // free/busy check for one caller-supplied window, instead of calculate()'s own slot-GENERATION
+  // loop built around one combined duration.
+  describe('isWindowFree', () => {
+    const window = (localStartHour: number, minutes: number) => {
+      const start = new Date(utcIso(monday, localStartHour));
+      return { start, end: new Date(start.getTime() + minutes * 60_000) };
+    };
+
+    it('is free when the window sits inside business hours with no closures or occupancy', () => {
+      const free = svc.isWindowFree(
+        monday,
+        DEFAULT_HOURS,
+        null,
+        [],
+        null,
+        null,
+        window(10, 30),
+        [],
+      );
+      expect(free).toBe(true);
+    });
+
+    it('is not free when the window starts before opening or ends after closing', () => {
+      expect(svc.isWindowFree(monday, DEFAULT_HOURS, null, [], null, null, window(8, 30), [])).toBe(
+        false,
+      );
+      expect(
+        svc.isWindowFree(monday, DEFAULT_HOURS, null, [], null, null, window(17, 90), []),
+      ).toBe(false);
+    });
+
+    it('is not free when the tenant has no hours at all for that day (Sunday)', () => {
+      const free = svc.isWindowFree(
+        sunday,
+        DEFAULT_HOURS,
+        null,
+        [],
+        null,
+        null,
+        window(10, 30),
+        [],
+      );
+      expect(free).toBe(false);
+    });
+
+    it('is not free when a partial closure overlaps the window', () => {
+      const closure = new ScheduleClosureBuilder()
+        .withDate(monday)
+        .withStartTime('10:00')
+        .withEndTime('11:00')
+        .build();
+      const free = svc.isWindowFree(
+        monday,
+        DEFAULT_HOURS,
+        null,
+        [closure],
+        null,
+        null,
+        window(10, 30),
+        [],
+      );
+      expect(free).toBe(false);
+    });
+
+    it('is not free when the window overlaps an existing occupancy row', () => {
+      const occupancy = [bookedSlot(monday, 10, 30)];
+      const free = svc.isWindowFree(
+        monday,
+        DEFAULT_HOURS,
+        null,
+        [],
+        null,
+        null,
+        window(10, 15),
+        occupancy,
+      );
+      expect(free).toBe(false);
+    });
+
+    it('is free when the window sits entirely outside the occupancy row (adjacent, non-overlapping)', () => {
+      const occupancy = [bookedSlot(monday, 10, 30)]; // 10:00-10:30
+      const adjacentStart = new Date(utcIso(monday, 10, 30));
+      const adjacentWindow = {
+        start: adjacentStart,
+        end: new Date(adjacentStart.getTime() + 30 * 60_000),
+      };
+
+      const free = svc.isWindowFree(
+        monday,
+        DEFAULT_HOURS,
+        null,
+        [],
+        null,
+        null,
+        adjacentWindow,
+        occupancy,
+      );
+
+      expect(free).toBe(true);
+    });
+
+    it("gates against a resource's own workingHours, not the tenant's, when a resource is given", () => {
+      const resource = new ResourceBuilder()
+        .withWorkingHours({
+          monday: { open: '14:00', close: '18:00' },
+          tuesday: { open: '14:00', close: '18:00' },
+          wednesday: { open: '14:00', close: '18:00' },
+          thursday: { open: '14:00', close: '18:00' },
+          friday: { open: '14:00', close: '18:00' },
+          saturday: null,
+          sunday: null,
+        })
+        .build();
+
+      // 10:00 is within tenant hours (09:00-18:00) but before the resource's own 14:00 opening.
+      expect(
+        svc.isWindowFree(monday, DEFAULT_HOURS, resource, [], null, null, window(10, 30), []),
+      ).toBe(false);
+      expect(
+        svc.isWindowFree(monday, DEFAULT_HOURS, resource, [], null, null, window(15, 30), []),
+      ).toBe(true);
+    });
+  });
 });

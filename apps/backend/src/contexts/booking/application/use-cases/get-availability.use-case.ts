@@ -29,10 +29,8 @@ import {
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { GetAvailabilityDto } from '../dtos/get-availability.dto';
-import {
-  isDegenerateService,
-  resolveAvailabilityRequirementEntries,
-} from './availability-resource-scope.helpers';
+import { isDegenerateService } from './availability-resource-scope.helpers';
+import { calculateResourceScopedAvailability } from './resource-scoped-availability.helpers';
 
 export type GetAvailabilityUseCaseInput = GetAvailabilityDto & {
   tenantId: string;
@@ -184,48 +182,28 @@ export class GetAvailabilityUseCase {
     });
   }
 
-  // UC-058: a bundle (>1 requirement) is available only when every requirement has a free
-  // candidate (intersect); a fungible pool (>1 candidate for one requirement) is available
-  // whenever any candidate is free (union). Multiple requested services are ANDed together the
-  // same way a bundle's own requirements are — see availability-resource-scope.helpers.ts for the
-  // documented legs simplification.
   private async calculateResourceScoped(
     input: GetAvailabilityUseCaseInput,
     services: Service[],
   ): Promise<AvailableSlot[]> {
-    let combined: AvailableSlot[] | null = null;
-
-    for (const service of services) {
-      const entries = await resolveAvailabilityRequirementEntries(
-        service,
-        this.resourceRepo,
-        input.tenantId,
-      );
-      const entryResults = await Promise.all(
-        entries.map((entry) => this.calculateEntryAvailability(input, services, entry)),
-      );
-      const serviceSlots = this.availabilityService.intersect(entryResults);
-      combined =
-        combined === null
-          ? serviceSlots
-          : this.availabilityService.intersect([combined, serviceSlots]);
-    }
-
-    return combined ?? [];
-  }
-
-  // A single requirement entry's own union across every candidate resource that could fill it.
-  private async calculateEntryAvailability(
-    input: GetAvailabilityUseCaseInput,
-    services: Service[],
-    entry: { candidateResourceIds: string[] },
-  ): Promise<AvailableSlot[]> {
-    const perCandidate = await Promise.all(
-      entry.candidateResourceIds.map((resourceId) =>
-        this.calculateForResource(input, services, resourceId),
-      ),
+    return calculateResourceScopedAvailability(
+      {
+        resourceRepo: this.resourceRepo,
+        availabilityService: this.availabilityService,
+        loadScheduleContext: (resourceId) =>
+          this.loadScheduleContext(input.tenantId, input.date, resourceId),
+        loadOccupancy: (resourceId, date, timezone) =>
+          this.bookingPort.findOccupancyByTenantAndResource(
+            input.tenantId,
+            [resourceId],
+            date,
+            date,
+            timezone,
+          ),
+      },
+      input,
+      services,
     );
-    return this.availabilityService.union(perCandidate);
   }
 
   // Combines tenant-wide rows (always fetched) with resource-scoped rows (fetched only when

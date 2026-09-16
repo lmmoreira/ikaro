@@ -13,6 +13,7 @@ import { TenantSettings } from '../../../platform/domain/value-objects/tenant-se
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
+import { ServiceLeg } from '../../domain/service-leg';
 import { GetAvailabilityUseCase } from './get-availability.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -387,6 +388,124 @@ describe('GetAvailabilityUseCase', () => {
       });
 
       expect(result.available).toBe(false);
+    });
+
+    it('checks each requested service against its own sequential window, not the combined duration of all lines (M22-S03 round-4 fix)', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.EQUIPMENT)
+        .build();
+      await resourceRepo.save(equipment);
+      const serviceA = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      const serviceB = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(serviceA);
+      await serviceRepo.save(serviceB);
+      // Occupies EQUIPMENT for 09:00-09:30 local (America/Sao_Paulo, UTC-3) — the FIRST 30 minutes
+      // of a hypothetical 09:00 start. serviceB (EQUIPMENT) only actually needs it for its own
+      // sequential window, 09:30-10:00 (right after serviceA/ROOM's 09:00-09:30) — which does not
+      // overlap this occupancy. A combined-duration check (the bug) would instead test EQUIPMENT
+      // against the FULL 09:00-10:00 window and wrongly report 09:00 as unavailable.
+      bookingPort.setSlots([
+        {
+          resourceId: equipment.id,
+          startsAt: new Date(`${monday}T12:00:00.000Z`),
+          endsAt: new Date(`${monday}T12:30:00.000Z`),
+        },
+      ]);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [serviceA.id, serviceB.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.slots).toContainEqual(
+        expect.objectContaining({ startsAt: new Date(`${monday}T12:00:00.000Z`).toISOString() }),
+      );
+    });
+
+    it('applies per-leg turnover/transition-gap arithmetic in the read path, not one combined window (M22-S03 round-4 fix)', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.EQUIPMENT)
+        .build();
+      await resourceRepo.save(equipment);
+      const legged = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withLegs([
+          ServiceLeg.create({
+            legIndex: 0,
+            name: 'Etapa 1',
+            durationMinutes: 20,
+            resourceRequirements: [
+              ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+            ],
+            transitionGapAfterMinutes: 0,
+          }),
+          ServiceLeg.create({
+            legIndex: 1,
+            name: 'Etapa 2',
+            durationMinutes: 15,
+            resourceRequirements: [
+              ResourceRequirement.create({
+                type: ResourceType.EQUIPMENT,
+                selectionMode: 'AUTO_ANY',
+              }),
+            ],
+            transitionGapAfterMinutes: 0,
+          }),
+        ])
+        .build();
+      await serviceRepo.save(legged);
+      // Occupies EQUIPMENT for 09:00-09:20 local — exactly leg 0's own window. Leg 1 (EQUIPMENT)
+      // only needs it for 09:20-09:35 (right after leg 0), which doesn't overlap this occupancy. A
+      // combined-duration check (the bug) would test EQUIPMENT against the full 09:00-09:35 window
+      // and wrongly report 09:00 as unavailable.
+      bookingPort.setSlots([
+        {
+          resourceId: equipment.id,
+          startsAt: new Date(`${monday}T12:00:00.000Z`),
+          endsAt: new Date(`${monday}T12:20:00.000Z`),
+        },
+      ]);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [legged.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.slots).toContainEqual(
+        expect.objectContaining({ startsAt: new Date(`${monday}T12:00:00.000Z`).toISOString() }),
+      );
     });
   });
 });

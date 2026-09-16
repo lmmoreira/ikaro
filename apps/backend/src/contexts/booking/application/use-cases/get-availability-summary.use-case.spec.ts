@@ -26,6 +26,7 @@ describe('GetAvailabilitySummaryUseCase', () => {
   let closureRepo: InMemoryScheduleClosureRepository;
   let openingRepo: InMemoryScheduleOpeningRepository;
   let resourceRepo: InMemoryResourceRepository;
+  let bookingPort: InMemoryBookingAvailabilityPort;
   let useCase: GetAvailabilitySummaryUseCase;
   let settings: TenantSettings;
 
@@ -34,13 +35,14 @@ describe('GetAvailabilitySummaryUseCase', () => {
     closureRepo = new InMemoryScheduleClosureRepository();
     openingRepo = new InMemoryScheduleOpeningRepository();
     resourceRepo = new InMemoryResourceRepository();
+    bookingPort = new InMemoryBookingAvailabilityPort();
     settings = TenantSettings.default();
     useCase = new GetAvailabilitySummaryUseCase(
       serviceRepo,
       closureRepo,
       openingRepo,
       resourceRepo,
-      new InMemoryBookingAvailabilityPort(),
+      bookingPort,
       new AvailabilityService(),
     );
     // M22-S03: the degenerate (tenant-wide) path now resolves the tenant's LOCATION resource
@@ -401,6 +403,62 @@ describe('GetAvailabilitySummaryUseCase', () => {
 
       expect(result[0].available).toBe(false);
       expect(result[0].slotCount).toBe(0);
+    });
+
+    it('checks each requested service against its own sequential window, not the combined duration of all lines (M22-S03 round-4 fix)', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.EQUIPMENT)
+        .build();
+      await resourceRepo.save(equipment);
+      const serviceA = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      const serviceB = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(serviceA);
+      await serviceRepo.save(serviceB);
+      const request = {
+        from: monday,
+        to: monday,
+        serviceIds: [serviceA.id, serviceB.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      };
+
+      const control = await useCase.execute(request);
+
+      // Occupies EQUIPMENT for 09:00-09:30 local — only the FIRST 30 minutes of a hypothetical
+      // combined 09:00 start. serviceB (EQUIPMENT) only actually needs it 09:30-10:00, which
+      // doesn't overlap this occupancy — a combined-duration bug would instead test EQUIPMENT
+      // against the full 09:00-10:00 window and wrongly drop the 09:00 slot, reducing slotCount.
+      bookingPort.setSlots([
+        {
+          resourceId: equipment.id,
+          startsAt: new Date(`${monday}T12:00:00.000Z`),
+          endsAt: new Date(`${monday}T12:30:00.000Z`),
+        },
+      ]);
+      const withOccupancy = await useCase.execute(request);
+
+      expect(withOccupancy[0].slotCount).toBe(control[0].slotCount);
     });
   });
 });

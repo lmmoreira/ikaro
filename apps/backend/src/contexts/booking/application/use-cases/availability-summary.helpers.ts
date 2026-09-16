@@ -9,7 +9,10 @@ import { IBookingAvailabilityPort } from '../ports/booking-availability.port';
 import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
-import { resolveAvailabilityRequirementEntries } from './availability-resource-scope.helpers';
+import {
+  calculateResourceScopedAvailability,
+  ScheduleContextResult,
+} from './resource-scoped-availability.helpers';
 
 export interface DaySummary {
   date: string;
@@ -155,8 +158,9 @@ export function buildDaySummaries(
   return results;
 }
 
-// UC-058/059 resource-scoped path — same intersect/union combinator as GetAvailabilityUseCase,
-// applied once per day across the whole requested range.
+// UC-058/059 resource-scoped path — same shared per-line/per-leg window resolution as
+// GetAvailabilityUseCase (resource-scoped-availability.helpers.ts), applied once per day across
+// the whole requested range.
 export async function buildResourceScopedSummary(
   deps: SummaryDeps,
   request: SummaryRequestShape,
@@ -171,72 +175,44 @@ export async function buildResourceScopedSummary(
       results.push({ date, available: false, slotCount: 0 });
       continue;
     }
-    const slots = await computeDayResourceScopedSlots(deps, request, tenantId, services, date);
+    const slots = await calculateResourceScopedAvailability(
+      {
+        resourceRepo: deps.resourceRepo,
+        availabilityService: deps.availabilityService,
+        loadScheduleContext: (resourceId) =>
+          loadSingleDayScheduleContext(deps, tenantId, date, resourceId),
+        loadOccupancy: (resourceId, d, timezone) =>
+          deps.bookingPort.findOccupancyByTenantAndResource(tenantId, [resourceId], d, d, timezone),
+      },
+      {
+        tenantId,
+        date,
+        businessHours: request.businessHours,
+        slotGranularityMinutes: request.slotGranularityMinutes,
+        serviceBufferMinutes: request.serviceBufferMinutes,
+      },
+      services,
+    );
     results.push({ date, available: slots.length > 0, slotCount: slots.length });
   }
 
   return results;
 }
 
-async function computeDayResourceScopedSlots(
+async function loadSingleDayScheduleContext(
   deps: SummaryDeps,
-  request: SummaryRequestShape,
   tenantId: string,
-  services: Service[],
   date: string,
-): Promise<AvailableSlot[]> {
-  let combined: AvailableSlot[] | null = null;
-  for (const service of services) {
-    const entries = await resolveAvailabilityRequirementEntries(
-      service,
-      deps.resourceRepo,
-      tenantId,
-    );
-    const entryResults = await Promise.all(
-      entries.map((entry) =>
-        computeEntryDaySlots(deps, request, tenantId, services, date, entry.candidateResourceIds),
-      ),
-    );
-    const serviceSlots = deps.availabilityService.intersect(entryResults);
-    combined =
-      combined === null
-        ? serviceSlots
-        : deps.availabilityService.intersect([combined, serviceSlots]);
-  }
-  return combined ?? [];
-}
-
-async function computeEntryDaySlots(
-  deps: SummaryDeps,
-  request: SummaryRequestShape,
-  tenantId: string,
-  services: Service[],
-  date: string,
-  candidateResourceIds: string[],
-): Promise<AvailableSlot[]> {
-  const perCandidate = await Promise.all(
-    candidateResourceIds.map(async (resourceId) => {
-      const resource = await findResource(deps.resourceRepo, tenantId, resourceId);
-      const [scheduleRange, occupancy] = await Promise.all([
-        loadScheduleRange(deps, tenantId, date, date, resourceId),
-        deps.bookingPort.findOccupancyByTenantAndResource(
-          tenantId,
-          [resourceId],
-          date,
-          date,
-          request.businessHours.timezone,
-        ),
-      ]);
-      return calculateSlotsForDate(deps.availabilityService, date, {
-        services,
-        resource,
-        ...scheduleRange,
-        occupancy,
-        businessHours: request.businessHours,
-        slotGranularityMinutes: request.slotGranularityMinutes,
-        serviceBufferMinutes: request.serviceBufferMinutes,
-      });
-    }),
-  );
-  return deps.availabilityService.union(perCandidate);
+  resourceId: string | undefined,
+): Promise<ScheduleContextResult> {
+  const [resource, range] = await Promise.all([
+    findResource(deps.resourceRepo, tenantId, resourceId),
+    loadScheduleRange(deps, tenantId, date, date, resourceId),
+  ]);
+  return {
+    resource,
+    closures: range.closures,
+    tenantOpening: range.tenantOpenings.find((o) => o.date === date) ?? null,
+    resourceOpening: range.resourceOpenings.find((o) => o.date === date) ?? null,
+  };
 }
