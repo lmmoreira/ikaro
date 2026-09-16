@@ -756,7 +756,7 @@ This is exactly the class of bug `docs/ANTI_PATTERNS.md` already warns about for
 
 ---
 
-### AUD-046 — Bump `nodemailer` 9.1.1 → ^10.0.10 to close 2 Aikido-flagged CVEs (stack-exhaustion DoS + SNI cache cross-contamination)
+### AUD-046 — Bump `nodemailer` 9.1.1 → ^10.0.10 to close 2 Aikido-flagged CVEs (stack-exhaustion DoS + SNI cache cross-contamination) ✅ Done
 **Risk:** 🟠 High · **Effort:** S · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 via Aikido dependency scan
 
 **Agent:** backend-ts
