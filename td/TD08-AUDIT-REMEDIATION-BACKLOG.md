@@ -79,6 +79,7 @@
 | **AUD-043** | Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation) ✅ | 🔵 Low | XS | Now | — | (not in original audit — found during AUD-007) |
 | **AUD-044** | Explicit `--max-old-space-size` for backend Jest runs (heap OOM fix) | 🔵 Low | XS | Now | — | not in original audit — found 2026-09-16 |
 | **AUD-045** | Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test | 🟡 Medium | XS | Now | — | not in original audit — found 2026-09-16 while triaging PR #484's CI |
+| **AUD-046** | Bump `nodemailer` 9.1.1 → ^10.0.10 to close 2 Aikido-flagged CVEs (stack-exhaustion DoS + SNI cache cross-contamination) | 🟠 High | S | Now | — | not in original audit — found 2026-09-16 via Aikido dependency scan |
 
 ### Suggested execution order (the critical path)
 
@@ -752,6 +753,56 @@ Extract one `cleanupFixtures()` helper (deletes `ServiceResourceRequirementEntit
 
 **Notes for the implementing agent**
 This is exactly the class of bug `docs/ANTI_PATTERNS.md` already warns about for full-table-sweep tests against shared state — the fix here is symmetry between setup and teardown, not a CI infra change.
+
+---
+
+### AUD-046 — Bump `nodemailer` 9.1.1 → ^10.0.10 to close 2 Aikido-flagged CVEs (stack-exhaustion DoS + SNI cache cross-contamination)
+**Risk:** 🟠 High · **Effort:** S · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 via Aikido dependency scan
+
+**Agent:** backend-ts
+**Complexity:** S
+**Docs to load:** none — dependency bump + adapter/type verification only
+**Dependencies:** none
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-09-16 — Aikido flagged 2 CVEs against the installed `nodemailer@9.1.1`.
+**Root cause:** traced live — `apps/backend/package.json:72` pins `nodemailer` to `^9.1.1`, resolved in `pnpm-lock.yaml` to exactly `9.1.1`, predating both fixes. Verified against nodemailer's real GitHub changelog (not just Aikido's summary) that both land in `10.0.2`: "mime-node: flatten nested recipient arrays without recursion" (AIKIDO-2026-645479 — `MimeNode._parseAddresses` flattened only the outermost layer of `to`/`cc`/`bcc` arrays, then handed any still-nested array to `addressparser`, whose native array-to-string stringification recurses once per nesting level with no cycle guard; a deeply nested or self-referential recipient value exhausted the V8 call stack, throwing an uncaught `RangeError` before `maxRecipients` ever applied — able to crash the process) and "shared: keep the TLS server name out of the DNS cache" (AIKIDO-2026-52490 — the process-global DNS cache in `src/shared/index.ts` was keyed by hostname alone but also stored each connection's `tls.servername`; concurrent direct SMTPS transports to the same host with different server names got back the first resolver's stale SNI, so certificate validation ran against the wrong identity).
+
+**Description:**
+Bump the direct dependency to `^10.0.10` (latest published release, confirmed via `npm view nodemailer version`) rather than pinning to the minimum-fixed `10.0.2` — per `CLAUDE.md`'s "no workarounds" rule, the correct fix for a vulnerable direct dependency is a proper upgrade, not a minimal patch pin. `10.0.0` is nodemailer's own breaking release (Node.js ≥20 required; the whole package migrated to TypeScript with dual ESM/CommonJS builds) — verified non-blocking here since root `package.json:7` already requires `node >=22.12.0`.
+
+Both backend call sites use nodemailer only via `import * as nodemailer from 'nodemailer'` and the stable `createTransport`/`Transporter`/`sendMail` surface — no deep-import of internal `lib/*` paths, no usage of any API touched by the `10.0.0` changelog's breaking-change note:
+- `apps/backend/src/contexts/notification/infrastructure/delivery/mailhog-email.adapter.ts`
+- `apps/backend/src/contexts/notification/infrastructure/delivery/brevo-email.adapter.ts`
+
+Also remove the `@types/nodemailer` devDependency (`apps/backend/package.json:36`, pinned `^8.0.1` — already stale even against the current `9.1.1`) as part of this bump: verified `nodemailer@10.0.10`'s published `package.json` has no separate `types`/`typings` field but ships `dist/cjs/nodemailer.d.ts` directly next to its `main` entry (`dist/cjs/nodemailer.js`) — exactly the layout TypeScript auto-resolves with no `types` field, i.e. nodemailer now ships its own native types. A separate `@types/nodemailer` package alongside real bundled types is dead weight and a latent duplicate/conflicting-declaration risk, not a needed shim. (The `10.0.0` changelog entry "keep the `@types/nodemailer` type layout working" describes nodemailer's own bundled `.d.ts` mimicking the old package's module-augmentation shape for existing consumers — it is not a statement that the separate package should stay installed.)
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `apps/backend/package.json` (`nodemailer` `^9.1.1` → `^10.0.10` at line 72; remove `@types/nodemailer` devDependency at line 36)
+- `pnpm-lock.yaml` (regenerated by `pnpm install`)
+- `apps/backend/src/contexts/notification/infrastructure/delivery/mailhog-email.adapter.ts` (verify only — no expected source change)
+- `apps/backend/src/contexts/notification/infrastructure/delivery/brevo-email.adapter.ts` (verify only — no expected source change)
+- `apps/backend/src/contexts/notification/infrastructure/delivery/mailhog-email.adapter.spec.ts` (verify passes unchanged)
+- `apps/backend/src/contexts/notification/infrastructure/delivery/brevo-email.adapter.spec.ts` (verify passes unchanged)
+
+**Acceptance criteria — product:**
+- [ ] N/A — internal dependency/security fix, no user-observable behavior change.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `mailhog-email.adapter.spec.ts` and `brevo-email.adapter.spec.ts` pass unchanged against `nodemailer@^10.0.10`
+- Integration: none — the email adapters have no `.integration.spec.ts` tier; existing unit specs already exercise the real nodemailer `Transporter` API surface
+- Tenant isolation: n/a — no tenant-scoped code touched
+- E2E: none — not applicable
+- [ ] Coverage ≥80% on changed code — n/a, no application logic changed, dependency bump only
+- [ ] `tsc --noEmit` clean, lint clean
+- [ ] `pnpm why nodemailer` resolves only `>=10.0.2` (no stale 9.x left anywhere in the tree)
+- [ ] Aikido dashboard (or an equivalent scan) confirms both AIKIDO-2026-645479 and AIKIDO-2026-52490 close
+
+**Notes for the implementing agent**
+Run the full backend test suite, not just the two adapter specs, after the bump — `10.0.0`'s TS/ESM migration is a real build-shape change for the package even though these two call sites only touch the stable public API. Confirm `import * as nodemailer from 'nodemailer'` still resolves correctly (`esModuleInterop`) and `nodemailer.Transporter`/`nodemailer.createTransport` still typecheck cleanly before considering this done.
 
 ---
 
