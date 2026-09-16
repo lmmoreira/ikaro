@@ -46,4 +46,42 @@ describe('TypeOrmTenantLockAdapter', () => {
       'Tenant lock requires an active transaction',
     );
   });
+
+  it('acquires one namespaced advisory lock per deduplicated resource id, sorted ascending', async () => {
+    const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
+
+    await runWithEntityManager(manager, () =>
+      adapter.lockResources('tenant-1', ['res-b', 'res-a', 'res-b']),
+    );
+
+    expect(manager.query).toHaveBeenCalledTimes(2);
+    expect(manager.query).toHaveBeenNthCalledWith(
+      1,
+      `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text, 0::bigint)
+       )`,
+      ['resource:tenant-1:res-a'],
+    );
+    expect(manager.query).toHaveBeenNthCalledWith(
+      2,
+      `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text, 0::bigint)
+       )`,
+      ['resource:tenant-1:res-b'],
+    );
+  });
+
+  it('is a no-op when lockResources is called with an empty resourceIds array', async () => {
+    const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
+
+    await runWithEntityManager(manager, () => adapter.lockResources('tenant-1', []));
+
+    expect(manager.query).not.toHaveBeenCalled();
+  });
+
+  it('throws when lockResources is called outside a transaction', async () => {
+    await expect(adapter.lockResources('tenant-1', ['res-a'])).rejects.toThrow(
+      'Tenant lock requires an active transaction',
+    );
+  });
 });

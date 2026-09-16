@@ -11,6 +11,7 @@ import { nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { GetAvailabilityUseCase } from './get-availability.use-case';
 
@@ -306,6 +307,86 @@ describe('GetAvailabilityUseCase', () => {
 
       expect(result.available).toBe(true);
       expect(result.slots.length).toBeGreaterThan(0);
+    });
+  });
+
+  // UC-058: a real resource-scoped service (no resourceId query param, at least one service is
+  // not degenerate) goes through calculateResourceScoped()'s own intersect/union path.
+  describe('resource-scoped services (calculateResourceScoped)', () => {
+    it('is available when a matching active resource is free', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.available).toBe(true);
+      expect(result.slots.length).toBeGreaterThan(0);
+    });
+
+    it('is unavailable when no active resource of the required type exists', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.available).toBe(false);
+      expect(result.slots).toHaveLength(0);
+    });
+
+    it('is unavailable when a bundle (2 requirements) has one requirement with no free candidate', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.available).toBe(false);
     });
   });
 });

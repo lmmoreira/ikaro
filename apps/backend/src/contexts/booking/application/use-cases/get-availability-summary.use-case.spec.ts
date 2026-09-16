@@ -11,6 +11,7 @@ import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { GetAvailabilitySummaryUseCase } from './get-availability-summary.use-case';
 
@@ -313,6 +314,93 @@ describe('GetAvailabilitySummaryUseCase', () => {
 
       expect(scoped[0].available).toBe(false);
       expect(tenantWide[0].available).toBe(true);
+    });
+  });
+
+  // UC-058/059: a real resource-scoped service (no resourceId query param, at least one service
+  // is not degenerate) goes through buildResourceScopedSummary()'s own intersect/union path,
+  // distinct from the tenant-wide degenerate path every other test in this file exercises.
+  describe('resource-scoped services (buildResourceScopedSummary)', () => {
+    it('is available on a day when a matching active resource is free', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        from: monday,
+        to: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      expect(result[0].available).toBe(true);
+      expect(result[0].slotCount).toBeGreaterThan(0);
+    });
+
+    it('is unavailable when no active resource of the required type exists', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        from: monday,
+        to: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      expect(result[0].available).toBe(false);
+      expect(result[0].slotCount).toBe(0);
+    });
+
+    it('marks a past date as available:false without querying any resource-scoped dependency', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        from: '2020-01-01',
+        to: '2020-01-01',
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      expect(result[0].available).toBe(false);
+      expect(result[0].slotCount).toBe(0);
     });
   });
 });
