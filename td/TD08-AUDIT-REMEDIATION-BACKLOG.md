@@ -669,9 +669,11 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ---
 
-### AUD-044 — Explicit `--max-old-space-size` for backend Jest runs (local/CI OOM under V8's default heap)
+### AUD-044 — Explicit `--max-old-space-size` for backend Jest runs (local/CI OOM under V8's default heap) ✅
 **Risk:** 🔵 Low · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 while diagnosing a local backend integration-test OOM kill
-**Status:** ☐ Not started
+**Status:** ✅ Done
+
+**Implemented notes:** Verified in a clean worktree — `pnpm --filter @ikaro/backend test:integration` with the new `--max-old-space-size=6144` flag completed all 64 suites / 616 tests in ~94s, exit code 0, no OOM kill.
 
 **Agent:** backend-ts
 **Complexity:** S
@@ -697,15 +699,15 @@ Append `--max-old-space-size=6144` to the existing `NODE_OPTIONS` value on both 
 - `apps/backend/package.json` (lines 13, 15 — `test` and `test:integration` scripts)
 
 **Acceptance criteria — product:**
-- [ ] N/A — internal tooling change, no user-observable behavior.
+- [x] N/A — internal tooling change, no user-observable behavior.
 
 **Acceptance criteria — technical:**
 - Unit: none — config-only change, no application logic added
-- Integration: `pnpm --filter @ikaro/backend test:integration` (full suite) completes without an OOM kill, exit code 0
+- Integration: [x] `pnpm --filter @ikaro/backend test:integration` (full suite) completes without an OOM kill, exit code 0 — verified: 64 suites / 616 tests, ~94s
 - Tenant isolation: n/a — no tenant-scoped code touched
 - E2E: none — not applicable
-- [ ] Coverage ≥80% on changed code — n/a, no source lines changed
-- [ ] `tsc --noEmit` clean, lint clean
+- [x] Coverage ≥80% on changed code — n/a, no source lines changed
+- [ ] `tsc --noEmit` clean, lint clean — to be confirmed by `ci:fast` on push
 
 **Notes for the implementing agent**
 Verify by running the full `test:integration` suite in the worktree before opening the PR — this is the whole point of the story, not just a formality.
