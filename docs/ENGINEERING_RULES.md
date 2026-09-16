@@ -1000,3 +1000,19 @@ If the domain genuinely needs to allow a grouping that's declared-but-currently-
 **M22-S01 precedent, PR #479, 2026-09-15:** `service_class_resource_pool` is keyed by `(tenant_id, service_id, resource_type, resource_id)` with no separate identity column — a `ClassResourceSlot` submitted with `eligibleResourceIds: []` produced zero rows, identical to a type that was never declared at all, so it silently vanished on the next `GET`. The same table shape caused a second, earlier bug in the same story: two slots submitted for the same `resourceType` collapse into indistinguishable rows on reload, since nothing marks which pool row belongs to which submitted slot. Both fixed by rejecting the invalid input in the domain (`ClassResourceSlot.create()` for the empty-pool case, `Service.create()`/`changeBookingModel()` for the duplicate-type case) rather than trying to make the storage shape round-trip information it structurally cannot hold.
 
 **M21-S03 precedent, PR #460 round 7, 2026-09-04:** `OpenScheduleUseCase`'s post-lock logic was first extracted into a single `validateAndSave()` helper that validated the window bound *and* called `openingRepo.save()`. The detector flagged it, since `save()` was reachable only via a method call from `txManager.run()`, not textually inside it. Fixed by renaming the helper to `validateUnderLock()` (validation only) and keeping the actual `await this.openingRepo.save(opening)` call inline in the `txManager.run()` callback itself.
+
+## Node's default V8 heap limit is unrelated to actual host/container RAM — a Jest OOM kill on a host with plenty of free memory is the default ceiling, not a leak
+
+**V8's old-space heap defaults to ~2240MB regardless of how much RAM the host or container actually has** — `node -p "require('v8').getHeapStatistics().heap_size_limit"` confirms this even on a machine reporting gigabytes of free RAM via `free -h`. An OOM kill on backend Jest runs is not evidence of a real memory leak or an under-provisioned host until this default is ruled out first.
+
+Set `--max-old-space-size` explicitly on every Jest entry point that can run a large suite, not just the one that happened to OOM — a fix scoped to `test`/`test:integration` alone leaves `test:unit`/`test:cov` (what CI's own coverage job actually runs) exposed to the identical failure mode.
+
+**TD08 AUD-044 precedent, PR #484, 2026-09-16:** a local OOM kill on a KVM VM with 6GB+ free RAM traced directly to this default. Fixed by adding `--max-old-space-size=6144` to all four backend Jest scripts (`test`, `test:unit`, `test:integration`, `test:cov`) — the first fix covered only two of the four and was caught by a PR review round.
+
+## An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown — CI's Testcontainers reuse can carry a prior run's corruption into an unrelated later run
+
+**`TESTCONTAINERS_REUSE_ENABLE: 'true'` reuses the same Postgres container across separate, unrelated CI runs — a local run never reuses a container, so this class of bug is invisible locally no matter how many times you re-run the suite.** A test seeding fixtures under fixed tenant UUIDs whose `afterAll` doesn't delete every child table, in FK-safe order, for every fixture tenant, can crash mid-cleanup on one run and leave orphaned rows a *later*, unrelated run's `beforeAll` builds on top of.
+
+Extract one cleanup helper covering every fixture tenant in FK-safe order; call it both defensively at the top of `beforeAll` and as the entirety of `afterAll` (wrapped in `try/finally`).
+
+**TD08 AUD-045 precedent, PR #484, 2026-09-16:** a 3-tenant fixture's `afterAll` only cleaned 2 tenants' child rows; the third's FK violation aborted cleanup, and the reused CI container carried that into a later run, which failed a content assertion instead. Passed 3/3 locally; failed 2/2 on CI before the fix.
