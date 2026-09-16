@@ -23,6 +23,8 @@ import {
 } from '../../../contexts/booking/infrastructure/entities/service-leg.entity';
 import { ServiceClassResourcePoolEntity } from '../../../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
 import { ResourceEntity } from '../../../contexts/booking/infrastructure/entities/resource.entity';
+import { BookingLineResourceAssignmentEntity } from '../../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { CustomerEntity } from '../../../contexts/customer/infrastructure/entities/customer.entity';
 import { NotificationLogEntity } from '../../../contexts/notification/infrastructure/entities/notification-log.entity';
 import { OutboxEventEntity } from './outbox-event.entity';
@@ -48,6 +50,8 @@ const BOOKING_ENTITIES = [
   ScheduleOpeningEntity,
   CustomerEntity,
   ResourceEntity,
+  BookingLineResourceAssignmentEntity,
+  ResourceOccupancyEntity,
 ] as const;
 
 // TD24-S02 — the one new test exercising the *production* pipeline shape end-to-end: a real HTTP

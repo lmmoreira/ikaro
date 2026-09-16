@@ -62,6 +62,31 @@ export class ResourceOccupancyEntityBuilder {
     return this;
   }
 
+  withResourceNameAtAssignment(resourceNameAtAssignment: string): this {
+    this.resourceNameAtAssignment = resourceNameAtAssignment;
+    return this;
+  }
+
+  withSourceType(sourceType: ResourceOccupancySourceType): this {
+    this.sourceType = sourceType;
+    return this;
+  }
+
+  withBookingLineResourceAssignmentId(bookingLineResourceAssignmentId: string | null): this {
+    this.bookingLineResourceAssignmentId = bookingLineResourceAssignmentId;
+    return this;
+  }
+
+  withLegIndex(legIndex: number | null): this {
+    this.legIndex = legIndex;
+    return this;
+  }
+
+  withClassSessionId(classSessionId: string | null): this {
+    this.classSessionId = classSessionId;
+    return this;
+  }
+
   build(): ResourceOccupancyEntity {
     const entity = new ResourceOccupancyEntity();
     entity.id = this.id;

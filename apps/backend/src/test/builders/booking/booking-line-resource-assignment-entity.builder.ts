@@ -43,6 +43,16 @@ export class BookingLineResourceAssignmentEntityBuilder {
     return this;
   }
 
+  withResourceNameAtAssignment(resourceNameAtAssignment: string): this {
+    this.resourceNameAtAssignment = resourceNameAtAssignment;
+    return this;
+  }
+
+  withQuantityPosition(quantityPosition: number | null): this {
+    this.quantityPosition = quantityPosition;
+    return this;
+  }
+
   build(): BookingLineResourceAssignmentEntity {
     const entity = new BookingLineResourceAssignmentEntity();
     entity.id = this.id;

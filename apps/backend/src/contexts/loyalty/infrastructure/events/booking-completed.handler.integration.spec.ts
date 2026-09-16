@@ -28,6 +28,8 @@ import { ServiceClassResourcePoolEntity } from '../../../booking/infrastructure/
 import { ScheduleClosureEntity } from '../../../booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../../booking/infrastructure/entities/schedule-opening.entity';
 import { ResourceEntity } from '../../../booking/infrastructure/entities/resource.entity';
+import { BookingLineResourceAssignmentEntity } from '../../../booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../../../booking/infrastructure/entities/resource-occupancy.entity';
 import { BookingModule } from '../../../booking/booking.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
@@ -58,6 +60,8 @@ const BOOKING_ENTITIES = [
   ScheduleOpeningEntity,
   CustomerEntity,
   ResourceEntity,
+  BookingLineResourceAssignmentEntity,
+  ResourceOccupancyEntity,
 ] as const;
 
 const LOYALTY_ENTITIES = [
