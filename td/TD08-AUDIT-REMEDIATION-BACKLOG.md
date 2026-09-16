@@ -673,7 +673,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Risk:** 🔵 Low · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 while diagnosing a local backend integration-test OOM kill
 **Status:** ✅ Done
 
-**Implemented notes:** Verified in a clean worktree — `pnpm --filter @ikaro/backend test:integration` with the new `--max-old-space-size=6144` flag completed all 64 suites / 616 tests in ~94s, exit code 0, no OOM kill.
+**Implemented notes:** Verified in a clean worktree — `pnpm --filter @ikaro/backend test:integration` with the new `--max-old-space-size=6144` flag completed all 64 suites / 616 tests in ~94s, exit code 0, no OOM kill. **Scope corrected during PR review (round 1, Codex, Important):** the original fix only covered `test`/`test:integration`; `test:unit` and `test:cov` launch Jest through the same unbounded default heap and CI's own "Run unit tests with coverage" job (`pr-tests.yml`) calls `test:cov` — so both now also get `--max-old-space-size=6144` (without `--experimental-vm-modules`, which they never had). Verified: `pnpm --filter @ikaro/backend test:cov` — 342 suites / 3074 tests, ~90s, no OOM.
 
 **Agent:** backend-ts
 **Complexity:** S
@@ -688,15 +688,17 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 The backend's own `NODE_OPTIONS` never raises V8's heap ceiling, so `test`/`test:integration` OOM-kill under load on any host/container where V8's ~2.2GB default is tight — independent of how much RAM is actually available to the process.
 
 **What needs to be fixed (solution)**
-Append `--max-old-space-size=6144` to the existing `NODE_OPTIONS` value on both scripts:
+Set `--max-old-space-size=6144` on every backend Jest entry point:
 ```
 "test": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=6144\" jest",
+"test:unit": "NODE_OPTIONS=\"--max-old-space-size=6144\" jest --selectProjects unit",
 "test:integration": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=6144\" jest --selectProjects integration",
+"test:cov": "NODE_OPTIONS=\"--max-old-space-size=6144\" jest --selectProjects unit --coverage",
 ```
-6144MB is chosen to give the full integration suite (66 suites / 624 tests) comfortable headroom while staying well under this class of host's typical RAM.
+`--experimental-vm-modules` is preserved only where it already existed (`test`/`test:integration`) — `test:unit`/`test:cov` never had it and don't need it added. 6144MB is chosen to give the full integration suite (64 suites / 616 tests) comfortable headroom while staying well under this class of host's typical RAM.
 
 **Files to create/modify:**
-- `apps/backend/package.json` (lines 13, 15 — `test` and `test:integration` scripts)
+- `apps/backend/package.json` (lines 13–16 — `test`, `test:unit`, `test:integration`, `test:cov` scripts)
 
 **Acceptance criteria — product:**
 - [x] N/A — internal tooling change, no user-observable behavior.
@@ -707,7 +709,7 @@ Append `--max-old-space-size=6144` to the existing `NODE_OPTIONS` value on both 
 - Tenant isolation: n/a — no tenant-scoped code touched
 - E2E: none — not applicable
 - [x] Coverage ≥80% on changed code — n/a, no source lines changed
-- [ ] `tsc --noEmit` clean, lint clean — to be confirmed by `ci:fast` on push
+- [x] `tsc --noEmit` clean, lint clean — verified via `pnpm ci:fast` and PR #484's CI (TypeScript, ESLint checks green)
 
 **Notes for the implementing agent**
 Verify by running the full `test:integration` suite in the worktree before opening the PR — this is the whole point of the story, not just a formality.
