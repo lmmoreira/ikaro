@@ -77,6 +77,8 @@
 | **AUD-041** | Load / throughput regression tests (k6) | 🟡 Medium | M | Infra/Deploy | AUD-030 | §11.6 |
 | **AUD-042** | RUM / Core Web Vitals field monitoring | 🔵 Low | S | Infra/Deploy | — | §13.10 |
 | **AUD-043** | Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation) ✅ | 🔵 Low | XS | Now | — | (not in original audit — found during AUD-007) |
+| **AUD-044** | Explicit `--max-old-space-size` for backend Jest runs (heap OOM fix) | 🔵 Low | XS | Now | — | not in original audit — found 2026-09-16 |
+| **AUD-045** | Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test | 🟡 Medium | XS | Now | — | not in original audit — found 2026-09-16 while triaging PR #484's CI |
 
 ### Suggested execution order (the critical path)
 
@@ -665,6 +667,91 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **What's wrong (historical):** Every `pnpm --filter @ikaro/web dev`/build run logged: `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.`
 **Fix:** Rename `apps/web/middleware.ts` → `apps/web/proxy.ts` per Next.js's migration guidance.
 **Acceptance:** ☑ No deprecation warning on `pnpm dev`/`pnpm build` for `apps/web`. ☑ All existing test cases pass unchanged. 🟡 Doc-reference sweep partially done — this file fixed, `docs/15`/`docs/16`/`docs/CI_TRAPS.md` not yet re-checked.
+
+---
+
+### AUD-044 — Explicit `--max-old-space-size` for backend Jest runs (local/CI OOM under V8's default heap) ✅
+**Risk:** 🔵 Low · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 while diagnosing a local backend integration-test OOM kill
+**Status:** ✅ Done
+
+**Implemented notes:** Verified in a clean worktree — `pnpm --filter @ikaro/backend test:integration` with the new `--max-old-space-size=6144` flag completed all 64 suites / 616 tests in ~94s, exit code 0, no OOM kill. **Scope corrected during PR review (round 1, Codex, Important):** the original fix only covered `test`/`test:integration`; `test:unit` and `test:cov` launch Jest through the same unbounded default heap and CI's own "Run unit tests with coverage" job (`pr-tests.yml`) calls `test:cov` — so both now also get `--max-old-space-size=6144` (without `--experimental-vm-modules`, which they never had). Verified: `pnpm --filter @ikaro/backend test:cov` — 342 suites / 3074 tests, ~90s, no OOM.
+
+**Agent:** backend-ts
+**Complexity:** S
+**Docs to load:** none — config-only change
+**Dependencies:** none
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-09-16 — a backend integration test run OOM-killed on a memory-constrained local KVM VM (7.7GB total RAM, ~6.1GB available at the time).
+**Root cause:** traced live — `apps/backend/package.json:13` (`test`) and `:15` (`test:integration`) set `NODE_OPTIONS=--experimental-vm-modules` with no `--max-old-space-size`, so V8's old-space heap defaults to ~2240MB (confirmed via `node -p "require('v8').getHeapStatistics().heap_size_limit"`) regardless of actual host RAM. Confirmed unrelated to any cgroup/Docker limit (no `.dockerenv`, no cgroup memory cap on this host).
+
+**What's wrong**
+The backend's own `NODE_OPTIONS` never raises V8's heap ceiling, so `test`/`test:integration` OOM-kill under load on any host/container where V8's ~2.2GB default is tight — independent of how much RAM is actually available to the process.
+
+**What needs to be fixed (solution)**
+Set `--max-old-space-size=6144` on every backend Jest entry point:
+```
+"test": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=6144\" jest",
+"test:unit": "NODE_OPTIONS=\"--max-old-space-size=6144\" jest --selectProjects unit",
+"test:integration": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=6144\" jest --selectProjects integration",
+"test:cov": "NODE_OPTIONS=\"--max-old-space-size=6144\" jest --selectProjects unit --coverage",
+```
+`--experimental-vm-modules` is preserved only where it already existed (`test`/`test:integration`) — `test:unit`/`test:cov` never had it and don't need it added. 6144MB is chosen to give the full integration suite (64 suites / 616 tests) comfortable headroom while staying well under this class of host's typical RAM.
+
+**Files to create/modify:**
+- `apps/backend/package.json` (lines 13–16 — `test`, `test:unit`, `test:integration`, `test:cov` scripts)
+
+**Acceptance criteria — product:**
+- [x] N/A — internal tooling change, no user-observable behavior.
+
+**Acceptance criteria — technical:**
+- Unit: none — config-only change, no application logic added
+- Integration: [x] `pnpm --filter @ikaro/backend test:integration` (full suite) completes without an OOM kill, exit code 0 — verified: 64 suites / 616 tests, ~94s
+- Tenant isolation: n/a — no tenant-scoped code touched
+- E2E: none — not applicable
+- [x] Coverage ≥80% on changed code — n/a, no source lines changed
+- [x] `tsc --noEmit` clean, lint clean — verified via `pnpm ci:fast` and PR #484's CI (TypeScript, ESLint checks green)
+
+**Notes for the implementing agent**
+Verify by running the full `test:integration` suite in the worktree before opening the PR — this is the whole point of the story, not just a formality.
+
+---
+
+### AUD-045 — Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test ✅
+**Risk:** 🟡 Medium · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 while triaging PR #484's CI (this project has zero tolerance for flaky tests)
+**Status:** ✅ Done
+
+**Agent:** backend-ts
+**Complexity:** S
+**Docs to load:** none
+**Dependencies:** none
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-09-16 — `Backend Integration Tests` failed twice in a row on PR #484's CI (unrelated diff) while passing 3/3 on a local run of the identical code.
+**Root cause:** traced live in `apps/backend/src/contexts/booking/infrastructure/backfill-service-resource-requirements-and-buffer.integration.spec.ts`. Its `afterAll` only ever deleted `ServiceResourceRequirementEntity` rows for `TENANT_NO_LOCATION`/`TENANT_WITH_LOCATION` — never for `TENANT_CUSTOM_BUFFER` — so if that tenant's service ever ended up with a requirement row, the next delete (`ServiceEntity` for that tenant) hit `FK_service_resource_requirements_service` and threw, aborting `afterAll` **before** the remaining deletes (the `ResourceEntity`/`TenantEntity` rows) ever ran. Combined with CI's `TESTCONTAINERS_REUSE_ENABLE: 'true'` (`.github/workflows/pr-tests.yml:107`), which reuses the same Postgres container repo-wide across separate CI runs, that orphaned state survived into later runs — where `beforeAll` re-seeded fresh fixtures under the *same* fixed tenant UUIDs on top of it, letting the corruption compound (a first run's failure was the FK violation itself; a follow-up run then failed a content assertion because a fixed tenant ID's resource state was no longer what that run's `beforeAll` alone would produce). Local runs never showed it because a local run always gets a fresh Testcontainers instance (no reuse configured).
+
+**What's wrong**
+The test's teardown list was asymmetric with its own setup (3 seeded tenants, only 2 covered by the requirement-cleanup step) and had no defensive cleanup *before* seeding either — so it could never recover once a single crash left it out of sync with a reused container.
+
+**What needs to be fixed (solution)**
+Extract one `cleanupFixtures()` helper (deletes `ServiceResourceRequirementEntity` → `ServiceEntity` → `ResourceEntity` → `TenantEntity`, in FK-safe order, scoped to all 3 fixture tenant IDs via `In(...)`) and call it both at the top of `beforeAll` (self-heals any leftover state from a prior incomplete run, regardless of cause) and as the entirety of `afterAll`'s cleanup (wrapped in `try/finally` so `app.close()` always runs even if a future schema change reintroduces a delete-order bug). This closes the bug class at its root — the test can no longer end a run in a state its own next run can't cleanly recover from — without touching CI's container-reuse setting, which is an intentional speed optimization elsewhere.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/infrastructure/backfill-service-resource-requirements-and-buffer.integration.spec.ts`
+
+**Acceptance criteria — product:**
+- [x] N/A — internal test-infra fix, no user-observable behavior.
+
+**Acceptance criteria — technical:**
+- Unit: none — integration-test-only file
+- Integration: [x] `pnpm --filter @ikaro/backend test:integration` (full suite, including this file) passes — verified: 64 suites / 616 tests
+- Tenant isolation: n/a — fixture cleanup uses fixed test tenant IDs, not real tenant-isolation logic
+- E2E: none — not applicable
+- [x] Coverage ≥80% on changed code — n/a, test-only file
+- [x] `tsc --noEmit` clean, lint clean — verified locally
+
+**Notes for the implementing agent**
+This is exactly the class of bug `docs/ANTI_PATTERNS.md` already warns about for full-table-sweep tests against shared state — the fix here is symmetry between setup and teardown, not a CI infra change.
 
 ---
 
