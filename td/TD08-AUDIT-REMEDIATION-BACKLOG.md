@@ -77,6 +77,7 @@
 | **AUD-041** | Load / throughput regression tests (k6) | 🟡 Medium | M | Infra/Deploy | AUD-030 | §11.6 |
 | **AUD-042** | RUM / Core Web Vitals field monitoring | 🔵 Low | S | Infra/Deploy | — | §13.10 |
 | **AUD-043** | Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation) ✅ | 🔵 Low | XS | Now | — | (not in original audit — found during AUD-007) |
+| **AUD-044** | Explicit `--max-old-space-size` for backend Jest runs (heap OOM fix) | 🔵 Low | XS | Now | — | not in original audit — found 2026-09-16 |
 
 ### Suggested execution order (the critical path)
 
@@ -665,6 +666,49 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **What's wrong (historical):** Every `pnpm --filter @ikaro/web dev`/build run logged: `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.`
 **Fix:** Rename `apps/web/middleware.ts` → `apps/web/proxy.ts` per Next.js's migration guidance.
 **Acceptance:** ☑ No deprecation warning on `pnpm dev`/`pnpm build` for `apps/web`. ☑ All existing test cases pass unchanged. 🟡 Doc-reference sweep partially done — this file fixed, `docs/15`/`docs/16`/`docs/CI_TRAPS.md` not yet re-checked.
+
+---
+
+### AUD-044 — Explicit `--max-old-space-size` for backend Jest runs (local/CI OOM under V8's default heap)
+**Risk:** 🔵 Low · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 while diagnosing a local backend integration-test OOM kill
+**Status:** ☐ Not started
+
+**Agent:** backend-ts
+**Complexity:** S
+**Docs to load:** none — config-only change
+**Dependencies:** none
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-09-16 — a backend integration test run OOM-killed on a memory-constrained local KVM VM (7.7GB total RAM, ~6.1GB available at the time).
+**Root cause:** traced live — `apps/backend/package.json:13` (`test`) and `:15` (`test:integration`) set `NODE_OPTIONS=--experimental-vm-modules` with no `--max-old-space-size`, so V8's old-space heap defaults to ~2240MB (confirmed via `node -p "require('v8').getHeapStatistics().heap_size_limit"`) regardless of actual host RAM. Confirmed unrelated to any cgroup/Docker limit (no `.dockerenv`, no cgroup memory cap on this host).
+
+**What's wrong**
+The backend's own `NODE_OPTIONS` never raises V8's heap ceiling, so `test`/`test:integration` OOM-kill under load on any host/container where V8's ~2.2GB default is tight — independent of how much RAM is actually available to the process.
+
+**What needs to be fixed (solution)**
+Append `--max-old-space-size=6144` to the existing `NODE_OPTIONS` value on both scripts:
+```
+"test": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=6144\" jest",
+"test:integration": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=6144\" jest --selectProjects integration",
+```
+6144MB is chosen to give the full integration suite (66 suites / 624 tests) comfortable headroom while staying well under this class of host's typical RAM.
+
+**Files to create/modify:**
+- `apps/backend/package.json` (lines 13, 15 — `test` and `test:integration` scripts)
+
+**Acceptance criteria — product:**
+- [ ] N/A — internal tooling change, no user-observable behavior.
+
+**Acceptance criteria — technical:**
+- Unit: none — config-only change, no application logic added
+- Integration: `pnpm --filter @ikaro/backend test:integration` (full suite) completes without an OOM kill, exit code 0
+- Tenant isolation: n/a — no tenant-scoped code touched
+- E2E: none — not applicable
+- [ ] Coverage ≥80% on changed code — n/a, no source lines changed
+- [ ] `tsc --noEmit` clean, lint clean
+
+**Notes for the implementing agent**
+Verify by running the full `test:integration` suite in the worktree before opening the PR — this is the whole point of the story, not just a formality.
 
 ---
 
