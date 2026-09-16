@@ -89,6 +89,71 @@ describe('ServiceController (integration)', () => {
       expect(body.status).toBe(403);
     });
 
+    it('resolves defaultApprovalMode from the real tenant autoApproveEnabled setting (default false)', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      expect(created.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(fetched.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+    });
+
+    it('resolves defaultApprovalMode to AUTO_CONFIRM once the tenant enables autoApproveEnabled', async () => {
+      const isolatedTenant = await provisionTenant();
+      await request(app.getHttpServer())
+        .patch('/tenants/settings')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ settings: { booking: { autoApproveEnabled: true } } })
+        .expect(200);
+
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      expect(created.bookingPolicy.defaultApprovalMode).toBe('AUTO_CONFIRM');
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(fetched.bookingPolicy.defaultApprovalMode).toBe('AUTO_CONFIRM');
+    });
+
+    it('re-resolves defaultApprovalMode on every read as the tenant setting changes, never caching it on the service row', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+      expect(created.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+
+      await request(app.getHttpServer())
+        .patch('/tenants/settings')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ settings: { booking: { autoApproveEnabled: true } } })
+        .expect(200);
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(fetched.bookingPolicy.defaultApprovalMode).toBe('AUTO_CONFIRM');
+    });
+
     it('returns 400 when priceAmount is zero', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/services')
