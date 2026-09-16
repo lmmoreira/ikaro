@@ -22,7 +22,10 @@ import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repo
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
-import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
+import {
+  assignBookingLinesOccupancy,
+  moveBookingLinesOccupancy,
+} from './resource-occupancy-assignment.helpers';
 import {
   resolveBookingLinesResourceCandidates,
   ResolvedLineCandidates,
@@ -150,7 +153,10 @@ export class ApproveBookingUseCase {
 
   // Same window: HOLD/REQUESTED -> COMMITTED in place (occupancyRepo.commit() transitions
   // unconditionally regardless of prior lock_state). Changed window (an approval-time
-  // reschedule): release the old row(s) and commit fresh ones at the new window.
+  // reschedule): release the old row(s) and commit fresh ones at the new window. A line with no
+  // existing assignment at all (a booking created before M22-S03 shipped, or one
+  // BackfillResourceOccupancy skipped because it wasn't APPROVED yet at migration time) has
+  // nothing for commit() to transition — it's assigned fresh, directly as COMMITTED, instead.
   private async applyOccupancy(
     booking: Booking,
     candidatesByLine: Map<string, ResolvedLineCandidates>,
@@ -166,8 +172,25 @@ export class ApproveBookingUseCase {
         'COMMITTED',
         null,
       );
-    } else {
-      await this.occupancyRepo.commit(tenantId, bookingLineIds);
+      return;
+    }
+
+    const assignedLineIds = await this.occupancyRepo.findAssignedLineIds(tenantId, bookingLineIds);
+    const unassignedCandidatesByLine = new Map(
+      [...candidatesByLine].filter(([lineId]) => !assignedLineIds.has(lineId)),
+    );
+    if (unassignedCandidatesByLine.size > 0) {
+      await assignBookingLinesOccupancy(
+        this.occupancyRepo,
+        unassignedCandidatesByLine,
+        tenantId,
+        'COMMITTED',
+        null,
+      );
+    }
+    const alreadyAssignedLineIds = bookingLineIds.filter((id) => assignedLineIds.has(id));
+    if (alreadyAssignedLineIds.length > 0) {
+      await this.occupancyRepo.commit(tenantId, alreadyAssignedLineIds);
     }
   }
 }

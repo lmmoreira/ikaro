@@ -1,14 +1,29 @@
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { ServiceLeg } from '../../domain/service-leg';
-import { resolveAvailabilityRequirementWindows } from './availability-window-resolution.helpers';
+import {
+  isBookingWindowAvailable,
+  resolveAvailabilityRequirementWindows,
+  ResourceAvailabilityContext,
+} from './availability-window-resolution.helpers';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const CANDIDATE_START = new Date('2026-06-01T10:00:00.000Z');
+const OPEN_ALL_DAY_UTC: BusinessHours = {
+  timezone: 'UTC',
+  monday: { open: '00:00', close: '23:59' },
+  tuesday: null,
+  wednesday: null,
+  thursday: null,
+  friday: null,
+  saturday: null,
+  sunday: null,
+};
 
 describe('resolveAvailabilityRequirementWindows', () => {
   let resourceRepo: InMemoryResourceRepository;
@@ -88,6 +103,34 @@ describe('resolveAvailabilityRequirementWindows', () => {
     expect(entries[0].map((c) => c.resourceId)).toEqual([matching.id]);
   });
 
+  it("carries a fungible requirement's requiredQuantity onto every one of its candidates", async () => {
+    const roomA = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
+    await resourceRepo.save(roomA);
+    const roomB = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
+    await resourceRepo.save(roomB);
+    const service = new ServiceBuilder()
+      .withDurationMinutes(30)
+      .withResourceRequirements([
+        ResourceRequirement.create({
+          type: ResourceType.ROOM,
+          selectionMode: 'AUTO_FUNGIBLE_POOL',
+          requiredQuantity: 2,
+        }),
+      ])
+      .build();
+
+    const entries = await resolveAvailabilityRequirementWindows(
+      resourceRepo,
+      availabilityService,
+      TENANT_ID,
+      CANDIDATE_START,
+      [service],
+    );
+
+    expect(entries[0]).toHaveLength(2);
+    expect(entries[0].every((c) => c.requiredQuantity === 2)).toBe(true);
+  });
+
   it('falls back to every active resource of the type when resourcePoolIds is unset', async () => {
     const room = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
     await resourceRepo.save(room);
@@ -112,6 +155,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
         resourceId: room.id,
         startsAt: CANDIDATE_START,
         endsAt: new Date('2026-06-01T10:30:00.000Z'),
+        requiredQuantity: 1,
       },
     ]);
   });
@@ -266,5 +310,89 @@ describe('resolveAvailabilityRequirementWindows', () => {
       startsAt: new Date('2026-06-01T10:20:00.000Z'),
       endsAt: new Date('2026-06-01T10:35:00.000Z'),
     });
+  });
+});
+
+describe('isBookingWindowAvailable', () => {
+  let resourceRepo: InMemoryResourceRepository;
+  let availabilityService: AvailabilityService;
+
+  beforeEach(() => {
+    resourceRepo = new InMemoryResourceRepository();
+    availabilityService = new AvailabilityService();
+  });
+
+  function contextFor(
+    resourceId: string,
+    resourcesById: Map<string, ReturnType<ResourceBuilder['build']>>,
+    occupiedResourceIds: Set<string>,
+  ): ResourceAvailabilityContext {
+    const resource = resourcesById.get(resourceId) ?? null;
+    return {
+      resource,
+      closures: [],
+      tenantOpening: null,
+      resourceOpening: null,
+      occupancy: occupiedResourceIds.has(resourceId)
+        ? [
+            {
+              resourceId,
+              startsAt: new Date('2026-06-01T09:00:00.000Z'),
+              endsAt: new Date('2026-06-01T12:00:00.000Z'),
+            },
+          ]
+        : [],
+    };
+  }
+
+  it('requires requiredQuantity distinct free candidates, not just one, for a fungible pool requirement', async () => {
+    const roomA = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
+    const roomB = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
+    await resourceRepo.save(roomA);
+    await resourceRepo.save(roomB);
+    const resourcesById = new Map([
+      [roomA.id, roomA],
+      [roomB.id, roomB],
+    ]);
+    const service = new ServiceBuilder()
+      .withDurationMinutes(30)
+      .withResourceRequirements([
+        ResourceRequirement.create({
+          type: ResourceType.ROOM,
+          selectionMode: 'AUTO_FUNGIBLE_POOL',
+          requiredQuantity: 2,
+        }),
+      ])
+      .build();
+    const deps = {
+      resourceRepo,
+      availabilityService,
+      tenantId: TENANT_ID,
+      date: '2026-06-01',
+      businessHours: OPEN_ALL_DAY_UTC,
+    };
+
+    const onlyOneFree = await isBookingWindowAvailable(
+      {
+        ...deps,
+        loadResourceContext: (id) =>
+          Promise.resolve(contextFor(id, resourcesById, new Set([roomB.id]))),
+      },
+      [service],
+      CANDIDATE_START,
+      new Map(),
+    );
+    expect(onlyOneFree).toBe(false);
+
+    const bothFree = await isBookingWindowAvailable(
+      {
+        ...deps,
+        loadResourceContext: (id) => Promise.resolve(contextFor(id, resourcesById, new Set())),
+      },
+      [service],
+      CANDIDATE_START,
+      new Map(),
+    );
+    expect(bothFree).toBe(true);
   });
 });

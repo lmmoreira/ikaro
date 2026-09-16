@@ -7,12 +7,18 @@ import { ResourceType } from '../../domain/resource.types';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import { Service } from '../../domain/service.aggregate';
+import { ServiceLeg } from '../../domain/service-leg';
 import { IResourceRepository } from '../ports/resource-repository.port';
 
 export interface RequirementWindowCandidate {
   resourceId: string;
   startsAt: Date;
   endsAt: Date; // buffer/turnover already applied where relevant
+  // How many distinct candidates from this same requirement must be simultaneously free — every
+  // candidate in one RequirementWindowEntry shares its own requirement's value (denormalized here
+  // rather than wrapping the array, so existing entry[i]/…map(c => c.resourceId) call sites don't
+  // need reshaping). 1 for the ordinary single-resource case.
+  requiredQuantity: number;
 }
 
 // One requirement's full candidate set for one specific line/leg — every active resource of the
@@ -98,6 +104,7 @@ async function resolveFlatWindows(
           resourceId: resource.id,
           startsAt: lineStart,
           endsAt: new Date(lineEnd.getTime() + gap * 60_000),
+          requiredQuantity: requirement.requiredQuantity,
         };
       }),
     );
@@ -109,21 +116,36 @@ async function resolveFlatWindows(
 // leg's own candidates are resolved first so the max turnover per legIndex (across ALL its active
 // candidates, not just one pick — a conservative choice that can only push a later leg's start
 // later than a specific candidate would need, never earlier) is known before computing spans.
+interface PerLegCandidates {
+  legIndex: number;
+  resources: Resource[];
+  requiredQuantity: number;
+}
+
+async function resolvePerLegCandidates(
+  legs: ServiceLeg[],
+  ctx: WindowResolutionContext,
+): Promise<PerLegCandidates[]> {
+  const perLeg: PerLegCandidates[] = [];
+  for (const leg of legs) {
+    for (const requirement of leg.resourceRequirements) {
+      perLeg.push({
+        legIndex: leg.legIndex,
+        resources: await resolveActiveCandidates(requirement, ctx),
+        requiredQuantity: requirement.requiredQuantity,
+      });
+    }
+  }
+  return perLeg;
+}
+
 async function resolveLeggedWindows(
   service: Service,
   ctx: WindowResolutionContext,
   lineStart: Date,
 ): Promise<RequirementWindowEntry[]> {
   const legs = service.legs!;
-  const perLeg: { legIndex: number; resources: Resource[] }[] = [];
-  for (const leg of legs) {
-    for (const requirement of leg.resourceRequirements) {
-      perLeg.push({
-        legIndex: leg.legIndex,
-        resources: await resolveActiveCandidates(requirement, ctx),
-      });
-    }
-  }
+  const perLeg = await resolvePerLegCandidates(legs, ctx);
 
   const turnoverByLegIndex = new Map<number, number>();
   for (const { legIndex, resources } of perLeg) {
@@ -141,12 +163,13 @@ async function resolveLeggedWindows(
   );
   const spanByLegIndex = new Map(legSpans.map((span) => [span.legIndex, span]));
 
-  return perLeg.map(({ legIndex, resources }) => {
+  return perLeg.map(({ legIndex, resources, requiredQuantity }) => {
     const span = spanByLegIndex.get(legIndex)!;
     return resources.map((resource) => ({
       resourceId: resource.id,
       startsAt: span.startsAt,
       endsAt: span.endsAtWithTurnover,
+      requiredQuantity,
     }));
   });
 }
@@ -227,16 +250,23 @@ export async function isBookingWindowAvailable(
     services,
   );
   for (const entry of entries) {
-    if (!(await anyCandidateFree(deps, entry, contextCache))) return false;
+    if (!(await enoughCandidatesFree(deps, entry, contextCache))) return false;
   }
   return true;
 }
 
-async function anyCandidateFree(
+// A fungible requirement's requiredQuantity > 1 needs that many DISTINCT candidates
+// simultaneously free, not just one — the write path resolves exactly requiredQuantity resources
+// per requirement (resource-occupancy.helpers.ts's resolveRequirementResources), so a read-path
+// "available" verdict backed by only one free member would let a customer pick a slot the write
+// path then can't actually fulfil.
+async function enoughCandidatesFree(
   deps: ResourceScopedAvailabilityDeps,
   candidates: RequirementWindowEntry,
   cache: Map<string, ResourceAvailabilityContext>,
 ): Promise<boolean> {
+  if (candidates.length === 0) return false;
+  let freeCount = 0;
   for (const candidate of candidates) {
     let ctx = cache.get(candidate.resourceId);
     if (!ctx) {
@@ -255,7 +285,8 @@ async function anyCandidateFree(
       { start: candidate.startsAt, end: candidate.endsAt },
       ctx.occupancy,
     );
-    if (free) return true;
+    if (free) freeCount += 1;
+    if (freeCount >= candidate.requiredQuantity) return true;
   }
   return false;
 }

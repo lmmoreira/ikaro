@@ -133,6 +133,29 @@ describe('ApproveBookingUseCase', () => {
       expect(conflicting).toEqual([resource.id]); // still occupied (now COMMITTED), just not HOLD anymore
     });
 
+    it('assigns a fresh COMMITTED occupancy row when the booking has no existing assignment at all (pre-M22-S03 legacy booking)', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      // No occupancyRepo.assign() call here — simulates a booking created before M22-S03 shipped
+      // (or one BackfillResourceOccupancy skipped because it wasn't APPROVED yet), which never
+      // got a REQUESTED/HOLD row through the normal request-time write path.
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const conflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        {
+          resourceId: resource.id,
+          startsAt: scheduledAt,
+          endsAt: new Date(scheduledAt.getTime() + booking.totalDurationMins * 60_000),
+        },
+      ]);
+      expect(conflicting).toEqual([resource.id]);
+    });
+
     it('allows approving with an alternate scheduledAt after a slot conflict', async () => {
       const originalScheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
       const retryScheduledAt = new Date(`${futureDate(2)}T14:00:00.000Z`);

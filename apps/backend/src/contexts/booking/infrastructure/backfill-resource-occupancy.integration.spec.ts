@@ -38,6 +38,11 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
   let approvedPastLineId: string;
   let pendingBookingId: string;
   let rejectedBookingId: string;
+  let multiLineFirstLineId: string;
+  let multiLineSecondLineId: string;
+  const MULTI_LINE_START = new Date(Date.now() + 72 * 60 * 60 * 1000);
+  const MULTI_LINE_FIRST_DURATION_MINS = 30;
+  const MULTI_LINE_SECOND_DURATION_MINS = 45;
 
   beforeAll(async () => {
     ({ app, ds } = await createBookingIntegrationApp());
@@ -58,11 +63,12 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
     await ds.getRepository(ServiceEntity).save(service);
 
     async function seedBooking(status: string, scheduledAt: Date, scheduledEndAt: Date) {
+      const durationMins = (scheduledEndAt.getTime() - scheduledAt.getTime()) / 60_000;
       const booking = new BookingEntityBuilder()
         .withTenantId(TENANT_A)
         .withStatus(status)
         .withScheduledAt(scheduledAt)
-        .withTotalDurationMins((scheduledEndAt.getTime() - scheduledAt.getTime()) / 60_000)
+        .withTotalDurationMins(durationMins)
         .build();
       // BookingEntityBuilder derives scheduledEndAt from scheduledAt+totalDurationMins already —
       // matches scheduledEndAt exactly since we pass the corresponding duration above.
@@ -71,6 +77,10 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
         .withTenantId(TENANT_A)
         .withBookingId(booking.id)
         .withServiceId(service.id)
+        // Must match the booking's own totalDurationMins (its one line's own duration, by the
+        // domain aggregate's own invariant) — the backfill now derives each line's window from
+        // duration_mins_at_booking, so a mismatched fixture would silently produce a wrong window.
+        .withDurationMinsAtBooking(durationMins)
         .build();
       await ds.getRepository(BookingLineEntity).save(line);
       return { bookingId: booking.id, lineId: line.lineId };
@@ -83,6 +93,31 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
     approvedPastLineId = (await seedBooking('APPROVED', PAST_START, PAST_END)).lineId;
     pendingBookingId = (await seedBooking('PENDING', FUTURE_START, FUTURE_END)).bookingId;
     rejectedBookingId = (await seedBooking('REJECTED', FUTURE_START, FUTURE_END)).bookingId;
+
+    const multiLineTotalDuration = MULTI_LINE_FIRST_DURATION_MINS + MULTI_LINE_SECOND_DURATION_MINS;
+    const multiLineBooking = new BookingEntityBuilder()
+      .withTenantId(TENANT_A)
+      .withStatus('APPROVED')
+      .withScheduledAt(MULTI_LINE_START)
+      .withTotalDurationMins(multiLineTotalDuration)
+      .build();
+    await ds.getRepository(BookingEntity).save(multiLineBooking);
+    const firstLine = new BookingLineEntityBuilder()
+      .withTenantId(TENANT_A)
+      .withBookingId(multiLineBooking.id)
+      .withServiceId(service.id)
+      .withDurationMinsAtBooking(MULTI_LINE_FIRST_DURATION_MINS)
+      .build();
+    await ds.getRepository(BookingLineEntity).save(firstLine);
+    multiLineFirstLineId = firstLine.lineId;
+    const secondLine = new BookingLineEntityBuilder()
+      .withTenantId(TENANT_A)
+      .withBookingId(multiLineBooking.id)
+      .withServiceId(service.id)
+      .withDurationMinsAtBooking(MULTI_LINE_SECOND_DURATION_MINS)
+      .build();
+    await ds.getRepository(BookingLineEntity).save(secondLine);
+    multiLineSecondLineId = secondLine.lineId;
   });
 
   afterAll(async () => {
@@ -160,6 +195,35 @@ describe('BackfillResourceOccupancy1748500000013 (integration)', () => {
     expect(backfilledBookingIds.has(pendingBookingId)).toBe(false);
     expect(backfilledBookingIds.has(rejectedBookingId)).toBe(false);
     expect(backfilledBookingIds.has(approvedFutureBookingId)).toBe(true);
+  });
+
+  it('gives each line of a multi-line APPROVED booking its own sequential, non-overlapping window on the shared LOCATION resource', async () => {
+    await runUp();
+
+    const firstAssignment = await ds
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .findOneOrFail({ where: { tenantId: TENANT_A, bookingLineId: multiLineFirstLineId } });
+    const secondAssignment = await ds
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .findOneOrFail({ where: { tenantId: TENANT_A, bookingLineId: multiLineSecondLineId } });
+
+    const firstOccupancy = await ds.getRepository(ResourceOccupancyEntity).findOneOrFail({
+      where: { tenantId: TENANT_A, bookingLineResourceAssignmentId: firstAssignment.id },
+    });
+    const secondOccupancy = await ds.getRepository(ResourceOccupancyEntity).findOneOrFail({
+      where: { tenantId: TENANT_A, bookingLineResourceAssignmentId: secondAssignment.id },
+    });
+
+    const firstEnd = new Date(MULTI_LINE_START.getTime() + MULTI_LINE_FIRST_DURATION_MINS * 60_000);
+    const secondEnd = new Date(firstEnd.getTime() + MULTI_LINE_SECOND_DURATION_MINS * 60_000);
+
+    expect(firstOccupancy.startsAt.toISOString()).toBe(MULTI_LINE_START.toISOString());
+    expect(firstOccupancy.endsAt.toISOString()).toBe(firstEnd.toISOString());
+    // The second line starts exactly where the first ends — not the whole booking's window
+    // (the bug: both lines sharing scheduled_at/scheduled_end_at would overlap and violate the
+    // GIST exclusion constraint on this shared LOCATION resource).
+    expect(secondOccupancy.startsAt.toISOString()).toBe(firstEnd.toISOString());
+    expect(secondOccupancy.endsAt.toISOString()).toBe(secondEnd.toISOString());
   });
 
   it('is idempotent — running twice does not duplicate rows', async () => {

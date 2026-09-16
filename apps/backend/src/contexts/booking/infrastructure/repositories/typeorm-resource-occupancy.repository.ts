@@ -17,6 +17,10 @@ interface ConflictRow {
   resource_id: string;
 }
 
+interface AssignedLineRow {
+  booking_line_id: string;
+}
+
 interface AssignmentIdRow {
   id: string;
 }
@@ -183,6 +187,20 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
       `,
       [tenantId, bookingLineIds],
     );
+  }
+
+  async findAssignedLineIds(tenantId: string, bookingLineIds: string[]): Promise<Set<string>> {
+    if (bookingLineIds.length === 0) return new Set();
+    const manager = this.requireActiveManager();
+    const rows: AssignedLineRow[] = await manager.query(
+      `
+      SELECT DISTINCT booking_line_id
+      FROM booking.booking_line_resource_assignments
+      WHERE tenant_id = $1 AND booking_line_id = ANY($2::uuid[])
+      `,
+      [tenantId, bookingLineIds],
+    );
+    return new Set(rows.map((row) => row.booking_line_id));
   }
 
   // Deletes only the short-lived lock rows — booking_line_resource_assignments is the immutable

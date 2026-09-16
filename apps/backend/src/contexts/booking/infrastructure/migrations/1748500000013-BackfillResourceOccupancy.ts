@@ -29,20 +29,51 @@ export class BackfillResourceOccupancy1748500000013 implements MigrationInterfac
             WHERE existing."tenant_id" = bl."tenant_id" AND existing."booking_line_id" = bl."line_id"
           )
         RETURNING "id", "tenant_id", "booking_line_id", "resource_id", "resource_type", "resource_name_at_assignment"
+      ),
+      -- Every backfilled line falls back to the same tenant-wide LOCATION resource, so a
+      -- multi-line booking's lines must get their own sequential, non-overlapping sub-windows
+      -- (matching the write path's cursor-based sequencing and Booking.totalDurationMins — a pure
+      -- sum of each line's own duration, no inter-line buffer) instead of all sharing the whole
+      -- booking's scheduled_at/scheduled_end_at — the new GIST exclusion constraint would
+      -- otherwise reject the migration's own inserts for any pre-existing multi-line booking.
+      -- line_id is a uuidv7 PK, generated in creation order within the same booking, so ORDER BY
+      -- line_id reconstructs the original sequential order.
+      line_windows AS (
+        SELECT
+          ia."id" AS assignment_id,
+          ia."tenant_id",
+          ia."resource_id",
+          ia."resource_type",
+          ia."resource_name_at_assignment",
+          b."scheduled_at" + (
+            COALESCE(SUM(bl."duration_mins_at_booking") OVER (
+              PARTITION BY bl."booking_id"
+              ORDER BY bl."line_id"
+              ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+            ), 0) * INTERVAL '1 minute'
+          ) AS starts_at,
+          b."scheduled_at" + (
+            SUM(bl."duration_mins_at_booking") OVER (
+              PARTITION BY bl."booking_id"
+              ORDER BY bl."line_id"
+              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) * INTERVAL '1 minute'
+          ) AS ends_at
+        FROM inserted_assignments ia
+        JOIN "booking"."booking_lines" bl
+          ON bl."tenant_id" = ia."tenant_id" AND bl."line_id" = ia."booking_line_id"
+        JOIN "booking"."bookings" b
+          ON b."tenant_id" = bl."tenant_id" AND b."id" = bl."booking_id"
       )
       INSERT INTO "booking"."resource_occupancy"
         ("id", "tenant_id", "resource_id", "resource_type", "source_type",
          "booking_line_resource_assignment_id", "leg_index", "class_session_id",
          "resource_name_at_assignment", "starts_at", "ends_at", "lock_state", "hold_expires_at", "created_at")
       SELECT
-        gen_random_uuid(), ia."tenant_id", ia."resource_id", ia."resource_type", 'BOOKING_LINE',
-        ia."id", NULL, NULL,
-        ia."resource_name_at_assignment", b."scheduled_at", b."scheduled_end_at", 'COMMITTED', NULL, now()
-      FROM inserted_assignments ia
-      JOIN "booking"."booking_lines" bl
-        ON bl."tenant_id" = ia."tenant_id" AND bl."line_id" = ia."booking_line_id"
-      JOIN "booking"."bookings" b
-        ON b."tenant_id" = bl."tenant_id" AND b."id" = bl."booking_id"
+        gen_random_uuid(), lw."tenant_id", lw."resource_id", lw."resource_type", 'BOOKING_LINE',
+        lw."assignment_id", NULL, NULL,
+        lw."resource_name_at_assignment", lw."starts_at", lw."ends_at", 'COMMITTED', NULL, now()
+      FROM line_windows lw
     `);
   }
 
