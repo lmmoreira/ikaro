@@ -597,51 +597,7 @@ describe('AvailabilityService', () => {
     });
   });
 
-  // ── M22-S03: UC-058 intersect/union, UC-059 buffer/turnover ────────────────────
-
-  describe('intersect', () => {
-    it('a 2-resource bundle is available only where every resource is free', () => {
-      const a = [
-        { startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' },
-        { startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' },
-      ];
-      const b = [{ startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' }];
-
-      const result = svc.intersect([a, b]);
-
-      expect(result).toEqual([
-        { startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' },
-      ]);
-    });
-
-    it('returns [] when one resource has no free slots at all', () => {
-      const a = [{ startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' }];
-      const b: typeof a = [];
-
-      expect(svc.intersect([a, b])).toEqual([]);
-    });
-  });
-
-  describe('union', () => {
-    it('a fungible pool is available whenever any pool member is free', () => {
-      const a = [{ startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' }];
-      const b = [{ startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' }];
-
-      const result = svc.union([a, b]);
-
-      expect(result).toEqual([
-        { startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' },
-        { startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' },
-      ]);
-    });
-
-    it('dedupes identical slots shared by multiple pool members', () => {
-      const a = [{ startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' }];
-      const b = [{ startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' }];
-
-      expect(svc.union([a, b])).toHaveLength(1);
-    });
-  });
+  // ── M22-S03: UC-059 buffer/turnover ────────────────────────────────────────────
 
   describe('effectiveFlatGapMinutes (UC-059 A1)', () => {
     it('takes the larger of the service buffer and the resource turnover', () => {
@@ -708,41 +664,27 @@ describe('AvailabilityService', () => {
       const start = new Date(utcIso(monday, localStartHour));
       return { start, end: new Date(start.getTime() + minutes * 60_000) };
     };
+    const tenantWide = (
+      closures: ReturnType<typeof ScheduleClosureBuilder.prototype.build>[] = [],
+    ) => ({
+      resource: null,
+      closures,
+      opening: null,
+      resourceOpening: null,
+    });
 
     it('is free when the window sits inside business hours with no closures or occupancy', () => {
-      const free = svc.isWindowFree(
-        monday,
-        DEFAULT_HOURS,
-        null,
-        [],
-        null,
-        null,
-        window(10, 30),
-        [],
-      );
+      const free = svc.isWindowFree(monday, DEFAULT_HOURS, tenantWide(), window(10, 30), []);
       expect(free).toBe(true);
     });
 
     it('is not free when the window starts before opening or ends after closing', () => {
-      expect(svc.isWindowFree(monday, DEFAULT_HOURS, null, [], null, null, window(8, 30), [])).toBe(
-        false,
-      );
-      expect(
-        svc.isWindowFree(monday, DEFAULT_HOURS, null, [], null, null, window(17, 90), []),
-      ).toBe(false);
+      expect(svc.isWindowFree(monday, DEFAULT_HOURS, tenantWide(), window(8, 30), [])).toBe(false);
+      expect(svc.isWindowFree(monday, DEFAULT_HOURS, tenantWide(), window(17, 90), [])).toBe(false);
     });
 
     it('is not free when the tenant has no hours at all for that day (Sunday)', () => {
-      const free = svc.isWindowFree(
-        sunday,
-        DEFAULT_HOURS,
-        null,
-        [],
-        null,
-        null,
-        window(10, 30),
-        [],
-      );
+      const free = svc.isWindowFree(sunday, DEFAULT_HOURS, tenantWide(), window(10, 30), []);
       expect(free).toBe(false);
     });
 
@@ -755,10 +697,7 @@ describe('AvailabilityService', () => {
       const free = svc.isWindowFree(
         monday,
         DEFAULT_HOURS,
-        null,
-        [closure],
-        null,
-        null,
+        tenantWide([closure]),
         window(10, 30),
         [],
       );
@@ -767,16 +706,7 @@ describe('AvailabilityService', () => {
 
     it('is not free when the window overlaps an existing occupancy row', () => {
       const occupancy = [bookedSlot(monday, 10, 30)];
-      const free = svc.isWindowFree(
-        monday,
-        DEFAULT_HOURS,
-        null,
-        [],
-        null,
-        null,
-        window(10, 15),
-        occupancy,
-      );
+      const free = svc.isWindowFree(monday, DEFAULT_HOURS, tenantWide(), window(10, 15), occupancy);
       expect(free).toBe(false);
     });
 
@@ -788,16 +718,7 @@ describe('AvailabilityService', () => {
         end: new Date(adjacentStart.getTime() + 30 * 60_000),
       };
 
-      const free = svc.isWindowFree(
-        monday,
-        DEFAULT_HOURS,
-        null,
-        [],
-        null,
-        null,
-        adjacentWindow,
-        occupancy,
-      );
+      const free = svc.isWindowFree(monday, DEFAULT_HOURS, tenantWide(), adjacentWindow, occupancy);
 
       expect(free).toBe(true);
     });
@@ -814,14 +735,11 @@ describe('AvailabilityService', () => {
           sunday: null,
         })
         .build();
+      const scoped = { resource, closures: [], opening: null, resourceOpening: null };
 
       // 10:00 is within tenant hours (09:00-18:00) but before the resource's own 14:00 opening.
-      expect(
-        svc.isWindowFree(monday, DEFAULT_HOURS, resource, [], null, null, window(10, 30), []),
-      ).toBe(false);
-      expect(
-        svc.isWindowFree(monday, DEFAULT_HOURS, resource, [], null, null, window(15, 30), []),
-      ).toBe(true);
+      expect(svc.isWindowFree(monday, DEFAULT_HOURS, scoped, window(10, 30), [])).toBe(false);
+      expect(svc.isWindowFree(monday, DEFAULT_HOURS, scoped, window(15, 30), [])).toBe(true);
     });
   });
 });

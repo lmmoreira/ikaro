@@ -32,9 +32,8 @@ export interface AvailabilityInput {
   // The resource-scoped opening for `date`, if any. Optional/undefined = none (tenant-wide call).
   resourceOpening?: ScheduleOpening | null;
   // Occupancy for the ONE resource this call is scoped to (docs/13-DATABASE_SCHEMA.md §
-  // booking.resource_occupancy) — a bundle/pool service calls this once per candidate resource
-  // and combines the results via intersect()/union() below; a flat degenerate service calls it
-  // once for the tenant's LOCATION resource.
+  // booking.resource_occupancy) — a flat degenerate service calls this once for the tenant's
+  // LOCATION resource; the resource-scoped path uses isWindowFree() instead (see that method).
   existingOccupancy: ResourceOccupiedSlot[];
 }
 
@@ -56,6 +55,12 @@ export interface LegSpan {
   // is occupied for, distinct from when the customer physically leaves (startsAt + durationMinutes).
   endsAtWithTurnover: Date;
 }
+
+// Bundled (S107) — same 4 fields isWindowFree() forwards straight into resolveEffectiveHours().
+export type WindowScheduleContext = Pick<
+  AvailabilityInput,
+  'resource' | 'closures' | 'opening' | 'resourceOpening'
+>;
 
 export class AvailabilityService {
   calculate(input: AvailabilityInput): AvailableSlot[] {
@@ -239,32 +244,6 @@ export class AvailabilityService {
     return aStart < bEnd && bStart < aEnd;
   }
 
-  // UC-058 step 2 — a bundle (>1 resourceRequirement, or >1 leg-resource simultaneously) is
-  // available only when EVERY required resource is simultaneously free. Each element of
-  // `perResourceSlots` is one candidate resource's own calculate() result; a slot survives only
-  // if it appears (by identical startsAt/endsAt) in every one of them.
-  intersect(perResourceSlots: AvailableSlot[][]): AvailableSlot[] {
-    if (perResourceSlots.length === 0) return [];
-    const [first, ...rest] = perResourceSlots;
-    return first.filter((slot) =>
-      rest.every((slots) =>
-        slots.some((s) => s.startsAt === slot.startsAt && s.endsAt === slot.endsAt),
-      ),
-    );
-  }
-
-  // UC-058 step 3 — an AUTO_FUNGIBLE_POOL requirement is available whenever ANY pool member is
-  // free. Dedupes by startsAt/endsAt across every candidate's own calculate() result.
-  union(perResourceSlots: AvailableSlot[][]): AvailableSlot[] {
-    const seen = new Map<string, AvailableSlot>();
-    for (const slots of perResourceSlots) {
-      for (const slot of slots) {
-        seen.set(`${slot.startsAt}|${slot.endsAt}`, slot);
-      }
-    }
-    return [...seen.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }
-
   // UC-059 step 1 — the effective gap before the next booking on a resource, for a flat
   // (non-legged) service, is whichever is larger: the service's own cleanup buffer, or the
   // resource's own turnover. A1: both 0 collapses to today's exact single-number buffer model.
@@ -272,44 +251,37 @@ export class AvailabilityService {
     return Math.max(bufferAfterMinutes, turnoverMinutes);
   }
 
-  // A direct free/busy check for one [start, end) window against one resource's (tenant's, when
-  // null/undefined) hours/closures/occupancy — the primitive the resource-scoped read path uses
-  // per line/leg/candidate, instead of calculate()'s own slot-generation loop (built around one
-  // combined duration slid across the day, not an arbitrary caller-supplied window).
+  // Free/busy check for one [start, end) window against a resource's (or tenant's) hours/
+  // closures/occupancy — used per line/leg/candidate instead of calculate()'s own slot loop.
   isWindowFree(
     date: string,
     businessHours: BusinessHours,
-    resource: Resource | null | undefined,
-    closures: ScheduleClosure[],
-    opening: ScheduleOpening | null,
-    resourceOpening: ScheduleOpening | null | undefined,
+    scheduleContext: WindowScheduleContext,
     window: { start: Date; end: Date },
     existingOccupancy: ResourceOccupiedSlot[],
   ): boolean {
     const effectiveHours = this.resolveEffectiveHours(
       date,
       businessHours,
-      resource,
-      closures,
-      opening,
-      resourceOpening,
+      scheduleContext.resource,
+      scheduleContext.closures,
+      scheduleContext.opening,
+      scheduleContext.resourceOpening,
     );
     if (!effectiveHours) return false;
 
-    const timezone = businessHours.timezone;
-    const startHHMM = utcDateToLocalHHMM(window.start, timezone);
-    const endHHMM = utcDateToLocalHHMM(window.end, timezone);
+    const startHHMM = utcDateToLocalHHMM(window.start, businessHours.timezone);
+    const endHHMM = utcDateToLocalHHMM(window.end, businessHours.timezone);
     if (startHHMM < effectiveHours.open || endHHMM > effectiveHours.close) return false;
+    if (
+      effectiveHours.partialClosures.some((c) =>
+        this.overlaps(startHHMM, endHHMM, c.startTime!.value, c.endTime!.value),
+      )
+    ) {
+      return false;
+    }
 
-    const blockedByClosure = effectiveHours.partialClosures.some((c) =>
-      this.overlaps(startHHMM, endHHMM, c.startTime!.value, c.endTime!.value),
-    );
-    if (blockedByClosure) return false;
-
-    const blockedByOccupancy = existingOccupancy.some(
-      (o) => window.start < o.endsAt && o.startsAt < window.end,
-    );
-    return !blockedByOccupancy;
+    return !existingOccupancy.some((o) => window.start < o.endsAt && o.startsAt < window.end);
   }
 
   // UC-059 step 2 — for a legged service, each leg's own resource turnover applies at that leg's

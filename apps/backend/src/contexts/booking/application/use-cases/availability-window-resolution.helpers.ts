@@ -239,10 +239,12 @@ async function anyCandidateFree(
     const free = deps.availabilityService.isWindowFree(
       deps.date,
       deps.businessHours,
-      ctx.resource,
-      ctx.closures,
-      ctx.tenantOpening,
-      ctx.resourceOpening,
+      {
+        resource: ctx.resource,
+        closures: ctx.closures,
+        opening: ctx.tenantOpening,
+        resourceOpening: ctx.resourceOpening,
+      },
       { start: candidate.startsAt, end: candidate.endsAt },
       ctx.occupancy,
     );
