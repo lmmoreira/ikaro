@@ -52,13 +52,23 @@ export async function calculateResourceScopedAvailability(
   services: Service[],
 ): Promise<AvailableSlot[]> {
   const { closures, tenantOpening } = await deps.loadScheduleContext(undefined);
+  // Only the last line's own buffer applies (matching effectiveFlatGapMinutes's last-line-only
+  // rule everywhere else) — using the tenant-wide default here instead of a smaller per-service
+  // override would inflate this outer fit-check's required span and wrongly hide valid late-day
+  // slots. A resource's own turnover isn't known yet at this outer stage (it depends on which
+  // candidate resource ends up free) and can only ever require *more* room, never less, so
+  // omitting it here is safe: isBookingWindowAvailable's per-candidate check re-verifies the real,
+  // resource-specific window against business hours regardless of what this coarse pre-filter let
+  // through.
+  const lastService = services[services.length - 1];
+  const outerBufferMinutes = lastService.bufferAfterMinutes ?? request.serviceBufferMinutes;
   const outerSlots = deps.availabilityService.calculate({
     date: request.date,
     services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
     businessHours: request.businessHours,
     resource: null,
     slotGranularityMinutes: request.slotGranularityMinutes,
-    serviceBufferMinutes: request.serviceBufferMinutes,
+    serviceBufferMinutes: outerBufferMinutes,
     closures,
     opening: tenantOpening,
     resourceOpening: null,

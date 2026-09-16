@@ -33,10 +33,14 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
   ): Promise<string[]> {
     const conflicting = new Set<string>();
     for (const candidate of candidates) {
+      // Mirrors the production GIST exclusion constraint's own WHERE clause and
+      // typeorm-resource-occupancy.repository.ts's findConflictingResourceIds SQL — REQUESTED
+      // rows are never conflicts, only HOLD/COMMITTED are.
       const hasOverlap = this.store.some(
         (row) =>
           row.tenantId === tenantId &&
           row.resourceId === candidate.resourceId &&
+          row.lockState !== 'REQUESTED' &&
           !(excludeBookingLineIds ?? []).includes(row.bookingLineId) &&
           candidate.startsAt < row.endsAt &&
           row.startsAt < candidate.endsAt,

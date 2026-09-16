@@ -19,6 +19,7 @@ import { GetAvailabilityUseCase } from './get-availability.use-case';
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const monday = nextWeekday(1);
 const sunday = nextWeekday(0);
+const saturday = nextWeekday(6); // 09:00-17:00 per buildDefaultBusinessHours — shorter than weekdays
 
 describe('GetAvailabilityUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
@@ -505,6 +506,42 @@ describe('GetAvailabilityUseCase', () => {
 
       expect(result.slots).toContainEqual(
         expect.objectContaining({ startsAt: new Date(`${monday}T12:00:00.000Z`).toISOString() }),
+      );
+    });
+
+    it("uses the service's own buffer override for the outer fit-check, not the tenant default", async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      // Saturday closes at 17:00. Tenant default buffer is 60min (TenantSettings.default()), but
+      // this service overrides its own buffer to 0 — the outer candidate generator must use the
+      // service's own 0, not the tenant's 60, or the last bookable 16:30 start (30min duration +
+      // 0min buffer fits exactly by 17:00) gets wrongly capped at 15:30 (30min + the tenant's 60).
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        date: saturday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: 30,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.slots).toContainEqual(
+        expect.objectContaining({
+          startsAt: new Date(`${saturday}T19:30:00.000Z`).toISOString(),
+        }),
       );
     });
   });
