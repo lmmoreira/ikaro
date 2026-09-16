@@ -78,6 +78,7 @@
 | **AUD-042** | RUM / Core Web Vitals field monitoring | 🔵 Low | S | Infra/Deploy | — | §13.10 |
 | **AUD-043** | Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation) ✅ | 🔵 Low | XS | Now | — | (not in original audit — found during AUD-007) |
 | **AUD-044** | Explicit `--max-old-space-size` for backend Jest runs (heap OOM fix) | 🔵 Low | XS | Now | — | not in original audit — found 2026-09-16 |
+| **AUD-045** | Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test | 🟡 Medium | XS | Now | — | not in original audit — found 2026-09-16 while triaging PR #484's CI |
 
 ### Suggested execution order (the critical path)
 
@@ -713,6 +714,44 @@ Set `--max-old-space-size=6144` on every backend Jest entry point:
 
 **Notes for the implementing agent**
 Verify by running the full `test:integration` suite in the worktree before opening the PR — this is the whole point of the story, not just a formality.
+
+---
+
+### AUD-045 — Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test ✅
+**Risk:** 🟡 Medium · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 while triaging PR #484's CI (this project has zero tolerance for flaky tests)
+**Status:** ✅ Done
+
+**Agent:** backend-ts
+**Complexity:** S
+**Docs to load:** none
+**Dependencies:** none
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-09-16 — `Backend Integration Tests` failed twice in a row on PR #484's CI (unrelated diff) while passing 3/3 on a local run of the identical code.
+**Root cause:** traced live in `apps/backend/src/contexts/booking/infrastructure/backfill-service-resource-requirements-and-buffer.integration.spec.ts`. Its `afterAll` only ever deleted `ServiceResourceRequirementEntity` rows for `TENANT_NO_LOCATION`/`TENANT_WITH_LOCATION` — never for `TENANT_CUSTOM_BUFFER` — so if that tenant's service ever ended up with a requirement row, the next delete (`ServiceEntity` for that tenant) hit `FK_service_resource_requirements_service` and threw, aborting `afterAll` **before** the remaining deletes (the `ResourceEntity`/`TenantEntity` rows) ever ran. Combined with CI's `TESTCONTAINERS_REUSE_ENABLE: 'true'` (`.github/workflows/pr-tests.yml:107`), which reuses the same Postgres container repo-wide across separate CI runs, that orphaned state survived into later runs — where `beforeAll` re-seeded fresh fixtures under the *same* fixed tenant UUIDs on top of it, letting the corruption compound (a first run's failure was the FK violation itself; a follow-up run then failed a content assertion because a fixed tenant ID's resource state was no longer what that run's `beforeAll` alone would produce). Local runs never showed it because a local run always gets a fresh Testcontainers instance (no reuse configured).
+
+**What's wrong**
+The test's teardown list was asymmetric with its own setup (3 seeded tenants, only 2 covered by the requirement-cleanup step) and had no defensive cleanup *before* seeding either — so it could never recover once a single crash left it out of sync with a reused container.
+
+**What needs to be fixed (solution)**
+Extract one `cleanupFixtures()` helper (deletes `ServiceResourceRequirementEntity` → `ServiceEntity` → `ResourceEntity` → `TenantEntity`, in FK-safe order, scoped to all 3 fixture tenant IDs via `In(...)`) and call it both at the top of `beforeAll` (self-heals any leftover state from a prior incomplete run, regardless of cause) and as the entirety of `afterAll`'s cleanup (wrapped in `try/finally` so `app.close()` always runs even if a future schema change reintroduces a delete-order bug). This closes the bug class at its root — the test can no longer end a run in a state its own next run can't cleanly recover from — without touching CI's container-reuse setting, which is an intentional speed optimization elsewhere.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/infrastructure/backfill-service-resource-requirements-and-buffer.integration.spec.ts`
+
+**Acceptance criteria — product:**
+- [x] N/A — internal test-infra fix, no user-observable behavior.
+
+**Acceptance criteria — technical:**
+- Unit: none — integration-test-only file
+- Integration: [x] `pnpm --filter @ikaro/backend test:integration` (full suite, including this file) passes — verified: 64 suites / 616 tests
+- Tenant isolation: n/a — fixture cleanup uses fixed test tenant IDs, not real tenant-isolation logic
+- E2E: none — not applicable
+- [x] Coverage ≥80% on changed code — n/a, test-only file
+- [x] `tsc --noEmit` clean, lint clean — verified locally
+
+**Notes for the implementing agent**
+This is exactly the class of bug `docs/ANTI_PATTERNS.md` already warns about for full-table-sweep tests against shared state — the fix here is symmetry between setup and teardown, not a CI infra change.
 
 ---
 

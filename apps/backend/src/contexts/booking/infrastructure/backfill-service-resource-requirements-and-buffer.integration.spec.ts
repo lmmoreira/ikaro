@@ -1,5 +1,5 @@
 import { INestApplication } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import {
   ResourceEntityBuilder,
   ServiceEntityBuilder,
@@ -23,14 +23,31 @@ const TENANT_NO_LOCATION = '00000000-1110-7000-8000-000000000001';
 const TENANT_WITH_LOCATION = '00000000-1110-7000-8000-000000000002';
 const TENANT_CUSTOM_BUFFER = '00000000-1110-7000-8000-000000000003';
 
+const FIXTURE_TENANT_IDS = [TENANT_NO_LOCATION, TENANT_WITH_LOCATION, TENANT_CUSTOM_BUFFER];
+
 describe('AddServiceResourceRequirementsAndLegs1748500000010 (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   let migration: AddServiceResourceRequirementsAndLegs1748500000010;
 
+  // Deletes in FK-safe order for all 3 fixture tenants at once — used both defensively before
+  // seeding (self-heals if a prior run's afterAll never completed, e.g. under CI's
+  // TESTCONTAINERS_REUSE_ENABLE) and in afterAll's own teardown, so the two never drift apart
+  // into the kind of incomplete list that previously crashed mid-cleanup on an FK violation.
+  async function cleanupFixtures(): Promise<void> {
+    await ds
+      .getRepository(ServiceResourceRequirementEntity)
+      .delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(ServiceEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(ResourceEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(TenantEntity).delete({ id: In(FIXTURE_TENANT_IDS) });
+  }
+
   beforeAll(async () => {
     ({ app, ds } = await createBookingIntegrationApp());
     migration = new AddServiceResourceRequirementsAndLegs1748500000010();
+
+    await cleanupFixtures();
 
     await ds.getRepository(TenantEntity).save([
       new TenantEntityBuilder()
@@ -71,20 +88,11 @@ describe('AddServiceResourceRequirementsAndLegs1748500000010 (integration)', () 
   });
 
   afterAll(async () => {
-    await ds
-      .getRepository(ServiceResourceRequirementEntity)
-      .delete({ tenantId: TENANT_NO_LOCATION });
-    await ds
-      .getRepository(ServiceResourceRequirementEntity)
-      .delete({ tenantId: TENANT_WITH_LOCATION });
-    await ds.getRepository(ServiceEntity).delete({ tenantId: TENANT_NO_LOCATION });
-    await ds.getRepository(ServiceEntity).delete({ tenantId: TENANT_WITH_LOCATION });
-    await ds.getRepository(ServiceEntity).delete({ tenantId: TENANT_CUSTOM_BUFFER });
-    await ds.getRepository(ResourceEntity).delete({ tenantId: TENANT_WITH_LOCATION });
-    await ds.getRepository(TenantEntity).delete({ id: TENANT_NO_LOCATION });
-    await ds.getRepository(TenantEntity).delete({ id: TENANT_WITH_LOCATION });
-    await ds.getRepository(TenantEntity).delete({ id: TENANT_CUSTOM_BUFFER });
-    await app.close();
+    try {
+      await cleanupFixtures();
+    } finally {
+      await app.close();
+    }
   });
 
   async function runUp(): Promise<void> {
