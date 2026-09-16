@@ -127,6 +127,7 @@ export class GetAvailabilityUseCase {
           [resourceId],
           input.date,
           input.date,
+          businessHours.timezone,
         ),
       ]);
     return this.availabilityService.calculate({
@@ -165,6 +166,7 @@ export class GetAvailabilityUseCase {
         [locationResource.id],
         input.date,
         input.date,
+        businessHours.timezone,
       ),
     ]);
 

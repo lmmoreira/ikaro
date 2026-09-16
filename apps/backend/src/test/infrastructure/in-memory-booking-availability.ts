@@ -14,6 +14,7 @@ export class InMemoryBookingAvailabilityPort implements IBookingAvailabilityPort
     resourceIds: string[],
     _from: string,
     _to: string,
+    _timezone: string,
   ): Promise<ResourceOccupiedSlot[]> {
     return this.slots.filter((s) => resourceIds.includes(s.resourceId));
   }

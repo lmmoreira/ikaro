@@ -98,8 +98,12 @@ describe('TypeOrmResourceOccupancyRepository', () => {
       ).rejects.toThrow('IResourceOccupancyRepository methods require an active transaction');
     });
 
-    it('inserts one booking_line_resource_assignments row and one resource_occupancy row per candidate', async () => {
-      const manager = { insert: jest.fn().mockResolvedValue({}) } as unknown as EntityManager;
+    it('upserts the booking_line_resource_assignments row and inserts one resource_occupancy row per candidate', async () => {
+      const assignmentId = '00000000-0000-7000-8000-000000000099';
+      const manager = {
+        query: jest.fn().mockResolvedValue([{ id: assignmentId }]),
+        insert: jest.fn().mockResolvedValue({}),
+      } as unknown as EntityManager;
       const holdExpiresAt = new Date('2026-06-01T10:30:00.000Z');
       const candidate = buildCandidate();
 
@@ -107,25 +111,18 @@ describe('TypeOrmResourceOccupancyRepository', () => {
         repo.assign(TENANT_ID, BOOKING_LINE_ID, [candidate], 'HOLD', holdExpiresAt),
       );
 
-      expect(manager.insert).toHaveBeenCalledTimes(2);
-      expect(manager.insert).toHaveBeenNthCalledWith(
-        1,
-        expect.anything(),
-        expect.objectContaining({
-          tenantId: TENANT_ID,
-          bookingLineId: BOOKING_LINE_ID,
-          resourceId: candidate.resourceId,
-          resourceType: candidate.resourceType,
-          resourceNameAtAssignment: candidate.resourceName,
-        }),
+      expect(manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO booking.booking_line_resource_assignments'),
+        expect.arrayContaining([TENANT_ID, BOOKING_LINE_ID, candidate.resourceId]),
       );
-      expect(manager.insert).toHaveBeenNthCalledWith(
-        2,
+      expect(manager.insert).toHaveBeenCalledTimes(1);
+      expect(manager.insert).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
           tenantId: TENANT_ID,
           resourceId: candidate.resourceId,
           sourceType: 'BOOKING_LINE',
+          bookingLineResourceAssignmentId: assignmentId,
           startsAt: candidate.startsAt,
           endsAt: candidate.endsAt,
           lockState: 'HOLD',
@@ -134,8 +131,28 @@ describe('TypeOrmResourceOccupancyRepository', () => {
       );
     });
 
+    it('reuses an already-existing assignment row for the same (line, resource, leg, quantity) tuple', async () => {
+      const existingAssignmentId = '00000000-0000-7000-8000-000000000098';
+      const manager = {
+        // ON CONFLICT DO NOTHING returns no row from the INSERT arm — the UNION ALL fallback
+        // yields the pre-existing row's id instead, exercised here via the mock's single result.
+        query: jest.fn().mockResolvedValue([{ id: existingAssignmentId }]),
+        insert: jest.fn().mockResolvedValue({}),
+      } as unknown as EntityManager;
+
+      await runWithEntityManager(manager, () =>
+        repo.assign(TENANT_ID, BOOKING_LINE_ID, [buildCandidate()], 'COMMITTED', null),
+      );
+
+      expect(manager.insert).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ bookingLineResourceAssignmentId: existingAssignmentId }),
+      );
+    });
+
     it('maps a GIST exclusion-constraint violation to BookingSlotUnavailableError', async () => {
       const manager = {
+        query: jest.fn().mockResolvedValue([{ id: '00000000-0000-7000-8000-000000000099' }]),
         insert: jest.fn().mockRejectedValue(
           new QueryFailedError(
             'INSERT INTO booking.resource_occupancy ...',
@@ -158,6 +175,7 @@ describe('TypeOrmResourceOccupancyRepository', () => {
     it('propagates an unrelated insert error unchanged', async () => {
       const unrelated = new Error('connection reset');
       const manager = {
+        query: jest.fn().mockResolvedValue([{ id: '00000000-0000-7000-8000-000000000099' }]),
         insert: jest.fn().mockRejectedValue(unrelated),
       } as unknown as EntityManager;
 
@@ -203,21 +221,19 @@ describe('TypeOrmResourceOccupancyRepository', () => {
       );
     });
 
-    it('deletes occupancy rows then assignment rows for the given lines', async () => {
+    it('deletes only resource_occupancy rows, never the immutable assignment record', async () => {
       const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
 
       await runWithEntityManager(manager, () => repo.release(TENANT_ID, [BOOKING_LINE_ID]));
 
-      expect(manager.query).toHaveBeenCalledTimes(2);
-      expect(manager.query).toHaveBeenNthCalledWith(
-        1,
+      expect(manager.query).toHaveBeenCalledTimes(1);
+      expect(manager.query).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM booking.resource_occupancy'),
         [TENANT_ID, [BOOKING_LINE_ID]],
       );
-      expect(manager.query).toHaveBeenNthCalledWith(
-        2,
+      expect(manager.query).not.toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM booking.booking_line_resource_assignments'),
-        [TENANT_ID, [BOOKING_LINE_ID]],
+        expect.anything(),
       );
     });
   });

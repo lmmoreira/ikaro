@@ -33,10 +33,14 @@ export interface IResourceOccupancyRepository {
     excludeBookingLineIds?: string[],
   ): Promise<string[]>;
 
-  // Inserts one booking_line_resource_assignments + resource_occupancy row per candidate, inside
-  // the caller's active transaction. The GIST exclusion constraint is the authoritative backstop
-  // (docs/ENGINEERING_RULES.md § Cross-row invariants) — a genuine race surfaces as a
-  // BookingSlotUnavailableError from this call, not a silent double-booking.
+  // Inserts one resource_occupancy row per candidate, inside the caller's active transaction —
+  // each row's booking_line_resource_assignments row is upserted (reused when the same
+  // (line, resource, leg, quantity) tuple already exists, e.g. a reschedule that re-resolves to
+  // the same resource), never inserted a second time, since that table is the immutable
+  // business/audit record (docs/13-DATABASE_SCHEMA.md) and is never deleted by release() below.
+  // The GIST exclusion constraint is the authoritative backstop (docs/ENGINEERING_RULES.md §
+  // Cross-row invariants) — a genuine race surfaces as a BookingSlotUnavailableError from this
+  // call, not a silent double-booking.
   assign(
     tenantId: string,
     bookingLineId: string,
@@ -48,7 +52,8 @@ export interface IResourceOccupancyRepository {
   // HOLD -> COMMITTED for every occupancy row belonging to the given booking lines (approval).
   commit(tenantId: string, bookingLineIds: string[]): Promise<void>;
 
-  // Deletes every occupancy + assignment row belonging to the given booking lines (reject/cancel
-  // release, or the "delete" half of a reschedule's move).
+  // Deletes every resource_occupancy row belonging to the given booking lines (reject/cancel
+  // release, or the "delete" half of a reschedule's move) — never touches
+  // booking_line_resource_assignments, the immutable audit record.
   release(tenantId: string, bookingLineIds: string[]): Promise<void>;
 }

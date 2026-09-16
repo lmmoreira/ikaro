@@ -219,7 +219,13 @@ async function computeEntryDaySlots(
       const resource = await findResource(deps.resourceRepo, tenantId, resourceId);
       const [scheduleRange, occupancy] = await Promise.all([
         loadScheduleRange(deps, tenantId, date, date, resourceId),
-        deps.bookingPort.findOccupancyByTenantAndResource(tenantId, [resourceId], date, date),
+        deps.bookingPort.findOccupancyByTenantAndResource(
+          tenantId,
+          [resourceId],
+          date,
+          date,
+          request.businessHours.timezone,
+        ),
       ]);
       return calculateSlotsForDate(deps.availabilityService, date, {
         services,

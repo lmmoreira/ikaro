@@ -245,8 +245,7 @@ async function lookupResource(
   // Enforced here (not just at the findByTenant(isActive: true) call site) because a fixed
   // resourcePoolIds requirement trusts its configured ids directly, bypassing that filter — a
   // resource deactivated after a service was configured must not still be assignable.
-  if (!found || !found.isActive)
-    throw new BookingServiceResourceTypeUnavailableError(requirement.type);
+  if (!found?.isActive) throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   ctx.resourceCache.set(id, found);
   return found;
 }

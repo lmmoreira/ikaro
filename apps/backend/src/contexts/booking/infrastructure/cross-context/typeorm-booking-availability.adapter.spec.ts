@@ -45,6 +45,7 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
         [],
         '2026-06-01',
         '2026-06-01',
+        'America/Sao_Paulo',
       );
 
       expect(result).toEqual([]);
@@ -59,9 +60,34 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
         ['resource-1'],
         '2026-06-01',
         '2026-06-01',
+        'America/Sao_Paulo',
       );
 
       expect(result).toEqual([]);
+    });
+
+    it('derives UTC instant boundaries from the tenant-local calendar day, not the bare UTC date string', async () => {
+      const qb = buildQueryBuilder([]);
+      ormRepo.createQueryBuilder.mockReturnValue(qb as never);
+
+      // America/Sao_Paulo is UTC-3 year-round (no DST since 2019) — local day 2026-06-01 starts
+      // at 2026-06-01T03:00:00.000Z and runs through 2026-06-02T02:59:59.999Z. A bare
+      // startOfDayUTC('2026-06-01')/endOfDayUTC('2026-06-01') would instead produce
+      // 2026-06-01T00:00:00.000Z .. T23:59:59.999Z — 3 hours off at both ends.
+      await adapter.findOccupancyByTenantAndResource(
+        'tenant-1',
+        ['resource-1'],
+        '2026-06-01',
+        '2026-06-01',
+        'America/Sao_Paulo',
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith('ro.startsAt < :isoEnd', {
+        isoEnd: new Date('2026-06-02T03:00:00.000Z'),
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('ro.endsAt > :isoStart', {
+        isoStart: new Date('2026-06-01T03:00:00.000Z'),
+      });
     });
 
     it('maps occupancy rows to ResourceOccupiedSlot', async () => {
@@ -79,6 +105,7 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
         ['resource-1'],
         '2026-06-01',
         '2026-06-01',
+        'America/Sao_Paulo',
       );
 
       expect(result).toEqual([
@@ -103,6 +130,7 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
           ['resource-1'],
           '2026-06-01',
           '2026-06-01',
+          'America/Sao_Paulo',
         ),
       );
 
@@ -131,6 +159,7 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
         ['resource-1', 'resource-2'],
         '2026-06-01',
         '2026-06-07',
+        'America/Sao_Paulo',
       );
 
       expect(result).toHaveLength(2);

@@ -7,7 +7,6 @@ import {
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
 } from '../../application/ports/resource-occupancy-repository.port';
-import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import {
   ResourceOccupancyEntity,
   ResourceOccupancyLockState,
@@ -16,6 +15,10 @@ import { rethrowOccupancyInsertError } from './typeorm-resource-occupancy.persis
 
 interface ConflictRow {
   resource_id: string;
+}
+
+interface AssignmentIdRow {
+  id: string;
 }
 
 @Injectable()
@@ -94,18 +97,13 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
     holdExpiresAt: Date | null,
   ): Promise<void> {
     const now = new Date();
-    const assignmentId = uuidv7();
-    await manager.insert(BookingLineResourceAssignmentEntity, {
-      id: assignmentId,
+    const assignmentId = await this.upsertAssignment(
+      manager,
       tenantId,
       bookingLineId,
-      resourceId: candidate.resourceId,
-      resourceType: candidate.resourceType,
-      legIndex: candidate.legIndex,
-      quantityPosition: candidate.quantityPosition,
-      resourceNameAtAssignment: candidate.resourceName,
-      assignedAt: now,
-    });
+      candidate,
+      now,
+    );
     await manager.insert(ResourceOccupancyEntity, {
       id: uuidv7(),
       tenantId,
@@ -122,6 +120,52 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
       holdExpiresAt,
       createdAt: now,
     });
+  }
+
+  // booking_line_resource_assignments is the immutable business/audit record
+  // (docs/13-DATABASE_SCHEMA.md) — release() never deletes it, so re-resolving the same
+  // (line, resource, leg, quantity) tuple on a reschedule/re-approval must reuse the existing row
+  // instead of violating its null-safe unique index. True ON CONFLICT DO NOTHING can't RETURNING
+  // the pre-existing row, so the insert attempt is unioned with a fallback lookup.
+  private async upsertAssignment(
+    manager: EntityManager,
+    tenantId: string,
+    bookingLineId: string,
+    candidate: ResourceOccupancyCandidate,
+    now: Date,
+  ): Promise<string> {
+    const rows: AssignmentIdRow[] = await manager.query(
+      `
+      WITH ins AS (
+        INSERT INTO booking.booking_line_resource_assignments
+          (id, tenant_id, booking_line_id, resource_id, resource_type, leg_index,
+           quantity_position, resource_name_at_assignment, assigned_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (tenant_id, booking_line_id, resource_id, COALESCE(leg_index, -1), COALESCE(quantity_position, -1))
+        DO NOTHING
+        RETURNING id
+      )
+      SELECT id FROM ins
+      UNION ALL
+      SELECT id FROM booking.booking_line_resource_assignments
+      WHERE tenant_id = $2 AND booking_line_id = $3 AND resource_id = $4
+        AND COALESCE(leg_index, -1) = COALESCE($6::int, -1)
+        AND COALESCE(quantity_position, -1) = COALESCE($7::int, -1)
+      LIMIT 1
+      `,
+      [
+        uuidv7(),
+        tenantId,
+        bookingLineId,
+        candidate.resourceId,
+        candidate.resourceType,
+        candidate.legIndex,
+        candidate.quantityPosition,
+        candidate.resourceName,
+        now,
+      ],
+    );
+    return rows[0].id;
   }
 
   async commit(tenantId: string, bookingLineIds: string[]): Promise<void> {
@@ -141,6 +185,10 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
     );
   }
 
+  // Deletes only the short-lived lock rows — booking_line_resource_assignments is the immutable
+  // business/audit record (docs/13-DATABASE_SCHEMA.md § booking.booking_line_resource_assignments,
+  // "Resource utilization / professional-history BI queries") and is never deleted here, including
+  // on reject/cancel: a cancelled booking's resolved-resource history stays queryable.
   async release(tenantId: string, bookingLineIds: string[]): Promise<void> {
     if (bookingLineIds.length === 0) return;
     const manager = this.requireActiveManager();
@@ -152,13 +200,6 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
           SELECT id FROM booking.booking_line_resource_assignments
           WHERE tenant_id = $1 AND booking_line_id = ANY($2::uuid[])
         )
-      `,
-      [tenantId, bookingLineIds],
-    );
-    await manager.query(
-      `
-      DELETE FROM booking.booking_line_resource_assignments
-      WHERE tenant_id = $1 AND booking_line_id = ANY($2::uuid[])
       `,
       [tenantId, bookingLineIds],
     );

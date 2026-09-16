@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
-import { endOfDayUTC, startOfDayUTC } from '../../../../shared/utils/calendar-date';
+import { localDateRangeBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { IBookingAvailabilityPort } from '../../application/ports/booking-availability.port';
 import { ResourceOccupiedSlot } from '../../domain/resource-occupied-slot';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
@@ -19,13 +19,13 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
     resourceIds: string[],
     from: string,
     to: string,
+    timezone: string,
   ): Promise<ResourceOccupiedSlot[]> {
     if (resourceIds.length === 0) return [];
     const manager = getActiveEntityManager();
     const repository = manager ? manager.getRepository(ResourceOccupancyEntity) : this.repo;
 
-    const isoStart = startOfDayUTC(from);
-    const isoEnd = endOfDayUTC(to);
+    const { start: isoStart, end: isoEnd } = localDateRangeBoundsUTC(from, to, timezone);
 
     const rows: { resourceId: string; startsAt: Date; endsAt: Date }[] = await repository
       .createQueryBuilder('ro')

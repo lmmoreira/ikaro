@@ -271,7 +271,7 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
     expect(row?.holdExpiresAt).toBeNull();
   });
 
-  it('release() deletes both the occupancy and assignment rows for the given booking lines', async () => {
+  it('release() deletes the occupancy row but preserves the immutable assignment record', async () => {
     const lineId = await seedBookingLine(TENANT_A);
     const start = new Date('2026-06-07T10:00:00.000Z');
     const end = new Date('2026-06-07T11:00:00.000Z');
@@ -288,6 +288,44 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
       .getRepository(BookingLineResourceAssignmentEntity)
       .find({ where: { tenantId: TENANT_A, bookingLineId: lineId } });
     expect(occupancyRows).toHaveLength(0);
-    expect(assignmentRows).toHaveLength(0);
+    expect(assignmentRows).toHaveLength(1);
+  });
+
+  it('a release() + assign() reschedule to the same resource reuses the existing assignment row (immutable, not duplicated)', async () => {
+    const lineId = await seedBookingLine(TENANT_A);
+    const oldStart = new Date('2026-06-08T10:00:00.000Z');
+    const oldEnd = new Date('2026-06-08T11:00:00.000Z');
+    await txManager.run(() =>
+      repo.assign(TENANT_A, lineId, [candidate(resourceA, oldStart, oldEnd)], 'COMMITTED', null),
+    );
+    const [originalAssignment] = await dataSource
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .find({ where: { tenantId: TENANT_A, bookingLineId: lineId } });
+
+    const newStart = new Date('2026-06-08T14:00:00.000Z');
+    const newEnd = new Date('2026-06-08T15:00:00.000Z');
+    await txManager.run(async () => {
+      await repo.release(TENANT_A, [lineId]);
+      await repo.assign(
+        TENANT_A,
+        lineId,
+        [candidate(resourceA, newStart, newEnd)],
+        'COMMITTED',
+        null,
+      );
+    });
+
+    const assignmentRows = await dataSource
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .find({ where: { tenantId: TENANT_A, bookingLineId: lineId } });
+    expect(assignmentRows).toHaveLength(1);
+    expect(assignmentRows[0].id).toBe(originalAssignment.id);
+    expect(assignmentRows[0].assignedAt).toEqual(originalAssignment.assignedAt);
+
+    const occupancyRows = await dataSource.getRepository(ResourceOccupancyEntity).find({
+      where: { tenantId: TENANT_A, bookingLineResourceAssignmentId: originalAssignment.id },
+    });
+    expect(occupancyRows).toHaveLength(1);
+    expect(occupancyRows[0].startsAt.toISOString()).toBe(newStart.toISOString());
   });
 });

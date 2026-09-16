@@ -117,6 +117,7 @@ export class GetAvailabilitySummaryUseCase {
         resourceIds,
         input.from,
         input.to,
+        input.businessHours.timezone,
       ),
     ]);
 
