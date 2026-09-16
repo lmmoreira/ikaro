@@ -8,4 +8,8 @@ export class InMemoryTenantLock implements ITenantLockPort {
   async lockTenantStaff(_tenantId: string, _staffId: string): Promise<void> {
     return undefined;
   }
+
+  async lockResources(_tenantId: string, _resourceIds: string[]): Promise<void> {
+    return undefined;
+  }
 }

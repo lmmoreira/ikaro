@@ -1,12 +1,12 @@
-import { BookedSlot } from '../../domain/booked-slot';
+import { ResourceOccupiedSlot } from '../../domain/resource-occupied-slot';
 
 export const BOOKING_AVAILABILITY_PORT = Symbol('IBookingAvailabilityPort');
 
 export interface IBookingAvailabilityPort {
-  findApprovedByTenantAndDate(tenantId: string, date: string): Promise<BookedSlot[]>;
-  findApprovedByTenantAndDateRange(
+  findOccupancyByTenantAndResource(
     tenantId: string,
+    resourceIds: string[],
     from: string,
     to: string,
-  ): Promise<BookedSlot[]>;
+  ): Promise<ResourceOccupiedSlot[]>;
 }

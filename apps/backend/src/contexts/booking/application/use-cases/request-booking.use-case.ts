@@ -9,12 +9,18 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { Booking } from '../../domain/booking.aggregate';
 import { Service } from '../../domain/service.aggregate';
+import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
   BookingServiceSessionNotBookableError,
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
+import {
+  IResourceOccupancyRepository,
+  RESOURCE_OCCUPANCY_REPOSITORY,
+} from '../ports/resource-occupancy-repository.port';
+import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import {
@@ -45,6 +51,10 @@ export class RequestBookingUseCase {
 
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
+    @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
+    private readonly occupancyRepo: IResourceOccupancyRepository,
+    private readonly availabilityService: AvailabilityService,
     private readonly slotConflictService: BookingSlotConflictService,
     private readonly photoExistenceService: PhotoExistenceService,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
@@ -52,12 +62,12 @@ export class RequestBookingUseCase {
   ) {}
 
   async execute(input: RequestBookingUseCaseInput): Promise<RequestBookingUseCaseResult> {
-    const { tenantId, timezone } = input;
+    const { tenantId } = input;
 
     const serviceMap = await this.resolveServices(input.serviceIds, tenantId);
     const { contactAddress, pickupAddress } = this.resolveAddresses(input);
 
-    const { booking, scheduledAt, totalDurationMins, operations } = await this.prepareBooking(
+    const { booking, scheduledAt, operations } = await this.prepareBooking(
       input,
       serviceMap,
       contactAddress,
@@ -70,7 +80,10 @@ export class RequestBookingUseCase {
       this.bookingRepo,
       this.photoExistenceService,
       this.serviceRepo,
-      { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations, serviceMap },
+      this.resourceRepo,
+      this.occupancyRepo,
+      this.availabilityService,
+      { booking, tenantId, scheduledAt, operations, serviceMap },
     );
 
     this.logger.log('Booking requested', {
@@ -129,14 +142,9 @@ export class RequestBookingUseCase {
   ): Promise<{
     booking: Booking;
     scheduledAt: Date;
-    totalDurationMins: number;
     operations: PhotoPromotionOperation[];
   }> {
     const scheduledAt = new Date(input.scheduledAt);
-    const totalDurationMins = input.serviceIds.reduce(
-      (sum, id) => sum + (serviceMap.get(id)?.durationMinutes ?? 0),
-      0,
-    );
 
     const bookingId = uuidv7();
     const { permanentPaths: beforeServicePhotoUrls, operations } =
@@ -157,7 +165,7 @@ export class RequestBookingUseCase {
       beforeServicePhotoUrls,
     );
 
-    return { booking, scheduledAt, totalDurationMins, operations };
+    return { booking, scheduledAt, operations };
   }
 
   private buildBooking(

@@ -1,13 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import {
-  Between,
-  EntityManager,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  QueryFailedError,
-  Repository,
-} from 'typeorm';
+import { Between, EntityManager, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   BookingEntityBuilder,
   BookingBuilder,
@@ -23,7 +16,6 @@ import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingConcurrentModificationError,
   BookingNotFoundError,
-  BookingSlotUnavailableError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
@@ -491,34 +483,6 @@ describe('TypeOrmBookingRepository', () => {
       expect(mockUpdateBuilder.set).toHaveBeenCalledWith(
         expect.objectContaining({ totalPriceAmount: '250.50' }),
       );
-    });
-
-    it('maps exclusion violations from QueryFailedError.driverError to BookingSlotUnavailableError', async () => {
-      const bookingEntity = new BookingEntityBuilder()
-        .withId('00000000-0000-7000-8000-000000000021')
-        .withTenantId('tenant-2')
-        .build();
-      const lineEntity = new BookingLineEntityBuilder()
-        .withBookingId('00000000-0000-7000-8000-000000000021')
-        .withTenantId('tenant-2')
-        .build();
-
-      ormRepo.findOne.mockResolvedValue(bookingEntity);
-      ormLineRepo.find.mockResolvedValue([lineEntity]);
-      mockUpdateBuilder.execute.mockRejectedValue(
-        new QueryFailedError(
-          'UPDATE booking.bookings ...',
-          [],
-          Object.assign(new Error(), {
-            code: '23P01',
-            constraint: 'EX_booking_bookings_approved_slot',
-          }),
-        ),
-      );
-
-      const aggregate = await repo.findById('00000000-0000-7000-8000-000000000021', 'tenant-2');
-
-      await expect(repo.save(aggregate!)).rejects.toBeInstanceOf(BookingSlotUnavailableError);
     });
 
     it('throws BookingNotFoundError when the guarded update row is gone', async () => {

@@ -537,9 +537,11 @@
         "ChatbotMessageEntity",
         "ChatbotProviderBalanceEntity",
         "LeadFormSubmissionEntity",
-        "LeadFormAnswerEntity"
+        "LeadFormAnswerEntity",
+        "BookingLineResourceAssignmentEntity",
+        "ResourceOccupancyEntity"
       ],
-      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables."
+      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so the resource-occupancy repository's own integration spec can round-trip the exclusivity-lock tables."
     },
     {
       "file": "apps/backend/src/test/utils/booking-integration-app.ts",
@@ -563,9 +565,11 @@
         "BookingLineEntity",
         "ResourceEntity",
         "StaffEntity",
-        "InboxRecordEntity"
+        "InboxRecordEntity",
+        "BookingLineResourceAssignmentEntity",
+        "ResourceOccupancyEntity"
       ],
-      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer/staff read dependencies it needs. StaffEntity was added in M21-S01 for the StaffDeactivatedHandler cross-context integration test (UC-048), which needs a real Staff row to deactivate via DeactivateStaffUseCase. The M22-S01 Service child-table entities (resource requirements, legs, class resource pool) were added so ServiceController's integration spec can exercise PATCH .../resource-requirements and PUT .../legs against real tables. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added so the same spec can exercise PATCH .../booking-policy and POST .../intake-schema against real tables."
+      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer/staff read dependencies it needs. StaffEntity was added in M21-S01 for the StaffDeactivatedHandler cross-context integration test (UC-048), which needs a real Staff row to deactivate via DeactivateStaffUseCase. The M22-S01 Service child-table entities (resource requirements, legs, class resource pool) were added so ServiceController's integration spec can exercise PATCH .../resource-requirements and PUT .../legs against real tables. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added so the same spec can exercise PATCH .../booking-policy and POST .../intake-schema against real tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so booking.controller.integration.spec.ts's request/approve/reschedule/reject/cancel flows exercise the real exclusivity-lock tables end-to-end."
     },
     {
       "file": "apps/backend/src/test/utils/customer-integration-app.ts",

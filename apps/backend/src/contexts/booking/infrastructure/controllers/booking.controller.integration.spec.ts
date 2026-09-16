@@ -621,7 +621,10 @@ describe('BookingController (integration)', () => {
     });
 
     it('serializes concurrent approvals for the same slot so exactly one succeeds', async () => {
-      const conflictScheduledAt = `${futureDate(11)}T11:00:00.000Z`;
+      // Own day (not futureDate(11)) — the prior test's 10:00 APPROVED booking occupies
+      // 10:00-11:30 (30min service + 60min default buffer), which would otherwise collide with
+      // an 11:00 slot on the same day.
+      const conflictScheduledAt = `${futureDate(31)}T11:00:00.000Z`;
 
       const { body: first } = await request(app.getHttpServer())
         .post('/bookings')

@@ -32,6 +32,8 @@ import {
 import { ServiceClassResourcePoolEntity } from '../../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
 import { ServiceBookingIntakeSchemaEntity } from '../../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
 import { BookingAttendeeEntity } from '../../contexts/booking/infrastructure/entities/booking-attendee.entity';
+import { BookingLineResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
@@ -88,6 +90,8 @@ export async function createBookingIntegrationApp(
           BookingEntity,
           BookingLineEntity,
           ResourceEntity,
+          BookingLineResourceAssignmentEntity,
+          ResourceOccupancyEntity,
           StaffEntity,
           InboxRecordEntity,
         ],

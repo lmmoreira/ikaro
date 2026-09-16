@@ -18,6 +18,8 @@ import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructu
 import { ServiceBookingIntakeSchemaEntity } from '../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
 import { BookingAttendeeEntity } from '../contexts/booking/infrastructure/entities/booking-attendee.entity';
 import { ResourceEntity } from '../contexts/booking/infrastructure/entities/resource.entity';
+import { BookingLineResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
@@ -66,6 +68,8 @@ export async function createTestDataSource(): Promise<DataSource> {
       ServiceBookingIntakeSchemaEntity,
       BookingAttendeeEntity,
       ResourceEntity,
+      BookingLineResourceAssignmentEntity,
+      ResourceOccupancyEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
       BookingEntity,

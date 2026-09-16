@@ -1,4 +1,5 @@
-import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -7,6 +8,8 @@ import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceType } from '../../domain/resource.types';
+import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   BookingNotFoundError,
   BookingSlotUnavailableError,
@@ -31,16 +34,22 @@ describe('ApproveBookingUseCase', () => {
   describe('approve()', () => {
     let bookingRepo: InMemoryBookingRepository;
     let eventBus: InMemoryEventBus;
-    let availabilityPort: InMemoryBookingAvailabilityPort;
+    let fixtures: ReturnType<typeof createAutoBookingResourceFixtures>;
+    let occupancyRepo: InMemoryResourceOccupancyRepository;
     let useCase: ApproveBookingUseCase;
 
     beforeEach(() => {
       eventBus = new InMemoryEventBus();
       bookingRepo = new InMemoryBookingRepository(eventBus);
-      availabilityPort = new InMemoryBookingAvailabilityPort();
+      fixtures = createAutoBookingResourceFixtures();
+      occupancyRepo = new InMemoryResourceOccupancyRepository();
       useCase = new ApproveBookingUseCase(
         bookingRepo,
-        new BookingSlotConflictService(availabilityPort, new InMemoryTenantLock()),
+        fixtures.serviceRepo,
+        fixtures.resourceRepo,
+        occupancyRepo,
+        new AvailabilityService(),
+        new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new InMemoryTransactionManager(),
       );
     });
@@ -85,6 +94,43 @@ describe('ApproveBookingUseCase', () => {
       expect(saved!.status).toBe(BookingStatus.APPROVED);
       expect(saved!.approvedBy).toBe(STAFF_ID);
       expect(saved!.approvedAt).not.toBeNull();
+    });
+
+    it('commits the HOLD occupancy row(s) to COMMITTED on approval', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      await occupancyRepo.assign(
+        TENANT_A,
+        booking.lines[0].lineId,
+        [
+          {
+            resourceId: resource.id,
+            resourceType: ResourceType.LOCATION,
+            resourceName: resource.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: scheduledAt,
+            endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const conflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        {
+          resourceId: resource.id,
+          startsAt: scheduledAt,
+          endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
+        },
+      ]);
+      expect(conflicting).toEqual([resource.id]); // still occupied (now COMMITTED), just not HOLD anymore
     });
 
     it('allows approving with an alternate scheduledAt after a slot conflict', async () => {
@@ -170,7 +216,16 @@ describe('ApproveBookingUseCase', () => {
     });
 
     it('throws BookingSlotUnavailableError when slot overlaps an approved booking', async () => {
-      availabilityPort.setSlots([{ id: 'slot-test-id', scheduledAt, totalDurationMins: 60 }]);
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      occupancyRepo.seed(TENANT_A, 'other-line-id', {
+        resourceId: resource.id,
+        resourceType: ResourceType.LOCATION,
+        resourceName: resource.name,
+        legIndex: null,
+        quantityPosition: null,
+        startsAt: scheduledAt,
+        endsAt: new Date(scheduledAt.getTime() + 60 * 60_000),
+      });
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withScheduledAt(scheduledAt)
@@ -183,10 +238,17 @@ describe('ApproveBookingUseCase', () => {
     });
 
     it('allows approval when existing slot is non-overlapping (adjacent)', async () => {
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
       const otherSlotAt = new Date(scheduledAt.getTime() + 30 * 60_000);
-      availabilityPort.setSlots([
-        { id: 'slot-test-id', scheduledAt: otherSlotAt, totalDurationMins: 30 },
-      ]);
+      occupancyRepo.seed(TENANT_A, 'other-line-id', {
+        resourceId: resource.id,
+        resourceType: ResourceType.LOCATION,
+        resourceName: resource.name,
+        legIndex: null,
+        quantityPosition: null,
+        startsAt: otherSlotAt,
+        endsAt: new Date(otherSlotAt.getTime() + 30 * 60_000),
+      });
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withScheduledAt(scheduledAt)

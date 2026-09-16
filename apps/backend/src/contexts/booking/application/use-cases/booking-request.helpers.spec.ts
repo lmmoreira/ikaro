@@ -1,14 +1,18 @@
 import { countrySpec } from '@ikaro/i18n';
-import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceType } from '../../domain/resource.types';
 import {
   BookingBuilder,
   BookingLineBuilder,
+  ResourceBuilder,
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
 import { testAddressProps } from '../../../../test/utils/address-helpers';
@@ -103,21 +107,28 @@ describe('toBookingResult', () => {
 
 describe('persistRequestedBooking', () => {
   let serviceRepo: InMemoryServiceRepository;
+  let resourceRepo: InMemoryResourceRepository;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let bookingRepo: InMemoryBookingRepository;
   let txManager: InMemoryTransactionManager;
   let slotConflictService: BookingSlotConflictService;
   let photoExistenceService: PhotoExistenceService;
   const scheduledAt = new Date(`${futureDate(1)}T10:00:00.000Z`);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
+    resourceRepo = new InMemoryResourceRepository();
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
     bookingRepo = new InMemoryBookingRepository(new InMemoryEventBus());
     txManager = new InMemoryTransactionManager();
-    slotConflictService = new BookingSlotConflictService(
-      new InMemoryBookingAvailabilityPort(),
-      new InMemoryTenantLock(),
-    );
+    slotConflictService = new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock());
     photoExistenceService = new PhotoExistenceService(new InMemoryStorageService());
+    // M22-S03: a service with zero resourceRequirements (every fixture here, and every real
+    // service until a manager explicitly configures it) falls back to the tenant's LOCATION
+    // resource during write-path resolution.
+    await resourceRepo.save(
+      new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.LOCATION).build(),
+    );
   });
 
   const run = async (
@@ -130,12 +141,13 @@ describe('persistRequestedBooking', () => {
       bookingRepo,
       photoExistenceService,
       serviceRepo,
+      resourceRepo,
+      occupancyRepo,
+      new AvailabilityService(),
       {
         booking,
         tenantId: TENANT_A,
         scheduledAt,
-        totalDurationMins: 30,
-        timezone: 'America/Sao_Paulo',
         operations: [],
         serviceMap,
       },

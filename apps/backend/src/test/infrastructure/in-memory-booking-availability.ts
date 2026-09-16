@@ -1,23 +1,20 @@
-import { BookedSlot } from '../../contexts/booking/domain/booked-slot';
+import { ResourceOccupiedSlot } from '../../contexts/booking/domain/resource-occupied-slot';
 import { IBookingAvailabilityPort } from '../../contexts/booking/application/ports/booking-availability.port';
 
 export class InMemoryBookingAvailabilityPort implements IBookingAvailabilityPort {
-  private readonly slots: BookedSlot[] = [];
+  private readonly slots: ResourceOccupiedSlot[] = [];
 
-  setSlots(slots: BookedSlot[]): void {
+  setSlots(slots: ResourceOccupiedSlot[]): void {
     this.slots.length = 0;
     this.slots.push(...slots);
   }
 
-  async findApprovedByTenantAndDate(_tenantId: string, _date: string): Promise<BookedSlot[]> {
-    return [...this.slots];
-  }
-
-  async findApprovedByTenantAndDateRange(
+  async findOccupancyByTenantAndResource(
     _tenantId: string,
+    resourceIds: string[],
     _from: string,
     _to: string,
-  ): Promise<BookedSlot[]> {
-    return [...this.slots];
+  ): Promise<ResourceOccupiedSlot[]> {
+    return this.slots.filter((s) => resourceIds.includes(s.resourceId));
   }
 }

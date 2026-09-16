@@ -1,51 +1,52 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { endOfDayUTC, startOfDayUTC } from '../../../../shared/utils/calendar-date';
 import { IBookingAvailabilityPort } from '../../application/ports/booking-availability.port';
-import { BookedSlot } from '../../domain/booked-slot';
-import { BookingStatus } from '../../domain/booking.aggregate';
-import { BookingEntity } from '../entities/booking.entity';
+import { ResourceOccupiedSlot } from '../../domain/resource-occupied-slot';
+import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 
 @Injectable()
 export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPort {
   constructor(
-    @InjectRepository(BookingEntity)
-    private readonly repo: Repository<BookingEntity>,
+    @InjectRepository(ResourceOccupancyEntity)
+    private readonly repo: Repository<ResourceOccupancyEntity>,
   ) {}
 
-  async findApprovedByTenantAndDate(tenantId: string, date: string): Promise<BookedSlot[]> {
-    return this.queryApproved(tenantId, startOfDayUTC(date), endOfDayUTC(date));
-  }
-
-  async findApprovedByTenantAndDateRange(
+  async findOccupancyByTenantAndResource(
     tenantId: string,
+    resourceIds: string[],
     from: string,
     to: string,
-  ): Promise<BookedSlot[]> {
-    return this.queryApproved(tenantId, startOfDayUTC(from), endOfDayUTC(to));
-  }
-
-  private async queryApproved(
-    tenantId: string,
-    isoStart: string,
-    isoEnd: string,
-  ): Promise<BookedSlot[]> {
+  ): Promise<ResourceOccupiedSlot[]> {
+    if (resourceIds.length === 0) return [];
     const manager = getActiveEntityManager();
-    const repository = manager ? manager.getRepository(BookingEntity) : this.repo;
-    const entities = await repository.find({
-      where: {
-        tenantId,
-        status: BookingStatus.APPROVED,
-        scheduledAt: Between(new Date(isoStart), new Date(isoEnd)),
-      },
-      select: { id: true, scheduledAt: true, totalDurationMins: true },
-    });
-    return entities.map((e) => ({
-      id: e.id,
-      scheduledAt: e.scheduledAt,
-      totalDurationMins: e.totalDurationMins,
+    const repository = manager ? manager.getRepository(ResourceOccupancyEntity) : this.repo;
+
+    const isoStart = startOfDayUTC(from);
+    const isoEnd = endOfDayUTC(to);
+
+    const rows: { resourceId: string; startsAt: Date; endsAt: Date }[] = await repository
+      .createQueryBuilder('ro')
+      .select([
+        'ro.resourceId AS "resourceId"',
+        'ro.startsAt AS "startsAt"',
+        'ro.endsAt AS "endsAt"',
+      ])
+      .where('ro.tenantId = :tenantId', { tenantId })
+      .andWhere('ro.resourceId IN (:...resourceIds)', { resourceIds })
+      .andWhere("ro.lockState IN ('HOLD', 'COMMITTED')")
+      // Half-open [starts_at, ends_at) overlap against the queried [isoStart, isoEnd) window —
+      // same overlap semantics as the GIST exclusion constraint itself.
+      .andWhere('ro.startsAt < :isoEnd', { isoEnd })
+      .andWhere('ro.endsAt > :isoStart', { isoStart })
+      .getRawMany();
+
+    return rows.map((row) => ({
+      resourceId: row.resourceId,
+      startsAt: new Date(row.startsAt),
+      endsAt: new Date(row.endsAt),
     }));
   }
 }

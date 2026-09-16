@@ -23,6 +23,8 @@ import {
 import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
 import { ServiceBookingIntakeSchemaEntity } from '../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
 import { BookingAttendeeEntity } from '../contexts/booking/infrastructure/entities/booking-attendee.entity';
+import { BookingLineResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { CreateBookingServices1748000000011 } from '../contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices';
 import { CreateBookingScheduleClosures1748000000012 } from '../contexts/booking/infrastructure/migrations/1748000000012-CreateBookingScheduleClosures';
 import { CreateBookingScheduleOpenings1748000000013 } from '../contexts/booking/infrastructure/migrations/1748000000013-CreateBookingScheduleOpenings';
@@ -32,6 +34,9 @@ import { BackfillLocationResources1748500000008 } from '../contexts/booking/infr
 import { AddResourceIdToScheduleClosuresAndOpenings1748500000009 } from '../contexts/booking/infrastructure/migrations/1748500000009-AddResourceIdToScheduleClosuresAndOpenings';
 import { AddServiceResourceRequirementsAndLegs1748500000010 } from '../contexts/booking/infrastructure/migrations/1748500000010-AddServiceResourceRequirementsAndLegs';
 import { AddServiceBookingPolicyAndIntakeSchema1748500000011 } from '../contexts/booking/infrastructure/migrations/1748500000011-AddServiceBookingPolicyAndIntakeSchema';
+import { CreateResourceOccupancy1748500000012 } from '../contexts/booking/infrastructure/migrations/1748500000012-CreateResourceOccupancy';
+import { BackfillResourceOccupancy1748500000013 } from '../contexts/booking/infrastructure/migrations/1748500000013-BackfillResourceOccupancy';
+import { DropTenantWideExclusion1748500000014 } from '../contexts/booking/infrastructure/migrations/1748500000014-DropTenantWideExclusion';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -139,6 +144,8 @@ export default async function globalSetup(): Promise<void> {
       ServiceClassResourcePoolEntity,
       ServiceBookingIntakeSchemaEntity,
       BookingAttendeeEntity,
+      BookingLineResourceAssignmentEntity,
+      ResourceOccupancyEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
@@ -183,6 +190,9 @@ export default async function globalSetup(): Promise<void> {
       AddResourceIdToScheduleClosuresAndOpenings1748500000009,
       AddServiceResourceRequirementsAndLegs1748500000010,
       AddServiceBookingPolicyAndIntakeSchema1748500000011,
+      CreateResourceOccupancy1748500000012,
+      BackfillResourceOccupancy1748500000013,
+      DropTenantWideExclusion1748500000014,
     ],
     synchronize: false,
     migrationsRun: false,

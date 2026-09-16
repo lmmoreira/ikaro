@@ -3,7 +3,7 @@ import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedu
 import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { nextWeekday } from '../../../../test/utils/date-helpers';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
-import { BookedSlot } from '../booked-slot';
+import { ResourceOccupiedSlot } from '../resource-occupied-slot';
 import { AvailabilityInput, AvailabilityService } from './availability.service';
 
 // America/Sao_Paulo is UTC-3 (no DST since 2019). Local HH:MM + 03:00 = UTC.
@@ -31,11 +31,12 @@ function utcIso(date: string, localHour: number, localMin = 0): string {
   return `${date}T${String(h).padStart(2, '0')}:${String(localMin).padStart(2, '0')}:00.000Z`;
 }
 
-function bookedSlot(date: string, localHour: number, durationMins: number): BookedSlot {
+function bookedSlot(date: string, localHour: number, durationMins: number): ResourceOccupiedSlot {
+  const startsAt = new Date(utcIso(date, localHour));
   return {
-    id: 'slot-test-id',
-    scheduledAt: new Date(utcIso(date, localHour)),
-    totalDurationMins: durationMins,
+    resourceId: 'resource-test-id',
+    startsAt,
+    endsAt: new Date(startsAt.getTime() + durationMins * 60_000),
   };
 }
 
@@ -54,7 +55,7 @@ describe('AvailabilityService', () => {
     serviceBufferMinutes: 60, // totalMins = 120
     closures: [],
     opening: null,
-    existingBookings: [],
+    existingOccupancy: [],
   };
 
   beforeEach(() => {
@@ -263,7 +264,7 @@ describe('AvailabilityService', () => {
     // Booking at 10:00 local for 60 min → [10:00, 11:00) local
     const slot = bookedSlot(monday, 10, 60);
 
-    const result = svc.calculate({ ...base, date: monday, existingBookings: [slot] });
+    const result = svc.calculate({ ...base, date: monday, existingOccupancy: [slot] });
 
     const starts = result.map((s) => s.startsAt);
     // [09:00,11:00) overlaps [10:00,11:00) → blocked
@@ -281,7 +282,7 @@ describe('AvailabilityService', () => {
     // Booking occupies 09:00–18:00 local (540 min)
     const slot = bookedSlot(monday, 9, 540);
 
-    const result = svc.calculate({ ...base, date: monday, existingBookings: [slot] });
+    const result = svc.calculate({ ...base, date: monday, existingOccupancy: [slot] });
 
     expect(result).toHaveLength(0);
   });
@@ -290,7 +291,7 @@ describe('AvailabilityService', () => {
     const slot1 = bookedSlot(monday, 9, 60); // 09:00–10:00
     const slot2 = bookedSlot(monday, 14, 60); // 14:00–15:00
 
-    const result = svc.calculate({ ...base, date: monday, existingBookings: [slot1, slot2] });
+    const result = svc.calculate({ ...base, date: monday, existingOccupancy: [slot1, slot2] });
 
     const starts = result.map((s) => s.startsAt);
     // Slots near 09:00 blocked by slot1
@@ -316,7 +317,7 @@ describe('AvailabilityService', () => {
       ...base,
       date: monday,
       closures: [closure],
-      existingBookings: [slot],
+      existingOccupancy: [slot],
     });
 
     const starts = result.map((s) => s.startsAt);
@@ -386,7 +387,7 @@ describe('AvailabilityService', () => {
       ...base,
       date: monday,
       closures: [],
-      existingBookings: [],
+      existingOccupancy: [],
     });
     const withoutExtra = svc.calculate({ ...base, date: monday });
 
@@ -593,6 +594,109 @@ describe('AvailabilityService', () => {
 
       // Clipped to the tenant's 09:00 open — a slot starting at 07:00 or 08:00 must not appear.
       expect(result.every((slot) => slot.startsAt >= utcIso(monday, 9))).toBe(true);
+    });
+  });
+
+  // ── M22-S03: UC-058 intersect/union, UC-059 buffer/turnover ────────────────────
+
+  describe('intersect', () => {
+    it('a 2-resource bundle is available only where every resource is free', () => {
+      const a = [
+        { startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' },
+        { startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' },
+      ];
+      const b = [{ startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' }];
+
+      const result = svc.intersect([a, b]);
+
+      expect(result).toEqual([
+        { startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' },
+      ]);
+    });
+
+    it('returns [] when one resource has no free slots at all', () => {
+      const a = [{ startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' }];
+      const b: typeof a = [];
+
+      expect(svc.intersect([a, b])).toEqual([]);
+    });
+  });
+
+  describe('union', () => {
+    it('a fungible pool is available whenever any pool member is free', () => {
+      const a = [{ startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' }];
+      const b = [{ startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' }];
+
+      const result = svc.union([a, b]);
+
+      expect(result).toEqual([
+        { startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' },
+        { startsAt: '2026-01-01T13:00:00.000Z', endsAt: '2026-01-01T14:00:00.000Z' },
+      ]);
+    });
+
+    it('dedupes identical slots shared by multiple pool members', () => {
+      const a = [{ startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' }];
+      const b = [{ startsAt: '2026-01-01T12:00:00.000Z', endsAt: '2026-01-01T13:00:00.000Z' }];
+
+      expect(svc.union([a, b])).toHaveLength(1);
+    });
+  });
+
+  describe('effectiveFlatGapMinutes (UC-059 A1)', () => {
+    it('takes the larger of the service buffer and the resource turnover', () => {
+      expect(svc.effectiveFlatGapMinutes(10, 20)).toBe(20);
+      expect(svc.effectiveFlatGapMinutes(30, 5)).toBe(30);
+    });
+
+    it("collapses to 0 when both are 0 (today's single-number buffer model)", () => {
+      expect(svc.effectiveFlatGapMinutes(0, 0)).toBe(0);
+    });
+  });
+
+  describe('computeLegSpans (UC-059)', () => {
+    it('applies per-leg resource turnover and transitionGapAfterMinutes between legs', () => {
+      const start = new Date('2026-01-01T12:00:00.000Z');
+      const legs = [
+        { legIndex: 0, durationMinutes: 30, transitionGapAfterMinutes: 10 },
+        { legIndex: 1, durationMinutes: 20, transitionGapAfterMinutes: 0 },
+      ];
+      const turnoverByLegIndex = new Map([
+        [0, 5],
+        [1, 15],
+      ]);
+
+      const spans = svc.computeLegSpans(start, legs, turnoverByLegIndex);
+
+      // Leg 0: [12:00, 12:30) + 5 min turnover -> ends 12:35
+      expect(spans[0].startsAt).toEqual(new Date('2026-01-01T12:00:00.000Z'));
+      expect(spans[0].endsAtWithTurnover).toEqual(new Date('2026-01-01T12:35:00.000Z'));
+      // Leg 1 starts at leg 0's raw end (12:30) + transitionGapAfterMinutes (10) = 12:40,
+      // independent of leg 0's own turnover.
+      expect(spans[1].startsAt).toEqual(new Date('2026-01-01T12:40:00.000Z'));
+      // Leg 1: [12:40, 13:00) + 15 min turnover -> ends 13:15
+      expect(spans[1].endsAtWithTurnover).toEqual(new Date('2026-01-01T13:15:00.000Z'));
+    });
+
+    it('sorts legs by legIndex regardless of input order', () => {
+      const start = new Date('2026-01-01T12:00:00.000Z');
+      const legs = [
+        { legIndex: 1, durationMinutes: 20, transitionGapAfterMinutes: 0 },
+        { legIndex: 0, durationMinutes: 30, transitionGapAfterMinutes: 10 },
+      ];
+
+      const spans = svc.computeLegSpans(start, legs, new Map());
+
+      expect(spans.map((s) => s.legIndex)).toEqual([0, 1]);
+    });
+
+    it('defaults turnover to 0 for a leg with no entry in the map', () => {
+      const start = new Date('2026-01-01T12:00:00.000Z');
+      const legs = [{ legIndex: 0, durationMinutes: 30, transitionGapAfterMinutes: 0 }];
+
+      const spans = svc.computeLegSpans(start, legs, new Map());
+
+      expect(spans[0].endsAtWithTurnover).toEqual(new Date('2026-01-01T12:30:00.000Z'));
     });
   });
 });

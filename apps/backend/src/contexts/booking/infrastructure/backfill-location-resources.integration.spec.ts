@@ -8,6 +8,8 @@ import { TenantSettings } from '../../platform/domain/value-objects/tenant-setti
 import { ResourceEntity } from './entities/resource.entity';
 import { ResourceType } from '../domain/resource.types';
 import { BackfillLocationResources1748500000008 } from './migrations/1748500000008-BackfillLocationResources';
+import { BookingLineResourceAssignmentEntity } from './entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from './entities/resource-occupancy.entity';
 
 // M21-S02 — direct invocation of the migration's up(queryRunner), not dataSource.runMigrations():
 // integration-global-setup.ts already runs every migration (including this one) once, up front,
@@ -187,6 +189,18 @@ describe('BackfillLocationResources1748500000008 (integration)', () => {
 
   it('down() removes every LOCATION resource', async () => {
     await runUp();
+
+    // Other integration specs sharing this container's tenants create real bookings whose
+    // degenerate-fallback resolution (M22-S03) assigns the tenant's own LOCATION resource,
+    // leaving cross-tenant booking_line_resource_assignments/resource_occupancy rows behind (they
+    // aren't scoped to this test's own 5 seed tenants). Clear those first so the migration's own
+    // down() — a blanket DELETE FROM resources WHERE type = 'LOCATION' — doesn't hit
+    // FK_booking_bkg_line_res_assign_resource for a tenant this test never seeded.
+    await ds.getRepository(ResourceOccupancyEntity).delete({ resourceType: ResourceType.LOCATION });
+    await ds
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .delete({ resourceType: ResourceType.LOCATION });
+
     await runDown();
 
     const rows = await ds

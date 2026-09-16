@@ -5,7 +5,7 @@ import {
   utcDateToLocalHHMM,
 } from '../../../../shared/utils/calendar-date';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
-import { BookedSlot } from '../booked-slot';
+import { ResourceOccupiedSlot } from '../resource-occupied-slot';
 import { Resource } from '../resource.aggregate';
 import { ScheduleClosure } from '../schedule-closure.aggregate';
 import { ScheduleOpening } from '../schedule-opening.aggregate';
@@ -31,12 +31,30 @@ export interface AvailabilityInput {
   opening: ScheduleOpening | null;
   // The resource-scoped opening for `date`, if any. Optional/undefined = none (tenant-wide call).
   resourceOpening?: ScheduleOpening | null;
-  existingBookings: BookedSlot[];
+  // Occupancy for the ONE resource this call is scoped to (docs/13-DATABASE_SCHEMA.md §
+  // booking.resource_occupancy) — a bundle/pool service calls this once per candidate resource
+  // and combines the results via intersect()/union() below; a flat degenerate service calls it
+  // once for the tenant's LOCATION resource.
+  existingOccupancy: ResourceOccupiedSlot[];
 }
 
 export interface AvailableSlot {
   startsAt: string; // ISO-8601 UTC
   endsAt: string; // ISO-8601 UTC
+}
+
+export interface LegSpanInput {
+  legIndex: number;
+  durationMinutes: number;
+  transitionGapAfterMinutes: number;
+}
+
+export interface LegSpan {
+  legIndex: number;
+  startsAt: Date;
+  // Includes this leg's own resource turnover (UC-059) — the actual window that leg's resource
+  // is occupied for, distinct from when the customer physically leaves (startsAt + durationMinutes).
+  endsAtWithTurnover: Date;
 }
 
 export class AvailabilityService {
@@ -51,7 +69,7 @@ export class AvailabilityService {
       closures,
       opening,
       resourceOpening,
-      existingBookings,
+      existingOccupancy,
     } = input;
 
     const effectiveHours = this.resolveEffectiveHours(
@@ -68,7 +86,7 @@ export class AvailabilityService {
     const timezone = businessHours.timezone;
     const totalMins =
       services.reduce((sum, s) => sum + s.durationMinutes, 0) + serviceBufferMinutes;
-    const bookedRanges = this.buildBookedRanges(existingBookings, timezone);
+    const bookedRanges = this.buildBookedRanges(existingOccupancy, timezone);
 
     return this.generateSlots({
       date,
@@ -83,16 +101,15 @@ export class AvailabilityService {
   }
 
   private buildBookedRanges(
-    existingBookings: BookedSlot[],
+    existingOccupancy: ResourceOccupiedSlot[],
     timezone: string,
   ): { start: string; end: string }[] {
-    return existingBookings.map((b) => {
-      const startHHMM = utcDateToLocalHHMM(b.scheduledAt, timezone);
-      return {
-        start: startHHMM,
-        end: TimeOfDay.create(startHHMM).addMinutes(b.totalDurationMins).value,
-      };
-    });
+    // endsAt already includes the effective buffer/turnover (UC-059) — no extra arithmetic here,
+    // unlike the old BookedSlot shape which derived an end from scheduledAt + totalDurationMins.
+    return existingOccupancy.map((o) => ({
+      start: utcDateToLocalHHMM(o.startsAt, timezone),
+      end: utcDateToLocalHHMM(o.endsAt, timezone),
+    }));
   }
 
   private generateSlots(ctx: {
@@ -220,5 +237,64 @@ export class AvailabilityService {
   /** Two HH:MM half-open intervals [aStart, aEnd) and [bStart, bEnd) overlap when aStart < bEnd && bStart < aEnd. */
   private overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
     return aStart < bEnd && bStart < aEnd;
+  }
+
+  // UC-058 step 2 — a bundle (>1 resourceRequirement, or >1 leg-resource simultaneously) is
+  // available only when EVERY required resource is simultaneously free. Each element of
+  // `perResourceSlots` is one candidate resource's own calculate() result; a slot survives only
+  // if it appears (by identical startsAt/endsAt) in every one of them.
+  intersect(perResourceSlots: AvailableSlot[][]): AvailableSlot[] {
+    if (perResourceSlots.length === 0) return [];
+    const [first, ...rest] = perResourceSlots;
+    return first.filter((slot) =>
+      rest.every((slots) =>
+        slots.some((s) => s.startsAt === slot.startsAt && s.endsAt === slot.endsAt),
+      ),
+    );
+  }
+
+  // UC-058 step 3 — an AUTO_FUNGIBLE_POOL requirement is available whenever ANY pool member is
+  // free. Dedupes by startsAt/endsAt across every candidate's own calculate() result.
+  union(perResourceSlots: AvailableSlot[][]): AvailableSlot[] {
+    const seen = new Map<string, AvailableSlot>();
+    for (const slots of perResourceSlots) {
+      for (const slot of slots) {
+        seen.set(`${slot.startsAt}|${slot.endsAt}`, slot);
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  }
+
+  // UC-059 step 1 — the effective gap before the next booking on a resource, for a flat
+  // (non-legged) service, is whichever is larger: the service's own cleanup buffer, or the
+  // resource's own turnover. A1: both 0 collapses to today's exact single-number buffer model.
+  effectiveFlatGapMinutes(bufferAfterMinutes: number, turnoverMinutes: number): number {
+    return Math.max(bufferAfterMinutes, turnoverMinutes);
+  }
+
+  // UC-059 step 2 — for a legged service, each leg's own resource turnover applies at that leg's
+  // own resource; transitionGapAfterMinutes is independent and additive to the appointment's
+  // total span (it determines when the NEXT leg starts, regardless of this leg's own turnover).
+  // Legs are sorted by legIndex defensively — same discipline as computeLegsTotalSpanMinutes()
+  // (service-leg-span.ts), since setLegs() only rejects duplicate indexes, not out-of-order ones.
+  computeLegSpans(
+    candidateStart: Date,
+    legs: LegSpanInput[],
+    turnoverMinutesByLegIndex: ReadonlyMap<number, number>,
+  ): LegSpan[] {
+    const ordered = [...legs].sort((a, b) => a.legIndex - b.legIndex);
+    const spans: LegSpan[] = [];
+    let cursor = candidateStart;
+    for (const leg of ordered) {
+      const legEnd = new Date(cursor.getTime() + leg.durationMinutes * 60_000);
+      const turnover = turnoverMinutesByLegIndex.get(leg.legIndex) ?? 0;
+      spans.push({
+        legIndex: leg.legIndex,
+        startsAt: cursor,
+        endsAtWithTurnover: new Date(legEnd.getTime() + turnover * 60_000),
+      });
+      cursor = new Date(legEnd.getTime() + leg.transitionGapAfterMinutes * 60_000);
+    }
+    return spans;
   }
 }

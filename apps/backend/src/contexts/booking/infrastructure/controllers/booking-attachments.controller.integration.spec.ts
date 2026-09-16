@@ -14,6 +14,8 @@ import { CustomerEntity } from '../../../customer/infrastructure/entities/custom
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
+import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 
 const TEST_KEY = 'attach-integ-test-key-booking-xxxx'; // 36 chars
 const STAFF_ID = '20000000-0000-4000-8000-000000000501';
@@ -92,6 +94,8 @@ describe('BookingAttachmentsController (integration)', () => {
   });
 
   afterAll(async () => {
+    await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+    await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(BookingLineEntity).delete({ tenantId });
     await ds.getRepository(BookingEntity).delete({ tenantId });
     await ds.getRepository(ServiceEntity).delete({ tenantId });

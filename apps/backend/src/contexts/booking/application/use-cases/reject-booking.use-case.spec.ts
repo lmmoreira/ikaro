@@ -1,9 +1,11 @@
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceType } from '../../domain/resource.types';
 import {
   BookingNotFoundError,
   BookingRejectionReasonTooShortError,
@@ -21,13 +23,53 @@ const scheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
 
 describe('RejectBookingUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
   let useCase: RejectBookingUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
     bookingRepo = new InMemoryBookingRepository(eventBus);
-    useCase = new RejectBookingUseCase(bookingRepo, new InMemoryTransactionManager());
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
+    useCase = new RejectBookingUseCase(
+      bookingRepo,
+      occupancyRepo,
+      new InMemoryTransactionManager(),
+    );
+  });
+
+  it('releases the booking line(s) occupancy row(s) on rejection (M22-S03)', async () => {
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withScheduledAt(scheduledAt)
+      .build();
+    await bookingRepo.save(booking);
+    occupancyRepo.seed(TENANT_A, booking.lines[0].lineId, {
+      resourceId: 'resource-1',
+      resourceType: ResourceType.LOCATION,
+      resourceName: 'Localização Principal',
+      legIndex: null,
+      quantityPosition: null,
+      startsAt: scheduledAt,
+      endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
+    });
+
+    await useCase.execute({
+      bookingId: booking.id,
+      reason: VALID_REASON,
+      tenantId: TENANT_A,
+      staffId: STAFF_ID,
+      correlationId: CORRELATION_ID,
+    });
+
+    const conflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+      {
+        resourceId: 'resource-1',
+        startsAt: scheduledAt,
+        endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
+      },
+    ]);
+    expect(conflicting).toEqual([]);
   });
 
   it('transitions PENDING → REJECTED and returns result with rejectedAt', async () => {

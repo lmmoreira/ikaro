@@ -11,6 +11,7 @@ import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceType } from '../../domain/resource.types';
 import { GetAvailabilitySummaryUseCase } from './get-availability-summary.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -27,7 +28,7 @@ describe('GetAvailabilitySummaryUseCase', () => {
   let useCase: GetAvailabilitySummaryUseCase;
   let settings: TenantSettings;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
     closureRepo = new InMemoryScheduleClosureRepository();
     openingRepo = new InMemoryScheduleOpeningRepository();
@@ -40,6 +41,12 @@ describe('GetAvailabilitySummaryUseCase', () => {
       resourceRepo,
       new InMemoryBookingAvailabilityPort(),
       new AvailabilityService(),
+    );
+    // M22-S03: the degenerate (tenant-wide) path now resolves the tenant's LOCATION resource
+    // (M21-S02's real backfill guarantees one always exists in production) — every test in this
+    // file implicitly relies on it existing unless it explicitly seeds its own resource(s).
+    await resourceRepo.save(
+      new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.LOCATION).build(),
     );
   });
 

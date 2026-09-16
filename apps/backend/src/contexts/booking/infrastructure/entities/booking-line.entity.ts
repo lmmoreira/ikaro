@@ -1,9 +1,13 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 
 @Entity('booking_lines', { schema: 'booking' })
 @Index(['tenantId'])
 @Index(['tenantId', 'bookingId'])
 @Index(['tenantId', 'serviceId'])
+// M22-S03: lets booking_line_resource_assignments/resource_occupancy express a composite FK to
+// this table (tenant-first, per CLAUDE.md §2.4) — added via migration 1748500000012, not TypeORM
+// synchronize.
+@Unique('UQ_booking_booking_lines_tenant_line', ['tenantId', 'lineId'])
 export class BookingLineEntity {
   @PrimaryColumn({ name: 'line_id', type: 'uuid' })
   lineId!: string;

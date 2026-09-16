@@ -17,6 +17,16 @@ export class TypeOrmTenantLockAdapter implements ITenantLockPort {
     await this.acquire(`tenantstaff:${tenantId}:${staffId}`);
   }
 
+  // Brand-new key, free to namespace (no prior deployed version to desynchronize a rolling
+  // deploy against) — sorted ascending before acquiring so two concurrent callers referencing
+  // overlapping resource sets in different array orders can't deadlock against each other.
+  async lockResources(tenantId: string, resourceIds: string[]): Promise<void> {
+    const ordered = [...new Set(resourceIds)].sort();
+    for (const resourceId of ordered) {
+      await this.acquire(`resource:${tenantId}:${resourceId}`);
+    }
+  }
+
   private async acquire(key: string): Promise<void> {
     const manager = getActiveEntityManager();
     if (!manager) {

@@ -14,6 +14,7 @@ import { BOOKING_CUSTOMER_PORT } from './application/ports/booking-customer.port
 import { BOOKING_PLATFORM_PORT } from './application/ports/booking-platform.port';
 import { BOOKING_STAFF_PORT } from './application/ports/booking-staff.port';
 import { RESOURCE_REPOSITORY } from './application/ports/resource-repository.port';
+import { RESOURCE_OCCUPANCY_REPOSITORY } from './application/ports/resource-occupancy-repository.port';
 import { SCHEDULE_CLOSURE_REPOSITORY } from './application/ports/schedule-closure-repository.port';
 import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-opening-repository.port';
 import { SERVICE_REPOSITORY } from './application/ports/service-repository.port';
@@ -86,6 +87,8 @@ import { ServiceClassResourcePoolEntity } from './infrastructure/entities/servic
 import { ServiceBookingIntakeSchemaEntity } from './infrastructure/entities/service-booking-intake-schema.entity';
 import { BookingAttendeeEntity } from './infrastructure/entities/booking-attendee.entity';
 import { ResourceEntity } from './infrastructure/entities/resource.entity';
+import { BookingLineResourceAssignmentEntity } from './infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from './infrastructure/entities/resource-occupancy.entity';
 import { BookingCustomerAdapter } from './infrastructure/cross-context/booking-customer.adapter';
 import { BookingStaffAdapter } from './infrastructure/cross-context/booking-staff.adapter';
 import { BookingController } from './infrastructure/controllers/booking.controller';
@@ -105,6 +108,7 @@ import { TypeOrmScheduleClosureRepository } from './infrastructure/repositories/
 import { TypeOrmScheduleOpeningRepository } from './infrastructure/repositories/typeorm-schedule-opening.repository';
 import { TypeOrmTenantLockAdapter } from './infrastructure/repositories/typeorm-tenant-lock.adapter';
 import { TypeOrmResourceRepository } from './infrastructure/repositories/typeorm-resource.repository';
+import { TypeOrmResourceOccupancyRepository } from './infrastructure/repositories/typeorm-resource-occupancy.repository';
 import { CachingServiceRepository } from './infrastructure/repositories/caching-service.repository';
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
 import { TypeOrmServiceIntakeSchemaRepository } from './infrastructure/repositories/typeorm-service-intake-schema.repository';
@@ -128,6 +132,8 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
       BookingEntity,
       BookingLineEntity,
       ResourceEntity,
+      BookingLineResourceAssignmentEntity,
+      ResourceOccupancyEntity,
     ]),
     EventBusModule,
     RequestModule,
@@ -158,6 +164,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     { provide: SCHEDULE_CLOSURE_REPOSITORY, useClass: TypeOrmScheduleClosureRepository },
     { provide: SCHEDULE_OPENING_REPOSITORY, useClass: TypeOrmScheduleOpeningRepository },
     { provide: RESOURCE_REPOSITORY, useClass: TypeOrmResourceRepository },
+    { provide: RESOURCE_OCCUPANCY_REPOSITORY, useClass: TypeOrmResourceOccupancyRepository },
     { provide: BOOKING_PLATFORM_PORT, useClass: BookingPlatformAdapter },
     { provide: BOOKING_AVAILABILITY_PORT, useClass: TypeOrmBookingAvailabilityAdapter },
     { provide: TENANT_LOCK_PORT, useClass: TypeOrmTenantLockAdapter },
