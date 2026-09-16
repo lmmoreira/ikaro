@@ -1,4 +1,4 @@
-import { todayUTC } from '../../../../shared/utils/calendar-date';
+import { localDateRangeBoundsUTC, todayUTC } from '../../../../shared/utils/calendar-date';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { AvailabilityService, AvailableSlot } from '../../domain/services/availability.service';
 import { Resource } from '../../domain/resource.aggregate';
@@ -98,10 +98,9 @@ export function calculateSlotsForDate(
   const dayClosures = ctx.closures.filter((c) => c.date === date);
   const dayTenantOpening = ctx.tenantOpenings.find((o) => o.date === date) ?? null;
   const dayResourceOpening = ctx.resourceOpenings.find((o) => o.date === date) ?? null;
+  const dayBoundsUTC = localDateRangeBoundsUTC(date, date, ctx.businessHours.timezone);
   const dayOccupancy = ctx.occupancy.filter(
-    (o) =>
-      o.startsAt < new Date(`${date}T23:59:59.999Z`) &&
-      o.endsAt > new Date(`${date}T00:00:00.000Z`),
+    (o) => o.startsAt < dayBoundsUTC.end && o.endsAt > dayBoundsUTC.start,
   );
 
   return availabilityService.calculate({

@@ -476,4 +476,34 @@ describe('resolveBookingLinesResourceCandidates', () => {
       ),
     ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
   });
+
+  it('throws BookingServiceResourceTypeUnavailableError when a resourcePoolIds member has since had its type changed away from the requirement', async () => {
+    const retyped = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.EQUIPMENT)
+      .build();
+    await resourceRepo.save(retyped);
+    const service = new ServiceBuilder()
+      .withId('service-1')
+      .withDurationMinutes(30)
+      .withResourceRequirements([
+        ResourceRequirement.create({
+          type: ResourceType.ROOM,
+          selectionMode: 'CUSTOMER_CHOICE',
+          resourcePoolIds: [retyped.id],
+        }),
+      ])
+      .build();
+
+    await expect(
+      resolveBookingLinesResourceCandidates(
+        resourceRepo,
+        availabilityService,
+        TENANT_ID,
+        SCHEDULED_AT,
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+      ),
+    ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
+  });
 });

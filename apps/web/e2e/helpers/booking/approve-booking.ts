@@ -35,18 +35,21 @@ export async function createFreshApprovedBooking(
   let lastError: string | null = null;
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
-    const setup = await createAuthenticatedBooking(page, {
-      tenantSlug: STAFF_TENANT_SLUG,
-      emailPrefix: `lifecycle-${daysAhead}`,
-      daysAhead: daysAhead + attempt,
-      ...(options.contactEmail ? { contactEmail: options.contactEmail } : {}),
-      ...(options.serviceIds ? { serviceIds: options.serviceIds } : {}),
-    });
-
     try {
+      const setup = await createAuthenticatedBooking(page, {
+        tenantSlug: STAFF_TENANT_SLUG,
+        emailPrefix: `lifecycle-${daysAhead}`,
+        daysAhead: daysAhead + attempt,
+        ...(options.contactEmail ? { contactEmail: options.contactEmail } : {}),
+        ...(options.serviceIds ? { serviceIds: options.serviceIds } : {}),
+      });
       await approveBookingAsStaff(page, setup.bookingId, staffEmail);
       return setup;
     } catch (error) {
+      // A day whose every candidate slot is already occupied (this tenant's single degenerate
+      // LOCATION resource has no per-time-of-day capacity, so a handful of prior approved
+      // bookings on the same day can exhaust createAuthenticatedBooking's own 12 hour-slot
+      // candidates) must not abort the whole setup — move on to the next day instead.
       lastError = error instanceof Error ? error.message : String(error);
       if (!lastError.includes('409')) {
         throw error;

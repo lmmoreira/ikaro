@@ -244,8 +244,14 @@ async function lookupResource(
   const found = await ctx.resourceRepo.findById(id, ctx.tenantId);
   // Enforced here (not just at the findByTenant(isActive: true) call site) because a fixed
   // resourcePoolIds requirement trusts its configured ids directly, bypassing that filter — a
-  // resource deactivated after a service was configured must not still be assignable.
-  if (!found?.isActive) throw new BookingServiceResourceTypeUnavailableError(requirement.type);
+  // resource deactivated after a service was configured must not still be assignable. The type
+  // check guards the same trust: UpdateResourceUseCase permits changing a non-LOCATION resource's
+  // type after it was pinned into a requirement's resourcePoolIds (plan/M21-MULTIVERTICAL-
+  // FOUNDATION.md's UpdateResourceUseCase spec only rejects a type change to/from LOCATION), so a
+  // stale pool id could otherwise resolve to a resource of the wrong type.
+  if (!found?.isActive || found.type !== requirement.type) {
+    throw new BookingServiceResourceTypeUnavailableError(requirement.type);
+  }
   ctx.resourceCache.set(id, found);
   return found;
 }

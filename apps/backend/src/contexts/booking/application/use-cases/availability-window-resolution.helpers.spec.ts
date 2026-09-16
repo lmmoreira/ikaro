@@ -54,6 +54,40 @@ describe('resolveAvailabilityRequirementWindows', () => {
     expect(entries[0].map((c) => c.resourceId)).toEqual([active.id]);
   });
 
+  it('excludes a resourcePoolIds member whose type has since changed away from the requirement', async () => {
+    const matching = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .build();
+    await resourceRepo.save(matching);
+    const retyped = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.EQUIPMENT)
+      .build();
+    await resourceRepo.save(retyped);
+    const service = new ServiceBuilder()
+      .withDurationMinutes(30)
+      .withResourceRequirements([
+        ResourceRequirement.create({
+          type: ResourceType.ROOM,
+          selectionMode: 'CUSTOMER_CHOICE',
+          resourcePoolIds: [matching.id, retyped.id],
+        }),
+      ])
+      .build();
+
+    const entries = await resolveAvailabilityRequirementWindows(
+      resourceRepo,
+      availabilityService,
+      TENANT_ID,
+      CANDIDATE_START,
+      [service],
+    );
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].map((c) => c.resourceId)).toEqual([matching.id]);
+  });
+
   it('falls back to every active resource of the type when resourcePoolIds is unset', async () => {
     const room = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
     await resourceRepo.save(room);

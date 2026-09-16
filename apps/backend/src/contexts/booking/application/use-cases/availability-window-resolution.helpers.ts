@@ -167,19 +167,26 @@ async function resolveActiveCandidates(
 
   const resources: Resource[] = [];
   for (const id of candidateIds) {
-    resources.push(...(await lookupActiveResource(id, ctx)));
+    resources.push(...(await lookupActiveResource(id, requirement, ctx)));
   }
   return resources;
 }
 
-async function lookupActiveResource(id: string, ctx: WindowResolutionContext): Promise<Resource[]> {
+async function lookupActiveResource(
+  id: string,
+  requirement: ResourceRequirement,
+  ctx: WindowResolutionContext,
+): Promise<Resource[]> {
   const cached = ctx.resourceCache.get(id);
-  if (cached) return [cached];
+  if (cached) return cached.type === requirement.type ? [cached] : [];
   const found = await ctx.resourceRepo.findById(id, ctx.tenantId);
-  // A resourcePoolIds member that's since been deactivated or deleted is silently excluded here
-  // (not a BookingServiceResourceTypeUnavailableError like the write path) — read-path
-  // availability degrades that one candidate out of its union, it doesn't fail the whole check.
-  if (!found?.isActive) return [];
+  // A resourcePoolIds member that's since been deactivated, deleted, or had its type changed away
+  // from the requirement's type (UpdateResourceUseCase permits this for non-LOCATION resources —
+  // plan/M21-MULTIVERTICAL-FOUNDATION.md's UpdateResourceUseCase spec only rejects a type change
+  // to/from LOCATION) is silently excluded here (not a BookingServiceResourceTypeUnavailableError
+  // like the write path) — read-path availability degrades that one candidate out of its union,
+  // it doesn't fail the whole check.
+  if (!found?.isActive || found.type !== requirement.type) return [];
   ctx.resourceCache.set(id, found);
   return [found];
 }
