@@ -377,6 +377,8 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` |
 | CI failure / pre-PR | `docs/CI_TRAPS.md` |
 | Implement a UC | `docs/04-USE_CASES.md` (UC section) + `docs/02-DOMAIN_MODEL.md` + `docs/03-DOMAIN_EVENTS.md` |
+| Complex/cross-cutting business logic (an algorithm, state machine, or formula spanning multiple UCs/aggregates in one context) — writing one, or checking whether one already exists | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section first before re-deriving from scattered prose; see also `/story-discovery`'s 4r check and `/mark-done`'s Step 4 |
+| Resource-scoped scheduling / availability computation (M21+) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability, in addition to the Database/migration and Implement-a-UC rows above |
 | Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
 | Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES.md` |
