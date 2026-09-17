@@ -84,33 +84,47 @@ Batch `upsertAssignment` into one multi-row `INSERT ... ON CONFLICT (...) DO NOT
 
 ### Story 2 — `resource_occupancy` retention purge job
 
-**Agent:** `backend-ts`
+**Agent:** `backend-ts` + `devops`
 **Complexity:** S
-**Docs to load:** `docs/13-DATABASE_SCHEMA.md` § `booking.resource_occupancy` (retention: 90 days past `ends_at`), `docs/ENGINEERING_RULES.md` § Standalone index for a cross-tenant system job — plus the direct code precedent at `apps/backend/src/contexts/platform/application/jobs/chatbot-retention-purge.job.ts` and `apps/backend/src/contexts/platform/infrastructure/events/chatbot-retention-purge-trigger.handler.ts`
+**Docs to load:** `docs/13-DATABASE_SCHEMA.md` § `booking.resource_occupancy` (retention: 90 days past `ends_at`), `docs/ENGINEERING_RULES.md` § Standalone index for a cross-tenant system job, `infra/terraform/README.md` § New-resource PR-sequencing playbook — plus the direct code precedent at `apps/backend/src/contexts/platform/application/jobs/lead-form-retention-purge.job.ts` / `.../typeorm-lead-form-submission.repository.ts`'s `deleteExpired()` (closest shape: single repo, no child-table cascade) and `apps/backend/src/contexts/platform/infrastructure/events/chatbot-retention-purge-trigger.handler.ts` + `apps/backend/src/contexts/platform/infrastructure/controllers/cron-chatbot.controller.ts` (trigger-handler + manual-trigger-controller shapes)
 **Dependencies:** none
-**Pattern:** plain composition — new `ResourceOccupancyRetentionPurgeJob` + trigger handler, following `ChatbotRetentionPurgeJob`/`ChatbotRetentionPurgeTriggerHandler`'s exact shape (a single set-based `DELETE` inside `txManager.run()`, registered on the shared cron trigger bus via `ITriggerBus.registerTrigger()` — no new scheduling infrastructure).
+**Pattern:** plain composition — new `ResourceOccupancyRetentionPurgeJob` + trigger handler + manual-trigger controller endpoint, following `LeadFormRetentionPurgeJob`/`LeadFormRetentionPurgeTriggerHandler`/`CronChatbotController`'s exact shape (a single set-based `DELETE` via the query-builder form inside `txManager.run()`, registered on the shared cron trigger bus via `ITriggerBus.registerTrigger()` — no new scheduling infrastructure beyond the required Cloud Scheduler entry below).
 **Discovered:** PR #483 (M22-S03) bot review — Codex, lifecycle-hygiene finding, flagged in the very first review round; explicitly declined there as out-of-scope for that story (2026-09-17), tracked here as promised.
+**Devops PR sequence (resolved at `/story-discovery`, 2026-09-17):** 2 PRs, per `infra/terraform/README.md`'s "new Pub/Sub topic (cron trigger) + its app code" row. **PR1** (`envs/*` + `apps/backend`, label `infra-app-mix-ok`): all backend app code below, the new `google_cloud_scheduler_job` entry in `infra/terraform/modules/scheduler/main.tf`'s `locals.jobs` (`ikaro-cron-resource-occupancy-retention-purge` → topic_key `cron-resource-occupancy-retention-purge`, schedule `"0 3 * * *"`, matching the other daily purges), and `infra/terraform/pubsub-catalog.json` regenerated via `pnpm --filter @ikaro/infra-scripts run pubsub-catalog`. **PR2** (`foundation` only): add `cron-resource-occupancy-retention-purge` to the publisher-binding `for` loop in both `infra/terraform/foundation/envs/prod/main.tf` and `.../staging/main.tf` — **and, while touching that same loop, also add the already-missing `cron-lead-form-retention` entry** (pre-existing drift found during this story's discovery, unrelated to this story but cheapest to fix in the same edit).
 
 **Description:**
-Add a booking-context job that deletes `resource_occupancy` rows whose `ends_at` is more than 90 days in the past, for **every** `lock_state` (`REQUESTED`, `HOLD`, `COMMITTED` alike) — matching the documented retention policy. `booking_line_resource_assignments` (the immutable audit record) is never touched by this job, the same invariant `release()`/`assign()` already preserve elsewhere in this codebase. Register via the existing cron trigger bus (`ITriggerBus`), mirroring `ChatbotRetentionPurgeTriggerHandler`'s registration shape exactly.
+Add a booking-context job that deletes `resource_occupancy` rows whose `ends_at` is more than 90 days in the past, for **every** `lock_state` (`REQUESTED`, `HOLD`, `COMMITTED` alike) — matching the documented retention policy. `booking_line_resource_assignments` (the immutable audit record) is never touched by this job, the same invariant `release()`/`assign()` already preserve elsewhere in this codebase. Register via the existing cron trigger bus (`ITriggerBus`), mirroring `ChatbotRetentionPurgeTriggerHandler`'s registration shape exactly. "Trickle-deleted" in `docs/13-DATABASE_SCHEMA.md` means "daily cron, not backfill-style" — not literal chunked/batched deletes; a single set-based `DELETE` per run matches `ChatbotRetentionPurgeJob`/`LeadFormRetentionPurgeJob`'s existing precedent.
 
 Given `HOLD` rows already carry a `hold_expires_at` and their own (currently unenforced, per M22-S03's own explicit non-goal) expiry-driven release path, this job's scope is the 90-day retention sweep only — it is **not** the active hold-expiry enforcement worker M22-S03 explicitly deferred as real M23 booking-flow scope. Don't conflate the two: this job purges rows whose physical window has long passed regardless of `lock_state`; a `HOLD` row past its own `hold_expires_at` but still within the 90-day retention window is untouched by this job.
 
 **Backend use case steps:**
-1. `ResourceOccupancyRetentionPurgeJob` (`application/jobs/resource-occupancy-retention-purge.job.ts`, new): `run(now: Date = new Date())` computes `cutoff = now - 90 days`, runs one set-based `DELETE FROM booking.resource_occupancy WHERE ends_at < cutoff` inside `txManager.run()`, returns `{ rowsDeleted: number }`.
-2. `ResourceOccupancyRetentionPurgeTriggerHandler` (`infrastructure/events/resource-occupancy-retention-purge-trigger.handler.ts`, new): registers on `ITriggerBus` with a new `CRON_RESOURCE_OCCUPANCY_RETENTION_PURGE_TRIGGER` constant, calls the job, logs the result — identical shape to `ChatbotRetentionPurgeTriggerHandler`.
-3. Register the new cron trigger name wherever `CRON_CHATBOT_RETENTION_PURGE_TRIGGER` and its siblings are declared/scheduled — confirm the exact file (`cron-trigger-names.constants.ts` and whatever enumerates existing cron triggers) and whether the existing retention jobs' Cloud Scheduler wiring lives in `infra/terraform/` (if so, this story needs a Terraform change too — confirm devops co-ownership during `/story-discovery`, don't assume backend-only scope without checking).
+1. `IResourceOccupancyRepository` (`application/ports/resource-occupancy-repository.port.ts`, modify): add `deleteOlderThan(cutoff: Date): Promise<number>` — deliberately no `tenantId` param, unlike every other method on this port (cross-tenant, unscoped sweep). `TypeOrmResourceOccupancyRepository` (`infrastructure/repositories/typeorm-resource-occupancy.repository.ts`, modify) implements it identically to `TypeOrmChatbotMessageRepository.deleteOlderThan()`: `(getActiveEntityManager() ?? this.repo.manager).createQueryBuilder().delete().from(ResourceOccupancyEntity).where('ends_at < :cutoff', { cutoff }).execute()`, return `result.affected ?? 0`.
+2. `ResourceOccupancyRetentionPurgeJob` (`application/jobs/resource-occupancy-retention-purge.job.ts`, new): `run(now: Date = new Date())` computes `cutoff = now - 90 days`, calls `resourceOccupancyRepo.deleteOlderThan(cutoff)` inside `txManager.run()`, returns `{ rowsDeleted: number }` — mirrors `LeadFormRetentionPurgeJob`'s exact shape (single repo + `TRANSACTION_MANAGER` injected).
+3. `ResourceOccupancyRetentionPurgeTriggerHandler` (`infrastructure/events/resource-occupancy-retention-purge-trigger.handler.ts`, new): registers on `ITriggerBus` with a new `CRON_RESOURCE_OCCUPANCY_RETENTION_PURGE_TRIGGER = 'cron-resource-occupancy-retention-purge'` constant (added to `apps/backend/src/contexts/booking/infrastructure/events/cron-trigger-names.constants.ts`, alongside the existing `CRON_REMINDERS_TRIGGER`), calls the job, logs the result — identical shape to `ChatbotRetentionPurgeTriggerHandler`.
+4. `CronBookingController` (`infrastructure/controllers/cron-booking.controller.ts`, modify): add a `@Post('resource-occupancy-retention-purge')` manual/local-trigger endpoint calling `triggerBus.publishTrigger(CRON_RESOURCE_OCCUPANCY_RETENTION_PURGE_TRIGGER)`, identical to `CronChatbotController`'s multi-endpoint pattern (this controller currently has only `reminders()`).
+5. New migration `AddEndsAtIndexToResourceOccupancy` (`infrastructure/migrations/`, new, next sequential timestamp after `1748500000014`): plain `CREATE INDEX` on `resource_occupancy(ends_at)` alone — confirmed no standalone index on this column exists today (only `(tenant_id, resource_id, starts_at)`), required per `docs/ENGINEERING_RULES.md` § Standalone index for a cross-tenant system job (this exact gap-class already missed twice: `chatbot_messages`, `lead_form_submissions`). Follows `AddStartedAtIndexToChatbotSessions`/`AddExpiresAtIndexToLeadFormSubmissions`'s precedent (no `CONCURRENTLY` — no production traffic yet; re-verify that's still true immediately before executing, not just at drafting time).
 
 **Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/ports/resource-occupancy-repository.port.ts` (modify — add `deleteOlderThan`)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.ts` (modify — implement `deleteOlderThan`)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.spec.ts` (modify)
 - `apps/backend/src/contexts/booking/application/jobs/resource-occupancy-retention-purge.job.ts` (new)
 - `apps/backend/src/contexts/booking/application/jobs/resource-occupancy-retention-purge.job.spec.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/events/resource-occupancy-retention-purge-trigger.handler.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/events/resource-occupancy-retention-purge-trigger.handler.spec.ts` (new)
-- `apps/backend/src/contexts/booking/booking.module.ts` (modify — register the new job + trigger handler)
-- Cron trigger name registration file — verify exact path during `/story-discovery` (same file `CRON_CHATBOT_RETENTION_PURGE_TRIGGER` lives in)
-- `infra/terraform/` Cloud Scheduler config, if the existing retention jobs are scheduled there (verify during `/story-discovery`)
+- `apps/backend/src/contexts/booking/infrastructure/events/cron-trigger-names.constants.ts` (modify — add `CRON_RESOURCE_OCCUPANCY_RETENTION_PURGE_TRIGGER`)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/cron-booking.controller.ts` (modify — add manual-trigger endpoint)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/cron-booking.controller.spec.ts` (modify)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/<next-timestamp>-AddEndsAtIndexToResourceOccupancy.ts` (new)
+- `apps/backend/src/contexts/booking/booking.module.ts` (modify — register the new job + trigger handler as bare-class providers, next to the existing `BookingReminderJob` pair)
+- `apps/backend/src/test/integration-global-setup.ts` (modify — register the new migration)
+- `docs/13-DATABASE_SCHEMA.md` (modify — add the new standalone index to `resource_occupancy`'s index row)
+- `infra/terraform/modules/scheduler/main.tf` (modify — new `locals.jobs` entry)
+- `infra/terraform/pubsub-catalog.json` (modify — regenerated via `pnpm --filter @ikaro/infra-scripts run pubsub-catalog`)
+- `infra/terraform/foundation/envs/prod/main.tf` (modify — add `cron-resource-occupancy-retention-purge` + the pre-existing missing `cron-lead-form-retention` to the publisher-binding `for` loop)
+- `infra/terraform/foundation/envs/staging/main.tf` (modify — same as above)
 
-**New migration / i18n keys / env vars / feature flags:** none expected — `ends_at` and `lock_state` already exist. Verify during `/story-discovery` whether a standalone `(ends_at)` index is needed for this new unscoped, cross-tenant sweep query, per the documented "a new cross-tenant, unscoped system job needs its own standalone index matching its filter column" rule (the existing `(tenant_id, resource_id, starts_at)` index can't be seeked once the query drops the `tenant_id` filter).
+**New migration / i18n keys / env vars / feature flags:** one new migration (standalone `ends_at` index, see step 5 above) — `ends_at` and `lock_state` columns already exist, no entity/column change needed. No i18n keys, no env vars, no feature flags.
 
 **Acceptance criteria — product:**
 - [ ] A `resource_occupancy` row (any `lock_state`) whose `ends_at` is more than 90 days in the past is deleted by the next scheduled purge run.
@@ -120,10 +134,13 @@ Given `HOLD` rows already carry a `hold_expires_at` and their own (currently une
 - Unit:
   - [ ] `ResourceOccupancyRetentionPurgeJob.run()` deletes only rows past the 90-day cutoff, for each `lock_state` (`REQUESTED`, `HOLD`, `COMMITTED`)
   - [ ] `ResourceOccupancyRetentionPurgeTriggerHandler` registers on the trigger bus and calls the job, logging `rowsDeleted`
+  - [ ] `CronBookingController`'s new endpoint publishes `CRON_RESOURCE_OCCUPANCY_RETENTION_PURGE_TRIGGER` and returns `{ ok: true }`
+  - [ ] `TypeOrmResourceOccupancyRepository.deleteOlderThan()` issues one query-builder `DELETE ... WHERE ends_at < :cutoff`, no `tenant_id` predicate
 - Integration:
   - [ ] A real Postgres row with `ends_at` 91 days in the past is deleted; a row at 89 days is not; `booking_line_resource_assignments` row count is unchanged either way
+  - [ ] The new migration creates a standalone index on `ends_at`; `EXPLAIN` on the purge query can seek it (or at minimum doesn't fall back to a full table scan for a representative row count)
 - Tenant isolation:
-  - [ ] The purge is deliberately cross-tenant/unscoped (same as `ExpirePointsJob`/`ChatbotRetentionPurgeJob` precedent) — confirm during `/story-discovery` whether a standalone index is needed, per the rule cited above
+  - [ ] The purge is deliberately cross-tenant/unscoped (same as `ExpirePointsJob`/`ChatbotRetentionPurgeJob` precedent) — covered by the standalone index above, not a `tenant_id` filter
 - E2E: none — covered by unit/integration
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
