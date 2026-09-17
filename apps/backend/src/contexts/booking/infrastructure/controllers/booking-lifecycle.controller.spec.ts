@@ -1,8 +1,10 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { AvailabilityService } from '../../domain/services/availability.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
@@ -46,28 +48,37 @@ describe('BookingLifecycleController', () => {
       .withActorRole('CUSTOMER')
       .build();
 
-    const makeUseCases = (repo: InMemoryBookingRepository) => ({
-      approveBooking: new ApproveBookingUseCase(
-        repo,
-        new BookingSlotConflictService(
-          new InMemoryBookingAvailabilityPort(),
-          new InMemoryTenantLock(),
+    const makeUseCases = (repo: InMemoryBookingRepository) => {
+      const fixtures = createAutoBookingResourceFixtures();
+      const occupancyRepo = new InMemoryResourceOccupancyRepository();
+      return {
+        approveBooking: new ApproveBookingUseCase(
+          repo,
+          fixtures.serviceRepo,
+          fixtures.resourceRepo,
+          occupancyRepo,
+          new AvailabilityService(),
+          new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
+          new InMemoryTransactionManager(),
         ),
-        new InMemoryTransactionManager(),
-      ),
-      rejectBooking: new RejectBookingUseCase(repo, new InMemoryTransactionManager()),
-      requestMoreInfo: new RequestMoreInfoUseCase(repo, new InMemoryTransactionManager()),
-      submitBookingInfo: new SubmitBookingInfoUseCase(
-        repo,
-        new InMemoryTransactionManager(),
-        new PhotoExistenceService(storageService),
-      ),
-      submitGuestBookingInfo: new SubmitGuestBookingInfoUseCase(
-        repo,
-        new InMemoryTransactionManager(),
-        new PhotoExistenceService(storageService),
-      ),
-    });
+        rejectBooking: new RejectBookingUseCase(
+          repo,
+          occupancyRepo,
+          new InMemoryTransactionManager(),
+        ),
+        requestMoreInfo: new RequestMoreInfoUseCase(repo, new InMemoryTransactionManager()),
+        submitBookingInfo: new SubmitBookingInfoUseCase(
+          repo,
+          new InMemoryTransactionManager(),
+          new PhotoExistenceService(storageService),
+        ),
+        submitGuestBookingInfo: new SubmitGuestBookingInfoUseCase(
+          repo,
+          new InMemoryTransactionManager(),
+          new PhotoExistenceService(storageService),
+        ),
+      };
+    };
 
     const uc = makeUseCases(bookingRepo);
     controller = new BookingLifecycleController(
@@ -141,8 +152,18 @@ describe('BookingLifecycleController', () => {
 
     it('maps BookingSlotUnavailableError to 409 when slot is taken', async () => {
       const scheduledAt = new Date(`${futureDate(3)}T11:00:00.000Z`);
-      const conflictPort = new InMemoryBookingAvailabilityPort();
-      conflictPort.setSlots([{ id: 'slot-test-id', scheduledAt, totalDurationMins: 60 }]);
+      const fixturesB = createAutoBookingResourceFixtures();
+      const occupancyRepoB = new InMemoryResourceOccupancyRepository();
+      const location = fixturesB.resourceRepo.ensureLocation(TENANT_A);
+      occupancyRepoB.seed(TENANT_A, 'other-line-id', {
+        resourceId: location.id,
+        resourceType: location.type,
+        resourceName: location.name,
+        legIndex: null,
+        quantityPosition: null,
+        startsAt: scheduledAt,
+        endsAt: new Date(scheduledAt.getTime() + 60 * 60_000),
+      });
       const staffCtx = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
@@ -154,10 +175,14 @@ describe('BookingLifecycleController', () => {
         staffCtx,
         new ApproveBookingUseCase(
           bookingRepoB,
-          new BookingSlotConflictService(conflictPort, new InMemoryTenantLock()),
+          fixturesB.serviceRepo,
+          fixturesB.resourceRepo,
+          occupancyRepoB,
+          new AvailabilityService(),
+          new BookingSlotConflictService(occupancyRepoB, new InMemoryTenantLock()),
           new InMemoryTransactionManager(),
         ),
-        new RejectBookingUseCase(bookingRepoB, new InMemoryTransactionManager()),
+        new RejectBookingUseCase(bookingRepoB, occupancyRepoB, new InMemoryTransactionManager()),
         new RequestMoreInfoUseCase(bookingRepoB, new InMemoryTransactionManager()),
         new SubmitBookingInfoUseCase(
           bookingRepoB,

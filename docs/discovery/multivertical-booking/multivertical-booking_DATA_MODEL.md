@@ -509,13 +509,13 @@ Snapshotted straight from `tpl_pilates_estudio1`'s slots at generation time. CAN
 | class_session_id | UUID | NULLABLE — FK (tenant_id, class_session_id) → `class_sessions`; set iff `source_type = 'CLASS_SESSION'` |
 | resource_name_at_assignment | VARCHAR(255) | NOT NULL — immutable display snapshot for either family |
 | starts_at / ends_at | TIMESTAMPTZ | NOT NULL — `ends_at` is the physical blocked end, including the effective service buffer/resource turnover |
-| lock_state | VARCHAR(20) | NOT NULL — `HOLD` or `COMMITTED`; a HOLD belongs to a pending manual-approval booking and has `hold_expires_at`, while COMMITTED lasts through the physical end window |
-| hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `lock_state = 'HOLD'` |
+| lock_state | VARCHAR(20) | NOT NULL — `REQUESTED`, `HOLD`, or `COMMITTED` (M22-S03 implementation added `REQUESTED`: a PENDING booking on a degenerate/LOCATION-fallback service, structurally excluded from the exclusion constraint's own WHERE clause so concurrent PENDING requests for the same popular slot stay allowed, matching today's byte-identical car-wash behavior); a HOLD belongs to a pending manual-approval booking and has `hold_expires_at`, while COMMITTED lasts through the physical end window |
+| hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `lock_state = 'HOLD'`; NULL for both `REQUESTED` and `COMMITTED` |
 | created_at | TIMESTAMPTZ | DEFAULT now() |
 | **CHECK** | (source_type='BOOKING_LINE' AND booking_line_resource_assignment_id IS NOT NULL AND class_session_id IS NULL) OR (source_type='CLASS_SESSION' AND class_session_id IS NOT NULL AND booking_line_resource_assignment_id IS NULL) | |
-| **CHECK** | `(lock_state = 'HOLD' AND hold_expires_at IS NOT NULL) OR (lock_state = 'COMMITTED' AND hold_expires_at IS NULL)` | Prevents a permanent hold or an expiring committed allocation. |
+| **CHECK** | `(lock_state = 'HOLD' AND hold_expires_at IS NOT NULL) OR (lock_state IN ('COMMITTED','REQUESTED') AND hold_expires_at IS NULL)` | Prevents a permanent hold or an expiring committed/requested allocation. |
 | **CHECK** | `ends_at > starts_at` | No zero/negative occupancy window |
-| **EXCLUDE USING gist** | (tenant_id WITH =, resource_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (`lock_state IN ('HOLD','COMMITTED')`) | The exclusivity guarantee itself; expiry removes HOLD rows before they can participate |
+| **EXCLUDE USING gist** | (tenant_id WITH =, resource_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (`lock_state IN ('HOLD','COMMITTED')`) | The exclusivity guarantee itself; expiry removes HOLD rows before they can participate. `REQUESTED` rows are deliberately outside this WHERE clause. |
 | **INDEX** | (tenant_id, resource_id, starts_at) | |
 
 **Example data:**

@@ -19,6 +19,8 @@ export { BookingLineBuilder } from './booking-line.builder';
 export { BookingLineInputBuilder } from './booking-line-input.builder';
 export { BookingEntityBuilder } from './booking-entity.builder';
 export { BookingLineEntityBuilder } from './booking-line-entity.builder';
+export { BookingLineResourceAssignmentEntityBuilder } from './booking-line-resource-assignment-entity.builder';
+export { ResourceOccupancyEntityBuilder } from './resource-occupancy-entity.builder';
 export { BookingRequestedEventBuilder } from './booking-requested-event.builder';
 export { BookingCompletedEventBuilder } from './booking-completed-event.builder';
 export { BookingReminderDueCommandBuilder } from './booking-reminder-due-command.builder';

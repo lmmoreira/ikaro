@@ -1,14 +1,18 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceType } from '../../domain/resource.types';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { ServiceBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { AddressErrorCode } from '@ikaro/types';
@@ -29,7 +33,8 @@ const scheduledAt = `${futureDate(1)}T10:00:00.000Z`;
 
 describe('RequestBookingUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
-  let availabilityPort: InMemoryBookingAvailabilityPort;
+  let resourceRepo: InMemoryResourceRepository;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let bookingRepo: InMemoryBookingRepository;
   let eventBus: InMemoryEventBus;
   let storageService: InMemoryStorageService;
@@ -38,14 +43,18 @@ describe('RequestBookingUseCase', () => {
 
   beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
-    availabilityPort = new InMemoryBookingAvailabilityPort();
+    resourceRepo = new InMemoryResourceRepository();
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
     eventBus = new InMemoryEventBus();
     bookingRepo = new InMemoryBookingRepository(eventBus);
     storageService = new InMemoryStorageService();
     const txManager = new InMemoryTransactionManager();
     useCase = new RequestBookingUseCase(
       serviceRepo,
-      new BookingSlotConflictService(availabilityPort, new InMemoryTenantLock()),
+      resourceRepo,
+      occupancyRepo,
+      new AvailabilityService(),
+      new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
       bookingRepo,
       txManager,
@@ -53,6 +62,11 @@ describe('RequestBookingUseCase', () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).withName('Lavagem Simples').build();
     await serviceRepo.save(service);
     serviceId = service.id;
+    // M22-S03: a service with zero resourceRequirements (every fixture here by default) falls
+    // back to the tenant's LOCATION resource during write-path resolution.
+    await resourceRepo.save(
+      new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.LOCATION).build(),
+    );
   });
 
   const baseInput = () => ({
@@ -220,16 +234,36 @@ describe('RequestBookingUseCase', () => {
   });
 
   it('throws BookingSlotUnavailableError when approved booking overlaps the slot', async () => {
-    const svcDuration = 30;
-    availabilityPort.setSlots([
-      {
-        id: 'slot-test-id',
-        scheduledAt: new Date(`${futureDate(1)}T10:00:00.000Z`),
-        totalDurationMins: svcDuration,
-      },
-    ]);
+    const location = new ResourceBuilder()
+      .withTenantId(TENANT_A)
+      .withType(ResourceType.LOCATION)
+      .build();
+    await resourceRepo.save(location);
+    const locationService = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withResourceRequirements([
+        ResourceRequirement.create({
+          type: ResourceType.LOCATION,
+          selectionMode: 'NONE',
+          resourcePoolIds: [location.id],
+          requiredQuantity: 1,
+        }),
+      ])
+      .build();
+    await serviceRepo.save(locationService);
+    occupancyRepo.seed(TENANT_A, 'other-line-id', {
+      resourceId: location.id,
+      resourceType: ResourceType.LOCATION,
+      resourceName: location.name,
+      legIndex: null,
+      quantityPosition: null,
+      startsAt: new Date(`${futureDate(1)}T10:00:00.000Z`),
+      endsAt: new Date(`${futureDate(1)}T10:30:00.000Z`),
+    });
 
-    await expect(useCase.execute(baseInput())).rejects.toBeInstanceOf(BookingSlotUnavailableError);
+    await expect(
+      useCase.execute({ ...baseInput(), serviceIds: [locationService.id] }),
+    ).rejects.toBeInstanceOf(BookingSlotUnavailableError);
   });
 
   it('throws BookingServiceNotInTenantError when a serviceId is not found', async () => {

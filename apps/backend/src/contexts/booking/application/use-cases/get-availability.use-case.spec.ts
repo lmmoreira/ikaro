@@ -11,11 +11,15 @@ import { nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
+import { ServiceLeg } from '../../domain/service-leg';
 import { GetAvailabilityUseCase } from './get-availability.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const monday = nextWeekday(1);
 const sunday = nextWeekday(0);
+const saturday = nextWeekday(6); // 09:00-17:00 per buildDefaultBusinessHours — shorter than weekdays
 
 describe('GetAvailabilityUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
@@ -26,7 +30,7 @@ describe('GetAvailabilityUseCase', () => {
   let useCase: GetAvailabilityUseCase;
   let settings: TenantSettings;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
     closureRepo = new InMemoryScheduleClosureRepository();
     openingRepo = new InMemoryScheduleOpeningRepository();
@@ -40,6 +44,12 @@ describe('GetAvailabilityUseCase', () => {
       resourceRepo,
       bookingPort,
       new AvailabilityService(),
+    );
+    // M22-S03: the degenerate (tenant-wide) path now resolves the tenant's LOCATION resource
+    // (M21-S02's real backfill guarantees one always exists in production) — every test in this
+    // file implicitly relies on it existing unless it explicitly seeds its own resource(s).
+    await resourceRepo.save(
+      new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.LOCATION).build(),
     );
   });
 
@@ -61,6 +71,28 @@ describe('GetAvailabilityUseCase', () => {
     expect(result.slots.length).toBeGreaterThan(0);
     expect(result.slots[0]).toHaveProperty('startsAt');
     expect(result.slots[0]).toHaveProperty('endsAt');
+  });
+
+  it("uses the service's own buffer override for the degenerate tenant-wide path, not the tenant default", async () => {
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT_ID)
+      .withDurationMinutes(30)
+      .withBufferAfterMinutes(0)
+      .build();
+    await serviceRepo.save(service);
+
+    const result = await useCase.execute({
+      date: saturday,
+      serviceIds: [service.id],
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: 30,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+    });
+
+    expect(result.slots).toContainEqual(
+      expect.objectContaining({ startsAt: new Date(`${saturday}T19:30:00.000Z`).toISOString() }),
+    );
   });
 
   it('returns available:false and empty slots for a closed day (Sunday)', async () => {
@@ -229,6 +261,31 @@ describe('GetAvailabilityUseCase', () => {
       ).rejects.toThrow(ResourceNotActiveError);
     });
 
+    it("uses the service's own buffer override for the explicit-resourceId path, not the tenant default", async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withBufferAfterMinutes(0)
+        .build();
+      await serviceRepo.save(service);
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+
+      const result = await useCase.execute({
+        date: saturday,
+        serviceIds: [service.id],
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: 30,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.slots).toContainEqual(
+        expect.objectContaining({ startsAt: new Date(`${saturday}T19:30:00.000Z`).toISOString() }),
+      );
+    });
+
     it('a resource-scoped full-day closure blocks that resource while the tenant stays open', async () => {
       const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
       await serviceRepo.save(service);
@@ -299,6 +356,240 @@ describe('GetAvailabilityUseCase', () => {
 
       expect(result.available).toBe(true);
       expect(result.slots.length).toBeGreaterThan(0);
+    });
+  });
+
+  // UC-058: a real resource-scoped service (no resourceId query param, at least one service is
+  // not degenerate) goes through calculateResourceScoped()'s own intersect/union path.
+  describe('resource-scoped services (calculateResourceScoped)', () => {
+    it('is available when a matching active resource is free', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.available).toBe(true);
+      expect(result.slots.length).toBeGreaterThan(0);
+    });
+
+    it('is unavailable when no active resource of the required type exists', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.available).toBe(false);
+      expect(result.slots).toHaveLength(0);
+    });
+
+    it('is unavailable when a bundle (2 requirements) has one requirement with no free candidate', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.available).toBe(false);
+    });
+
+    it('checks each requested service against its own sequential window, not the combined duration of all lines (M22-S03 round-4 fix)', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.EQUIPMENT)
+        .build();
+      await resourceRepo.save(equipment);
+      const serviceA = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      const serviceB = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(serviceA);
+      await serviceRepo.save(serviceB);
+      // Occupies EQUIPMENT for 09:00-09:30 local (America/Sao_Paulo, UTC-3) — the FIRST 30 minutes
+      // of a hypothetical 09:00 start. serviceB (EQUIPMENT) only actually needs it for its own
+      // sequential window, 09:30-10:00 (right after serviceA/ROOM's 09:00-09:30) — which does not
+      // overlap this occupancy. A combined-duration check (the bug) would instead test EQUIPMENT
+      // against the FULL 09:00-10:00 window and wrongly report 09:00 as unavailable.
+      bookingPort.setSlots([
+        {
+          resourceId: equipment.id,
+          startsAt: new Date(`${monday}T12:00:00.000Z`),
+          endsAt: new Date(`${monday}T12:30:00.000Z`),
+        },
+      ]);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [serviceA.id, serviceB.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.slots).toContainEqual(
+        expect.objectContaining({ startsAt: new Date(`${monday}T12:00:00.000Z`).toISOString() }),
+      );
+    });
+
+    it('applies per-leg turnover/transition-gap arithmetic in the read path, not one combined window (M22-S03 round-4 fix)', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.EQUIPMENT)
+        .build();
+      await resourceRepo.save(equipment);
+      const legged = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withLegs([
+          ServiceLeg.create({
+            legIndex: 0,
+            name: 'Etapa 1',
+            durationMinutes: 20,
+            resourceRequirements: [
+              ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+            ],
+            transitionGapAfterMinutes: 0,
+          }),
+          ServiceLeg.create({
+            legIndex: 1,
+            name: 'Etapa 2',
+            durationMinutes: 15,
+            resourceRequirements: [
+              ResourceRequirement.create({
+                type: ResourceType.EQUIPMENT,
+                selectionMode: 'AUTO_ANY',
+              }),
+            ],
+            transitionGapAfterMinutes: 0,
+          }),
+        ])
+        .build();
+      await serviceRepo.save(legged);
+      // Occupies EQUIPMENT for 09:00-09:20 local — exactly leg 0's own window. Leg 1 (EQUIPMENT)
+      // only needs it for 09:20-09:35 (right after leg 0), which doesn't overlap this occupancy. A
+      // combined-duration check (the bug) would test EQUIPMENT against the full 09:00-09:35 window
+      // and wrongly report 09:00 as unavailable.
+      bookingPort.setSlots([
+        {
+          resourceId: equipment.id,
+          startsAt: new Date(`${monday}T12:00:00.000Z`),
+          endsAt: new Date(`${monday}T12:20:00.000Z`),
+        },
+      ]);
+
+      const result = await useCase.execute({
+        date: monday,
+        serviceIds: [legged.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.slots).toContainEqual(
+        expect.objectContaining({ startsAt: new Date(`${monday}T12:00:00.000Z`).toISOString() }),
+      );
+    });
+
+    it("uses the service's own buffer override for the outer fit-check, not the tenant default", async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      // Saturday closes at 17:00. Tenant default buffer is 60min (TenantSettings.default()), but
+      // this service overrides its own buffer to 0 — the outer candidate generator must use the
+      // service's own 0, not the tenant's 60, or the last bookable 16:30 start (30min duration +
+      // 0min buffer fits exactly by 17:00) gets wrongly capped at 15:30 (30min + the tenant's 60).
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        date: saturday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: 30,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.slots).toContainEqual(
+        expect.objectContaining({
+          startsAt: new Date(`${saturday}T19:30:00.000Z`).toISOString(),
+        }),
+      );
     });
   });
 });

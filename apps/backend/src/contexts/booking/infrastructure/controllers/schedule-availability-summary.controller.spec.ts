@@ -5,9 +5,11 @@ import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
+import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceType } from '../../domain/resource.types';
 import { GetAvailabilitySummaryUseCase } from '../../application/use-cases/get-availability-summary.use-case';
 import { ScheduleAvailabilitySummaryController } from './schedule-availability-summary.controller';
 
@@ -18,15 +20,21 @@ describe('ScheduleAvailabilitySummaryController', () => {
   let serviceRepo: InMemoryServiceRepository;
   let controller: ScheduleAvailabilitySummaryController;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
+    const resourceRepo = new InMemoryResourceRepository();
+    // M22-S03: the degenerate (tenant-wide) path resolves the tenant's LOCATION resource
+    // (M21-S02's real backfill guarantees one always exists in production).
+    await resourceRepo.save(
+      new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.LOCATION).build(),
+    );
     controller = new ScheduleAvailabilitySummaryController(
       new RequestContextBuilder().withTenantId(TENANT_ID).build(),
       new GetAvailabilitySummaryUseCase(
         serviceRepo,
         new InMemoryScheduleClosureRepository(),
         new InMemoryScheduleOpeningRepository(),
-        new InMemoryResourceRepository(),
+        resourceRepo,
         new InMemoryBookingAvailabilityPort(),
         new AvailabilityService(),
       ),

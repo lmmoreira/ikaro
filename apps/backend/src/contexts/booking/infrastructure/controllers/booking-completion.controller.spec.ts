@@ -1,8 +1,10 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { AvailabilityService } from '../../domain/services/availability.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
@@ -37,16 +39,24 @@ describe('BookingCompletionController', () => {
       .withActorRole('MANAGER')
       .build();
 
+    const fixtures = createAutoBookingResourceFixtures();
+    const occupancyRepo = new InMemoryResourceOccupancyRepository();
+
     controller = new BookingCompletionController(
       staffCtx,
-      new CancelBookingAsCustomerUseCase(bookingRepo, new InMemoryTransactionManager()),
-      new CancelBookingAsAdminUseCase(bookingRepo, new InMemoryTransactionManager()),
+      new CancelBookingAsCustomerUseCase(
+        bookingRepo,
+        occupancyRepo,
+        new InMemoryTransactionManager(),
+      ),
+      new CancelBookingAsAdminUseCase(bookingRepo, occupancyRepo, new InMemoryTransactionManager()),
       new RescheduleBookingUseCase(
         bookingRepo,
-        new BookingSlotConflictService(
-          new InMemoryBookingAvailabilityPort(),
-          new InMemoryTenantLock(),
-        ),
+        fixtures.serviceRepo,
+        fixtures.resourceRepo,
+        occupancyRepo,
+        new AvailabilityService(),
+        new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new InMemoryTransactionManager(),
       ),
       new CompleteBookingUseCase(

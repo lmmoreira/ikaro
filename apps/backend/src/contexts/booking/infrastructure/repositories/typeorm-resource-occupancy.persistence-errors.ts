@@ -1,11 +1,11 @@
 import { QueryFailedError } from 'typeorm';
 import { BookingSlotUnavailableError } from '../../domain/errors/booking-domain.error';
 
-// Split out of typeorm-booking.repository.ts to keep it under the file-length cap — pure
-// error-mapping, no persistence I/O of its own.
-export const APPROVED_SLOT_EXCLUSION = 'EX_booking_bookings_approved_slot';
+// Mirrors typeorm-booking.persistence-errors.ts's APPROVED_SLOT_EXCLUSION mapping, for the new
+// shared resource_occupancy GIST exclusion constraint (docs/13-DATABASE_SCHEMA.md).
+export const RESOURCE_OCCUPANCY_EXCLUSION = 'EX_booking_resource_occupancy_locked_window';
 
-export function rethrowSaveError(err: unknown): never {
+export function rethrowOccupancyInsertError(err: unknown): never {
   const driverError =
     err instanceof QueryFailedError
       ? (err as QueryFailedError & {
@@ -19,7 +19,7 @@ export function rethrowSaveError(err: unknown): never {
   if (
     err instanceof QueryFailedError &&
     code === '23P01' &&
-    constraint === APPROVED_SLOT_EXCLUSION
+    constraint === RESOURCE_OCCUPANCY_EXCLUSION
   ) {
     throw new BookingSlotUnavailableError();
   }

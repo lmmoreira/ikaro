@@ -1,14 +1,22 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { BookingBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingBuilder,
+  ResourceBuilder,
+  ServiceBuilder,
+} from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { futureDate } from '../../../../test/utils/date-helpers';
+import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
 import { BookingController } from './booking.controller';
 import { RequestBookingUseCase } from '../../application/use-cases/request-booking.use-case';
 import { RequestAuthenticatedBookingUseCase } from '../../application/use-cases/request-authenticated-booking.use-case';
@@ -27,12 +35,16 @@ describe('BookingController', () => {
   let controller: BookingController;
   let customerController: BookingController;
   let serviceRepo: InMemoryServiceRepository;
+  let resourceRepo: InMemoryResourceRepository;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let bookingRepo: InMemoryBookingRepository;
   let storageService: InMemoryStorageService;
   let serviceId: string;
 
   beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
+    resourceRepo = new InMemoryResourceRepository();
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
     bookingRepo = new InMemoryBookingRepository();
     storageService = new InMemoryStorageService();
     const staffCtx = new RequestContextBuilder()
@@ -59,10 +71,10 @@ describe('BookingController', () => {
     const makeUseCases = (repo: InMemoryBookingRepository) => ({
       requestBooking: new RequestBookingUseCase(
         serviceRepo,
-        new BookingSlotConflictService(
-          new InMemoryBookingAvailabilityPort(),
-          new InMemoryTenantLock(),
-        ),
+        resourceRepo,
+        occupancyRepo,
+        new AvailabilityService(),
+        new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new PhotoExistenceService(storageService),
         repo,
         new InMemoryTransactionManager(),
@@ -70,10 +82,10 @@ describe('BookingController', () => {
       requestAuthenticatedBooking: new RequestAuthenticatedBookingUseCase(
         customerProfilePort,
         serviceRepo,
-        new BookingSlotConflictService(
-          new InMemoryBookingAvailabilityPort(),
-          new InMemoryTenantLock(),
-        ),
+        resourceRepo,
+        occupancyRepo,
+        new AvailabilityService(),
+        new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new PhotoExistenceService(storageService),
         repo,
         new InMemoryTransactionManager(),
@@ -101,6 +113,11 @@ describe('BookingController', () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await serviceRepo.save(service);
     serviceId = service.id;
+    // M22-S03: a service with zero resourceRequirements (every fixture here by default) falls
+    // back to the tenant's LOCATION resource during write-path resolution.
+    await resourceRepo.save(
+      new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.LOCATION).build(),
+    );
   });
 
   const validBody = () => ({
@@ -120,14 +137,30 @@ describe('BookingController', () => {
     });
 
     it('maps BookingSlotUnavailableError to 409', async () => {
-      const conflictPort = new InMemoryBookingAvailabilityPort();
-      conflictPort.setSlots([
-        {
-          id: 'slot-test-id',
-          scheduledAt: new Date(`${futureDate(1)}T10:00:00.000Z`),
-          totalDurationMins: 30,
-        },
-      ]);
+      const location = new ResourceBuilder().withTenantId(TENANT_A).build();
+      await resourceRepo.save(location);
+      const locationService = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: location.type,
+            selectionMode: 'NONE',
+            resourcePoolIds: [location.id],
+            requiredQuantity: 1,
+          }),
+        ])
+        .build();
+      await serviceRepo.save(locationService);
+      const conflictAt = new Date(`${futureDate(1)}T10:00:00.000Z`);
+      occupancyRepo.seed(TENANT_A, 'other-line-id', {
+        resourceId: location.id,
+        resourceType: location.type,
+        resourceName: location.name,
+        legIndex: null,
+        quantityPosition: null,
+        startsAt: conflictAt,
+        endsAt: new Date(conflictAt.getTime() + 30 * 60_000),
+      });
       const ctx = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
@@ -137,7 +170,10 @@ describe('BookingController', () => {
         ctx,
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(conflictPort, new InMemoryTenantLock()),
+          resourceRepo,
+          occupancyRepo,
+          new AvailabilityService(),
+          new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
@@ -145,10 +181,10 @@ describe('BookingController', () => {
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
           serviceRepo,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryTenantLock(),
-          ),
+          resourceRepo,
+          occupancyRepo,
+          new AvailabilityService(),
+          new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
@@ -156,7 +192,9 @@ describe('BookingController', () => {
         new ListBookingsUseCase(repoB),
         new GetBookingByIdUseCase(repoB, storageService),
       );
-      const err = await ctrl.create(validBody()).catch((e: unknown) => e);
+      const err = await ctrl
+        .create({ ...validBody(), serviceIds: [locationService.id] })
+        .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     });
@@ -203,10 +241,10 @@ describe('BookingController', () => {
         ctx,
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryTenantLock(),
-          ),
+          resourceRepo,
+          occupancyRepo,
+          new AvailabilityService(),
+          new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
@@ -214,10 +252,10 @@ describe('BookingController', () => {
         new RequestAuthenticatedBookingUseCase(
           noPhonePort,
           serviceRepo,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryTenantLock(),
-          ),
+          resourceRepo,
+          occupancyRepo,
+          new AvailabilityService(),
+          new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),

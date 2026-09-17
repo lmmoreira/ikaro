@@ -11,6 +11,8 @@ import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
 import { GetAvailabilitySummaryUseCase } from './get-availability-summary.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -18,28 +20,37 @@ const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 // A Monday–Sunday week window always in the future
 const monday = nextWeekday(1);
 const sunday = nextWeekday(0, 2); // Sunday after next Monday
+const saturday = nextWeekday(6); // 09:00-17:00 per buildDefaultBusinessHours — shorter than weekdays
 
 describe('GetAvailabilitySummaryUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
   let closureRepo: InMemoryScheduleClosureRepository;
   let openingRepo: InMemoryScheduleOpeningRepository;
   let resourceRepo: InMemoryResourceRepository;
+  let bookingPort: InMemoryBookingAvailabilityPort;
   let useCase: GetAvailabilitySummaryUseCase;
   let settings: TenantSettings;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
     closureRepo = new InMemoryScheduleClosureRepository();
     openingRepo = new InMemoryScheduleOpeningRepository();
     resourceRepo = new InMemoryResourceRepository();
+    bookingPort = new InMemoryBookingAvailabilityPort();
     settings = TenantSettings.default();
     useCase = new GetAvailabilitySummaryUseCase(
       serviceRepo,
       closureRepo,
       openingRepo,
       resourceRepo,
-      new InMemoryBookingAvailabilityPort(),
+      bookingPort,
       new AvailabilityService(),
+    );
+    // M22-S03: the degenerate (tenant-wide) path now resolves the tenant's LOCATION resource
+    // (M21-S02's real backfill guarantees one always exists in production) — every test in this
+    // file implicitly relies on it existing unless it explicitly seeds its own resource(s).
+    await resourceRepo.save(
+      new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.LOCATION).build(),
     );
   });
 
@@ -82,6 +93,39 @@ describe('GetAvailabilitySummaryUseCase', () => {
 
     expect(result[0].available).toBe(true);
     expect(result[0].slotCount).toBeGreaterThan(0);
+  });
+
+  it("uses the service's own buffer override for the degenerate/explicit-resource summary path, not the tenant default", async () => {
+    const serviceDefaultBuffer = new ServiceBuilder()
+      .withTenantId(TENANT_ID)
+      .withDurationMinutes(30)
+      .build();
+    const serviceNoBuffer = new ServiceBuilder()
+      .withTenantId(TENANT_ID)
+      .withDurationMinutes(30)
+      .withBufferAfterMinutes(0)
+      .build();
+    await serviceRepo.save(serviceDefaultBuffer);
+    await serviceRepo.save(serviceNoBuffer);
+    const base = {
+      from: saturday,
+      to: saturday,
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: 30 as const,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+    };
+
+    const withDefaultBuffer = await useCase.execute({
+      ...base,
+      serviceIds: [serviceDefaultBuffer.id],
+    });
+    const withOverride = await useCase.execute({ ...base, serviceIds: [serviceNoBuffer.id] });
+
+    // A 0-minute override reaches Saturday's 16:30 last slot; the 60-minute tenant default caps
+    // at 15:30 — if the summary path ignored the override (the bug), both counts would match.
+    expect(withOverride[0].slotCount).toBeGreaterThan(withDefaultBuffer[0].slotCount);
   });
 
   it('returns available:false and slotCount:0 for a closed day (Sunday, no opening)', async () => {
@@ -306,6 +350,195 @@ describe('GetAvailabilitySummaryUseCase', () => {
 
       expect(scoped[0].available).toBe(false);
       expect(tenantWide[0].available).toBe(true);
+    });
+  });
+
+  // UC-058/059: a real resource-scoped service (no resourceId query param, at least one service
+  // is not degenerate) goes through buildResourceScopedSummary()'s own intersect/union path,
+  // distinct from the tenant-wide degenerate path every other test in this file exercises.
+  describe('resource-scoped services (buildResourceScopedSummary)', () => {
+    it('is available on a day when a matching active resource is free', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        from: monday,
+        to: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      expect(result[0].available).toBe(true);
+      expect(result[0].slotCount).toBeGreaterThan(0);
+    });
+
+    it('is unavailable when no active resource of the required type exists', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        from: monday,
+        to: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      expect(result[0].available).toBe(false);
+      expect(result[0].slotCount).toBe(0);
+    });
+
+    it('marks a past date as available:false without querying any resource-scoped dependency', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        from: '2020-01-01',
+        to: '2020-01-01',
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      expect(result[0].available).toBe(false);
+      expect(result[0].slotCount).toBe(0);
+    });
+
+    it('checks each requested service against its own sequential window, not the combined duration of all lines (M22-S03 round-4 fix)', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.EQUIPMENT)
+        .build();
+      await resourceRepo.save(equipment);
+      const serviceA = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      const serviceB = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(serviceA);
+      await serviceRepo.save(serviceB);
+      const request = {
+        from: monday,
+        to: monday,
+        serviceIds: [serviceA.id, serviceB.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      };
+
+      const control = await useCase.execute(request);
+
+      // Occupies EQUIPMENT for 09:00-09:30 local — only the FIRST 30 minutes of a hypothetical
+      // combined 09:00 start. serviceB (EQUIPMENT) only actually needs it 09:30-10:00, which
+      // doesn't overlap this occupancy — a combined-duration bug would instead test EQUIPMENT
+      // against the full 09:00-10:00 window and wrongly drop the 09:00 slot, reducing slotCount.
+      bookingPort.setSlots([
+        {
+          resourceId: equipment.id,
+          startsAt: new Date(`${monday}T12:00:00.000Z`),
+          endsAt: new Date(`${monday}T12:30:00.000Z`),
+        },
+      ]);
+      const withOccupancy = await useCase.execute(request);
+
+      expect(withOccupancy[0].slotCount).toBe(control[0].slotCount);
+    });
+
+    it("fetches each referenced resource's schedule/occupancy once for the whole range, not once per day", async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+      const closureSpy = jest.spyOn(closureRepo, 'findByTenantAndDateRange');
+      const openingSpy = jest.spyOn(openingRepo, 'findByTenantAndDateRange');
+      const occupancySpy = jest.spyOn(bookingPort, 'findOccupancyByTenantAndResource');
+
+      const to = addDays(monday, 4); // 5-day range
+
+      await useCase.execute({
+        from: monday,
+        to,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      // loadScheduleRange makes 1 call for the tenant-wide (undefined resourceId) load and 2 for
+      // the room-scoped load (tenant-wide + resource-scoped rows) — 3 total, once each for the
+      // whole 5-day range, not once per (day, scope) pair, which a naive per-day fetch would've
+      // produced (15 calls here — 5x as many).
+      expect(closureSpy.mock.calls).toHaveLength(3);
+      expect(openingSpy.mock.calls).toHaveLength(3);
+      expect(occupancySpy).toHaveBeenCalledTimes(1);
+      expect(occupancySpy).toHaveBeenCalledWith(
+        TENANT_ID,
+        [room.id],
+        monday,
+        to,
+        expect.any(String),
+      );
     });
   });
 });

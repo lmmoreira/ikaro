@@ -10,10 +10,23 @@ import {
   BookingScheduledAtInvalidError,
   BookingScheduledInPastError,
 } from '../../domain/errors/booking-domain.error';
-import { BookingStatus } from '../../domain/booking.aggregate';
+import { Booking, BookingStatus } from '../../domain/booking.aggregate';
+import { AvailabilityService } from '../../domain/services/availability.service';
+import { Service } from '../../domain/service.aggregate';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
+import {
+  IResourceOccupancyRepository,
+  RESOURCE_OCCUPANCY_REPOSITORY,
+} from '../ports/resource-occupancy-repository.port';
+import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
+import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
+import {
+  resolveBookingLinesResourceCandidates,
+  ResolvedLineCandidates,
+} from './resource-occupancy.helpers';
 
 export type ApproveBookingUseCaseInput = ApproveBookingDto & {
   bookingId: string;
@@ -35,6 +48,11 @@ export class ApproveBookingUseCase {
 
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
+    @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
+    @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
+    private readonly occupancyRepo: IResourceOccupancyRepository,
+    private readonly availabilityService: AvailabilityService,
     private readonly slotConflictService: BookingSlotConflictService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
@@ -44,43 +62,112 @@ export class ApproveBookingUseCase {
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
+    this.assertApprovable(booking);
 
-    if (
-      booking.status !== BookingStatus.PENDING &&
-      booking.status !== BookingStatus.INFO_REQUESTED
-    ) {
-      throw new InvalidBookingTransitionError(booking.status, BookingStatus.APPROVED);
-    }
-
-    const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : booking.scheduledAt;
-    if (input.scheduledAt) {
-      if (Number.isNaN(scheduledAt.getTime())) throw new BookingScheduledAtInvalidError();
-      if (scheduledAt <= new Date()) throw new BookingScheduledInPastError();
-    }
+    const isRescheduling = Boolean(input.scheduledAt);
+    const scheduledAt = this.resolveScheduledAt(input, booking, isRescheduling);
+    const serviceMap = await this.loadServiceMap(booking, tenantId);
 
     await this.txManager.run(async () => {
-      // This validation must stay inside the write transaction because lockTenantDay
-      // uses pg_advisory_xact_lock, which only protects the slot check for this tx.
-      await this.slotConflictService.assertSlotFree(
+      const candidatesByLine = await this.resolveAndCheckCandidates(
+        booking,
+        serviceMap,
         tenantId,
         scheduledAt,
-        booking.totalDurationMins,
-        input.timezone,
       );
-      booking.approve(staffId, correlationId, input.scheduledAt ? scheduledAt : undefined);
+
+      booking.approve(staffId, correlationId, isRescheduling ? scheduledAt : undefined);
       await this.bookingRepo.save(booking);
+
+      await this.applyOccupancy(candidatesByLine, tenantId);
     });
 
-    this.logger.log('Booking approved', {
-      tenantId,
-      bookingId: booking.id,
-      staffId,
-    });
+    this.logger.log('Booking approved', { tenantId, bookingId: booking.id, staffId });
 
     return {
       bookingId: booking.id,
       status: booking.status,
       approvedAt: booking.approvedAt!.toISOString(),
     };
+  }
+
+  private assertApprovable(booking: Booking): void {
+    if (
+      booking.status !== BookingStatus.PENDING &&
+      booking.status !== BookingStatus.INFO_REQUESTED
+    ) {
+      throw new InvalidBookingTransitionError(booking.status, BookingStatus.APPROVED);
+    }
+  }
+
+  private resolveScheduledAt(
+    input: ApproveBookingUseCaseInput,
+    booking: Booking,
+    isRescheduling: boolean,
+  ): Date {
+    const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : booking.scheduledAt;
+    if (isRescheduling) {
+      if (Number.isNaN(scheduledAt.getTime())) throw new BookingScheduledAtInvalidError();
+      if (scheduledAt <= new Date()) throw new BookingScheduledInPastError();
+    }
+    return scheduledAt;
+  }
+
+  private async loadServiceMap(booking: Booking, tenantId: string): Promise<Map<string, Service>> {
+    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
+    const services = await this.serviceRepo.findByIds(serviceIds, tenantId);
+    return new Map(services.map((s) => [s.id, s]));
+  }
+
+  // Resolves the (possibly unchanged) window's candidates fresh every time — cheap, and keeps
+  // this the single source of truth for "what resources does this booking occupy," same as the
+  // creation path. Excluding this booking's own lines from the conflict check means it never
+  // conflicts with its own existing HOLD row(s).
+  private async resolveAndCheckCandidates(
+    booking: Booking,
+    serviceMap: Map<string, Service>,
+    tenantId: string,
+    scheduledAt: Date,
+  ): Promise<Map<string, ResolvedLineCandidates>> {
+    const lineInputs = booking.lines.map((line) => ({
+      lineId: line.lineId,
+      serviceId: line.serviceId,
+      durationMinsAtBooking: line.durationMinsAtBooking,
+    }));
+    const candidatesByLine = await resolveBookingLinesResourceCandidates(
+      this.resourceRepo,
+      this.availabilityService,
+      tenantId,
+      scheduledAt,
+      lineInputs,
+      serviceMap,
+    );
+    const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
+    const bookingLineIds = booking.lines.map((l) => l.lineId);
+    await this.slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);
+    return candidatesByLine;
+  }
+
+  // Always release whatever's currently assigned to these lines (a no-op for a line with nothing
+  // yet — a booking created before M22-S03 shipped, or one BackfillResourceOccupancy skipped
+  // because it wasn't APPROVED yet at migration time) and assign fresh rows directly as COMMITTED,
+  // from the exact candidatesByLine that assertSlotFree() just validated. Committing whatever a
+  // line's ORIGINAL request-time resolution had assigned, without checking it still matches the
+  // freshly re-resolved candidates, risks persisting occupancy for a resource that was never
+  // re-validated (deactivated or reconfigured between request and approval) — the resource
+  // assertSlotFree() actually just checked is the only one ever safe to persist. This stays cheap
+  // when nothing changed: assign()'s own upsert reuses the existing assignment row for an
+  // identical (line, resource, leg, quantity) tuple instead of duplicating it.
+  private async applyOccupancy(
+    candidatesByLine: Map<string, ResolvedLineCandidates>,
+    tenantId: string,
+  ): Promise<void> {
+    await moveBookingLinesOccupancy(
+      this.occupancyRepo,
+      candidatesByLine,
+      tenantId,
+      'COMMITTED',
+      null,
+    );
   }
 }

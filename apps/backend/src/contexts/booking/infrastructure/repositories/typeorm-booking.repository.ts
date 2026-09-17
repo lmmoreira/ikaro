@@ -32,7 +32,6 @@ import { Booking } from '../../domain/booking.aggregate';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { toDomain, toEntity, toLineEntity, toUpdateSet } from './typeorm-booking.mapper';
-import { rethrowSaveError } from './typeorm-booking.persistence-errors';
 
 @Injectable()
 export class TypeOrmBookingRepository implements IBookingRepository {
@@ -138,22 +137,18 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     const bookingEntity = toEntity(booking);
 
     const manager = getActiveEntityManager();
-    try {
-      if (manager) {
-        await this.persistBooking(manager, booking, bookingEntity);
-      } else {
-        // Self-managed transaction (no ambient txManager.run() from the caller): runInNewTransaction
-        // is the same sequence TypeOrmTransactionManager.run() uses — the ambient context must
-        // point at this tx too, or drainDomainEvents' outbox write (inside persistBooking) would
-        // have no active manager to join and would run outside this transaction entirely, breaking
-        // the same-transaction guarantee this branch exists to provide (TD24-S03: TypeOrmOutboxRepository
-        // no longer has a disconnected standalone fallback).
-        await runInNewTransaction(this.repo.manager, (tx) =>
-          this.persistBooking(tx, booking, bookingEntity),
-        );
-      }
-    } catch (err) {
-      rethrowSaveError(err);
+    if (manager) {
+      await this.persistBooking(manager, booking, bookingEntity);
+    } else {
+      // Self-managed transaction (no ambient txManager.run() from the caller): runInNewTransaction
+      // is the same sequence TypeOrmTransactionManager.run() uses — the ambient context must
+      // point at this tx too, or drainDomainEvents' outbox write (inside persistBooking) would
+      // have no active manager to join and would run outside this transaction entirely, breaking
+      // the same-transaction guarantee this branch exists to provide (TD24-S03: TypeOrmOutboxRepository
+      // no longer has a disconnected standalone fallback).
+      await runInNewTransaction(this.repo.manager, (tx) =>
+        this.persistBooking(tx, booking, bookingEntity),
+      );
     }
   }
 

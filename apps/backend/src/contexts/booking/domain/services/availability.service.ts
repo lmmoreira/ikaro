@@ -5,7 +5,7 @@ import {
   utcDateToLocalHHMM,
 } from '../../../../shared/utils/calendar-date';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
-import { BookedSlot } from '../booked-slot';
+import { ResourceOccupiedSlot } from '../resource-occupied-slot';
 import { Resource } from '../resource.aggregate';
 import { ScheduleClosure } from '../schedule-closure.aggregate';
 import { ScheduleOpening } from '../schedule-opening.aggregate';
@@ -31,13 +31,36 @@ export interface AvailabilityInput {
   opening: ScheduleOpening | null;
   // The resource-scoped opening for `date`, if any. Optional/undefined = none (tenant-wide call).
   resourceOpening?: ScheduleOpening | null;
-  existingBookings: BookedSlot[];
+  // Occupancy for the ONE resource this call is scoped to (docs/13-DATABASE_SCHEMA.md §
+  // booking.resource_occupancy) — a flat degenerate service calls this once for the tenant's
+  // LOCATION resource; the resource-scoped path uses isWindowFree() instead (see that method).
+  existingOccupancy: ResourceOccupiedSlot[];
 }
 
 export interface AvailableSlot {
   startsAt: string; // ISO-8601 UTC
   endsAt: string; // ISO-8601 UTC
 }
+
+export interface LegSpanInput {
+  legIndex: number;
+  durationMinutes: number;
+  transitionGapAfterMinutes: number;
+}
+
+export interface LegSpan {
+  legIndex: number;
+  startsAt: Date;
+  // Includes this leg's own resource turnover (UC-059) — the actual window that leg's resource
+  // is occupied for, distinct from when the customer physically leaves (startsAt + durationMinutes).
+  endsAtWithTurnover: Date;
+}
+
+// Bundled (S107) — same 4 fields isWindowFree() forwards straight into resolveEffectiveHours().
+export type WindowScheduleContext = Pick<
+  AvailabilityInput,
+  'resource' | 'closures' | 'opening' | 'resourceOpening'
+>;
 
 export class AvailabilityService {
   calculate(input: AvailabilityInput): AvailableSlot[] {
@@ -51,7 +74,7 @@ export class AvailabilityService {
       closures,
       opening,
       resourceOpening,
-      existingBookings,
+      existingOccupancy,
     } = input;
 
     const effectiveHours = this.resolveEffectiveHours(
@@ -68,7 +91,7 @@ export class AvailabilityService {
     const timezone = businessHours.timezone;
     const totalMins =
       services.reduce((sum, s) => sum + s.durationMinutes, 0) + serviceBufferMinutes;
-    const bookedRanges = this.buildBookedRanges(existingBookings, timezone);
+    const bookedRanges = this.buildBookedRanges(existingOccupancy, timezone);
 
     return this.generateSlots({
       date,
@@ -83,16 +106,15 @@ export class AvailabilityService {
   }
 
   private buildBookedRanges(
-    existingBookings: BookedSlot[],
+    existingOccupancy: ResourceOccupiedSlot[],
     timezone: string,
   ): { start: string; end: string }[] {
-    return existingBookings.map((b) => {
-      const startHHMM = utcDateToLocalHHMM(b.scheduledAt, timezone);
-      return {
-        start: startHHMM,
-        end: TimeOfDay.create(startHHMM).addMinutes(b.totalDurationMins).value,
-      };
-    });
+    // endsAt already includes the effective buffer/turnover (UC-059) — no extra arithmetic here,
+    // unlike the old BookedSlot shape which derived an end from scheduledAt + totalDurationMins.
+    return existingOccupancy.map((o) => ({
+      start: utcDateToLocalHHMM(o.startsAt, timezone),
+      end: utcDateToLocalHHMM(o.endsAt, timezone),
+    }));
   }
 
   private generateSlots(ctx: {
@@ -220,5 +242,71 @@ export class AvailabilityService {
   /** Two HH:MM half-open intervals [aStart, aEnd) and [bStart, bEnd) overlap when aStart < bEnd && bStart < aEnd. */
   private overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
     return aStart < bEnd && bStart < aEnd;
+  }
+
+  // UC-059 step 1 — the effective gap before the next booking on a resource, for a flat
+  // (non-legged) service, is whichever is larger: the service's own cleanup buffer, or the
+  // resource's own turnover. A1: both 0 collapses to today's exact single-number buffer model.
+  effectiveFlatGapMinutes(bufferAfterMinutes: number, turnoverMinutes: number): number {
+    return Math.max(bufferAfterMinutes, turnoverMinutes);
+  }
+
+  // Free/busy check for one [start, end) window against a resource's (or tenant's) hours/
+  // closures/occupancy — used per line/leg/candidate instead of calculate()'s own slot loop.
+  isWindowFree(
+    date: string,
+    businessHours: BusinessHours,
+    scheduleContext: WindowScheduleContext,
+    window: { start: Date; end: Date },
+    existingOccupancy: ResourceOccupiedSlot[],
+  ): boolean {
+    const effectiveHours = this.resolveEffectiveHours(
+      date,
+      businessHours,
+      scheduleContext.resource,
+      scheduleContext.closures,
+      scheduleContext.opening,
+      scheduleContext.resourceOpening,
+    );
+    if (!effectiveHours) return false;
+
+    const startHHMM = utcDateToLocalHHMM(window.start, businessHours.timezone);
+    const endHHMM = utcDateToLocalHHMM(window.end, businessHours.timezone);
+    if (startHHMM < effectiveHours.open || endHHMM > effectiveHours.close) return false;
+    if (
+      effectiveHours.partialClosures.some((c) =>
+        this.overlaps(startHHMM, endHHMM, c.startTime!.value, c.endTime!.value),
+      )
+    ) {
+      return false;
+    }
+
+    return !existingOccupancy.some((o) => window.start < o.endsAt && o.startsAt < window.end);
+  }
+
+  // UC-059 step 2 — for a legged service, each leg's own resource turnover applies at that leg's
+  // own resource; transitionGapAfterMinutes is independent and additive to the appointment's
+  // total span (it determines when the NEXT leg starts, regardless of this leg's own turnover).
+  // Legs are sorted by legIndex defensively — same discipline as computeLegsTotalSpanMinutes()
+  // (service-leg-span.ts), since setLegs() only rejects duplicate indexes, not out-of-order ones.
+  computeLegSpans(
+    candidateStart: Date,
+    legs: LegSpanInput[],
+    turnoverMinutesByLegIndex: ReadonlyMap<number, number>,
+  ): LegSpan[] {
+    const ordered = [...legs].sort((a, b) => a.legIndex - b.legIndex);
+    const spans: LegSpan[] = [];
+    let cursor = candidateStart;
+    for (const leg of ordered) {
+      const legEnd = new Date(cursor.getTime() + leg.durationMinutes * 60_000);
+      const turnover = turnoverMinutesByLegIndex.get(leg.legIndex) ?? 0;
+      spans.push({
+        legIndex: leg.legIndex,
+        startsAt: cursor,
+        endsAtWithTurnover: new Date(legEnd.getTime() + turnover * 60_000),
+      });
+      cursor = new Date(legEnd.getTime() + leg.transitionGapAfterMinutes * 60_000);
+    }
+    return spans;
   }
 }
