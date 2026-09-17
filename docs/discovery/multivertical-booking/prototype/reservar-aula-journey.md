@@ -2,8 +2,8 @@
 
 **Actor(s):** CUSTOMER
 **Goal:** Authenticated customer with an active class-access contract browses the class catalog and enrolls in a new class — a one-off drop-in session or a standing recurring series
-**UCs covered:** CAND-21, CAND-22, CAND-24, CAND-26 (`docs/discovery/multivertical-booking_USECASES.md`)
-**Status:** Draft — discovery-complete prototype (`plan/journey/customer/prototypes/reservar-aula/dev-notes.md`), no story/milestone yet. See the promotion-status note in `docs/discovery/multivertical-booking.md` and `plan/journey/README.md`.
+**UCs covered:** CAND-21, CAND-22, CAND-24, CAND-26 (`docs/discovery/multivertical-booking/multivertical-booking_USECASES.md`)
+**Status:** Draft — discovery-complete prototype (`plan/journey/customer/prototypes/reservar-aula/dev-notes.md`), no story/milestone yet. See the promotion-status note in `docs/discovery/multivertical-booking/multivertical-booking.md` and `plan/journey/README.md`.
 
 > Complements `minha-conta.md`'s Turmas section, which covers managing an *existing* enrollment (skip a session, cancel, watch a waitlist). This journey is the "before" — creating a new one.
 
@@ -72,7 +72,7 @@ Full request/response shapes: `plan/journey/customer/prototypes/reservar-aula/de
 
 ## Open questions / gaps
 
-- [ ] **No story/milestone exists for any route in this journey.** This whole flow needs to go through `/discovery-to-milestone` before implementation — see the promotion-status note in `docs/discovery/multivertical-booking.md`.
+- [ ] **No story/milestone exists for any route in this journey.** This whole flow needs to go through `/discovery-to-milestone` before implementation — see the promotion-status note in `docs/discovery/multivertical-booking/multivertical-booking.md`.
 - [x] **`EnrollmentCreated.status` is canonicalized.** The BFF projection exposes `CONFIRMED | PENDING_APPROVAL | WAITLISTED | PROMOTION_PENDING | CANCELLED` occurrence state and separates recurring intent.
 - [x] **`trial_slots`/`reserved_non_member_count` are part of the availability/access contract** for authenticated pay-per-class customers as well as guests.
 - [ ] Reposição/`classSkipWindowHours` (`CAND-38`, `CAND-27`) belong to `minha-conta.md`'s Turmas section (managing an *existing* enrollment), not here — this journey only covers creating a new one.

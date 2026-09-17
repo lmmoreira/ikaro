@@ -1,6 +1,6 @@
 # Dev Notes — GUEST: Submit Lead Form
 
-**Status:** ❌ Gap — nothing built yet. Promoted from `docs/discovery/lead-form-module/prototype/` (M20 milestone, `docs/04-USE_CASES.md` UC-039). Full domain/data-model rationale: `docs/discovery/lead-form-module/lead-form-module.md`.
+**Status:** ✅ Shipped in M20-S07/S09. The teaser, dedicated page, validation states, authentication return flow, and submission path are implemented. Canonical behavior: `docs/04-USE_CASES.md` UC-038–UC-040.
 
 ---
 
@@ -16,9 +16,9 @@ A single-page public form at `/[slug]/lead-form`, reached from the `LEAD_FORM` h
 
 | File | Status | Role |
 |---|---|---|
-| `apps/web/app/[slug]/lead-form/page.tsx` | ❌ Gap | Server component — fetches the question catalog, renders the form |
-| `apps/web/shells/hotsite/components/LeadFormModule.tsx` | ❌ Gap | Teaser section on the hotsite itself, mirrors `BookingCtaModule.tsx` |
-| `packages/types/src/hotsite.ts` | ❌ Gap (extend) | Add `LEAD_FORM` to `HotsiteModuleType`, add `LeadFormModuleData` |
+| `apps/web/app/[slug]/lead-form/page.tsx` | ✅ Shipped M20-S09 | Server component — fetches the question catalog and renders the form |
+| `apps/web/shells/hotsite/components/LeadFormModule.tsx` | ✅ Shipped M20-S07 | Teaser section on the hotsite itself, mirroring `BookingCtaModule.tsx` |
+| `packages/types/src/hotsite.ts` | ✅ Shipped M20-S01/S07 | Defines `LEAD_FORM` and `LeadFormModuleData` |
 
 ---
 

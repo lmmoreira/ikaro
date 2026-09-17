@@ -164,47 +164,26 @@ apps/web/
 
 ## 7. Deployment
 
-> ⚠️ **Superseded** by `plan/M17-CLOUD-DEPLOY.md` (2026-07-07) and `td/TD29-WEB-RUNTIME-PUBLIC-CONFIG.md` — this section predates both. Concretely stale: the Dockerfile (`docker/web/Dockerfile` doesn't exist; the real one is `apps/web/Dockerfile`, `node:22-alpine`, no `next.config.js`-style `env: {}` block), the `NEXT_PUBLIC_BFF_URL` "Injected at build time via Cloud Run `--set-env-vars`" claim (TD29 replaced this with a runtime-injected accessor — see that doc), and the named CI/CD workflows (`ci-frontend.yml`/`deploy-frontend.yml` don't exist; the real ones are `deploy-staging.yml`/`.github/workflows/pr-tests.yml`). On any conflict, M17-CLOUD-DEPLOY and TD29 win. Only this section is stale — the rest of this document (RBR, folder structure, communication patterns) is current.
+**Runtime public configuration:** browser-visible configuration is injected at runtime by the root-layout Server Component through `PublicEnvScript`; client code reads it through `apps/web/shared/lib/runtime-env/public-env.ts`. Do not use build-time `NEXT_PUBLIC_*` values for deployment-specific endpoints: the same web image is promoted from staging to production, while Cloud Run supplies environment-specific values at runtime. See `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer for transport rules and `plan/M17-CLOUD-DEPLOY.md` D8 for delivery topology.
 
 **Runtime:** GCP Cloud Run — Next.js runs as an SSR Node.js server, not a static export. SSR is required for dynamic `[slug]` routing and server-side session handling.
 
-**Container:** Multi-stage Docker build in `docker/web/Dockerfile`.
+**Container:** the multi-stage production Docker build lives at `apps/web/Dockerfile` and runs the Next.js SSR server on Cloud Run.
 
-```dockerfile
-# Stage 1: build
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
-COPY apps/web/package.json apps/web/
-COPY packages/ packages/
-RUN corepack enable && pnpm install --frozen-lockfile
-COPY apps/web/ apps/web/
-RUN pnpm --filter web build    # next build
-
-# Stage 2: runtime
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/apps/web/.next ./.next
-COPY --from=builder /app/apps/web/public ./public
-COPY --from=builder /app/apps/web/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-EXPOSE 3000
-CMD ["node_modules/.bin/next", "start"]
-```
+The image is built from the repository's digest-pinned Node 22 Alpine base. Its builder installs production dependencies, builds `@ikaro/web`, and creates `/standalone` with `pnpm deploy --prod --legacy`; the runtime image copies that standalone output and `.next/`, runs as the unprivileged `nodeapp` user, and exposes a container health check. Treat [`apps/web/Dockerfile`](../apps/web/Dockerfile) as the executable source of truth rather than duplicating it here.
 
 **Environment variables at runtime:**
 
 | Variable | Value (prod) | Notes |
 |---|---|---|
-| `NEXT_PUBLIC_BFF_URL` | `/v1` | Runtime-injected browser base for the same-origin gateway |
+| `NEXT_PUBLIC_BFF_URL` | `/v1` | Runtime-injected browser base for the same-origin gateway; never a Docker build argument |
 | `BFF_UPSTREAM_URL` | `https://bff.<ikaro-domain>/v1` | Server-only absolute BFF base; never exposed to browser code |
 | `NODE_ENV` | `production` | |
 | `PORT` | `3000` | Cloud Run sets this automatically |
 
 **Gateway:** `app/v1/[...path]/route.ts` forwards `/v1/*` to `BFF_UPSTREAM_URL`; no Next.js rewrite or browser-visible BFF host is used.
 
-**CI/CD:** Full pipeline in `docs/09-CI_CD_PIPELINE.md` (`ci-frontend.yml` + `deploy-frontend.yml`). Summary:
+**CI/CD:** Full pipeline in `docs/09-CI_CD_PIPELINE.md` and `.github/workflows/deploy-staging.yml`. Summary:
 - PR gate: ESLint, `tsc --noEmit`, Vitest, Playwright, Gitleaks
 - Merge to `main`: build → GAR, deploy Cloud Run staging (auto), production (1 reviewer required)
 - Smoke test: `curl` against Cloud Run URL after deploy

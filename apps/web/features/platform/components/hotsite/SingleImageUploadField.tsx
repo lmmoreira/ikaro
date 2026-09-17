@@ -90,7 +90,7 @@ export function SingleImageUploadField({
   // A not-yet-promoted tmp/ upload lives in the private bucket — it can't resolve via the
   // public-bucket string template, so re-mounting this field after the local blob preview is
   // gone (e.g. a tab switch) needs a fresh private signed read URL instead (see
-  // td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview). Tagged with the `value` it was
+  // docs/14-API_CONTRACTS.md § tmp/ image preview). Tagged with the `value` it was
   // resolved for, so a stale URL from a previous tmp/ value is never rendered against a new one
   // while its own fetch is still pending — derived below, not reset via a synchronous setState
   // in the effect (see https://react.dev/learn/you-might-not-need-an-effect).

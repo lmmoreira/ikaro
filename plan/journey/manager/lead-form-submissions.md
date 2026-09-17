@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER, STAFF
 **Goal:** Review visitor submissions to the lead-capture form on a dedicated screen
 **UCs covered:** UC-041
-**Status:** ✅ Done — base list/detail + gated nav (M20-S10), search backend/BFF (M20-S12), and search frontend UI (M20-S13, basic/advanced/date-range, all button-driven — see Flow section below). Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
+**Status:** ✅ Done — base list/detail + gated nav (M20-S10), search backend/BFF (M20-S12), and search frontend UI (M20-S13, basic/advanced/date-range, all button-driven — see Flow section below). Implemented from the lead-form design promoted via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
 
 **Gated, not unconditional (post-review redesign, 2026-08-24; implementation corrected during M20-S10 story-discovery, 2026-08-27):** the "Leads" sidebar item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant (fetched server-side by the shared `loadDashboardShellContext()`, `apps/web/shells/dashboard/model/dashboard-shell-context.ts` — called independently by every top-level dashboard section's own `layout.tsx`, since there is no single shared `app/dashboard/layout.tsx` — passed down through `DashboardShell` → `Sidebar`/`BottomNav`/`MoreSheet`) — a tenant that never turned the module on never sees this item, since it would otherwise point at a permanently empty screen.
 

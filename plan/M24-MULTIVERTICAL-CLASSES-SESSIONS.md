@@ -18,14 +18,14 @@
 
 | Wave | Story | Theme |
 |---|---|---|
-| 1 | M24-S01 | `ClassScheduleTemplate` aggregate — CRUD + cancel-range (UC-079, UC-080, UC-096) |
-| 1 | M24-S02 | `ClassAccessContract` aggregate — CRUD (UC-099) |
+| 1 | M24-S01 | `ClassScheduleTemplate` aggregate — CRUD and exception model (UC-079, UC-080) |
+| 1 | M24-S02 | `ClassAccessContract` aggregate — create and query (UC-099) |
 | 1 | M24-S03 | `Service` guest-access-policy extension (UC-078) |
 | 2 | M24-S04 | `ClassSession` aggregate + rolling-horizon generation worker (UC-081) |
 | 2 | M24-S05 | Onboarding bootstrap SESSION-preset extension — Presets D/E/F (UC-075 completion) |
 | 3 | M24-S06 | Staff/Manager session list + single-session override (UC-082, UC-083) |
 | 4 | M24-S07 | `ClassSessionBooking` aggregate — core booking creation + guest verification (UC-086, UC-087, UC-088, UC-097) |
-| 5 | M24-S08 | Cancellation + waitlist join/auto-promotion + session-level cancel-with-bookings (UC-084, UC-089, UC-090, UC-091) |
+| 5 | M24-S08 | Cancellation, template range cancellation, waitlist join/auto-promotion, and session-level cancel-with-bookings (UC-084, UC-089, UC-090, UC-091, UC-096) |
 | 5 | M24-S09 | Staff approval of verified-guest reservations (UC-098) |
 | 6 | M24-S10 | Timer-worker bundle — end-of-session waitlist cleanup, guest-request expiry, offer expiry (UC-092, UC-100, UC-106) |
 | 6 | M24-S11 | `RecurringEnrollment` aggregate — enroll/skip/cancel/reschedule (UC-093, UC-094, UC-095, UC-102) |
@@ -87,7 +87,7 @@ graph TD
 
 ---
 
-### M24-S01 — `ClassScheduleTemplate` aggregate — CRUD + cancel-range
+### M24-S01 — `ClassScheduleTemplate` aggregate — CRUD and exception model
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
@@ -110,10 +110,11 @@ Create the `ClassScheduleTemplate` aggregate (root) with its `ClassScheduleTempl
 1. **`CreateClassScheduleTemplateUseCase`** (UC-079): validates slot membership, resource conflicts (A1/A2), capacity ceiling (A3), the 50-cap (A4); persists via `IClassScheduleTemplateRepository.save()`.
 2. **`UpdateClassScheduleTemplateUseCase`** (UC-080): loads by `(tenantId, id)`, re-validates capacity-vs-`reservedCount` (A2), saves.
 3. **`DeactivateClassScheduleTemplateUseCase`** (UC-080): sets `isActive = false`; stops future generation (checked by S04's worker), does not touch already-materialized sessions.
-4. **`CancelTemplateRangeUseCase`** (UC-096): creates/merges a `ClassScheduleTemplateException`; cancels every already-materialized affected future session (calls `ClassSession.cancel()` — **forward reference to S04's aggregate**; if S04 hasn't landed at implementation time, this step is a no-op with a `// TODO(M24-S04)` — but per this milestone's own wave order S04 lands after S01, so at merge time for S04 this use case must be revisited to wire the real call. Flag explicitly in S04's own AC as a cross-story completion item.).
-5. **`ListClassScheduleTemplatesUseCase`**: `findByTenant(tenantId, { serviceId?, isActive? })`.
+4. **`ListClassScheduleTemplatesUseCase`**: `findByTenant(tenantId, { serviceId?, isActive? })`.
 
-**Backend HTTP surface:** new controller `infrastructure/controllers/class-schedule-template.controller.ts` — `POST /class-schedule-templates`, `PATCH /class-schedule-templates/:id`, `DELETE /class-schedule-templates/:id`, `POST /class-schedule-templates/:id/cancel-range`, `GET /class-schedule-templates`. `STAFF|MANAGER` per `docs/14-API_CONTRACTS.md` § 4b's blanket auth note.
+This story defines and persists `ClassScheduleTemplateException`, but deliberately does not expose range cancellation. The atomic UC-096 operation depends on materialized `ClassSession` rows and lands in M24-S08 after both session and booking cancellation semantics exist. No temporary no-op or cross-story TODO is permitted.
+
+**Backend HTTP surface:** new controller `infrastructure/controllers/class-schedule-template.controller.ts` — `POST /class-schedule-templates`, `PATCH /class-schedule-templates/:id`, `DELETE /class-schedule-templates/:id`, `GET /class-schedule-templates`. `POST /class-schedule-templates/:id/cancel-range` lands atomically in M24-S08. `STAFF|MANAGER` per `docs/14-API_CONTRACTS.md` § 4b's blanket auth note.
 
 **BFF endpoint spec:** new `apps/bff/src/features/booking/class-schedule-template.controller.ts` + `.schemas.ts` + `.types.ts`, forwarding via `BackendHttpService`. Register in the existing `apps/bff/src/features/booking/` module.
 
@@ -127,7 +128,6 @@ Create the `ClassScheduleTemplate` aggregate (root) with its `ClassScheduleTempl
 - `apps/backend/src/contexts/booking/application/use-cases/create-class-schedule-template.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/update-class-schedule-template.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/deactivate-class-schedule-template.use-case.ts` (+ `.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/application/use-cases/cancel-template-range.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/list-class-schedule-templates.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/entities/class-schedule-template.entity.ts` (+ slot/exception entities) (new)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-class-schedule-template.repository.ts` (+ `.spec.ts`) (new)
@@ -163,7 +163,7 @@ Create the `ClassScheduleTemplate` aggregate (root) with its `ClassScheduleTempl
 
 ---
 
-### M24-S02 — `ClassAccessContract` aggregate — CRUD
+### M24-S02 — `ClassAccessContract` aggregate — create and query
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
@@ -181,10 +181,11 @@ Create the `ClassAccessContract` aggregate — a minimal, date-bounded eligibili
 
 **Backend use case steps:**
 1. **`CreateClassAccessContractUseCase`** (UC-099 steps 1-2): validates customer exists (cross-context lookup via a narrow adapter, grep `infrastructure/cross-context/` first per `CLAUDE.md` §8), validates no overlapping eligibility, persists.
-2. **`CancelClassAccessContractUseCase`** (UC-099 step 4): sets `status = CANCELLED`; cancels dependent future bookings/enrollments (**forward reference to S07/S11** — the cancellation cascade over `ClassSessionBooking`/`RecurringEnrollment` can only be wired once those aggregates exist; implement this use case's own state transition now, wire the cascade call when S07/S11 land, flagged explicitly in those stories' AC).
-3. **Expiry**: a lightweight query-time check (`endsOn < today`) marks a contract `EXPIRED` when read, mirroring how `LoyaltyBalance` expiry is query-time-only (`docs/13-DATABASE_SCHEMA.md`'s Loyalty precedent) — no separate cron needed for this aggregate alone.
+2. **Expiry**: a lightweight query-time check (`endsOn < today`) marks a contract `EXPIRED` when read, mirroring how `LoyaltyBalance` expiry is query-time-only (`docs/13-DATABASE_SCHEMA.md`'s Loyalty precedent) — no separate cron needed for this aggregate alone.
 
-**Backend HTTP surface:** new controller `infrastructure/controllers/class-access-contract.controller.ts` — `POST /class-access-contracts`, `POST /class-access-contracts/:id/cancel`, `GET /class-access-contracts?customerId=`. `MANAGER`-only (grants eligibility, a manager-level decision, matching the Resource Management precedent from M21).
+Early cancellation is intentionally deferred to M24-S11, where contract, booking, and recurring-enrollment transitions can be committed atomically. This story must not ship a partial cancellation that leaves funded future commitments active.
+
+**Backend HTTP surface:** new controller `infrastructure/controllers/class-access-contract.controller.ts` — `POST /class-access-contracts`, `GET /class-access-contracts?customerId=`. The cancel action lands in M24-S11. `MANAGER`-only (grants eligibility, a manager-level decision, matching the Resource Management precedent from M21).
 
 **BFF endpoint spec:** new `apps/bff/src/features/booking/class-access-contract.controller.ts` + `.schemas.ts`.
 
@@ -194,7 +195,6 @@ Create the `ClassAccessContract` aggregate — a minimal, date-bounded eligibili
 - `apps/backend/src/contexts/booking/domain/class-access-contract.aggregate.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/ports/class-access-contract-repository.port.ts` (new)
 - `apps/backend/src/contexts/booking/application/use-cases/create-class-access-contract.use-case.ts` (+ `.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/application/use-cases/cancel-class-access-contract.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/entities/class-access-contract.entity.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-class-access-contract.repository.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/class-access-contract.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
@@ -206,7 +206,7 @@ Create the `ClassAccessContract` aggregate — a minimal, date-bounded eligibili
 - `apps/bff/src/features/booking/class-access-contract.schemas.ts` (new)
 
 **Acceptance criteria — product:**
-- [ ] Manager can grant a customer eligibility for one or more SESSION services over a date range, and cancel it early.
+- [ ] Manager can grant and list customer eligibility for one or more SESSION services over a date range.
 - [ ] Two contracts for the same customer with overlapping service coverage and overlapping dates are rejected.
 
 **Acceptance criteria — technical:**
@@ -485,7 +485,7 @@ The biggest story in this milestone — the core session-booking write path. One
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
 **Docs to load:** `docs/04-USE_CASES.md` UC-084, UC-089, UC-090, UC-091, `docs/03-DOMAIN_EVENTS.md` § `ClassSessionCancelled`/`ClassSessionBookingCancelled`/`ClassSessionBookingWaitlisted`/`WaitlistPromoted`, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § `classCancellationWindowHours`
-**Dependencies:** M24-S07 (bookings must exist), M24-S06 (session-level cancel action surface)
+**Dependencies:** M24-S01 (template exceptions), M24-S04 (materialized sessions), M24-S07 (bookings must exist), M24-S06 (session-level cancel action surface)
 **Pattern:** plain composition — extends S07's aggregate with cancellation/waitlist methods.
 
 **Description:**
@@ -497,14 +497,16 @@ Customer self-cancellation (within `classCancellationWindowHours`), waitlist joi
 3. **`JoinClassSessionWaitlistUseCase`** (UC-090): validates session is full, one qualifying-contract-or-pay-per-class choice, creates `WAITLISTED` row, snapshots `waitlistAccessIntent`; rejects a duplicate active entry (A1).
 4. **`AcceptWaitlistOfferUseCase`**/**`DeclineWaitlistOfferUseCase`**: accept → `CONFIRMED`; decline → releases capacity, repeats promotion for the next entry (A2).
 5. **`CancelClassSessionWithBookingsUseCase`** (UC-084): sets `ClassSession.status = CANCELLED`, iterates every `CONFIRMED`/`WAITLISTED` booking calling step 1's cancel method (without triggering per-cancellation promotion, since the session itself is gone), publishes one `ClassSessionCancelled` with `cancelledBookingIds`.
+6. **`CancelTemplateRangeUseCase`** (UC-096): in one transaction, creates or merges the `ClassScheduleTemplateException`, locks the affected future materialized sessions in deterministic order, and cancels each through the session-level cancellation path from step 5. The exception prevents the generation worker from recreating cancelled occurrences.
 
-**Backend HTTP surface:** `POST /class-session-bookings/:id/cancel`, `POST /class-sessions/:id/waitlist`, `POST /class-session-bookings/:id/waitlist-offer/accept`, `.../decline`, `POST /class-sessions/:id/cancel` — new actions on S06/S07's controllers.
+**Backend HTTP surface:** `POST /class-session-bookings/:id/cancel`, `POST /class-sessions/:id/waitlist`, `POST /class-session-bookings/:id/waitlist-offer/accept`, `.../decline`, `POST /class-sessions/:id/cancel`, and `POST /class-schedule-templates/:id/cancel-range` — new actions on S01/S06/S07's controllers.
 
 **BFF endpoint spec:** extend `class-session-booking.controller.ts`/`class-session.controller.ts`.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/class-session-booking.aggregate.ts` (modify — `cancel()`, `joinWaitlist()`, `promote()`, `acceptOffer()`/`declineOffer()`)
-- `apps/backend/src/contexts/booking/domain/class-session.aggregate.ts` (modify — wire the real `cancel()` per S01/S04's cross-story TODO)
+- `apps/backend/src/contexts/booking/domain/class-session.aggregate.ts` (modify — session cancellation)
+- `apps/backend/src/contexts/booking/application/use-cases/cancel-template-range.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/cancel-class-session-booking.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/promote-next-waitlist-entry.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/join-class-session-waitlist.use-case.ts` (+ `.spec.ts`) (new)
@@ -610,7 +612,7 @@ Three time-based cleanup checks, all triggered the same way (piggybacked onto or
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
 **Docs to load:** `docs/02-DOMAIN_MODEL.md` § `RecurringEnrollment`, `docs/13-DATABASE_SCHEMA.md` § `booking.recurring_enrollments`, `docs/04-USE_CASES.md` UC-093, UC-094, UC-095, UC-102, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § `classSkipWindowHours`/`classAllowsReschedule`/`classRescheduleWindowDays`/`classMaxReschedulesPerCycle`
-**Dependencies:** M24-S07 (bookings), M24-S02 (contracts — enrollment requires one), M24-S01 (templates)
+**Dependencies:** M24-S07 (bookings), M24-S02 (contracts — enrollment requires one), M24-S01 (templates), M24-S08 (atomic booking cancellation and waitlist promotion)
 **Pattern:** Repository + Adapter (`IRecurringEnrollmentRepository`).
 
 **Description:**
@@ -626,8 +628,9 @@ Standing customer enrollment in a recurring class — one aggregate whose 4 key 
 2. **`SkipEnrollmentOccurrenceUseCase`** (UC-094): validates `classSkipWindowHours`, cancels just that occurrence's booking, enrollment stays `ACTIVE`, triggers S08 promotion if a waitlist exists.
 3. **`RescheduleEnrollmentOccurrenceUseCase`** (UC-102): validates `classAllowsReschedule`, the reschedule window (`classRescheduleWindowDays`), and `classMaxReschedulesPerCycle`; atomically creates a new one-off booking (`seriesId=null`, `rescheduledFromId`) on the replacement session and cancels the original in the same transaction.
 4. **`CancelRecurringEnrollmentUseCase`** (UC-095): sets `status = CANCELLED`, cancels every future materialized booking, freeing capacity per session (triggers S08 promotion for each).
+5. **`CancelClassAccessContractUseCase`** (UC-099 step 4): locks the contract and all funded future bookings/enrollments in deterministic order; in one transaction, sets the contract to `CANCELLED`, ends dependent recurring enrollments, and cancels their future bookings through the S08 cancellation path.
 
-**Backend HTTP surface:** new controller `infrastructure/controllers/recurring-enrollment.controller.ts` — `POST /recurring-enrollments`, `PATCH /recurring-enrollments/:id/occurrences/:sessionId` (`action: SKIP`), `POST /recurring-enrollments/:id/occurrences/:sessionId/reschedule`, `POST /recurring-enrollments/:id/cancel`.
+**Backend HTTP surface:** new controller `infrastructure/controllers/recurring-enrollment.controller.ts` — `POST /recurring-enrollments`, `PATCH /recurring-enrollments/:id/occurrences/:sessionId` (`action: SKIP`), `POST /recurring-enrollments/:id/occurrences/:sessionId/reschedule`, `POST /recurring-enrollments/:id/cancel`; extend the class-access-contract controller with `POST /class-access-contracts/:id/cancel`.
 
 **BFF endpoint spec:** new `apps/bff/src/features/booking/recurring-enrollment.controller.ts` + `.schemas.ts`.
 
@@ -640,6 +643,7 @@ Standing customer enrollment in a recurring class — one aggregate whose 4 key 
 - `apps/backend/src/contexts/booking/application/use-cases/skip-enrollment-occurrence.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/reschedule-enrollment-occurrence.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/cancel-recurring-enrollment.use-case.ts` (+ `.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/application/use-cases/cancel-class-access-contract.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/entities/recurring-enrollment.entity.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-recurring-enrollment.repository.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-enrollment.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
@@ -652,6 +656,7 @@ Standing customer enrollment in a recurring class — one aggregate whose 4 key 
 - [ ] Customer with a qualifying contract can enroll in a weekly class; sessions materialize as bookings automatically.
 - [ ] Skipping one occurrence keeps the enrollment active; cancelling stops all future occurrences.
 - [ ] Reschedule respects the tenant's window/cap settings and links the replacement back to the original.
+- [ ] Manager can cancel an access contract atomically; every funded future enrollment/booking is cancelled and released capacity follows the normal waitlist-promotion path.
 
 **Acceptance criteria — technical:**
 - Unit: [ ] enrollment rejected without a qualifying contract; [ ] reschedule respects `classMaxReschedulesPerCycle`

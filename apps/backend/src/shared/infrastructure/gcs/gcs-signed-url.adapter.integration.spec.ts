@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { GcsSignedUrlAdapter } from './gcs-signed-url.adapter';
 
 // Exercises the real adapter against the real fake-gcs-server emulator started in
-// integration-global-setup.ts (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — every other
+// integration-global-setup.ts (see docs/14-API_CONTRACTS.md) — every other
 // integration spec in this repo swaps STORAGE_SERVICE for InMemoryStorageService, so nothing
 // has ever validated real V4 signed-URL PUT/GET, real cross-bucket copy(), or real delete()
 // against an actual GCS-compatible backend until this file.

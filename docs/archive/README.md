@@ -1,6 +1,6 @@
 # Archive - Historical Documentation
 
-**This folder contains Phase 1 planning documents and historic references.**
+**This folder contains superseded planning documents, historic references, and resolved TD records.**
 
 These files are **not needed for development** but preserved for reference and historical tracking.
 
@@ -15,6 +15,7 @@ These files are **not needed for development** but preserved for reference and h
 | **PHASE_1_SUMMARY.md** | What Phase 1 accomplished | For phase transition reference |
 | **FEEDBACK_UPDATES.md** | V1 feedback incorporation log | For change tracking |
 | **DELIVERABLES.md** | Phase 1 deliverables list | For completion verification |
+| **td/** | Resolved technical-debt decision and incident records | Historical provenance only; never as implementation guidance |
 
 ---
 
@@ -22,8 +23,6 @@ These files are **not needed for development** but preserved for reference and h
 
 **For current development, use:**
 - `/docs/README.md` - Current index
-- `/docs/QUICK_REFERENCE.md` - One-page cheat sheet
-- `/COPILOT_CLI.md` - How to work with GitHub Copilot CLI
 - Core docs: `01-05-*.md` files
 
 ---

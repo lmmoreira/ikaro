@@ -14,7 +14,7 @@ export class DeleteHotsiteImageUseCase {
   async execute(dto: DeleteHotsiteImageUseCaseInput): Promise<void> {
     // A not-yet-applied/promoted upload still lives in tmp/ (private bucket) — "Remove" before
     // save must delete it there instead of the permanent public path (see
-    // td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
+    // docs/14-API_CONTRACTS.md).
     if (dto.filePath.startsWith('tmp/')) {
       if (extractTenantIdFromTmpPath(dto.filePath) !== dto.tenantId) {
         throw new HotsiteImageNotUploadedError(dto.filePath);

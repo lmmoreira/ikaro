@@ -382,7 +382,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
 | Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES.md` |
-| Staff OAuth login / invite link | `docs/ENGINEERING_RULES.md` § Staff OAuth login URL format + `td/TD13-STAFF-INVITE-EMAIL-LINK.md` |
+| Staff OAuth login / invite link | `docs/ENGINEERING_RULES.md` § Staff OAuth login URL format |
 | New notification type | `docs/ENGINEERING_RULES.md` § Adding a new notification type |
 | New error code (`@ikaro/types`) | `docs/ENGINEERING_RULES.md` § Adding a new error — checklist (step 2: translation entry in **both** locale files, or CI's exhaustiveness test fails) |
 | New UI copy / locale key | `docs/ENGINEERING_RULES.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` |
@@ -399,9 +399,9 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` |
 | Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` |
 | Writing Terraform / infra code | vendored HashiCorp Terraform skills from `.claude/skills/` + `plan/M17-CLOUD-DEPLOY.md` §0–§2 + `infra/terraform/README.md` (layout, state, version-constraint + unit-test conventions) |
-| TD34 foundation / IAM transfer | `td/TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md` + `infra/terraform/foundation/README.md` before editing Terraform or workflows |
+| Foundation / IAM ownership | `infra/terraform/foundation/README.md` + `infra/terraform/README.md` before editing Terraform or workflows |
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
-| Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
+| Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
 | `Resource` aggregate / resource-scoped scheduling (M21 and later) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `plan/journey/README.md` |
 | Starting a new discovery from an idea | `/create-discovery` — see `.claude/commands/create-discovery.md` |
@@ -419,7 +419,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 
 ## 11. Repository Layout — Domain-Slice Architecture
 
-Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/11-ARCHITECTURE.md` · BFF detail: `docs/24-BFF_ARCHITECTURE.md` · Migration history: `td/TD-21-SEPARATION-REPOSITORY-INTO-DOMAIN-SLICES.md` (resolved — this is the live architecture, not a future plan).
+Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/11-ARCHITECTURE.md` · BFF detail: `docs/24-BFF_ARCHITECTURE.md`. This is the live architecture, not a future plan.
 
 Three slice types, consistent across all three apps:
 - **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`
