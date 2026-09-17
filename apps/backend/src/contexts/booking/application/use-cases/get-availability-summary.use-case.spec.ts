@@ -460,5 +460,51 @@ describe('GetAvailabilitySummaryUseCase', () => {
 
       expect(withOccupancy[0].slotCount).toBe(control[0].slotCount);
     });
+
+    it("fetches each referenced resource's schedule/occupancy once for the whole range, not once per day", async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+      const closureSpy = jest.spyOn(closureRepo, 'findByTenantAndDateRange');
+      const openingSpy = jest.spyOn(openingRepo, 'findByTenantAndDateRange');
+      const occupancySpy = jest.spyOn(bookingPort, 'findOccupancyByTenantAndResource');
+
+      const to = addDays(monday, 4); // 5-day range
+
+      await useCase.execute({
+        from: monday,
+        to,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      });
+
+      // loadScheduleRange makes 1 call for the tenant-wide (undefined resourceId) load and 2 for
+      // the room-scoped load (tenant-wide + resource-scoped rows) — 3 total, once each for the
+      // whole 5-day range, not once per (day, scope) pair, which a naive per-day fetch would've
+      // produced (15 calls here — 5x as many).
+      expect(closureSpy.mock.calls.length).toBe(3);
+      expect(openingSpy.mock.calls.length).toBe(3);
+      expect(occupancySpy).toHaveBeenCalledTimes(1);
+      expect(occupancySpy).toHaveBeenCalledWith(
+        TENANT_ID,
+        [room.id],
+        monday,
+        to,
+        expect.any(String),
+      );
+    });
   });
 });

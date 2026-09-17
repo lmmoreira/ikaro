@@ -9,10 +9,7 @@ import { IBookingAvailabilityPort } from '../ports/booking-availability.port';
 import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
-import {
-  calculateResourceScopedAvailability,
-  ScheduleContextResult,
-} from './resource-scoped-availability.helpers';
+import { calculateResourceScopedAvailability } from './resource-scoped-availability.helpers';
 
 export interface DaySummary {
   date: string;
@@ -157,9 +154,20 @@ export function buildDaySummaries(
   return results;
 }
 
+interface ResourceRangeData {
+  resource: Resource | null;
+  scheduleRange: ScheduleRangeContext;
+  occupancy: ResourceOccupiedSlot[];
+}
+
+const TENANT_WIDE_CACHE_KEY = '__TENANT_WIDE__';
+
 // UC-058/059 resource-scoped path — same shared per-line/per-leg window resolution as
 // GetAvailabilityUseCase (resource-scoped-availability.helpers.ts), applied once per day across
-// the whole requested range.
+// the whole requested range. Each distinct resourceId referenced across the whole range (not just
+// within a single day) is fetched at most once — a naive per-day fetch would turn an N-day,
+// M-resource summary into O(N×M) schedule/occupancy queries for data that's identical work fetched
+// once for the whole [from, to] range and then sliced per day in memory.
 export async function buildResourceScopedSummary(
   deps: SummaryDeps,
   request: SummaryRequestShape,
@@ -168,6 +176,9 @@ export async function buildResourceScopedSummary(
 ): Promise<DaySummary[]> {
   const today = todayUTC();
   const results: DaySummary[] = [];
+  const rangeCache = new Map<string, Promise<ResourceRangeData>>();
+
+  const loadRangeData = makeRangeDataLoader(deps, tenantId, request, rangeCache);
 
   for (const date of dateRange(request.from, request.to)) {
     if (date < today) {
@@ -179,9 +190,8 @@ export async function buildResourceScopedSummary(
         resourceRepo: deps.resourceRepo,
         availabilityService: deps.availabilityService,
         loadScheduleContext: (resourceId) =>
-          loadSingleDayScheduleContext(deps, tenantId, date, resourceId),
-        loadOccupancy: (resourceId, d, timezone) =>
-          deps.bookingPort.findOccupancyByTenantAndResource(tenantId, [resourceId], d, d, timezone),
+          sliceScheduleContextForDate(loadRangeData, resourceId, date),
+        loadOccupancy: async (resourceId) => (await loadRangeData(resourceId)).occupancy,
       },
       {
         tenantId,
@@ -198,20 +208,60 @@ export async function buildResourceScopedSummary(
   return results;
 }
 
-async function loadSingleDayScheduleContext(
+function makeRangeDataLoader(
   deps: SummaryDeps,
   tenantId: string,
-  date: string,
-  resourceId: string | undefined,
-): Promise<ScheduleContextResult> {
-  const [resource, range] = await Promise.all([
-    findResource(deps.resourceRepo, tenantId, resourceId),
-    loadScheduleRange(deps, tenantId, date, date, resourceId),
-  ]);
-  return {
-    resource,
-    closures: range.closures,
-    tenantOpening: range.tenantOpenings.find((o) => o.date === date) ?? null,
-    resourceOpening: range.resourceOpenings.find((o) => o.date === date) ?? null,
+  request: SummaryRequestShape,
+  rangeCache: Map<string, Promise<ResourceRangeData>>,
+): (resourceId: string | undefined) => Promise<ResourceRangeData> {
+  return (resourceId) => {
+    const cacheKey = resourceId ?? TENANT_WIDE_CACHE_KEY;
+    let cached = rangeCache.get(cacheKey);
+    if (!cached) {
+      cached = loadResourceRangeData(deps, tenantId, request, resourceId);
+      rangeCache.set(cacheKey, cached);
+    }
+    return cached;
   };
+}
+
+async function sliceScheduleContextForDate(
+  loadRangeData: (resourceId: string | undefined) => Promise<ResourceRangeData>,
+  resourceId: string | undefined,
+  date: string,
+): Promise<{
+  resource: Resource | null;
+  closures: ScheduleRangeContext['closures'];
+  tenantOpening: ScheduleRangeContext['tenantOpenings'][number] | null;
+  resourceOpening: ScheduleRangeContext['resourceOpenings'][number] | null;
+}> {
+  const data = await loadRangeData(resourceId);
+  return {
+    resource: data.resource,
+    closures: data.scheduleRange.closures.filter((c) => c.date === date),
+    tenantOpening: data.scheduleRange.tenantOpenings.find((o) => o.date === date) ?? null,
+    resourceOpening: data.scheduleRange.resourceOpenings.find((o) => o.date === date) ?? null,
+  };
+}
+
+async function loadResourceRangeData(
+  deps: SummaryDeps,
+  tenantId: string,
+  request: SummaryRequestShape,
+  resourceId: string | undefined,
+): Promise<ResourceRangeData> {
+  const [resource, scheduleRange, occupancy] = await Promise.all([
+    findResource(deps.resourceRepo, tenantId, resourceId),
+    loadScheduleRange(deps, tenantId, request.from, request.to, resourceId),
+    resourceId != null
+      ? deps.bookingPort.findOccupancyByTenantAndResource(
+          tenantId,
+          [resourceId],
+          request.from,
+          request.to,
+          request.businessHours.timezone,
+        )
+      : Promise.resolve([]),
+  ]);
+  return { resource, scheduleRange, occupancy };
 }

@@ -60,7 +60,7 @@ export async function calculateResourceScopedAvailability(
   // omitting it here is safe: isBookingWindowAvailable's per-candidate check re-verifies the real,
   // resource-specific window against business hours regardless of what this coarse pre-filter let
   // through.
-  const lastService = services[services.length - 1];
+  const lastService = services.at(-1)!;
   const outerBufferMinutes = lastService.bufferAfterMinutes ?? request.serviceBufferMinutes;
   const outerSlots = deps.availabilityService.calculate({
     date: request.date,

@@ -574,7 +574,10 @@ The real adapter (`TypeOrmBookingAvailabilityAdapter`) is implemented in M07 whe
 
 ```typescript
 interface IBookingAvailabilityPort {
-  findOccupancyByTenantAndResource(tenantId: string, resourceIds: string[], from: string, to: string): Promise<ResourceOccupiedSlot[]>;
+  // from/to are tenant-local calendar dates (YYYY-MM-DD); timezone lets the adapter convert them
+  // to real UTC instant boundaries against the UTC-stored starts_at/ends_at columns, rather than
+  // re-interpreting the date strings as if they were already UTC days.
+  findOccupancyByTenantAndResource(tenantId: string, resourceIds: string[], from: string, to: string, timezone: string): Promise<ResourceOccupiedSlot[]>;
 }
 
 interface ResourceOccupiedSlot {
