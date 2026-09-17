@@ -1,0 +1,20 @@
+# Booking — Cron Resource Occupancy Retention Purge Trigger
+# TD40 Story 2: publishes the cron-resource-occupancy-retention-purge trigger, dispatched to
+# ResourceOccupancyRetentionPurgeTriggerHandler. In production, Cloud Scheduler publishes the same
+# trigger directly to Pub/Sub daily at 03:00 UTC — this endpoint is the local/manual trigger path
+# only, protected by the global InternalApiGuard (X-Internal-Key), not PubSubPushGuard.
+# Response is { ok: true } once the trigger is published — it does not wait for the job to
+# finish. Requires the Pub/Sub emulator running (pnpm infra:up).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+
+@baseUrl = {{backendUrl}}
+
+### POST /cron/resource-occupancy-retention-purge — publish the daily resource_occupancy retention-purge trigger
+POST {{baseUrl}}/cron/resource-occupancy-retention-purge
+X-Internal-Key: {{internalKey}}
+
+###
