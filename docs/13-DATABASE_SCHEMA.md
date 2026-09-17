@@ -332,7 +332,7 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column (`@VersionColumn`) |
 | **UNIQUE** | (tenant_id, id) | Composite FK target for `booking_lines` |
 | **CHECK** | `CHK_booking_bookings_discount_consistency` | `discount_points_used`/`discount_amount` must be both `NULL` or both `> 0` |
-| **EXCLUDE** | `EX_booking_bookings_approved_slot` — `USING gist (tenant_id WITH =, tstzrange(scheduled_at, scheduled_end_at, '[)') WITH &&) WHERE (status = 'APPROVED')` | DB-level enforcement that no two `APPROVED` bookings for the same tenant overlap — the authoritative cross-row invariant; `version` alone cannot catch this (see `docs/ENGINEERING_RULES.md` § Transactions) |
+| **EXCLUDE** *(retired by M22-S03 — see below)* | `EX_booking_bookings_approved_slot` — `USING gist (tenant_id WITH =, tstzrange(scheduled_at, scheduled_end_at, '[)') WITH &&) WHERE (status = 'APPROVED')` | Dropped by migration `1748500000014-DropTenantWideExclusion` once `booking.resource_occupancy`'s own GIST exclusion constraint (`EX_booking_resource_occupancy_locked_window`) was live and backfilled — that constraint now enforces the same no-overlap invariant per-resource instead of per-tenant; `version` alone still cannot catch this (see `docs/ENGINEERING_RULES.md` § Transactions) |
 | **INDEX** | (tenant_id) | Tenant-scoped base filter |
 | **INDEX** | (tenant_id, status) | Main dashboard query |
 | **INDEX** | (tenant_id, customer_id) | Customer booking history |
@@ -633,7 +633,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 
 **`booking.booking_lines` — modified (M22 Cluster 2):** `+ UNIQUE(tenant_id, line_id)` — today only `PRIMARY KEY (line_id)` exists; required so `resource_occupancy`/`booking_line_resource_assignments`' composite FKs to it are expressible.
 
-**Migration ordering (expand/contract), M22 Cluster 2:**
+**Migration ordering (expand/contract), M22 Cluster 2:** ✅ Executed by M22-S03 (PR #483, merged 2026-09-17) — `1748500000012-CreateResourceOccupancy.ts` (expand), `1748500000013-BackfillResourceOccupancy.ts` (backfill), dual-read/write shipped in the same PR's use-case changes, and `1748500000014-DropTenantWideExclusion.ts` (contract — its own SQL mechanically verifies every APPROVED booking line has a COMMITTED `resource_occupancy` row before dropping the old constraint, rather than relying only on the manual pre-deploy check step 5 originally called for). Kept below as the original planning record.
 1. **Expand:** create every table above, `UNIQUE(tenant_id, line_id)` on `booking_lines`, and every new `services` column, all with default values that leave every existing service as the flat/`NONE`/`LOCATION` degenerate case. Do not drop the current tenant-wide `EX_booking_bookings_approved_slot` exclusion yet.
 2. **Backfill:** insert the default `{ resource_type: 'LOCATION', selection_mode: 'NONE' }` requirement row for every existing APPOINTMENT service, referencing the Cluster 1 backfilled `LOCATION` resource.
 3. **Dual-read/write:** new booking writes populate `resource_occupancy`; availability reads it, plus tenant/resource schedules. The old whole-tenant exclusion constraint stays live through this window.
