@@ -348,7 +348,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
       expect(result.get('line-1')!.isDegenerate).toBe(false);
     });
 
-    it("picks the resource with the highest turnoverMinutes among a leg's own resources for that leg's gap", async () => {
+    it("applies that leg's own resource's turnoverMinutes to its endsAt", async () => {
       await resourceRepo.save(
         new ResourceBuilder()
           .withTenantId(TENANT_ID)
@@ -380,9 +380,54 @@ describe('resolveBookingLinesResourceCandidates', () => {
       );
 
       const candidate = result.get('line-1')!.candidates[0];
-      // endsAtWithTurnover includes the leg's own duration + the larger of transitionGap/turnover.
-      expect(candidate.endsAt.getTime()).toBeGreaterThan(
-        candidate.startsAt.getTime() + 20 * 60_000,
+      expect(candidate.endsAt.getTime()).toBe(candidate.startsAt.getTime() + (20 + 10) * 60_000);
+    });
+
+    it("gives each of a leg's fungible-pool candidates its own turnover, not the pool's maximum", async () => {
+      const lowTurnover = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .withTurnoverMinutes(0)
+        .build();
+      const highTurnover = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .withTurnoverMinutes(60)
+        .build();
+      await resourceRepo.save(lowTurnover);
+      await resourceRepo.save(highTurnover);
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withLegs([
+          leg(
+            0,
+            ResourceRequirement.create({
+              type: ResourceType.ROOM,
+              selectionMode: 'CUSTOMER_CHOICE',
+              resourcePoolIds: [lowTurnover.id, highTurnover.id],
+              requiredQuantity: 2,
+            }),
+            { durationMinutes: 20, transitionGapAfterMinutes: 0 },
+          ),
+        ])
+        .build();
+
+      const result = await resolveBookingLinesResourceCandidates(
+        resourceRepo,
+        availabilityService,
+        TENANT_ID,
+        SCHEDULED_AT,
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 20 }],
+        new Map([['service-1', service]]),
+      );
+
+      const candidates = result.get('line-1')!.candidates;
+      const lowCandidate = candidates.find((c) => c.resourceId === lowTurnover.id)!;
+      const highCandidate = candidates.find((c) => c.resourceId === highTurnover.id)!;
+      // Neither candidate is forced onto the pool-wide max (60min) — each keeps its own gap.
+      expect(lowCandidate.endsAt.getTime()).toBe(lowCandidate.startsAt.getTime() + 20 * 60_000);
+      expect(highCandidate.endsAt.getTime()).toBe(
+        highCandidate.startsAt.getTime() + (20 + 60) * 60_000,
       );
     });
   });

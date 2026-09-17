@@ -136,6 +136,14 @@ async function resolveFlatLineCandidates(
   return candidates;
 }
 
+// computeLegSpans's turnover param only extends a leg's OWN endsAtWithTurnover — it never affects
+// the next leg's startsAt (that's transitionGapAfterMinutes alone, a static per-leg service
+// value). So turnover is entirely per-resource and per-leg-sequencing-independent: spans are
+// computed once with zero turnover, then each candidate adds its OWN resource's turnoverMinutes
+// to that raw leg end — never a pool-wide max applied uniformly to every candidate regardless of
+// which one actually ends up free.
+const NO_TURNOVER = new Map<number, number>();
+
 async function resolveLeggedLineCandidates(
   service: Service,
   ctx: ResolutionContext,
@@ -143,7 +151,6 @@ async function resolveLeggedLineCandidates(
 ): Promise<ResourceOccupancyCandidate[]> {
   const legs = service.legs!;
   const perLeg = await resolvePerLegResources(legs, ctx);
-  const turnoverByLegIndex = maxTurnoverByLegIndex(perLeg);
   const legSpans = ctx.availabilityService.computeLegSpans(
     lineStart,
     legs.map((leg) => ({
@@ -151,7 +158,7 @@ async function resolveLeggedLineCandidates(
       durationMinutes: leg.durationMinutes,
       transitionGapAfterMinutes: leg.transitionGapAfterMinutes,
     })),
-    turnoverByLegIndex,
+    NO_TURNOVER,
   );
   const spanByLegIndex = new Map(legSpans.map((span) => [span.legIndex, span]));
 
@@ -164,7 +171,7 @@ async function resolveLeggedLineCandidates(
       legIndex,
       quantityPosition,
       startsAt: span.startsAt,
-      endsAt: span.endsAtWithTurnover,
+      endsAt: new Date(span.endsAtWithTurnover.getTime() + resource.turnoverMinutes * 60_000),
     };
   });
 }
@@ -187,17 +194,6 @@ async function resolvePerLegResources(
     }
   }
   return perLeg;
-}
-
-function maxTurnoverByLegIndex(perLeg: PerLegResource[]): Map<number, number> {
-  const turnoverByLegIndex = new Map<number, number>();
-  for (const { legIndex, resource } of perLeg) {
-    turnoverByLegIndex.set(
-      legIndex,
-      Math.max(turnoverByLegIndex.get(legIndex) ?? 0, resource.turnoverMinutes),
-    );
-  }
-  return turnoverByLegIndex;
 }
 
 async function resolveRequirementResources(

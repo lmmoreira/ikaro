@@ -311,6 +311,53 @@ describe('resolveAvailabilityRequirementWindows', () => {
       endsAt: new Date('2026-06-01T10:35:00.000Z'),
     });
   });
+
+  it("gives each of a leg's pool candidates its own turnover, not the pool's maximum", async () => {
+    const lowTurnover = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .withTurnoverMinutes(0)
+      .build();
+    const highTurnover = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .withTurnoverMinutes(60)
+      .build();
+    await resourceRepo.save(lowTurnover);
+    await resourceRepo.save(highTurnover);
+    const legged = new ServiceBuilder()
+      .withLegs([
+        ServiceLeg.create({
+          legIndex: 0,
+          name: 'Etapa 1',
+          durationMinutes: 20,
+          resourceRequirements: [
+            ResourceRequirement.create({
+              type: ResourceType.ROOM,
+              selectionMode: 'CUSTOMER_CHOICE',
+              resourcePoolIds: [lowTurnover.id, highTurnover.id],
+            }),
+          ],
+          transitionGapAfterMinutes: 0,
+        }),
+      ])
+      .build();
+
+    const entries = await resolveAvailabilityRequirementWindows(
+      resourceRepo,
+      availabilityService,
+      TENANT_ID,
+      CANDIDATE_START,
+      [legged],
+    );
+
+    const [candidates] = entries;
+    const lowCandidate = candidates.find((c) => c.resourceId === lowTurnover.id)!;
+    const highCandidate = candidates.find((c) => c.resourceId === highTurnover.id)!;
+    // Neither candidate is forced onto the pool-wide max (60min) — each keeps its own gap.
+    expect(lowCandidate.endsAt).toEqual(new Date('2026-06-01T10:20:00.000Z'));
+    expect(highCandidate.endsAt).toEqual(new Date('2026-06-01T11:20:00.000Z'));
+  });
 });
 
 describe('isBookingWindowAvailable', () => {

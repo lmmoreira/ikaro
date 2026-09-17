@@ -112,10 +112,13 @@ async function resolveFlatWindows(
   return entries;
 }
 
-// Two-pass, same shape as resource-occupancy.helpers.ts's resolveLeggedLineCandidates: every
-// leg's own candidates are resolved first so the max turnover per legIndex (across ALL its active
-// candidates, not just one pick — a conservative choice that can only push a later leg's start
-// later than a specific candidate would need, never earlier) is known before computing spans.
+// Same shape as resource-occupancy.helpers.ts's resolveLeggedLineCandidates: computeLegSpans's
+// turnover param only extends a leg's OWN endsAtWithTurnover, never the next leg's startsAt
+// (that's transitionGapAfterMinutes alone, a static per-leg service value) — so spans are computed
+// once with zero turnover, then each candidate adds its OWN resource's turnoverMinutes to that raw
+// leg end, never a pool-wide max applied uniformly regardless of which candidate ends up free.
+const NO_TURNOVER = new Map<number, number>();
+
 interface PerLegCandidates {
   legIndex: number;
   resources: Resource[];
@@ -147,11 +150,6 @@ async function resolveLeggedWindows(
   const legs = service.legs!;
   const perLeg = await resolvePerLegCandidates(legs, ctx);
 
-  const turnoverByLegIndex = new Map<number, number>();
-  for (const { legIndex, resources } of perLeg) {
-    const maxTurnover = resources.reduce((max, r) => Math.max(max, r.turnoverMinutes), 0);
-    turnoverByLegIndex.set(legIndex, Math.max(turnoverByLegIndex.get(legIndex) ?? 0, maxTurnover));
-  }
   const legSpans = ctx.availabilityService.computeLegSpans(
     lineStart,
     legs.map((leg) => ({
@@ -159,7 +157,7 @@ async function resolveLeggedWindows(
       durationMinutes: leg.durationMinutes,
       transitionGapAfterMinutes: leg.transitionGapAfterMinutes,
     })),
-    turnoverByLegIndex,
+    NO_TURNOVER,
   );
   const spanByLegIndex = new Map(legSpans.map((span) => [span.legIndex, span]));
 
@@ -168,7 +166,7 @@ async function resolveLeggedWindows(
     return resources.map((resource) => ({
       resourceId: resource.id,
       startsAt: span.startsAt,
-      endsAt: span.endsAtWithTurnover,
+      endsAt: new Date(span.endsAtWithTurnover.getTime() + resource.turnoverMinutes * 60_000),
       requiredQuantity,
     }));
   });
