@@ -37,6 +37,7 @@ import { AddServiceBookingPolicyAndIntakeSchema1748500000011 } from '../contexts
 import { CreateResourceOccupancy1748500000012 } from '../contexts/booking/infrastructure/migrations/1748500000012-CreateResourceOccupancy';
 import { BackfillResourceOccupancy1748500000013 } from '../contexts/booking/infrastructure/migrations/1748500000013-BackfillResourceOccupancy';
 import { DropTenantWideExclusion1748500000014 } from '../contexts/booking/infrastructure/migrations/1748500000014-DropTenantWideExclusion';
+import { AddEndsAtIndexToResourceOccupancy1748500000015 } from '../contexts/booking/infrastructure/migrations/1748500000015-AddEndsAtIndexToResourceOccupancy';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -193,6 +194,7 @@ export default async function globalSetup(): Promise<void> {
       CreateResourceOccupancy1748500000012,
       BackfillResourceOccupancy1748500000013,
       DropTenantWideExclusion1748500000014,
+      AddEndsAtIndexToResourceOccupancy1748500000015,
     ],
     synchronize: false,
     migrationsRun: false,

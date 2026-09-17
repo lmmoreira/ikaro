@@ -48,6 +48,10 @@ locals {
       topic_key = "cron-lead-form-retention"
       schedule  = "0 3 * * *"
     }
+    ikaro-cron-resource-occupancy-retention-purge = {
+      topic_key = "cron-resource-occupancy-retention-purge"
+      schedule  = "0 3 * * *"
+    }
   }
 }
 

@@ -21,8 +21,10 @@ import { SERVICE_REPOSITORY } from './application/ports/service-repository.port'
 import { SERVICE_INTAKE_SCHEMA_REPOSITORY } from './application/ports/service-intake-schema-repository.port';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
+import { ResourceOccupancyRetentionPurgeJob } from './application/jobs/resource-occupancy-retention-purge.job';
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
+import { ResourceOccupancyRetentionPurgeTriggerHandler } from './infrastructure/events/resource-occupancy-retention-purge-trigger.handler';
 import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
 import { TenantProvisionedBookingHandler } from './infrastructure/events/tenant-provisioned.handler';
 import { CreateTenantLocationResourceUseCase } from './application/use-cases/create-tenant-location-resource.use-case';
@@ -174,8 +176,10 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     AvailabilityService,
     BookingReminderJob,
     AdminScheduleReminderJob,
+    ResourceOccupancyRetentionPurgeJob,
     BookingReminderTriggerHandler,
     AdminScheduleReminderTriggerHandler,
+    ResourceOccupancyRetentionPurgeTriggerHandler,
     BookingSlotConflictService,
     PhotoExistenceService,
     ActivateServiceUseCase,

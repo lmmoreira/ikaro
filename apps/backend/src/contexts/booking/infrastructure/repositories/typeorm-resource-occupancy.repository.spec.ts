@@ -3,6 +3,7 @@ import { runWithEntityManager } from '../../../../shared/infrastructure/transact
 import { BookingSlotUnavailableError } from '../../domain/errors/booking-domain.error';
 import { ResourceType } from '../../domain/resource.types';
 import { ResourceOccupancyCandidate } from '../../application/ports/resource-occupancy-repository.port';
+import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { TypeOrmResourceOccupancyRepository } from './typeorm-resource-occupancy.repository';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -314,6 +315,70 @@ describe('TypeOrmResourceOccupancyRepository', () => {
         expect.stringContaining('DELETE FROM booking.booking_line_resource_assignments'),
         expect.anything(),
       );
+    });
+  });
+
+  describe('deleteOlderThan', () => {
+    const cutoff = new Date('2026-06-01T00:00:00.000Z');
+
+    function mockQueryBuilderManager(affected: number | null): {
+      manager: EntityManager;
+      queryBuilder: {
+        delete: jest.Mock;
+        from: jest.Mock;
+        where: jest.Mock;
+        execute: jest.Mock;
+      };
+    } {
+      const queryBuilder = {
+        delete: jest.fn(),
+        from: jest.fn(),
+        where: jest.fn(),
+        execute: jest.fn().mockResolvedValue({ affected }),
+      };
+      queryBuilder.delete.mockReturnValue(queryBuilder);
+      queryBuilder.from.mockReturnValue(queryBuilder);
+      queryBuilder.where.mockReturnValue(queryBuilder);
+      const manager = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as unknown as EntityManager;
+      return { manager, queryBuilder };
+    }
+
+    it('throws when called outside an active transaction', async () => {
+      await expect(repo.deleteOlderThan(cutoff)).rejects.toThrow(
+        'IResourceOccupancyRepository methods require an active transaction',
+      );
+    });
+
+    it('issues one query-builder DELETE with no tenant_id predicate and returns the deleted row count', async () => {
+      const { manager, queryBuilder } = mockQueryBuilderManager(2);
+
+      const result = await runWithEntityManager(manager, () => repo.deleteOlderThan(cutoff));
+
+      expect(result).toBe(2);
+      expect(queryBuilder.from).toHaveBeenCalledWith(ResourceOccupancyEntity);
+      expect(queryBuilder.where).toHaveBeenCalledWith('ends_at < :cutoff', { cutoff });
+      expect(queryBuilder.where).not.toHaveBeenCalledWith(
+        expect.stringContaining('tenant_id'),
+        expect.anything(),
+      );
+    });
+
+    it('returns 0 when nothing matches the cutoff', async () => {
+      const { manager } = mockQueryBuilderManager(0);
+
+      const result = await runWithEntityManager(manager, () => repo.deleteOlderThan(cutoff));
+
+      expect(result).toBe(0);
+    });
+
+    it('normalizes a null affected count to 0', async () => {
+      const { manager } = mockQueryBuilderManager(null);
+
+      const result = await runWithEntityManager(manager, () => repo.deleteOlderThan(cutoff));
+
+      expect(result).toBe(0);
     });
   });
 });

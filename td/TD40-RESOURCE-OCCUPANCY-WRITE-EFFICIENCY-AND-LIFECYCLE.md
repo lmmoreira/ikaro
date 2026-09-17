@@ -138,7 +138,7 @@ Given `HOLD` rows already carry a `hold_expires_at` and their own (currently une
   - [ ] `TypeOrmResourceOccupancyRepository.deleteOlderThan()` issues one query-builder `DELETE ... WHERE ends_at < :cutoff`, no `tenant_id` predicate
 - Integration:
   - [ ] A real Postgres row with `ends_at` 91 days in the past is deleted; a row at 89 days is not; `booking_line_resource_assignments` row count is unchanged either way
-  - [ ] The new migration creates a standalone index on `ends_at`; `EXPLAIN` on the purge query can seek it (or at minimum doesn't fall back to a full table scan for a representative row count)
+  - [ ] The new migration creates a standalone index on `ends_at` — verified via a structural `pg_indexes` existence check, not an `EXPLAIN`-plan assertion (neither of this job's two direct precedents, `IDX_platform_lead_form_submissions_expires_at`/`IDX_chatbot_messages_created_at`, has an `EXPLAIN`-based test anywhere in this codebase, and a query-plan assertion is inherently flaky against a small integration-test dataset's table statistics — Codex round-2 finding, PR #488, 2026-09-17)
 - Tenant isolation:
   - [ ] The purge is deliberately cross-tenant/unscoped (same as `ExpirePointsJob`/`ChatbotRetentionPurgeJob` precedent) — covered by the standalone index above, not a `tenant_id` filter
 - E2E: none — covered by unit/integration

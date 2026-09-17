@@ -270,6 +270,22 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
     );
   }
 
+  // TD40 Story 2: single set-based DELETE, no tenant_id predicate (cross-tenant retention sweep —
+  // relies on the standalone ends_at index added alongside this method, not the tenant-led
+  // composite index every other query on this table can seek). A plain cutoff predicate, no
+  // correlated subquery, so — unlike this class's other methods — the query-builder form applies
+  // directly via EntityManager.createQueryBuilder() (no injected Repository<T> needed).
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const manager = this.requireActiveManager();
+    const result = await manager
+      .createQueryBuilder()
+      .delete()
+      .from(ResourceOccupancyEntity)
+      .where('ends_at < :cutoff', { cutoff })
+      .execute();
+    return result.affected ?? 0;
+  }
+
   private requireActiveManager() {
     const manager = getActiveEntityManager();
     if (!manager) {

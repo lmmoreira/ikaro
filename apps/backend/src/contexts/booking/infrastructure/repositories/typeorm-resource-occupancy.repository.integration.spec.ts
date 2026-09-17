@@ -422,4 +422,97 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
       true,
     );
   });
+
+  describe('deleteOlderThan (TD40 Story 2)', () => {
+    it('deletes a row 91 days past ends_at, keeps a row 89 days past, and never touches booking_line_resource_assignments', async () => {
+      const now = new Date('2026-09-17T00:00:00.000Z');
+      const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const lineIdOld = await seedBookingLine(TENANT_A);
+      const lineIdRecent = await seedBookingLine(TENANT_A);
+      const oldEnd = new Date(cutoff.getTime() - 24 * 60 * 60 * 1000); // 91 days past now
+      const recentEnd = new Date(cutoff.getTime() + 24 * 60 * 60 * 1000); // 89 days past now
+
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineIdOld,
+          [candidate(resourceA, new Date(oldEnd.getTime() - 60 * 60 * 1000), oldEnd)],
+          'COMMITTED',
+          null,
+        ),
+      );
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineIdRecent,
+          [
+            candidate(resourceA2, new Date(recentEnd.getTime() - 60 * 60 * 1000), recentEnd, {
+              resourceType: ResourceType.EQUIPMENT,
+            }),
+          ],
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      const rowsDeleted = await txManager.run(() => repo.deleteOlderThan(cutoff));
+
+      expect(rowsDeleted).toBe(1);
+      const remaining = await dataSource
+        .getRepository(ResourceOccupancyEntity)
+        .find({ where: { tenantId: TENANT_A } });
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].resourceId).toBe(resourceA2);
+      const assignmentRows = await dataSource
+        .getRepository(BookingLineResourceAssignmentEntity)
+        .find({ where: { tenantId: TENANT_A, bookingLineId: lineIdOld } });
+      expect(assignmentRows).toHaveLength(1);
+    });
+
+    it('deletes rows across every lock_state and every tenant in one unscoped pass', async () => {
+      const cutoff = new Date('2026-01-01T00:00:00.000Z');
+      const pastEnd = new Date('2025-12-01T10:00:00.000Z');
+      const lineIdA = await seedBookingLine(TENANT_A);
+      const lineIdB = await seedBookingLine(TENANT_B);
+
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineIdA,
+          [candidate(resourceA, new Date(pastEnd.getTime() - 60 * 60 * 1000), pastEnd)],
+          'REQUESTED',
+          null,
+        ),
+      );
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_B,
+          lineIdB,
+          [candidate(resourceB, new Date(pastEnd.getTime() - 60 * 60 * 1000), pastEnd)],
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      const rowsDeleted = await txManager.run(() => repo.deleteOlderThan(cutoff));
+
+      expect(rowsDeleted).toBe(2);
+    });
+
+    // Structural verification, not an EXPLAIN-plan assertion — matches the established style for
+    // this class of index in this codebase (see lead_form_answers' own index tests); neither of
+    // this job's two direct precedents (IDX_platform_lead_form_submissions_expires_at,
+    // IDX_chatbot_messages_created_at) has an EXPLAIN-based test either. A query-plan assertion
+    // would also be genuinely fragile here: the planner's choice between an index scan and a
+    // sequential scan depends on live table statistics/row counts, which a fresh integration-test
+    // database doesn't reliably reproduce.
+    it('the standalone ends_at index exists', async () => {
+      const rows: { indexname: string }[] = await dataSource.query(`
+        SELECT indexname FROM pg_indexes
+        WHERE schemaname = 'booking' AND tablename = 'resource_occupancy'
+          AND indexname = 'IDX_booking_resource_occupancy_ends_at'
+      `);
+      expect(rows).toHaveLength(1);
+    });
+  });
 });
