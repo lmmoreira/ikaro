@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
@@ -186,7 +187,7 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
       holdExpiresAt: Date | null;
       now: Date;
     },
-  ) {
+  ): QueryDeepPartialEntity<ResourceOccupancyEntity>[] {
     return candidates.map((candidate) => ({
       id: uuidv7(),
       tenantId: ctx.tenantId,

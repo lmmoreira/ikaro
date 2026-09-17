@@ -13,6 +13,7 @@ import { createBookingIntegrationApp } from '../../../test/utils/booking-integra
 import { TenantEntity } from '../../platform/infrastructure/entities/tenant.entity';
 import { ResourceEntity } from './entities/resource.entity';
 import { ServiceEntity } from './entities/service.entity';
+import { ServiceResourceRequirementEntity } from './entities/service-resource-requirement.entity';
 import { BookingEntity } from './entities/booking.entity';
 import { BookingLineEntity } from './entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from './entities/booking-line-resource-assignment.entity';
@@ -28,15 +29,37 @@ import { DropTenantWideExclusion1748500000014 } from './migrations/1748500000014
 // the second spec's tenant-scoped query never sees the first spec's deliberately-unprotected row.
 const TENANT_UNPROTECTED = '00000000-1114-7000-8000-000000000001';
 const TENANT_PROTECTED = '00000000-1114-7000-8000-000000000002';
+const FIXTURE_TENANT_IDS = [TENANT_UNPROTECTED, TENANT_PROTECTED];
 
 describe('DropTenantWideExclusion1748500000014 (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   let migration: DropTenantWideExclusion1748500000014;
 
+  // Deletes in FK-safe order for both fixture tenants at once — used both defensively before
+  // seeding (self-heals if a prior run's afterAll never completed, e.g. under CI's
+  // TESTCONTAINERS_REUSE_ENABLE) and in afterAll's own teardown, so the two never drift apart
+  // (same discipline as backfill-service-resource-requirements-and-buffer.integration.spec.ts).
+  async function cleanupFixtures(): Promise<void> {
+    await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(BookingLineEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(BookingEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds
+      .getRepository(ServiceResourceRequirementEntity)
+      .delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(ServiceEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(ResourceEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(TenantEntity).delete({ id: In(FIXTURE_TENANT_IDS) });
+  }
+
   beforeAll(async () => {
     ({ app, ds } = await createBookingIntegrationApp());
     migration = new DropTenantWideExclusion1748500000014();
+
+    await cleanupFixtures();
 
     await ds
       .getRepository(TenantEntity)
@@ -47,22 +70,11 @@ describe('DropTenantWideExclusion1748500000014 (integration)', () => {
   });
 
   afterAll(async () => {
-    await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId: TENANT_PROTECTED });
-    await ds
-      .getRepository(BookingLineResourceAssignmentEntity)
-      .delete({ tenantId: TENANT_PROTECTED });
-    await ds
-      .getRepository(BookingLineEntity)
-      .delete({ tenantId: In([TENANT_UNPROTECTED, TENANT_PROTECTED]) });
-    await ds
-      .getRepository(BookingEntity)
-      .delete({ tenantId: In([TENANT_UNPROTECTED, TENANT_PROTECTED]) });
-    await ds
-      .getRepository(ServiceEntity)
-      .delete({ tenantId: In([TENANT_UNPROTECTED, TENANT_PROTECTED]) });
-    await ds.getRepository(ResourceEntity).delete({ tenantId: TENANT_PROTECTED });
-    await ds.getRepository(TenantEntity).delete({ id: In([TENANT_UNPROTECTED, TENANT_PROTECTED]) });
-    await app.close();
+    try {
+      await cleanupFixtures();
+    } finally {
+      await app.close();
+    }
   });
 
   async function runUp(): Promise<void> {

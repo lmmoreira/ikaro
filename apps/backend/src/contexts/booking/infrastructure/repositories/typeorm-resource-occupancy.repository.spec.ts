@@ -143,13 +143,17 @@ describe('TypeOrmResourceOccupancyRepository', () => {
         buildCandidate({ resourceId: 'res-2', legIndex: 1 }),
         buildCandidate({ resourceId: 'res-3', legIndex: 2 }),
       ];
+      // Deliberately returned out of candidate order (index 2, 0, 1) — a real UNION ALL of the
+      // insert arm + fallback SELECT gives no ordering guarantee, so this proves the mapping is by
+      // (resource_id, leg_index, quantity_position) tuple key, not by result-row position.
+      const shuffledOrder = [2, 0, 1];
       const manager = {
         query: jest.fn().mockResolvedValue(
-          candidates.map((c, i) => ({
+          shuffledOrder.map((i) => ({
             id: `assignment-${i}`,
-            resource_id: c.resourceId,
-            leg_index: c.legIndex,
-            quantity_position: c.quantityPosition,
+            resource_id: candidates[i].resourceId,
+            leg_index: candidates[i].legIndex,
+            quantity_position: candidates[i].quantityPosition,
           })),
         ),
         insert: jest.fn().mockResolvedValue({}),
@@ -165,6 +169,8 @@ describe('TypeOrmResourceOccupancyRepository', () => {
         manager.insert as jest.Mock
       ).mock.calls[0][1];
       expect(insertedRows).toHaveLength(3);
+      // Occupancy rows stay in candidate order regardless of the query result's own row order,
+      // and each one carries the assignment id that actually matches its own tuple key.
       expect(insertedRows.map((r) => r.resourceId)).toEqual(['res-1', 'res-2', 'res-3']);
       expect(insertedRows.map((r) => r.bookingLineResourceAssignmentId)).toEqual([
         'assignment-0',
