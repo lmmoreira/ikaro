@@ -147,6 +147,12 @@
     ]
   },
   {
+    "event": "cron-resource-occupancy-retention-purge",
+    "consumers": [
+      "resource-occupancy-retention-purge"
+    ]
+  },
+  {
     "event": "dead-letter",
     "consumers": [
       "monitor"

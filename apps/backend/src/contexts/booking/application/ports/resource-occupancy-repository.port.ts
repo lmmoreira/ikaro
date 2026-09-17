@@ -19,8 +19,8 @@ export interface ResourceOccupancyCandidate extends ResourceOccupancyWindow {
 // Internal, booking-context-local write-path port for the resource_occupancy/
 // booking_line_resource_assignments pair (docs/13-DATABASE_SCHEMA.md). Distinct from the public,
 // cross-context IBookingAvailabilityPort (read-only, availability computation) — this port is
-// consumed only by booking's own creation/approval/reschedule/reject/cancel use cases and
-// BookingSlotConflictService.
+// consumed by booking's own creation/approval/reschedule/reject/cancel use cases,
+// BookingSlotConflictService, and ResourceOccupancyRetentionPurgeJob (TD40 Story 2).
 export interface IResourceOccupancyRepository {
   // Resource ids among `candidates` that already have a conflicting HOLD/COMMITTED row for their
   // own window. Empty result = every candidate is free. `excludeBookingLineIds`, when set, ignores
@@ -53,4 +53,12 @@ export interface IResourceOccupancyRepository {
   // release, or the "delete" half of a reschedule's move) — never touches
   // booking_line_resource_assignments, the immutable audit record.
   release(tenantId: string, bookingLineIds: string[]): Promise<void>;
+
+  // TD40 Story 2 retention purge — deletes every resource_occupancy row (any lock_state) whose
+  // ends_at is before cutoff, across every tenant in one pass. Deliberately no tenantId param,
+  // unlike every other method on this port: the table is documented as "safely
+  // garbage-collectable after its window elapses" regardless of tenant, matching
+  // IChatbotMessageRepository.deleteOlderThan()'s identical cross-tenant shape. Never touches
+  // booking_line_resource_assignments, same invariant as release() above.
+  deleteOlderThan(cutoff: Date): Promise<number>;
 }

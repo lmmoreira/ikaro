@@ -67,4 +67,11 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
       (row) => !(row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId)),
     );
   }
+
+  // TD40 Story 2 — deliberately cross-tenant, no tenantId filter, matching the port's contract.
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const before = this.store.length;
+    this.store = this.store.filter((row) => row.endsAt >= cutoff);
+    return before - this.store.length;
+  }
 }

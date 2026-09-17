@@ -316,4 +316,47 @@ describe('TypeOrmResourceOccupancyRepository', () => {
       );
     });
   });
+
+  describe('deleteOlderThan', () => {
+    const cutoff = new Date('2026-06-01T00:00:00.000Z');
+
+    it('throws when called outside an active transaction', async () => {
+      await expect(repo.deleteOlderThan(cutoff)).rejects.toThrow(
+        'IResourceOccupancyRepository methods require an active transaction',
+      );
+    });
+
+    it('issues one DELETE with no tenant_id predicate and returns the deleted row count', async () => {
+      const manager = {
+        query: jest.fn().mockResolvedValue([{ id: 'row-1' }, { id: 'row-2' }]),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(manager, () => repo.deleteOlderThan(cutoff));
+
+      expect(result).toBe(2);
+      expect(manager.query).toHaveBeenCalledTimes(1);
+      const [sql, params] = (manager.query as jest.Mock).mock.calls[0];
+      expect(sql).toContain('DELETE FROM booking.resource_occupancy');
+      expect(sql).not.toContain('tenant_id');
+      expect(params).toEqual([cutoff]);
+    });
+
+    it('normalizes the [rows, rowCount] driver-shape return, same as deleteOrphanedStartedBefore', async () => {
+      const manager = {
+        query: jest.fn().mockResolvedValue([[{ id: 'row-1' }], 1]),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(manager, () => repo.deleteOlderThan(cutoff));
+
+      expect(result).toBe(1);
+    });
+
+    it('returns 0 when nothing matches the cutoff', async () => {
+      const manager = { query: jest.fn().mockResolvedValue([]) } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(manager, () => repo.deleteOlderThan(cutoff));
+
+      expect(result).toBe(0);
+    });
+  });
 });

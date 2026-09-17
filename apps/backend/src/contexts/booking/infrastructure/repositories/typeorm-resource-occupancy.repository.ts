@@ -27,6 +27,15 @@ interface AssignmentRow {
 // by 14 is ~4,681 rows per multi-row INSERT — 1,000 leaves ample margin for future columns.
 const OCCUPANCY_INSERT_CHUNK_SIZE = 1000;
 
+// TD40 Story 2 retention purge — plain cutoff predicate, no correlated subquery needed, so this
+// stays a straightforward parameterized DELETE (this class has no injected Repository<T>/
+// QueryBuilder to reach for, unlike TypeOrmChatbotMessageRepository.deleteOlderThan()).
+const DELETE_EXPIRED_OCCUPANCY_SQL = `
+  DELETE FROM booking.resource_occupancy
+  WHERE ends_at < $1
+  RETURNING id
+`;
+
 // Null-safe tuple key, matching the null-safe UNIQUE index on booking_line_resource_assignments
 // (COALESCE(leg_index, -1), COALESCE(quantity_position, -1)) — used to map a batched upsert's
 // result rows (arbitrary UNION ALL order) back to the candidate that produced each one.
@@ -268,6 +277,21 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
       `,
       [tenantId, bookingLineIds],
     );
+  }
+
+  // TD40 Story 2: single set-based DELETE, no tenant_id predicate (cross-tenant retention sweep —
+  // relies on the standalone ends_at index added alongside this method, not the tenant-led
+  // composite index every other query on this table can seek). RETURNING id, not a bare count,
+  // for the same driver-shape reason TypeOrmChatbotSessionRepository.deleteOrphanedStartedBefore()
+  // normalizes below: PostgreSQL's TypeORM transactional EntityManager can return
+  // DELETE ... RETURNING as [rows, rowCount] rather than the flat rows array a non-transactional
+  // query returns.
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const manager = this.requireActiveManager();
+    const result = (await manager.query(DELETE_EXPIRED_OCCUPANCY_SQL, [cutoff])) as
+      Array<{ id: string }> | [Array<{ id: string }>, number];
+    const rows = Array.isArray(result[0]) ? result[0] : (result as Array<{ id: string }>);
+    return rows.length;
   }
 
   private requireActiveManager() {
