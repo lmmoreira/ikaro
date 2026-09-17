@@ -23,6 +23,10 @@ interface AssignmentRow {
   quantity_position: number | null;
 }
 
+// ResourceOccupancyEntity has 14 columns; PostgreSQL's hard 65,535 bound-parameter limit divided
+// by 14 is ~4,681 rows per multi-row INSERT — 1,000 leaves ample margin for future columns.
+const OCCUPANCY_INSERT_CHUNK_SIZE = 1000;
+
 // Null-safe tuple key, matching the null-safe UNIQUE index on booking_line_resource_assignments
 // (COALESCE(leg_index, -1), COALESCE(quantity_position, -1)) — used to map a batched upsert's
 // result rows (arbitrary UNION ALL order) back to the candidate that produced each one.
@@ -163,18 +167,30 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
         candidates,
         now,
       );
-      await manager.insert(
-        ResourceOccupancyEntity,
-        this.buildOccupancyRows(candidates, {
-          tenantId,
-          assignmentIds,
-          lockState,
-          holdExpiresAt,
-          now,
-        }),
-      );
+      const rows = this.buildOccupancyRows(candidates, {
+        tenantId,
+        assignmentIds,
+        lockState,
+        holdExpiresAt,
+        now,
+      });
+      await this.insertOccupancyRows(manager, rows);
     } catch (err) {
       rethrowOccupancyInsertError(err);
+    }
+  }
+
+  // TypeORM's multi-row manager.insert() binds one SQL parameter per cell, not per row — at
+  // ResourceOccupancyEntity's 14 columns, PostgreSQL's 65,535 bound-parameter limit is reachable
+  // once requiredQuantity (validated only as > 0, no upper bound — resource-requirement.ts) drives
+  // a large-enough candidate count. Chunking keeps today's realistic candidate counts at one query
+  // (the common case this story targets) while staying correct at any size.
+  private async insertOccupancyRows(
+    manager: EntityManager,
+    rows: QueryDeepPartialEntity<ResourceOccupancyEntity>[],
+  ): Promise<void> {
+    for (let i = 0; i < rows.length; i += OCCUPANCY_INSERT_CHUNK_SIZE) {
+      await manager.insert(ResourceOccupancyEntity, rows.slice(i, i + OCCUPANCY_INSERT_CHUNK_SIZE));
     }
   }
 

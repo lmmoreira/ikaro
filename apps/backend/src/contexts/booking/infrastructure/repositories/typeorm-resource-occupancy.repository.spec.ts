@@ -179,6 +179,37 @@ describe('TypeOrmResourceOccupancyRepository', () => {
       ]);
     });
 
+    it('chunks the occupancy insert once candidate count would exceed a single multi-row statement', async () => {
+      const CANDIDATE_COUNT = 1500;
+      const candidates = Array.from({ length: CANDIDATE_COUNT }, (_, i) =>
+        buildCandidate({ resourceId: `res-${i}`, legIndex: i }),
+      );
+      const manager = {
+        query: jest.fn().mockResolvedValue(
+          candidates.map((c, i) => ({
+            id: `assignment-${i}`,
+            resource_id: c.resourceId,
+            leg_index: c.legIndex,
+            quantity_position: c.quantityPosition,
+          })),
+        ),
+        insert: jest.fn().mockResolvedValue({}),
+      } as unknown as EntityManager;
+
+      await runWithEntityManager(manager, () =>
+        repo.assign(TENANT_ID, BOOKING_LINE_ID, candidates, 'COMMITTED', null),
+      );
+
+      // 1500 candidates at a 1000-row chunk size → 2 insert calls (1000 + 500), never one
+      // statement large enough to risk PostgreSQL's 65,535 bound-parameter limit.
+      expect(manager.insert).toHaveBeenCalledTimes(2);
+      const [firstChunk, secondChunk] = (manager.insert as jest.Mock).mock.calls.map(
+        (call) => call[1] as unknown[],
+      );
+      expect(firstChunk).toHaveLength(1000);
+      expect(secondChunk).toHaveLength(500);
+    });
+
     it('reuses an already-existing assignment row for the same (line, resource, leg, quantity) tuple', async () => {
       const existingAssignmentId = '00000000-0000-7000-8000-000000000098';
       const candidate = buildCandidate();
