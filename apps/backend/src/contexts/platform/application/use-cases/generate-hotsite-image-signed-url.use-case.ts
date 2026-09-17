@@ -21,7 +21,7 @@ export class GenerateHotsiteImageSignedUrlUseCase {
     dto: GenerateHotsiteImageSignedUrlUseCaseInput,
   ): Promise<GenerateHotsiteImageSignedUrlUseCaseResult> {
     // Staged in the private bucket under tmp/ — not public/permanent until UpdateHotsiteContentUseCase
-    // promotes it on save (see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md). Purpose is encoded into the tmp
+    // promotes it on save (see docs/14-API_CONTRACTS.md). Purpose is encoded into the tmp
     // path so promotion can rebuild the permanent tenants/<id>/hotsite/<purpose>/... path without
     // needing a second lookup.
     const filePath = `tmp/${dto.tenantId}/${dto.purpose}/${uuidv7()}/${dto.fileName}`;

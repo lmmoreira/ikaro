@@ -5,7 +5,7 @@ const TMP_PATH_PREFIX = 'tmp/';
 
 // A not-yet-promoted upload lives under tmp/ in the private bucket — it can't resolve via the
 // public-bucket string template (resolveHotsiteImageUrl) and needs a private signed read URL
-// instead (see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview). Centralized here so
+// instead (see docs/14-API_CONTRACTS.md § tmp/ image preview). Centralized here so
 // SingleImageUploadField, GalleryImageManager, HotsitePreview, and resolveDraftImageUrls all
 // agree on the same shape check instead of repeating `startsWith('tmp/')` independently.
 export function isTmpImagePath(value: string): boolean {

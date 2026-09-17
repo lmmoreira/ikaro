@@ -23,7 +23,7 @@ export class GenerateAttachmentSignedUrlUseCase {
     const { tenantId } = input;
 
     // Staged in the private bucket under tmp/ — not booking-scoped until promotion (see
-    // docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md). bookingId is no longer needed at upload time since
+    // docs/14-API_CONTRACTS.md). bookingId is no longer needed at upload time since
     // the destination path is only known once the booking is actually persisted.
     const filePath = `tmp/${tenantId}/${uuidv7()}/${input.fileName}`;
 

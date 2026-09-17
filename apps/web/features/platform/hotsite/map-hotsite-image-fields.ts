@@ -57,7 +57,7 @@ export function mapHotsiteImageFields(
 
 // Read-only twin of mapHotsiteImageFields — returns every non-empty image path instead of
 // rewriting them. Used to find tmp/-prefixed (not-yet-promoted) paths that need a private
-// signed-read URL before rendering (see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
+// signed-read URL before rendering (see docs/14-API_CONTRACTS.md § tmp/ image preview).
 export function collectHotsiteImagePaths(
   branding: HotsiteBrandingResponse,
   layout: readonly HotsiteModuleResponse[],

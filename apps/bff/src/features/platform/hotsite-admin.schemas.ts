@@ -60,7 +60,7 @@ export type GenerateHotsiteImageSignedUrlBody = z.infer<
 
 // Only for not-yet-promoted tmp/ staging uploads — an already-permanent tenants/.../hotsite/...
 // image resolves via the pure getPublicUrl() string template instead (see
-// docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
+// docs/14-API_CONTRACTS.md § tmp/ image preview).
 export const GenerateHotsiteImageReadSignedUrlBodySchema = z.object({
   filePath: z.string().regex(new RegExp(`^${HOTSITE_TMP_PATH_FRAGMENT}$`)),
 });
@@ -83,7 +83,7 @@ export const FeatureBookingPhotoBodySchema = z
 export type FeatureBookingPhotoBody = z.infer<typeof FeatureBookingPhotoBodySchema>;
 
 // Accepts either an already-permanent hotsite image (tenants/<id>/hotsite/...) or a not-yet
-// promoted tmp/ staging upload (tmp/<id>/...) — see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+// promoted tmp/ staging upload (tmp/<id>/...) — see docs/14-API_CONTRACTS.md.
 export const DeleteHotsiteImageBodySchema = z.object({
   filePath: z
     .string()

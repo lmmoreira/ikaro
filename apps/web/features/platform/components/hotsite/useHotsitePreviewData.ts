@@ -58,7 +58,7 @@ export function usePreviewSupplementaryData(
 
 // A not-yet-promoted tmp/ upload lives in the private bucket — it can't resolve via the public
 // base URL, so Preview needs a fresh private signed read URL per tmp/ path before rendering
-// (see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
+// (see docs/14-API_CONTRACTS.md § tmp/ image preview).
 export function useTmpSignedUrls(
   branding: HotsiteAdminContentResponse['branding'],
   layout: HotsiteAdminContentResponse['layout'],

@@ -9,7 +9,7 @@ export const EVENT_BUS = Symbol('IEventBus');
 // transport (e.g. OutboxRelayService relays either kind, honestly, without pretending one is the
 // other). Callers that must never publish a Command directly (jobs, use cases) are kept off
 // EVENT_BUS entirely via an import-boundary ESLint rule (TD24 D14), not by lying about this type —
-// see docs/archive/td/TD24-OUTBOX-INBOX-PATTERN.md D14 and docs/ANTI_PATTERNS.md for why a type-level narrowing
+// see docs/03-DOMAIN_EVENTS.md D14 and docs/ANTI_PATTERNS.md for why a type-level narrowing
 // here was tried and reverted.
 export interface IEventBus {
   publish(event: Envelope): Promise<void>;
