@@ -32,6 +32,11 @@
     .form-actions .btn-primary  { flex: 1; text-align: center; padding: 0.875rem; }
     .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
 
+    .model-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .model-card { padding: 1rem; cursor: pointer; }
+    .model-card p.title { font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .model-card p.sub { font-size: 0.8125rem; opacity: 0.6; }
+
     .detail-layout { display: block; }
     .detail-aside  { display: none; }
     @media (min-width: 1024px) {
@@ -129,6 +134,24 @@
           <textarea id="description" class="form-textarea">Lavagem detalhada com aspiração interna e limpeza de vidros.</textarea>
         </div>
 
+        <div class="form-group">
+          <label class="form-label">Modelo de agendamento *</label>
+          <div class="model-picker">
+            <div class="card model-card selected" id="model-appointment" onclick="selectBookingModel('appointment')">
+              <p class="title">Agendamento</p>
+              <p class="sub">Um cliente por vez, atendimento privado (corte, consulta, coleta, massagem)</p>
+            </div>
+            <div class="card model-card" id="model-session" onclick="selectBookingModel('session')">
+              <p class="title">Turma com capacidade</p>
+              <p class="sub">Vários clientes na mesma turma (Pilates, CrossFit)</p>
+            </div>
+          </div>
+          <p class="form-hint" id="model-hint">
+            Preservado ao corrigir o erro de nome abaixo — corrigir o nome não reseta o resto do
+            formulário (UC-012 A1).
+          </p>
+        </div>
+
         <div class="form-row">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label" for="price">Preço *</label>
@@ -154,10 +177,14 @@
 
         <p class="section-divider">Opções</p>
 
-        <div class="toggle-row">
+        <div class="toggle-row" id="pickup-toggle-row">
           <div><div class="toggle-label">Coleta e entrega</div><div class="toggle-sub">Exige endereço de coleta no agendamento</div></div>
-          <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+          <button class="toggle-switch" id="pickup-toggle" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
         </div>
+        <p class="form-hint" id="pickup-toggle-hidden-hint" style="display:none;margin-top:-0.375rem;margin-bottom:0.75rem;">
+          Não se aplica a Turma — <code>requiresPickupAddress</code> só existe para uma reserva
+          privada de um cliente.
+        </p>
 
         <div class="toggle-row">
           <div><div class="toggle-label">Criar como ativo</div><div class="toggle-sub">Desative para salvar como rascunho</div></div>
@@ -260,6 +287,14 @@
   </div>
 
   <script>
+    function selectBookingModel(model) {
+      var isSession = model === 'session';
+      document.getElementById('model-appointment').classList.toggle('selected', !isSession);
+      document.getElementById('model-session').classList.toggle('selected', isSession);
+      document.getElementById('pickup-toggle-row').style.display = isSession ? 'none' : '';
+      document.getElementById('pickup-toggle-hidden-hint').style.display = isSession ? '' : 'none';
+      if (isSession) { document.getElementById('pickup-toggle').classList.remove('on'); }
+    }
     function openSheet() {
       document.getElementById('manager-sheet').classList.add('open');
       document.getElementById('sheet-backdrop').classList.add('open');

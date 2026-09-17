@@ -23,10 +23,13 @@
   <h1>Protótipo — STAFF: Serviços (Catálogo de Serviços)</h1>
   <p>
     Fluxo de gestão do catálogo de serviços: listar serviços ativos/inativos, criar um novo
-    serviço (UC-012), editar um serviço existente e desativá-lo (UC-013). Ator: Staff ou Manager.
+    serviço (UC-012), editar um serviço existente e desativá-lo (UC-013). Editar também cobre a
+    extensão M22 Cluster 2 — recursos/bundles/etapas/buffer, políticas de reserva e o formulário
+    de reserva (UC-050–056), organizados em abas dentro da mesma tela de edição. Ator: Staff ou
+    Manager.
   </p>
 
-  <p style="opacity: 0.65;">Stories: M13-S22–S24 — ✅ Done</p>
+  <p style="opacity: 0.65;">Stories: M13-S22–S24 — ✅ Done · M22-S04 — ❓ Gap, não construído ainda</p>
 
   <ul>
     <li>
@@ -38,12 +41,14 @@
       <span class="tag tag-green">EXISTS: /dashboard/services/new (UC-012)</span>
     </li>
     <li>
-      <a href="02c-service-create-success.html">Tela 2c — Serviço criado (estado inline)</a>
-      <span class="tag tag-green">EXISTS: lista + banner inline (UC-012)</span>
+      <a href="02c-service-create-success.html">Tela 2c — Serviço criado → abre direto na edição (Detalhes, banner inline, 4 abas já desbloqueadas)</a>
+      <span class="tag tag-green">EXISTS: redirect + banner (UC-012)</span>
+      <span style="font-size:0.75rem;opacity:0.6;">— redesenhado 2026-09-17, era banner na lista</span>
     </li>
     <li>
-      <a href="03-service-edit.html">Tela 3 — Editar serviço (ativo)</a>
-      <span class="tag tag-green">EXISTS: /dashboard/services/[id]/edit (UC-013)</span>
+      <a href="03-service-edit.html">Tela 3 — Editar serviço (ativo) — 4 abas: Detalhes / Recursos / Políticas de reserva / Formulário de reserva</a>
+      <span class="tag tag-green">EXISTS: /dashboard/services/[id]/edit — Detalhes (UC-013)</span>
+      <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP: Recursos/Políticas/Formulário — UC-050–055</span>
     </li>
   </ul>
 
@@ -59,19 +64,32 @@
       <span class="tag tag-green">EXISTS: /dashboard/services/[id]/deactivate — UC-013 A1</span>
     </li>
     <li>
-      <a href="03c-service-edit-inactive.html">Alt C — Editar serviço inativo (Ativar)</a>
+      <a href="03c-service-edit-inactive.html">Alt C — Editar serviço inativo (Ativar) — agora com as 4 abas</a>
       <span class="tag tag-green">EXISTS: PATCH /v1/services/:id/activate</span>
-      — adicionado 2026-07-31: estado real que faltava no protótipo
+      — reconstruído 2026-09-17: desativar não limpa recursos/políticas/formulário, então essas
+      3 abas continuam disponíveis (estado vazio/padrão) mesmo com o serviço inativo
     </li>
   </ul>
 
   <hr>
 
-  <p><strong>M21 Cluster 2 — ❓ Gap, não construído ainda:</strong></p>
+  <p><strong>M22 Cluster 2 — ❓ Gap, não construído ainda:</strong></p>
+  <p style="font-size: 0.8125rem; opacity: 0.65; margin-top: -0.5rem;">
+    Redesenhado 2026-09-17 (story-discovery groundwork, M22-S04): as 3 telas separadas
+    (04-service-resource-config.html, 05-service-booking-policies.html,
+    05b-service-booking-policies-erro.html) foram fundidas em abas dentro de
+    <a href="03-service-edit.html">03-service-edit.html</a>, mesmo padrão de abas já usado no
+    editor de Hotsite (Branding/Layout/SEO) — substitui o antigo link "Ver políticas de
+    reserva →" que navegava para uma página separada. A aba "Formulário de reserva" (UC-054)
+    não tinha protótipo nenhum antes desta revisão.
+  </p>
   <ul>
-    <li><a href="04-service-resource-config.html">Recursos / bundles / etapas / buffer</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-050–053</span></li>
-    <li><a href="05-service-booking-policies.html">Política de agendamento</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-055</span></li>
-    <li><a href="05b-service-booking-policies-erro.html">Erro — duração variável sem política de preço</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-055 A2</span></li>
+    <li><a href="03-service-edit.html">Aba "Recursos" — bundles / etapas / buffer</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-050–053</span></li>
+    <li><a href="03-service-edit.html">Aba "Políticas de reserva"</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-055</span></li>
+    <li><a href="03d-service-edit-policy-error.html">Erro — duração variável sem política de preço</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-055 A2</span></li>
+    <li><a href="03-service-edit.html">Aba "Formulário de reserva" — perguntas, participantes, consentimento, versões</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-054 (sem protótipo prévio)</span></li>
+    <li><a href="03e-service-edit-intake-error.html">Erro — formulário sem perguntas e sem termo de consentimento</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-054</span> <span style="font-size:0.75rem;opacity:0.6;">— adicionado 2026-09-17</span></li>
+    <li><a href="02-service-create.html">Modelo de agendamento na criação (Agendamento / Turma)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-056 (sem protótipo prévio)</span></li>
   </ul>
 
   <hr>
@@ -83,11 +101,33 @@
     ✅ O formulário de criação comunica bem os campos obrigatórios vs. opcionais?<br>
     ✅ O erro de nome duplicado (409) é claro sobre qual ação corrigir?<br>
     ✅ O banner inline de "serviço criado" (Tela 2c) é visível o suficiente, sem precisar de um toast?<br>
+    ✅ Abrir direto na edição depois de criar (em vez de voltar à lista) é a expectativa certa, ou
+    o admin prefere confirmar na lista primeiro?<br>
+    ✅ Os estados vazios de Recursos/Políticas de reserva/Formulário de reserva (Tela 2c) deixam
+    claro que são opcionais, não um bloqueio?<br>
     ✅ A desativação como página de confirmação separada é melhor que um bottom sheet?<br>
     ✅ O aviso de que o preço alterado não afeta agendamentos já confirmados (UC-013 A2) está claro?<br>
+    ✅ As 4 abas (Detalhes / Recursos / Políticas de reserva / Formulário de reserva) são uma
+    navegação mais clara que a página separada que existia antes?<br>
+    ✅ O construtor de perguntas do Formulário de reserva é compreensível sem explicação — tipo,
+    obrigatória, ordem?<br>
+    ✅ Fica claro que "Publicar nova versão" (Formulário de reserva) é uma ação diferente de
+    "Salvar alterações" (as outras 3 abas)?<br>
+    ✅ O histórico de versões comunica bem que reservas antigas mantêm a versão que responderam?<br>
+    ✅ O modelo de agendamento na criação (Agendamento / Turma) é claro sobre o que "Turma" ainda
+    não faz (sem configuração de turma até o Cluster 4)?<br>
+    ✅ Fica claro qual aba um "Salvar" salva — o ponto (●) de alteração não salva na aba e o botão
+    fixo da lateral trocando de rótulo ("Salvar Recursos" etc.) comunicam bem o escopo?<br>
+    ✅ Sair da página com alterações não salvas em qualquer aba dispara aviso o suficiente (sem
+    ser irritante em excesso)?<br>
+    ✅ O badge "Turma" na lista (Tela 1) é reconhecível sem explicação?<br>
+    ✅ Um serviço inativo (Alt C) ainda dá pra configurar Recursos/Políticas/Formulário — isso é
+    esperado ou parece um bug?<br>
     <br>
     <strong>UCs cobertos:</strong>
-    UC-012 (criar serviço) · UC-013 (editar / desativar serviço)<br>
+    UC-012 (criar serviço) · UC-013 (editar / desativar serviço) · UC-050–055 (recursos, bundles,
+    etapas, buffer, políticas de reserva — ❓ Gap) · UC-054 (formulário de reserva — ❓ Gap, sem
+    protótipo prévio) · UC-056 (modelo de agendamento na criação — ❓ Gap, sem protótipo prévio)<br>
     <strong>Inicio do protótipo</strong> →
     <a href="../../../shared/entry.html">shared/entry.html</a>
   </div>

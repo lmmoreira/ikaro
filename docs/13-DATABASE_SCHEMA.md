@@ -610,7 +610,9 @@ A versioned, service-owned definition of booking questions, consent text/version
 |---|---|---|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL |
-| resource_id | UUID | NOT NULL — FK (tenant_id, resource_id) → `resources` |
+| resource_id | UUID | NOT NULL |
+| resource_type | VARCHAR(20) | NOT NULL — CHECK IN ('LOCATION', 'STAFF', 'ROOM', 'EQUIPMENT'); denormalized from `resources.type`, feeds the composite FK below |
+| **FK** | (tenant_id, resource_id, resource_type) → `resources` (tenant_id, id, type) | |
 | source_type | VARCHAR(20) | NOT NULL — CHECK IN ('BOOKING_LINE', 'CLASS_SESSION') |
 | booking_line_resource_assignment_id | UUID | NULLABLE — FK (tenant_id, booking_line_resource_assignment_id) → `booking_line_resource_assignments`; set iff `source_type = 'BOOKING_LINE'` |
 | leg_index | INT | NULLABLE — null for flat services |

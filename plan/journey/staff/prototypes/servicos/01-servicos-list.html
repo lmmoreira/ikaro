@@ -50,6 +50,7 @@
     .badge-inactive { background: #f1f5f9; color: #475569; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
     .badge-points   { background: #fef9c3; color: #854d0e; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
     .badge-pickup   { background: #ede9fe; color: #6d28d9; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
+    .badge-turma    { background: #dbeafe; color: #1d4ed8; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
 
     /* FAB */
     .fab {
@@ -71,7 +72,13 @@
     PAGE:       apps/web/app/dashboard/services/page.tsx  (EXISTS — no [slug] segment;
                 staff/manager dashboard is JWT/session-scoped, not URL-slug-scoped)
     FILE:       apps/web/features/booking/components/dashboard/services/ServiceListPage.tsx
-    DATA: GET /v1/services  →  ServiceListResponse
+    DATA: GET /v1/services  →  ServiceListResponse — StaffServiceResponse already includes
+    bookingModel per item (confirmed via /docs-audit 2026-09-17, packages/types/src/
+    service.dto.ts), so the "Turma" badge below (Service 5) is a pure UI addition, no
+    contract gap — added because M22 Cluster 2 lets a service be SESSION-model now and
+    there was previously no way to tell it apart from an Agendamento service without
+    opening it. Badge shown ONLY for bookingModel=SESSION (the non-default case), same
+    convention as badge-pickup (shown only when requiresPickupAddress=true).
     AUTH: STAFF | MANAGER
   -->
 
@@ -176,8 +183,8 @@
 
         <!-- Filter tabs -->
         <div class="filter-tabs">
-          <a href="#" class="filter-tab active">Todos (4)</a>
-          <a href="#" class="filter-tab">Ativos (3)</a>
+          <a href="#" class="filter-tab active">Todos (5)</a>
+          <a href="#" class="filter-tab">Ativos (4)</a>
           <a href="#" class="filter-tab">Inativos (1)</a>
         </div>
 
@@ -245,8 +252,12 @@
             </div>
           </a>
 
-          <!-- Service 4 — inactive -->
-          <a href="03-service-edit.html" class="service-row" style="opacity:0.55;">
+          <!-- Service 4 — inactive. Links to 03c (the inactive variant), NOT 03 (active) —
+               fixed 2026-09-17: every other row here links to 03-service-edit.html as the
+               generic "an edit page looks like this" stand-in (no real per-row routing exists
+               in a static prototype), but for THIS specific row that convention was actively
+               wrong once 03c-service-edit-inactive.html existed as its own real variant. -->
+          <a href="03c-service-edit-inactive.html" class="service-row" style="opacity:0.55;">
             <div class="service-icon" style="background:#f1f5f9;">
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
@@ -262,6 +273,28 @@
             <div class="service-right">
               <span class="service-price">R$ 380,00</span>
               <span class="badge-inactive">Inativo</span>
+            </div>
+          </a>
+
+          <!-- Service 5 — SESSION model (Turma), added 2026-09-17 to demonstrate the badge;
+               plausible for an auto-services tenant diversifying into group workshops. -->
+          <a href="03-service-edit.html" class="service-row">
+            <div class="service-icon">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="var(--ba-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
+            </div>
+            <div class="service-info">
+              <div class="service-name">Workshop de Detalhamento</div>
+              <div class="service-meta">
+                <span>120 min</span>
+                <span class="badge-turma">Turma</span>
+                <span class="badge-points">25 pts</span>
+              </div>
+            </div>
+            <div class="service-right">
+              <span class="service-price">R$ 150,00</span>
+              <span class="badge-active">Ativo</span>
             </div>
           </a>
 

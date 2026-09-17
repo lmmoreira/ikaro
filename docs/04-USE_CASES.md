@@ -744,7 +744,7 @@ Returns:
   2. Admin clicks "Create"
   3. System validates: name unique within tenant, price must be greater than zero (> 0), duration > 0
   4. System creates Service aggregate with `requiresPickupAddress` flag
-  5. Admin sees confirmation: "Serviço criado"
+  5. Admin sees confirmation: "Serviço criado" and is taken directly to the new service's edit page (not back to the service list) — landing there next to the M22 Cluster 2 resource-requirements/booking-policy/intake-schema config (UC-050–055), which only ever makes sense once the service exists (decided 2026-09-17, see `plan/journey/staff/prototypes/servicos/02c-service-create-success.html`)
 
 - **Alternative Flows:**
   - **A1: Service name already exists** → System shows error, admin changes name

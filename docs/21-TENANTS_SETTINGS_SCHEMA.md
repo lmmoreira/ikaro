@@ -110,9 +110,11 @@ Controls booking lifecycle and rules.
 
 **Validation Rules:**
 - `cancellationWindowHours` must be 0–720 (0–30 days)
-- `minBookingAdvanceHours` must be ≥ 0
-- `maxBookingAdvanceDays` must be ≥ 1
+- `minBookingAdvanceHours` must be ≥ 0, documented ceiling 8760 (1 year)
+- `maxBookingAdvanceDays` must be ≥ 1, documented ceiling 365
 - `minBookingAdvanceHours` / 24 must be < `maxBookingAdvanceDays`
+
+> **Not yet enforced (found via `/docs-audit` 2026-09-17):** none of the three rules above — the two upper bounds or the cross-field rule — are actually checked in `booking-settings.validator.ts` or the Zod schema (`packages/validation/src/tenant-settings.ts`) today; only the lower bounds (`≥ 0`, `≥ 1`) are. Documented as the intended ceiling for a future validation pass, not a currently-enforced constraint.
 - `slotGranularityMinutes` must be one of: 15, 30, 60
 - `classCancellationWindowHours`/`classSkipWindowHours` must be 0–720 when set (M24 Cluster 4)
 - `classRescheduleWindowDays` must be ≥ 1 when `classAllowsReschedule = true` (M24 Cluster 4)

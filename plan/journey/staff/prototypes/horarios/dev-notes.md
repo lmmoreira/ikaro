@@ -240,7 +240,7 @@ GET /v1/resources?type=&isActive=                            // UC-044 — feeds
 
 ---
 
-## ❓ GAP — M21 Cluster 2: Manager multi-resource day grid (UC-057, not yet built)
+## ❓ GAP — M22 Cluster 2: Manager multi-resource day grid (UC-057, not yet built)
 
 **File:** `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). MANAGER-only variant of "Horários" — columns = active resources, rows = time slots.
 

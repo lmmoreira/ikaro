@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar Serviço — BeloAuto</title>
+  <title>Editar Serviço — Massagem Relaxante — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     .form-group { margin-bottom: 1.25rem; }
@@ -13,6 +13,8 @@
     .form-textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; resize: vertical; min-height: 80px; }
     .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
     .form-warn { font-size: 0.8125rem; color: #b45309; margin-top: 0.375rem; display: flex; align-items: center; gap: 0.25rem; }
+    .form-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.375rem; display: flex; align-items: center; gap: 0.25rem; }
+    .form-input.error { border-color: #ef4444; background: #fef2f2; }
 
     .input-prefix-group { position: relative; }
     .input-prefix { position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.9375rem; font-weight: 600; color: rgba(17,24,39,0.45); pointer-events: none; }
@@ -22,6 +24,8 @@
     .input-with-suffix { padding-right: 3.5rem !important; }
 
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem; }
+    @media (max-width: 640px) { .form-row-3 { grid-template-columns: 1fr; } }
 
     .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1rem; border-radius: var(--ba-radius); background: var(--ba-secondary); margin-bottom: 0.75rem; }
     .toggle-label { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); }
@@ -38,34 +42,139 @@
     .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
 
     .danger-zone { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1.5px solid #fecaca; }
+    .danger-zone-title { font-size: 0.75rem; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem; }
+    .danger-zone-desc { font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); margin-bottom: 0.875rem; line-height: 1.5; }
 
     .detail-layout { display: block; }
     .detail-aside  { display: none; }
     @media (min-width: 1024px) {
-      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.5rem; align-items: start; }
       .detail-aside  { display: block; position: sticky; top: 1.5rem; }
       .form-actions  { display: none !important; }
     }
-    .danger-zone-title { font-size: 0.75rem; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem; }
-    .danger-zone-desc { font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); margin-bottom: 0.875rem; line-height: 1.5; }
+
+    /* Tab bar — same shape as manager/prototypes/hotsite/01-hotsite-editor.html's
+       .editor-tabs/.editor-tab/.editor-panel (Branding/Layout/SEO), reused here per
+       the M22-S04 story-discovery decision to replace the old "Ver políticas de
+       reserva →" cross-page link with tabs on one page. */
+    .editor-tabs { display: flex; gap: 0.25rem; padding: 0 0 1rem; border-bottom: 1px solid var(--ba-secondary); margin-bottom: 1.25rem; overflow-x: auto; }
+    .editor-tab { padding: 0.625rem 1rem; border-radius: var(--ba-radius) var(--ba-radius) 0 0; font-size: 0.9375rem; font-weight: 600; border: none; background: none; color: var(--ba-text); opacity: 0.5; cursor: pointer; white-space: nowrap; }
+    .editor-tab.active { opacity: 1; color: var(--ba-primary); border-bottom: 2px solid var(--ba-primary); margin-bottom: -1px; }
+    .editor-panel { display: none; }
+    .editor-panel.active { display: block; }
+
+    .model-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .model-card { padding: 1rem; cursor: pointer; }
+    .model-card p.title { font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .model-card p.sub { font-size: 0.8125rem; opacity: 0.6; }
+    .resource-check-row { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.75rem; margin-bottom: 0.625rem; }
+    .resource-check-row.checked { border-color: #2563eb; border-width: 2px; } /* fixed platform blue, not --ba-primary */
+    .radio-row-title { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .nested-selmode { margin: 0.625rem 0 0.125rem 1.875rem; padding-top: 0.625rem; border-top: 1px solid var(--ba-secondary); display: flex; flex-direction: column; gap: 0.5rem; }
+    .nested-selmode label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--ba-text); cursor: pointer; }
+    .eligible-count { font-size: 0.8125rem; font-weight: 600; color: var(--ba-text); margin-bottom: 0.5rem; }
+    .eligible-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .eligible-chip { display: inline-flex; align-items: center; gap: 0.375rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 9999px; padding: 0.3125rem 0.5rem 0.3125rem 0.75rem; font-size: 0.8125rem; font-weight: 600; }
+    .chip-remove { background: none; border: none; color: #1d4ed8; opacity: 0.6; cursor: pointer; font-size: 0.9375rem; line-height: 1; padding: 0.125rem; }
+    .chip-remove:hover { opacity: 1; }
+    .eligible-add-select { margin-top: 0.625rem; }
+    .leg-card { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem; margin-bottom: 0.75rem; }
+    .leg-order-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #2563eb; color: white; font-size: 0.75rem; font-weight: 700; }
+
+    /* Formulário de reserva (intake schema) tab — question-list builder */
+    .question-card { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem; margin-bottom: 0.75rem; }
+    .question-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .question-order-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #6b7280; color: white; font-size: 0.75rem; font-weight: 700; }
+    .question-row-actions { display: flex; gap: 0.375rem; }
+    .icon-btn { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ba-text); opacity: 0.6; }
+    .icon-btn:hover { opacity: 1; }
+    .version-history-row { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.875rem; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); margin-bottom: 0.5rem; }
+    .version-history-row.current { border-color: #2563eb; background: #eff6ff; }
+    .version-badge { font-size: 0.75rem; font-weight: 700; color: var(--ba-text); }
+    .version-meta { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.125rem; }
+    .version-tag-current { font-size: 0.6875rem; font-weight: 700; color: #1d4ed8; background: #dbeafe; border-radius: 9999px; padding: 0.1875rem 0.625rem; }
+    .intake-publish-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--ba-secondary); }
+
+    /* Per-tab unsaved-changes indicator + save confirmation — added 2026-09-17 after finding
+       each tab silently saves to a DIFFERENT endpoint with no visibility into which tabs have
+       pending changes (see dev-notes.md's "Save scope" note). */
+    .tab-dirty-dot { display: none; width: 0.4375rem; height: 0.4375rem; border-radius: 9999px; background: #f59e0b; margin-left: 0.375rem; vertical-align: middle; }
+    .tab-label-short { display: none; }
+    @media (max-width: 480px) { .tab-label-full { display: none; } .tab-label-short { display: inline; } }
+    .save-confirm { display: none; align-items: center; gap: 0.375rem; font-size: 0.8125rem; font-weight: 600; color: #15803d; margin-left: 0.75rem; }
+    .save-row { display: flex; align-items: center; }
+
+    /* Version-preview dialog — added 2026-09-17 (user testing: "no way to see older
+       versions... at least a simple popup dialog"). Read-only snapshot, not editable —
+       publishing a new version never lets you edit a past one (UC-054 A1). */
+    .version-history-row.viewable { cursor: pointer; }
+    .version-history-row.viewable:hover { border-color: #94a3b8; }
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 40; }
+    .modal-backdrop.open { display: block; }
+    .version-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 41; width: calc(100% - 2rem); max-width: 32rem; max-height: 80vh; overflow-y: auto; background: white; border-radius: var(--ba-radius); box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+    .version-modal.open { display: block; }
+    .version-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.25rem 0.875rem; border-bottom: 1px solid var(--ba-secondary); }
+    .version-modal-header h3 { font-size: 1rem; margin: 0; }
+    .version-modal-close { border: none; background: none; font-size: 1.25rem; line-height: 1; cursor: pointer; color: var(--ba-text); opacity: 0.5; padding: 0.25rem; }
+    .version-modal-close:hover { opacity: 1; }
+    .version-modal-body { padding: 1.25rem; }
+    .version-modal-q { padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); }
+    .version-modal-q:last-child { border-bottom: none; }
+    .version-modal-q-label { font-weight: 600; font-size: 0.9375rem; }
+    .version-modal-q-meta { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
   </style>
 </head>
 <body>
 
   <!--
-    COMPONENT: ServiceEditPage
+    COMPONENT: ServiceEditPage (composes ServiceEditPanels' discrete section components)
     PAGE:       apps/web/app/dashboard/services/[id]/edit/page.tsx  (EXISTS — no [slug] segment)
     FILE:       apps/web/features/booking/components/dashboard/services/ServiceEditPage.tsx
-    UC-013 — Admin edits service details
-    DATA:   GET  /v1/services/:id
-    ACTION: PATCH /v1/services/:id
-    200 → 01-servicos-list.html (toast "Serviço atualizado")
-    Deactivate → DELETE /v1/services/:id → 03b-deactivate-confirm.html
+    UC-013 (Detalhes tab) — Admin edits service details — EXISTS
+    UC-050/051/052/053 (Recursos tab), UC-055 (Políticas de reserva tab), UC-054 (Formulário
+    de reserva tab) — ❓ Gap, M22-S04, see plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md
 
-    When isActive=false, this same page renders a different section instead of the
-    danger zone: an info box + a single "Ativar serviço" button
-    (PATCH /v1/services/:id/activate) — see 03c-service-edit-inactive.html (added
-    2026-07-31; this state existed in code with no prototype screen).
+    Redesigned 2026-09-17 (story-discovery groundwork for M22-S04): the previous structure
+    had 04-service-resource-config.html as its own full page with an aside link
+    "Ver políticas de reserva →" pointing to a SEPARATE page (05-service-booking-policies.html)
+    — navigating away and losing the Recursos context to see Políticas. Replaced with the same
+    tab pattern already shipped for the Hotsite editor (manager/prototypes/hotsite/01-hotsite-
+    editor.html's Branding/Layout/SEO tabs — .editor-tabs/.editor-tab/.editor-panel, reused
+    verbatim here, not a new pattern). This also gives UC-054's booking-intake schema — which
+    had no prototype screen anywhere, only 2 flat checkboxes squeezed into the old Políticas
+    page — a proper home as its own "Formulário de reserva" tab.
+
+    Protagonist standardized to Vitta Studio's "Massagem Relaxante" across all 4 tabs (the old
+    03/04/05 files inconsistently mixed 3 different services across 2 tenants — BeloAuto's
+    "Lavagem Completa Detalhada" on this file, Vitta Studio's "Massagem Relaxante" on 04, Vitta
+    Studio's "Sala Aurora" on 05/05b — found via /docs-audit, 2026-09-17. Massagem Relaxante is
+    the better protagonist for a consolidated page: it's a real 3-way resource bundle
+    (Profissional + Sala + Equipamento), unlike a degenerate LOCATION-only car-wash service,
+    so the Recursos tab actually has something to show.
+
+    The illustrative, non-functional "Agendamento ⇄ Turma com capacidade" bookingModel toggle
+    that used to sit at the top of the old 04 is REMOVED here — bookingModel is immutable once
+    a service has bookings (UC-056 A1), so it was never a real edit-time control; the actual
+    UC-056 picker now lives at creation time, see 02-service-create.html's new "Modelo de
+    agendamento" section. The SESSION-model handoff card and "Catálogo de aulas" fields are
+    also dropped from this page for the same reason — Massagem Relaxante is fixed APPOINTMENT,
+    and that whole panel was illustrative-only scaffolding for a Cluster 4 (M24) concept.
+
+    BFF CALLS (per docs/14-API_CONTRACTS.md § Service Extensions — M22 Cluster 2):
+      Detalhes             → PATCH /services/:id
+      Recursos (flat)      → PATCH /services/:id/resource-requirements
+      Recursos (legs)      → PUT   /services/:id/legs
+      Recursos (buffer)    → PATCH /services/:id (bufferAfterMinutes)
+      Políticas de reserva → PATCH /services/:id/booking-policy
+      Formulário de reserva→ POST  /services/:id/intake-schema  (publish — a NEW version, not
+                              a PATCH; see this tab's own "Publicar nova versão" note below)
+
+    READ GAP (found via /docs-audit, 2026-09-17): there is currently no GET endpoint to fetch a
+    service's active intake schema or its version history — GET /services/:id doesn't include
+    it, and IServiceIntakeSchemaRepository.findAllByServiceId() has zero controller callers.
+    The "Formulário de reserva" tab below (and its version-history list) can't actually be
+    populated on page load until a read path is added — tracked in docs/02-DOMAIN_MODEL.md
+    § Aggregate: ServiceBookingIntakeSchema and docs/14-API_CONTRACTS.md.
   -->
 
   <!-- Prototype banner -->
@@ -76,16 +185,14 @@
   <!-- TOP BAR -->
   <div class="dashboard-topbar">
     <a href="01-servicos-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="15 18 9 12 15 6"/>
-      </svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       <span class="topbar-brand" style="font-weight:600;">Serviços</span>
     </a>
-    <h1 class="topbar-page-title">Editar serviço</h1>
+    <h1 class="topbar-page-title">Editar serviço — Massagem Relaxante</h1>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
       <span class="status-badge" style="background:#dcfce7;color:#166534;font-size:0.75rem;">Ativo</span>
       <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
-      <span class="topbar-date">Hoje, 16 de junho de 2026</span>
+      <span class="topbar-date">Hoje, 17 de setembro de 2026</span>
     </div>
   </div>
 
@@ -93,18 +200,15 @@
   <div class="dashboard-layout">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">B</div>
-        <div>
-          <p class="sidebar-tenant-name">BeloAuto Demo</p>
-          <p class="sidebar-tenant-slug">@beloauto</p>
-        </div>
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
       </div>
       <nav class="sidebar-nav" style="margin-top:0.5rem;">
-        <a class="sidebar-nav-item" href="../agenda/00-agenda.html">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
           <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           Agenda
         </a>
-        <a class="sidebar-nav-item" href="../horarios/00-schedule.html">
+        <a class="sidebar-nav-item" href="../horarios/08-visao-geral-manager.html">
           <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           Horários
         </a>
@@ -112,16 +216,29 @@
           <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
           Serviços
         </a>
-        <a class="sidebar-nav-item" href="../fidelidade/00-customer-search.html">
+        <a class="sidebar-nav-item" href="../turmas/01-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">
           <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           Fidelidade
         </a>
       </nav>
       <p class="sidebar-section-label">Somente Gerente</p>
       <nav class="sidebar-nav">
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a>
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
       </nav>
       <div class="sidebar-footer">
         <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
@@ -136,63 +253,538 @@
       <div class="dashboard-body">
         <div class="detail-layout"><div>
 
-        <div class="form-group">
-          <label class="form-label" for="name">Nome do serviço *</label>
-          <input id="name" type="text" class="form-input" value="Lavagem Completa Detalhada">
+        <div class="editor-tabs" role="tablist">
+          <button class="editor-tab active" id="tab-detalhes" data-tab="detalhes" role="tab" aria-selected="true" aria-controls="panel-detalhes" onclick="showTab('detalhes', this)"><span class="tab-label-full">Detalhes</span><span class="tab-label-short">Detalhes</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab" id="tab-recursos" data-tab="recursos" role="tab" aria-selected="false" aria-controls="panel-recursos" onclick="showTab('recursos', this)"><span class="tab-label-full">Recursos</span><span class="tab-label-short">Recursos</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab" id="tab-politicas" data-tab="politicas" role="tab" aria-selected="false" aria-controls="panel-politicas" onclick="showTab('politicas', this)"><span class="tab-label-full">Políticas de reserva</span><span class="tab-label-short">Políticas</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab" id="tab-intake" data-tab="intake" role="tab" aria-selected="false" aria-controls="panel-intake" onclick="showTab('intake', this)"><span class="tab-label-full">Formulário de reserva</span><span class="tab-label-short">Formulário</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="description">Descrição</label>
-          <textarea id="description" class="form-textarea">Lavagem completa com aspiração interna, limpeza de vidros e secagem com microfibra.</textarea>
-        </div>
+        <!-- ═══════════════════════════ TAB 1 — DETALHES (UC-013, existing) ═══════════════════════════ -->
+        <div class="editor-panel active" id="panel-detalhes" role="tabpanel" aria-labelledby="tab-detalhes">
 
-        <div class="form-row">
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label" for="price">Preço *</label>
-            <div class="input-prefix-group">
-              <span class="input-prefix">R$</span>
-              <input id="price" type="number" class="form-input input-with-prefix" value="180">
+          <div class="form-group">
+            <label class="form-label" for="name">Nome do serviço *</label>
+            <input id="name" type="text" class="form-input" value="Massagem Relaxante">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="description">Descrição</label>
+            <textarea id="description" class="form-textarea">Massagem relaxante com óleos essenciais e pedras quentes, 60 minutos.</textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="price">Preço *</label>
+              <div class="input-prefix-group">
+                <span class="input-prefix">R$</span>
+                <input id="price" type="number" class="form-input input-with-prefix" value="120">
+              </div>
+              <p class="form-warn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Só afeta novos agendamentos
+              </p>
             </div>
-            <p class="form-warn">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Só afeta novos agendamentos
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="duration">Duração *</label>
+              <div class="input-suffix-group">
+                <input id="duration" type="number" class="form-input input-with-suffix" value="60">
+                <span class="input-suffix">min</span>
+              </div>
+              <p class="form-hint">Usada quando a duração é fixa — ver aba "Políticas de reserva".</p>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:1.25rem;">
+            <label class="form-label" for="points">Pontos de fidelidade</label>
+            <input id="points" type="number" class="form-input" value="8">
+            <p class="form-hint">Pontos concedidos ao cliente quando o serviço é concluído.</p>
+          </div>
+
+          <p class="section-divider">Opções</p>
+
+          <div class="toggle-row">
+            <div><div class="toggle-label">Coleta e entrega</div><div class="toggle-sub">Exige endereço de coleta no agendamento</div></div>
+            <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+          </div>
+
+          <div class="form-actions save-row">
+            <a href="01-servicos-list.html" class="btn-secondary">Voltar à lista</a>
+            <button type="button" class="btn-primary" onclick="saveTab('detalhes')">Salvar alterações</button>
+            <span class="save-confirm" id="saved-msg-detalhes">✓ Detalhes salvos</span>
+          </div>
+
+          <div class="danger-zone">
+            <p class="danger-zone-title">Zona de perigo</p>
+            <p class="danger-zone-desc">Desativar o serviço remove-o do formulário de agendamento. Agendamentos existentes <strong>não são cancelados</strong>.</p>
+            <a href="03b-deactivate-confirm.html" class="btn-danger" style="display:inline-block;padding:0.6875rem 1.25rem;">
+              Desativar serviço
+            </a>
+          </div>
+
+        </div><!-- /panel-detalhes -->
+
+        <!-- ═══════════════════════ TAB 2 — RECURSOS (UC-050/051/052/053) ═══════════════════════ -->
+        <div class="editor-panel" id="panel-recursos" role="tabpanel" aria-labelledby="tab-recursos">
+
+          <p class="form-hint" style="margin-bottom:1.25rem;">
+            Modelo de agendamento: <strong>Agendamento</strong> — definido na criação do serviço e não pode ser
+            alterado depois (UC-056 A1). Ver <a href="02-service-create.html" style="color:var(--ba-primary);">Criar serviço</a>
+            para a escolha entre Agendamento/Turma.
+          </p>
+
+          <label class="form-label">Como este serviço usa recursos?</label>
+          <div class="model-picker">
+            <div class="card model-card selected" id="resmode-flat" onclick="selectResourceMode('flat')">
+              <p class="title">Recurso único ou pacote</p>
+              <p class="sub">Um ou mais recursos, todos livres na mesma janela (hoje, Massagem Relaxante)</p>
+            </div>
+            <div class="card model-card" id="resmode-legs" onclick="selectResourceMode('legs')">
+              <p class="title">Jornada com múltiplas etapas</p>
+              <p class="sub">Etapas ordenadas, cada uma com seu próprio recurso (ex. Jornada Spa Vitta)</p>
+            </div>
+          </div>
+          <p class="form-hint" id="resmode-hint">"Recurso único ou pacote" selecionado — a configuração abaixo é a de Massagem Relaxante. "Jornada com múltiplas etapas" mostra a tela de etapas, usando Jornada Spa Vitta como exemplo — mutuamente exclusivo com recursos/pacote (UC-052).</p>
+
+          <div id="flat-resource-config" style="margin-top:1.25rem;">
+            <label class="form-label">Quais recursos este serviço precisa? (marque todos que se aplicam)</label>
+
+            <div class="resource-check-row checked">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" checked onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                <div style="flex:1;">
+                  <div class="radio-row-title">Profissional</div>
+                  <div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um membro da equipe realiza o atendimento</div>
+                </div>
+              </label>
+              <div class="nested-selmode">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <p class="eligible-count">Elegíveis (2)</p>
+                <div class="eligible-chip-row">
+                  <span class="eligible-chip">Renata Souza <button type="button" class="chip-remove" aria-label="Remover Renata Souza">×</button></span>
+                  <span class="eligible-chip">Maria Santos <button type="button" class="chip-remove" aria-label="Remover Maria Santos">×</button></span>
+                </div>
+                <select class="form-input eligible-add-select">
+                  <option value="">+ Adicionar profissional elegível…</option>
+                  <option>Juliana Prado</option><option>Camila Duarte</option><option>Ana Beatriz</option>
+                  <option>Bruno Alves</option><option>João Mendes</option><option>Fábio Ramos</option>
+                </select>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-staff" checked> Cliente escolhe entre Renata e Maria</label>
+                <label><input type="radio" name="selmode-staff"> Sistema atribui automaticamente entre as duas</label>
+              </div>
+            </div>
+
+            <div class="resource-check-row checked">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" checked onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                <div style="flex:1;">
+                  <div class="radio-row-title">Sala</div>
+                  <div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Uma sala específica é reservada</div>
+                </div>
+              </label>
+              <div class="nested-selmode">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantas deste tipo, ao mesmo tempo)</span></label>
+                <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <p class="eligible-count">Elegíveis (2)</p>
+                <div class="eligible-chip-row">
+                  <span class="eligible-chip">Sala de Terapia <button type="button" class="chip-remove" aria-label="Remover Sala de Terapia">×</button></span>
+                  <span class="eligible-chip">Sala de Relaxamento <button type="button" class="chip-remove" aria-label="Remover Sala de Relaxamento">×</button></span>
+                </div>
+                <select class="form-input eligible-add-select">
+                  <option value="">+ Adicionar sala elegível…</option>
+                  <option>Estúdio 1</option><option>Estúdio 2</option><option>Sala de Sauna</option>
+                  <option>Área CrossFit</option><option>Sala de Ioga</option>
+                </select>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label><input type="radio" name="selmode-room" checked> Sistema atribui automaticamente entre as duas elegíveis</label>
+              </div>
+            </div>
+
+            <div class="resource-check-row checked">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" checked onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                <div style="flex:1;">
+                  <div class="radio-row-title">Equipamento</div>
+                  <div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um equipamento específico é reservado</div>
+                </div>
+              </label>
+              <div class="nested-selmode">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <p class="eligible-count">Elegíveis (1)</p>
+                <div class="eligible-chip-row">
+                  <span class="eligible-chip">Kit de Pedras Quentes <button type="button" class="chip-remove" aria-label="Remover Kit de Pedras Quentes">×</button></span>
+                </div>
+                <select class="form-input eligible-add-select">
+                  <option value="">+ Adicionar equipamento elegível…</option>
+                  <option>Kit Halteres (Rack 1)</option><option>Kit Halteres (Rack 2)</option>
+                </select>
+              </div>
+              <div class="nested-selmode" style="margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label><input type="radio" name="selmode-equip" checked> Sistema atribui automaticamente (única elegível)</label>
+              </div>
+            </div>
+
+            <p class="form-hint" style="margin-top:0.5rem;">
+              Nenhuma caixa marcada = modelo de hoje (o negócio inteiro é o recurso, ex. car wash). Uma caixa
+              marcada = recurso único. Duas ou mais marcadas = bundle — todas precisam estar livres na mesma
+              janela ao mesmo tempo (UC-051). <strong>Massagem Relaxante aqui marca as três</strong> —
+              Profissional, Sala <em>e</em> Equipamento precisam estar livres juntos.
+            </p>
+
+            <div class="form-group" style="margin-top:1.25rem;">
+              <label class="form-label">Tempo de preparo após o serviço (buffer)</label>
+              <div class="input-suffix-group">
+                <input class="form-input input-with-suffix" type="number" min="0" value="10">
+                <span class="input-suffix">min</span>
+              </div>
+              <p class="form-hint">
+                Combina com o tempo mínimo de virada do próprio recurso — vale o maior dos dois
+                (<code>max(service.bufferAfterMinutes, resource.turnoverMinutes)</code>, UC-053/UC-059).
+              </p>
+            </div>
+          </div><!-- /flat-resource-config -->
+
+          <div id="legs-resource-config" style="display:none;">
+            <div class="card" style="padding:1.25rem;background:#eff6ff;border-color:#bfdbfe;margin-bottom:1rem;">
+              <p style="font-weight:700;color:var(--ba-text);margin-bottom:0.375rem;">Exemplo: Jornada Spa Vitta</p>
+              <p style="font-size:0.875rem;opacity:0.75;line-height:1.5;">
+                Etapas ordenadas — cada uma com seu próprio recurso (ou recursos) e tempo de transição até a
+                próxima. Ao salvar um serviço como Jornada, os campos "recursos" e "buffer" do modo anterior
+                deixam de se aplicar (UC-052, mutuamente exclusivo com resourceRequirements). Cada recurso de
+                etapa também aceita "quantidade necessária" (padrão 1, mesmo campo do modo Recurso único/pacote
+                acima) — omitido nas etapas abaixo porque nenhuma delas precisa de mais de 1 de qualquer tipo.
+              </p>
+            </div>
+
+            <div class="leg-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                <span class="leg-order-badge">1</span>
+                <button type="button" class="btn-secondary" style="padding:0.25rem 0.625rem;font-size:0.8125rem;">Remover</button>
+              </div>
+              <div class="form-group"><label class="form-label">Nome da etapa</label><input class="form-input" value="Sauna"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                <div class="form-group"><label class="form-label">Duração</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="1" value="20"><span class="input-suffix">min</span></div></div>
+                <div class="form-group"><label class="form-label">Transição até a próxima etapa</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="10"><span class="input-suffix">min</span></div></div>
+              </div>
+              <label class="form-label">Recurso(s) necessário(s)</label>
+              <div class="resource-check-row checked">
+                <div class="radio-row-title">Sala</div>
+                <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                  <label><input type="checkbox" checked disabled> Sala de Sauna</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="leg-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                <span class="leg-order-badge">2</span>
+                <button type="button" class="btn-secondary" style="padding:0.25rem 0.625rem;font-size:0.8125rem;">Remover</button>
+              </div>
+              <div class="form-group"><label class="form-label">Nome da etapa</label><input class="form-input" value="Massagem"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                <div class="form-group"><label class="form-label">Duração</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="1" value="50"><span class="input-suffix">min</span></div></div>
+                <div class="form-group"><label class="form-label">Transição até a próxima etapa</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="5"><span class="input-suffix">min</span></div></div>
+              </div>
+              <label class="form-label">Recurso(s) necessário(s) — esta etapa precisa de dois ao mesmo tempo</label>
+              <div class="resource-check-row checked" style="margin-bottom:0.625rem;">
+                <div class="radio-row-title">Profissional</div>
+                <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                  <label><input type="checkbox" checked disabled> Renata Souza</label>
+                  <label><input type="checkbox" checked disabled> Maria Santos</label>
+                </div>
+              </div>
+              <div class="resource-check-row checked">
+                <div class="radio-row-title">Sala</div>
+                <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                  <label><input type="checkbox" checked disabled> Sala de Terapia</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="leg-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                <span class="leg-order-badge">3</span>
+                <button type="button" class="btn-secondary" style="padding:0.25rem 0.625rem;font-size:0.8125rem;">Remover</button>
+              </div>
+              <div class="form-group"><label class="form-label">Nome da etapa</label><input class="form-input" value="Sala de Relaxamento"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                <div class="form-group"><label class="form-label">Duração</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="1" value="20"><span class="input-suffix">min</span></div></div>
+                <div class="form-group"><label class="form-label">Transição (não se aplica à última etapa)</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="0" disabled style="opacity:0.5;"><span class="input-suffix">min</span></div></div>
+              </div>
+              <label class="form-label">Recurso(s) necessário(s)</label>
+              <div class="resource-check-row checked">
+                <div class="radio-row-title">Sala</div>
+                <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
+                  <label><input type="checkbox" checked disabled> Sala de Relaxamento</label>
+                </div>
+              </div>
+            </div>
+
+            <button type="button" class="btn-secondary" style="width:100%;margin-bottom:0.5rem;">+ Adicionar etapa</button>
+            <p class="form-hint" style="background:#f9fafb;padding:0.75rem;border-radius:var(--ba-radius);">
+              <strong>90 min</strong> de serviço + <strong>15 min</strong> de transição = <strong>105 min</strong>
+              reservados no total — calculado automaticamente a partir das etapas acima (UC-052 passo 2).
+            </p>
+          </div><!-- /legs-resource-config -->
+
+          <div class="form-actions save-row">
+            <a href="01-servicos-list.html" class="btn-secondary">Voltar à lista</a>
+            <button type="button" class="btn-primary" onclick="saveTab('recursos')">Salvar alterações</button>
+            <span class="save-confirm" id="saved-msg-recursos">✓ Recursos salvos</span>
+          </div>
+        </div><!-- /panel-recursos -->
+
+        <!-- ═══════════════════ TAB 3 — POLÍTICAS DE RESERVA (UC-055) ═══════════════════ -->
+        <div class="editor-panel" id="panel-politicas" role="tabpanel" aria-labelledby="tab-politicas">
+          <p style="opacity:.7;margin-bottom:1rem;">Cada regra vale para este serviço. Campos em branco herdam o padrão do negócio.</p>
+
+          <!--
+            Rebuilt 2026-09-17 (found via /docs-audit's field-by-field contract check against
+            UpdateServiceBookingPolicySchema, packages/validation/src/booking.ts): duration
+            policy and pricing policy are two INDEPENDENT fields with their own detail sub-fields
+            each (durationMin/Max/IncrementMinutes vs. pricingIncrementMinutes/
+            pricePerIncrementAmount/minimumChargeAmount) — the previous version of this tab
+            collapsed both into one disabled <select> showing a single pre-baked string
+            ("R$ 3,00 por minuto"), which silently dropped 6 real, independently-submittable
+            fields from the contract.
+          -->
+          <!-- Duração + Preço merged into one card (polish pass, 2026-09-17) — both selects
+               are always shown together since Preço is entirely dependent on Duração's value,
+               and this was 2 card headers of overhead for what's almost always the Fixed/Fixed
+               case. -->
+          <div class="card">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Duração e preço</h2>
+            <div class="form-group">
+              <label class="form-label" for="pol-duration">Política de duração</label>
+              <select id="pol-duration" class="form-input" onchange="toggleDurationPolicy(this)">
+                <option value="fixed" selected>Fixa (60 min, ver aba Detalhes)</option>
+                <option value="customer">Cliente escolhe</option>
+              </select>
+            </div>
+            <div id="pol-duration-detail" style="display:none;">
+              <div class="form-row-3">
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-min">Mínimo</label><div class="input-suffix-group"><input id="dur-min" class="form-input input-with-suffix" type="number" min="1" value="30"><span class="input-suffix">min</span></div></div>
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-max">Máximo</label><div class="input-suffix-group"><input id="dur-max" class="form-input input-with-suffix" type="number" min="1" value="120"><span class="input-suffix">min</span></div></div>
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-increment">Incremento</label><div class="input-suffix-group"><input id="dur-increment" class="form-input input-with-suffix" type="number" min="1" value="15"><span class="input-suffix">min</span></div></div>
+              </div>
+              <p class="form-hint">Granularidade que o cliente pode escolher (30, 45, 60... até o máximo) — independente do incremento de cobrança abaixo.</p>
+            </div>
+
+            <div class="form-group" style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--ba-secondary);">
+              <label class="form-label" for="pol-pricing">Política de preço</label>
+              <select id="pol-pricing" class="form-input" onchange="togglePricingPolicy(this)" disabled style="opacity:0.6;">
+                <option value="fixed" selected>Fixo — ver aba Detalhes (R$ 120,00)</option>
+                <option value="increment">Por incremento de tempo</option>
+              </select>
+              <p class="form-hint" id="pol-pricing-hint">Habilitado quando a duração é "Cliente escolhe" — obrigatório nesse caso (UC-055 A2).</p>
+            </div>
+            <div id="pol-pricing-detail" style="display:none;">
+              <div class="form-row-3">
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="price-increment">Incremento de cobrança</label><div class="input-suffix-group"><input id="price-increment" class="form-input input-with-suffix" type="number" min="1" value="30"><span class="input-suffix">min</span></div></div>
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="price-per-increment">Valor por incremento</label><div class="input-prefix-group"><span class="input-prefix">R$</span><input id="price-per-increment" class="form-input input-with-prefix" type="number" min="0" step="0.01" value="30,00"></div></div>
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="min-charge">Cobrança mínima <span style="text-transform:none;font-weight:400;opacity:0.7;">(opcional)</span></label><div class="input-prefix-group"><span class="input-prefix">R$</span><input id="min-charge" class="form-input input-with-prefix" type="number" min="0" step="0.01" placeholder="Sem mínimo"></div></div>
+              </div>
+              <p class="form-hint">Incremento de cobrança é um número independente do incremento de duração acima — ex.: cliente escolhe de 15 em 15 min, mas paga por blocos de 30 min.</p>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Confirmação e alterações</h2>
+            <label style="display:block;margin:.75rem 0"><input type="radio" name="approval" checked> Aprovação manual · segurar horário por <input class="form-input" style="display:inline-block;width:5rem" value="30 min" aria-label="Tempo de retenção"></label>
+            <label style="display:block;margin:.75rem 0"><input type="radio" name="approval"> Confirmar automaticamente</label>
+            <p class="form-hint" style="margin-bottom:0.75rem;">Aprovação manual faz sentido aqui — a reserva depende de 3 recursos ficarem livres ao mesmo tempo (bundle).</p>
+            <div class="form-row" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="cancel">Cancelar até</label><input id="cancel" class="form-input" value="24 horas antes"></div>
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="reschedule">Reagendar até</label><input id="reschedule" class="form-input" value="24 horas antes"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Janela de reserva</h2>
+            <p class="form-hint" style="margin-top:-0.25rem;margin-bottom:0.75rem;">Distinto de "Cancelar/Reagendar até" acima — essas regras controlam quando um cliente pode <em>criar</em> a reserva, não alterar uma já existente.</p>
+            <div class="form-row" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="min-advance">Aviso mínimo</label><div class="input-suffix-group"><input id="min-advance" class="form-input input-with-suffix" type="number" min="0" value="2"><span class="input-suffix">h</span></div><p class="form-hint">Cliente não pode reservar com menos que isso de antecedência.</p></div>
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="max-advance">Antecedência máxima</label><div class="input-suffix-group"><input id="max-advance" class="form-input input-with-suffix" type="number" min="1" value="60"><span class="input-suffix">dias</span></div><p class="form-hint">Cliente não pode reservar além desse horizonte.</p></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Quem e como reserva</h2>
+            <label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Permitir recorrência para clientes autenticados</label>
+            <label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Permitir alerta de disponibilidade</label>
+            <p class="form-hint">
+              Participantes nomeados, contagem de participantes e termo de consentimento agora ficam na aba
+              <a href="#" onclick="showTab('intake', document.querySelectorAll('.editor-tab')[3]); return false;" style="color:var(--ba-primary);">Formulário de reserva</a>
+              — fazem parte do formulário de intake (UC-054), não da política de reserva (UC-055).
             </p>
           </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label" for="duration">Duração *</label>
-            <div class="input-suffix-group">
-              <input id="duration" type="number" class="form-input input-with-suffix" value="60">
-              <span class="input-suffix">min</span>
-            </div>
+
+          <div class="form-actions save-row">
+            <a href="01-servicos-list.html" class="btn-secondary">Voltar à lista</a>
+            <button type="button" class="btn-primary" onclick="saveTab('politicas')">Salvar políticas</button>
+            <span class="save-confirm" id="saved-msg-politicas">✓ Políticas salvas</span>
           </div>
-        </div>
+        </div><!-- /panel-politicas -->
 
-        <div class="form-group" style="margin-top:1.25rem;">
-          <label class="form-label" for="points">Pontos de fidelidade</label>
-          <input id="points" type="number" class="form-input" value="20">
-          <p class="form-hint">Pontos concedidos ao cliente quando o serviço é concluído.</p>
-        </div>
+        <!-- ═══════════════ TAB 4 — FORMULÁRIO DE RESERVA (UC-054, no prior prototype) ═══════════════ -->
+        <div class="editor-panel" id="panel-intake" role="tabpanel" aria-labelledby="tab-intake">
+          <p style="opacity:.7;margin-bottom:1rem;">
+            Perguntas que o cliente responde ao reservar este serviço, termo de consentimento e regras de
+            participantes. Publicar cria uma <strong>nova versão</strong> — a versão anterior fica preservada,
+            nunca é editada (UC-054).
+          </p>
 
-        <p class="section-divider">Opções</p>
+          <div class="card">
+            <h2 style="font-size:1.05rem;margin-bottom:0.25rem;">Perguntas do formulário</h2>
+            <p class="form-hint" style="margin-bottom:1rem;">Ordem importa — é a ordem em que o cliente vê as perguntas.</p>
 
-        <div class="toggle-row">
-          <div><div class="toggle-label">Coleta e entrega</div><div class="toggle-sub">Exige endereço de coleta no agendamento</div></div>
-          <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
-        </div>
+            <div id="questions-list" class="questions-list">
+              <div class="question-card">
+                <div class="question-card-head">
+                  <div style="display:flex;align-items:center;gap:0.625rem;">
+                    <span class="question-order-badge">1</span>
+                    <span class="radio-row-title question-title-preview">Possui alguma lesão, contraindicação ou área sensível?</span>
+                  </div>
+                  <div class="question-row-actions">
+                    <button type="button" class="icon-btn" title="Mover para cima" aria-label="Mover pergunta para cima" disabled onclick="moveQuestion(this, -1)">↑</button>
+                    <button type="button" class="icon-btn" title="Mover para baixo" aria-label="Mover pergunta para baixo" onclick="moveQuestion(this, 1)">↓</button>
+                    <button type="button" class="icon-btn" title="Remover" aria-label="Remover pergunta" onclick="removeQuestion(this)">×</button>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Rótulo (visível ao cliente)</label>
+                    <input class="form-input question-label-input" value="Possui alguma lesão, contraindicação ou área sensível?">
+                    <p class="form-hint question-fieldkey-hint">Chave interna: <code>injuryOrContraindication</code> — gerada automaticamente do rótulo, precisa ser única no formulário (<code>fieldKey</code>).</p>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-input">
+                      <option selected>Texto livre</option>
+                      <option>Participantes nomeados</option>
+                      <option>Endereço de coleta</option>
+                    </select>
+                  </div>
+                </div>
+                <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;margin-top:0.75rem;">
+                  <input type="checkbox" checked> Obrigatória
+                </label>
+              </div>
 
-        <div class="form-actions">
-          <a href="01-servicos-list.html" class="btn-secondary">Cancelar</a>
-          <a href="01-servicos-list.html" class="btn-primary">Salvar alterações</a>
-        </div>
+              <div class="question-card">
+                <div class="question-card-head">
+                  <div style="display:flex;align-items:center;gap:0.625rem;">
+                    <span class="question-order-badge">2</span>
+                    <span class="radio-row-title question-title-preview">Necessidades de acesso</span>
+                  </div>
+                  <div class="question-row-actions">
+                    <button type="button" class="icon-btn" title="Mover para cima" aria-label="Mover pergunta para cima" onclick="moveQuestion(this, -1)">↑</button>
+                    <button type="button" class="icon-btn" title="Mover para baixo" aria-label="Mover pergunta para baixo" disabled onclick="moveQuestion(this, 1)">↓</button>
+                    <button type="button" class="icon-btn" title="Remover" aria-label="Remover pergunta" onclick="removeQuestion(this)">×</button>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Rótulo (visível ao cliente)</label>
+                    <input class="form-input question-label-input" value="Necessidades de acesso">
+                    <p class="form-hint question-fieldkey-hint">Chave interna: <code>accessNeeds</code> — gerada automaticamente do rótulo (<code>fieldKey</code>).</p>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-input">
+                      <option selected>Texto livre</option>
+                      <option>Participantes nomeados</option>
+                      <option>Endereço de coleta</option>
+                    </select>
+                  </div>
+                </div>
+                <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;margin-top:0.75rem;">
+                  <input type="checkbox"> Obrigatória
+                </label>
+              </div>
+            </div><!-- /questions-list -->
 
-        <!-- Danger zone -->
-        <div class="danger-zone">
-          <p class="danger-zone-title">Zona de perigo</p>
-          <p class="danger-zone-desc">Desativar o serviço remove-o do formulário de agendamento. Agendamentos existentes <strong>não são cancelados</strong>.</p>
-          <a href="03b-deactivate-confirm.html" class="btn-danger" style="display:inline-block;padding:0.6875rem 1.25rem;">
-            Desativar serviço
-          </a>
-        </div>
+            <p class="form-hint questions-empty-hint" style="display:none;text-align:center;padding:1rem 0;">Nenhuma pergunta ainda — clique abaixo para adicionar a primeira.</p>
+            <button type="button" class="btn-secondary" style="width:100%;" onclick="addQuestion('intake')">+ Adicionar pergunta</button>
+            <p class="form-hint" style="margin-top:0.5rem;">
+              Uma pergunta do tipo "Endereço de coleta" também ativa "Coleta e entrega" na aba Detalhes
+              automaticamente, na mesma publicação (UC-054 A2) — o campo legado continua sendo a fonte única
+              da verdade sobre exigir endereço; o formulário só coleta em cima dele.
+            </p>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Participantes</h2>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Solicitar contagem de participantes</div><div class="toggle-sub">Ex.: uma aula em grupo pode exigir só o número de pessoas</div></div>
+              <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+            </div>
+            <div class="toggle-row" style="margin-bottom:0;">
+              <div><div class="toggle-label">Solicitar participantes nomeados</div><div class="toggle-sub">Ex.: uma sala de reunião pode exigir uma lista de nomes</div></div>
+              <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+            </div>
+            <p class="form-hint" style="margin-top:0.75rem;">
+              Massagem Relaxante é sempre um atendimento individual — as duas ficam desligadas aqui. São dois
+              controles independentes (UC-054 passo 2: contagem, nomes, ambos ou nenhum).
+            </p>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Termo de consentimento</h2>
+            <div class="form-group">
+              <label class="form-label" for="consent-text">Texto do termo</label>
+              <textarea id="consent-text" class="form-textarea" style="min-height:110px;">Declaro que as informações de saúde fornecidas são verdadeiras e estou ciente de que a massagem pode ser ajustada ou recusada por indicação profissional em caso de contraindicação.</textarea>
+            </div>
+            <p class="form-hint">A versão do termo acompanha automaticamente a versão do formulário — não há um número de versão separado para editar.</p>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Histórico de versões</h2>
+            <div id="version-history-list">
+              <div class="version-history-row current" data-version="2">
+                <div>
+                  <span class="version-badge">Versão 2</span>
+                  <p class="version-meta">Publicada em 15/09/2026 — adicionou a pergunta de contraindicação</p>
+                </div>
+                <span class="version-tag-current">Atual</span>
+              </div>
+              <div class="version-history-row viewable" data-version="1" onclick="openVersionModal(1)" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openVersionModal(1)">
+                <div>
+                  <span class="version-badge">Versão 1</span>
+                  <p class="version-meta">Publicada em 02/03/2026 — só "Necessidades de acesso"</p>
+                </div>
+                <span style="font-size:0.8125rem;opacity:0.5;">Substituída · ver conteúdo →</span>
+              </div>
+            </div>
+            <p class="form-hint">
+              Reservas feitas sob uma versão anterior mantêm suas respostas e o termo daquela versão —
+              publicar uma nova versão nunca altera reservas já enviadas (UC-054 A1). Clique em uma versão
+              substituída para ver o que ela continha.
+            </p>
+          </div>
+
+          <div class="intake-publish-bar">
+            <p class="form-hint" style="margin:0;max-width:24rem;" id="intake-publish-hint">
+              Publicar cria a versão 3 imediatamente — não faz parte de "Salvar alterações" das outras abas.
+            </p>
+            <span class="save-row">
+              <button type="button" class="btn-primary" style="white-space:nowrap;padding:0.75rem 1.25rem;" onclick="publishIntake()">Publicar nova versão</button>
+              <span class="save-confirm" id="saved-msg-intake">✓ Versão publicada</span>
+            </span>
+          </div>
+        </div><!-- /panel-intake -->
 
         </div><!-- /form col -->
         <div class="detail-aside">
@@ -202,14 +794,16 @@
             <span class="status-badge" style="background:#dcfce7;color:#166534;margin-bottom:1rem;display:inline-block;">
               Ativo
             </span>
-            <a href="01-servicos-list.html" class="btn-primary"
-               style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">
-              Salvar alterações
-            </a>
+            <button type="button" id="aside-save-btn" class="btn-primary" style="display:block;width:100%;text-align:center;padding:0.75rem;margin-bottom:0.625rem;" onclick="saveTab(currentTab)">
+              Salvar Detalhes
+            </button>
             <a href="01-servicos-list.html" class="btn-secondary"
                style="display:block;text-align:center;padding:0.75rem;">
-              Cancelar
+              Voltar à lista
             </a>
+            <p class="form-hint" style="margin-top:0.75rem;" id="aside-save-hint">
+              Salva só a aba atual — cada aba grava em um endpoint diferente (ver dev-notes.md).
+            </p>
             <hr style="border:none;border-top:1.5px solid #fecaca;margin:1rem 0;">
             <a href="03b-deactivate-confirm.html"
                style="display:block;text-align:center;font-size:0.875rem;color:#dc2626;
@@ -226,34 +820,24 @@
 
   <!-- Bottom nav — mobile -->
   <nav class="bottom-nav">
-    <a class="bottom-nav-item" href="../agenda/00-agenda.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
+    <a class="bottom-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Agenda
     </a>
-    <a class="bottom-nav-item" href="../horarios/00-schedule.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-      </svg>
+    <a class="bottom-nav-item" href="../horarios/08-visao-geral-manager.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Horários
     </a>
     <a class="bottom-nav-item active" href="../servicos/01-servicos-list.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
       Serviços
     </a>
-    <a class="bottom-nav-item" href="../fidelidade/00-customer-search.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-      </svg>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       Fidelidade
     </a>
     <button class="bottom-nav-item" onclick="openSheet()">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
       Mais
     </button>
   </nav>
@@ -263,43 +847,350 @@
   <div class="bottom-sheet" id="manager-sheet">
     <div class="bottom-sheet-handle"></div>
     <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Recursos
+    </a>
     <a class="bottom-sheet-item" href="../../../manager/prototypes/equipe/01-team-list.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Equipe
     </a>
-    <a class="bottom-sheet-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-      Configurações
-    </a>
     <a class="bottom-sheet-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-      </svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       Hotsite
     </a>
     <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
       <a href="../../../shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sair
       </a>
     </div>
   </div>
 
+  <!-- Version-preview dialog — read-only snapshot of a past intake-schema version -->
+  <div class="modal-backdrop" id="version-modal-backdrop" onclick="closeVersionModal()"></div>
+  <div class="version-modal" id="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-modal-title">
+    <div class="version-modal-header">
+      <h3 id="version-modal-title">Versão</h3>
+      <button type="button" class="version-modal-close" aria-label="Fechar" onclick="closeVersionModal()">×</button>
+    </div>
+    <div class="version-modal-body" id="version-modal-body"></div>
+  </div>
+
   <script>
-    function openSheet() {
-      document.getElementById('manager-sheet').classList.add('open');
-      document.getElementById('sheet-backdrop').classList.add('open');
+    // ═══ Per-tab dirty-state + save scope, added 2026-09-17 (UX review finding: each tab
+    // PATCHes a different endpoint — PATCH .../resource-requirements, PATCH .../booking-policy,
+    // etc. — with nothing showing which tabs have pending changes, and every save used to
+    // navigate to 01-servicos-list.html, which would have forced a manager to re-open the
+    // service after every single tab just to reach the next one. Fixed: each tab now saves in
+    // place (dirty dot clears, inline confirmation shows) and only "Voltar à lista"/sidebar/
+    // topbar navigation actually leaves the page — guarded by the beforeunload handler below
+    // if any tab still has unsaved changes. ═══
+    var TAB_LABELS = { detalhes: 'Detalhes', recursos: 'Recursos', politicas: 'Políticas de reserva', intake: 'Formulário de reserva' };
+    var currentTab = 'detalhes';
+    var dirtyTabs = { detalhes: false, recursos: false, politicas: false, intake: false };
+
+    function showTab(name, btn) {
+      document.querySelectorAll('.editor-panel').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.editor-tab').forEach(el => { el.classList.remove('active'); el.setAttribute('aria-selected', 'false'); });
+      document.getElementById('panel-' + name).classList.add('active');
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      currentTab = name;
+      updateAsideButton();
     }
-    function closeSheet() {
-      document.getElementById('manager-sheet').classList.remove('open');
-      document.getElementById('sheet-backdrop').classList.remove('open');
+
+    function updateAsideButton() {
+      var btn = document.getElementById('aside-save-btn');
+      var hint = document.getElementById('aside-save-hint');
+      if (!btn) return;
+      if (currentTab === 'intake') {
+        btn.style.display = 'none';
+        hint.textContent = 'A aba "Formulário de reserva" publica com seu próprio botão — não usa este aqui.';
+      } else {
+        btn.style.display = '';
+        btn.textContent = 'Salvar ' + TAB_LABELS[currentTab];
+        hint.textContent = 'Salva só a aba "' + TAB_LABELS[currentTab] + '" — cada aba grava em um endpoint diferente.';
+      }
     }
+
+    function markDirty(tab) {
+      if (dirtyTabs[tab]) return;
+      dirtyTabs[tab] = true;
+      var dot = document.querySelector('.editor-tab[data-tab="' + tab + '"] .tab-dirty-dot');
+      if (dot) dot.style.display = 'inline-block';
+    }
+
+    function clearDirty(tab) {
+      dirtyTabs[tab] = false;
+      var dot = document.querySelector('.editor-tab[data-tab="' + tab + '"] .tab-dirty-dot');
+      if (dot) dot.style.display = 'none';
+    }
+
+    function showSavedConfirmation(tab) {
+      var el = document.getElementById('saved-msg-' + tab);
+      if (!el) return;
+      el.style.display = 'inline-flex';
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(function () { el.style.display = 'none'; }, 3000);
+    }
+
+    function saveTab(tab) {
+      clearDirty(tab);
+      showSavedConfirmation(tab);
+    }
+
+    // ═══ Question-list builder: add/remove/reorder, added 2026-09-17 — the "+ Adicionar
+    // pergunta" button and each question's "×"/↑/↓ buttons existed only as static markup with
+    // no onclick anywhere (found via user testing: "there is no way to create a single
+    // question"). Now genuinely wired, including a live fieldKey preview as the label is
+    // typed — mirrors the auto-derivation PublishServiceIntakeSchemaSchema's fieldKey needs
+    // (packages/validation/src/booking.ts). ═══
+    function slugifyFieldKey(label) {
+      if (!label) return '';
+      var normalized = label.normalize('NFD').replace(/[̀-ͯ]/g, '');
+      var words = normalized.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return '';
+      return words[0] + words.slice(1).map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join('');
+    }
+
+    function renumberQuestions(container) {
+      var cards = container.querySelectorAll('.question-card');
+      cards.forEach(function (card, i) {
+        card.querySelector('.question-order-badge').textContent = i + 1;
+        var actionBtns = card.querySelectorAll('.icon-btn');
+        actionBtns[0].disabled = i === 0;
+        actionBtns[1].disabled = i === cards.length - 1;
+      });
+      var emptyHint = container.parentElement.querySelector('.questions-empty-hint');
+      if (emptyHint) emptyHint.style.display = cards.length === 0 ? '' : 'none';
+    }
+
+    function addQuestion(tab) {
+      var container = document.querySelector('#panel-' + tab + ' .questions-list');
+      var card = document.createElement('div');
+      card.className = 'question-card';
+      card.innerHTML =
+        '<div class="question-card-head">' +
+          '<div style="display:flex;align-items:center;gap:0.625rem;">' +
+            '<span class="question-order-badge"></span>' +
+            '<span class="radio-row-title question-title-preview">Nova pergunta</span>' +
+          '</div>' +
+          '<div class="question-row-actions">' +
+            '<button type="button" class="icon-btn" title="Mover para cima" aria-label="Mover pergunta para cima" onclick="moveQuestion(this, -1)">↑</button>' +
+            '<button type="button" class="icon-btn" title="Mover para baixo" aria-label="Mover pergunta para baixo" onclick="moveQuestion(this, 1)">↓</button>' +
+            '<button type="button" class="icon-btn" title="Remover" aria-label="Remover pergunta" onclick="removeQuestion(this)">×</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group" style="margin-bottom:0;">' +
+            '<label class="form-label">Rótulo (visível ao cliente)</label>' +
+            '<input class="form-input question-label-input" placeholder="Ex.: Precisa de acesso sem escadas?">' +
+            '<p class="form-hint question-fieldkey-hint">Chave interna: <code>—</code> (aparece ao digitar o rótulo)</p>' +
+          '</div>' +
+          '<div class="form-group" style="margin-bottom:0;">' +
+            '<label class="form-label">Tipo</label>' +
+            '<select class="form-input"><option selected>Texto livre</option><option>Participantes nomeados</option><option>Endereço de coleta</option></select>' +
+          '</div>' +
+        '</div>' +
+        '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;margin-top:0.75rem;"><input type="checkbox"> Obrigatória</label>';
+      container.appendChild(card);
+      renumberQuestions(container);
+      if (typeof markDirty === 'function') markDirty(tab);
+      card.querySelector('.question-label-input').focus();
+    }
+
+    function removeQuestion(btn) {
+      var card = btn.closest('.question-card');
+      var container = card.closest('.questions-list');
+      var tab = card.closest('.editor-panel').id.replace('panel-', '');
+      card.remove();
+      renumberQuestions(container);
+      if (typeof markDirty === 'function') markDirty(tab);
+    }
+
+    function moveQuestion(btn, direction) {
+      var card = btn.closest('.question-card');
+      var container = card.closest('.questions-list');
+      if (direction === -1 && card.previousElementSibling) {
+        container.insertBefore(card, card.previousElementSibling);
+      } else if (direction === 1 && card.nextElementSibling) {
+        container.insertBefore(card.nextElementSibling, card);
+      }
+      renumberQuestions(container);
+      var tab = card.closest('.editor-panel').id.replace('panel-', '');
+      if (typeof markDirty === 'function') markDirty(tab);
+    }
+
+    document.addEventListener('input', function (e) {
+      if (!e.target.classList.contains('question-label-input')) return;
+      var card = e.target.closest('.question-card');
+      var key = slugifyFieldKey(e.target.value);
+      var hint = card.querySelector('.question-fieldkey-hint');
+      if (hint) {
+        hint.innerHTML = key
+          ? 'Chave interna: <code>' + key + '</code> — gerada automaticamente do rótulo, precisa ser única no formulário (<code>fieldKey</code>).'
+          : 'Chave interna: <code>—</code> (aparece ao digitar o rótulo)';
+      }
+      var titlePreview = card.querySelector('.question-title-preview');
+      if (titlePreview) titlePreview.textContent = e.target.value || 'Nova pergunta';
+    });
+
+    // ═══ Version-preview dialog, added 2026-09-17 (user testing: "no way to see older
+    // versions... at least a simple popup dialog. latest version is loaded on fields but
+    // previous...?"). Read-only — a past version is never editable, only viewable
+    // (UC-054 A1: publishing never alters an already-submitted booking's snapshot, and by the
+    // same logic here, never alters the historical version record either). VERSION_SNAPSHOTS
+    // holds version 1's known content plus whatever the live form contained right before each
+    // publishIntake() demotes it — so every version that has ever been "current" in this
+    // session becomes viewable, not just the one hardcoded example. ═══
+    var VERSION_SNAPSHOTS = {
+      1: {
+        questions: [{ label: 'Necessidades de acesso', type: 'Texto livre', required: false }],
+        consent: 'Declaro que as informações fornecidas são verdadeiras.'
+      }
+    };
+
+    function captureCurrentIntakeSnapshot() {
+      var questions = Array.from(document.querySelectorAll('#panel-intake .question-card')).map(function (card) {
+        var labelInput = card.querySelector('.question-label-input');
+        var titlePreview = card.querySelector('.question-title-preview');
+        return {
+          label: (labelInput && labelInput.value) || (titlePreview && titlePreview.textContent) || '(sem rótulo)',
+          type: card.querySelector('select').value,
+          required: card.querySelector('input[type="checkbox"]').checked
+        };
+      });
+      var consentEl = document.getElementById('consent-text');
+      return { questions: questions, consent: consentEl ? consentEl.value : '' };
+    }
+
+    function openVersionModal(version) {
+      var snapshot = VERSION_SNAPSHOTS[version];
+      document.getElementById('version-modal-title').textContent = 'Versão ' + version + ' (somente leitura)';
+      var body = document.getElementById('version-modal-body');
+      if (!snapshot) {
+        body.innerHTML = '<p class="form-hint">Prévia não disponível neste protótipo.</p>';
+      } else {
+        var html = '';
+        if (!snapshot.questions.length) {
+          html += '<p class="form-hint">Nenhuma pergunta nesta versão.</p>';
+        } else {
+          snapshot.questions.forEach(function (q, i) {
+            html += '<div class="version-modal-q"><p class="version-modal-q-label">' + (i + 1) + '. ' + q.label + '</p>'
+              + '<p class="version-modal-q-meta">' + q.type + ' · ' + (q.required ? 'Obrigatória' : 'Opcional') + '</p></div>';
+          });
+        }
+        html += '<div class="version-modal-q"><p class="version-modal-q-label">Termo de consentimento</p>'
+          + '<p class="version-modal-q-meta">' + (snapshot.consent || '(vazio)') + '</p></div>';
+        body.innerHTML = html;
+      }
+      document.getElementById('version-modal-backdrop').classList.add('open');
+      document.getElementById('version-modal').classList.add('open');
+    }
+
+    function closeVersionModal() {
+      document.getElementById('version-modal-backdrop').classList.remove('open');
+      document.getElementById('version-modal').classList.remove('open');
+    }
+
+    function publishIntake() {
+      var list = document.getElementById('version-history-list');
+      var current = list.querySelector('.version-history-row.current');
+      var nextVersion = current ? parseInt(current.dataset.version, 10) + 1 : 1;
+      if (current) {
+        VERSION_SNAPSHOTS[current.dataset.version] = captureCurrentIntakeSnapshot();
+        var demotedVersion = current.dataset.version;
+        current.classList.remove('current');
+        current.classList.add('viewable');
+        current.setAttribute('role', 'button');
+        current.setAttribute('tabindex', '0');
+        current.onclick = function () { openVersionModal(demotedVersion); };
+        current.onkeydown = function (e) { if (e.key === 'Enter') openVersionModal(demotedVersion); };
+        current.querySelector('.version-tag-current').outerHTML = '<span style="font-size:0.8125rem;opacity:0.5;">Substituída · ver conteúdo →</span>';
+      }
+      var row = document.createElement('div');
+      row.className = 'version-history-row current';
+      row.dataset.version = nextVersion;
+      var today = new Date().toLocaleDateString('pt-BR');
+      row.innerHTML = '<div><span class="version-badge">Versão ' + nextVersion + '</span>'
+        + '<p class="version-meta">Publicada em ' + today + '</p></div>'
+        + '<span class="version-tag-current">Atual</span>';
+      list.insertBefore(row, list.firstChild);
+      document.getElementById('intake-publish-hint').textContent = 'Publicar cria uma nova versão imediatamente — não faz parte de "Salvar alterações" das outras abas.';
+      clearDirty('intake');
+      showSavedConfirmation('intake');
+    }
+
+    // Any real user edit on a tab (typing, checking a box, changing a select) marks that tab
+    // dirty via event delegation — covers every field without wiring each one individually,
+    // and correctly does NOT fire for the programmatic style/value changes the toggle
+    // functions below make (those don't dispatch input/change events themselves).
+    ['detalhes', 'recursos', 'politicas', 'intake'].forEach(function (tab) {
+      var panel = document.getElementById('panel-' + tab);
+      panel.addEventListener('input', function () { markDirty(tab); });
+      panel.addEventListener('change', function () { markDirty(tab); });
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeVersionModal();
+    });
+
+    window.addEventListener('beforeunload', function (e) {
+      if (Object.keys(dirtyTabs).some(function (t) { return dirtyTabs[t]; })) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    function selectResourceMode(mode) {
+      var isLegs = mode === 'legs';
+      document.getElementById('resmode-flat').classList.toggle('selected', !isLegs);
+      document.getElementById('resmode-legs').classList.toggle('selected', isLegs);
+      document.getElementById('flat-resource-config').style.display = isLegs ? 'none' : '';
+      document.getElementById('legs-resource-config').style.display = isLegs ? '' : 'none';
+      document.getElementById('resmode-hint').textContent = isLegs
+        ? '"Jornada com múltiplas etapas" selecionado — exemplo ilustrativo com os dados de Jornada Spa Vitta (UC-052). Mutuamente exclusivo com recursos/pacote — ao salvar, resourceRequirements e o buffer do serviço deixam de se aplicar.'
+        : '"Recurso único ou pacote" selecionado — a configuração abaixo é a de Massagem Relaxante.';
+    }
+
+    // Checking/unchecking a resource type (Profissional/Sala/Equipamento) shows/hides its own
+    // "Quantidade necessária"/"Elegíveis"/"Como é escolhido" detail block — the same mechanism
+    // that makes 02c-service-create-success.html's identical, unchecked rows look empty: the
+    // detail only applies to a resource type this service actually uses. Neither file wired
+    // this interactively before 2026-09-17 (found via user question) — both were frozen at one
+    // checked/unchecked snapshot with no way to see the other state without comparing files.
+    function toggleResourceType(checkbox) {
+      var row = checkbox.closest('.resource-check-row');
+      row.classList.toggle('checked', checkbox.checked);
+      row.querySelectorAll('.nested-selmode').forEach(function (el) {
+        el.style.display = checkbox.checked ? '' : 'none';
+      });
+    }
+
+    function toggleDurationPolicy(select) {
+      var isCustom = select.value === 'customer';
+      document.getElementById('pol-duration-detail').style.display = isCustom ? '' : 'none';
+
+      var pricingSelect = document.getElementById('pol-pricing');
+      pricingSelect.disabled = !isCustom;
+      pricingSelect.style.opacity = isCustom ? '1' : '0.6';
+      if (isCustom) {
+        pricingSelect.value = 'fixed';
+        document.getElementById('pol-pricing-hint').textContent = 'Obrigatório para "Cliente escolhe" — escolha "Por incremento de tempo" e preencha os campos abaixo antes de salvar (UC-055 A2). Ver 03d-service-edit-policy-error.html.';
+      } else {
+        pricingSelect.value = 'fixed';
+        document.getElementById('pol-pricing-detail').style.display = 'none';
+        document.getElementById('pol-pricing-hint').textContent = 'Habilitado quando a duração é "Cliente escolhe" — obrigatório nesse caso (UC-055 A2).';
+      }
+    }
+
+    function togglePricingPolicy(select) {
+      document.getElementById('pol-pricing-detail').style.display = select.value === 'increment' ? '' : 'none';
+    }
+
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
   </script>
 
 </body>

@@ -35,7 +35,7 @@ POST  /v1/class-session-bookings/:id/payment                   -- manual charge 
 ## Known limitations
 
 - No `index.html` existed in the discovery folder for this consolidated set — added as part of this promotion.
-- `manager-dashboard.html`/`manager-agenda-dia.html` were deliberately **not** relocated — no corresponding CAND/UC exists for a general dashboard-home screen, and `manager-agenda-dia.html` overlaps with the already-promoted UC-057 day grid (M21 Cluster 2, `staff/prototypes/horarios/08-visao-geral-manager.html`). Left in the discovery folder as illustrative-only.
+- `manager-dashboard.html`/`manager-agenda-dia.html` were deliberately **not** relocated — no corresponding CAND/UC exists for a general dashboard-home screen, and `manager-agenda-dia.html` overlaps with the already-promoted UC-057 day grid (M22 Cluster 2, `staff/prototypes/horarios/08-visao-geral-manager.html`). Left in the discovery folder as illustrative-only.
 
 ## Open questions / gaps
 

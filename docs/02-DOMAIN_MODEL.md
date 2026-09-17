@@ -357,6 +357,44 @@ ClassResourceSlot {
 
 ---
 
+#### **Aggregate: ServiceBookingIntakeSchema** (Root Entity, append-only)
+
+> Added M22 — Multi-Vertical Scheduling, Cluster 2 (UC-054). Deliberately **not** a `Service`-owned field or child collection like `resourceRequirements`/`legs` above — `Service`'s own props hold no reference to it. Publishing a new version never edits or deletes the previous one, so it has its own identity, its own repository (`IServiceIntakeSchemaRepository`), and its own `publish()`/`reconstitute()` factory — see `docs/ENGINEERING_RULES.md` § "A versioned, append-only child concept... is an independent aggregate root with its own repository" for the full pattern rationale and its `architecture-check` consequence.
+
+**Properties:**
+```
+ServiceBookingIntakeSchema {
+  id:                        UUID
+  tenantId:                  TenantId
+  serviceId:                 ServiceId
+  version:                   int                          -- monotonically increasing per service, starts at 1
+  questions:                 ServiceIntakeQuestion[]       -- ordered, 1-50 entries, fieldKey unique within the array
+  consentText:                String
+  consentVersion:            int                          -- mirrors `version`; no separate consent-only update flow exists
+  requiresNamedAttendees:    Boolean
+  participantCountRequired:  Boolean
+  isActive:                  Boolean                       -- true on exactly one version per service at a time
+  createdAt:                 DateTime
+}
+
+ServiceIntakeQuestion {
+  fieldKey:  String            -- unique within the schema
+  label:     String
+  type:      'FREE_TEXT' | 'NAMED_ATTENDEES' | 'PICKUP_ADDRESS'   -- PICKUP_ADDRESS projects into the pre-existing
+                                                                    -- Service.requiresPickupAddress / Booking.pickupAddress
+  required:  Boolean
+}
+```
+
+**Invariants:**
+- Publishing sets `version = previousVersion + 1` (or `1` if none exists yet), `isActive = true` on the new row, `isActive = false` on the previous one — the previous version is never edited in place (UC-054).
+- A `PICKUP_ADDRESS`-typed question also flips `Service.requiresPickupAddress = true` in the same transaction (UC-054 A2) — the legacy boolean stays the single source of truth for whether `Booking.pickupAddress` must be populated; the intake schema is the collection layer on top of it, not a second, independently-driftable switch.
+- A `Booking` freezes `intakeSchemaVersion`/`intakeAnswers` at submission time (immutable snapshot pair) — a later schema republish never retroactively changes an already-submitted booking's answers.
+
+**Read path — currently incomplete (found via `/docs-audit` 2026-09-17):** `IServiceIntakeSchemaRepository.findActiveByServiceId()`/`findAllByServiceId()` exist, but neither is wired to any controller — there is no way today to fetch a service's active schema or its version history over HTTP. Tracked for the M22-S04 frontend story (or a preceding backend/BFF addition), not yet resolved.
+
+---
+
 #### **Aggregate: Resource** (Root Entity)
 
 > Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). See `docs/discovery/multivertical-booking/multivertical-booking.md` §3 for full rationale.

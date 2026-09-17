@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Serviço — Erro de política — Massagem Relaxante — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.45); margin-bottom: 0.375rem; }
+    .form-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .form-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.375rem; display: flex; align-items: center; gap: 0.25rem; }
+    .form-input.error { border-color: #ef4444; background: #fef2f2; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem; }
+    @media (max-width: 640px) { .form-row-3 { grid-template-columns: 1fr; } }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+    .form-actions .btn-primary  { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+    .editor-tabs { display: flex; gap: 0.25rem; padding: 0 0 1rem; border-bottom: 1px solid var(--ba-secondary); margin-bottom: 1.25rem; overflow-x: auto; }
+    .editor-tab { padding: 0.625rem 1rem; border-radius: var(--ba-radius) var(--ba-radius) 0 0; font-size: 0.9375rem; font-weight: 600; border: none; background: none; color: var(--ba-text); opacity: 0.5; cursor: pointer; white-space: nowrap; }
+    .editor-tab.active { opacity: 1; color: var(--ba-primary); border-bottom: 2px solid var(--ba-primary); margin-bottom: -1px; }
+    .editor-panel { display: none; }
+    .editor-panel.active { display: block; }
+    .tab-label-short { display: none; }
+    @media (max-width: 480px) { .tab-label-full { display: none; } .tab-label-short { display: inline; } }
+  </style>
+</head>
+<body>
+
+  <!--
+    Error-state sibling of 03-service-edit.html — lands with the "Políticas de reserva" tab
+    already active, demonstrating UC-055 A2: durationPolicy=CUSTOMER_SELECTED ("Cliente
+    escolhe") saved without a pricingPolicy → 422, save blocked.
+
+    Replaces the old, separate 05b-service-booking-policies-erro.html (single standalone
+    page, "Sala Aurora"/Vitta Studio protagonist) now that Políticas de reserva lives as a
+    tab on the same page as Detalhes/Recursos/Formulário de reserva — see 03-service-edit.html's
+    own header comment for the full redesign rationale (2026-09-17).
+
+    Only the "Políticas de reserva" tab differs from 03-service-edit.html's happy path;
+    Detalhes/Recursos/Formulário de reserva are omitted here for brevity (they're unaffected
+    by this error and behave exactly as in 03-service-edit.html) — this file exists to
+    demonstrate ONE state, not to duplicate the other 3 tabs' full content.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — UC-055 A2 — duração escolhida pelo cliente sem política de preço
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="01-servicos-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="topbar-brand" style="font-weight:600;">Serviços</span>
+    </a>
+    <h1 class="topbar-page-title">Editar serviço — Massagem Relaxante</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <span class="status-badge" style="background:#dcfce7;color:#166534;font-size:0.75rem;">Ativo</span>
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 17 de setembro de 2026</span>
+    </div>
+  </div>
+
+  <main class="main-content">
+    <div class="dashboard-body">
+      <div class="detail-layout"><div>
+
+      <div class="editor-tabs" role="tablist">
+        <button class="editor-tab" role="tab" aria-selected="false" onclick="location.href='03-service-edit.html'"><span class="tab-label-full">Detalhes</span><span class="tab-label-short">Detalhes</span></button>
+        <button class="editor-tab" role="tab" aria-selected="false" onclick="location.href='03-service-edit.html'"><span class="tab-label-full">Recursos</span><span class="tab-label-short">Recursos</span></button>
+        <button class="editor-tab active" role="tab" aria-selected="true" aria-controls="panel-politicas"><span class="tab-label-full">Políticas de reserva</span><span class="tab-label-short">Políticas</span></button>
+        <button class="editor-tab" role="tab" aria-selected="false" onclick="location.href='03-service-edit.html'"><span class="tab-label-full">Formulário de reserva</span><span class="tab-label-short">Formulário</span></button>
+      </div>
+
+      <div class="editor-panel active" id="panel-politicas" role="tabpanel">
+        <p style="opacity:.7;margin-bottom:1rem;">Cada regra vale para este serviço. Valores do negócio entram apenas como padrão.</p>
+
+        <div class="card">
+          <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Duração e preço</h2>
+          <div class="form-group">
+            <label class="form-label" for="pol-duration">Política de duração</label>
+            <select id="pol-duration" class="form-input"><option selected>Cliente escolhe</option><option>Fixa (60 min, ver aba Detalhes)</option></select>
+          </div>
+          <div class="form-row-3">
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-min">Mínimo</label><div class="input-suffix-group"><input id="dur-min" class="form-input input-with-suffix" type="number" min="1" value="30"><span class="input-suffix">min</span></div></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-max">Máximo</label><div class="input-suffix-group"><input id="dur-max" class="form-input input-with-suffix" type="number" min="1" value="120"><span class="input-suffix">min</span></div></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-increment">Incremento</label><div class="input-suffix-group"><input id="dur-increment" class="form-input input-with-suffix" type="number" min="1" value="15"><span class="input-suffix">min</span></div></div>
+          </div>
+
+          <div class="form-group" style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--ba-secondary);">
+            <label class="form-label" for="pol-pricing">Política de preço</label>
+            <select id="pol-pricing" class="form-input error"><option selected disabled>Selecione uma política de preço</option><option>Por incremento de tempo</option></select>
+            <p class="form-error">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Obrigatório para "Cliente escolhe". Defina um incremento de cobrança e um valor por incremento (e, opcionalmente, uma cobrança mínima) antes de salvar.
+            </p>
+          </div>
+          <div class="form-row-3" style="opacity:0.4;pointer-events:none;">
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="price-increment">Incremento de cobrança</label><div class="input-suffix-group"><input id="price-increment" class="form-input input-with-suffix" type="number" disabled placeholder="—"><span class="input-suffix">min</span></div></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="price-per-increment">Valor por incremento</label><div class="input-prefix-group"><span class="input-prefix">R$</span><input id="price-per-increment" class="form-input input-with-prefix" type="number" disabled placeholder="0,00"></div></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="min-charge">Cobrança mínima <span style="text-transform:none;font-weight:400;">(opcional)</span></label><div class="input-prefix-group"><span class="input-prefix">R$</span><input id="min-charge" class="form-input input-with-prefix" type="number" disabled placeholder="Sem mínimo"></div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Confirmação e alterações</h2>
+          <label style="display:block;margin:.75rem 0"><input type="radio" name="approval" checked> Aprovação manual · segurar horário por <input class="form-input" style="display:inline-block;width:5rem" value="30 min" aria-label="Tempo de retenção"></label>
+          <label style="display:block;margin:.75rem 0"><input type="radio" name="approval"> Confirmar automaticamente</label>
+          <div class="form-row" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="cancel">Cancelar até</label><input id="cancel" class="form-input" value="24 horas antes"></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="reschedule">Reagendar até</label><input id="reschedule" class="form-input" value="24 horas antes"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Janela de reserva</h2>
+          <div class="form-row" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="min-advance">Aviso mínimo</label><div class="input-suffix-group"><input id="min-advance" class="form-input input-with-suffix" type="number" min="0" value="2"><span class="input-suffix">h</span></div></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="max-advance">Antecedência máxima</label><div class="input-suffix-group"><input id="max-advance" class="form-input input-with-suffix" type="number" min="1" value="60"><span class="input-suffix">dias</span></div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Quem e como reserva</h2>
+          <label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Permitir recorrência para clientes autenticados</label>
+          <label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Permitir alerta de disponibilidade</label>
+          <p class="form-hint">Participantes nomeados, contagem de participantes e termo de consentimento ficam na aba Formulário de reserva (UC-054).</p>
+        </div>
+
+        <div class="form-actions">
+          <a href="03-service-edit.html" class="btn-secondary">Cancelar</a>
+          <button class="btn-primary" style="opacity:.5;pointer-events:none;" disabled>Salvar políticas</button>
+        </div>
+      </div><!-- /panel-politicas -->
+
+      </div>
+      <aside class="detail-aside" aria-label="Ações">
+        <div class="card" style="padding:1.25rem;">
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:.75rem;margin-bottom:1rem;font-size:.8125rem;color:#dc2626;">
+            Um serviço de duração escolhida pelo cliente precisa de uma política de preço. Selecione um valor por incremento antes de salvar.
+          </div>
+          <button class="btn-primary" style="display:block;width:100%;text-align:center;padding:.75rem;margin-bottom:.625rem;opacity:.5;pointer-events:none;" disabled>Salvar políticas</button>
+          <a class="btn-secondary" href="03-service-edit.html" style="display:block;text-align:center;padding:.75rem">Cancelar</a>
+        </div>
+      </aside>
+      </div><!-- /detail-layout -->
+    </div>
+  </main>
+
+</body>
+</html>
