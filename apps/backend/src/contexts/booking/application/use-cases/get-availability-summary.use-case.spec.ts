@@ -20,6 +20,7 @@ const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 // A Monday–Sunday week window always in the future
 const monday = nextWeekday(1);
 const sunday = nextWeekday(0, 2); // Sunday after next Monday
+const saturday = nextWeekday(6); // 09:00-17:00 per buildDefaultBusinessHours — shorter than weekdays
 
 describe('GetAvailabilitySummaryUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
@@ -92,6 +93,39 @@ describe('GetAvailabilitySummaryUseCase', () => {
 
     expect(result[0].available).toBe(true);
     expect(result[0].slotCount).toBeGreaterThan(0);
+  });
+
+  it("uses the service's own buffer override for the degenerate/explicit-resource summary path, not the tenant default", async () => {
+    const serviceDefaultBuffer = new ServiceBuilder()
+      .withTenantId(TENANT_ID)
+      .withDurationMinutes(30)
+      .build();
+    const serviceNoBuffer = new ServiceBuilder()
+      .withTenantId(TENANT_ID)
+      .withDurationMinutes(30)
+      .withBufferAfterMinutes(0)
+      .build();
+    await serviceRepo.save(serviceDefaultBuffer);
+    await serviceRepo.save(serviceNoBuffer);
+    const base = {
+      from: saturday,
+      to: saturday,
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: 30 as const,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+    };
+
+    const withDefaultBuffer = await useCase.execute({
+      ...base,
+      serviceIds: [serviceDefaultBuffer.id],
+    });
+    const withOverride = await useCase.execute({ ...base, serviceIds: [serviceNoBuffer.id] });
+
+    // A 0-minute override reaches Saturday's 16:30 last slot; the 60-minute tenant default caps
+    // at 15:30 — if the summary path ignored the override (the bug), both counts would match.
+    expect(withOverride[0].slotCount).toBeGreaterThan(withDefaultBuffer[0].slotCount);
   });
 
   it('returns available:false and slotCount:0 for a closed day (Sunday, no opening)', async () => {

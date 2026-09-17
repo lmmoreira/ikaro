@@ -106,7 +106,10 @@ export function calculateSlotsForDate(
     businessHours: ctx.businessHours,
     resource: ctx.resource,
     slotGranularityMinutes: ctx.slotGranularityMinutes,
-    serviceBufferMinutes: ctx.serviceBufferMinutes,
+    // Only the last requested service's own buffer applies (matching
+    // effectiveFlatGapMinutes's last-line-only rule everywhere else) — the tenant default is
+    // only a fallback for a service with no override.
+    serviceBufferMinutes: ctx.services.at(-1)!.bufferAfterMinutes ?? ctx.serviceBufferMinutes,
     closures: dayClosures,
     opening: dayTenantOpening,
     resourceOpening: dayResourceOpening,

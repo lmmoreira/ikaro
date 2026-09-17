@@ -73,6 +73,28 @@ describe('GetAvailabilityUseCase', () => {
     expect(result.slots[0]).toHaveProperty('endsAt');
   });
 
+  it("uses the service's own buffer override for the degenerate tenant-wide path, not the tenant default", async () => {
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT_ID)
+      .withDurationMinutes(30)
+      .withBufferAfterMinutes(0)
+      .build();
+    await serviceRepo.save(service);
+
+    const result = await useCase.execute({
+      date: saturday,
+      serviceIds: [service.id],
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: 30,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+    });
+
+    expect(result.slots).toContainEqual(
+      expect.objectContaining({ startsAt: new Date(`${saturday}T19:30:00.000Z`).toISOString() }),
+    );
+  });
+
   it('returns available:false and empty slots for a closed day (Sunday)', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
     await serviceRepo.save(service);
@@ -237,6 +259,31 @@ describe('GetAvailabilityUseCase', () => {
           serviceBufferMinutes: settings.booking.serviceBufferMinutes,
         }),
       ).rejects.toThrow(ResourceNotActiveError);
+    });
+
+    it("uses the service's own buffer override for the explicit-resourceId path, not the tenant default", async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withBufferAfterMinutes(0)
+        .build();
+      await serviceRepo.save(service);
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      await resourceRepo.save(resource);
+
+      const result = await useCase.execute({
+        date: saturday,
+        serviceIds: [service.id],
+        resourceId: resource.id,
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: 30,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+
+      expect(result.slots).toContainEqual(
+        expect.objectContaining({ startsAt: new Date(`${saturday}T19:30:00.000Z`).toISOString() }),
+      );
     });
 
     it('a resource-scoped full-day closure blocks that resource while the tenant stays open', async () => {

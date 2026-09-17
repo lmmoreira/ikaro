@@ -134,7 +134,10 @@ export class GetAvailabilityUseCase {
       businessHours,
       resource,
       slotGranularityMinutes,
-      serviceBufferMinutes,
+      // Only the last requested service's own buffer applies (matching
+      // effectiveFlatGapMinutes's last-line-only rule everywhere else) — the tenant default is
+      // only a fallback for a service with no override.
+      serviceBufferMinutes: services.at(-1)!.bufferAfterMinutes ?? serviceBufferMinutes,
       closures,
       opening: tenantOpening,
       resourceOpening,
@@ -174,7 +177,7 @@ export class GetAvailabilityUseCase {
       businessHours,
       resource: null,
       slotGranularityMinutes,
-      serviceBufferMinutes,
+      serviceBufferMinutes: services.at(-1)!.bufferAfterMinutes ?? serviceBufferMinutes,
       closures,
       opening: tenantOpening,
       resourceOpening: null,
