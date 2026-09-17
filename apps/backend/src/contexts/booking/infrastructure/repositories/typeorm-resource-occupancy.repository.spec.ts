@@ -100,12 +100,19 @@ describe('TypeOrmResourceOccupancyRepository', () => {
 
     it('upserts the booking_line_resource_assignments row and inserts one resource_occupancy row per candidate', async () => {
       const assignmentId = '00000000-0000-7000-8000-000000000099';
+      const candidate = buildCandidate();
       const manager = {
-        query: jest.fn().mockResolvedValue([{ id: assignmentId }]),
+        query: jest.fn().mockResolvedValue([
+          {
+            id: assignmentId,
+            resource_id: candidate.resourceId,
+            leg_index: candidate.legIndex,
+            quantity_position: candidate.quantityPosition,
+          },
+        ]),
         insert: jest.fn().mockResolvedValue({}),
       } as unknown as EntityManager;
       const holdExpiresAt = new Date('2026-06-01T10:30:00.000Z');
-      const candidate = buildCandidate();
 
       await runWithEntityManager(manager, () =>
         repo.assign(TENANT_ID, BOOKING_LINE_ID, [candidate], 'HOLD', holdExpiresAt),
@@ -113,11 +120,10 @@ describe('TypeOrmResourceOccupancyRepository', () => {
 
       expect(manager.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO booking.booking_line_resource_assignments'),
-        expect.arrayContaining([TENANT_ID, BOOKING_LINE_ID, candidate.resourceId]),
+        expect.arrayContaining([TENANT_ID, BOOKING_LINE_ID, [candidate.resourceId]]),
       );
       expect(manager.insert).toHaveBeenCalledTimes(1);
-      expect(manager.insert).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(manager.insert).toHaveBeenCalledWith(expect.anything(), [
         expect.objectContaining({
           tenantId: TENANT_ID,
           resourceId: candidate.resourceId,
@@ -128,31 +134,119 @@ describe('TypeOrmResourceOccupancyRepository', () => {
           lockState: 'HOLD',
           holdExpiresAt,
         }),
-      );
+      ]);
     });
 
-    it('reuses an already-existing assignment row for the same (line, resource, leg, quantity) tuple', async () => {
-      const existingAssignmentId = '00000000-0000-7000-8000-000000000098';
+    it('batches 3+ candidates into one upsert query and one occupancy insert, not 2xN sequential queries', async () => {
+      const candidates = [
+        buildCandidate({ resourceId: 'res-1', legIndex: 0 }),
+        buildCandidate({ resourceId: 'res-2', legIndex: 1 }),
+        buildCandidate({ resourceId: 'res-3', legIndex: 2 }),
+      ];
+      // Deliberately returned out of candidate order (index 2, 0, 1) — a real UNION ALL of the
+      // insert arm + fallback SELECT gives no ordering guarantee, so this proves the mapping is by
+      // (resource_id, leg_index, quantity_position) tuple key, not by result-row position.
+      const shuffledOrder = [2, 0, 1];
       const manager = {
-        // ON CONFLICT DO NOTHING returns no row from the INSERT arm — the UNION ALL fallback
-        // yields the pre-existing row's id instead, exercised here via the mock's single result.
-        query: jest.fn().mockResolvedValue([{ id: existingAssignmentId }]),
+        query: jest.fn().mockResolvedValue(
+          shuffledOrder.map((i) => ({
+            id: `assignment-${i}`,
+            resource_id: candidates[i].resourceId,
+            leg_index: candidates[i].legIndex,
+            quantity_position: candidates[i].quantityPosition,
+          })),
+        ),
         insert: jest.fn().mockResolvedValue({}),
       } as unknown as EntityManager;
 
       await runWithEntityManager(manager, () =>
-        repo.assign(TENANT_ID, BOOKING_LINE_ID, [buildCandidate()], 'COMMITTED', null),
+        repo.assign(TENANT_ID, BOOKING_LINE_ID, candidates, 'COMMITTED', null),
       );
 
-      expect(manager.insert).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ bookingLineResourceAssignmentId: existingAssignmentId }),
+      expect(manager.query).toHaveBeenCalledTimes(1);
+      expect(manager.insert).toHaveBeenCalledTimes(1);
+      const insertedRows: { resourceId: string; bookingLineResourceAssignmentId: string }[] = (
+        manager.insert as jest.Mock
+      ).mock.calls[0][1];
+      expect(insertedRows).toHaveLength(3);
+      // Occupancy rows stay in candidate order regardless of the query result's own row order,
+      // and each one carries the assignment id that actually matches its own tuple key.
+      expect(insertedRows.map((r) => r.resourceId)).toEqual(['res-1', 'res-2', 'res-3']);
+      expect(insertedRows.map((r) => r.bookingLineResourceAssignmentId)).toEqual([
+        'assignment-0',
+        'assignment-1',
+        'assignment-2',
+      ]);
+    });
+
+    it('chunks the occupancy insert once candidate count would exceed a single multi-row statement', async () => {
+      const CANDIDATE_COUNT = 1500;
+      const candidates = Array.from({ length: CANDIDATE_COUNT }, (_, i) =>
+        buildCandidate({ resourceId: `res-${i}`, legIndex: i }),
       );
+      const manager = {
+        query: jest.fn().mockResolvedValue(
+          candidates.map((c, i) => ({
+            id: `assignment-${i}`,
+            resource_id: c.resourceId,
+            leg_index: c.legIndex,
+            quantity_position: c.quantityPosition,
+          })),
+        ),
+        insert: jest.fn().mockResolvedValue({}),
+      } as unknown as EntityManager;
+
+      await runWithEntityManager(manager, () =>
+        repo.assign(TENANT_ID, BOOKING_LINE_ID, candidates, 'COMMITTED', null),
+      );
+
+      // 1500 candidates at a 1000-row chunk size → 2 insert calls (1000 + 500), never one
+      // statement large enough to risk PostgreSQL's 65,535 bound-parameter limit.
+      expect(manager.insert).toHaveBeenCalledTimes(2);
+      const [firstChunk, secondChunk] = (manager.insert as jest.Mock).mock.calls.map(
+        (call) => call[1] as unknown[],
+      );
+      expect(firstChunk).toHaveLength(1000);
+      expect(secondChunk).toHaveLength(500);
+    });
+
+    it('reuses an already-existing assignment row for the same (line, resource, leg, quantity) tuple', async () => {
+      const existingAssignmentId = '00000000-0000-7000-8000-000000000098';
+      const candidate = buildCandidate();
+      const manager = {
+        // ON CONFLICT DO NOTHING returns no row from the INSERT arm — the UNION ALL fallback
+        // yields the pre-existing row's id instead, exercised here via the mock's single result.
+        query: jest.fn().mockResolvedValue([
+          {
+            id: existingAssignmentId,
+            resource_id: candidate.resourceId,
+            leg_index: candidate.legIndex,
+            quantity_position: candidate.quantityPosition,
+          },
+        ]),
+        insert: jest.fn().mockResolvedValue({}),
+      } as unknown as EntityManager;
+
+      await runWithEntityManager(manager, () =>
+        repo.assign(TENANT_ID, BOOKING_LINE_ID, [candidate], 'COMMITTED', null),
+      );
+
+      expect(manager.insert).toHaveBeenCalledWith(expect.anything(), [
+        expect.objectContaining({ bookingLineResourceAssignmentId: existingAssignmentId }),
+      ]);
     });
 
     it('maps a GIST exclusion-constraint violation to BookingSlotUnavailableError', async () => {
+      const candidate = buildCandidate();
       const manager = {
-        query: jest.fn().mockResolvedValue([{ id: '00000000-0000-7000-8000-000000000099' }]),
+        query: jest.fn().mockResolvedValue([
+          {
+            id: '00000000-0000-7000-8000-000000000099',
+            resource_id: candidate.resourceId,
+            leg_index: candidate.legIndex,
+            quantity_position: candidate.quantityPosition,
+          },
+        ]),
         insert: jest.fn().mockRejectedValue(
           new QueryFailedError(
             'INSERT INTO booking.resource_occupancy ...',
@@ -167,21 +261,29 @@ describe('TypeOrmResourceOccupancyRepository', () => {
 
       await expect(
         runWithEntityManager(manager, () =>
-          repo.assign(TENANT_ID, BOOKING_LINE_ID, [buildCandidate()], 'HOLD', null),
+          repo.assign(TENANT_ID, BOOKING_LINE_ID, [candidate], 'HOLD', null),
         ),
       ).rejects.toBeInstanceOf(BookingSlotUnavailableError);
     });
 
     it('propagates an unrelated insert error unchanged', async () => {
       const unrelated = new Error('connection reset');
+      const candidate = buildCandidate();
       const manager = {
-        query: jest.fn().mockResolvedValue([{ id: '00000000-0000-7000-8000-000000000099' }]),
+        query: jest.fn().mockResolvedValue([
+          {
+            id: '00000000-0000-7000-8000-000000000099',
+            resource_id: candidate.resourceId,
+            leg_index: candidate.legIndex,
+            quantity_position: candidate.quantityPosition,
+          },
+        ]),
         insert: jest.fn().mockRejectedValue(unrelated),
       } as unknown as EntityManager;
 
       await expect(
         runWithEntityManager(manager, () =>
-          repo.assign(TENANT_ID, BOOKING_LINE_ID, [buildCandidate()], 'HOLD', null),
+          repo.assign(TENANT_ID, BOOKING_LINE_ID, [candidate], 'HOLD', null),
         ),
       ).rejects.toBe(unrelated);
     });

@@ -47,6 +47,7 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
   let txManager: TypeOrmTransactionManager;
   let repo: TypeOrmResourceOccupancyRepository;
   let resourceA: string;
+  let resourceA2: string;
   let resourceB: string;
 
   // booking_line_resource_assignments.booking_line_id carries a real composite FK to
@@ -82,12 +83,22 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
       .withTenantId(TENANT_A)
       .withType(ResourceType.LOCATION)
       .build();
+    // EQUIPMENT, not LOCATION — a tenant can only have one LOCATION resource
+    // (UQ_booking_resources_tenant_location), and this needs a second, genuinely distinct
+    // resource under TENANT_A for the multi-candidate (multi-leg) tests below.
+    const resourceEntityA2 = new ResourceEntityBuilder()
+      .withTenantId(TENANT_A)
+      .withType(ResourceType.EQUIPMENT)
+      .build();
     const resourceEntityB = new ResourceEntityBuilder()
       .withTenantId(TENANT_B)
       .withType(ResourceType.LOCATION)
       .build();
-    await dataSource.getRepository(ResourceEntity).save([resourceEntityA, resourceEntityB]);
+    await dataSource
+      .getRepository(ResourceEntity)
+      .save([resourceEntityA, resourceEntityA2, resourceEntityB]);
     resourceA = resourceEntityA.id;
+    resourceA2 = resourceEntityA2.id;
     resourceB = resourceEntityB.id;
   });
 
@@ -282,6 +293,35 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
     expect(assignmentRows).toHaveLength(1);
   });
 
+  it('a multi-candidate assign() (e.g. a 2-leg service) produces exactly one assignment + one occupancy row per candidate', async () => {
+    const lineId = await seedBookingLine(TENANT_A);
+    const start = new Date('2026-06-06T10:00:00.000Z');
+    const end = new Date('2026-06-06T11:00:00.000Z');
+    const legOneCandidate = candidate(resourceA, start, end, { legIndex: 0 });
+    const legTwoCandidate = candidate(resourceA2, start, end, {
+      legIndex: 1,
+      resourceType: ResourceType.EQUIPMENT,
+    });
+
+    await txManager.run(() =>
+      repo.assign(TENANT_A, lineId, [legOneCandidate, legTwoCandidate], 'COMMITTED', null),
+    );
+
+    const assignmentRows = await dataSource
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .find({ where: { tenantId: TENANT_A, bookingLineId: lineId } });
+    expect(assignmentRows).toHaveLength(2);
+
+    const occupancyRows = await dataSource
+      .getRepository(ResourceOccupancyEntity)
+      .find({ where: { tenantId: TENANT_A } });
+    const forThisLine = occupancyRows.filter((row) =>
+      assignmentRows.some((a) => a.id === row.bookingLineResourceAssignmentId),
+    );
+    expect(forThisLine).toHaveLength(2);
+    expect(forThisLine.map((row) => row.resourceId).sort()).toEqual([resourceA, resourceA2].sort());
+  });
+
   it('a release() + assign() reschedule to the same resource reuses the existing assignment row (immutable, not duplicated)', async () => {
     const lineId = await seedBookingLine(TENANT_A);
     const oldStart = new Date('2026-06-08T10:00:00.000Z');
@@ -318,5 +358,68 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
     });
     expect(occupancyRows).toHaveLength(1);
     expect(occupancyRows[0].startsAt.toISOString()).toBe(newStart.toISOString());
+  });
+
+  it('a multi-candidate release() + assign() reschedule reuses every existing assignment row under the batched write path', async () => {
+    const lineId = await seedBookingLine(TENANT_A);
+    const oldStart = new Date('2026-06-09T10:00:00.000Z');
+    const oldEnd = new Date('2026-06-09T11:00:00.000Z');
+    await txManager.run(() =>
+      repo.assign(
+        TENANT_A,
+        lineId,
+        [
+          candidate(resourceA, oldStart, oldEnd, { legIndex: 0 }),
+          candidate(resourceA2, oldStart, oldEnd, {
+            legIndex: 1,
+            resourceType: ResourceType.EQUIPMENT,
+          }),
+        ],
+        'COMMITTED',
+        null,
+      ),
+    );
+    const originalAssignments = await dataSource
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .find({ where: { tenantId: TENANT_A, bookingLineId: lineId } });
+    expect(originalAssignments).toHaveLength(2);
+
+    const newStart = new Date('2026-06-09T14:00:00.000Z');
+    const newEnd = new Date('2026-06-09T15:00:00.000Z');
+    await txManager.run(async () => {
+      await repo.release(TENANT_A, [lineId]);
+      await repo.assign(
+        TENANT_A,
+        lineId,
+        [
+          candidate(resourceA, newStart, newEnd, { legIndex: 0 }),
+          candidate(resourceA2, newStart, newEnd, {
+            legIndex: 1,
+            resourceType: ResourceType.EQUIPMENT,
+          }),
+        ],
+        'COMMITTED',
+        null,
+      );
+    });
+
+    const assignmentRows = await dataSource
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .find({ where: { tenantId: TENANT_A, bookingLineId: lineId } });
+    expect(assignmentRows).toHaveLength(2);
+    expect(assignmentRows.map((a) => a.id).sort()).toEqual(
+      originalAssignments.map((a) => a.id).sort(),
+    );
+
+    const occupancyRows = await dataSource.getRepository(ResourceOccupancyEntity).find({
+      where: { tenantId: TENANT_A },
+    });
+    const forThisLine = occupancyRows.filter((row) =>
+      assignmentRows.some((a) => a.id === row.bookingLineResourceAssignmentId),
+    );
+    expect(forThisLine).toHaveLength(2);
+    expect(forThisLine.every((row) => row.startsAt.toISOString() === newStart.toISOString())).toBe(
+      true,
+    );
   });
 });

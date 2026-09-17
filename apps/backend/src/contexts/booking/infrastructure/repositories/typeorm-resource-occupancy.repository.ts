@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
@@ -15,8 +16,88 @@ interface ConflictRow {
   resource_id: string;
 }
 
-interface AssignmentIdRow {
+interface AssignmentRow {
   id: string;
+  resource_id: string;
+  leg_index: number | null;
+  quantity_position: number | null;
+}
+
+// ResourceOccupancyEntity has 14 columns; PostgreSQL's hard 65,535 bound-parameter limit divided
+// by 14 is ~4,681 rows per multi-row INSERT — 1,000 leaves ample margin for future columns.
+const OCCUPANCY_INSERT_CHUNK_SIZE = 1000;
+
+// Null-safe tuple key, matching the null-safe UNIQUE index on booking_line_resource_assignments
+// (COALESCE(leg_index, -1), COALESCE(quantity_position, -1)) — used to map a batched upsert's
+// result rows (arbitrary UNION ALL order) back to the candidate that produced each one.
+function occupancyKey(
+  resourceId: string,
+  legIndex: number | null,
+  quantityPosition: number | null,
+): string {
+  return `${resourceId}|${legIndex ?? -1}|${quantityPosition ?? -1}`;
+}
+
+// booking_line_resource_assignments is the immutable business/audit record
+// (docs/13-DATABASE_SCHEMA.md) — release() never deletes it, so re-resolving the same
+// (line, resource, leg, quantity) tuple on a reschedule/re-approval must reuse the existing row
+// instead of violating its null-safe unique index. True ON CONFLICT DO NOTHING can't RETURNING
+// the pre-existing row, so the insert attempt is unioned with a fallback lookup — batched across
+// every candidate in one round trip (TD40 Story 1) via the same unnest-into-a-CTE technique
+// findConflictingResourceIds uses below. The fallback SELECT's plain table scan runs against this
+// statement's initial snapshot, so it naturally excludes whatever `ins` just inserted in the same
+// statement — no extra de-duplication needed between the two UNION ALL arms.
+const UPSERT_ASSIGNMENTS_SQL = `
+  WITH input AS (
+    SELECT * FROM unnest($1::uuid[], $3::uuid[], $4::varchar[], $5::int[], $6::int[], $7::varchar[])
+      AS c(new_id, resource_id, resource_type, leg_index, quantity_position, resource_name)
+  ),
+  ins AS (
+    INSERT INTO booking.booking_line_resource_assignments
+      (id, tenant_id, booking_line_id, resource_id, resource_type, leg_index,
+       quantity_position, resource_name_at_assignment, assigned_at)
+    SELECT new_id, $2, $8, resource_id, resource_type, leg_index, quantity_position, resource_name, $9
+    FROM input
+    ON CONFLICT (tenant_id, booking_line_id, resource_id, COALESCE(leg_index, -1), COALESCE(quantity_position, -1))
+    DO NOTHING
+    RETURNING id, resource_id, leg_index, quantity_position
+  )
+  SELECT id, resource_id, leg_index, quantity_position FROM ins
+  UNION ALL
+  SELECT a.id, a.resource_id, a.leg_index, a.quantity_position
+  FROM booking.booking_line_resource_assignments a
+  JOIN input i
+    ON a.resource_id = i.resource_id
+    AND COALESCE(a.leg_index, -1) = COALESCE(i.leg_index, -1)
+    AND COALESCE(a.quantity_position, -1) = COALESCE(i.quantity_position, -1)
+  WHERE a.tenant_id = $2 AND a.booking_line_id = $8
+`;
+
+function buildUpsertAssignmentsParams(
+  tenantId: string,
+  bookingLineId: string,
+  candidates: ResourceOccupancyCandidate[],
+  now: Date,
+): unknown[] {
+  return [
+    candidates.map(() => uuidv7()),
+    tenantId,
+    candidates.map((c) => c.resourceId),
+    candidates.map((c) => c.resourceType),
+    candidates.map((c) => c.legIndex),
+    candidates.map((c) => c.quantityPosition),
+    candidates.map((c) => c.resourceName),
+    bookingLineId,
+    now,
+  ];
+}
+
+function toAssignmentIdMap(rows: AssignmentRow[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    map.set(occupancyKey(row.resource_id, row.leg_index, row.quantity_position), row.id);
+  }
+  return map;
 }
 
 @Injectable()
@@ -76,94 +157,97 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
   ): Promise<void> {
     if (candidates.length === 0) return;
     const manager = this.requireActiveManager();
+    const now = new Date();
 
     try {
-      for (const candidate of candidates) {
-        await this.insertOne(manager, tenantId, bookingLineId, candidate, lockState, holdExpiresAt);
-      }
+      const assignmentIds = await this.upsertAssignments(
+        manager,
+        tenantId,
+        bookingLineId,
+        candidates,
+        now,
+      );
+      const rows = this.buildOccupancyRows(candidates, {
+        tenantId,
+        assignmentIds,
+        lockState,
+        holdExpiresAt,
+        now,
+      });
+      await this.insertOccupancyRows(manager, rows);
     } catch (err) {
       rethrowOccupancyInsertError(err);
     }
   }
 
-  private async insertOne(
+  // TypeORM's multi-row manager.insert() binds one SQL parameter per cell, not per row — at
+  // ResourceOccupancyEntity's 14 columns, PostgreSQL's 65,535 bound-parameter limit is reachable
+  // once requiredQuantity (validated only as > 0, no upper bound — resource-requirement.ts) drives
+  // a large-enough candidate count. Chunking keeps today's realistic candidate counts at one query
+  // (the common case this story targets) while staying correct at any size.
+  private async insertOccupancyRows(
     manager: EntityManager,
-    tenantId: string,
-    bookingLineId: string,
-    candidate: ResourceOccupancyCandidate,
-    lockState: ResourceOccupancyLockState,
-    holdExpiresAt: Date | null,
+    rows: QueryDeepPartialEntity<ResourceOccupancyEntity>[],
   ): Promise<void> {
-    const now = new Date();
-    const assignmentId = await this.upsertAssignment(
-      manager,
-      tenantId,
-      bookingLineId,
-      candidate,
-      now,
-    );
-    await manager.insert(ResourceOccupancyEntity, {
+    for (let i = 0; i < rows.length; i += OCCUPANCY_INSERT_CHUNK_SIZE) {
+      await manager.insert(ResourceOccupancyEntity, rows.slice(i, i + OCCUPANCY_INSERT_CHUNK_SIZE));
+    }
+  }
+
+  private buildOccupancyRows(
+    candidates: ResourceOccupancyCandidate[],
+    ctx: {
+      tenantId: string;
+      assignmentIds: Map<string, string>;
+      lockState: ResourceOccupancyLockState;
+      holdExpiresAt: Date | null;
+      now: Date;
+    },
+  ): QueryDeepPartialEntity<ResourceOccupancyEntity>[] {
+    return candidates.map((candidate) => ({
       id: uuidv7(),
-      tenantId,
+      tenantId: ctx.tenantId,
       resourceId: candidate.resourceId,
       resourceType: candidate.resourceType,
-      sourceType: 'BOOKING_LINE',
-      bookingLineResourceAssignmentId: assignmentId,
+      sourceType: 'BOOKING_LINE' as const,
+      bookingLineResourceAssignmentId: this.resolveAssignmentId(ctx.assignmentIds, candidate),
       legIndex: candidate.legIndex,
       classSessionId: null,
       resourceNameAtAssignment: candidate.resourceName,
       startsAt: candidate.startsAt,
       endsAt: candidate.endsAt,
-      lockState,
-      holdExpiresAt,
-      createdAt: now,
-    });
+      lockState: ctx.lockState,
+      holdExpiresAt: ctx.holdExpiresAt,
+      createdAt: ctx.now,
+    }));
   }
 
-  // booking_line_resource_assignments is the immutable business/audit record
-  // (docs/13-DATABASE_SCHEMA.md) — release() never deletes it, so re-resolving the same
-  // (line, resource, leg, quantity) tuple on a reschedule/re-approval must reuse the existing row
-  // instead of violating its null-safe unique index. True ON CONFLICT DO NOTHING can't RETURNING
-  // the pre-existing row, so the insert attempt is unioned with a fallback lookup.
-  private async upsertAssignment(
+  private resolveAssignmentId(
+    assignmentIds: Map<string, string>,
+    candidate: ResourceOccupancyCandidate,
+  ): string {
+    const key = occupancyKey(candidate.resourceId, candidate.legIndex, candidate.quantityPosition);
+    const assignmentId = assignmentIds.get(key);
+    if (!assignmentId) {
+      throw new Error(
+        `resource_occupancy: batched upsert returned no assignment id for candidate ${key}`,
+      );
+    }
+    return assignmentId;
+  }
+
+  private async upsertAssignments(
     manager: EntityManager,
     tenantId: string,
     bookingLineId: string,
-    candidate: ResourceOccupancyCandidate,
+    candidates: ResourceOccupancyCandidate[],
     now: Date,
-  ): Promise<string> {
-    const rows: AssignmentIdRow[] = await manager.query(
-      `
-      WITH ins AS (
-        INSERT INTO booking.booking_line_resource_assignments
-          (id, tenant_id, booking_line_id, resource_id, resource_type, leg_index,
-           quantity_position, resource_name_at_assignment, assigned_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (tenant_id, booking_line_id, resource_id, COALESCE(leg_index, -1), COALESCE(quantity_position, -1))
-        DO NOTHING
-        RETURNING id
-      )
-      SELECT id FROM ins
-      UNION ALL
-      SELECT id FROM booking.booking_line_resource_assignments
-      WHERE tenant_id = $2 AND booking_line_id = $3 AND resource_id = $4
-        AND COALESCE(leg_index, -1) = COALESCE($6::int, -1)
-        AND COALESCE(quantity_position, -1) = COALESCE($7::int, -1)
-      LIMIT 1
-      `,
-      [
-        uuidv7(),
-        tenantId,
-        bookingLineId,
-        candidate.resourceId,
-        candidate.resourceType,
-        candidate.legIndex,
-        candidate.quantityPosition,
-        candidate.resourceName,
-        now,
-      ],
+  ): Promise<Map<string, string>> {
+    const rows: AssignmentRow[] = await manager.query(
+      UPSERT_ASSIGNMENTS_SQL,
+      buildUpsertAssignmentsParams(tenantId, bookingLineId, candidates, now),
     );
-    return rows[0].id;
+    return toAssignmentIdMap(rows);
   }
 
   // Deletes only the short-lived lock rows — booking_line_resource_assignments is the immutable
