@@ -205,7 +205,7 @@ Extend `Service` with the booking-policy fields (`defaultApprovalMode`, `manualH
 
 ---
 
-### M22-S03 — `booking.resource_occupancy` exclusivity engine
+### M22-S03 — `booking.resource_occupancy` exclusivity engine ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
