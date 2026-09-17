@@ -4,7 +4,7 @@
 // browser->web hop and forwards it as X-Real-Client-Ip. Trust it directly instead of
 // re-deriving from raw proxy headers (the old CF-Connecting-IP/rightmost-XFF branching, which
 // never saw the real browser IP to begin with once every real caller went through the gateway —
-// see td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md for the full history).
+// see docs/archive/td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md for the full history).
 import { ClientIpRequest, getTrustedClientIp } from '@ikaro/http-utils';
 
 export type { ClientIpRequest };

@@ -18,7 +18,7 @@ export function isValidSeoDescription(description: string): boolean {
   return description.length <= SEO_DESCRIPTION_MAX_LENGTH;
 }
 
-// Single source of truth for the tmp/ staging path shapes (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
+// Single source of truth for the tmp/ staging path shapes (see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
 // Booking uploads use tmp/<tenantId>/<uuid>/<fileName> (no purpose segment); hotsite uploads use
 // tmp/<tenantId>/<purpose>/<uuid>/<fileName> — one segment longer. The two shapes must stay
 // distinguishable: HOTSITE_TMP_PATH_FRAGMENT requires exactly the hotsite segment count so a
@@ -27,7 +27,7 @@ export function isValidSeoDescription(description: string): boolean {
 export const HOTSITE_TMP_PATH_FRAGMENT = 'tmp/[^/]+/[^/]+/[^/]+/[^/]+';
 
 // Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
-// staging upload — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+// staging upload — see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
 export const HOTSITE_LOGO_URL_REGEX = new RegExp(
   `^$|^tenants/[^/]+/hotsite/.+$|^${HOTSITE_TMP_PATH_FRAGMENT}$`,
 );

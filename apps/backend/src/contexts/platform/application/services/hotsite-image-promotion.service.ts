@@ -33,7 +33,7 @@ export class HotsiteImagePromotionService {
    * Pure validation + path computation — call before the aggregate is mutated/saved. No storage
    * mutation happens here; the actual copy/delete is deferred to `executeImagePromotion`, called
    * via `scheduleAfterCommit()` only once the config is safely persisted (see
-   * td/TD22-ORPHANED-UPLOAD-CLEANUP.md — `config.updateContent()`'s `validateBranding()` can still
+   * docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md — `config.updateContent()`'s `validateBranding()` can still
    * throw after this step, so storage must not be mutated until the save actually succeeds).
    */
   async prepareImagePromotion(

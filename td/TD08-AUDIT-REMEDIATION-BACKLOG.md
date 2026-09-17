@@ -95,7 +95,7 @@
 
 ### AUD-001 — Transactional outbox for all domain events
 **Risk:** 🔴 Critical · **Effort:** L · **Phase:** Now · **Depends on:** — · **Audit ref:** `OPUS_AUDITORY.md` §4.1, §12.2, §12.3
-**Status:** ✅ Done — `td/TD24-OUTBOX-INBOX-PATTERN.md` (TD24-S01 through S04)
+**Status:** ✅ Done — `docs/archive/td/TD24-OUTBOX-INBOX-PATTERN.md` (TD24-S01 through S04)
 
 **Implemented notes**
 - `shared.outbox` (S01) — every aggregate-driven publish site writes an envelope row inside the same transaction as the state change, via `OUTBOX_PUBLISHER`/`IOutboxPublisher`; `OutboxRelayService`'s scheduled sweep (`SKIP LOCKED`, grace window) delivers unpublished rows to Pub/Sub, with an inline-dispatch fast path after commit.
@@ -450,7 +450,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-018 — Pub/Sub ordering keys per booking
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Depends on:** AUD-001 · **Audit ref:** §12.6
-**Status:** ☐ Not started — dependency (AUD-001) now satisfied, unblocked. Explicitly out of scope for TD24 itself (`td/TD24-OUTBOX-INBOX-PATTERN.md` §Non-Goals: "No Pub/Sub ordering keys — TD08 AUD-018, separate follow-up. Relay is `SKIP LOCKED`, out-of-order-safe like today."). Remains a genuine open item for whoever picks it up next.
+**Status:** ☐ Not started — dependency (AUD-001) now satisfied, unblocked. Explicitly out of scope for TD24 itself (`docs/archive/td/TD24-OUTBOX-INBOX-PATTERN.md` §Non-Goals: "No Pub/Sub ordering keys — TD08 AUD-018, separate follow-up. Relay is `SKIP LOCKED`, out-of-order-safe like today."). Remains a genuine open item for whoever picks it up next.
 
 **What's wrong:** `gcp-pubsub-event-bus.adapter.ts` publishes with no `orderingKey`; a fast approve→reschedule/complete sequence can be consumed out of order (e.g. "approved" email after "completed").
 **Fix:** Publish booking-related events with `orderingKey = bookingId` and enable ordered delivery on those subscriptions. Accept the per-key throughput tradeoff.

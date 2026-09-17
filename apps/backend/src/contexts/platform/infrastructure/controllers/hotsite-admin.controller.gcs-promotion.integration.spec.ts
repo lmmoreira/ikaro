@@ -16,7 +16,7 @@ import { createPlatformIntegrationApp } from '../../../../test/utils/platform-in
 // never proves the actual bucket-to-bucket copy/delete calls work against a real backend. This
 // file scopes to exactly that: does a `tmp/` upload really end up promoted, at the real permanent
 // path, in the real public bucket, with the real tmp object and the real superseded object gone.
-// See td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+// See docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
 
 const TENANT_A = 'c3d4e5f6-0000-0000-0000-000000000001';
 

@@ -13,7 +13,7 @@ import { AddressShapeSchema, DATE_ONLY_PATTERN, isValidPhoneNumber } from '@ikar
 // don't need to change.
 
 // Required-field checks are deliberately NOT duplicated here (TD23-S13) — the backend's
-// Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+// Uploads always target tmp/ staging (see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
 // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
 const TMP_PHOTO_PATH_REGEX = /^tmp\/[^/]+\/[^/]+\/.+$/;
 

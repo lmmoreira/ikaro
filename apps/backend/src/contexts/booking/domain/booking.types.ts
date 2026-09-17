@@ -65,7 +65,7 @@ export interface RequestBookingInput {
    * Pre-generated booking ID — pass this when the caller needs to know the ID before the
    * aggregate exists (e.g. to promote `tmp/`-staged photos to their permanent
    * `tenants/<id>/bookings/<bookingId>/...` path before construction; see
-   * td/TD22-ORPHANED-UPLOAD-CLEANUP.md). Omit to keep the existing behavior of generating a
+   * docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md). Omit to keep the existing behavior of generating a
    * fresh `uuidv7()` inside the factory.
    */
   id?: string;

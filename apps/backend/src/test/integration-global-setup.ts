@@ -219,7 +219,7 @@ export default async function globalSetup(): Promise<void> {
 // Real fake-gcs-server (same image as docker/docker-compose.yml), for the small set of
 // integration specs that need to exercise the actual GcsSignedUrlAdapter — real V4 signed URLs,
 // real cross-bucket copy, real delete — instead of the InMemoryStorageService double every other
-// integration spec uses. See td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+// integration spec uses. See docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
 //
 // A fixed port is required (not a Testcontainers-assigned dynamic one): fake-gcs-server's V4
 // signed URLs are only valid against the exact `-public-host`/`-external-url` the server was

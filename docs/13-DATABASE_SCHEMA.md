@@ -1264,9 +1264,9 @@ The event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission
 
 ### Consume-side: shared inbox (TD24-S04)
 
-Every event/command consumer — the 16 domain-event handlers and `create-initial-manager.use-case.ts` (`TenantProvisioned` → staff) — checks `shared.inbox` before applying its effect and marks the row processed inside the same transaction as that effect, so Pub/Sub's at-least-once redelivery never produces more than one effect per consumer. See `shared.inbox` above for the table shape and `td/TD24-OUTBOX-INBOX-PATTERN.md` for the full design.
+Every event/command consumer — the 16 domain-event handlers and `create-initial-manager.use-case.ts` (`TenantProvisioned` → staff) — checks `shared.inbox` before applying its effect and marks the row processed inside the same transaction as that effect, so Pub/Sub's at-least-once redelivery never produces more than one effect per consumer. See `shared.inbox` above for the table shape and `docs/archive/td/TD24-OUTBOX-INBOX-PATTERN.md` for the full design.
 
-**Remaining evolution:** further evolution is operational (e.g. tightening the sweep interval, alerting on outbox/inbox lag — TD24-S05) rather than a new mechanism — see `td/TD24-OUTBOX-INBOX-PATTERN.md`.
+**Remaining evolution:** further evolution is operational (e.g. tightening the sweep interval, alerting on outbox/inbox lag — TD24-S05) rather than a new mechanism — see `docs/archive/td/TD24-OUTBOX-INBOX-PATTERN.md`.
 
 ---
 

@@ -33,7 +33,7 @@ export class BookingsAttachmentsController {
   ): Promise<AttachmentSignedUrlResponse> {
     // Must use postForPublic because this route is @Public() — JwtAuthGuard does not run,
     // so req.user is unset and post() would send an empty X-Tenant-ID header.
-    // Uploads always target tmp/ staging now (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — a
+    // Uploads always target tmp/ staging now (see docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — a
     // bookingId is no longer needed at upload time, only tenant resolution is.
     const tenantId = await resolveTenantIdForAttachmentUpload(this.backendHttp, {
       authHeader,

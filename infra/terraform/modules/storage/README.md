@@ -20,7 +20,7 @@ The `allUsers` grant itself also needed a second org-policy exception beyond `pu
 
 ## `tmp/` staging + lifecycle (TD22)
 
-Every upload — hotsite and booking-photo alike — lands first at `tmp/<tenantId>/<uuid>/<fileName>` in the **uploads** bucket (app-side convention, `td/TD22-ORPHANED-UPLOAD-CLEANUP.md`, resolved). An explicit promotion step (app code, not this module) copies the object to its permanent `tenants/<tenantId>/...` path only when the surrounding record is actually saved. This module provides the backstop: a lifecycle rule deletes anything still under `tmp/` after 2 days — covers abandoned uploads, explicit removals, and superseded uploads with zero app-side cleanup code.
+Every upload — hotsite and booking-photo alike — lands first at `tmp/<tenantId>/<uuid>/<fileName>` in the **uploads** bucket (app-side convention, `docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md`, resolved). An explicit promotion step (app code, not this module) copies the object to its permanent `tenants/<tenantId>/...` path only when the surrounding record is actually saved. This module provides the backstop: a lifecycle rule deletes anything still under `tmp/` after 2 days — covers abandoned uploads, explicit removals, and superseded uploads with zero app-side cleanup code.
 
 The prefix is deliberately bucket-root (`tmp/`, not `tenants/<id>/tmp/`): GCS lifecycle `matches_prefix` is a literal string match with no wildcards, so a tenant-nested path can't be caught by one rule across every tenant.
 

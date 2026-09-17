@@ -29,7 +29,7 @@ function asStoredEvent(payload: unknown): Envelope {
 
 // Single publication path used by both the inline dispatch (OutboxPublisher, one row) and the
 // scheduled sweep (OutboxRelayTriggerHandler, no rowIds — full grace-window batch + retention GC
-// in the same tick). See td/TD24-OUTBOX-INBOX-PATTERN.md §Design. No SQL here — all persistence
+// in the same tick). See docs/archive/td/TD24-OUTBOX-INBOX-PATTERN.md §Design. No SQL here — all persistence
 // lives behind IOutboxRepository (see TypeOrmOutboxRepository); this class only orchestrates
 // which rows get claimed/published/marked and when.
 @Injectable()

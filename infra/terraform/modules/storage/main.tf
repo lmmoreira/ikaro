@@ -36,7 +36,7 @@ resource "google_storage_bucket" "uploads" {
     }
   }
 
-  # tmp/ staging convention (td/TD22-ORPHANED-UPLOAD-CLEANUP.md): every
+  # tmp/ staging convention (docs/archive/td/TD22-ORPHANED-UPLOAD-CLEANUP.md): every
   # upload (hotsite + booking photos) lands under tmp/<tenantId>/... first
   # and is promoted to a permanent tenants/... path on submit/save. Anything
   # left behind here — abandoned, explicitly removed, or superseded — ages

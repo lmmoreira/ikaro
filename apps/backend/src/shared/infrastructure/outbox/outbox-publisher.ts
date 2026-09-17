@@ -12,7 +12,7 @@ import { OutboxRelayService } from './outbox-relay.service';
 // Publish-only — this class has nothing to do with subscribing, triggers, or push dispatch (see
 // IOutboxPublisher), and nothing to do with SQL/persistence (see IOutboxRepository — all of that
 // lives in TypeOrmOutboxRepository). Bound as EVENT_BUS's publish side starting TD24-S02, once the
-// publish/subscribe token split lands (see td/TD24-OUTBOX-INBOX-PATTERN.md §C2/S02) — until then
+// publish/subscribe token split lands (see docs/archive/td/TD24-OUTBOX-INBOX-PATTERN.md §C2/S02) — until then
 // this class is built and unit/integration tested in isolation (TD24-S01 "ships dark"), never
 // resolved via Nest DI.
 @Injectable()
