@@ -1,6 +1,6 @@
 ---
 name: pr-land
-description: Monitor an open PR through to merge-readiness. Waits for every in-scope reviewer of a round (CI/SonarCloud always, Codex always, CodeRabbit round 1 only) to finish before touching anything, batches every fix for that round into one commit/push, then re-dispatches Codex for the next round. Escalates to the user immediately for any business/design-only finding, and at round 5 if Critical/Important findings still remain unresolved. Never merges — stops right before the merge ask (CLAUDE.md §9 Step 10).
+description: Monitor an open PR through to merge-readiness. Waits for every in-scope reviewer of a round (CI/SonarCloud always, Codex always, CodeRabbit round 1 only) to finish before touching anything, batches every fix for that round into one commit/push, then re-dispatches Codex for the next round only when the round changed code — a round where every Critical/Important finding was cleanly declined (no code change) ends the loop rather than re-dispatching against an unchanged commit. Escalates to the user immediately for any business/design-only finding, and after 5 consecutive rounds each still reporting a Critical/Important finding (fixed or declined doesn't reset the counter). Never merges — stops right before the merge ask (CLAUDE.md §9 Step 10).
 metadata:
   short-description: Monitor a PR's CI + bot-review rounds until merge-ready
 ---
@@ -11,7 +11,7 @@ Monitor the PR opened by `/pre-pr` through to merge-readiness. `/pre-pr` already
 
 > **CORE RULE — batch, never react mid-round:** Never commit or push in response to a single actor's result. Wait for **every actor in scope for the current round** to reach a terminal state, pool every finding from all of them into one list, triage the whole list, then make **one commit and one push** covering every fix the round needs. Reacting to Codex the moment it lands while CI is still running (or vice versa) wastes a round and can produce two pushes that should have been one.
 
-> **STUCK-CONDITION RULE:** "Fix it and re-run" has an implicit bound. A finding needing a business/design decision escalates immediately (see Step 3). Five rounds with Critical/Important still open escalates too (see Step 5). Never keep iterating past either point to force a green result.
+> **STUCK-CONDITION RULE:** "Fix it and re-run" has an implicit bound. A finding needing a business/design decision escalates immediately (see Step 3). Five *consecutive* rounds each still reporting a Critical/Important finding escalates too — fixed or declined doesn't reset that counter, only a genuinely clean round does (see Step 5). Never keep iterating past either point to force a green result.
 
 Argument: `$ARGUMENTS` — PR number (optional; defaults to the open PR for the current branch, same resolution `/pre-pr` used).
 
@@ -93,8 +93,8 @@ For every finding in the pooled list:
 1. Read it.
 2. Check it against actual codebase practice — grep for the real precedent it claims to violate.
 3. Check it against the real business scenario/UC — a flagged "inconsistency" may be deliberate.
-4. Only if it survives both checks, it's a real fix.
-5. If it doesn't survive, reply on the thread explaining why — never silent-ignore.
+4. If it survives both checks, it's real — but "real" doesn't always mean "fix in this PR." If it's fixable within this PR's own scope, fix it now. If it's real but genuinely out of this PR's scope (a larger redesign, a cross-cutting concern, a load characteristic this story's actual usage pattern doesn't hit), it still isn't a silent decline: open a follow-up TD via `/create-td` in the same triage reply and link it. **A bare "declined" reply is reserved for a finding that's factually wrong, or that names a scope boundary the story/TD's own documented Non-Goals already resolved with no residual defect** — never for something real that's just inconvenient to fix right now (PR #483, M22-S03 precedent: a real sequential-per-candidate-write scalability finding was declined for that PR but tracked forward as TD40, rather than dropped — that's the model to follow every time, not the exception).
+5. If it doesn't survive either check, reply on the thread explaining why — never silent-ignore.
 6. **If a finding requires a business or design decision** (not a pure code-correctness question — e.g. a naming/scope choice, a UX tradeoff, a "should this even work this way") — stop here and ask the user, with the full pooled list as context, regardless of round number. This is not a Step 5 round-count escalation; it's immediate.
 7. If relevance genuinely can't be determined either way (the existing stuck condition), also escalate immediately rather than guessing.
 
@@ -114,13 +114,17 @@ If Step 3 produced any real fixes: apply all of them together, then **one commit
 
 **Before committing, grep the round's own staged diff for self-referential process language and strip it from source comments and `describe()`/`it()` titles:** `git diff --cached | grep -inE 'PR #[0-9]+|Codex (PR|round)|round-[0-9]+'`. `docs/CODE_STANDARDS.md` already forbids task/ticket references in source comments — the rule doesn't need re-discovering, it needs self-applying while writing each round's own fix, not just when a bot catches it. (M21-S03 precedent, PR #460, 2026-09-04: "Codex PR #460 round-N finding" was written into source comments and `describe()` titles at least 15 separate times across many files over 9 rounds before a later round's Codex review caught the whole pattern as one batched Minor finding — the rule existed the entire time.)
 
-If Step 3 produced zero real fixes (CI green, SonarCloud 0 open issues, Codex reports 0 Critical/Important — Minor findings replied-to-and-declined are fine, round 1's CodeRabbit findings all triaged) — the loop is done. Report readiness and hand back to CLAUDE.md §9 Step 10 (the merge ask). Do not merge from this skill.
+If Step 3 produced zero real fixes and Codex reported 0 Critical/Important this round (CI green, SonarCloud 0 open issues — Minor findings replied-to-and-declined are fine, round 1's CodeRabbit findings all triaged) — the loop is done. Report readiness and hand back to CLAUDE.md §9 Step 10 (the merge ask). Do not merge from this skill.
+
+**A third outcome — zero real fixes, but Codex reported ≥1 Critical/Important that was legitimately declined this round (factually wrong, or a documented out-of-scope boundary with no residual defect — Step 3 items 2-3/5) — also ends the loop, same as a literal 0-count round.** Do not re-dispatch Codex against a commit that hasn't changed just because its pre-triage count was nonzero: a fresh, memoryless Codex dispatch reviewing code it already reviewed will either re-report the identical finding you just refuted, or invent a new one from nothing — neither is worth a round (PR #483, M22-S03 precedent: a Critical about duplicate `LOCATION` backfill rows was declined in round 4 as factually incorrect, then independently re-derived and declined *again* in round 13, nine rounds and several real-fix rounds later, purely because nothing told the later round the question had already been settled). If Step 3 escalated anything this round (business/design decision, or undeterminable relevance), that escalation's own resolution governs instead — this third outcome only applies when every Critical/Important this round was cleanly declined and nothing is pending a decision from you.
+
+**Update the "consecutive rounds with Critical/Important still open" counter (Round state, used by Step 5) before returning to Step 1 or ending the loop:** increment it by 1 for any round where Codex reported ≥1 Critical/Important — whether it was fixed, declined, or escalated this round. Reset it to 0 only on a round where Codex reported zero Critical/Important.
 
 ---
 
 ## Step 5 — Round-5 escalation
 
-If, after 5 rounds, Codex's most recent review still reports **≥1 unresolved Critical or Important finding** (Minor-only doesn't count), stop iterating. Describe to the user: what's recurring across rounds, what's been tried, and why it hasn't resolved. This is a stuck condition — ask for a decision rather than attempting a 6th round unprompted.
+If the "consecutive rounds with Critical/Important still open" counter (Round state, updated in Step 4) reaches **5**, stop iterating — regardless of whether each of those rounds individually got fixed or declined. Five straight rounds where Codex keeps finding *something* Critical/Important is itself the signal, even when every single one was properly triaged; that pattern is what actually happened across PR #483's 13 rounds without this check ever firing, because each round's finding got resolved (fixed or soundly declined) before the next dispatch, and no one was tracking the counter against this rule. Describe to the user: what's recurring across rounds, what's been tried (fixed vs. declined and why), and why it hasn't converged to a clean round. This is a stuck condition — ask for a decision rather than attempting another round unprompted.
 
 ---
 
@@ -134,6 +138,7 @@ Pooled findings: <count> (CI: X, SonarCloud: S, Codex: Y, CodeRabbit: Z)
 Applied: <count> fixes → one commit <sha>, pushed
 Declined (with reason): <count>
 Escalated: <count> (business/design or undeterminable)
+Consecutive rounds with C/I open: <counter>/5 (Step 5 threshold)
 
 Next: round <K+1> — re-dispatching Codex
 ```
