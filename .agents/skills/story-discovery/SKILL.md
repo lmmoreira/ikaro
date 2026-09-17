@@ -209,6 +209,9 @@ If this story replaces or removes an existing flow/mechanism (an auth pattern, a
 - **Business-rule ambiguity:** does anything in the story's description leave a business rule underspecified (a threshold, an edge case, a precedence between two rules)? Surface each as a question in Step 6 rather than letting the implementation step infer one.
 - **Ripple effects:** does this story's change plausibly affect another existing flow, screen, or use case not explicitly listed in its scope? If so, name it as a RISK — either fold it into this story's scope or explicitly note it's out of scope and why.
 
+### 4r. Business-logic reference doc (`docs/27-BUSINESS_LOGIC_REFERENCE.md`)
+Does this story introduce or change an algorithm, state machine, or formula that spans multiple use cases or aggregates within its bounded context — the kind of logic a future dev/agent would otherwise have to re-derive from scattered prose across `docs/02`/`docs/04`/`docs/13`? If so, flag as a RISK that the story's own scope should include adding or updating that context's section in `docs/27-BUSINESS_LOGIC_REFERENCE.md` (a permanent, mermaid-diagrammed reference, additive by bounded context — read its own header before writing). A context with no section yet is normal; a story that meaningfully *changes* an existing section's algorithm without touching the doc is the actual gap to catch here. Not every story needs this — only genuinely complex, cross-cutting logic, not a single new field or endpoint.
+
 ---
 
 ## Step 5 — Print findings
