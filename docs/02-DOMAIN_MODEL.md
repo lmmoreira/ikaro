@@ -551,26 +551,9 @@ where `resolveScopeWindow(dayHours, scopedClosures, scopedOpening)` is exactly t
 
 **`IBookingAvailabilityPort` (cross-context read port — Booking Context)**
 
-The Booking Context exposes a read-only port for the availability algorithm to consume without a direct dependency on the Booking aggregate:
+The Booking Context exposes a read-only port for the availability algorithm to consume without a direct dependency on the Booking aggregate. Through M21, the real adapter (`TypeOrmBookingAvailabilityAdapter`, implemented in M07 when the Booking aggregate exists; a stub returning `[]` is used in M06) queried `bookings` directly and returned a single tenant-wide `BookedSlot[]` — sufficient while a booking's `scheduledAt`/`totalDurationMins` alone always answered "is the tenant free."
 
-```typescript
-interface IBookingAvailabilityPort {
-  // Single-date detail: used by GetAvailabilityUseCase (Phase 2)
-  findApprovedByTenantAndDate(tenantId: string, date: string): Promise<BookedSlot[]>;
-
-  // Date-range batch: used by GetAvailabilitySummaryUseCase (Phase 1)
-  findApprovedByTenantAndDateRange(tenantId: string, from: string, to: string): Promise<BookedSlot[]>;
-}
-
-interface BookedSlot {
-  scheduledAt: Date;       // UTC
-  totalDurationMins: number;
-}
-```
-
-The real adapter (`TypeOrmBookingAvailabilityAdapter`) is implemented in M07 when the Booking aggregate exists. A stub returning `[]` is used in M06 — availability shows all slots as open until bookings exist.
-
-**Changed by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine).** Once a `Service.resourceRequirements`/`legs` can reference something other than the implicit whole tenant, `IBookingAvailabilityPort`'s real adapter moves from querying `bookings` directly to querying `booking.resource_occupancy` — the per-resource, per-window projection availability needs, since one booking's `scheduledAt`/`totalDurationMins` can no longer answer "is resource X free" once a booking can span a bundle or leg chain with a different sub-window per resource. `BookedSlot` changes shape accordingly:
+**Changed by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine).** Once a `Service.resourceRequirements`/`legs` can reference something other than the implicit whole tenant, one booking's `scheduledAt`/`totalDurationMins` can no longer answer "is resource X free" — a booking can span a bundle or leg chain with a different sub-window per resource. The real adapter moves from querying `bookings` directly to querying `booking.resource_occupancy`, the per-resource, per-window projection availability needs, and the port's shape changes accordingly to the current, live contract:
 
 ```typescript
 interface IBookingAvailabilityPort {

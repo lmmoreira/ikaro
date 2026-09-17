@@ -495,8 +495,8 @@ describe('GetAvailabilitySummaryUseCase', () => {
       // the room-scoped load (tenant-wide + resource-scoped rows) — 3 total, once each for the
       // whole 5-day range, not once per (day, scope) pair, which a naive per-day fetch would've
       // produced (15 calls here — 5x as many).
-      expect(closureSpy.mock.calls.length).toBe(3);
-      expect(openingSpy.mock.calls.length).toBe(3);
+      expect(closureSpy.mock.calls).toHaveLength(3);
+      expect(openingSpy.mock.calls).toHaveLength(3);
       expect(occupancySpy).toHaveBeenCalledTimes(1);
       expect(occupancySpy).toHaveBeenCalledWith(
         TENANT_ID,
