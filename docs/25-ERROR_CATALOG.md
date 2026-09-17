@@ -1,6 +1,6 @@
 # API Error Catalog - Ikaro
 
-**Status:** Live — reflects the shipped `code`-driven pattern (TD23)
+**Status:** Live — reflects the shipped `code`-driven pattern
 **Audience:** Frontend developers, API consumers, AI agents
 **Standard:** RFC 9457 Problem Details for HTTP APIs
 **Last Updated:** 2026-07-20
@@ -11,7 +11,7 @@
 
 Every non-2xx response from the BFF is an RFC 9457 Problem Details object. `type` is always the literal string `'about:blank'` — it is **not** a machine-readable identifier. The machine-readable identifier is `code`.
 
-An earlier version of this document specified a `type: 'https://api.<ikaro-domain>/errors#error-code'` URI-fragment scheme with frontend guidance to branch on `type`. That scheme was **never implemented** anywhere in the codebase — this document now describes the pattern actually shipped (`td/TD23-EXCEPTION-HANDLING-I18N-PATTERN.md` Story 17).
+An earlier version of this document specified a `type: 'https://api.<ikaro-domain>/errors#error-code'` URI-fragment scheme with frontend guidance to branch on `type`. That scheme was **never implemented** anywhere in the codebase — this document describes the pattern actually shipped.
 
 This document is the error-response *reference*. The canonical code catalog is `packages/types/src/error-codes.ts`, and translations live in `packages/i18n/locales/{locale}/errors.json` — both are the actual source of truth and are **not** duplicated inline here, since a copy would drift the moment either file changes. Full pattern detail (envelope shape, naming convention, frontend resolver, "adding a new error" checklist): `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern.
 
@@ -125,4 +125,4 @@ Codes are additive-only once shipped: never renamed or repurposed. Retiring a co
 
 **Status:** Live
 **Reference:** RFC 9457 (https://tools.ietf.org/html/rfc9457)
-**Full pattern & discovery history:** `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern, `td/TD23-EXCEPTION-HANDLING-I18N-PATTERN.md`
+**Full pattern:** `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern.

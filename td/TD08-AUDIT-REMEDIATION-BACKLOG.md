@@ -95,7 +95,7 @@
 
 ### AUD-001 — Transactional outbox for all domain events
 **Risk:** 🔴 Critical · **Effort:** L · **Phase:** Now · **Depends on:** — · **Audit ref:** `OPUS_AUDITORY.md` §4.1, §12.2, §12.3
-**Status:** ✅ Done — `td/TD24-OUTBOX-INBOX-PATTERN.md` (TD24-S01 through S04)
+**Status:** ✅ Done — `docs/03-DOMAIN_EVENTS.md` (TD24-S01 through S04)
 
 **Implemented notes**
 - `shared.outbox` (S01) — every aggregate-driven publish site writes an envelope row inside the same transaction as the state change, via `OUTBOX_PUBLISHER`/`IOutboxPublisher`; `OutboxRelayService`'s scheduled sweep (`SKIP LOCKED`, grace window) delivers unpublished rows to Pub/Sub, with an inline-dispatch fast path after commit.
@@ -278,6 +278,8 @@ Add `helmet()` to the BFF bootstrap. Tune as needed (the BFF serves JSON, so def
 **Risk:** 🟠 High · **Effort:** S · **Phase:** Now · **Depends on:** — · **Audit ref:** §8.3
 **Status:** ✅ Done
 
+> The problem and solution text below is a historical record from before the fix. The implementation now lives in `apps/web/proxy.ts`; present-tense statements in the original finding do not describe the current system.
+
 #### What's wrong
 `apps/web/next.config.ts` defines no `headers()` and `middleware.ts` sets none either — every route in `apps/web` (public hotsite `app/[slug]/`, authenticated `app/dashboard/`, authenticated customer `my-account`) ships with no CSP, HSTS, `frame-ancestors`, `X-Content-Type-Options`, or `Referrer-Policy`. The public hotsite is the sharper edge (renders tenant markdown, tenant image URLs, an inline JSON-LD `<script>`), but the gap is app-wide, not hotsite-only.
 
@@ -309,6 +311,8 @@ Extend `middleware.ts` (which already runs on every non-`api`/`_next`/favicon pa
 ### AUD-008 — Isolate BFF HTTP-client auth state (`client-only` guard) ✅
 **Risk:** 🟠 High (latent) · **Effort:** XS · **Phase:** Now (before dashboard) · **Depends on:** — · **Audit ref:** §8.4
 **Status:** ✅ Done
+
+> The problem statement below describes the pre-fix client. Current browser transport lives under `apps/web/shared/lib/api/` and is explicitly client-only; server components use request-scoped server transport.
 
 #### What's wrong
 `apps/web/lib/api/bff-client.ts` holds `_token`/`_tenantId`/`_tenantSlug` in **module scope** (set via `configureBffClient`). In a Node server process, module scope is shared across all concurrent requests — if a dashboard fetcher is ever called from a Server Component, two users race on `_token` → cross-tenant token leak. Currently latent (dashboard is a client-rendered stub), but a loaded gun.
@@ -450,7 +454,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-018 — Pub/Sub ordering keys per booking
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Depends on:** AUD-001 · **Audit ref:** §12.6
-**Status:** ☐ Not started — dependency (AUD-001) now satisfied, unblocked. Explicitly out of scope for TD24 itself (`td/TD24-OUTBOX-INBOX-PATTERN.md` §Non-Goals: "No Pub/Sub ordering keys — TD08 AUD-018, separate follow-up. Relay is `SKIP LOCKED`, out-of-order-safe like today."). Remains a genuine open item for whoever picks it up next.
+**Status:** ☐ Not started — dependency (AUD-001) now satisfied, unblocked. Explicitly out of scope for TD24 itself (`docs/03-DOMAIN_EVENTS.md` §Non-Goals: "No Pub/Sub ordering keys — TD08 AUD-018, separate follow-up. Relay is `SKIP LOCKED`, out-of-order-safe like today."). Remains a genuine open item for whoever picks it up next.
 
 **What's wrong:** `gcp-pubsub-event-bus.adapter.ts` publishes with no `orderingKey`; a fast approve→reschedule/complete sequence can be consumed out of order (e.g. "approved" email after "completed").
 **Fix:** Publish booking-related events with `orderingKey = bookingId` and enable ordered delivery on those subscriptions. Accept the per-key throughput tradeoff.
@@ -663,11 +667,11 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Risk:** 🔵 Low · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — noticed incidentally in `pnpm dev` output while verifying AUD-007 live
 **Status:** ✅ Done — renamed in PR #292 (2026-07-30)
 
-**Implemented notes (2026-08-19 re-verify):** `apps/web/middleware.ts` no longer exists; `apps/web/proxy.ts` exists (`export async function proxy(...)`, `export const config = { matcher: ... }`). Doc-reference sweep was incomplete: this file itself (AUD-007's "Affected areas" line, now fixed) still had stale `middleware.ts` references — a reminder that AUD-043's own "update every doc reference in the same change" criterion needs re-checking against `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, and `docs/CI_TRAPS.md` too, which were out of scope for this pass.
+**Implemented notes (re-verified 2026-09-17):** `apps/web/middleware.ts` no longer exists; `apps/web/proxy.ts` exists (`export async function proxy(...)`, `export const config = { matcher: ... }`). Active canonical and milestone instructions were rechecked and now point to `proxy.ts`; occurrences retained in historical problem statements are explicitly labelled as historical.
 
 **What's wrong (historical):** Every `pnpm --filter @ikaro/web dev`/build run logged: `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.`
 **Fix:** Rename `apps/web/middleware.ts` → `apps/web/proxy.ts` per Next.js's migration guidance.
-**Acceptance:** ☑ No deprecation warning on `pnpm dev`/`pnpm build` for `apps/web`. ☑ All existing test cases pass unchanged. 🟡 Doc-reference sweep partially done — this file fixed, `docs/15`/`docs/16`/`docs/CI_TRAPS.md` not yet re-checked.
+**Acceptance:** ☑ No deprecation warning on `pnpm dev`/`pnpm build` for `apps/web`. ☑ All existing test cases pass unchanged. ☑ Active documentation references rechecked.
 
 ---
 

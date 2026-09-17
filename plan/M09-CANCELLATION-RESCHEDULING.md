@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE-CASES.md` § UC-007, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § cancellation_window_hours
+**Docs to load:** `docs/04-USE_CASES.md` § UC-007, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § cancellation_window_hours
 
 **Description:**  
 Implement customer-initiated booking cancellation. The cancellation window is read from `tenants.settings.booking.cancellation_window_hours` — if fewer than that many hours remain before `scheduledAt`, cancellation is refused. The window is never hardcoded.

@@ -331,7 +331,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 
 ### **7. Chatbot Settings** (`settings.chatbot`)
 
-Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT) — an LLM-backed FAQ widget scoped to the tenant's own business data. Full design rationale: `docs/discovery/CHATBOT/CHATBOT.md`.
+Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT) — an LLM-backed FAQ widget scoped to the tenant's own business data. Full design rationale: `docs/04-USE_CASES.md` UC-033–UC-036.
 
 **Deliberate deviation from this doc's own pattern, explained once here:** every other category above writes its full default into every tenant's row at creation (§ Defaults), because those fields are meant to diverge per tenant over time — each tenant genuinely owns its own value going forward. `chatbot`'s caps are the opposite: they're meant to stay **uniform across every tenant**. Copying today's default into every row at creation would mean a future platform-wide default change silently doesn't apply to any tenant already provisioned — a migration would be needed to bulk-update everyone, defeating the point of a cap that's supposed to be adjustable without a deploy touching tenant data. So: only `knowledgeText` follows the normal pattern (real per-tenant content, defaulted to `""` at creation). Every other field in this category is **absent from a tenant's row unless Ikaro explicitly overrides it for that one tenant** — resolved at read time as `tenant.settings.chatbot?.X ?? DEFAULT_X`, where `DEFAULT_X` is a plain code constant (`contexts/platform/chatbot.constants.ts`), not a database value. Changing a platform-wide default is a one-line code change through a normal reviewed deploy, applying instantly to every tenant with no migration.
 
@@ -349,7 +349,7 @@ Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITE
 | `llmProvider` | `'openrouter'` \| `'anthropic'` \| `'openai'` \| null | null (falls back to `CHATBOT_LLM_PROVIDER` env var) | No | Per-tenant override of which adapter answers this tenant's chatbot (e.g. a premium contract, or a tenant testing a different model) |
 | `llmModel` | string \| null | null (adapter's own default model) | No | Per-tenant override of which model the resolved provider uses |
 
-**Not in this category, on purpose:** two platform-wide operational breakers — `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (1 — revised from the original 25, see `docs/discovery/CHATBOT/CHATBOT.md` §9's dated correction) and `CHATBOT_MIN_PROVIDER_BALANCE_USD` (2) — stay env vars, never a `tenants.settings` field at all, even as an override. No tenant should be able to opt out of a platform-protecting backstop, and these need to change fast during a real incident (an env var updates in minutes; a code constant needs a full deploy cycle) — the opposite risk profile from the security-critical guardrail rules (`buildAssistantRules()`'s text), which deliberately need *friction* to change and are a hardcoded string, never sourced from any tenant data or settings field at all.
+**Not in this category, on purpose:** two platform-wide operational breakers — `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (1 — revised from the original 25, see `docs/04-USE_CASES.md` UC-033–UC-036's dated correction) and `CHATBOT_MIN_PROVIDER_BALANCE_USD` (2) — stay env vars, never a `tenants.settings` field at all, even as an override. No tenant should be able to opt out of a platform-protecting backstop, and these need to change fast during a real incident (an env var updates in minutes; a code constant needs a full deploy cycle) — the opposite risk profile from the security-critical guardrail rules (`buildAssistantRules()`'s text), which deliberately need *friction* to change and are a hardcoded string, never sourced from any tenant data or settings field at all.
 
 **Example** (a tenant with only `knowledgeText` set — the common case):
 ```json
@@ -373,16 +373,16 @@ Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITE
 
 **Validation Rules:**
 - `knowledgeText`, when present, must not exceed the resolved `maxKnowledgeTextLength` (default 4000, or this tenant's own override if one exists)
-- Every other field in this category is rejected by `PATCH /v1/tenants/settings` if a request attempts to set it through the normal admin-facing settings form path — these are set only via a direct database update or an ad hoc script, run by a developer, not through the API (see `docs/discovery/CHATBOT/CHATBOT.md` §5 — deliberately not gold-plated with a dedicated internal endpoint at this frequency)
+- Every other field in this category is rejected by `PATCH /v1/tenants/settings` if a request attempts to set it through the normal admin-facing settings form path — these are set only via a direct database update or an ad hoc script, run by a developer, not through the API (see `docs/04-USE_CASES.md` UC-033–UC-036 — deliberately not gold-plated with a dedicated internal endpoint at this frequency)
 - `llmProvider`, when present, must be one of the built adapters (`'openrouter'`, `'anthropic'`, `'openai'`)
 
-**Usage:** Read by UC-033's system-prompt assembly (`knowledgeText`) and by the per-tenant LLM provider/model resolution (`llmProvider`/`llmModel`) — see `docs/04-USE_CASES.md` UC-033/UC-034 and `docs/discovery/CHATBOT/CHATBOT.md` §4/§6.
+**Usage:** Read by UC-033's system-prompt assembly (`knowledgeText`) and by the per-tenant LLM provider/model resolution (`llmProvider`/`llmModel`) — see `docs/04-USE_CASES.md` UC-033/UC-034 and `docs/04-USE_CASES.md` UC-033–UC-036/§6.
 
 ---
 
 ### **8. Lead Form Settings** (`settings.leadForm`)
 
-Configuration for the `LEAD_FORM` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM) — a manager-configurable lead-capture form. Full design rationale: `docs/discovery/lead-form-module/lead-form-module.md`.
+Configuration for the `LEAD_FORM` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM) — a manager-configurable lead-capture form. Full design rationale: `docs/04-USE_CASES.md` UC-037–UC-043.
 
 **Not a `chatbot`-style deviation — all three fields are genuinely per-tenant, all default-at-creation, all `UC-042`-editable.** An earlier draft of this section copied `chatbot`'s "platform-wide code constant" treatment for the two volume caps, reasoning by surface resemblance to Chatbot's own caps rather than by the actual underlying justification. That reasoning doesn't transfer: Chatbot's caps exist to protect **Ikaro's own LLM provider spend** — a real, shared platform-wide financial exposure that genuinely justifies keeping them uniform and Ikaro-controlled. A lead-form submission costs Ikaro nothing; `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` are pure **abuse/bot protection**, with no platform-wide cost to protect — so there's no reason to deny an individual tenant control over their own limit. This also directly avoids a real risk a platform-wide default would create: Brazilian mobile carriers commonly use CGNAT, where many unrelated visitors share one public IP — a hardcoded `maxSubmissionsPerIpPerDay: 3` with no tenant override would risk falsely blocking legitimate guests on any tenant with real mobile traffic, with no way for that tenant to raise their own limit.
 
@@ -624,4 +624,4 @@ When implementing any feature that reads tenant configuration:
 ---
 
 **Status:** Complete — UC-026 (Tenant Settings Edit) implemented in `M13-S31`; §7 Chatbot Settings implemented across M19 (M19-S04 category/validation, M19-S13 tenant-settings form section)  
-**Reference:** 04-USE_CASES.md UC-026/UC-033/UC-034, 02-DOMAIN_MODEL.md tenants section, `docs/discovery/CHATBOT/CHATBOT.md`
+**Reference:** 04-USE_CASES.md UC-026/UC-033/UC-034, 02-DOMAIN_MODEL.md tenants section, `docs/04-USE_CASES.md` UC-033–UC-036

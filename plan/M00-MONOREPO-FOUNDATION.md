@@ -43,7 +43,7 @@ Create the root monorepo scaffold. This is the empty skeleton that every subsequ
 
 **Agent:** `devops`  
 **Complexity:** S  
-**Docs to load:** `docs/07-ENGINEERING_PRINCIPLES.md` § code standards
+**Docs to load:** `docs/CODE_STANDARDS.md`
 
 **Description:**  
 Populate `packages/config` with the shared ESLint, TypeScript base, and Prettier configurations that all three apps (`backend`, `bff`, `web`) will extend. This ensures every agent writing code in any app follows identical linting and formatting rules from day one.
@@ -69,7 +69,7 @@ Populate `packages/config` with the shared ESLint, TypeScript base, and Prettier
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/11-ARCHITECTURE.md` § hexagonal layers, `docs/07-ENGINEERING_PRINCIPLES.md`
+**Docs to load:** `docs/11-ARCHITECTURE.md` § hexagonal layers, `docs/ENGINEERING_RULES.md`
 
 **Description:**  
 Bootstrap the NestJS v11 backend application with the correct hexagonal folder structure, health check endpoints, and the IEventBus port wired to a no-op adapter for local development. No business logic yet — this is the structural scaffold all backend contexts will be built on top of.
@@ -256,7 +256,7 @@ Set up TypeORM DataSource configuration for each bounded context and the migrati
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § value objects, `docs/07-ENGINEERING_PRINCIPLES.md` § hexagonal layers
+**Docs to load:** `docs/02-DOMAIN_MODEL.md` § value objects, `docs/ENGINEERING_RULES.md` § Architecture
 
 **Description:**  
 Implement the base domain classes that every bounded context's domain layer will extend or use. These live in `apps/backend/src/shared/` and are the only shared code importable across contexts. No framework dependencies — pure TypeScript.

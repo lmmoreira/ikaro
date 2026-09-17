@@ -281,7 +281,7 @@ describe('HotsiteEditor', () => {
     // promotion the backend just performed (and deleted the tmp/ object for). Before this fix,
     // `draft` never absorbed that response, so a *second* save resubmitted the stale tmp/
     // reference — which the backend then rejects with HotsiteImageNotUploadedError, because the
-    // tmp/ object no longer exists (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
+    // tmp/ object no longer exists (see docs/14-API_CONTRACTS.md).
     it('refreshes the draft with the promoted path from the PATCH response, so a second save does not resubmit a dead tmp/ reference', async () => {
       const tmpPath = 'tmp/tenant-a-id/hero/u1/banner.png';
       const promotedPath = 'tenants/tenant-a-id/hotsite/hero/u1/banner.png';

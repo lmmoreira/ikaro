@@ -46,7 +46,7 @@ const OPENTELEMETRY_PATTERN = {
 const EVENT_BUS_PORT_PATTERN = {
   regex: '\\/event-bus\\.port$',
   message:
-    'Publish sites depend on OUTBOX_PUBLISHER/IOutboxPublisher (shared/ports/outbox-publisher.port), not EVENT_BUS — see td/TD24-OUTBOX-INBOX-PATTERN.md D14.',
+    'Publish sites depend on OUTBOX_PUBLISHER/IOutboxPublisher (shared/ports/outbox-publisher.port), not EVENT_BUS — see docs/03-DOMAIN_EVENTS.md D14.',
 };
 // Use cases and application services must not inject RequestContext — caller context is
 // passed via the input DTO instead, keeping use cases callable from event handlers, scheduled

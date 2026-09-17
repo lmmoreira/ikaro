@@ -371,7 +371,7 @@ expect(dispatcher.dispatched[0].subject).toContain('confirmado');
 
 | Item | Location |
 |---|---|
-| Hardcoded pt-BR strings in migrations and test assertions | `td/TD02-LOCALIZATION.md` |
+| Hardcoded pt-BR strings in migrations and test assertions | Keep seed/test data explicit; use `docs/ENGINEERING_RULES.md` for UI-copy localization rules |
 | `NotificationTemplate` does not extend `AggregateRoot` despite being named `.aggregate.ts` | To be fixed in a cleanup story |
 | `retry_count` on `notification_logs` incremented but never read in production | Low priority; column exists for future observability use |
 

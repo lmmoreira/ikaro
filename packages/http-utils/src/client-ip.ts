@@ -6,7 +6,7 @@
 // *new* connection from ikaro-web itself, so the raw proxy headers a request arrives with at
 // BFF (X-Forwarded-For, CF-Connecting-IP) never carry the real browser IP — they describe
 // ikaro-web's own egress hop, not the original request. See
-// td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md for the full root cause.
+// plan/M17-CLOUD-DEPLOY.md for the full root cause.
 //
 // Two distinct resolution strategies live here, for two different trust boundaries:
 //

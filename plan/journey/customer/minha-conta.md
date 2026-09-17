@@ -133,7 +133,7 @@ Folder: `customer/prototypes/minha-conta/`
 
 ## M24 — Multi-Vertical Scheduling, Cluster 4 extension (❓ Gap, not yet built)
 
-> Promoted from `docs/discovery/multivertical-booking/minha-conta-turmas-journey.md` via `/discovery-to-milestone` — that file already reached implementation-grade rigor during discovery UX work, so this carries its content forward with canonical UC numbers substituted for `CAND-XX`. "Minha Conta" gains a third section — Turmas — alongside the existing Agendamentos and Fidelidade. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+> Promoted from `docs/discovery/multivertical-booking/prototype/minha-conta-turmas-journey.md` via `/discovery-to-milestone` — that file already reached implementation-grade rigor during discovery UX work, so this carries its content forward with canonical UC numbers substituted for `CAND-XX`. "Minha Conta" gains a third section — Turmas — alongside the existing Agendamentos and Fidelidade. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 
 ```mermaid
 flowchart TD

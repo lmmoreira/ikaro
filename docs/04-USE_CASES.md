@@ -1921,7 +1921,7 @@ Returns:
 
 ## Chatbot Use Cases
 
-Promoted from `docs/discovery/CHATBOT/CHATBOT.md` (discovery doc kept as the permanent design rationale — not superseded by these entries). Folds into the Platform context, not a new bounded context (`docs/05-BOUNDED_CONTEXTS.md`). MVP scope boundary: informational-only — the bot never confirms/creates/modifies a booking, never quotes a binding price as a commitment, never accesses any customer/staff/booking record.
+The promoted chatbot design is canonical here for behavior, in `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` for the hotsite module, and in `docs/21-TENANTS_SETTINGS_SCHEMA.md` for configuration. It folds into the Platform context, not a new bounded context (`docs/05-BOUNDED_CONTEXTS.md`). MVP scope boundary: informational-only — the bot never confirms/creates/modifies a booking, never quotes a binding price as a commitment, never accesses any customer/staff/booking record.
 
 ### **UC-033: Guest Asks Chatbot a Question**
 
@@ -1944,8 +1944,8 @@ Promoted from `docs/discovery/CHATBOT/CHATBOT.md` (discovery doc kept as the per
    - **A2: `maxMessagesPerConversation` reached mid-conversation** → same interrupted-state behavior as A1, distinct error code.
    - **A3: `message.length > maxMessageLengthChars`** → `400`, rejected before reaching the backend or the LLM; inline validation message, input stays enabled (not conversation-ending).
    - **A4: LLM provider call fails mid-conversation** (timeout, `insufficient credits`, upstream error) after being healthy at the last pre-flight check → interrupted state, generic "assistant unavailable" message, phone/WhatsApp fallback offered.
-   - **A5: Visitor attempts prompt injection** (e.g. "ignore your instructions," a fake-authority booking-confirmation attempt) → the hardcoded guardrail section causes the model to refuse/redirect; empirically validated 7/7 in `docs/discovery/CHATBOT/eval/` (2026-08-07). This is a model-behavior outcome, not a server-side detection branch — the bot has zero tools/write access (§2 scope boundary), so even an unlikely successful jailbreak has nothing to execute.
-   - **A6: Platform-wide daily spend circuit breaker or provider balance floor already tripped** → new session creation refused for every tenant simultaneously, `429` (same status as A1 — decided during M19-S05 story-discovery, 2026-08-12). Normally caught earlier at UC-034's pre-flight check; listed here too since the breaker could trip between one visitor's session-start and the next visitor's. **New-session creation only** — an already-open conversation is exempt, per `CHATBOT.md` §8.9: "already-open conversations remain bounded by their own per-session caps regardless" (clarified after a PR #360 review finding that an earlier implementation misread this alternative flow as also blocking existing sessions).
+   - **A5: Visitor attempts prompt injection** (e.g. "ignore your instructions," a fake-authority booking-confirmation attempt) → the hardcoded guardrail section causes the model to refuse/redirect; empirically validated 7/7 during M19 discovery (7/7 scenarios, 2026-08-07). This is a model-behavior outcome, not a server-side detection branch — the bot has zero tools/write access (§2 scope boundary), so even an unlikely successful jailbreak has nothing to execute.
+   - **A6: Platform-wide daily spend circuit breaker or provider balance floor already tripped** → new session creation refused for every tenant simultaneously, `429` (same status as A1 — decided during M19-S05 story-discovery, 2026-08-12). Normally caught earlier at UC-034's pre-flight check; listed here too since the breaker could trip between one visitor's session-start and the next visitor's. **New-session creation only** — an already-open conversation is exempt, per `docs/04-USE_CASES.md` UC-033 A6: "already-open conversations remain bounded by their own per-session caps regardless" (clarified after a PR #360 review finding that an earlier implementation misread this alternative flow as also blocking existing sessions).
 
 - **Postconditions:** One or more `chatbot_messages` rows persisted per exchange; `chatbot_sessions.message_count`/`last_message_at` updated. No booking, customer, or staff record is ever read or written.
 - **Events Triggered:** None — no other bounded context needs to react synchronously to a chat message (`docs/03-DOMAIN_EVENTS.md` deliberately unchanged by this feature).
@@ -2008,7 +2008,7 @@ Promoted from `docs/discovery/CHATBOT/CHATBOT.md` (discovery doc kept as the per
 
 ## Lead Form Use Cases
 
-Promoted from `docs/discovery/lead-form-module/lead-form-module.md` (M20). A new `LEAD_FORM` hotsite module lets a manager configure up to 20 custom questions which guests and/or logged-in customers answer on a dedicated page — a genuine lead-capture tool (name/email/phone mandatory on every submission), protected by Cloudflare Turnstile + per-IP/per-tenant rate limits. Full domain/data-model rationale: the discovery doc (kept as the permanent *why*, not archived).
+The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DOMAIN_MODEL.md` for the domain model, and in `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` for the hotsite module. A `LEAD_FORM` module lets a manager configure up to 20 custom questions which guests and/or logged-in customers answer on a dedicated page; name, email, and phone are mandatory on every submission, protected by Cloudflare Turnstile and per-IP/per-tenant rate limits.
 
 ### **UC-037: Manager Configures the Lead Form Module**
 

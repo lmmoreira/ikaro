@@ -3,7 +3,7 @@
 **Actor(s):** CUSTOMER
 **Goal:** Submit interest via a tenant's lead-capture form, with contact fields pre-filled from the account profile
 **UCs covered:** UC-040
-**Status:** Built — M20-S09. Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
+**Status:** Built — M20-S09. Implemented from the lead-form design promoted via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
 
 ## Flow
 

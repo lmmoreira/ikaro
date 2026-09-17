@@ -3,7 +3,7 @@
 **Journey:** MANAGER — Configure the Lead Form Module
 **UCs:** UC-037
 **Prototype:** `manager/prototypes/lead-form/`
-**Status:** ✅ Shipped M20-S08. Promoted from `docs/discovery/lead-form-module/prototype/` (M20 milestone, `docs/04-USE_CASES.md` UC-037). Full domain/data-model rationale: `docs/discovery/lead-form-module/lead-form-module.md`.
+**Status:** ✅ Shipped M20-S08. Canonical behavior and rationale: `docs/04-USE_CASES.md` UC-037–UC-043, `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig`, and `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM.
 
 ---
 

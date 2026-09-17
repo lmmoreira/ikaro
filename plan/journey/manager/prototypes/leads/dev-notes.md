@@ -3,7 +3,7 @@
 **Journey:** MANAGER/STAFF — View Leads Submissions
 **UCs:** UC-041
 **Prototype:** `manager/prototypes/leads/`
-**Status:** ✅ Done — base list/detail + gated nav (M20-S10), search backend/BFF (M20-S12), search frontend UI (M20-S13, basic/advanced/date-range, button-driven — see below). Promoted from `docs/discovery/lead-form-module/prototype/` (M20 milestone, `docs/04-USE_CASES.md` UC-041).
+**Status:** ✅ Done — base list/detail + gated nav (M20-S10), search backend/BFF (M20-S12), search frontend UI (M20-S13, basic/advanced/date-range, button-driven — see below). Canonical behavior: `docs/04-USE_CASES.md` UC-041 and `docs/14-API_CONTRACTS.md` § Leads Submissions.
 
 ---
 

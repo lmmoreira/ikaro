@@ -91,7 +91,7 @@ Bold fields (excluding Chatbot/Lead Form, tracked separately below) were entirel
 
 ## Chatbot section (✅ shipped)
 
-Promoted from `docs/discovery/CHATBOT/CHATBOT.md` §5/§6 via `/discovery-to-milestone` (2026-08-08).
+Promoted from `docs/04-USE_CASES.md` UC-033–UC-036/§6 via `/discovery-to-milestone` (2026-08-08).
 Prototyped in `01d-chatbot-section.html` against the full, current 7-section form (not an excerpt).
 
 **Field:** `chatbot.knowledgeText` — the only tenant-editable field in the `chatbot` settings
@@ -118,14 +118,14 @@ interface UpdateTenantSettingsDto {
 **Deliberately absent from this form:** the 8 volume/cost caps (`maxConversationsPerDay`, etc.) and
 `llmProvider`/`llmModel` — fixed platform defaults, Ikaro-only per-tenant override, never accepted
 through this endpoint even if present in the request body (see
-`docs/discovery/CHATBOT/CHATBOT.md` §5 for the full rationale, `docs/21-TENANTS_SETTINGS_SCHEMA.md`
+`docs/04-USE_CASES.md` UC-033–UC-036 for the full rationale, `docs/21-TENANTS_SETTINGS_SCHEMA.md`
 §7 for the complete field list).
 
 ---
 
 ## Formulário de contato (Lead Form) section (❌ GAP — not yet built)
 
-Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone`
+Implemented from the lead-form design promoted via `/discovery-to-milestone`
 (M20). Prototyped in `01e-lead-form-section.html` as an excerpt against the full, current
 8-section form (not a standalone screen) — see that file's own comment block for the excerpt note.
 

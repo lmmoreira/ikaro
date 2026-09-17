@@ -1,6 +1,6 @@
 # Dev Notes — CUSTOMER: Submit Lead Form (prefilled)
 
-**Status:** ❌ Gap — nothing built yet. Promoted from `docs/discovery/lead-form-module/prototype/` (M20 milestone, `docs/04-USE_CASES.md` UC-040).
+**Status:** ✅ Shipped in M20-S09. The authenticated, prefilled variant shares the production `LeadFormPage` with the guest flow (`docs/04-USE_CASES.md` UC-040).
 
 ---
 

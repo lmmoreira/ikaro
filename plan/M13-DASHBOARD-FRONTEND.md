@@ -84,7 +84,7 @@ Set up TanStack Query (React Query) as the global data-fetching layer and create
   - `useBookings(filters)`, `useBooking(id)`, `useCreateBooking()`, `useUpdateBookingStatus()`
   - `useServices()`, `useCreateService()`, `useUpdateService()`
   - `useAvailability(date, serviceIds)`, `useScheduleClosures()`
-  - `useLoyaltyBalance()`, `useLoyaltyEntries()` — **removed 2026-07-27**: never wired to a real page, fully duplicated by `features/customer/api.server.ts` and `features/loyalty/dashboard-api.ts`. Do not recreate — see `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md` Story 2 / PR #280.
+  - `useLoyaltyBalance()`, `useLoyaltyEntries()` — **removed 2026-07-27**: never wired to a real page, fully duplicated by `features/customer/api.server.ts` and `features/loyalty/dashboard-api.ts`. Do not recreate — see `docs/ANTI_PATTERNS.md` Story 2 / PR #280.
   - `useStaff()`, `useInviteStaff()`, `useDeactivateStaff()`
   - `useTenantSettings()`, `useUpdateTenantSettings()`
   - `useHotsiteConfig()`, `useUpdateHotsiteConfig()`
@@ -381,7 +381,7 @@ Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per pho
 **Description:**
 Verify and fill the BFF surface for staff service management. `POST /v1/services`, `PATCH /v1/services/:id`, and `DELETE /v1/services/:id` were implemented in M05 — this story confirms they exist and adds any missing pieces: a staff-authenticated list endpoint that returns **inactive** services (the public hotsite endpoint only returns `isActive: true`), and a single-service fetch for edit pre-fill.
 
-> **Note (resolved during M13-S05):** `@ikaro/types`'s `CreateServiceRequest`/`UpdateServiceRequest` were fixed to the dominant `priceAmount`/`loyaltyPointsValue` convention (matching the backend Zod schema, the BFF Zod schema, and the web fetcher — all three already agreed; `@ikaro/types` was the one out of sync). `apps/web/lib/api/dashboard/services.ts` now imports these (plus the new `StaffServiceResponse`/`StaffServiceListResponse`) from `@ikaro/types` instead of redeclaring them locally. The story's own proposed `priceAmountCents`/`durationMins` shapes below were **not** adopted — `priceAmountCents` would have implied an integer-cents semantic that doesn't match `Money.from(dto.priceAmount, currency)`'s actual decimal usage; almost certainly a leftover from the older `M125-S07` draft. See `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` for the full writeup (the `services` case there is now resolved; `customers`/`loyalty`/`staff` remain open).
+> **Note (resolved during M13-S05):** `@ikaro/types`'s `CreateServiceRequest`/`UpdateServiceRequest` were fixed to the dominant `priceAmount`/`loyaltyPointsValue` convention (matching the backend Zod schema, the BFF Zod schema, and the web fetcher — all three already agreed; `@ikaro/types` was the one out of sync). `apps/web/lib/api/dashboard/services.ts` now imports these (plus the new `StaffServiceResponse`/`StaffServiceListResponse`) from `@ikaro/types` instead of redeclaring them locally. The story's own proposed `priceAmountCents`/`durationMins` shapes below were **not** adopted — `priceAmountCents` would have implied an integer-cents semantic that doesn't match `Money.from(dto.priceAmount, currency)`'s actual decimal usage; almost certainly a leftover from the older `M125-S07` draft. See `docs/ANTI_PATTERNS.md` for the full writeup (the `services` case there is now resolved; `customers`/`loyalty`/`staff` remain open).
 >
 > **Also resolved:** the bare `GET /v1/services` already belonged to the public hotsite controller (`ServicesPublicController`), which would have collided with the new staff-guarded list at the same path. Moved the public controller to `public/services` (and, for the same reason, `platform.public.controller.ts` to `public/platform`) — see `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions for the new default rule. `ListServicesUseCase` now branches on `RequestContext.actorRole` (mirroring `GetBookingUseCase` from `M13-S04`) to return inactive services to STAFF/MANAGER only. `DELETE /v1/services/:id` now returns `204` (was `200` + body) to match this story's AC.
 
@@ -1354,7 +1354,7 @@ New design: staff is always provisioned as `is_active=true`; the invite link onl
 
 `/auth/first-login` page is **removed** — the only path to it was `is_active=false` via regular login, which is now an error condition.
 
-> 🔍 **Discover before starting:** `apps/web/middleware.ts` already exists and redirects `/dashboard/**` to `/auth/login` (wrong target — fix in this story). `apps/web/app/auth/login/page.tsx` is a 3-line stub to delete. `apps/web/app/dashboard/page.tsx` is a stub — leave it.
+> 🔍 **Discover before starting:** `apps/web/proxy.ts` already exists and redirects `/dashboard/**` to `/auth/login` (wrong target — fix in this story). `apps/web/app/auth/login/page.tsx` is a 3-line stub to delete. `apps/web/app/dashboard/page.tsx` is a stub — leave it.
 
 **Prototype references:**
 - `plan/journey/shared/staff-login.html` → `/dashboard/login`
@@ -1550,7 +1550,7 @@ Add `IssueStaffTokenDto` / `IssueStaffTokenSchema` (same pattern as `IssueTokenD
 
 #### Layer 6 — Frontend
 
-**`apps/web/middleware.ts`** — fix redirect target:
+**`apps/web/proxy.ts`** — fix redirect target:
 ```typescript
 // was: new URL('/auth/login', request.url)
 new URL('/dashboard/login', request.url)
@@ -1628,7 +1628,7 @@ Show reason code in small grey text at bottom: `"Código: <reason>"`.
 - [ ] `GET /auth/error?reason=tenant-not-found` renders correct heading + CTA → `/`
 - [ ] `GET /auth/error` (no reason) renders fallback without throwing
 - [ ] `GET /select-staff-tenant?token=<valid>` renders tenant list fetched from BFF
-- [ ] `apps/web/middleware.ts` redirects unauthenticated `/dashboard/**` to `/dashboard/login`
+- [ ] `apps/web/proxy.ts` redirects unauthenticated `/dashboard/**` to `/dashboard/login`
 - [ ] Staff provisioned via `TenantProvisioned` event has `isActive: true` in DB
 - [ ] `POST /internal/staff/:id/link-google` links `googleOAuthId` for an active staff; returns 403 for deactivated staff
 - [ ] `GET /internal/staff/by-oauth` returns `StaffInfoResponse[]` (array); returns `[]` when not found (no 404)
@@ -1647,7 +1647,7 @@ Show reason code in small grey text at bottom: `"Código: <reason>"`.
 
 **Agent:** `frontend-ts` (frontend) + `bff-ts` (two new/changed BFF endpoints) + `backend-ts` (one new internal endpoint)
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `td/TD02-LOCALIZATION.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES.md`
 
 **Scope-change rationale (read before starting):** the story originally planned three deliverables: the tenant-branded login screen, a multi-tenant selection screen (`/select-tenant`, UC-021 Case B), and the phone-completion prompt. A discovery session found:
 1. The login screen was already built in `M13-S42` (out of build order) — nothing left to do there.
@@ -1835,11 +1835,11 @@ The shell matches `plan/journey/shared/dashboard-shell.html` and `plan/journey/s
 - **Desktop (`≥1024px`):** fixed left sidebar (logo, nav, manager section, user footer) + topbar (page title + date + avatar) + `main`
 - **Role-aware nav:** "Somente Gerente" section in sidebar is only rendered when JWT role = MANAGER
 
-> 🔍 **Discover before starting:** Check `apps/web/app/dashboard/` — there may be a `layout.tsx` stub or middleware already. If `apps/web/middleware.ts` exists, read it in full before adding route protection. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for canonical folder structure before placing any new files.
+> 🔍 **Discover before starting:** Check `apps/web/app/dashboard/` — there may be a `layout.tsx` stub or middleware already. If `apps/web/proxy.ts` exists, read it in full before adding route protection. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for canonical folder structure before placing any new files.
 
 **What to create:**
 
-`apps/web/middleware.ts` — **extend** (already exists — created in M13-S13 to fix the `/dashboard/login` redirect; add role-based JWT guard on top):
+`apps/web/proxy.ts` — **extend** (already exists — created in M13-S13 to fix the `/dashboard/login` redirect; add role-based JWT guard on top):
 - Read JWT from `httpOnly` cookie
 - If no JWT or JWT role is not `STAFF` | `MANAGER` → redirect to `/dashboard/login`
 - If JWT valid → pass through (the existing `x-pathname` propagation for i18n must be preserved)
@@ -1915,13 +1915,13 @@ The shell matches `plan/journey/shared/dashboard-shell.html` and `plan/journey/s
 **Description:**
 Implement the foundational shell for the customer area. All `/{slug}/my-account/**` routes require a valid CUSTOMER JWT — unauthenticated users must be redirected to login. The visual shell matches `plan/journey/shared/customer-dashboard.html` and `plan/journey/customer/prototypes/minha-conta/01-minha-conta.html` (prototype folder stays pt-BR — see naming note below; the production route is `my-account`, not `minha-conta`).
 
-> 🔍 **Discover before starting:** Check `apps/web/app/[slug]/` for any existing `my-account/` folder or `layout.tsx`. Check `apps/web/middleware.ts` — read it in full before extending it; the staff guard (added in `M13-S15`) must not be broken. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for the canonical folder structure before placing any files.
+> 🔍 **Discover before starting:** Check `apps/web/app/[slug]/` for any existing `my-account/` folder or `layout.tsx`. Check `apps/web/proxy.ts` — read it in full before extending it; the staff guard (added in `M13-S15`) must not be broken. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for the canonical folder structure before placing any files.
 
 > **Naming note:** the prototype folder/journey doc use the pt-BR concept name `minha-conta` (kept as-is — prototypes are conceptual mockups, not code). All production identifiers — route segment, folder, file, component names — use the English `my-account`, per the code-standards English-only rule. This was established in `M13-S42` (hotsite auth bar), which already links to `/{slug}/my-account` from the logged-in dropdown.
 
 **What to create:**
 
-Extend `apps/web/middleware.ts` — add protection for `/{slug}/my-account/**`:
+Extend `apps/web/proxy.ts` — add protection for `/{slug}/my-account/**`:
 - Read JWT from `access_token` httpOnly cookie
 - If missing or expired → redirect to `/{slug}/login`
 - If JWT role is not `CUSTOMER` → redirect to `/{slug}/login` (staff must not reach customer area)
@@ -3022,7 +3022,7 @@ The booking detail page for a customer. The page adapts based on status: APPROVE
 
 **What to create:**
 
-> **Moved (2026-08-04):** `fetchCustomerBookingDetail`/`fetchCustomerBookingDetailOrRedirect` and `cancelBooking`/`submitInfo` shown below shipped in `features/customer/api(.server).ts` as this story originally described, then relocated to `features/booking/api/customer(.server).ts` — renamed `cancelBookingAsCustomer`/`submitBookingInfoAsCustomer` to avoid colliding with the staff-facing exports of the same name — per the owning-domain-slice rule in `CLAUDE.md` §11. See `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md` Story 11 / PR #316. Kept below as the historical record of what this story originally built.
+> **Moved (2026-08-04):** `fetchCustomerBookingDetail`/`fetchCustomerBookingDetailOrRedirect` and `cancelBooking`/`submitInfo` shown below shipped in `features/customer/api(.server).ts` as this story originally described, then relocated to `features/booking/api/customer(.server).ts` — renamed `cancelBookingAsCustomer`/`submitBookingInfoAsCustomer` to avoid colliding with the staff-facing exports of the same name — per the owning-domain-slice rule in `CLAUDE.md` §11. See `docs/ANTI_PATTERNS.md` Story 11 / PR #316. Kept below as the historical record of what this story originally built.
 
 `apps/web/features/customer/api.server.ts` (extend from `M13-S27`) — server read via `bffServerFetch`:
 ```typescript
@@ -3546,7 +3546,7 @@ New shared components: `apps/web/shared/components/ui/section-card.tsx` (extract
 - [ ] On mobile viewport, the bottom nav is hidden on `/dashboard/hotsite` and the editor's own fixed action bar is visible instead (no overlap)
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
-**Dependencies:** M13-S15 ✅, M13-S32 ✅ — both satisfied. `/dashboard/hotsite` is already present in `apps/web/middleware.ts`'s `MANAGER_ONLY_ROUTES` (added ahead of time, comment references this story by name) — no middleware edit needed, no circular dependency.
+**Dependencies:** M13-S15 ✅, M13-S32 ✅ — both satisfied. `/dashboard/hotsite` is already present in `apps/web/proxy.ts`'s `MANAGER_ONLY_ROUTES` (added ahead of time, comment references this story by name) — no middleware edit needed, no circular dependency.
 
 ---
 
@@ -3694,7 +3694,7 @@ Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/
 >
 > **Fix, corrected during implementation (found the "omit unchanged fields" idea below doesn't actually work):** `branding` is shallow-merged server-side (`{...config.branding, ...dto.branding}`), so omitting an unchanged `logoUrl` key is safe. But `layout`'s per-module `data` is **not** merged — `UpdateHotsiteContentUseCase.toDomainLayout()` replaces each module's whole `data` object with exactly what's sent. Omitting an untouched field there wouldn't preserve the old value, it would delete the image reference entirely. The actual fix: `HotsiteImageUrlResolver.getPublicUrl()` builds resolved URLs as a plain `${publicBaseUrl}/${publicBucketName}/${storagePath}` concatenation (not signed/expiring), so the raw path can be recovered directly from any resolved URL by locating the `tenants/<tenantId>/` segment inside it and slicing from there (`apps/web/features/platform/hotsite/strip-resolved-image-urls.ts`). Applied unconditionally to every image field (branding.logoUrl + every module field + gallery/testimonial sub-items) right before the PATCH payload is built — a value without that segment (a fresh `tmp/`/`tenants/` upload, or an empty `logoUrl`) passes through unchanged, so this needs no per-field dirty-tracking and works whether the field changed this session or not. See the two follow-on bugs below for the opposite-direction (raw path → displayable URL) fixes this same field set also needed.
 >
-> **Sequencing note:** `td/TD22-ORPHANED-UPLOAD-CLEANUP.md` (tmp-staging + promote-on-save, not yet implemented) depends on this fix already being in place — see the precondition note added to that TD during this story's discovery. Implement `TD22` after this story, not before or concurrently.
+> **Historical sequencing note:** the tmp-staging/promote-on-save upload flow was implemented after this story. Its current contract is documented in `docs/14-API_CONTRACTS.md`; this completed story remains only as historical context.
 >
 > ⚠️ **Bug found during manual verification (2026-07-08): Preview crashed on a freshly-uploaded, not-yet-saved image.** A field the admin just uploaded this session holds the raw storage path the upload flow returned (resolution only happens server-side, on the next GET) — passed straight into `next/image`'s `src` by the M12 render components, it throws `Failed to parse src`. Fix: `resolveDraftImageUrls()` (`apps/web/features/platform/hotsite/resolve-draft-image-urls.ts`) — the mirror-image of `stripResolvedImageUrls()`, sharing the same field-traversal (`map-hotsite-image-fields.ts`, extracted so both directions can't drift out of sync) — resolves any non-absolute value against `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` before `HotsitePreview` renders anything. Called inside `HotsitePreview`, not on `HotsiteEditor`'s `draft` itself — the raw path is exactly what PATCH still needs later.
 >
@@ -3996,7 +3996,7 @@ export default async function SubmitInfoPage({ params, searchParams }: Props) {
 // Returns GuestBookingReadResponse | null (null if endpoint not found or 409)
 ```
 
-**New env var:** `apps/web/.env.example` needs `JWT_SECRET` added — same value as `apps/backend`/`apps/bff`'s `JWT_SECRET`, following the exact precedent already set by `HOTSITE_REVALIDATE_SECRET` in that file ("Must be ≥32 chars. Same value must be set in the backend..."). No CI workflow change needed — `pr-e2e.yml` already launches all three dev servers in one shared-env shell step, so `JWT_SECRET` is already implicitly available to the web process there.
+**New env var:** `apps/web/.env.example` needs `JWT_SECRET` added — same value as `apps/backend`/`apps/bff`'s `JWT_SECRET`, following the exact precedent already set by `HOTSITE_REVALIDATE_SECRET` in that file ("Must be ≥32 chars. Same value must be set in the backend..."). No CI workflow change needed — `pr-tests.yml` already launches all three dev servers in one shared-env shell step, so `JWT_SECRET` is already implicitly available to the web process there.
 
 ---
 
@@ -4540,7 +4540,7 @@ While verifying M13-S34 (deactivate member flow) live in the browser, we discove
 - [x] **Staff login Google button href prefix:** resolved in M13-S13 — uses `${NEXT_PUBLIC_BFF_URL}/auth/google?state=__staff__` (absolute BFF URL, same pattern as the customer login page). `NEXT_PUBLIC_BFF_URL` includes the `/v1` prefix (`http://localhost:3002/v1` in dev).
 - [ ] **Staff logout:** no logout endpoint designed yet. Current MVP behavior: JWT expiry → redirect to `/dashboard/login`. An explicit logout button is post-MVP — not scoped in any story above.
 - [ ] **"Bem-vindo(a)!" first-login banner (UC-025 step 8):** ⚠️ auth flow redesigned in M13-S13 — `link-google` now redirects straight to `/dashboard` with no distinguishable "first login" moment. To implement the banner, the BFF would need to detect that `google_oauth_id` was just set (i.e. call `link-google` succeeded where it previously returned 200 without a cookie) and append `?welcome=1` to the `/dashboard` redirect — this logic does not exist today. Post-MVP; fold into a follow-up patch if product wants it.
-- [x] **Playwright E2E suite for auth flows:** this note assumed full auth E2E coverage was blocked on a not-yet-built "Google OAuth test-bypass endpoint" deferred to M16-S06. That assumption was stale — `ENABLE_DEV_AUTH`'s `POST /v1/auth/dev-login` already serves exactly that purpose (mints a real JWT cookie without driving Google's consent screen) and was already wired into `pr-e2e.yml`'s CI job. Built in M13-S14 follow-up: `apps/web/e2e/helpers/auth.ts` (`loginAsCustomer`, `completeCustomerProfile`) plus E2E specs for authenticated hotsite-auth-bar states, `InformationCompletionPrompt`, `/switch-tenant`, and the staff-login middleware regression. No remaining blocker for auth-flow E2E coverage.
+- [x] **Playwright E2E suite for auth flows:** this note assumed full auth E2E coverage was blocked on a not-yet-built "Google OAuth test-bypass endpoint" deferred to M16-S06. That assumption was stale — `ENABLE_DEV_AUTH`'s `POST /v1/auth/dev-login` already serves exactly that purpose (mints a real JWT cookie without driving Google's consent screen) and was already wired into `pr-tests.yml`'s CI job. Built in M13-S14 follow-up: `apps/web/e2e/helpers/auth.ts` (`loginAsCustomer`, `completeCustomerProfile`) plus E2E specs for authenticated hotsite-auth-bar states, `InformationCompletionPrompt`, `/switch-tenant`, and the staff-login middleware regression. No remaining blocker for auth-flow E2E coverage.
 - [x] **Staff invite email `activationLink` broken (TD13):** ✅ resolved in `M13-S33`'s branch — `activationLink` now points to `/dashboard/login?tenantSlug=<slug>` instead of the dead `/{slug}/auth/staff` route. M13-S14 follow-up had already closed the underlying *gap* a different way (`handleStaffLogin`'s verified-email fallback meant a never-linked invitee could use the normal "Entrar com Google" button instead of needing the invite link at all), so this fix is the remaining UX-polish piece, not a blocker fix.
 
 ### Staff booking core (Phase 4, M13-S17–M13-S20)

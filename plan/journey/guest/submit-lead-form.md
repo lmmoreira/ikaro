@@ -3,7 +3,7 @@
 **Actor(s):** GUEST
 **Goal:** Submit interest via a tenant's lead-capture form (`LEAD_FORM` hotsite module) without authenticating, or get routed to login when the manager restricted the form to logged-in customers only
 **UCs covered:** UC-038, UC-039, UC-040 (A1 branch)
-**Status:** Built — the hotsite teaser section (`LeadFormModule`, M20-S07) and the dedicated `/[slug]/lead-form` page + submission flow below (M20-S09) are both done. Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
+**Status:** Built — the hotsite teaser section (`LeadFormModule`, M20-S07) and the dedicated `/[slug]/lead-form` page + submission flow below (M20-S09) are both done. Implemented from the lead-form design promoted via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
 
 ## Flow
 

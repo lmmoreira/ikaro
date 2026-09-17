@@ -34,7 +34,7 @@ now live, matching the validated prototype exactly. See `guest/prototypes/ask-ch
 for the implementation handoff details.
 
 Two platform-wide backstops (global daily spend circuit breaker, provider balance floor —
-`docs/discovery/CHATBOT/CHATBOT.md` §8.9/§8.10) can also flip the pre-flight check to
+`docs/04-USE_CASES.md` UC-033–UC-036/§8.10) can also flip the pre-flight check to
 `available: false` for every tenant simultaneously; not drawn as a separate node since, from this
 one GUEST's perspective, it's indistinguishable from any other "not available" cause.
 
@@ -60,7 +60,7 @@ one GUEST's perspective, it's indistinguishable from any other "not available" c
       (via `shared/hotsite.html`) already shows it, since the bubble lives on every hotsite page, not
       as a distinct step in this journey.
 - [ ] Full ten-layer cost/abuse-prevention design (caps, circuit breakers, prompt injection
-      defenses) is documented in `docs/discovery/CHATBOT/CHATBOT.md` §8/§9, not repeated here — this
+      defenses) is documented in `docs/04-USE_CASES.md` UC-033–UC-036/§9, not repeated here — this
       journey file covers navigation/UX states only, per `README.md`'s "what goes in the flowchart"
       convention.
 
