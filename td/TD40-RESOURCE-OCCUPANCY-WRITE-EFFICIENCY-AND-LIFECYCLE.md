@@ -34,7 +34,7 @@ graph TD
 
 ---
 
-### Story 1 — Batch `resource_occupancy` assignment/occupancy writes per candidate
+### Story 1 — Batch `resource_occupancy` assignment/occupancy writes per candidate ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
