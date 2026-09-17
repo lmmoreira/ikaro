@@ -6,7 +6,7 @@
 - **Context**: `booking` context — `booking.resource_occupancy` / `booking.booking_line_resource_assignments`
 - **Created**: 2026-09-17
 - **Discovered**: PR #483 (M22-S03) bot-review cycle (Codex, multiple agents/rounds). Both findings were explicitly triaged and declined as out-of-scope for that story, with a stated intent in the PR thread to track them as follow-up TDs.
-- **Decision status**: Ready for discovery and implementation in the order below (both stories are independent — no dependency edge); individual stories still begin with `/story-discovery`.
+- **Decision status**: ✅ Resolved (2026-09-17) — both stories done. Story 1 shipped in PR #487; Story 2 shipped in PR #488 (app code) + PR #489 (foundation IAM grant), per the devops PR-sequencing split resolved during its own `/story-discovery`.
 - **Related**: `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md` (M22-S03), `docs/13-DATABASE_SCHEMA.md` § `booking.resource_occupancy`
 
 ## Problem
@@ -82,7 +82,7 @@ Batch `upsertAssignment` into one multi-row `INSERT ... ON CONFLICT (...) DO NOT
 
 ---
 
-### Story 2 — `resource_occupancy` retention purge job
+### Story 2 — `resource_occupancy` retention purge job ✅ Done
 
 **Agent:** `backend-ts` + `devops`
 **Complexity:** S
@@ -91,6 +91,8 @@ Batch `upsertAssignment` into one multi-row `INSERT ... ON CONFLICT (...) DO NOT
 **Pattern:** plain composition — new `ResourceOccupancyRetentionPurgeJob` + trigger handler + manual-trigger controller endpoint, following `LeadFormRetentionPurgeJob`/`LeadFormRetentionPurgeTriggerHandler`/`CronChatbotController`'s exact shape (a single set-based `DELETE` via the query-builder form inside `txManager.run()`, registered on the shared cron trigger bus via `ITriggerBus.registerTrigger()` — no new scheduling infrastructure beyond the required Cloud Scheduler entry below).
 **Discovered:** PR #483 (M22-S03) bot review — Codex, lifecycle-hygiene finding, flagged in the very first review round; explicitly declined there as out-of-scope for that story (2026-09-17), tracked here as promised.
 **Devops PR sequence (resolved at `/story-discovery`, 2026-09-17):** 2 PRs, per `infra/terraform/README.md`'s "new Pub/Sub topic (cron trigger) + its app code" row. **PR1** (`envs/*` + `apps/backend`, label `infra-app-mix-ok`): all backend app code below, the new `google_cloud_scheduler_job` entry in `infra/terraform/modules/scheduler/main.tf`'s `locals.jobs` (`ikaro-cron-resource-occupancy-retention-purge` → topic_key `cron-resource-occupancy-retention-purge`, schedule `"0 3 * * *"`, matching the other daily purges), and `infra/terraform/pubsub-catalog.json` regenerated via `pnpm --filter @ikaro/infra-scripts run pubsub-catalog`. **PR2** (`foundation` only): add `cron-resource-occupancy-retention-purge` to the publisher-binding `for` loop in both `infra/terraform/foundation/envs/prod/main.tf` and `.../staging/main.tf` — **and, while touching that same loop, also add the already-missing `cron-lead-form-retention` entry** (pre-existing drift found during this story's discovery, unrelated to this story but cheapest to fix in the same edit).
+
+**Shipped:** PR #488 (app code + `envs/*` Scheduler entry, 2026-09-17, 3 Codex rounds — round 1 fixed a raw-SQL-vs-query-builder `deleteOlderThan()` deviation from its own AC, round 2 fixed a missing standalone-index test, round 3 clean; 4 CodeRabbit findings triaged, 3 declined with codebase-precedent citations, 1 deferred to PR2) + PR #489 (`foundation`-only IAM grant, 2026-09-17, clean on round 1 — also closed the pre-existing `cron-lead-form-retention` IAM gap noted above). Both merged to `main`. Live delivery (the Cloud Scheduler job's first real invocation actually reaching the trigger handler) is a post-merge runtime check outside this session's ability to verify directly — Terraform applies automatically to staging on merge per the CI/CD pipeline; prod applies behind its existing approval gate.
 
 **Description:**
 Add a booking-context job that deletes `resource_occupancy` rows whose `ends_at` is more than 90 days in the past, for **every** `lock_state` (`REQUESTED`, `HOLD`, `COMMITTED` alike) — matching the documented retention policy. `booking_line_resource_assignments` (the immutable audit record) is never touched by this job, the same invariant `release()`/`assign()` already preserve elsewhere in this codebase. Register via the existing cron trigger bus (`ITriggerBus`), mirroring `ChatbotRetentionPurgeTriggerHandler`'s registration shape exactly. "Trickle-deleted" in `docs/13-DATABASE_SCHEMA.md` means "daily cron, not backfill-style" — not literal chunked/batched deletes; a single set-based `DELETE` per run matches `ChatbotRetentionPurgeJob`/`LeadFormRetentionPurgeJob`'s existing precedent.
