@@ -498,5 +498,21 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
 
       expect(rowsDeleted).toBe(2);
     });
+
+    // Structural verification, not an EXPLAIN-plan assertion — matches the established style for
+    // this class of index in this codebase (see lead_form_answers' own index tests); neither of
+    // this job's two direct precedents (IDX_platform_lead_form_submissions_expires_at,
+    // IDX_chatbot_messages_created_at) has an EXPLAIN-based test either. A query-plan assertion
+    // would also be genuinely fragile here: the planner's choice between an index scan and a
+    // sequential scan depends on live table statistics/row counts, which a fresh integration-test
+    // database doesn't reliably reproduce.
+    it('the standalone ends_at index exists', async () => {
+      const rows: { indexname: string }[] = await dataSource.query(`
+        SELECT indexname FROM pg_indexes
+        WHERE schemaname = 'booking' AND tablename = 'resource_occupancy'
+          AND indexname = 'IDX_booking_resource_occupancy_ends_at'
+      `);
+      expect(rows).toHaveLength(1);
+    });
   });
 });
