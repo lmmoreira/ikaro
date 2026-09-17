@@ -713,7 +713,7 @@ Customer clicks "Cancel"
   }
   ```
   (`tenantId`/`eventId`/`occurredAt`/`correlationId` are the envelope's own fields, not part of `data`. Deliberately thin — the submitted content itself, e.g. name/email/answers, is never carried in the event payload, matching how other PII-bearing events in this codebase keep bulk content out of the envelope and readable only via the aggregate's own row.)
-- **Consumers:** `audit-log` (`LeadFormSubmissionReceivedHandler` → `LogLeadFormSubmissionReceivedUseCase`, `platform` context) — a placeholder that only logs the fields above, added in M20-S16 purely to give the event a real Pub/Sub topic (see Outbox note below). A real notification/webhook consumer to the manager is still the obvious fast-follow, still explicitly deferred — `docs/discovery/lead-form-module/lead-form-module.md` §9 Non-Goals.
+- **Consumers:** `audit-log` (`LeadFormSubmissionReceivedHandler` → `LogLeadFormSubmissionReceivedUseCase`, `platform` context) — a placeholder that only logs the fields above, added in M20-S16 purely to give the event a real Pub/Sub topic (see Outbox note below). A real notification/webhook consumer to the manager is still the obvious fast-follow, still explicitly deferred — `docs/04-USE_CASES.md` UC-037–UC-043 Non-Goals.
 - **Outbox note:** `LeadFormSubmission`'s repository joins the transactional-outbox pattern (`shared.outbox`, TD24-S02) to deliver this event — the 4th aggregate repository (alongside `Booking`/`Staff`/`Tenant`) to drain `clearDomainEvents()` into the outbox, following the exact same pattern.
 
 ---

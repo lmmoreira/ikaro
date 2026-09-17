@@ -398,7 +398,7 @@ Same split as `ContactModuleData`, made explicit: `ChatbotModuleData` only carri
 
 **Module-config screen carries a standing disclosure, not shown for any other module type:** since availability depends on a platform-wide LLM provider account being funded and healthy — not just this tenant's own settings — the `CHATBOT` module's own config screen (`/dashboard/hotsite`, per-module drill-down) shows a permanent info note that a temporary provider/credit shortfall can disable the widget automatically, no tenant action needed. It also shows a red banner (not a permanent note — conditional) when this tenant's own daily conversation cap was already reached today (`docs/04-USE_CASES.md` UC-027 A5, `docs/14-API_CONTRACTS.md` § Chatbot Cap Status).
 
-Full design rationale, cost model, and the ten-layer cap/abuse-prevention design: `docs/discovery/CHATBOT/CHATBOT.md`.
+The canonical behavior and abuse-prevention rules are split by concern: `docs/04-USE_CASES.md` UC-033–UC-036, `docs/14-API_CONTRACTS.md` § Chatbot Widget, and `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Chatbot.
 
 ### LEAD_FORM
 
@@ -421,7 +421,7 @@ interface LeadFormModuleData {
 
 **Disabled-module handling at the dedicated page:** unlike `CHATBOT` (whose availability is always live/uncached), `/[slug]/lead-form` checks the manifest's `layout` array directly for a `LEAD_FORM` module with `enabled: true` and renders the existing `<Unavailable/>` component when absent/disabled. This is genuinely new logic added by this module — no prior hotsite module had a dedicated page that checked its own `enabled` flag this way (`/[slug]/booking` only checks `manifest.isPublished`, never `BOOKING_CTA.enabled`).
 
-Full design rationale, domain model, and use cases: `docs/discovery/lead-form-module/lead-form-module.md`, `docs/04-USE_CASES.md` UC-037–UC-043.
+Canonical rationale, domain model, and behavior: `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig`/`LeadFormSubmission`, `docs/04-USE_CASES.md` UC-037–UC-043, and `docs/14-API_CONTRACTS.md` § Lead Form.
 
 ---
 

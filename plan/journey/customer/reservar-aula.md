@@ -5,7 +5,7 @@
 **UCs covered:** UC-085, UC-086, UC-087, UC-090, UC-093 (`docs/04-USE_CASES.md`)  
 **Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
 
-> Promoted from `docs/discovery/multivertical-booking/reservar-aula-journey.md` via `/discovery-to-milestone` — that file already reached implementation-grade rigor (route tables, BFF contracts, GAP tags) during discovery UX work, so this promotion carries its content forward with canonical UC numbers substituted for `CAND-XX`, rather than redrafting from scratch. Complements `minha-conta.md`'s Turmas section, which covers managing an *existing* enrollment (skip a session, cancel, watch a waitlist, respond to a waitlist offer). This journey is the "before" — creating a new one.
+> Promoted from `docs/discovery/multivertical-booking/prototype/reservar-aula-journey.md` via `/discovery-to-milestone` — that file already reached implementation-grade rigor (route tables, BFF contracts, GAP tags) during discovery UX work, so this promotion carries its content forward with canonical UC numbers substituted for `CAND-XX`, rather than redrafting from scratch. Complements `minha-conta.md`'s Turmas section, which covers managing an *existing* enrollment (skip a session, cancel, watch a waitlist, respond to a waitlist offer). This journey is the "before" — creating a new one.
 
 ## Flow
 

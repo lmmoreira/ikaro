@@ -4,7 +4,7 @@
 
 Built end to end by M19-S11 (2026-08-17) — the widget, its client fetchers, the fake/noop LLM
 adapter, and page.tsx registration all ship in that story; see the File map below for exact
-status per file. Promoted from `docs/discovery/CHATBOT/CHATBOT.md` into canonical docs
+status per file. Promoted into canonical docs from the chatbot discovery process
 (`docs/04-USE_CASES.md` UC-033/UC-034, `docs/05-BOUNDED_CONTEXTS.md`, `docs/13-DATABASE_SCHEMA.md`,
 `docs/14-API_CONTRACTS.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT,
 `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7) via `/discovery-to-milestone` on 2026-08-08.
@@ -24,9 +24,9 @@ context each row's Action column records.
 | `apps/web/features/platform/hotsite/api/chatbot.ts` | ✅ Done (M19-S11) | Client-only fetchers using `bffClient` with an explicit `X-Tenant-Slug` header, mirroring `apps/web/features/platform/hotsite/api/services.ts`'s existing `fetchServicesClient()` pattern exactly. Story-discovery's first pass proposed two new Route Handler proxies (neither `bffPublicFetch` nor `bffClient` looked like an exact fit against `docs/24`'s abstract decision table); corrected during implementation once `fetchServicesClient()` was found as a working precedent for this exact case — `bffClient`'s `/v1` baseURL already reaches `/public/...` BFF routes via the existing generic same-origin gateway (`apps/web/app/v1/[...path]/route.ts`, since the BFF's `setGlobalPrefix('v1')` makes them live at `/v1/public/...`). No new Route Handlers needed. |
 | `apps/web/features/platform/hotsite/module-schemas.ts` | ✅ Done (M19-S11) | Added `ChatbotModuleDataSchema`, registered in `MODULE_DATA_SCHEMAS.CHATBOT` (`docs/15` §7 step 3 — mandatory before any module type ships) |
 | `apps/bff/src/features/platform/platform.public.controller.ts` | ✅ Done (M19-S09) | `GET chatbot/status` / `POST chatbot/messages` added directly to the existing `PlatformPublicController` — **not** a new nested `chatbot/public/chatbot.public.controller.ts` as originally predicted below; no domain nests controllers below the domain folder |
-| `apps/bff/src/features/platform/chatbot.mapper.ts` | ✅ Done (M19-S09) | `buildSystemPrompt()` (CHATBOT.md §6) — flat file directly in `features/platform/`, not under a `chatbot/` subfolder as originally predicted |
+| `apps/bff/src/features/platform/chatbot.mapper.ts` | ✅ Done (M19-S09) | `buildSystemPrompt()` (behavior in `docs/04-USE_CASES.md` UC-033) — flat file directly in `features/platform/`, not under a `chatbot/` subfolder as originally predicted |
 | `apps/bff/src/features/platform/chatbot-context.ts` | ✅ Done (M19-S09) | Merged `getBusinessContext()` (services + business info + hours in one call) — flat file, not under a `chatbot/` subfolder; the original two-function split (`getBusinessInfoContext`/`getKnowledgeTextContext`) was consolidated during S09 to avoid a redundant duplicate fetch (PR #373 review) |
-| `apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts` | ✅ Done (M19-S02) | `ILlmProvider`, `ChatCompletionRequest`/`Result` (CHATBOT.md §4) |
+| `apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts` | ✅ Done (M19-S02) | `ILlmProvider`, `ChatCompletionRequest`/`Result` (`docs/14-API_CONTRACTS.md` § Chatbot Widget) |
 | `apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.ts` | ✅ Done (M19-S02) | Primary, DeepSeek V4 Flash 0731, always `reasoning: { effort: "none" }` |
 | `apps/backend/src/contexts/platform/infrastructure/llm/anthropic-llm.adapter.ts` | ✅ Done (M19-S03) | — |
 | `apps/backend/src/contexts/platform/infrastructure/llm/openai-llm.adapter.ts` | ✅ Done (M19-S03) | — |

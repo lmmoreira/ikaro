@@ -490,7 +490,7 @@ The four `guest*` fields on the `Booking` aggregate (`guestEmail`, `guestName`, 
 - `docs/05-BOUNDED_CONTEXTS.md` — `event.guestEmail` code snippet (line ~578)
 - `docs/AGENT_PATTERNS.md` — `{ guestName: 'Ana', … }` example (line ~818)
 - `docs/CODE_STANDARDS.md` — `guestPhone` validation example (line ~122)
-- `docs/QUICK_REFERENCE.md` — field list (line ~115)
+- `docs/02-DOMAIN_MODEL.md` — canonical field and aggregate definitions
 - `plan/M115-PRODUCTION-READINESS.md` — this file (already updated)
 
 ---

@@ -13,7 +13,7 @@
 
 | Production file | Notes |
 |---|---|
-| `apps/web/middleware.ts` | Protects `/dashboard/**` |
+| `apps/web/proxy.ts` | Protects `/dashboard/**` |
 | `apps/web/shells/dashboard/components/Sidebar.tsx`, `Topbar.tsx`, `BottomNav.tsx`, `WeekNav.tsx` | Shared dashboard shell — `WeekNav` is shared with the horarios `SchedulePage` as originally planned |
 | `apps/web/app/dashboard/bookings/page.tsx` + `.../BookingQueuePage.tsx` | Queue list |
 | `apps/web/app/dashboard/bookings/[id]/page.tsx` + `.../BookingDetailPage.tsx` | Detail + triage actions |

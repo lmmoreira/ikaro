@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER
 **Goal:** Configure the `LEAD_FORM` hotsite module — who can respond, teaser copy, and up to 20 custom questions — entirely inline on one screen
 **UCs covered:** UC-037
-**Status:** Shipped in M20-S08. Promoted from `docs/discovery/lead-form-module/lead-form-module.md` via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
+**Status:** Shipped in M20-S08. Implemented from the lead-form design promoted via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
 
 ## Flow
 

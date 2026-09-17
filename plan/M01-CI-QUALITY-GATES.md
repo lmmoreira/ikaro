@@ -126,7 +126,7 @@ Add Snyk software composition analysis (SCA) to the PR pipeline. Snyk scans `pac
 
 **Agent:** `devops`  
 **Complexity:** M  
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § SonarCloud, `docs/07-ENGINEERING_PRINCIPLES.md` § coverage gate
+**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § SonarCloud, `docs/CODE_STANDARDS.md` § Testing Standards
 
 **Description:**  
 Integrate SonarCloud to enforce the differential coverage gate (≥80% on changed code, not global). SonarCloud also catches new bugs, code smells, and security hotspots. The Quality Gate must be GREEN for a PR to merge. `SONAR_TOKEN` and `SONAR_ORGANIZATION` must be stored as GitHub Secrets.

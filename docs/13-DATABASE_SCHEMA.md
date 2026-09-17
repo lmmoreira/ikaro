@@ -87,7 +87,7 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 
 ### `platform.chatbot_sessions`
 
-One chat widget conversation. Cap enforcement (`docs/discovery/CHATBOT/CHATBOT.md` §8) `COUNT`s rows here directly — no separate counter table.
+One chat widget conversation. Cap enforcement (`docs/04-USE_CASES.md` UC-033) `COUNT`s rows here directly — no separate counter table.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -134,7 +134,7 @@ Single-row-per-provider, platform-wide, not tenant-scoped. Two independent write
 | Column | Type | Constraints |
 |--------|------|-------------|
 | provider | VARCHAR(32) | PRIMARY KEY — e.g. `'openrouter'` |
-| remaining_usd | NUMERIC(10,4) | NULL — absent until S08's first successful poll for this provider; also genuinely absent for Anthropic/OpenAI, which have no prepaid-balance concept (`CHATBOT.md` §8.10) |
+| remaining_usd | NUMERIC(10,4) | NULL — absent until S08's first successful poll for this provider; also genuinely absent for Anthropic/OpenAI, which have no prepaid-balance concept (`docs/04-USE_CASES.md` UC-034) |
 | checked_at | TIMESTAMP WITH TIME ZONE | NULL, no DEFAULT — set alongside `remaining_usd`. The original migration's `DEFAULT now()` is dropped along with `NOT NULL`, not just the latter — otherwise Postgres would silently substitute `now()` on an INSERT that deliberately omits this column (the health-only write path), producing a value that misleadingly implies a balance poll happened when it didn't |
 | last_success_at | TIMESTAMP WITH TIME ZONE | NULL — most recent real `ILlmProvider.complete()` success for this provider, across any tenant |
 | last_failure_at | TIMESTAMP WITH TIME ZONE | NULL — most recent real `ILlmProvider.complete()` failure for this provider, across any tenant. **Never set by a cap/volume rejection** (daily/IP/concurrency/message/length caps, global spend breaker, balance floor) — only by a genuine provider-call failure (timeout/upstream error/insufficient credits) |
@@ -147,7 +147,7 @@ Single-row-per-provider, platform-wide, not tenant-scoped. Two independent write
 
 ### `platform.lead_form_configs`
 
-One row per tenant — question catalog + audience gating for the `LEAD_FORM` hotsite module (`docs/04-USE_CASES.md` UC-037). Promoted from `docs/discovery/lead-form-module/lead-form-module.md`.
+One row per tenant — question catalog + audience gating for the `LEAD_FORM` hotsite module (`docs/04-USE_CASES.md` UC-037). The promoted domain rationale lives in `docs/02-DOMAIN_MODEL.md`.
 
 | Column | Type | Constraints |
 |--------|------|-------------|

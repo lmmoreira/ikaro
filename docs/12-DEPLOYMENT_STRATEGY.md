@@ -1,60 +1,45 @@
-# Deployment Strategy - Ikaro
+# Deployment Strategy
 
-> ⚠️ **Partially superseded** by `plan/M17-CLOUD-DEPLOY.md` §0 (2026-07-07). On any conflict — SA keys, VPC connector, Cloud Armor+IAP, GCE observability VM, cron transport, pipeline structure — M17 wins. Full rewrite tracked as M17-S42.
+Ikaro deploys immutable containers to Google Cloud Run in `southamerica-east1`. Terraform is the infrastructure source of truth; GitHub Actions builds, scans, migrates, deploys, promotes, and rolls back.
 
-## Philosophy
+## Runtime topology
 
-**Simple, robust, cost-conscious.** Ikaro starts on fully-managed GCP services that require zero operational overhead, scale automatically with traffic, and cost ~$50/month at MVP. The same Docker images and the same code run from day 1 through 1 M users — only the infrastructure tier changes.
-
----
-
-## Production Architecture (GCP)
-
-| Layer | Service | Notes |
+| Component | Runtime | Exposure |
 |---|---|---|
-| **Frontend** | GCP Cloud Run (`ikaro-web`) | Next.js 16 SSR container; public HTTPS |
-| **BFF** | GCP Cloud Run (`ikaro-bff`) | NestJS BFF; public HTTPS; sole entry point for the web layer |
-| **Backend** | GCP Cloud Run (`ikaro-backend`) | NestJS modular monolith; internal only (not public) |
-| **Database** | GCP Cloud SQL PostgreSQL 17 | Private IP inside VPC; automated backups; no public exposure |
-| **Event bus** | GCP Pub/Sub | Managed, serverless; local dev uses the Pub/Sub emulator |
-| **Storage** | GCP Cloud Storage | Tenant photo uploads; paths: `tenants/<tid>/bookings/<bid>/<file>` |
-| **Secrets** | GCP Secret Manager | Injected into Cloud Run at runtime via `--set-secrets` |
-| **Observability** | GCE e2-small VM (prod only) | Docker Compose: Prometheus + Grafana + Loki + OTel Collector |
+| Web | Cloud Run | Public |
+| BFF | Cloud Run | Public application API |
+| Backend | Cloud Run | Internal service ingress |
+| Database | Cloud SQL for PostgreSQL 17 | Private; application access through the Cloud SQL connector |
+| Events and scheduled triggers | Pub/Sub + Cloud Scheduler | Push/trigger infrastructure managed by Terraform |
+| Object storage | GCS | Tenant-prefixed object paths |
+| Telemetry | OTel Collector Cloud Run sidecar | Cloud Trace, Cloud Monitoring/GMP, Cloud Logging |
 
----
+There is no production observability VM and no self-hosted Grafana/Loki deployment.
 
-## Immutable Artifact Pattern
+## Delivery model
 
-One Docker image is built per commit, scanned by Trivy, and tagged with the Git SHA. The **same image** moves through staging → production. It is never rebuilt between environments. Configuration differences (DB URL, secrets) are injected at runtime via Secret Manager — never baked into the image.
+Pull requests run the quality and test workflows. A merge to `main` can build digest-addressed images, scan them, push them to the `ikaro-registry` Artifact Registry repository, run migrations, deploy to staging, and smoke-test the result. Production uses the protected promotion workflow; it does not rebuild a different artifact.
 
----
+See `docs/09-CI_CD_PIPELINE.md` and the actual files under `.github/workflows/`.
 
-## Scaling Path (no code changes required)
+## Database changes
 
-| Stage | Timeline | Cloud SQL tier | Cloud Run max instances | Est. cost |
-|---|---|---|---|---|
-| MVP | Month 0–3 | `db-f1-micro` | 10 | ~$50/month |
-| Growth | Month 3–12 | `db-n1-standard-1` | 100 | ~$300/month |
-| Scale | Month 12+ | `db-n1-standard-4` + read replica | 200+ | ~$800/month |
+Migrations run in a dedicated Cloud Run job before application deployment. Applications use `synchronize: false` and never migrate at startup. A failed migration prevents the new application revision from deploying.
 
-Kubernetes is not needed until Cloud Run costs exceed ~$2 k/month or multi-region orchestration is required. The same Docker images deploy to GKE without code changes.
+## Infrastructure states and ordering
 
----
+Foundation and environment Terraform are separate roots and states. They do not exchange outputs automatically. Provision foundation prerequisites before resources that consume them, and follow the bridging/reconciliation rules in `infra/terraform/README.md`.
 
-## Key Rules
+## Availability and rollback
 
-1. **Migrations run before deployment** — as a hard prerequisite CI job, never at app startup (`synchronize: false`).
-2. **Cloud Run health checks** — every service exposes `/health/live` and `/health/ready`. Cloud Run shifts traffic only after `/health/ready` returns 200.
-3. **No direct pushes to `main`** — all changes go through a PR with CI gates passing.
-4. **Rollback = re-deploy previous SHA** — because images are immutable and tagged by commit, rollback is a one-command re-deploy of the previous image tag.
+Cloud Run revisions make application rollback a traffic operation. Use `.github/workflows/rollback-production.yml`; after any manual diagnostic deployment, verify that traffic is restored to `latestRevision: true`.
 
----
+Database rollback is a separately designed operation. Prefer forward-compatible migrations and forward fixes; do not assume reverting an image reverses a schema change.
 
-## Authoritative References
+## Canonical references
 
-| Topic | Document |
-|---|---|
-| Full GCP infrastructure setup, Terraform HCL, Day 0 bootstrap | `docs/23-INFRASTRUCTURE_SETUP.md` |
-| CI/CD pipeline YAML, GitHub Actions workflows, quality gates | `docs/09-CI_CD_PIPELINE.md` |
-| Release lifecycle, hotfix path, rollback procedures | `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md` |
-| Observability stack (Prometheus, Grafana, Loki, OTel) | `docs/10-OBSERVABILITY_STRATEGY.md` |
+- Terraform roots, modules, apply order, and gotchas: `infra/terraform/README.md`
+- CI/CD workflow map: `docs/09-CI_CD_PIPELINE.md`
+- Release and rollback procedure: `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md`
+- Observability deployment: `docs/10-OBSERVABILITY_STRATEGY.md`
+- Container implementation: application Dockerfiles and `infra/docker/otel-collector/`

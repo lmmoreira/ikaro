@@ -50,7 +50,7 @@
 |---|---|---|
 | Transport | `bff-client.ts` (axios, `withCredentials: true`), `bff-server.ts` (`bffServerFetch(token, path)`), `errors.ts` (`AuthError`/`ForbiddenError`/`ApiError`) | `shared/lib/api/` |
 | Transport | `QueryProvider` (`staleTime: 30_000`, `retry: 1`), `TenantProvider` (`useTenant()`) | `providers/` |
-| Middleware | `middleware.ts` — JWT decode (Edge-safe `atob`), STAFF/MANAGER guard on `/dashboard/**`, MANAGER-only on `/dashboard/{settings,team,hotsite}`, CUSTOMER+slug-match guard on `/{slug}/my-account/**`, CSP headers | `apps/web/middleware.ts` |
+| Middleware | `middleware.ts` — JWT decode (Edge-safe `atob`), STAFF/MANAGER guard on `/dashboard/**`, MANAGER-only on `/dashboard/{settings,team,hotsite}`, CUSTOMER+slug-match guard on `/{slug}/my-account/**`, CSP headers | `apps/web/proxy.ts` |
 | Dashboard shell | `DashboardShell`, `Sidebar`, `Topbar`, `BottomNav`, `ManagerSheet` (renamed `MoreSheet` in `M20-S10`) | `shells/dashboard/components/` |
 | Dashboard shell | `DashboardLayoutShell`, `DashboardSectionShell` (shared layout-composition helpers — **not used by every section**, see Gotchas) | `shells/dashboard/components/` |
 | Dashboard shell | `topbar-status-context.tsx` (`DashboardTopbarStatusProvider` — route-scoped chrome state: booking/service/staff-role status badge, back-href/back-label/onBack overrides) | `shells/dashboard/components/` |
@@ -205,7 +205,7 @@ Both loyalty amounts and staff status follow the same principle — a value that
 - **Seeded accounts:** `admin@lavacar.com.br` (manager, `lavacar-beloauto`), `funcionario@lavacar.com.br` (staff, same tenant), `admin@ikaro.com` (`ikaro`), `admin@autospa.com.br` (`autospa-premium`). Fresh customers minted per-test via `uniqueTestEmail(prefix)`.
 - **Cookie-jar gotcha:** `page.request` shares the *page's* cookie jar. Any helper that seeds a fixture via dev-login as a *different* user (e.g. `linkStaffGoogleAccount()`) must use an isolated `playwrightRequest.newContext()` — otherwise dev-login's side-effect cookie silently hijacks the running test's session, causing spurious 403s later in the same test.
 - **`data-testid`-only, enforced by ESLint (`apps/web/eslint.config.js`, E2E-1/E2E-2/E2E-3 — `scripts/pre-pr.sh` retired these checks in TD37-S23):** no `getByLabel(`/`getByText(` (E2E-1); no ISO date literal embedded in a `data-testid` value — use a separate `data-date` attribute (E2E-2); no template-literal `data-testid` — encode the variable part in its own `data-*` attribute (E2E-3). This took 4 follow-up commits to stick after S41 and caught real defects as late as M13-S37.
-- **`playwright.config.ts` has no `webServer`** — tests run against an already-running stack (local `docker compose up -d && pnpm dev`; CI's `pr-e2e.yml` starts its own). `PLAYWRIGHT_BASE_URL`/`PLAYWRIGHT_BFF_URL` override defaults (`localhost:3000`/`localhost:3002/v1`) — separate from `NEXT_PUBLIC_BFF_URL` since the Playwright process doesn't inherit the web server's env.
+- **`playwright.config.ts` has no `webServer`** — tests run against an already-running stack (local `docker compose up -d && pnpm dev`; CI's `pr-tests.yml` starts its own). `PLAYWRIGHT_BASE_URL`/`PLAYWRIGHT_BFF_URL` override defaults (`localhost:3000`/`localhost:3002/v1`) — separate from `NEXT_PUBLIC_BFF_URL` since the Playwright process doesn't inherit the web server's env.
 - **Convention since S41:** every new `app/**/page.tsx` ships a Playwright spec in the same story.
 
 ---

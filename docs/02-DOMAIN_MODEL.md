@@ -1315,7 +1315,7 @@ Staff  → Notification: StaffInvited → invitation email
 - Allow tenant admins to edit their operational settings (cancellation window, loyalty rules, business hours, timezone)
 - Allow tenant admins to manage and publish their public hotsite (branding, layout, content)
 - Allow tenant admins to invite and manage staff members
-- Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data (UC-033/UC-034) — informational only, no booking/customer/staff record access (`docs/discovery/CHATBOT/CHATBOT.md`)
+- Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data (UC-033/UC-034) — informational only, no booking/customer/staff record access (`docs/04-USE_CASES.md` UC-033–UC-036)
 
 **Key Aggregates:**
 - `Tenant` (root) — the car wash company record; owns the `settings` JSONB blob
@@ -1383,7 +1383,7 @@ HotsiteConfig {
 ---
 
 #### **Aggregate: ChatbotSession** (Root Entity)
-Tracks one chat widget conversation for cap enforcement (`docs/discovery/CHATBOT/CHATBOT.md` §8) and as the anchor `ChatbotMessage` rows reference for history reassembly. Not a rich DDD aggregate with cross-field invariants — same thin treatment as `NotificationLog`: a plain persistence record with a plain repository, no business rules beyond its own field transitions.
+Tracks one chat widget conversation for cap enforcement (`docs/04-USE_CASES.md` UC-033) and as the anchor `ChatbotMessage` rows reference for history reassembly. Not a rich DDD aggregate with cross-field invariants — same thin treatment as `NotificationLog`: a plain persistence record with a plain repository, no business rules beyond its own field transitions.
 
 **Properties:**
 ```
@@ -1408,7 +1408,7 @@ ChatbotSession {
 ---
 
 #### **Aggregate: ChatbotMessage** (Root Entity)
-One turn (visitor question or bot answer) within a `ChatbotSession`. Stores the real conversation text on both sides — not just metadata — since the LLM is stateless between calls (the BFF must resend prior turns as history) and since this is the source of the per-message token/cost audit trail (`docs/discovery/CHATBOT/CHATBOT.md` §8). Same thin "plain record" treatment as `ChatbotSession`/`NotificationLog`.
+One turn (visitor question or bot answer) within a `ChatbotSession`. Stores the real conversation text on both sides — not just metadata — since the LLM is stateless between calls (the BFF must resend prior turns as history) and since this is the source of the per-message token/cost audit trail (`docs/04-USE_CASES.md` UC-033). Same thin "plain record" treatment as `ChatbotSession`/`NotificationLog`.
 
 **Properties:**
 ```
@@ -1460,7 +1460,7 @@ ChatbotProviderBalance {
 ---
 
 #### **Aggregate: LeadFormConfig** (Root Entity)
-One per tenant — owns the question catalog and audience gating for the `LEAD_FORM` hotsite module (`docs/04-USE_CASES.md` UC-037, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). Promoted from `docs/discovery/lead-form-module/lead-form-module.md`, kept as the permanent design rationale.
+One per tenant — owns the question catalog and audience gating for the `LEAD_FORM` hotsite module (`docs/04-USE_CASES.md` UC-037, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). This canonical model section records the promoted design rationale.
 
 **Properties:**
 ```
@@ -1536,4 +1536,3 @@ LeadFormAnswer {
 ## Anti-Corruption Layer (Future)
 
 When integrating external services (e.g., payment provider, SMS service), create an anti-corruption layer to translate external models to our domain models. Not needed for MVP.
-
