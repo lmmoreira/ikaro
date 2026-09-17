@@ -49,15 +49,6 @@ export interface IResourceOccupancyRepository {
     holdExpiresAt: Date | null,
   ): Promise<void>;
 
-  // HOLD -> COMMITTED for every occupancy row belonging to the given booking lines (approval).
-  commit(tenantId: string, bookingLineIds: string[]): Promise<void>;
-
-  // Which of the given booking lines already have an assignment row. A booking created before
-  // M22-S03 shipped (or one BackfillResourceOccupancy skipped because it wasn't APPROVED yet at
-  // migration time) has none — ApproveBookingUseCase uses this to tell "commit an existing
-  // REQUESTED/HOLD row" apart from "this line was never assigned, assign it fresh as COMMITTED."
-  findAssignedLineIds(tenantId: string, bookingLineIds: string[]): Promise<Set<string>>;
-
   // Deletes every resource_occupancy row belonging to the given booking lines (reject/cancel
   // release, or the "delete" half of a reschedule's move) — never touches
   // booking_line_resource_assignments, the immutable audit record.

@@ -187,58 +187,6 @@ describe('TypeOrmResourceOccupancyRepository', () => {
     });
   });
 
-  describe('commit', () => {
-    it('is a no-op when bookingLineIds is empty', async () => {
-      await expect(repo.commit(TENANT_ID, [])).resolves.toBeUndefined();
-    });
-
-    it('throws when called outside an active transaction', async () => {
-      await expect(repo.commit(TENANT_ID, [BOOKING_LINE_ID])).rejects.toThrow(
-        'IResourceOccupancyRepository methods require an active transaction',
-      );
-    });
-
-    it('transitions matching rows to COMMITTED with hold_expires_at cleared', async () => {
-      const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
-
-      await runWithEntityManager(manager, () => repo.commit(TENANT_ID, [BOOKING_LINE_ID]));
-
-      expect(manager.query).toHaveBeenCalledWith(
-        expect.stringContaining("SET lock_state = 'COMMITTED'"),
-        [TENANT_ID, [BOOKING_LINE_ID]],
-      );
-    });
-  });
-
-  describe('findAssignedLineIds', () => {
-    it('returns an empty set without querying when bookingLineIds is empty', async () => {
-      const result = await repo.findAssignedLineIds(TENANT_ID, []);
-      expect(result).toEqual(new Set());
-    });
-
-    it('throws when called outside an active transaction', async () => {
-      await expect(repo.findAssignedLineIds(TENANT_ID, [BOOKING_LINE_ID])).rejects.toThrow(
-        'IResourceOccupancyRepository methods require an active transaction',
-      );
-    });
-
-    it('returns the set of booking line ids that already have an assignment row', async () => {
-      const manager = {
-        query: jest.fn().mockResolvedValue([{ booking_line_id: BOOKING_LINE_ID }]),
-      } as unknown as EntityManager;
-
-      const result = await runWithEntityManager(manager, () =>
-        repo.findAssignedLineIds(TENANT_ID, [BOOKING_LINE_ID, 'other-line-id']),
-      );
-
-      expect(result).toEqual(new Set([BOOKING_LINE_ID]));
-      expect(manager.query).toHaveBeenCalledWith(expect.any(String), [
-        TENANT_ID,
-        [BOOKING_LINE_ID, 'other-line-id'],
-      ]);
-    });
-  });
-
   describe('release', () => {
     it('is a no-op when bookingLineIds is empty', async () => {
       await expect(repo.release(TENANT_ID, [])).resolves.toBeUndefined();

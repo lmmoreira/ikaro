@@ -62,24 +62,6 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     }
   }
 
-  async commit(tenantId: string, bookingLineIds: string[]): Promise<void> {
-    for (const row of this.store) {
-      if (row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId)) {
-        row.lockState = 'COMMITTED';
-      }
-    }
-  }
-
-  async findAssignedLineIds(tenantId: string, bookingLineIds: string[]): Promise<Set<string>> {
-    const assigned = new Set<string>();
-    for (const row of this.store) {
-      if (row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId)) {
-        assigned.add(row.bookingLineId);
-      }
-    }
-    return assigned;
-  }
-
   async release(tenantId: string, bookingLineIds: string[]): Promise<void> {
     this.store = this.store.filter(
       (row) => !(row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId)),

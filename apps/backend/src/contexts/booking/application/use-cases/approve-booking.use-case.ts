@@ -22,10 +22,7 @@ import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repo
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
-import {
-  assignBookingLinesOccupancy,
-  moveBookingLinesOccupancy,
-} from './resource-occupancy-assignment.helpers';
+import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
   resolveBookingLinesResourceCandidates,
   ResolvedLineCandidates,
@@ -82,7 +79,7 @@ export class ApproveBookingUseCase {
       booking.approve(staffId, correlationId, isRescheduling ? scheduledAt : undefined);
       await this.bookingRepo.save(booking);
 
-      await this.applyOccupancy(booking, candidatesByLine, tenantId, isRescheduling);
+      await this.applyOccupancy(candidatesByLine, tenantId);
     });
 
     this.logger.log('Booking approved', { tenantId, bookingId: booking.id, staffId });
@@ -151,46 +148,26 @@ export class ApproveBookingUseCase {
     return candidatesByLine;
   }
 
-  // Same window: HOLD/REQUESTED -> COMMITTED in place (occupancyRepo.commit() transitions
-  // unconditionally regardless of prior lock_state). Changed window (an approval-time
-  // reschedule): release the old row(s) and commit fresh ones at the new window. A line with no
-  // existing assignment at all (a booking created before M22-S03 shipped, or one
-  // BackfillResourceOccupancy skipped because it wasn't APPROVED yet at migration time) has
-  // nothing for commit() to transition — it's assigned fresh, directly as COMMITTED, instead.
+  // Always release whatever's currently assigned to these lines (a no-op for a line with nothing
+  // yet — a booking created before M22-S03 shipped, or one BackfillResourceOccupancy skipped
+  // because it wasn't APPROVED yet at migration time) and assign fresh rows directly as COMMITTED,
+  // from the exact candidatesByLine that assertSlotFree() just validated. Committing whatever a
+  // line's ORIGINAL request-time resolution had assigned, without checking it still matches the
+  // freshly re-resolved candidates, risks persisting occupancy for a resource that was never
+  // re-validated (deactivated or reconfigured between request and approval) — the resource
+  // assertSlotFree() actually just checked is the only one ever safe to persist. This stays cheap
+  // when nothing changed: assign()'s own upsert reuses the existing assignment row for an
+  // identical (line, resource, leg, quantity) tuple instead of duplicating it.
   private async applyOccupancy(
-    booking: Booking,
     candidatesByLine: Map<string, ResolvedLineCandidates>,
     tenantId: string,
-    isRescheduling: boolean,
   ): Promise<void> {
-    const bookingLineIds = booking.lines.map((l) => l.lineId);
-    if (isRescheduling) {
-      await moveBookingLinesOccupancy(
-        this.occupancyRepo,
-        candidatesByLine,
-        tenantId,
-        'COMMITTED',
-        null,
-      );
-      return;
-    }
-
-    const assignedLineIds = await this.occupancyRepo.findAssignedLineIds(tenantId, bookingLineIds);
-    const unassignedCandidatesByLine = new Map(
-      [...candidatesByLine].filter(([lineId]) => !assignedLineIds.has(lineId)),
+    await moveBookingLinesOccupancy(
+      this.occupancyRepo,
+      candidatesByLine,
+      tenantId,
+      'COMMITTED',
+      null,
     );
-    if (unassignedCandidatesByLine.size > 0) {
-      await assignBookingLinesOccupancy(
-        this.occupancyRepo,
-        unassignedCandidatesByLine,
-        tenantId,
-        'COMMITTED',
-        null,
-      );
-    }
-    const alreadyAssignedLineIds = bookingLineIds.filter((id) => assignedLineIds.has(id));
-    if (alreadyAssignedLineIds.length > 0) {
-      await this.occupancyRepo.commit(tenantId, alreadyAssignedLineIds);
-    }
   }
 }

@@ -262,29 +262,6 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
     expect(rows[0].conkey).toContain('tenant_id');
   });
 
-  it('commit() flips HOLD to COMMITTED for the given booking lines', async () => {
-    const lineId = await seedBookingLine(TENANT_A);
-    const start = new Date('2026-06-06T10:00:00.000Z');
-    const end = new Date('2026-06-06T11:00:00.000Z');
-    await txManager.run(() =>
-      repo.assign(
-        TENANT_A,
-        lineId,
-        [candidate(resourceA, start, end)],
-        'HOLD',
-        new Date(start.getTime() + 30 * 60_000),
-      ),
-    );
-
-    await txManager.run(() => repo.commit(TENANT_A, [lineId]));
-
-    const row = await dataSource
-      .getRepository(ResourceOccupancyEntity)
-      .findOne({ where: { tenantId: TENANT_A, resourceId: resourceA } });
-    expect(row?.lockState).toBe('COMMITTED');
-    expect(row?.holdExpiresAt).toBeNull();
-  });
-
   it('release() deletes the occupancy row but preserves the immutable assignment record', async () => {
     const lineId = await seedBookingLine(TENANT_A);
     const start = new Date('2026-06-07T10:00:00.000Z');

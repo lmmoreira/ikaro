@@ -15,10 +15,6 @@ interface ConflictRow {
   resource_id: string;
 }
 
-interface AssignedLineRow {
-  booking_line_id: string;
-}
-
 interface AssignmentIdRow {
   id: string;
 }
@@ -168,37 +164,6 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
       ],
     );
     return rows[0].id;
-  }
-
-  async commit(tenantId: string, bookingLineIds: string[]): Promise<void> {
-    if (bookingLineIds.length === 0) return;
-    const manager = this.requireActiveManager();
-    await manager.query(
-      `
-      UPDATE booking.resource_occupancy ro
-      SET lock_state = 'COMMITTED', hold_expires_at = NULL
-      FROM booking.booking_line_resource_assignments bla
-      WHERE ro.tenant_id = $1
-        AND ro.booking_line_resource_assignment_id = bla.id
-        AND bla.tenant_id = ro.tenant_id
-        AND bla.booking_line_id = ANY($2::uuid[])
-      `,
-      [tenantId, bookingLineIds],
-    );
-  }
-
-  async findAssignedLineIds(tenantId: string, bookingLineIds: string[]): Promise<Set<string>> {
-    if (bookingLineIds.length === 0) return new Set();
-    const manager = this.requireActiveManager();
-    const rows: AssignedLineRow[] = await manager.query(
-      `
-      SELECT DISTINCT booking_line_id
-      FROM booking.booking_line_resource_assignments
-      WHERE tenant_id = $1 AND booking_line_id = ANY($2::uuid[])
-      `,
-      [tenantId, bookingLineIds],
-    );
-    return new Set(rows.map((row) => row.booking_line_id));
   }
 
   // Deletes only the short-lived lock rows — booking_line_resource_assignments is the immutable

@@ -4,10 +4,16 @@ import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-te
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
-import { BookingBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingBuilder,
+  BookingLineBuilder,
+  ResourceBuilder,
+  ServiceBuilder,
+} from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
@@ -154,6 +160,69 @@ describe('ApproveBookingUseCase', () => {
         },
       ]);
       expect(conflicting).toEqual([resource.id]);
+    });
+
+    it('commits occupancy for the freshly re-resolved resource, not a stale existing assignment, when the two diverge', async () => {
+      const staleResource = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      const freshResource = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      await fixtures.resourceRepo.save(staleResource);
+      await fixtures.resourceRepo.save(freshResource);
+      const serviceId = '30000000-0000-4000-8000-000000000301';
+      const service = new ServiceBuilder()
+        .withId(serviceId)
+        .withTenantId(TENANT_A)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await fixtures.serviceRepo.save(service);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .withLines([new BookingLineBuilder().withServiceId(serviceId).build()])
+        .build();
+      await bookingRepo.save(booking);
+      const bookingLineId = booking.lines[0].lineId;
+      const windowEnd = new Date(scheduledAt.getTime() + 30 * 60_000);
+      // Simulates request-time resolution having picked staleResource (the only active ROOM at
+      // that moment), followed by an admin deactivating it before staff approves.
+      await occupancyRepo.assign(
+        TENANT_A,
+        bookingLineId,
+        [
+          {
+            resourceId: staleResource.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: staleResource.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: scheduledAt,
+            endsAt: windowEnd,
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+      staleResource.deactivate();
+      await fixtures.resourceRepo.save(staleResource);
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const staleConflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        { resourceId: staleResource.id, startsAt: scheduledAt, endsAt: windowEnd },
+      ]);
+      expect(staleConflicting).toEqual([]);
+      const freshConflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        { resourceId: freshResource.id, startsAt: scheduledAt, endsAt: windowEnd },
+      ]);
+      expect(freshConflicting).toEqual([freshResource.id]);
     });
 
     it('allows approving with an alternate scheduledAt after a slot conflict', async () => {
