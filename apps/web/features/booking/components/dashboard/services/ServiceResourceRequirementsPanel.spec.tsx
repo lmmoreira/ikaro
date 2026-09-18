@@ -156,6 +156,13 @@ describe('ServiceResourceRequirementsPanel', () => {
             resourceRequirements: [],
             transitionGapAfterMinutes: 0,
           },
+          {
+            legIndex: 1,
+            name: 'Massagem',
+            durationMinutes: 30,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 0,
+          },
         ]}
         initialBufferAfterMinutes={null}
         onDirtyChange={vi.fn()}
@@ -166,5 +173,75 @@ describe('ServiceResourceRequirementsPanel', () => {
 
     expect(legsMutateAsync).toHaveBeenCalled();
     expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('disables save in legs mode with fewer than 2 legs, matching the backend minimum', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <ServiceResourceRequirementsPanel
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByTestId('resource-mode-legs'));
+    await user.click(screen.getByTestId('legs-add-button'));
+
+    expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+  });
+
+  it('sends bufferAfterMinutes: 0 (not skipping the PATCH) when the field is cleared', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <ServiceResourceRequirementsPanel
+        serviceId="svc-1"
+        initialResourceRequirements={[
+          { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
+        ]}
+        initialLegs={null}
+        initialBufferAfterMinutes={30}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.clear(screen.getByTestId('resource-buffer-input'));
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(updateServiceMutateAsync).toHaveBeenCalledWith({
+      id: 'svc-1',
+      body: { bufferAfterMinutes: 0 },
+    });
+  });
+
+  it('locks the flat mode option once the service is already legged on the server', () => {
+    renderWithIntl(
+      <ServiceResourceRequirementsPanel
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={[
+          {
+            legIndex: 0,
+            name: 'Sauna',
+            durationMinutes: 20,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 0,
+          },
+          {
+            legIndex: 1,
+            name: 'Massagem',
+            durationMinutes: 30,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 0,
+          },
+        ]}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-mode-flat')).toBeDisabled();
   });
 });

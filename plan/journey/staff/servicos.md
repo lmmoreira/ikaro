@@ -33,7 +33,7 @@ flowchart TD
     EditForm --> EditSubmit(("Click 'Salvar alterações'"))
     EditSubmit --> EditCheck{"Válido?"}
     EditCheck -- "não" --> EditForm
-    EditCheck -- "sim → 200" --> EditSuccess["Lista com toast verde<br/>Serviço atualizado"]
+    EditCheck -- "sim → 200" --> EditSuccess["✅ Permanece na edição<br/>Aba salva in-place, dot de alteração some"]
 
     EditForm --> DeactivateBtn(("Click 'Desativar serviço'"))
     DeactivateBtn --> DeactivateConfirm["/dashboard/services/[id]/deactivate<br/>Confirmação de desativação"]
@@ -45,12 +45,12 @@ flowchart TD
     %% UC-013 A4 — Reactivate (inactive service)
     EditForm -- "serviço inativo" --> InactiveEdit["✅ /dashboard/services/[id]/edit<br/>(inactive-state variant — 'Ativar' action)"]
     InactiveEdit --> ActivateBtn(("Click 'Ativar serviço'"))
-    ActivateBtn --> ActivateSuccess["✅ Lista com badge Ativo<br/>PATCH /v1/services/:id/activate"]
+    ActivateBtn --> ActivateSuccess["✅ Permanece na edição<br/>Badge Ativo, PATCH /v1/services/:id/activate"]
 
     CreateSuccess --> EditForm
-    EditSuccess --> List
+    EditSuccess --> EditForm
     DeactivateSuccess --> List
-    ActivateSuccess --> List
+    ActivateSuccess --> EditForm
 
     class List,EditForm,DeactivateConfirm,EditSuccess,DeactivateSuccess,InactiveEdit,ActivateSuccess existing
 ```
@@ -100,7 +100,7 @@ Note: the booking-model picker for UC-056 (Agendamento/Turma, at creation time) 
 
 - [x] Assigned to `M22-S04` — see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`.
 - [x] UC-054 (booking-intake schema) now has a prototype screen — `03-service-edit.html`'s "Formulário de reserva" tab (redesigned 2026-09-17, replacing the old separate-page structure and the 2 flat checkboxes that used to stand in for the whole schema) — still confirm the exact layout with the user during `/story-discovery M22-S04`, it's genuinely new UI.
-- [ ] **Real functional gap** (not just a prototype gap): no `GET` endpoint exists to read a service's active intake schema or version history — flagged in `dev-notes.md` and `docs/02-DOMAIN_MODEL.md` § Aggregate: ServiceBookingIntakeSchema. Needs a scope decision at `/story-discovery M22-S04`.
+- [x] **Real functional gap, resolved — M22-S04:** a `GET /services/:id/intake-schema` endpoint (backend + BFF) now reads a service's active intake schema and version history, folded into this story's own scope at `/story-discovery M22-S04` (2026-09-18).
 - [ ] UC-056's SESSION branch (declaring `classResourceSlots`) is schema-only in this cluster — not actionable until Cluster 4 ships `ClassScheduleTemplate`. The creation-time Agendamento/Turma picker itself (UC-056 main flow) now has a real prototype on `02-service-create.html`.
 - [x] **UX decision, 2026-09-17 (user-proposed):** `POST /services` success now redirects straight to the edit page (Detalhes tab, inline banner, all 4 tabs unlocked) instead of back to the list — see `02c-service-create-success.html`'s own header comment. This also produced the first prototype screens showing Recursos/Políticas de reserva/Formulário de reserva in their **empty/default state** (no resource requirements, policy fields inheriting tenant defaults, no intake schema published) — `03-service-edit.html` only ever modeled the fully-configured case.
 - [x] **Field-completeness audit, 2026-09-17:** `03-service-edit.html`'s Recursos and Políticas de reserva tabs were checked field-by-field against the real Zod contracts (`ResourceRequirementSchema`, `UpdateServiceBookingPolicySchema` in `packages/validation/src/booking.ts`) and were missing real, independently-submittable fields — fixed: `requiredQuantity` per resource type (Recursos), and on Políticas de reserva: `minBookingAdvanceHoursOverride`/`maxBookingAdvanceDaysOverride` ("Janela de reserva" card) plus the full duration-policy (`durationMinMinutes`/`Max`/`IncrementMinutes`) and pricing-policy (`pricingIncrementMinutes`/`pricePerIncrementAmount`/`minimumChargeAmount`) detail fields, previously collapsed into one disabled `<select>` showing a single pre-baked string. Also made `fieldKey` (Formulário de reserva) visible as an auto-derived, read-only value instead of a silently-omitted required field.

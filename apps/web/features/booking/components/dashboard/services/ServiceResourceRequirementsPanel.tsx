@@ -91,8 +91,11 @@ export function ServiceResourceRequirementsPanel({
           id: serviceId,
           body: { resourceRequirements: requirements },
         });
-        const parsedBuffer = Number(bufferAfterMinutes);
-        if (bufferAfterMinutes !== '' && !Number.isNaN(parsedBuffer)) {
+        // An emptied buffer input means "no buffer" (0), not "leave the previous value
+        // unchanged" — always send it so a manager can actually clear a previously-set override
+        // (CodeRabbit finding: a blank input used to silently skip the PATCH entirely).
+        const parsedBuffer = bufferAfterMinutes === '' ? 0 : Number(bufferAfterMinutes);
+        if (!Number.isNaN(parsedBuffer)) {
           await updateService.mutateAsync({
             id: serviceId,
             body: { bufferAfterMinutes: parsedBuffer },
@@ -109,6 +112,16 @@ export function ServiceResourceRequirementsPanel({
 
   const isSaving =
     updateResourceRequirements.isPending || updateLegs.isPending || updateService.isPending;
+  // Mirrors ServiceLegsPanel's own inline min-2-legs hint — block the save itself, not just show
+  // the hint, so a legs-mode save with 0/1 legs can't reach the backend's own 422 for this
+  // (CodeRabbit finding).
+  const canSave = !isSaving && !(mode === 'legs' && legs.length < 2);
+  // Service.setResourceRequirements() rejects (409) whenever the aggregate's own persisted
+  // `legs` is non-null — legged→flat is deliberately not a supported transition via this
+  // endpoint (service.aggregate.ts's own comment). Once a service was loaded with legs, the flat
+  // option can never actually save, so it stays locked rather than producing a confusing 409
+  // (CodeRabbit finding).
+  const legsLockedOnServer = initialLegs !== null;
   const availableByType = (type: ResourceType) =>
     (resourcesData?.items ?? []).filter((resource) => resource.type === type);
 
@@ -122,17 +135,22 @@ export function ServiceResourceRequirementsPanel({
           <button
             type="button"
             data-testid="resource-mode-flat"
+            aria-pressed={mode === 'flat'}
             onClick={() => handleSelectMode('flat')}
-            className={`rounded-2xl border p-4 text-left transition-colors ${
+            disabled={legsLockedOnServer}
+            className={`rounded-2xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               mode === 'flat' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
             }`}
           >
             <p className="text-sm font-semibold text-gray-900">{t('recursosModeFlatTitle')}</p>
-            <p className="mt-0.5 text-xs text-gray-500">{t('recursosModeFlatSub')}</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {legsLockedOnServer ? t('recursosModeFlatLockedHint') : t('recursosModeFlatSub')}
+            </p>
           </button>
           <button
             type="button"
             data-testid="resource-mode-legs"
+            aria-pressed={mode === 'legs'}
             onClick={() => handleSelectMode('legs')}
             className={`rounded-2xl border p-4 text-left transition-colors ${
               mode === 'legs' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
@@ -213,7 +231,7 @@ export function ServiceResourceRequirementsPanel({
           type="button"
           data-testid="resource-requirements-save"
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={!canSave}
         >
           {t('recursosSaveButton')}
         </Button>

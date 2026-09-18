@@ -117,4 +117,55 @@ describe('ServiceBookingPolicyPanel', () => {
     await user.click(screen.getByTestId('policy-recurrence-eligible'));
     expect(onDirtyChange).toHaveBeenCalledWith(true);
   });
+
+  it('clears a prior submit error as soon as the policy is edited again', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValueOnce(
+      new ApiError(422, 'Requires pricing', {
+        code: 'BOOKING_SERVICE_DURATION_POLICY_REQUIRES_PRICING',
+      }),
+    );
+    renderWithIntl(
+      <ServiceBookingPolicyPanel
+        serviceId="svc-1"
+        initialPolicy={BASE_POLICY}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByTestId('policy-save'));
+    expect(await screen.findByTestId('policy-error')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('policy-recurrence-eligible'));
+    expect(screen.queryByTestId('policy-error')).not.toBeInTheDocument();
+  });
+
+  it('keeps dirty when a newer edit lands while an earlier save is still pending', async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = vi.fn();
+    let resolveSave: (value: unknown) => void = () => {};
+    mutateAsync.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    renderWithIntl(
+      <ServiceBookingPolicyPanel
+        serviceId="svc-1"
+        initialPolicy={BASE_POLICY}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await user.click(screen.getByTestId('policy-recurrence-eligible'));
+    await user.click(screen.getByTestId('policy-save'));
+
+    // A second edit lands while the first save is still in flight.
+    await user.click(screen.getByTestId('policy-availability-alert-eligible'));
+
+    resolveSave({});
+    await screen.findByTestId('policy-save');
+
+    expect(onDirtyChange).not.toHaveBeenLastCalledWith(false);
+  });
 });

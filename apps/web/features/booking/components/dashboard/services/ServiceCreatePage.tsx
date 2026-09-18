@@ -92,6 +92,7 @@ export function ServiceCreatePage(): React.JSX.Element {
                 <button
                   type="button"
                   data-testid="booking-model-appointment"
+                  aria-pressed={bookingModel === 'APPOINTMENT'}
                   onClick={() => handleSelectBookingModel('APPOINTMENT')}
                   className={`rounded-2xl border p-4 text-left transition-colors ${
                     bookingModel === 'APPOINTMENT'
@@ -109,6 +110,7 @@ export function ServiceCreatePage(): React.JSX.Element {
                 <button
                   type="button"
                   data-testid="booking-model-session"
+                  aria-pressed={bookingModel === 'SESSION'}
                   onClick={() => handleSelectBookingModel('SESSION')}
                   className={`rounded-2xl border p-4 text-left transition-colors ${
                     bookingModel === 'SESSION'

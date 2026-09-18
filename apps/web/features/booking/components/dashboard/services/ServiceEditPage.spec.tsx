@@ -255,6 +255,23 @@ describe('ServiceEditPage', () => {
     expect(screen.getByTestId('resource-mode-flat')).toBeInTheDocument();
   });
 
+  it('keeps an unsaved Recursos draft when switching away and back (panels stay mounted)', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    await user.click(getTabButton(container, 'recursos'));
+    const bufferInput = screen.getByTestId('resource-buffer-input');
+    await user.clear(bufferInput);
+    await user.type(bufferInput, '45');
+
+    await user.click(getTabButton(container, 'detalhes'));
+    await user.click(getTabButton(container, 'recursos'));
+
+    expect(screen.getByTestId('resource-buffer-input')).toHaveValue(45);
+  });
+
   it('hides the sticky primary Save/Activate action on non-Detalhes tabs', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
@@ -278,6 +295,30 @@ describe('ServiceEditPage', () => {
 
     await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
     expect(getTabDirtyDot(container, 'detalhes')).not.toBeInTheDocument();
+  });
+
+  it('keeps Detalhes dirty when a newer edit lands while an earlier save is still pending', async () => {
+    const user = userEvent.setup();
+    let resolveSave: (value: { id: string }) => void = () => {};
+    mockUpdateService.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'X');
+    await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
+
+    // A second edit lands while the first save is still in flight.
+    await user.type(screen.getByLabelText('Nome do serviço'), 'Y');
+
+    resolveSave({ id: 'svc-1' });
+    await screen.findAllByRole('button', { name: 'Salvar alterações' });
+
+    expect(getTabDirtyDot(container, 'detalhes')).toBeInTheDocument();
   });
 
   it('registers an onBackOverride callback with the topbar status context', () => {

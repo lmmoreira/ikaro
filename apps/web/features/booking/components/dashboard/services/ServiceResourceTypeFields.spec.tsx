@@ -196,4 +196,61 @@ describe('ServiceResourceTypeFields', () => {
       expect.objectContaining({ selectionMode: 'CUSTOMER_CHOICE' }),
     );
   });
+
+  it('offers NONE as its own selectable radio, distinct from AUTO (UC-050 step 2)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const requirement: ResourceRequirementItem = {
+      type: 'ROOM',
+      selectionMode: 'AUTO_ANY',
+      resourcePoolIds: null,
+      requiredQuantity: 1,
+    };
+    renderWithIntl(
+      <ServiceResourceTypeFields
+        type="ROOM"
+        checked
+        requirement={requirement}
+        availableResources={[]}
+        radioGroupName="selmode-room"
+        scope="flat"
+        onToggle={vi.fn()}
+        onChange={onChange}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-selection-mode-none')).not.toBeChecked();
+    await user.click(screen.getByTestId('resource-selection-mode-none'));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ selectionMode: 'NONE' }));
+  });
+
+  it('keeps a NONE selection when requiredQuantity changes (only AUTO re-derives)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const requirement: ResourceRequirementItem = {
+      type: 'ROOM',
+      selectionMode: 'NONE',
+      resourcePoolIds: null,
+      requiredQuantity: 1,
+    };
+    renderWithIntl(
+      <ServiceResourceTypeFields
+        type="ROOM"
+        checked
+        requirement={requirement}
+        availableResources={[]}
+        radioGroupName="selmode-room"
+        scope="flat"
+        onToggle={vi.fn()}
+        onChange={onChange}
+      />,
+    );
+
+    const quantityInput = screen.getByTestId('resource-type-quantity');
+    await user.tripleClick(quantityInput);
+    await user.keyboard('2');
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ requiredQuantity: 2, selectionMode: 'NONE' }),
+    );
+  });
 });

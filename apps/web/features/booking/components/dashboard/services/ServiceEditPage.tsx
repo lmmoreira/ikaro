@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type SubmitEvent } from 'react';
+import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
@@ -15,9 +15,7 @@ import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/servi
 import { ServiceEditActionPanels } from './ServiceEditPanels';
 import { ServiceEditTabBar } from './ServiceEditTabBar';
 import { ServiceEditDetailsTab } from './ServiceEditDetailsTab';
-import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
-import { ServiceBookingPolicyPanel } from './ServiceBookingPolicyPanel';
-import { ServiceIntakeSchemaPanel } from './ServiceIntakeSchemaPanel';
+import { ServiceEditConfigTabPanels } from './ServiceEditConfigTabPanels';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 
 interface ServiceEditPageProps {
@@ -61,6 +59,14 @@ export function ServiceEditPage({
   const isSubmitting = isSubmittingLocal || updateServiceMutation.isPending;
   const isActivating = isActivatingLocal || activateServiceMutation.isPending;
   const anyDirty = Object.values(dirty).some(Boolean);
+  // Bumped on every Detalhes field edit — lets a save in flight tell whether a *newer* edit
+  // landed while it was pending, so it never clears dirty for an edit it didn't actually persist.
+  const detalhesEditRevisionRef = useRef(0);
+
+  function markDetalhesDirty(): void {
+    detalhesEditRevisionRef.current += 1;
+    setTabDirty('detalhes', true);
+  }
 
   useEffect(() => {
     setTopbarServiceStatus?.(isActive ? 'ACTIVE' : 'INACTIVE');
@@ -134,13 +140,16 @@ export function ServiceEditPage({
     setFieldErrors(validation.errors);
     if (validation.normalized === null) return;
 
+    const revisionAtSubmit = detalhesEditRevisionRef.current;
     setIsSubmittingLocal(true);
     try {
       await updateServiceMutation.mutateAsync({
         id: service.serviceId,
         body: { ...validation.normalized, requiresPickupAddress },
       });
-      setTabDirty('detalhes', false);
+      if (detalhesEditRevisionRef.current === revisionAtSubmit) {
+        setTabDirty('detalhes', false);
+      }
     } catch (err) {
       setFieldErrors(mapSubmitErrors(err, locale));
     } finally {
@@ -168,7 +177,15 @@ export function ServiceEditPage({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div>
-          {activeTab === 'detalhes' && (
+          {/* All 4 panels stay mounted — hidden (not unmounted) via the native `hidden`
+              attribute — so switching tabs never discards a panel's own local, unsaved draft
+              state. Each panel manages its own dirty/save lifecycle independently either way. */}
+          <div
+            role="tabpanel"
+            id="service-edit-tabpanel-detalhes"
+            aria-labelledby="service-edit-tab-detalhes"
+            hidden={activeTab !== 'detalhes'}
+          >
             <ServiceEditDetailsTab
               serviceId={service.serviceId}
               isActive={isActive}
@@ -182,75 +199,37 @@ export function ServiceEditPage({
               fieldErrors={fieldErrors}
               onNameChange={(value) => {
                 setName(value);
-                setTabDirty('detalhes', true);
+                markDetalhesDirty();
               }}
               onDescriptionChange={(value) => {
                 setDescription(value);
-                setTabDirty('detalhes', true);
+                markDetalhesDirty();
               }}
               onPriceAmountChange={(value) => {
                 setPriceAmount(value);
-                setTabDirty('detalhes', true);
+                markDetalhesDirty();
               }}
               onDurationMinutesChange={(value) => {
                 setDurationMinutes(value);
-                setTabDirty('detalhes', true);
+                markDetalhesDirty();
               }}
               onLoyaltyPointsValueChange={(value) => {
                 setLoyaltyPointsValue(value);
-                setTabDirty('detalhes', true);
+                markDetalhesDirty();
               }}
               onToggleRequiresPickupAddress={() => {
                 setRequiresPickupAddress((value) => !value);
-                setTabDirty('detalhes', true);
+                markDetalhesDirty();
               }}
             />
-          )}
+          </div>
 
-          {activeTab === 'recursos' && (
-            <div
-              role="tabpanel"
-              id="service-edit-tabpanel-recursos"
-              aria-labelledby="service-edit-tab-recursos"
-            >
-              <ServiceResourceRequirementsPanel
-                serviceId={service.serviceId}
-                initialResourceRequirements={service.resourceRequirements}
-                initialLegs={service.legs}
-                initialBufferAfterMinutes={service.bufferAfterMinutes}
-                onDirtyChange={(value) => setTabDirty('recursos', value)}
-              />
-            </div>
-          )}
-
-          {activeTab === 'politicas' && (
-            <div
-              role="tabpanel"
-              id="service-edit-tabpanel-politicas"
-              aria-labelledby="service-edit-tab-politicas"
-            >
-              <ServiceBookingPolicyPanel
-                serviceId={service.serviceId}
-                initialPolicy={service.bookingPolicy}
-                onDirtyChange={(value) => setTabDirty('politicas', value)}
-              />
-            </div>
-          )}
-
-          {activeTab === 'formulario' && (
-            <div
-              role="tabpanel"
-              id="service-edit-tabpanel-formulario"
-              aria-labelledby="service-edit-tab-formulario"
-            >
-              <ServiceIntakeSchemaPanel
-                serviceId={service.serviceId}
-                initialActive={intakeSchema.active}
-                initialHistory={intakeSchema.history}
-                onDirtyChange={(value) => setTabDirty('formulario', value)}
-              />
-            </div>
-          )}
+          <ServiceEditConfigTabPanels
+            activeTab={activeTab}
+            service={service}
+            intakeSchema={intakeSchema}
+            onTabDirtyChange={setTabDirty}
+          />
         </div>
 
         <ServiceEditActionPanels

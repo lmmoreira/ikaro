@@ -105,6 +105,23 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
   });
 
+  test('changes a booking-policy field, saves, reloads, sees it persisted', async ({ page }) => {
+    const service = await seedService(page);
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+
+    const recurrenceToggle = page.getByTestId('policy-recurrence-eligible');
+    await expect(recurrenceToggle).not.toBeChecked();
+    await recurrenceToggle.click();
+    await page.getByTestId('policy-save').click();
+    await expect(page.getByTestId('policy-saved')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await expect(page.getByTestId('policy-recurrence-eligible')).toBeChecked();
+  });
+
   test('publishes a new intake-schema version and sees the previous version in history', async ({
     page,
   }) => {

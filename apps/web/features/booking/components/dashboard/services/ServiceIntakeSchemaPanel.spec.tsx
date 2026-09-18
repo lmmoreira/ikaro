@@ -208,6 +208,26 @@ describe('ServiceIntakeSchemaPanel', () => {
     expect(screen.getByTestId('intake-publish')).toBeDisabled();
   });
 
+  it('caps the derived fieldKey at 100 characters (matches the shared schema max)', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={null}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByTestId('intake-add-question'));
+    const longNoSpaceLabel = 'a'.repeat(150);
+    await user.type(getByIndex(container, 'intake-question-label', 0), longNoSpaceLabel);
+
+    const fieldKeyText = getByIndex(container, 'intake-question-fieldkey', 0).textContent ?? '';
+    expect(fieldKeyText).toContain('a'.repeat(100));
+    expect(fieldKeyText).not.toContain('a'.repeat(101));
+  });
+
   it('enforces the 1-50 question limit by disabling "add question" at 50', async () => {
     const user = userEvent.setup();
     renderWithIntl(

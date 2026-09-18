@@ -13,9 +13,14 @@ import { IntakeParticipantsCard, IntakeConsentCard } from './IntakeParticipantsA
 import { IntakeVersionHistoryCard } from './IntakeVersionHistoryCard';
 import { IntakeVersionModal } from './IntakeVersionModal';
 
-// Mirrors the real fieldKey derivation intent (accent-strip + camelCase) — the server is the
-// actual source of truth for the final fieldKey; this is a live client-side preview only
-// (dev-notes.md § UX review fixes, round 3, item 12).
+// The backend never independently re-derives fieldKey — PublishServiceIntakeSchemaUseCase stores
+// whatever the client submits, validated only by ServiceIntakeQuestionSchema's own
+// fieldKey.min(1).max(100). This *is* the real derivation, not a preview of a server-side one, so
+// it must respect the same 100-char cap the shared schema enforces (packages/validation/src/
+// booking.ts) — a long, no-space label previously produced a fieldKey the server would 422 on
+// after Publish was already enabled (Codex round-3 finding).
+const FIELD_KEY_MAX_LENGTH = 100;
+
 function slugifyFieldKey(label: string): string {
   const words = label
     .normalize('NFD')
@@ -26,10 +31,10 @@ function slugifyFieldKey(label: string): string {
     .filter(Boolean);
   if (words.length === 0) return '';
   const [first, ...rest] = words;
-  return (
+  const key =
     (first ?? '').toLowerCase() +
-    rest.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('')
-  );
+    rest.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
+  return key.slice(0, FIELD_KEY_MAX_LENGTH);
 }
 
 function newQuestion(key: string): IntakeQuestionDraft {
