@@ -2,7 +2,12 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { ResourceRequirementItem, ResourceType, ServiceLegItem } from '@ikaro/types';
+import type {
+  ResourceRequirementItem,
+  ResourceResponse,
+  ResourceType,
+  ServiceLegItem,
+} from '@ikaro/types';
 import { useResources } from '@/features/booking/hooks/useResources';
 import {
   useUpdateService,
@@ -16,8 +21,30 @@ import { Button } from '@/shared/components/ui/button';
 import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
 import { ServiceLegsPanel } from './ServiceLegsPanel';
 import { ServiceBufferAfterMinutesField } from './ServiceBufferAfterMinutesField';
+import { ServiceResourceModePicker } from './ServiceResourceModePicker';
 
 const FLAT_TYPES: ResourceType[] = ['STAFF', 'ROOM', 'EQUIPMENT'];
+
+// Drops any resourcePoolIds entry that isn't among the passed active resources of the matching
+// type — applied to every requirement at save time (not only the one a manager just edited), so
+// a resource that went inactive since this requirement was last saved can never be silently
+// resubmitted via an unrelated edit (e.g. changing a different type, or just the buffer). The
+// per-row normalization in ServiceResourceTypeFields only covers the row actually touched.
+function normalizeResourcePoolIds(
+  requirement: ResourceRequirementItem,
+  availableResources: readonly ResourceResponse[],
+): ResourceRequirementItem {
+  if (!requirement.resourcePoolIds) return requirement;
+  const activeIds = new Set(
+    availableResources
+      .filter((resource) => resource.type === requirement.type)
+      .map((resource) => resource.id),
+  );
+  return {
+    ...requirement,
+    resourcePoolIds: requirement.resourcePoolIds.filter((id) => activeIds.has(id)),
+  };
+}
 
 interface ServiceResourceRequirementsPanelProps {
   readonly serviceId: string;
@@ -83,13 +110,28 @@ export function ServiceResourceRequirementsPanel({
 
   async function handleSave(): Promise<void> {
     setError(null);
+    const availableResources = resourcesData?.items ?? [];
     try {
       if (mode === 'legs') {
-        await updateLegs.mutateAsync({ id: serviceId, body: { legs } });
+        await updateLegs.mutateAsync({
+          id: serviceId,
+          body: {
+            legs: legs.map((leg) => ({
+              ...leg,
+              resourceRequirements: leg.resourceRequirements.map((requirement) =>
+                normalizeResourcePoolIds(requirement, availableResources),
+              ),
+            })),
+          },
+        });
       } else {
         await updateResourceRequirements.mutateAsync({
           id: serviceId,
-          body: { resourceRequirements: requirements },
+          body: {
+            resourceRequirements: requirements.map((requirement) =>
+              normalizeResourcePoolIds(requirement, availableResources),
+            ),
+          },
         });
         // An emptied buffer input means "no buffer" (0), not "leave the previous value
         // unchanged" — always send it so a manager can actually clear a previously-set override
@@ -127,40 +169,11 @@ export function ServiceResourceRequirementsPanel({
 
   return (
     <div className="space-y-5">
-      <div>
-        <label className="mb-2 block text-sm font-semibold text-gray-900">
-          {t('recursosModeLabel')}
-        </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            data-testid="resource-mode-flat"
-            aria-pressed={mode === 'flat'}
-            onClick={() => handleSelectMode('flat')}
-            disabled={legsLockedOnServer}
-            className={`rounded-2xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-              mode === 'flat' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <p className="text-sm font-semibold text-gray-900">{t('recursosModeFlatTitle')}</p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              {legsLockedOnServer ? t('recursosModeFlatLockedHint') : t('recursosModeFlatSub')}
-            </p>
-          </button>
-          <button
-            type="button"
-            data-testid="resource-mode-legs"
-            aria-pressed={mode === 'legs'}
-            onClick={() => handleSelectMode('legs')}
-            className={`rounded-2xl border p-4 text-left transition-colors ${
-              mode === 'legs' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <p className="text-sm font-semibold text-gray-900">{t('recursosModeLegsTitle')}</p>
-            <p className="mt-0.5 text-xs text-gray-500">{t('recursosModeLegsSub')}</p>
-          </button>
-        </div>
-      </div>
+      <ServiceResourceModePicker
+        mode={mode}
+        legsLockedOnServer={legsLockedOnServer}
+        onSelectMode={handleSelectMode}
+      />
 
       {mode === 'flat' ? (
         <Card>

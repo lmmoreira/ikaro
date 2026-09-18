@@ -77,8 +77,13 @@ export function ServiceIntakeSchemaPanel({
   const [error, setError] = useState<string | null>(null);
   const [publishedMessageVisible, setPublishedMessageVisible] = useState(false);
   const nextKeySeed = useRef(questions.length);
+  // Bumped on every draft edit — lets a publish in flight tell whether a *newer* edit landed
+  // while it was pending, so it never clears dirty / shows "published" for a draft it didn't
+  // actually persist (same race fixed for Detalhes/Políticas; this tab was missed the first time).
+  const editRevisionRef = useRef(0);
 
   function markDirty(): void {
+    editRevisionRef.current += 1;
     onDirtyChange(true);
     setPublishedMessageVisible(false);
   }
@@ -148,6 +153,7 @@ export function ServiceIntakeSchemaPanel({
 
   async function handlePublish(): Promise<void> {
     setError(null);
+    const revisionAtSubmit = editRevisionRef.current;
     try {
       const result = await publishSchema.mutateAsync({
         id: serviceId,
@@ -165,8 +171,10 @@ export function ServiceIntakeSchemaPanel({
       });
       if (active) setHistory((current) => [active, ...current]);
       setActive(result);
-      setPublishedMessageVisible(true);
-      onDirtyChange(false);
+      if (editRevisionRef.current === revisionAtSubmit) {
+        setPublishedMessageVisible(true);
+        onDirtyChange(false);
+      }
     } catch (err) {
       setError(resolveErrorMessageFromApiError(err, locale));
     }

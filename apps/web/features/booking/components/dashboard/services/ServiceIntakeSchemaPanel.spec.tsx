@@ -171,6 +171,37 @@ describe('ServiceIntakeSchemaPanel', () => {
     expect(screen.getByTestId('intake-version-current')).toHaveTextContent('2');
   });
 
+  it('keeps dirty when a newer draft edit lands while an earlier publish is still pending', async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = vi.fn();
+    let resolvePublish: (value: ServiceIntakeSchemaVersion) => void = () => {};
+    mutateAsync.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePublish = resolve;
+      }),
+    );
+    renderWithIntl(
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={V1}
+        initialHistory={[]}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await user.type(screen.getByTestId('intake-consent-text'), '!');
+    await user.click(screen.getByTestId('intake-publish'));
+
+    // A second edit lands while the first publish is still in flight.
+    await user.type(screen.getByTestId('intake-consent-text'), '!');
+
+    resolvePublish({ ...V1, id: 'schema-2', version: 2 });
+    await screen.findByTestId('intake-publish');
+
+    expect(onDirtyChange).not.toHaveBeenLastCalledWith(false);
+    expect(screen.queryByTestId('intake-published')).not.toBeInTheDocument();
+  });
+
   it('surfaces a publish error inline (e.g. a duplicate-fieldKey 422)', async () => {
     const user = userEvent.setup();
     mutateAsync.mockRejectedValueOnce(new Error('422'));

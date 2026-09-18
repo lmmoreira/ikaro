@@ -170,7 +170,7 @@ Staff clicks "Desativar serviço" (danger zone button, ServiceEditStatusSection)
 
 ## ✅ Shipped — M22 Cluster 2 extension (UC-050–056, M22-S04)
 
-> Everything above this line is shipped (`M13-S22`–`S24`). Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) and `docs/14-API_CONTRACTS.md` § Service Extensions for the full contract.
+> Everything above this line is shipped (`M13-S22`–`S24`). Everything below was new scope promoted from `docs/discovery/multivertical-booking/` — now also shipped (`M22-S04`). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) and `docs/14-API_CONTRACTS.md` § Service Extensions for the full contract.
 
 **New prototype screens (redesigned 2026-09-17 — see `03-service-edit.html`'s own header comment for the full rationale):**
 
