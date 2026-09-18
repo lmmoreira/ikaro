@@ -771,7 +771,7 @@ Returns:
   - **A1: Deactivate service** → Admin calls deactivate (`DELETE /v1/services/:id`) → sets `isActive = false` → service hidden from booking page. Pure soft delete — existing bookings referencing this service are untouched; only *new* bookings against it are blocked.
   - **A2: Price change** → Past bookings unaffected (snapshots are immutable); future bookings use new price
   - **A3: Toggle `requiresPickupAddress`** → Only affects future bookings. Existing `booking_lines` retain their snapshotted `requiresPickupAddressAtBooking` value.
-  - **A4: Reactivate service** (`M13-S24`) → Admin calls `PATCH /v1/services/:id/activate` → sets `isActive = true`. The edit form shows a locked "Reativar" view instead of editable fields while a service is inactive.
+  - **A4: Reactivate service** (`M13-S24`) → Admin calls `PATCH /v1/services/:id/activate` → sets `isActive = true`. Only the Detalhes tab locks into a "Reativar" view while a service is inactive — the M22 Cluster 2 tabs (Recursos, Políticas de reserva, Formulário de reserva; UC-050–055) stay editable regardless of `isActive`, since deactivating a service clears none of that configuration.
 
 - **Postconditions:** Service updated. New bookings reflect all changes including `requiresPickupAddress`.
 - **Events Triggered:** None

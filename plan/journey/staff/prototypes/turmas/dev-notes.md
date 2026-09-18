@@ -2,7 +2,7 @@
 
 ## Overview
 
-New STAFF|MANAGER-shared journey for M21 — Multi-Vertical Scheduling, Cluster 4. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/{staff-04-turmas-proximas,manager-roster-dia,staff-02b-fechar-turma,staff-03,staff-03b,staff-06,staff-06b}.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassSession`/`ClassSessionBooking`.
+New STAFF|MANAGER-shared journey for M24 — Multi-Vertical Classes & Sessions, Cluster 4. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/{staff-04-turmas-proximas,manager-roster-dia,staff-02b-fechar-turma,staff-03,staff-03b,staff-06,staff-06b}.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassSession`/`ClassSessionBooking`.
 
 ## File map (❓ none exist yet)
 
@@ -30,7 +30,7 @@ POST  /v1/class-session-bookings/:id/payment                   -- manual charge 
 - **`02-roster-dia.html`** — the canonical, single roster screen (STAFF|MANAGER shared). Shows check-in state, waitlist with manual "Promover" action (UC-091's mechanism, staff-triggered), guest-approval "Revisar" entry point into `05-guest-approval.html`, and "+ Drop-in" for a walk-in booking.
 - **`03-fechar-turma.html`** — every attendee pre-marked `PRESENT`; staff flags exceptions only, then closes in one action (UC-101). For a payable attendee, records the manual charge outcome (UC-107) in the same close-out action, not a separate flow.
 - **`04-capacity-override.html`** — one-off, this-session-only change; the template itself is untouched.
-- **`05-guest-approval.html`** — one action (approve/reject) for the whole reservation group, mirroring the shape of a recurring-schedule approval (`staff/prototypes/agenda/08-recurring-schedule-approval.html`, M21 Cluster 3).
+- **`05-guest-approval.html`** — one action (approve/reject) for the whole reservation group, mirroring the shape of a recurring-schedule approval (`staff/prototypes/agenda/08-recurring-schedule-approval.html`, M23 Cluster 3).
 
 ## Known limitations
 
@@ -39,5 +39,5 @@ POST  /v1/class-session-bookings/:id/payment                   -- manual charge 
 
 ## Open questions / gaps
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [x] **Resolved** — `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` now exists and includes `M24-S16 — Staff "Turmas" frontend` (wave 8), referencing this journey directly.
 - [ ] `02-roster-dia.html`'s live check-in toggle and "+ Drop-in" action's exact UC backing is worth confirming during `/story-discovery`.
