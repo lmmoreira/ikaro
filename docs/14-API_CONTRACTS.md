@@ -472,6 +472,17 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   - `201` on success — new version `is_active = true`, previous version `is_active = false`
 
+- `GET /services/:id/intake-schema` -> Read a service's active intake schema and its full version history (UC-054 read path; added M22-S04, 2026-09-18 — no read endpoint existed for the aggregate `POST` above published to). Response:
+  ```json
+  {
+    "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." },
+    "history": [ { "version": 1, "questions": [...], "consentText": "...", "consentVersion": 1, "requiresNamedAttendees": false, "participantCountRequired": false, "createdAt": "..." } ]
+  }
+  ```
+  - `200` on success — `active: null` if no version has ever been published
+  - `404` if the service doesn't exist or belongs to another tenant
+  - Backed by `IServiceIntakeSchemaRepository.findAllByServiceId()`, partitioned by `isActive` — no separate per-version endpoint, since the repository already returns full aggregates
+
 - `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:
   ```json
   {

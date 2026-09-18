@@ -391,7 +391,7 @@ ServiceIntakeQuestion {
 - A `PICKUP_ADDRESS`-typed question also flips `Service.requiresPickupAddress = true` in the same transaction (UC-054 A2) — the legacy boolean stays the single source of truth for whether `Booking.pickupAddress` must be populated; the intake schema is the collection layer on top of it, not a second, independently-driftable switch.
 - A `Booking` freezes `intakeSchemaVersion`/`intakeAnswers` at submission time (immutable snapshot pair) — a later schema republish never retroactively changes an already-submitted booking's answers.
 
-**Read path — currently incomplete (found via `/docs-audit` 2026-09-17):** `IServiceIntakeSchemaRepository.findActiveByServiceId()`/`findAllByServiceId()` exist, but neither is wired to any controller — there is no way today to fetch a service's active schema or its version history over HTTP. Tracked for the M22-S04 frontend story (or a preceding backend/BFF addition), not yet resolved.
+**Read path (added M22-S04, 2026-09-18):** `IServiceIntakeSchemaRepository.findActiveByServiceId()`/`findAllByServiceId()` existed at the repository layer with no controller wiring until `/story-discovery M22-S04` folded a `GetServiceIntakeSchemaUseCase` + `GET /services/:id/intake-schema` (backend + BFF) into that story's scope, calling `findAllByServiceId()` and partitioning by `isActive`. See `docs/14-API_CONTRACTS.md` § Service Extensions — M22 Cluster 2.
 
 ---
 
