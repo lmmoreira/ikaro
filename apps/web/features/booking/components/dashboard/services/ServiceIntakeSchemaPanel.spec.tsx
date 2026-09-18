@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
@@ -51,7 +51,12 @@ function getByVersion(container: HTMLElement, version: number): HTMLElement {
 describe('ServiceIntakeSchemaPanel', () => {
   it('shows the empty-question hint when there are no questions yet', () => {
     renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={null} initialHistory={[]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={null}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
     );
     expect(screen.getByTestId('intake-questions-empty')).toBeInTheDocument();
     expect(screen.getByTestId('intake-publish')).toBeDisabled();
@@ -60,7 +65,12 @@ describe('ServiceIntakeSchemaPanel', () => {
   it('adds, edits, reorders and removes questions on the live list', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={null} initialHistory={[]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={null}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
     );
 
     await user.click(screen.getByTestId('intake-add-question'));
@@ -84,7 +94,12 @@ describe('ServiceIntakeSchemaPanel', () => {
 
   it('pre-fills from the active version and shows it in history', () => {
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={V1} initialHistory={[]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={V1}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
     );
 
     expect(getByIndex(container, 'intake-question-label', 0)).toHaveValue('Necessidades de acesso');
@@ -96,7 +111,12 @@ describe('ServiceIntakeSchemaPanel', () => {
     const user = userEvent.setup();
     const v2 = { ...V1, id: 'schema-2', version: 2, consentText: 'Concordo v2' };
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={v2} initialHistory={[V1]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={v2}
+        initialHistory={[V1]}
+        onDirtyChange={vi.fn()}
+      />,
     );
 
     await user.click(getByVersion(container, 1));
@@ -104,15 +124,25 @@ describe('ServiceIntakeSchemaPanel', () => {
     expect(screen.getByText('Concordo v1')).toBeInTheDocument();
   });
 
-  it('closes the version modal on Escape', async () => {
+  it('closes the version modal on the native dialog cancel event (Escape, real browser)', async () => {
     const user = userEvent.setup();
     const v2 = { ...V1, id: 'schema-2', version: 2, consentText: 'Concordo v2' };
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={v2} initialHistory={[V1]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={v2}
+        initialHistory={[V1]}
+        onDirtyChange={vi.fn()}
+      />,
     );
 
     await user.click(getByVersion(container, 1));
-    await user.keyboard('{Escape}');
+    // jsdom doesn't implement <dialog>'s native Escape-to-cancel behavior (only showModal()/
+    // close() are polyfilled in vitest.setup.ts) — dispatch the 'cancel' event directly.
+    fireEvent(
+      screen.getByTestId('intake-version-modal'),
+      new Event('cancel', { cancelable: true }),
+    );
     expect(screen.queryByTestId('intake-version-modal')).not.toBeInTheDocument();
   });
 
@@ -120,7 +150,12 @@ describe('ServiceIntakeSchemaPanel', () => {
     const user = userEvent.setup();
     mutateAsync.mockResolvedValue({ ...V1, id: 'schema-2', version: 2, consentText: 'v2' });
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={V1} initialHistory={[]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={V1}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
     );
 
     await user.clear(screen.getByTestId('intake-consent-text'));
@@ -140,7 +175,12 @@ describe('ServiceIntakeSchemaPanel', () => {
     const user = userEvent.setup();
     mutateAsync.mockRejectedValueOnce(new Error('422'));
     renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={V1} initialHistory={[]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={V1}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
     );
 
     await user.click(screen.getByTestId('intake-publish'));
@@ -150,7 +190,12 @@ describe('ServiceIntakeSchemaPanel', () => {
   it('blocks publish and shows an inline warning when two questions resolve to the same fieldKey', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={null} initialHistory={[]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={null}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
     );
 
     await user.click(screen.getByTestId('intake-add-question'));
@@ -166,7 +211,12 @@ describe('ServiceIntakeSchemaPanel', () => {
   it('enforces the 1-50 question limit by disabling "add question" at 50', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <ServiceIntakeSchemaPanel serviceId="svc-1" initialActive={null} initialHistory={[]} />,
+      <ServiceIntakeSchemaPanel
+        serviceId="svc-1"
+        initialActive={null}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
     );
 
     for (let i = 0; i < 50; i += 1) {

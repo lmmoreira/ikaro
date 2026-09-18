@@ -44,7 +44,7 @@ export function ServiceEditTabBar({
           }`}
         >
           {t(TAB_LABEL_KEYS[tab])}
-          {tab !== 'formulario' && dirty[tab] && (
+          {dirty[tab] && (
             <span
               data-testid="service-edit-tab-dirty-dot"
               data-tab={tab}

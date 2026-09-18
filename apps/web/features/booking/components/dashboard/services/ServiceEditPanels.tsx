@@ -56,7 +56,10 @@ interface ServiceEditActionPanelsProps {
   readonly onCancelClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
-interface ServiceEditPrimaryActionProps extends ServiceEditActionPanelsProps {
+interface ServiceEditPrimaryActionProps extends Pick<
+  ServiceEditActionPanelsProps,
+  'isActive' | 'isSubmitting' | 'isActivating' | 'onActivate'
+> {
   readonly saveTestId: string;
   readonly activateTestId: string;
 }

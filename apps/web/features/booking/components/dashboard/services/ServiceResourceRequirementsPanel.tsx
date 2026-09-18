@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
 import { ServiceLegsPanel } from './ServiceLegsPanel';
+import { ServiceBufferAfterMinutesField } from './ServiceBufferAfterMinutesField';
 
 const FLAT_TYPES: ResourceType[] = ['STAFF', 'ROOM', 'EQUIPMENT'];
 
@@ -175,28 +176,6 @@ export function ServiceResourceRequirementsPanel({
                 onChange={handleChangeType}
               />
             ))}
-
-            <div>
-              <label
-                htmlFor="resource-buffer-input"
-                className="mb-1 block text-sm font-semibold text-gray-900"
-              >
-                {t('recursosBufferLabel')}
-              </label>
-              <input
-                id="resource-buffer-input"
-                type="number"
-                min={0}
-                data-testid="resource-buffer-input"
-                value={bufferAfterMinutes}
-                onChange={(event) => {
-                  setBufferAfterMinutes(event.target.value);
-                  markDirty();
-                }}
-                className="w-32 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">{t('recursosBufferHint')}</p>
-            </div>
           </CardContent>
         </Card>
       ) : (
@@ -209,6 +188,15 @@ export function ServiceResourceRequirementsPanel({
           }}
         />
       )}
+
+      <ServiceBufferAfterMinutesField
+        value={bufferAfterMinutes}
+        disabled={mode === 'legs'}
+        onChange={(value) => {
+          setBufferAfterMinutes(value);
+          markDirty();
+        }}
+      />
 
       {error && (
         <div

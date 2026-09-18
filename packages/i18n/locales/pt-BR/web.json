@@ -1258,6 +1258,7 @@
       "formularioPublishButton": "Publicar formulário",
       "formularioPublishedConfirm": "✓ Formulário publicado",
       "formularioDuplicateFieldKeyError": "Duas perguntas geraram a mesma chave interna — ajuste os rótulos para torná-los únicos.",
+      "formularioBlankLabelError": "Toda pergunta precisa de um texto — preencha ou remova as perguntas em branco.",
       "formularioMinQuestionsError": "Adicione pelo menos 1 pergunta.",
       "formularioConsentRequiredError": "Informe o texto do termo de consentimento.",
       "formularioVersionModalTitle": "Versão {version}",

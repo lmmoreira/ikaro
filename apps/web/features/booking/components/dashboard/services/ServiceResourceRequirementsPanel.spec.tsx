@@ -90,6 +90,25 @@ describe('ServiceResourceRequirementsPanel', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('visibly disables the buffer field once legs mode is selected, instead of removing it', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <ServiceResourceRequirementsPanel
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={30}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-buffer-input')).toBeEnabled();
+
+    await user.click(screen.getByTestId('resource-mode-legs'));
+
+    expect(screen.getByTestId('resource-buffer-input')).toBeDisabled();
+  });
+
   it('saving in flat mode calls updateServiceResourceRequirements and updateService for the buffer', async () => {
     const user = userEvent.setup();
     const onDirtyChange = vi.fn();

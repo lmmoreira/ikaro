@@ -23,6 +23,7 @@ describe('IntakeQuestionsCard', () => {
         questions={[]}
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
+        hasBlankLabel={false}
         canAddQuestion
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -42,6 +43,7 @@ describe('IntakeQuestionsCard', () => {
         questions={QUESTIONS}
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
+        hasBlankLabel={false}
         canAddQuestion
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -61,6 +63,7 @@ describe('IntakeQuestionsCard', () => {
         questions={QUESTIONS}
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys
+        hasBlankLabel={false}
         canAddQuestion
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -74,12 +77,33 @@ describe('IntakeQuestionsCard', () => {
     expect(screen.getByTestId('intake-duplicate-fieldkey-error')).toBeInTheDocument();
   });
 
+  it('shows the blank-label warning when hasBlankLabel is true', () => {
+    renderWithIntl(
+      <IntakeQuestionsCard
+        questions={QUESTIONS}
+        resolveFieldKey={(q) => q.fieldKey}
+        hasDuplicateFieldKeys={false}
+        hasBlankLabel
+        canAddQuestion
+        onAdd={vi.fn()}
+        onMove={vi.fn()}
+        onRemove={vi.fn()}
+        onChangeLabel={vi.fn()}
+        onChangeType={vi.fn()}
+        onChangeRequired={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('intake-blank-label-error')).toBeInTheDocument();
+  });
+
   it('disables the add-question button when canAddQuestion is false', () => {
     renderWithIntl(
       <IntakeQuestionsCard
         questions={QUESTIONS}
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
+        hasBlankLabel={false}
         canAddQuestion={false}
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -101,6 +125,7 @@ describe('IntakeQuestionsCard', () => {
         questions={[]}
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
+        hasBlankLabel={false}
         canAddQuestion
         onAdd={onAdd}
         onMove={vi.fn()}

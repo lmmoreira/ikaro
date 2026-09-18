@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
@@ -46,12 +46,18 @@ describe('IntakeVersionModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('calls onClose when Escape is pressed', async () => {
-    const user = userEvent.setup();
+  it('calls onClose when the native dialog cancel event fires (Escape, real browser)', () => {
     const onClose = vi.fn();
     renderWithIntl(<IntakeVersionModal version={VERSION} onClose={onClose} />);
 
-    await user.keyboard('{Escape}');
+    // jsdom doesn't implement <dialog>'s native Escape-to-cancel behavior (only showModal()/
+    // close() are polyfilled in vitest.setup.ts) — dispatch the 'cancel' event directly to verify
+    // this component's own onCancel wiring, matching every other native-<dialog>-based modal in
+    // this codebase (none of which unit-test the browser's own Escape handling either).
+    fireEvent(
+      screen.getByTestId('intake-version-modal'),
+      new Event('cancel', { cancelable: true }),
+    );
     expect(onClose).toHaveBeenCalled();
   });
 });

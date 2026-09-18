@@ -40,12 +40,14 @@ interface ServiceIntakeSchemaPanelProps {
   readonly serviceId: string;
   readonly initialActive: ServiceIntakeSchemaVersion | null;
   readonly initialHistory: ServiceIntakeSchemaVersion[];
+  readonly onDirtyChange: (dirty: boolean) => void;
 }
 
 export function ServiceIntakeSchemaPanel({
   serviceId,
   initialActive,
   initialHistory,
+  onDirtyChange,
 }: ServiceIntakeSchemaPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
@@ -71,14 +73,20 @@ export function ServiceIntakeSchemaPanel({
   const [publishedMessageVisible, setPublishedMessageVisible] = useState(false);
   const nextKeySeed = useRef(questions.length);
 
+  function markDirty(): void {
+    onDirtyChange(true);
+    setPublishedMessageVisible(false);
+  }
+
   function addQuestion(): void {
     nextKeySeed.current += 1;
     setQuestions((current) => [...current, newQuestion(`new-${nextKeySeed.current}`)]);
-    setPublishedMessageVisible(false);
+    markDirty();
   }
 
   function removeQuestion(key: string): void {
     setQuestions((current) => current.filter((question) => question.key !== key));
+    markDirty();
   }
 
   function moveQuestion(key: string, direction: -1 | 1): void {
@@ -92,26 +100,46 @@ export function ServiceIntakeSchemaPanel({
       next.splice(targetIndex, 0, moved);
       return next;
     });
+    markDirty();
   }
 
   function updateQuestion(key: string, patch: Partial<IntakeQuestionDraft>): void {
     setQuestions((current) =>
       current.map((question) => (question.key === key ? { ...question, ...patch } : question)),
     );
+    markDirty();
+  }
+
+  function handleConsentTextChange(value: string): void {
+    setConsentText(value);
+    markDirty();
+  }
+
+  function handleRequiresNamedAttendeesChange(value: boolean): void {
+    setRequiresNamedAttendees(value);
+    markDirty();
+  }
+
+  function handleParticipantCountRequiredChange(value: boolean): void {
+    setParticipantCountRequired(value);
+    markDirty();
   }
 
   const resolvedFieldKeys = questions.map(
     (question) => question.fieldKey || slugifyFieldKey(question.label),
   );
   const hasDuplicateFieldKeys = new Set(resolvedFieldKeys).size !== resolvedFieldKeys.length;
+  const hasBlankLabel = questions.some((question) => question.label.trim().length === 0);
   // Mirrors PublishServiceIntakeSchemaSchema's own shape (packages/validation/src/booking.ts):
-  // 1-50 questions, unique fieldKey, label <= 500 chars (enforced via maxLength on the input),
-  // consentText <= 5000 chars (enforced via maxLength on the textarea).
+  // 1-50 questions, every label non-empty (fieldKey.min(1)/label.min(1) — a blank label derives
+  // an empty fieldKey too), unique fieldKey, label <= 500 chars (enforced via maxLength on the
+  // input), consentText <= 5000 chars (enforced via maxLength on the textarea).
   const canPublish =
     questions.length > 0 &&
     questions.length <= 50 &&
     consentText.trim().length > 0 &&
-    !hasDuplicateFieldKeys;
+    !hasDuplicateFieldKeys &&
+    !hasBlankLabel;
 
   async function handlePublish(): Promise<void> {
     setError(null);
@@ -133,6 +161,7 @@ export function ServiceIntakeSchemaPanel({
       if (active) setHistory((current) => [active, ...current]);
       setActive(result);
       setPublishedMessageVisible(true);
+      onDirtyChange(false);
     } catch (err) {
       setError(resolveErrorMessageFromApiError(err, locale));
     }
@@ -146,6 +175,7 @@ export function ServiceIntakeSchemaPanel({
         questions={questions}
         resolveFieldKey={(question) => question.fieldKey || slugifyFieldKey(question.label)}
         hasDuplicateFieldKeys={hasDuplicateFieldKeys}
+        hasBlankLabel={hasBlankLabel}
         canAddQuestion={questions.length < 50}
         onAdd={addQuestion}
         onMove={moveQuestion}
@@ -160,11 +190,11 @@ export function ServiceIntakeSchemaPanel({
       <IntakeParticipantsCard
         participantCountRequired={participantCountRequired}
         requiresNamedAttendees={requiresNamedAttendees}
-        onChangeParticipantCountRequired={setParticipantCountRequired}
-        onChangeRequiresNamedAttendees={setRequiresNamedAttendees}
+        onChangeParticipantCountRequired={handleParticipantCountRequiredChange}
+        onChangeRequiresNamedAttendees={handleRequiresNamedAttendeesChange}
       />
 
-      <IntakeConsentCard consentText={consentText} onChange={setConsentText} />
+      <IntakeConsentCard consentText={consentText} onChange={handleConsentTextChange} />
 
       <IntakeVersionHistoryCard
         active={active}

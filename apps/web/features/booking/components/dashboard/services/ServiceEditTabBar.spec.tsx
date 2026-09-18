@@ -42,11 +42,11 @@ describe('ServiceEditTabBar', () => {
     expect(onTabChange).toHaveBeenCalledWith('politicas');
   });
 
-  it('shows a dirty dot only for tabs marked dirty, never for formulario', () => {
+  it('shows a dirty dot only for tabs marked dirty, including formulario', () => {
     const { container } = renderWithIntl(
       <ServiceEditTabBar
         activeTab="detalhes"
-        dirty={{ detalhes: true, recursos: false, politicas: true }}
+        dirty={{ detalhes: true, recursos: false, politicas: true, formulario: true }}
         onTabChange={vi.fn()}
       />,
     );
@@ -60,9 +60,8 @@ describe('ServiceEditTabBar', () => {
     expect(
       container.querySelector('[data-testid="service-edit-tab-dirty-dot"][data-tab="politicas"]'),
     ).toBeInTheDocument();
-    // formulario is excluded from the dirty map entirely — no dot possible regardless of state.
     expect(
       container.querySelector('[data-testid="service-edit-tab-dirty-dot"][data-tab="formulario"]'),
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
   });
 });

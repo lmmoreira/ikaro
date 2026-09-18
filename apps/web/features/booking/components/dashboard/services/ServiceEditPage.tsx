@@ -10,7 +10,7 @@ import { validateServiceForm } from '@/features/booking/services/service-form';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
-import type { ServiceEditDirtyTabKey, ServiceEditTabKey } from '@/features/booking/types/service';
+import type { ServiceEditTabKey } from '@/features/booking/types/service';
 import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/service';
 import { ServiceEditActionPanels } from './ServiceEditPanels';
 import { ServiceEditTabBar } from './ServiceEditTabBar';
@@ -103,7 +103,7 @@ export function ServiceEditPage({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [anyDirty]);
 
-  function setTabDirty(tab: ServiceEditDirtyTabKey, value: boolean): void {
+  function setTabDirty(tab: ServiceEditTabKey, value: boolean): void {
     setDirty((current) => (current[tab] === value ? current : { ...current, [tab]: value }));
   }
 
@@ -247,6 +247,7 @@ export function ServiceEditPage({
                 serviceId={service.serviceId}
                 initialActive={intakeSchema.active}
                 initialHistory={intakeSchema.history}
+                onDirtyChange={(value) => setTabDirty('formulario', value)}
               />
             </div>
           )}

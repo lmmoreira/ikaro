@@ -69,6 +69,10 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByRole('tab', { name: 'Recursos' }).click();
     await page.getByTestId('resource-mode-legs').click();
 
+    // Buffer stays visible but visibly disabled once legs mode is selected (not removed) —
+    // legged services use per-leg transitionGapAfterMinutes instead of a single buffer.
+    await expect(page.getByTestId('resource-buffer-input')).toBeDisabled();
+
     await page.getByTestId('legs-add-button').click();
     await page.getByTestId('legs-add-button').click();
 
@@ -110,13 +114,27 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByRole('tab', { name: 'Formulário de reserva' }).click();
 
     await page.getByTestId('intake-add-question').click();
+    // An in-progress, unpublished question marks the Formulário tab dirty like every other tab.
+    await expect(
+      page.locator('[data-testid="service-edit-tab-dirty-dot"][data-tab="formulario"]'),
+    ).toBeVisible();
+
+    await page.getByTestId('intake-consent-text').fill('Concordo com os termos');
+    // A blank question label keeps Publish disabled — the request schema requires label.min(1),
+    // so the client-side gate must catch this before it ever reaches the server.
+    await expect(page.getByTestId('intake-publish')).toBeDisabled();
+
     await page
       .locator('[data-testid="intake-question-label"][data-question-index="0"]')
       .fill('Necessidades de acesso');
-    await page.getByTestId('intake-consent-text').fill('Concordo com os termos');
+    await expect(page.getByTestId('intake-publish')).toBeEnabled();
     await page.getByTestId('intake-publish').click();
     await expect(page.getByTestId('intake-published')).toBeVisible();
     await expect(page.getByTestId('intake-version-current')).toContainText('1');
+    // Publishing clears the tab's dirty flag, same as every other tab's save.
+    await expect(
+      page.locator('[data-testid="service-edit-tab-dirty-dot"][data-tab="formulario"]'),
+    ).toHaveCount(0);
 
     await page.getByTestId('intake-add-question').click();
     await page
