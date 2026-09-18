@@ -899,7 +899,7 @@ Returns:
 - **Main Flow:**
   1. Admin picks `APPOINTMENT` (a private appointment, today's default) or `SESSION` (a class with capacity).
   2. If `APPOINTMENT`: proceeds to UC-050 (or UC-052 for legs).
-  3. If `SESSION`: admin declares this service's eligible resource pool per slot (`Service.classResourceSlots`) — same eligibility checklist as UC-050's flat case, just without a selection mode, since nothing resolves dynamically per booking. **Not actionable until Cluster 4 ships** `ClassScheduleTemplate` — the schema field exists from this cluster onward, but nothing consumes it yet; a SESSION service created in Cluster 2/3 has no way to actually be booked until then.
+  3. If `SESSION`: the service is created with an empty resource pool (`Service.classResourceSlots = []`) — no UI in this milestone collects it. **Not actionable until Cluster 4 ships** `ClassScheduleTemplate`, which is also when a Turmas-module UI for declaring the eligible resource pool per slot (same eligibility checklist as UC-050's flat case) first appears; a SESSION service created in Cluster 2/3 has no way to actually be booked until then.
 - **Alternative Flows:**
   - **A1: Admin tries to change `bookingModel` on a service with existing bookings** → `409 Conflict` — booking model is immutable once the service has history.
 - **Postconditions:** Service exists with a fixed `bookingModel`.

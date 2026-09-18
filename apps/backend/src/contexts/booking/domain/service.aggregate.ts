@@ -185,11 +185,14 @@ export class Service extends AggregateRoot {
     } = input;
     if (!tenantId) throw new TenantIdRequiredError();
     const normalizedName = Service.validateFields(name, price, durationMinutes, loyaltyPointsValue);
-    assertClassResourceSlotsMatchBookingModel(bookingModel, classResourceSlots);
+    // requireForSession=false — a brand-new SESSION service may be created with an empty resource
+    // pool (validated prototype + UC-056 step 3: pool/schedule config is a Cluster 4/M24 Turmas
+    // capability, not this milestone's). Still rejects a non-empty pool on a non-SESSION create.
+    assertClassResourceSlotsMatchBookingModel(bookingModel, classResourceSlots, false);
     // Same eligibility checklist as UC-050's flat case (UC-056 step 3, docs/02-DOMAIN_MODEL.md) —
     // duplicate-type rejection plus "each eligibleResourceIds entry is an active resource of the
     // matching type." See resource-requirement-availability.ts's identical treatment of
-    // resourceRequirements/legs.
+    // resourceRequirements/legs. No-ops on an empty pool.
     assertClassResourceSlotsAvailable(classResourceSlots, activeResourceIdsByType);
     return new Service(Service.buildCreateProps(input, normalizedName, classResourceSlots), true);
   }

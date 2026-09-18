@@ -304,17 +304,17 @@ describe('Service', () => {
       ).toThrow(ClassResourceSlotResourceNotActiveError);
     });
 
-    it('rejects creating a SESSION service without classResourceSlots', () => {
-      expect(() =>
-        Service.create({
-          tenantId: TENANT,
-          name: 'Yoga',
-          price: PRICE,
-          durationMinutes: DURATION,
-          loyaltyPointsValue: POINTS,
-          bookingModel: 'SESSION',
-        }),
-      ).toThrow(ClassResourceSlotBookingModelMismatchError);
+    it('allows creating a SESSION service with an empty classResourceSlots pool (deferred to the M24 Turmas module)', () => {
+      const service = Service.create({
+        tenantId: TENANT,
+        name: 'Yoga',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: POINTS,
+        bookingModel: 'SESSION',
+      });
+      expect(service.classResourceSlots).toEqual([]);
+      expect(service.bufferAfterMinutes).toBeNull();
     });
 
     it('rejects creating a non-SESSION service with classResourceSlots supplied', () => {

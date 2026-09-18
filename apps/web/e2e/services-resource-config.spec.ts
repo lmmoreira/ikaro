@@ -62,6 +62,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
   test('switches a service to legs, adds 2 legs, sees the computed total span', async ({
     page,
   }) => {
+    await createResource(page, { type: 'ROOM', name: makeUniqueServiceName('e2e-room') });
     const service = await seedService(page);
 
     await openEditPage(page, service.serviceId);
@@ -71,10 +72,28 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByTestId('legs-add-button').click();
     await page.getByTestId('legs-add-button').click();
 
+    // Every leg needs a name and at least one resource type selected (ServiceLeg.create()'s own
+    // domain invariant — name-required / requires-resource-requirement).
+    const firstLegName = page.locator('[data-testid="leg-name"][data-leg-index="0"]');
+    const secondLegName = page.locator('[data-testid="leg-name"][data-leg-index="1"]');
+    await firstLegName.fill('Etapa 1');
+    await secondLegName.fill('Etapa 2');
+
     const firstLegDuration = page.locator('[data-testid="leg-duration"][data-leg-index="0"]');
     const secondLegDuration = page.locator('[data-testid="leg-duration"][data-leg-index="1"]');
     await firstLegDuration.fill('20');
     await secondLegDuration.fill('50');
+
+    await page
+      .locator(
+        '[data-testid="resource-type-checkbox"][data-scope="leg-0"][data-resource-type="ROOM"]',
+      )
+      .click();
+    await page
+      .locator(
+        '[data-testid="resource-type-checkbox"][data-scope="leg-1"][data-resource-type="ROOM"]',
+      )
+      .click();
 
     await expect(page.getByTestId('legs-total-span')).toContainText('70');
 

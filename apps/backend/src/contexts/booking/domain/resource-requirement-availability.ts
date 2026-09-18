@@ -16,14 +16,23 @@ export type ServiceBookingModel = 'APPOINTMENT' | 'SESSION';
 
 // classResourceSlots can only ever be supplied where bookingModel itself is set (Service.create()
 // or Service.changeBookingModel()) — there is no separate slot-management endpoint in this
-// milestone — so a SESSION service created/converted with none would be permanently
-// un-configurable, and an APPOINTMENT service silently discarding a supplied classResourceSlots
-// would surprise a caller who mistakenly sent it.
+// milestone — so an APPOINTMENT service silently discarding a supplied classResourceSlots would
+// surprise a caller who mistakenly sent it.
+//
+// requireForSession defaults to true (Service.changeBookingModel()'s own behavior, UC-056 A1's
+// existing-bookings path is unaffected either way): a service already taking bookings that
+// converts to SESSION mid-life must declare its resource pool in the same request, or it would
+// otherwise go straight from bookable to permanently un-configurable with no UI to fix it.
+// Service.create() passes false — per the validated prototype (02-service-create.html) and
+// UC-056 step 3, a brand-new SESSION service is deliberately creatable with an empty pool; actual
+// resource-pool + schedule configuration is a Cluster 4/M24 Turmas-module capability, not this
+// milestone's.
 export function assertClassResourceSlotsMatchBookingModel(
   bookingModel: ServiceBookingModel,
   classResourceSlots: ClassResourceSlot[],
+  requireForSession = true,
 ): void {
-  if (bookingModel === 'SESSION' && classResourceSlots.length === 0) {
+  if (requireForSession && bookingModel === 'SESSION' && classResourceSlots.length === 0) {
     throw new ClassResourceSlotBookingModelMismatchError('required-for-session');
   }
   if (bookingModel !== 'SESSION' && classResourceSlots.length > 0) {

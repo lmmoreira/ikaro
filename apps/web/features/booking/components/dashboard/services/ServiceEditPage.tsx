@@ -81,7 +81,13 @@ export function ServiceEditPage({
   // guarded — no existing mechanism intercepts shell-level navigation for one page's dirty state,
   // and extending it there was decided out of scope at /story-discovery, 2026-09-18.
   useEffect(() => {
-    setOnBackOverride?.(() => {
+    // useState setters treat a bare function argument as an updater — wrap in an outer arrow so
+    // React stores the inner function as the literal state value (matches the existing
+    // useHotsiteEditorTopbarOverride.ts precedent). Without the outer wrapper, React invokes this
+    // function immediately as `(prevState) => newState` on every effect run, firing the
+    // router.push() as an unintended side effect of the state update itself instead of only on a
+    // real back-button click.
+    setOnBackOverride?.(() => () => {
       if (anyDirty && !window.confirm(t('unsavedChangesConfirm'))) return;
       router.push('/dashboard/services');
     });
