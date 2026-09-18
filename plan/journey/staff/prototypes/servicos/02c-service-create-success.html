@@ -51,7 +51,16 @@
     .model-card p.title { font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
     .model-card p.sub { font-size: 0.8125rem; opacity: 0.6; }
     .resource-check-row { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.75rem; margin-bottom: 0.625rem; }
+    .resource-check-row.checked { border-color: #2563eb; border-width: 2px; } /* fixed platform blue, not --ba-primary */
     .radio-row-title { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .nested-selmode { margin: 0.625rem 0 0.125rem 1.875rem; padding-top: 0.625rem; border-top: 1px solid var(--ba-secondary); display: flex; flex-direction: column; gap: 0.5rem; }
+    .nested-selmode label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--ba-text); cursor: pointer; }
+    .eligible-count { font-size: 0.8125rem; font-weight: 600; color: var(--ba-text); margin-bottom: 0.5rem; }
+    .eligible-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .eligible-chip { display: inline-flex; align-items: center; gap: 0.375rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 9999px; padding: 0.3125rem 0.5rem 0.3125rem 0.75rem; font-size: 0.8125rem; font-weight: 600; }
+    .chip-remove { background: none; border: none; color: #1d4ed8; opacity: 0.6; cursor: pointer; font-size: 0.9375rem; line-height: 1; padding: 0.125rem; }
+    .chip-remove:hover { opacity: 1; }
+    .eligible-add-select { margin-top: 0.625rem; }
     .empty-state { text-align: center; padding: 2.5rem 1.5rem; border: 1.5px dashed var(--ba-secondary); border-radius: var(--ba-radius); }
     .empty-state-icon { width: 3rem; height: 3rem; border-radius: 9999px; background: var(--ba-secondary); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
     .empty-state-title { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); margin-bottom: 0.375rem; }
@@ -211,6 +220,12 @@
 
         <!-- ═══ TAB 2 — RECURSOS (empty/default state — never modeled before this pass) ═══ -->
         <div class="editor-panel" id="panel-recursos" role="tabpanel" aria-labelledby="tab-recursos">
+          <p class="form-hint" style="margin-bottom:1.25rem;">
+            Modelo de agendamento: <strong>Agendamento</strong> — definido na criação do serviço e não pode ser
+            alterado depois (UC-056 A1). Ver <a href="02-service-create.html" style="color:var(--ba-primary);">Criar serviço</a>
+            para a escolha entre Agendamento/Turma.
+          </p>
+
           <div class="empty-state" style="margin-bottom:1.25rem;">
             <div class="empty-state-icon">
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--ba-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -251,6 +266,11 @@
                 </select>
                 <p class="form-hint">Cadastre profissionais em Recursos antes de marcá-los elegíveis aqui.</p>
               </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-staff"> Cliente escolhe entre os elegíveis</label>
+                <label><input type="radio" name="selmode-staff" checked> Sistema atribui automaticamente entre os elegíveis</label>
+              </div>
             </div>
             <div class="resource-check-row">
               <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
@@ -268,6 +288,9 @@
                   <option value="">Nenhuma sala cadastrada no tenant ainda</option>
                 </select>
                 <p class="form-hint">Cadastre salas em Recursos antes de marcá-las elegíveis aqui.</p>
+              </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label><input type="radio" name="selmode-room" checked> Sistema atribui automaticamente entre as elegíveis</label>
               </div>
             </div>
             <div class="resource-check-row">
@@ -287,12 +310,21 @@
                 </select>
                 <p class="form-hint">Cadastre equipamentos em Recursos antes de marcá-los elegíveis aqui.</p>
               </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label><input type="radio" name="selmode-equip" checked> Sistema atribui automaticamente entre os elegíveis</label>
+              </div>
             </div>
+
+            <p class="form-hint" style="margin-top:0.5rem;">
+              Nenhuma caixa marcada = modelo de hoje (o negócio inteiro é o recurso, ex. car wash). Uma caixa
+              marcada = recurso único. Duas ou mais marcadas = bundle — todas precisam estar livres na mesma
+              janela ao mesmo tempo (UC-051).
+            </p>
 
             <div class="form-group" style="margin-top:1.25rem;">
               <label class="form-label">Tempo de preparo após o serviço (buffer)</label>
               <div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="60"><span class="input-suffix">min</span></div>
-              <p class="form-hint">Valor inicial copiado do padrão do negócio no momento da criação — já é um valor real e editável, não um placeholder (diferente das políticas abaixo, que ficam vazias/herdadas até serem definidas explicitamente).</p>
+              <p class="form-hint">Valor inicial copiado do padrão do negócio no momento da criação — já é um valor real e editável, não um placeholder (diferente das políticas abaixo, que ficam vazias/herdadas até serem definidas explicitamente). Combina com o tempo mínimo de virada do próprio recurso — vale o maior dos dois (<code>max(service.bufferAfterMinutes, resource.turnoverMinutes)</code>, UC-053/UC-059).</p>
             </div>
           </div><!-- /flat-resource-config -->
 

@@ -479,10 +479,76 @@
                 <div class="form-group"><label class="form-label">Transição até a próxima etapa</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="10"><span class="input-suffix">min</span></div></div>
               </div>
               <label class="form-label">Recurso(s) necessário(s)</label>
-              <div class="resource-check-row checked">
-                <div class="radio-row-title">Sala</div>
-                <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
-                  <label><input type="checkbox" checked disabled> Sala de Sauna</label>
+              <div class="resource-check-row">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Profissional</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um membro da equipe realiza o atendimento</div></div>
+                </label>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <p class="eligible-count">Elegíveis (0)</p>
+                  <div class="eligible-chip-row"></div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar profissional elegível…</option>
+                    <option>Renata Souza</option><option>Maria Santos</option><option>Juliana Prado</option>
+                    <option>Camila Duarte</option><option>Ana Beatriz</option><option>Bruno Alves</option>
+                    <option>João Mendes</option><option>Fábio Ramos</option>
+                  </select>
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                  <label><input type="radio" name="selmode-leg1-staff"> Cliente escolhe entre os elegíveis</label>
+                  <label><input type="radio" name="selmode-leg1-staff" checked> Sistema atribui automaticamente entre os elegíveis</label>
+                </div>
+              </div>
+              <div class="resource-check-row checked" style="margin-top:0.625rem;">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" checked onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Sala</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Uma sala específica é reservada</div></div>
+                </label>
+                <div class="nested-selmode">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantas deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode">
+                  <p class="eligible-count">Elegíveis (1)</p>
+                  <div class="eligible-chip-row">
+                    <span class="eligible-chip">Sala de Sauna <button type="button" class="chip-remove" aria-label="Remover Sala de Sauna">×</button></span>
+                  </div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar sala elegível…</option>
+                    <option>Sala de Terapia</option><option>Sala de Relaxamento</option><option>Estúdio 1</option>
+                    <option>Estúdio 2</option><option>Área CrossFit</option><option>Sala de Ioga</option>
+                  </select>
+                </div>
+                <div class="nested-selmode">
+                  <label><input type="radio" name="selmode-leg1-room" checked> Sistema atribui automaticamente (única elegível)</label>
+                </div>
+              </div>
+              <div class="resource-check-row" style="margin-top:0.625rem;">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Equipamento</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um equipamento específico é reservado</div></div>
+                </label>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <p class="eligible-count">Elegíveis (0)</p>
+                  <div class="eligible-chip-row"></div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar equipamento elegível…</option>
+                    <option>Kit de Pedras Quentes</option><option>Kit Halteres (Rack 1)</option><option>Kit Halteres (Rack 2)</option>
+                  </select>
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                  <label><input type="radio" name="selmode-leg1-equip"> Cliente escolhe entre os elegíveis</label>
+                  <label><input type="radio" name="selmode-leg1-equip" checked> Sistema atribui automaticamente entre os elegíveis</label>
                 </div>
               </div>
             </div>
@@ -498,17 +564,78 @@
                 <div class="form-group"><label class="form-label">Transição até a próxima etapa</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="5"><span class="input-suffix">min</span></div></div>
               </div>
               <label class="form-label">Recurso(s) necessário(s) — esta etapa precisa de dois ao mesmo tempo</label>
-              <div class="resource-check-row checked" style="margin-bottom:0.625rem;">
-                <div class="radio-row-title">Profissional</div>
-                <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
-                  <label><input type="checkbox" checked disabled> Renata Souza</label>
-                  <label><input type="checkbox" checked disabled> Maria Santos</label>
+              <div class="resource-check-row checked">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" checked onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Profissional</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um membro da equipe realiza o atendimento</div></div>
+                </label>
+                <div class="nested-selmode">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode">
+                  <p class="eligible-count">Elegíveis (2)</p>
+                  <div class="eligible-chip-row">
+                    <span class="eligible-chip">Renata Souza <button type="button" class="chip-remove" aria-label="Remover Renata Souza">×</button></span>
+                    <span class="eligible-chip">Maria Santos <button type="button" class="chip-remove" aria-label="Remover Maria Santos">×</button></span>
+                  </div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar profissional elegível…</option>
+                    <option>Juliana Prado</option><option>Camila Duarte</option><option>Ana Beatriz</option>
+                    <option>Bruno Alves</option><option>João Mendes</option><option>Fábio Ramos</option>
+                  </select>
+                </div>
+                <div class="nested-selmode">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                  <label><input type="radio" name="selmode-leg2-staff" checked> Cliente escolhe entre Renata e Maria</label>
+                  <label><input type="radio" name="selmode-leg2-staff"> Sistema atribui automaticamente entre as duas</label>
                 </div>
               </div>
-              <div class="resource-check-row checked">
-                <div class="radio-row-title">Sala</div>
-                <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
-                  <label><input type="checkbox" checked disabled> Sala de Terapia</label>
+              <div class="resource-check-row checked" style="margin-top:0.625rem;">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" checked onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Sala</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Uma sala específica é reservada</div></div>
+                </label>
+                <div class="nested-selmode">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantas deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode">
+                  <p class="eligible-count">Elegíveis (1)</p>
+                  <div class="eligible-chip-row">
+                    <span class="eligible-chip">Sala de Terapia <button type="button" class="chip-remove" aria-label="Remover Sala de Terapia">×</button></span>
+                  </div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar sala elegível…</option>
+                    <option>Sala de Relaxamento</option><option>Estúdio 1</option><option>Estúdio 2</option>
+                    <option>Sala de Sauna</option><option>Área CrossFit</option><option>Sala de Ioga</option>
+                  </select>
+                </div>
+                <div class="nested-selmode">
+                  <label><input type="radio" name="selmode-leg2-room" checked> Sistema atribui automaticamente (única elegível)</label>
+                </div>
+              </div>
+              <div class="resource-check-row" style="margin-top:0.625rem;">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Equipamento</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um equipamento específico é reservado</div></div>
+                </label>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <p class="eligible-count">Elegíveis (0)</p>
+                  <div class="eligible-chip-row"></div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar equipamento elegível…</option>
+                    <option>Kit de Pedras Quentes</option><option>Kit Halteres (Rack 1)</option><option>Kit Halteres (Rack 2)</option>
+                  </select>
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                  <label><input type="radio" name="selmode-leg2-equip"> Cliente escolhe entre os elegíveis</label>
+                  <label><input type="radio" name="selmode-leg2-equip" checked> Sistema atribui automaticamente entre os elegíveis</label>
                 </div>
               </div>
             </div>
@@ -524,10 +651,76 @@
                 <div class="form-group"><label class="form-label">Transição (não se aplica à última etapa)</label><div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="0" disabled style="opacity:0.5;"><span class="input-suffix">min</span></div></div>
               </div>
               <label class="form-label">Recurso(s) necessário(s)</label>
-              <div class="resource-check-row checked">
-                <div class="radio-row-title">Sala</div>
-                <div class="nested-selmode" style="margin:0.5rem 0 0.125rem 0;padding-top:0;border-top:none;">
-                  <label><input type="checkbox" checked disabled> Sala de Relaxamento</label>
+              <div class="resource-check-row">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Profissional</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um membro da equipe realiza o atendimento</div></div>
+                </label>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <p class="eligible-count">Elegíveis (0)</p>
+                  <div class="eligible-chip-row"></div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar profissional elegível…</option>
+                    <option>Renata Souza</option><option>Maria Santos</option><option>Juliana Prado</option>
+                    <option>Camila Duarte</option><option>Ana Beatriz</option><option>Bruno Alves</option>
+                    <option>João Mendes</option><option>Fábio Ramos</option>
+                  </select>
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                  <label><input type="radio" name="selmode-leg3-staff"> Cliente escolhe entre os elegíveis</label>
+                  <label><input type="radio" name="selmode-leg3-staff" checked> Sistema atribui automaticamente entre os elegíveis</label>
+                </div>
+              </div>
+              <div class="resource-check-row checked" style="margin-top:0.625rem;">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" checked onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Sala</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Uma sala específica é reservada</div></div>
+                </label>
+                <div class="nested-selmode">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantas deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode">
+                  <p class="eligible-count">Elegíveis (1)</p>
+                  <div class="eligible-chip-row">
+                    <span class="eligible-chip">Sala de Relaxamento <button type="button" class="chip-remove" aria-label="Remover Sala de Relaxamento">×</button></span>
+                  </div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar sala elegível…</option>
+                    <option>Sala de Terapia</option><option>Estúdio 1</option><option>Estúdio 2</option>
+                    <option>Sala de Sauna</option><option>Área CrossFit</option><option>Sala de Ioga</option>
+                  </select>
+                </div>
+                <div class="nested-selmode">
+                  <label><input type="radio" name="selmode-leg3-room" checked> Sistema atribui automaticamente (única elegível)</label>
+                </div>
+              </div>
+              <div class="resource-check-row" style="margin-top:0.625rem;">
+                <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                  <input type="checkbox" onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                  <div style="flex:1;"><div class="radio-row-title">Equipamento</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um equipamento específico é reservado</div></div>
+                </label>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                  <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <p class="eligible-count">Elegíveis (0)</p>
+                  <div class="eligible-chip-row"></div>
+                  <select class="form-input eligible-add-select">
+                    <option value="">+ Adicionar equipamento elegível…</option>
+                    <option>Kit de Pedras Quentes</option><option>Kit Halteres (Rack 1)</option><option>Kit Halteres (Rack 2)</option>
+                  </select>
+                </div>
+                <div class="nested-selmode" style="display:none;">
+                  <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                  <label><input type="radio" name="selmode-leg3-equip"> Cliente escolhe entre os elegíveis</label>
+                  <label><input type="radio" name="selmode-leg3-equip" checked> Sistema atribui automaticamente entre os elegíveis</label>
                 </div>
               </div>
             </div>
