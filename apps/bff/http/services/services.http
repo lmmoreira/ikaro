@@ -179,6 +179,12 @@ Authorization: Bearer {{managerToken}}
   ]
 }
 
+###
+
+### Read the active intake schema and its version history (UC-054 read path, M22-S04)
+GET {{bffUrl}}/v1/services/{{serviceId}}/intake-schema
+Authorization: Bearer {{managerToken}}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — deactivate service (UC-013)
 # ─────────────────────────────────────────────────────────────────────────────

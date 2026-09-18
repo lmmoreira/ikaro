@@ -40,10 +40,14 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
         </label>
         {policy.defaultApprovalMode === 'MANUAL_APPROVAL' && (
           <div className="ml-6 max-w-[10rem]">
-            <label className="mb-1 block text-xs font-semibold text-gray-500">
+            <label
+              htmlFor="policy-hold-minutes"
+              className="mb-1 block text-xs font-semibold text-gray-500"
+            >
               {t('politicasHoldMinutesLabel')}
             </label>
             <input
+              id="policy-hold-minutes"
               type="number"
               min={1}
               data-testid="policy-hold-minutes"
@@ -68,10 +72,14 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
 
         <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-gray-500">
+            <label
+              htmlFor="policy-cancellation-window"
+              className="mb-1 block text-xs font-semibold text-gray-500"
+            >
               {t('politicasCancellationWindowLabel')}
             </label>
             <input
+              id="policy-cancellation-window"
               type="number"
               min={0}
               data-testid="policy-cancellation-window"
@@ -85,10 +93,14 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-gray-500">
+            <label
+              htmlFor="policy-reschedule-window"
+              className="mb-1 block text-xs font-semibold text-gray-500"
+            >
               {t('politicasRescheduleWindowLabel')}
             </label>
             <input
+              id="policy-reschedule-window"
               type="number"
               min={0}
               data-testid="policy-reschedule-window"
@@ -116,10 +128,14 @@ export function PolicyBookingWindowCard({ policy, onPatch }: PolicyCardProps): R
         </h2>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-gray-500">
+            <label
+              htmlFor="policy-min-advance"
+              className="mb-1 block text-xs font-semibold text-gray-500"
+            >
               {t('politicasMinAdvanceLabel')}
             </label>
             <input
+              id="policy-min-advance"
               type="number"
               min={0}
               data-testid="policy-min-advance"
@@ -131,10 +147,14 @@ export function PolicyBookingWindowCard({ policy, onPatch }: PolicyCardProps): R
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-gray-500">
+            <label
+              htmlFor="policy-max-advance"
+              className="mb-1 block text-xs font-semibold text-gray-500"
+            >
               {t('politicasMaxAdvanceLabel')}
             </label>
             <input
+              id="policy-max-advance"
               type="number"
               min={1}
               data-testid="policy-max-advance"

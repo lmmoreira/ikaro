@@ -177,10 +177,14 @@ export function ServiceResourceRequirementsPanel({
             ))}
 
             <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-900">
+              <label
+                htmlFor="resource-buffer-input"
+                className="mb-1 block text-sm font-semibold text-gray-900"
+              >
                 {t('recursosBufferLabel')}
               </label>
               <input
+                id="resource-buffer-input"
                 type="number"
                 min={0}
                 data-testid="resource-buffer-input"

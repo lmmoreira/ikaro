@@ -35,10 +35,14 @@ export function PolicyDurationPricingCard({
         </h2>
 
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-900">
+          <label
+            htmlFor="policy-duration-policy"
+            className="mb-1 block text-sm font-semibold text-gray-900"
+          >
             {t('politicasDurationPolicyLabel')}
           </label>
           <select
+            id="policy-duration-policy"
             data-testid="policy-duration-policy"
             value={policy.durationPolicy}
             onChange={(event) =>
@@ -56,10 +60,14 @@ export function PolicyDurationPricingCard({
         {isVariableDuration && (
           <div className="grid grid-cols-3 gap-3" data-testid="policy-duration-detail">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-500">
+              <label
+                htmlFor="policy-duration-min"
+                className="mb-1 block text-xs font-semibold text-gray-500"
+              >
                 {t('politicasDurationMinLabel')}
               </label>
               <input
+                id="policy-duration-min"
                 type="number"
                 min={1}
                 data-testid="policy-duration-min"
@@ -71,10 +79,14 @@ export function PolicyDurationPricingCard({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-500">
+              <label
+                htmlFor="policy-duration-max"
+                className="mb-1 block text-xs font-semibold text-gray-500"
+              >
                 {t('politicasDurationMaxLabel')}
               </label>
               <input
+                id="policy-duration-max"
                 type="number"
                 min={1}
                 data-testid="policy-duration-max"
@@ -86,10 +98,14 @@ export function PolicyDurationPricingCard({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-500">
+              <label
+                htmlFor="policy-duration-increment"
+                className="mb-1 block text-xs font-semibold text-gray-500"
+              >
                 {t('politicasDurationIncrementLabel')}
               </label>
               <input
+                id="policy-duration-increment"
                 type="number"
                 min={1}
                 data-testid="policy-duration-increment"
@@ -104,10 +120,14 @@ export function PolicyDurationPricingCard({
         )}
 
         <div className="border-t border-slate-100 pt-4">
-          <label className="mb-1 block text-sm font-semibold text-gray-900">
+          <label
+            htmlFor="policy-pricing-policy"
+            className="mb-1 block text-sm font-semibold text-gray-900"
+          >
             {t('politicasPricingPolicyLabel')}
           </label>
           <select
+            id="policy-pricing-policy"
             data-testid="policy-pricing-policy"
             value={policy.pricingPolicy}
             disabled={!isVariableDuration}
@@ -127,10 +147,14 @@ export function PolicyDurationPricingCard({
         {isPerIncrementPricing && (
           <div className="grid grid-cols-3 gap-3" data-testid="policy-pricing-detail">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-500">
+              <label
+                htmlFor="policy-pricing-increment"
+                className="mb-1 block text-xs font-semibold text-gray-500"
+              >
                 {t('politicasPricingIncrementLabel')}
               </label>
               <input
+                id="policy-pricing-increment"
                 type="number"
                 min={1}
                 data-testid="policy-pricing-increment"
@@ -142,10 +166,14 @@ export function PolicyDurationPricingCard({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-500">
+              <label
+                htmlFor="policy-price-per-increment"
+                className="mb-1 block text-xs font-semibold text-gray-500"
+              >
                 {t('politicasPricePerIncrementLabel')}
               </label>
               <input
+                id="policy-price-per-increment"
                 type="number"
                 min={0}
                 step="0.01"
@@ -158,10 +186,14 @@ export function PolicyDurationPricingCard({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-500">
+              <label
+                htmlFor="policy-min-charge"
+                className="mb-1 block text-xs font-semibold text-gray-500"
+              >
                 {t('politicasMinChargeLabel')}
               </label>
               <input
+                id="policy-min-charge"
                 type="number"
                 min={0}
                 step="0.01"

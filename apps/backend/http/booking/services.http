@@ -315,6 +315,24 @@ X-Actor-Role: MANAGER
 
 ###
 
+### Read the active intake schema and its version history (UC-054 read path, M22-S04)
+GET {{baseUrl}}/services/{{serviceId}}/intake-schema
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### 404 — cross-tenant/missing service id on the intake-schema read path
+GET {{baseUrl}}/services/00000000-0000-4000-8000-000000000099/intake-schema
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
 ### 409 — booking-policy/intake-schema on a SESSION service
 PATCH {{baseUrl}}/services/{{serviceId}}/booking-policy
 Content-Type: application/json
