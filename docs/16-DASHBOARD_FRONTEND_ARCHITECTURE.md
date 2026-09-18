@@ -60,6 +60,8 @@ We use **shadcn/ui** as the component foundation. Components are copied into the
 
 **Booking action sheets use native `<dialog>` semantics**, not a CSS-only overlay: open with `showModal()` (gives the browser's own top-layer centering), close with `close()`/the `onCancel` handler, and keep the visual card inside an inner wrapper `<div>` rather than styling the `<dialog>` element itself. If a dialog renders top-left/unstyled instead of centered, check for a plain `open` attribute in place of `showModal()` before touching any layout CSS — see `docs/ANTI_PATTERNS.md`'s `<dialog className="flex ...">` row for the exact failure mode.
 
+**Tabbed single-page editor pattern** (added via `/docs-audit`, 2026-09-18 — real precedent, previously undocumented): a form with several independently-savable sections uses one page with a tab bar, not stacked sections or separate routes. First shipped in the Hotsite editor (`HotsiteEditorMainView.tsx`/`HotsiteEditor.tsx`, Branding/Layout/SEO/Manifest tabs) and reused verbatim for `ServiceEditPage`'s M22 Cluster 2 extension (Detalhes/Recursos/Políticas de reserva/Formulário de reserva). Shape: a `role="tablist"` bar of `role="tab"` buttons with `aria-selected`, each controlling a `role="tabpanel"`; `activeTab` is a single piece of state (`useState<TabKey>`) owned by the page-level component, not per-panel local state. Each panel saves independently against its own endpoint and stays on the page (no redirect away) — pair this with a shared dirty-state store (not per-component state) if any panel needs an unsaved-changes warning, since the warning and the tab-label indicator both need to read the same signal.
+
 ---
 
 ## 4. Engineering Standards & Quality Gates

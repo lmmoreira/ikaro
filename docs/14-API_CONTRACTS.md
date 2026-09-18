@@ -480,7 +480,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
     "minBookingAdvanceHoursOverride": null, "maxBookingAdvanceDaysOverride": null,
     "recurrenceEligible": true, "availabilityAlertEligible": true,
     "durationPolicy": "CUSTOMER_SELECTED", "durationMinMinutes": 60, "durationMaxMinutes": 480, "durationIncrementMinutes": 30,
-    "pricingPolicy": "PER_TIME_INCREMENT", "pricingIncrementMinutes": 60, "pricePerIncrementAmount": 50.00
+    "pricingPolicy": "PER_TIME_INCREMENT", "pricingIncrementMinutes": 60, "pricePerIncrementAmount": 50.00, "minimumChargeAmount": 100.00
   }
   ```
   - `200` on success
