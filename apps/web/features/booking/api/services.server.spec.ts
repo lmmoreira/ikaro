@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchServiceIntakeSchema,
   fetchStaffService,
   fetchStaffServices,
   ServiceDetailFetchError,
+  ServiceIntakeSchemaFetchError,
   ServiceListFetchError,
 } from './services.server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
@@ -84,6 +86,34 @@ describe('fetchStaffService', () => {
     await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject({
       status: 404,
       code: 'BOOKING_SERVICE_NOT_FOUND',
+    });
+  });
+});
+
+describe('fetchServiceIntakeSchema', () => {
+  it('calls GET /services/:id/intake-schema with the auth token and returns the schema', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ active: null, history: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const result = await fetchServiceIntakeSchema('token-123', 'svc-1');
+
+    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services/svc-1/intake-schema');
+    expect(result.active).toBeNull();
+    expect(result.history).toEqual([]);
+  });
+
+  it('throws ServiceIntakeSchemaFetchError on a non-2xx response', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 404 }));
+
+    await expect(fetchServiceIntakeSchema('token-123', 'svc-1')).rejects.toBeInstanceOf(
+      ServiceIntakeSchemaFetchError,
+    );
+    await expect(fetchServiceIntakeSchema('token-123', 'svc-1')).rejects.toMatchObject({
+      status: 404,
     });
   });
 });

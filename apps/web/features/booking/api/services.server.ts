@@ -1,5 +1,9 @@
 import 'server-only';
-import type { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
+import type {
+  ServiceIntakeSchemaResponse,
+  StaffServiceListResponse,
+  StaffServiceResponse,
+} from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 import { assertOk, FetchError } from '@/shared/lib/api/errors';
 
@@ -27,4 +31,20 @@ export async function fetchStaffService(token: string, id: string): Promise<Staf
   const res = await bffServerFetch(token, `/services/${encodeURIComponent(id)}`);
   await assertOk(res, ServiceDetailFetchError);
   return res.json() as Promise<StaffServiceResponse>;
+}
+
+export class ServiceIntakeSchemaFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(`Failed to fetch service intake schema (${status})`, status, code, field, detail);
+    this.name = 'ServiceIntakeSchemaFetchError';
+  }
+}
+
+export async function fetchServiceIntakeSchema(
+  token: string,
+  id: string,
+): Promise<ServiceIntakeSchemaResponse> {
+  const res = await bffServerFetch(token, `/services/${encodeURIComponent(id)}/intake-schema`);
+  await assertOk(res, ServiceIntakeSchemaFetchError);
+  return res.json() as Promise<ServiceIntakeSchemaResponse>;
 }

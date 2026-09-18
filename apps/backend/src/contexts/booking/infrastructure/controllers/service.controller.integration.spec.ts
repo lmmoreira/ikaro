@@ -683,6 +683,83 @@ describe('ServiceController (integration)', () => {
     });
   });
 
+  // ─── GET /services/:id/intake-schema ────────────────────────────────────────
+
+  describe('GET /services/:id/intake-schema', () => {
+    it('returns active: null and an empty history before anything is published', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${created.id}/intake-schema`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(body.active).toBeNull();
+      expect(body.history).toEqual([]);
+    });
+
+    it('returns the active version and prior versions in history after 2 publishes', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/services/${created.id}/intake-schema`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          questions: [
+            {
+              fieldKey: 'accessNeeds',
+              label: 'Necessidades de acesso',
+              type: 'FREE_TEXT',
+              required: false,
+            },
+          ],
+          consentText: 'v1',
+        })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/services/${created.id}/intake-schema`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          questions: [
+            { fieldKey: 'other', label: 'Outra pergunta', type: 'FREE_TEXT', required: false },
+          ],
+          consentText: 'v2',
+        })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${created.id}/intake-schema`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(body.active.version).toBe(2);
+      expect(body.active.consentText).toBe('v2');
+      expect(body.history).toHaveLength(1);
+      expect(body.history[0].version).toBe(1);
+    });
+
+    it('returns 404 for a cross-tenant service id', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${entity.id}/intake-schema`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .expect(404);
+      expect(body.status).toBe(404);
+    });
+  });
+
   // ─── PATCH /services/:id/activate ───────────────────────────────────────────
 
   describe('PATCH /services/:id/activate', () => {

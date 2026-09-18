@@ -36,7 +36,9 @@ async function fillCreateServiceForm(
 }
 
 test.describe('service creation flows', () => {
-  test('creates an active service and shows the success banner on the list', async ({ page }) => {
+  test('creates an active service and lands on its edit page with the success banner', async ({
+    page,
+  }) => {
     const serviceName = makeUniqueServiceName('e2e-active');
 
     await openCreateService(page);
@@ -52,7 +54,16 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page.locator('output')).toContainText('Serviço criado!');
+    // M22-S04: create now redirects straight to the edit page (Detalhes tab, inline banner),
+    // not back to the list.
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
+    await expect(page.getByTestId('service-created-banner')).toContainText('Serviço criado!');
+    await expect(page.getByTestId('service-name-input')).toHaveValue(serviceName);
+    for (const tab of ['Recursos', 'Políticas de reserva', 'Formulário de reserva']) {
+      await expect(page.getByRole('tab', { name: tab })).toBeVisible();
+    }
+
+    await page.goto('/dashboard/services');
     await expect(page.getByRole('link', { name: new RegExp(serviceName) })).toBeVisible();
     await expect(page.getByRole('link', { name: new RegExp(serviceName) })).toContainText('Ativo');
   });
@@ -75,7 +86,10 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page.locator('output')).toContainText('Serviço criado!');
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
+    await expect(page.getByTestId('service-created-banner')).toContainText('Serviço criado!');
+
+    await page.goto('/dashboard/services');
     const card = page.getByRole('link', { name: new RegExp(serviceName) });
     await expect(card).toBeVisible();
     await expect(card).toContainText('Inativo');
@@ -109,7 +123,10 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page.locator('output')).toContainText('Serviço criado!');
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
+    await expect(page.getByTestId('service-created-banner')).toContainText('Serviço criado!');
+
+    await page.goto('/dashboard/services');
     await expect(page.getByRole('link', { name: new RegExp(serviceName) })).toBeVisible();
   });
 
@@ -119,5 +136,30 @@ test.describe('service creation flows', () => {
 
     await expect(page.getByRole('link', { name: 'Cancelar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Criar serviço' })).toBeVisible();
+  });
+
+  test('picks the Turma (SESSION) booking model and persists it (UC-056)', async ({ page }) => {
+    const serviceName = makeUniqueServiceName('e2e-turma');
+
+    await openCreateService(page);
+    await page.getByTestId('booking-model-session').click();
+    // SESSION services have no per-reservation pickup/delivery concept — toggle must disappear.
+    await expect(page.getByTestId('service-pickup-switch')).toHaveCount(0);
+
+    await fillCreateServiceForm(page, {
+      name: serviceName,
+      description: 'Turma criada via Playwright',
+      price: '90',
+      duration: '120',
+      points: '0',
+    });
+    await page.getByRole('button', { name: 'Criar serviço' }).click();
+
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
+
+    await page.goto('/dashboard/services');
+    const card = page.getByRole('link', { name: new RegExp(serviceName) });
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('Turma');
   });
 });

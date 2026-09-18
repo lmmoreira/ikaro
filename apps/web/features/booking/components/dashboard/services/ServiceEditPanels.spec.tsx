@@ -109,4 +109,36 @@ describe('ServiceEditActionPanels', () => {
       '/dashboard/services',
     );
   });
+
+  it('hides the primary save/activate action when showPrimaryAction is false', () => {
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        showPrimaryAction={false}
+      />,
+    );
+
+    expect(screen.queryByTestId('service-desktop-save-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('service-mobile-save-button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('service-cancel-desktop-link')).toBeInTheDocument();
+  });
+
+  it('calls onCancelClick when the cancel link is clicked', () => {
+    const onCancelClick = vi.fn();
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        onCancelClick={onCancelClick}
+      />,
+    );
+
+    screen.getByTestId('service-cancel-desktop-link').click();
+    expect(onCancelClick).toHaveBeenCalledTimes(1);
+  });
 });

@@ -2,8 +2,8 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Create, edit, and deactivate services offered by the tenant  
-**UCs covered:** UC-012, UC-013 (shipped, `M13-S22`–`S24`) · UC-050, UC-051, UC-052, UC-053, UC-054, UC-055, UC-056 (❓ Gap — M22 Cluster 2, resource requirements/bundles/legs/buffer/intake-schema/booking-policy/booking-model extensions)  
-**Status:** Base CRUD done — M22 Cluster 2 extension not yet built, see the ❓ GAP section in `dev-notes.md`
+**UCs covered:** UC-012, UC-013 (shipped, `M13-S22`–`S24`) · UC-050, UC-051, UC-052, UC-053, UC-054, UC-055, UC-056 (✅ shipped — M22-S04, resource requirements/bundles/legs/buffer/intake-schema/booking-policy/booking-model extensions)  
+**Status:** Base CRUD and M22 Cluster 2 extension both shipped (M22-S04) — see `dev-notes.md` for implementation detail
 
 ## Flow
 
@@ -85,18 +85,18 @@ Folder: `staff/prototypes/servicos/`
 | `02-service-create.html` | Create service form | UC-012 | ✅ Criado |
 | `02b-service-create-error.html` | Duplicate name error state | UC-012 A1 | ✅ Criado |
 | `02c-service-create-success.html` | Service created — redirects straight to the edit page (Detalhes tab, inline success banner), all 4 tabs unlocked showing their empty/default state | UC-012 | ✅ Criado — redesigned 2026-09-17, was previously a banner on the list page |
-| `03-service-edit.html` | Edit service form — 4 tabs: Detalhes (UC-013, shipped) · Recursos (UC-050–053) · Políticas de reserva (UC-055) · Formulário de reserva (UC-054) | UC-013, 050–055 | Detalhes ✅ Criado · other 3 tabs ❓ Gap (M22 Cluster 2) |
+| `03-service-edit.html` | Edit service form — 4 tabs: Detalhes (UC-013, shipped) · Recursos (UC-050–053) · Políticas de reserva (UC-055) · Formulário de reserva (UC-054) | UC-013, 050–055 | ✅ Criado — all 4 tabs shipped (M22-S04) |
 | `03b-deactivate-confirm.html` | Deactivation confirmation | UC-013 A1 | ✅ Criado (still branded for the pre-M22 protagonist — see `dev-notes.md`'s known follow-up) |
 | `03c-service-edit-inactive.html` | Edit form, inactive-service variant — same 4 tabs as `03`, "Ativar" action instead of Salvar+danger-zone on Detalhes (reactivation, shipped 2026-07-31; rebuilt with tabs 2026-09-17) | UC-013 A4 | ✅ Criado |
-| `03d-service-edit-policy-error.html` | Error — variable duration without pricing policy (Políticas de reserva tab) | UC-055 A2 | ❓ Gap (M22 Cluster 2) |
-| `03e-service-edit-intake-error.html` | Error — booking-intake form with 0 questions and no consent text (Formulário de reserva tab) | UC-054 | ❓ Gap (M22 Cluster 2) — added 2026-09-17 |
+| `03d-service-edit-policy-error.html` | Error — variable duration without pricing policy (Políticas de reserva tab) | UC-055 A2 | ✅ Criado — shipped (M22-S04) |
+| `03e-service-edit-intake-error.html` | Error — booking-intake form with 0 questions and no consent text (Formulário de reserva tab) | UC-054 | ✅ Criado — shipped (M22-S04) |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |
 
 Note: the booking-model picker for UC-056 (Agendamento/Turma, at creation time) lives on `02-service-create.html`, not a separate file — see that file's own header comment.
 
-## M22 — Multi-Vertical Scheduling, Cluster 2 extension (❓ Gap, not yet built)
+## M22 — Multi-Vertical Scheduling, Cluster 2 extension (✅ shipped — M22-S04)
 
-> Promoted from `docs/discovery/multivertical-booking/`. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+> Promoted from `docs/discovery/multivertical-booking/`. Full implementation detail lives in `dev-notes.md`.
 
 - [x] Assigned to `M22-S04` — see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`.
 - [x] UC-054 (booking-intake schema) now has a prototype screen — `03-service-edit.html`'s "Formulário de reserva" tab (redesigned 2026-09-17, replacing the old separate-page structure and the 2 flat checkboxes that used to stand in for the whole schema) — still confirm the exact layout with the user during `/story-discovery M22-S04`, it's genuinely new UI.

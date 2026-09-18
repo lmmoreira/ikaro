@@ -2,7 +2,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { StaffServiceResponse } from '@ikaro/types';
+import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
 import { renderWithIntl } from '@/test-utils';
 import { ServiceEditPage } from './ServiceEditPage';
@@ -11,9 +11,12 @@ const routerPush = vi.fn();
 const mockUpdateService = vi.fn();
 const mockActivateService = vi.fn();
 const mockSetServiceStatus = vi.fn();
+const mockSetOnBackOverride = vi.fn();
+
+const mockRouterReplace = vi.fn();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: routerPush }),
+  useRouter: () => ({ push: routerPush, replace: mockRouterReplace }),
 }));
 
 vi.mock('@/features/booking/services/useServices', () => ({
@@ -25,13 +28,24 @@ vi.mock('@/features/booking/services/useServices', () => ({
     mutateAsync: mockActivateService,
     isPending: false,
   }),
+  useUpdateServiceResourceRequirements: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateServiceLegs: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateServiceBookingPolicy: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePublishServiceIntakeSchema: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock('@/features/booking/hooks/useResources', () => ({
+  useResources: () => ({ data: { items: [] } }),
 }));
 
 vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
   useDashboardTopbarStatus: () => ({
     setServiceStatus: mockSetServiceStatus,
+    setOnBackOverride: mockSetOnBackOverride,
   }),
 }));
+
+const intakeSchema: ServiceIntakeSchemaResponse = { active: null, history: [] };
 
 const service: StaffServiceResponse = {
   serviceId: 'svc-1',
@@ -68,16 +82,30 @@ const service: StaffServiceResponse = {
   },
 };
 
+// service-edit-tab / service-edit-tab-dirty-dot stay static (E2E-3) — disambiguated by the
+// sibling data-tab attribute instead of a template-literal testid.
+function getTabButton(container: HTMLElement, tab: string): HTMLElement {
+  const el = container.querySelector(`[data-testid="service-edit-tab"][data-tab="${tab}"]`);
+  if (!el) throw new Error(`No tab button found for tab=${tab}`);
+  return el as HTMLElement;
+}
+
+function getTabDirtyDot(container: HTMLElement, tab: string): HTMLElement | null {
+  return container.querySelector(`[data-testid="service-edit-tab-dirty-dot"][data-tab="${tab}"]`);
+}
+
 describe('ServiceEditPage', () => {
   beforeEach(() => {
     routerPush.mockReset();
+    mockRouterReplace.mockReset();
     mockUpdateService.mockReset();
     mockActivateService.mockReset();
     mockSetServiceStatus.mockReset();
+    mockSetOnBackOverride.mockReset();
   });
 
   it('renders the prefilled form and danger zone for active services', () => {
-    renderWithIntl(<ServiceEditPage service={service} />);
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
 
     expect(screen.getByLabelText('Nome do serviço')).toHaveValue('Lavagem Completa');
     expect(screen.getByLabelText('Descrição')).toHaveValue('Serviço completo');
@@ -98,17 +126,18 @@ describe('ServiceEditPage', () => {
           ...service,
           isActive: false,
         }}
+        intakeSchema={intakeSchema}
       />,
     );
 
     expect(screen.queryByRole('link', { name: 'Desativar serviço' })).not.toBeInTheDocument();
   });
 
-  it('submits the service update and returns to the list', async () => {
+  it('submits the service update and stays on the edit page (no redirect to the list)', async () => {
     const user = userEvent.setup();
     mockUpdateService.mockResolvedValue({ id: 'svc-1' });
 
-    renderWithIntl(<ServiceEditPage service={service} />);
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
 
     await user.clear(screen.getByLabelText('Nome do serviço'));
     await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
@@ -125,7 +154,8 @@ describe('ServiceEditPage', () => {
         requiresPickupAddress: true,
       },
     });
-    expect(routerPush).toHaveBeenCalledWith('/dashboard/services');
+    expect(routerPush).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Nome do serviço')).toBeInTheDocument();
   });
 
   it('shows the deactivated-service message when the backend rejects the update by code', async () => {
@@ -136,7 +166,7 @@ describe('ServiceEditPage', () => {
       }),
     );
 
-    renderWithIntl(<ServiceEditPage service={service} />);
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
 
     await user.clear(screen.getByLabelText('Nome do serviço'));
     await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
@@ -151,7 +181,7 @@ describe('ServiceEditPage', () => {
     const user = userEvent.setup();
     mockUpdateService.mockRejectedValue(new ApiError(500, 'Internal error'));
 
-    renderWithIntl(<ServiceEditPage service={service} />);
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
 
     await user.clear(screen.getByLabelText('Nome do serviço'));
     await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
@@ -170,6 +200,7 @@ describe('ServiceEditPage', () => {
           ...service,
           isActive: false,
         }}
+        intakeSchema={intakeSchema}
       />,
     );
 
@@ -190,6 +221,7 @@ describe('ServiceEditPage', () => {
           ...service,
           isActive: false,
         }}
+        intakeSchema={intakeSchema}
       />,
     );
 
@@ -199,5 +231,105 @@ describe('ServiceEditPage', () => {
       await screen.findByText('Ative este serviço antes de salvar alterações.'),
     ).toBeInTheDocument();
     expect(mockUpdateService).not.toHaveBeenCalled();
+  });
+
+  it('renders all 4 tabs, with Detalhes active by default', () => {
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    expect(getTabButton(container, 'detalhes')).toHaveAttribute('aria-selected', 'true');
+    expect(getTabButton(container, 'recursos')).toHaveAttribute('aria-selected', 'false');
+    expect(getTabButton(container, 'politicas')).toBeInTheDocument();
+    expect(getTabButton(container, 'formulario')).toBeInTheDocument();
+  });
+
+  it('switches tabs and renders the Recursos panel', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    await user.click(getTabButton(container, 'recursos'));
+    expect(getTabButton(container, 'recursos')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('resource-mode-flat')).toBeInTheDocument();
+  });
+
+  it('hides the sticky primary Save/Activate action on non-Detalhes tabs', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    await user.click(getTabButton(container, 'recursos'));
+    expect(screen.queryByTestId('service-desktop-save-button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('service-cancel-desktop-link')).toBeInTheDocument();
+  });
+
+  it('marks the Detalhes tab dirty when a field changes, and clears it on save', async () => {
+    const user = userEvent.setup();
+    mockUpdateService.mockResolvedValue({ id: 'svc-1' });
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'X');
+    expect(getTabDirtyDot(container, 'detalhes')).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
+    expect(getTabDirtyDot(container, 'detalhes')).not.toBeInTheDocument();
+  });
+
+  it('registers an onBackOverride callback with the topbar status context', () => {
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+    expect(mockSetOnBackOverride).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it('confirms before navigating away via the cancel link when a tab is dirty', async () => {
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'X');
+    await user.click(screen.getByTestId('service-cancel-desktop-link'));
+
+    expect(confirmSpy).toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('does not prompt when navigating away with nothing dirty', async () => {
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.click(screen.getByTestId('service-cancel-desktop-link'));
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('shows the created-success banner on the Detalhes tab when showCreatedBanner is true', () => {
+    renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} showCreatedBanner />,
+    );
+
+    expect(screen.getByTestId('service-created-banner')).toBeInTheDocument();
+  });
+
+  it('does not show the created-success banner without the query flag', () => {
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    expect(screen.queryByTestId('service-created-banner')).not.toBeInTheDocument();
+  });
+
+  it('exposes all 4 tabs even when the service is inactive', () => {
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={{ ...service, isActive: false }} intakeSchema={intakeSchema} />,
+    );
+
+    expect(getTabButton(container, 'detalhes')).toBeInTheDocument();
+    expect(getTabButton(container, 'recursos')).toBeInTheDocument();
+    expect(getTabButton(container, 'politicas')).toBeInTheDocument();
+    expect(getTabButton(container, 'formulario')).toBeInTheDocument();
   });
 });

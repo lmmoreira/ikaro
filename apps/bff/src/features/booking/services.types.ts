@@ -102,3 +102,11 @@ export interface PublishServiceIntakeSchemaResult {
   participantCountRequired: boolean;
   createdAt: string;
 }
+
+export type ServiceIntakeSchemaVersionDetail = PublishServiceIntakeSchemaResult;
+
+// UC-054 read path — added M22-S04. `active` is null until the service's first publish.
+export interface GetServiceIntakeSchemaResult {
+  active: ServiceIntakeSchemaVersionDetail | null;
+  history: ServiceIntakeSchemaVersionDetail[];
+}
