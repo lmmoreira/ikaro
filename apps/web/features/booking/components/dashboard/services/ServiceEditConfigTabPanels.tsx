@@ -1,7 +1,9 @@
 'use client';
 
+import { useCallback } from 'react';
 import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
 import type { ServiceEditTabKey } from '@/features/booking/types/service';
+import type { ServiceTabAction } from './service-tab-action';
 import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
 import { ServiceBookingPolicyPanel } from './ServiceBookingPolicyPanel';
 import { ServiceIntakeSchemaPanel } from './ServiceIntakeSchemaPanel';
@@ -11,6 +13,9 @@ interface ServiceEditConfigTabPanelsProps {
   readonly service: StaffServiceResponse;
   readonly intakeSchema: ServiceIntakeSchemaResponse;
   readonly onTabDirtyChange: (tab: ServiceEditTabKey, dirty: boolean) => void;
+  // Each panel registers its Save/Publish action here so ServiceEditPage can render it in the
+  // sticky action panel. Must be referentially stable.
+  readonly onTabActionChange: (tab: ServiceEditTabKey, action: ServiceTabAction | null) => void;
 }
 
 // Split out of ServiceEditPage to stay under docs/CODE_STANDARDS.md's function-length limit —
@@ -23,7 +28,22 @@ export function ServiceEditConfigTabPanels({
   service,
   intakeSchema,
   onTabDirtyChange,
+  onTabActionChange,
 }: ServiceEditConfigTabPanelsProps): React.JSX.Element {
+  // One stable callback per tab — a panel's registration effect depends on its identity.
+  const onRecursosAction = useCallback(
+    (action: ServiceTabAction | null) => onTabActionChange('recursos', action),
+    [onTabActionChange],
+  );
+  const onPoliticasAction = useCallback(
+    (action: ServiceTabAction | null) => onTabActionChange('politicas', action),
+    [onTabActionChange],
+  );
+  const onFormularioAction = useCallback(
+    (action: ServiceTabAction | null) => onTabActionChange('formulario', action),
+    [onTabActionChange],
+  );
+
   return (
     <>
       <div
@@ -38,6 +58,7 @@ export function ServiceEditConfigTabPanels({
           initialLegs={service.legs}
           initialBufferAfterMinutes={service.bufferAfterMinutes}
           onDirtyChange={(value) => onTabDirtyChange('recursos', value)}
+          onActionChange={onRecursosAction}
         />
       </div>
 
@@ -51,6 +72,7 @@ export function ServiceEditConfigTabPanels({
           serviceId={service.serviceId}
           initialPolicy={service.bookingPolicy}
           onDirtyChange={(value) => onTabDirtyChange('politicas', value)}
+          onActionChange={onPoliticasAction}
         />
       </div>
 
@@ -65,6 +87,7 @@ export function ServiceEditConfigTabPanels({
           initialActive={intakeSchema.active}
           initialHistory={intakeSchema.history}
           onDirtyChange={(value) => onTabDirtyChange('formulario', value)}
+          onActionChange={onFormularioAction}
         />
       </div>
     </>

@@ -50,7 +50,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
 
     await resourceTypeCheckbox(page, 'ROOM').click();
     await resourceTypeCheckbox(page, 'EQUIPMENT').click();
-    await page.getByTestId('resource-requirements-save').click();
+    await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
 
     await page.reload();
@@ -101,7 +101,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
 
     await expect(page.getByTestId('legs-total-span')).toContainText('70');
 
-    await page.getByTestId('resource-requirements-save').click();
+    await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
   });
 
@@ -114,7 +114,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     const recurrenceToggle = page.getByTestId('policy-recurrence-eligible');
     await expect(recurrenceToggle).not.toBeChecked();
     await recurrenceToggle.click();
-    await page.getByTestId('policy-save').click();
+    await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('policy-saved')).toBeVisible();
 
     await page.reload();
@@ -137,13 +137,13 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByTestId('policy-pricing-policy').selectOption('PER_TIME_INCREMENT');
     await page.getByTestId('policy-pricing-increment').fill('15');
     await page.getByTestId('policy-price-per-increment').fill('10');
-    await page.getByTestId('policy-save').click();
+    await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('policy-saved')).toBeVisible();
 
     // The backend rejects pricingPolicy=PER_TIME_INCREMENT once durationPolicy is FIXED again —
     // switching duration back must force pricing back to FIXED too, or this save 422s.
     await page.getByTestId('policy-duration-policy').selectOption('FIXED');
-    await page.getByTestId('policy-save').click();
+    await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('policy-saved')).toBeVisible();
     await expect(page.getByTestId('policy-error')).not.toBeVisible();
   });
@@ -165,13 +165,13 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByTestId('intake-consent-text').fill('Concordo com os termos');
     // A blank question label keeps Publish disabled — the request schema requires label.min(1),
     // so the client-side gate must catch this before it ever reaches the server.
-    await expect(page.getByTestId('intake-publish')).toBeDisabled();
+    await expect(page.getByTestId('service-desktop-tab-action')).toBeDisabled();
 
     await page
       .locator('[data-testid="intake-question-label"][data-question-index="0"]')
       .fill('Necessidades de acesso');
-    await expect(page.getByTestId('intake-publish')).toBeEnabled();
-    await page.getByTestId('intake-publish').click();
+    await expect(page.getByTestId('service-desktop-tab-action')).toBeEnabled();
+    await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('intake-published')).toBeVisible();
     await expect(page.getByTestId('intake-version-current')).toContainText('1');
     // Publishing clears the tab's dirty flag, same as every other tab's save.
@@ -183,7 +183,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page
       .locator('[data-testid="intake-question-label"][data-question-index="1"]')
       .fill('Segunda pergunta');
-    await page.getByTestId('intake-publish').click();
+    await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('intake-published')).toBeVisible();
     await expect(page.getByTestId('intake-version-current')).toContainText('2');
 

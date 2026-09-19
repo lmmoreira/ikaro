@@ -272,15 +272,51 @@ describe('ServiceEditPage', () => {
     expect(screen.getByTestId('resource-buffer-input')).toHaveValue(45);
   });
 
-  it('hides the sticky primary Save/Activate action on non-Detalhes tabs', async () => {
+  it('swaps the sticky action to the active tab: Detalhes save, then Salvar recursos / políticas, Publicar formulário', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
       <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
     );
 
+    expect(screen.getByTestId('service-desktop-save-button')).toBeInTheDocument();
+    expect(screen.queryByTestId('service-desktop-tab-action')).not.toBeInTheDocument();
+
     await user.click(getTabButton(container, 'recursos'));
     expect(screen.queryByTestId('service-desktop-save-button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('service-desktop-tab-action')).toHaveTextContent('Salvar recursos');
+    expect(screen.getByTestId('service-mobile-tab-action')).toHaveTextContent('Salvar recursos');
+
+    await user.click(getTabButton(container, 'politicas'));
+    expect(screen.getByTestId('service-desktop-tab-action')).toHaveTextContent('Salvar políticas');
+
+    await user.click(getTabButton(container, 'formulario'));
+    expect(screen.getByTestId('service-desktop-tab-action')).toHaveTextContent(
+      'Publicar formulário',
+    );
     expect(screen.getByTestId('service-cancel-desktop-link')).toBeInTheDocument();
+  });
+
+  it('renders no inline Save/Publish button inside the config panels', () => {
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    expect(screen.queryByTestId('resource-requirements-save')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('policy-save')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('intake-publish')).not.toBeInTheDocument();
+  });
+
+  it('saves the Políticas tab from the sticky action and clears its dirty dot', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    await user.click(getTabButton(container, 'politicas'));
+    await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'CUSTOMER_SELECTED');
+    expect(getTabDirtyDot(container, 'politicas')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('service-desktop-tab-action'));
+
+    expect(await screen.findByTestId('policy-saved')).toBeInTheDocument();
   });
 
   it('marks the Detalhes tab dirty when a field changes, and clears it on save', async () => {

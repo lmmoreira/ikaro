@@ -6,7 +6,7 @@ import type { ServiceBookingPolicyItem, UpdateServiceBookingPolicyRequest } from
 import { useUpdateServiceBookingPolicy } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
-import { Button } from '@/shared/components/ui/button';
+import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
 import { PolicyDurationPricingCard } from './PolicyDurationPricingCard';
 import {
   PolicyConfirmationCard,
@@ -18,12 +18,14 @@ interface ServiceBookingPolicyPanelProps {
   readonly serviceId: string;
   readonly initialPolicy: ServiceBookingPolicyItem;
   readonly onDirtyChange: (dirty: boolean) => void;
+  readonly onActionChange: ServiceTabActionChange;
 }
 
 export function ServiceBookingPolicyPanel({
   serviceId,
   initialPolicy,
   onDirtyChange,
+  onActionChange,
 }: ServiceBookingPolicyPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
@@ -59,6 +61,13 @@ export function ServiceBookingPolicyPanel({
     }
   }
 
+  useRegisterTabAction(onActionChange, {
+    label: t('politicasSaveButton'),
+    disabled: updatePolicy.isPending,
+    pending: updatePolicy.isPending,
+    onSubmit: handleSave,
+  });
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">{t('politicasIntro')}</p>
@@ -78,21 +87,11 @@ export function ServiceBookingPolicyPanel({
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <Button
-          type="button"
-          data-testid="policy-save"
-          onClick={handleSave}
-          disabled={updatePolicy.isPending}
-        >
-          {t('politicasSaveButton')}
-        </Button>
-        {savedMessageVisible && (
-          <span data-testid="policy-saved" className="text-sm text-green-600">
-            {t('politicasSavedConfirm')}
-          </span>
-        )}
-      </div>
+      {savedMessageVisible && (
+        <p data-testid="policy-saved" className="text-sm text-green-600">
+          {t('politicasSavedConfirm')}
+        </p>
+      )}
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Button } from '@/shared/components/ui/button';
+import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
 import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
 import { ServiceLegsPanel } from './ServiceLegsPanel';
 import { ServiceBufferAfterMinutesField } from './ServiceBufferAfterMinutesField';
@@ -52,6 +52,7 @@ interface ServiceResourceRequirementsPanelProps {
   readonly initialLegs: ServiceLegItem[] | null;
   readonly initialBufferAfterMinutes: number | null;
   readonly onDirtyChange: (dirty: boolean) => void;
+  readonly onActionChange: ServiceTabActionChange;
 }
 
 export function ServiceResourceRequirementsPanel({
@@ -60,6 +61,7 @@ export function ServiceResourceRequirementsPanel({
   initialLegs,
   initialBufferAfterMinutes,
   onDirtyChange,
+  onActionChange,
 }: ServiceResourceRequirementsPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
@@ -186,6 +188,13 @@ export function ServiceResourceRequirementsPanel({
   // (CodeRabbit finding).
   const canSave =
     !isSaving && !resourcesLoading && !resourcesLoadFailed && !(mode === 'legs' && legs.length < 2);
+  useRegisterTabAction(onActionChange, {
+    label: t('recursosSaveButton'),
+    disabled: !canSave,
+    pending: isSaving,
+    onSubmit: handleSave,
+  });
+
   const availableByType = (type: ResourceType) =>
     (resourcesData?.items ?? []).filter((resource) => resource.type === type);
 
@@ -261,21 +270,11 @@ export function ServiceResourceRequirementsPanel({
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <Button
-          type="button"
-          data-testid="resource-requirements-save"
-          onClick={handleSave}
-          disabled={!canSave}
-        >
-          {t('recursosSaveButton')}
-        </Button>
-        {savedMessageVisible && (
-          <span data-testid="resource-requirements-saved" className="text-sm text-green-600">
-            {t('recursosSavedConfirm')}
-          </span>
-        )}
-      </div>
+      {savedMessageVisible && (
+        <p data-testid="resource-requirements-saved" className="text-sm text-green-600">
+          {t('recursosSavedConfirm')}
+        </p>
+      )}
     </div>
   );
 }

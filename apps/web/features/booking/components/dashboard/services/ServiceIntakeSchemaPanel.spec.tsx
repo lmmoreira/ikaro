@@ -3,8 +3,32 @@ import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
+import { useState } from 'react';
+import type { ServiceTabAction } from './service-tab-action';
 import { renderWithIntl } from '@/test-utils';
 import { ServiceIntakeSchemaPanel } from './ServiceIntakeSchemaPanel';
+
+// The panel no longer draws its own Save/Publish button — it registers the action with
+// ServiceEditPage's sticky action panel. This harness plays that role so the panel's own
+// behavior (validation, in-flight state, dirty tracking) stays testable in isolation.
+function IntakePanelWithAction(
+  props: Omit<Parameters<typeof ServiceIntakeSchemaPanel>[0], 'onActionChange'>,
+) {
+  const [action, setAction] = useState<ServiceTabAction | null>(null);
+  return (
+    <>
+      <ServiceIntakeSchemaPanel {...props} onActionChange={setAction} />
+      <button
+        type="button"
+        data-testid="intake-publish"
+        disabled={action === null || action.disabled || action.pending}
+        onClick={action?.onSubmit}
+      >
+        {action?.label}
+      </button>
+    </>
+  );
+}
 
 const mutateAsync = vi.fn();
 
@@ -51,7 +75,7 @@ function getByVersion(container: HTMLElement, version: number): HTMLElement {
 describe('ServiceIntakeSchemaPanel', () => {
   it('shows the empty-question hint when there are no questions yet', () => {
     renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={null}
         initialHistory={[]}
@@ -65,7 +89,7 @@ describe('ServiceIntakeSchemaPanel', () => {
   it('adds, edits, reorders and removes questions on the live list', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={null}
         initialHistory={[]}
@@ -94,7 +118,7 @@ describe('ServiceIntakeSchemaPanel', () => {
 
   it('pre-fills from the active version and shows it in history', () => {
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={V1}
         initialHistory={[]}
@@ -111,7 +135,7 @@ describe('ServiceIntakeSchemaPanel', () => {
     const user = userEvent.setup();
     const v2 = { ...V1, id: 'schema-2', version: 2, consentText: 'Concordo v2' };
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={v2}
         initialHistory={[V1]}
@@ -128,7 +152,7 @@ describe('ServiceIntakeSchemaPanel', () => {
     const user = userEvent.setup();
     const v2 = { ...V1, id: 'schema-2', version: 2, consentText: 'Concordo v2' };
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={v2}
         initialHistory={[V1]}
@@ -150,7 +174,7 @@ describe('ServiceIntakeSchemaPanel', () => {
     const user = userEvent.setup();
     mutateAsync.mockResolvedValue({ ...V1, id: 'schema-2', version: 2, consentText: 'v2' });
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={V1}
         initialHistory={[]}
@@ -181,7 +205,7 @@ describe('ServiceIntakeSchemaPanel', () => {
       }),
     );
     renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={V1}
         initialHistory={[]}
@@ -206,7 +230,7 @@ describe('ServiceIntakeSchemaPanel', () => {
     const user = userEvent.setup();
     mutateAsync.mockRejectedValueOnce(new Error('422'));
     renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={V1}
         initialHistory={[]}
@@ -221,7 +245,7 @@ describe('ServiceIntakeSchemaPanel', () => {
   it('blocks publish and shows an inline warning when two questions resolve to the same fieldKey', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={null}
         initialHistory={[]}
@@ -242,7 +266,7 @@ describe('ServiceIntakeSchemaPanel', () => {
   it('caps the derived fieldKey at 100 characters (matches the shared schema max)', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={null}
         initialHistory={[]}
@@ -262,7 +286,7 @@ describe('ServiceIntakeSchemaPanel', () => {
   it('enforces the 1-50 question limit by disabling "add question" at 50', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <ServiceIntakeSchemaPanel
+      <IntakePanelWithAction
         serviceId="svc-1"
         initialActive={null}
         initialHistory={[]}

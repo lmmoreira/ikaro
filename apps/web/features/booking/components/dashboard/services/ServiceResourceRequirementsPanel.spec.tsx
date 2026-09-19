@@ -2,8 +2,32 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { useState } from 'react';
+import type { ServiceTabAction } from './service-tab-action';
 import { renderWithIntl } from '@/test-utils';
 import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
+
+// The panel no longer draws its own Save/Publish button — it registers the action with
+// ServiceEditPage's sticky action panel. This harness plays that role so the panel's own
+// behavior (validation, in-flight state, dirty tracking) stays testable in isolation.
+function ResourcePanelWithAction(
+  props: Omit<Parameters<typeof ServiceResourceRequirementsPanel>[0], 'onActionChange'>,
+) {
+  const [action, setAction] = useState<ServiceTabAction | null>(null);
+  return (
+    <>
+      <ServiceResourceRequirementsPanel {...props} onActionChange={setAction} />
+      <button
+        type="button"
+        data-testid="resource-requirements-save"
+        disabled={action === null || action.disabled || action.pending}
+        onClick={action?.onSubmit}
+      >
+        {action?.label}
+      </button>
+    </>
+  );
+}
 
 const resourceRequirementsMutateAsync = vi.fn().mockResolvedValue({});
 const legsMutateAsync = vi.fn().mockResolvedValue({});
@@ -52,7 +76,7 @@ function getResourceTypeCheckbox(container: HTMLElement, type: string): HTMLElem
 describe('ServiceResourceRequirementsPanel', () => {
   it('shows the empty state when no resource types are checked', () => {
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={null}
@@ -68,7 +92,7 @@ describe('ServiceResourceRequirementsPanel', () => {
     const user = userEvent.setup();
     const onDirtyChange = vi.fn();
     const { container } = renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={null}
@@ -85,7 +109,7 @@ describe('ServiceResourceRequirementsPanel', () => {
   it('switching to legs mode hides the flat checklist and shows the legs panel', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={null}
@@ -104,7 +128,7 @@ describe('ServiceResourceRequirementsPanel', () => {
   it('visibly disables the buffer field once legs mode is selected, instead of removing it', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={null}
@@ -124,7 +148,7 @@ describe('ServiceResourceRequirementsPanel', () => {
     const user = userEvent.setup();
     const onDirtyChange = vi.fn();
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[
           { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
@@ -156,7 +180,7 @@ describe('ServiceResourceRequirementsPanel', () => {
   it('saving in legs mode calls updateServiceLegs, not updateServiceResourceRequirements', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={[
@@ -189,7 +213,7 @@ describe('ServiceResourceRequirementsPanel', () => {
   it('disables save in legs mode with fewer than 2 legs, matching the backend minimum', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={null}
@@ -207,7 +231,7 @@ describe('ServiceResourceRequirementsPanel', () => {
   it('sends bufferAfterMinutes: 0 (not skipping the PATCH) when the field is cleared', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[
           { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
@@ -229,7 +253,7 @@ describe('ServiceResourceRequirementsPanel', () => {
 
   it('locks the flat mode option once the service is already legged on the server', () => {
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={[
@@ -259,7 +283,7 @@ describe('ServiceResourceRequirementsPanel', () => {
   it('disables save while the active-resources query is still loading', () => {
     useResourcesMock.mockReturnValue({ data: undefined, isLoading: true, isError: false });
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={null}
@@ -274,7 +298,7 @@ describe('ServiceResourceRequirementsPanel', () => {
   it('blocks save if the active-resources query failed, without dropping pool IDs', () => {
     useResourcesMock.mockReturnValue({ data: undefined, isLoading: false, isError: true });
     renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[
           {
@@ -300,7 +324,7 @@ describe('ServiceResourceRequirementsPanel', () => {
   it('locks flat mode immediately after a successful flat-to-legs save, within the same session', async () => {
     const user = userEvent.setup();
     const { container } = renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={null}
@@ -335,7 +359,7 @@ describe('ServiceResourceRequirementsPanel', () => {
       }),
     );
     const { container } = renderWithIntl(
-      <ServiceResourceRequirementsPanel
+      <ResourcePanelWithAction
         serviceId="svc-1"
         initialResourceRequirements={[]}
         initialLegs={null}

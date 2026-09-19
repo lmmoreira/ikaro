@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
@@ -13,6 +13,8 @@ import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import type { ServiceEditTabKey } from '@/features/booking/types/service';
 import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/service';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
+import type { ServiceTabAction } from './service-tab-action';
+import { useServiceEditLeaveGuard } from './useServiceEditLeaveGuard';
 import { ServiceEditActionPanels } from './ServiceEditPanels';
 import { ServiceEditTabBar } from './ServiceEditTabBar';
 import { ServiceEditDetailsTab } from './ServiceEditDetailsTab';
@@ -38,15 +40,16 @@ export function ServiceEditPage({
   const locale = useResolvedLocale();
   const router = useRouter();
   const [showCreatedBanner, setShowCreatedBanner] = useState(initialShowCreatedBanner);
-  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const updateServiceMutation = useUpdateService();
   const activateServiceMutation = useActivateService();
   const topbarStatus = useDashboardTopbarStatus();
   const setTopbarServiceStatus = topbarStatus?.setServiceStatus;
-  const setOnBackOverride = topbarStatus?.setOnBackOverride;
 
   const [activeTab, setActiveTab] = useState<ServiceEditTabKey>('detalhes');
   const [dirty, setDirty] = useState(INITIAL_SERVICE_EDIT_DIRTY_STATE);
+  const [tabActions, setTabActions] = useState<
+    Partial<Record<ServiceEditTabKey, ServiceTabAction | null>>
+  >({});
   const [name, setName] = useState(service.name);
   const [description, setDescription] = useState(service.description ?? '');
   const [priceAmount, setPriceAmount] = useState(String(service.price.amount));
@@ -61,6 +64,8 @@ export function ServiceEditPage({
   const isSubmitting = isSubmittingLocal || updateServiceMutation.isPending;
   const isActivating = isActivatingLocal || activateServiceMutation.isPending;
   const anyDirty = Object.values(dirty).some(Boolean);
+  const { discardConfirmOpen, closeDiscardConfirm, handleCancelClick, handleConfirmDiscard } =
+    useServiceEditLeaveGuard(anyDirty);
   // Bumped on every Detalhes field edit — lets a save in flight tell whether a *newer* edit
   // landed while it was pending, so it never clears dirty for an edit it didn't actually persist.
   const detalhesEditRevisionRef = useRef(0);
@@ -83,52 +88,18 @@ export function ServiceEditPage({
     return () => globalThis.clearTimeout(timeoutId);
   }, [router, service.serviceId, showCreatedBanner]);
 
-  // Unsaved-changes guard, scoped to what this codebase can actually intercept today: the
-  // Topbar's own back button (onBackOverride — no other existing precedent to build on) and this
-  // page's own "Voltar à lista"/"Cancelar" link (below). Sidebar/BottomNav navigation is NOT
-  // guarded — no existing mechanism intercepts shell-level navigation for one page's dirty state,
-  // and extending it there was decided out of scope at /story-discovery, 2026-09-18.
-  useEffect(() => {
-    // useState setters treat a bare function argument as an updater — wrap in an outer arrow so
-    // React stores the inner function as the literal state value (matches the existing
-    // useHotsiteEditorTopbarOverride.ts precedent). Without the outer wrapper, React invokes this
-    // function immediately as `(prevState) => newState` on every effect run, firing the
-    // router.push() as an unintended side effect of the state update itself instead of only on a
-    // real back-button click.
-    setOnBackOverride?.(() => () => {
-      if (anyDirty) {
-        setDiscardConfirmOpen(true);
-        return;
-      }
-      router.push('/dashboard/services');
-    });
-    return () => setOnBackOverride?.(null);
-  }, [anyDirty, router, setOnBackOverride, t]);
-
-  useEffect(() => {
-    function handleBeforeUnload(event: BeforeUnloadEvent): void {
-      if (!anyDirty) return;
-      event.preventDefault();
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [anyDirty]);
-
   function setTabDirty(tab: ServiceEditTabKey, value: boolean): void {
     setDirty((current) => (current[tab] === value ? current : { ...current, [tab]: value }));
   }
 
-  function handleCancelClick(event: React.MouseEvent<HTMLAnchorElement>): void {
-    if (anyDirty) {
-      event.preventDefault();
-      setDiscardConfirmOpen(true);
-    }
-  }
-
-  function handleConfirmDiscard(): void {
-    setDiscardConfirmOpen(false);
-    router.push('/dashboard/services');
-  }
+  const handleTabActionChange = useCallback(
+    (tab: ServiceEditTabKey, action: ServiceTabAction | null): void => {
+      setTabActions((current) =>
+        current[tab] === action ? current : { ...current, [tab]: action },
+      );
+    },
+    [],
+  );
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -240,6 +211,7 @@ export function ServiceEditPage({
             service={service}
             intakeSchema={intakeSchema}
             onTabDirtyChange={setTabDirty}
+            onTabActionChange={handleTabActionChange}
           />
         </div>
 
@@ -249,6 +221,7 @@ export function ServiceEditPage({
           isActivating={isActivating}
           onActivate={handleActivate}
           showPrimaryAction={activeTab === 'detalhes'}
+          tabAction={activeTab === 'detalhes' ? null : (tabActions[activeTab] ?? null)}
           onCancelClick={handleCancelClick}
         />
       </div>
@@ -260,7 +233,7 @@ export function ServiceEditPage({
         keepEditingLabel={t('discardConfirmKeepEditing')}
         discardLabel={t('discardConfirmDiscardButton')}
         onConfirmDiscard={handleConfirmDiscard}
-        onCancel={() => setDiscardConfirmOpen(false)}
+        onCancel={closeDiscardConfirm}
         confirmTestId="service-discard-confirm"
       />
     </form>

@@ -63,6 +63,7 @@ describe('ServiceEditConfigTabPanels', () => {
         service={service}
         intakeSchema={intakeSchema}
         onTabDirtyChange={vi.fn()}
+        onTabActionChange={vi.fn()}
       />,
     );
 
@@ -83,10 +84,35 @@ describe('ServiceEditConfigTabPanels', () => {
         service={service}
         intakeSchema={intakeSchema}
         onTabDirtyChange={onTabDirtyChange}
+        onTabActionChange={vi.fn()}
       />,
     );
 
     await user.click(screen.getByTestId('resource-mode-legs'));
     expect(onTabDirtyChange).toHaveBeenCalledWith('recursos', true);
+  });
+
+  it('registers a Save/Publish action per tab, all at once since every panel stays mounted', () => {
+    const onTabActionChange = vi.fn();
+    renderWithIntl(
+      <ServiceEditConfigTabPanels
+        activeTab="recursos"
+        service={service}
+        intakeSchema={intakeSchema}
+        onTabDirtyChange={vi.fn()}
+        onTabActionChange={onTabActionChange}
+      />,
+    );
+
+    const labelByTab = Object.fromEntries(
+      onTabActionChange.mock.calls
+        .filter(([, action]) => action !== null)
+        .map(([tab, action]) => [tab, action.label]),
+    );
+    expect(labelByTab).toEqual({
+      recursos: 'Salvar recursos',
+      politicas: 'Salvar políticas',
+      formulario: 'Publicar formulário',
+    });
   });
 });

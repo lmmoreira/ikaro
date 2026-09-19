@@ -3,9 +3,33 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ServiceBookingPolicyItem } from '@ikaro/types';
+import { useState } from 'react';
+import type { ServiceTabAction } from './service-tab-action';
 import { renderWithIntl } from '@/test-utils';
 import { ApiError } from '@/shared/lib/api/errors';
 import { ServiceBookingPolicyPanel } from './ServiceBookingPolicyPanel';
+
+// The panel no longer draws its own Save/Publish button — it registers the action with
+// ServiceEditPage's sticky action panel. This harness plays that role so the panel's own
+// behavior (validation, in-flight state, dirty tracking) stays testable in isolation.
+function PolicyPanelWithAction(
+  props: Omit<Parameters<typeof ServiceBookingPolicyPanel>[0], 'onActionChange'>,
+) {
+  const [action, setAction] = useState<ServiceTabAction | null>(null);
+  return (
+    <>
+      <ServiceBookingPolicyPanel {...props} onActionChange={setAction} />
+      <button
+        type="button"
+        data-testid="policy-save"
+        disabled={action === null || action.disabled || action.pending}
+        onClick={action?.onSubmit}
+      >
+        {action?.label}
+      </button>
+    </>
+  );
+}
 
 const mutateAsync = vi.fn().mockResolvedValue({});
 
@@ -37,7 +61,7 @@ beforeEach(() => mutateAsync.mockClear());
 describe('ServiceBookingPolicyPanel', () => {
   it('hides duration/pricing detail fields when policy is FIXED', () => {
     renderWithIntl(
-      <ServiceBookingPolicyPanel
+      <PolicyPanelWithAction
         serviceId="svc-1"
         initialPolicy={BASE_POLICY}
         onDirtyChange={vi.fn()}
@@ -51,7 +75,7 @@ describe('ServiceBookingPolicyPanel', () => {
   it('shows duration detail fields when duration policy is CUSTOMER_SELECTED', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <ServiceBookingPolicyPanel
+      <PolicyPanelWithAction
         serviceId="svc-1"
         initialPolicy={BASE_POLICY}
         onDirtyChange={vi.fn()}
@@ -65,7 +89,7 @@ describe('ServiceBookingPolicyPanel', () => {
   it('submits all 16 UpdateServiceBookingPolicySchema fields on save', async () => {
     const user = userEvent.setup();
     renderWithIntl(
-      <ServiceBookingPolicyPanel
+      <PolicyPanelWithAction
         serviceId="svc-1"
         initialPolicy={BASE_POLICY}
         onDirtyChange={vi.fn()}
@@ -90,7 +114,7 @@ describe('ServiceBookingPolicyPanel', () => {
       }),
     );
     renderWithIntl(
-      <ServiceBookingPolicyPanel
+      <PolicyPanelWithAction
         serviceId="svc-1"
         initialPolicy={BASE_POLICY}
         onDirtyChange={vi.fn()}
@@ -107,7 +131,7 @@ describe('ServiceBookingPolicyPanel', () => {
     const user = userEvent.setup();
     const onDirtyChange = vi.fn();
     renderWithIntl(
-      <ServiceBookingPolicyPanel
+      <PolicyPanelWithAction
         serviceId="svc-1"
         initialPolicy={BASE_POLICY}
         onDirtyChange={onDirtyChange}
@@ -126,7 +150,7 @@ describe('ServiceBookingPolicyPanel', () => {
       }),
     );
     renderWithIntl(
-      <ServiceBookingPolicyPanel
+      <PolicyPanelWithAction
         serviceId="svc-1"
         initialPolicy={BASE_POLICY}
         onDirtyChange={vi.fn()}
@@ -150,7 +174,7 @@ describe('ServiceBookingPolicyPanel', () => {
       }),
     );
     renderWithIntl(
-      <ServiceBookingPolicyPanel
+      <PolicyPanelWithAction
         serviceId="svc-1"
         initialPolicy={BASE_POLICY}
         onDirtyChange={onDirtyChange}

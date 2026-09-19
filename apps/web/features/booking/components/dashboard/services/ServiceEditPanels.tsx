@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import type { ServiceTabAction } from './service-tab-action';
 
 interface ServiceEditStatusSectionProps {
   readonly isActive: boolean;
@@ -48,9 +49,10 @@ interface ServiceEditActionPanelsProps {
   readonly isSubmitting: boolean;
   readonly isActivating: boolean;
   readonly onActivate: () => void;
-  // False on every tab but Detalhes — the other 3 tabs each have their own inline save button
-  // next to their fields, so the sticky Save/Activate action would be redundant/ambiguous there.
+  // True only on Detalhes (its own submit / Activate). The other 3 tabs register their own
+  // Save/Publish action via `tabAction` instead — one sticky place for every tab's primary action.
   readonly showPrimaryAction?: boolean;
+  readonly tabAction?: ServiceTabAction | null;
   // Unsaved-changes guard (Topbar back button + this link) — decided at /story-discovery,
   // 2026-09-18. When omitted, the link behaves exactly as before (plain navigation).
   readonly onCancelClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
@@ -96,15 +98,41 @@ function ServiceEditPrimaryAction({
   );
 }
 
+interface ServiceEditTabActionButtonProps {
+  readonly action: ServiceTabAction;
+  readonly testId: string;
+}
+
+function ServiceEditTabActionButton({
+  action,
+  testId,
+}: ServiceEditTabActionButtonProps): React.JSX.Element {
+  const commonT = useTranslations('common');
+
+  return (
+    <Button
+      type="button"
+      data-testid={testId}
+      className="w-full"
+      disabled={action.disabled || action.pending}
+      onClick={action.onSubmit}
+    >
+      {action.pending ? commonT('loading') : action.label}
+    </Button>
+  );
+}
+
 export function ServiceEditActionPanels({
   isActive,
   isSubmitting,
   isActivating,
   onActivate,
   showPrimaryAction = true,
+  tabAction = null,
   onCancelClick,
 }: ServiceEditActionPanelsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const hasAction = showPrimaryAction || tabAction !== null;
 
   return (
     <>
@@ -128,6 +156,10 @@ export function ServiceEditActionPanels({
               </>
             )}
 
+            {tabAction && (
+              <ServiceEditTabActionButton action={tabAction} testId="service-desktop-tab-action" />
+            )}
+
             <Button asChild variant="outline" className="w-full">
               <Link
                 data-testid="service-cancel-desktop-link"
@@ -141,7 +173,7 @@ export function ServiceEditActionPanels({
         </Card>
       </aside>
 
-      {showPrimaryAction && (
+      {hasAction && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
           <div className="grid grid-cols-2 gap-3">
             <Button asChild variant="outline" className="w-full">
@@ -153,14 +185,19 @@ export function ServiceEditActionPanels({
                 {t('createCancel')}
               </Link>
             </Button>
-            <ServiceEditPrimaryAction
-              isActive={isActive}
-              isSubmitting={isSubmitting}
-              isActivating={isActivating}
-              onActivate={onActivate}
-              saveTestId="service-mobile-save-button"
-              activateTestId="service-mobile-activate-button"
-            />
+            {showPrimaryAction && (
+              <ServiceEditPrimaryAction
+                isActive={isActive}
+                isSubmitting={isSubmitting}
+                isActivating={isActivating}
+                onActivate={onActivate}
+                saveTestId="service-mobile-save-button"
+                activateTestId="service-mobile-activate-button"
+              />
+            )}
+            {tabAction && (
+              <ServiceEditTabActionButton action={tabAction} testId="service-mobile-tab-action" />
+            )}
           </div>
         </div>
       )}

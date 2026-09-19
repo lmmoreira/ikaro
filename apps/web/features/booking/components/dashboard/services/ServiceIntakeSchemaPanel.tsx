@@ -6,7 +6,7 @@ import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
 import { usePublishServiceIntakeSchema } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
-import { Button } from '@/shared/components/ui/button';
+import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
 import type { IntakeQuestionDraft } from './IntakeQuestionCard';
 import { IntakeQuestionsCard } from './IntakeQuestionsCard';
 import { IntakeParticipantsCard, IntakeConsentCard } from './IntakeParticipantsAndConsentCards';
@@ -46,6 +46,7 @@ interface ServiceIntakeSchemaPanelProps {
   readonly initialActive: ServiceIntakeSchemaVersion | null;
   readonly initialHistory: ServiceIntakeSchemaVersion[];
   readonly onDirtyChange: (dirty: boolean) => void;
+  readonly onActionChange: ServiceTabActionChange;
 }
 
 export function ServiceIntakeSchemaPanel({
@@ -53,6 +54,7 @@ export function ServiceIntakeSchemaPanel({
   initialActive,
   initialHistory,
   onDirtyChange,
+  onActionChange,
 }: ServiceIntakeSchemaPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
@@ -180,6 +182,13 @@ export function ServiceIntakeSchemaPanel({
     }
   }
 
+  useRegisterTabAction(onActionChange, {
+    label: t('formularioPublishButton'),
+    disabled: !canPublish || publishSchema.isPending,
+    pending: publishSchema.isPending,
+    onSubmit: handlePublish,
+  });
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">{t('formularioIntro')}</p>
@@ -225,21 +234,11 @@ export function ServiceIntakeSchemaPanel({
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <Button
-          type="button"
-          data-testid="intake-publish"
-          onClick={handlePublish}
-          disabled={!canPublish || publishSchema.isPending}
-        >
-          {t('formularioPublishButton')}
-        </Button>
-        {publishedMessageVisible && (
-          <span data-testid="intake-published" className="text-sm text-green-600">
-            {t('formularioPublishedConfirm')}
-          </span>
-        )}
-      </div>
+      {publishedMessageVisible && (
+        <p data-testid="intake-published" className="text-sm text-green-600">
+          {t('formularioPublishedConfirm')}
+        </p>
+      )}
 
       {previewVersion && (
         <IntakeVersionModal version={previewVersion} onClose={() => setPreviewVersion(null)} />
