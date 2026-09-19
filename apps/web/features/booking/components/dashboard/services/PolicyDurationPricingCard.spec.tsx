@@ -80,4 +80,42 @@ describe('PolicyDurationPricingCard', () => {
     await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'FIXED');
     expect(onPatch).toHaveBeenCalledWith({ durationPolicy: 'FIXED', pricingPolicy: 'FIXED' });
   });
+
+  it('states the unit (minutes / R$) on every duration and pricing field', () => {
+    renderWithIntl(
+      <PolicyDurationPricingCard
+        policy={{
+          ...BASE_POLICY,
+          durationPolicy: 'CUSTOMER_SELECTED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+        }}
+        onPatch={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Duração mínima (minutos)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Duração máxima (minutos)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Intervalo de escolha (minutos)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Incremento de cobrança (minutos)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Valor por incremento (R$)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cobrança mínima (R$, opcional)')).toBeInTheDocument();
+  });
+
+  it('explains what each policy does, including how the total is computed', () => {
+    renderWithIntl(
+      <PolicyDurationPricingCard
+        policy={{
+          ...BASE_POLICY,
+          durationPolicy: 'CUSTOMER_SELECTED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+        }}
+        onPatch={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Fixa: usa a duração \(em minutos\)/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Total = valor por incremento × número de incrementos/),
+    ).toBeInTheDocument();
+  });
 });

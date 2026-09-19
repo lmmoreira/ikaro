@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
@@ -326,27 +326,72 @@ describe('ServiceEditPage', () => {
     expect(mockSetOnBackOverride).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it('confirms before navigating away via the cancel link when a tab is dirty', async () => {
+  it('opens the discard dialog instead of navigating when the cancel link is clicked while dirty', async () => {
     const user = userEvent.setup();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
 
     await user.type(screen.getByLabelText('Nome do serviço'), 'X');
     await user.click(screen.getByTestId('service-cancel-desktop-link'));
 
-    expect(confirmSpy).toHaveBeenCalled();
-    confirmSpy.mockRestore();
+    expect(screen.getByText('Descartar alterações?')).toBeInTheDocument();
+    expect(routerPush).not.toHaveBeenCalled();
   });
 
-  it('does not prompt when navigating away with nothing dirty', async () => {
+  it('"Continuar editando" closes the discard dialog and keeps the edit', async () => {
     const user = userEvent.setup();
-    const confirmSpy = vi.spyOn(window, 'confirm');
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'X');
+    await user.click(screen.getByTestId('service-cancel-desktop-link'));
+    await user.click(screen.getByRole('button', { name: 'Continuar editando' }));
+
+    expect(screen.queryByText('Descartar alterações?')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Nome do serviço')).toHaveValue(`${service.name}X`);
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it('"Descartar alterações" navigates back to the services list', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'X');
+    await user.click(screen.getByTestId('service-cancel-desktop-link'));
+    await user.click(screen.getByTestId('service-discard-confirm'));
+
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/services');
+  });
+
+  it('opens the discard dialog from the topbar back override while dirty, and navigates directly when clean', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+    // The component registers `() => () => {…}` (a state-updater wrapper) — call the wrapper once
+    // to get the literal back handler the topbar would invoke.
+    const readBack = (): (() => void) => {
+      const wrapper = mockSetOnBackOverride.mock.calls
+        .map(([fn]) => fn)
+        .filter((fn): fn is () => () => void => typeof fn === 'function')
+        .at(-1)!;
+      return wrapper();
+    };
+
+    act(() => readBack()());
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/services');
+    routerPush.mockClear();
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'X');
+    act(() => readBack()());
+
+    expect(screen.getByText('Descartar alterações?')).toBeInTheDocument();
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it('does not open the dialog when navigating away with nothing dirty', async () => {
+    const user = userEvent.setup();
     renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
 
     await user.click(screen.getByTestId('service-cancel-desktop-link'));
 
-    expect(confirmSpy).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
+    expect(screen.queryByText('Descartar alterações?')).not.toBeInTheDocument();
   });
 
   it('shows the created-success banner on the Detalhes tab when showCreatedBanner is true', () => {

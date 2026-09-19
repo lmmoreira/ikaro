@@ -65,67 +65,71 @@ export function PolicyDurationPricingCard({
             <option value="FIXED">{t('politicasDurationPolicyFixed')}</option>
             <option value="CUSTOMER_SELECTED">{t('politicasDurationPolicyCustomer')}</option>
           </select>
+          <p className="mt-1 text-xs text-gray-500">{t('politicasDurationPolicyHint')}</p>
         </div>
 
         {isVariableDuration && (
-          <div className="grid grid-cols-3 gap-3" data-testid="policy-duration-detail">
-            <div>
-              <label
-                htmlFor="policy-duration-min"
-                className="mb-1 block text-xs font-semibold text-gray-500"
-              >
-                {t('politicasDurationMinLabel')}
-              </label>
-              <input
-                id="policy-duration-min"
-                type="number"
-                min={1}
-                data-testid="policy-duration-min"
-                value={toNumberInput(policy.durationMinMinutes)}
-                onChange={(event) =>
-                  onPatch({ durationMinMinutes: parseNullableNumber(event.target.value) })
-                }
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
+          <div className="space-y-2" data-testid="policy-duration-detail">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label
+                  htmlFor="policy-duration-min"
+                  className="mb-1 block text-xs font-semibold text-gray-500"
+                >
+                  {t('politicasDurationMinLabel')}
+                </label>
+                <input
+                  id="policy-duration-min"
+                  type="number"
+                  min={1}
+                  data-testid="policy-duration-min"
+                  value={toNumberInput(policy.durationMinMinutes)}
+                  onChange={(event) =>
+                    onPatch({ durationMinMinutes: parseNullableNumber(event.target.value) })
+                  }
+                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="policy-duration-max"
+                  className="mb-1 block text-xs font-semibold text-gray-500"
+                >
+                  {t('politicasDurationMaxLabel')}
+                </label>
+                <input
+                  id="policy-duration-max"
+                  type="number"
+                  min={1}
+                  data-testid="policy-duration-max"
+                  value={toNumberInput(policy.durationMaxMinutes)}
+                  onChange={(event) =>
+                    onPatch({ durationMaxMinutes: parseNullableNumber(event.target.value) })
+                  }
+                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="policy-duration-increment"
+                  className="mb-1 block text-xs font-semibold text-gray-500"
+                >
+                  {t('politicasDurationIncrementLabel')}
+                </label>
+                <input
+                  id="policy-duration-increment"
+                  type="number"
+                  min={1}
+                  data-testid="policy-duration-increment"
+                  value={toNumberInput(policy.durationIncrementMinutes)}
+                  onChange={(event) =>
+                    onPatch({ durationIncrementMinutes: parseNullableNumber(event.target.value) })
+                  }
+                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
             </div>
-            <div>
-              <label
-                htmlFor="policy-duration-max"
-                className="mb-1 block text-xs font-semibold text-gray-500"
-              >
-                {t('politicasDurationMaxLabel')}
-              </label>
-              <input
-                id="policy-duration-max"
-                type="number"
-                min={1}
-                data-testid="policy-duration-max"
-                value={toNumberInput(policy.durationMaxMinutes)}
-                onChange={(event) =>
-                  onPatch({ durationMaxMinutes: parseNullableNumber(event.target.value) })
-                }
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="policy-duration-increment"
-                className="mb-1 block text-xs font-semibold text-gray-500"
-              >
-                {t('politicasDurationIncrementLabel')}
-              </label>
-              <input
-                id="policy-duration-increment"
-                type="number"
-                min={1}
-                data-testid="policy-duration-increment"
-                value={toNumberInput(policy.durationIncrementMinutes)}
-                onChange={(event) =>
-                  onPatch({ durationIncrementMinutes: parseNullableNumber(event.target.value) })
-                }
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
-            </div>
+            <p className="text-xs text-gray-500">{t('politicasDurationHint')}</p>
           </div>
         )}
 
@@ -155,66 +159,69 @@ export function PolicyDurationPricingCard({
         </div>
 
         {isPerIncrementPricing && (
-          <div className="grid grid-cols-3 gap-3" data-testid="policy-pricing-detail">
-            <div>
-              <label
-                htmlFor="policy-pricing-increment"
-                className="mb-1 block text-xs font-semibold text-gray-500"
-              >
-                {t('politicasPricingIncrementLabel')}
-              </label>
-              <input
-                id="policy-pricing-increment"
-                type="number"
-                min={1}
-                data-testid="policy-pricing-increment"
-                value={toNumberInput(policy.pricingIncrementMinutes)}
-                onChange={(event) =>
-                  onPatch({ pricingIncrementMinutes: parseNullableNumber(event.target.value) })
-                }
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
+          <div className="space-y-2" data-testid="policy-pricing-detail">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label
+                  htmlFor="policy-pricing-increment"
+                  className="mb-1 block text-xs font-semibold text-gray-500"
+                >
+                  {t('politicasPricingIncrementLabel')}
+                </label>
+                <input
+                  id="policy-pricing-increment"
+                  type="number"
+                  min={1}
+                  data-testid="policy-pricing-increment"
+                  value={toNumberInput(policy.pricingIncrementMinutes)}
+                  onChange={(event) =>
+                    onPatch({ pricingIncrementMinutes: parseNullableNumber(event.target.value) })
+                  }
+                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="policy-price-per-increment"
+                  className="mb-1 block text-xs font-semibold text-gray-500"
+                >
+                  {t('politicasPricePerIncrementLabel')}
+                </label>
+                <input
+                  id="policy-price-per-increment"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  data-testid="policy-price-per-increment"
+                  value={toNumberInput(policy.pricePerIncrementAmount)}
+                  onChange={(event) =>
+                    onPatch({ pricePerIncrementAmount: parseNullableNumber(event.target.value) })
+                  }
+                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="policy-min-charge"
+                  className="mb-1 block text-xs font-semibold text-gray-500"
+                >
+                  {t('politicasMinChargeLabel')}
+                </label>
+                <input
+                  id="policy-min-charge"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  data-testid="policy-min-charge"
+                  value={toNumberInput(policy.minimumChargeAmount)}
+                  onChange={(event) =>
+                    onPatch({ minimumChargeAmount: parseNullableNumber(event.target.value) })
+                  }
+                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
             </div>
-            <div>
-              <label
-                htmlFor="policy-price-per-increment"
-                className="mb-1 block text-xs font-semibold text-gray-500"
-              >
-                {t('politicasPricePerIncrementLabel')}
-              </label>
-              <input
-                id="policy-price-per-increment"
-                type="number"
-                min={0}
-                step="0.01"
-                data-testid="policy-price-per-increment"
-                value={toNumberInput(policy.pricePerIncrementAmount)}
-                onChange={(event) =>
-                  onPatch({ pricePerIncrementAmount: parseNullableNumber(event.target.value) })
-                }
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="policy-min-charge"
-                className="mb-1 block text-xs font-semibold text-gray-500"
-              >
-                {t('politicasMinChargeLabel')}
-              </label>
-              <input
-                id="policy-min-charge"
-                type="number"
-                min={0}
-                step="0.01"
-                data-testid="policy-min-charge"
-                value={toNumberInput(policy.minimumChargeAmount)}
-                onChange={(event) =>
-                  onPatch({ minimumChargeAmount: parseNullableNumber(event.target.value) })
-                }
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
-            </div>
+            <p className="text-xs text-gray-500">{t('politicasPricingDetailHint')}</p>
           </div>
         )}
       </CardContent>

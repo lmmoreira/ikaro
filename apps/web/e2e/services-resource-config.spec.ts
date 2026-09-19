@@ -193,7 +193,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('intake-version-modal')).toBeVisible();
   });
 
-  test('edits Recursos, switches to Políticas without saving, then navigating away prompts a confirmation', async ({
+  test('edits Recursos, switches to Políticas without saving, then navigating away opens the discard dialog', async ({
     page,
   }) => {
     const service = await seedService(page);
@@ -204,13 +204,10 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
 
     await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
 
-    let dialogSeen = false;
-    page.once('dialog', async (dialog) => {
-      dialogSeen = true;
-      await dialog.dismiss();
-    });
     await page.getByRole('link', { name: 'Cancelar' }).first().click();
-    await expect.poll(() => dialogSeen).toBe(true);
+    await expect(page.getByTestId('service-discard-confirm')).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar editando' }).click();
+    await expect(page.getByTestId('service-discard-confirm')).toBeHidden();
   });
 
   test('opens an inactive service and sees all 4 tabs, not just Detalhes', async ({ page }) => {

@@ -12,6 +12,7 @@ import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import type { ServiceEditTabKey } from '@/features/booking/types/service';
 import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/service';
+import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
 import { ServiceEditActionPanels } from './ServiceEditPanels';
 import { ServiceEditTabBar } from './ServiceEditTabBar';
 import { ServiceEditDetailsTab } from './ServiceEditDetailsTab';
@@ -37,6 +38,7 @@ export function ServiceEditPage({
   const locale = useResolvedLocale();
   const router = useRouter();
   const [showCreatedBanner, setShowCreatedBanner] = useState(initialShowCreatedBanner);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const updateServiceMutation = useUpdateService();
   const activateServiceMutation = useActivateService();
   const topbarStatus = useDashboardTopbarStatus();
@@ -94,7 +96,10 @@ export function ServiceEditPage({
     // router.push() as an unintended side effect of the state update itself instead of only on a
     // real back-button click.
     setOnBackOverride?.(() => () => {
-      if (anyDirty && !window.confirm(t('unsavedChangesConfirm'))) return;
+      if (anyDirty) {
+        setDiscardConfirmOpen(true);
+        return;
+      }
       router.push('/dashboard/services');
     });
     return () => setOnBackOverride?.(null);
@@ -114,9 +119,15 @@ export function ServiceEditPage({
   }
 
   function handleCancelClick(event: React.MouseEvent<HTMLAnchorElement>): void {
-    if (anyDirty && !window.confirm(t('unsavedChangesConfirm'))) {
+    if (anyDirty) {
       event.preventDefault();
+      setDiscardConfirmOpen(true);
     }
+  }
+
+  function handleConfirmDiscard(): void {
+    setDiscardConfirmOpen(false);
+    router.push('/dashboard/services');
   }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
@@ -241,6 +252,17 @@ export function ServiceEditPage({
           onCancelClick={handleCancelClick}
         />
       </div>
+
+      <DiscardChangesDialog
+        open={discardConfirmOpen}
+        title={t('discardConfirmTitle')}
+        description={t('discardConfirmDescription')}
+        keepEditingLabel={t('discardConfirmKeepEditing')}
+        discardLabel={t('discardConfirmDiscardButton')}
+        onConfirmDiscard={handleConfirmDiscard}
+        onCancel={() => setDiscardConfirmOpen(false)}
+        confirmTestId="service-discard-confirm"
+      />
     </form>
   );
 }
