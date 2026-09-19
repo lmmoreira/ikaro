@@ -24,6 +24,7 @@ describe('IntakeQuestionsCard', () => {
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
         hasBlankLabel={false}
+        hasEmptyFieldKey={false}
         canAddQuestion
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -44,6 +45,7 @@ describe('IntakeQuestionsCard', () => {
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
         hasBlankLabel={false}
+        hasEmptyFieldKey={false}
         canAddQuestion
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -64,6 +66,7 @@ describe('IntakeQuestionsCard', () => {
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys
         hasBlankLabel={false}
+        hasEmptyFieldKey={false}
         canAddQuestion
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -84,6 +87,7 @@ describe('IntakeQuestionsCard', () => {
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
         hasBlankLabel
+        hasEmptyFieldKey={false}
         canAddQuestion
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -104,6 +108,7 @@ describe('IntakeQuestionsCard', () => {
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
         hasBlankLabel={false}
+        hasEmptyFieldKey={false}
         canAddQuestion={false}
         onAdd={vi.fn()}
         onMove={vi.fn()}
@@ -126,6 +131,7 @@ describe('IntakeQuestionsCard', () => {
         resolveFieldKey={(q) => q.fieldKey}
         hasDuplicateFieldKeys={false}
         hasBlankLabel={false}
+        hasEmptyFieldKey={false}
         canAddQuestion
         onAdd={onAdd}
         onMove={vi.fn()}
@@ -138,5 +144,26 @@ describe('IntakeQuestionsCard', () => {
 
     await user.click(screen.getByTestId('intake-add-question'));
     expect(onAdd).toHaveBeenCalled();
+  });
+
+  it('shows the empty-key error when a label cannot produce an internal key', () => {
+    renderWithIntl(
+      <IntakeQuestionsCard
+        questions={[]}
+        resolveFieldKey={(q) => q.fieldKey}
+        hasDuplicateFieldKeys={false}
+        hasBlankLabel={false}
+        hasEmptyFieldKey
+        canAddQuestion
+        onAdd={vi.fn()}
+        onMove={vi.fn()}
+        onRemove={vi.fn()}
+        onChangeLabel={vi.fn()}
+        onChangeType={vi.fn()}
+        onChangeRequired={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('intake-empty-key-error')).toBeInTheDocument();
   });
 });

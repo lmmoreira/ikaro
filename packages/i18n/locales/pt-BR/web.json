@@ -1265,6 +1265,7 @@
       "formularioPublishedConfirm": "✓ Formulário publicado",
       "formularioDuplicateFieldKeyError": "Duas perguntas geraram a mesma chave interna — ajuste os rótulos para torná-los únicos.",
       "formularioBlankLabelError": "Toda pergunta precisa de um texto — preencha ou remova as perguntas em branco.",
+      "formularioEmptyFieldKeyError": "Um rótulo precisa ter ao menos uma letra ou um número (A–Z, 0–9) para gerar a chave interna da pergunta — ajuste o texto.",
       "formularioMinQuestionsError": "Adicione pelo menos 1 pergunta.",
       "formularioConsentRequiredError": "Informe o texto do termo de consentimento.",
       "formularioVersionModalTitle": "Versão {version}",

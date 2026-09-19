@@ -11,6 +11,7 @@ interface IntakeQuestionsCardProps {
   readonly resolveFieldKey: (question: IntakeQuestionDraft) => string;
   readonly hasDuplicateFieldKeys: boolean;
   readonly hasBlankLabel: boolean;
+  readonly hasEmptyFieldKey: boolean;
   readonly canAddQuestion: boolean;
   readonly onAdd: () => void;
   readonly onMove: (key: string, direction: -1 | 1) => void;
@@ -25,6 +26,7 @@ export function IntakeQuestionsCard({
   resolveFieldKey,
   hasDuplicateFieldKeys,
   hasBlankLabel,
+  hasEmptyFieldKey,
   canAddQuestion,
   onAdd,
   onMove,
@@ -77,6 +79,12 @@ export function IntakeQuestionsCard({
         {hasBlankLabel && (
           <p data-testid="intake-blank-label-error" className="text-sm text-red-600">
             {t('formularioBlankLabelError')}
+          </p>
+        )}
+
+        {hasEmptyFieldKey && (
+          <p data-testid="intake-empty-key-error" className="text-sm text-red-600">
+            {t('formularioEmptyFieldKeyError')}
           </p>
         )}
 

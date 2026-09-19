@@ -195,6 +195,31 @@ describe('ServiceIntakeSchemaPanel', () => {
     expect(screen.getByTestId('intake-version-current')).toHaveTextContent('2');
   });
 
+  it('keeps Publish disabled and explains why when a label yields no internal key', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <IntakePanelWithAction
+        serviceId="svc-1"
+        initialActive={null}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByTestId('intake-add-question'));
+    await user.type(getByIndex(container, 'intake-question-label', 0), '!!!');
+    await user.type(screen.getByTestId('intake-consent-text'), 'Concordo');
+
+    expect(screen.getByTestId('intake-empty-key-error')).toBeInTheDocument();
+    expect(screen.getByTestId('intake-publish')).toBeDisabled();
+
+    await user.clear(getByIndex(container, 'intake-question-label', 0));
+    await user.type(getByIndex(container, 'intake-question-label', 0), 'Alergias?');
+
+    expect(screen.queryByTestId('intake-empty-key-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('intake-publish')).toBeEnabled();
+  });
+
   it('keeps at most the 5 most recent previous versions in history after publishing', async () => {
     const user = userEvent.setup();
     const version = (n: number): ServiceIntakeSchemaVersion => ({

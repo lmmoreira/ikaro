@@ -142,6 +142,12 @@ export function ServiceIntakeSchemaPanel({
   );
   const hasDuplicateFieldKeys = new Set(resolvedFieldKeys).size !== resolvedFieldKeys.length;
   const hasBlankLabel = questions.some((question) => question.label.trim().length === 0);
+  // A non-blank label with no ASCII letters/digits (e.g. "!!!" or a non-Latin script) slugifies to
+  // an empty key, which the request schema rejects (fieldKey.min(1)) — gate it here instead of
+  // enabling a Publish the server must refuse.
+  const hasEmptyFieldKey = questions.some(
+    (question, index) => question.label.trim().length > 0 && resolvedFieldKeys[index] === '',
+  );
   // Mirrors PublishServiceIntakeSchemaSchema's own shape (packages/validation/src/booking.ts):
   // 1-50 questions, every label non-empty (fieldKey.min(1)/label.min(1) — a blank label derives
   // an empty fieldKey too), unique fieldKey, label <= 500 chars (enforced via maxLength on the
@@ -151,7 +157,8 @@ export function ServiceIntakeSchemaPanel({
     questions.length <= 50 &&
     consentText.trim().length > 0 &&
     !hasDuplicateFieldKeys &&
-    !hasBlankLabel;
+    !hasBlankLabel &&
+    !hasEmptyFieldKey;
 
   async function handlePublish(): Promise<void> {
     setError(null);
@@ -201,6 +208,7 @@ export function ServiceIntakeSchemaPanel({
         resolveFieldKey={(question) => question.fieldKey || slugifyFieldKey(question.label)}
         hasDuplicateFieldKeys={hasDuplicateFieldKeys}
         hasBlankLabel={hasBlankLabel}
+        hasEmptyFieldKey={hasEmptyFieldKey}
         canAddQuestion={questions.length < 50}
         onAdd={addQuestion}
         onMove={moveQuestion}

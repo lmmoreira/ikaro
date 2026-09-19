@@ -1265,6 +1265,7 @@
       "formularioPublishedConfirm": "✓ Form published",
       "formularioDuplicateFieldKeyError": "Two questions generated the same internal key — adjust the labels to make them unique.",
       "formularioBlankLabelError": "Every question needs text — fill in or remove the blank questions.",
+      "formularioEmptyFieldKeyError": "A label needs at least one letter or digit (A–Z, 0–9) to generate the question's internal key — adjust the text.",
       "formularioMinQuestionsError": "Add at least 1 question.",
       "formularioConsentRequiredError": "Enter the consent statement text.",
       "formularioVersionModalTitle": "Version {version}",
