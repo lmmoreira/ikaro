@@ -150,7 +150,7 @@ Extend `Service` with the booking-policy fields (`defaultApprovalMode`, `manualH
 
 **Backend use case steps:**
 1. **`UpdateServiceBookingPolicyUseCase`** (UC-055): loads service, validates the duration/pricing-policy pairing invariant, saves all policy fields atomically. `422 BOOKING_SERVICE_DURATION_POLICY_REQUIRES_PRICING` on violation.
-2. **`PublishServiceIntakeSchemaUseCase`** (UC-054): loads service, validates `bookingModel = APPOINTMENT`, sets the currently-active schema version's `is_active = false` (if one exists) and inserts a new row with `version = previousVersion + 1`, `is_active = true`, in the same transaction. Also sets `services.requires_pickup_address = true` in the same transaction when a `PICKUP_ADDRESS`-typed question is present (UC-054 A2) — reuses the existing `requires_pickup_address` column, no new duplicate flag.
+2. **`PublishServiceIntakeSchemaUseCase`** (UC-054): loads service, validates `bookingModel = APPOINTMENT`, sets the currently-active schema version's `is_active = false` (if one exists) and inserts a new row with `version = previousVersion + 1`, `is_active = true`, in the same transaction. (M22-S04, 2026-09-19: the `PICKUP_ADDRESS`/`NAMED_ATTENDEES` typed markers and the pickup-flag side effect were removed — question types are `FREE_TEXT`/`BOOLEAN` only; pickup address stays a Service Details toggle.)
 
 **Backend HTTP surface:** `PATCH /services/:id/booking-policy` (new), `POST /services/:id/intake-schema` (new). Same controller as S01, same `STAFF|MANAGER` guard.
 
@@ -186,13 +186,11 @@ Extend `Service` with the booking-policy fields (`defaultApprovalMode`, `manualH
 - [ ] Admin can set approval mode, cancellation/reschedule/advance-booking windows, and recurrence/alert eligibility toggles; leaving a field blank inherits the current tenant default.
 - [ ] Admin cannot save `durationPolicy = CUSTOMER_SELECTED` without a non-`FIXED` `pricingPolicy`.
 - [ ] Admin can publish a new intake-schema version; the previous version is preserved, not overwritten.
-- [ ] A `PICKUP_ADDRESS`-typed intake question automatically sets the service's existing pickup-address flag.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `Service` rejects `durationPolicy = CUSTOMER_SELECTED` with `pricingPolicy = FIXED` or null
   - [ ] `PublishServiceIntakeSchemaUseCase` deactivates the previous version and activates the new one atomically
-  - [ ] `PublishServiceIntakeSchemaUseCase` sets `requires_pickup_address = true` when a `PICKUP_ADDRESS` question is included
   - [ ] `PATCH /services/:id/booking-policy` and `POST /services/:id/intake-schema` on a SESSION service both return `409 BOOKING_SERVICE_BOOKING_CONFIG_MODEL_MISMATCH`
 - Integration:
   - [ ] `PATCH /services/:id/booking-policy` persists all fields and round-trips via `GET /services/:id`
