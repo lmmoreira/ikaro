@@ -1,5 +1,10 @@
-import { ServiceDetail } from './services.types';
-import { toStaffServiceListResponse, toStaffServiceResponse } from './services.mapper';
+import { GetServiceIntakeSchemaResult, ServiceDetail } from './services.types';
+import {
+  toServiceIntakeSchemaResponse,
+  toStaffServiceEditViewResponse,
+  toStaffServiceListResponse,
+  toStaffServiceResponse,
+} from './services.mapper';
 
 const bookingPolicy = {
   defaultApprovalMode: null,
@@ -150,5 +155,54 @@ describe('toStaffServiceListResponse()', () => {
   it('returns an empty list with total 0', () => {
     const result = toStaffServiceListResponse({ items: [] });
     expect(result).toEqual({ items: [], total: 0 });
+  });
+});
+
+describe('toServiceIntakeSchemaResponse()', () => {
+  const version = (n: number) => ({
+    id: `schema-${n}`,
+    version: n,
+    questions: [
+      { fieldKey: 'allergy', label: 'Alergia?', type: 'BOOLEAN' as const, required: true },
+    ],
+    consentText: `v${n}`,
+    consentVersion: n,
+    requiresNamedAttendees: n === 2,
+    participantCountRequired: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+
+  it('maps the active version and history field by field', () => {
+    const result: GetServiceIntakeSchemaResult = { active: version(2), history: [version(1)] };
+
+    expect(toServiceIntakeSchemaResponse(result)).toEqual({
+      active: version(2),
+      history: [version(1)],
+    });
+  });
+
+  it('keeps active null and history empty for a service that never published', () => {
+    expect(toServiceIntakeSchemaResponse({ active: null, history: [] })).toEqual({
+      active: null,
+      history: [],
+    });
+  });
+
+  it('drops any extra field the backend adds, so the BFF contract cannot drift silently', () => {
+    const withExtra = {
+      active: { ...version(1), internalOnly: 'x' },
+      history: [],
+    } as unknown as GetServiceIntakeSchemaResult;
+
+    expect(toServiceIntakeSchemaResponse(withExtra).active).not.toHaveProperty('internalOnly');
+  });
+});
+
+describe('toStaffServiceEditViewResponse()', () => {
+  it('composes the mapped service and the mapped intake schema into one response', () => {
+    const result = toStaffServiceEditViewResponse(serviceDetail, { active: null, history: [] });
+
+    expect(result.service.serviceId).toBe(serviceDetail.id);
+    expect(result.intakeSchema).toEqual({ active: null, history: [] });
   });
 });

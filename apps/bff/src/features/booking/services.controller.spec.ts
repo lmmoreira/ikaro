@@ -292,8 +292,35 @@ describe('ServicesController', () => {
     });
   });
 
+  describe('getEditView()', () => {
+    it('fans out to the service and its intake schema and returns one composite', async () => {
+      const get = jest
+        .fn()
+        .mockImplementation((path: string) =>
+          Promise.resolve(
+            path.endsWith('/intake-schema') ? { active: null, history: [] } : mockServiceDetail,
+          ),
+        );
+      const controller = new ServicesController(makeBackendHttp({ get }));
+
+      const result = await controller.getEditView(SERVICE_ID);
+
+      expect(get).toHaveBeenCalledWith(`/services/${SERVICE_ID}`);
+      expect(get).toHaveBeenCalledWith(`/services/${SERVICE_ID}/intake-schema`);
+      expect(result.service.serviceId).toBe(SERVICE_ID);
+      expect(result.intakeSchema).toEqual({ active: null, history: [] });
+    });
+
+    it('propagates a backend error from either read', async () => {
+      const get = jest.fn().mockRejectedValue(new Error('404'));
+      const controller = new ServicesController(makeBackendHttp({ get }));
+
+      await expect(controller.getEditView(SERVICE_ID)).rejects.toThrow('404');
+    });
+  });
+
   describe('getIntakeSchema()', () => {
-    it('calls GET /services/:id/intake-schema and returns the result as-is', async () => {
+    it('calls GET /services/:id/intake-schema and returns it mapped to the canonical response', async () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue({
           active: {

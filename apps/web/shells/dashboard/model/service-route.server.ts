@@ -1,32 +1,21 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
+import type { StaffServiceEditViewResponse } from '@ikaro/types';
 import {
-  fetchServiceIntakeSchema,
-  fetchStaffService,
-  ServiceDetailFetchError,
-  ServiceIntakeSchemaFetchError,
+  fetchStaffServiceEditView,
+  ServiceEditViewFetchError,
 } from '@/features/booking/api/services.server';
 
-export interface ServiceDetailRouteData {
-  readonly service: Awaited<ReturnType<typeof fetchStaffService>>;
-  readonly intakeSchema: Awaited<ReturnType<typeof fetchServiceIntakeSchema>>;
-}
+export type ServiceDetailRouteData = StaffServiceEditViewResponse;
 
 export const loadServiceDetailRouteData = cache(async function loadServiceDetailRouteData(
   token: string,
   serviceId: string,
 ): Promise<ServiceDetailRouteData> {
   try {
-    const [service, intakeSchema] = await Promise.all([
-      fetchStaffService(token, serviceId),
-      fetchServiceIntakeSchema(token, serviceId),
-    ]);
-    return { service, intakeSchema };
+    return await fetchStaffServiceEditView(token, serviceId);
   } catch (err) {
-    if (
-      (err instanceof ServiceDetailFetchError || err instanceof ServiceIntakeSchemaFetchError) &&
-      err.status === 404
-    ) {
+    if (err instanceof ServiceEditViewFetchError && err.status === 404) {
       notFound();
     }
     throw err;

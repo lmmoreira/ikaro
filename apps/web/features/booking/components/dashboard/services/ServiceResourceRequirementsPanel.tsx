@@ -17,7 +17,7 @@ import {
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { isQuantityUnsatisfiable } from './resource-requirement-quantity';
+import { hasUnsatisfiableRequirement } from './resource-requirement-quantity';
 import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
 import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
 import { ServiceLegsPanel } from './ServiceLegsPanel';
@@ -187,6 +187,7 @@ export function ServiceResourceRequirementsPanel({
   // Mirrors ServiceLegsPanel's own inline min-2-legs hint — block the save itself, not just show
   // the hint, so a legs-mode save with 0/1 legs can't reach the backend's own 422 for this
   // (CodeRabbit finding).
+  const eligibilityReady = !resourcesLoading && !resourcesLoadFailed;
   const availableByType = (type: ResourceType) =>
     (resourcesData?.items ?? []).filter((resource) => resource.type === type);
   // A requirement asking for more distinct resources than it has candidates can never be booked —
@@ -194,9 +195,7 @@ export function ServiceResourceRequirementsPanel({
   // an empty calendar. Covers flat requirements and every leg's own requirements.
   const activeRequirements =
     mode === 'legs' ? legs.flatMap((leg) => leg.resourceRequirements) : requirements;
-  const hasUnsatisfiableQuantity = activeRequirements.some((requirement) =>
-    isQuantityUnsatisfiable(requirement, availableByType(requirement.type)),
-  );
+  const hasUnsatisfiableQuantity = hasUnsatisfiableRequirement(activeRequirements, availableByType);
   const canSave =
     !isSaving &&
     !resourcesLoading &&
@@ -247,6 +246,7 @@ export function ServiceResourceRequirementsPanel({
                 availableResources={availableByType(type)}
                 radioGroupName={`selmode-flat-${type}`}
                 scope="flat"
+                eligibilityReady={eligibilityReady}
                 onToggle={(checked) => handleToggleType(type, checked)}
                 onChange={handleChangeType}
               />
@@ -257,6 +257,7 @@ export function ServiceResourceRequirementsPanel({
         <ServiceLegsPanel
           legs={legs}
           availableResourcesByType={availableByType}
+          eligibilityReady={eligibilityReady}
           onChange={(next) => {
             setLegs(next);
             markDirty();

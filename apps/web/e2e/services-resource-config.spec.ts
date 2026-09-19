@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { loginAsStaff } from './helpers/auth';
 import { createService, deactivateService, makeUniqueServiceName } from './helpers/services';
-import { createResource } from './helpers/booking/resource-api';
+import { createResource, deactivateResource } from './helpers/booking/resource-api';
 import { BFF_URL, WEB_INTERNAL_KEY } from './helpers/auth/shared';
 
 // M22-S04 — Manager "Serviços" resource-config extension: Recursos/Políticas de reserva/
@@ -343,6 +343,56 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     // Adding a second eligible resource makes the quantity satisfiable again.
     await addEligible.selectOption({ index: 1 });
     await expect(quantityError).toHaveCount(0);
+    await expect(tabAction).toBeEnabled();
+    await tabAction.click();
+    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+  });
+
+  test('blocks the save when every saved eligible resource has been deactivated, and unblocks it once a new one is picked', async ({
+    page,
+  }) => {
+    const roomA = await createResource(page, {
+      type: 'ROOM',
+      name: makeUniqueServiceName('e2e-room-stale'),
+    });
+    const roomB = await createResource(page, {
+      type: 'ROOM',
+      name: makeUniqueServiceName('e2e-room-fresh'),
+    });
+    const service = await seedService(page);
+    const saved = await page.request.patch(
+      `${BFF_URL}/services/${service.serviceId}/resource-requirements`,
+      {
+        data: {
+          resourceRequirements: [
+            {
+              type: 'ROOM',
+              selectionMode: 'CUSTOMER_CHOICE',
+              resourcePoolIds: [roomA.id],
+              requiredQuantity: 1,
+            },
+          ],
+        },
+        headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+      },
+    );
+    expect(saved.ok()).toBe(true);
+    await deactivateResource(page, roomA.id);
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+
+    const row = page.locator(
+      '[data-testid="resource-type-fields"][data-scope="flat"][data-resource-type="ROOM"]',
+    );
+    const tabAction = page.getByTestId('service-desktop-tab-action');
+
+    // Saving would strip the dead id and send [] — which the backend reads as "any room".
+    await expect(row.getByTestId('resource-type-stale-pool')).toBeVisible();
+    await expect(tabAction).toBeDisabled();
+
+    await row.getByTestId('resource-type-add-eligible').selectOption(roomB.id);
+    await expect(row.getByTestId('resource-type-stale-pool')).toHaveCount(0);
     await expect(tabAction).toBeEnabled();
     await tabAction.click();
     await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();

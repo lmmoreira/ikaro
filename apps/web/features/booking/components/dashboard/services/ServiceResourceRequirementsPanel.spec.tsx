@@ -444,6 +444,22 @@ describe('ServiceResourceRequirementsPanel', () => {
       expect(screen.getByTestId('resource-requirements-save')).toBeEnabled();
     });
 
+    it('blocks the save and shows the stale-pool notice when every saved eligible resource is inactive', () => {
+      stubActiveStaff('staff-1');
+      renderFlatStaff(['gone-1'], 1);
+
+      expect(screen.getByTestId('resource-type-stale-pool')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    });
+
+    it('does not flash eligibility errors while the resources are still loading', () => {
+      useResourcesMock.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      renderFlatStaff(['staff-1'], 2);
+
+      expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('resource-type-stale-pool')).not.toBeInTheDocument();
+    });
+
     it('disables save in legs mode when a leg requirement asks for more than its candidates', () => {
       stubActiveStaff('staff-1');
       renderWithIntl(

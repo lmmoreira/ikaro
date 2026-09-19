@@ -1169,6 +1169,7 @@
       "resourceTypeEquipment": "Equipment",
       "resourceQuantityLabel": "Quantity required",
       "resourceQuantityExceedsCandidates": "The required quantity ({quantity}) is greater than the number of eligible resources ({count}). Lower the quantity or add more resources.",
+      "resourceStalePoolNotice": "The eligible resources saved for this type have all been deactivated. Pick new eligible resources to save — or untick and re-tick the type to allow any of them.",
       "resourceEligibleLabel": "Eligible ({count})",
       "resourceRemoveEligible": "Remove {name}",
       "resourceAddEligiblePlaceholder": "+ Add eligible…",

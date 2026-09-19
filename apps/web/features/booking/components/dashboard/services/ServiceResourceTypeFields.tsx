@@ -2,7 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import type { ResourceRequirementItem, ResourceResponse, ResourceType } from '@ikaro/types';
-import { countQuantityCandidates } from './resource-requirement-quantity';
+import { countQuantityCandidates, hasStaleEligiblePool } from './resource-requirement-quantity';
+import { EligiblePoolPicker } from './EligiblePoolPicker';
 
 // Shared by ServiceResourceRequirementsPanel (flat/bundle mode) and ServiceLegsPanel (per leg,
 // scoped by leg index) — one resource-type row: checkbox → quantity → eligible-pool chips → a
@@ -33,6 +34,10 @@ interface ServiceResourceTypeFieldsProps {
   // must stay a static string (E2E-3, docs/08-TESTING_STRATEGY.md § Never encode data into
   // data-testid).
   readonly scope: string;
+  // False while the active-resource list is still loading (or failed): the eligibility checks
+  // below compare against `availableResources`, which is empty until then and would flash a
+  // false "quantity exceeds"/"stale pool" error.
+  readonly eligibilityReady?: boolean;
   readonly onToggle: (checked: boolean) => void;
   readonly onChange: (next: ResourceRequirementItem) => void;
 }
@@ -64,6 +69,7 @@ export function ServiceResourceTypeFields({
   availableResources,
   radioGroupName,
   scope,
+  eligibilityReady = true,
   onToggle,
   onChange,
 }: ServiceResourceTypeFieldsProps): React.JSX.Element {
@@ -87,7 +93,13 @@ export function ServiceResourceTypeFields({
   const candidateCount = requirement
     ? countQuantityCandidates(requirement, availableResources)
     : availableResources.length;
-  const quantityExceedsCandidates = requiredQuantity > candidateCount;
+  const stalePool =
+    eligibilityReady &&
+    requirement !== null &&
+    hasStaleEligiblePool(requirement, availableResources);
+  // A stale pool has its own notice — don't stack a second, misleading "0 eligible" quantity error.
+  const quantityExceedsCandidates =
+    eligibilityReady && !stalePool && requiredQuantity > candidateCount;
 
   function updateRequirement(patch: Partial<ResourceRequirementItem>): void {
     onChange({
@@ -172,55 +184,14 @@ export function ServiceResourceTypeFields({
             )}
           </div>
 
-          <div>
-            <label
-              htmlFor={addEligibleId}
-              className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
-            >
-              {t('resourceEligibleLabel', { count: eligible.length })}
-            </label>
-            <div className="flex flex-wrap gap-1.5" data-testid="resource-type-eligible-chips">
-              {eligible.map((resource) => (
-                <span
-                  key={resource.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-gray-700"
-                >
-                  {resource.name}
-                  <button
-                    type="button"
-                    aria-label={t('resourceRemoveEligible', { name: resource.name })}
-                    onClick={() =>
-                      updateRequirement({
-                        resourcePoolIds: (poolIds ?? []).filter((id) => id !== resource.id),
-                      })
-                    }
-                    className="text-gray-400 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <select
-              id={addEligibleId}
-              data-testid="resource-type-add-eligible"
-              value=""
-              onChange={(event) => {
-                const nextId = event.target.value;
-                if (!nextId) return;
-                updateRequirement({ resourcePoolIds: [...(poolIds ?? []), nextId] });
-              }}
-              disabled={addableResources.length === 0}
-              className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <option value="">{t('resourceAddEligiblePlaceholder')}</option>
-              {addableResources.map((resource) => (
-                <option key={resource.id} value={resource.id}>
-                  {resource.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <EligiblePoolPicker
+            addEligibleId={addEligibleId}
+            eligible={eligible}
+            addableResources={addableResources}
+            stalePool={stalePool}
+            onChange={(resourcePoolIds) => updateRequirement({ resourcePoolIds })}
+            poolIds={poolIds}
+          />
 
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">

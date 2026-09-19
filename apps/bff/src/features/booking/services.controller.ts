@@ -10,7 +10,12 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
+import {
+  ServiceIntakeSchemaResponse,
+  StaffServiceEditViewResponse,
+  StaffServiceListResponse,
+  StaffServiceResponse,
+} from '@ikaro/types';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -23,7 +28,12 @@ import {
   UpdateServiceLegsResult,
   UpdateServiceResourceRequirementsResult,
 } from './services.types';
-import { toStaffServiceListResponse, toStaffServiceResponse } from './services.mapper';
+import {
+  toServiceIntakeSchemaResponse,
+  toStaffServiceEditViewResponse,
+  toStaffServiceListResponse,
+  toStaffServiceResponse,
+} from './services.mapper';
 import {
   CreateServiceBody,
   CreateServiceBodySchema,
@@ -59,6 +69,19 @@ export class ServicesController {
   async getOne(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<StaffServiceResponse> {
     const result = await this.backendHttp.get<ServiceDetail>(`/services/${id}`);
     return toStaffServiceResponse(result);
+  }
+
+  // The Serviços edit page's composite read — owns the fan-out so `apps/web` consumes one contract.
+  @Get(':id/edit-view')
+  @Roles('MANAGER', 'STAFF')
+  async getEditView(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<StaffServiceEditViewResponse> {
+    const [service, intakeSchema] = await Promise.all([
+      this.backendHttp.get<ServiceDetail>(`/services/${id}`),
+      this.backendHttp.get<GetServiceIntakeSchemaResult>(`/services/${id}/intake-schema`),
+    ]);
+    return toStaffServiceEditViewResponse(service, intakeSchema);
   }
 
   @Post()
@@ -138,8 +161,11 @@ export class ServicesController {
   @Roles('MANAGER', 'STAFF')
   async getIntakeSchema(
     @Param('id', CanonicalParseUUIDPipe) id: string,
-  ): Promise<GetServiceIntakeSchemaResult> {
-    return this.backendHttp.get<GetServiceIntakeSchemaResult>(`/services/${id}/intake-schema`);
+  ): Promise<ServiceIntakeSchemaResponse> {
+    const result = await this.backendHttp.get<GetServiceIntakeSchemaResult>(
+      `/services/${id}/intake-schema`,
+    );
+    return toServiceIntakeSchemaResponse(result);
   }
 
   @Patch(':id/activate')

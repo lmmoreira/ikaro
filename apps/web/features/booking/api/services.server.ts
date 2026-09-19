@@ -1,9 +1,5 @@
 import 'server-only';
-import type {
-  ServiceIntakeSchemaResponse,
-  StaffServiceListResponse,
-  StaffServiceResponse,
-} from '@ikaro/types';
+import type { StaffServiceEditViewResponse, StaffServiceListResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 import { assertOk, FetchError } from '@/shared/lib/api/errors';
 
@@ -20,31 +16,19 @@ export async function fetchStaffServices(token: string): Promise<StaffServiceLis
   return res.json() as Promise<StaffServiceListResponse>;
 }
 
-export class ServiceDetailFetchError extends FetchError {
+export class ServiceEditViewFetchError extends FetchError {
   constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(`Failed to fetch service detail (${status})`, status, code, field, detail);
-    this.name = 'ServiceDetailFetchError';
+    super(`Failed to fetch service edit view (${status})`, status, code, field, detail);
+    this.name = 'ServiceEditViewFetchError';
   }
 }
 
-export async function fetchStaffService(token: string, id: string): Promise<StaffServiceResponse> {
-  const res = await bffServerFetch(token, `/services/${encodeURIComponent(id)}`);
-  await assertOk(res, ServiceDetailFetchError);
-  return res.json() as Promise<StaffServiceResponse>;
-}
-
-export class ServiceIntakeSchemaFetchError extends FetchError {
-  constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(`Failed to fetch service intake schema (${status})`, status, code, field, detail);
-    this.name = 'ServiceIntakeSchemaFetchError';
-  }
-}
-
-export async function fetchServiceIntakeSchema(
+// One BFF call for the service + its intake schema (the BFF owns the fan-out, docs/24).
+export async function fetchStaffServiceEditView(
   token: string,
   id: string,
-): Promise<ServiceIntakeSchemaResponse> {
-  const res = await bffServerFetch(token, `/services/${encodeURIComponent(id)}/intake-schema`);
-  await assertOk(res, ServiceIntakeSchemaFetchError);
-  return res.json() as Promise<ServiceIntakeSchemaResponse>;
+): Promise<StaffServiceEditViewResponse> {
+  const res = await bffServerFetch(token, `/services/${encodeURIComponent(id)}/edit-view`);
+  await assertOk(res, ServiceEditViewFetchError);
+  return res.json() as Promise<StaffServiceEditViewResponse>;
 }

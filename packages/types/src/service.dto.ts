@@ -171,6 +171,14 @@ export interface ServiceIntakeSchemaResponse {
   history: ServiceIntakeSchemaVersion[];
 }
 
+// GET /services/:id/edit-view — the Serviços edit page's composite read (M22-S04): the service plus
+// its intake schema in one BFF response, so `apps/web` never fans out and merges two endpoints
+// itself (docs/24-BFF_ARCHITECTURE.md § composite views belong in the BFF).
+export interface StaffServiceEditViewResponse {
+  service: StaffServiceResponse;
+  intakeSchema: ServiceIntakeSchemaResponse;
+}
+
 export interface PublishServiceIntakeSchemaRequest {
   questions: ServiceIntakeQuestionItem[];
   consentText: string;

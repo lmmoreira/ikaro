@@ -300,4 +300,51 @@ describe('ServiceResourceTypeFields', () => {
 
     expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
   });
+
+  it('shows the stale-pool notice, not a second quantity error, when every saved eligible resource is inactive', () => {
+    renderWithIntl(
+      <ServiceResourceTypeFields
+        type="STAFF"
+        checked
+        requirement={{
+          type: 'STAFF',
+          selectionMode: 'AUTO_ANY',
+          resourcePoolIds: ['gone-1'],
+          requiredQuantity: 1,
+        }}
+        availableResources={[STAFF_A, STAFF_B]}
+        radioGroupName="selmode-staff"
+        scope="flat"
+        onToggle={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-type-stale-pool')).toBeInTheDocument();
+    expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
+  });
+
+  it('shows neither eligibility message while the active resources are still loading', () => {
+    renderWithIntl(
+      <ServiceResourceTypeFields
+        type="STAFF"
+        checked
+        requirement={{
+          type: 'STAFF',
+          selectionMode: 'AUTO_ANY',
+          resourcePoolIds: ['gone-1'],
+          requiredQuantity: 2,
+        }}
+        availableResources={[]}
+        eligibilityReady={false}
+        radioGroupName="selmode-staff"
+        scope="flat"
+        onToggle={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('resource-type-stale-pool')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
+  });
 });

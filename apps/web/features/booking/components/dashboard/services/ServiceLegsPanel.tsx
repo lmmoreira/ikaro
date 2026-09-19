@@ -30,6 +30,7 @@ function renumber(legs: ServiceLegItem[]): ServiceLegItem[] {
 interface ServiceLegsPanelProps {
   readonly legs: ServiceLegItem[];
   readonly availableResourcesByType: (type: ResourceType) => readonly ResourceResponse[];
+  readonly eligibilityReady?: boolean;
   readonly onChange: (legs: ServiceLegItem[]) => void;
 }
 
@@ -38,6 +39,7 @@ interface ServiceLegsPanelProps {
 export function ServiceLegsPanel({
   legs,
   availableResourcesByType,
+  eligibilityReady = true,
   onChange,
 }: ServiceLegsPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
@@ -185,6 +187,7 @@ export function ServiceLegsPanel({
                   availableResources={availableResourcesByType(type)}
                   radioGroupName={`selmode-leg${leg.legIndex}-${type}`}
                   scope={`leg-${leg.legIndex}`}
+                  eligibilityReady={eligibilityReady}
                   onToggle={(checked) => toggleLegType(leg.legIndex, type, checked)}
                   onChange={(next) => changeLegRequirement(leg.legIndex, next)}
                 />

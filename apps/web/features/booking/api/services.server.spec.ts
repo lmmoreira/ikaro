@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  fetchServiceIntakeSchema,
-  fetchStaffService,
+  fetchStaffServiceEditView,
   fetchStaffServices,
-  ServiceDetailFetchError,
-  ServiceIntakeSchemaFetchError,
+  ServiceEditViewFetchError,
   ServiceListFetchError,
 } from './services.server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
@@ -50,69 +48,34 @@ describe('fetchStaffServices', () => {
   });
 });
 
-describe('fetchStaffService', () => {
-  it('calls GET /services/:id with the auth token and returns the service', async () => {
+describe('fetchStaffServiceEditView', () => {
+  beforeEach(() => vi.mocked(bffServerFetch).mockReset());
+
+  it('calls GET /services/:id/edit-view with the auth token and returns the composite', async () => {
     vi.mocked(bffServerFetch).mockResolvedValue(
-      new Response(JSON.stringify({ serviceId: 'svc-1' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+      new Response(
+        JSON.stringify({
+          service: { serviceId: 'svc-1' },
+          intakeSchema: { active: null, history: [] },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
     );
 
-    const result = await fetchStaffService('token-123', 'svc/1');
+    const result = await fetchStaffServiceEditView('token-123', 'svc-1');
 
-    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services/svc%2F1');
-    expect(result.serviceId).toBe('svc-1');
+    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services/svc-1/edit-view');
+    expect(result.service.serviceId).toBe('svc-1');
+    expect(result.intakeSchema).toEqual({ active: null, history: [] });
   });
 
-  it('throws ServiceDetailFetchError on a non-2xx response', async () => {
-    vi.mocked(bffServerFetch).mockResolvedValue(
-      new Response(null, {
-        status: 404,
-      }),
-    );
-
-    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toBeInstanceOf(
-      ServiceDetailFetchError,
-    );
-    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject({ status: 404 });
-  });
-
-  it('parses code from the response body instead of discarding it', async () => {
-    vi.mocked(bffServerFetch).mockResolvedValue(
-      new Response(JSON.stringify({ code: 'BOOKING_SERVICE_NOT_FOUND' }), { status: 404 }),
-    );
-
-    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject({
-      status: 404,
-      code: 'BOOKING_SERVICE_NOT_FOUND',
-    });
-  });
-});
-
-describe('fetchServiceIntakeSchema', () => {
-  it('calls GET /services/:id/intake-schema with the auth token and returns the schema', async () => {
-    vi.mocked(bffServerFetch).mockResolvedValue(
-      new Response(JSON.stringify({ active: null, history: [] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    );
-
-    const result = await fetchServiceIntakeSchema('token-123', 'svc-1');
-
-    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services/svc-1/intake-schema');
-    expect(result.active).toBeNull();
-    expect(result.history).toEqual([]);
-  });
-
-  it('throws ServiceIntakeSchemaFetchError on a non-2xx response', async () => {
+  it('throws ServiceEditViewFetchError carrying the status on a non-2xx response', async () => {
     vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 404 }));
 
-    await expect(fetchServiceIntakeSchema('token-123', 'svc-1')).rejects.toBeInstanceOf(
-      ServiceIntakeSchemaFetchError,
+    await expect(fetchStaffServiceEditView('token-123', 'svc-1')).rejects.toBeInstanceOf(
+      ServiceEditViewFetchError,
     );
-    await expect(fetchServiceIntakeSchema('token-123', 'svc-1')).rejects.toMatchObject({
+    await expect(fetchStaffServiceEditView('token-123', 'svc-1')).rejects.toMatchObject({
       status: 404,
     });
   });
