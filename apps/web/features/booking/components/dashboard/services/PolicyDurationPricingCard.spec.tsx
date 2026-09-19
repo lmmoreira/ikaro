@@ -59,4 +59,25 @@ describe('PolicyDurationPricingCard', () => {
     expect(screen.getByTestId('policy-pricing-detail')).toBeInTheDocument();
     expect(screen.getByTestId('policy-pricing-policy')).toBeEnabled();
   });
+
+  it('forces pricingPolicy back to FIXED when switching duration back to FIXED, so a prior per-increment policy stays valid to save', async () => {
+    const user = userEvent.setup();
+    const onPatch = vi.fn();
+    renderWithIntl(
+      <PolicyDurationPricingCard
+        policy={{
+          ...BASE_POLICY,
+          durationPolicy: 'CUSTOMER_SELECTED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+        }}
+        onPatch={onPatch}
+      />,
+    );
+
+    // Without this, the backend rejects pricingPolicy=PER_TIME_INCREMENT with
+    // durationPolicy=FIXED (validateBookingPolicyCompleteness's
+    // per-time-increment-requires-custom-duration check).
+    await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'FIXED');
+    expect(onPatch).toHaveBeenCalledWith({ durationPolicy: 'FIXED', pricingPolicy: 'FIXED' });
+  });
 });

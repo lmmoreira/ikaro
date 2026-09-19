@@ -122,6 +122,32 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('policy-recurrence-eligible')).toBeChecked();
   });
 
+  test('sets a variable-duration per-increment policy, then switches back to FIXED and saves again', async ({
+    page,
+  }) => {
+    const service = await seedService(page);
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+
+    await page.getByTestId('policy-duration-policy').selectOption('CUSTOMER_SELECTED');
+    await page.getByTestId('policy-duration-min').fill('30');
+    await page.getByTestId('policy-duration-max').fill('90');
+    await page.getByTestId('policy-duration-increment').fill('15');
+    await page.getByTestId('policy-pricing-policy').selectOption('PER_TIME_INCREMENT');
+    await page.getByTestId('policy-pricing-increment').fill('15');
+    await page.getByTestId('policy-price-per-increment').fill('10');
+    await page.getByTestId('policy-save').click();
+    await expect(page.getByTestId('policy-saved')).toBeVisible();
+
+    // The backend rejects pricingPolicy=PER_TIME_INCREMENT once durationPolicy is FIXED again —
+    // switching duration back must force pricing back to FIXED too, or this save 422s.
+    await page.getByTestId('policy-duration-policy').selectOption('FIXED');
+    await page.getByTestId('policy-save').click();
+    await expect(page.getByTestId('policy-saved')).toBeVisible();
+    await expect(page.getByTestId('policy-error')).not.toBeVisible();
+  });
+
   test('publishes a new intake-schema version and sees the previous version in history', async ({
     page,
   }) => {

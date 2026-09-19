@@ -45,11 +45,21 @@ export function PolicyDurationPricingCard({
             id="policy-duration-policy"
             data-testid="policy-duration-policy"
             value={policy.durationPolicy}
-            onChange={(event) =>
-              onPatch({
-                durationPolicy: event.target.value as ServiceBookingPolicyItem['durationPolicy'],
-              })
-            }
+            onChange={(event) => {
+              const durationPolicy = event.target
+                .value as ServiceBookingPolicyItem['durationPolicy'];
+              // The backend rejects pricingPolicy=PER_TIME_INCREMENT unless durationPolicy is
+              // CUSTOMER_SELECTED (service.aggregate.ts's validateBookingPolicyCompleteness) —
+              // switching duration back to FIXED must force pricing back to FIXED too, or a
+              // manager who previously had a valid per-increment policy can never save again
+              // (Codex finding; normalizeBookingPolicy() only clears each field's own detail
+              // fields, it never resets a *different* field's governing value).
+              onPatch(
+                durationPolicy === 'FIXED'
+                  ? { durationPolicy, pricingPolicy: 'FIXED' }
+                  : { durationPolicy },
+              );
+            }}
             className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
           >
             <option value="FIXED">{t('politicasDurationPolicyFixed')}</option>
