@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { loadServiceDetailRouteData } from '@/shells/dashboard/model/service-route.server';
+import { loadServiceEditRouteData } from '@/shells/dashboard/model/service-route.server';
 import { ServiceEditPage } from '@/features/booking/components/dashboard/services/ServiceEditPage';
 
 interface ServiceEditRouteProps {
@@ -14,7 +14,7 @@ export default async function ServiceEditRoute({
   const { id } = await params;
   const { created } = await searchParams;
   const token = await getAccessToken();
-  const { service, intakeSchema } = await loadServiceDetailRouteData(token, id);
+  const { service, intakeSchema } = await loadServiceEditRouteData(token, id);
 
   return (
     <ServiceEditPage
