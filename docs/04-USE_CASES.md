@@ -865,7 +865,7 @@ Returns:
   4. System publishes a new `service_booking_intake_schema` version — `is_active = true` on the new row, `is_active = false` on the previous one. The previous version is never edited in place.
 - **Alternative Flows:**
   - **A1: Service already has bookings in flight against the current version** → Existing bookings keep their already-snapshotted `intakeSchemaVersion`/`intakeAnswers`; only new bookings see the new version.
-- **Postconditions:** The service has exactly one active intake schema version.
+- **Postconditions:** The service has exactly one active intake schema version. Every version stays stored, but the manager's version-history list shows only the 5 most recent previous versions (bounded payload).
 - **Events Triggered:** None.
 
 ---

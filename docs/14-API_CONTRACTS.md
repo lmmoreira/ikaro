@@ -473,7 +473,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   - `201` on success — new version `is_active = true`, previous version `is_active = false`
 
-- `GET /services/:id/intake-schema` -> Read a service's active intake schema and its full version history (UC-054 read path; added M22-S04, 2026-09-18 — no read endpoint existed for the aggregate `POST` above published to). Response:
+- `GET /services/:id/intake-schema` -> Read a service's active intake schema and its most recent previous versions — `history` is capped at the 5 latest (`SERVICE_INTAKE_HISTORY_LIMIT` in `@ikaro/types`), older versions stay stored but are not listed (UC-054 read path; added M22-S04, 2026-09-18 — no read endpoint existed for the aggregate `POST` above published to). Response:
   ```json
   {
     "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." },
@@ -482,7 +482,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   - `200` on success — `active: null` if no version has ever been published
   - `404` if the service doesn't exist or belongs to another tenant
-  - Backed by `IServiceIntakeSchemaRepository.findAllByServiceId()`, partitioned by `isActive` — no separate per-version endpoint, since the repository already returns full aggregates
+  - Backed by one bounded read, `IServiceIntakeSchemaRepository.findLatestByServiceId(…, SERVICE_INTAKE_HISTORY_LIMIT + 1)`, partitioned by `isActive` (the active version is always the newest) — the payload does not grow with every publish; no separate per-version endpoint
 
 - `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:
   ```json

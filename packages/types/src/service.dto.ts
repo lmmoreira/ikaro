@@ -143,6 +143,11 @@ export interface StaffServiceListResponse {
 // (docs/ENGINEERING_RULES.md § "A versioned, append-only child concept...").
 export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'BOOLEAN';
 
+// GET /services/:id/intake-schema returns the active version plus at most this many of the most
+// recent previous versions — the schema is append-only, so an uncapped history would grow the
+// edit-page payload with every publish. Older versions stay stored, they are just not listed.
+export const SERVICE_INTAKE_HISTORY_LIMIT = 5;
+
 export interface ServiceIntakeQuestionItem {
   fieldKey: string;
   label: string;

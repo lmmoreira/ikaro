@@ -42,6 +42,20 @@ export class TypeOrmServiceIntakeSchemaRepository implements IServiceIntakeSchem
     return entities.map((e) => this.toDomain(e));
   }
 
+  async findLatestByServiceId(
+    serviceId: string,
+    tenantId: string,
+    limit: number,
+  ): Promise<ServiceBookingIntakeSchema[]> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const entities = await manager.find(ServiceBookingIntakeSchemaEntity, {
+      where: { serviceId, tenantId },
+      order: { version: 'DESC' },
+      take: limit,
+    });
+    return entities.map((e) => this.toDomain(e));
+  }
+
   // Deactivate-then-insert, inside the same transaction as the caller's Service.save() write
   // (PublishServiceIntakeSchemaUseCase) — the caller already holds a row lock on the parent
   // Service (findByIdForUpdate), which serializes concurrent publishes for the same service and

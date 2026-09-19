@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { SERVICE_INTAKE_HISTORY_LIMIT } from '@ikaro/types';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import {
   ServiceBookingIntakeSchema,
@@ -61,9 +62,18 @@ export class GetServiceIntakeSchemaUseCase {
     const service = await this.serviceRepo.findById(id, tenantId);
     if (!service) throw new ServiceNotFoundError(id);
 
-    const all = await this.intakeSchemaRepo.findAllByServiceId(id, tenantId);
-    const active = all.find((schema) => schema.isActive) ?? null;
-    const history = all.filter((schema) => !schema.isActive);
+    // The active version is always the newest one (publish() deactivates-then-inserts version+1),
+    // so the latest LIMIT + 1 rows are the active version plus the LIMIT most recent previous
+    // ones — a single bounded read instead of loading every version ever published.
+    const latest = await this.intakeSchemaRepo.findLatestByServiceId(
+      id,
+      tenantId,
+      SERVICE_INTAKE_HISTORY_LIMIT + 1,
+    );
+    const active = latest.find((schema) => schema.isActive) ?? null;
+    const history = latest
+      .filter((schema) => !schema.isActive)
+      .slice(0, SERVICE_INTAKE_HISTORY_LIMIT);
 
     return {
       active: active ? toVersionResult(active) : null,

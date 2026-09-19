@@ -72,6 +72,31 @@ describe('GetServiceIntakeSchemaUseCase', () => {
     expect(result.history[0]?.version).toBe(1);
   });
 
+  it('caps history at the 5 most recent previous versions and keeps the active one', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+    for (let previousVersion = 0; previousVersion < 8; previousVersion += 1) {
+      await intakeSchemaRepo.publish(
+        ServiceBookingIntakeSchema.publish({
+          tenantId: TENANT_A,
+          serviceId: service.id,
+          previousVersion,
+          questions: [question()],
+          consentText: `v${previousVersion + 1}`,
+          requiresNamedAttendees: false,
+          participantCountRequired: false,
+        }),
+      );
+    }
+
+    const result = await useCase.execute({ id: service.id, tenantId: TENANT_A });
+
+    expect(result.active?.version).toBe(8);
+    expect(result.history.map((version) => version.version).sort((a, b) => b - a)).toEqual([
+      7, 6, 5, 4, 3,
+    ]);
+  });
+
   it('throws ServiceNotFoundError when the service does not exist', async () => {
     await expect(useCase.execute({ id: 'missing', tenantId: TENANT_A })).rejects.toThrow(
       ServiceNotFoundError,

@@ -195,6 +195,38 @@ describe('ServiceIntakeSchemaPanel', () => {
     expect(screen.getByTestId('intake-version-current')).toHaveTextContent('2');
   });
 
+  it('keeps at most the 5 most recent previous versions in history after publishing', async () => {
+    const user = userEvent.setup();
+    const version = (n: number): ServiceIntakeSchemaVersion => ({
+      ...V1,
+      id: `schema-${n}`,
+      version: n,
+    });
+    mutateAsync.mockResolvedValue(version(7));
+    const { container } = renderWithIntl(
+      <IntakePanelWithAction
+        serviceId="svc-1"
+        initialActive={version(6)}
+        initialHistory={[version(5), version(4), version(3), version(2), version(1)]}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.clear(screen.getByTestId('intake-consent-text'));
+    await user.type(screen.getByTestId('intake-consent-text'), 'v7');
+    await user.click(screen.getByTestId('intake-publish'));
+
+    expect(await screen.findByTestId('intake-published')).toBeInTheDocument();
+    expect(getByVersion(container, 6)).toBeInTheDocument();
+    expect(getByVersion(container, 2)).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="intake-version-history-row"][data-version="1"]'),
+    ).toBeNull();
+    expect(container.querySelectorAll('[data-testid="intake-version-history-row"]')).toHaveLength(
+      5,
+    );
+  });
+
   it('keeps dirty when a newer draft edit lands while an earlier publish is still pending', async () => {
     const user = userEvent.setup();
     const onDirtyChange = vi.fn();

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
+import { SERVICE_INTAKE_HISTORY_LIMIT, type ServiceIntakeSchemaVersion } from '@ikaro/types';
 import { usePublishServiceIntakeSchema } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
@@ -171,7 +171,10 @@ export function ServiceIntakeSchemaPanel({
           participantCountRequired,
         },
       });
-      if (active) setHistory((current) => [active, ...current]);
+      // Same cap the server applies on load, so the list doesn't show a 6th version until reload.
+      if (active) {
+        setHistory((current) => [active, ...current].slice(0, SERVICE_INTAKE_HISTORY_LIMIT));
+      }
       setActive(result);
       if (editRevisionRef.current === revisionAtSubmit) {
         setPublishedMessageVisible(true);
