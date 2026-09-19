@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type {
   ResourceRequirementItem,
@@ -87,8 +87,13 @@ export function ServiceResourceRequirementsPanel({
   // initialLegs prop alone) so a flat→legs save *within this same page session* locks the flat
   // option immediately, instead of only after a reload re-supplies initialLegs (Codex finding).
   const [legsLockedOnServer, setLegsLockedOnServer] = useState(initialLegs !== null);
+  // Bumped on every edit — lets a save in flight tell whether a *newer* edit landed while it was
+  // pending, so it never clears dirty for an edit it didn't actually persist (same race fixed for
+  // Detalhes/Políticas/Formulário; this panel was missed the first time — Codex finding).
+  const editRevisionRef = useRef(0);
 
   function markDirty(): void {
+    editRevisionRef.current += 1;
     if (!dirty) {
       setDirty(true);
       onDirtyChange(true);
@@ -129,6 +134,7 @@ export function ServiceResourceRequirementsPanel({
       return;
     }
     const availableResources = resourcesData?.items ?? [];
+    const revisionAtSubmit = editRevisionRef.current;
     try {
       if (mode === 'legs') {
         await updateLegs.mutateAsync({
@@ -163,9 +169,11 @@ export function ServiceResourceRequirementsPanel({
           });
         }
       }
-      setDirty(false);
-      onDirtyChange(false);
-      setSavedMessageVisible(true);
+      if (editRevisionRef.current === revisionAtSubmit) {
+        setDirty(false);
+        onDirtyChange(false);
+        setSavedMessageVisible(true);
+      }
     } catch (err) {
       setError(resolveErrorMessageFromApiError(err, locale));
     }

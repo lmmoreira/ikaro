@@ -324,4 +324,36 @@ describe('ServiceResourceRequirementsPanel', () => {
     // option must lock immediately, not only after a reload re-supplies initialLegs.
     expect(screen.getByTestId('resource-mode-flat')).toBeDisabled();
   });
+
+  it('keeps dirty when a newer edit lands while an earlier save is still pending', async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = vi.fn();
+    let resolveSave: (value: unknown) => void = () => {};
+    resourceRequirementsMutateAsync.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    const { container } = renderWithIntl(
+      <ServiceResourceRequirementsPanel
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await user.click(getResourceTypeCheckbox(container, 'STAFF'));
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    // A second edit lands while the first save is still in flight.
+    await user.click(getResourceTypeCheckbox(container, 'ROOM'));
+
+    resolveSave({});
+    await screen.findByTestId('resource-requirements-save');
+
+    expect(onDirtyChange).not.toHaveBeenLastCalledWith(false);
+    expect(screen.queryByTestId('resource-requirements-saved')).not.toBeInTheDocument();
+  });
 });
