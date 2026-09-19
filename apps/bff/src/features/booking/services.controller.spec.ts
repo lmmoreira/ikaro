@@ -292,6 +292,51 @@ describe('ServicesController', () => {
     });
   });
 
+  describe('getIntakeSchema()', () => {
+    it('calls GET /services/:id/intake-schema and returns the result as-is', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({
+          active: {
+            id: 'schema-2',
+            version: 2,
+            questions: [],
+            consentText: 'v2',
+            consentVersion: 2,
+            requiresNamedAttendees: false,
+            participantCountRequired: false,
+            createdAt: '2026-01-02T00:00:00.000Z',
+          },
+          history: [
+            {
+              id: 'schema-1',
+              version: 1,
+              questions: [],
+              consentText: 'v1',
+              consentVersion: 1,
+              requiresNamedAttendees: false,
+              participantCountRequired: false,
+              createdAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        }),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      const result = await controller.getIntakeSchema(SERVICE_ID);
+
+      expect(backendHttp.get).toHaveBeenCalledWith(`/services/${SERVICE_ID}/intake-schema`);
+      expect(result.active?.version).toBe(2);
+      expect(result.history).toHaveLength(1);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('404')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(controller.getIntakeSchema(SERVICE_ID)).rejects.toThrow('404');
+    });
+  });
+
   describe('activate()', () => {
     it('calls PATCH /services/:id/activate and returns nothing', async () => {
       const backendHttp = makeBackendHttp({

@@ -169,14 +169,10 @@ export const UpdateServiceBookingPolicySchema = z
   })
   .default({});
 
-// UC-054's typed markers — 'PICKUP_ADDRESS' is the only one defined so far (projects into the
-// pre-existing services.requires_pickup_address / bookings.pickup_address columns); the generic
-// shapes cover everything else a booking-intake question needs today.
-export const ServiceIntakeQuestionTypeSchema = z.enum([
-  'FREE_TEXT',
-  'NAMED_ATTENDEES',
-  'PICKUP_ADDRESS',
-]);
+// UC-054's typed markers — generic input shapes only (M22-S04, 2026-09-19: 'PICKUP_ADDRESS' and
+// 'NAMED_ATTENDEES' removed as redundant with the Details-tab pickup-address toggle and the
+// Participantes card's own two checkboxes).
+export const ServiceIntakeQuestionTypeSchema = z.enum(['FREE_TEXT', 'BOOLEAN']);
 
 export const ServiceIntakeQuestionSchema = z.object({
   fieldKey: z.string().min(1).max(100),

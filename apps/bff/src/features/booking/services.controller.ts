@@ -15,6 +15,7 @@ import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
+  GetServiceIntakeSchemaResult,
   PublishServiceIntakeSchemaResult,
   ServiceDetail,
   ServiceListResponse,
@@ -131,6 +132,14 @@ export class ServicesController {
       `/services/${id}/intake-schema`,
       body,
     );
+  }
+
+  @Get(':id/intake-schema')
+  @Roles('MANAGER', 'STAFF')
+  async getIntakeSchema(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<GetServiceIntakeSchemaResult> {
+    return this.backendHttp.get<GetServiceIntakeSchemaResult>(`/services/${id}/intake-schema`);
   }
 
   @Patch(':id/activate')

@@ -6,7 +6,6 @@ import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import {
   BookingDomainError,
   BookingServiceResourceTypeUnavailableError,
-  ClassResourceSlotBookingModelMismatchError,
   ClassResourceSlotResourceNotActiveError,
 } from '../../domain/errors/booking-domain.error';
 import { ResourceType } from '../../domain/resource.types';
@@ -150,10 +149,11 @@ describe('CreateServiceUseCase', () => {
     expect(result.classResourceSlots).toEqual([{ type: 'ROOM', eligibleResourceIds: [room.id] }]);
   });
 
-  it('rejects creating a SESSION service without classResourceSlots', async () => {
-    await expect(useCase.execute({ ...baseDto, ...ctx, bookingModel: 'SESSION' })).rejects.toThrow(
-      ClassResourceSlotBookingModelMismatchError,
-    );
+  it('allows creating a SESSION service with an empty classResourceSlots pool (deferred to the M24 Turmas module)', async () => {
+    const result = await useCase.execute({ ...baseDto, ...ctx, bookingModel: 'SESSION' });
+    expect(result.bookingModel).toBe('SESSION');
+    expect(result.classResourceSlots).toEqual([]);
+    expect(result.bufferAfterMinutes).toBeNull();
   });
 
   it('rejects a classResourceSlots type with no active resources', async () => {

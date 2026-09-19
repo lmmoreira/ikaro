@@ -150,7 +150,7 @@ Extend `Service` with the booking-policy fields (`defaultApprovalMode`, `manualH
 
 **Backend use case steps:**
 1. **`UpdateServiceBookingPolicyUseCase`** (UC-055): loads service, validates the duration/pricing-policy pairing invariant, saves all policy fields atomically. `422 BOOKING_SERVICE_DURATION_POLICY_REQUIRES_PRICING` on violation.
-2. **`PublishServiceIntakeSchemaUseCase`** (UC-054): loads service, validates `bookingModel = APPOINTMENT`, sets the currently-active schema version's `is_active = false` (if one exists) and inserts a new row with `version = previousVersion + 1`, `is_active = true`, in the same transaction. Also sets `services.requires_pickup_address = true` in the same transaction when a `PICKUP_ADDRESS`-typed question is present (UC-054 A2) — reuses the existing `requires_pickup_address` column, no new duplicate flag.
+2. **`PublishServiceIntakeSchemaUseCase`** (UC-054): loads service, validates `bookingModel = APPOINTMENT`, sets the currently-active schema version's `is_active = false` (if one exists) and inserts a new row with `version = previousVersion + 1`, `is_active = true`, in the same transaction. (M22-S04, 2026-09-19: the `PICKUP_ADDRESS`/`NAMED_ATTENDEES` typed markers and the pickup-flag side effect were removed — question types are `FREE_TEXT`/`BOOLEAN` only; pickup address stays a Service Details toggle.)
 
 **Backend HTTP surface:** `PATCH /services/:id/booking-policy` (new), `POST /services/:id/intake-schema` (new). Same controller as S01, same `STAFF|MANAGER` guard.
 
@@ -186,13 +186,11 @@ Extend `Service` with the booking-policy fields (`defaultApprovalMode`, `manualH
 - [ ] Admin can set approval mode, cancellation/reschedule/advance-booking windows, and recurrence/alert eligibility toggles; leaving a field blank inherits the current tenant default.
 - [ ] Admin cannot save `durationPolicy = CUSTOMER_SELECTED` without a non-`FIXED` `pricingPolicy`.
 - [ ] Admin can publish a new intake-schema version; the previous version is preserved, not overwritten.
-- [ ] A `PICKUP_ADDRESS`-typed intake question automatically sets the service's existing pickup-address flag.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `Service` rejects `durationPolicy = CUSTOMER_SELECTED` with `pricingPolicy = FIXED` or null
   - [ ] `PublishServiceIntakeSchemaUseCase` deactivates the previous version and activates the new one atomically
-  - [ ] `PublishServiceIntakeSchemaUseCase` sets `requires_pickup_address = true` when a `PICKUP_ADDRESS` question is included
   - [ ] `PATCH /services/:id/booking-policy` and `POST /services/:id/intake-schema` on a SESSION service both return `409 BOOKING_SERVICE_BOOKING_CONFIG_MODEL_MISMATCH`
 - Integration:
   - [ ] `PATCH /services/:id/booking-policy` persists all fields and round-trips via `GET /services/:id`
@@ -334,7 +332,7 @@ Rebuild `apps/web/features/booking/components/dashboard/services/ServiceEditPage
 - [ ] Admin can configure a flat resource requirement, a bundle, or switch to legs from the Recursos tab, matching the prototype's flows.
 - [ ] Admin can set the service's buffer minutes when not legged; the field is visibly disabled once legs are set.
 - [ ] Admin can set booking policy fields on the Políticas de reserva tab, with clear inline validation for the variable-duration-without-pricing error case (`03d-service-edit-policy-error.html`).
-- [ ] Admin can add/reorder/remove intake-schema questions (free text, named attendees, pickup address) on the Formulário de reserva tab, each marked required/optional, and publish a new version; the previous version stays visible as history, backed by the new `GET /services/:id/intake-schema` endpoint.
+- [ ] Admin can add/reorder/remove intake-schema questions (free text or yes/no boolean — the `PICKUP_ADDRESS`/`NAMED_ATTENDEES` typed markers were removed as redundant with the Details-tab pickup toggle and the Participantes card, decided at story-discovery) on the Formulário de reserva tab, each marked required/optional, and publish a new version; the previous version stays visible as history, backed by the new `GET /services/:id/intake-schema` endpoint.
 - [ ] Admin can choose the booking model (Agendamento/Turma) when creating a new service; the field is absent/disabled on the edit page once the service has bookings (UC-056 A1).
 - [ ] Admin can set a resource requirement's `requiredQuantity` (e.g. "needs 2 treadmills"), not just its type/selection-mode/pool.
 - [ ] Admin can set minimum-notice and maximum-advance overrides, and the full duration/pricing-policy detail fields (increment/min/max/minimum-charge), on the Políticas de reserva tab — not just approval mode and cancellation windows.

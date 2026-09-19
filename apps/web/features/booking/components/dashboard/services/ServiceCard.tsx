@@ -48,6 +48,14 @@ export function ServiceCard({ service }: ServiceCardProps): React.JSX.Element {
               {t('pickupBadge')}
             </Badge>
           )}
+          {service.bookingModel === 'SESSION' && (
+            <Badge
+              variant="outline"
+              className="border-blue-200 bg-blue-50 text-blue-700 shadow-none"
+            >
+              {t('turmaBadge')}
+            </Badge>
+          )}
           <Badge
             variant="outline"
             className="border-amber-200 bg-amber-50 text-amber-800 shadow-none"

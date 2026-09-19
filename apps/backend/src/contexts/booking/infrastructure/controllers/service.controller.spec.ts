@@ -18,6 +18,7 @@ import { UpdateServiceLegsUseCase } from '../../application/use-cases/update-ser
 import { UpdateServiceResourceRequirementsUseCase } from '../../application/use-cases/update-service-resource-requirements.use-case';
 import { UpdateServiceBookingPolicyUseCase } from '../../application/use-cases/update-service-booking-policy.use-case';
 import { PublishServiceIntakeSchemaUseCase } from '../../application/use-cases/publish-service-intake-schema.use-case';
+import { GetServiceIntakeSchemaUseCase } from '../../application/use-cases/get-service-intake-schema.use-case';
 import { UpdateServiceUseCase } from '../../application/use-cases/update-service.use-case';
 import { ServiceController } from './service.controller';
 
@@ -70,6 +71,7 @@ describe('ServiceController', () => {
       new UpdateServiceLegsUseCase(repo, resourceRepo, bookingPlatform, txManager),
       new UpdateServiceBookingPolicyUseCase(repo, bookingPlatform, txManager),
       new PublishServiceIntakeSchemaUseCase(repo, intakeSchemaRepo, bookingPlatform, txManager),
+      new GetServiceIntakeSchemaUseCase(repo, intakeSchemaRepo),
     );
   });
 
@@ -305,35 +307,51 @@ describe('ServiceController', () => {
       expect(result.version).toBe(1);
     });
 
-    it('sets requiresPickupAddress when a PICKUP_ADDRESS question is included (UC-054 A2)', async () => {
-      const service = new ServiceBuilder()
-        .withTenantId(TENANT_A)
-        .withRequiresPickupAddress(false)
-        .build();
-      await repo.save(service);
-
-      await controller.publishIntakeSchema(service.id, {
-        questions: [
-          {
-            fieldKey: 'pickup',
-            label: 'Endereço de coleta',
-            type: 'PICKUP_ADDRESS',
-            required: true,
-          },
-        ],
-        consentText: 'Concordo',
-      });
-
-      const updated = await repo.findById(service.id, TENANT_A);
-      expect(updated?.requiresPickupAddress).toBe(true);
-    });
-
     it('maps ServiceNotFoundError to 404', async () => {
       const err = await controller
         .publishIntakeSchema('non-existent-id', {
           questions: validQuestions,
           consentText: 'Concordo',
         })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('getIntakeSchema()', () => {
+    it('returns active: null and an empty history when nothing has been published', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.getIntakeSchema(service.id);
+      expect(result.active).toBeNull();
+      expect(result.history).toEqual([]);
+    });
+
+    it('returns the active version and prior versions in history after a publish', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+      await controller.publishIntakeSchema(service.id, {
+        questions: [
+          {
+            fieldKey: 'accessNeeds',
+            label: 'Necessidades de acesso',
+            type: 'FREE_TEXT' as const,
+            required: false,
+          },
+        ],
+        consentText: 'v1',
+      });
+
+      const result = await controller.getIntakeSchema(service.id);
+      expect(result.active?.version).toBe(1);
+      expect(result.history).toEqual([]);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .getIntakeSchema('00000000-0000-4000-8000-000000009999')
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);

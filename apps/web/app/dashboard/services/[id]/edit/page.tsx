@@ -4,14 +4,23 @@ import { ServiceEditPage } from '@/features/booking/components/dashboard/service
 
 interface ServiceEditRouteProps {
   readonly params: Promise<{ id: string }>;
+  readonly searchParams: Promise<{ created?: string }>;
 }
 
 export default async function ServiceEditRoute({
   params,
+  searchParams,
 }: ServiceEditRouteProps): Promise<React.JSX.Element> {
   const { id } = await params;
+  const { created } = await searchParams;
   const token = await getAccessToken();
-  const { service } = await loadServiceDetailRouteData(token, id);
+  const { service, intakeSchema } = await loadServiceDetailRouteData(token, id);
 
-  return <ServiceEditPage service={service} />;
+  return (
+    <ServiceEditPage
+      service={service}
+      intakeSchema={intakeSchema}
+      showCreatedBanner={created === '1'}
+    />
+  );
 }

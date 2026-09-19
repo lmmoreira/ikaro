@@ -48,9 +48,18 @@ interface ServiceEditActionPanelsProps {
   readonly isSubmitting: boolean;
   readonly isActivating: boolean;
   readonly onActivate: () => void;
+  // False on every tab but Detalhes — the other 3 tabs each have their own inline save button
+  // next to their fields, so the sticky Save/Activate action would be redundant/ambiguous there.
+  readonly showPrimaryAction?: boolean;
+  // Unsaved-changes guard (Topbar back button + this link) — decided at /story-discovery,
+  // 2026-09-18. When omitted, the link behaves exactly as before (plain navigation).
+  readonly onCancelClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
-interface ServiceEditPrimaryActionProps extends ServiceEditActionPanelsProps {
+interface ServiceEditPrimaryActionProps extends Pick<
+  ServiceEditActionPanelsProps,
+  'isActive' | 'isSubmitting' | 'isActivating' | 'onActivate'
+> {
   readonly saveTestId: string;
   readonly activateTestId: string;
 }
@@ -92,6 +101,8 @@ export function ServiceEditActionPanels({
   isSubmitting,
   isActivating,
   onActivate,
+  showPrimaryAction = true,
+  onCancelClick,
 }: ServiceEditActionPanelsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
 
@@ -100,21 +111,29 @@ export function ServiceEditActionPanels({
       <aside className="hidden lg:block lg:sticky lg:top-6">
         <Card>
           <CardContent className="space-y-4 p-4">
-            {!isActive && (
-              <p className="text-sm leading-6 text-gray-600">{t('editInactiveDescription')}</p>
+            {showPrimaryAction && (
+              <>
+                {!isActive && (
+                  <p className="text-sm leading-6 text-gray-600">{t('editInactiveDescription')}</p>
+                )}
+
+                <ServiceEditPrimaryAction
+                  isActive={isActive}
+                  isSubmitting={isSubmitting}
+                  isActivating={isActivating}
+                  onActivate={onActivate}
+                  saveTestId="service-desktop-save-button"
+                  activateTestId="service-desktop-activate-button"
+                />
+              </>
             )}
 
-            <ServiceEditPrimaryAction
-              isActive={isActive}
-              isSubmitting={isSubmitting}
-              isActivating={isActivating}
-              onActivate={onActivate}
-              saveTestId="service-desktop-save-button"
-              activateTestId="service-desktop-activate-button"
-            />
-
             <Button asChild variant="outline" className="w-full">
-              <Link data-testid="service-cancel-desktop-link" href="/dashboard/services">
+              <Link
+                data-testid="service-cancel-desktop-link"
+                href="/dashboard/services"
+                onClick={onCancelClick}
+              >
                 {t('createCancel')}
               </Link>
             </Button>
@@ -122,23 +141,29 @@ export function ServiceEditActionPanels({
         </Card>
       </aside>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="grid grid-cols-2 gap-3">
-          <Button asChild variant="outline" className="w-full">
-            <Link data-testid="service-cancel-mobile-link" href="/dashboard/services">
-              {t('createCancel')}
-            </Link>
-          </Button>
-          <ServiceEditPrimaryAction
-            isActive={isActive}
-            isSubmitting={isSubmitting}
-            isActivating={isActivating}
-            onActivate={onActivate}
-            saveTestId="service-mobile-save-button"
-            activateTestId="service-mobile-activate-button"
-          />
+      {showPrimaryAction && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
+          <div className="grid grid-cols-2 gap-3">
+            <Button asChild variant="outline" className="w-full">
+              <Link
+                data-testid="service-cancel-mobile-link"
+                href="/dashboard/services"
+                onClick={onCancelClick}
+              >
+                {t('createCancel')}
+              </Link>
+            </Button>
+            <ServiceEditPrimaryAction
+              isActive={isActive}
+              isSubmitting={isSubmitting}
+              isActivating={isActivating}
+              onActivate={onActivate}
+              saveTestId="service-mobile-save-button"
+              activateTestId="service-mobile-activate-button"
+            />
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

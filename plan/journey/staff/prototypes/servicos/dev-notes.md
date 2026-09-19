@@ -125,7 +125,7 @@ The backend `price` field is a `Money` value object with `{ amount, currency }`.
 
 ---
 
-## Create flow — redirect target changed 2026-09-17 (M22-S04 groundwork, not yet implemented)
+## Create flow — redirect target changed 2026-09-17 (shipped M22-S04)
 
 ```
 Staff fills ServiceCreatePage, clicks "Criar serviço"
@@ -139,7 +139,7 @@ Staff fills ServiceCreatePage, clicks "Criar serviço"
 
 **Why changed:** user-proposed during the M22-S04 prototype pass, once Recursos/Políticas/Formulário existed as real tabs — bouncing back to the list after create just to click back into the new service was a pointless round-trip. A freshly created service is still fully functional with defaults (degenerate `resourceRequirements = [{type: LOCATION, selectionMode: NONE}]`, `null` policy fields inheriting tenant settings), so landing on the edit page doesn't force any extra work, it just makes the optional next step available immediately.
 
-**Not yet implemented — this is a real, in-scope change for whichever story builds `ServiceCreatePage`'s submit handler** (currently `router.push('/dashboard/services')` per the shipped M13 code — grep `ServiceCreatePage.tsx`'s `onSuccess`/`useCreateService` before assuming). See `02c-service-create-success.html` for the exact landing state.
+**Shipped M22-S04** — `ServiceCreatePage`'s submit handler now does `router.push(\`/dashboard/services/${result.serviceId}/edit?created=1\`)`. See `02c-service-create-success.html` for the exact landing state.
 
 ---
 
@@ -168,9 +168,9 @@ Staff clicks "Desativar serviço" (danger zone button, ServiceEditStatusSection)
 
 ---
 
-## ❓ GAP — M22 Cluster 2 extension (UC-050–056, not yet built)
+## ✅ Shipped — M22 Cluster 2 extension (UC-050–056, M22-S04)
 
-> Everything above this line is shipped (`M13-S22`–`S24`). Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) and `docs/14-API_CONTRACTS.md` § Service Extensions for the full contract.
+> Everything above this line is shipped (`M13-S22`–`S24`). Everything below was new scope promoted from `docs/discovery/multivertical-booking/` — now also shipped (`M22-S04`). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) and `docs/14-API_CONTRACTS.md` § Service Extensions for the full contract.
 
 **New prototype screens (redesigned 2026-09-17 — see `03-service-edit.html`'s own header comment for the full rationale):**
 
@@ -188,14 +188,14 @@ The 3 previously-separate pages (`04-service-resource-config.html`, `05-service-
 
 **Known follow-up, not yet fixed:** `03b-deactivate-confirm.html` and `03c-service-edit-inactive.html` still reference the old "Lavagem Completa Detalhada" / BeloAuto branding — they weren't rebranded in this pass (their sidebar/nav uses an older relative-path convention than 03/03d's, and a careless swap risked breaking navigation; the mismatch is a real but low-severity inconsistency, deliberately deferred rather than risking a rushed nav bug).
 
-**File map (❓ none exist yet):**
+**File map (all shipped, M22-S04):**
 
 | File | Status |
 |---|---|
-| `apps/web/features/booking/components/dashboard/services/ServiceResourceRequirementsPanel.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/services/ServiceLegsPanel.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/services/ServiceBookingPolicyPanel.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/services/ServiceIntakeSchemaPanel.tsx` | ❓ Gap — now has a prototype screen (`03-service-edit.html`'s "Formulário de reserva" tab) — confirm the exact layout with the user during `/story-discovery M22-S04` since it's still genuinely new UI, not a straight prototype-to-code port like the other 3 panels |
+| `apps/web/features/booking/components/dashboard/services/ServiceResourceRequirementsPanel.tsx` | ✅ Shipped |
+| `apps/web/features/booking/components/dashboard/services/ServiceLegsPanel.tsx` | ✅ Shipped |
+| `apps/web/features/booking/components/dashboard/services/ServiceBookingPolicyPanel.tsx` | ✅ Shipped |
+| `apps/web/features/booking/components/dashboard/services/ServiceIntakeSchemaPanel.tsx` | ✅ Shipped |
 
 > Component names above match `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`'s M22-S04 story spec exactly (corrected via `/docs-audit`, 2026-09-17 — this file originally proposed `ServiceResourceConfigSection`/`ServiceLegsSection`/`ServiceBookingPolicyForm`/`ServiceIntakeSchemaForm`, drafted before the story existed).
 
@@ -294,12 +294,12 @@ A full pass against Nielsen-style heuristics found 2 critical issues and several
 **11. No shared empty-state component exists to reuse.** `apps/web/features/customer/components/my-account/BookingEmptyState.tsx` is the closest precedent (identical icon+title+description+CTA shape) but is tightly coupled to one use case and Customer-feature-scoped — per `CLAUDE.md`'s slice-ownership rule, Booking/Services shouldn't import across features for this. `ServiceResourceRequirementsPanel`/`ServiceIntakeSchemaPanel` need their own local empty-state treatment (or a new one promoted to `shared/` only once a second consumer needs the identical shape — same promotion bar as the lock-port precedent in `docs/ENGINEERING_RULES.md`).
 
 **Open questions / gaps:**
-- [x] Story assigned — `M22-S04`, see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`. `/story-discovery M22-S04` not yet run.
+- [x] Story assigned and implemented — `M22-S04`, see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`.
 - [x] UC-054 (intake schema) now has a prototype screen (`03-service-edit.html`'s "Formulário de reserva" tab) — still confirm the exact layout with the user during `/story-discovery M22-S04` since it's genuinely new UI.
 - [x] The missing intake-schema read path (above) — resolved at `/story-discovery M22-S04`, 2026-09-18: folded a new `GET /services/:id/intake-schema` endpoint into this story's own scope (`Agent:` now spans `frontend-ts` + `backend-ts` + `bff-ts`).
 - [x] `03c-service-edit-inactive.html` rebuilt with the full 4-tab structure (round 2, above) — resolved, kept BeloAuto branding rather than switching to Vitta Studio.
 - [ ] `03b-deactivate-confirm.html` still references the old BeloAuto/"Lavagem Completa Detalhada" branding (a *different* service than `03c`'s own "Polimento + Higienização") — still deferred; lower priority since it's a single confirmation screen, not a multi-tab config surface.
-- [ ] A duplicate-`fieldKey` intake-schema error case (2+ questions with the same auto-derived key) is a real 422 with no dedicated prototype screen — noted as a design case for the implementing story, not built as a separate file (round 2, item 6 above).
+- [x] A duplicate-`fieldKey` intake-schema error case (2+ questions with the same auto-derived key) — resolved M22-S04: the server already rejects this via `PublishServiceIntakeSchemaSchema`'s uniqueness check; `ServiceIntakeSchemaPanel` surfaces it inline through the same generic error-resolution path as every other domain error, no client-side pre-check needed since `fieldKey` is only ever auto-derived, never admin-typed.
 
 ---
 
