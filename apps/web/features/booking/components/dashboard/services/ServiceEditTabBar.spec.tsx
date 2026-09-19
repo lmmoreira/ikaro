@@ -64,4 +64,19 @@ describe('ServiceEditTabBar', () => {
       container.querySelector('[data-testid="service-edit-tab-dirty-dot"][data-tab="formulario"]'),
     ).toBeInTheDocument();
   });
+
+  it('scrolls horizontally only: overflow-y is hidden and the active tab does not overhang the box', () => {
+    renderWithIntl(
+      <ServiceEditTabBar
+        activeTab="recursos"
+        dirty={INITIAL_SERVICE_EDIT_DIRTY_STATE}
+        onTabChange={vi.fn()}
+      />,
+    );
+
+    // overflow-x-auto alone would promote the visible y-axis to auto and show a stray vertical
+    // scrollbar once the tabs need horizontal scrolling.
+    expect(screen.getByRole('tablist')).toHaveClass('overflow-x-auto', 'overflow-y-hidden');
+    expect(screen.getByRole('tab', { name: 'Recursos' }).className).not.toContain('-mb-px');
+  });
 });

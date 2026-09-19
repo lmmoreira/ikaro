@@ -25,7 +25,15 @@ export function ServiceEditTabBar({
   const t = useTranslations('dashboard.servicesPage');
 
   return (
-    <div className="flex gap-1 overflow-x-auto border-b border-gray-200" role="tablist">
+    // overflow-y-hidden is required alongside overflow-x-auto: with one axis non-visible the
+    // browser promotes the other `visible` axis to `auto`, which showed a spurious vertical
+    // scrollbar (with step arrows on Linux) as soon as the tabs got narrow enough to scroll
+    // horizontally. The active tab must also not overhang the box (no negative margin), or its
+    // underline would be clipped now that the vertical axis is hidden.
+    <div
+      className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-gray-200"
+      role="tablist"
+    >
       {TABS.map((tab) => (
         <button
           key={tab}
@@ -37,10 +45,10 @@ export function ServiceEditTabBar({
           data-tab={tab}
           aria-selected={activeTab === tab}
           onClick={() => onTabChange(tab)}
-          className={`relative shrink-0 rounded-t-md px-4 py-2.5 text-sm font-semibold transition-colors ${
+          className={`relative shrink-0 rounded-t-md border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:-outline-offset-2 ${
             activeTab === tab
-              ? '-mb-px border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-500 hover:text-gray-900'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-900'
           }`}
         >
           {t(TAB_LABEL_KEYS[tab])}

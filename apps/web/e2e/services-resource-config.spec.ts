@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { loginAsStaff } from './helpers/auth';
 import { createService, deactivateService, makeUniqueServiceName } from './helpers/services';
 import { createResource } from './helpers/booking/resource-api';
+import { BFF_URL, WEB_INTERNAL_KEY } from './helpers/auth/shared';
 
 // M22-S04 — Manager "Serviços" resource-config extension: Recursos/Políticas de reserva/
 // Formulário de reserva tabs, plus the unsaved-changes guard and the inactive-service tab set.
@@ -220,5 +221,189 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByRole('tab', { name: 'Recursos' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Políticas de reserva' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Formulário de reserva' })).toBeVisible();
+  });
+
+  test('creates a service and configures all four tabs from the sticky action panel, then sees everything persisted after reload', async ({
+    page,
+  }) => {
+    await createResource(page, { type: 'ROOM', name: makeUniqueServiceName('e2e-room') });
+    const serviceName = makeUniqueServiceName('e2e-journey');
+
+    await page.goto('/dashboard/services/new');
+    await page.getByTestId('service-name-input').fill(serviceName);
+    await page.getByTestId('service-description-input').fill('Descrição inicial');
+    await page.getByTestId('service-price-input').fill('120');
+    await page.getByTestId('service-duration-input').fill('45');
+    await page.getByTestId('service-points-input').fill('5');
+    await page.getByRole('button', { name: 'Criar serviço' }).click();
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
+
+    const tabAction = page.getByTestId('service-desktop-tab-action');
+    const dirtyDot = (tab: string) =>
+      page.locator(`[data-testid="service-edit-tab-dirty-dot"][data-tab="${tab}"]`);
+
+    // Detalhes — its own Save lives in the same sticky panel; no per-tab action there.
+    await page.getByTestId('service-description-input').fill('Descrição atualizada');
+    await expect(dirtyDot('detalhes')).toBeVisible();
+    await page.getByTestId('service-desktop-save-button').click();
+    await expect(dirtyDot('detalhes')).toHaveCount(0);
+    await expect(tabAction).toHaveCount(0);
+
+    // Recursos
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+    await expect(tabAction).toHaveText('Salvar recursos');
+    await resourceTypeCheckbox(page, 'ROOM').click();
+    await tabAction.click();
+    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+
+    // Políticas de reserva
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await expect(tabAction).toHaveText('Salvar políticas');
+    await page.getByTestId('policy-recurrence-eligible').click();
+    await tabAction.click();
+    await expect(page.getByTestId('policy-saved')).toBeVisible();
+
+    // Formulário de reserva — Publish is disabled until the form is valid.
+    await page.getByRole('tab', { name: 'Formulário de reserva' }).click();
+    await expect(tabAction).toHaveText('Publicar formulário');
+    await expect(tabAction).toBeDisabled();
+    await page.getByTestId('intake-add-question').click();
+    await page
+      .locator('[data-testid="intake-question-label"][data-question-index="0"]')
+      .fill('Possui alguma alergia?');
+    await page
+      .locator('[data-testid="intake-question-type"][data-question-index="0"]')
+      .selectOption('BOOLEAN');
+    await page.getByTestId('intake-consent-text').fill('Concordo com os termos');
+    await expect(tabAction).toBeEnabled();
+    await tabAction.click();
+    await expect(page.getByTestId('intake-published')).toBeVisible();
+
+    for (const tab of ['detalhes', 'recursos', 'politicas', 'formulario']) {
+      await expect(dirtyDot(tab)).toHaveCount(0);
+    }
+
+    await page.reload();
+    await expect(page.getByTestId('service-description-input')).toHaveValue('Descrição atualizada');
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+    await expect(resourceTypeCheckbox(page, 'ROOM')).toBeChecked();
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await expect(page.getByTestId('policy-recurrence-eligible')).toBeChecked();
+    await page.getByRole('tab', { name: 'Formulário de reserva' }).click();
+    await expect(page.getByTestId('intake-version-current')).toContainText('1');
+  });
+
+  test('blocks a required quantity above the eligible resources inline and on the API, and saves once it fits', async ({
+    page,
+  }) => {
+    await createResource(page, { type: 'ROOM', name: makeUniqueServiceName('e2e-room-a') });
+    await createResource(page, { type: 'ROOM', name: makeUniqueServiceName('e2e-room-b') });
+    const service = await seedService(page);
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+    await resourceTypeCheckbox(page, 'ROOM').click();
+
+    const row = page.locator(
+      '[data-testid="resource-type-fields"][data-scope="flat"][data-resource-type="ROOM"]',
+    );
+    const addEligible = row.getByTestId('resource-type-add-eligible');
+    const quantityError = row.getByTestId('resource-type-quantity-error');
+    const tabAction = page.getByTestId('service-desktop-tab-action');
+
+    // One explicit eligible resource but two required → impossible to book.
+    await addEligible.selectOption({ index: 1 });
+    await row.getByTestId('resource-type-quantity').fill('2');
+    await expect(quantityError).toBeVisible();
+    await expect(tabAction).toBeDisabled();
+
+    // The API refuses the same shape (the UI guard is not the only line of defence).
+    const pool = await page.request.get(`${BFF_URL}/resources?isActive=true&type=ROOM`, {
+      headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+    });
+    const rooms = ((await pool.json()) as { items: { id: string }[] }).items;
+    const rejected = await page.request.patch(
+      `${BFF_URL}/services/${service.serviceId}/resource-requirements`,
+      {
+        data: {
+          resourceRequirements: [
+            {
+              type: 'ROOM',
+              selectionMode: 'AUTO_FUNGIBLE_POOL',
+              resourcePoolIds: [rooms[0]!.id],
+              requiredQuantity: 2,
+            },
+          ],
+        },
+        headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+      },
+    );
+    expect(rejected.status()).toBe(422);
+
+    // Adding a second eligible resource makes the quantity satisfiable again.
+    await addEligible.selectOption({ index: 1 });
+    await expect(quantityError).toHaveCount(0);
+    await expect(tabAction).toBeEnabled();
+    await tabAction.click();
+    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+  });
+
+  test('discarding unsaved changes: the dialog can be kept-editing, confirmed via Cancelar, and opened from the topbar back button', async ({
+    page,
+  }) => {
+    const service = await seedService(page);
+    await openEditPage(page, service.serviceId);
+    const discardConfirm = page.getByTestId('service-discard-confirm');
+    // Before hydration the topbar back control is a plain link; the guarded <button> only exists
+    // once ServiceEditPage has registered its onBackOverride — wait for that variant, or a click
+    // landing during the swap is lost.
+    const guardedBack = page.locator('button[data-testid="topbar-back-button"]');
+
+    // Nothing dirty → leaving is immediate, no dialog.
+    await guardedBack.click();
+    await expect(page).toHaveURL(/\/dashboard\/services$/);
+
+    await openEditPage(page, service.serviceId);
+    await expect(guardedBack).toBeVisible();
+    await page.getByTestId('service-name-input').fill(`${service.name}-alterado`);
+
+    // Topbar back arrow opens the same in-app dialog; "Continuar editando" keeps the edit.
+    await guardedBack.click();
+    await expect(discardConfirm).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar editando' }).click();
+    await expect(discardConfirm).toBeHidden();
+    await expect(page.getByTestId('service-name-input')).toHaveValue(`${service.name}-alterado`);
+
+    // Cancelar → "Descartar alterações" really leaves, without saving.
+    await page.getByTestId('service-cancel-desktop-link').click();
+    await expect(discardConfirm).toBeVisible();
+    await discardConfirm.click();
+    await expect(page).toHaveURL(/\/dashboard\/services$/);
+
+    await openEditPage(page, service.serviceId);
+    await expect(page.getByTestId('service-name-input')).toHaveValue(service.name);
+  });
+
+  test('on a narrow screen the mobile bar carries the active tab action and the tab bar never scrolls vertically', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const service = await seedService(page);
+    await openEditPage(page, service.serviceId);
+
+    const tablist = page.getByRole('tablist');
+    const overflow = await tablist.evaluate((element) => ({
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      overflowY: getComputedStyle(element).overflowY,
+    }));
+    expect(overflow.overflowY).toBe('hidden');
+    expect(overflow.scrollHeight).toBeLessThanOrEqual(overflow.clientHeight);
+
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await expect(page.getByTestId('service-mobile-tab-action')).toHaveText('Salvar políticas');
+    await page.getByTestId('policy-recurrence-eligible').click();
+    await page.getByTestId('service-mobile-tab-action').click();
+    await expect(page.getByTestId('policy-saved')).toBeVisible();
   });
 });
