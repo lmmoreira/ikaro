@@ -394,7 +394,7 @@ ServiceIntakeQuestion {
 - Publishing sets `version = previousVersion + 1` (or `1` if none exists yet), `isActive = true` on the new row, `isActive = false` on the previous one — the previous version is never edited in place (UC-054).
 - A `Booking` freezes `intakeSchemaVersion`/`intakeAnswers` at submission time (immutable snapshot pair) — a later schema republish never retroactively changes an already-submitted booking's answers.
 
-**Read path (added M22-S04, 2026-09-18):** `IServiceIntakeSchemaRepository.findActiveByServiceId()`/`findAllByServiceId()` existed at the repository layer with no controller wiring until `/story-discovery M22-S04` folded a `GetServiceIntakeSchemaUseCase` + `GET /services/:id/intake-schema` (backend + BFF) into that story's scope, calling `findAllByServiceId()` and partitioning by `isActive`. See `docs/14-API_CONTRACTS.md` § Service Extensions — M22 Cluster 2.
+**Read path (added M22-S04, 2026-09-18):** `IServiceIntakeSchemaRepository.findActiveByServiceId()`/`findAllByServiceId()` existed at the repository layer with no controller wiring until `/story-discovery M22-S04` folded a `GetServiceIntakeSchemaUseCase` + `GET /services/:id/intake-schema` (backend + BFF) into that story's scope, making one bounded `findLatestByServiceId()` read (active + the 5 most recent previous versions, `SERVICE_INTAKE_HISTORY_LIMIT` in `@ikaro/types`) and partitioning by `isActive` — the schema is append-only, so an uncapped read would grow the edit-page payload with every publish; older versions stay stored but are not listed. See `docs/14-API_CONTRACTS.md` § Service Extensions — M22 Cluster 2.
 
 ---
 
