@@ -63,7 +63,11 @@ export function ServiceResourceRequirementsPanel({
 }: ServiceResourceRequirementsPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
-  const { data: resourcesData } = useResources({ isActive: true });
+  const {
+    data: resourcesData,
+    isLoading: resourcesLoading,
+    isError: resourcesLoadFailed,
+  } = useResources({ isActive: true });
   const updateResourceRequirements = useUpdateServiceResourceRequirements();
   const updateLegs = useUpdateServiceLegs();
   const updateService = useUpdateService();
@@ -110,6 +114,14 @@ export function ServiceResourceRequirementsPanel({
 
   async function handleSave(): Promise<void> {
     setError(null);
+    // useResources() is async — resourcesData is undefined until it resolves. Without this
+    // guard, normalizeResourcePoolIds would treat every active resource as inactive on a save
+    // that races ahead of the query (or one that lands after it failed), silently dropping every
+    // requirement's resourcePoolIds instead of leaving them untouched (Codex finding).
+    if (resourcesLoading || resourcesLoadFailed) {
+      setError(t('recursosResourcesLoadError'));
+      return;
+    }
     const availableResources = resourcesData?.items ?? [];
     try {
       if (mode === 'legs') {
@@ -157,7 +169,8 @@ export function ServiceResourceRequirementsPanel({
   // Mirrors ServiceLegsPanel's own inline min-2-legs hint — block the save itself, not just show
   // the hint, so a legs-mode save with 0/1 legs can't reach the backend's own 422 for this
   // (CodeRabbit finding).
-  const canSave = !isSaving && !(mode === 'legs' && legs.length < 2);
+  const canSave =
+    !isSaving && !resourcesLoading && !resourcesLoadFailed && !(mode === 'legs' && legs.length < 2);
   // Service.setResourceRequirements() rejects (409) whenever the aggregate's own persisted
   // `legs` is non-null — legged→flat is deliberately not a supported transition via this
   // endpoint (service.aggregate.ts's own comment). Once a service was loaded with legs, the flat

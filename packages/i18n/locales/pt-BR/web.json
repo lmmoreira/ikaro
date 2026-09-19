@@ -1189,6 +1189,7 @@
       "recursosBufferDisabledHint": "Desabilitado — serviços com etapas usam transição por etapa.",
       "recursosSaveButton": "Salvar recursos",
       "recursosSavedConfirm": "✓ Recursos salvos",
+      "recursosResourcesLoadError": "Não foi possível carregar os recursos disponíveis. Aguarde ou recarregue a página antes de salvar.",
       "legsIntroTitle": "Etapas ordenadas",
       "legsIntroDescription": "Cada etapa tem seu próprio recurso (ou recursos) e tempo de transição até a próxima.",
       "legsAddButton": "+ Adicionar etapa",

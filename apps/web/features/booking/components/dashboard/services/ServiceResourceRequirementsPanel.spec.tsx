@@ -8,9 +8,19 @@ import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsP
 const resourceRequirementsMutateAsync = vi.fn().mockResolvedValue({});
 const legsMutateAsync = vi.fn().mockResolvedValue({});
 const updateServiceMutateAsync = vi.fn().mockResolvedValue({});
+interface UseResourcesMockResult {
+  readonly data: { items: unknown[] } | undefined;
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+}
+const useResourcesMock = vi.fn<() => UseResourcesMockResult>(() => ({
+  data: { items: [] },
+  isLoading: false,
+  isError: false,
+}));
 
 vi.mock('@/features/booking/hooks/useResources', () => ({
-  useResources: () => ({ data: { items: [] } }),
+  useResources: () => useResourcesMock(),
 }));
 
 vi.mock('@/features/booking/services/useServices', () => ({
@@ -26,6 +36,7 @@ beforeEach(() => {
   resourceRequirementsMutateAsync.mockClear();
   legsMutateAsync.mockClear();
   updateServiceMutateAsync.mockClear();
+  useResourcesMock.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false });
 });
 
 // data-testid stays static across all 3 resource-type rows (E2E-3) — disambiguated by the
@@ -243,5 +254,46 @@ describe('ServiceResourceRequirementsPanel', () => {
     );
 
     expect(screen.getByTestId('resource-mode-flat')).toBeDisabled();
+  });
+
+  it('disables save while the active-resources query is still loading', () => {
+    useResourcesMock.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+    renderWithIntl(
+      <ServiceResourceRequirementsPanel
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+  });
+
+  it('blocks save if the active-resources query failed, without dropping pool IDs', () => {
+    useResourcesMock.mockReturnValue({ data: undefined, isLoading: false, isError: true });
+    renderWithIntl(
+      <ServiceResourceRequirementsPanel
+        serviceId="svc-1"
+        initialResourceRequirements={[
+          {
+            type: 'STAFF',
+            selectionMode: 'AUTO_ANY',
+            resourcePoolIds: ['staff-1'],
+            requiredQuantity: 1,
+          },
+        ]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    // Disabled at the UI layer; handleSave() also refuses to run if it were somehow invoked
+    // directly, so a stale pool ID is never silently dropped by a save that raced ahead of the
+    // active-resources query.
+    expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
   });
 });

@@ -1189,6 +1189,7 @@
       "recursosBufferDisabledHint": "Disabled — services with legs use per-leg transition instead.",
       "recursosSaveButton": "Save resources",
       "recursosSavedConfirm": "✓ Resources saved",
+      "recursosResourcesLoadError": "Couldn't load the available resources. Wait or reload the page before saving.",
       "legsIntroTitle": "Ordered stages",
       "legsIntroDescription": "Each stage has its own resource(s) and transition time to the next one.",
       "legsAddButton": "+ Add stage",
