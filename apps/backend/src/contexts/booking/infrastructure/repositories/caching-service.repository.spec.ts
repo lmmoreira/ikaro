@@ -152,12 +152,14 @@ describe('CachingServiceRepository', () => {
     expect(second.map((s) => s.name)).toEqual(['After']);
   });
 
-  it('findById, findByIds, and findByIdForUpdate always delegate straight through, bypassing the cache', async () => {
+  it('findById, findByIds, existsById, and findByIdForUpdate always delegate straight through, bypassing the cache', async () => {
     const service = new ServiceBuilder().withTenantId('tenant-8').build();
     await inner.save(service);
 
     await expect(repo.findById(service.id, service.tenantId)).resolves.toEqual(service);
     await expect(repo.findByIds([service.id], service.tenantId)).resolves.toEqual([service]);
+    await expect(repo.existsById(service.id, service.tenantId)).resolves.toBe(true);
+    await expect(repo.existsById(service.id, 'another-tenant')).resolves.toBe(false);
     await expect(repo.findByIdForUpdate(service.id, service.tenantId)).resolves.toEqual(service);
     expect(cache.has(`booking:service:v4:tenant-8:ACTIVE`)).toBe(false);
   });

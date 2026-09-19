@@ -88,12 +88,6 @@ export class PublishServiceIntakeSchemaUseCase {
       });
       await this.intakeSchemaRepo.publish(newSchema);
 
-      // UC-054 A2 — same transaction as the schema publish above.
-      if (newSchema.hasPickupAddressQuestion && !service.requiresPickupAddress) {
-        service.requirePickupAddress();
-        await this.serviceRepo.save(service);
-      }
-
       return newSchema;
     });
 

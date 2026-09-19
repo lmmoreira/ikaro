@@ -48,6 +48,10 @@ import {
   GetServiceByIdUseCaseResult,
 } from '../../application/use-cases/get-service-by-id.use-case';
 import {
+  GetServiceIntakeSchemaUseCase,
+  GetServiceIntakeSchemaUseCaseResult,
+} from '../../application/use-cases/get-service-intake-schema.use-case';
+import {
   GetServicesUseCase,
   GetServicesUseCaseResult,
 } from '../../application/use-cases/get-services.use-case';
@@ -88,6 +92,7 @@ export class ServiceController {
     private readonly updateServiceLegs: UpdateServiceLegsUseCase,
     private readonly updateServiceBookingPolicy: UpdateServiceBookingPolicyUseCase,
     private readonly publishServiceIntakeSchema: PublishServiceIntakeSchemaUseCase,
+    private readonly getServiceIntakeSchema: GetServiceIntakeSchemaUseCase,
   ) {}
 
   @Get()
@@ -180,6 +185,16 @@ export class ServiceController {
   ): Promise<PublishServiceIntakeSchemaUseCaseResult> {
     return this.publishServiceIntakeSchema
       .execute({ ...body, id, tenantId: this.tenantContext.tenantId })
+      .catch(mapBookingError);
+  }
+
+  @Get(':id/intake-schema')
+  @UseGuards(StaffOrManagerRoleGuard)
+  getIntakeSchema(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<GetServiceIntakeSchemaUseCaseResult> {
+    return this.getServiceIntakeSchema
+      .execute({ id, tenantId: this.tenantContext.tenantId })
       .catch(mapBookingError);
   }
 

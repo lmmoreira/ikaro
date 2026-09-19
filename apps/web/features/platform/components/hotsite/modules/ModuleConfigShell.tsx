@@ -2,17 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Button, buttonVariants } from '@/shared/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/shared/components/ui/alert-dialog';
+import { Button } from '@/shared/components/ui/button';
+import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 
 interface ModuleConfigShellProps {
@@ -36,8 +27,8 @@ interface ModuleConfigShellProps {
 //
 // `discardConfirmOpen` is lifted state, not local — the topbar back arrow (outside this
 // component's subtree entirely) also needs to open the same dialog, via HotsiteEditor's
-// requestCancelConfig/ref wiring (see HotsiteEditor.tsx). This component only owns the dialog's
-// visual rendering, not the decision to open it.
+// requestCancelConfig/ref wiring (see HotsiteEditor.tsx). This component only wires the shared
+// DiscardChangesDialog, not the decision to open it.
 export function ModuleConfigShell({
   moduleLabel,
   onBack,
@@ -126,29 +117,16 @@ export function ModuleConfigShell({
         </Button>
       </div>
 
-      <AlertDialog
+      <DiscardChangesDialog
         open={discardConfirmOpen}
-        onOpenChange={(open) => {
-          if (!open) onCancelDiscard();
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('discardConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('discardConfirmDescription')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('discardConfirmKeepEditing')}</AlertDialogCancel>
-            <AlertDialogAction
-              className={buttonVariants({ variant: 'destructive' })}
-              onClick={onConfirmDiscard}
-              data-testid="module-config-discard-confirm"
-            >
-              {t('discardConfirmDiscardButton')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title={t('discardConfirmTitle')}
+        description={t('discardConfirmDescription')}
+        keepEditingLabel={t('discardConfirmKeepEditing')}
+        discardLabel={t('discardConfirmDiscardButton')}
+        onConfirmDiscard={onConfirmDiscard}
+        onCancel={onCancelDiscard}
+        confirmTestId="module-config-discard-confirm"
+      />
     </div>
   );
 }

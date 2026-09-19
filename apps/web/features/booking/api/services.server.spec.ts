@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchStaffService,
+  fetchStaffServiceEditView,
   fetchStaffServices,
   ServiceDetailFetchError,
+  ServiceEditViewFetchError,
   ServiceListFetchError,
 } from './services.server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
@@ -84,6 +86,39 @@ describe('fetchStaffService', () => {
     await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject({
       status: 404,
       code: 'BOOKING_SERVICE_NOT_FOUND',
+    });
+  });
+});
+
+describe('fetchStaffServiceEditView', () => {
+  beforeEach(() => vi.mocked(bffServerFetch).mockReset());
+
+  it('calls GET /services/:id/edit-view with the auth token and returns the composite', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          service: { serviceId: 'svc-1' },
+          intakeSchema: { active: null, history: [] },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+
+    const result = await fetchStaffServiceEditView('token-123', 'svc-1');
+
+    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services/svc-1/edit-view');
+    expect(result.service.serviceId).toBe('svc-1');
+    expect(result.intakeSchema).toEqual({ active: null, history: [] });
+  });
+
+  it('throws ServiceEditViewFetchError carrying the status on a non-2xx response', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 404 }));
+
+    await expect(fetchStaffServiceEditView('token-123', 'svc-1')).rejects.toBeInstanceOf(
+      ServiceEditViewFetchError,
+    );
+    await expect(fetchStaffServiceEditView('token-123', 'svc-1')).rejects.toMatchObject({
+      status: 404,
     });
   });
 });

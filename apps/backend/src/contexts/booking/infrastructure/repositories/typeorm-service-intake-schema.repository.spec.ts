@@ -103,6 +103,24 @@ describe('TypeOrmServiceIntakeSchemaRepository', () => {
     });
   });
 
+  describe('findLatestByServiceId', () => {
+    it('reads only the requested number of newest versions, newest first, scoped to the tenant', async () => {
+      (ormRepo.manager.find as jest.Mock).mockResolvedValue([
+        entity({ version: 3 }),
+        entity({ version: 2, isActive: false }),
+      ]);
+
+      const schemas = await repo.findLatestByServiceId(SERVICE_ID, TENANT, 2);
+
+      expect(schemas.map((s) => s.version)).toEqual([3, 2]);
+      expect(ormRepo.manager.find).toHaveBeenCalledWith(ServiceBookingIntakeSchemaEntity, {
+        where: { serviceId: SERVICE_ID, tenantId: TENANT },
+        order: { version: 'DESC' },
+        take: 2,
+      });
+    });
+  });
+
   describe('publish', () => {
     it('deactivates the current active version and inserts the new one in one transaction', async () => {
       const schema = ServiceBookingIntakeSchema.publish({

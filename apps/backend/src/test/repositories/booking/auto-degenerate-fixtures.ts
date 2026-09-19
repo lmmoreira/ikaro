@@ -74,6 +74,10 @@ export class AutoDegenerateServiceRepository implements IServiceRepository {
     return existing ?? this.autoCreate(id, tenantId);
   }
 
+  async existsById(id: string, tenantId: string): Promise<boolean> {
+    return (await this.findById(id, tenantId)) !== null;
+  }
+
   async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {
     return this.findById(id, tenantId);
   }

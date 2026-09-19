@@ -70,6 +70,11 @@ export class CachingServiceRepository implements IServiceRepository {
     return this.repo.findByIds(ids, tenantId);
   }
 
+  // Pass-through — a single indexed existence probe, nothing worth caching.
+  async existsById(id: string, tenantId: string): Promise<boolean> {
+    return this.repo.existsById(id, tenantId);
+  }
+
   // Pass-through, same as findById()/findByIds() above — a real row lock must always bypass
   // this decorator's cache entirely (docs/ENGINEERING_RULES.md's race-condition primitive 2).
   async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {

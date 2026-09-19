@@ -15,8 +15,14 @@ import { ResourceType } from './resource.types';
 function requirement(
   type: ResourceType,
   resourcePoolIds: string[] | null = null,
+  requiredQuantity = 1,
 ): ResourceRequirement {
-  return ResourceRequirement.create({ type, selectionMode: 'CUSTOMER_CHOICE', resourcePoolIds });
+  return ResourceRequirement.create({
+    type,
+    selectionMode: 'CUSTOMER_CHOICE',
+    resourcePoolIds,
+    requiredQuantity,
+  });
 }
 
 describe('assertResourceRequirementsAvailable()', () => {
@@ -69,6 +75,46 @@ describe('assertResourceRequirementsAvailable()', () => {
         new Map([[ResourceType.STAFF, new Set(['r-1', 'r-2', 'r-3'])]]),
       ),
     ).not.toThrow();
+  });
+
+  describe('requiredQuantity vs. candidate count', () => {
+    const active = new Map([[ResourceType.STAFF, new Set(['r-1', 'r-2', 'r-3'])]]);
+
+    it.each([
+      ['an explicit pool smaller than the quantity', ['r-1'], 2],
+      ['a duplicated explicit pool entry counted once', ['r-1', 'r-1'], 2],
+      ['no pool and fewer active resources than the quantity', null, 4],
+      ['an empty pool (unset) and fewer active resources than the quantity', [], 4],
+    ])('rejects %s', (_label, pool, quantity) => {
+      expect(() =>
+        assertResourceRequirementsAvailable(
+          [requirement(ResourceType.STAFF, pool, quantity)],
+          active,
+        ),
+      ).toThrow(ResourceRequirementInvalidError);
+    });
+
+    it.each([
+      ['an explicit pool exactly the quantity', ['r-1', 'r-2'], 2],
+      ['an explicit pool larger than the quantity', ['r-1', 'r-2', 'r-3'], 2],
+      ['no pool and as many active resources as the quantity', null, 3],
+    ])('accepts %s', (_label, pool, quantity) => {
+      expect(() =>
+        assertResourceRequirementsAvailable(
+          [requirement(ResourceType.STAFF, pool, quantity)],
+          active,
+        ),
+      ).not.toThrow();
+    });
+
+    it('reports the failure on the requiredQuantity field', () => {
+      expect.assertions(1);
+      try {
+        assertResourceRequirementsAvailable([requirement(ResourceType.STAFF, ['r-1'], 2)], active);
+      } catch (error) {
+        expect(error).toMatchObject({ field: 'requiredQuantity' });
+      }
+    });
   });
 });
 

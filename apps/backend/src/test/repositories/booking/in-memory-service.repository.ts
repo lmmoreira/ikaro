@@ -37,6 +37,10 @@ export class InMemoryServiceRepository implements IServiceRepository {
     return result;
   }
 
+  async existsById(id: string, tenantId: string): Promise<boolean> {
+    return this.lookup(id, tenantId) !== null;
+  }
+
   async findByIds(ids: string[], tenantId: string): Promise<Service[]> {
     return ids
       .map((id) => this.store.get(id))

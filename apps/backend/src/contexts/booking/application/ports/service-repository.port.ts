@@ -12,6 +12,10 @@ export interface ServiceFilters {
 
 export interface IServiceRepository {
   findById(id: string, tenantId: string): Promise<Service | null>;
+  // Tenant-scoped existence check without hydrating the aggregate (no tenant-settings read, no
+  // child-table reads) — for callers that only need "does this service exist" (e.g. the intake-
+  // schema read, which sits beside GET /services/:id on the edit-page load).
+  existsById(id: string, tenantId: string): Promise<boolean>;
   findByIds(ids: string[], tenantId: string): Promise<Service[]>;
   findAllByTenant(tenantId: string, filters?: ServiceFilters): Promise<Service[]>;
   // Real Postgres row lock (must be called inside an active transaction) — serializes against

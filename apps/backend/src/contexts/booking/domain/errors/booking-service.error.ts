@@ -210,16 +210,22 @@ export class BookingServiceResourceTypeUnavailableError extends BookingDomainErr
 }
 
 type ResourceRequirementInvalidReason =
-  'quantity-must-be-positive' | 'duplicate-type' | 'pool-id-not-active';
+  | 'quantity-must-be-positive'
+  | 'quantity-exceeds-candidates'
+  | 'duplicate-type'
+  | 'pool-id-not-active';
 
 const RESOURCE_REQUIREMENT_INVALID_MESSAGES: Record<ResourceRequirementInvalidReason, string> = {
   'quantity-must-be-positive': 'requiredQuantity must be greater than 0',
+  'quantity-exceeds-candidates':
+    'requiredQuantity cannot exceed the number of eligible resources (the explicit resourcePoolIds, or every active resource of the type when none is set)',
   'duplicate-type': 'resourceRequirements cannot list the same type more than once',
   'pool-id-not-active': 'resourcePoolIds must reference active resources of the matching type',
 };
 
 const RESOURCE_REQUIREMENT_INVALID_FIELDS: Record<ResourceRequirementInvalidReason, string> = {
   'quantity-must-be-positive': 'requiredQuantity',
+  'quantity-exceeds-candidates': 'requiredQuantity',
   'duplicate-type': 'type',
   'pool-id-not-active': 'resourcePoolIds',
 };

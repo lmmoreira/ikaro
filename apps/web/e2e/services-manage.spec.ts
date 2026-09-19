@@ -56,7 +56,11 @@ test.describe('service management flows', () => {
 
     await page.getByRole('button', { name: 'Salvar alterações' }).click();
 
-    await expect(page).toHaveURL('/dashboard/services');
+    // M22-S04: each tab now saves in place — no redirect to the list.
+    await expect(page).toHaveURL(`/dashboard/services/${service.serviceId}/edit`);
+    await expect(page.getByTestId('service-name-input')).toHaveValue(updatedName);
+
+    await page.goto('/dashboard/services');
     await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toBeVisible();
     await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toContainText('Ativo');
     await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toContainText(
@@ -88,7 +92,9 @@ test.describe('service management flows', () => {
 
     await page.getByRole('button', { name: 'Salvar alterações' }).click();
 
-    await expect(page).toHaveURL('/dashboard/services');
+    // M22-S04: saving now stays on the edit page — confirm via the list separately.
+    await expect(page).toHaveURL(`/dashboard/services/${service.serviceId}/edit`);
+    await page.goto('/dashboard/services');
     await expect(page.getByRole('link', { name: new RegExp(service.name) })).toContainText('Ativo');
   });
 

@@ -796,6 +796,7 @@ Returns:
 - **Alternative Flows:**
   - **A1: No active resources of the chosen type exist** → `422 Unprocessable` — blocks save until at least one exists.
   - **A2: Service has `legs` set** → `409 Conflict` — a service is either flat-with-requirements or legged, not both (UC-052).
+  - **A3: `requiredQuantity` exceeds the eligible resources** → `422 Unprocessable` (`BOOKING_SERVICE_RESOURCE_REQUIREMENT_INVALID`, field `requiredQuantity`) — the explicit eligible list (or, when none is set, every active resource of that type) must hold at least `requiredQuantity` resources, otherwise the requirement could never be satisfied and the service would silently show no availability. The Recursos tab blocks the save inline with the same rule; the same check applies to each leg's requirements (UC-052).
 - **Postconditions:** New bookings for this service are checked/locked against the configured resource(s).
 - **Events Triggered:** None.
 
@@ -856,16 +857,15 @@ Returns:
 - **Actor:** STAFF | MANAGER
 - **Endpoint:** `POST /services/:id/intake-schema`
 - **Preconditions:** Service exists, `bookingModel = APPOINTMENT`.
-- **Trigger:** Admin sets up or edits the service's booking-review questions (e.g. a dentist wants a health-history question; a mobile groomer wants a pickup address).
+- **Trigger:** Admin sets up or edits the service's booking-review questions (e.g. a dentist wants a health-history question; a mobile groomer wants a yes/no allergy question).
 - **Main Flow:**
-  1. Admin adds one or more questions (free text, a named-attendees list, or a typed marker such as pickup address) and marks each required or optional.
+  1. Admin adds one or more questions (free text or a yes/no boolean) and marks each required or optional.
   2. Admin sets whether the service requires a participant count, named attendees, both, or neither.
   3. Admin writes/updates the consent text customers must accept.
   4. System publishes a new `service_booking_intake_schema` version — `is_active = true` on the new row, `is_active = false` on the previous one. The previous version is never edited in place.
 - **Alternative Flows:**
   - **A1: Service already has bookings in flight against the current version** → Existing bookings keep their already-snapshotted `intakeSchemaVersion`/`intakeAnswers`; only new bookings see the new version.
-  - **A2: Admin adds a `PICKUP_ADDRESS`-typed question** → System also sets `services.requires_pickup_address = true` in the same transaction — the legacy boolean stays the single source of truth for whether `bookings.pickup_address` must be populated.
-- **Postconditions:** The service has exactly one active intake schema version.
+- **Postconditions:** The service has exactly one active intake schema version. Every version stays stored, but the manager's version-history list shows only the 5 most recent previous versions (bounded payload).
 - **Events Triggered:** None.
 
 ---
@@ -899,7 +899,7 @@ Returns:
 - **Main Flow:**
   1. Admin picks `APPOINTMENT` (a private appointment, today's default) or `SESSION` (a class with capacity).
   2. If `APPOINTMENT`: proceeds to UC-050 (or UC-052 for legs).
-  3. If `SESSION`: admin declares this service's eligible resource pool per slot (`Service.classResourceSlots`) — same eligibility checklist as UC-050's flat case, just without a selection mode, since nothing resolves dynamically per booking. **Not actionable until Cluster 4 ships** `ClassScheduleTemplate` — the schema field exists from this cluster onward, but nothing consumes it yet; a SESSION service created in Cluster 2/3 has no way to actually be booked until then.
+  3. If `SESSION`: the service is created with an empty resource pool (`Service.classResourceSlots = []`) — no UI in this milestone collects it. **Not actionable until Cluster 4 ships** `ClassScheduleTemplate`, which is also when a Turmas-module UI for declaring the eligible resource pool per slot (same eligibility checklist as UC-050's flat case) first appears; a SESSION service created in Cluster 2/3 has no way to actually be booked until then.
 - **Alternative Flows:**
   - **A1: Admin tries to change `bookingModel` on a service with existing bookings** → `409 Conflict` — booking model is immutable once the service has history.
 - **Postconditions:** Service exists with a fixed `bookingModel`.

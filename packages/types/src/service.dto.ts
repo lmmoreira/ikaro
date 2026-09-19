@@ -20,6 +20,33 @@ export interface ServiceLegItem {
   transitionGapAfterMinutes: number;
 }
 
+// Request-side counterpart of ResourceRequirementItem — resourcePoolIds/requiredQuantity are
+// optional on write (server defaults apply), always populated on read.
+export interface ResourceRequirementRequestItem {
+  type: ResourceType;
+  selectionMode: ResourceRequirementSelectionMode;
+  resourcePoolIds?: string[] | null;
+  requiredQuantity?: number;
+}
+
+export interface UpdateServiceResourceRequirementsRequest {
+  resourceRequirements: ResourceRequirementRequestItem[];
+}
+
+export interface ServiceLegRequestItem {
+  legIndex: number;
+  name: string;
+  durationMinutes: number;
+  resourceRequirements: ResourceRequirementRequestItem[];
+  transitionGapAfterMinutes?: number;
+}
+
+export interface UpdateServiceLegsRequest {
+  legs: ServiceLegRequestItem[];
+}
+
+export type UpdateServiceBookingPolicyRequest = Partial<ServiceBookingPolicyItem>;
+
 export interface ClassResourceSlotItem {
   type: ResourceType;
   eligibleResourceIds: string[];
@@ -109,4 +136,52 @@ export interface StaffServiceResponse {
 export interface StaffServiceListResponse {
   items: StaffServiceResponse[];
   total: number;
+}
+
+// UC-054 (booking-intake schema) — added M22-S04. Not part of StaffServiceResponse; read via its
+// own GET /services/:id/intake-schema endpoint since it's an independent, versioned aggregate
+// (docs/ENGINEERING_RULES.md § "A versioned, append-only child concept...").
+export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'BOOLEAN';
+
+// GET /services/:id/intake-schema returns the active version plus at most this many of the most
+// recent previous versions — the schema is append-only, so an uncapped history would grow the
+// edit-page payload with every publish. Older versions stay stored, they are just not listed.
+export const SERVICE_INTAKE_HISTORY_LIMIT = 5;
+
+export interface ServiceIntakeQuestionItem {
+  fieldKey: string;
+  label: string;
+  type: ServiceIntakeQuestionType;
+  required: boolean;
+}
+
+export interface ServiceIntakeSchemaVersion {
+  id: string;
+  version: number;
+  questions: ServiceIntakeQuestionItem[];
+  consentText: string;
+  consentVersion: number;
+  requiresNamedAttendees: boolean;
+  participantCountRequired: boolean;
+  createdAt: string;
+}
+
+export interface ServiceIntakeSchemaResponse {
+  active: ServiceIntakeSchemaVersion | null;
+  history: ServiceIntakeSchemaVersion[];
+}
+
+// GET /services/:id/edit-view — the Serviços edit page's composite read (M22-S04): the service plus
+// its intake schema in one BFF response, so `apps/web` never fans out and merges two endpoints
+// itself (docs/24-BFF_ARCHITECTURE.md § composite views belong in the BFF).
+export interface StaffServiceEditViewResponse {
+  service: StaffServiceResponse;
+  intakeSchema: ServiceIntakeSchemaResponse;
+}
+
+export interface PublishServiceIntakeSchemaRequest {
+  questions: ServiceIntakeQuestionItem[];
+  consentText: string;
+  requiresNamedAttendees?: boolean;
+  participantCountRequired?: boolean;
 }

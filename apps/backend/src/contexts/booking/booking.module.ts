@@ -56,6 +56,7 @@ import { UpdateServiceResourceRequirementsUseCase } from './application/use-case
 import { UpdateServiceLegsUseCase } from './application/use-cases/update-service-legs.use-case';
 import { UpdateServiceBookingPolicyUseCase } from './application/use-cases/update-service-booking-policy.use-case';
 import { PublishServiceIntakeSchemaUseCase } from './application/use-cases/publish-service-intake-schema.use-case';
+import { GetServiceIntakeSchemaUseCase } from './application/use-cases/get-service-intake-schema.use-case';
 import { ApproveBookingUseCase } from './application/use-cases/approve-booking.use-case';
 import { RejectBookingUseCase } from './application/use-cases/reject-booking.use-case';
 import { RequestMoreInfoUseCase } from './application/use-cases/request-more-info.use-case';
@@ -194,6 +195,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     UpdateServiceLegsUseCase,
     UpdateServiceBookingPolicyUseCase,
     PublishServiceIntakeSchemaUseCase,
+    GetServiceIntakeSchemaUseCase,
     DeactivateServiceUseCase,
     CloseScheduleUseCase,
     RemoveClosureUseCase,

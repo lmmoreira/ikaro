@@ -542,6 +542,73 @@ describe('ServicesController (component)', () => {
     });
   });
 
+  // ─── GET /v1/services/:id/intake-schema ─────────────────────────────────────
+
+  describe('GET /v1/services/:id/intake-schema', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).get(
+        `/v1/services/${SERVICE_ID}/intake-schema`,
+      );
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, calls GET /services/:id/intake-schema', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        active: {
+          id: 'schema-1',
+          version: 1,
+          questions: [],
+          consentText: 'v1',
+          consentVersion: 1,
+          requiresNamedAttendees: false,
+          participantCountRequired: false,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+        history: [],
+      });
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.active.version).toBe(1);
+      expect(backendHttpService.get).toHaveBeenCalledWith(`/services/${SERVICE_ID}/intake-schema`);
+    });
+
+    it('STAFF JWT → 200', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ active: null, history: [] });
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+    });
+
+    it('propagates 404 from backend for a cross-tenant/missing service', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockRejectedValueOnce(
+        new HttpException({ title: 'Not Found', status: 404 }, 404),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/services/${SERVICE_ID}/intake-schema`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
   // ─── PATCH /v1/services/:id/activate ────────────────────────────────────────
 
   describe('PATCH /v1/services/:id/activate', () => {

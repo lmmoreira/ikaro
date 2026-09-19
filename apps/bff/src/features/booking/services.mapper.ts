@@ -1,14 +1,19 @@
 import {
   ClassResourceSlotItem,
   ResourceRequirementItem,
+  ServiceIntakeSchemaResponse,
+  ServiceIntakeSchemaVersion,
   ServiceLegItem,
+  StaffServiceEditViewResponse,
   StaffServiceListResponse,
   StaffServiceResponse,
 } from '@ikaro/types';
 import {
   ClassResourceSlotDetail,
+  GetServiceIntakeSchemaResult,
   ResourceRequirementDetail,
   ServiceDetail,
+  ServiceIntakeSchemaVersionDetail,
   ServiceLegDetail,
   ServiceListResponse,
 } from './services.types';
@@ -64,4 +69,43 @@ export function toStaffServiceResponse(service: ServiceDetail): StaffServiceResp
 export function toStaffServiceListResponse(list: ServiceListResponse): StaffServiceListResponse {
   const items = list.items.map(toStaffServiceResponse);
   return { items, total: items.length };
+}
+
+function toServiceIntakeSchemaVersion(
+  version: ServiceIntakeSchemaVersionDetail,
+): ServiceIntakeSchemaVersion {
+  return {
+    id: version.id,
+    version: version.version,
+    questions: version.questions.map((question) => ({
+      fieldKey: question.fieldKey,
+      label: question.label,
+      type: question.type,
+      required: question.required,
+    })),
+    consentText: version.consentText,
+    consentVersion: version.consentVersion,
+    requiresNamedAttendees: version.requiresNamedAttendees,
+    participantCountRequired: version.participantCountRequired,
+    createdAt: version.createdAt,
+  };
+}
+
+export function toServiceIntakeSchemaResponse(
+  result: GetServiceIntakeSchemaResult,
+): ServiceIntakeSchemaResponse {
+  return {
+    active: result.active ? toServiceIntakeSchemaVersion(result.active) : null,
+    history: result.history.map(toServiceIntakeSchemaVersion),
+  };
+}
+
+export function toStaffServiceEditViewResponse(
+  service: ServiceDetail,
+  intakeSchema: GetServiceIntakeSchemaResult,
+): StaffServiceEditViewResponse {
+  return {
+    service: toStaffServiceResponse(service),
+    intakeSchema: toServiceIntakeSchemaResponse(intakeSchema),
+  };
 }

@@ -83,7 +83,7 @@ export interface UpdateServiceBookingPolicyResult {
   bookingPolicy: ServiceBookingPolicyDetail;
 }
 
-export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'NAMED_ATTENDEES' | 'PICKUP_ADDRESS';
+export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'BOOLEAN';
 
 export interface ServiceIntakeQuestionDetail {
   fieldKey: string;
@@ -101,4 +101,12 @@ export interface PublishServiceIntakeSchemaResult {
   requiresNamedAttendees: boolean;
   participantCountRequired: boolean;
   createdAt: string;
+}
+
+export type ServiceIntakeSchemaVersionDetail = PublishServiceIntakeSchemaResult;
+
+// UC-054 read path — added M22-S04. `active` is null until the service's first publish.
+export interface GetServiceIntakeSchemaResult {
+  active: ServiceIntakeSchemaVersionDetail | null;
+  history: ServiceIntakeSchemaVersionDetail[];
 }

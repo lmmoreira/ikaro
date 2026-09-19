@@ -16,14 +16,23 @@ export type ServiceBookingModel = 'APPOINTMENT' | 'SESSION';
 
 // classResourceSlots can only ever be supplied where bookingModel itself is set (Service.create()
 // or Service.changeBookingModel()) — there is no separate slot-management endpoint in this
-// milestone — so a SESSION service created/converted with none would be permanently
-// un-configurable, and an APPOINTMENT service silently discarding a supplied classResourceSlots
-// would surprise a caller who mistakenly sent it.
+// milestone — so an APPOINTMENT service silently discarding a supplied classResourceSlots would
+// surprise a caller who mistakenly sent it.
+//
+// requireForSession defaults to true (Service.changeBookingModel()'s own behavior, UC-056 A1's
+// existing-bookings path is unaffected either way): a service already taking bookings that
+// converts to SESSION mid-life must declare its resource pool in the same request, or it would
+// otherwise go straight from bookable to permanently un-configurable with no UI to fix it.
+// Service.create() passes false — per the validated prototype (02-service-create.html) and
+// UC-056 step 3, a brand-new SESSION service is deliberately creatable with an empty pool; actual
+// resource-pool + schedule configuration is a Cluster 4/M24 Turmas-module capability, not this
+// milestone's.
 export function assertClassResourceSlotsMatchBookingModel(
   bookingModel: ServiceBookingModel,
   classResourceSlots: ClassResourceSlot[],
+  requireForSession = true,
 ): void {
-  if (bookingModel === 'SESSION' && classResourceSlots.length === 0) {
+  if (requireForSession && bookingModel === 'SESSION' && classResourceSlots.length === 0) {
     throw new ClassResourceSlotBookingModelMismatchError('required-for-session');
   }
   if (bookingModel !== 'SESSION' && classResourceSlots.length > 0) {
@@ -63,10 +72,20 @@ function assertRequirementAvailable(
   if (!activeIds || activeIds.size === 0) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
-  for (const poolId of requirement.resourcePoolIds ?? []) {
+  const poolIds = requirement.resourcePoolIds ?? [];
+  for (const poolId of poolIds) {
     if (!activeIds.has(poolId)) {
       throw new ResourceRequirementInvalidError('pool-id-not-active');
     }
+  }
+  // requiredQuantity is how many DISTINCT candidates one booking needs simultaneously
+  // (docs/27-BUSINESS_LOGIC_REFERENCE.md), so a requirement asking for more than its candidate set
+  // can hold is unsatisfiable — availability would silently show no slots and every booking would
+  // fail at occupancy resolution. Candidates are the explicit pool when non-empty, otherwise every
+  // active resource of the type (an empty array means "unset", same as the resolution helpers).
+  const candidateCount = poolIds.length > 0 ? new Set(poolIds).size : activeIds.size;
+  if (requirement.requiredQuantity > candidateCount) {
+    throw new ResourceRequirementInvalidError('quantity-exceeds-candidates');
   }
 }
 

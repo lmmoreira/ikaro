@@ -430,6 +430,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket.
 - `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Returns `{ items: [...], total: number }` (`StaffServiceListResponse`) — each item uses `serviceId` (not `id`) and `price: { amount, currency }` (no `formatted`); see `StaffServiceResponse` in `service.dto.ts`. Lives on the bare `/services` path — see `docs/24-BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
 - `GET /services/:id` -> Single service by id, active or inactive (STAFF|MANAGER). `StaffServiceResponse`. `404` if not found or wrong tenant.
+- `GET /services/:id/edit-view` -> The Serviços edit page's composite read (STAFF|MANAGER; added M22-S04): `{ service: StaffServiceResponse, intakeSchema: ServiceIntakeSchemaResponse }` (`StaffServiceEditViewResponse`). BFF-only — it fans out to backend `GET /services/:id` and `GET /services/:id/intake-schema` so `apps/web` consumes one contract (`docs/24-BFF_ARCHITECTURE.md` § composite views). `404` if the service is not found or belongs to another tenant.
 - `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`), and, from M22 Cluster 2, `bookingModel: 'APPOINTMENT'|'SESSION'` (UC-056, default `APPOINTMENT`) and, when `bookingModel: 'SESSION'`, `classResourceSlots` (UC-056 step 3 — inert until M24).
 - `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER). From M22 Cluster 2, also accepts `bufferAfterMinutes` (UC-053) and `bookingModel` (UC-056, immutable once the service has booking history).
 - `DELETE /services/:id` -> Deactivate service (STAFF|MANAGER). Returns `204 No Content`.
@@ -449,6 +450,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   - `200` on success
   - `422` if no active resource of a chosen type exists (UC-050 A1)
+  - `422` `BOOKING_SERVICE_RESOURCE_REQUIREMENT_INVALID` (field `requiredQuantity`) if a requirement's `requiredQuantity` exceeds its eligible resources — the explicit `resourcePoolIds`, or every active resource of the type when none is set (UC-050 A3); the same check applies to each leg's requirements on `PUT /services/:id/legs`
   - `409` if the service has `legs` set (UC-050 A2)
 
 - `PUT /services/:id/legs` -> Set/replace a service's sequential legs (UC-052). Clears `resourceRequirements`/`bufferAfterMinutes` on save. Body:
@@ -472,7 +474,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   - `201` on success — new version `is_active = true`, previous version `is_active = false`
 
-- `GET /services/:id/intake-schema` -> Read a service's active intake schema and its full version history (UC-054 read path; added M22-S04, 2026-09-18 — no read endpoint existed for the aggregate `POST` above published to). Response:
+- `GET /services/:id/intake-schema` -> Read a service's active intake schema and its most recent previous versions — `history` is capped at the 5 latest (`SERVICE_INTAKE_HISTORY_LIMIT` in `@ikaro/types`), older versions stay stored but are not listed (UC-054 read path; added M22-S04, 2026-09-18 — no read endpoint existed for the aggregate `POST` above published to). Response:
   ```json
   {
     "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." },
@@ -481,7 +483,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   - `200` on success — `active: null` if no version has ever been published
   - `404` if the service doesn't exist or belongs to another tenant
-  - Backed by `IServiceIntakeSchemaRepository.findAllByServiceId()`, partitioned by `isActive` — no separate per-version endpoint, since the repository already returns full aggregates
+  - Backed by one bounded read, `IServiceIntakeSchemaRepository.findLatestByServiceId(…, SERVICE_INTAKE_HISTORY_LIMIT + 1)`, partitioned by `isActive` (the active version is always the newest) — the payload does not grow with every publish; no separate per-version endpoint
 
 - `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:
   ```json

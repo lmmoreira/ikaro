@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { ServiceEditActionPanels, ServiceEditStatusSection } from './ServiceEditPanels';
@@ -108,5 +109,115 @@ describe('ServiceEditActionPanels', () => {
       'href',
       '/dashboard/services',
     );
+  });
+
+  it('hides the primary save/activate action when showPrimaryAction is false', () => {
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        showPrimaryAction={false}
+      />,
+    );
+
+    expect(screen.queryByTestId('service-desktop-save-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('service-mobile-save-button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('service-cancel-desktop-link')).toBeInTheDocument();
+  });
+
+  it('calls onCancelClick when the cancel link is clicked', () => {
+    const onCancelClick = vi.fn();
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        onCancelClick={onCancelClick}
+      />,
+    );
+
+    screen.getByTestId('service-cancel-desktop-link').click();
+    expect(onCancelClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the active tab action in the desktop aside and mobile bar, without the Detalhes action', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        showPrimaryAction={false}
+        tabAction={{ label: 'Salvar recursos', disabled: false, pending: false, onSubmit }}
+      />,
+    );
+
+    expect(screen.queryByTestId('service-desktop-save-button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('service-desktop-tab-action')).toHaveTextContent('Salvar recursos');
+    expect(screen.getByTestId('service-mobile-tab-action')).toHaveTextContent('Salvar recursos');
+
+    await user.click(screen.getByTestId('service-desktop-tab-action'));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the tab action when the panel reports it disabled or pending, and shows loading while pending', () => {
+    const { rerender } = renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        showPrimaryAction={false}
+        tabAction={{
+          label: 'Publicar formulário',
+          disabled: true,
+          pending: false,
+          onSubmit: vi.fn(),
+        }}
+      />,
+    );
+    expect(screen.getByTestId('service-desktop-tab-action')).toBeDisabled();
+
+    rerender(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        showPrimaryAction={false}
+        tabAction={{
+          label: 'Publicar formulário',
+          disabled: false,
+          pending: true,
+          onSubmit: vi.fn(),
+        }}
+      />,
+    );
+    expect(screen.getByTestId('service-desktop-tab-action')).toBeDisabled();
+    expect(screen.getByTestId('service-desktop-tab-action')).not.toHaveTextContent(
+      'Publicar formulário',
+    );
+  });
+
+  it('keeps the Cancelar link but renders no mobile bar when there is no action at all', () => {
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        showPrimaryAction={false}
+        tabAction={null}
+      />,
+    );
+
+    expect(screen.getByTestId('service-cancel-desktop-link')).toBeInTheDocument();
+    expect(screen.queryByTestId('service-cancel-mobile-link')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('service-desktop-tab-action')).not.toBeInTheDocument();
   });
 });

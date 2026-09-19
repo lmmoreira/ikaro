@@ -39,6 +39,7 @@ describe('TypeOrmServiceRepository', () => {
           provide: getRepositoryToken(ServiceEntity),
           useValue: {
             findOne: jest.fn(),
+            exists: jest.fn(),
             find: jest.fn(),
             createQueryBuilder: jest.fn(),
             save: jest.fn(),
@@ -60,6 +61,22 @@ describe('TypeOrmServiceRepository', () => {
 
   afterEach(() => {
     jest.resetAllMocks();
+  });
+
+  it('existsById probes with a tenant-scoped exists() and never hydrates the aggregate', async () => {
+    ormRepo.exists.mockResolvedValue(true);
+
+    await expect(repo.existsById('svc-1', 'tenant-1')).resolves.toBe(true);
+
+    expect(ormRepo.exists).toHaveBeenCalledWith({ where: { id: 'svc-1', tenantId: 'tenant-1' } });
+    expect(ormRepo.findOne).not.toHaveBeenCalled();
+    expect(ormRepo.manager.find).not.toHaveBeenCalled();
+  });
+
+  it('existsById is false when the row is missing or belongs to another tenant', async () => {
+    ormRepo.exists.mockResolvedValue(false);
+
+    await expect(repo.existsById('svc-1', 'tenant-other')).resolves.toBe(false);
   });
 
   it('findById returns null when not found', async () => {

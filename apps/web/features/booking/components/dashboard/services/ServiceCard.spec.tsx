@@ -79,4 +79,14 @@ describe('ServiceCard', () => {
     expect(link.className).toContain('opacity-[0.55]');
     expect(screen.getByText('Inativo')).toBeInTheDocument();
   });
+
+  it('renders the Turma badge iff bookingModel is SESSION', () => {
+    renderWithIntl(<ServiceCard service={makeService({ bookingModel: 'SESSION' })} />);
+    expect(screen.getByText('Turma')).toBeInTheDocument();
+  });
+
+  it('does not render the Turma badge for APPOINTMENT services', () => {
+    renderWithIntl(<ServiceCard service={makeService({ bookingModel: 'APPOINTMENT' })} />);
+    expect(screen.queryByText('Turma')).not.toBeInTheDocument();
+  });
 });
