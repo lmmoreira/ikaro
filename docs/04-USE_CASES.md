@@ -856,15 +856,14 @@ Returns:
 - **Actor:** STAFF | MANAGER
 - **Endpoint:** `POST /services/:id/intake-schema`
 - **Preconditions:** Service exists, `bookingModel = APPOINTMENT`.
-- **Trigger:** Admin sets up or edits the service's booking-review questions (e.g. a dentist wants a health-history question; a mobile groomer wants a pickup address).
+- **Trigger:** Admin sets up or edits the service's booking-review questions (e.g. a dentist wants a health-history question; a mobile groomer wants a yes/no allergy question).
 - **Main Flow:**
-  1. Admin adds one or more questions (free text, a named-attendees list, or a typed marker such as pickup address) and marks each required or optional.
+  1. Admin adds one or more questions (free text or a yes/no boolean) and marks each required or optional.
   2. Admin sets whether the service requires a participant count, named attendees, both, or neither.
   3. Admin writes/updates the consent text customers must accept.
   4. System publishes a new `service_booking_intake_schema` version — `is_active = true` on the new row, `is_active = false` on the previous one. The previous version is never edited in place.
 - **Alternative Flows:**
   - **A1: Service already has bookings in flight against the current version** → Existing bookings keep their already-snapshotted `intakeSchemaVersion`/`intakeAnswers`; only new bookings see the new version.
-  - **A2: Admin adds a `PICKUP_ADDRESS`-typed question** → System also sets `services.requires_pickup_address = true` in the same transaction — the legacy boolean stays the single source of truth for whether `bookings.pickup_address` must be populated.
 - **Postconditions:** The service has exactly one active intake schema version.
 - **Events Triggered:** None.
 

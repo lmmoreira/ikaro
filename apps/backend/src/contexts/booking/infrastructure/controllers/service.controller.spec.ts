@@ -307,29 +307,6 @@ describe('ServiceController', () => {
       expect(result.version).toBe(1);
     });
 
-    it('sets requiresPickupAddress when a PICKUP_ADDRESS question is included (UC-054 A2)', async () => {
-      const service = new ServiceBuilder()
-        .withTenantId(TENANT_A)
-        .withRequiresPickupAddress(false)
-        .build();
-      await repo.save(service);
-
-      await controller.publishIntakeSchema(service.id, {
-        questions: [
-          {
-            fieldKey: 'pickup',
-            label: 'Endereço de coleta',
-            type: 'PICKUP_ADDRESS',
-            required: true,
-          },
-        ],
-        consentText: 'Concordo',
-      });
-
-      const updated = await repo.findById(service.id, TENANT_A);
-      expect(updated?.requiresPickupAddress).toBe(true);
-    });
-
     it('maps ServiceNotFoundError to 404', async () => {
       const err = await controller
         .publishIntakeSchema('non-existent-id', {

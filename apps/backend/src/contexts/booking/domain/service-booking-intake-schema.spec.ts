@@ -61,29 +61,6 @@ describe('ServiceBookingIntakeSchema', () => {
     });
   });
 
-  describe('hasPickupAddressQuestion', () => {
-    it('is true when a PICKUP_ADDRESS-typed question is present (UC-054 A2)', () => {
-      const schema = ServiceBookingIntakeSchema.publish(
-        publishInput({
-          questions: [
-            {
-              fieldKey: 'pickup',
-              label: 'Endereço de coleta',
-              type: 'PICKUP_ADDRESS',
-              required: true,
-            },
-          ],
-        }),
-      );
-      expect(schema.hasPickupAddressQuestion).toBe(true);
-    });
-
-    it('is false when no question is PICKUP_ADDRESS-typed', () => {
-      const schema = ServiceBookingIntakeSchema.publish(publishInput());
-      expect(schema.hasPickupAddressQuestion).toBe(false);
-    });
-  });
-
   describe('reconstitute()', () => {
     it('restores an already-persisted schema as-is', () => {
       const createdAt = new Date('2026-01-01T00:00:00Z');

@@ -125,8 +125,7 @@ export function IntakeQuestionCard({
             className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
           >
             <option value="FREE_TEXT">{t('formularioQuestionTypeFreeText')}</option>
-            <option value="NAMED_ATTENDEES">{t('formularioQuestionTypeNamedAttendees')}</option>
-            <option value="PICKUP_ADDRESS">{t('formularioQuestionTypePickupAddress')}</option>
+            <option value="BOOLEAN">{t('formularioQuestionTypeBoolean')}</option>
           </select>
         </div>
       </div>

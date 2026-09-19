@@ -349,16 +349,6 @@ export class Service extends AggregateRoot {
     }
   }
 
-  // UC-054 A2 — a one-way flip: publishing a PICKUP_ADDRESS-typed intake question sets this, but
-  // no flow this milestone ever clears it back (the legacy boolean stays the single source of
-  // truth for bookings.pickup_address; docs/13-DATABASE_SCHEMA.md). Compare-before-validate
-  // (CLAUDE.md §8): already-true is a no-op, no updatedAt bump.
-  requirePickupAddress(): void {
-    if (this.props.requiresPickupAddress) return;
-    this.props.requiresPickupAddress = true;
-    this.props.updatedAt = new Date();
-  }
-
   // Compare-before-validate (CLAUDE.md §8): resubmitting the current value is always a no-op,
   // even with booking history. hasBookingHistory is resolved by the caller (existsByServiceId).
   // Switching model normalizes the fields that only apply to the other model (mutual-exclusivity

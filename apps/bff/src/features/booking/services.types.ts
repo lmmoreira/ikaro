@@ -83,7 +83,7 @@ export interface UpdateServiceBookingPolicyResult {
   bookingPolicy: ServiceBookingPolicyDetail;
 }
 
-export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'NAMED_ATTENDEES' | 'PICKUP_ADDRESS';
+export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'BOOLEAN';
 
 export interface ServiceIntakeQuestionDetail {
   fieldKey: string;

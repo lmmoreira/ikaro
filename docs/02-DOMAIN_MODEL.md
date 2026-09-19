@@ -380,15 +380,18 @@ ServiceBookingIntakeSchema {
 ServiceIntakeQuestion {
   fieldKey:  String            -- unique within the schema
   label:     String
-  type:      'FREE_TEXT' | 'NAMED_ATTENDEES' | 'PICKUP_ADDRESS'   -- PICKUP_ADDRESS projects into the pre-existing
-                                                                    -- Service.requiresPickupAddress / Booking.pickupAddress
+  type:      'FREE_TEXT' | 'BOOLEAN'   -- generic input shapes only; no typed marker (M22-S04,
+                                         -- 2026-09-19 — removed the redundant PICKUP_ADDRESS/
+                                         -- NAMED_ATTENDEES markers, which duplicated the pre-existing
+                                         -- Service.requiresPickupAddress toggle and this same
+                                         -- schema's own requiresNamedAttendees/participantCountRequired
+                                         -- booleans below)
   required:  Boolean
 }
 ```
 
 **Invariants:**
 - Publishing sets `version = previousVersion + 1` (or `1` if none exists yet), `isActive = true` on the new row, `isActive = false` on the previous one — the previous version is never edited in place (UC-054).
-- A `PICKUP_ADDRESS`-typed question also flips `Service.requiresPickupAddress = true` in the same transaction (UC-054 A2) — the legacy boolean stays the single source of truth for whether `Booking.pickupAddress` must be populated; the intake schema is the collection layer on top of it, not a second, independently-driftable switch.
 - A `Booking` freezes `intakeSchemaVersion`/`intakeAnswers` at submission time (immutable snapshot pair) — a later schema republish never retroactively changes an already-submitted booking's answers.
 
 **Read path (added M22-S04, 2026-09-18):** `IServiceIntakeSchemaRepository.findActiveByServiceId()`/`findAllByServiceId()` existed at the repository layer with no controller wiring until `/story-discovery M22-S04` folded a `GetServiceIntakeSchemaUseCase` + `GET /services/:id/intake-schema` (backend + BFF) into that story's scope, calling `findAllByServiceId()` and partitioning by `isActive`. See `docs/14-API_CONTRACTS.md` § Service Extensions — M22 Cluster 2.

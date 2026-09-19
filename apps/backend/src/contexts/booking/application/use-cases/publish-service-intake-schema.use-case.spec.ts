@@ -33,7 +33,7 @@ describe('PublishServiceIntakeSchemaUseCase', () => {
     overrides: Partial<{
       fieldKey: string;
       label: string;
-      type: 'FREE_TEXT' | 'NAMED_ATTENDEES' | 'PICKUP_ADDRESS';
+      type: 'FREE_TEXT' | 'BOOLEAN';
       required: boolean;
     }> = {},
   ) {
@@ -89,46 +89,6 @@ describe('PublishServiceIntakeSchemaUseCase', () => {
     expect(all).toHaveLength(2);
     expect(all.find((s) => s.version === 1)?.isActive).toBe(false);
     expect(all.find((s) => s.version === 2)?.isActive).toBe(true);
-  });
-
-  it('sets requiresPickupAddress when a PICKUP_ADDRESS question is included (UC-054 A2)', async () => {
-    const service = new ServiceBuilder()
-      .withTenantId(TENANT_A)
-      .withRequiresPickupAddress(false)
-      .build();
-    await serviceRepo.save(service);
-
-    await useCase.execute({
-      id: service.id,
-      tenantId: TENANT_A,
-      questions: [question({ fieldKey: 'pickup', type: 'PICKUP_ADDRESS', required: true })],
-      consentText: 'Concordo',
-      requiresNamedAttendees: false,
-      participantCountRequired: false,
-    });
-
-    const updated = await serviceRepo.findById(service.id, TENANT_A);
-    expect(updated?.requiresPickupAddress).toBe(true);
-  });
-
-  it('does not touch requiresPickupAddress when no PICKUP_ADDRESS question is included', async () => {
-    const service = new ServiceBuilder()
-      .withTenantId(TENANT_A)
-      .withRequiresPickupAddress(false)
-      .build();
-    await serviceRepo.save(service);
-
-    await useCase.execute({
-      id: service.id,
-      tenantId: TENANT_A,
-      questions: [question()],
-      consentText: 'Concordo',
-      requiresNamedAttendees: false,
-      participantCountRequired: false,
-    });
-
-    const updated = await serviceRepo.findById(service.id, TENANT_A);
-    expect(updated?.requiresPickupAddress).toBe(false);
   });
 
   it('rejects on a SESSION service (409)', async () => {

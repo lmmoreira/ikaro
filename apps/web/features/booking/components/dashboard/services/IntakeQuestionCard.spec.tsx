@@ -85,8 +85,8 @@ describe('IntakeQuestionCard', () => {
     await user.type(screen.getByDisplayValue('Necessidades de acesso'), 'X');
     expect(onChangeLabel).toHaveBeenCalled();
 
-    await user.selectOptions(screen.getByTestId('intake-question-type'), 'NAMED_ATTENDEES');
-    expect(onChangeType).toHaveBeenCalledWith('NAMED_ATTENDEES');
+    await user.selectOptions(screen.getByTestId('intake-question-type'), 'BOOLEAN');
+    expect(onChangeType).toHaveBeenCalledWith('BOOLEAN');
 
     await user.click(screen.getByTestId('intake-question-required'));
     expect(onChangeRequired).toHaveBeenCalledWith(true);

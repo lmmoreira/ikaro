@@ -141,7 +141,7 @@ export interface StaffServiceListResponse {
 // UC-054 (booking-intake schema) — added M22-S04. Not part of StaffServiceResponse; read via its
 // own GET /services/:id/intake-schema endpoint since it's an independent, versioned aggregate
 // (docs/ENGINEERING_RULES.md § "A versioned, append-only child concept...").
-export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'NAMED_ATTENDEES' | 'PICKUP_ADDRESS';
+export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'BOOLEAN';
 
 export interface ServiceIntakeQuestionItem {
   fieldKey: string;

@@ -558,7 +558,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | tenant_id | UUID | NOT NULL |
 | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
 | version | INT | NOT NULL — monotonically increasing per service |
-| questions | JSONB | NOT NULL — ordered `[{ fieldKey, label, type, required }]`; `type` covers generic input shapes (`FREE_TEXT`, `NAMED_ATTENDEES`) and typed markers like `PICKUP_ADDRESS`, which projects into the already-existing `services.requires_pickup_address` / `bookings.pickup_address` columns rather than adding a duplicate mechanism |
+| questions | JSONB | NOT NULL — ordered `[{ fieldKey, label, type, required }]`; `type` is `FREE_TEXT` \| `BOOLEAN` — generic input shapes only (M22-S04, 2026-09-19: removed the `NAMED_ATTENDEES`/`PICKUP_ADDRESS` typed markers, which duplicated `requires_named_attendees`/`participant_count_required` below and the pre-existing `services.requires_pickup_address` column) |
 | consent_text | TEXT | NOT NULL |
 | consent_version | INT | NOT NULL |
 | requires_named_attendees | BOOLEAN | NOT NULL DEFAULT false |

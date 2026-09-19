@@ -589,7 +589,7 @@ describe('ServiceController (integration)', () => {
   // ─── POST /services/:id/intake-schema ───────────────────────────────────────
 
   describe('POST /services/:id/intake-schema', () => {
-    it('publishes the first version, retrievable via GET /services/:id round-trip on requiresPickupAddress', async () => {
+    it('publishes the first version with a BOOLEAN question', async () => {
       const isolatedTenant = await provisionTenant();
       const { body: created } = await request(app.getHttpServer())
         .post('/services')
@@ -603,9 +603,9 @@ describe('ServiceController (integration)', () => {
         .send({
           questions: [
             {
-              fieldKey: 'pickup',
-              label: 'Endereço de coleta',
-              type: 'PICKUP_ADDRESS',
+              fieldKey: 'hasPet',
+              label: 'Possui animal de estimação?',
+              type: 'BOOLEAN',
               required: true,
             },
           ],
@@ -613,12 +613,6 @@ describe('ServiceController (integration)', () => {
         })
         .expect(201);
       expect(published.version).toBe(1);
-
-      const { body: fetched } = await request(app.getHttpServer())
-        .get(`/services/${created.id}`)
-        .set(actorHeaders(isolatedTenant, MANAGER_ID))
-        .expect(200);
-      expect(fetched.requiresPickupAddress).toBe(true);
     });
 
     it('publishing twice deactivates the first version; both remain queryable by version', async () => {

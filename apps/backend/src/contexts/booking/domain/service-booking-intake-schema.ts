@@ -1,10 +1,12 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
-// UC-054's typed markers — 'PICKUP_ADDRESS' projects into the pre-existing
-// services.requires_pickup_address / bookings.pickup_address columns (docs/13-DATABASE_SCHEMA.md
-// § booking.service_booking_intake_schema), the others are generic input shapes.
-export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'NAMED_ATTENDEES' | 'PICKUP_ADDRESS';
+// UC-054's typed markers — generic input shapes only. 'PICKUP_ADDRESS' and 'NAMED_ATTENDEES'
+// were removed (M22-S04, 2026-09-19): redundant with the pre-existing Details-tab pickup-address
+// toggle and the Participantes card's own two checkboxes, and neither had a real consumer besides
+// each other (story-discovery decision — a manager configuring this select never needed a second
+// place to express the same intent).
+export type ServiceIntakeQuestionType = 'FREE_TEXT' | 'BOOLEAN';
 
 export interface ServiceIntakeQuestion {
   fieldKey: string;
@@ -90,12 +92,6 @@ export class ServiceBookingIntakeSchema extends AggregateRoot {
   }
   get createdAt(): Date {
     return this.props.createdAt;
-  }
-
-  // UC-054 A2 — the caller (PublishServiceIntakeSchemaUseCase) uses this to decide whether to
-  // also flip Service.requiresPickupAddress in the same transaction.
-  get hasPickupAddressQuestion(): boolean {
-    return this.props.questions.some((q) => q.type === 'PICKUP_ADDRESS');
   }
 
   // consentVersion mirrors version — this story has no separate consent-only update flow, so a
