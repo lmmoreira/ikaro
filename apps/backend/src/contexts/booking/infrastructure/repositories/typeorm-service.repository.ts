@@ -43,6 +43,10 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     return toDomain(entity, currency, children.get(id) ?? emptyChildRows());
   }
 
+  async existsById(id: string, tenantId: string): Promise<boolean> {
+    return this.repo.exists({ where: { id, tenantId } });
+  }
+
   async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {
     const manager = getActiveEntityManager();
     if (!manager) {

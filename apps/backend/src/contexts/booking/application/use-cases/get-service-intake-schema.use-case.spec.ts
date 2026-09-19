@@ -97,6 +97,16 @@ describe('GetServiceIntakeSchemaUseCase', () => {
     ]);
   });
 
+  it('checks the service exists without hydrating the aggregate', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+    const findByIdSpy = jest.spyOn(serviceRepo, 'findById');
+
+    await useCase.execute({ id: service.id, tenantId: TENANT_A });
+
+    expect(findByIdSpy).not.toHaveBeenCalled();
+  });
+
   it('throws ServiceNotFoundError when the service does not exist', async () => {
     await expect(useCase.execute({ id: 'missing', tenantId: TENANT_A })).rejects.toThrow(
       ServiceNotFoundError,

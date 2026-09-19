@@ -59,8 +59,9 @@ export class GetServiceIntakeSchemaUseCase {
     input: GetServiceIntakeSchemaUseCaseInput,
   ): Promise<GetServiceIntakeSchemaUseCaseResult> {
     const { id, tenantId } = input;
-    const service = await this.serviceRepo.findById(id, tenantId);
-    if (!service) throw new ServiceNotFoundError(id);
+    // Existence only — this read sits beside GET /services/:id on the edit-page load, so it must not
+    // hydrate the whole aggregate (tenant settings + every child table) a second time.
+    if (!(await this.serviceRepo.existsById(id, tenantId))) throw new ServiceNotFoundError(id);
 
     // The active version is always the newest one (publish() deactivates-then-inserts version+1),
     // so the latest LIMIT + 1 rows are the active version plus the LIMIT most recent previous
