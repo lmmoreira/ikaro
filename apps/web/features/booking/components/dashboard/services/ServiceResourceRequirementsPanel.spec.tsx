@@ -296,4 +296,32 @@ describe('ServiceResourceRequirementsPanel', () => {
     expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
     expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
   });
+
+  it('locks flat mode immediately after a successful flat-to-legs save, within the same session', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceResourceRequirementsPanel
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-mode-flat')).toBeEnabled();
+
+    await user.click(screen.getByTestId('resource-mode-legs'));
+    await user.click(screen.getByTestId('legs-add-button'));
+    await user.click(screen.getByTestId('legs-add-button'));
+    await user.type(container.querySelector('[data-testid="leg-name"][data-leg-index="0"]')!, 'A');
+    await user.type(container.querySelector('[data-testid="leg-name"][data-leg-index="1"]')!, 'B');
+
+    await user.click(screen.getByTestId('resource-requirements-save'));
+    expect(legsMutateAsync).toHaveBeenCalled();
+
+    // Service.setResourceRequirements() would 409 against this now-legged service — the flat
+    // option must lock immediately, not only after a reload re-supplies initialLegs.
+    expect(screen.getByTestId('resource-mode-flat')).toBeDisabled();
+  });
 });

@@ -81,6 +81,12 @@ export function ServiceResourceRequirementsPanel({
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMessageVisible, setSavedMessageVisible] = useState(false);
+  // Service.setResourceRequirements() rejects (409) whenever the aggregate's own persisted
+  // `legs` is non-null — legged→flat is deliberately not a supported transition via this
+  // endpoint (service.aggregate.ts's own comment). Tracked as state (not derived from the
+  // initialLegs prop alone) so a flat→legs save *within this same page session* locks the flat
+  // option immediately, instead of only after a reload re-supplies initialLegs (Codex finding).
+  const [legsLockedOnServer, setLegsLockedOnServer] = useState(initialLegs !== null);
 
   function markDirty(): void {
     if (!dirty) {
@@ -136,6 +142,7 @@ export function ServiceResourceRequirementsPanel({
             })),
           },
         });
+        setLegsLockedOnServer(true);
       } else {
         await updateResourceRequirements.mutateAsync({
           id: serviceId,
@@ -171,12 +178,6 @@ export function ServiceResourceRequirementsPanel({
   // (CodeRabbit finding).
   const canSave =
     !isSaving && !resourcesLoading && !resourcesLoadFailed && !(mode === 'legs' && legs.length < 2);
-  // Service.setResourceRequirements() rejects (409) whenever the aggregate's own persisted
-  // `legs` is non-null — legged→flat is deliberately not a supported transition via this
-  // endpoint (service.aggregate.ts's own comment). Once a service was loaded with legs, the flat
-  // option can never actually save, so it stays locked rather than producing a confusing 409
-  // (CodeRabbit finding).
-  const legsLockedOnServer = initialLegs !== null;
   const availableByType = (type: ResourceType) =>
     (resourcesData?.items ?? []).filter((resource) => resource.type === type);
 
