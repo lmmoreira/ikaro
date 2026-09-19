@@ -253,4 +253,51 @@ describe('ServiceResourceTypeFields', () => {
       expect.objectContaining({ requiredQuantity: 2, selectionMode: 'NONE' }),
     );
   });
+
+  it('shows an inline error under the quantity when it exceeds the eligible resources', () => {
+    renderWithIntl(
+      <ServiceResourceTypeFields
+        type="STAFF"
+        checked
+        requirement={{
+          type: 'STAFF',
+          selectionMode: 'AUTO_FUNGIBLE_POOL',
+          resourcePoolIds: ['staff-1'],
+          requiredQuantity: 2,
+        }}
+        availableResources={[STAFF_A, STAFF_B]}
+        radioGroupName="selmode-staff"
+        scope="flat"
+        onToggle={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-type-quantity-error')).toHaveTextContent(
+      'A quantidade necessária (2) é maior que o número de recursos elegíveis (1)',
+    );
+    expect(screen.getByTestId('resource-type-quantity')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('shows no quantity error when the eligible resources cover the quantity', () => {
+    renderWithIntl(
+      <ServiceResourceTypeFields
+        type="STAFF"
+        checked
+        requirement={{
+          type: 'STAFF',
+          selectionMode: 'AUTO_FUNGIBLE_POOL',
+          resourcePoolIds: null,
+          requiredQuantity: 2,
+        }}
+        availableResources={[STAFF_A, STAFF_B]}
+        radioGroupName="selmode-staff"
+        scope="flat"
+        onToggle={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
+  });
 });

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import type { ResourceRequirementItem, ResourceResponse, ResourceType } from '@ikaro/types';
+import { countQuantityCandidates } from './resource-requirement-quantity';
 
 // Shared by ServiceResourceRequirementsPanel (flat/bundle mode) and ServiceLegsPanel (per leg,
 // scoped by leg index) — one resource-type row: checkbox → quantity → eligible-pool chips → a
@@ -83,6 +84,10 @@ export function ServiceResourceTypeFields({
     (resource) => !eligible.some((item) => item.id === resource.id),
   );
   const selectionModeChoice = toSelectionModeChoice(requirement?.selectionMode);
+  const candidateCount = requirement
+    ? countQuantityCandidates(requirement, availableResources)
+    : availableResources.length;
+  const quantityExceedsCandidates = requiredQuantity > candidateCount;
 
   function updateRequirement(patch: Partial<ResourceRequirementItem>): void {
     onChange({
@@ -148,8 +153,23 @@ export function ServiceResourceTypeFields({
                     : { requiredQuantity: nextQuantity },
                 );
               }}
+              aria-invalid={quantityExceedsCandidates}
+              aria-describedby={quantityExceedsCandidates ? `${quantityId}-error` : undefined}
               className="w-24 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500"
             />
+            {quantityExceedsCandidates && (
+              <p
+                id={`${quantityId}-error`}
+                role="alert"
+                data-testid="resource-type-quantity-error"
+                className="mt-1 text-xs text-red-600"
+              >
+                {t('resourceQuantityExceedsCandidates', {
+                  quantity: requiredQuantity,
+                  count: candidateCount,
+                })}
+              </p>
+            )}
           </div>
 
           <div>

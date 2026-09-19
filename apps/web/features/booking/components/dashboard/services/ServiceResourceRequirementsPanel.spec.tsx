@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
+import type { ResourceResponse } from '@ikaro/types';
 import type { ServiceTabAction } from './service-tab-action';
 import { renderWithIntl } from '@/test-utils';
 import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
@@ -55,6 +56,27 @@ vi.mock('@/features/booking/services/useServices', () => ({
   useUpdateServiceLegs: () => ({ mutateAsync: legsMutateAsync, isPending: false }),
   useUpdateService: () => ({ mutateAsync: updateServiceMutateAsync, isPending: false }),
 }));
+
+function staff(id: string): ResourceResponse {
+  return {
+    id,
+    type: 'STAFF',
+    refId: null,
+    name: `Staff ${id}`,
+    workingHours: null,
+    turnoverMinutes: 0,
+    maxCapacity: null,
+    isActive: true,
+  };
+}
+
+function stubActiveStaff(...ids: string[]): void {
+  useResourcesMock.mockReturnValue({
+    data: { items: ids.map(staff) },
+    isLoading: false,
+    isError: false,
+  });
+}
 
 beforeEach(() => {
   resourceRequirementsMutateAsync.mockClear();
@@ -146,6 +168,7 @@ describe('ServiceResourceRequirementsPanel', () => {
 
   it('saving in flat mode calls updateServiceResourceRequirements and updateService for the buffer', async () => {
     const user = userEvent.setup();
+    stubActiveStaff('staff-1');
     const onDirtyChange = vi.fn();
     renderWithIntl(
       <ResourcePanelWithAction
@@ -230,6 +253,7 @@ describe('ServiceResourceRequirementsPanel', () => {
 
   it('sends bufferAfterMinutes: 0 (not skipping the PATCH) when the field is cleared', async () => {
     const user = userEvent.setup();
+    stubActiveStaff('staff-1');
     renderWithIntl(
       <ResourcePanelWithAction
         serviceId="svc-1"
@@ -379,5 +403,83 @@ describe('ServiceResourceRequirementsPanel', () => {
 
     expect(onDirtyChange).not.toHaveBeenLastCalledWith(false);
     expect(screen.queryByTestId('resource-requirements-saved')).not.toBeInTheDocument();
+  });
+
+  describe('requiredQuantity vs. eligible resources', () => {
+    function renderFlatStaff(resourcePoolIds: string[] | null, requiredQuantity: number) {
+      return renderWithIntl(
+        <ResourcePanelWithAction
+          serviceId="svc-1"
+          initialResourceRequirements={[
+            { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds, requiredQuantity },
+          ]}
+          initialLegs={null}
+          initialBufferAfterMinutes={null}
+          onDirtyChange={vi.fn()}
+        />,
+      );
+    }
+
+    it('disables save and shows the inline error when an explicit pool is smaller than the quantity', () => {
+      stubActiveStaff('staff-1', 'staff-2', 'staff-3');
+      renderFlatStaff(['staff-1'], 2);
+
+      expect(screen.getByTestId('resource-type-quantity-error')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    });
+
+    it('disables save when no pool is set and fewer active resources exist than the quantity', () => {
+      stubActiveStaff('staff-1');
+      renderFlatStaff(null, 2);
+
+      expect(screen.getByTestId('resource-type-quantity-error')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    });
+
+    it('keeps save enabled when the eligible resources cover the quantity', () => {
+      stubActiveStaff('staff-1', 'staff-2', 'staff-3');
+      renderFlatStaff(['staff-1', 'staff-2'], 2);
+
+      expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeEnabled();
+    });
+
+    it('disables save in legs mode when a leg requirement asks for more than its candidates', () => {
+      stubActiveStaff('staff-1');
+      renderWithIntl(
+        <ResourcePanelWithAction
+          serviceId="svc-1"
+          initialResourceRequirements={[]}
+          initialLegs={[
+            {
+              legIndex: 0,
+              name: 'Sauna',
+              durationMinutes: 30,
+              resourceRequirements: [
+                {
+                  type: 'STAFF',
+                  selectionMode: 'AUTO_ANY',
+                  resourcePoolIds: null,
+                  requiredQuantity: 2,
+                },
+              ],
+              transitionGapAfterMinutes: 0,
+            },
+            {
+              legIndex: 1,
+              name: 'Massagem',
+              durationMinutes: 30,
+              resourceRequirements: [],
+              transitionGapAfterMinutes: 0,
+            },
+          ]}
+          initialBufferAfterMinutes={null}
+          onDirtyChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('resource-type-quantity-error')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    });
   });
 });

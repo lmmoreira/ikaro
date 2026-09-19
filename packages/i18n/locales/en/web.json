@@ -1168,6 +1168,7 @@
       "resourceTypeRoom": "Room",
       "resourceTypeEquipment": "Equipment",
       "resourceQuantityLabel": "Quantity required",
+      "resourceQuantityExceedsCandidates": "The required quantity ({quantity}) is greater than the number of eligible resources ({count}). Lower the quantity or add more resources.",
       "resourceEligibleLabel": "Eligible ({count})",
       "resourceRemoveEligible": "Remove {name}",
       "resourceAddEligiblePlaceholder": "+ Add eligible…",

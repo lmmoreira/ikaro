@@ -72,10 +72,20 @@ function assertRequirementAvailable(
   if (!activeIds || activeIds.size === 0) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
-  for (const poolId of requirement.resourcePoolIds ?? []) {
+  const poolIds = requirement.resourcePoolIds ?? [];
+  for (const poolId of poolIds) {
     if (!activeIds.has(poolId)) {
       throw new ResourceRequirementInvalidError('pool-id-not-active');
     }
+  }
+  // requiredQuantity is how many DISTINCT candidates one booking needs simultaneously
+  // (docs/27-BUSINESS_LOGIC_REFERENCE.md), so a requirement asking for more than its candidate set
+  // can hold is unsatisfiable — availability would silently show no slots and every booking would
+  // fail at occupancy resolution. Candidates are the explicit pool when non-empty, otherwise every
+  // active resource of the type (an empty array means "unset", same as the resolution helpers).
+  const candidateCount = poolIds.length > 0 ? new Set(poolIds).size : activeIds.size;
+  if (requirement.requiredQuantity > candidateCount) {
+    throw new ResourceRequirementInvalidError('quantity-exceeds-candidates');
   }
 }
 

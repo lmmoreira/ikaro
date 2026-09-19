@@ -449,6 +449,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   - `200` on success
   - `422` if no active resource of a chosen type exists (UC-050 A1)
+  - `422` `BOOKING_SERVICE_RESOURCE_REQUIREMENT_INVALID` (field `requiredQuantity`) if a requirement's `requiredQuantity` exceeds its eligible resources — the explicit `resourcePoolIds`, or every active resource of the type when none is set (UC-050 A3); the same check applies to each leg's requirements on `PUT /services/:id/legs`
   - `409` if the service has `legs` set (UC-050 A2)
 
 - `PUT /services/:id/legs` -> Set/replace a service's sequential legs (UC-052). Clears `resourceRequirements`/`bufferAfterMinutes` on save. Body:

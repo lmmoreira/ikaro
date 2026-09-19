@@ -796,6 +796,7 @@ Returns:
 - **Alternative Flows:**
   - **A1: No active resources of the chosen type exist** → `422 Unprocessable` — blocks save until at least one exists.
   - **A2: Service has `legs` set** → `409 Conflict` — a service is either flat-with-requirements or legged, not both (UC-052).
+  - **A3: `requiredQuantity` exceeds the eligible resources** → `422 Unprocessable` (`BOOKING_SERVICE_RESOURCE_REQUIREMENT_INVALID`, field `requiredQuantity`) — the explicit eligible list (or, when none is set, every active resource of that type) must hold at least `requiredQuantity` resources, otherwise the requirement could never be satisfied and the service would silently show no availability. The Recursos tab blocks the save inline with the same rule; the same check applies to each leg's requirements (UC-052).
 - **Postconditions:** New bookings for this service are checked/locked against the configured resource(s).
 - **Events Triggered:** None.
 

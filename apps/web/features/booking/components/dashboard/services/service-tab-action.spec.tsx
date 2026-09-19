@@ -47,7 +47,7 @@ describe('useRegisterTabAction', () => {
     rerender({ onSubmit: second });
     registered.onSubmit();
 
-    expect(onActionChange.mock.calls.length).toBe(registrationsBefore);
+    expect(onActionChange.mock.calls).toHaveLength(registrationsBefore);
     expect(second).toHaveBeenCalledTimes(1);
     expect(first).not.toHaveBeenCalled();
   });

@@ -1168,6 +1168,7 @@
       "resourceTypeRoom": "Sala",
       "resourceTypeEquipment": "Equipamento",
       "resourceQuantityLabel": "Quantidade necessária",
+      "resourceQuantityExceedsCandidates": "A quantidade necessária ({quantity}) é maior que o número de recursos elegíveis ({count}). Reduza a quantidade ou inclua mais recursos.",
       "resourceEligibleLabel": "Elegíveis ({count})",
       "resourceRemoveEligible": "Remover {name}",
       "resourceAddEligiblePlaceholder": "+ Adicionar elegível…",

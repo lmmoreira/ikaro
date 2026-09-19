@@ -17,6 +17,7 @@ import {
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { isQuantityUnsatisfiable } from './resource-requirement-quantity';
 import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
 import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
 import { ServiceLegsPanel } from './ServiceLegsPanel';
@@ -186,17 +187,29 @@ export function ServiceResourceRequirementsPanel({
   // Mirrors ServiceLegsPanel's own inline min-2-legs hint — block the save itself, not just show
   // the hint, so a legs-mode save with 0/1 legs can't reach the backend's own 422 for this
   // (CodeRabbit finding).
+  const availableByType = (type: ResourceType) =>
+    (resourcesData?.items ?? []).filter((resource) => resource.type === type);
+  // A requirement asking for more distinct resources than it has candidates can never be booked —
+  // block the save (the backend 422s the same shape) instead of letting the manager discover it as
+  // an empty calendar. Covers flat requirements and every leg's own requirements.
+  const activeRequirements =
+    mode === 'legs' ? legs.flatMap((leg) => leg.resourceRequirements) : requirements;
+  const hasUnsatisfiableQuantity = activeRequirements.some((requirement) =>
+    isQuantityUnsatisfiable(requirement, availableByType(requirement.type)),
+  );
   const canSave =
-    !isSaving && !resourcesLoading && !resourcesLoadFailed && !(mode === 'legs' && legs.length < 2);
+    !isSaving &&
+    !resourcesLoading &&
+    !resourcesLoadFailed &&
+    !(mode === 'legs' && legs.length < 2) &&
+    !hasUnsatisfiableQuantity;
+
   useRegisterTabAction(onActionChange, {
     label: t('recursosSaveButton'),
     disabled: !canSave,
     pending: isSaving,
     onSubmit: handleSave,
   });
-
-  const availableByType = (type: ResourceType) =>
-    (resourcesData?.items ?? []).filter((resource) => resource.type === type);
 
   return (
     <div className="space-y-5">
