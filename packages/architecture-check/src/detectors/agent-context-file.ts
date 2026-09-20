@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Finding, ScanResult } from '../model';
 
@@ -187,6 +187,17 @@ function checkPointers(rootDir: string, content: string, policy: AgentContextPol
         file: policy.targetFile,
         line,
         message: `Pointer target does not exist: ${path}`,
+      });
+      continue;
+    }
+    // `existsSync` is also true for a directory — reading one with `readFileSync` throws `EISDIR`
+    // and would crash the whole CLI run instead of reporting a line-numbered finding.
+    if (!statSync(absolutePath).isFile()) {
+      findings.push({
+        rule: RULE,
+        file: policy.targetFile,
+        line,
+        message: `Pointer target is not a regular file: ${path}`,
       });
       continue;
     }

@@ -227,6 +227,21 @@ describe('checkAgentContextFile', () => {
     );
   });
 
+  it('flags a pointer that resolves to a directory instead of a regular file, without crashing', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- bad → `docs/subdir` § Anything\n',
+    });
+    mkdirSync(join(root, 'docs/subdir'), { recursive: true });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('not a regular file') }),
+      ]),
+    );
+  });
+
   it('flags a pointer path that escapes its own root via traversal', () => {
     root = buildRoot({
       '.copilot/context.md':
