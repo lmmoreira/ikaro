@@ -33,6 +33,13 @@
 # precedent, 2026-08-26: two Sonar issues from the first commit went
 # unflagged for 3 rounds this way).
 #
+# CI counts as finished only when the aggregate gate row ("All Checks Passed", override with
+# GATE_NAME) exists and is terminal — jobs gated by `needs:` (SonarCloud analysis, the gate
+# itself) are created lazily, so "nothing pending" alone can be true too early. If the PR's
+# workflow never produces that row, the check list is accepted once it has stopped changing for
+# STABLE_POLLS polls (default 6) and a warning is printed. POLL_INTERVAL (default 30s),
+# STABLE_POLLS and GATE_NAME can be overridden through the environment (used by the spec).
+#
 # Exit code reflects CI only (0 = all CI checks passed, 1 = at least one
 # failed) — Codex/CodeRabbit/Sonar findings are information for the caller to
 # triage, not a script failure. Polls every 30s with no total timeout
@@ -50,7 +57,16 @@ set -uo pipefail
 REPO="lmmoreira/ikaro"
 SONAR_PROJECT="lmmoreira_ikaro"
 SONAR_ORG="lmmoreira"
-POLL_INTERVAL=30
+POLL_INTERVAL="${POLL_INTERVAL:-30}"
+# Workflow jobs are created lazily: a job gated by `needs:` (the SonarCloud analysis, then the
+# final aggregate gate) has no row in `gh pr checks` at all until its predecessors finish, so
+# "no row is pending" can be true while jobs are still to come (M22-S04, PR #491, 2026-09-19:
+# 26 rows, none pending -> reported clean; the list later grew to 36 and SonarCloud Analysis
+# failed). CI is only done once the aggregate gate row exists and is terminal.
+GATE_NAME="${GATE_NAME:-All Checks Passed}"
+# Fallback for a PR whose workflow never produces the gate row: accept the check list as final
+# once it has stopped growing (and nothing is pending) for this many consecutive polls.
+STABLE_POLLS="${STABLE_POLLS:-6}"
 
 PR_NUMBER=""
 SINCE=""
@@ -130,10 +146,22 @@ correct_ci_output() {
   printf '%s' "$corrected"
 }
 
+PREV_CI_TOTAL=-1
+STABLE_COUNT=0
+
 while true; do
   CI_OUTPUT_RAW=$(gh pr checks "$PR_NUMBER" --repo "$REPO" 2>&1 || true)
   CI_OUTPUT=$(correct_ci_output "$CI_OUTPUT_RAW")
   CI_PENDING=$(printf '%s\n' "$CI_OUTPUT" | grep -c $'\tpending\t' || true)
+  CI_ROWS=$(printf '%s\n' "$CI_OUTPUT" | grep -c . || true)
+  if [ "$CI_PENDING" -eq 0 ] && [ "$CI_ROWS" -eq "$PREV_CI_TOTAL" ]; then
+    STABLE_COUNT=$((STABLE_COUNT + 1))
+  else
+    STABLE_COUNT=0
+  fi
+  PREV_CI_TOTAL="$CI_ROWS"
+  GATE_TERMINAL=0
+  printf '%s\n' "$CI_OUTPUT" | awk -F'\t' -v gate="$GATE_NAME" '$1==gate && $2!="pending"{found=1} END{exit !found}' && GATE_TERMINAL=1
 
   CODEX_URL=""
   CODERABBIT_URL=""
@@ -218,12 +246,20 @@ while true; do
 
   ALL_DONE=1
   [ "$CI_PENDING" -eq 0 ] || ALL_DONE=0
+  # No pending row is not enough — wait for the aggregate gate (or a stable check list).
+  if [ "$CI_PENDING" -eq 0 ] && [ "$GATE_TERMINAL" -eq 0 ] && [ "$STABLE_COUNT" -lt "$STABLE_POLLS" ]; then
+    ALL_DONE=0
+  fi
   [ "$WAIT_CODEX" -eq 0 ] || [ -n "$CODEX_URL" ] || ALL_DONE=0
   [ "$WAIT_CODERABBIT" -eq 0 ] || [ -n "$CODERABBIT_URL" ] || [ -n "$CODERABBIT_STATUS_DESC" ] || ALL_DONE=0
 
   [ "$ALL_DONE" -eq 1 ] && break
   sleep "$POLL_INTERVAL"
 done
+
+if [ "$GATE_TERMINAL" -eq 0 ]; then
+  echo "⚠️  No '${GATE_NAME}' row appeared; treated the check list as final after ${STABLE_POLLS} unchanged polls — re-run this script once more before trusting it." >&2
+fi
 
 CI_PASSED=$(printf '%s\n' "$CI_OUTPUT" | grep -c $'\tpass\t' || true)
 CI_FAILED=$(printf '%s\n' "$CI_OUTPUT" | grep -c $'\tfail\t' || true)

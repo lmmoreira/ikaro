@@ -384,13 +384,18 @@ Rebuild `apps/web/features/booking/components/dashboard/services/ServiceEditPage
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-057, `docs/14-API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource`, `booking_line_resource_assignments`)
 **Dependencies:** M22-S03 (`booking_line_resource_assignments` — the day grid needs to know which resource each existing booking is assigned to; without S03's backfill, no pre-existing booking has a resource assignment to display)
-**Pattern:** plain composition — a new read-only query use case, following the shape of the existing `get-availability-summary.use-case.ts`; no new pattern.
+**Pattern:** plain composition — a new read-only query use case, following the shape of the existing `get-availability-summary.use-case.ts`; no new pattern. Data source resolved during story-discovery (2026-09-20): extend the existing cross-context `IBookingAvailabilityPort`/`TypeOrmBookingAvailabilityAdapter` (`infrastructure/cross-context/typeorm-booking-availability.adapter.ts`) with a new method, rather than inventing a new `IBookingLineResourceAssignmentRepository` port or joining `bookings`/`booking_lines` directly — see rationale below.
 
 **Description:**
-Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (any type), return a column with `{ resourceId, name, type, blocks: [{ startsAt, endsAt, kind: 'BOOKING'|'CLASS_SESSION', refId }] }`. In this milestone, `kind` is always `'BOOKING'` — `'CLASS_SESSION'` becomes reachable once M24 ships `class_sessions`, but the response shape includes it now so M24 doesn't need a breaking contract change later. Query `booking_line_resource_assignments` joined to `bookings`/`booking_lines` for the requested date, grouped by `resource_id`.
+Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (any type), return a column with `{ resourceId, name, type, blocks: [{ startsAt, endsAt, kind: 'BOOKING'|'CLASS_SESSION', refId }] }`. In this milestone, `kind` is always `'BOOKING'` — `'CLASS_SESSION'` becomes reachable once M24 ships `class_sessions`, but the response shape includes it now so M24 doesn't need a breaking contract change later.
+
+**Data source (corrected during story-discovery — do not query `bookings`/`booking_lines` directly):** `booking.resource_occupancy` (built by M22-S03) is the correct source — it already stores the per-resource-assignment window (critical once legged services exist, M23+, since a booking's whole `scheduledAt`/`scheduledEndAt` differs from each leg's own resource window; `bookings`/`booking_lines` would give the wrong window for a legged booking). It's also already the exact table `docs/13-DATABASE_SCHEMA.md`'s own `EXCLUDE USING gist` note ties `REQUESTED`-state rows to ("they exist for M22-S05's day-grid dependency, not for exclusivity") — confirmed by grep that no other code path reads `REQUESTED` rows today.
+
+- Add a new method to `IBookingAvailabilityPort`/`TypeOrmBookingAvailabilityAdapter` (do not modify `findOccupancyByTenantAndResource` — it's used elsewhere for availability computation and deliberately excludes `REQUESTED`). The new method queries `resource_occupancy` for the tenant + given `resourceIds` + date, with **`lock_state IN ('REQUESTED', 'HOLD', 'COMMITTED')`** (all three — pending car-wash-style requests and manual-approval holds show on the manager's grid indistinguishably from confirmed bookings; no separate pending/confirmed styling, matching the prototype).
+- For each matched row, resolve `refId`: when `source_type = 'BOOKING_LINE'`, join `booking_line_resource_assignment_id` → `booking_line_resource_assignments.id` → `booking_line_id` → `booking_lines.booking_id` (two hops) to get the booking id the frontend drills into; when `source_type = 'CLASS_SESSION'` (inert until M24), `refId = class_session_id` directly (no join needed). Map `source_type` → `kind` 1:1 (`'BOOKING_LINE'` → `'BOOKING'`, `'CLASS_SESSION'` → `'CLASS_SESSION'`).
 
 **Backend use case steps:**
-1. **`GetScheduleDayGridUseCase`** (UC-057): `findActiveResources(tenantId)` (M21-S01's `IResourceRepository`), then for each, query assigned bookings for the date via a new repository method on `IBookingLineResourceAssignmentRepository` (or extend the existing booking repository — verify the least-duplicative option at implementation time), assemble the grid response.
+1. **`GetScheduleDayGridUseCase`** (UC-057): `findActiveResources(tenantId)` (M21-S01's `IResourceRepository`, no `type` filter — every active resource of any type), then call the new `IBookingAvailabilityPort` method with the full resource-id list + requested date + tenant's `businessHours.timezone` (same `localDateRangeBoundsUTC(date, date, timezone)` pattern `TypeOrmBookingAvailabilityAdapter` already uses), group returned blocks by `resourceId`, assemble the grid response (empty `blocks: []` for an unoccupied resource).
 
 **Backend HTTP surface:** new controller action `GET /schedule/day-grid` — `MANAGER`-only (`@Roles('MANAGER')`), matching UC-057's explicit manager-only restriction (same tier as Resource Management, distinct from the `STAFF|MANAGER` Service management surface). Convention confirmed during `/docs-audit`: `schedule-availability.controller.ts` and `schedule-availability-summary.controller.ts` are separate one-action-per-file controllers with no generic aggregator — create a new `schedule-day-grid.controller.ts` alongside them, don't extend either.
 
@@ -399,11 +404,14 @@ Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (
 **New migration / i18n keys / env vars / feature flags:** none — read-only, no schema change.
 
 **Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/ports/booking-availability.port.ts` (modify — add the new day-grid method to `IBookingAvailabilityPort`; extend `ResourceOccupiedSlot`-adjacent return shape or add a new sibling interface, e.g. `DayGridOccupancyBlock { resourceId, startsAt, endsAt, sourceType, refId }` — verify least-duplicative shape at implementation time)
+- `apps/backend/src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts` (+ `.spec.ts`) (modify — implement the new method per the Data source section above)
 - `apps/backend/src/contexts/booking/application/use-cases/get-schedule-day-grid.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/dtos/get-schedule-day-grid.dto.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/schedule-day-grid.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new — matches the confirmed one-action-per-file convention, no generic schedule aggregator controller exists on the backend)
 - `apps/bff/src/features/booking/schedule-day-grid.controller.ts` (+ `.spec.ts`, `.component.spec.ts`) (new — registered in `schedule.module.ts`; `schedule.controller.ts` is `@Controller('schedule/closures')` specifically and is not extended)
 - `apps/bff/src/features/booking/schedule-day-grid.schemas.ts` (new)
+- `apps/bff/src/features/booking/schedule.types.ts` (modify — add `DayGridResponse`, sibling to the existing `AvailabilitySummaryResponse` in this same file; never inline the response interface in the controller, per the BFF anti-pattern rule)
 - `apps/bff/http/schedule/schedule-day-grid.http` (new — real BFF `.http` convention confirmed during `/docs-audit`, no `apps/bff/http/booking/` directory exists)
 - `apps/backend/http/booking/schedule-day-grid.http` (new)
 
@@ -415,8 +423,10 @@ Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `GetScheduleDayGridUseCase` assembles one column per active resource, empty `blocks` for an unoccupied resource
+  - [ ] `TypeOrmBookingAvailabilityAdapter`'s new method includes `REQUESTED`, `HOLD`, and `COMMITTED` rows and excludes rows outside the requested date's window
 - Integration:
-  - [ ] `GET /schedule/day-grid?date=` returns real booking blocks for resources with assigned bookings on that date
+  - [ ] `GET /schedule/day-grid?date=` returns real booking blocks for resources with assigned bookings on that date, including a `REQUESTED`-state (degenerate/PENDING) booking's block
+  - [ ] `refId` on a `BOOKING`-kind block resolves to the booking id (not the booking line id)
 - Tenant isolation:
   - [ ] Day grid for tenant A never includes tenant B's resources or bookings
 - E2E: none — covered by unit/integration; the frontend E2E lands with S06
