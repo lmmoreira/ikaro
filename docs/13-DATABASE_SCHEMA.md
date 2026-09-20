@@ -626,7 +626,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | **CHECK** | `lock_state IN ('REQUESTED','HOLD','COMMITTED')` | |
 | **CHECK** | `(lock_state = 'HOLD' AND hold_expires_at IS NOT NULL) OR (lock_state IN ('COMMITTED','REQUESTED') AND hold_expires_at IS NULL)` | Prevents a permanent hold or an expiring committed/requested allocation |
 | **CHECK** | `ends_at > starts_at` | |
-| **EXCLUDE USING gist** | (tenant_id WITH =, resource_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (lock_state IN ('HOLD','COMMITTED')) | The exclusivity guarantee itself — the one shared constraint every family's write path inserts into. `REQUESTED` rows are deliberately outside this WHERE clause — they exist for M22-S04's day-grid dependency, not for exclusivity |
+| **EXCLUDE USING gist** | (tenant_id WITH =, resource_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (lock_state IN ('HOLD','COMMITTED')) | The exclusivity guarantee itself — the one shared constraint every family's write path inserts into. `REQUESTED` rows are deliberately outside this WHERE clause — they exist for M22-S05's day-grid dependency, not for exclusivity (the day-grid's own query includes `REQUESTED` alongside `HOLD`/`COMMITTED`, unlike `findOccupancyByTenantAndResource`, which excludes it) |
 | **INDEX** | (tenant_id, resource_id, starts_at) | |
 | **INDEX** | (ends_at) | Standalone, TD40 Story 2 — supports `ResourceOccupancyRetentionPurgeJob`'s cross-tenant `WHERE ends_at < cutoff` sweep, which drops the `tenant_id` predicate and can't seek the composite index above (`docs/ENGINEERING_RULES.md` § Standalone index for a cross-tenant system job) |
 
