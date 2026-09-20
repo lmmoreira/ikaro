@@ -51,7 +51,7 @@ graph TD
   S3 -.->|if go| S4[Story 4]
 ```
 
-### Story 0 — Agent-context guard: detector, ratchet policy, trap scenarios 🟡
+### Story 0 — Agent-context guard: detector, ratchet policy, trap scenarios 🟡 ✅ Done
 
 **Agent:** `devops` + `backend-ts`
 **Complexity:** M
