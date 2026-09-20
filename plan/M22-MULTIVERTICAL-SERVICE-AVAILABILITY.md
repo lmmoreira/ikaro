@@ -291,7 +291,7 @@ Create `booking.booking_line_resource_assignments` (the immutable audit record f
 
 ---
 
-### M22-S04 — Manager "Serviços" resource-config extension frontend
+### M22-S04 — Manager "Serviços" resource-config extension frontend ✅ Done
 
 **Agent:** `frontend-ts` + `backend-ts` + `bff-ts`
 **Complexity:** M
