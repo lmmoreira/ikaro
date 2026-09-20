@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "targetFile": ".copilot/context.md",
+  "symlinks": [
+    { "path": "CLAUDE.md", "expectedTarget": ".copilot/context.md" },
+    { "path": "AGENTS.md", "expectedTarget": ".copilot/context.md" },
+    { "path": "gemini.md", "expectedTarget": ".copilot/context.md" }
+  ],
+  "requiredAnchors": [
+    "Story / TD gate",
+    "Doc/config gate",
+    "Autonomous implementation chain",
+    "Pre-push validation",
+    "Workspace ownership gate",
+    "Local verification gate",
+    "PR GATE",
+    "Stuck conditions",
+    "Every table has `tenant_id UUID NOT NULL`",
+    "Every query filters `WHERE tenant_id = :tenantId`",
+    "Every domain event includes `tenantId`, `eventId` (idempotency key)",
+    "Composite FKs use `(tenant_id, id)`",
+    "Customers are multi-tenant",
+    "Staff can be multi-tenant",
+    "File paths prefixed by tenant",
+    "Logs, metrics, traces include `tenant_id`",
+    "Event consumers are idempotent",
+    "JWT contains `tenantId`/`tenantSlug`",
+    "JWT `sub` is always the **backend entity UUID**"
+  ],
+  "forbiddenPatterns": ["PR #\\d+", "\\b(19|20)\\d{2}-\\d{2}-\\d{2}\\b"],
+  "forbiddenPatternAllowlist": [
+    {
+      "text": "2026-07-23",
+      "rationale": "TD31 decision-precedent citations in §11 (repository-layout ownership call)",
+      "owner": "TD31",
+      "reviewBy": "2027-03-20"
+    },
+    {
+      "text": "2026-08-04",
+      "rationale": "docs-audit finding citation for the undocumented POST /v1/loyalty/redeem UC gap in §6",
+      "owner": "docs-audit",
+      "reviewBy": "2027-03-20"
+    },
+    {
+      "text": "2026-08-06",
+      "rationale": "Cloud Run CPU-throttling root-cause investigation date cited in the OTel trace-loss invariant (§7)",
+      "owner": "observability",
+      "reviewBy": "2027-03-20"
+    },
+    {
+      "text": "2026-08-12",
+      "rationale": "OTel metric-reader re-enable date cited in the same Cloud Run trace-loss invariant (§7)",
+      "owner": "observability",
+      "reviewBy": "2027-03-20"
+    },
+    {
+      "text": "2026-09-14",
+      "rationale": "Snyk SCA per-PR-gate removal date, and the same-day §8 anti-patterns table trim (20 -> 11 rows)",
+      "owner": "ci-governance",
+      "reviewBy": "2027-03-20"
+    }
+  ],
+  "budgets": {
+    "file": { "maxLines": 514, "maxChars": 63858 },
+    "sections": {
+      "0": { "maxLines": 16, "maxChars": 3535 },
+      "1": { "maxLines": 21, "maxChars": 1762 },
+      "2": { "maxLines": 20, "maxChars": 1487 },
+      "3": { "maxLines": 17, "maxChars": 872 },
+      "4": { "maxLines": 18, "maxChars": 306 },
+      "5": { "maxLines": 13, "maxChars": 663 },
+      "6": { "maxLines": 11, "maxChars": 921 },
+      "7": { "maxLines": 126, "maxChars": 29271 },
+      "8": { "maxLines": 20, "maxChars": 3195 },
+      "9": { "maxLines": 100, "maxChars": 10727 },
+      "10": { "maxLines": 48, "maxChars": 5011 },
+      "11": { "maxLines": 23, "maxChars": 2242 },
+      "12": { "maxLines": 6, "maxChars": 167 },
+      "13": { "maxLines": 10, "maxChars": 676 },
+      "14": { "maxLines": 6, "maxChars": 75 },
+      "15": { "maxLines": 11, "maxChars": 863 },
+      "16": { "maxLines": 6, "maxChars": 181 },
+      "17": { "maxLines": 31, "maxChars": 1440 }
+    }
+  }
+}

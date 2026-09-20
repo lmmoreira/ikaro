@@ -200,21 +200,7 @@ When two independent writers share one row and each must touch only its own colu
 
 - **`useDefineForClassFields` (on by default under this repo's `target`) makes a declared-but-unassigned class field a real own-property.** `'lastSuccessAt' in entity` returns `true` even when the field was never assigned — the class field declaration itself creates the property, just with value `undefined`. When a test asserts that a partial upsert correctly *excluded* a column, assert on the **value** (`expect(entity.lastSuccessAt).toBeUndefined()`), never on property presence via `in`.
 
-**There is no `InsertQueryBuilder.onConflict()` method.** A raw `ON CONFLICT (...) DO UPDATE SET ...` string is not part of the public API — code (or a bot-suggested fix) that calls `.onConflict(...)` fails at compile time. For a conditional upsert (only overwrite when the incoming value is actually newer, or the column was never set), use the real method:
-
-```ts
-await manager
-  .createQueryBuilder()
-  .insert()
-  .into(Entity)
-  .values({ provider, lastSuccessAt: occurredAt })
-  .orUpdate(['last_success_at'], ['provider'], {
-    overwriteCondition: {
-      where: 'entity_table.last_success_at IS NULL OR entity_table.last_success_at < EXCLUDED.last_success_at',
-    },
-  })
-  .execute();
-```
+**There is no `InsertQueryBuilder.onConflict()` method** — the real conditional-upsert method (`.orUpdate()`), with a worked example, now lives in `docs/ANTI_PATTERNS.md`'s "`InsertQueryBuilder.onConflict()` doesn't exist" row (relocated 2026-09-20, TD41 — `/pre-pr`'s bad-smell-audit loads that doc automatically, this one it doesn't).
 
 **`orUpdate()`'s `overwrite`/`conflictTarget` arrays take real DB column names (snake_case, matching `@Column({ name: ... })`), not entity property names.** Unlike `.values()`, which translates entity properties to columns via metadata, `orUpdate()` passes each array entry straight through `this.escape(column)` with no translation — confirmed by reading `EntityManager.upsert()`'s own implementation, which explicitly maps `conflictPaths`/columns to `col.databaseName` *before* calling `orUpdate()`. Passing a property name here (e.g. `lastSuccessAt` instead of `last_success_at`) silently generates SQL referencing a column that doesn't exist under that name — verify the exact SQL a new `orUpdate()` call produces against a real database (integration test), not just that it type-checks. (M19-S06 precedent, 2026-08-13: `TypeOrmChatbotProviderBalanceRepository.recordCallOutcome()` needed exactly this — two concurrent calls could write out of chronological order, and a plain `EXCLUDED`-based overwrite would let the older one clobber a newer timestamp.)
 
@@ -238,31 +224,13 @@ Migrations that grant privileges to infrastructure-created database roles must e
 
 ## Adding a CHECK constraint to an existing table with live rows
 
-A plain `ALTER TABLE ... ADD CONSTRAINT ... CHECK (...)` on a table that already has (or could already have, in staging/prod) real rows takes `ACCESS EXCLUSIVE` for the entire statement, including the full-table scan Postgres runs to validate every existing row against the new constraint — blocking all reads and writes on that table for the scan's duration, not just the instant catalog change a `CHECK` on a brand-new table would need.
-
-Split it into two statements instead:
-
-```sql
-ALTER TABLE "schema"."table"
-  ADD CONSTRAINT "CHK_name" CHECK (...) NOT VALID;
-
-ALTER TABLE "schema"."table"
-  VALIDATE CONSTRAINT "CHK_name";
-```
-
-`NOT VALID` takes `ACCESS EXCLUSIVE` only for the instant catalog write (no scan), and immediately starts enforcing the constraint for every new/updated row. The follow-up `VALIDATE CONSTRAINT` does the historical-row scan under the much weaker `SHARE UPDATE EXCLUSIVE`, which still allows concurrent reads and writes. Both statements belong in the same migration file — this is a two-statement SQL technique, not a multi-migration expand/contract sequence.
-
-This applies even when the constraint's own columns are brand-new (added in the same migration) — if the table itself isn't new, the lock still touches every existing row via the same statement's implicit table-level lock, regardless of whether the referenced columns have any pre-existing non-null data to violate.
-
-**M22-S02 precedent (PR #481 round 3, 2026-09-15):** a migration added `CHK_booking_bookings_intake_schema_pair` directly to the existing `bookings` table in the same `ALTER TABLE` that added the two nullable columns the constraint checks — flagged by Codex as an unnecessary `ACCESS EXCLUSIVE` risk on a table that (unlike this migration's other, wholly new tables) already carries production rows. Fixed by splitting into `NOT VALID` + `VALIDATE CONSTRAINT`. No prior migration in this codebase used this pattern before — check this entry, not `grep`, until a second example exists.
+Relocated to `docs/ANTI_PATTERNS.md`'s "Adding a CHECK constraint to an existing table with live rows" row (2026-09-20, TD41) — the `NOT VALID` + `VALIDATE CONSTRAINT` split, the M22-S02 precedent, and the worked SQL example now live there, in the doc `/pre-pr`'s bad-smell-audit actually loads.
 
 ---
 
 ## LIKE/ILIKE pattern escaping for user-supplied search terms
 
-Any user-supplied search term wrapped in a `%...%` LIKE/ILIKE pattern must be escaped first — a caller-controlled `%` or `_` is itself a LIKE wildcard, not literal text, and can defeat a length-based guard that assumes the term is real search content. A minimum-length gate meant to guarantee a `pg_trgm` index has an extractable trigram (e.g. "reject search terms under 3 characters") does not protect against a wildcard-only term like `%%%` — 3 characters, passes the gate, matches every row with zero real selectivity, silently degrading the query to a full scan the index exists specifically to avoid.
-
-Use `escapeLikePattern()` (`apps/backend/src/shared/utils/escape-like-pattern.ts` — backslash-escapes `\`, `%`, `_`) on the raw term *before* wrapping it in `%...%`, not after (M20-S12 precedent, PR #434 round 3, 2026-08-27 — Codex review finding: `search`/`filters[].value` on the `lead_form_answers` trigram-search feature had no escaping, letting `%%%` bypass the 3-char guard entirely).
+Relocated to `docs/ANTI_PATTERNS.md`'s "LIKE/ILIKE pattern escaping for user-supplied search terms" row (2026-09-20, TD41) — `escapeLikePattern()`'s usage and the M20-S12 precedent now live there.
 
 ---
 
@@ -291,7 +259,7 @@ await drainDomainEvents(aggregate, this.outboxPublisher);
 
 **Hard invariant (TD24-S03):** `TypeOrmOutboxRepository.insert()` throws `OutboxPublishedOutsideTransactionError` when called with no ambient transaction (`getActiveEntityManager()` returns `undefined`) — there is no standalone-commit fallback anymore. Every call to `OutboxPublisher.publish()`, anywhere, must run inside `txManager.run()`. A repository that opens its own transaction internally (the "no ambient tx from the caller" branch some repos have, e.g. `TypeOrmBookingRepository.save()`) must register that transaction with the ambient-context system itself (`runWithTransactionContext`/`createTransactionContext` + `flushAfterCommitCallbacks`, mirroring what `TypeOrmTransactionManager.run()` does) — otherwise `drainDomainEvents`'s outbox write inside it has no active manager to join and throws.
 
-**A domain event drained into the outbox with zero real `eventBus.subscribe()`/`triggerBus.registerTrigger()` consumers gets no Pub/Sub topic from the auto-generated catalog.** `infra/terraform/pubsub-catalog.json` is generated by `packages/infra-scripts/src/pubsub-catalog.ts`, which discovers a topic *only* from a real subscribe/register call site — it has no way to see an event that's merely constructed and published. The aggregate still publishes it correctly (per the invariant above), so every sweep tick fails permanently once deployed to an environment where the topic doesn't exist, with no automatic recovery — the row just gets released and retried forever. Every event a repository drains into the outbox needs at least one real subscriber before it ships to any environment; a logger-only handler (mirroring any existing thin event handler) is sufficient if there's no real business consumer yet. (M20-S16 precedent, 2026-09-01: `LeadFormSubmissionReceived` shipped with the documented "no consumers yet (MVP)" design a chapter above, correct on its own terms — but the missing topic this produced went unnoticed for ~4 days on `ikaro-staging`, surfacing only as the `Ikaro staging — outbox backlog age` alert on 4 permanently-stuck rows — full incident: `plan/M20-LEAD-FORM-MODULE.md` § M20-S16.)
+**A domain event drained into the outbox needs at least one real consumer before it ships to any environment** — the Pub/Sub-topic auto-discovery mechanism, why a topicless event fails permanently and silently, and the M20-S16 incident now live in `docs/ANTI_PATTERNS.md`'s "outbox event with no real consumer" row (relocated 2026-09-20, TD41).
 
 **Adding a cron-published event:**
 1. The event class extends `Command` (`shared/domain/command.ts`), not `DomainEvent` — a cron tick can legitimately construct the same business fact twice (retry, overlapping invocation), and `Command`'s required `dedupKey: string` is what the outbox's `UNIQUE(dedup_key)` collapses those duplicates down to one row on. Compute a deterministic key from business identity + a calendar date (tenant-local or UTC, whichever the job already computes for its own query window) — never a fresh UUID.
@@ -755,15 +723,7 @@ Any integration test harness that needs `CacheModule` wiring must import `apps/b
 
 ### NestJS module provider pattern (useClass not useExisting)
 
-```ts
-// ❌ WRONG — adapter instantiated even when STORAGE_SERVICE is overridden in tests
-providers: [GcsSignedUrlAdapter, { provide: STORAGE_SERVICE, useExisting: GcsSignedUrlAdapter }]
-
-// ✅ CORRECT — overriding STORAGE_SERVICE fully prevents instantiation
-providers: [{ provide: STORAGE_SERVICE, useClass: GcsSignedUrlAdapter }]
-```
-
-**Why:** `useExisting` creates an alias but registers the class as a standalone provider too. Test `overrideProvider()` removes the alias; the standalone class is still instantiated — and any `onApplicationBootstrap` network calls run, causing `ECONNREFUSED`.
+Full explanation and the worked before/after example now live in `docs/ANTI_PATTERNS.md` row 68 (relocated 2026-09-20, TD41 — this rule was independently, fully explained in both that row and here, with no pointer between them; collapsed to one canonical copy).
 
 ### Notification spec setup
 
@@ -856,24 +816,7 @@ const timezone = isValidTimezone(manifest.localization.timezone)
 
 ## Cloudflare Turnstile's test sitekey never renders an interactive iframe
 
-**Cloudflare's "always passes visible" test sitekey (`1x00000000000000000000AA` — the only sitekey this repo ever configures) auto-verifies without rendering an interactive challenge iframe at all.** The real widget script runs against it and calls `turnstile.render()` normally, but instead of loading a visible `<iframe src="https://challenges.cloudflare.com/...">`, it writes a dummy token straight into its own hidden `<input type="hidden" name="cf-turnstile-response">` the moment `render()` resolves. An E2E assertion built around `page.frameLocator('iframe[src*="challenges.cloudflare.com"]')` will time out waiting for an element the test key was never going to produce — no matter how correct the surrounding app code is.
-
-**Confirmed empirically (M20-S09 PR #433, 2026-08-26):** the same "guest completes Turnstile" E2E assertion failed identically across three consecutive review rounds. The first two fix attempts were both real, correct, necessary bugs — a `TurnstileWidget` lifecycle bug that recreated the real widget on every parent re-render, and a completely missing CSP allowance for `challenges.cloudflare.com` that would have broken the feature in production for every real visitor — but neither one was ever going to make an iframe appear, because the test key doesn't produce one. The actual root cause was only found by instrumenting the live test with `page.evaluate()` to dump the widget's real DOM and `window.turnstile`'s state, which showed a fully-rendered, fully-verified widget with zero `<iframe>` elements anywhere in the tree.
-
-**Fix:** wait on the hidden input Cloudflare's own client exposes for this exact non-JS-fallback purpose, not on iframe rendering:
-
-```ts
-// BAD — the test sitekey never renders this
-const turnstileFrame = page.frameLocator('iframe[src*="challenges.cloudflare.com"]');
-await expect(turnstileFrame.locator('body')).toBeVisible({ timeout: 15_000 });
-
-// GOOD — this is what the test sitekey actually produces
-await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, {
-  timeout: 15_000,
-});
-```
-
-If a future story adds a *second*, differently-configured Turnstile widget (a real production sitekey exercised against a different environment), re-verify this assumption for that specific sitekey before reusing the hidden-input wait — this behavior is a documented property of the test key, not necessarily every key.
+Relocated to `docs/CI_TRAPS.md`'s "Cloudflare Turnstile's test sitekey never renders an interactive iframe" entry (2026-09-20, TD41) — this is a test-execution nuance, not a code anti-pattern, so it lives with the other CI/E2E traps `/pre-pr` and `/story-discovery` sessions actually consult; the M20-S09 precedent and the wait-on-hidden-input fix are there.
 
 ---
 
