@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Finding, ScanResult } from '../model';
 
@@ -37,6 +37,10 @@ const RULE = 'agent-context-file';
 // the closing backtick on the same line — the latter is inspected separately for an optional
 // "§ <heading>" citation. Every real pointer in context.md follows this shape (verified 2026-09-20).
 const POINTER_REGEX = /→\s*`((?:docs|infra)\/[^`]+)`([^\n]*)/g;
+// Matches a pointer path opened with a backtick that never closes before end-of-line — the
+// `[^`\n]*` + `$` combination can only match when no closing backtick exists on the rest of the
+// line, so this never fires on a well-formed pointer (POINTER_REGEX already matches those).
+const MALFORMED_POINTER_REGEX = /→\s*`((?:docs|infra)\/[^`\n]*)$/gm;
 const SECTION_CITATION_REGEX = /^\s*§\s*(.+)$/;
 
 // Strips a single trailing italicized annotation (e.g. " *(actively maintained)*") and a single
@@ -96,11 +100,20 @@ function occursAtWordBoundary(haystack: string, needle: string): boolean {
 }
 
 // A real citation may be a shortened prefix of the full anchor text (docs/ENGINEERING_RULES.md-
-// style), or a short invented shorthand label embedded inside a longer bullet/heading (e.g.
+// style) — checked with a word-boundary match, so an unrelated real heading that merely starts
+// with the same characters can't false-match, but a citation typo'd with a trailing suffix (e.g.
+// "§ Transactions typo" against a real "## Transactions" heading) can't false-match either, since
+// the short string here is always the *citation*, never the real anchor.
+//
+// The reverse direction — a short invented shorthand label embedded inside a longer bullet (e.g.
 // "Gotchas (traffic-pin precedent)" citing a label that appears mid-sentence, not at the anchor's
-// own start) — both are legitimate, pre-existing conventions in this codebase (verified 2026-09-20
-// against real content in docs/CODE_STANDARDS.md and infra/terraform/README.md), matched with a
-// word-boundary check in either direction, not a bare substring check.
+// own start; verified 2026-09-20 against real content in infra/terraform/README.md) — is
+// deliberately narrower than a general reverse word-boundary check: it only accepts the anchor
+// text wrapped in literal parentheses in the citation, `(<anchor>)`, not the anchor appearing
+// anywhere at a boundary. A general reverse check would also accept a real, correct anchor
+// ("Transactions") as a false match against a *wrong*, typo'd citation ("Transactions typo") —
+// the parens requirement is what a genuine shorthand-label citation actually looks like in this
+// codebase, and a typo'd citation doesn't happen to look like that by accident.
 function citationResolves(targetContent: string, citation: string): boolean {
   const normalizedCitation = normalizeHeadingText(citation);
   if (!normalizedCitation) return false;
@@ -108,15 +121,18 @@ function citationResolves(targetContent: string, citation: string): boolean {
     const normalized = normalizeHeadingText(raw);
     return (
       occursAtWordBoundary(normalized, normalizedCitation) ||
-      occursAtWordBoundary(normalizedCitation, normalized)
+      normalizedCitation.includes(`(${normalized})`)
     );
   });
 }
 
 function checkRequiredAnchors(content: string, policy: AgentContextPolicy): Finding[] {
   const findings: Finding[] = [];
+  const normalizedContent = normalizeHeadingText(content);
   for (const anchor of policy.requiredAnchors) {
-    if (!content.includes(anchor)) {
+    // Word-boundary match, not raw `.includes()` — a plain substring check would let "PR GATE"
+    // survive being reworded to "PR GATEWAY".
+    if (!occursAtWordBoundary(normalizedContent, normalizeHeadingText(anchor))) {
       findings.push({
         rule: RULE,
         file: policy.targetFile,
@@ -130,6 +146,21 @@ function checkRequiredAnchors(content: string, policy: AgentContextPolicy): Find
 
 function lineNumberAt(content: string, index: number): number {
   return content.slice(0, index).split('\n').length;
+}
+
+function checkMalformedPointers(content: string, policy: AgentContextPolicy): Finding[] {
+  const findings: Finding[] = [];
+  let match;
+  MALFORMED_POINTER_REGEX.lastIndex = 0;
+  while ((match = MALFORMED_POINTER_REGEX.exec(content))) {
+    findings.push({
+      rule: RULE,
+      file: policy.targetFile,
+      line: lineNumberAt(content, match.index),
+      message: `Pointer has an opening backtick with no closing backtick: "${match[1]}" — the path is unterminated, not just unresolvable.`,
+    });
+  }
+  return findings;
 }
 
 function checkPointers(rootDir: string, content: string, policy: AgentContextPolicy): Finding[] {
@@ -156,6 +187,21 @@ function checkPointers(rootDir: string, content: string, policy: AgentContextPol
         file: policy.targetFile,
         line,
         message: `Pointer target does not exist: ${path}`,
+      });
+      continue;
+    }
+    // The lexical containment check above only rejects `../`-style traversal in the *written*
+    // path — a symlink living inside docs/ or infra/ that itself resolves outside that root would
+    // still pass it, since `existsSync`/`readFileSync` follow symlinks transparently. Compare real,
+    // symlink-resolved paths too.
+    const realAllowedRoot = realpathSync(allowedRoot);
+    const realTargetPath = realpathSync(absolutePath);
+    if (realTargetPath !== realAllowedRoot && !realTargetPath.startsWith(`${realAllowedRoot}/`)) {
+      findings.push({
+        rule: RULE,
+        file: policy.targetFile,
+        line,
+        message: `Pointer target resolves outside its own root via a symlink: ${path}`,
       });
       continue;
     }
@@ -303,6 +349,32 @@ function checkSymlinks(rootDir: string, policy: AgentContextPolicy): Finding[] {
 // `ScanResult` contract every sibling returns, and is wired into `cli.ts`'s `results` array the
 // same way, so `scannedTargets = 1` (or 0, if the file is ever moved) triggers the CLI's existing
 // zero-target guard unchanged. See `td/TD41-AGENT-CONTEXT-SLIMMING.md` Story 0 for the full design.
+// checkSymlinks verifies the three aliases (CLAUDE.md, AGENTS.md, gemini.md) each correctly point
+// AT `.copilot/context.md` — but says nothing about `.copilot/context.md` itself. If the canonical
+// file were replaced by a symlink escaping the repo (while the three aliases still lexically point
+// at its path), every other check here would silently read and validate the *escaped* content
+// instead. This rejects that: the canonical file must be a real, contained file — either not a
+// symlink at all, or a symlink that still resolves inside rootDir.
+function checkCanonicalFileIsContained(
+  rootDir: string,
+  absolutePath: string,
+  policy: AgentContextPolicy,
+): Finding[] {
+  const stats = lstatSync(absolutePath);
+  if (!stats.isSymbolicLink()) return [];
+  const realRoot = realpathSync(rootDir);
+  const realTarget = realpathSync(absolutePath);
+  if (realTarget === realRoot || realTarget.startsWith(`${realRoot}/`)) return [];
+  return [
+    {
+      rule: RULE,
+      file: policy.targetFile,
+      line: 1,
+      message: `${policy.targetFile} is itself a symlink resolving outside the repository (to ${realTarget}) — the canonical file must be a real, contained file, not an escaping symlink.`,
+    },
+  ];
+}
+
 export function checkAgentContextFile(rootDir: string, policy: AgentContextPolicy): ScanResult {
   const absolutePath = resolve(rootDir, policy.targetFile);
   if (!existsSync(absolutePath)) {
@@ -310,7 +382,9 @@ export function checkAgentContextFile(rootDir: string, policy: AgentContextPolic
   }
   const content = readFileSync(absolutePath, 'utf8');
   const findings: Finding[] = [
+    ...checkCanonicalFileIsContained(rootDir, absolutePath, policy),
     ...checkRequiredAnchors(content, policy),
+    ...checkMalformedPointers(content, policy),
     ...checkPointers(rootDir, content, policy),
     ...checkForbiddenPatterns(content, policy),
     ...checkBudgets(content, policy),

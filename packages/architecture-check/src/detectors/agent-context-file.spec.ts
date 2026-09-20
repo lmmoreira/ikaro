@@ -95,6 +95,62 @@ describe('checkAgentContextFile', () => {
     );
   });
 
+  it('flags a required anchor reworded past recognition, not just deleted (e.g. "PR GATE" -> "PR GATEWAY")', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATEWAY** stays verbatim.\n- **Stuck conditions** stays verbatim.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('PR GATE') }),
+      ]),
+    );
+  });
+
+  it('flags a pointer with an opening backtick and no closing backtick as malformed, not silently ignored', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- bad → `docs/BROKEN.md § Some Heading\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining('opening backtick with no closing backtick'),
+        }),
+      ]),
+    );
+  });
+
+  it('rejects a typo-suffixed citation against an otherwise-correct real heading (e.g. "Transactions typo" vs "Transactions")', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- bad → `docs/T.md` § Transactions typo\n',
+      'docs/T.md': '## Transactions\n\nContent.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('Transactions typo') }),
+      ]),
+    );
+  });
+
+  it('still resolves a shorthand label wrapped in literal parentheses (e.g. "Gotchas (Some Label)")', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- pointer → `docs/G.md` § Gotchas (Some Label)\n',
+      'docs/G.md': '- **Some Label:** the real rule text goes here.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toHaveLength(0);
+  });
+
   it('flags a pointer to a file that does not exist', () => {
     root = buildRoot({
       '.copilot/context.md':
@@ -181,6 +237,46 @@ describe('checkAgentContextFile', () => {
     expect(result.findings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ message: expect.stringContaining('escapes its own root') }),
+      ]),
+    );
+  });
+
+  it('flags a pointer target that resolves outside its root via a symlink, not just lexical traversal', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- bad → `docs/escape.md` § Anything\n',
+    });
+    const outsideDir = mkdtempSync(join(tmpdir(), 'agent-context-file-outside-'));
+    const outsideFile = join(outsideDir, 'real.md');
+    writeFileSync(outsideFile, '## Anything\n\nContent.\n');
+    symlinkSync(outsideFile, join(root, 'docs/escape.md'));
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    rmSync(outsideDir, { recursive: true, force: true });
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining('resolves outside its own root'),
+        }),
+      ]),
+    );
+  });
+
+  it('flags the canonical file itself being a symlink that resolves outside the repository', () => {
+    root = mkdtempSync(join(tmpdir(), 'agent-context-file-'));
+    mkdirSync(join(root, '.copilot'), { recursive: true });
+    const outsideDir = mkdtempSync(join(tmpdir(), 'agent-context-file-outside-'));
+    const outsideFile = join(outsideDir, 'context.md');
+    writeFileSync(outsideFile, validContext);
+    symlinkSync(outsideFile, join(root, '.copilot/context.md'));
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    rmSync(outsideDir, { recursive: true, force: true });
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining('canonical file must be a real, contained file'),
+        }),
       ]),
     );
   });
