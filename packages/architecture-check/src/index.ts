@@ -1,3 +1,10 @@
+export { checkAgentContextFile } from './detectors/agent-context-file';
+export type {
+  AgentContextForbiddenPatternAllowlistEntry,
+  AgentContextPolicy,
+  AgentContextSectionBudget,
+  AgentContextSymlink,
+} from './detectors/agent-context-file';
 export { checkAggregatePropsUseSharedValueObjects } from './detectors/aggregate-primitive-vo';
 export { checkBffTypesLiveInModuleFiles } from './detectors/bff-controller-type-placement';
 export type { BffInlineTypeException } from './detectors/bff-controller-type-placement';

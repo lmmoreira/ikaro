@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
 import {
+  checkAgentContextFile,
+  type AgentContextPolicy,
   checkAggregatePropsUseSharedValueObjects,
   checkBffTypesLiveInModuleFiles,
   checkClosedEnumRegistry,
@@ -35,6 +37,9 @@ import {
 import { loadProject } from './project';
 
 const root = resolve(__dirname, '../../..');
+const agentContextPolicy = JSON.parse(
+  readFileSync(resolve(root, 'packages/architecture-check/agent-context-policy.json'), 'utf8'),
+) as AgentContextPolicy;
 const policy = JSON.parse(
   readFileSync(resolve(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 ) as {
@@ -138,6 +143,7 @@ if (!closedEnumRegistry?.length) {
 }
 
 const results = [
+  checkAgentContextFile(root, agentContextPolicy),
   checkTransactionalIo(backend, externalSideEffectPorts),
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
