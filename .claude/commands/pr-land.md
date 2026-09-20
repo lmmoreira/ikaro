@@ -71,7 +71,7 @@ bash scripts/pr-round-status.sh <N> --wait-codex --wait-coderabbit --since "$sin
 bash scripts/pr-round-status.sh <N> --wait-codex --since "$since"
 ```
 
-**"Clean" is not final until re-read.** `scripts/pr-round-status.sh` can print "all CI passed / no open SonarCloud issues" while the SonarCloud *analysis job* is still running — its issues (M22-S04: an S5906 in a new spec) appear only once that job finishes, and the merge-blocking "Fail on any new SonarCloud issue" step fails afterwards. Before declaring a round resolved, re-run `gh pr checks <N>` (no `pending`/`fail` rows) and the script once more.
+**"Clean" is not final until the aggregate gate exists.** Workflow jobs gated by `needs:` (the SonarCloud analysis, then `All Checks Passed`) are created lazily, so "no row is pending" can be true while jobs are still to come (M22-S04: 26 rows, none pending → reported clean; the list later grew to 36 and SonarCloud Analysis failed with a real S5906). `scripts/pr-round-status.sh` therefore waits for the `All Checks Passed` row to exist and be terminal (falling back, with a warning, to a check list that has stopped changing for 6 polls). If the script prints that fallback warning, re-run `gh pr checks <N>` and the script once more before declaring the round resolved.
 
 This is a plain script-file invocation, not raw compound bash — it runs directly even inside a worktree, no subagent delegation needed (unlike the `codex exec` dispatch itself — see the gotcha above). Do not proceed to Step 2 until it exits.
 
@@ -129,6 +129,8 @@ If Step 3 produced zero real fixes and Codex reported 0 Critical/Important this 
 ---
 
 ## Step 5 — Round-5 escalation
+
+**Approval to continue buys exactly one round, and does not reset the counter.** If the user explicitly authorizes going past the threshold, run **one** further round; the counter keeps its value. Only a round with **zero** Critical/Important resets it — so if that extra round still reports one, escalate again and ask again (M22-S04, PR #491, 2026-09-19: the loop ran to 6 and 7 consecutive rounds on approvals, each finding distinct and narrower, without the counter ever being reset or re-asked).
 
 If the "consecutive rounds with Critical/Important still open" counter (Round state, updated in Step 4) reaches **5**, stop iterating — regardless of whether each of those rounds individually got fixed or declined. Five straight rounds where Codex keeps finding *something* Critical/Important is itself the signal, even when every single one was properly triaged; that pattern is what actually happened across PR #483's 13 rounds without this check ever firing, because each round's finding got resolved (fixed or soundly declined) before the next dispatch, and no one was tracking the counter against this rule. Describe to the user: what's recurring across rounds, what's been tried (fixed vs. declined and why), and why it hasn't converged to a clean round. This is a stuck condition — ask for a decision rather than attempting another round unprompted.
 

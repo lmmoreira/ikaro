@@ -37,7 +37,8 @@
     "knip:test": "node --test scripts/knip-config.spec.cjs",
     "attw-check": "node scripts/attw-check.cjs",
     "attw-check:runtime": "node scripts/attw-runtime-smoke.cjs",
-    "attw-check:test": "node --test scripts/attw-check-config.spec.cjs"
+    "attw-check:test": "node --test scripts/attw-check-config.spec.cjs",
+    "pr-round-status:test": "node --test scripts/pr-round-status.spec.cjs"
   },
   "workspaces": [
     "apps/*",

@@ -13,7 +13,7 @@
 
 **Story / TD gate — NON-NEGOTIABLE:** Before writing any code for a story or TD, run `/story-discovery M0X-SYY` first. This is the first action after entering the worktree, no exceptions. Never skip — even for "obvious" tasks.
 
-**Doc/config gate:** Before writing or editing any `.md`, `.tf`, `.yml`, or config file: discuss → summarise → ask "May I now create/update `<path>`?" → write only after an explicit yes. Exception: once a story is approved, `.ts`/`.spec.ts` code files can be created autonomously. Read-only ops (`Read`, `grep`, `ls`, `git status`, memory) are always free.
+**Doc/config gate:** Before writing or editing any `.md`, `.tf`, `.yml`, or config file: discuss → summarise → ask "May I now create/update `<path>`?" → write only after an explicit yes. Exception: once a story is approved, `.ts`/`.spec.ts` code files can be created autonomously — and so can the files a code change cannot ship without: i18n locale JSON (`packages/i18n/locales/**/*.json`, both locales in the same change), `.http` request files, test fixtures and generated-by-tool files that must be committed. Every other config-shaped file (`.tf`, `.yml`, CI workflows, `package.json`, `tsconfig`, policy/registry JSON such as `architecture-policy.json`, env files) still needs the explicit yes. Read-only ops (`Read`, `grep`, `ls`, `git status`, memory) are always free.
 
 **Autonomous implementation chain — one authorization, not per-step asks:** Once `/story-discovery` returns READY and the user confirms proceeding to implementation, that single authorization covers the entire chain through to an open, bot-reviewed PR — commit → push → `/pre-pr` → `gh pr create` → CI-fix loop → CodeRabbit/Codex bot-fix loop. No separate "may I commit / may I push / may I run pre-pr" prompts inside that chain. Full mechanics, the stuck-condition definitions, and the bot-finding verification discipline: §9. The **merge gate is separate and stays mandatory** — always ask before merging (§9 Step 10) — and that review must be substantive: it is now the primary point where implementation-time surprises get caught, not a formality. For doc-only changes on `main` outside a story, still ask whether to use a feature branch or commit direct.
 
@@ -468,6 +468,8 @@ Canonical registry: §17.
 
 > ❗ **HARD STOP — READ BEFORE TOUCHING ANY `plan/journey/` FILE**
 > `/docs-audit` MUST run and report a clean baseline first. Then: (1) write `<actor>/<slug>.md`, (2) update `<actor>/use-cases.md`, (3) update `plan/journey/README.md`'s index, (4) **only then** create files under `<actor>/prototypes/<slug>/`.
+
+**Scope of the hard stop:** it covers *creating or restructuring* journeys and prototypes. A one-sentence factual sync of an existing `plan/journey/**` file (e.g. correcting a `dev-notes.md` line after the implementation changed) needs only the normal doc-gate yes — no `/docs-audit` baseline.
 
 Full rules, folder structure, and CSS gotchas (`.topbar-avatar`, `.week-nav`, `padding-bottom`, floating toast, etc.): `plan/journey/README.md` — load whenever working on any journey file or prototype folder.
 
