@@ -182,6 +182,7 @@ Run this pass over Step 2's synthesized list before anything reaches the report 
    - **Already fixed** by a later commit → drop it, it's stale.
    - **Already raised and declined/answered with reasoning that still holds against the current diff** → drop it; cite the existing comment instead of re-litigating (`file:line — see <comment URL>, already addressed`). Don't blindly trust an old decline either — if the code touching that fact changed since the reply, re-verify per step 1 above before trusting it.
    - **Already raised, still open, no reply yet** → don't repost a duplicate finding; reference the open thread instead of restating it fresh.
+   - **Replies are not threaded.** Answers to findings are ordinary PR-level comments (posted from the same account as this bot's reviews), conventionally starting `**Re: <finding summary> (file:line)**`. Before calling a finding "still unresolved", scan every comment posted *after* the original for a `Re:` line or the same file/symbol; a finding that was fixed or declined-with-evidence is *not* "open" just because the original comment has no linked reply. If a decline's cited evidence is wrong at the current head, re-raise it and quote the correct code — otherwise cite the reply and drop it.
    - **Never raised before** → keep it as a new finding.
    - No PR exists yet (pure local-diff mode) → skip this whole step, there's no history to check.
 

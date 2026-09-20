@@ -7,7 +7,7 @@ Detailed mandatory rules for all TypeScript code. CLAUDE.md §7 holds the conden
 ## TypeScript
 
 - `strict: true` — no `any`, no `@ts-ignore`, and no file- or block-level ESLint suppressions. A rule-specific `eslint-disable-next-line`/`eslint-disable-line` is allowed only when it is limited to the smallest possible scope, names the exact rule, and includes a concrete justification; recurring or architectural exceptions must also be recorded in `packages/architecture-check/architecture-policy.json` with an owner and review/expiry date. Fix the underlying issue when a clean alternative exists.
-- Functions ≤ 40 lines (`.ts`); ≤ 200 lines for `.tsx` component functions (JSX markup counts as function body under ESLint's `max-lines-per-function` — not the same complexity signal as equivalent-length imperative logic). Files ≤ 250 lines (supersedes the earlier "classes ≤ 200 lines" framing — ESLint's `max-lines` measures files, not classes, and this codebase is predominantly one-class/one-use-case-per-file already; see TD37-S05). A domain aggregate or other file with a documented reason further splitting would hurt cohesion or reintroduce a known incident (e.g. `booking.aggregate.ts`, `gcp-pubsub-event-bus.adapter.ts`) may carry a reviewed `max-lines`/`max-lines-aggregate` exception in `packages/architecture-check/architecture-policy.json` instead of being force-split — `max-lines-per-function` still applies to these files regardless.
+- Functions ≤ 40 lines (`.ts`); ≤ 200 lines for `.tsx` component functions (JSX markup counts as function body under ESLint's `max-lines-per-function` — not the same complexity signal as equivalent-length imperative logic). Files ≤ 250 lines (supersedes the earlier "classes ≤ 200 lines" framing — ESLint's `max-lines` measures files, not classes, and this codebase is predominantly one-class/one-use-case-per-file already; see TD37-S05). A domain aggregate or other file with a documented reason further splitting would hurt cohesion or reintroduce a known incident (e.g. `booking.aggregate.ts`, `gcp-pubsub-event-bus.adapter.ts`) may carry a reviewed `max-lines`/`max-lines-aggregate` exception in `packages/architecture-check/architecture-policy.json` instead of being force-split — `max-lines-per-function` still applies to these files regardless. **Plan the split up front:** once a panel/page component nears ~150 lines, extract sub-components into their own files (each with its `.spec.tsx`) *before* adding more — the 200-line function and 250-line file limits forced four mid-change extraction detours in M22-S04, each costing a re-lint and re-test cycle.
 - No raw SQL outside repository adapters
 - DI everywhere — no `new SomeRepository()` in services
 
@@ -62,8 +62,8 @@ export class XxxDomainError extends Error {
 
 | Artifact | Pattern | Example |
 |---|---|---|
-| Use case input type | `{UseCaseName}Input` | `ApproveBookingUseCaseInput` |
-| Use case result type | `{UseCaseName}Result` | `ApproveBookingUseCaseResult` |
+| Use case input type | `{ClassName}Input` — full class name incl. the `UseCase` suffix | `ApproveBookingUseCaseInput` |
+| Use case result type | `{ClassName}Result` — full class name incl. the `UseCase` suffix | `ApproveBookingUseCaseResult` |
 | HTTP request body/query schema | `{Action}Schema` + `{Action}Dto` | `ApproveBookingSchema`, `ApproveBookingDto` |
 | Zod schema | `{Action}Schema` | `ApproveBookingSchema` |
 | Public hotsite response type (`@ikaro/types`) | `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` | `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse` |

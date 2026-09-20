@@ -71,6 +71,8 @@ bash scripts/pr-round-status.sh <N> --wait-codex --wait-coderabbit --since "$sin
 bash scripts/pr-round-status.sh <N> --wait-codex --since "$since"
 ```
 
+**"Clean" is not final until re-read.** `scripts/pr-round-status.sh` can print "all CI passed / no open SonarCloud issues" while the SonarCloud *analysis job* is still running — its issues (M22-S04: an S5906 in a new spec) appear only once that job finishes, and the merge-blocking "Fail on any new SonarCloud issue" step fails afterwards. Before declaring a round resolved, re-run `gh pr checks <N>` (no `pending`/`fail` rows) and the script once more.
+
 This is a plain script-file invocation, not raw compound bash — it runs directly even inside a worktree, no subagent delegation needed (unlike the `codex exec` dispatch itself — see the gotcha above). Do not proceed to Step 2 until it exits.
 
 ---
@@ -107,6 +109,10 @@ For every finding in the pooled list:
 **Escalating severity isn't the only signal worth acting on — a finding re-flagged at the *same* severity for 2+ consecutive rounds deserves the identical re-check, especially when the decline's own reasoning is a paraphrase of "the story already scoped this out" rather than a quoted line from the story's own resolved-decision text.** A decline that summarizes what discovery decided, instead of grepping the plan file for the exact "Resolved during story-discovery" paragraph and quoting it, is exactly the "inferred convention" category above wearing a more confident disguise — it reads like a verified fact but isn't one. Before writing a second decline reply on the same finding, paste the literal doc line, not your memory of it (M22-S02 PR #481 precedent, 2026-09-15: an `autoApproveEnabled`-inheritance Critical finding was declined in rounds 1 and 2 by paraphrasing "this story scoped that out" — the actual plan file said the opposite, verbatim, the whole time: "`autoApproveEnabled` is activated as a real, consumed setting by this story." Caught only in round 3 when the finding, still Critical with no escalation, prompted an actual grep instead of a third paraphrase).
 
 ---
+
+**A decline that asserts what a specific class/decorator/layer does must quote that method's body, not the class header or a comment** — `grep -n "async <method>" <file>` and read it. (M22-S04, PR #491, 2026-09-19: a "double hydration" finding was declined because "`CachingServiceRepository` caches `findById`" — the method actually delegates straight to the TypeORM repository; only the list read was cached. The reviewer re-flagged it at the same severity two rounds later and was right.) The same applies to any "this is deduped/cached/guarded elsewhere" claim.
+
+**Post each reply as `**Re: <finding one-line summary> (`file:line`)**`** — PR-level replies are un-threaded comments from the same account as the bot reviews, so the reviewer's dedupe (`/pr-review` Step 3) can only match them by that leading `Re:` line and the file/symbol. A reply without it reads to the next review as "still unresolved".
 
 ## Step 4 — One batch, one commit, one push
 

@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`
 **Audience:** Any AI coding agent
 **Rule:** Read this file first. Then use §10 to load only the docs you need.
-**Last updated:** 2026-09-15
+**Last updated:** 2026-09-20
 
 ---
 
@@ -17,7 +17,7 @@
 
 **Autonomous implementation chain — one authorization, not per-step asks:** Once `/story-discovery` returns READY and the user confirms proceeding to implementation, that single authorization covers the entire chain through to an open, bot-reviewed PR — commit → push → `/pre-pr` → `gh pr create` → CI-fix loop → CodeRabbit/Codex bot-fix loop. No separate "may I commit / may I push / may I run pre-pr" prompts inside that chain. Full mechanics, the stuck-condition definitions, and the bot-finding verification discipline: §9. The **merge gate is separate and stays mandatory** — always ask before merging (§9 Step 10) — and that review must be substantive: it is now the primary point where implementation-time surprises get caught, not a formality. For doc-only changes on `main` outside a story, still ask whether to use a feature branch or commit direct.
 
-**Pre-push validation — NON-NEGOTIABLE:** `git push` automatically runs `ci:fast`; never use `git push --no-verify` to bypass it. If a terminal/session detaches while the hook runs, its result is unknown — capture the command's log, inspect the live process, and wait for its real exit status before treating the push as complete. A detached output stream is never evidence of a failed hook and never authorization to skip validation.
+**Pre-push validation — NON-NEGOTIABLE:** `git push` automatically runs `ci:fast`; never use `git push --no-verify` to bypass it. If a terminal/session detaches while the hook runs, its result is unknown — capture the command's log, inspect the live process, and wait for its real exit status before treating the push as complete. A detached output stream is never evidence of a failed hook and never authorization to skip validation. **In an agent session, run the push detached** (`nohup git push </dev/null >/tmp/push.log 2>&1 &`) and wait on the real process (`pgrep -f '^git push'`, or a Monitor on it): a foreground push held open by a tool call was SIGKILLed (exit 137) mid-hook twice in the M22-S04 session, leaving the commit unpushed while the hook died. Confirm with `git log origin/<branch> -1` that the remote head actually moved — an exit status alone is not proof. **Never `pkill -f <pattern>` in a session** — it can match the agent's own shell (exit 144/137); list PIDs with `pgrep`/`ss -ltnp` and kill those.
 
 **Workspace ownership gate:** Never run root-owned or containerized installs against the mounted workspace, and never use privileged cleanup on repo files unless the user explicitly approves it. If `node_modules` ownership is broken, stop and ask before repairing it.
 
@@ -196,7 +196,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **A bot review's "doc update missing from this PR" claim only checked this PR's diff, not whether the doc is already correct on `main`** — a doc landed earlier (e.g. during story-discovery) shows zero diff in the implementation PR precisely because nothing is left to change. Verify with `gh api repos/<org>/<repo>/compare/main...<sha>` before accepting the finding. → `docs/CI_TRAPS.md` (bot doc-update-diff-scoping entry)
 - **A Jest OOM kill on a host with plenty of free RAM is V8's default ~2.2GB heap ceiling, not a leak** — set `--max-old-space-size` explicitly on every entry point that can run a large suite, not just the one that happened to OOM. → `docs/ENGINEERING_RULES.md` § Node's default V8 heap limit is unrelated to actual host/container RAM
 - **An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown** — CI's `TESTCONTAINERS_REUSE_ENABLE` reuses the same Postgres container across unrelated runs, so an incomplete `afterAll` can corrupt a later run in a way no local run (always a fresh container) will ever reproduce. → `docs/ENGINEERING_RULES.md` § An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown
-- **CI-enforced by `architecture-check` detectors not otherwise mentioned in this file:** every TypeORM UUID-PK entity's builder must default to `uuidv7()` (`entity-builder-pk-default`); every TypeORM entity needs a matching builder in `src/test/builders/<context>/` (`test-builder-coverage`); a use case's `execute()` input/output types must be named exactly `{ClassName}Input`/`{ClassName}Result` (`use-case-naming`); BFF response interfaces/Zod schemas live in sibling `.types.ts`/`.schemas.ts`, never inline in the controller (`bff-controller-type-placement`); never construct a class with a `jest.fn()` stub for a port-typed constructor param — use an `InMemoryXxx` double (`jest-fn-port-mock`); VO normalization-reachability and closed-enum mirror consistency (`vo-construction-validation`, `closed-enum-registry`).
+- **CI-enforced by `architecture-check` detectors not otherwise mentioned in this file:** every TypeORM UUID-PK entity's builder must default to `uuidv7()` (`entity-builder-pk-default`); every TypeORM entity needs a matching builder in `src/test/builders/<context>/` (`test-builder-coverage`); a use case's `execute()` input/output types must be named exactly `{ClassName}Input`/`{ClassName}Result` (`use-case-naming`) — `ClassName` is the full class name *including* the `UseCase` suffix (`GetFooUseCase` → `GetFooUseCaseInput`/`GetFooUseCaseResult`, never `GetFooInput`); BFF response interfaces/Zod schemas live in sibling `.types.ts`/`.schemas.ts`, never inline in the controller (`bff-controller-type-placement`); never construct a class with a `jest.fn()` stub for a port-typed constructor param — use an `InMemoryXxx` double (`jest-fn-port-mock`); VO normalization-reachability and closed-enum mirror consistency (`vo-construction-validation`, `closed-enum-registry`).
 
 ### BFF naming & transport
 
@@ -288,6 +288,8 @@ Run `/story-discovery M0X-SYY` — wait for READY verdict before proceeding. Nev
 
 ### Step 1 — Create feature branch (BEFORE any code)
 `git checkout -b feat/M0X-SYY-<short-description>` — never code on `main`. (Already done here if story-discovery's Step 9 set up a worktree/branch.)
+
+**First thing in any worktree or fresh clone:** `git rev-parse --is-shallow-repository` — if `true`, `git fetch --unshallow origin` before drawing any "behind/ahead of `main`" conclusion (a shallow clone's `git log HEAD..origin/main` lists phantom commits and `git merge origin/main` fails with "refusing to merge unrelated histories"). A worktree also carries none of the gitignored env files (`apps/backend/.env`, `apps/bff/.env`, `apps/web/.env.local`) — copy them from the main checkout before running the stack.
 
 ### Step 2 — Implement
 Write all files from the story spec, following the pattern and test plan locked in during discovery. For any frontend story referencing a prototype:
