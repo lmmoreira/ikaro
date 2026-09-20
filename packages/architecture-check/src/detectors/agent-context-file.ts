@@ -275,7 +275,19 @@ function checkBudgets(content: string, policy: AgentContextPolicy): Finding[] {
     const start = headingIndexes[i];
     const end = headingIndexes[i + 1];
     const headingMatch = lines[start].match(/^## (\d+)\./);
-    if (!headingMatch) continue;
+    if (!headingMatch) {
+      // Every real top-level section in this file is numbered by design (§10's own loading table
+      // assumes it) — a heading that isn't never reaches the numbered-section budget check below
+      // at all, which would let content moved into it evade the ratchet entirely while every
+      // numbered section (and the file-wide total, if the move is offset elsewhere) stays flat.
+      findings.push({
+        rule: RULE,
+        file: policy.targetFile,
+        line: start + 1,
+        message: `Top-level section "${lines[start].trim()}" is not numbered ("## N. Title") — every top-level section must be, or it has no budget entry and evades the ratchet entirely.`,
+      });
+      continue;
+    }
     const sectionKey = headingMatch[1];
     const budget = policy.budgets.sections[sectionKey];
     if (!budget) {

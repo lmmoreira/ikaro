@@ -281,6 +281,20 @@ describe('checkAgentContextFile', () => {
     );
   });
 
+  it('flags a top-level section with no leading number, instead of silently skipping it entirely', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n\n## Appendix\n\nLots of content that could grow unbounded with zero budget check at all.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('is not numbered') }),
+      ]),
+    );
+  });
+
   it('fails closed on a numbered section with no budget entry, instead of silently skipping it', () => {
     root = buildRoot({
       '.copilot/context.md':
