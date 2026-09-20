@@ -61,7 +61,7 @@
     }
   ],
   "budgets": {
-    "file": { "maxLines": 514, "maxChars": 63858 },
+    "file": { "maxLines": 514, "maxChars": 63859 },
     "sections": {
       "0": { "maxLines": 16, "maxChars": 3535 },
       "1": { "maxLines": 21, "maxChars": 1762 },
@@ -70,7 +70,7 @@
       "4": { "maxLines": 18, "maxChars": 306 },
       "5": { "maxLines": 13, "maxChars": 663 },
       "6": { "maxLines": 11, "maxChars": 921 },
-      "7": { "maxLines": 126, "maxChars": 29271 },
+      "7": { "maxLines": 126, "maxChars": 29272 },
       "8": { "maxLines": 20, "maxChars": 3195 },
       "9": { "maxLines": 100, "maxChars": 10727 },
       "10": { "maxLines": 48, "maxChars": 5011 },

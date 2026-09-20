@@ -141,6 +141,88 @@ describe('checkAgentContextFile', () => {
     expect(result.findings).toHaveLength(0);
   });
 
+  it('rejects a word-boundary-violating citation match (e.g. "eal" inside "Real Heading")', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- bad → `docs/REAL.md` § eal\n',
+      'docs/REAL.md': '## Real Heading\n\nContent.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('"eal"') }),
+      ]),
+    );
+  });
+
+  it('rejects a word-boundary-violating citation match (e.g. "a" inside "An existing section")', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- bad → `docs/AN.md` § a\n',
+      'docs/AN.md': '## An existing section\n\nContent.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('"a"') }),
+      ]),
+    );
+  });
+
+  it('flags a pointer path that escapes its own root via traversal', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- bad → `docs/../../../etc/passwd` § Anything\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('escapes its own root') }),
+      ]),
+    );
+  });
+
+  it('fails closed on a numbered section with no budget entry, instead of silently skipping it', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n\n## 18. Unbudgeted New Section\n\nLots of content that could grow unbounded.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('§18 has no budget entry') }),
+      ]),
+    );
+  });
+
+  it('still catches a forbidden pattern smuggled onto the same line as the Last-updated stamp', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '**Last updated:** 2026-01-01 (see PR #4821)\n\n## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('PR #4821') }),
+      ]),
+    );
+  });
+
+  it('still exempts a clean, date-only Last-updated line', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '**Last updated:** 2026-05-05\n\n## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings.filter((f) => f.message.includes('2026-05-05'))).toHaveLength(0);
+  });
+
   it('flags a bare PR number literal', () => {
     root = buildRoot({
       '.copilot/context.md':

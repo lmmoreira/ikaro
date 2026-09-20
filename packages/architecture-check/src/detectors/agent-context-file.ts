@@ -82,18 +82,34 @@ function collectAnchorCandidates(targetContent: string): string[] {
   return candidates;
 }
 
-// Case-insensitive containment in either direction — a real citation may be a shortened prefix
-// of the full anchor text (docs/ENGINEERING_RULES.md-style), or a short invented shorthand label
-// embedded inside a longer bullet/heading (e.g. "Gotchas (traffic-pin precedent)" citing a label
-// that appears mid-sentence, not at the anchor's own start) — both are legitimate, pre-existing
-// conventions in this codebase, not detector bugs (verified 2026-09-20 against real content in
-// docs/CODE_STANDARDS.md and infra/terraform/README.md).
+// True if `needle` occurs in `haystack` with a real word boundary on both sides — the character
+// immediately before/after the match, if any, is not alphanumeric. Plain `.includes()` would let
+// "eal" match inside "real heading", or "a" match inside "an existing section" — this rejects
+// both while still accepting a genuine phrase boundary (a space, a colon, a paren) on either side.
+function occursAtWordBoundary(haystack: string, needle: string): boolean {
+  const index = haystack.indexOf(needle);
+  if (index === -1) return false;
+  const isWordChar = (ch: string) => /[a-z0-9]/i.test(ch);
+  const before = index > 0 ? haystack[index - 1] : '';
+  const after = index + needle.length < haystack.length ? haystack[index + needle.length] : '';
+  return !isWordChar(before) && !isWordChar(after);
+}
+
+// A real citation may be a shortened prefix of the full anchor text (docs/ENGINEERING_RULES.md-
+// style), or a short invented shorthand label embedded inside a longer bullet/heading (e.g.
+// "Gotchas (traffic-pin precedent)" citing a label that appears mid-sentence, not at the anchor's
+// own start) — both are legitimate, pre-existing conventions in this codebase (verified 2026-09-20
+// against real content in docs/CODE_STANDARDS.md and infra/terraform/README.md), matched with a
+// word-boundary check in either direction, not a bare substring check.
 function citationResolves(targetContent: string, citation: string): boolean {
   const normalizedCitation = normalizeHeadingText(citation);
   if (!normalizedCitation) return false;
   return collectAnchorCandidates(targetContent).some((raw) => {
     const normalized = normalizeHeadingText(raw);
-    return normalized.includes(normalizedCitation) || normalizedCitation.includes(normalized);
+    return (
+      occursAtWordBoundary(normalized, normalizedCitation) ||
+      occursAtWordBoundary(normalizedCitation, normalized)
+    );
   });
 }
 
@@ -124,6 +140,16 @@ function checkPointers(rootDir: string, content: string, policy: AgentContextPol
     const [, path, tail] = match;
     const line = lineNumberAt(content, match.index);
     const absolutePath = resolve(rootDir, path);
+    const allowedRoot = resolve(rootDir, path.startsWith('docs/') ? 'docs' : 'infra');
+    if (absolutePath !== allowedRoot && !absolutePath.startsWith(`${allowedRoot}/`)) {
+      findings.push({
+        rule: RULE,
+        file: policy.targetFile,
+        line,
+        message: `Pointer path escapes its own root via traversal: ${path}`,
+      });
+      continue;
+    }
     if (!existsSync(absolutePath)) {
       findings.push({
         rule: RULE,
@@ -150,8 +176,11 @@ function checkPointers(rootDir: string, content: string, policy: AgentContextPol
 }
 
 // The file's own "**Last updated:** <date>" stamp is metadata that legitimately changes on every
-// edit, not a story-history citation accumulating over time — exempt regardless of its value.
-const LAST_UPDATED_LINE_REGEX = /^\*\*Last updated:\*\*/;
+// edit, not a story-history citation accumulating over time — exempt regardless of its value. The
+// line must contain *only* the label and the date, so a forbidden pattern smuggled onto the same
+// line (e.g. "**Last updated:** 2026-09-20 (see PR #999)") still gets caught — this is not a
+// blanket per-line exemption.
+const LAST_UPDATED_LINE_REGEX = /^\*\*Last updated:\*\*\s*(19|20)\d{2}-\d{2}-\d{2}\s*$/;
 
 function checkForbiddenPatterns(content: string, policy: AgentContextPolicy): Finding[] {
   const findings: Finding[] = [];
@@ -203,7 +232,18 @@ function checkBudgets(content: string, policy: AgentContextPolicy): Finding[] {
     if (!headingMatch) continue;
     const sectionKey = headingMatch[1];
     const budget = policy.budgets.sections[sectionKey];
-    if (!budget) continue;
+    if (!budget) {
+      // Fail closed, not open: a numbered section with no policy entry (e.g. a new "## 18. ...")
+      // would otherwise let content moved out of an existing, budgeted section evade its ratchet
+      // entirely while the file-wide total stays flat.
+      findings.push({
+        rule: RULE,
+        file: policy.targetFile,
+        line: start + 1,
+        message: `§${sectionKey} has no budget entry in agent-context-policy.json — add one (a new numbered section must be budgeted, not silently unbounded).`,
+      });
+      continue;
+    }
     const sectionLines = lines.slice(start, end);
     const sectionChars = sectionLines.join('\n').length;
     if (sectionLines.length > budget.maxLines || sectionChars > budget.maxChars) {

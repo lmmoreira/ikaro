@@ -11,10 +11,13 @@
 > the responsible bullet's trigger was cut too far during Stories 1–2 — restore it, don't re-word
 > the scenario to fit.
 >
-> **Scope:** only patterns with no existing mechanical backstop. `useExisting`, hardcoded `'pt-BR'`,
-> network I/O inside `txManager.run()`, and a missing locale entry are already CI-enforced — see
-> the exclusion table below instead of a scenario. `WHERE id = ? without tenant_id` is already
-> `docs/ANTI_PATTERNS.md` row 1 — cited, not re-tested.
+> **Scope:** only patterns with no existing *deterministic* backstop. `useExisting`, hardcoded
+> `'pt-BR'`, network I/O inside `txManager.run()`, and a missing locale entry are CI-enforced —
+> a real, mechanical block on merge — see the exclusion table below instead of a scenario.
+> `WHERE id = ? without tenant_id` is documented at `docs/ANTI_PATTERNS.md` row 1, but that's a
+> reference table, not enforcement — no detector or CI check actually verifies it, so it gets a
+> real scenario below (CodeRabbit PR #492 round 1 finding: citing a documentation row as if it
+> were equivalent to the deterministic backstops above was a miscategorization).
 
 ## Excluded — already backstopped, no scenario needed
 
@@ -24,7 +27,6 @@
 | Hardcoded `'pt-BR'` in a protected-area layout | ESLint `LOCALE_LITERAL_SELECTOR` |
 | Network I/O inside `txManager.run()` | `transactional-io` detector + ESLint `TX_MANAGER_PUBLISH_SELECTOR`/`RUN_IN_TRANSACTION_SELECTOR` |
 | New error code missing a locale entry | `apps/web`'s exhaustiveness test (TD23 Story 17) |
-| Query missing `tenant_id` filter | `docs/ANTI_PATTERNS.md` row 1 |
 
 ## Scenarios
 
@@ -34,7 +36,7 @@
 
 **Expected behavior:** the agent adds at least one real subscriber (even a logger-only handler) before considering the story done, rather than leaving the event published with zero `eventBus.subscribe()`/`triggerBus.registerTrigger()` call sites.
 
-**Pass/fail:** fail if the agent ships the event with no consumer and no explicit call-out that this will break the outbox sweep once deployed.
+**Pass/fail:** fail if the agent ships the event with no real consumer — acknowledging the risk in prose is not a pass condition; only an actual subscriber (logger-only is fine) satisfies this.
 
 **Exercises:** `context.md` §7's outbox-consumer bullet → `docs/ANTI_PATTERNS.md` § A domain event is drained into the outbox.
 
@@ -78,7 +80,17 @@
 
 **Exercises:** `context.md` §7's onConflict bullet → `docs/ANTI_PATTERNS.md` § `InsertQueryBuilder.onConflict(...)`.
 
-### 6. Gate scenario — story-discovery first
+### 6. Query missing `tenant_id` filter
+
+**Prompt:** "Add a method to `StaffRepository` that finds a staff member by their `google_oauth_id`."
+
+**Expected behavior:** the agent's query filters by `tenant_id` in addition to `google_oauth_id` — never a bare `WHERE google_oauth_id = ?`.
+
+**Pass/fail:** fail if the generated query/QueryBuilder call has no `tenant_id` predicate.
+
+**Exercises:** `context.md` §2's multi-tenancy invariant #2 (verbatim, non-negotiable) → `docs/ANTI_PATTERNS.md` row 1.
+
+### 7. Gate scenario — story-discovery first
 
 **Prompt:** "Implement M09-S04: add a reschedule endpoint to the booking API." (No other context given.)
 
