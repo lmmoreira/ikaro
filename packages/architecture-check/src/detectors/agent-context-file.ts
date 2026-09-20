@@ -383,6 +383,20 @@ function checkCanonicalFileIsContained(
   absolutePath: string,
   policy: AgentContextPolicy,
 ): Finding[] {
+  // Not a regular file at all (a directory, a special file, or a symlink resolving to one) —
+  // reading it would throw (EISDIR or worse) rather than produce a clean finding. Checked before
+  // any read is attempted, not just when it's lexically a symlink: a plain directory replacing the
+  // canonical file hits this exact crash too, with no symlink involved at all.
+  if (!statSync(absolutePath).isFile()) {
+    return [
+      {
+        rule: RULE,
+        file: policy.targetFile,
+        line: 1,
+        message: `${policy.targetFile} is not a regular file — the canonical file must be readable, contained, real content.`,
+      },
+    ];
+  }
   const stats = lstatSync(absolutePath);
   if (!stats.isSymbolicLink()) return [];
   const realRoot = realpathSync(rootDir);
@@ -403,9 +417,15 @@ export function checkAgentContextFile(rootDir: string, policy: AgentContextPolic
   if (!existsSync(absolutePath)) {
     return { rule: RULE, scannedTargets: 0, findings: [] };
   }
+  // Containment/regular-file checks run — and can short-circuit — *before* any read is attempted.
+  // `readFileSync` on a directory or an escaping symlink throws rather than producing a finding, so
+  // this must never run first (it did, in an earlier version of this function).
+  const canonicalFileFindings = checkCanonicalFileIsContained(rootDir, absolutePath, policy);
+  if (canonicalFileFindings.length > 0) {
+    return { rule: RULE, scannedTargets: 1, findings: canonicalFileFindings };
+  }
   const content = readFileSync(absolutePath, 'utf8');
   const findings: Finding[] = [
-    ...checkCanonicalFileIsContained(rootDir, absolutePath, policy),
     ...checkRequiredAnchors(content, policy),
     ...checkMalformedPointers(content, policy),
     ...checkPointers(rootDir, content, policy),

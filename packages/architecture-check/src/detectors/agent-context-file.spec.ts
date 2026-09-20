@@ -296,6 +296,33 @@ describe('checkAgentContextFile', () => {
     );
   });
 
+  it('flags the canonical file being a directory instead of a regular file, without crashing', () => {
+    root = mkdtempSync(join(tmpdir(), 'agent-context-file-'));
+    mkdirSync(join(root, '.copilot/context.md'), { recursive: true });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('not a regular file') }),
+      ]),
+    );
+  });
+
+  it('rejects an unresolved citation against a target with only bold-lead-in bullets, not markdown headings', () => {
+    root = buildRoot({
+      '.copilot/context.md':
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- bad → `docs/BULLETS_ONLY.md` § Something Not There\n',
+      'docs/BULLETS_ONLY.md': '- **Some Real Label:** the real rule text goes here.\n',
+    });
+    symlinkAll(root);
+    const result = checkAgentContextFile(root, basePolicy());
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('Something Not There') }),
+      ]),
+    );
+  });
+
   it('flags a top-level section with no leading number, instead of silently skipping it entirely', () => {
     root = buildRoot({
       '.copilot/context.md':
