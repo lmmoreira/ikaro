@@ -106,7 +106,7 @@ Build the safety net before touching a rule.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 1 — Slim §7 Engineering Rules 🟡
+### Story 1 — Slim §7 Engineering Rules 🟡 ✅ Done
 
 **Agent:** `devops`
 **Complexity:** L
