@@ -680,6 +680,10 @@ Building a new `CachingXxxRepository` (wrapping a `TypeOrmXxxRepository` behind 
 
 (PR #373 review, Codex, 2026-08-15: both mistakes were introduced in `CachingServiceRepository`'s first draft and fixed in the same PR — see `apps/backend/src/contexts/booking/infrastructure/repositories/caching-service.repository.ts` and `booking.module.ts` for the corrected shape. `CachingTenantRepository`'s own registrations in `platform.module.ts`/`platform-settings.module.ts` still carry the redundant-bare-provider version of the second mistake — left as-is, out of scope for that PR; don't copy it as precedent.)
 
+### Platform tenant cache — adapter boundary and invalidation timing
+
+Tenant read caching lives in `CachingTenantRepository` behind `CachePort`, never in `TypeOrmTenantRepository` — the raw TypeORM adapter stays cache-free, exactly the same layering `CachingServiceRepository`/`TypeOrmServiceRepository` already use. Cache writes and invalidations are best-effort (a cache failure never fails the write) and happen *after* the owning transaction commits, not inside it — invalidating before commit risks a reader repopulating the cache with the pre-write value if it races the still-open transaction. Don't reintroduce cache concerns (a `CachePort` dependency, an invalidation call) into the raw TypeORM adapter to "simplify" a call site — that's exactly the layering this split exists to keep out of the persistence adapter.
+
 ### Integration test DB isolation
 
 Unique inline tenant UUID for any `it()` sensitive to aggregate counts. Never reuse `TENANT_A`/`TENANT_B` for count assertions — cross-test contamination.

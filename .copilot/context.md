@@ -129,7 +129,7 @@ COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal)
 
 → Full detail: `docs/ENGINEERING_RULES.md` + `docs/CODE_STANDARDS.md` (load when writing any code).
 
-**How to edit this file:** a rule stays here only if it's (a) a non-negotiable gate, (b) CI-enforced (name + one line — trust the gate, don't restate the rationale), or (c) a writing-time trap an agent would hit before it would think to load any doc. Everything else is a `→ doc § heading` pointer; the canonical-home rule puts each rule's full explanation in exactly one target doc, never here and there too. Before cutting a bullet, verify the target doc actually holds the content (grep it) — never assume from an existing pointer alone.
+**How to edit this file:** a rule stays here only if it's (a) a non-negotiable gate, (b) CI-enforced (name + one line — trust the gate, don't restate the rationale), or (c) a writing-time trap an agent would hit before it would think to load any doc. Everything else is a `→ doc § heading` pointer; the canonical-home rule puts each rule's full explanation in exactly one target doc, never here and there too. Before cutting a bullet, verify two things, not one: the target doc actually holds the content (grep it — never assume from an existing pointer alone), **and** §10's task→docs table actually guarantees that target loads for the situation the trigger describes — a pointer to a doc §10 wouldn't load for that task type is not a substitute for the inline trigger.
 
 ### No workarounds — best long-term solution only (NON-NEGOTIABLE)
 
@@ -156,9 +156,9 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **Transactions:** every `save()` wrapped in `ITransactionManager.run()`; cross-row invariants enforced at the DB layer, not just in-transaction. → `docs/ENGINEERING_RULES.md` § Transactions
 - **Race conditions — 3 primitives, picked by shape, not "add a lock":** DB exclusion constraint (rows exist, "no two can overlap") / `findByIdForUpdate()` row lock (a row exists, must be read-then-written consistently) / `pg_advisory_xact_lock` (no row exists yet). → `docs/ENGINEERING_RULES.md` § Choosing a race-condition primitive, and where its lock port should live
 - **Event handlers:** `handle()` calls exactly one use case and rethrows, zero domain logic, pass `event.correlationId` into the DTO. → `docs/ENGINEERING_RULES.md` § Event Handlers
-- **Cross-context data access (in priority order):** domain events (async, preferred) → BFF orchestration (sync reads, preferred) → Port+Adapter (last resort). Grep `infrastructure/cross-context/` before adding a new port. → `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only
-- **Architecture policy:** `packages/architecture-check/architecture-policy.json` is the canonical registry for dependency exceptions — exact path, rationale, owner, review date per entry. Never a wildcard exception.
-- **Platform tenant cache:** keep tenant read caching in `CachingTenantRepository` behind `CachePort`, not in `TypeOrmTenantRepository`; invalidate best-effort, after the transaction commits.
+- **Cross-context data access (in priority order):** domain events (async, preferred) → BFF orchestration (sync reads, preferred) → Port+Adapter (last resort, same process). Grep `infrastructure/cross-context/` before adding a new port — extend existing adapters. Never a SQL JOIN across contexts.
+- **Architecture policy:** `packages/architecture-check/architecture-policy.json` is the canonical registry for dependency exceptions — cross-context imports go in `contextDependencyMatrix.permittedEdges`, other reviewed detector exceptions go in `exceptions`; every entry needs an exact path, rationale, owner, review date. Never a wildcard exception. → `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only
+- **Platform tenant cache:** keep tenant read caching in `CachingTenantRepository` behind `CachePort`, not in `TypeOrmTenantRepository`; invalidate best-effort, after the transaction commits. → `docs/ENGINEERING_RULES.md` § Platform tenant cache — adapter boundary and invalidation timing
 
 ### Critical code invariants (compressed — full narrative, dates, PR numbers: `docs/ENGINEERING_RULES.md`. Items marked **CI-enforced** fail a mechanical check even if unread; still worth knowing to avoid a wasted round.)
 
