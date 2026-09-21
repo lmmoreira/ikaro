@@ -2,9 +2,18 @@
   "version": 1,
   "targetFile": ".copilot/context.md",
   "symlinks": [
-    { "path": "CLAUDE.md", "expectedTarget": ".copilot/context.md" },
-    { "path": "AGENTS.md", "expectedTarget": ".copilot/context.md" },
-    { "path": "gemini.md", "expectedTarget": ".copilot/context.md" }
+    {
+      "path": "CLAUDE.md",
+      "expectedTarget": ".copilot/context.md"
+    },
+    {
+      "path": "AGENTS.md",
+      "expectedTarget": ".copilot/context.md"
+    },
+    {
+      "path": "gemini.md",
+      "expectedTarget": ".copilot/context.md"
+    }
   ],
   "requiredAnchors": [
     "Story / TD gate",
@@ -61,26 +70,83 @@
     }
   ],
   "budgets": {
-    "file": { "maxLines": 514, "maxChars": 63859 },
+    "file": {
+      "maxLines": 514,
+      "maxChars": 57716
+    },
     "sections": {
-      "0": { "maxLines": 16, "maxChars": 3535 },
-      "1": { "maxLines": 21, "maxChars": 1762 },
-      "2": { "maxLines": 20, "maxChars": 1487 },
-      "3": { "maxLines": 17, "maxChars": 872 },
-      "4": { "maxLines": 18, "maxChars": 306 },
-      "5": { "maxLines": 13, "maxChars": 663 },
-      "6": { "maxLines": 11, "maxChars": 921 },
-      "7": { "maxLines": 126, "maxChars": 29272 },
-      "8": { "maxLines": 20, "maxChars": 3195 },
-      "9": { "maxLines": 100, "maxChars": 10727 },
-      "10": { "maxLines": 48, "maxChars": 5011 },
-      "11": { "maxLines": 23, "maxChars": 2242 },
-      "12": { "maxLines": 6, "maxChars": 167 },
-      "13": { "maxLines": 10, "maxChars": 676 },
-      "14": { "maxLines": 6, "maxChars": 75 },
-      "15": { "maxLines": 11, "maxChars": 863 },
-      "16": { "maxLines": 6, "maxChars": 181 },
-      "17": { "maxLines": 31, "maxChars": 1440 }
+      "0": {
+        "maxLines": 16,
+        "maxChars": 3535
+      },
+      "1": {
+        "maxLines": 21,
+        "maxChars": 1762
+      },
+      "2": {
+        "maxLines": 20,
+        "maxChars": 1487
+      },
+      "3": {
+        "maxLines": 17,
+        "maxChars": 872
+      },
+      "4": {
+        "maxLines": 18,
+        "maxChars": 306
+      },
+      "5": {
+        "maxLines": 13,
+        "maxChars": 663
+      },
+      "6": {
+        "maxLines": 11,
+        "maxChars": 921
+      },
+      "7": {
+        "maxLines": 126,
+        "maxChars": 23129
+      },
+      "8": {
+        "maxLines": 20,
+        "maxChars": 3195
+      },
+      "9": {
+        "maxLines": 100,
+        "maxChars": 10727
+      },
+      "10": {
+        "maxLines": 48,
+        "maxChars": 5011
+      },
+      "11": {
+        "maxLines": 23,
+        "maxChars": 2242
+      },
+      "12": {
+        "maxLines": 6,
+        "maxChars": 167
+      },
+      "13": {
+        "maxLines": 10,
+        "maxChars": 676
+      },
+      "14": {
+        "maxLines": 6,
+        "maxChars": 75
+      },
+      "15": {
+        "maxLines": 11,
+        "maxChars": 863
+      },
+      "16": {
+        "maxLines": 6,
+        "maxChars": 181
+      },
+      "17": {
+        "maxLines": 31,
+        "maxChars": 1440
+      }
     }
   }
 }
