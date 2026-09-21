@@ -113,7 +113,9 @@ These appear as `Nest can't resolve dependencies of XxxUseCase (?, ...)` in test
 
 ## Snyk SCA failures (dependency vulnerabilities)
 
-Snyk runs weekly (`weekly-jobs.yml`, every Monday), not per-PR — moved off the PR gate 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by `/pr-land`'s own iterative rounds. Snyk still scans the **whole** dependency tree in that weekly run, so a freshly-disclosed CVE in an untouched transitive dependency can surface there independent of any specific PR. The findings and their fixes below still apply whenever a weekly Snyk run (or a manual `pnpm --filter <pkg> ... run` against Snyk's CLI) flags something.
+Snyk runs weekly (`weekly-jobs.yml`, every Monday), not per-PR — moved off the PR gate 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by `/pr-land`'s own iterative rounds (each dependency-file-touching round re-ran a full `--all-projects` scan). Snyk still scans the **whole** dependency tree in that weekly run, so a freshly-disclosed CVE in an untouched transitive dependency can surface there independent of any specific PR. The findings and their fixes below still apply whenever a weekly Snyk run (or a manual `pnpm --filter <pkg> ... run` against Snyk's CLI) flags something.
+
+**This is a deliberate, budget-driven tradeoff, not an oversight.** Trivy Image Scan already provides substantial per-PR overlap for the same class of finding — it independently caught the nodemailer CVE that first surfaced this gap. A dependency CVE merged via a PR now surfaces at most ~6 days later (the next Monday run) instead of blocking that PR outright.
 
 **Security dependency overrides are temporary compatibility boundaries, not permanent pins.** When a fixed upstream release becomes available, update the override and lockfile together, then verify the resolved dependency graph with the repository scanners — never leave a stale vulnerable version pinned merely because the override once addressed an older advisory (see row 2 below for the check-before-bumping mechanics).
 
