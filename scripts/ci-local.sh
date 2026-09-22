@@ -30,6 +30,10 @@ step "TypeScript"
 pnpm type-check
 ok "TypeScript"
 
+step "Architecture validation"
+pnpm architecture-check
+ok "Architecture validation"
+
 # ─── Unit tests (ci:fast equivalent) ─────────────────────────────────────────
 step "Backend unit tests"
 pnpm --filter @ikaro/backend test:unit

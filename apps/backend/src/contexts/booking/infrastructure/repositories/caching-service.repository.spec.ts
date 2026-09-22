@@ -5,6 +5,8 @@ import { InMemoryCachePort } from '../../../../test/infrastructure/in-memory-cac
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { Money } from '../../../../shared/value-objects/money';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
 import { CachingServiceRepository } from './caching-service.repository';
 
 describe('CachingServiceRepository', () => {
@@ -23,7 +25,7 @@ describe('CachingServiceRepository', () => {
     await inner.save(service);
     await repo.findAllByTenant('tenant-1', { status: 'ACTIVE' });
 
-    expect(cache.has('booking:service:v2:tenant-1:ACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v4:tenant-1:ACTIVE')).toBe(true);
 
     // Mutate the same service directly on the underlying repository — bypassing the caching
     // decorator entirely, the way an out-of-band write would. If the second call actually reads
@@ -49,7 +51,7 @@ describe('CachingServiceRepository', () => {
     const result = await repo.findAllByTenant('tenant-2', { status: 'ANY' });
 
     expect(result).toEqual([service]);
-    expect(cache.has('booking:service:v2:tenant-2:ANY')).toBe(true);
+    expect(cache.has('booking:service:v4:tenant-2:ANY')).toBe(true);
   });
 
   it('falls through to the repository when the cache read fails, without throwing', async () => {
@@ -62,7 +64,7 @@ describe('CachingServiceRepository', () => {
 
     expect(result).toEqual([service]);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Cache read failed for booking:service:v2:tenant-3:ACTIVE'),
+      expect.stringContaining('Cache read failed for booking:service:v4:tenant-3:ACTIVE'),
     );
 
     warnSpy.mockRestore();
@@ -78,9 +80,9 @@ describe('CachingServiceRepository', () => {
 
     expect(result).toEqual([service]);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Cache write failed for booking:service:v2:tenant-4:ACTIVE'),
+      expect.stringContaining('Cache write failed for booking:service:v4:tenant-4:ACTIVE'),
     );
-    expect(cache.has('booking:service:v2:tenant-4:ACTIVE')).toBe(false);
+    expect(cache.has('booking:service:v4:tenant-4:ACTIVE')).toBe(false);
 
     warnSpy.mockRestore();
   });
@@ -96,7 +98,7 @@ describe('CachingServiceRepository', () => {
     expect(result).toEqual([service]);
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining(
-        'Cache write failed for booking:service:v2:tenant-4b:ACTIVE: not an Error instance',
+        'Cache write failed for booking:service:v4:tenant-4b:ACTIVE: not an Error instance',
       ),
     );
 
@@ -109,7 +111,7 @@ describe('CachingServiceRepository', () => {
 
     await repo.findAllByTenant('tenant-5', { status: 'ACTIVE', search: 'lavagem' });
 
-    expect(cache.has('booking:service:v2:tenant-5:ACTIVE')).toBe(false);
+    expect(cache.has('booking:service:v4:tenant-5:ACTIVE')).toBe(false);
   });
 
   it('bypasses the cache entirely when an ids filter is present', async () => {
@@ -150,13 +152,16 @@ describe('CachingServiceRepository', () => {
     expect(second.map((s) => s.name)).toEqual(['After']);
   });
 
-  it('findById and findByIds always delegate straight through, bypassing the cache', async () => {
+  it('findById, findByIds, existsById, and findByIdForUpdate always delegate straight through, bypassing the cache', async () => {
     const service = new ServiceBuilder().withTenantId('tenant-8').build();
     await inner.save(service);
 
     await expect(repo.findById(service.id, service.tenantId)).resolves.toEqual(service);
     await expect(repo.findByIds([service.id], service.tenantId)).resolves.toEqual([service]);
-    expect(cache.has(`booking:service:v2:tenant-8:ACTIVE`)).toBe(false);
+    await expect(repo.existsById(service.id, service.tenantId)).resolves.toBe(true);
+    await expect(repo.existsById(service.id, 'another-tenant')).resolves.toBe(false);
+    await expect(repo.findByIdForUpdate(service.id, service.tenantId)).resolves.toEqual(service);
+    expect(cache.has(`booking:service:v4:tenant-8:ACTIVE`)).toBe(false);
   });
 
   it('never returns another tenant’s cached services (cross-tenant isolation)', async () => {
@@ -174,8 +179,8 @@ describe('CachingServiceRepository', () => {
     await repo.findAllByTenant('tenant-9a', { status: 'ACTIVE' });
     const tenant2Result = await repo.findAllByTenant('tenant-9b', { status: 'ACTIVE' });
 
-    expect(cache.has('booking:service:v2:tenant-9a:ACTIVE')).toBe(true);
-    expect(cache.has('booking:service:v2:tenant-9b:ACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v4:tenant-9a:ACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v4:tenant-9b:ACTIVE')).toBe(true);
     expect(tenant2Result).toEqual([tenant2Service]);
     expect(tenant2Result.map((s) => s.name)).not.toContain('Tenant 9a Service');
   });
@@ -199,9 +204,9 @@ describe('CachingServiceRepository', () => {
     await repo.findAllByTenant('tenant-11', { status: 'ACTIVE' });
     await repo.findAllByTenant('tenant-11', { status: 'INACTIVE' });
     await repo.findAllByTenant('tenant-11', { status: 'ANY' });
-    expect(cache.has('booking:service:v2:tenant-11:ACTIVE')).toBe(true);
-    expect(cache.has('booking:service:v2:tenant-11:INACTIVE')).toBe(true);
-    expect(cache.has('booking:service:v2:tenant-11:ANY')).toBe(true);
+    expect(cache.has('booking:service:v4:tenant-11:ACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v4:tenant-11:INACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v4:tenant-11:ANY')).toBe(true);
 
     const mockDataSource = {
       transaction: jest.fn(async (fn: (em: EntityManager) => Promise<void>) =>
@@ -212,9 +217,49 @@ describe('CachingServiceRepository', () => {
 
     await txManager.run(() => repo.save(service));
 
-    expect(cache.has('booking:service:v2:tenant-11:ACTIVE')).toBe(false);
-    expect(cache.has('booking:service:v2:tenant-11:INACTIVE')).toBe(false);
-    expect(cache.has('booking:service:v2:tenant-11:ANY')).toBe(false);
+    expect(cache.has('booking:service:v4:tenant-11:ACTIVE')).toBe(false);
+    expect(cache.has('booking:service:v4:tenant-11:INACTIVE')).toBe(false);
+    expect(cache.has('booking:service:v4:tenant-11:ANY')).toBe(false);
+  });
+
+  it('round-trips bookingModel/resourceRequirements/bufferAfterMinutes/legs through the cache (v3)', async () => {
+    const service = new ServiceBuilder()
+      .withTenantId('tenant-13')
+      .withBookingModel('APPOINTMENT')
+      .withResourceRequirements([
+        ResourceRequirement.create({ type: ResourceType.STAFF, selectionMode: 'AUTO_ANY' }),
+      ])
+      .withBufferAfterMinutes(45)
+      .build();
+    await inner.save(service);
+
+    await repo.findAllByTenant('tenant-13', { status: 'ACTIVE' });
+    const [cached] = await repo.findAllByTenant('tenant-13', { status: 'ACTIVE' });
+
+    expect(cached.bookingModel).toBe('APPOINTMENT');
+    expect(cached.resourceRequirements).toHaveLength(1);
+    expect(cached.resourceRequirements[0].type).toBe(ResourceType.STAFF);
+    expect(cached.bufferAfterMinutes).toBe(45);
+    expect(cached.legs).toBeNull();
+  });
+
+  it('round-trips bookingPolicy through the cache (v4, M22-S02)', async () => {
+    const service = new ServiceBuilder()
+      .withTenantId('tenant-14')
+      .withBookingPolicy({
+        defaultApprovalMode: 'MANUAL_APPROVAL',
+        manualHoldMinutes: 30,
+        recurrenceEligible: true,
+      })
+      .build();
+    await inner.save(service);
+
+    await repo.findAllByTenant('tenant-14', { status: 'ACTIVE' });
+    const [cached] = await repo.findAllByTenant('tenant-14', { status: 'ACTIVE' });
+
+    expect(cached.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+    expect(cached.bookingPolicy.manualHoldMinutes).toBe(30);
+    expect(cached.bookingPolicy.recurrenceEligible).toBe(true);
   });
 
   it('does not throw when cache invalidation fails after save', async () => {

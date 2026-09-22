@@ -49,6 +49,8 @@ apps/bff/src/
 | `<context>.controller.ts` | Authenticated dashboard (STAFF/MANAGER/CUSTOMER), `@Roles(...)` guarded | `ServicesController` — `GET /services`, `GET /services/:id`, `POST /services`, `PATCH /services/:id`, `DELETE /services/:id` |
 | `<context>.public.controller.ts` | Unauthenticated hotsite, `@Public()` | `ServicesPublicController` — `GET /public/services`; `PlatformPublicController` — `GET /public/platform/manifest/:slug` |
 
+**Sibling files, same flat `features/<domain>/` folder (no `presentation/application/infrastructure` subfolders):** `<context>.mapper.ts` (extracted mapper functions, see below), `<context>.types.ts` (request/response interfaces), and `<context>.schemas.ts` (Zod validation schemas — present in nearly every feature folder alongside the other three).
+
 - **`.public.controller.ts` always lives under a `public/<resource>` prefix — never the bare resource path.** Settled in `M13-S05` after `ServicesController`'s staff list (`GET /services`, returning inactive services too) needed the exact same method+path the existing `ServicesPublicController` already occupied (`GET /services`, active-only). Putting the public variant under `public/` frees the bare resource path entirely for the authenticated controller, so audience-split controllers never have to coordinate which one "owns" a given method+path. This is the default now — not an "optional-auth guard" workaround, and not something to re-litigate per endpoint.
 - A single `.public.controller.ts` can serve **multiple hotsite module types** — it is not 1:1 with `HotsiteModuleType`.
 - `@Public()` is binary — a public route never receives `req.user`. Two different audiences needing the same conceptual resource get two different paths (`public/<resource>` vs `<resource>`), each with its own consistent guard — not one route branching on whether a JWT happens to be present.
@@ -344,7 +346,7 @@ Because it's an `ExceptionFilter` and not an `Interceptor`, `ErrorFilter` also c
 
 The BFF also originates its own errors — guest-token failures, guard rejections (`RolesGuard`, `ActiveStaffGuard`, dev-login guards), tenant-not-registered checks — through the same canonical envelope, using `throwProblemDetail()` (`apps/bff/src/shared/http/problem-detail.ts`, which wraps `@ikaro/nestjs-http`'s implementation and narrows the allowed `code` type to `BffThrowableCode` — only the origins a BFF site is actually permitted to throw: `BffErrorCode`, `AuthErrorCode`, `GenericErrorCode`, and the single reused `StaffErrorCode.DEACTIVATED`). No BFF-originated error uses a different shape from what the backend emits — exactly one `ProblemDetail` shape reaches the client regardless of which layer raised it.
 
-Full pattern (code catalog, naming convention, frontend resolver, "adding a new error" checklist): `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern. Full discovery/rollout history: `td/TD23-EXCEPTION-HANDLING-I18N-PATTERN.md`.
+Full pattern (code catalog, naming convention, frontend resolver, "adding a new error" checklist): `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern. Full discovery/rollout history: `docs/ENGINEERING_RULES.md`.
 
 ---
 
@@ -433,7 +435,7 @@ ThrottlerModule.forRoot([
 
 **Public vs. authenticated endpoints that mint something costly (signed URLs, tokens):** only `@Public()` routes need a tighter override. `POST /tenants/hotsite/images/signed-url` (and `read-signed-url`) also mint GCS signed URLs but sit behind `@Roles('MANAGER')` — a full JWT + tenant-scoped role check is already a stronger gate than any IP-based count (abuse requires a real, accountable manager account, not "anyone on the internet"), so it correctly stays on the 60/min default rather than getting its own tier.
 
-**Updated (`TD38`, staging):** the throttle key is the client IP, resolved via `apps/bff/src/shared/http/client-ip.ts`. The original CF-Connecting-IP/rightmost-XFF guessing logic described here in earlier revisions turned out to be unfixable in place — every real caller reaches BFF through `ikaro-web`'s same-origin gateway, which opens a *new* connection from `ikaro-web` itself, so neither header ever carried the real browser IP to begin with (verified live in M17-S27/PR #281: a real staging request from a known IP resolved to a Google Cloud–owned address, not the requester's). TD38 fixes this at the root instead of patching the derivation: BFF's Cloud Run ingress is locked to internal-only with its `allUsers` public invoker grant removed (staging only as of this writing — see `td/TD38-BFF-CLIENT-IP-RESOLUTION-BROKEN-BY-SAME-ORIGIN-GATEWAY.md` for prod status), so the only caller left is `ikaro-web` itself. `ikaro-web` resolves the real client IP on the genuinely trustworthy browser→web hop (via the shared `@ikaro/http-utils` package) and forwards it as a trusted `X-Real-Client-Ip` header; BFF now just reads that header directly instead of re-deriving anything from raw proxy headers.
+**Updated (`TD38`, staging):** the throttle key is the client IP, resolved via `apps/bff/src/shared/http/client-ip.ts`. The original CF-Connecting-IP/rightmost-XFF guessing logic described here in earlier revisions turned out to be unfixable in place — every real caller reaches BFF through `ikaro-web`'s same-origin gateway, which opens a *new* connection from `ikaro-web` itself, so neither header ever carried the real browser IP to begin with (verified live in M17-S27/PR #281: a real staging request from a known IP resolved to a Google Cloud–owned address, not the requester's). TD38 fixes this at the root instead of patching the derivation: BFF's Cloud Run ingress is locked to internal-only with its `allUsers` public invoker grant removed (staging only as of this writing — see `plan/M17-CLOUD-DEPLOY.md` for prod status), so the only caller left is `ikaro-web` itself. `ikaro-web` resolves the real client IP on the genuinely trustworthy browser→web hop (via the shared `@ikaro/http-utils` package) and forwards it as a trusted `X-Real-Client-Ip` header; BFF now just reads that header directly instead of re-deriving anything from raw proxy headers.
 
 On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `code: AuthErrorCode.RATE_LIMITED`, pt-BR message. Known accepted limitation: counters are in-memory per Cloud Run instance, not shared across instances — acceptable at MVP scale (`max_instances` capped low); Redis (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-032) is the documented scale-up path, not built now.
 
@@ -518,7 +520,7 @@ Full pipeline YAML is in `docs/09-CI_CD_PIPELINE.md`. Summary:
 
 | Stage | Workflow | What runs |
 |---|---|---|
-| PR gate | `ci-bff.yml` | ESLint, `tsc --noEmit`, unit + integration tests, Gitleaks, Snyk SCA |
+| PR gate | `ci-bff.yml` | ESLint, `tsc --noEmit`, unit + integration tests, Gitleaks |
 | Merge to `main` | `deploy-bff.yml` | Build → GAR, deploy staging (auto), deploy production (1 reviewer) |
 
 **Testing in CI:**
@@ -633,6 +635,23 @@ decodeOAuthState(state, cookieNonce)      // → verifies signature + TTL + nonc
 Two distinct guards, one per route: `GoogleAuthGuard` (`/auth/google`) only sets the state+nonce cookie; `GoogleCallbackGuard` (`/auth/google/callback`) only maps the 400. Applying the same guard class to both (an earlier version of this fix did) works but is wasteful — `getAuthenticateOptions()` still fires on the callback leg since it's the same `canActivate()` codepath, signing an unused JWT and overwriting the cookie the callback itself needs to read moments earlier in the same request.
 
 See `plan/M17-CLOUD-DEPLOY.md` § M17-S32.
+
+### OAuth state `returnTo` — post-login redirect target (M20-S09)
+
+Every customer login link in the app (`HotsiteAuthBar`, `/[slug]/login`) redirects post-login to the tenant's hotsite home (`handleTenantLogin`'s hardcoded `${frontendUrl}/${tenantInfo.slug}`) — there was no way to return the customer to the page they were on before being sent to log in. UC-040 A1 (a `CUSTOMER_ONLY` lead-form gated behind login) needs exactly that, so the state JWT's routing payload gains one more optional field rather than inventing a parallel mechanism:
+
+```typescript
+// oauth-state.ts
+export interface OAuthState {
+  loginType?: 'staff';
+  tenantSlug?: string;
+  returnTo?: string;   // relative path, e.g. "/autowash-pro/lead-form"
+}
+```
+
+**Validation (open-redirect prevention):** `isValidReturnTo(returnTo, tenantSlug)` requires the path to start with `/${tenantSlug}/` exactly — never an absolute URL, a protocol-relative `//host/...`, or a path under a different tenant's slug. `encodeOAuthState(type, tenantSlug?, returnTo?)` applies this the same way it already discards an invalid `tenantSlug` (silently omits the field rather than throwing — a malformed `returnTo` degrades to the existing hotsite-home fallback, it never fails the login). Re-validated again on decode for defense in depth, even though the signature already protects the payload from tampering.
+
+**Threading:** `GoogleAuthGuard.getAuthenticateOptions()` reads `req.query['returnTo']` (set by the web app's `buildGoogleOAuthUrl({ tenantSlug, returnTo })` when a caller supplies one, e.g. the lead-form login-required gate linking to `/[slug]/login?returnTo=/[slug]/lead-form`) alongside the existing `tenantSlug`/`type` query params, and passes it into `encodeOAuthState`. `GoogleStrategy.validate()` decodes it back out via `decodeOAuthState()` and carries it on `GoogleProfile.returnTo` through to `AuthControllerFlowService.handleGoogleCallback()`, which forwards it into `handleTenantLogin(..., returnTo)`. `handleTenantLogin` redirects to `${frontendUrl}${returnTo}` when present, falling back to the original `${frontendUrl}/${tenantInfo.slug}` otherwise. The staff login flow (`handleStaffLogin`) is untouched — `returnTo` only ever applies to the customer flow.
 
 ---
 

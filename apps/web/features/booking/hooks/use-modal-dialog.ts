@@ -11,8 +11,10 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
-export function useModalDialog(open: boolean) {
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
+function useAutoFocusAndRestore(
+  dialogRef: React.RefObject<HTMLDialogElement | null>,
+  open: boolean,
+) {
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -35,8 +37,10 @@ export function useModalDialog(open: boolean) {
       restoreFocusRef.current?.focus();
       restoreFocusRef.current = null;
     };
-  }, [open]);
+  }, [dialogRef, open]);
+}
 
+function useFocusTrap(dialogRef: React.RefObject<HTMLDialogElement | null>, open: boolean) {
   useEffect(() => {
     if (!open) return;
 
@@ -66,7 +70,12 @@ export function useModalDialog(open: boolean) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open]);
+  }, [dialogRef, open]);
+}
 
+export function useModalDialog(open: boolean) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  useAutoFocusAndRestore(dialogRef, open);
+  useFocusTrap(dialogRef, open);
   return dialogRef;
 }

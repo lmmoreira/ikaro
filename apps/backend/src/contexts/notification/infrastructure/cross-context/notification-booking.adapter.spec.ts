@@ -1,4 +1,5 @@
 import { GetServicesUseCase } from '../../../booking/application/use-cases/get-services.use-case';
+import { defaultServiceBookingPolicyProps } from '../../../booking/domain/service.types';
 import { NotificationBookingAdapter } from './notification-booking.adapter';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -27,6 +28,12 @@ describe('NotificationBookingAdapter', () => {
           requiresPickupAddress: false,
           isActive: true,
           createdAt: '2026-01-01T00:00:00.000Z',
+          bookingModel: 'APPOINTMENT',
+          resourceRequirements: [],
+          bufferAfterMinutes: 60,
+          legs: null,
+          classResourceSlots: null,
+          bookingPolicy: defaultServiceBookingPolicyProps(),
         },
       ],
     });

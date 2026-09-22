@@ -1,21 +1,27 @@
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
-import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
+import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/index';
 import { RemoveScheduleOpeningUseCase } from './remove-schedule-opening.use-case';
-import { ScheduleOpeningNotFoundError } from '../../domain/errors/booking-domain.error';
+import {
+  ScheduleOpeningNotFoundError,
+  TenantOpeningHasResourceDependentsError,
+} from '../../domain/errors/booking-domain.error';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const OTHER_TENANT_ID = '00000000-0000-7000-8000-000000000099';
 
 describe('RemoveScheduleOpeningUseCase', () => {
   let repo: InMemoryScheduleOpeningRepository;
+  let tenantLock: InMemoryTenantLock;
   let useCase: RemoveScheduleOpeningUseCase;
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
+    tenantLock = new InMemoryTenantLock();
     const tx = new InMemoryTransactionManager();
-    useCase = new RemoveScheduleOpeningUseCase(repo, tx);
+    useCase = new RemoveScheduleOpeningUseCase(repo, tenantLock, tx);
   });
 
   it('deletes an existing opening', async () => {
@@ -47,5 +53,90 @@ describe('RemoveScheduleOpeningUseCase', () => {
     await expect(useCase.execute({ id: opening.id, tenantId: TENANT_ID })).rejects.toThrow(
       ScheduleOpeningNotFoundError,
     );
+  });
+
+  describe('tenant-opening deletion cascade (M21 Cluster 1)', () => {
+    const RESOURCE_ID = '00000000-0000-7000-8000-000000000003';
+
+    it('throws TenantOpeningHasResourceDependentsError when a resource-scoped opening depends on it', async () => {
+      const date = futureDate(5);
+      const tenantWide = new ScheduleOpeningBuilder()
+        .withTenantId(TENANT_ID)
+        .withDate(date)
+        .build();
+      await repo.save(tenantWide);
+      await repo.save(
+        new ScheduleOpeningBuilder()
+          .withTenantId(TENANT_ID)
+          .withResourceId(RESOURCE_ID)
+          .withDate(date)
+          .build(),
+      );
+
+      await expect(useCase.execute({ id: tenantWide.id, tenantId: TENANT_ID })).rejects.toThrow(
+        TenantOpeningHasResourceDependentsError,
+      );
+
+      const stored = await repo.findById(tenantWide.id, TENANT_ID);
+      expect(stored).not.toBeNull();
+    });
+
+    it('allows deleting a tenant-wide opening with no resource-scoped dependents', async () => {
+      const date = futureDate(5);
+      const tenantWide = new ScheduleOpeningBuilder()
+        .withTenantId(TENANT_ID)
+        .withDate(date)
+        .build();
+      await repo.save(tenantWide);
+
+      await useCase.execute({ id: tenantWide.id, tenantId: TENANT_ID });
+
+      const stored = await repo.findById(tenantWide.id, TENANT_ID);
+      expect(stored).toBeNull();
+    });
+
+    it('never blocks deleting a resource-scoped opening directly', async () => {
+      const date = futureDate(5);
+      const scoped = new ScheduleOpeningBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceId(RESOURCE_ID)
+        .withDate(date)
+        .build();
+      await repo.save(scoped);
+
+      await useCase.execute({ id: scoped.id, tenantId: TENANT_ID });
+
+      const stored = await repo.findById(scoped.id, TENANT_ID);
+      expect(stored).toBeNull();
+    });
+
+    it('acquires the (tenantId, date) lock before checking for resource-scoped dependents', async () => {
+      const date = futureDate(5);
+      const tenantWide = new ScheduleOpeningBuilder()
+        .withTenantId(TENANT_ID)
+        .withDate(date)
+        .build();
+      await repo.save(tenantWide);
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');
+
+      await useCase.execute({ id: tenantWide.id, tenantId: TENANT_ID });
+
+      expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, date);
+    });
+
+    it('does not acquire the lock when deleting a resource-scoped opening directly', async () => {
+      const date = futureDate(5);
+      const scoped = new ScheduleOpeningBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceId(RESOURCE_ID)
+        .withDate(date)
+        .build();
+      await repo.save(scoped);
+      const lockSpy = jest.spyOn(tenantLock, 'lockTenantDay');
+
+      await useCase.execute({ id: scoped.id, tenantId: TENANT_ID });
+
+      expect(lockSpy).not.toHaveBeenCalled();
+    });
   });
 });

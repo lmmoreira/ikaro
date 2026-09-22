@@ -45,4 +45,27 @@ describe('ServiceFormFields', () => {
     expect(screen.getByText('Extra')).toBeInTheDocument();
     expect(screen.getByText('$')).toBeInTheDocument();
   });
+
+  it('hides the pickup switch when hidePickupToggle is true', () => {
+    renderWithIntl(
+      <ServiceFormFields
+        name=""
+        description=""
+        priceAmount=""
+        durationMinutes=""
+        loyaltyPointsValue="0"
+        requiresPickupAddress={false}
+        fieldErrors={{}}
+        onNameChange={vi.fn()}
+        onDescriptionChange={vi.fn()}
+        onPriceAmountChange={vi.fn()}
+        onDurationMinutesChange={vi.fn()}
+        onLoyaltyPointsValueChange={vi.fn()}
+        onToggleRequiresPickupAddress={vi.fn()}
+        hidePickupToggle
+      />,
+    );
+
+    expect(screen.queryByTestId('service-pickup-switch')).not.toBeInTheDocument();
+  });
 });

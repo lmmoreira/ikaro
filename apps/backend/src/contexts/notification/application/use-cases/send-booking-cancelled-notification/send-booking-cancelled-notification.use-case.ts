@@ -7,6 +7,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendBookingCancelledNotificationDto } from '../../dtos/send-booking-cancelled-notification.dto';
+import { BaseContactNotificationDto } from '../../dtos/base-contact-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -32,7 +33,14 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-export type SendBookingCancelledNotificationUseCaseInput = SendBookingCancelledNotificationDto;
+export interface SendBookingCancelledNotificationUseCaseInput extends BaseContactNotificationDto {
+  cancelledBy: SendBookingCancelledNotificationDto['cancelledBy'];
+  isBusiness: SendBookingCancelledNotificationDto['isBusiness'];
+  reason: SendBookingCancelledNotificationDto['reason'];
+  scheduledAt: SendBookingCancelledNotificationDto['scheduledAt'];
+  lineSummary: SendBookingCancelledNotificationDto['lineSummary'];
+  totalPrice: SendBookingCancelledNotificationDto['totalPrice'];
+}
 
 export interface SendBookingCancelledNotificationUseCaseResult {
   customerEmailSent: boolean;
@@ -58,38 +66,12 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
   async execute(
     input: SendBookingCancelledNotificationUseCaseInput,
   ): Promise<SendBookingCancelledNotificationUseCaseResult> {
-    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
-    const timezone = tenantInfo?.timezone ?? 'UTC';
-    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
-    const scheduledDate = new Date(input.scheduledAt);
-    const localDate = utcDateToLocalDate(scheduledDate, timezone);
-    const localTime = utcDateToLocalHHMM(scheduledDate, timezone);
-    const serviceNames = input.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
-    const formattedTotal = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
+    const ctx = await this.resolveDisplayContext(input);
+    const [customerTemplates, adminTemplates] = await this.loadTemplates(input.tenantId);
+    this.localizeTemplates(customerTemplates, this.localizationPort, ctx.locale);
+    this.localizeTemplates(adminTemplates, this.localizationPort, ctx.locale);
 
-    const [customerTemplates, adminTemplates] = await Promise.all([
-      this.templateRepo.findAllByTriggerEvent(
-        input.tenantId,
-        NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
-      ),
-      this.templateRepo.findAllByTriggerEvent(
-        input.tenantId,
-        NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
-      ),
-    ]);
-    this.localizeTemplates(customerTemplates, this.localizationPort, locale);
-    this.localizeTemplates(adminTemplates, this.localizationPort, locale);
-
-    const variables: Record<string, string> = {
-      contactName: input.contactName,
-      serviceNames,
-      totalPrice: formattedTotal,
-      localDate,
-      localTime,
-      cancelledBy: input.cancelledBy,
-      isBusiness: String(input.isBusiness),
-      reason: input.reason ?? '',
-    };
+    const variables = this.buildVariables(input, ctx);
 
     const customerEmailSent = await this.dispatchTemplates(
       customerTemplates,
@@ -105,5 +87,56 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
         : false;
 
     return { customerEmailSent, adminEmailSent };
+  }
+
+  private async resolveDisplayContext(
+    input: SendBookingCancelledNotificationUseCaseInput,
+  ): Promise<{
+    locale: string;
+    localDate: string;
+    localTime: string;
+    serviceNames: string;
+    formattedTotal: string;
+  }> {
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
+    const timezone = tenantInfo?.timezone ?? 'UTC';
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
+    const scheduledDate = new Date(input.scheduledAt);
+    return {
+      locale,
+      localDate: utcDateToLocalDate(scheduledDate, timezone),
+      localTime: utcDateToLocalHHMM(scheduledDate, timezone),
+      serviceNames: input.lineSummary.map((l) => l.serviceNameAtBooking).join(', '),
+      formattedTotal: formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency),
+    };
+  }
+
+  private loadTemplates(tenantId: string) {
+    return Promise.all([
+      this.templateRepo.findAllByTriggerEvent(
+        tenantId,
+        NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
+      ),
+      this.templateRepo.findAllByTriggerEvent(
+        tenantId,
+        NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
+      ),
+    ]);
+  }
+
+  private buildVariables(
+    input: SendBookingCancelledNotificationUseCaseInput,
+    ctx: { localDate: string; localTime: string; serviceNames: string; formattedTotal: string },
+  ): Record<string, string> {
+    return {
+      contactName: input.contactName,
+      serviceNames: ctx.serviceNames,
+      totalPrice: ctx.formattedTotal,
+      localDate: ctx.localDate,
+      localTime: ctx.localTime,
+      cancelledBy: input.cancelledBy,
+      isBusiness: String(input.isBusiness),
+      reason: input.reason ?? '',
+    };
   }
 }

@@ -7,6 +7,7 @@ export interface ScheduleClosure {
   endTime: string | null;
   reason: ClosureReason;
   notes: string | null;
+  resourceId: string | null;
 }
 
 export interface ScheduleClosureListResponse {
@@ -19,6 +20,7 @@ export interface CreateClosureRequest {
   startTime?: string;
   endTime?: string;
   notes?: string;
+  resourceId?: string;
 }
 
 export interface ScheduleOpening {
@@ -27,6 +29,7 @@ export interface ScheduleOpening {
   startTime: string;
   endTime: string;
   notes: string | null;
+  resourceId: string | null;
 }
 
 export interface ScheduleOpeningListResponse {
@@ -38,6 +41,7 @@ export interface CreateOpeningRequest {
   startTime: string;
   endTime: string;
   notes?: string;
+  resourceId?: string;
 }
 
 export interface AvailableSlot {

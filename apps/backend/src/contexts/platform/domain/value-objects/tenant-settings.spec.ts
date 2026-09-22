@@ -8,6 +8,19 @@ import { TenantSettings } from './tenant-settings.vo';
 import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform';
 
 describe('TenantSettings', () => {
+  describe('reconstitute()', () => {
+    it('backfills leadForm defaults for a tenant created before M20-S03', () => {
+      const legacyProps = new TenantSettingsPropsBuilder().build();
+      delete (legacyProps as Partial<typeof legacyProps>).leadForm;
+
+      expect(TenantSettings.reconstitute(legacyProps).leadForm).toEqual({
+        retentionMonths: 6,
+        maxSubmissionsPerDay: 100,
+        maxSubmissionsPerIpPerDay: 3,
+      });
+    });
+  });
+
   describe('default()', () => {
     it('returns settings with all default values', () => {
       const settings = TenantSettings.default();
@@ -37,6 +50,11 @@ describe('TenantSettings', () => {
         socialLinks: null,
       });
       expect(settings.chatbot).toEqual({ knowledgeText: '' });
+      expect(settings.leadForm).toEqual({
+        retentionMonths: 6,
+        maxSubmissionsPerDay: 100,
+        maxSubmissionsPerIpPerDay: 3,
+      });
     });
 
     it('accepts a custom timezone', () => {
@@ -202,6 +220,14 @@ describe('TenantSettings', () => {
         .build();
       expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
     });
+
+    it('normalizes a mixed-case/whitespace fromEmail (TD37-S20)', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withNotification({ fromEmail: ' Reservas@LavaCar.com.br ' })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.notification.fromEmail).toBe('reservas@lavacar.com.br');
+    });
   });
 
   describe('create() — businessInfo validation', () => {
@@ -253,6 +279,14 @@ describe('TenantSettings', () => {
         .withBusinessInfo({ email: 'not-an-email' })
         .build();
       expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('normalizes a mixed-case/whitespace businessInfo.email (TD37-S20)', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({ email: ' Contato@BeloAuto.com.br ' })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.businessInfo.email).toBe('contato@beloauto.com.br');
     });
 
     it('throws for a zipCode that is not 8 digits', () => {

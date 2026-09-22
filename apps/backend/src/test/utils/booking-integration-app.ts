@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { Test, TestingModuleBuilder } from '@nestjs/testing';
+import { Test, TestingModule, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import type { ModuleMetadata } from '@nestjs/common';
@@ -16,14 +16,30 @@ import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
 import { BookingEntity } from '../../contexts/booking/infrastructure/entities/booking.entity';
 import { BookingLineEntity } from '../../contexts/booking/infrastructure/entities/booking-line.entity';
+import { ResourceEntity } from '../../contexts/booking/infrastructure/entities/resource.entity';
 import { ScheduleClosureEntity } from '../../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../../contexts/booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../../contexts/booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../../contexts/booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
+import { ServiceBookingIntakeSchemaEntity } from '../../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingAttendeeEntity } from '../../contexts/booking/infrastructure/entities/booking-attendee.entity';
+import { BookingLineResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
+import { StaffEntity } from '../../contexts/staff/infrastructure/entities/staff.entity';
 import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
 import { InMemoryFrontendRevalidationPort } from '../infrastructure/in-memory-frontend-revalidation.port';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
@@ -39,7 +55,12 @@ export interface BookingIntegrationAppOptions {
 
 export async function createBookingIntegrationApp(
   options: BookingIntegrationAppOptions = {},
-): Promise<{ app: INestApplication; ds: DataSource; eventBus: RoutingInMemoryEventBus }> {
+): Promise<{
+  app: INestApplication;
+  ds: DataSource;
+  eventBus: RoutingInMemoryEventBus;
+  moduleRef: TestingModule;
+}> {
   const { extraModules = [], overrideProviders = [] } = options;
 
   const routingBus = new RoutingInMemoryEventBus();
@@ -56,10 +77,22 @@ export async function createBookingIntegrationApp(
           HotsiteConfigEntity,
           CustomerEntity,
           ServiceEntity,
+          ServiceResourceRequirementEntity,
+          ServiceResourceRequirementPoolEntity,
+          ServiceLegEntity,
+          ServiceLegResourceRequirementEntity,
+          ServiceLegResourceRequirementPoolEntity,
+          ServiceClassResourcePoolEntity,
+          ServiceBookingIntakeSchemaEntity,
+          BookingAttendeeEntity,
           ScheduleClosureEntity,
           ScheduleOpeningEntity,
           BookingEntity,
           BookingLineEntity,
+          ResourceEntity,
+          BookingLineResourceAssignmentEntity,
+          ResourceOccupancyEntity,
+          StaffEntity,
           InboxRecordEntity,
         ],
         synchronize: false,
@@ -93,5 +126,5 @@ export async function createBookingIntegrationApp(
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   await app.init();
-  return { app, ds: moduleRef.get(DataSource), eventBus: routingBus };
+  return { app, ds: moduleRef.get(DataSource), eventBus: routingBus, moduleRef };
 }

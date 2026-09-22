@@ -1,11 +1,13 @@
 import { countrySpec } from '@ikaro/i18n';
 import { Address, type AddressProps } from '../../../../shared/value-objects/address';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
+import { Email } from '../../../../shared/value-objects/email.vo';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import type {
   BusinessInfo,
   BookingSettings,
   ChatbotSettings,
+  LeadFormSettings,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -16,16 +18,27 @@ import { BookingSettingsValidator } from './validators/booking-settings.validato
 import { BusinessHoursValidator } from './validators/business-hours.validator';
 import { BusinessInfoValidator } from './validators/business-info.validator';
 import { ChatbotSettingsValidator } from './validators/chatbot-settings.validator';
+import { LeadFormSettingsValidator } from './validators/lead-form-settings.validator';
 import { LocalizationSettingsValidator } from './validators/localization-settings.validator';
 import { LoyaltySettingsValidator } from './validators/loyalty-settings.validator';
 import { NotificationSettingsValidator } from './validators/notification-settings.validator';
 import { requireTrimmedString } from './validators/require-trimmed-string';
+import {
+  DEFAULT_BOOKING_SETTINGS,
+  DEFAULT_BUSINESS_INFO_SETTINGS,
+  DEFAULT_CHATBOT_SETTINGS,
+  DEFAULT_LEAD_FORM_SETTINGS,
+  DEFAULT_LOYALTY_SETTINGS,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  buildDefaultBusinessHours,
+} from './tenant-settings-defaults';
 
 export type {
   AddressProps,
   BookingSettings,
   BusinessInfo,
   ChatbotSettings,
+  LeadFormSettings,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -93,6 +106,10 @@ export class TenantSettings {
     return { knowledgeText: '', ...this.props.chatbot };
   }
 
+  get leadForm(): LeadFormSettings {
+    return { ...this.props.leadForm };
+  }
+
   toJSON(): TenantSettingsProps {
     const clone = structuredClone(this.props);
     return {
@@ -110,50 +127,19 @@ export class TenantSettings {
     const resolvedCountryCode = CountryCode.create(countryCode);
     const spec = resolvedCountryCode.spec;
     return new TenantSettings({
-      loyalty: {
-        expiryDays: 180,
-        enableNotifications: true,
-        expiryWarningDays: 7,
-        notificationMinPoints: 50,
-        pointsPerCurrencyUnit: 0,
-      },
-      booking: {
-        cancellationWindowHours: 48,
-        autoApproveEnabled: false,
-        minBookingAdvanceHours: 0,
-        maxBookingAdvanceDays: 90,
-        serviceBufferMinutes: 60,
-        slotGranularityMinutes: 30,
-        welcomeStaffScreenDays: 14,
-      },
-      businessHours: {
-        timezone,
-        monday: { open: '09:00', close: '18:00' },
-        tuesday: { open: '09:00', close: '18:00' },
-        wednesday: { open: '09:00', close: '18:00' },
-        thursday: { open: '09:00', close: '18:00' },
-        friday: { open: '09:00', close: '18:00' },
-        saturday: { open: '09:00', close: '17:00' },
-        sunday: null,
-      },
+      loyalty: DEFAULT_LOYALTY_SETTINGS,
+      booking: DEFAULT_BOOKING_SETTINGS,
+      businessHours: buildDefaultBusinessHours(timezone),
       localization: {
         countryCode: resolvedCountryCode.value,
         currency: spec.currency,
         language: spec.language,
         decimalPlaces: 2,
       },
-      notification: {
-        fromEmail: null,
-      },
-      businessInfo: {
-        phone: null,
-        email: null,
-        address: null,
-        socialLinks: null,
-      },
-      chatbot: {
-        knowledgeText: '',
-      },
+      notification: DEFAULT_NOTIFICATION_SETTINGS,
+      businessInfo: DEFAULT_BUSINESS_INFO_SETTINGS,
+      chatbot: DEFAULT_CHATBOT_SETTINGS,
+      leadForm: DEFAULT_LEAD_FORM_SETTINGS,
     });
   }
 
@@ -168,12 +154,18 @@ export class TenantSettings {
       businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, resolvedCountryCode),
     };
     TenantSettings.validate(normalizedProps);
-    return new TenantSettings(normalizedProps);
+    // Runs strictly after validate() succeeds: BusinessInfoValidator/NotificationSettingsValidator
+    // already confirmed the raw format via Email.isValid() and throw their own typed error codes
+    // (SETTINGS_BUSINESS_EMAIL_INVALID / SETTINGS_NOTIFICATION_EMAIL_INVALID) on a bad value — an
+    // already-valid email can never fail Email.create() here, so this step only ever normalizes
+    // (lowercase/trim), never changes what error a caller sees for invalid input.
+    return new TenantSettings(TenantSettings.normalizeValidatedEmails(normalizedProps));
   }
 
   static reconstitute(props: TenantSettingsProps): TenantSettings {
     return new TenantSettings({
       ...props,
+      leadForm: props.leadForm ?? DEFAULT_LEAD_FORM_SETTINGS,
       booking: {
         ...props.booking,
         welcomeStaffScreenDays: props.booking.welcomeStaffScreenDays ?? 14,
@@ -189,6 +181,7 @@ export class TenantSettings {
     NotificationSettingsValidator.validate(props.notification);
     BusinessInfoValidator.validate(props.businessInfo);
     ChatbotSettingsValidator.validate(props.chatbot);
+    LeadFormSettingsValidator.validate(props.leadForm);
   }
 
   private static normalizeBusinessInfo(
@@ -221,5 +214,22 @@ export class TenantSettings {
     if (address == null) return null;
     const normalizedAddress = Address.create(address, countryCode.spec.address);
     return normalizedAddress.toJSON();
+  }
+
+  private static normalizeValidatedEmails(props: TenantSettingsProps): TenantSettingsProps {
+    return {
+      ...props,
+      businessInfo:
+        props.businessInfo?.email == null
+          ? props.businessInfo
+          : { ...props.businessInfo, email: Email.create(props.businessInfo.email).address },
+      notification:
+        props.notification?.fromEmail == null
+          ? props.notification
+          : {
+              ...props.notification,
+              fromEmail: Email.create(props.notification.fromEmail).address,
+            },
+    };
   }
 }

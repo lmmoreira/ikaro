@@ -9,7 +9,6 @@ All backend, BFF, and frontend for staff login are shipped (`M124-S01`, ✅ Done
 | File | Status | Notes |
 |---|---|---|
 | `apps/web/app/dashboard/login/page.tsx` | ✅ Exists | Two branches: with `?tenantSlug=` (Google button) and without it (message only, no button — see `00b-no-tenant-slug.html`) |
-| `apps/web/app/auth/first-login/page.tsx` | ❌ Gap | Genuinely missing — the only real gap in this journey |
 | `apps/web/app/auth/error/page.tsx` | ✅ Exists | Shared staff + customer, 8 reason codes (see table below) |
 | `apps/web/features/auth/google-oauth.ts` (`buildGoogleOAuthUrl`) | ✅ Exists | Builds `{BFF_URL}/auth/google?tenantSlug={slug}&type=staff` — no `state=__staff__` scheme; that was never built |
 
@@ -30,12 +29,9 @@ All backend, BFF, and frontend for staff login are shipped (`M124-S01`, ✅ Done
 
 **No inline error state exists.** A prior draft of this file proposed one (`?error=` query param, red banner before the Google button); the real page never implements this. All auth failures redirect to the separate `/auth/error` page instead.
 
-## Screen: `/auth/first-login` (`FirstLoginPage`)
+## First-login behavior
 
-**File:** `apps/web/app/auth/first-login/page.tsx` (GAP — still not built)
-**Prototype:** `01-first-login.html` (design proposal, not yet implemented)
-
-**When it would be shown:** BFF finds a staff record with `is_active=false` on regular login and would redirect here. Since the page doesn't exist, this redirect target is currently a dead end in production — worth flagging to whoever picks this up.
+There is deliberately no `/auth/first-login` route in the shipped flow. The invitation link starts the normal Google OAuth flow; a matching pending invite is activated in the callback, receives the session cookie, and is redirected to `/dashboard/bookings`. An inactive existing staff record is not sent to a missing page: it redirects to `/auth/error?reason=staff-deactivated&tenantSlug=...`. `01-first-login.html` is retained only as an early design proposal, not as an implementation target.
 
 ## Screen: `/auth/error` (`AuthErrorPage`)
 
@@ -66,7 +62,7 @@ UC-022 — Regular staff login:
   3. BFF GET /v1/auth/google/callback → handleStaffLogin()
      → resolves staff by googleOAuthId
      → if is_active=true: issue JWT cookie → redirect /dashboard/bookings
-     → if is_active=false: redirect /auth/first-login  (dead end — page doesn't exist)
+     → if is_active=false: redirect /auth/error?reason=staff-deactivated&tenantSlug=...
      → if not found: redirect /auth/error?reason=not-a-staff-member
 
 UC-025 — First login / accept invite:
@@ -79,5 +75,4 @@ UC-025 — First login / accept invite:
 
 ## Known limitations
 
-- **`/auth/first-login` doesn't exist.** A deactivated-invite login currently redirects to a route that 404s. This is the one real remaining gap in this journey.
-- **No "Bem-vindo(a)!" first-login banner** was built — an open question from the original draft that was never revisited.
+- **No "Bem-vindo(a)!" first-login banner** was built. Invite activation still completes successfully; the user lands directly on `/dashboard/bookings`.

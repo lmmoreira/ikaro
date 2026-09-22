@@ -1,0 +1,501 @@
+// @vitest-environment jsdom
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { useState } from 'react';
+import type { ResourceResponse } from '@ikaro/types';
+import type { ServiceTabAction } from './service-tab-action';
+import { renderWithIntl } from '@/test-utils';
+import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
+
+// The panel no longer draws its own Save/Publish button — it registers the action with
+// ServiceEditPage's sticky action panel. This harness plays that role so the panel's own
+// behavior (validation, in-flight state, dirty tracking) stays testable in isolation.
+function ResourcePanelWithAction(
+  props: Omit<Parameters<typeof ServiceResourceRequirementsPanel>[0], 'onActionChange'>,
+) {
+  const [action, setAction] = useState<ServiceTabAction | null>(null);
+  return (
+    <>
+      <ServiceResourceRequirementsPanel {...props} onActionChange={setAction} />
+      <button
+        type="button"
+        data-testid="resource-requirements-save"
+        disabled={action === null || action.disabled || action.pending}
+        onClick={action?.onSubmit}
+      >
+        {action?.label}
+      </button>
+    </>
+  );
+}
+
+const resourceRequirementsMutateAsync = vi.fn().mockResolvedValue({});
+const legsMutateAsync = vi.fn().mockResolvedValue({});
+const updateServiceMutateAsync = vi.fn().mockResolvedValue({});
+interface UseResourcesMockResult {
+  readonly data: { items: unknown[] } | undefined;
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+}
+const useResourcesMock = vi.fn<() => UseResourcesMockResult>(() => ({
+  data: { items: [] },
+  isLoading: false,
+  isError: false,
+}));
+
+vi.mock('@/features/booking/hooks/useResources', () => ({
+  useResources: () => useResourcesMock(),
+}));
+
+vi.mock('@/features/booking/services/useServices', () => ({
+  useUpdateServiceResourceRequirements: () => ({
+    mutateAsync: resourceRequirementsMutateAsync,
+    isPending: false,
+  }),
+  useUpdateServiceLegs: () => ({ mutateAsync: legsMutateAsync, isPending: false }),
+  useUpdateService: () => ({ mutateAsync: updateServiceMutateAsync, isPending: false }),
+}));
+
+function staff(id: string): ResourceResponse {
+  return {
+    id,
+    type: 'STAFF',
+    refId: null,
+    name: `Staff ${id}`,
+    workingHours: null,
+    turnoverMinutes: 0,
+    maxCapacity: null,
+    isActive: true,
+  };
+}
+
+function stubActiveStaff(...ids: string[]): void {
+  useResourcesMock.mockReturnValue({
+    data: { items: ids.map(staff) },
+    isLoading: false,
+    isError: false,
+  });
+}
+
+beforeEach(() => {
+  resourceRequirementsMutateAsync.mockClear();
+  legsMutateAsync.mockClear();
+  updateServiceMutateAsync.mockClear();
+  useResourcesMock.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false });
+});
+
+// data-testid stays static across all 3 resource-type rows (E2E-3) — disambiguated by the
+// sibling data-resource-type attribute instead.
+function getResourceTypeCheckbox(container: HTMLElement, type: string): HTMLElement {
+  const el = container.querySelector(
+    `[data-testid="resource-type-checkbox"][data-resource-type="${type}"]`,
+  );
+  if (!el) throw new Error(`No resource-type checkbox found for type=${type}`);
+  return el as HTMLElement;
+}
+
+describe('ServiceResourceRequirementsPanel', () => {
+  it('shows the empty state when no resource types are checked', () => {
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={10}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-empty-state')).toBeInTheDocument();
+  });
+
+  it('checking a resource type marks the tab dirty and clears the empty state', async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = vi.fn();
+    const { container } = renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={10}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await user.click(getResourceTypeCheckbox(container, 'STAFF'));
+    expect(onDirtyChange).toHaveBeenCalledWith(true);
+    expect(screen.queryByTestId('resource-empty-state')).not.toBeInTheDocument();
+  });
+
+  it('switching to legs mode hides the flat checklist and shows the legs panel', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByTestId('resource-mode-legs'));
+    expect(screen.getByTestId('legs-add-button')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="resource-type-checkbox"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('visibly disables the buffer field once legs mode is selected, instead of removing it', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={30}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-buffer-input')).toBeEnabled();
+
+    await user.click(screen.getByTestId('resource-mode-legs'));
+
+    expect(screen.getByTestId('resource-buffer-input')).toBeDisabled();
+  });
+
+  it('saving in flat mode calls updateServiceResourceRequirements and updateService for the buffer', async () => {
+    const user = userEvent.setup();
+    stubActiveStaff('staff-1');
+    const onDirtyChange = vi.fn();
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[
+          { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
+        ]}
+        initialLegs={null}
+        initialBufferAfterMinutes={10}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(resourceRequirementsMutateAsync).toHaveBeenCalledWith({
+      id: 'svc-1',
+      body: {
+        resourceRequirements: [
+          { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
+        ],
+      },
+    });
+    expect(updateServiceMutateAsync).toHaveBeenCalledWith({
+      id: 'svc-1',
+      body: { bufferAfterMinutes: 10 },
+    });
+    expect(screen.getByTestId('resource-requirements-saved')).toBeInTheDocument();
+    expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+
+  it('saving in legs mode calls updateServiceLegs, not updateServiceResourceRequirements', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={[
+          {
+            legIndex: 0,
+            name: 'Sauna',
+            durationMinutes: 20,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 0,
+          },
+          {
+            legIndex: 1,
+            name: 'Massagem',
+            durationMinutes: 30,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 0,
+          },
+        ]}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(legsMutateAsync).toHaveBeenCalled();
+    expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('disables save in legs mode with fewer than 2 legs, matching the backend minimum', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByTestId('resource-mode-legs'));
+    await user.click(screen.getByTestId('legs-add-button'));
+
+    expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+  });
+
+  it('sends bufferAfterMinutes: 0 (not skipping the PATCH) when the field is cleared', async () => {
+    const user = userEvent.setup();
+    stubActiveStaff('staff-1');
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[
+          { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
+        ]}
+        initialLegs={null}
+        initialBufferAfterMinutes={30}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.clear(screen.getByTestId('resource-buffer-input'));
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(updateServiceMutateAsync).toHaveBeenCalledWith({
+      id: 'svc-1',
+      body: { bufferAfterMinutes: 0 },
+    });
+  });
+
+  it('locks the flat mode option once the service is already legged on the server', () => {
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={[
+          {
+            legIndex: 0,
+            name: 'Sauna',
+            durationMinutes: 20,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 0,
+          },
+          {
+            legIndex: 1,
+            name: 'Massagem',
+            durationMinutes: 30,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 0,
+          },
+        ]}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-mode-flat')).toBeDisabled();
+  });
+
+  it('disables save while the active-resources query is still loading', () => {
+    useResourcesMock.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+  });
+
+  it('blocks save if the active-resources query failed, without dropping pool IDs', () => {
+    useResourcesMock.mockReturnValue({ data: undefined, isLoading: false, isError: true });
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[
+          {
+            type: 'STAFF',
+            selectionMode: 'AUTO_ANY',
+            resourcePoolIds: ['staff-1'],
+            requiredQuantity: 1,
+          },
+        ]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    // Disabled at the UI layer; handleSave() also refuses to run if it were somehow invoked
+    // directly, so a stale pool ID is never silently dropped by a save that raced ahead of the
+    // active-resources query.
+    expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('locks flat mode immediately after a successful flat-to-legs save, within the same session', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-mode-flat')).toBeEnabled();
+
+    await user.click(screen.getByTestId('resource-mode-legs'));
+    await user.click(screen.getByTestId('legs-add-button'));
+    await user.click(screen.getByTestId('legs-add-button'));
+    await user.type(container.querySelector('[data-testid="leg-name"][data-leg-index="0"]')!, 'A');
+    await user.type(container.querySelector('[data-testid="leg-name"][data-leg-index="1"]')!, 'B');
+
+    await user.click(screen.getByTestId('resource-requirements-save'));
+    expect(legsMutateAsync).toHaveBeenCalled();
+
+    // Service.setResourceRequirements() would 409 against this now-legged service — the flat
+    // option must lock immediately, not only after a reload re-supplies initialLegs.
+    expect(screen.getByTestId('resource-mode-flat')).toBeDisabled();
+  });
+
+  it('keeps dirty when a newer edit lands while an earlier save is still pending', async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = vi.fn();
+    let resolveSave: (value: unknown) => void = () => {};
+    resourceRequirementsMutateAsync.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    const { container } = renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await user.click(getResourceTypeCheckbox(container, 'STAFF'));
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    // A second edit lands while the first save is still in flight.
+    await user.click(getResourceTypeCheckbox(container, 'ROOM'));
+
+    resolveSave({});
+    await screen.findByTestId('resource-requirements-save');
+
+    expect(onDirtyChange).not.toHaveBeenLastCalledWith(false);
+    expect(screen.queryByTestId('resource-requirements-saved')).not.toBeInTheDocument();
+  });
+
+  describe('requiredQuantity vs. eligible resources', () => {
+    function renderFlatStaff(resourcePoolIds: string[] | null, requiredQuantity: number) {
+      return renderWithIntl(
+        <ResourcePanelWithAction
+          serviceId="svc-1"
+          initialResourceRequirements={[
+            { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds, requiredQuantity },
+          ]}
+          initialLegs={null}
+          initialBufferAfterMinutes={null}
+          onDirtyChange={vi.fn()}
+        />,
+      );
+    }
+
+    it('disables save and shows the inline error when an explicit pool is smaller than the quantity', () => {
+      stubActiveStaff('staff-1', 'staff-2', 'staff-3');
+      renderFlatStaff(['staff-1'], 2);
+
+      expect(screen.getByTestId('resource-type-quantity-error')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    });
+
+    it('disables save when no pool is set and fewer active resources exist than the quantity', () => {
+      stubActiveStaff('staff-1');
+      renderFlatStaff(null, 2);
+
+      expect(screen.getByTestId('resource-type-quantity-error')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    });
+
+    it('keeps save enabled when the eligible resources cover the quantity', () => {
+      stubActiveStaff('staff-1', 'staff-2', 'staff-3');
+      renderFlatStaff(['staff-1', 'staff-2'], 2);
+
+      expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeEnabled();
+    });
+
+    it('blocks the save and shows the stale-pool notice when every saved eligible resource is inactive', () => {
+      stubActiveStaff('staff-1');
+      renderFlatStaff(['gone-1'], 1);
+
+      expect(screen.getByTestId('resource-type-stale-pool')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    });
+
+    it('does not flash eligibility errors while the resources are still loading', () => {
+      useResourcesMock.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      renderFlatStaff(['staff-1'], 2);
+
+      expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('resource-type-stale-pool')).not.toBeInTheDocument();
+    });
+
+    it('disables save in legs mode when a leg requirement asks for more than its candidates', () => {
+      stubActiveStaff('staff-1');
+      renderWithIntl(
+        <ResourcePanelWithAction
+          serviceId="svc-1"
+          initialResourceRequirements={[]}
+          initialLegs={[
+            {
+              legIndex: 0,
+              name: 'Sauna',
+              durationMinutes: 30,
+              resourceRequirements: [
+                {
+                  type: 'STAFF',
+                  selectionMode: 'AUTO_ANY',
+                  resourcePoolIds: null,
+                  requiredQuantity: 2,
+                },
+              ],
+              transitionGapAfterMinutes: 0,
+            },
+            {
+              legIndex: 1,
+              name: 'Massagem',
+              durationMinutes: 30,
+              resourceRequirements: [],
+              transitionGapAfterMinutes: 0,
+            },
+          ]}
+          initialBufferAfterMinutes={null}
+          onDirtyChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('resource-type-quantity-error')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
+    });
+  });
+});

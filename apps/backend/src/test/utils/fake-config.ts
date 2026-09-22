@@ -6,7 +6,7 @@ import { IApplicationConfig } from '../../shared/ports/application-config.port';
 // process.env (docs/CI_TRAPS.md's ConfigService.getOrThrow() trap). Keep in sync with
 // apps/backend/src/config/env.validation.ts when either changes.
 const SCHEMA_DEFAULTS: Record<string, string> = {
-  CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: '25',
+  CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: '1',
   CHATBOT_MIN_PROVIDER_BALANCE_USD: '2',
   CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES: '5',
 };

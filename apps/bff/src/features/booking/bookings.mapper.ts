@@ -109,6 +109,19 @@ export function toGuestBookingRead(detail: BookingDetailResponse): GuestBookingR
   };
 }
 
+function toStaffBookingDetailLine(l: BookingDetailResponse['lines'][number]) {
+  return {
+    lineId: l.lineId,
+    serviceId: l.serviceId,
+    serviceName: l.serviceNameAtBooking,
+    priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
+    durationMinsAtBooking: l.durationMinsAtBooking,
+    pointsValueAtBooking: l.pointsValueAtBooking,
+    requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
+    actualPriceCharged: toMoneyOrNull(l.actualPriceCharged),
+  };
+}
+
 export function toStaffBookingDetail(
   detail: BookingDetailResponse,
   loyaltyBalance: number | null,
@@ -125,16 +138,7 @@ export function toStaffBookingDetail(
     pickupAddress: detail.pickupAddress,
     customerId: detail.customerId,
     loyaltyBalance,
-    lines: detail.lines.map((l) => ({
-      lineId: l.lineId,
-      serviceId: l.serviceId,
-      serviceName: l.serviceNameAtBooking,
-      priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
-      durationMinsAtBooking: l.durationMinsAtBooking,
-      pointsValueAtBooking: l.pointsValueAtBooking,
-      requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-      actualPriceCharged: toMoneyOrNull(l.actualPriceCharged),
-    })),
+    lines: detail.lines.map(toStaffBookingDetailLine),
     totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
     totalActualPrice: toMoneyOrNull(detail.totalActualPrice),
     discountPointsUsed: detail.discountPointsUsed,

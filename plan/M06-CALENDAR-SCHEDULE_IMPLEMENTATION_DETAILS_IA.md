@@ -1,5 +1,7 @@
 # M06 — Calendar & Schedule — Implementation Details (IA)
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 Token-efficient reference for AI agents. No prose — facts, gotchas, structural decisions only.
 
 ---

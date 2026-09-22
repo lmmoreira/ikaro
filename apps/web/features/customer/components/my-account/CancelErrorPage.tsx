@@ -22,22 +22,32 @@ export function CancelErrorPage({
   const t = useTranslations('customer.cancelError');
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
   const topbarStatus = useCustomerTopbarStatus();
+  const setBookingStatus = topbarStatus?.setBookingStatus;
+  const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
+  const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
 
   const serviceNames = booking.lines.map((line) => line.serviceName).join(', ');
   const scheduledAt = booking.scheduledAt === null ? null : new Date(booking.scheduledAt);
   const deadline = booking.cancellableUntil === null ? null : new Date(booking.cancellableUntil);
 
   useEffect(() => {
-    topbarStatus?.setBookingStatus(booking.status);
-    topbarStatus?.setBackHrefOverride(`/${tenantSlug}/my-account/bookings/${booking.bookingId}`);
-    topbarStatus?.setBackLabelOverride(t('backToBooking'));
+    setBookingStatus?.(booking.status);
+    setBackHrefOverride?.(`/${tenantSlug}/my-account/bookings/${booking.bookingId}`);
+    setBackLabelOverride?.(t('backToBooking'));
     return () => {
-      topbarStatus?.setBookingStatus(null);
-      topbarStatus?.setBackHrefOverride(null);
-      topbarStatus?.setBackLabelOverride(null);
+      setBookingStatus?.(null);
+      setBackHrefOverride?.(null);
+      setBackLabelOverride?.(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [booking.bookingId, booking.status, tenantSlug]);
+  }, [
+    booking.bookingId,
+    booking.status,
+    setBackHrefOverride,
+    setBackLabelOverride,
+    setBookingStatus,
+    t,
+    tenantSlug,
+  ]);
 
   return (
     <div className="flex w-full flex-col gap-4">

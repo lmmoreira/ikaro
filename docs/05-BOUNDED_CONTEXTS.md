@@ -67,12 +67,13 @@ Notification Context subscribes:
 │  ┌───────────────────────────────────────────────────────────────────┐ │
 │  │                      BOOKING CONTEXT  (Core)                      │ │
 │  │  Aggregates: Booking (root + BookingLine), Service,               │ │
-│  │             ScheduleClosure, ScheduleOpening                      │ │
+│  │             ScheduleClosure, ScheduleOpening, Resource (M21)      │ │
 │  │  Published: BookingRequested, BookingApproved, BookingRejected,   │ │
 │  │             BookingInfoRequested, BookingInfoSubmitted,            │ │
 │  │             BookingCompleted, BookingCancelled, BookingRescheduled,│ │
 │  │             BookingReminderDue, BookingReminderDueToday,           │ │
 │  │             AdminDailyScheduleReminder                             │ │
+│  │  Consumes:  StaffDeactivated (Staff Context, M21)                  │ │
 │  └──────────┬──────────────────────────────────────────┬─────────────┘ │
 │             │ BookingCompleted only                    │ all events     │
 │             ▼                                          ▼               │
@@ -107,7 +108,7 @@ Notification Context subscribes:
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Not pictured — `shared.outbox`/`shared.inbox` are transport infrastructure, not a context (TD24):** the diagram above shows the 6 bounded contexts; the transactional outbox (publish-side durability) and shared inbox (consume-side idempotency) that carry every event between them are deliberately absent from it — they're the same category as Pub/Sub itself, a cross-cutting mechanism every context's events flow through, not a 7th business capability with its own aggregates. See `docs/11-ARCHITECTURE.md` §Communication Patterns and `td/TD24-OUTBOX-INBOX-PATTERN.md`.
+**Not pictured — `shared.outbox`/`shared.inbox` are transport infrastructure, not a context (TD24):** the diagram above shows the 6 bounded contexts; the transactional outbox (publish-side durability) and shared inbox (consume-side idempotency) that carry every event between them are deliberately absent from it — they're the same category as Pub/Sub itself, a cross-cutting mechanism every context's events flow through, not a 7th business capability with its own aggregates. See `docs/11-ARCHITECTURE.md` §Communication Patterns and `docs/03-DOMAIN_EVENTS.md`.
 
 ---
 
@@ -117,11 +118,14 @@ Notification Context subscribes:
 
 **Purpose:** The heart of Ikaro. Manages the complete booking lifecycle **for a specific tenant**.
 
+> ⚠️ **PLANNED, NOT YET BUILT:** every item tagged `(M21 Cluster N)` for `N ≥ 2` below belongs to the Multi-Vertical Scheduling epic and does not exist in code yet — see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exception: `(M21 Cluster 1)`/`(M21)`-tagged items are fully shipped** — the `Resource` aggregate (`M21-S01`/`S02`), `ScheduleClosure`/`ScheduleOpening`'s resource-scoping (`M21-S03`), and the `StaffDeactivated` cascade consumer (`M21-S01`/`S06`) are all live; see `plan/M21-MULTIVERTICAL-FOUNDATION.md` and `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md`. Untagged content in this section is live MVP behavior.
+
 **Owned Aggregates:**
 - `Booking` (root) — a customer visit; parent of 1..N `BookingLine` child entities (tenant-scoped). The Booking aggregate enforces ≥1 line, snapshots line fields at request time, and computes `totalPrice` / `totalDurationMins` from its lines.
 - `Service` — type of car wash offered (tenant-scoped). Edits to a service NEVER retroactively affect past bookings — the `BookingLine` snapshot is the source of truth for an existing booking.
-- `ScheduleClosure` — blocks the schedule for a full day or a partial time window (tenant-scoped).
-- `ScheduleOpening` — opens a normally-closed day (per `businessHours`) for a specific time window (tenant-scoped). Inverse of `ScheduleClosure`.
+- `ScheduleClosure` — blocks the schedule for a full day or a partial time window (tenant-scoped); optionally scoped to one `Resource` (M21 Cluster 1).
+- `ScheduleOpening` — opens a normally-closed day (per `businessHours`) for a specific time window (tenant-scoped). Inverse of `ScheduleClosure`; optionally scoped to one `Resource` (M21 Cluster 1).
+- `Resource` — generic bookable unit (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`), tenant-scoped. **Added M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation).** A `STAFF`-type resource wraps an existing `Staff` row by reference; every tenant gets exactly one active `LOCATION` resource by migration backfill. See `docs/02-DOMAIN_MODEL.md` § Booking Context.
 
 **Responsibilities:**
 - Accept booking requests (guest & authenticated customers) for a specific tenant
@@ -132,7 +136,7 @@ Notification Context subscribes:
 - Trigger workflow changes
 
 **Database:** `booking` schema
-- Tables: bookings, services, schedule_closures, schedule_openings, booking_audit_logs
+- Tables: bookings, services, schedule_closures, schedule_openings, booking_audit_logs, resources (M21 Cluster 1); service_resource_requirements(_pool), service_legs, service_leg_resource_requirements(_pool), service_class_resource_pool, service_booking_intake_schema, booking_attendees, booking_line_resource_assignments, resource_occupancy (M22 Cluster 2); recurring_booking_schedules(_resource_assignments/_exceptions), availability_alerts(_notification_attempts), future_commitment_exceptions, booking_quote_revisions (M23 Cluster 3); class_schedule_templates(_slots/_exceptions), class_sessions(_resources), class_session_bookings(_attendees/_transitions), class_session_payments, recurring_enrollments, class_access_contracts, guest_class_booking_email_verifications, guest_class_trial_redemptions (M24 Cluster 4)
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
 
@@ -146,11 +150,24 @@ Notification Context subscribes:
 - `BookingCancelled` → consumed by Notification
 - `BookingRescheduled` → consumed by Notification
 - Cron-emitted reminder events: `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` → all consumed by Notification
+- `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Paused`/`Ended` (M23 Cluster 3) → consumed by Notification
+- `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; rest have no consumers in MVP
+- `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → `Raised`/`Resolved` consumed by Notification
+- `TenantSchedulingBootstrapped` (M23 Cluster 3) → no consumers in MVP
+- `BookingNoShow` (M23 Cluster 3) → consumed by Notification (customer email); explicitly **not** consumed by Loyalty (no points for a no-show)
+- `ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Waitlisted`/`Cancelled` (M24 Cluster 4) → consumed by Notification
+- `WaitlistPromoted` (M24 Cluster 4) → consumed by Notification
+- `ClassSessionBookingCompleted` (M24 Cluster 4) → consumed by **Loyalty** (inserts a `LoyaltyEntry` via `class_session_booking_id`) and Notification — the SESSION-family counterpart to `BookingCompleted`
+- `ClassSessionBookingNoShow` (M24 Cluster 4) → consumed by Notification; explicitly **not** consumed by Loyalty
+- `InPersonPaymentRecorded`/`Reversed` (M24 Cluster 4) → no consumers in MVP
 
-> **Loyalty only subscribes to `BookingCompleted`.** It does not consume any other Booking event.
+> **Loyalty subscribes to `BookingCompleted` and, from M24 Cluster 4, `ClassSessionBookingCompleted`.** It does not consume any other Booking event.
+
+**Consumed Events:**
+- `StaffDeactivated` (Staff Context) → UC-048, cascades to the wrapping `STAFF`-type `Resource` (M21 Cluster 1)
 
 **Dependencies:**
-- **Input:** Requires Customer data (optional), Staff data (optional) to validate - all tenant-scoped
+- **Input:** Requires Customer data (optional), Staff data (optional) to validate - all tenant-scoped. Consumes `StaffDeactivated` (see above).
 - **Output:** Publishes tenant-scoped events
 
 **Tech Stack:**
@@ -172,12 +189,13 @@ Notification Context subscribes:
 **Purpose:** Track points earned by customers for completed services, with per-tenant expiration, and allow admins to record point redemptions.
 
 **Owned Aggregates:**
-- `LoyaltyEntry` — one immutable row per booking line completion. Append-only. Never updated or deleted.
+- `LoyaltyEntry` — one immutable row per booking line completion, **or, from M24 Cluster 4, per class-session-booking completion** (mutually exclusive source columns — `docs/13-DATABASE_SCHEMA.md`). Append-only. Never updated or deleted.
 - `LoyaltyBalance` — running active point total per `(tenant_id, customer_id)`. O(1) reads. Updated atomically on earn, redeem, and expiry.
 - `LoyaltyRedemption` — append-only audit record of each admin-recorded redemption.
 
 **Responsibilities:**
 - Listen to `BookingCompleted` from Booking Context. When the booking has a `customerId`, insert a `LoyaltyEntry` and increment `LoyaltyBalance` in one transaction.
+- **M24 Cluster 4:** also listens to `ClassSessionBookingCompleted` — same insert-and-increment transaction, sourced from `class_session_booking_id` instead of `booking_line_id`. Not consumed for a guest attendee (no `customerId`) or a `NO_SHOW` outcome.
 - Allow admin to record a redemption via `POST /v1/loyalty/redeem` — insert `LoyaltyRedemption` and decrement `LoyaltyBalance` atomically.
 - Run a **daily expiry cron** at 02:00 UTC: compute points from `loyalty_entries` that expired that day and decrement `loyalty_balances.current_points` accordingly. Idempotent via `balance_expiry_log`.
 - Run a **weekly cron** (Mondays 06:00 tenant-local) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days.
@@ -401,12 +419,14 @@ Same Person, Multiple Tenants:
 **Published Events:**
 - `StaffInvited`, `StaffDeactivated`, `StaffActivated`
 
+> `StaffDeactivated` is consumed by **Booking Context** (UC-048, added M21 Cluster 1) to cascade-deactivate a `STAFF`-type `Resource` — Staff Context itself remains unaware of this; it just publishes the event.
+
 **Consumed Events:**
 - None
 
 **Dependencies:**
 - **Input:** None
-- **Output:** None
+- **Output:** `StaffDeactivated` consumed by Booking Context (see above)
 
 **Tenant Isolation Guarantees:**
 - ✓ Cannot view other tenant's staff
@@ -493,6 +513,8 @@ import { LoyaltyEntry } from '../domain/entities/loyalty-entry.entity';
 ```
 
 NestJS module files (`*.module.ts`) MUST NOT `imports:` or `providers:` any class from another context's module.
+
+> **Sanctioned exception — cross-context Port+Adapter:** a narrow, CI-governed exception to Rules 1 and 2 exists for same-process synchronous reads that don't fit the event/BFF patterns above — an `infrastructure/cross-context/*.adapter.ts` file importing a use case directly from another context. Every such import must be an exact-path entry in `packages/architecture-check/architecture-policy.json`'s `contextDependencyMatrix.permittedEdges` (with rationale, owner, review date) — an edge not in that allowlist is still forbidden. Grep `infrastructure/cross-context/` before adding a new port; extend an existing adapter rather than creating a duplicate. See `docs/ANTI_PATTERNS.md` and CLAUDE.md §7 Architecture.
 
 ---
 
@@ -713,31 +735,35 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - `Tenant` — name, slug, settings JSONB, is_active
 - `HotsiteConfig` — branding, layout modules, publish flag
 - `ChatbotSession` / `ChatbotMessage` / `ChatbotProviderBalance` — chat widget conversation log + cost/cap tracking (thin persistence records, not rich aggregates — same treatment as `NotificationLog`)
+- `LeadFormConfig` — one per tenant; question catalog + audience gating for the `LEAD_FORM` hotsite module (M20)
+- `LeadFormSubmission` — one per visitor submission to a tenant's lead form (M20)
 
 **Responsibilities:**
 - Provision new tenants (developer CLI in MVP; no super-admin UI)
 - Allow MANAGER-role staff to edit `tenants.settings` (UC-026)
 - Allow MANAGER-role staff to edit and publish the hotsite (UC-027)
-- Allow MANAGER-role staff to invite new staff members (UC-025) and deactivate existing ones (UC-028)
 - Validate that `slug` is globally unique on create
 - Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data — informational only (UC-033/UC-034)
+- Let a MANAGER configure a lead-capture form (up to 20 custom questions) on the hotsite, and let guests/logged-in customers submit it, protected by Cloudflare Turnstile + per-IP/per-tenant rate limits (UC-037–UC-043)
 
-**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` tables (see `docs/13-DATABASE_SCHEMA.md`)
+**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` tables (see `docs/13-DATABASE_SCHEMA.md`)
 
 **Published Events:**
-- `StaffInvited` → consumed by Notification (sends invitation/welcome email to new staff member's Google email)
-- `StaffDeactivated` → no consumers in MVP
+- `LeadFormSubmissionReceived` → consumed by `audit-log` (a placeholder logging consumer, M20-S16); a real notification/webhook consumer to the manager is still an explicitly deferred fast-follow
 
-**Consumed Events:** none — Platform is the source for its own data. The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/discovery/CHATBOT/CHATBOT.md` §6 for why a Platform→Booking port was considered and rejected.
+> Staff invite/deactivate (UC-025/UC-028) and their `StaffInvited`/`StaffDeactivated` events are owned by the **Staff Context** (§5), not Platform — Platform only hosts the tenant/hotsite/chatbot/lead-form aggregates listed above.
+
+**Consumed Events:** none — Platform is the source for its own data. The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/04-USE_CASES.md` UC-033.
 
 **Dependencies:**
 - **Output:** All other contexts read `tenant_id` and `tenants.settings` from here (via repository, not API)
-- **External:** Google OAuth (to validate the invited email belongs to a Google account at login time); an LLM provider (OpenRouter primary, Anthropic and OpenAI as additional adapters — behind `ILlmProvider`, resolved per-tenant, `docs/discovery/CHATBOT/CHATBOT.md` §4)
+- **External:** Google OAuth (to validate the invited email belongs to a Google account at login time); an LLM provider (OpenRouter primary, Anthropic and OpenAI as additional adapters — behind `ILlmProvider`, resolved per-tenant, `docs/04-USE_CASES.md` UC-033–UC-036)
 
 **Tenant Isolation:**
 - `Tenant` itself is NOT scoped by `tenant_id` (it IS the tenant).
 - `HotsiteConfig` is scoped by `tenant_id`.
 - `ChatbotSession`/`ChatbotMessage` are scoped by `tenant_id`, with a composite FK `(tenant_id, session_id)` on `chatbot_messages` blocking cross-tenant references at the DB level. `ChatbotProviderBalance` is platform-wide, not tenant-scoped (one row per provider, shared across all tenants).
+- `LeadFormConfig`/`LeadFormSubmission` are scoped by `tenant_id`. `LeadFormSubmission.customerId` is a UUID-only cross-context reference (no FK), matching the `docs/ANTI_PATTERNS.md` "cross-schema DB FK between contexts" rule.
 - Staff invite/deactivate use cases are scoped to the actor's `tenant_id` — a MANAGER can only manage staff in their own tenant.
 
 **Tech Stack:**
@@ -766,4 +792,3 @@ Future (Microservices — only if needed at scale):
 ```
 
 Current architecture supports this evolution without major changes.
-

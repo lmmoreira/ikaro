@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Políticas de reserva — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .field { margin:1rem 0; }.field label{display:block;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.detail-layout{display:block}.detail-aside{display:none}@media(min-width:1024px){.detail-layout{display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.5rem;align-items:start}.detail-aside{display:block;position:sticky;top:1.5rem}.mobile-actions{display:none!important}}
+  </style>
+</head>
+<body>
+  <div class="dashboard-topbar"><a href="manager-02-service-resource-config.html" style="color:var(--ba-text);text-decoration:none">← Serviços</a><h1 class="topbar-page-title">Políticas de reserva — Sala Aurora</h1></div>
+  <main class="dashboard-body">
+    <div class="detail-layout"><section class="detail-main" style="max-width:42rem">
+      <p style="opacity:.7">Cada regra vale para este serviço. Valores do negócio entram apenas como padrão.</p>
+      <div class="card"><h2 style="font-size:1.05rem">Tempo e preço</h2><div class="grid"><div class="field"><label for="duration">Duração</label><select id="duration" class="form-input"><option selected>Cliente escolhe</option></select></div><div class="field"><label for="price">Preço</label><select id="price" class="form-input"><option selected>R$ 50 por hora</option></select></div><div class="field"><label for="minimum">Mínimo</label><input id="minimum" class="form-input" value="1 hora"></div><div class="field"><label for="maximum">Máximo</label><input id="maximum" class="form-input" value="8 horas"></div></div></div>
+      <div class="card" style="margin-top:1rem"><h2 style="font-size:1.05rem">Confirmação e alterações</h2><label style="display:block;margin:.75rem 0"><input type="radio" name="approval" checked> Aprovação manual · segurar horário por <input class="form-input" style="display:inline-block;width:5rem" value="30 min" aria-label="Tempo de retenção"></label><label style="display:block;margin:.75rem 0"><input type="radio" name="approval"> Confirmar automaticamente</label><div class="grid"><div class="field"><label for="cancel">Cancelar até</label><input id="cancel" class="form-input" value="24 horas antes"></div><div class="field"><label for="reschedule">Reagendar até</label><input id="reschedule" class="form-input" value="24 horas antes"></div></div></div>
+      <div class="card" style="margin-top:1rem"><h2 style="font-size:1.05rem">Quem e como reserva</h2><label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Permitir recorrência para clientes autenticados</label><label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Permitir alerta de disponibilidade</label><label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Solicitar participantes nomeados</label><label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Solicitar termo de uso (versão 3.2)</label></div>
+      <div class="nav-buttons mobile-actions"><a class="btn-secondary" href="manager-02-service-resource-config.html">Cancelar</a><a class="btn-primary" href="manager-02-service-resource-config.html">Salvar políticas</a></div>
+    </section><aside class="detail-aside" aria-label="Ações"><div class="card" style="padding:1.25rem"><a class="btn-primary" href="manager-02-service-resource-config.html" style="display:block;text-align:center;padding:.75rem;margin-bottom:.625rem">Salvar políticas</a><a class="btn-secondary" href="manager-02-service-resource-config.html" style="display:block;text-align:center;padding:.75rem">Cancelar</a></div></aside></div>
+  </main>
+</body>
+</html>

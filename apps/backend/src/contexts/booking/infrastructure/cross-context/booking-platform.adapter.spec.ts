@@ -1,8 +1,13 @@
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
-import { TenantBuilder } from '../../../../test/builders/platform/index';
+import {
+  TenantBuilder,
+  TenantSettingsPropsBuilder,
+} from '../../../../test/builders/platform/index';
+import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
+import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
 import { BookingPlatformAdapter } from './booking-platform.adapter';
 
 describe('BookingPlatformAdapter', () => {
@@ -16,6 +21,7 @@ describe('BookingPlatformAdapter', () => {
     adapter = new BookingPlatformAdapter(
       new GetTenantsUseCase(repo),
       new GetTenantByIdUseCase(repo),
+      new GetTenantBusinessHoursForUpdateUseCase(repo),
       revalidation,
     );
   });
@@ -61,6 +67,47 @@ describe('BookingPlatformAdapter', () => {
     it('is best-effort — does not throw when the tenant does not exist, and skips revalidate', async () => {
       await expect(adapter.revalidatePublicPages('missing-tenant-id')).resolves.toBeUndefined();
       expect(revalidation.revalidatedSlugs).toEqual([]);
+    });
+  });
+
+  describe('getBusinessHoursAndLocale', () => {
+    it("returns the tenant's business hours and locale via GetTenantByIdUseCase", async () => {
+      const tenant = new TenantBuilder().build();
+      await repo.save(tenant);
+
+      const result = await adapter.getBusinessHoursAndLocale(tenant.id);
+
+      expect(result.locale).toBe('pt-BR');
+      expect(result.businessHours).toEqual(tenant.settings.businessHours);
+    });
+  });
+
+  describe('getBusinessHoursAndLocaleForUpdate', () => {
+    it("returns the tenant's business hours and locale via the uncached, row-locking read", async () => {
+      const tenant = new TenantBuilder().build();
+      await repo.save(tenant);
+
+      const result = await adapter.getBusinessHoursAndLocaleForUpdate(tenant.id);
+
+      expect(result.locale).toBe('pt-BR');
+      expect(result.businessHours).toEqual(tenant.settings.businessHours);
+    });
+  });
+
+  describe('getAutoApproveEnabled', () => {
+    it('returns settings.booking.autoApproveEnabled for the tenant', async () => {
+      const tenant = new TenantBuilder()
+        .withSettings(
+          TenantSettings.create(
+            new TenantSettingsPropsBuilder().withBooking({ autoApproveEnabled: true }).build(),
+          ),
+        )
+        .build();
+      await repo.save(tenant);
+
+      const result = await adapter.getAutoApproveEnabled(tenant.id);
+
+      expect(result).toBe(true);
     });
   });
 });

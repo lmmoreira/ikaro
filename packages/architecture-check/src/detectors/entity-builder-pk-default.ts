@@ -1,0 +1,112 @@
+import { ClassDeclaration, Node, Project, PropertyDeclaration, SyntaxKind } from 'ts-morph';
+import type { Finding, ScanResult } from '../model';
+import { sourceLine } from '../project';
+import { findBuilderInContext, indexBuilderClasses } from './builder-index';
+import { contextFromEntityPath } from './entity-context';
+import { findTypeOrmDecorator, hasTypeOrmDecorator } from './typeorm-symbols';
+
+// `tenantId` is excluded even when it participates in a composite primary key (e.g.
+// LoyaltyBalanceEntity's (tenant_id, customer_id)): every builder in this codebase defaults
+// tenantId to the fixed test-tenant literal, never uuidv7() — that's a deliberate readability
+// convention (a stable, greppable tenant id across every test), not an omission.
+const EXEMPT_FIELD_NAMES = new Set(['tenantId']);
+
+function isUuidTypedPrimaryColumn(property: PropertyDeclaration): boolean {
+  const resolved = findTypeOrmDecorator(property, ['PrimaryColumn', 'PrimaryGeneratedColumn']);
+  if (!resolved) return false;
+  const { decorator, exportName } = resolved;
+
+  const [firstArg] = decorator.getArguments();
+  if (exportName === 'PrimaryGeneratedColumn') {
+    // TypeORM's own default generation strategy is 'increment', NOT 'uuid' — a no-arg
+    // @PrimaryGeneratedColumn() is a numeric auto-increment column. Only an EXPLICIT 'uuid'
+    // strategy argument is UUID-shaped; every other case (no arg, 'increment', 'rowid',
+    // 'identity', ...) is not. Uses the RESOLVED export name, not decorator.getName(), so an
+    // aliased import (`PrimaryGeneratedColumn as X`) is still classified correctly.
+    return Node.isStringLiteral(firstArg) && firstArg.getLiteralText() === 'uuid';
+  }
+
+  // PrimaryColumn({ type: 'uuid', ... }) — this codebase always states `type` explicitly, so a
+  // missing/non-string `type` is treated as "not a UUID column" rather than guessed at.
+  if (!firstArg || !Node.isObjectLiteralExpression(firstArg)) return false;
+  const typeProperty = firstArg.getProperty('type');
+  if (!typeProperty || !Node.isPropertyAssignment(typeProperty)) return false;
+  const initializer = typeProperty.getInitializer();
+  return Boolean(
+    initializer && Node.isStringLiteral(initializer) && initializer.getLiteralText() === 'uuid',
+  );
+}
+
+function isUuidV7Call(node: Node | undefined): boolean {
+  return Boolean(
+    node && Node.isCallExpression(node) && node.getExpression().getText() === 'uuidv7',
+  );
+}
+
+// The story text explicitly warns not to assume the default lives in a field initializer — so
+// this also checks a `this.<field> = uuidv7()` assignment inside the builder's constructor, even
+// though every current *EntityBuilder happens to use a field initializer.
+function builderDefaultsToUuidV7(builderClass: ClassDeclaration, fieldName: string): boolean {
+  const property = builderClass.getProperty(fieldName);
+  if (isUuidV7Call(property?.getInitializer())) return true;
+
+  const constructor = builderClass.getConstructors()[0];
+  if (!constructor) return false;
+  return constructor.getDescendantsOfKind(SyntaxKind.BinaryExpression).some((expression) => {
+    if (expression.getOperatorToken().getText() !== '=') return false;
+    const left = expression.getLeft();
+    return (
+      Node.isPropertyAccessExpression(left) &&
+      Node.isThisExpression(left.getExpression()) &&
+      left.getName() === fieldName &&
+      isUuidV7Call(expression.getRight())
+    );
+  });
+}
+
+export function checkEntityBuilderPrimaryKeyDefaults(project: Project): ScanResult {
+  const findings: Finding[] = [];
+  let scannedTargets = 0;
+  // Indexed once, keyed by (name, context) — shared shape with test-builder-coverage.ts so the
+  // two detectors can never disagree about which builder "counts" for a given entity (PR #393
+  // review: this used to look up any same-named builder regardless of context).
+  const builderIndex = indexBuilderClasses(project);
+
+  for (const sourceFile of project.getSourceFiles()) {
+    const filePath = sourceFile.getFilePath();
+    const entityContext = contextFromEntityPath(filePath);
+    if (!entityContext || sourceFile.getBaseName().endsWith('.spec.ts')) continue;
+
+    for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
+      if (!hasTypeOrmDecorator(declaration, 'Entity')) continue;
+      const entityName = declaration.getName();
+      if (!entityName) continue;
+
+      // A missing (or wrong-context) builder is test-builder-coverage's finding, not this
+      // check's — avoid reporting the same gap twice through two different rules.
+      const builderClass = findBuilderInContext(
+        builderIndex,
+        `${entityName}Builder`,
+        entityContext,
+      );
+      if (!builderClass) continue;
+
+      for (const property of declaration.getProperties()) {
+        const fieldName = property.getName();
+        if (EXEMPT_FIELD_NAMES.has(fieldName)) continue;
+        if (!isUuidTypedPrimaryColumn(property)) continue;
+
+        scannedTargets++;
+        if (builderDefaultsToUuidV7(builderClass, fieldName)) continue;
+        findings.push({
+          rule: 'entity-builder-pk-uuidv7-default',
+          file: filePath,
+          line: sourceLine(sourceFile, property.getStart()),
+          message: `${entityName}.${fieldName} is a uuid primary key but ${entityName}Builder's "${fieldName}" field does not default to uuidv7().`,
+        });
+      }
+    }
+  }
+
+  return { rule: 'entity-builder-pk-uuidv7-default', scannedTargets, findings };
+}

@@ -10,9 +10,10 @@ import { OutboxRelayTriggerHandler } from './outbox-relay-trigger.handler';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
 
-// @Global() (TD24-S02): OUTBOX_PUBLISHER now has real consumers — the 3 event-emitting aggregates'
-// repositories (booking, tenant, staff) — matching EventBusModule's own @Global() pattern so
-// context modules don't each need an explicit OutboxModule import.
+// @Global() (TD24-S02): OUTBOX_PUBLISHER now has real consumers — the event-emitting aggregates'
+// repositories (booking, tenant, staff, and platform's LeadFormSubmission as of M20-S16) —
+// matching EventBusModule's own @Global() pattern so context modules don't each need an explicit
+// OutboxModule import.
 // EventBusModule is imported explicitly for clarity even though it's already @Global() (matches
 // the convention other context modules follow — see docs/AGENT_PATTERNS.md's module skeleton).
 @Global()
@@ -26,8 +27,8 @@ import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
     OutboxRelayTriggerHandler,
   ],
   // @Global() alone does not make a provider injectable elsewhere — it still must be exported.
-  // OUTBOX_PUBLISHER is the one token the 3 aggregate repositories (TD24-S02) inject from outside
-  // this module; nothing outside needs OUTBOX_REPOSITORY directly.
+  // OUTBOX_PUBLISHER is the one token the event-emitting aggregate repositories (TD24-S02,
+  // M20-S16) inject from outside this module; nothing outside needs OUTBOX_REPOSITORY directly.
   exports: [OUTBOX_PUBLISHER],
 })
 export class OutboxModule {}

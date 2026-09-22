@@ -8,13 +8,20 @@ vi.mock('./DashboardShell', () => ({
   DashboardShell: ({
     tenantName,
     role,
+    leadFormEnabled,
     children,
   }: {
-    tenantName: string;
-    role: string;
-    children: React.ReactNode;
+    readonly tenantName: string;
+    readonly role: string;
+    readonly leadFormEnabled: boolean;
+    readonly children: React.ReactNode;
   }) => (
-    <div data-testid="dashboard-shell" data-tenant-name={tenantName} data-role={role}>
+    <div
+      data-testid="dashboard-shell"
+      data-tenant-name={tenantName}
+      data-role={role}
+      data-lead-form-enabled={String(leadFormEnabled)}
+    >
       {children}
     </div>
   ),
@@ -37,6 +44,7 @@ function buildShell(overrides?: Partial<DashboardShellContext>): DashboardShellC
       dateFormat: 'DD/MM/YYYY',
       timeFormat: '24h',
     },
+    leadFormEnabled: false,
     ...overrides,
   };
 }
@@ -63,5 +71,15 @@ describe('DashboardSectionShell', () => {
     const shell = screen.getByTestId('dashboard-shell');
     expect(shell).toHaveAttribute('data-tenant-name', 'Lavacar BH');
     expect(shell).toHaveAttribute('data-role', 'STAFF');
+  });
+
+  it('forwards leadFormEnabled from the shell context', () => {
+    render(
+      <DashboardSectionShell shell={buildShell({ leadFormEnabled: true })}>
+        <p>Conteúdo</p>
+      </DashboardSectionShell>,
+    );
+
+    expect(screen.getByTestId('dashboard-shell')).toHaveAttribute('data-lead-form-enabled', 'true');
   });
 });

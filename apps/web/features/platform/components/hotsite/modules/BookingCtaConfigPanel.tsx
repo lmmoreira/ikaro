@@ -9,6 +9,7 @@ import {
   writeModuleData,
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
+import { ConfigTextField } from './ConfigTextField';
 
 export function BookingCtaConfigPanel({
   data,
@@ -23,56 +24,29 @@ export function BookingCtaConfigPanel({
 
   return (
     <div className="space-y-5">
-      <div>
-        <label
-          htmlFor="booking-cta-title"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('titleLabel')}
-        </label>
-        <input
-          id="booking-cta-title"
-          type="text"
-          value={bookingCta.title}
-          placeholder={t('titlePlaceholder')}
-          onChange={(event) => update({ title: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="booking-cta-title"
+        label={t('titleLabel')}
+        value={bookingCta.title}
+        placeholder={t('titlePlaceholder')}
+        onChange={(title) => update({ title })}
+      />
 
-      <div>
-        <label
-          htmlFor="booking-cta-subtitle"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('subtitleLabel')}
-        </label>
-        <input
-          id="booking-cta-subtitle"
-          type="text"
-          value={bookingCta.subtitle ?? ''}
-          placeholder={t('subtitlePlaceholder')}
-          onChange={(event) => update({ subtitle: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="booking-cta-subtitle"
+        label={t('subtitleLabel')}
+        value={bookingCta.subtitle ?? ''}
+        placeholder={t('subtitlePlaceholder')}
+        onChange={(subtitle) => update({ subtitle })}
+      />
 
-      <div>
-        <label
-          htmlFor="booking-cta-eyebrow"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('eyebrowLabel')}
-        </label>
-        <input
-          id="booking-cta-eyebrow"
-          type="text"
-          value={bookingCta.eyebrow ?? ''}
-          placeholder={t('eyebrowPlaceholder')}
-          onChange={(event) => update({ eyebrow: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="booking-cta-eyebrow"
+        label={t('eyebrowLabel')}
+        value={bookingCta.eyebrow ?? ''}
+        placeholder={t('eyebrowPlaceholder')}
+        onChange={(eyebrow) => update({ eyebrow })}
+      />
 
       <PillSelect
         label={t('variantLabel')}
@@ -111,22 +85,13 @@ export function BookingCtaConfigPanel({
         />
       )}
 
-      <div>
-        <label
-          htmlFor="booking-cta-cta-label"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('ctaLabelLabel')}
-        </label>
-        <input
-          id="booking-cta-cta-label"
-          type="text"
-          value={bookingCta.ctaLabel}
-          placeholder={t('ctaLabelPlaceholder')}
-          onChange={(event) => update({ ctaLabel: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-      </div>
+      <ConfigTextField
+        id="booking-cta-cta-label"
+        label={t('ctaLabelLabel')}
+        value={bookingCta.ctaLabel}
+        placeholder={t('ctaLabelPlaceholder')}
+        onChange={(ctaLabel) => update({ ctaLabel })}
+      />
 
       <PillSelect
         label={t('bgStyleLabel')}

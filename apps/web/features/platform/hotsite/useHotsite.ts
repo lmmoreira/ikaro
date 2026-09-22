@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   featureBookingPhoto,
   generateHotsiteImageSignedUrl,
+  getChatbotCapStatus,
+  getLeadFormConfig,
   getHotsiteConfig,
   publishHotsite,
   unpublishHotsite,
@@ -25,7 +27,14 @@ export function useUpdateHotsiteConfig() {
   const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: UpdateHotsiteRequest) => updateHotsiteConfig(body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] });
+      // Cheap and harmless when the request carried no audienceMode/questions — invalidating an
+      // unaffected query just marks it stale, refetched on next read. Covers the LEAD_FORM
+      // config panel, which reads a separate aggregate this same request can also write to
+      // (folded in at M20-S08 — see UpdateHotsiteRequest's own audienceMode/questions fields).
+      queryClient.invalidateQueries({ queryKey: ['lead-form-config', tenantId] });
+    },
   });
 }
 
@@ -59,5 +68,23 @@ export function useFeatureBookingPhoto() {
   return useMutation({
     mutationFn: (body: FeatureBookingPhotoRequest) => featureBookingPhoto(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),
+  });
+}
+
+// Powers the CHATBOT module config panel's own red banner (UC-027 A5) — the only module panel
+// that reads its own data instead of operating purely on draft.layout via props.
+export function useChatbotCapStatus() {
+  const { tenantId } = useTenant();
+  return useQuery({
+    queryKey: ['chatbot-cap-status', tenantId],
+    queryFn: getChatbotCapStatus,
+  });
+}
+
+export function useLeadFormConfig() {
+  const { tenantId } = useTenant();
+  return useQuery({
+    queryKey: ['lead-form-config', tenantId],
+    queryFn: getLeadFormConfig,
   });
 }

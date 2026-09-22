@@ -1,7 +1,7 @@
 import { ITracingPort } from '@ikaro/observability';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
+import { InMemoryOutboxRepository } from '../../../test/infrastructure/in-memory-outbox.repository';
 import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
-import { IOutboxRepository } from '../../ports/outbox-repository.port';
 import { OutboxPublisher } from './outbox-publisher';
 import { OutboxRelayService } from './outbox-relay.service';
 
@@ -28,18 +28,11 @@ class FakeTracingPort implements ITracingPort {
 }
 
 describe('OutboxPublisher', () => {
-  let outboxRepo: jest.Mocked<IOutboxRepository>;
+  let outboxRepo: InMemoryOutboxRepository;
   let relay: jest.Mocked<OutboxRelayService>;
 
   beforeEach(() => {
-    outboxRepo = {
-      insert: jest.fn(),
-      claimUnpublishedById: jest.fn(),
-      markPublished: jest.fn(),
-      claimUnpublished: jest.fn(),
-      releaseClaim: jest.fn(),
-      deleteOldPublished: jest.fn(),
-    } as unknown as jest.Mocked<IOutboxRepository>;
+    outboxRepo = new InMemoryOutboxRepository();
     relay = {
       relay: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<OutboxRelayService>;
@@ -47,17 +40,17 @@ describe('OutboxPublisher', () => {
 
   describe('publish()', () => {
     it('uses eventId as the dedup key when the event has no dedupKey', async () => {
-      outboxRepo.insert.mockResolvedValue('row-1');
+      outboxRepo.setNextInsertId('row-1');
       const publisher = new OutboxPublisher(outboxRepo, relay, makeConfigService());
       const event = new StubEvent('tenant-1', 'corr-1', { value: 'x' });
 
       await publisher.publish(event);
 
-      expect(outboxRepo.insert).toHaveBeenCalledWith(event, event.eventId);
+      expect(outboxRepo.inserted).toEqual([{ event, dedupKey: event.eventId }]);
     });
 
     it('uses Command.dedupKey for a Command, ignoring eventId (cron-published events)', async () => {
-      outboxRepo.insert.mockResolvedValue('row-1');
+      outboxRepo.setNextInsertId('row-1');
       const publisher = new OutboxPublisher(outboxRepo, relay, makeConfigService());
       const command = new StubCommand(
         'tenant-1',
@@ -68,14 +61,13 @@ describe('OutboxPublisher', () => {
 
       await publisher.publish(command);
 
-      expect(outboxRepo.insert).toHaveBeenCalledWith(
-        command,
-        'PointsExpiringSoon:t1:c1:2026-07-11',
-      );
+      expect(outboxRepo.inserted).toEqual([
+        { event: command, dedupKey: 'PointsExpiringSoon:t1:c1:2026-07-11' },
+      ]);
     });
 
     it('schedules relay dispatch for the inserted row id when inline dispatch is enabled', async () => {
-      outboxRepo.insert.mockResolvedValue('row-1');
+      outboxRepo.setNextInsertId('row-1');
       const publisher = new OutboxPublisher(
         outboxRepo,
         relay,
@@ -88,7 +80,7 @@ describe('OutboxPublisher', () => {
     });
 
     it('does not schedule dispatch when a conflicting insert returns no row', async () => {
-      outboxRepo.insert.mockResolvedValue(undefined);
+      outboxRepo.setNextInsertId(undefined);
       const publisher = new OutboxPublisher(
         outboxRepo,
         relay,
@@ -101,7 +93,7 @@ describe('OutboxPublisher', () => {
     });
 
     it('does not schedule dispatch when OUTBOX_INLINE_DISPATCH_ENABLED=false', async () => {
-      outboxRepo.insert.mockResolvedValue('row-1');
+      outboxRepo.setNextInsertId('row-1');
       const publisher = new OutboxPublisher(
         outboxRepo,
         relay,
@@ -114,7 +106,7 @@ describe('OutboxPublisher', () => {
     });
 
     it('swallows a relay failure — publish() never rejects', async () => {
-      outboxRepo.insert.mockResolvedValue('row-1');
+      outboxRepo.setNextInsertId('row-1');
       relay.relay.mockRejectedValue(new Error('pubsub down'));
       const publisher = new OutboxPublisher(
         outboxRepo,
@@ -128,7 +120,7 @@ describe('OutboxPublisher', () => {
     });
 
     it('captures the active trace context onto the event before inserting it (TD28)', async () => {
-      outboxRepo.insert.mockResolvedValue('row-1');
+      outboxRepo.setNextInsertId('row-1');
       const publisher = new OutboxPublisher(
         outboxRepo,
         relay,
@@ -140,10 +132,12 @@ describe('OutboxPublisher', () => {
       await publisher.publish(event);
 
       expect(event.traceContext).toEqual({ traceparent: '00-fake-trace-01' });
-      expect(outboxRepo.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ traceContext: { traceparent: '00-fake-trace-01' } }),
-        event.eventId,
-      );
+      expect(outboxRepo.inserted).toEqual([
+        {
+          event: expect.objectContaining({ traceContext: { traceparent: '00-fake-trace-01' } }),
+          dedupKey: event.eventId,
+        },
+      ]);
     });
   });
 });

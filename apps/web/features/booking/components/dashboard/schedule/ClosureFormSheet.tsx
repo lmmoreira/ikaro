@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ClosureReason, CreateClosureRequest, ScheduleClosure } from '@ikaro/types';
+import { useTenant } from '@/providers/tenant-provider';
+import { ResourceSelectField } from './ResourceSelectField';
 import { ScheduleDateTimeRangeSheet } from './ScheduleDateTimeRangeSheet';
 
 interface ClosureFormSheetProps {
@@ -36,7 +38,12 @@ export function ClosureFormSheet({
 }: ClosureFormSheetProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.schedule');
   const commonT = useTranslations('common');
+  const { role } = useTenant();
   const [reason, setReason] = useState<ClosureReason>('STAFF_DAY_OFF');
+  // Always starts fresh on the tenant-wide default — deliberately doesn't carry over whatever
+  // ResourceFilterMenu currently has checked (a multi-select view filter isn't the same choice as
+  // which single resource a new block applies to).
+  const [resourceId, setResourceId] = useState<string | null>(null);
   const reasonOptions = getClosureReasonOptions(t);
 
   return (
@@ -71,8 +78,12 @@ export function ClosureFormSheet({
         reason,
         ...(startTime && endTime ? { startTime, endTime } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(resourceId ? { resourceId } : {}),
       })}
     >
+      {role === 'MANAGER' && (
+        <ResourceSelectField value={resourceId} onValueChange={setResourceId} />
+      )}
       <label className="block space-y-2">
         <span className="block text-sm font-medium text-gray-700">{t('reasonLabel')}</span>
         <select

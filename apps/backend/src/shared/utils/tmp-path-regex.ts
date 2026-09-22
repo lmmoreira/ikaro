@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Single source of truth for the tmp/ staging path shapes (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
+// Single source of truth for the tmp/ staging path shapes (see docs/14-API_CONTRACTS.md).
 // Booking uploads use tmp/<tenantId>/<uuid>/<fileName> (no purpose segment); hotsite uploads use
 // tmp/<tenantId>/<purpose>/<uuid>/<fileName> — one segment longer. The two shapes must stay
 // distinguishable: HOTSITE_TMP_PATH_FRAGMENT requires exactly the hotsite segment count so a

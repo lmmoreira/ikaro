@@ -1,11 +1,21 @@
-import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
-import { BookingBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingBuilder,
+  BookingLineBuilder,
+  ResourceBuilder,
+  ServiceBuilder,
+} from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
+import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   BookingNotFoundError,
   BookingSlotUnavailableError,
@@ -30,16 +40,22 @@ describe('ApproveBookingUseCase', () => {
   describe('approve()', () => {
     let bookingRepo: InMemoryBookingRepository;
     let eventBus: InMemoryEventBus;
-    let availabilityPort: InMemoryBookingAvailabilityPort;
+    let fixtures: ReturnType<typeof createAutoBookingResourceFixtures>;
+    let occupancyRepo: InMemoryResourceOccupancyRepository;
     let useCase: ApproveBookingUseCase;
 
     beforeEach(() => {
       eventBus = new InMemoryEventBus();
       bookingRepo = new InMemoryBookingRepository(eventBus);
-      availabilityPort = new InMemoryBookingAvailabilityPort();
+      fixtures = createAutoBookingResourceFixtures();
+      occupancyRepo = new InMemoryResourceOccupancyRepository();
       useCase = new ApproveBookingUseCase(
         bookingRepo,
-        new BookingSlotConflictService(availabilityPort),
+        fixtures.serviceRepo,
+        fixtures.resourceRepo,
+        occupancyRepo,
+        new AvailabilityService(),
+        new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new InMemoryTransactionManager(),
       );
     });
@@ -84,6 +100,129 @@ describe('ApproveBookingUseCase', () => {
       expect(saved!.status).toBe(BookingStatus.APPROVED);
       expect(saved!.approvedBy).toBe(STAFF_ID);
       expect(saved!.approvedAt).not.toBeNull();
+    });
+
+    it('commits the HOLD occupancy row(s) to COMMITTED on approval', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      await occupancyRepo.assign(
+        TENANT_A,
+        booking.lines[0].lineId,
+        [
+          {
+            resourceId: resource.id,
+            resourceType: ResourceType.LOCATION,
+            resourceName: resource.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: scheduledAt,
+            endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const conflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        {
+          resourceId: resource.id,
+          startsAt: scheduledAt,
+          endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
+        },
+      ]);
+      expect(conflicting).toEqual([resource.id]); // still occupied (now COMMITTED), just not HOLD anymore
+    });
+
+    it('assigns a fresh COMMITTED occupancy row when the booking has no existing assignment at all (pre-M22-S03 legacy booking)', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      // No occupancyRepo.assign() call here — simulates a booking created before M22-S03 shipped
+      // (or one BackfillResourceOccupancy skipped because it wasn't APPROVED yet), which never
+      // got a REQUESTED/HOLD row through the normal request-time write path.
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const conflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        {
+          resourceId: resource.id,
+          startsAt: scheduledAt,
+          endsAt: new Date(scheduledAt.getTime() + booking.totalDurationMins * 60_000),
+        },
+      ]);
+      expect(conflicting).toEqual([resource.id]);
+    });
+
+    it('commits occupancy for the freshly re-resolved resource, not a stale existing assignment, when the two diverge', async () => {
+      const staleResource = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      const freshResource = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      await fixtures.resourceRepo.save(staleResource);
+      await fixtures.resourceRepo.save(freshResource);
+      const serviceId = '30000000-0000-4000-8000-000000000301';
+      const service = new ServiceBuilder()
+        .withId(serviceId)
+        .withTenantId(TENANT_A)
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await fixtures.serviceRepo.save(service);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .withLines([new BookingLineBuilder().withServiceId(serviceId).build()])
+        .build();
+      await bookingRepo.save(booking);
+      const bookingLineId = booking.lines[0].lineId;
+      const windowEnd = new Date(scheduledAt.getTime() + 30 * 60_000);
+      // Simulates request-time resolution having picked staleResource (the only active ROOM at
+      // that moment), followed by an admin deactivating it before staff approves.
+      await occupancyRepo.assign(
+        TENANT_A,
+        bookingLineId,
+        [
+          {
+            resourceId: staleResource.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: staleResource.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: scheduledAt,
+            endsAt: windowEnd,
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+      staleResource.deactivate();
+      await fixtures.resourceRepo.save(staleResource);
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const staleConflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        { resourceId: staleResource.id, startsAt: scheduledAt, endsAt: windowEnd },
+      ]);
+      expect(staleConflicting).toEqual([]);
+      const freshConflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        { resourceId: freshResource.id, startsAt: scheduledAt, endsAt: windowEnd },
+      ]);
+      expect(freshConflicting).toEqual([freshResource.id]);
     });
 
     it('allows approving with an alternate scheduledAt after a slot conflict', async () => {
@@ -169,7 +308,16 @@ describe('ApproveBookingUseCase', () => {
     });
 
     it('throws BookingSlotUnavailableError when slot overlaps an approved booking', async () => {
-      availabilityPort.setSlots([{ id: 'slot-test-id', scheduledAt, totalDurationMins: 60 }]);
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      occupancyRepo.seed(TENANT_A, 'other-line-id', {
+        resourceId: resource.id,
+        resourceType: ResourceType.LOCATION,
+        resourceName: resource.name,
+        legIndex: null,
+        quantityPosition: null,
+        startsAt: scheduledAt,
+        endsAt: new Date(scheduledAt.getTime() + 60 * 60_000),
+      });
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withScheduledAt(scheduledAt)
@@ -182,10 +330,17 @@ describe('ApproveBookingUseCase', () => {
     });
 
     it('allows approval when existing slot is non-overlapping (adjacent)', async () => {
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
       const otherSlotAt = new Date(scheduledAt.getTime() + 30 * 60_000);
-      availabilityPort.setSlots([
-        { id: 'slot-test-id', scheduledAt: otherSlotAt, totalDurationMins: 30 },
-      ]);
+      occupancyRepo.seed(TENANT_A, 'other-line-id', {
+        resourceId: resource.id,
+        resourceType: ResourceType.LOCATION,
+        resourceName: resource.name,
+        legIndex: null,
+        quantityPosition: null,
+        startsAt: otherSlotAt,
+        endsAt: new Date(otherSlotAt.getTime() + 30 * 60_000),
+      });
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withScheduledAt(scheduledAt)

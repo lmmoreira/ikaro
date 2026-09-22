@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jornada não confirmada — Jornada Spa Vitta</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .leg-timeline { position: relative; padding-left: 1.75rem; }
+    .leg-item { position: relative; padding-bottom: 1.5rem; }
+    .leg-item:last-child { padding-bottom: 0; }
+    .leg-dot {
+      position: absolute; left: -1.75rem; top: 0.125rem;
+      width: 0.75rem; height: 0.75rem; border-radius: 9999px;
+      background: var(--ba-primary); border: 2px solid white; box-shadow: 0 0 0 1px var(--ba-secondary);
+    }
+    .leg-dot.error { background: #dc2626; }
+    .leg-line {
+      position: absolute; left: -1.4375rem; top: 0.875rem; bottom: -0.625rem;
+      width: 2px; background: var(--ba-secondary);
+    }
+    .leg-item:last-child .leg-line { display: none; }
+    .leg-time { font-weight: 700; color: var(--ba-text); font-size: 0.9375rem; }
+    .leg-name { font-weight: 600; color: var(--ba-primary); font-size: 0.9375rem; margin-top: 0.125rem; }
+    .leg-item.error .leg-name { color: #dc2626; }
+    .leg-resource { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.125rem; }
+    .leg-item.error .leg-resource { opacity: 1; color: #dc2626; text-decoration: line-through; }
+    .transition-note { font-size: 0.75rem; opacity: 0.5; margin-top: 0.375rem; font-style: italic; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
+    Error-state sibling of public-05-multi-leg-itinerary.html.
+    CAND-19 alt A1 — a middle leg's resource(s) become unavailable between page load and
+    submit. System re-validates the WHOLE chain atomically at submit time and rejects with
+    "one part of this journey is no longer available" — never a partial itinerary.
+    See ../../multivertical-booking_USECASES.md CAND-19, CAND-31.
+
+    Scenario: the customer confirmed this itinerary, but between page load and submit
+    another booking took Sala de Terapia during the Massagem leg's own window — the same
+    resource public-04-bundle-booking.html's own race scenario uses, deliberately, so
+    both screens can be cross-checked against the same worked conflict.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — CAND-19 alt. A1 — uma etapa da jornada ficou indisponível entre o carregamento e a confirmação
+  </div>
+
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
+                  color:white;display:flex;align-items:center;justify-content:center;
+                  font-weight:700;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <a href="../../../../plan/journey/shared/login.html" style="display:flex;align-items:center;gap:0.375rem;
+       font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      Entrar
+    </a>
+  </div>
+
+  <div class="step-container">
+    <p class="step-indicator">Jornada Spa Vitta — R$ 260,00</p>
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--ba-text)">
+      Não foi possível confirmar sua jornada
+    </h2>
+
+    <div class="card" style="border-color:#fca5a5;background:#fef2f2;padding:1.125rem;margin-bottom:1.25rem;">
+      <div style="display:flex;gap:0.625rem;align-items:flex-start;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:0.125rem;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <p style="font-weight:700;color:#991b1b;">Uma etapa da sua jornada não está mais disponível</p>
+          <p style="font-size:0.8125rem;color:#991b1b;margin-top:0.375rem;">
+            <strong>Sala de Terapia</strong> foi reservada por outro cliente para 13:30–14:20, o horário da etapa de Massagem.
+            Como uma jornada com múltiplas etapas precisa de todos os recursos livres ao mesmo tempo, nenhuma parte foi
+            confirmada — nada foi reservado parcialmente.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+      <div class="leg-timeline">
+
+        <div class="leg-item">
+          <div class="leg-dot"></div><div class="leg-line"></div>
+          <p class="leg-time">13:00 – 13:20</p>
+          <p class="leg-name">Sauna</p>
+          <p class="leg-resource">Sala de Sauna</p>
+          <p class="transition-note">+ 10 min de transição antes da próxima etapa</p>
+        </div>
+
+        <div class="leg-item error">
+          <div class="leg-dot error"></div><div class="leg-line"></div>
+          <p class="leg-time">13:30 – 14:20</p>
+          <p class="leg-name">Massagem — indisponível</p>
+          <p class="leg-resource">Renata Souza · Sala de Terapia</p>
+          <p class="transition-note" style="opacity:1;color:#dc2626;font-style:normal;">Sala de Terapia foi reservada por outro cliente</p>
+        </div>
+
+        <div class="leg-item">
+          <div class="leg-dot"></div>
+          <p class="leg-time">14:25 – 14:45</p>
+          <p class="leg-name">Relaxamento</p>
+          <p class="leg-resource">Sala de Relaxamento</p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-secondary" onclick="window.history.back()">Voltar</button>
+      <a class="btn-primary" href="public-14-appointment-availability.html?service=spa-journey">Ver outro horário</a>
+    </div>
+  </div>
+</body>
+</html>

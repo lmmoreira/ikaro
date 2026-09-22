@@ -5,7 +5,10 @@ import { DashboardLayoutShell } from '@/shells/dashboard/components/DashboardLay
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
 import { loadDashboardShellContext } from '@/shells/dashboard/model/dashboard-shell-context';
-import { loadServiceDetailRouteData } from '@/shells/dashboard/model/service-route.server';
+import {
+  loadServiceDetailRouteData,
+  loadServiceEditRouteData,
+} from '@/shells/dashboard/model/service-route.server';
 import { matchServiceRoute } from '@/shells/dashboard/model/service-route';
 import { createTranslator } from 'next-intl';
 
@@ -35,7 +38,12 @@ export default async function ServicesLayout({
       : null;
 
   if (serviceRouteMatch) {
-    const { service } = await loadServiceDetailRouteData(token, serviceRouteMatch.serviceId);
+    // The edit page renders the intake schema too, so on that route the layout uses the same
+    // composite loader (cache() dedupes it with the page's call); other routes stay service-only.
+    const { service } =
+      serviceRouteMatch.action === 'edit'
+        ? await loadServiceEditRouteData(token, serviceRouteMatch.serviceId)
+        : await loadServiceDetailRouteData(token, serviceRouteMatch.serviceId);
     initialServiceStatus = service.isActive ? 'ACTIVE' : 'INACTIVE';
   }
 

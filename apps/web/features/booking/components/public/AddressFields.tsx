@@ -7,6 +7,7 @@ import type { Address, HotsiteAddressSpec } from '@ikaro/types';
 import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/shared/lib/address/viacep-address-lookup.adapter';
 import { digitsOnly } from '@/shared/utils/digits-only';
+import { AddressTextField } from './AddressTextField';
 
 interface AddressFieldsProps {
   readonly value: Address;
@@ -16,64 +17,6 @@ interface AddressFieldsProps {
   readonly addressLookup?: AddressLookup;
   readonly required?: boolean;
   readonly hasError?: boolean;
-}
-
-interface TextFieldProps {
-  readonly id: string;
-  readonly label: string;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-  readonly required?: boolean;
-  readonly maxLength?: number;
-  readonly inputMode?: 'text' | 'numeric';
-  readonly placeholder?: string;
-  readonly hasError?: boolean;
-}
-
-function fieldBorderStyle(hasError: boolean): React.CSSProperties {
-  return {
-    borderRadius: 'var(--ba-radius)',
-    borderColor: hasError ? '#dc2626' : 'var(--ba-secondary)',
-    backgroundColor: 'var(--ba-secondary)',
-    color: 'var(--ba-text)',
-  };
-}
-
-function TextField({
-  id,
-  label,
-  value,
-  onChange,
-  required,
-  maxLength,
-  inputMode,
-  placeholder,
-  hasError,
-}: TextFieldProps): React.JSX.Element {
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="mb-1 block text-sm font-medium"
-        style={{ color: 'var(--ba-text)' }}
-      >
-        {label}
-      </label>
-      <input
-        id={id}
-        type="text"
-        inputMode={inputMode}
-        maxLength={maxLength}
-        required={required}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full border px-3 py-2"
-        style={fieldBorderStyle(!!hasError)}
-        aria-invalid={hasError ? true : undefined}
-      />
-    </div>
-  );
 }
 
 export function AddressFields({
@@ -121,7 +64,7 @@ export function AddressFields({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
       <div className="sm:col-span-2">
-        <TextField
+        <AddressTextField
           id={`${idPrefix}-zip-code`}
           label={addressSpec.postalLabel}
           value={value.zipCode}
@@ -151,7 +94,7 @@ export function AddressFields({
       </div>
 
       <div className="sm:col-span-4">
-        <TextField
+        <AddressTextField
           id={`${idPrefix}-street`}
           label={addressSpec.streetLabel}
           value={value.street}
@@ -162,7 +105,7 @@ export function AddressFields({
       </div>
 
       <div className="sm:col-span-2">
-        <TextField
+        <AddressTextField
           id={`${idPrefix}-number`}
           label={addressSpec.numberLabel}
           value={value.number}
@@ -173,7 +116,7 @@ export function AddressFields({
       </div>
 
       <div className="sm:col-span-4">
-        <TextField
+        <AddressTextField
           id={`${idPrefix}-complement`}
           label={addressSpec.complementLabel}
           value={value.complement ?? ''}
@@ -183,7 +126,7 @@ export function AddressFields({
 
       {addressSpec.requireNeighborhood && (
         <div className="sm:col-span-3">
-          <TextField
+          <AddressTextField
             id={`${idPrefix}-neighborhood`}
             label={addressSpec.neighborhoodLabel ?? t('neighborhoodLabel')}
             value={value.neighborhood ?? ''}
@@ -195,7 +138,7 @@ export function AddressFields({
       )}
 
       <div className="sm:col-span-2">
-        <TextField
+        <AddressTextField
           id={`${idPrefix}-city`}
           label={addressSpec.cityLabel}
           value={value.city}
@@ -206,7 +149,7 @@ export function AddressFields({
       </div>
 
       <div className="sm:col-span-1">
-        <TextField
+        <AddressTextField
           id={`${idPrefix}-state`}
           label={addressSpec.stateLabel}
           value={value.state}

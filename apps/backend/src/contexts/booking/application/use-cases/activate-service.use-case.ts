@@ -7,7 +7,7 @@ import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 
-export type ActivateServiceInput = {
+export type ActivateServiceUseCaseInput = {
   id: string;
   tenantId: string;
 };
@@ -25,15 +25,21 @@ export class ActivateServiceUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: ActivateServiceInput): Promise<ActivateServiceUseCaseResult> {
+  async execute(input: ActivateServiceUseCaseInput): Promise<ActivateServiceUseCaseResult> {
     const { id, tenantId } = input;
-    const service = await this.serviceRepo.findById(id, tenantId);
-    if (!service) throw new ServiceNotFoundError(id);
 
-    service.activate();
+    const service = await this.txManager.run(async () => {
+      // findByIdForUpdate (not findById) — save() wholesale-replaces every child table
+      // (resourceRequirements/legs/classResourceSlots) from this in-memory aggregate's current
+      // state, so a stale pre-transaction read here would silently overwrite a concurrent
+      // resource-requirements/legs update back to its old state. See
+      // update-service.use-case.ts's identical comment.
+      const current = await this.serviceRepo.findByIdForUpdate(id, tenantId);
+      if (!current) throw new ServiceNotFoundError(id);
 
-    await this.txManager.run(async () => {
-      await this.serviceRepo.save(service);
+      current.activate();
+      await this.serviceRepo.save(current);
+      return current;
     });
 
     await this.bookingPlatform.revalidatePublicPages(tenantId);

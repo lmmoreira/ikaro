@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   AboutModuleDataSchema,
   BookingCtaModuleDataSchema,
+  ChatbotModuleDataSchema,
   ContactModuleDataSchema,
   GalleryModuleDataSchema,
   HeroModuleDataSchema,
+  LeadFormModuleDataSchema,
   ServiceListModuleDataSchema,
   TestimonialsModuleDataSchema,
   isValidModuleData,
@@ -534,6 +536,90 @@ describe('ContactModuleDataSchema', () => {
   });
 });
 
+describe('ChatbotModuleDataSchema', () => {
+  it('accepts an empty object — every field is optional', () => {
+    expect(ChatbotModuleDataSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('accepts all fields set', () => {
+    const result = ChatbotModuleDataSchema.safeParse({
+      variant: 'inline',
+      accentColor: 'secondary',
+      botName: 'Sofia',
+      welcomeMessage: 'Olá! Como posso ajudar?',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an invalid variant', () => {
+    const result = ChatbotModuleDataSchema.safeParse({ variant: 'floating' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid accentColor', () => {
+    const result = ChatbotModuleDataSchema.safeParse({ accentColor: 'tertiary' });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+const validLeadFormData = {
+  title: 'Fale com a gente',
+  ctaLabel: 'Preencher formulário',
+};
+
+describe('LeadFormModuleDataSchema', () => {
+  it('accepts the minimal required fields', () => {
+    expect(LeadFormModuleDataSchema.safeParse(validLeadFormData).success).toBe(true);
+  });
+
+  it('accepts all optional fields set', () => {
+    const result = LeadFormModuleDataSchema.safeParse({
+      ...validLeadFormData,
+      subtitle: 'Nossa equipe entra em contato em até 1 dia útil',
+      eyebrow: 'Orçamento personalizado',
+      variant: 'left-aligned',
+      backgroundImageUrl: 'https://storage.example.com/lead-form.jpg',
+      backgroundImagePosition: 'left',
+      bgStyle: 'background',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an explicit null for backgroundImageUrl', () => {
+    const result = LeadFormModuleDataSchema.safeParse({
+      ...validLeadFormData,
+      backgroundImageUrl: null,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects missing required fields', () => {
+    const result = LeadFormModuleDataSchema.safeParse({ ctaLabel: 'Preencher formulário' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid variant', () => {
+    const result = LeadFormModuleDataSchema.safeParse({
+      ...validLeadFormData,
+      variant: 'floating',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid bgStyle', () => {
+    const result = LeadFormModuleDataSchema.safeParse({ ...validLeadFormData, bgStyle: 'accent' });
+
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('isValidModuleData', () => {
   it('returns true for valid HERO data', () => {
     expect(isValidModuleData('HERO', validHeroData)).toBe(true);
@@ -597,5 +683,21 @@ describe('isValidModuleData', () => {
 
   it('returns false for invalid BOOKING_CTA data', () => {
     expect(isValidModuleData('BOOKING_CTA', { ctaLabel: 'Agendar' })).toBe(false);
+  });
+
+  it('returns true for valid CHATBOT data', () => {
+    expect(isValidModuleData('CHATBOT', { variant: 'bubble' })).toBe(true);
+  });
+
+  it('returns false for invalid CHATBOT data', () => {
+    expect(isValidModuleData('CHATBOT', { variant: 'floating' })).toBe(false);
+  });
+
+  it('returns true for valid LEAD_FORM data', () => {
+    expect(isValidModuleData('LEAD_FORM', validLeadFormData)).toBe(true);
+  });
+
+  it('returns false for invalid LEAD_FORM data', () => {
+    expect(isValidModuleData('LEAD_FORM', { ctaLabel: 'Preencher formulário' })).toBe(false);
   });
 });

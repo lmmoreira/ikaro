@@ -10,10 +10,12 @@ import {
 } from '../../domain/errors/platform-domain.error';
 import {
   HotsiteBranding,
+  HotsiteConfig,
   HotsiteModule,
   HotsiteModuleData,
   HotsiteSeo,
 } from '../../domain/hotsite-config.aggregate';
+import { LeadFormConfig } from '../../domain/lead-form-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { HotsiteImagePromotionService } from '../services/hotsite-image-promotion.service';
@@ -21,6 +23,10 @@ import {
   HOTSITE_CONFIG_REPOSITORY,
   IHotsiteConfigRepository,
 } from '../ports/hotsite-config-repository.port';
+import {
+  ILeadFormConfigRepository,
+  LEAD_FORM_CONFIG_REPOSITORY,
+} from '../ports/lead-form-config-repository.port';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { UpdateHotsiteContentDto } from '../dtos/update-hotsite-content.dto';
 
@@ -33,11 +39,22 @@ export interface UpdateHotsiteContentUseCaseResult {
   isPublished: boolean;
 }
 
+/**
+ * Also writes LeadFormConfig (audienceMode/questions) in the same transaction when either is
+ * present in the request — folded in at M20-S08 (previously a separate, near-duplicate
+ * UpdateLeadFormModuleUseCase behind its own PATCH /v1/tenants/lead-form/config endpoint; see
+ * docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save"). LeadFormConfig stays a
+ * genuinely separate aggregate/table from HotsiteConfig.layout[] — audienceMode/questions must
+ * never be persisted into a module's own layout[].data, since that's what the public manifest
+ * cache serves; only this use case's own two extra fields carry them.
+ */
 @Injectable()
 export class UpdateHotsiteContentUseCase {
   constructor(
     @Inject(HOTSITE_CONFIG_REPOSITORY)
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
+    @Inject(LEAD_FORM_CONFIG_REPOSITORY)
+    private readonly leadFormConfigRepo: ILeadFormConfigRepository,
     @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly imagePathsService: HotsiteImagePathsService,
@@ -47,35 +64,32 @@ export class UpdateHotsiteContentUseCase {
   ) {}
 
   async execute(dto: UpdateHotsiteContentUseCaseInput): Promise<UpdateHotsiteContentUseCaseResult> {
-    const { tenantId } = dto;
+    const { tenantId, audienceMode, questions } = dto;
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 
     // Captured before the merge — needed to detect "was this field pointing at a permanent
     // object that the merged value no longer references" (delete-previous-on-replace).
     const oldPaths = this.imagePathsService.collect(config.branding, config.layout, config.seo);
-
-    const mergedBranding: HotsiteBranding = dto.branding
-      ? { ...config.branding, ...dto.branding }
-      : config.branding;
-    const mergedLayout: HotsiteModule[] = dto.layout
-      ? this.toDomainLayout(dto.layout)
-      : config.layout;
-    const mergedSeo: HotsiteSeo = dto.seo ? { ...config.seo, ...dto.seo } : config.seo;
+    const merged = this.mergeContent(config, dto);
 
     const { branding, layout, seo, promotions } =
       await this.imagePromotionService.prepareImagePromotion(
-        mergedBranding,
-        mergedLayout,
-        mergedSeo,
+        merged.branding,
+        merged.layout,
+        merged.seo,
         tenantId,
       );
 
-    const newPaths = this.imagePathsService.collect(branding, layout, seo);
-    const tenantPrefix = `tenants/${tenantId}/`;
-    const deletions = oldPaths.filter(
-      (path) => !newPaths.includes(path) && path.startsWith(tenantPrefix),
+    const deletions = this.imagePromotionService.computeDeletions(
+      oldPaths,
+      branding,
+      layout,
+      seo,
+      tenantId,
     );
+
+    const leadFormConfig = await this.resolveLeadFormConfig(tenantId, audienceMode, questions);
 
     await this.txManager.run(async () => {
       // Locked and re-read here, not before the transaction — carouselDays vs.
@@ -91,19 +105,24 @@ export class UpdateHotsiteContentUseCase {
       });
 
       await this.hotsiteConfigRepo.save(config);
+      if (leadFormConfig) await this.leadFormConfigRepo.save(leadFormConfig);
       await this.txManager.scheduleAfterCommit(() =>
         this.imagePromotionService.executeImagePromotion(promotions, deletions),
       );
     });
 
-    // Symmetric with GetHotsiteContentUseCase/HotsiteContentReader.readResolved: stored fields
-    // are raw storage paths, not displayable URLs. Without this, the frontend receives a raw
-    // path here (unlike the resolved URL it gets from GET) and falls back to reconstructing one
-    // client-side — a reconstruction that only happens to match `getPublicUrl()`'s real
-    // `base/bucket/path` shape when the environment's public base URL bakes the bucket name in,
-    // which local dev's `.env` does but staging's Terraform-provisioned base URL deliberately
-    // does not (host-only, to allow a future custom-domain/CDN swap) — so the reopened editor
-    // silently shows a broken image after any Publish in staging/prod.
+    return this.buildResult(config);
+  }
+
+  // Symmetric with GetHotsiteContentUseCase/HotsiteContentReader.readResolved: stored fields
+  // are raw storage paths, not displayable URLs. Without this, the frontend receives a raw
+  // path here (unlike the resolved URL it gets from GET) and falls back to reconstructing one
+  // client-side — a reconstruction that only happens to match `getPublicUrl()`'s real
+  // `base/bucket/path` shape when the environment's public base URL bakes the bucket name in,
+  // which local dev's `.env` does but staging's Terraform-provisioned base URL deliberately
+  // does not (host-only, to allow a future custom-domain/CDN swap) — so the reopened editor
+  // silently shows a broken image after any Publish in staging/prod.
+  private buildResult(config: HotsiteConfig): UpdateHotsiteContentUseCaseResult {
     const resolved = this.imageUrlResolver.resolve(
       config.branding,
       config.layout,
@@ -116,6 +135,31 @@ export class UpdateHotsiteContentUseCase {
       layout: resolved.layout,
       seo: resolved.seo,
       isPublished: config.isPublished,
+    };
+  }
+
+  private async resolveLeadFormConfig(
+    tenantId: string,
+    audienceMode: UpdateHotsiteContentUseCaseInput['audienceMode'],
+    questions: UpdateHotsiteContentUseCaseInput['questions'],
+  ): Promise<LeadFormConfig | undefined> {
+    if (audienceMode === undefined && questions === undefined) return undefined;
+
+    const leadFormConfig =
+      (await this.leadFormConfigRepo.findByTenantId(tenantId)) ?? LeadFormConfig.create(tenantId);
+    if (audienceMode !== undefined) leadFormConfig.updateAudienceMode(audienceMode);
+    if (questions !== undefined) leadFormConfig.updateQuestions(questions);
+    return leadFormConfig;
+  }
+
+  private mergeContent(
+    config: HotsiteConfig,
+    dto: UpdateHotsiteContentUseCaseInput,
+  ): { branding: HotsiteBranding; layout: HotsiteModule[]; seo: HotsiteSeo } {
+    return {
+      branding: dto.branding ? { ...config.branding, ...dto.branding } : config.branding,
+      layout: dto.layout ? this.toDomainLayout(dto.layout) : config.layout,
+      seo: dto.seo ? { ...config.seo, ...dto.seo } : config.seo,
     };
   }
 

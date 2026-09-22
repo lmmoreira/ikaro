@@ -54,6 +54,11 @@
     .form-actions .btn-primary  { flex: 1; text-align: center; padding: 0.875rem; }
     .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
 
+    .model-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .model-card { padding: 1rem; cursor: pointer; }
+    .model-card p.title { font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .model-card p.sub { font-size: 0.8125rem; opacity: 0.6; }
+
     .detail-layout { display: block; }
     .detail-aside  { display: none; }
     @media (min-width: 1024px) {
@@ -69,8 +74,21 @@
     COMPONENT: ServiceCreatePage
     PAGE:       apps/web/app/dashboard/services/new/page.tsx  (EXISTS — no [slug] segment)
     UC-012 — Admin creates new service
-    ACTION: POST /v1/services
-    201 → 01-servicos-list.html (toast "Serviço criado")
+    UC-056 — Admin chooses the service's booking model at creation (added 2026-09-17,
+    found via /docs-audit as a real prototype gap: bookingModel had no creation-time
+    picker anywhere — the only prior toggle was an illustrative, non-functional one on
+    the OLD 04-service-resource-config.html's edit screen, since bookingModel is
+    immutable once a service has bookings, UC-056 A1). "Turma com capacidade" is
+    inert until Cluster 4 (M24) ships ClassScheduleTemplate — see the hint under the
+    picker below.
+    ACTION: POST /v1/services  (body now also includes bookingModel — see
+    docs/14-API_CONTRACTS.md § Service Extensions — M22 Cluster 2)
+    201 → 02c-service-create-success.html — lands directly on the new service's edit page
+    (Detalhes tab, inline success banner), NOT back to the list. Redesigned 2026-09-17: the
+    old redirect target was 01-servicos-list.html with a banner shown there; now that Recursos/
+    Políticas de reserva/Formulário de reserva exist as tabs on the edit page (M22-S04), the
+    natural next step after creating is to land where those tabs already are, not bounce back
+    to the list first.
     409 duplicate name → 02b-service-create-error.html
     422 validation → inline field errors
   -->
@@ -183,6 +201,25 @@
           <textarea id="description" class="form-textarea" placeholder="Descreva o que está incluso…"></textarea>
         </div>
 
+        <div class="form-group">
+          <label class="form-label">Modelo de agendamento *</label>
+          <div class="model-picker">
+            <div class="card model-card selected" id="model-appointment" onclick="selectBookingModel('appointment')">
+              <p class="title">Agendamento</p>
+              <p class="sub">Um cliente por vez, atendimento privado (corte, consulta, coleta, massagem)</p>
+            </div>
+            <div class="card model-card" id="model-session" onclick="selectBookingModel('session')">
+              <p class="title">Turma com capacidade</p>
+              <p class="sub">Vários clientes na mesma turma (Pilates, CrossFit)</p>
+            </div>
+          </div>
+          <p class="form-hint" id="model-hint">
+            Não pode ser trocado depois de criado, uma vez que o serviço já tenha agendamentos (UC-056 A1).
+            Recursos, buffer, políticas de reserva e formulário de reserva são configurados depois, na tela
+            de edição do serviço.
+          </p>
+        </div>
+
         <div class="form-row">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label" for="price">Preço *</label>
@@ -208,15 +245,20 @@
 
         <p class="section-divider">Opções</p>
 
-        <div class="toggle-row">
+        <div class="toggle-row" id="pickup-toggle-row">
           <div>
             <div class="toggle-label">Coleta e entrega</div>
             <div class="toggle-sub">Exige endereço de coleta no agendamento</div>
           </div>
-          <button class="toggle-switch" onclick="this.classList.toggle('on')">
+          <button class="toggle-switch" id="pickup-toggle" onclick="this.classList.toggle('on')">
             <span class="toggle-knob"></span>
           </button>
         </div>
+        <p class="form-hint" id="pickup-toggle-hidden-hint" style="display:none;margin-top:-0.375rem;margin-bottom:0.75rem;">
+          Não se aplica a Turma — <code>requiresPickupAddress</code> e o campo de endereço só existem para uma
+          reserva privada de um cliente (<code>Booking.pickupAddress</code>); uma turma acontece em local fixo,
+          sem lógica de coleta/entrega por reserva.
+        </p>
 
         <div class="toggle-row">
           <div>
@@ -324,6 +366,24 @@
   </div>
 
   <script>
+    function selectBookingModel(model) {
+      var isSession = model === 'session';
+      document.getElementById('model-appointment').classList.toggle('selected', !isSession);
+      document.getElementById('model-session').classList.toggle('selected', isSession);
+      document.getElementById('model-hint').innerHTML = isSession
+        ? 'Fica criado, mas ainda não pode ser reservado — a configuração de turmas (professor, sala, horários recorrentes) chega no módulo de Turmas (M24). Não pode ser trocado depois de criado (UC-056 A1).'
+        : 'Não pode ser trocado depois de criado, uma vez que o serviço já tenha agendamentos (UC-056 A1). Recursos, buffer, políticas de reserva e formulário de reserva são configurados depois, na tela de edição do serviço.';
+
+      // requiresPickupAddress only ever means something for a private APPOINTMENT booking
+      // (Booking.pickupAddress) — a Turma happens at a fixed location, no per-reserva pickup/
+      // delivery concept exists for it anywhere in the domain model. Hide + force off, don't
+      // just disable, so it can't be silently left "on" under a model where it's meaningless.
+      document.getElementById('pickup-toggle-row').style.display = isSession ? 'none' : '';
+      document.getElementById('pickup-toggle-hidden-hint').style.display = isSession ? '' : 'none';
+      if (isSession) {
+        document.getElementById('pickup-toggle').classList.remove('on');
+      }
+    }
     function openSheet() {
       document.getElementById('manager-sheet').classList.add('open');
       document.getElementById('sheet-backdrop').classList.add('open');

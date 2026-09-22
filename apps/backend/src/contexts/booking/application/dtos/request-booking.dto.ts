@@ -15,7 +15,12 @@ export const RequestBookingSchema = z.object({
   pickupAddress: AddressShapeSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
   scheduledAt: z.iso.datetime(),
-  serviceIds: z.array(z.uuid()).min(1),
+  // Bound (not a domain-tested limit — mirrors the other array-size caps added alongside this
+  // story, e.g. packages/validation/src/booking.ts) — persistRequestedBooking() now locks every
+  // distinct referenced Service row sequentially inside the tenant-day advisory-lock window
+  // (M22-S01), so an unbounded, unauthenticated basket could otherwise serialize unrelated
+  // bookings for the same tenant/day.
+  serviceIds: z.array(z.uuid()).min(1).max(20),
   beforeServicePhotoUrls: BookingTmpPhotoPathsSchema.optional(),
 });
 

@@ -16,6 +16,15 @@ export const ANTHROPIC_PROVIDER_NAME = 'anthropic';
 export const OPENAI_LLM_PROVIDER = Symbol('OpenAiLlmProvider');
 export const OPENAI_PROVIDER_NAME = 'openai';
 
+// DI-registered fake/noop adapter (M19-S11) — selectable via CHATBOT_LLM_PROVIDER=fake, never
+// the production/staging default. Exists so a real running backend process (Playwright E2E,
+// which exercises the genuine widget -> BFF -> backend -> adapter path against the already-
+// running dev stack, not a network-level mock) has a free, non-billed provider to resolve to.
+// Mirrors notification.module.ts's EMAIL_ADAPTER=mailhog precedent: a real, safe local adapter,
+// not a test double swapped in via DI overrides (those only work for Jest, not a live process).
+export const FAKE_LLM_PROVIDER = Symbol('FakeLlmProvider');
+export const FAKE_PROVIDER_NAME = 'fake';
+
 export interface ChatTurn {
   role: 'user' | 'assistant';
   content: string;

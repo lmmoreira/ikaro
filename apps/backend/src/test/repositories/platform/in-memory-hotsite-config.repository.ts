@@ -1,5 +1,8 @@
 import { IHotsiteConfigRepository } from '../../../contexts/platform/application/ports/hotsite-config-repository.port';
-import { HotsiteConfig } from '../../../contexts/platform/domain/hotsite-config.aggregate';
+import {
+  HotsiteConfig,
+  HotsiteModuleType,
+} from '../../../contexts/platform/domain/hotsite-config.aggregate';
 
 export class InMemoryHotsiteConfigRepository implements IHotsiteConfigRepository {
   private readonly store = new Map<string, HotsiteConfig>();
@@ -17,5 +20,11 @@ export class InMemoryHotsiteConfigRepository implements IHotsiteConfigRepository
 
   async save(config: HotsiteConfig): Promise<void> {
     this.store.set(config.tenantId, config);
+  }
+
+  async isModuleEnabled(tenantId: string, moduleType: HotsiteModuleType): Promise<boolean | null> {
+    const config = this.store.get(tenantId);
+    if (!config) return null;
+    return config.layout.find((module) => module.type === moduleType)?.enabled ?? false;
   }
 }

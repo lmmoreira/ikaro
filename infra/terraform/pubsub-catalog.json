@@ -66,6 +66,12 @@
     ]
   },
   {
+    "event": "LeadFormSubmissionReceived",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "PointsExpiringSoon",
     "consumers": [
       "notification"
@@ -78,6 +84,12 @@
     ]
   },
   {
+    "event": "StaffDeactivated",
+    "consumers": [
+      "cascade-staff-deactivation"
+    ]
+  },
+  {
     "event": "StaffInvited",
     "consumers": [
       "notification"
@@ -86,6 +98,7 @@
   {
     "event": "TenantProvisioned",
     "consumers": [
+      "booking",
       "notification-template-seed",
       "staff"
     ]
@@ -100,6 +113,12 @@
     "event": "cron-chatbot-retention-purge",
     "consumers": [
       "chatbot-retention-purge"
+    ]
+  },
+  {
+    "event": "cron-lead-form-retention",
+    "consumers": [
+      "lead-form-retention-purge"
     ]
   },
   {
@@ -125,6 +144,12 @@
     "consumers": [
       "booking-admin-schedule-reminder",
       "booking-reminder"
+    ]
+  },
+  {
+    "event": "cron-resource-occupancy-retention-purge",
+    "consumers": [
+      "resource-occupancy-retention-purge"
     ]
   },
   {

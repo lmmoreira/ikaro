@@ -15,8 +15,21 @@ import { LoyaltyBalanceEntityBuilder } from '../../../../test/builders/loyalty/i
 import { BookingEntity } from '../../../booking/infrastructure/entities/booking.entity';
 import { BookingLineEntity } from '../../../booking/infrastructure/entities/booking-line.entity';
 import { ServiceEntity } from '../../../booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../../../booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../../../booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../../../booking/infrastructure/entities/service-class-resource-pool.entity';
 import { ScheduleClosureEntity } from '../../../booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../../booking/infrastructure/entities/schedule-opening.entity';
+import { ResourceEntity } from '../../../booking/infrastructure/entities/resource.entity';
+import { BookingLineResourceAssignmentEntity } from '../../../booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../../../booking/infrastructure/entities/resource-occupancy.entity';
 import { BookingModule } from '../../../booking/booking.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
@@ -30,13 +43,25 @@ import { BookingCompleted } from '../../../booking/domain/events/booking-complet
 
 const PLATFORM_KEY = 'discount-completion-integ-key-xxxxx';
 
+// M21-S02: ResourceEntity is required even though this test doesn't touch resources directly —
+// POST /internal/tenants below drives BookingModule's TenantProvisionedHandler, which always
+// queries booking.resources on every TenantProvisioned event.
 const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
   ServiceEntity,
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+  ServiceClassResourcePoolEntity,
   ScheduleClosureEntity,
   ScheduleOpeningEntity,
   CustomerEntity,
+  ResourceEntity,
+  BookingLineResourceAssignmentEntity,
+  ResourceOccupancyEntity,
 ] as const;
 
 const LOYALTY_ENTITIES = [

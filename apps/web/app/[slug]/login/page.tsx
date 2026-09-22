@@ -10,7 +10,10 @@ export const revalidate = 300;
 
 interface LoginPageProps {
   readonly params: Promise<{ slug: string }>;
-  readonly searchParams: Promise<{ error?: string }>;
+  // returnTo (M20-S09): optional post-login redirect target, e.g. from the lead-form
+  // login-required gate. Forwarded as-is to buildGoogleOAuthUrl — the actual open-redirect
+  // guard (isValidReturnTo) lives BFF-side (oauth-state.ts), not here.
+  readonly searchParams: Promise<{ error?: string; returnTo?: string }>;
 }
 
 export async function generateMetadata({ params }: LoginPageProps): Promise<Metadata> {
@@ -28,10 +31,10 @@ export async function generateMetadata({ params }: LoginPageProps): Promise<Meta
 
 export default async function LoginPage({ params, searchParams }: LoginPageProps) {
   const { slug } = await params;
-  const { error } = await searchParams;
+  const { error, returnTo } = await searchParams;
   const manifest = await fetchManifest(slug);
   const displayName = resolveHotsiteDisplayName(manifest);
-  const googleHref = buildGoogleOAuthUrl({ tenantSlug: slug });
+  const googleHref = buildGoogleOAuthUrl({ tenantSlug: slug, returnTo });
   const t = await getTranslations('auth');
 
   return (

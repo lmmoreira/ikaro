@@ -33,10 +33,9 @@ git diff origin/main...HEAD --name-only | grep "^apps/web/"
 ```
 
 2. Pass this file list to the Explore agent as its explicit scope — the agent greps and reads **only those files**, not the full directory tree.
-
-3. **BE-4 is skipped in `--pr` mode** — checking for missing entity/event/command builders requires scanning the full `src/test/builders/` tree against all entity/event/command files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities, events, and commands added in the PR.
-
-4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–11) run normally but scoped to the changed file list.
+3. **BE-4 is retired** — full-codebase missing-builder coverage (entities, events, commands, primary-key `uuidv7()` defaults, and the test-data-harness registration map) is now enforced mechanically by `pnpm architecture-check`'s `test-builder-coverage`, `entity-builder-pk-uuidv7-default`, and `test-harness-registration` detectors (TD37-S07) — no LLM audit step needed for it, in `--pr` mode or otherwise. `scripts/pre-pr.sh`'s own diff-scoped BE-4 check (Step 1, check 28) is unrelated and still runs — it's a fast, already-mechanical, PR-diff-only check, not the audit-prompt version being retired here.
+4. **BE-1 is also retired** — full-codebase, aggregate-props-typed-as-primitive-when-a-VO-exists coverage is now enforced mechanically by `pnpm architecture-check`'s `aggregate-primitive-vo` detector, against the closed, reviewed registry in `packages/architecture-check/architecture-policy.json`'s `aggregateValueObjectRegistry` (TD37-S09) — no LLM audit step needed for it, in `--pr` mode or otherwise.
+5. All other checks (BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–11) run normally but scoped to the changed file list.
 
 If the `git diff` for a layer returns zero files, skip that layer entirely and report `(no changed files in this layer)`.
 
@@ -48,8 +47,8 @@ Spawn three Explore agents in parallel, one per layer. Give each agent the full 
 
 | Agent | Scope | Checks to pass |
 |---|---|---|
-| Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; skip BE-4 in --pr mode) |
-| BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-4) |
+| Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; BE-1 and BE-4 retired — see PR mode note above) |
+| BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-5) |
 | Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-11) |
 
 If `$ARGUMENTS` restricts to a single layer or a specific context path, spawn only the relevant agent.
@@ -58,17 +57,9 @@ If `$ARGUMENTS` restricts to a single layer or a specific context path, spawn on
 
 ## Backend checks (scope: `apps/backend/src/`)
 
-### BE-1. Aggregate props typed as plain primitives when a shared VO exists
+### BE-1. RETIRED — mechanized by `pnpm architecture-check` (TD37-S09)
 
-Shared VOs and the primitive they replace:
-- `Email` → `email: string`
-- `PhoneNumber` → `phone: string`
-- `Slug` → `slug: string`
-- `Timezone` → `timezone: string`
-- `TimeOfDay` → fields named `open`, `close`, `opens_at`, `closes_at` typed as `string` inside business_hours-like structures
-- `HexColor` → fields named `color`, `primary_color`, `accent_color` typed as `string`
-
-How to find them: look for `Props` interfaces inside `*/domain/*.aggregate.ts` files. Report any field that matches a known VO candidate but is typed as `string` or `number`.
+This used to check for aggregate `Props` fields typed as a plain primitive when a shared VO already exists for that exact concept. It's now enforced mechanically, full-codebase, on every CI run — no LLM audit step needed. Skip this check; do not re-add it here. See `packages/architecture-check/src/detectors/aggregate-primitive-vo.ts` and its closed registry, `architecture-policy.json`'s `aggregateValueObjectRegistry`.
 
 ### BE-2. Duplicated `isValidXxx` / inline validation functions outside `src/shared/value-objects/`
 
@@ -88,11 +79,9 @@ Grep for:
 
 The fix pattern: create a `XxxEntityBuilder` (for entities) or `XxxEventBuilder`/`XxxCommandBuilder` (for `DomainEvent`/`Command` classes) in `src/test/builders/<context>/`.
 
-### BE-4. Missing `XxxEntityBuilder`/`XxxEventBuilder`/`XxxCommandBuilder` for existing classes
+### BE-4. RETIRED — mechanized by `pnpm architecture-check` (TD37-S07)
 
-For each TypeORM entity class found in `*/infrastructure/entities/*.entity.ts`, check whether a corresponding `XxxEntityBuilder` exists in `src/test/builders/<context>/`. Report entities that have no builder file.
-
-Same check for domain events and commands: for each class found in `*/domain/events/*.event.ts` or `*/domain/commands/*.command.ts` that is constructed inline (via `new XxxEvent(...)`/`new XxxCommand(...)`) in **two or more** test files, check whether a corresponding `XxxEventBuilder`/`XxxCommandBuilder` exists in `src/test/builders/<context>/`. Report any that don't.
+This used to check for missing `XxxEntityBuilder`/`XxxEventBuilder`/`XxxCommandBuilder` for existing classes. It's now enforced mechanically, full-codebase, on every CI run — no LLM audit step needed. Skip this check; do not re-add it here. See `packages/architecture-check/src/detectors/test-builder-coverage.ts`, `entity-builder-pk-default.ts`, and `test-harness-registration.ts`.
 
 ### BE-5. Seed file containing DDL
 
@@ -143,6 +132,16 @@ Note: only applies to existing public controllers serving hotsite content — no
 
 Grep `apps/bff/src/` for `import` statements whose resolved path points into `apps/backend/src/contexts/`. The BFF must call the backend via HTTP or through service ports — never by importing backend context modules directly.
 
+### BFF-5. New BFF Zod schema structurally identical to a new backend DTO schema (same PR)
+
+For each new or changed `*.schemas.ts`/`*.schema.ts` file under `apps/bff/src/features/**` in this PR, find the backend DTO it validates against (same feature/module, typically `apps/backend/src/contexts/<domain>/application/dtos/*.dto.ts`, or the DTO's own class-validator/Zod shape if the backend uses one). Compare field-by-field: if every field name, type, and optionality matches with **no BFF-specific deviation** (no extra field, no different validation rule, no per-app default), flag it as an avoidable duplicate that belongs in `packages/validation/src/<domain>.ts` instead, imported by both apps.
+
+If the two schemas differ (even in one field), that's a deliberate per-app customization, not the smell — do not flag it. Only flag true 1:1 duplication.
+
+Fix pattern: extract to `packages/validation/src/<domain>.ts` as a single shared schema, following the direct-reuse pattern already used for `HotsiteModuleSchema` and `UpdateLeadFormConfigSchema`; import it from both `apps/backend` and `apps/bff` instead of maintaining two copies. Use a builder function (e.g. `buildUpdateTenantSettingsSchema`) instead of direct reuse only when a genuine per-app deviation exists.
+
+(M20-S01 precedent, 2026-08-24: `apps/backend/src/contexts/platform/application/dtos/update-lead-form-config.dto.ts` and `apps/bff/src/features/platform/lead-form.schemas.ts` were shipped as two independently-hand-written, field-for-field identical Zod schemas across 3 bot-review rounds — none of Codex, CodeRabbit, or this audit's then-current checklist caught it. Found only by the user asking directly whether the duplication was correct.)
+
 ---
 
 ## Web checks (scope: `apps/web/`)
@@ -187,6 +186,8 @@ Grep `apps/web/` for `fetch(` calls. Every BFF/backend call must go through one 
 
 ### WEB-9. Local type/interface drifted or duplicated vs. `@ikaro/types`
 
+**Now CI-enforced** by `packages/architecture-check`'s `ikaro-types-drift` detector (TD37 Story 11, `pnpm architecture-check`) — a full-codebase, non-diff-scoped `ts-morph` check that runs on every PR. It scans the same web transport-boundary modules against `@ikaro/types`' root-barrel export surface and diffs both directions (missing/extra fields, type-text mismatches, nullability mismatches), so this manual check no longer needs to be re-run by an LLM audit. This section is retained as the human-readable definition of the rule, not as a check you still need to perform by hand.
+
 For interfaces/types declared in `apps/web/features/**/api/**` or `apps/web/shared/lib/api/**`, grep `@ikaro/types` (`packages/types/src/*.dto.ts`) for an export of the same name. If one exists, compare fields:
 - **Identical shape** → flag as an avoidable duplicate that should import from `@ikaro/types` instead.
 - **Different shape under the same name** → flag as drift, not just duplication — this is a real correctness risk (the local type silently shadows the canonical one at compile time). Report the exact field-level mismatch (e.g. `id` vs `entryId`, a field present on one side and missing on the other).
@@ -214,17 +215,10 @@ Grep `apps/web/features/customer/` for exported functions/components with "Booki
 
 ### Backend
 
-#### BE-1. Aggregate props typed as plain primitives
-- [ ] src/contexts/X/domain/X.aggregate.ts:42 — `email: string` should be `email: Email`
-...
-
 #### BE-2. Duplicated isValidXxx / inline validation
 (none found)
 
 #### BE-3. makeXxx() helpers / inline entity/event/command construction in tests
-...
-
-#### BE-4. Missing XxxEntityBuilder / XxxEventBuilder / XxxCommandBuilder
 ...
 
 #### BE-5. Seed DDL
@@ -249,6 +243,9 @@ Grep `apps/web/features/customer/` for exported functions/components with "Booki
 ...
 
 #### BFF-4. Cross-app boundary violation
+(none found)
+
+#### BFF-5. BFF schema structurally identical to a new backend DTO schema
 (none found)
 
 ### Web

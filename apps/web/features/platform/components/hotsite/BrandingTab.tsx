@@ -1,16 +1,14 @@
 'use client';
 
-import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { HotsiteBrandingResponse } from '@ikaro/types';
 import { SectionCard } from '@/shared/components/ui/section-card';
-import { ColorPicker } from '@/shared/components/ui/color-picker';
 import { FontPicker, type FontPickerOption } from '@/shared/components/ui/font-picker';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SwitchField } from '@/shared/components/ui/switch-field';
-import { HEX_COLOR_REGEX } from '@/shared/utils/hex-color';
 import { FONT_MAP, FONT_VARIABLES } from '@/features/platform/hotsite/font-config';
 import { LogoUpload } from '@/features/platform/components/hotsite/LogoUpload';
+import { BrandingColorsSection } from './BrandingColorsSection';
 
 const FONT_OPTIONS: readonly FontPickerOption[] = Object.entries(FONT_MAP).map(
   ([name, cssValue]) => ({ name, cssValue }),
@@ -24,17 +22,6 @@ const FONT_PREVIEW_CLASS = FONT_VARIABLES.join(' ');
 const INPUT_CLASS =
   'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
-type RequiredColorField = 'primaryColor' | 'secondaryColor' | 'backgroundColor' | 'textColor';
-type OptionalColorField = 'buttonBackgroundColor' | 'buttonTextColor';
-type ColorField = RequiredColorField | OptionalColorField;
-
-const REQUIRED_COLOR_FIELDS = new Set<ColorField>([
-  'primaryColor',
-  'secondaryColor',
-  'backgroundColor',
-  'textColor',
-]);
-
 interface BrandingTabProps {
   readonly value: HotsiteBrandingResponse;
   readonly onChange: (branding: HotsiteBrandingResponse) => void;
@@ -42,7 +29,6 @@ interface BrandingTabProps {
 
 export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.branding');
-  const [touched, setTouched] = useState<ReadonlySet<ColorField>>(new Set());
 
   function setField<K extends keyof HotsiteBrandingResponse>(
     key: K,
@@ -51,74 +37,18 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
     onChange({ ...value, [key]: fieldValue });
   }
 
-  function markTouched(field: ColorField): void {
-    setTouched((current) => new Set(current).add(field));
-  }
-
-  function colorError(field: ColorField): string | undefined {
-    if (!touched.has(field)) return undefined;
-    const fieldValue = value[field] ?? '';
-    if (!REQUIRED_COLOR_FIELDS.has(field) && fieldValue === '') return undefined;
-    return HEX_COLOR_REGEX.test(fieldValue) ? undefined : t('colorErrorMessage');
-  }
-
   return (
     <div className={`space-y-4 lg:space-y-6 ${FONT_PREVIEW_CLASS}`}>
       <SectionCard title={t('sections.colors')}>
-        <div className="grid gap-4 md:grid-cols-3">
-          <ColorPicker
-            id="hotsite-primary-color"
-            label={t('primaryColorLabel')}
-            value={value.primaryColor}
-            error={colorError('primaryColor')}
-            onChange={(v) => setField('primaryColor', v)}
-            onBlur={() => markTouched('primaryColor')}
-          />
-          <ColorPicker
-            id="hotsite-secondary-color"
-            label={t('secondaryColorLabel')}
-            value={value.secondaryColor}
-            error={colorError('secondaryColor')}
-            onChange={(v) => setField('secondaryColor', v)}
-            onBlur={() => markTouched('secondaryColor')}
-          />
-          <ColorPicker
-            id="hotsite-background-color"
-            label={t('backgroundColorLabel')}
-            value={value.backgroundColor}
-            error={colorError('backgroundColor')}
-            onChange={(v) => setField('backgroundColor', v)}
-            onBlur={() => markTouched('backgroundColor')}
-          />
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <ColorPicker
-            id="hotsite-text-color"
-            label={t('textColorLabel')}
-            value={value.textColor}
-            error={colorError('textColor')}
-            onChange={(v) => setField('textColor', v)}
-            onBlur={() => markTouched('textColor')}
-          />
-          <ColorPicker
-            id="hotsite-button-background-color"
-            label={t('buttonBackgroundColorLabel')}
-            value={value.buttonBackgroundColor ?? ''}
-            placeholder={t('buttonBackgroundColorPlaceholder')}
-            error={colorError('buttonBackgroundColor')}
-            onChange={(v) => setField('buttonBackgroundColor', v || undefined)}
-            onBlur={() => markTouched('buttonBackgroundColor')}
-          />
-          <ColorPicker
-            id="hotsite-button-text-color"
-            label={t('buttonTextColorLabel')}
-            value={value.buttonTextColor ?? ''}
-            placeholder={t('buttonTextColorPlaceholder')}
-            error={colorError('buttonTextColor')}
-            onChange={(v) => setField('buttonTextColor', v || undefined)}
-            onBlur={() => markTouched('buttonTextColor')}
-          />
-        </div>
+        <BrandingColorsSection
+          value={value}
+          onPrimaryColorChange={(v) => setField('primaryColor', v)}
+          onSecondaryColorChange={(v) => setField('secondaryColor', v)}
+          onBackgroundColorChange={(v) => setField('backgroundColor', v)}
+          onTextColorChange={(v) => setField('textColor', v)}
+          onButtonBackgroundColorChange={(v) => setField('buttonBackgroundColor', v)}
+          onButtonTextColorChange={(v) => setField('buttonTextColor', v)}
+        />
       </SectionCard>
 
       <SectionCard title={t('sections.logo')}>

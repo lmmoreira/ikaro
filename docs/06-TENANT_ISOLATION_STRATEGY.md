@@ -40,7 +40,7 @@ Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and c
   ```
 
 ### **The "Tenant Context" Flow**
-1. **Detection:** The BFF extracts the `X-Tenant-ID` from the request (header or JWT).
+1. **Detection:** Tenant identity comes exclusively from the JWT/session cookie (post-TD35 — see `docs/24-BFF_ARCHITECTURE.md` § Request Lifecycle). The BFF reads `tenantId` from `req.user` and forwards it to the backend as the `X-Tenant-ID` header — the browser never sends a tenant header itself.
 2. **Injection:** The `RequestInterceptor` injects this ID into the Request Context.
 3. **Enforcement:** The Repository layer automatically appends the `tenant_id` to all database operations.
 

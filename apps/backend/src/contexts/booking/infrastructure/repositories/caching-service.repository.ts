@@ -8,7 +8,11 @@ import {
   ServiceFilters,
   ServiceStatusFilter,
 } from '../../application/ports/service-repository.port';
-import { Service } from '../../domain/service.aggregate';
+import { ClassResourceSlot, ClassResourceSlotProps } from '../../domain/class-resource-slot';
+import { ResourceRequirement, ResourceRequirementProps } from '../../domain/resource-requirement';
+import { Service, ServiceBookingModel } from '../../domain/service.aggregate';
+import { ServiceLeg, ServiceLegReconstituteProps } from '../../domain/service-leg';
+import { ServiceBookingPolicyProps } from '../../domain/service.types';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { TypeOrmServiceRepository } from './typeorm-service.repository';
 
@@ -25,6 +29,12 @@ type ServiceCacheRecord = {
   isActive: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
+  bookingModel: ServiceBookingModel;
+  resourceRequirements: ResourceRequirementProps[];
+  bufferAfterMinutes: number | null;
+  legs: ServiceLegReconstituteProps[] | null;
+  classResourceSlots: ClassResourceSlotProps[] | null;
+  bookingPolicy: ServiceBookingPolicyProps;
 };
 
 const CACHEABLE_STATUSES: ServiceStatusFilter[] = ['ACTIVE', 'INACTIVE', 'ANY'];
@@ -32,10 +42,14 @@ const CACHEABLE_STATUSES: ServiceStatusFilter[] = ['ACTIVE', 'INACTIVE', 'ANY'];
 @Injectable()
 export class CachingServiceRepository implements IServiceRepository {
   private static readonly CACHE_TTL_MS = 60_000;
-  // v2: cache records now carry their own priceCurrency (PR #373 review, Codex) instead of
-  // re-deriving it from live tenant settings on every cache hit — bumped so no v1 entry (lacking
-  // priceCurrency) is ever read back with an undefined currency during the rollout.
-  private static readonly CACHE_KEY_PREFIX = 'booking:service:v2:';
+  // v4 (M22-S02): cache records now also carry bookingPolicy (defaultApprovalMode/
+  // manualHoldMinutes/duration+pricing policy fields/etc) — bumped so no v3 entry (missing this
+  // field) is ever read back with it silently undefined during the rollout. Same discipline as
+  // the v1->v2 and v2->v3 bumps above.
+  // v3 (M22-S01): cache records now carry bookingModel/resourceRequirements/bufferAfterMinutes/
+  // legs/classResourceSlots — bumped so no v2 entry (missing these fields) is ever read back
+  // with them silently undefined during the rollout. Same discipline as the v1->v2 bump above.
+  private static readonly CACHE_KEY_PREFIX = 'booking:service:v4:';
   private readonly logger = new AppLogger(CachingServiceRepository.name);
 
   constructor(
@@ -54,6 +68,25 @@ export class CachingServiceRepository implements IServiceRepository {
 
   async findByIds(ids: string[], tenantId: string): Promise<Service[]> {
     return this.repo.findByIds(ids, tenantId);
+  }
+
+  // Pass-through — a single indexed existence probe, nothing worth caching.
+  async existsById(id: string, tenantId: string): Promise<boolean> {
+    return this.repo.existsById(id, tenantId);
+  }
+
+  // Pass-through, same as findById()/findByIds() above — a real row lock must always bypass
+  // this decorator's cache entirely (docs/ENGINEERING_RULES.md's race-condition primitive 2).
+  async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {
+    return this.repo.findByIdForUpdate(id, tenantId);
+  }
+
+  // Pass-through — same reasoning as findByIdForUpdate() above.
+  async lockBookingModels(
+    ids: string[],
+    tenantId: string,
+  ): Promise<Map<string, ServiceBookingModel>> {
+    return this.repo.lockBookingModels(ids, tenantId);
   }
 
   // Only the unfiltered, status-only shape is cached — the exact call every real hot-path caller
@@ -144,6 +177,16 @@ export class CachingServiceRepository implements IServiceRepository {
       isActive: record.isActive,
       createdAt: toDate(record.createdAt),
       updatedAt: toDate(record.updatedAt),
+      bookingModel: record.bookingModel,
+      resourceRequirements: record.resourceRequirements.map((r) =>
+        ResourceRequirement.reconstitute(r),
+      ),
+      bufferAfterMinutes: record.bufferAfterMinutes,
+      legs: record.legs ? record.legs.map((l) => ServiceLeg.reconstitute(l)) : null,
+      classResourceSlots: record.classResourceSlots
+        ? record.classResourceSlots.map((s) => ClassResourceSlot.reconstitute(s))
+        : null,
+      bookingPolicy: record.bookingPolicy,
     });
   }
 
@@ -161,6 +204,14 @@ export class CachingServiceRepository implements IServiceRepository {
       isActive: service.isActive,
       createdAt: service.createdAt,
       updatedAt: service.updatedAt,
+      bookingModel: service.bookingModel,
+      resourceRequirements: service.resourceRequirements.map((r) => r.toJSON()),
+      bufferAfterMinutes: service.bufferAfterMinutes,
+      legs: service.legs ? service.legs.map((l) => l.toJSON()) : null,
+      classResourceSlots: service.classResourceSlots
+        ? service.classResourceSlots.map((s) => s.toJSON())
+        : null,
+      bookingPolicy: service.bookingPolicy,
     };
   }
 }

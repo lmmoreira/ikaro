@@ -16,7 +16,7 @@ import {
   ChatbotConcurrencyCapReachedError,
   ChatbotDailyCapReachedError,
   ChatbotMessageCapReachedError,
-} from '../../domain/errors/platform-domain.error';
+} from '../../domain/errors/chatbot-domain.error';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import { SendChatMessageUseCase, SendChatMessageUseCaseInput } from './send-chat-message.use-case';
 
@@ -43,7 +43,13 @@ describe('SendChatMessageUseCase (integration — real Postgres cap enforcement)
       dataSource.getRepository(ChatbotProviderBalanceEntity),
     );
     const llmProvider = new FakeLlmProviderBuilder().build();
-    const registry = new LlmProviderRegistry('openrouter', llmProvider, llmProvider, llmProvider);
+    const registry = new LlmProviderRegistry(
+      'openrouter',
+      llmProvider,
+      llmProvider,
+      llmProvider,
+      llmProvider,
+    );
     useCase = new SendChatMessageUseCase(
       sessionRepo,
       messageRepo,

@@ -86,6 +86,32 @@ describe('GoogleStrategy', () => {
     );
   });
 
+  it('validate() includes returnTo when the signed state carries one scoped to the tenant (M20-S09)', (done) => {
+    const profile = {
+      id: 'google-sub-123',
+      displayName: 'João Silva',
+      emails: [{ value: 'joao@lavacar.com.br' }],
+    };
+    const { state, nonce } = oauthState.encodeOAuthState(
+      'customer',
+      'lavacar-bh',
+      '/lavacar-bh/lead-form',
+    );
+
+    strategy.validate(
+      makeReq(state, nonce),
+      'access-token',
+      'refresh-token',
+      profile as never,
+      (err, user) => {
+        expect(err).toBeNull();
+        expect(user?.tenantSlug).toBe('lavacar-bh');
+        expect(user?.returnTo).toBe('/lavacar-bh/lead-form');
+        done();
+      },
+    );
+  });
+
   it('validate() sets loginType=staff with tenantSlug when the signed state is staff+slug', (done) => {
     const profile = {
       id: 'google-sub-staff',

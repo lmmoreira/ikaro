@@ -2,20 +2,60 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
 import {
+  checkAgentContextFile,
+  type AgentContextPolicy,
+  checkAggregatePropsUseSharedValueObjects,
+  checkBffTypesLiveInModuleFiles,
+  checkClosedEnumRegistry,
+  checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
+  checkGlobalModuleExportPairing,
+  checkIkaroTypesDrift,
+  checkNoJestFnForRepositoryOrPortMocks,
+  checkPrimitiveFieldsValidatedAtConstruction,
+  checkPrototypeChainSafety,
+  checkReverseDiAlias,
+  checkSharedValueObjectErrorMapperCoverage,
+  checkTestBuilderCoverage,
+  checkTestDataHarnessRegistrations,
   checkTransactionalIo,
   checkTransactionalSaves,
   checkUnsafeUseExisting,
+  checkUseCaseInputNaming,
+  checkUseCaseResultNaming,
+  checkValueObjectCreateNeverThrowsBareError,
+  mergeScanResults,
+  type AggregateValueObjectConcept,
+  type BffInlineTypeException,
+  type ClosedEnumRegistryEntry,
+  type ConstructionValidationTarget,
+  type ErrorMapperException,
   type ExternalSideEffectPort,
+  type IkaroTypesDriftException,
+  type TestDataHarnessRegistration,
 } from './index';
 import { loadProject } from './project';
 
 const root = resolve(__dirname, '../../..');
+const agentContextPolicy = JSON.parse(
+  readFileSync(resolve(root, 'packages/architecture-check/agent-context-policy.json'), 'utf8'),
+) as AgentContextPolicy;
 const policy = JSON.parse(
   readFileSync(resolve(root, 'packages/architecture-check/architecture-policy.json'), 'utf8'),
 ) as {
-  exceptions?: Array<{ rule: string; class?: string }>;
+  exceptions?: Array<{
+    rule: string;
+    class?: string;
+    context?: string;
+    path?: string;
+    property?: string;
+    name?: string;
+  }>;
   externalSideEffectPorts?: ExternalSideEffectPort[];
+  testDataHarnessRegistrations?: TestDataHarnessRegistration[];
+  aggregateValueObjectRegistry?: AggregateValueObjectConcept[];
+  voConstructionValidationRegistry?: ConstructionValidationTarget[];
+  closedEnumRegistry?: ClosedEnumRegistryEntry[];
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -28,24 +68,110 @@ for (const path of projectPaths) {
   );
   projects.push(loadProject(root, path));
 }
-const backendIndex = projectPaths.indexOf('apps/backend/tsconfig.json');
-const backend = backendIndex >= 0 ? projects[backendIndex] : undefined;
-if (!backend) throw new Error('The architecture policy must register apps/backend/tsconfig.json.');
-const intentionalErrorMapperGaps = new Set(
+function requireProject(tsconfigPath: string): Project {
+  const index = projectPaths.indexOf(tsconfigPath);
+  const project = index >= 0 ? projects[index] : undefined;
+  if (!project) throw new Error(`The architecture policy must register ${tsconfigPath}.`);
+  return project;
+}
+
+const backend = requireProject('apps/backend/tsconfig.json');
+const bff = requireProject('apps/bff/tsconfig.json');
+const web = requireProject('apps/web/tsconfig.json');
+const types = requireProject('packages/types/tsconfig.json');
+const validation = requireProject('packages/validation/tsconfig.json');
+const intentionalErrorMapperGaps: ErrorMapperException[] = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; class: string; path: string } =>
+      exception.rule === 'error-mapper-coverage' &&
+      Boolean(exception.class) &&
+      Boolean(exception.path),
+  )
+  .map((exception) => ({ class: exception.class, path: exception.path }));
+const intentionalMapperlessContexts = new Set(
   (policy.exceptions ?? [])
-    .filter((exception) => exception.rule === 'error-mapper-coverage' && exception.class)
-    .map((exception) => exception.class!),
+    .filter(
+      (exception) => exception.rule === 'shared-vo-error-mapper-coverage' && exception.context,
+    )
+    .map((exception) => exception.context!),
 );
 const externalSideEffectPorts = policy.externalSideEffectPorts;
 if (!externalSideEffectPorts?.length) {
   throw new Error('The architecture policy must register at least one external-side-effect port.');
 }
+const testDataHarnessRegistrations = policy.testDataHarnessRegistrations;
+if (!testDataHarnessRegistrations?.length) {
+  throw new Error('The architecture policy must register at least one test-data-harness file.');
+}
+const aggregateValueObjectRegistry = policy.aggregateValueObjectRegistry;
+if (!aggregateValueObjectRegistry?.length) {
+  throw new Error(
+    'The architecture policy must register at least one aggregate value-object concept.',
+  );
+}
+const aggregatePrimitiveVoExemptions = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; path: string; property: string } =>
+      exception.rule === 'aggregate-primitive-vo' &&
+      Boolean(exception.path) &&
+      Boolean(exception.property),
+  )
+  .map((exception) => ({ path: exception.path, property: exception.property }));
+const voConstructionValidationRegistry = policy.voConstructionValidationRegistry;
+if (!voConstructionValidationRegistry?.length) {
+  throw new Error(
+    'The architecture policy must register at least one VO construction-validation target.',
+  );
+}
+const bffInlineTypeExceptions: BffInlineTypeException[] = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; path: string; name: string } =>
+      exception.rule === 'bff-controller-inline-type' &&
+      Boolean(exception.path) &&
+      Boolean(exception.name),
+  )
+  .map((exception) => ({ path: exception.path, name: exception.name }));
+const ikaroTypesDriftExceptions: IkaroTypesDriftException[] = (policy.exceptions ?? [])
+  .filter(
+    (exception): exception is { rule: string; path: string; name: string } =>
+      exception.rule === 'ikaro-types-drift' && Boolean(exception.path) && Boolean(exception.name),
+  )
+  .map((exception) => ({ path: exception.path, name: exception.name }));
+const closedEnumRegistry = policy.closedEnumRegistry;
+if (!closedEnumRegistry?.length) {
+  throw new Error('The architecture policy must register at least one closed-enum registry entry.');
+}
 
 const results = [
+  checkAgentContextFile(root, agentContextPolicy),
   checkTransactionalIo(backend, externalSideEffectPorts),
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
   checkUnsafeUseExisting(backend),
+  checkReverseDiAlias(backend),
+  checkGlobalModuleExportPairing(backend),
+  mergeScanResults('error-prototype-chain', [
+    checkPrototypeChainSafety(backend),
+    checkPrototypeChainSafety(bff),
+    checkPrototypeChainSafety(web),
+  ]),
+  checkValueObjectCreateNeverThrowsBareError(backend),
+  checkSharedValueObjectErrorMapperCoverage(backend, intentionalMapperlessContexts),
+  checkTestBuilderCoverage(backend),
+  checkEntityBuilderPrimaryKeyDefaults(backend),
+  checkTestDataHarnessRegistrations(backend, testDataHarnessRegistrations),
+  checkNoJestFnForRepositoryOrPortMocks(backend),
+  checkAggregatePropsUseSharedValueObjects(
+    backend,
+    aggregateValueObjectRegistry,
+    aggregatePrimitiveVoExemptions,
+  ),
+  checkPrimitiveFieldsValidatedAtConstruction(backend, voConstructionValidationRegistry),
+  checkUseCaseResultNaming(backend),
+  checkUseCaseInputNaming(backend),
+  checkBffTypesLiveInModuleFiles(bff, bffInlineTypeExceptions),
+  checkIkaroTypesDrift(web, types, ikaroTypesDriftExceptions),
+  checkClosedEnumRegistry([validation, types], closedEnumRegistry),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const findings = results.flatMap((result) => result.findings);

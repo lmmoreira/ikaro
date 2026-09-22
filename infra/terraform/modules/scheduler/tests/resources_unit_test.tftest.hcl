@@ -11,21 +11,23 @@ variables {
   project_id  = "ikaro-test"
   environment = "staging"
   cron_topic_ids = {
-    cron-reminders               = "projects/ikaro-test/topics/ikaro-cron-reminders"
-    cron-loyalty-expiry          = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry"
-    cron-loyalty-expiry-warning  = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry-warning"
-    cron-outbox-relay            = "projects/ikaro-test/topics/ikaro-cron-outbox-relay"
-    cron-chatbot-retention-purge = "projects/ikaro-test/topics/ikaro-cron-chatbot-retention-purge"
-    cron-chatbot-balance-poll    = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
+    cron-reminders                          = "projects/ikaro-test/topics/ikaro-cron-reminders"
+    cron-loyalty-expiry                     = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry"
+    cron-loyalty-expiry-warning             = "projects/ikaro-test/topics/ikaro-cron-loyalty-expiry-warning"
+    cron-outbox-relay                       = "projects/ikaro-test/topics/ikaro-cron-outbox-relay"
+    cron-chatbot-retention-purge            = "projects/ikaro-test/topics/ikaro-cron-chatbot-retention-purge"
+    cron-chatbot-balance-poll               = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
+    cron-lead-form-retention                = "projects/ikaro-test/topics/ikaro-cron-lead-form-retention"
+    cron-resource-occupancy-retention-purge = "projects/ikaro-test/topics/ikaro-cron-resource-occupancy-retention-purge"
   }
 }
 
-run "all_six_jobs_exist_with_correct_cadence_and_topic" {
+run "all_eight_jobs_exist_with_correct_cadence_and_topic" {
   command = plan
 
   assert {
-    condition     = length(google_cloud_scheduler_job.cron) == 6
-    error_message = "Exactly 6 cron jobs must exist: reminders, loyalty-expiry, loyalty-expiry-warning, outbox-relay, chatbot-retention-purge, chatbot-balance-poll."
+    condition     = length(google_cloud_scheduler_job.cron) == 8
+    error_message = "Exactly 8 cron jobs must exist: reminders, loyalty-expiry, loyalty-expiry-warning, outbox-relay, chatbot-retention-purge, chatbot-balance-poll, lead-form-retention, resource-occupancy-retention-purge."
   }
 
   assert {
@@ -74,6 +76,22 @@ run "all_six_jobs_exist_with_correct_cadence_and_topic" {
       google_cloud_scheduler_job.cron["ikaro-cron-chatbot-balance-poll"].pubsub_target[0].topic_name == var.cron_topic_ids["cron-chatbot-balance-poll"]
     )
     error_message = "ikaro-cron-chatbot-balance-poll must fire every 15 minutes against the cron-chatbot-balance-poll topic (UC-036, M19-S08)."
+  }
+
+  assert {
+    condition = (
+      google_cloud_scheduler_job.cron["ikaro-cron-lead-form-retention"].schedule == "0 3 * * *" &&
+      google_cloud_scheduler_job.cron["ikaro-cron-lead-form-retention"].pubsub_target[0].topic_name == var.cron_topic_ids["cron-lead-form-retention"]
+    )
+    error_message = "ikaro-cron-lead-form-retention must fire daily at 03:00 UTC against the cron-lead-form-retention topic (UC-043, M20-S04)."
+  }
+
+  assert {
+    condition = (
+      google_cloud_scheduler_job.cron["ikaro-cron-resource-occupancy-retention-purge"].schedule == "0 3 * * *" &&
+      google_cloud_scheduler_job.cron["ikaro-cron-resource-occupancy-retention-purge"].pubsub_target[0].topic_name == var.cron_topic_ids["cron-resource-occupancy-retention-purge"]
+    )
+    error_message = "ikaro-cron-resource-occupancy-retention-purge must fire daily at 03:00 UTC against the cron-resource-occupancy-retention-purge topic (TD40 Story 2)."
   }
 
   assert {

@@ -5,7 +5,7 @@ import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialE
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IHotsiteConfigRepository } from '../../application/ports/hotsite-config-repository.port';
 import { HotsiteConfigConcurrentModificationError } from '../../domain/errors/platform-domain.error';
-import { HotsiteConfig } from '../../domain/hotsite-config.aggregate';
+import { HotsiteConfig, HotsiteModuleType } from '../../domain/hotsite-config.aggregate';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 
 @Injectable()
@@ -58,6 +58,12 @@ export class TypeOrmHotsiteConfigRepository implements IHotsiteConfigRepository 
     }
 
     config.markPersisted(nextVersion);
+  }
+
+  async isModuleEnabled(tenantId: string, moduleType: HotsiteModuleType): Promise<boolean | null> {
+    const config = await this.findByTenantId(tenantId);
+    if (!config) return null;
+    return config.layout.find((module) => module.type === moduleType)?.enabled ?? false;
   }
 
   private toUpdateSet(entity: HotsiteConfigEntity): QueryDeepPartialEntity<HotsiteConfigEntity> {

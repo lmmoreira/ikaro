@@ -83,7 +83,7 @@ Each `.http` file covers the full scenario set for a resource: happy path, 4xx e
 These commands replicate the CI pipeline locally using only Docker — no tokens required.
 
 ```bash
-pnpm ci:fast    # ~15s — lint + prettier + type-check + unit tests
+pnpm ci:fast    # ~60s warm / ~90s cold — lint + prettier + type-check + architecture-check + unit tests
                 # Runs automatically on every git push (pre-push hook)
 
 pnpm ci:local   # ~5min — everything above + integration tests
@@ -103,7 +103,7 @@ git config core.hooksPath .githooks
 After pushing a branch or opening a PR, run this script to wait for all GitHub CI checks to complete and get a one-line result:
 
 ```bash
-bash scripts/wait-ci.sh
+bash scripts/pr-round-status.sh
 ```
 
 It auto-detects the open PR for the current branch, waits for checks to queue, polls every 30 s, and prints either:
@@ -118,10 +118,12 @@ It auto-detects the open PR for the current branch, waits for checks to queue, p
 **Running inside Claude** — prefix the command with `!` so the output lands directly in the conversation:
 
 ```
-! bash scripts/wait-ci.sh
+! bash scripts/pr-round-status.sh
 ```
 
 Claude reads the result and acts on any failures immediately, without needing polling loops in the session.
+
+The same script also optionally waits for a Codex `/pr-review` comment and/or a CodeRabbit comment (`--wait-codex --wait-coderabbit --since <ISO8601>`) — this is what the `/pr-land` skill uses to batch every actor's findings into one fix-and-push per round instead of reacting to each one separately. See `scripts/pr-round-status.sh --help`.
 
 ## Common Commands
 

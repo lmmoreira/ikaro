@@ -1,5 +1,5 @@
 #!/bin/bash
-# pre-push hook: lint + prettier + type-check + backend/BFF unit tests.
+# pre-push hook: lint + prettier + type-check + architecture-check + backend/BFF unit tests.
 # Web Vitest runs in CI via ci:integration.
 # Skipped when every changed file relative to the diff base is docs/tooling-only
 # (*.md anywhere, or any file under td/, plan/, scripts/, infra/terraform/,

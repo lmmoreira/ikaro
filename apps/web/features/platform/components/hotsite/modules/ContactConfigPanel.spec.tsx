@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ContactModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { ContactConfigPanel } from './ContactConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
 
@@ -40,7 +40,7 @@ describe('ContactConfigPanel', () => {
 
     renderWithIntl(<ContactConfigPanel data={writeModuleData(CONTACT)} onChange={onChange} />);
 
-    await user.click(screen.getByTestId('contact-display-style-icon-cards'));
+    await user.click(getPillOption('contact-display-style', 'icon-cards'));
 
     expect(onChange).toHaveBeenCalledWith(
       writeModuleData({ ...CONTACT, displayStyle: 'icon-cards' }),

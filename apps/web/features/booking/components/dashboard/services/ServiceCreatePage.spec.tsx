@@ -79,9 +79,16 @@ describe('ServiceCreatePage', () => {
     expect(mockCreateService).not.toHaveBeenCalled();
   });
 
-  it('submits the service and redirects back to the list with the created query flag', async () => {
+  it('defaults the booking-model picker to Agendamento (APPOINTMENT)', () => {
+    renderWithIntl(<ServiceCreatePage />);
+
+    const appointmentCard = screen.getByTestId('booking-model-appointment');
+    expect(appointmentCard.className).toContain('border-blue-500');
+  });
+
+  it('submits the service (bookingModel: APPOINTMENT) and redirects to the new edit route', async () => {
     const user = userEvent.setup();
-    mockCreateService.mockResolvedValue({ id: 'svc-1' });
+    mockCreateService.mockResolvedValue({ serviceId: 'svc-1' });
 
     renderWithIntl(<ServiceCreatePage />);
 
@@ -101,8 +108,34 @@ describe('ServiceCreatePage', () => {
       loyaltyPointsValue: 15,
       requiresPickupAddress: false,
       isActive: true,
+      bookingModel: 'APPOINTMENT',
     });
-    expect(routerPush).toHaveBeenCalledWith('/dashboard/services?created=1');
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/services/svc-1/edit?created=1');
+  });
+
+  it('picking Turma (SESSION) hides the pickup toggle and forces it off on submit', async () => {
+    const user = userEvent.setup();
+    mockCreateService.mockResolvedValue({ serviceId: 'svc-2' });
+
+    renderWithIntl(<ServiceCreatePage />);
+
+    await user.click(screen.getByRole('switch', { name: /Coleta e entrega/i }));
+    expect(screen.getByRole('switch', { name: /Coleta e entrega/i })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    await user.click(screen.getByTestId('booking-model-session'));
+    expect(screen.queryByRole('switch', { name: /Coleta e entrega/i })).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'Workshop de Detalhamento');
+    await user.type(screen.getByLabelText('Preço'), '90');
+    await user.type(screen.getByLabelText('Duração'), '120');
+    await user.click(getPrimaryCreateButton());
+
+    expect(mockCreateService).toHaveBeenCalledWith(
+      expect.objectContaining({ bookingModel: 'SESSION', requiresPickupAddress: false }),
+    );
   });
 
   it('shows the resolved error message for the backend code on submission failure', async () => {

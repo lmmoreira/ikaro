@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novo Recurso — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.45); margin-bottom: 0.375rem; }
+    .form-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .type-picker { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+    .type-card { padding: 0.875rem; text-align: center; cursor: pointer; }
+    .type-card p.title { font-weight: 700; color: var(--ba-text); font-size: 0.875rem; margin-top: 0.5rem; }
+    .staff-pick-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); margin-bottom: 0.5rem; cursor: pointer; }
+    .staff-pick-row.selected { border-color: #2563eb; border-width: 2px; } /* fixed platform blue, not --ba-primary */
+    .staff-pick-row.disabled { opacity: 0.45; cursor: not-allowed; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1rem; border-radius: var(--ba-radius); background: var(--ba-secondary); margin-bottom: 0.75rem; }
+    .toggle-label { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); }
+    .toggle-sub { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
+    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #2563eb; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; } /* fixed platform blue, not --ba-primary -- confirmed against ServiceFormFields.tsx's real toggle (bg-blue-600) */
+    .toggle-knob { position: absolute; top: 2px; left: 1.25rem; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .input-suffix-group { position: relative; }
+    .input-suffix { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.8125rem; color: rgba(17,24,39,0.45); pointer-events: none; }
+    .input-with-suffix { padding-right: 3.5rem !important; }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+    .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    .detail-layout { display:block; }.detail-aside { display:none; }
+    @media (min-width:1024px) { .detail-layout { display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.5rem;align-items:start; }.detail-aside { display:block;position:sticky;top:1.5rem; }.form-actions { display:none!important; } }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype. Added on
+    request (2026-07-29) — CAND-01 was acknowledged as a gap in the earlier review
+    (manager-01's "+" FAB linked to "#", no actual create form existed).
+    See ../multivertical-booking.md (§3 Resource) and
+    ../multivertical-booking_USECASES.md (CAND-01).
+
+    Type picker is single-select (unlike manager-02's resource-REQUIREMENT checkboxes) —
+    a Resource row is always exactly one type. The bundle concept (multiple resource
+    TYPES needed by a service) lives on the Service side, not here.
+
+    Staff picker excludes Camila/Bruno/Renata — they're already wrapped by a STAFF
+    resource (see manager-01). CAND-01's A1 ("one Resource per Staff row") is shown as a
+    disabled row rather than just omitting them, so the constraint is visible, not silent.
+
+    Made interactive on request (2026-07-29): clicking Sala/Equipamento now actually
+    swaps the STAFF picker for a simple display-name field (CAND-01 main flow step 2 —
+    ROOM/EQUIPMENT have no login/identity to wrap, so there's nothing to pick from).
+    "Sala de Ioga" and "Kit Halteres (Rack 2)" in manager-01 are the closed loop for
+    those two paths, same pattern as Juliana Prado for the STAFF path.
+
+    COMPONENT (GAP): ResourceCreateForm
+    BFF CALL (GAP): POST /resources
+      body: { type, refId? (STAFF only), name?, workingHours?, turnoverMinutes }
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="manager-01-resources-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Recursos</span>
+    </a>
+    <h1 class="topbar-page-title">Novo recurso</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 04 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="manager-05-visao-geral.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="manager-02-service-resource-config.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="staff-04-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item active" href="manager-01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body"><div class="detail-layout"><div class="detail-main" style="max-width:32rem;">
+
+        <div class="form-group">
+          <label class="form-label">Tipo de recurso</label>
+          <!--
+            Made interactive on request (2026-07-29) — this used to only show the
+            STAFF-specific fields below, with no way to see what Sala/Equipamento look
+            like. Click a card to see the form actually change: STAFF wraps an existing
+            Staff row (CAND-01 main flow step 1); ROOM/EQUIPMENT get a simple display
+            name instead (step 2) — they have no login/identity to wrap.
+          -->
+          <div class="type-picker">
+            <div class="card type-card selected" id="type-staff" onclick="selectResourceType('staff')" style="cursor:pointer;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              <p class="title">Profissional</p>
+            </div>
+            <div class="card type-card" id="type-room" onclick="selectResourceType('room')" style="cursor:pointer;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1m-6 4h1m4 0h1"/></svg>
+              <p class="title">Sala</p>
+            </div>
+            <div class="card type-card" id="type-equipment" onclick="selectResourceType('equipment')" style="cursor:pointer;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+              <p class="title">Equipamento</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- STAFF type selected → pick an existing Staff row to wrap (CAND-01 main flow step 1) -->
+        <div class="form-group" id="staff-fields">
+          <label class="form-label">Qual membro da equipe?</label>
+
+          <div class="staff-pick-row disabled">
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;">CD</div>
+            <div style="flex:1;">Camila Duarte</div>
+            <span style="font-size:0.75rem;opacity:0.7;">Já é um recurso</span>
+          </div>
+          <div class="staff-pick-row disabled">
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#7c3aed;">BA</div>
+            <div style="flex:1;">Bruno Alves</div>
+            <span style="font-size:0.75rem;opacity:0.7;">Já é um recurso</span>
+          </div>
+          <div class="staff-pick-row disabled">
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#db2777;">RS</div>
+            <div style="flex:1;">Renata Souza</div>
+            <span style="font-size:0.75rem;opacity:0.7;">Já é um recurso</span>
+          </div>
+          <div class="staff-pick-row selected">
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.75rem;background:#0891b2;">JP</div>
+            <div style="flex:1;">Juliana Prado</div>
+          </div>
+          <p class="form-hint">
+            Membros já vinculados a um recurso aparecem desabilitados — um Staff só pode
+            ter um recurso (CAND-01, A1).
+          </p>
+        </div>
+
+        <!--
+          ROOM/EQUIPMENT type selected → CAND-01 main flow step 2: "manager enters a
+          display name" instead of picking a Staff row. No login, no identity — Booking
+          Context owns this Resource row outright (discovery §3). Hidden by default;
+          selectResourceType() reveals it and STAFF's section is hidden instead.
+        -->
+        <div class="form-group" id="name-fields" style="display:none;">
+          <label class="form-label" id="name-field-label">Nome da sala</label>
+          <input class="form-input" id="name-field-input" placeholder="Ex: Sala de Ioga">
+          <p class="form-hint" id="name-field-hint">
+            Aparece para clientes e equipe ao escolher onde este serviço acontece.
+          </p>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Usar horário padrão do negócio</div>
+            <div class="toggle-sub">Segue o mesmo horário de funcionamento do Vitta Studio</div>
+          </div>
+          <button class="toggle-switch" onclick="this.classList.toggle('on'); document.getElementById('custom-hours').style.display = this.classList.contains('on') ? 'block' : 'none';">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+
+        <!-- Revealed only when the toggle above is off — kept minimal for this pass -->
+        <div id="custom-hours" style="display:none;" class="form-group">
+          <label class="form-label">Horário personalizado</label>
+          <p class="form-hint" style="margin-top:0;">
+            Editor por dia da semana, limitado ao horário do negócio. A configuração completa
+            fica em <a href="manager-08-schedule-controls.html" style="color:var(--ba-primary);">Horários e exceções</a>.
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tempo de virada (turnover)</label>
+          <div class="input-suffix-group">
+            <input class="form-input input-with-suffix" type="number" min="0" value="0">
+            <span class="input-suffix">min</span>
+          </div>
+          <p class="form-hint">
+            Tempo mínimo antes da próxima reserva neste recurso, qualquer serviço — combina
+            com o buffer do serviço, vale o maior dos dois (§7 do discovery).
+          </p>
+        </div>
+
+        <div class="form-group" id="physical-capacity" style="display:none;">
+          <label class="form-label">Capacidade física (sala/equipamento)</label>
+          <input class="form-input" type="number" min="1" placeholder="Ex.: 4">
+          <p class="form-hint">Opcional para recursos sem lotação. Quando informada, nenhuma turma pode ultrapassar este limite.</p>
+        </div>
+
+        <div class="form-actions">
+          <a href="manager-01-resources-list.html" class="btn-secondary">Cancelar</a>
+          <a href="manager-01-resources-list.html" class="btn-primary" id="submit-btn">Criar recurso</a>
+        </div>
+
+      </div><aside class="detail-aside" aria-label="Ações do recurso"><div class="card" style="padding:1.25rem;"><a href="manager-01-resources-list.html" class="btn-primary" style="display:block;text-align:center;padding:.75rem;margin-bottom:.625rem;">Criar recurso</a><a href="manager-01-resources-list.html" class="btn-secondary" style="display:block;text-align:center;padding:.75rem;">Cancelar</a></div></aside></div></div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="manager-05-visao-geral.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="manager-02-service-resource-config.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="staff-04-turmas-proximas.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+    <button class="bottom-nav-item active" onclick="openSheet()">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      Mais
+    </button>
+  </nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item active" href="manager-01-resources-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Recursos
+    </a>
+    <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
+      <a href="../../../../plan/journey/shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </a>
+        </div>
+
+  <script>
+    function selectResourceType(type) {
+      document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById('type-' + type).classList.add('selected');
+
+      const isStaff = type === 'staff';
+      document.getElementById('staff-fields').style.display = isStaff ? 'block' : 'none';
+      document.getElementById('name-fields').style.display = isStaff ? 'none' : 'block';
+      // A STAFF resource never has maxCapacity — the domain model reserves physical
+      // capacity ceilings for LOCATION/ROOM and capacity-bearing EQUIPMENT only.
+      document.getElementById('physical-capacity').style.display = isStaff ? 'none' : 'block';
+
+      const label = document.getElementById('name-field-label');
+      const input = document.getElementById('name-field-input');
+      const hint = document.getElementById('name-field-hint');
+      const submitBtn = document.getElementById('submit-btn');
+
+      if (type === 'room') {
+        label.textContent = 'Nome da sala';
+        input.placeholder = 'Ex: Sala de Ioga';
+        hint.textContent = 'Aparece para clientes e equipe ao escolher onde este serviço acontece.';
+        submitBtn.textContent = 'Criar sala';
+      } else if (type === 'equipment') {
+        label.textContent = 'Nome do equipamento';
+        input.placeholder = 'Ex: Kit Halteres (Rack 2)';
+        hint.textContent = 'Use um nome que diferencie unidades idênticas ("Rack 1", "Rack 2") se fizer parte de um pool fungível (CAND-17) — veja Kit Halteres em manager-01.';
+        submitBtn.textContent = 'Criar equipamento';
+      } else {
+        submitBtn.textContent = 'Criar recurso';
+      }
+    }
+
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+  </script>
+
+</body>
+</html>

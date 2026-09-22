@@ -10,7 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe, throwProblemDetail } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   ListOpeningsDto,
@@ -53,7 +53,14 @@ export class ScheduleOpeningController {
   create(
     @Body(new ZodValidationPipe(OpenScheduleSchema)) body: OpenScheduleDto,
   ): Promise<OpenScheduleUseCaseResult> {
-    const { tenantId, actorId: createdBy, settings } = this.ctx;
+    const { tenantId, actorId: createdBy, actorRole, settings } = this.ctx;
+    if (body.resourceId != null && actorRole !== 'MANAGER') {
+      throwProblemDetail(
+        HttpStatus.FORBIDDEN,
+        undefined,
+        'MANAGER role required when resourceId is set',
+      );
+    }
     return this.openSchedule
       .execute({
         ...body,

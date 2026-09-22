@@ -5,6 +5,7 @@ import {
   ProvisionTenantSchema,
 } from '../../application/dtos/provision-tenant.dto';
 import {
+  ProvisionTenantUseCaseInput,
   ProvisionTenantUseCaseResult,
   ProvisionTenantUseCase,
 } from '../../application/use-cases/provision-tenant.use-case';
@@ -21,6 +22,13 @@ export class InternalTenantController {
   provision(
     @Body(new ZodValidationPipe(ProvisionTenantSchema)) dto: ProvisionTenantDto,
   ): Promise<ProvisionTenantUseCaseResult> {
-    return this.provisionTenant.execute(dto).catch(mapPlatformError);
+    const input: ProvisionTenantUseCaseInput = {
+      name: dto.name,
+      slug: dto.slug,
+      adminEmail: dto.adminEmail,
+      country_code: dto.country_code,
+      timezone: dto.timezone,
+    };
+    return this.provisionTenant.execute(input).catch(mapPlatformError);
   }
 }

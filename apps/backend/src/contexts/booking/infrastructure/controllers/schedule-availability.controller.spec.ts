@@ -3,11 +3,14 @@ import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
+import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceType } from '../../domain/resource.types';
 import { GetAvailabilityUseCase } from '../../application/use-cases/get-availability.use-case';
 import { ScheduleAvailabilityController } from './schedule-availability.controller';
 
@@ -19,15 +22,22 @@ describe('ScheduleAvailabilityController', () => {
   let closureRepo: InMemoryScheduleClosureRepository;
   let controller: ScheduleAvailabilityController;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
     closureRepo = new InMemoryScheduleClosureRepository();
+    const resourceRepo = new InMemoryResourceRepository();
+    // M22-S03: the degenerate (tenant-wide) path resolves the tenant's LOCATION resource
+    // (M21-S02's real backfill guarantees one always exists in production).
+    await resourceRepo.save(
+      new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.LOCATION).build(),
+    );
     controller = new ScheduleAvailabilityController(
       new RequestContextBuilder().withTenantId(TENANT_ID).build(),
       new GetAvailabilityUseCase(
         serviceRepo,
         closureRepo,
         new InMemoryScheduleOpeningRepository(),
+        resourceRepo,
         new InMemoryBookingAvailabilityPort(),
         new AvailabilityService(),
       ),

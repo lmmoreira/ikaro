@@ -57,6 +57,37 @@ describe('UpdateTenantSettingsUseCase', () => {
     expect(result.settings.loyalty.expiryDays).toBe(180);
   });
 
+  it.each([
+    [
+      'retentionMonths',
+      { retentionMonths: 12 },
+      { retentionMonths: 12, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 },
+    ],
+    [
+      'maxSubmissionsPerDay',
+      { maxSubmissionsPerDay: 250 },
+      { retentionMonths: 6, maxSubmissionsPerDay: 250, maxSubmissionsPerIpPerDay: 3 },
+    ],
+    [
+      'maxSubmissionsPerIpPerDay',
+      { maxSubmissionsPerIpPerDay: 25 },
+      { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 25 },
+    ],
+  ])(
+    'merges a partial leadForm %s update without wiping sibling fields',
+    async (_field, update, expected) => {
+      const tenant = new TenantBuilder().build();
+      await tenantRepo.save(tenant);
+
+      const result = await useCase.execute({
+        tenantId: tenant.id,
+        settings: { leadForm: update },
+      });
+
+      expect(result.settings.leadForm).toEqual(expected);
+    },
+  );
+
   it('updates businessHours timezone and keeps existing day hours', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
@@ -327,6 +358,20 @@ describe('UpdateTenantSettingsUseCase', () => {
       knowledgeText: 'texto',
       llmProvider: 'anthropic',
       maxConversationsPerDay: 100,
+    });
+  });
+
+  describe('row-locked read', () => {
+    it('reads and writes via findByIdForUpdate, not the cache-backed findById, so a concurrent booking-context read (e.g. OpenScheduleUseCase.getBusinessHoursAndLocaleForUpdate) can never observe a half-applied update', async () => {
+      const tenant = new TenantBuilder().build();
+      await tenantRepo.save(tenant);
+      const findByIdForUpdateSpy = jest.spyOn(tenantRepo, 'findByIdForUpdate');
+      const findByIdSpy = jest.spyOn(tenantRepo, 'findById');
+
+      await useCase.execute({ tenantId: tenant.id, settings: { loyalty: { expiryDays: 90 } } });
+
+      expect(findByIdForUpdateSpy).toHaveBeenCalledWith(tenant.id);
+      expect(findByIdSpy).not.toHaveBeenCalled();
     });
   });
 });

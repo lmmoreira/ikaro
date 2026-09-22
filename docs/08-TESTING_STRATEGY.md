@@ -7,7 +7,7 @@ Tests in Ikaro are **executable specifications**. Each test proves that a specif
 **Three non-negotiable rules:**
 1. Every UC must have a unit test, an integration test, and a tenant-isolation test.
 2. Tests are co-located with source: `booking.entity.spec.ts` lives next to `booking.entity.ts`.
-3. No `.skip()`, `.only()`, or `setTimeout()` in any test file — CI will block the merge.
+3. No `.skip()`, `.only()`, or `setTimeout()` in any test file — CI blocks the merge. `.skip()`/`.only()` are CI-enforced via ESLint (`jest/no-disabled-tests`/`jest/no-focused-tests`, `vitest/no-disabled-tests`/`vitest/no-focused-tests`, TD37-S15); `setTimeout` in a test body has no dedicated detector yet.
 4. **A new or changed Playwright spec must actually be run** (`npx playwright test`) against the real dev stack before it's considered done. Inspecting rendered HTML with `curl` or reasoning from the source code is not a substitute — it cannot catch wrong-page selectors, timezone-parsing mismatches, or formatting differences (e.g. capitalization) that only show up when the real browser renders the real app. TD02-S09's `localization.spec.ts` shipped with 3 such bugs that only surfaced once the suite was actually executed.
 
 ---
@@ -421,7 +421,7 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 **Rules:**
 - Happy path only — edge cases belong to unit and integration layers.
 - **Local dev:** run against the local docker-compose stack (`pnpm up` + `pnpm dev`). Use `pnpm test:e2e` from the repo root.
-- **CI:** `.github/workflows/pr-e2e.yml` runs the full Playwright suite on every PR to `main` — spins up the complete docker-compose stack + backend + BFF + web, then runs `pnpm test:e2e` against it (absorbed by `AUD-015`, well before `M13-S38`-`S41` even started). E2E is **not** a local-only gate. It also does not feed the SonarCloud coverage gate (see the coverage-exclusions note near the end of this doc) — that's a separate, narrower true statement from "doesn't run in CI at all."
+- **CI:** the `e2e` job in `.github/workflows/pr-tests.yml` runs the full Playwright suite on every applicable PR to `main` — starts the required dependencies and services, installs Chromium, and runs `pnpm --filter @ikaro/web e2e:ci`. E2E is **not** a local-only gate. It does not feed the SonarCloud coverage gate (see the coverage-exclusions note near the end of this doc).
 - Maximum 5–8 E2E scenarios for MVP. Each one maps to a core UC journey.
 - Keep Playwright specs focused on test cases. Move reusable flows, login/setup helpers, and fixture-like actions into `apps/web/e2e/helpers/<feature>/**` and expose them through folder `index.ts` barrels.
 - Before adding a new E2E helper, grep the existing helper tree first. Split by concern instead of growing a shared `misc` helper.
@@ -429,6 +429,13 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 - **`page.request` shares the page's own cookie jar — a real gotcha for fixture-seeding helpers.** If a helper needs to log in as a *different* user purely to seed state (e.g. linking a staff member's Google account as part of a fixture, without wanting to actually be logged in as them for the test), calling dev-login through `page.request` silently overwrites the test's own session cookie with the fixture user's. The test then continues believing it's still logged in as its original subject, while every subsequent request is actually authenticated as the fixture user — this shows up as confusing, intermittent `403`s with no obvious connection to a cookie. Any fixture-seeding call that logs in as someone other than the test's primary user must use an isolated `playwrightRequest.newContext()`, never the shared `page.request`.
 - **Assert on user-visible outcomes only.** External side effects (emails, events, webhooks) belong in integration tests — not in Playwright tests — unless the side effect *is* the primary user-visible result of the action being tested. Example: UC-001 (guest submits → PENDING) has no immediate user-facing email, so no MailHog assertion. UC-003 (admin approves → customer email) does — that assertion belongs in the UC-003 E2E test, not here.
 - **MailHog is available via `page.request`** (`GET http://localhost:8025/api/v2/messages`) when email verification is appropriate, but only add it when the email is synchronous to the tested action and directly confirms the user journey succeeded.
+- **A control that swaps element type after hydration needs the post-hydration variant in the selector.** The dashboard topbar back control is a plain `<a>` until a page registers `onBackOverride`, then becomes a `<button data-testid="topbar-back-button">`; a click landing during the swap is silently lost. Target `button[data-testid="topbar-back-button"]` (which only exists once hydrated) instead of the bare testid.
+
+**Running Playwright locally from a git worktree** (needs the Local verification gate's explicit yes first — CLAUDE.md §0):
+1. Copy the gitignored env files from the main checkout: `apps/backend/.env`, `apps/bff/.env`, `apps/web/.env.local` (a worktree has none). `docker compose` infra (Postgres/Pub/Sub/GCS/MailHog) is shared and usually already up; check `git`-tracked migrations are applied (`typeorm migration:show`).
+2. `pnpm dev` from the worktree root (detached, logging to a file); wait until ports 3000 (web), 3001 (backend) and 3002 (BFF) are listening.
+3. Export the two keys the helpers require, read from `apps/bff/.env` (there is no `.env.playwright.local`): `INTERNAL_API_KEY`, `WEB_INTERNAL_KEY`; then `npx playwright test e2e/<spec>.ts --reporter=list`.
+4. Stop the stack by PID, then **revert what `next dev` generated**: `git checkout apps/web/next-env.d.ts` and delete `apps/web/AGENTS.md` / `apps/web/CLAUDE.md` — never commit them.
 
 **MVP E2E scenarios:**
 1. Guest submits a booking request → admin receives notification → booking in PENDING (UC-001 + UC-018)
@@ -490,13 +497,13 @@ await page.locator('[data-testid="input-name"]').fill('E2E Teste');
 
 ### E2E Selector Strategy (mandatory — all Playwright tests)
 
-> **Updated (`M13-S41`):** this section previously recommended `getByLabel`/`getByText` as a first-choice selector strategy. That guidance directly contradicted the "Translated strings" rule immediately above (which correctly forbids exactly that) and was walked back during `M13-S41` after four separate follow-up commits were needed to strip `getByLabel`/`getByText` usages that had crept in under the old guidance. It's corrected here to match what's actually enforced (`scripts/pre-pr.sh`'s E2E-1 check) and what every real spec in `apps/web/e2e/*.spec.ts` does today.
+> **Updated (`M13-S41`):** this section previously recommended `getByLabel`/`getByText` as a first-choice selector strategy. That guidance directly contradicted the "Translated strings" rule immediately above (which correctly forbids exactly that) and was walked back during `M13-S41` after four separate follow-up commits were needed to strip `getByLabel`/`getByText` usages that had crept in under the old guidance. It's corrected here to match what's actually enforced (`apps/web/eslint.config.js`'s E2E-1 `no-restricted-syntax` selector, TD37-S23) and what every real spec in `apps/web/e2e/*.spec.ts` does today.
 
 **Priority order — use the first that applies:**
 
 **1. `getByRole` where a stable ARIA role/name fits — `getByLabel`/`getByText` are forbidden**
 
-`getByRole` (e.g. `page.getByRole('tab', { name: 'Branding' })`) is used throughout the existing E2E suite and isn't blocked by tooling — in practice it's mostly used for widgets (tabs, dialogs) where the accessible name is also the visible label. **`getByLabel` and `getByText` are forbidden everywhere in `apps/web/e2e/*.spec.ts`**, with no exception — enforced mechanically by `scripts/pre-pr.sh`'s E2E-1 check, which blocks a PR outright if either appears. For anything else — form fields, dynamic content, action buttons, success/error states — use `data-testid` (below), not an accessibility selector matched against translatable copy.
+`getByRole` (e.g. `page.getByRole('tab', { name: 'Branding' })`) is used throughout the existing E2E suite and isn't blocked by tooling — in practice it's mostly used for widgets (tabs, dialogs) where the accessible name is also the visible label. **`getByLabel` and `getByText` are forbidden everywhere in `apps/web/e2e/*.spec.ts`**, with no exception — enforced mechanically by the E2E-1 ESLint rule (`apps/web/eslint.config.js`, TD37-S23), which fails `pnpm lint`/`ci:fast` on every push, not just once before a PR is first created. For anything else — form fields, dynamic content, action buttons, success/error states — use `data-testid` (below), not an accessibility selector matched against translatable copy.
 
 ```ts
 // ✅ used in this codebase's real specs (hotsite-editor.spec.ts)
@@ -520,7 +527,7 @@ page.locator('[data-testid="step-confirm"]') // action button
 
 **3. Never encode data into `data-testid`**
 
-Embed the data value in a separate `data-*` attribute. The testid is an identity, not a record key.
+Embed the data value in a separate `data-*` attribute. The testid is an identity, not a record key. Enforced mechanically on every component definition site (`apps/web/**/*.tsx`, excluding `.spec.tsx`) by two ESLint rules (`apps/web/eslint.config.js`, TD37-S23): **E2E-2** bans an ISO date (`YYYY-MM-DD`) embedded in a `data-testid` string literal; **E2E-3** bans any template-literal `data-testid` value.
 
 ```ts
 // ✅
@@ -868,11 +875,13 @@ describe('RescheduleBookingUseCase', () => {
 | All tests pass (100%) | Jest / Vitest | Block merge |
 | Coverage ≥ 80% on **changed code** | SonarCloud (differential) | Block merge |
 | OpenAPI spec valid | Spectral | Block merge |
-| Security scan clean | Snyk + Gitleaks | Block merge |
+| Security scan clean | Gitleaks | Block merge |
 
 > Coverage is **differential** (changed files only), not a global project threshold. SonarCloud computes this on the PR diff. The Jest/Vitest coverage report feeds into SonarCloud.
 >
-> **Playwright/E2E coverage does not feed this gate** — Playwright does run in CI (`.github/workflows/pr-e2e.yml`, on every PR — see the E2E layer section above), but there's no CI step instrumenting those runs into the lcov reports SonarCloud reads. A file with real E2E coverage but no Vitest/Jest test (e.g. an async Server Component page/layout that can't be unit-tested — see `apps/web/app/**/page.tsx`, `layout.tsx`, `not-found.tsx`) still needs a `sonar.coverage.exclusions` entry, or the gate fails on 0% regardless of how well the E2E suite actually exercises it. Don't "fix" the exclusion by trying to make the file unit-testable, and don't remove it just because an E2E test now exists for it.
+> Snyk SCA is not part of this per-PR gate — it runs weekly instead (`weekly-jobs.yml`), see `docs/CI_TRAPS.md` § Snyk SCA failures.
+>
+> **Playwright/E2E coverage does not feed this gate** — Playwright runs in the `e2e` job of `.github/workflows/pr-tests.yml`, but no CI step instruments those runs into the lcov reports SonarCloud reads. A file with real E2E coverage but no Vitest/Jest test (e.g. an async Server Component page/layout that can't be unit-tested — see `apps/web/app/**/page.tsx`, `layout.tsx`, `not-found.tsx`) still needs a `sonar.coverage.exclusions` entry, or the gate fails on 0% regardless of how well the E2E suite actually exercises it. Don't "fix" the exclusion by trying to make the file unit-testable, and don't remove it just because an E2E test now exists for it.
 >
 > **BFF `*.component.spec.ts` files don't feed this gate either, but for a different reason than E2E:** they run as real Jest tests in CI, but `apps/bff`'s `test:cov` script explicitly excludes them (`--testPathIgnorePatterns='component\.spec\.ts'`), since SonarCloud only ingests the unit-test coverage report. Any logic exercised only at the HTTP/component level — a Zod `.refine()` predicate, a deep mapper branch reached only through a specific request body — shows as uncovered even though a real test exists for it (M13-S10). Add a direct unit-level (`.spec.ts`) test that exercises the same code path (e.g. call `schema.safeParse()` directly, or call the mapper function directly) rather than relying on the component spec alone.
 
@@ -882,8 +891,8 @@ describe('RescheduleBookingUseCase', () => {
 
 | Pattern | Reason | Fix |
 |---|---|---|
-| `it.skip(...)` / `describe.skip(...)` | Hides test failures from CI | Delete the test or fix it |
-| `it.only(...)` | Masks failures in other tests | Remove before committing |
+| `it.skip(...)` / `describe.skip(...)` | Hides test failures from CI | Delete the test or fix it. CI-enforced by `jest/no-disabled-tests`/`vitest/no-disabled-tests` (TD37-S15) |
+| `it.only(...)` | Masks failures in other tests | Remove before committing. CI-enforced by `jest/no-focused-tests`/`vitest/no-focused-tests` (TD37-S15) |
 | `setTimeout` in test body | Makes tests flaky and slow | Use `await`, proper async, or fake timers |
 | Mocking a real TypeORM repository in a use case test | Doesn't test real SQL behaviour | Use in-memory adapter for use case layer; real DB for infrastructure layer |
 | Shared mutable test state between `it` blocks | Makes tests order-dependent and flaky | Use `beforeEach` to reset state |
@@ -959,10 +968,12 @@ Always use a **class** with fluent `withXxx()` methods and a `build()` call. Nev
 
 | Test data type | Builder location |
 |---|---|
-| TypeORM entities | `src/test/builders/<context>/XxxEntityBuilder` (`id` defaults to `uuidv7()`) |
+| TypeORM entities | `src/test/builders/<context>/XxxEntityBuilder` (uuid-typed primary key fields default to `uuidv7()`) |
 | Domain aggregates | `src/test/builders/<context>/XxxBuilder` |
 | Domain events / Commands | `src/test/builders/<context>/XxxEventBuilder` / `XxxCommandBuilder` — e.g. `StaffInvitedEventBuilder`, `BookingReminderDueCommandBuilder` (name matches the class suffix — `Command` for classes extending `Command`, `Event` for classes extending `DomainEvent`) |
 | Shared infra stubs (e.g. RequestContext) | `src/test/factories/XxxBuilder` — e.g. `RequestContextBuilder` at `src/test/factories/request-context.factory.ts` |
+
+A primary-key field named `tenantId` is exempt — it defaults to the fixed test-tenant literal like every other `tenantId` field, never `uuidv7()`. A non-uuid-typed primary key (e.g. a `varchar` business key) is exempt too. Enforced by `pnpm architecture-check`'s `entity-builder-pk-uuidv7-default` detector (TD37-S07).
 
 ### Test setup pattern
 
@@ -1039,6 +1050,7 @@ Integration tests share a live DB with no cleanup between tests in the same file
 3. **Import the TypeORM entity class** if it is new.
 4. **Add the entity** to the `entities: [...]` array.
 5. **If the context has its own integration app helper** (e.g. `notification-integration-app.ts`), add the new entity there too.
+6. **If that helper is registered as `"partial"` in `architecture-policy.json`'s `testDataHarnessRegistrations`** (every helper except `integration-global-setup.ts` is), add the entity to that entry's `entities` array too — `pnpm architecture-check`'s `test-harness-registration` detector (TD37-S07) compares the helper's actual code array against this exact list and reports an `unexpected` finding if they drift.
 
 Skipping any of these steps is a silent failure: unit tests pass (InMemory doubles never touch the DB), but integration tests will error on the first query that touches the new column/table.
 
@@ -1066,7 +1078,7 @@ for (const { provide, useValue } of overrideProviders) {
 
 ### Dual-token override: `EVENT_BUS` + `OUTBOX_PUBLISHER` (TD24-S02)
 
-Since the 3 event-emitting aggregates' repositories now drain domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
+Since the event-emitting aggregates' repositories (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) drain domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
 
 ```ts
 const routingBus = new RoutingInMemoryEventBus();

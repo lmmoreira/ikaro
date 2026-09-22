@@ -26,7 +26,7 @@ import {
   ChatbotProviderBalanceLowError,
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
-} from '../../domain/errors/platform-domain.error';
+} from '../../domain/errors/chatbot-domain.error';
 import { SendChatMessageUseCase, SendChatMessageUseCaseInput } from './send-chat-message.use-case';
 
 class FakeTracingPort implements ITracingPort {
@@ -58,7 +58,13 @@ describe('SendChatMessageUseCase', () => {
 
   function buildUseCase(config: IApplicationConfig = fakeConfig()): SendChatMessageUseCase {
     llmProvider = new FakeLlmProviderBuilder().build();
-    const registry = new LlmProviderRegistry('openrouter', llmProvider, llmProvider, llmProvider);
+    const registry = new LlmProviderRegistry(
+      'openrouter',
+      llmProvider,
+      llmProvider,
+      llmProvider,
+      llmProvider,
+    );
     return new SendChatMessageUseCase(
       sessionRepo,
       messageRepo,
@@ -190,6 +196,27 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotDailyCapReachedError);
     });
 
+    // Distinct from the tenant-wide daily cap's own 'tenant_daily_cap' tag (tracing +
+    // logged-warning test above) — both throw the same ChatbotDailyCapReachedError, so this is
+    // the only way to tell which of the two actually tripped from a trace/log alone.
+    it("tags the rejection as 'ip_daily_cap', not the tenant-wide cap's tag", async () => {
+      const useCase = buildUseCase();
+      for (let i = 0; i < 5; i++) {
+        await sessionRepo.save(
+          new ChatbotSessionBuilder()
+            .withTenantId(TENANT_ID)
+            .withClientIp(CLIENT_IP)
+            .withConversationDate(todayInSaoPaulo())
+            .build(),
+        );
+      }
+
+      await expect(useCase.execute(baseInput())).rejects.toThrow();
+
+      const rejectionCall = tracingPort.calls.find((c) => c['chatbot.cap_rejected']);
+      expect(rejectionCall?.['chatbot.cap_rejected']).toBe('ip_daily_cap');
+    });
+
     it('does not block a different IP once one IP has hit its own per-IP cap', async () => {
       const useCase = buildUseCase();
       for (let i = 0; i < 5; i++) {
@@ -248,6 +275,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        observingProvider,
         observingProvider,
         observingProvider,
         observingProvider,
@@ -357,6 +385,7 @@ describe('SendChatMessageUseCase', () => {
         capturingProvider,
         capturingProvider,
         capturingProvider,
+        capturingProvider,
       );
       const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
       await sessionRepo.save(session);
@@ -390,6 +419,7 @@ describe('SendChatMessageUseCase', () => {
       const capturingProvider = new CapturingLlmProvider();
       const registry = new LlmProviderRegistry(
         'openrouter',
+        capturingProvider,
         capturingProvider,
         capturingProvider,
         capturingProvider,
@@ -497,6 +527,7 @@ describe('SendChatMessageUseCase', () => {
         capturingProvider,
         capturingProvider,
         capturingProvider,
+        capturingProvider,
       );
       const useCase = new SendChatMessageUseCase(
         sessionRepo,
@@ -517,6 +548,7 @@ describe('SendChatMessageUseCase', () => {
       const capturingProvider = new CapturingLlmProvider();
       const registry = new LlmProviderRegistry(
         'openrouter',
+        capturingProvider,
         capturingProvider,
         capturingProvider,
         capturingProvider,
@@ -545,6 +577,7 @@ describe('SendChatMessageUseCase', () => {
         failingProvider,
         failingProvider,
         failingProvider,
+        failingProvider,
       );
       const useCase = new SendChatMessageUseCase(
         sessionRepo,
@@ -565,6 +598,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        failingProvider,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -596,6 +630,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        failingProvider,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -631,6 +666,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        failingProvider,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -672,6 +708,7 @@ describe('SendChatMessageUseCase', () => {
         failingProvider,
         failingProvider,
         failingProvider,
+        failingProvider,
       );
       const useCase = new SendChatMessageUseCase(
         sessionRepo,
@@ -707,6 +744,7 @@ describe('SendChatMessageUseCase', () => {
       };
       const registry = new LlmProviderRegistry(
         'openrouter',
+        failingProvider,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -798,7 +836,7 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow();
 
       const rejectionCall = tracingPort.calls.find((c) => c['chatbot.cap_rejected']);
-      expect(rejectionCall?.['chatbot.cap_rejected']).toBe('daily_cap');
+      expect(rejectionCall?.['chatbot.cap_rejected']).toBe('tenant_daily_cap');
     });
 
     it('logs a structured warning on cap rejection', async () => {
@@ -821,7 +859,7 @@ describe('SendChatMessageUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow();
 
       expect(logged).toBeDefined();
-      expect(logged?.['capLayer']).toBe('daily_cap');
+      expect(logged?.['capLayer']).toBe('tenant_daily_cap');
       writeSpy.mockRestore();
     });
   });

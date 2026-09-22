@@ -190,3 +190,73 @@ Add `apps/web/app/dashboard/schedule/page.tsx` to the dashboard sidebar nav unde
 2. **Booking block interaction** — clicking an approved booking navigates to `/dashboard/bookings/[id]`.
 3. **Warning banner** — UC-010a A4 is non-blocking: closure is created, then a warning banner shows if approved bookings exist in the window.
 4. **BFF `.http` coverage** — `apps/bff/http/schedule/*.http` exists for all closure/opening/availability endpoints.
+
+---
+
+## ✅ Resource-scoped extension (UC-010e, UC-010f — M21 Cluster 1, shipped `M21-S05`)
+
+> Added by the `/discovery-to-milestone` promotion of `docs/discovery/multivertical-booking/`, shipped by `M21-S05`. Everything above this line is shipped (`M13-S21`) and untouched. `07-horarios-recurso.html` (relocated from the discovery folder's `staff-05-horarios-recurso.html`) is discovery-only illustrative material, not a validated `plan/journey/` prototype — it grounded the resource-scoped-calendar *mechanism*, but the shipped UI followed this section's own description instead of that file's separate-page illustration (confirmed during `M21-S05` story discovery, 2026-09-04).
+
+**What shipped:** `resourceId` is now an optional field on both `POST /schedule/closures` and `POST /schedule/openings` (existing endpoints — no new routes), plus a `resourceId` query filter on both `GET` list endpoints, all on the same `/dashboard/schedule` route (no new route). The UI is **two separate controls, not one picker** — revised mid-implementation after live testing surfaced a real manager need ("show me everyone's schedule at once") a single-select picker structurally couldn't answer, plus a second, independent need to choose which resource a *new* block/opening applies to:
+- **`ResourceFilterMenu`** — a floating, multi-select checkbox filter (mirrors the existing `ScheduleStatusFilterMenu`'s trigger+popover shape) controlling what the *calendar view* shows. Zero resources checked = today's exact tenant-wide behavior, byte-identical to before this story (non-regression requirement). One or more checked = an **explicit separate tenant-wide fetch plus one fetch per checked resource** (`N+1` requests, not `N`) — the backend's `resourceId` filter is an exact match (`resourceId = :id OR IS NULL`, never both in the same response), so the tenant-wide items that always apply to every resource have to be fetched on their own request rather than assumed to ride along inside a resource-scoped response; all results are merged and de-duplicated client-side. Persisted the same way the existing status filter already is (`schedule-preferences.ts`, `localStorage`-backed) — except the resource-id set is additionally **scoped by `tenantId`** in that storage (unlike the status filter, which is a fixed tenant-agnostic enum), so a multi-tenant staff user switching tenants never carries a stale resource id from one tenant into another. A selected resource id that later disappears from the active resource list (deactivated after being checked) is automatically dropped from both the live query and the persisted preference. A failed fetch surfaces as an inline error banner on the page instead of silently rendering an empty schedule.
+- **`ResourceSelectField`** — a single-select `<select>` embedded inside `ClosureFormSheet`/`OpeningFormSheet`, deciding which *one* resource the block/opening being created applies to. Deliberately **decoupled** from `ResourceFilterMenu`'s selection: `resourceId` is a single nullable field on the aggregate, not a list, so "I'm viewing 3 resources' calendars merged" has no single answer for "which resource does this new block belong to" — the field always resets to "Todo o negócio" fresh each time a sheet opens, never inheriting the view filter's checked state.
+
+Both controls are MANAGER-only (rendered only for `role === 'MANAGER'`, sourced via the dashboard-wide `TenantProvider`) and both exclude the tenant's own `LOCATION` resource from their options — `resourceId = null` ("Todo o negócio") already represents that scope. See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate) and `docs/14-API_CONTRACTS.md` § Schedule Closures/Openings for the full backend/BFF contract (unchanged by this UI revision).
+
+**Auth exception:** a request body with `resourceId` set requires `MANAGER` specifically (not `STAFF`) — the tenant-wide case (`resourceId` omitted) is unchanged, still `MANAGER|STAFF`. Neither `ResourceFilterMenu` nor `ResourceSelectField` render at all for STAFF (hidden, not disabled) — both gated on `role === 'MANAGER'`, sourced via the dashboard-wide `TenantProvider` (extended by `M21-S05` to carry `role`, since no client component in this feature previously needed it). See `docs/14-API_CONTRACTS.md`.
+
+**File map:**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/schedule/useSelectableResources.ts` | ✅ Done — shared hook (active, non-`LOCATION` resources) behind both controls below |
+| `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx` | ✅ Done — multi-select checkbox filter, MANAGER-only, mirrors `ScheduleStatusFilterMenu` |
+| `apps/web/features/booking/components/dashboard/schedule/ResourceSelectField.tsx` | ✅ Done — single-select `<select>`, MANAGER-only, embedded in the create sheets |
+| `SchedulePage.tsx` | ✅ Extended — renders `ResourceFilterMenu`, threads the checked-resource-id set through the existing `useSchedulePageController`/`schedule-page-ui-state` composition |
+| `ClosureFormSheet.tsx` / `OpeningFormSheet.tsx` | ✅ Extended — render `ResourceSelectField`, pass its own locally-selected `resourceId` (if any) into the create request body |
+| `schedule-preferences.ts` | ✅ Extended — persists the checked resource-id set the same way `selectedStatuses` already is, but keyed by `tenantId` (resource ids are tenant-specific, unlike the fixed `BookingStatus` enum) |
+| `useSchedule.ts` | ✅ Extended — `useScheduleClosures`/`useScheduleOpenings` now accept a `resourceIds: readonly string[]` array; when non-empty, fan out the tenant-wide scope plus one request per id via `useQueries`, merge+de-duplicate the results client-side, and surface `isError`/`error` if any scoped request fails |
+| `schedule-page-core-data.ts` | ✅ Extended — reconciles the persisted selected-resource-id set against the tenant's live active-resource list every render (MANAGER only), dropping any id no longer active |
+| `apps/web/providers/tenant-provider.tsx` | ✅ Extended — `TenantState`/`TenantProvider` now also carry the actor's `role` (optional — the customer shell never sets it) |
+| `packages/types/src/schedule.dto.ts` | ✅ Extended — `resourceId` added to `ScheduleClosure`/`ScheduleOpening`/`CreateClosureRequest`/`CreateOpeningRequest` |
+
+**BFF calls (extended existing endpoints, no new routes):**
+
+```text
+GET /v1/schedule/closures?from=...&to=...&resourceId=       // resourceId optional; ResourceFilterMenu issues one call per checked resource PLUS one explicit tenant-wide call (resourceId omitted) whenever any resource is checked
+GET /v1/schedule/openings?from=...&to=...&resourceId=       // resourceId optional; same fan-out
+POST /v1/schedule/closures   { ..., resourceId?: string }   // 404 if resourceId set and not found/cross-tenant
+POST /v1/schedule/openings   { ..., resourceId?: string }   // 404 if resourceId set and not found/cross-tenant
+GET /v1/resources?type=&isActive=                            // UC-044 — feeds both ResourceFilterMenu and ResourceSelectField
+```
+
+**Known limitation, found during the original promotion — still not resolved, and moot for the shipped design:** `07-horarios-recurso.html`'s own sidebar/bottom-nav still has "Horários" pointing at a Cluster-2/4 screen (`manager-05-visao-geral.html`, the combined multi-resource day grid) rather than back at this file, and "Serviços"/"Turmas" point at Cluster 2/4 screens (`manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) not yet promoted. Since the shipped implementation never navigates to that illustrative screen at all (both controls live in-page on the existing route, not a drill-down page), this stops applying to the real product — left as-is in the illustrative file until those clusters are promoted.
+
+**Resolved decisions (`M21-S05`):**
+- [x] `ResourceFilterMenu` defaults to nothing checked — "Todo o negócio" (tenant-wide) — on first load. `LOCATION` is excluded from both controls' options entirely (functionally redundant with the tenant-wide default).
+- [x] `ResourceFilterMenu`'s view-time selection (view filter) and `ResourceSelectField`'s write-time selection (which resource a *new* block/opening applies to) are independent, non-syncing state — see "What shipped" above for why.
+- [x] A single-select picker was tried first and replaced with the multi-select filter after live testing showed "view every resource's schedule merged together" is a real, common manager need the single-select shape couldn't express at all.
+- [x] `ResourceFilterMenu` shows a localized empty-state message ("Nenhum recurso ainda") instead of a blank bordered area when the tenant has no selectable (active, non-`LOCATION`) resources yet.
+
+---
+
+## ❓ GAP — M22 Cluster 2: Manager multi-resource day grid (UC-057, not yet built)
+
+**File:** `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). MANAGER-only variant of "Horários" — columns = active resources, rows = time slots.
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/dashboard/schedule/DayGridPage.tsx` | ❓ Gap |
+
+**BFF call:**
+```
+GET /v1/schedule/day-grid?date=YYYY-MM-DD
+  Header: Authorization: Bearer {jwt}   (MANAGER)
+  Response: { date, columns: [{ resourceId, name, type, blocks: [{ startsAt, endsAt, kind, refId }] }] }
+```
+
+**Open questions:**
+- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Route-level relationship to `SchedulePage`/the resource-scoped extension above (separate page vs. a view toggle) is a UI decision for the implementing story.

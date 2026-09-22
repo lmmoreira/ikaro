@@ -10,7 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe, throwProblemDetail } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   CloseScheduleDto,
@@ -53,7 +53,14 @@ export class ScheduleClosureController {
   create(
     @Body(new ZodValidationPipe(CloseScheduleSchema)) body: CloseScheduleDto,
   ): Promise<CloseScheduleUseCaseResult> {
-    const { tenantId, actorId: createdBy } = this.ctx;
+    const { tenantId, actorId: createdBy, actorRole } = this.ctx;
+    if (body.resourceId != null && actorRole !== 'MANAGER') {
+      throwProblemDetail(
+        HttpStatus.FORBIDDEN,
+        undefined,
+        'MANAGER role required when resourceId is set',
+      );
+    }
     return this.closeSchedule
       .execute({ ...body, tenantId, createdBy: createdBy ?? '' })
       .catch(mapBookingError);

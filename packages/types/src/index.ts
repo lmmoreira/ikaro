@@ -8,6 +8,7 @@ export * from './auth.dto';
 export * from './staff.dto';
 export * from './service.dto';
 export * from './schedule.dto';
+export * from './resource.dto';
 export * from './booking.dto';
 export * from './loyalty.dto';
 export * from './tenant.dto';

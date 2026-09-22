@@ -113,7 +113,7 @@ Additional docs are listed per story. Quick map:
 3. No `any`, no `@ts-ignore`, no `eslint-disable`.
 4. No hardcoded config values — read from `tenants.settings`.
 5. All customer-facing text in pt-BR. Money displayed as `R$ 1.234,56`.
-6. Functions ≤ 20 lines, classes ≤ 200 lines.
+6. Functions ≤ 40 lines (`.ts`) / ≤ 200 lines (`.tsx`), files ≤ 250 lines.
 7. Migrations run separately — never `synchronize: true` in TypeORM.
 8. Coverage ≥ 80% on changed code (differential, not global).
 9. Every use case has: ≥1 unit test + ≥1 integration test + ≥1 tenant-isolation test.

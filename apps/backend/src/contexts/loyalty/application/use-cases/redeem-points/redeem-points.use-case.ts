@@ -14,7 +14,7 @@ import {
   LOYALTY_REDEMPTION_REPOSITORY,
 } from '../../ports/loyalty-redemption-repository.port';
 
-export interface RedeemPointsDto {
+export interface RedeemPointsUseCaseInput {
   tenantId: string;
   customerId: string;
   pointsToRedeem: number;
@@ -41,20 +41,20 @@ export class RedeemPointsUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(dto: RedeemPointsDto): Promise<RedeemPointsUseCaseResult> {
-    const balance = await this.balanceRepo.findByCustomer(dto.tenantId, dto.customerId);
+  async execute(input: RedeemPointsUseCaseInput): Promise<RedeemPointsUseCaseResult> {
+    const balance = await this.balanceRepo.findByCustomer(input.tenantId, input.customerId);
     if (!balance) throw new LoyaltyBalanceNotFoundError();
 
-    balance.decrement(dto.pointsToRedeem);
+    balance.decrement(input.pointsToRedeem);
 
     const redemption = LoyaltyRedemption.record({
-      tenantId: dto.tenantId,
-      customerId: dto.customerId,
-      pointsRedeemed: dto.pointsToRedeem,
-      pointsPerCurrencyUnit: dto.pointsPerCurrencyUnit,
-      redeemedBy: dto.redeemedBy,
-      notes: dto.notes,
-      bookingId: dto.bookingId,
+      tenantId: input.tenantId,
+      customerId: input.customerId,
+      pointsRedeemed: input.pointsToRedeem,
+      pointsPerCurrencyUnit: input.pointsPerCurrencyUnit,
+      redeemedBy: input.redeemedBy,
+      notes: input.notes,
+      bookingId: input.bookingId,
     });
 
     await this.txManager.run(async () => {

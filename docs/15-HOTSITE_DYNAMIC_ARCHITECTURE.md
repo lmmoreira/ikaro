@@ -172,13 +172,14 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `ABOUT` | Business / team story | Manifest |
 | `CONTACT` | Address, phone, social, map | Tenant settings |
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
+| `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
 
 The `FOOTER` is always rendered automatically from tenant settings — it is **not** part of the `layout` array.
 
 ### Module Type Union
 
 ```typescript
-// packages/types/src/hotsite.ts
+// packages/types/src/enums.ts — re-exported (not redeclared) from packages/types/src/hotsite.ts
 
 type HotsiteModuleType =
   | 'HERO'
@@ -189,7 +190,8 @@ type HotsiteModuleType =
   | 'ABOUT'
   | 'CONTACT'
   | 'FOOTER'
-  | 'CHATBOT';
+  | 'CHATBOT'
+  | 'LEAD_FORM';
 
 interface HotsiteModule {
   type: HotsiteModuleType;
@@ -265,7 +267,7 @@ Hotsite images are **public marketing assets** — unlike booking photos, there 
 Booking photos remain on the **private** bucket with the original "fresh read-signed URL generated at display time, never stored, 15-minute expiry" pattern (`docs/14-API_CONTRACTS.md`) — that pattern is correct *there* because those images genuinely must stay private. Hotsite images simply don't follow it.
 
 **Image sources (both available in the dashboard editor):**
-- **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | seo-og-image` (M18-S03)). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
+- **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | seo-og-image | lead-form` (M18-S03, extended M20-S08)). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
 - **From bookings (`source: 'booking'`):** Admin browses a completed booking's photos — **before** (`beforeServicePhotoUrls`, from UC-001/UC-002) *and* after (`afterServicePhotoUrls`, from UC-009) are both selectable, since a compelling "before/after" showcase needs both — and features one via `POST /v1/tenants/hotsite/gallery/feature-booking-photo { bookingId, photoUrl }` (M12-S10). The backend derives `photoType` itself by checking which list the photo came from (never trusts a client-supplied label — also doubles as an integrity check: a `photoUrl` absent from both lists is rejected), then **copies** the object from the private booking-photos path into the public bucket. It's a copy, not a live reference: the featured image becomes an independent, permanent editorial choice, decoupled from whatever later happens to the source booking (archival, customer-initiated erasure under LGPD, disputes, etc.) — and avoiding a live reference is also what keeps it consistent with the "no expiring URLs in a cached manifest" rule above. This works identically for guest-originated bookings (`customerId: null`) and authenticated-customer bookings; `tenantId` is the only access boundary that matters.
 - **Existence check before persisting:** Pre-signed URLs let the browser upload straight to GCS, bypassing the backend — so nothing guarantees the `filePath` the admin later submits in `PATCH /v1/tenants/hotsite` actually exists (closed tab, failed `PUT`, hand-crafted request). `UpdateHotsiteContentUseCase` calls `IStorageService.exists()` on every non-empty image path (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, and **all** `GALLERY` images regardless of `source` — both `upload` and the copies produced by `feature-booking-photo` resolve to public-bucket paths) before persisting, rejecting unresolvable paths with `400 hotsite-image-not-uploaded`. The same gap exists — and is fixed the same way — for booking photo paths (M12-S02 also retrofits `IStorageService.exists()` into the four booking use cases that accept `photoUrls`/`*ServicePhotoUrls`).
 
@@ -396,7 +398,30 @@ Same split as `ContactModuleData`, made explicit: `ChatbotModuleData` only carri
 
 **Module-config screen carries a standing disclosure, not shown for any other module type:** since availability depends on a platform-wide LLM provider account being funded and healthy — not just this tenant's own settings — the `CHATBOT` module's own config screen (`/dashboard/hotsite`, per-module drill-down) shows a permanent info note that a temporary provider/credit shortfall can disable the widget automatically, no tenant action needed. It also shows a red banner (not a permanent note — conditional) when this tenant's own daily conversation cap was already reached today (`docs/04-USE_CASES.md` UC-027 A5, `docs/14-API_CONTRACTS.md` § Chatbot Cap Status).
 
-Full design rationale, cost model, and the ten-layer cap/abuse-prevention design: `docs/discovery/CHATBOT/CHATBOT.md`.
+The canonical behavior and abuse-prevention rules are split by concern: `docs/04-USE_CASES.md` UC-033–UC-036, `docs/14-API_CONTRACTS.md` § Chatbot Widget, and `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Chatbot.
+
+### LEAD_FORM
+
+```typescript
+interface LeadFormModuleData {
+  title: string;                          // e.g. "Fale com a gente"
+  subtitle?: string;
+  eyebrow?: string;
+  ctaLabel: string;                       // e.g. "Preencher formulário"
+  variant?: 'centered' | 'left-aligned';  // default 'centered' — mirrors BookingCtaModuleData
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: 'left' | 'center' | 'right';
+  bgStyle?: 'primary' | 'background';     // default 'primary'
+}
+```
+
+**Why the module data stays this small:** the manifest is public and cached 5 minutes (`Cache-Control: public, max-age=300`, §2 above). Embedding up to 20 questions (each with up to 10 options) would bloat every cached manifest fetch for the vast majority of visitors who never open the form — the same reasoning `SERVICE_LIST` already applies (display preferences only in the manifest; `services` fetched live via `fetchServices()`). The full question catalog is fetched only when a visitor actually reaches `/[slug]/lead-form` (`GET /public/platform/lead-form/:slug`, `docs/14-API_CONTRACTS.md` § Lead Form Widget).
+
+**Placement:** `LEAD_FORM` is a normal entry in the `layout` array, reordered by the admin like every other module — not a special-cased widget.
+
+**Disabled-module handling at the dedicated page:** unlike `CHATBOT` (whose availability is always live/uncached), `/[slug]/lead-form` checks the manifest's `layout` array directly for a `LEAD_FORM` module with `enabled: true` and renders the existing `<Unavailable/>` component when absent/disabled. This is genuinely new logic added by this module — no prior hotsite module had a dedicated page that checked its own `enabled` flag this way (`/[slug]/booking` only checks `manifest.isPublished`, never `BOOKING_CTA.enabled`).
+
+Canonical rationale, domain model, and behavior: `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig`/`LeadFormSubmission`, `docs/04-USE_CASES.md` UC-037–UC-043, and `docs/14-API_CONTRACTS.md` § Lead Form.
 
 ---
 
@@ -569,14 +594,20 @@ Follow these steps in order. Every step is mandatory.
 
 **1. Define the data contract**
 
-Add the TypeScript interface to `packages/types/src/hotsite.ts`. Add the new type to `HotsiteModuleType`. Keep the `data` shape flat — avoid deep nesting.
+Add the new module-type string to `HOTSITE_MODULE_TYPES` in `packages/validation/src/hotsite.ts` — the canonical source since TD37-S21. The backend domain type (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`) and its `MODULE_TYPES` runtime Set both derive from it automatically; no separate backend edit needed.
+
+In the **same commit**, also add the new member to `HotsiteModuleType` in `packages/types/src/enums.ts` — this is a deliberately independent, web-facing copy (never derived from `@ikaro/validation`, which `apps/web` must not depend on), but `packages/architecture-check`'s `closedEnumRegistry` detector requires it to always match the canonical source exactly, in both directions. Unlike `LEAD_FORM`'s original rollout (M20-S01 → M20-S07, staged across multiple PRs), a staged rollout for this enum is no longer supported — a member missing from either side fails `pnpm architecture-check`. Add the TypeScript data-shape interface itself to `packages/types/src/hotsite.ts` (alongside the other `XxxModuleData` interfaces, which `HotsiteModuleType` is only re-exported from — not declared in). Keep the `data` shape flat — avoid deep nesting.
 
 **2. Build the React component**
 
 Create `apps/web/shells/hotsite/components/XxxModule.tsx`. Rules:
 - Use **only** `var(--ba-*)` CSS variables for colors, fonts, radius, spacing, shadows — never hardcode visual values
 - **Content-width convention:** any free-flowing content (not a full-bleed background image) must be nested in `mx-auto max-w-7xl` — the same container `ServiceListModule`/`AboutModule`/`ContactModule` already use, and `HeroModule`/`BookingCtaModule`'s "stage" div (M18-S05). The section's own padding (`px-6` or an equivalent inline `padding`) stays on the outer `<section>`; the `max-w-7xl mx-auto` layer wraps the content directly inside it. Any left/right positioning feature must anchor content *within* that container, never directly against the section's own edge — otherwise anchoring pushes content flush against the raw viewport edge on wide screens instead of respecting the site's usual content width (found only after M18-S05 shipped, via user feedback on a live wide-viewport screen — not caught by unit tests, which don't exercise real viewport widths).
-- **Implicit vs. explicit CSS defaults:** a field documented as "unset renders identically to today" must check whether today's behavior is an *explicit* class/value or an *implicit* engine default before wiring the field's own default through generically. A generic "unset → apply this field's default" derivation is only actually a no-op for elements whose current output already matches that default explicitly — an element relying on an implicit default (e.g. a flex container with no `justify-content` at all, which browsers resolve to `normal`/`flex-start`) gets a real, silent behavior change the moment an explicit value for that same default is applied to it. **M18-S05 precedent (2026-07-30):** `HeroModule.tsx`'s CTA row had no `justify-content` class at all pre-story — unlike its sibling elements, which already hardcoded `items-center`/`justify-center` explicitly. Applying the new `contentPositionX` field's `'center'` default uniformly would have silently added `justify-center` to that one row, changing its real rendered position despite the story's own "identical to today" requirement; fixed by special-casing that one element to only apply a class when the field is explicitly set. Found via user review after the first push, not caught by the original implementation. Before trusting "defaults to X is safe" for every affected element, check each element's *actual current* CSS output, not just the containing pattern's stated intent.
+#### Implicit vs. explicit CSS defaults
+
+  A field documented as "unset renders identically to today" must check whether today's behavior is an *explicit* class/value or an *implicit* engine default before wiring the field's own default through generically. A generic "unset → apply this field's default" derivation is only actually a no-op for elements whose current output already matches that default explicitly — an element relying on an implicit default (e.g. a flex container with no `justify-content` at all, which browsers resolve to `normal`/`flex-start`) gets a real, silent behavior change the moment an explicit value for that same default is applied to it. **M18-S05 precedent (2026-07-30):** `HeroModule.tsx`'s CTA row had no `justify-content` class at all pre-story — unlike its sibling elements, which already hardcoded `items-center`/`justify-center` explicitly. Applying the new `contentPositionX` field's `'center'` default uniformly would have silently added `justify-center` to that one row, changing its real rendered position despite the story's own "identical to today" requirement; fixed by special-casing that one element to only apply a class when the field is explicitly set. Found via user review after the first push, not caught by the original implementation. Before trusting "defaults to X is safe" for every affected element, check each element's *actual current* CSS output, not just the containing pattern's stated intent.
+
+  Remaining rules for this component:
 - Mobile-first responsive layout (Tailwind breakpoints: `sm`, `md`, `lg`)
 - Accessible (WCAG 2.1 AA) — semantic HTML, `aria-label` where needed, sufficient color contrast
 - Accept props: `data: XxxModuleData` and `slug: string`
@@ -602,7 +633,7 @@ Add an `else if (parsed.type === 'XXX')` branch (importing the new module's comp
 
 **5. Add the admin configuration form**
 
-Add a form panel for the new module inside the hotsite editor (UC-027, `apps/web/app/dashboard/settings/hotsite/`). The form must allow the admin to fill in all `data` fields and toggle `enabled`.
+Add a form panel for the new module inside the hotsite editor (UC-027, `apps/web/app/dashboard/hotsite/`). The form must allow the admin to fill in all `data` fields and toggle `enabled`.
 
 **6. Update this document**
 

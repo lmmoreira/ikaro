@@ -1,20 +1,49 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { TenantEntityBuilder } from '../../../../test/builders/platform/index';
+import { todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
+import {
+  ChatbotSessionEntityBuilder,
+  TenantEntityBuilder,
+} from '../../../../test/builders/platform/index';
+import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
+import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
+import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
+import { ChatbotSessionEntity } from '../entities/chatbot-session.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
 
 const TEST_KEY = 'settings-integ-test-key-settings-xx'; // exactly 36 chars
 
+// ChatbotSessionEntityBuilder defaults startedAt/lastMessageAt to a fixed 2026-01-01 timestamp —
+// old enough to be swept by ChatbotRetentionPurgeJob's real, platform-wide (all-tenants) sweep,
+// which shares this same test-run's Postgres instance with every other integration spec file.
+// Force both fields to "now" so rows inserted here are never eligible for that sweep, regardless
+// of file execution order (caught via chatbot-retention-purge.job.integration.spec.ts failing
+// with sessionsDeleted: 33 instead of 2 — this file's own leftover rows had leaked in).
+function recentSession(tenantId: string): ChatbotSessionEntity {
+  const session = new ChatbotSessionEntityBuilder()
+    .withTenantId(tenantId)
+    .withConversationDate(todayInSaoPaulo())
+    .build();
+  const now = new Date();
+  session.startedAt = now;
+  session.lastMessageAt = now;
+  return session;
+}
+
 describe('TenantSettingsController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   let tenantId: string;
+  let settingsPort: InMemoryTenantSettingsPort;
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = TEST_KEY;
-    ({ app, ds } = await createPlatformIntegrationApp());
+    settingsPort = new InMemoryTenantSettingsPort();
+    ({ app, ds } = await createPlatformIntegrationApp({
+      overrideProviders: [{ provide: TENANT_SETTINGS_PORT, useValue: settingsPort }],
+    }));
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
@@ -48,6 +77,11 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.settings.loyalty).toBeDefined();
     expect(body.settings.booking).toBeDefined();
     expect(body.settings.chatbot).toEqual({ knowledgeText: '' });
+    expect(body.settings.leadForm).toEqual({
+      retentionMonths: 6,
+      maxSubmissionsPerDay: 100,
+      maxSubmissionsPerIpPerDay: 3,
+    });
   });
 
   it('returns 200 on GET when X-Actor-Role is STAFF', async () => {
@@ -149,6 +183,25 @@ describe('TenantSettingsController (integration)', () => {
       .expect(400);
 
     expect(body.status).toBe(400);
+  });
+
+  it('returns 400 with the dedicated field-specific code for an out-of-range leadForm.retentionMonths (M20-S04 boundary regression)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { leadForm: { retentionMonths: 25 } } })
+      .expect(400);
+
+    // Proves the real request-boundary response, not just the shared Zod schema in isolation —
+    // this is the exact bug M20-S04 fixed: a plain .int().min().max() here would return the
+    // generic GENERIC_VALUE_OUT_OF_RANGE code instead (Codex review finding, PR #422).
+    expect(body.violations).toEqual([
+      expect.objectContaining({
+        field: 'settings.leadForm.retentionMonths',
+        code: 'PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID',
+      }),
+    ]);
   });
 
   it('returns 200 and persists a partial loyalty update', async () => {
@@ -461,5 +514,83 @@ describe('TenantSettingsController (integration)', () => {
 
     expect(body.status).toBe(409);
     expect(body.detail).toContain('inactive');
+  });
+
+  describe('GET /tenants/chatbot/cap-status', () => {
+    it('returns 403 when X-Actor-Role is STAFF', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/chatbot/cap-status')
+        .set('X-Tenant-ID', tenantId)
+        .set('X-Actor-Role', 'STAFF')
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('returns { dailyCapReachedToday: false } when no conversations happened today', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/chatbot/cap-status')
+        .set('X-Tenant-ID', tenantId)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+
+      expect(body).toEqual({ dailyCapReachedToday: false });
+    });
+
+    it("agrees with SendChatMessageUseCase/GetChatbotStatusUseCase's own daily-cap boundary — the same COUNT query and threshold against chatbot_sessions", async () => {
+      const cappedTenantId = '00000000-0000-0000-0000-000000000004';
+      const cappedTenant = new TenantEntityBuilder()
+        .withId(cappedTenantId)
+        .withSlug('lavacar-cap-status-integ-01')
+        .build();
+      await ds.getRepository(TenantEntity).save(cappedTenant);
+      // RequestContext.settings is resolved via TENANT_SETTINGS_PORT (swapped for this fake by
+      // createPlatformIntegrationApp, same as chatbot.controller.integration.spec.ts), not by
+      // reading the TenantEntity row directly — the override must be set here for GetChatbotCapStatusUseCase to see it.
+      settingsPort.set(cappedTenantId, {
+        ...TenantSettings.default().toJSON(),
+        chatbot: { knowledgeText: '', maxConversationsPerDay: 1 },
+      });
+
+      const belowCap = await request(app.getHttpServer())
+        .get('/tenants/chatbot/cap-status')
+        .set('X-Tenant-ID', cappedTenantId)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+      expect(belowCap.body).toEqual({ dailyCapReachedToday: false });
+
+      await ds.getRepository(ChatbotSessionEntity).save(recentSession(cappedTenantId));
+
+      const atCap = await request(app.getHttpServer())
+        .get('/tenants/chatbot/cap-status')
+        .set('X-Tenant-ID', cappedTenantId)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+      expect(atCap.body).toEqual({ dailyCapReachedToday: true });
+    });
+
+    it("does not let tenant A's reached cap affect tenant B's cap-status", async () => {
+      const tenantA = new TenantEntityBuilder()
+        .withId('00000000-0000-0000-0000-000000000005')
+        .withSlug('lavacar-cap-status-tenant-a-integ-01')
+        .build();
+      const tenantB = new TenantEntityBuilder()
+        .withId('00000000-0000-0000-0000-000000000006')
+        .withSlug('lavacar-cap-status-tenant-b-integ-01')
+        .build();
+      await ds.getRepository(TenantEntity).save([tenantA, tenantB]);
+
+      for (let i = 0; i < 30; i++) {
+        await ds.getRepository(ChatbotSessionEntity).save(recentSession(tenantA.id));
+      }
+
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/chatbot/cap-status')
+        .set('X-Tenant-ID', tenantB.id)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+
+      expect(body).toEqual({ dailyCapReachedToday: false });
+    });
   });
 });

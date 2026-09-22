@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { StaffTenantOption } from '@ikaro/types';
@@ -39,9 +40,9 @@ export function SelectStaffTenantClient({
         {error && (
           <div className="text-center">
             <p className="mb-4 text-sm text-red-600">{t('selectTenantError')}</p>
-            <a href="/dashboard" className="text-sm text-indigo-600 underline">
+            <Link href="/dashboard" className="text-sm text-indigo-600 underline">
               {t('selectTenantRetry')}
-            </a>
+            </Link>
           </div>
         )}
 

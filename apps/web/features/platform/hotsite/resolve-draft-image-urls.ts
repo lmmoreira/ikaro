@@ -13,7 +13,7 @@ import { isTmpImagePath, resolveHotsiteImageUrl } from './resolve-hotsite-image-
 // doesn't crash next/image with "Failed to parse src" the moment the admin opens Preview.
 //
 // `tmpSignedUrls` (optional) maps a tmp/-prefixed (not-yet-promoted) raw path to a private
-// signed read URL, fetched by the caller beforehand (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md §
+// signed read URL, fetched by the caller beforehand (see docs/14-API_CONTRACTS.md §
 // tmp/ image preview) — a tmp/ path can't resolve via `baseUrl` (the public bucket base) since
 // it only exists in the private bucket. A tmp/ path with no entry yet resolves to '' (loading).
 export function resolveDraftImageUrls(

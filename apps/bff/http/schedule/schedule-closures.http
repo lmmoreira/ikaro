@@ -13,8 +13,10 @@
 
 # ── File-level response captures (updated automatically when login request runs) ──
 @managerToken  = {{managerLogin.response.body.accessToken}}
+@staffToken    = {{staffLogin.response.body.accessToken}}
 @customerToken = {{customerLogin.response.body.accessToken}}
 @closureId     = {{createClosure.response.body.id}}
+@resourceId    = 00000000-0000-7000-8000-000000000001
 
 # ── DEV AUTH — run each login once per session, then use the captured token ──
 
@@ -24,6 +26,13 @@ POST {{bffUrl}}/v1/auth/dev-login
 Content-Type: application/json
 
 { "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "staff@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
 
 ###
 # @name customerLogin
@@ -40,6 +49,12 @@ Content-Type: application/json
 
 ### List closures in December 2026
 GET {{bffUrl}}/v1/schedule/closures?from=2026-12-01&to=2026-12-31
+Authorization: Bearer {{managerToken}}
+
+###
+
+### List closures scoped to one resource (omit resourceId for tenant-wide only)
+GET {{bffUrl}}/v1/schedule/closures?from=2026-12-01&to=2026-12-31&resourceId={{resourceId}}
 Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -73,6 +88,49 @@ Authorization: Bearer {{managerToken}}
   "startTime": "10:00",
   "endTime": "12:00",
   "notes": "Manutenção preventiva"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — resource-scoped closure, MANAGER-only (UC-010e, M21 Cluster 1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Create a resource-scoped full-day closure (set @resourceId to a real Resource id first)
+POST {{bffUrl}}/v1/schedule/closures
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "date": "2026-12-29",
+  "reason": "STAFF_DAY_OFF",
+  "resourceId": "{{resourceId}}"
+}
+
+###
+
+### 403 — STAFF cannot set resourceId (UC-010e)
+POST {{bffUrl}}/v1/schedule/closures
+Content-Type: application/json
+Authorization: Bearer {{staffToken}}
+
+{
+  "date": "2026-12-30",
+  "reason": "STAFF_DAY_OFF",
+  "resourceId": "{{resourceId}}"
+}
+
+###
+
+### 404 — resourceId does not exist or belongs to another tenant (UC-010e A3)
+POST {{bffUrl}}/v1/schedule/closures
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "date": "2026-12-31",
+  "reason": "STAFF_DAY_OFF",
+  "resourceId": "00000000-0000-7000-8000-000000000099"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -5,6 +5,21 @@ import { BookingLineEntity } from '../contexts/booking/infrastructure/entities/b
 import { ScheduleClosureEntity } from '../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../contexts/booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../contexts/booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
+import { ServiceBookingIntakeSchemaEntity } from '../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingAttendeeEntity } from '../contexts/booking/infrastructure/entities/booking-attendee.entity';
+import { ResourceEntity } from '../contexts/booking/infrastructure/entities/resource.entity';
+import { BookingLineResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
@@ -15,6 +30,9 @@ import { ChatbotMessageEntity } from '../contexts/platform/infrastructure/entiti
 import { ChatbotProviderBalanceEntity } from '../contexts/platform/infrastructure/entities/chatbot-provider-balance.entity';
 import { ChatbotSessionEntity } from '../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
+import { LeadFormAnswerEntity } from '../contexts/platform/infrastructure/entities/lead-form-answer.entity';
+import { LeadFormConfigEntity } from '../contexts/platform/infrastructure/entities/lead-form-config.entity';
+import { LeadFormSubmissionEntity } from '../contexts/platform/infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { InboxRecordEntity } from '../shared/infrastructure/inbox/inbox-record.entity';
@@ -39,7 +57,19 @@ export async function createTestDataSource(): Promise<DataSource> {
     entities: [
       TenantEntity,
       HotsiteConfigEntity,
+      LeadFormConfigEntity,
       ServiceEntity,
+      ServiceResourceRequirementEntity,
+      ServiceResourceRequirementPoolEntity,
+      ServiceLegEntity,
+      ServiceLegResourceRequirementEntity,
+      ServiceLegResourceRequirementPoolEntity,
+      ServiceClassResourcePoolEntity,
+      ServiceBookingIntakeSchemaEntity,
+      BookingAttendeeEntity,
+      ResourceEntity,
+      BookingLineResourceAssignmentEntity,
+      ResourceOccupancyEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
       BookingEntity,
@@ -56,6 +86,8 @@ export async function createTestDataSource(): Promise<DataSource> {
       ChatbotSessionEntity,
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
+      LeadFormSubmissionEntity,
+      LeadFormAnswerEntity,
     ],
     synchronize: false,
     migrationsRun: false,

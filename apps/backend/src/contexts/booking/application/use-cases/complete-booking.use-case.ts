@@ -17,7 +17,7 @@ import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-reposit
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingDto } from '../dtos/complete-booking.dto';
 
-export type CompleteBookingInput = CompleteBookingDto & {
+export type CompleteBookingUseCaseInput = CompleteBookingDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
@@ -43,19 +43,10 @@ export class CompleteBookingUseCase {
     private readonly photoExistenceService: PhotoExistenceService,
   ) {}
 
-  async execute(input: CompleteBookingInput): Promise<CompleteBookingUseCaseResult> {
+  async execute(input: CompleteBookingUseCaseInput): Promise<CompleteBookingUseCaseResult> {
     const { tenantId, staffId, correlationId, currency } = input;
 
-    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
-    if (!booking) throw new BookingNotFoundError(input.bookingId);
-
-    const requestLineIds = new Set(input.lines.map((l) => l.lineId));
-    const missingLineIds = booking.lines
-      .filter((l) => !requestLineIds.has(l.lineId))
-      .map((l) => l.lineId);
-    if (missingLineIds.length > 0) {
-      throw new CompleteBookingLinesIncompleteError(missingLineIds);
-    }
+    const booking = await this.findAndValidateBooking(input, tenantId);
 
     const { permanentPaths: afterServicePhotoUrls, operations } =
       await this.photoExistenceService.preparePhotoPromotion(
@@ -92,6 +83,27 @@ export class CompleteBookingUseCase {
       staffId,
     });
 
+    return this.buildResult(booking);
+  }
+
+  private async findAndValidateBooking(
+    input: CompleteBookingUseCaseInput,
+    tenantId: string,
+  ): Promise<Booking> {
+    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
+    if (!booking) throw new BookingNotFoundError(input.bookingId);
+
+    const requestLineIds = new Set(input.lines.map((l) => l.lineId));
+    const missingLineIds = booking.lines
+      .filter((l) => !requestLineIds.has(l.lineId))
+      .map((l) => l.lineId);
+    if (missingLineIds.length > 0) {
+      throw new CompleteBookingLinesIncompleteError(missingLineIds);
+    }
+    return booking;
+  }
+
+  private buildResult(booking: Booking): CompleteBookingUseCaseResult {
     return {
       bookingId: booking.id,
       status: booking.status,
@@ -103,7 +115,7 @@ export class CompleteBookingUseCase {
     };
   }
 
-  private validateDiscount(input: CompleteBookingInput, booking: Booking): void {
+  private validateDiscount(input: CompleteBookingUseCaseInput, booking: Booking): void {
     if (!input.discountByPoints) return;
 
     if (booking.customerId === null) throw new BookingDiscountNotAvailableError();

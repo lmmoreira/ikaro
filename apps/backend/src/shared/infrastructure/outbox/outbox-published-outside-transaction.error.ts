@@ -1,8 +1,8 @@
 // Programmer-error class, not a domain error — no mapXxxError branch needed. TD24-S03: once
-// every call site (the 3 event-emitting aggregates' repositories, the 3 cron jobs, and the
+// every call site (the event-emitting aggregates' repositories, the cron jobs, and the
 // loyalty re-emit) always wraps OutboxPublisher.publish() in txManager.run(), a call arriving
 // with no ambient transaction signals a future call site forgot to wrap itself — not a case to
-// silently support with a standalone-commit fallback (see td/TD24-OUTBOX-INBOX-PATTERN.md, S03).
+// silently support with a standalone-commit fallback (see docs/03-DOMAIN_EVENTS.md, S03).
 export class OutboxPublishedOutsideTransactionError extends Error {
   constructor(eventName: string) {
     super(

@@ -19,8 +19,9 @@ import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
  * occur in production where every subscription processes independently.
  *
  * Dispatch is deferred via scheduleAfterCommit() whenever a transaction is ambient at publish()
- * time (TD24-S02) — the 3 aggregate repositories now drain domain events through this bus (as
- * OUTBOX_PUBLISHER) from inside their own save(), which runs inside the caller's txManager.run().
+ * time (TD24-S02) — the event-emitting aggregate repositories now drain domain events through
+ * this bus (as OUTBOX_PUBLISHER) from inside their own save(), which runs inside the caller's
+ * txManager.run().
  * Dispatching synchronously there would run handlers mid-transaction, on a separate connection
  * that cannot see the uncommitted write. Deferring means dispatch only starts once
  * getActiveEntityManager() has gone back to undefined (flushAfterCommitCallbacks always runs

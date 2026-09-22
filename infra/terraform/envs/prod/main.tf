@@ -230,7 +230,7 @@ module "cloudrun_backend" {
       # apply (a new Cloud Run revision, no application code build/test/deploy) during a real
       # incident, without waiting for the next app release. Final, confirmed values — not
       # placeholders.
-      CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD     = "25"
+      CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD     = "1"
       CHATBOT_MIN_PROVIDER_BALANCE_USD         = "2"
       CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES = "5"
       OUTBOX_CLAIM_LEASE_SECONDS               = "120"
@@ -267,6 +267,10 @@ module "cloudrun_backend" {
     # SECRETS.md. Per TD39, the foundation SA accessor grant lands in a genuine follow-up PR
     # (can't be in the same PR as this envs/* change). Same bootstrap_mode caveat as above.
     OPENROUTER_MANAGEMENT_API_KEY = module.secrets.secret_ids["openrouter-management-api-key"]
+    # M20-S14 PR2 of 3: moved here from the BFF (whose ALL_TRAFFIC egress has no Cloud NAT, so
+    # its own outbound siteverify call had no route out). PR1 already granted this SA accessor
+    # rights on the existing secret container — see runtime-identities/main.tf's own comment.
+    TURNSTILE_SECRET_KEY = module.secrets.secret_ids["turnstile-secret-key"]
   }
 }
 
@@ -387,6 +391,7 @@ module "cloudrun_web" {
     BFF_UPSTREAM_URL                   = "https://bff.${local.root_domain}/v1"
     NEXT_PUBLIC_SITE_URL               = "https://${local.root_domain}"
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY     = cloudflare_turnstile_widget.site.sitekey
   }
 
   # apps/web/middleware.ts verifies the access_token cookie's HS256 signature
@@ -409,6 +414,40 @@ module "cloudrun_web" {
     # lockdown / BFF_AUTH_MODE=iam (Story B) is not part of this change.
     WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
   }
+}
+
+# M20-S05 — a single, site-wide Turnstile widget, Terraform-managed (unlike
+# TURNSTILE_SECRET_KEY, which stays out-of-band per modules/secrets' own "containers only, no
+# values via Terraform" rule, M17 §2 — the sitekey isn't a secret at all, so that rule never
+# applied to it). One widget for the whole `ikaro.online` domain, not one per feature — a
+# Turnstile sitekey authorizes a *domain* to render the challenge, not a specific form; any
+# current or future feature needing Turnstile embeds this same sitekey (NEXT_PUBLIC_TURNSTILE_SITE_KEY
+# below is already named generically, not per-feature, for exactly this reason). Creating a
+# second widget per feature would only fragment Cloudflare-side analytics and add sitekeys to
+# track, with no security or functional benefit — the domains list and mode would be identical
+# every time.
+#
+# Creating the widget here means the sitekey can never be empty, a placeholder, or one of
+# Cloudflare's documented test values (1x00000000000000000000AA / 2x00000000000000000000AB) by
+# construction — Cloudflare's own API always returns a real, account-scoped sitekey for a real
+# widget. This replaces an earlier design (PR #423 rounds 2-4) that sourced the sitekey from a
+# plain `var.turnstile_site_key` Terraform variable (first with a test-key default, then required
+# with no default, guarded by a non-blocking `check` block) — that design still depended on a
+# human supplying the real value out-of-band (terraform.tfvars or a GitHub Actions variable), and
+# a gap was found live: an unset GitHub Actions variable resolves to an empty string, which the
+# no-default variable accepted as "a value was provided," silently passing CI with an empty
+# sitekey. Provisioning the widget in Terraform removes that whole human-input step, not just
+# patches around its failure modes (round-5 finding, 2026-08-25).
+#
+# mode = "managed" — Cloudflare's standard interactive checkbox widget (matches the current lead
+# form's UX expectation of a visible, real challenge for guests/customers), not "non-interactive"
+# or "invisible". A genuinely different future use case needing a different mode is the one
+# legitimate reason to add a second widget — not "a new feature" on its own.
+resource "cloudflare_turnstile_widget" "site" {
+  account_id = var.cloudflare_account_id
+  name       = "ikaro-turnstile-${var.environment}"
+  mode       = "managed"
+  domains    = [local.root_domain, "www.${local.root_domain}"]
 }
 
 # Global external ALB + serverless NEGs + Cloudflare DNS (M17-S22, D5/D11) —

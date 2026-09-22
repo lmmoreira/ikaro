@@ -8,9 +8,16 @@ export class InMemoryScheduleClosureRepository implements IScheduleClosureReposi
     tenantId: string,
     from: string,
     to: string,
+    resourceId?: string,
   ): Promise<ScheduleClosure[]> {
     return this.store
-      .filter((c) => c.tenantId === tenantId && c.date >= from && c.date <= to)
+      .filter(
+        (c) =>
+          c.tenantId === tenantId &&
+          c.date >= from &&
+          c.date <= to &&
+          c.resourceId === (resourceId ?? null),
+      )
       .sort(
         (a, b) =>
           a.date.localeCompare(b.date) ||
@@ -18,9 +25,15 @@ export class InMemoryScheduleClosureRepository implements IScheduleClosureReposi
       );
   }
 
-  async findByTenantAndDate(tenantId: string, date: string): Promise<ScheduleClosure[]> {
+  async findByTenantAndDate(
+    tenantId: string,
+    date: string,
+    resourceId?: string,
+  ): Promise<ScheduleClosure[]> {
     return this.store
-      .filter((c) => c.tenantId === tenantId && c.date === date)
+      .filter(
+        (c) => c.tenantId === tenantId && c.date === date && c.resourceId === (resourceId ?? null),
+      )
       .sort((a, b) => (a.startTime?.value ?? '').localeCompare(b.startTime?.value ?? ''));
   }
 

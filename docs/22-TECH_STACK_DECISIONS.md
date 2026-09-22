@@ -27,7 +27,7 @@ This document defines the technology stack for Ikaro, a multi-tenant SaaS platfo
 ## 1. BACKEND ORM: TypeORM
 
 ### Decision
-**TypeORM v0.3+** with PostgreSQL 17
+**TypeORM v1.0+** with PostgreSQL 17
 
 ### Why TypeORM
 

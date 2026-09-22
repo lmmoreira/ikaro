@@ -18,7 +18,7 @@ Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via 
 |---|---|---|
 | `01-hotsite-editor.html` | `/{slug}/dashboard/hotsite` | `HotsitePage` (tabbed: Branding / Layout / SEO) |
 | `01d-module-config-hero.html` | drill-down within editor (no separate route, modal/sheet likely) | `ModuleConfigPanel` (HERO variant) |
-| `01e-module-config-chatbot.html` | drill-down within editor (no separate route) | `ChatbotConfigPanel` (GAP — not yet built, see below) |
+| `01e-module-config-chatbot.html` | drill-down within editor (no separate route) | `ChatbotConfigPanel` (shipped `M19-S12`) |
 | `02-preview.html` | `/{slug}/dashboard/hotsite/preview` or iframe overlay | `HotsitePreview` |
 
 ---
@@ -33,7 +33,7 @@ Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via 
 | Unpublish | `POST /tenants/hotsite/unpublish` | MANAGER |
 | Chatbot cap status (new, feeds the `01e` red banner) | `GET /v1/tenants/chatbot/cap-status` → `{ dailyCapReachedToday: boolean }` | MANAGER |
 
-All four (branding/layout/publish/unpublish) exist in `apps/bff/src/platform/hotsite-admin.controller.ts`, proxying `apps/backend/src/contexts/platform/infrastructure/controllers/hotsite-admin.controller.ts`. `.http` coverage confirmed on both sides. `GET /v1/tenants/chatbot/cap-status` is a GAP — not built yet; per `docs/14-API_CONTRACTS.md` § Chatbot Cap Status it reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement, not a new counting mechanism.
+All four (branding/layout/publish/unpublish) exist in `apps/bff/src/platform/hotsite-admin.controller.ts`, proxying `apps/backend/src/contexts/platform/infrastructure/controllers/hotsite-admin.controller.ts`. `.http` coverage confirmed on both sides. `GET /v1/tenants/chatbot/cap-status` shipped in `M19-S10`; per `docs/14-API_CONTRACTS.md` § Chatbot Cap Status it reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement, not a new counting mechanism.
 
 ---
 
@@ -65,15 +65,16 @@ interface HotsiteBranding {
 
 ## Module types (`hotsite-config.aggregate.ts` layout)
 
-`HERO | SERVICE_LIST | GALLERY | BOOKING_CTA | TESTIMONIALS | ABOUT | CONTACT | FOOTER | CHATBOT` — 9 types (`FOOTER` added `M13-S36`, `CHATBOT` added 2026-08-08 via `/discovery-to-milestone`). Order in the JSONB array determines render order on the public hotsite. Each module has `enabled: boolean` plus its own config shape (see `HeroModuleData`, etc. in the aggregate file).
+`HERO | SERVICE_LIST | GALLERY | BOOKING_CTA | TESTIMONIALS | ABOUT | CONTACT | FOOTER | CHATBOT | LEAD_FORM` — 10 types (`FOOTER` added `M13-S36`, `CHATBOT` added 2026-08-08, `LEAD_FORM` added 2026-08-23, both via `/discovery-to-milestone`). Order in the JSONB array determines render order on the public hotsite. Each module has `enabled: boolean` plus its own config shape (see `HeroModuleData`, etc. in the aggregate file).
 
-**Per-module config — only HERO and CHATBOT are prototyped:**
+**Per-module config — only HERO, CHATBOT, and LEAD_FORM are prototyped:**
 - HERO (`01d-module-config-hero.html`), representative example: title, subtitle, layout (centered/left), CTA target, optional background image. **Shipped** — `HeroConfigPanel.tsx` and the other 6 original panels (`SERVICE_LIST`, `GALLERY`, `BOOKING_CTA`, `TESTIMONIALS`, `ABOUT`, `CONTACT`, plus `FOOTER`) all built directly from the real types in `M13-S36`, without individual prototype screens (an explicit `M13-S36` decision).
-- CHATBOT (`01e-module-config-chatbot.html`), the 9th type, added 2026-08-08: `variant` (`'bubble' | 'inline'`), `accentColor` (`'primary' | 'secondary'`), `botName`, `welcomeMessage` — see `packages/types/src/hotsite.ts` `ChatbotModuleData` (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Not yet built** — needs `ChatbotConfigPanel.tsx` the same way the original 7 got their panels in `M13-S36`. Two things this panel needs that no other module's panel does:
+- CHATBOT (`01e-module-config-chatbot.html`), the 9th type, added 2026-08-08: `variant` (`'bubble' | 'inline'`), `accentColor` (`'primary' | 'secondary'`), `botName`, `welcomeMessage` — see `packages/types/src/hotsite.ts` `ChatbotModuleData` (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Shipped `M19-S12`** — `ChatbotConfigPanel.tsx`. Two things this panel needs that no other module's panel does:
   1. A standing (non-dismissible) info note disclosing that availability depends on Ikaro-managed AI provider credits (`.availability-note` in the prototype screen).
   2. A conditional red banner when `GET /v1/tenants/chatbot/cap-status` returns `dailyCapReachedToday: true` (UC-027 A5) — the only module config screen that shows this.
+- LEAD_FORM (`../lead-form/01-config.html`), the 10th type, added 2026-08-23 for `M20-LEAD-FORM-MODULE`: `title`/`subtitle`/`ctaLabel`/`variant`/`bgStyle` (teaser fields, same shape every module's config gets) plus `audienceMode` and up to 20 inline-edited `questions[]` — the latter two are **not** part of `LeadFormModuleData` (kept out of the cached manifest, see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). **Shipped `M20-S08`** — `LeadFormConfigPanel.tsx`. All fields (teaser + `audienceMode` + `questions[]`) save together through the single consolidated `PATCH /v1/tenants/hotsite` (folded in at M20-S08 — see `../lead-form/dev-notes.md` and `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"); the config-only `GET /v1/tenants/lead-form/config` stays separate.
 
-Don't build `ChatbotConfigPanel.tsx` without reconfirming scope at `/story-discovery` — flagged as an open question in `index.html` and `manager/hotsite.md`.
+`default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` were updated in the same story to include `'CHATBOT'` — without that, the Layout tab never materializes a row for it and the Manifesto tab rejects a pasted `CHATBOT` module. The same update was made for `'LEAD_FORM'` in `M20-S08`.
 
 ---
 

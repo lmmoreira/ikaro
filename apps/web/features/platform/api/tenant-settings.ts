@@ -11,6 +11,10 @@ import type {
   UpdateTenantSettingsRequest,
   RenameTenantRequest,
   RenameTenantResponse,
+  ChatbotCapStatusResponse,
+  LeadFormAudienceMode,
+  LeadFormConfigResponse,
+  LeadFormQuestion,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 export {
@@ -54,6 +58,11 @@ export interface UpdateHotsiteRequest {
     readonly description?: string | null;
     readonly ogImageUrl?: string;
   };
+  // M20-S01, folded into this consolidated endpoint at M20-S08 — write LeadFormConfig, a
+  // separate aggregate from HotsiteConfig (see UpdateHotsiteContentUseCase's own header comment
+  // on the backend).
+  readonly audienceMode?: LeadFormAudienceMode;
+  readonly questions?: readonly LeadFormQuestion[];
 }
 
 export interface HotsiteImageSignedUrlRequest {
@@ -102,7 +111,7 @@ export async function generateHotsiteImageSignedUrl(
 
 // Only for tmp/-prefixed values (not-yet-promoted uploads) — an already-permanent
 // tenants/<id>/hotsite/... path resolves via the pure NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL
-// template instead (see resolveHotsiteImageDisplayUrl). See td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+// template instead (see resolveHotsiteImageDisplayUrl). See docs/14-API_CONTRACTS.md.
 export async function generateHotsiteImageReadSignedUrl(
   filePath: string,
 ): Promise<GenerateHotsiteImageReadSignedUrlResponse> {
@@ -127,10 +136,33 @@ export async function deleteHotsiteImage(filePath: string): Promise<void> {
   await bffClient.post('/tenants/hotsite/images/delete', { filePath });
 }
 
+// Powers the CHATBOT module config panel's own red banner (UC-027 A5) — MANAGER-only,
+// docs/14-API_CONTRACTS.md § Chatbot Cap Status.
+export async function getChatbotCapStatus(): Promise<ChatbotCapStatusResponse> {
+  const res = await bffClient.get<ChatbotCapStatusResponse>('/tenants/chatbot/cap-status');
+  return res.data;
+}
+
+// Config writes go through updateHotsiteConfig (UpdateHotsiteRequest's own audienceMode/
+// questions fields) as of M20-S08 — this stays read-only.
+export async function getLeadFormConfig(): Promise<LeadFormConfigResponse> {
+  const res = await bffClient.get<LeadFormConfigResponse>('/tenants/lead-form/config');
+  return res.data;
+}
+
 export async function updateTenantSettings(
   body: UpdateTenantSettingsRequest,
 ): Promise<TenantSettingsResponse> {
   const res = await bffClient.patch<TenantSettingsResponse>('/tenants/settings', body);
+  return res.data;
+}
+
+// Client-side read — the Settings *page* itself always uses the server-side
+// fetchTenantSettings/fetchTenantSettingsFresh (SSR-freshness after a save), but a lightweight
+// client-side consumer seeding a default from the tenant's current hours (e.g. a Resource's
+// working-hours editor) doesn't need that guarantee.
+export async function getTenantSettings(): Promise<TenantSettingsResponse> {
+  const res = await bffClient.get<TenantSettingsResponse>('/tenants/settings');
   return res.data;
 }
 

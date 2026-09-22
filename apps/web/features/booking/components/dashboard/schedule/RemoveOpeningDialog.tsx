@@ -9,6 +9,7 @@ interface RemoveOpeningDialogProps {
   readonly target: ScheduleOpening | null;
   readonly onClose: () => void;
   readonly onSubmit: (id: string) => Promise<void>;
+  readonly resourceNameById: ReadonlyMap<string, string>;
 }
 
 export function RemoveOpeningDialog({
@@ -16,10 +17,13 @@ export function RemoveOpeningDialog({
   target,
   onClose,
   onSubmit,
+  resourceNameById,
 }: RemoveOpeningDialogProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.schedule');
 
   if (!open || !target) return null;
+
+  const resourceName = target.resourceId ? resourceNameById.get(target.resourceId) : undefined;
 
   return (
     <ScheduleRemovalDialog
@@ -35,6 +39,7 @@ export function RemoveOpeningDialog({
       submitVariant="destructive"
       rangeLabel={`${target.startTime}–${target.endTime}`}
       notesLabel={t('notesLabel')}
+      resourceLabel={resourceName ? `${t('resourcePickerLabel')}: ${resourceName}` : null}
     />
   );
 }

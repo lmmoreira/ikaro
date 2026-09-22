@@ -29,8 +29,13 @@ Fields with domain validation → `src/shared/value-objects/` (never plain primi
 | IANA timezone | `Timezone` | `timezone.vo.ts` |
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` |
 | URL-safe slug | `Slug` | `slug.vo.ts` |
+| ISO country code | `CountryCode` | `country-code.vo.ts` |
+| SEO page title | `SeoTitle` | `seo-title.vo.ts` |
+| SEO meta description | `SeoDescription` | `seo-description.vo.ts` |
 
 Every VO must have a `.spec.ts` covering valid and invalid inputs. PhoneNumber format and normalisation boundary rules → `docs/CODE_STANDARDS.md`.
+
+**Adding a new VO:** also add its concept entry to `packages/architecture-check/architecture-policy.json`'s `aggregateValueObjectRegistry` (exact field names or a camelCase suffix rule, mapped to the VO's class name) — this is what `pnpm architecture-check`'s `aggregate-primitive-vo` detector (TD37-S09) uses to flag a future aggregate field for that concept left as a plain primitive. A brand-new *aggregate* that reuses an already-registered concept needs no registry change — the check is concept-driven, not per-aggregate.
 
 ### Option A — aggregate props typed as VOs (mandatory)
 
@@ -65,7 +70,7 @@ A business rule gets **one** code, owned by whichever layer defines it — not o
 - **A rule backed by a VO** (its predicate is `Xxx.isValid()`) — every other layer that also checks it (a Zod `.refine(Xxx.isValid, ...)` in a backend DTO or a BFF schema mirroring the same field) **imports and reuses that VO's code**. A `.refine(PhoneNumber.isValid, ...)` failure must emit the same `PhoneErrorCode.FORMAT_INVALID` the VO itself throws — never a second, bespoke code for the identical rule.
 - **A rule with no VO behind it** (Zod-native `.min()`/`.max()`/required-field/enum checks with no domain VO — most numeric/length bounds and fixed-choice fields) — these share a small closed `GenericErrorCode` set (`FIELD_REQUIRED`, `VALUE_TOO_SHORT`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `FORMAT_INVALID`, `VALUE_INVALID` — the last for `z.enum()`/`z.union()`/unrecognized-key/invalid-map-or-set-key-or-element mismatches, i.e. Zod's `invalid_value`/`invalid_union`/`unrecognized_keys`/`invalid_key`/`invalid_element` issue codes), disambiguated by `field`/`params` — not one bespoke code per call site. Mirrors `AddressErrorCode.FIELD_REQUIRED` already being reused across 5 different address fields instead of five separate codes.
 
-Why this matters: if the same rule gets two different codes depending on which layer catches it first (a BFF Zod schema vs. the backend VO), the frontend shows an inconsistent message for the identical violation depending on request timing — the exact defect `td/TD23-EXCEPTION-HANDLING-I18N-PATTERN.md` exists to remove.
+Why this matters: if the same rule gets two different codes depending on which layer catches it first (a BFF Zod schema vs. the backend VO), the frontend shows an inconsistent message for the identical violation depending on request timing.
 
 ---
 
@@ -87,6 +92,18 @@ export interface TenantSettingsUpdateInput {
 ```
 
 Apply `Partial<>` at the level where the schema actually stops requiring all fields together — one level per `.partial()` in the Zod chain, not once at the top.
+
+---
+
+## Schema-level enforcement of "never persisted here" invariants
+
+A documented invariant that field X must never appear inside field Y (a comment, a doc row, a naming convention) is not actually enforced unless something validates it at the request boundary. A doc comment plus a client-side "strip before sending" helper is a UI courtesy for the legitimate client, not an API contract — a direct API call, a future caller, or a bug in the client-side strip logic all bypass it silently.
+
+This bites hardest when Y's own schema is an unconstrained record (`z.record(z.string(), z.unknown())`), which many module/module-data-shaped fields are, since per-type shape isn't statically derivable from a generic array element. If X's field names are also real, recognized fields somewhere else in the same request body, nothing stops a caller from embedding them inside Y instead of at the top level.
+
+**M20-S08 precedent (2026-08-26):** `HotsiteModuleSchema.data` accepts any record for every module type. Once `audienceMode`/`questions` became real top-level fields on `PATCH /v1/tenants/hotsite` (folded in from a former separate endpoint), a caller could embed those same key names inside a `LEAD_FORM` module's own `data` in the `layout[]` array — bypassing `LeadFormConfig`'s own validation (the 20-question cap included) and landing the values in `HotsiteConfig.layout[]`, which feeds the public-cached manifest. The frontend's `stripLeadFormConfig()` helper only protects the real web client, not the API boundary. Fixed with an explicit Zod `.refine()` on `HotsiteModuleSchema`, scoped to `type === 'LEAD_FORM'`, rejecting `audienceMode`/`questions` inside `data` — not a blanket tightening of the generic record, which would break every other module type's legitimately-unconstrained `data`. See `packages/validation/src/hotsite.ts`.
+
+When adding a new field to a generic sibling endpoint that a per-type sub-schema could also plausibly accept, check whether the sub-schema's own record type needs the same scoped `.refine()` — the invariant is only real once something rejects the violation, not just documents it.
 
 ---
 
@@ -128,6 +145,24 @@ Rule:
 
 In other words: transaction scope fixes "check-then-act outside the write"; the database constraint fixes "two writers race anyway."
 
+**A single exclusion constraint stops generalizing once "the tenant" is no longer the one thing being protected — the granularity has to move to whatever the shared resource actually is, and a single shared table (not one per family) is what keeps the constraint enforceable at all.** `EX_booking_bookings_approved_slot` (retired by M22-S03, replaced by `booking.resource_occupancy`'s own GIST exclusion) worked because there was exactly one thing to protect per tenant, one row per booking. Once a booking can lock a *bundle* of resources, a different resource per *leg*, or share a resource with a materialized session from a completely different aggregate family, there is no longer one row per booking to key an exclusion constraint on — the granularity has to move to one row per resource-assignment, and every family that can ever contend for that resource has to write into the *same* table, because a Postgres exclusion constraint cannot span two tables. Splitting per-family "for cleanliness" reintroduces exactly the race the constraint exists to close. M22 (Multi-Vertical Scheduling)'s `booking.resource_occupancy` is the concrete instance: one shared GIST exclusion constraint, keyed on `(tenant_id, resource_id, [starts_at, ends_at))`, protects appointment bookings (Cluster 2) and, once it ships, class sessions (Cluster 4) against each other on a resource that participates in both — see `docs/02-DOMAIN_MODEL.md` § Booking Context (UC-060's note) and `docs/13-DATABASE_SCHEMA.md` for the full schema. A not-yet-materialized future pattern (a recurring template or standing schedule) still needs a companion transaction-scoped advisory lock in canonical resource-ID order, the same "companion to the DB constraint, not a replacement for it" principle above — the exclusion constraint alone can't protect a commitment that has no row yet.
+
+### Choosing a race-condition primitive, and where its lock port should live
+
+This codebase has three real primitives for a race condition, each matched to the shape of the race — pick by shape, not by "add a lock and see":
+
+1. **DB exclusion constraint** (over a persisted range/value) — the invariant is "no two of these *rows* can overlap/collide," and the rows already get created. Strongest guarantee (survives any application-code bug); prefer it whenever the invariant maps onto column values Postgres can express in a constraint. See "Cross-row invariants" above.
+2. **A real row lock — `findByIdForUpdate()` / `SELECT ... FOR UPDATE`** — a row *already exists* (an aggregate being read, then conditionally written, inside the same transaction), and a concurrent writer must not see a stale value or write a conflicting one. Goes through the aggregate's own repository, so it automatically bypasses any read cache sitting in front of the normal `findById()` — this is a load-bearing property of the primitive, not incidental (see "A lock only orders callers who both acquire it..." above for what goes wrong when an advisory lock is used here instead). Use this whenever the row to lock already exists.
+3. **`pg_advisory_xact_lock` via a dedicated lock port** — there is *no row to lock yet* (the thing being protected is about to be *created* — e.g. "only one opening can be created for this tenant+date"), or the invariant spans multiple tables in a way no single exclusion constraint can express. Purely cooperative: it only blocks other callers who also explicitly acquire the same key. Transaction-scoped, released automatically on commit/rollback.
+
+**Primitive 2 also generalizes to locking several rows of the same kind together in one transaction — batch them into a single query with an explicit deterministic order, not N sequential single-row locks.** When a use case must lock more than one row of the same aggregate type before writing (e.g. every `Service` a multi-line booking references), a batched `SELECT ... WHERE id IN (...) FOR UPDATE` is both cheaper than N sequential `findByIdForUpdate()` calls (one round trip, and a narrow column projection instead of hydrating each full aggregate) and *requires* an explicit `ORDER BY` on a stable key — Postgres gives no lock-acquisition-order guarantee for an unordered `IN (...)` query, so two concurrent callers referencing overlapping rows in different array orders can still deadlock without one. M22-S01 precedent, PR #479, 2026-09-15: `lockBookingModels()` batch-locks every service a booking references with `ORDER BY id`, replacing N sequential `findByIdForUpdate()` calls that were serializing unrelated concurrent bookings under a shared tenant-day advisory lock; the first version omitted the `ORDER BY` and was caught by a later Codex round.
+
+**Where the lock port lives follows the same rule as every other port in this codebase:** start it in the bounded context that owns the race (`<context>/application/ports/`); promote to `shared/` only once a **second real consumer in a different context needs the exact same primitive**, not merely "another context also has some race condition somewhere." Two different races reaching for "add a lock" as the fix does not mean they need the same primitive — check which of the three shapes above the *new* race actually is before assuming it's a second consumer of the *existing* port.
+
+**M21-S03 precedent, PR #460, 2026-09-04:** `ITenantLockPort.lockTenantDay()` is a purely booking-local advisory lock (primitive 3) protecting `schedule_closures`/`schedule_openings` creation races — no row exists yet at lock-acquisition time. Mid-story, a second, unrelated race surfaced: a concurrent `PATCH /tenants/settings` narrowing `businessHours` while `OpenScheduleUseCase` was mid-validation. The first fix added a second method (`lockTenantSettings`) to the *same* port and promoted the whole thing to `shared/` for platform to reuse — treating "another race exists" as sufficient reason to share the port. That promotion was walked back one round later: the settings race wasn't the same shape at all — the tenant row already exists, so the correct primitive was `findByIdForUpdate()` (primitive 2), not an advisory lock. Once corrected, `ITenantLockPort` moved back to booking-local with only its original method, and the `shared/` promotion (`TenantLockModule`, `shared/ports/tenant-lock.port.ts`) was deleted entirely — it never had a real second consumer once the actual mechanism was fixed. Before promoting a lock port to `shared/`, confirm the new consumer needs the *same primitive*, not just "also has a race."
+
+**An advisory lock's key format, once it has ever protected real production traffic, cannot be changed without accounting for a rolling/blue-green deploy running old and new code simultaneously — the same caution applies to any other computed key (a cache key, a hash-routing key) that must match exactly across concurrently-running instances for the same logical entity.** During a rolling deploy, an old instance and a new instance both serve traffic for a window; if the key format changes (e.g. adding a namespace prefix), the two instances compute *different* keys for the identical real-world entity (the same `(tenantId, date)`, the same `(tenantId, staffId)`), so `pg_advisory_xact_lock` never actually serializes them against each other — silently reopening whatever race the lock exists to close, for the entire deploy window, with no error anywhere. A brand-new key with no prior deployed version carries no such risk and can be namespaced freely from the start. M21-S06 precedent, PR #461 round 1, 2026-09-04: adding a `tenantstaff:` namespace prefix to the new `lockTenantStaff` key was safe (nothing live to desynchronize against yet); doing the identical "cleanup" to the already-live `lockTenantDay` key — caught before merging, by Codex review — would not have been. `lockTenantDay`'s key stays byte-for-byte what it has always been; only the genuinely new key got the clean namespace — full incident: `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_DEVELOPER.md` § 7.
+
 ### TypeORM optimistic locking on detached entities
 
 TypeORM's version machinery is safest when it operates on entities it loaded itself. A repository that reconstitutes an aggregate, builds a fresh persistence object, and then calls `manager.save()` is in a danger zone: the resulting write path may not enforce the `version` in the `WHERE` clause the way the domain expects.
@@ -165,38 +200,52 @@ When two independent writers share one row and each must touch only its own colu
 
 - **`useDefineForClassFields` (on by default under this repo's `target`) makes a declared-but-unassigned class field a real own-property.** `'lastSuccessAt' in entity` returns `true` even when the field was never assigned — the class field declaration itself creates the property, just with value `undefined`. When a test asserts that a partial upsert correctly *excluded* a column, assert on the **value** (`expect(entity.lastSuccessAt).toBeUndefined()`), never on property presence via `in`.
 
-**There is no `InsertQueryBuilder.onConflict()` method.** A raw `ON CONFLICT (...) DO UPDATE SET ...` string is not part of the public API — code (or a bot-suggested fix) that calls `.onConflict(...)` fails at compile time. For a conditional upsert (only overwrite when the incoming value is actually newer, or the column was never set), use the real method:
-
-```ts
-await manager
-  .createQueryBuilder()
-  .insert()
-  .into(Entity)
-  .values({ provider, lastSuccessAt: occurredAt })
-  .orUpdate(['last_success_at'], ['provider'], {
-    overwriteCondition: {
-      where: 'entity_table.last_success_at IS NULL OR entity_table.last_success_at < EXCLUDED.last_success_at',
-    },
-  })
-  .execute();
-```
+**There is no `InsertQueryBuilder.onConflict()` method** — the real conditional-upsert method (`.orUpdate()`), with a worked example, now lives in `docs/ANTI_PATTERNS.md`'s "`InsertQueryBuilder.onConflict()` doesn't exist" row (relocated 2026-09-20, TD41 — `/pre-pr`'s bad-smell-audit loads that doc automatically, this one it doesn't).
 
 **`orUpdate()`'s `overwrite`/`conflictTarget` arrays take real DB column names (snake_case, matching `@Column({ name: ... })`), not entity property names.** Unlike `.values()`, which translates entity properties to columns via metadata, `orUpdate()` passes each array entry straight through `this.escape(column)` with no translation — confirmed by reading `EntityManager.upsert()`'s own implementation, which explicitly maps `conflictPaths`/columns to `col.databaseName` *before* calling `orUpdate()`. Passing a property name here (e.g. `lastSuccessAt` instead of `last_success_at`) silently generates SQL referencing a column that doesn't exist under that name — verify the exact SQL a new `orUpdate()` call produces against a real database (integration test), not just that it type-checks. (M19-S06 precedent, 2026-08-13: `TypeOrmChatbotProviderBalanceRepository.recordCallOutcome()` needed exactly this — two concurrent calls could write out of chronological order, and a plain `EXCLUDED`-based overwrite would let the older one clobber a newer timestamp.)
 
 ---
 
+## Migration backfills
+
+A migration backfilling a newly-derived table doesn't automatically need batching/resumability machinery — scale the safety engineering to the actual, checkable risk, not a reflexive "any full-table backfill is production-risky" default. But "could the source table hold meaningful data yet" must be checked against the right signal — **whether the underlying endpoint/controller that writes to it has already merged to `main`, not whether a dedicated front-end page for it has shipped.** A backend endpoint is a live, callable traffic path the moment it merges and deploys — a direct API call, a smoke test, or another integration can reach it long before any UI page is built to call it naturally. Check `git log origin/main -- <the controller file>`, not the story-dependency graph's page-shipping milestone.
+
+If the source genuinely has no reachable endpoint yet, the destination being a derived lookup/cache (rebuilt going forward by the same code path that maintains it for new rows, not the record of truth) means a missing backfilled row is a self-correcting gap, not a data-loss risk — dropping the backfill is fine. Once real data could exist, backfill it: if the expected row count is still small at this stage of the feature's rollout, a plain one-shot `INSERT ... SELECT` is proportionate — building batching/resumability for a "production scale" that doesn't exist yet is its own form of over-engineering. Re-assess as the feature matures and real volume grows.
+
+**M20-S08 precedent (2026-08-26) — this exact lesson was tested and reversed within the same PR:** a new `lead_form_submission_question_refs` migration originally shipped with an unbounded `INSERT ... SELECT ... jsonb_array_elements(...)` backfill. Round 1: removed it, reasoning "no public-facing submission *page* had shipped yet" (M20-S09, the guest-facing page, ships later) — checked against the wrong signal. Round 2 (Codex review): correctly caught that the public submission *endpoint* (`lead-form-public.controller.ts`) had already merged in an earlier story (M20-S02/S05/S06), so real submissions could already exist via direct API calls — verified with `git log origin/main -- .../lead-form-public.controller.ts`, confirming it. Without the backfill, a pre-existing submission would have answers in `lead_form_submissions.answers` but no row in this derived table, so `GetLeadFormConfigUseCase` would report `hasSubmissions: false` and a manager could remove that question without the required confirmation dialog (UC-037 A4) — a real correctness gap. Backfill restored, with the correct UUID cast this time.
+
+---
+
+## Migration-driven privilege grants to infrastructure-created roles
+
+Migrations that grant privileges to infrastructure-created database roles must enforce provisioning order or provide convergent reconciliation. A migration that silently skips a missing role is safe only when the deployment process guarantees Foundation creates the role first; otherwise it records a one-time no-op and leaves the role permanently under-privileged.
+
+---
+
+## Adding a CHECK constraint to an existing table with live rows
+
+Relocated to `docs/ANTI_PATTERNS.md`'s "Adding a CHECK constraint to an existing table with live rows" row (2026-09-20, TD41) — the `NOT VALID` + `VALIDATE CONSTRAINT` split, the M22-S02 precedent, and the worked SQL example now live there, in the doc `/pre-pr`'s bad-smell-audit actually loads.
+
+---
+
+## LIKE/ILIKE pattern escaping for user-supplied search terms
+
+Relocated to `docs/ANTI_PATTERNS.md`'s "LIKE/ILIKE pattern escaping for user-supplied search terms" row (2026-09-20, TD41) — `escapeLikePattern()`'s usage and the M20-S12 precedent now live there.
+
+---
+
 ## Aggregate domain events → outbox (repo auto-flush)
 
-The 3 event-emitting aggregates (`Booking`, `Staff`, `Tenant`) never have their events flushed by a use case. Instead, each aggregate's TypeORM repository drains `clearDomainEvents()` into the outbox as the last step of `save()`, inside the same ambient transaction as the business write (TD24-S02, D6):
+The 4 event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) never have their events flushed by a use case. Instead, each aggregate's TypeORM repository drains `clearDomainEvents()` into the outbox as the last step of `save()`, inside the same ambient transaction as the business write (TD24-S02, D6):
 
 ```ts
 // end of save(), after the entity write — inside the ambient transaction
 await drainDomainEvents(aggregate, this.outboxPublisher);
 ```
 
-**Adding a new use case for one of these 3 aggregates:** inject `@Inject(TRANSACTION_MANAGER)` as usual, but do **not** inject `EVENT_BUS`/`OUTBOX_PUBLISHER` and do **not** write a `for (const event of aggregate.clearDomainEvents())` loop — `repo.save()` already does this. A use case that still contains that loop for one of these 3 aggregates is dead code (the aggregate's `clearDomainEvents()` will already be empty by the time the use case's own loop would run).
+**Adding a new use case for one of these 4 aggregates:** inject `@Inject(TRANSACTION_MANAGER)` as usual, but do **not** inject `EVENT_BUS`/`OUTBOX_PUBLISHER` and do **not** write a `for (const event of aggregate.clearDomainEvents())` loop — `repo.save()` already does this. A use case that still contains that loop for one of these 4 aggregates is dead code (the aggregate's `clearDomainEvents()` will already be empty by the time the use case's own loop would run).
 
-**Adding a 4th event-emitting aggregate:** its TypeORM repository must inject `@Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher` and call `drainDomainEvents(entity, this.outboxPublisher)` at the end of `save()`, reusing the shared helper (`shared/infrastructure/outbox/drain-domain-events.ts`) rather than hand-rolling the loop — keeps production repos and their in-memory test doubles from drifting apart. `OutboxModule` is `@Global()` and exports `OUTBOX_PUBLISHER` — within the **real app's** single compiled module graph (`app.module.ts` imports it once), every other module can inject `OUTBOX_PUBLISHER` with no explicit import. **This does not carry over to test module graphs**: each isolated `Test.createTestingModule({ imports: [...] })` call compiles its own separate DI container, so `OutboxModule` must still be added to that `imports:` array at least once per test harness before `OUTBOX_PUBLISHER` (or `OUTBOX_REPOSITORY`) is resolvable there — `@Global()` only means "no import needed *within* a graph it's already part of," not "available everywhere unconditionally."
+**Adding another event-emitting aggregate:** its TypeORM repository must inject `@Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher` and call `drainDomainEvents(entity, this.outboxPublisher)` at the end of `save()`, reusing the shared helper (`shared/infrastructure/outbox/drain-domain-events.ts`) rather than hand-rolling the loop — keeps production repos and their in-memory test doubles from drifting apart. `OutboxModule` is `@Global()` and exports `OUTBOX_PUBLISHER` — within the **real app's** single compiled module graph (`app.module.ts` imports it once), every other module can inject `OUTBOX_PUBLISHER` with no explicit import. **This does not carry over to test module graphs**: each isolated `Test.createTestingModule({ imports: [...] })` call compiles its own separate DI container, so `OutboxModule` must still be added to that `imports:` array at least once per test harness before `OUTBOX_PUBLISHER` (or `OUTBOX_REPOSITORY`) is resolvable there — `@Global()` only means "no import needed *within* a graph it's already part of," not "available everywhere unconditionally."
 
 **Non-aggregate events** (cron jobs constructing a `Command`, a consumer's re-emit) go through `OUTBOX_PUBLISHER` too (TD24-S03) — `EVENT_BUS` is never the publish path for these sites either. The difference from the aggregate-driven flow above is that there's no repository to auto-drain the event, so the call site (the job, or the use case doing the re-emit) must construct the event and call `outboxPublisher.publish()` itself, wrapped in its own `txManager.run()`.
 
@@ -209,6 +258,8 @@ await drainDomainEvents(aggregate, this.outboxPublisher);
 | Test wiring | in-memory repos (`InMemoryBookingRepository`/`InMemoryStaffRepository`/`InMemoryTenantRepository`) take an optional `IOutboxPublisher` constructor param (default no-op) and drain the same way — pass an `InMemoryEventBus`/`RoutingInMemoryEventBus` instance to observe published events in a spec |
 
 **Hard invariant (TD24-S03):** `TypeOrmOutboxRepository.insert()` throws `OutboxPublishedOutsideTransactionError` when called with no ambient transaction (`getActiveEntityManager()` returns `undefined`) — there is no standalone-commit fallback anymore. Every call to `OutboxPublisher.publish()`, anywhere, must run inside `txManager.run()`. A repository that opens its own transaction internally (the "no ambient tx from the caller" branch some repos have, e.g. `TypeOrmBookingRepository.save()`) must register that transaction with the ambient-context system itself (`runWithTransactionContext`/`createTransactionContext` + `flushAfterCommitCallbacks`, mirroring what `TypeOrmTransactionManager.run()` does) — otherwise `drainDomainEvents`'s outbox write inside it has no active manager to join and throws.
+
+**A domain event drained into the outbox needs at least one real consumer before it ships to any environment** — the Pub/Sub-topic auto-discovery mechanism, why a topicless event fails permanently and silently, and the M20-S16 incident now live in `docs/ANTI_PATTERNS.md`'s "outbox event with no real consumer" row (relocated 2026-09-20, TD41).
 
 **Adding a cron-published event:**
 1. The event class extends `Command` (`shared/domain/command.ts`), not `DomainEvent` — a cron tick can legitimately construct the same business fact twice (retry, overlapping invocation), and `Command`'s required `dedupKey: string` is what the outbox's `UNIQUE(dedup_key)` collapses those duplicates down to one row on. Compute a deterministic key from business identity + a calendar date (tenant-local or UTC, whichever the job already computes for its own query window) — never a fresh UUID.
@@ -340,6 +391,55 @@ This makes our own ratio the actual authority on our own sampling regardless of 
 **How often, actually — extended observation, same day, ~2 hours total:** 363 total requests, 2 loss events total, both within the first 77 minutes, zero since despite continued real traffic including a deliberate ~100-request stress test — roughly 1 loss event per ~180 requests in this (still small) sample. A real, low-frequency intermittent gap, not persistent or worsening. Also precise about *what's* lost: even during a loss event the trace itself still shows up in Cloud Trace (verified directly against the Cloud Trace API for the `/pubsub/push` trace during the second drop — the request-level span survives); what's missing is depth, not the trace's existence.
 
 **Risks that are real and explicitly NOT mitigated by this fix:** (1) below `send_batch_size`, a batch's only flush trigger is the `timeout` timer — CONFIRMED live, not just theorized, as the cause of the second drop event above; dense multi-request traffic reliably hits the size threshold and is unaffected, but low-volume single-request traffic (like the `/pubsub/push` case) is not; (2) only tested against one backend + one BFF instance, while production can scale to ~20 BFF + ~3 backend instances all batching independently against the same shared quota; (3) `retry_on_failure` is genuinely rejected as an invalid key by this exporter version (re-confirmed live, 2026-08-06) — the underlying Google Cloud Go client does retry internally, but only within the `timeout: 2s` budget, and once that's exceeded the queue sender logs `"Exporting failed. Dropping data."` with a `dropped_items` count and the batch is gone permanently, no further retry; (4) no persistent queue storage, and both services scale to zero (`min_instance_count = 0`), so a scale-down or restart while spans are queued/batched loses them with no durability backstop. None of these are fixed here — they're documented, accepted risks to revisit if they prove to matter in practice. Full writeup and methodology: `infra/docker/otel-collector/README.md`.
+
+---
+
+## OpenRouter chatbot outbound HTTP resilience — connect-timeout, retry classification, and provider selection (M19-S13)
+
+**Real incidents, 2026-08-18/19, live-diagnosed via a debug log of the outbound request payload plus OpenRouter's own dashboard generation logs (not simulated).** `apps/backend/src/shared/utils/fetch-and-parse-json.ts` (shared by `OpenRouterLlmAdapter` and `OpenRouterCreditsClient`) hit four genuinely different failure classes in one session, each needing a different fix — the sequence itself is the lesson: don't fix the first plausible cause and stop, keep checking against live evidence until the *actual* mechanism is confirmed.
+
+1. **A raw `fetch()` throw with no distinction between "connection never established" and "server responded but slowly."** A hand-rolled retry loop (`fetchWithRetry`) was added first, retrying only `TypeError`s (real network failures) and not `DOMException`/`TimeoutError`s (the caller's own `AbortSignal.timeout()` firing) — reasoning that retrying a slow-but-connected response wastes time without helping. That reasoning was correct as far as it went, but incomplete: a later incident produced a `TimeoutError` with **no corresponding entry at all** in OpenRouter's own request log for that time window — proof the request never reached OpenRouter's servers, i.e. a stalled TCP/TLS handshake, not a slow response. A single `AbortSignal.timeout()` can't distinguish these two phases; both look identical from the caller's side.
+
+2. **The fix: undici's own `Agent` + retry interceptor, not more hand-rolled classification logic.** Needing a third special case to patch the retry loop was the signal to switch approaches rather than add another one (see CLAUDE.md §7 "Mounting complexity is a signal to reconsider the approach"). `apps/backend/src/shared/utils/fetch-and-parse-json.ts` now imports `Agent`, `fetch`, and `interceptors` from the `undici` package directly (added as an explicit `apps/backend` dependency — already present transitively via `@opentelemetry/instrumentation-undici`, so no new download) rather than using the global `fetch`:
+   ```ts
+   const RESILIENT_DISPATCHER = new Agent({ connectTimeout: 2000 }).compose(
+     interceptors.retry({
+       maxRetries: 2, minTimeout: 300, maxTimeout: 800, timeoutFactor: 2,
+       methods: ['GET', 'POST'],
+       errorCodes: [/* undici's defaults */ 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND',
+         'ENETDOWN', 'ENETUNREACH', 'EHOSTDOWN', 'EHOSTUNREACH', 'EPIPE',
+         'UND_ERR_CONNECT_TIMEOUT' /* NOT a default — added explicitly */],
+       statusCodes: [], // never retry a completed non-2xx response
+     }),
+   );
+   ```
+   `connectTimeout` bounds *only* the TCP/TLS handshake — a stalled connection now fails in 2s and gets retried on its own short budget, instead of silently consuming the full response-timeout window just to notice.
+
+3. **Two undici `interceptors.retry()` defaults are easy to miss and both bit this fix on the first pass:** the default `methods` list is `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'TRACE']` — **`POST` is excluded** (assumed non-idempotent) — and the default `errorCodes` list covers socket-level errors but **not `UND_ERR_CONNECT_TIMEOUT`**. Both must be added explicitly for a POST-based JSON API client (OpenRouter chat completions) to get any retry benefit at all; the interceptor silently no-ops otherwise, with no warning. Also easy to miss: overriding `methods` to add POST without also keeping `GET` silently drops retry coverage for every existing GET caller of the same shared helper (`OpenRouterCreditsClient`'s balance-poll) — caught only because both callers share one `fetchAndParseJson`.
+
+4. **A shared `AbortSignal.timeout()` instance caps the *total* time across every retry attempt underneath it, not a fresh budget per attempt — verified empirically, not just reasoned about.** `OpenRouterLlmAdapter.complete()` constructs one `AbortSignal.timeout(OPENROUTER_TIMEOUT_MS)` and passes it into the same `init` object reused by every attempt. Direct test (real Node, this repo's actual Node version): a first `fetch()` using `AbortSignal.timeout(1000)` waited the full ~1000ms before failing; a second `fetch()` issued ~1200ms later, reusing the *same already-fired* signal, failed in **0ms** — instantly, not with a fresh wait. This means retries never need their own budget accounting to stay within an overall ceiling — the shared signal enforces it by construction — but it also means making a signal-governed `TimeoutError` retryable would be a no-op under this design (a "retry" after the signal fired just fails instantly too), which is *why* `TimeoutError`/connect-phase-survived-retries stays a single, immediate failure rather than something layered on top of the undici retry interceptor.
+
+5. **The backend's per-attempt timeout and the BFF's timeout for the same call are a coupled invariant, not two independent numbers.** `OPENROUTER_TIMEOUT_MS` (backend, `openrouter-llm.adapter.ts`) must stay comfortably below `CHATBOT_MESSAGE_TIMEOUT_MS` (BFF, `apps/bff/src/features/platform/platform.public.controller.ts`, passed as `postForPublic`'s new optional `timeoutMs` override — every other `BackendHttpService` caller keeps the shared 10s default). Shipped values: 8s backend / 12s BFF, deliberately short — not OpenRouter's own generic ~120s recommendation for long-running inference, because this call sits behind a visitor actively waiting in a live chat widget, and this product already asks for short, concise answers (`maxOutputTokens`, `reasoning: 'none'`, the system prompt's own "seja conciso"). If the backend value increases without the BFF value increasing at least as much, the BFF's own axios timeout can fire *before* a genuine (if slow) backend response finishes, misreporting a real, in-progress answer as `BFF_UPSTREAM_UNAVAILABLE` instead of forwarding the backend's actual result or error.
+
+6. **`reasoning: { effort: 'none' }` is OpenRouter's documented, correct way to disable a reasoning-capable model's chain-of-thought — and it is not reliably honored by every provider OpenRouter can route to for the same model.** Confirmed via four real generations from one provider (`AtlasCloud`, routed to `deepseek/deepseek-v4-flash-0731`) across one conversation: `native_tokens_reasoning` of 227, 280, 300, and 300 (out of a 300 `max_tokens` budget) despite `effort: 'none'` being sent on every call — every other provider observed in the same conversation (`OpenInference`, `DigitalOcean`, `CoreWeave`) showed `native_tokens_reasoning: 0`. Two of the four AtlasCloud calls burned the *entire* budget on hidden reasoning and returned `content: null` (a real user-facing failure: `PLATFORM_CHATBOT_PROVIDER_UNAVAILABLE`), not a slow-but-working response. **`provider.require_parameters: true` (OpenRouter's official mechanism for "exclude any provider that can't honor a request parameter") is not sufficient on its own to catch this** — confirmed empirically: a fifth AtlasCloud generation occurred with `require_parameters: true` already active in the request, same failure signature. AtlasCloud is evidently *registered* in OpenRouter's own provider metadata as supporting `reasoning` (so `require_parameters` doesn't exclude it), but doesn't correctly honor the `effort: 'none'` value once selected — a provider-side implementation bug the general capability-declaration mechanism can't see. Current mitigation is both together: `require_parameters: true` (protects against some *other*, not-yet-seen provider doing the same thing) plus an explicit `provider.ignore: ['atlas-cloud']` (the empirically-proven-necessary complement for this specific, already-caught provider). **Do not remove the explicit `ignore` entry on the theory that `require_parameters` alone should cover it — that exact simplification was tried and directly disproven by a live incident in the same session.**
+
+7. **`provider.sort` metric choice matters, and the "obviously right" one for a chat UI was wrong here.** OpenRouter's own guidance recommends sorting by `latency` (time-to-first-token) for chat UIs — tried first. Two real incidents (providers `OpenInference` then `CoreWeave`) showed the actual bottleneck was **throughput** (tokens/sec once generation starts), not latency: `CoreWeave`'s own latency was fine (774ms) while its throughput (2.3 tok/s) meant an 8-second timeout budget could only ever produce ~18 tokens — nowhere near a complete reply regardless of how fast it started. Switched to `sort: 'throughput'`. The generalizable point: when a request has a fixed total-time budget (not just "start responding quickly"), throughput is what determines whether a response finishes inside it — latency alone doesn't.
+
+Full session context (four failure classes, in the order actually diagnosed, each with the real generation data that confirmed or disproved a hypothesis): PR #389, commits from `484c25143` through `da65c0539` and the `undici`-migration commits that followed. Regression coverage: `fetch-and-parse-json.spec.ts` (dispatcher construction + error handling, retry mechanics themselves are undici's own tested code, not re-verified here), `openrouter-llm.adapter.spec.ts`, `openrouter-credits.client.spec.ts`, `platform.public.controller.spec.ts`/`.component.spec.ts` (BFF timeout override).
+
+---
+
+## Cloud Run `vpc_egress` mode determines third-party outbound reachability — check before adding network infrastructure
+
+**A Cloud Run service's `vpc_egress` mode determines whether its outbound calls to public (non-VPC) destinations even reach the VPC's firewall/NAT layer at all — the two modes aren't just "more vs. less restrictive," they route traffic through entirely different paths:**
+- `PRIVATE_RANGES_ONLY` routes only RFC1918-private-destined traffic through the VPC; a call to any public IP takes Cloud Run's own default internet path instead, bypassing the VPC (and anything configured there — firewall rules, NAT) entirely. A service on this mode can already reach any third party on the internet, unconditionally, with no NAT needed.
+- `ALL_TRAFFIC` forces *every* outbound call through the VPC, including calls to public destinations — which then need a real Cloud NAT to reach the internet at all. A VPC built with no NAT (a deliberate, documented choice when the only public-egress need was believed to be Google APIs via Private Google Access) silently has zero third-party reachability for any `ALL_TRAFFIC`-egressing service, with no error until something actually tries.
+
+**Before adding new network infrastructure (Cloud NAT, an egress firewall rule, a forward proxy) to let a restrictively-egressing service make a new third-party call, check whether a service with a more permissive egress mode already in this codebase can host the call instead.** Relocating the call is very often simpler and safer than widening the restrictive service's blast radius — and a service kept deliberately narrow (e.g. the BFF, which fronts public unauthenticated traffic) may have been kept that way on purpose, not by oversight.
+
+**Also worth knowing, considered and rejected during the same investigation:** an IP-CIDR-based egress firewall allow-list is a weak restriction against a shared-edge third party (Cloudflare, and similar CDN/edge providers) — a VPC firewall rule matches IP+port only, never hostname/SNI, and Cloudflare's published IP ranges front a huge number of unrelated domains (anyone can put a domain behind Cloudflare for free in minutes). "Allow Cloudflare's ranges" is much closer to "allow most of the internet" than "allow this one specific hostname." A genuine hostname-level restriction needs Cloud NGFW FQDN-based firewall objects (Enterprise tier) or a forward proxy (Secure Web Proxy), not a plain IP-based rule — real options if a restrictively-egressing service ever genuinely needs its own third-party egress, but real new infrastructure and cost, not a first resort.
+
+**Real incident (M20-S14, 2026-08-27):** a staging lead-form submission failed Turnstile verification on every attempt. Root cause: `TurnstileService.verify()` (BFF) called `https://challenges.cloudflare.com/turnstile/v0/siteverify` — the BFF's first-ever raw outbound call to a non-Google third party — but the BFF runs `ALL_TRAFFIC` egress (required so its own call to the backend's `*.run.app` URL is treated as internal traffic under the backend's `INGRESS_TRAFFIC_INTERNAL_ONLY`) through a VPC with no Cloud NAT. The call had no route out, timed out, and was silently swallowed by the method's own deliberate fail-closed `catch` block — indistinguishable at the application layer from a genuinely rejected token. A Cloud NAT + IP-CIDR firewall fix was drafted first (as a standalone TD) and then abandoned once investigation found the actual fix needed no new infrastructure at all: `OpenRouterLlmAdapter` already makes a raw third-party call directly from the backend, which runs `PRIVATE_RANGES_ONLY` and was therefore already unconditionally internet-reachable. Moving Turnstile verification into the backend (`CloudflareTurnstileAdapter`, mirroring `OpenRouterLlmAdapter`'s exact shape) eliminated the whole problem class. Full reasoning trail: `plan/M20-LEAD-FORM-MODULE.md` § M20-S14.
 
 ---
 
@@ -478,7 +578,7 @@ Codes are additive-only once shipped — never renamed or repurposed (a released
 
 The default is "assign the most specific code available" — wrong for paths where revealing the precise internal reason creates an enumeration/information-disclosure risk (e.g. distinguishing "no account with this email" from "account exists, wrong linked provider" in an auth/staff-linking flow). Each such error set must make an explicit, deliberate specificity decision — collapse multiple internal reasons into one generic code where warranted, rather than mechanically exposing the most specific code by default.
 
-Full discovery and rollout history: `td/TD23-EXCEPTION-HANDLING-I18N-PATTERN.md`.
+This section is the canonical implementation reference for the pattern.
 
 ---
 
@@ -519,6 +619,7 @@ Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**
 - **`correlationId` propagation** — pass `event.correlationId` into the use case DTO; never generate a new UUID in the handler.
 - **Never hand-type the event/trigger name as a literal at the subscribe/register call site.** `DomainEvent.eventName` is derived from `this.constructor.name` in the base class (`domain-event.ts`) — subscribe with `subscribe<StaffInvited>(StaffInvited.name, ...)`, not a `'StaffInvited'` string that can silently drift from the class if either is renamed. Cron triggers have no backing class, so they get a small exported `const` instead (e.g. `CRON_REMINDERS_TRIGGER` in `cron-trigger-names.constants.ts`), shared between the publishing controller and every subscribing handler. Each trigger handler also declares `static readonly CONSUMER_NAME` (mirrors `CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME`) instead of retyping the consumer-name string. The literal becomes the real Pub/Sub topic/subscription name (`ikaro-{eventName}`) — a typo here silently creates a dead channel no one publishes to correctly, not just a lint nit (M17-S03).
 - **Consumer names: always a declared `static readonly CONSUMER_NAME`, never a bare literal at the `subscribe()`/`registerTrigger()` call site — lowercase-kebab-case, matching the Pub/Sub naming convention below.** Location follows ownership, not a fixed rule of "always on the handler": if nothing besides the handler needs the value, declare it on the handler itself (e.g. `AdminDailyScheduleReminderHandler.CONSUMER_NAME`). If the same string is also needed elsewhere — most commonly, a use case's own `shared.inbox` dedup key (see above) — declare it on whichever class owns that other use (e.g. `CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME`) and have the handler reference it from there. Never the reverse: a use case (application layer) must never import a handler (infrastructure layer) just to read its constant — that inverts this codebase's one-directional `domain → application → infrastructure` dependency. Fixed repo-wide 2026-07-20 (`fix/consistency-naming-consumer`) — every handler previously mixed bare literals and inconsistent casing (one use case even used SCREAMING_SNAKE_CASE).
+- **A new event handler's class name must be unique across the *whole codebase*, not just within its own context — `packages/infra-scripts/src/pubsub-catalog.ts`'s topic/subscription generator collects every `static readonly` class property it finds and keys it by `"${className}.${propName}"`, with no file or module qualifier.** It's a lightweight text-based collector, not a real `ts.Program` with type information, so it can't distinguish two same-named classes in different contexts. Two independent handlers both named `TenantProvisionedHandler` (a natural, obvious name for "the handler that reacts to `TenantProvisioned`" in more than one context) with different `CONSUMER_NAME` values throws `pubsub-catalog: conflicting values for "TenantProvisionedHandler.CONSUMER_NAME"` at CI's catalog-generation step. Fix: qualify the class name with its owning context the moment a second context needs "the same shaped handler" for the same event (e.g. `TenantProvisionedNotificationHandler`, `TenantProvisionedBookingHandler`) — don't wait to discover the collision (M21-S02 precedent, 2026-09-02: Booking's own `TenantProvisioned` consumer hit this against Notification context's pre-existing handler of the identical natural name — full incident: `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_DEVELOPER.md` § 3).
 
 **Pub/Sub naming (one topic per event type):**
 
@@ -579,9 +680,23 @@ Building a new `CachingXxxRepository` (wrapping a `TypeOrmXxxRepository` behind 
 
 (PR #373 review, Codex, 2026-08-15: both mistakes were introduced in `CachingServiceRepository`'s first draft and fixed in the same PR — see `apps/backend/src/contexts/booking/infrastructure/repositories/caching-service.repository.ts` and `booking.module.ts` for the corrected shape. `CachingTenantRepository`'s own registrations in `platform.module.ts`/`platform-settings.module.ts` still carry the redundant-bare-provider version of the second mistake — left as-is, out of scope for that PR; don't copy it as precedent.)
 
+### Platform tenant cache — adapter boundary and invalidation timing
+
+Tenant read caching lives in `CachingTenantRepository` behind `CachePort`, never in `TypeOrmTenantRepository` — the raw TypeORM adapter stays cache-free, exactly the same layering `CachingServiceRepository`/`TypeOrmServiceRepository` already use. Cache writes and invalidations are best-effort (a cache failure never fails the write) and happen *after* the owning transaction commits, not inside it — invalidating before commit risks a reader repopulating the cache with the pre-write value if it races the still-open transaction. Don't reintroduce cache concerns (a `CachePort` dependency, an invalidation call) into the raw TypeORM adapter to "simplify" a call site — that's exactly the layering this split exists to keep out of the persistence adapter.
+
 ### Integration test DB isolation
 
 Unique inline tenant UUID for any `it()` sensitive to aggregate counts. Never reuse `TENANT_A`/`TENANT_B` for count assertions — cross-test contamination.
+
+### Shared test-builder date defaults
+
+A shared test builder's default field representing a point in time (`expiresAt`, `startedAt`, `lastMessageAt`, …) must be computed relative to `Date.now()` at construction time, never a hardcoded calendar-date literal. A hardcoded date is only safe for as long as real calendar time stays behind it — it silently drifts from "safely far in the future" into "already expired" as the codebase ages, with no error anywhere, until something actually queries for staleness. In this codebase that "something" is a global, cross-tenant retention-purge job (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`) that scans the *entire* shared integration-test Postgres instance with no per-file/per-tenant boundary — so a leftover row from any other spec file that used a builder's stale default is a legitimate purge candidate, and an integration test asserting an *exact* deleted-row count will intermittently fail depending on file execution order and how much real time has passed since the builder was written.
+
+Confirmed to recur twice with the identical root cause and symptom:
+- `ChatbotSessionEntityBuilder`'s hardcoded `startedAt`/`lastMessageAt` caused `ChatbotRetentionPurgeJob`'s own integration spec to sweep up a leftover row from `tenant-settings.controller.integration.spec.ts` — worked around locally in that one call site (`recentSession()`, forcing both fields to "now") rather than fixed at the builder itself, so the underlying defect was left in place for the next builder to repeat.
+- `LeadFormSubmissionBuilder`'s hardcoded `expiresAt` (`2026-07-01`) caused the identical failure for `LeadFormRetentionPurgeJob`'s own integration spec once real calendar time passed that date (M20-S04 precedent, 2026-08-25 — caught in CI, not locally, since the contaminating row came from a *different* spec file than the one being debugged).
+
+**Fix, both times:** compute the default relative to construction time (e.g. `new Date(Date.now() + 180 * DAY_MS)`), not a literal ISO string. **Also harden any test asserting an exact global count from a job with no tenant/file boundary** — prefer row-level existence/non-existence assertions for the fixtures the test itself created, with the count assertion relaxed to a lower bound (`toBeGreaterThanOrEqual`) rather than an exact `toBe`, since the test can never assume it's the only source of rows in the shared database.
 
 ### Integration app helpers — mandatory default overrides
 
@@ -612,15 +727,7 @@ Any integration test harness that needs `CacheModule` wiring must import `apps/b
 
 ### NestJS module provider pattern (useClass not useExisting)
 
-```ts
-// ❌ WRONG — adapter instantiated even when STORAGE_SERVICE is overridden in tests
-providers: [GcsSignedUrlAdapter, { provide: STORAGE_SERVICE, useExisting: GcsSignedUrlAdapter }]
-
-// ✅ CORRECT — overriding STORAGE_SERVICE fully prevents instantiation
-providers: [{ provide: STORAGE_SERVICE, useClass: GcsSignedUrlAdapter }]
-```
-
-**Why:** `useExisting` creates an alias but registers the class as a standalone provider too. Test `overrideProvider()` removes the alias; the standalone class is still instantiated — and any `onApplicationBootstrap` network calls run, causing `ECONNREFUSED`.
+Full explanation and the worked before/after example now live in `docs/ANTI_PATTERNS.md` row 68 (relocated 2026-09-20, TD41 — this rule was independently, fully explained in both that row and here, with no pointer between them; collapsed to one canonical copy).
 
 ### Notification spec setup
 
@@ -628,7 +735,15 @@ Use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain pro
 
 ### Migration / entity registration
 
-Every new migration class and TypeORM entity must be added to `src/test/integration-global-setup.ts` (and to any context-specific helper like `notification-integration-app.ts`) in the **same commit** as the migration file. Skipping causes silent failures — unit tests pass but integration tests error on the first DB query.
+Every new migration class and TypeORM entity must be added to `src/test/integration-global-setup.ts` (and to any context-specific helper like `notification-integration-app.ts`) in the **same commit** as the migration file. Skipping causes silent failures — unit tests pass but integration tests error on the first DB query. This applies to a migration that only adds an index, not just one that creates a table — `pnpm architecture-check`'s `test-harness-registration` detector catches a missing entry either way.
+
+### Standalone index for a cross-tenant system job
+
+`docs/13-DATABASE_SCHEMA.md`'s Indexing Strategy rule ("every index MUST start with `tenant_id`") has one narrow, explicit exception: a system-triggered job that deletes/scans across **every tenant in one pass, with no `tenant_id` predicate at all** — a daily retention purge (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`), matching `ExpirePointsJob`'s own precedent. A `(tenant_id, X)` composite index can't be seeked by a query that never filters on `tenant_id` — Postgres has to fall back to a full index/table scan regardless of how well `X` alone would narrow the search, which degrades as the table grows.
+
+When drafting a new job of this shape, check the table's existing indexes for a **standalone** index on the job's own filter column, not just a composite one that happens to include it as a trailing column. Confirmed to be missed twice in a row before being caught by review: `chatbot_messages.IDX_chatbot_messages_created_at` (added after the fact by `AddStartedAtIndexToChatbotSessions`, M19-S07) and `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at` (added after the fact in M20-S04, 2026-08-25, Codex review finding on PR #422 — the story's own draft named only the pre-existing `(tenant_id, expires_at)` composite index, by habit, without checking whether the job's actual query could seek it). When a new story's job description says "mirror `<X>RetentionPurgeJob`'s shape exactly," that includes checking whether `<X>`'s table needed this same standalone-index fix — not just copying the job/handler/controller file shapes.
+
+`packages/architecture-check/architecture-policy.json`'s `testDataHarnessRegistrations` section is the machine-checked source of truth for this — one entry per file that declares a TypeORM `entities:`/`migrations:` array (`integration-global-setup.ts` plus the 6 `src/test/utils/*-integration-app.ts`/`test-datasource.ts` helpers). `integration-global-setup.ts` is declared `"complete"` and must carry every production entity/migration; the rest are `"partial"` with an explicit, intentional `entities` subset. Adding a new entity to one of the partial helpers' code array without updating its matching policy entry (or vice versa) is flagged as drift by `pnpm architecture-check`'s `test-harness-registration` detector (TD37-S07) — update both in the same commit, not just the code.
 
 ### BFF tests
 
@@ -700,3 +815,159 @@ const timezone = isValidTimezone(manifest.localization.timezone)
 ```
 
 `isValidTimezone` is in `lib/formatting/locale-validators.ts`. The same pattern applies to any manifest field whose DB-level validity is enforced only by `create()`, not `reconstitute()`.
+
+---
+
+## Cloudflare Turnstile's test sitekey never renders an interactive iframe
+
+Relocated to `docs/CI_TRAPS.md`'s "Cloudflare Turnstile's test sitekey never renders an interactive iframe" entry (2026-09-20, TD41) — this is a test-execution nuance, not a code anti-pattern, so it lives with the other CI/E2E traps `/pre-pr` and `/story-discovery` sessions actually consult; the M20-S09 precedent and the wait-on-hidden-input fix are there.
+
+---
+
+## CSP allowances for a new external UI resource must be scoped to what a fresh document load can carry, not to the one page that uses it
+
+**Content-Security-Policy is a document-response header — the browser only re-reads and re-applies it on a fresh top-level navigation, never on a Next.js client-side (`next/link`) route transition.** A CSP directive computed per-pathname in middleware (`apps/web/proxy.ts`'s `buildContentSecurityPolicy()`) only takes effect for the *document* the browser actually requested fresh; every subsequent client-side navigation inside that same document keeps enforcing whatever CSP came back with it, regardless of what the new pathname's own middleware logic would otherwise compute. Scoping a new external resource's CSP allowance narrowly — "only the one page that uses it" — is correct reasoning for a route the user always reaches via a fresh top-level load, but silently wrong for any route also reachable via client-side navigation from a page whose own CSP doesn't carry the allowance.
+
+**Confirmed live (M20-S15, 2026-08-28):** `needsTurnstileSrc()` allowed `challenges.cloudflare.com` only when the pathname was exactly `/[slug]/lead-form`. The lead-form CTA (`LeadFormModule.tsx`) is a plain `next/link` `<Link>` from the hotsite home page — a soft navigation. A guest who loaded the home page fresh (its CSP excluded Turnstile) and then clicked the CTA kept enforcing the home page's CSP the whole time; the Turnstile script/iframe was silently blocked with no console error a casual check would catch, and the widget hung on "Verificando segurança..." forever. A hard refresh (Ctrl+F5) masked the bug during manual testing by forcing a fresh top-level load straight to `/lead-form`, which does get the correct CSP — every existing E2E spec also used `page.goto()` directly for the same reason, so none of them caught it either.
+
+**Fix — scope the CSP allowance to the same route tree a user could soft-navigate within, not to the one page that actually needs the resource** (mirrors `needsMapsFrameSrc`'s existing tree-wide scoping in the same file):
+
+```ts
+// BAD — correct in isolation, wrong once soft navigation is possible from a page with a
+// narrower CSP: a guest landing on the hotsite home page (no Turnstile allowance) and then
+// clicking into /lead-form via <Link> keeps the home page's CSP the whole time.
+function needsTurnstileSrc(pathname: string): boolean {
+  return isHotsiteRoute(pathname) && pathname.split('/')[2] === 'lead-form';
+}
+
+// GOOD — whichever hotsite page loads fresh already carries a CSP that permits the resource,
+// regardless of which page within that tree the user then soft-navigates to.
+function needsTurnstileSrc(pathname: string): boolean {
+  return isHotsiteRoute(pathname);
+}
+```
+
+**Before adding CSP support for any new external service reachable from the UI** (a script, an iframe, a `fetch`/`connect-src` target, a font, an image host) — check every page a user could realistically soft-navigate *from* into the page that needs it, not just the page that needs it. If any such entry point's own CSP wouldn't carry the allowance, scope the directive to the whole reachable route subtree instead of the single consuming page. Widening the CSP tree-wide is almost always simpler and lower-risk than trying to force every entry point into a full top-level navigation — per the "mounting complexity" principle (CLAUDE.md §7): reach for the approach that needs no extra machinery, not the one that needs a new safeguard bolted on per entry point.
+
+---
+
+## Hotsite full-page components must explicitly paint `--ba-background`
+
+**`app/[slug]/layout.tsx`'s `applyBranding()` only defines `--ba-*` CSS custom properties on the root element — it never sets an actual `background-color`.** Every existing full-page hotsite view (`/[slug]/login`, `/[slug]/booking`'s `BookingForm`, `InformationCompletionPrompt`, `Unavailable`, `SubmitInfoForm`/`SubmitInfoSuccessView`, the chatbot panel) independently wraps its own content in a `min-h-screen` element that explicitly sets `backgroundColor: 'var(--ba-background)'` — the branding variables are consumed, not inherited as an actual paint. A component that only sets `color: 'var(--ba-text)'` and skips the background falls through to the browser's default white background regardless of the tenant's actual branding.
+
+**Confirmed via live manual testing (M20-S09 PR #433, 2026-08-26):** all 5 lead-form states (skeleton, form, login-required gate, terminal/error card, success) shipped without this, and passed every automated check — type-check, lint, `pnpm architecture-check`, and jsdom-based axe-core accessibility tests (41/41 green) — because none of them compute real rendered color contrast. The bug was invisible in CI and only surfaced when the user tested against a real dark-themed tenant (white `--ba-text`, near-black `--ba-background`): white text on the browser's default white background, completely unreadable, for every one of the 5 states.
+
+**Fix — the established pattern, copy it exactly:**
+
+```tsx
+// BAD — text color is branded, but nothing paints an actual background
+<div className="mx-auto max-w-2xl px-6 py-12" style={{ color: 'var(--ba-text)' }}>
+  ...
+</div>
+
+// GOOD — matches every other full-page hotsite view
+<main className="min-h-screen" style={{ backgroundColor: 'var(--ba-background)', color: 'var(--ba-text)' }}>
+  <div className="mx-auto max-w-2xl px-6 py-12">
+    ...
+  </div>
+</main>
+```
+
+A secondary trap in the same incident: a component with a *fixed*, non-branded accent background (e.g. a hardcoded `bg-blue-50` info callout) must pair it with a *fixed* text color (`text-blue-900`), never `--ba-text` — a dark-themed tenant's white text is invisible against a background that never changes with branding. This is the same fixed-bg/fixed-text pairing this codebase's validation/captcha banners already use (`text-red-800` on `bg-red-50`, `text-amber-800` on `bg-amber-50`) — the inconsistency was in the one component that didn't follow its own siblings' pattern.
+
+**Since jsdom-based axe-core cannot catch this class of bug, don't treat a green component-test suite as proof a new full-page view is visually correct — this is exactly the class of defect the Local verification gate (CLAUDE.md §0) exists to catch, and is worth a real-browser check against at least one dark-themed and one light-themed tenant before considering a new public-facing page done.**
+
+---
+
+## `no-restricted-syntax` selectors must be checked against every already-documented bypass shape in the same config file, not just the one form the target code currently uses
+
+**A new `no-restricted-syntax` selector added to `apps/web/eslint.config.js` (or its backend/BFF equivalents) that only covers the literal AST shape of the code it was written against will miss every alternate JS/JSX shape expressing the same thing — and this file already documents 3 recurring bypass classes from real incidents, right next to wherever a new selector gets added.** Checking a new selector against all 3 before considering it done is cheap; discovering them one at a time across separate review rounds is not.
+
+The 3 documented classes, each with an existing example selector in this same file to copy from:
+1. **Computed-literal member access** — `window['fetch'](...)`, `page['getByText'](...)`. The property is a `Literal` node with a `.value`, not an `Identifier` with a `.name`, so `callee.property.name` alone never matches it. See `RAW_FETCH_SELECTOR`'s `:matches(...)` construct for the fix shape.
+2. **A bare, non-member call** — `const { getByText } = page; getByText(...)`. No `MemberExpression` exists at all; needs a separate `[callee.type='Identifier'][callee.name=...]` branch in the same `:matches(...)`.
+3. **A value nested inside a `JSXExpressionContainer` or a conditional/logical expression, rather than as the JSX attribute's own direct value** — `data-testid={'literal'}`, `data-testid={cond ? \`x\` : 'y'}`. A direct-child combinator (`>`) only matches the container's immediate expression; use a descendant combinator (plain whitespace) to reach one nested inside a `ConditionalExpression`/`LogicalExpression`.
+
+**Confirmed recurring (TD37-S23, PR #450, 2026-08-31):** all 3 classes were rediscovered one at a time across 4 separate Codex review rounds while adding 3 new selectors (E2E-1/E2E-2/E2E-3) — despite class 1's own fix already sitting in the same file being edited, as `RAW_FETCH_SELECTOR`'s existing `window['fetch'](...)` handling (added for an earlier, unrelated selector, PR #375). Each round's finding was real and correctly fixed, but a systematic check against all 3 classes during the *first* pass would have caught most of them before ever pushing.
+
+## Before a blind `Write` on a file believed to be new, grep for its expected exported symbols first
+
+**A file's absence from the specific area you're currently working on is not proof of its absence from the repo.** The `Write` tool's own "must `Read` an existing file first" safeguard only tracks files *this agent session* has read — not actual on-disk state — so a file that already exists but was never `Read` in-session can be silently overwritten with no warning, no error, and no diff-conflict signal of any kind.
+
+This is most likely to happen when a piece of shared infrastructure was built earlier (in an earlier story, or earlier in the same session) for one consumer's need, and a later task assumes — reasonably, but wrongly — that because *its own* area of the codebase has no wiring to that infrastructure, the infrastructure itself must not exist yet. Before creating a new file via `Write`, grep the codebase for the exact symbol names you're about to export — not just for wiring into the specific component you're currently touching.
+
+**M21-S04 precedent, 2026-09-02:** `apps/web/shells/dashboard/model/resource-route.ts` (`matchResourceRoute`/`isResourceCreateRoute`) was blindly `Write`-created while investigating why the dashboard topbar showed the wrong title for a new section, on the reasonable-looking assumption that no such route-matcher existed (nothing in `topbar-route.ts`/`Topbar.tsx` referenced one). The file already existed from the section's original implementation and was already imported by `BottomNav.tsx` for an unrelated purpose (hiding the mobile nav on drill-down routes). The overwrite was functionally harmless only by luck — the rewritten logic happened to be equivalent, confirmed by `BottomNav.tsx`'s own spec suite still passing — but the overwrite of the sibling `.spec.ts` file silently dropped one of the original test cases, caught only by manually diffing against `git log --follow` after the fact, not by any automated check.
+
+## SonarCloud's duplicate-test rule (`S5976`) can retroactively flag pre-existing tests once a new similarly-shaped test is added
+
+**The rule's threshold is 3-or-more structurally-similar test bodies in the same file — adding a single new test can tip an already-existing, previously-unflagged pair over that threshold, even though neither pre-existing test changed.** Fixing one flagged group of 3 near-identical tests does not make the file immune to a *second*, unrelated finding of the same shape forming elsewhere in the same file from your own new addition.
+
+Before adding a new "mock one input, render, assert one output" style test to a spec file, grep that file for other tests sharing the same shape (a single `mockReturnValue`/`mock` call, a `render`, and one assertion) — if 2 already exist, your new one will form a flaggable trio. Parameterize into a single `it.each()` proactively (see `BottomNav.spec.tsx` for the established pattern in this codebase) rather than discovering it in a second bot-review round.
+
+**M21-S04 precedent, 2026-09-02:** fixing one flagged trio of near-identical resource-route topbar tests by parameterizing them into `it.each()`, then separately adding one new simple "resources list title" test in the same file, formed a brand-new flaggable trio out of that new test plus two unrelated, pre-existing tests — "renders the page title matching the current pathname" (bookings route) and "falls back to 'Dashboard' for an unrecognised pathname" — that had coexisted, unflagged, in the same file for months before this change.
+
+## A lock only orders callers who both acquire it — it does not bypass an independent cache sitting behind the read it's protecting
+
+**Acquiring a lock (advisory or row-level) before re-reading a value only guarantees that two lock-holding transactions see each other's writes in some order. It guarantees nothing about whether that "fresh" re-read is actually fresh, if the read's normal code path passes through a caching layer the lock has no relationship to.** The lock and the cache are two independent mechanisms; correctly using one says nothing about the other. A transaction that wins the lock and then calls a cached repository method still gets whatever the cache last held — not the row the lock just protected.
+
+Before trusting a lock to make a read authoritative, check what that read's normal method actually does: if it's backed by a `CachingXxxRepository` (or any read-through cache), the lock needs to pair with a **cache-bypassing** read method — not just correct ordering between callers. This codebase's existing pattern for that is `findByIdForUpdate()`: a real Postgres row lock (`pessimistic_write`) that deliberately skips the cache entirely, as opposed to the cached `findById()` used everywhere else.
+
+**M21-S03 precedent, PR #460 round 7, 2026-09-04:** `OpenScheduleUseCase`'s first attempt at closing a tenant-settings TOCTOU race (a concurrent `PATCH /tenants/settings` narrowing `businessHours` mid-request) added a second, tenant-scoped advisory lock (`lockTenantSettings`) around the window-bound check. The lock itself worked exactly as designed — it correctly serialized two concurrent callers relative to each other. But the "fresh" re-read taken after acquiring it still went through `CachingTenantRepository`'s up-to-60s-TTL `findById()`, so the lock provided zero actual freshness guarantee: whichever transaction won the lock could still validate against a stale cached `businessHours` value. Caught by Codex review, which correctly identified that the fix didn't close the race it claimed to. Fixed by discarding the advisory-lock design entirely and reusing `ITenantRepository.findByIdForUpdate()` instead — following `UpdateHotsiteContentUseCase`'s existing precedent for the identical class of cross-aggregate invariant (Tenant settings vs. another aggregate). The fix also *simplified* the design: it removed a whole custom lock mechanism (`ITenantLockPort`'s `lockTenantSettings` method, a `TenantLockModule` promotion to `shared/`) in favor of reusing infrastructure that already existed and was already proven — see `docs/13-DATABASE_SCHEMA.md` § `schedule_openings` Rules for the full before/after.
+
+**The identical failure mode also applies to a same-request in-memory read taken before the lock was acquired, not just a cache** — an aggregate loaded pre-lock and blindly `save()`d post-lock can silently clobber a concurrently-committed write even with zero cache involved; re-read fresh (e.g. `findById()`) *after* acquiring the lock whenever the use case's post-lock write depends on state that could have changed concurrently (M21-S06 precedent, PR #461 round 1, 2026-09-04 — `UpdateResourceUseCase`'s blind `save()` on a stale in-memory `isActive` could silently undo a concurrent cascade deactivation, caught by CodeRabbit review).
+
+## Re-check a same-file documented invariant when extending an existing algorithm to a new dimension mid-PR
+
+**When a bot review (or any mid-PR discovery) prompts adding a genuinely new dimension to an existing computation — not just fixing the one gap that was flagged — explicitly re-derive the new code against every invariant already documented for that feature area in the same doc file, not only the specific gap that triggered the change.** A sentence stating a general rule, sitting near the algorithm being extended, is a checklist item to verify the new code against — not ambient background reading that can be skimmed past because it predates the current change.
+
+This is easy to miss precisely because the invariant isn't new information — it was already read, understood, and even cited earlier in the same work session. The miss isn't "didn't know the rule," it's "didn't re-apply the rule to the specific new code path being written right now."
+
+**M21-S03 precedent, PR #460 rounds 8–9, 2026-09-04:** `docs/02-DOMAIN_MODEL.md` already stated, before any resource-scoping work began on `AvailabilityService`, that "the tenant calendar is a hard outer boundary... a resource opening never bypasses a tenant-wide closure or extends beyond a tenant opening/window." Round 8 (prompted by a Codex finding that resource-scoped closures/openings were persisted but invisible to the availability calculator) extended `resolveEffectiveHours()` to be resource-aware — but the new code let *any* applicable opening, tenant-wide or resource-scoped, short-circuit past every closure check unconditionally, at every scope, violating the invariant that was already sitting in the same doc file the story's own discovery had loaded. Round 9's Codex review caught it one round later as a fresh Critical finding on code that had existed for exactly one round. The fix required resolving the tenant window first as a hard outer boundary (the original single-scope algorithm, unchanged), only then resolving a resource-level window within it, and intersecting — a design that was fully specified by the invariant that already existed before round 8 ever started.
+
+## `architecture-check`'s `transactional-save` detector requires `save()` to be textually inside `txManager.run()` — not merely reachable through it
+
+**The detector does AST-nesting analysis, not data-flow or call-graph analysis: it checks whether a repository `save()` call sits directly inside the `txManager.run(async () => {...})` callback's own syntax tree, not whether it's reachable at runtime from inside that callback.** A `save()` call that is transactionally correct (it runs inside the active transaction context at runtime) still gets flagged if it's textually defined in a *separate* method that the callback merely calls — even a private helper on the same class, called only from that one callback.
+
+When splitting a use case's post-lock logic into a validation step plus the actual persist step (e.g. to keep a long `execute()` method under the line-count limit, or to separate "what to check" from "what to write"), keep the `save()` call literally inline in the `txManager.run()` callback. Put validation-only logic in the extracted helper; never let that helper also call `save()`.
+
+## A wholesale-replaced child collection needs a dirty flag on the aggregate — resyncing it on every `save()` is a real, silent perf cost
+
+**A repository that always deletes and reinserts every child-table row on `save()` — the correct approach for a collection whose replace semantics are "whole array in, whole array out," not a diff/patch — pays that cost even when the save never touched those children at all.** A plain name/price/`isActive` update looks identical to a real child-collection change from the repository's point of view unless the aggregate itself tracks which kind of change actually happened.
+
+Track a private dirty flag on the aggregate: `true` after `create()` (any initial children must be persisted on the first save) and after any setter that actually mutates a wholesale-replaced collection, `false` after `reconstitute()` until such a setter runs. The repository checks the flag before running the delete+reinsert; a save that never flipped it skips the resync entirely.
+
+**M22-S01 precedent, PR #479, 2026-09-15:** `TypeOrmServiceRepository.save()` unconditionally wholesale-replaced `resourceRequirements`/`legs`/`classResourceSlots` child tables on every save, including plain `update()`/`activate()`/`deactivate()` calls that touch none of them — up to ~20,000 rows rewritten for a service at the story's own 20-leg/20-requirement/50-pool-ID maximum, on a save that only changed the price. Fixed with a `childrenDirty` flag set by `setResourceRequirements()`/`setLegs()`/`changeBookingModel()` (the only methods that touch those collections), left `false` by `reconstitute()` and every other setter.
+
+## A child table with only a composite PK cannot represent "declared but empty" — reject that state at the aggregate boundary, don't rely on storage to preserve it
+
+**A child collection normalized into a table keyed only by its own data (a composite PK across parent id + grouping key + member id, no independent `id`/existence row) has no way to represent "this grouping was declared, but with zero members" — that state is indistinguishable from "never declared at all" the moment it's persisted, because there are simply no rows for it either way.** The domain object arriving with an empty member list looks fully valid at the moment `create()`/a setter runs; the information loss only shows up later, on reload, as a silent difference between what was submitted and what comes back.
+
+If the domain genuinely needs to allow a grouping that's declared-but-currently-empty (e.g. "reserve this slot type for later"), the real fix is a surrogate identity column on the child table, not a workaround at the domain layer. If the domain doesn't actually need that state — the common case — reject an empty grouping at the aggregate boundary instead of accepting it and losing it silently.
+
+**M22-S01 precedent, PR #479, 2026-09-15:** `service_class_resource_pool` is keyed by `(tenant_id, service_id, resource_type, resource_id)` with no separate identity column — a `ClassResourceSlot` submitted with `eligibleResourceIds: []` produced zero rows, identical to a type that was never declared at all, so it silently vanished on the next `GET`. The same table shape caused a second, earlier bug in the same story: two slots submitted for the same `resourceType` collapse into indistinguishable rows on reload, since nothing marks which pool row belongs to which submitted slot. Both fixed by rejecting the invalid input in the domain (`ClassResourceSlot.create()` for the empty-pool case, `Service.create()`/`changeBookingModel()` for the duplicate-type case) rather than trying to make the storage shape round-trip information it structurally cannot hold.
+
+**M21-S03 precedent, PR #460 round 7, 2026-09-04:** `OpenScheduleUseCase`'s post-lock logic was first extracted into a single `validateAndSave()` helper that validated the window bound *and* called `openingRepo.save()`. The detector flagged it, since `save()` was reachable only via a method call from `txManager.run()`, not textually inside it. Fixed by renaming the helper to `validateUnderLock()` (validation only) and keeping the actual `await this.openingRepo.save(opening)` call inline in the `txManager.run()` callback itself.
+
+## A versioned, append-only child concept ("new version supersedes, never edits the previous one") is an independent aggregate root with its own repository, not a `Service`-owned child collection
+
+**Most of `Service`'s M22 Cluster 2 extensions (`resourceRequirements`, `legs`, `classResourceSlots`, the booking-policy fields) are child collections/fields owned and wholesale-replaced by `Service` itself, per the dirty-flag pattern above.** `ServiceBookingIntakeSchema` (UC-054, `booking.service_booking_intake_schema`) deliberately isn't shaped that way: publishing a new version never edits or deletes the previous one, `Service`'s own domain props hold no reference to it at all, and it has its own identity, its own `publish()`/`reconstitute()` factory, and its own repository (`IServiceIntakeSchemaRepository`) — a genuinely new pattern for this codebase (story-discovery, M22-S02, 2026-09-15), not a variant of the dirty-flag child-collection shape above.
+
+**Consequence for the `transactional-save` architecture-check detector:** the detector only recognizes a literal `.save()` call (see the entry above) — it has no visibility into `.publish()` or any other differently-named write method. An aggregate shaped this way gets no static enforcement that its write call stays textually inside `txManager.run()`; today nothing but this rule holds that discipline together — **correction via `/docs-audit`, 2026-09-18:** an earlier version of this rule claimed `PublishServiceIntakeSchemaUseCase`'s write call was flagged by a header comment on `apps/backend/src/contexts/booking/domain/service-booking-intake-schema.ts`; no such comment was ever actually added to that file. Read the actual call site, don't trust the detector's silence, whenever a new aggregate's write method isn't literally named `save()`.
+
+**When this pattern recurs** (an audit-log/history-style aggregate, or any other "append a new version, never mutate an old one" concept): reach for an independent aggregate root + dedicated repository from the start, the same way `ServiceBookingIntakeSchema` did — don't force it into an owning aggregate's dirty-flag child-collection shape just because most of that aggregate's other children fit there.
+
+## Node's default V8 heap limit is unrelated to actual host/container RAM — a Jest OOM kill on a host with plenty of free memory is the default ceiling, not a leak
+
+**V8's old-space heap defaults to ~2240MB regardless of how much RAM the host or container actually has** — `node -p "require('v8').getHeapStatistics().heap_size_limit"` confirms this even on a machine reporting gigabytes of free RAM via `free -h`. An OOM kill on backend Jest runs is not evidence of a real memory leak or an under-provisioned host until this default is ruled out first.
+
+Set `--max-old-space-size` explicitly on every Jest entry point that can run a large suite, not just the one that happened to OOM — a fix scoped to `test`/`test:integration` alone leaves `test:unit`/`test:cov` (what CI's own coverage job actually runs) exposed to the identical failure mode.
+
+**TD08 AUD-044 precedent, PR #484, 2026-09-16:** a local OOM kill on a KVM VM with 6GB+ free RAM traced directly to this default. Fixed by adding `--max-old-space-size=6144` to all four backend Jest scripts (`test`, `test:unit`, `test:integration`, `test:cov`) — the first fix covered only two of the four and was caught by a PR review round.
+
+## An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown — CI's Testcontainers reuse can carry a prior run's corruption into an unrelated later run
+
+**`TESTCONTAINERS_REUSE_ENABLE: 'true'` reuses the same Postgres container across separate, unrelated CI runs — a local run never reuses a container, so this class of bug is invisible locally no matter how many times you re-run the suite.** A test seeding fixtures under fixed tenant UUIDs whose `afterAll` doesn't delete every child table, in FK-safe order, for every fixture tenant, can crash mid-cleanup on one run and leave orphaned rows a *later*, unrelated run's `beforeAll` builds on top of.
+
+Extract one cleanup helper covering every fixture tenant in FK-safe order; call it both defensively at the top of `beforeAll` and as the entirety of `afterAll` (wrapped in `try/finally`).
+
+**TD08 AUD-045 precedent, PR #484, 2026-09-16:** a 3-tenant fixture's `afterAll` only cleaned 2 tenants' child rows; the third's FK violation aborted cleanup, and the reused CI container carried that into a later run, which failed a content assertion instead. Passed 3/3 locally; failed 2/2 on CI before the fix.

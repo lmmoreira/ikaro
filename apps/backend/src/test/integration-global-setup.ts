@@ -7,13 +7,37 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { BookingLineEntity } from '../contexts/booking/infrastructure/entities/booking-line.entity';
 import { BookingEntity } from '../contexts/booking/infrastructure/entities/booking.entity';
+import { ResourceEntity } from '../contexts/booking/infrastructure/entities/resource.entity';
 import { ScheduleClosureEntity } from '../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../contexts/booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../contexts/booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
+import { ServiceBookingIntakeSchemaEntity } from '../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingAttendeeEntity } from '../contexts/booking/infrastructure/entities/booking-attendee.entity';
+import { BookingLineResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { CreateBookingServices1748000000011 } from '../contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices';
 import { CreateBookingScheduleClosures1748000000012 } from '../contexts/booking/infrastructure/migrations/1748000000012-CreateBookingScheduleClosures';
 import { CreateBookingScheduleOpenings1748000000013 } from '../contexts/booking/infrastructure/migrations/1748000000013-CreateBookingScheduleOpenings';
 import { CreateBookingBookings1748000000014 } from '../contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings';
+import { CreateBookingResources1748500000007 } from '../contexts/booking/infrastructure/migrations/1748500000007-CreateBookingResources';
+import { BackfillLocationResources1748500000008 } from '../contexts/booking/infrastructure/migrations/1748500000008-BackfillLocationResources';
+import { AddResourceIdToScheduleClosuresAndOpenings1748500000009 } from '../contexts/booking/infrastructure/migrations/1748500000009-AddResourceIdToScheduleClosuresAndOpenings';
+import { AddServiceResourceRequirementsAndLegs1748500000010 } from '../contexts/booking/infrastructure/migrations/1748500000010-AddServiceResourceRequirementsAndLegs';
+import { AddServiceBookingPolicyAndIntakeSchema1748500000011 } from '../contexts/booking/infrastructure/migrations/1748500000011-AddServiceBookingPolicyAndIntakeSchema';
+import { CreateResourceOccupancy1748500000012 } from '../contexts/booking/infrastructure/migrations/1748500000012-CreateResourceOccupancy';
+import { BackfillResourceOccupancy1748500000013 } from '../contexts/booking/infrastructure/migrations/1748500000013-BackfillResourceOccupancy';
+import { DropTenantWideExclusion1748500000014 } from '../contexts/booking/infrastructure/migrations/1748500000014-DropTenantWideExclusion';
+import { AddEndsAtIndexToResourceOccupancy1748500000015 } from '../contexts/booking/infrastructure/migrations/1748500000015-AddEndsAtIndexToResourceOccupancy';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -34,6 +58,9 @@ import { ChatbotMessageEntity } from '../contexts/platform/infrastructure/entiti
 import { ChatbotProviderBalanceEntity } from '../contexts/platform/infrastructure/entities/chatbot-provider-balance.entity';
 import { ChatbotSessionEntity } from '../contexts/platform/infrastructure/entities/chatbot-session.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
+import { LeadFormAnswerEntity } from '../contexts/platform/infrastructure/entities/lead-form-answer.entity';
+import { LeadFormConfigEntity } from '../contexts/platform/infrastructure/entities/lead-form-config.entity';
+import { LeadFormSubmissionEntity } from '../contexts/platform/infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { BootstrapSchemas1700000000000 } from '../contexts/platform/infrastructure/migrations/1700000000000-BootstrapSchemas';
 import { CreatePlatformTenants1716500000001 } from '../contexts/platform/infrastructure/migrations/1716500000001-CreatePlatformTenants';
@@ -44,6 +71,12 @@ import { CreateChatbotTables1748400000010 } from '../contexts/platform/infrastru
 import { AddCostUsdToChatbotMessages1748400000011 } from '../contexts/platform/infrastructure/migrations/1748400000011-AddCostUsdToChatbotMessages';
 import { AddHealthColumnsToChatbotProviderBalance1748400000012 } from '../contexts/platform/infrastructure/migrations/1748400000012-AddHealthColumnsToChatbotProviderBalance';
 import { AddStartedAtIndexToChatbotSessions1748400000013 } from '../contexts/platform/infrastructure/migrations/1748400000013-AddStartedAtIndexToChatbotSessions';
+import { CreateLeadFormSubmissions1748400000014 } from '../contexts/platform/infrastructure/migrations/1748400000014-CreateLeadFormSubmissions';
+import { CreatePlatformLeadFormConfigs1748500000002 } from '../contexts/platform/infrastructure/migrations/1748500000002-CreatePlatformLeadFormConfigs';
+import { AddExpiresAtIndexToLeadFormSubmissions1748500000003 } from '../contexts/platform/infrastructure/migrations/1748500000003-AddExpiresAtIndexToLeadFormSubmissions';
+import { CreateLeadFormSubmissionQuestionRefs1748500000004 } from '../contexts/platform/infrastructure/migrations/1748500000004-CreateLeadFormSubmissionQuestionRefs';
+import { AddVersionToLeadFormConfigs1748500000005 } from '../contexts/platform/infrastructure/migrations/1748500000005-AddVersionToLeadFormConfigs';
+import { CreateLeadFormAnswers1748500000006 } from '../contexts/platform/infrastructure/migrations/1748500000006-CreateLeadFormAnswers';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -70,7 +103,7 @@ export default async function globalSetup(): Promise<void> {
   // harness never sets — it connects via TEST_DATABASE_URL directly), so these need the same
   // explicit-literal treatment as FRONTEND_URL/JWT_SECRET above, mirroring env.validation.ts's
   // real defaults.
-  process.env['CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'] ??= '25';
+  process.env['CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'] ??= '1';
   process.env['CHATBOT_MIN_PROVIDER_BALANCE_USD'] ??= '2';
   process.env['CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES'] ??= '5';
 
@@ -82,6 +115,7 @@ export default async function globalSetup(): Promise<void> {
     entities: [
       TenantEntity,
       HotsiteConfigEntity,
+      LeadFormConfigEntity,
       ServiceEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
@@ -100,6 +134,19 @@ export default async function globalSetup(): Promise<void> {
       ChatbotSessionEntity,
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
+      LeadFormSubmissionEntity,
+      LeadFormAnswerEntity,
+      ResourceEntity,
+      ServiceResourceRequirementEntity,
+      ServiceResourceRequirementPoolEntity,
+      ServiceLegEntity,
+      ServiceLegResourceRequirementEntity,
+      ServiceLegResourceRequirementPoolEntity,
+      ServiceClassResourcePoolEntity,
+      ServiceBookingIntakeSchemaEntity,
+      BookingAttendeeEntity,
+      BookingLineResourceAssignmentEntity,
+      ResourceOccupancyEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
@@ -133,6 +180,21 @@ export default async function globalSetup(): Promise<void> {
       AddCostUsdToChatbotMessages1748400000011,
       AddHealthColumnsToChatbotProviderBalance1748400000012,
       AddStartedAtIndexToChatbotSessions1748400000013,
+      CreateLeadFormSubmissions1748400000014,
+      CreatePlatformLeadFormConfigs1748500000002,
+      AddExpiresAtIndexToLeadFormSubmissions1748500000003,
+      CreateLeadFormSubmissionQuestionRefs1748500000004,
+      AddVersionToLeadFormConfigs1748500000005,
+      CreateLeadFormAnswers1748500000006,
+      CreateBookingResources1748500000007,
+      BackfillLocationResources1748500000008,
+      AddResourceIdToScheduleClosuresAndOpenings1748500000009,
+      AddServiceResourceRequirementsAndLegs1748500000010,
+      AddServiceBookingPolicyAndIntakeSchema1748500000011,
+      CreateResourceOccupancy1748500000012,
+      BackfillResourceOccupancy1748500000013,
+      DropTenantWideExclusion1748500000014,
+      AddEndsAtIndexToResourceOccupancy1748500000015,
     ],
     synchronize: false,
     migrationsRun: false,
@@ -157,7 +219,7 @@ export default async function globalSetup(): Promise<void> {
 // Real fake-gcs-server (same image as docker/docker-compose.yml), for the small set of
 // integration specs that need to exercise the actual GcsSignedUrlAdapter — real V4 signed URLs,
 // real cross-bucket copy, real delete — instead of the InMemoryStorageService double every other
-// integration spec uses. See td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+// integration spec uses. See docs/14-API_CONTRACTS.md.
 //
 // A fixed port is required (not a Testcontainers-assigned dynamic one): fake-gcs-server's V4
 // signed URLs are only valid against the exact `-public-host`/`-external-url` the server was

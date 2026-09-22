@@ -6,11 +6,13 @@ import { useTranslations } from 'next-intl';
 import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
+import { isResourceCreateRoute, matchResourceRoute } from '@/shells/dashboard/model/resource-route';
 import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
 import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
 
 interface BottomNavProps {
   readonly role: 'STAFF' | 'MANAGER';
+  readonly leadFormEnabled: boolean;
   readonly onOpenSheet: () => void;
 }
 
@@ -21,13 +23,18 @@ const NAV_ITEM_KEYS = [
   { href: '/dashboard/loyalty', labelKey: 'nav.loyalty', Icon: Star },
 ] as const;
 
-export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Element | null {
+export function BottomNav({
+  role,
+  leadFormEnabled,
+  onOpenSheet,
+}: BottomNavProps): React.JSX.Element | null {
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const isBookingDetail = matchBookingDetailRoute(pathname) !== null;
   const isServiceDetailAction = matchServiceRoute(pathname) !== null;
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
   const isTeamDetailRoute = matchTeamRoute(pathname) !== null;
+  const isResourceDetailRoute = matchResourceRoute(pathname) !== null;
 
   // /dashboard/settings and /dashboard/hotsite are deliberately NOT in this list (unlike the
   // drill-down routes above) — they're top-level sections with no topbar back arrow, so hiding
@@ -40,7 +47,9 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
     isServiceCreateRoute(pathname) ||
     isLoyaltyDetail ||
     isTeamInviteRoute(pathname) ||
-    isTeamDetailRoute
+    isTeamDetailRoute ||
+    isResourceCreateRoute(pathname) ||
+    isResourceDetailRoute
   )
     return null;
 
@@ -65,7 +74,7 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
         );
       })}
 
-      {role === 'MANAGER' && (
+      {(role === 'MANAGER' || (role === 'STAFF' && leadFormEnabled)) && (
         <button
           type="button"
           onClick={onOpenSheet}

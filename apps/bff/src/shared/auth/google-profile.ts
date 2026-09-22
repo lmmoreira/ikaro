@@ -8,4 +8,5 @@ export interface GoogleProfile {
   name: string;
   tenantSlug?: string;
   loginType?: 'staff';
+  returnTo?: string;
 }

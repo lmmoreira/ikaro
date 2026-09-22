@@ -38,16 +38,18 @@ function manifestJson(overrides: Record<string, unknown> = {}): string {
 }
 
 describe('parseManifestJson', () => {
-  it('parses a valid manifest and materializes the layout to all 8 module types', () => {
+  it('parses a valid manifest and materializes the layout to all 10 module types', () => {
     const result = parseManifestJson(manifestJson());
 
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.value.branding).toMatchObject(VALID_BRANDING);
     expect(result.value.seo).toEqual(VALID_SEO);
-    expect(result.value.layout).toHaveLength(8);
+    expect(result.value.layout).toHaveLength(10);
     expect(result.value.layout.find((m) => m.type === 'HERO')).toMatchObject(VALID_HERO_MODULE);
     expect(result.value.layout.find((m) => m.type === 'FOOTER')?.enabled).toBe(false);
+    expect(result.value.layout.find((m) => m.type === 'CHATBOT')?.enabled).toBe(false);
+    expect(result.value.layout.find((m) => m.type === 'LEAD_FORM')?.enabled).toBe(false);
   });
 
   it('rejects invalid JSON syntax', () => {
@@ -125,21 +127,21 @@ describe('parseManifestJson', () => {
     });
   });
 
-  it('rejects a layout with more than 8 modules', () => {
-    const nineModules = Array.from({ length: 9 }, (_, i) => ({
+  it('rejects a layout with more than 10 modules', () => {
+    const elevenModules = Array.from({ length: 11 }, (_, i) => ({
       type: 'HERO',
       enabled: true,
       data: {},
       _dedupe: i,
     }));
     const result = parseManifestJson(
-      JSON.stringify({ branding: VALID_BRANDING, layout: nineModules, seo: VALID_SEO }),
+      JSON.stringify({ branding: VALID_BRANDING, layout: elevenModules, seo: VALID_SEO }),
     );
 
     expect(result).toEqual({
       success: false,
-      error: 'layout must have at most 8 modules',
-      reason: { code: 'tooManyModules', max: 8 },
+      error: 'layout must have at most 10 modules',
+      reason: { code: 'tooManyModules', max: 10 },
     });
   });
 

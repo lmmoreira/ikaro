@@ -8,12 +8,29 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { CreateServiceDto, CreateServiceSchema } from '../../application/dtos/create-service.dto';
 import { UpdateServiceDto, UpdateServiceSchema } from '../../application/dtos/update-service.dto';
+import {
+  UpdateServiceLegsDto,
+  UpdateServiceLegsSchema,
+} from '../../application/dtos/update-service-legs.dto';
+import {
+  UpdateServiceResourceRequirementsDto,
+  UpdateServiceResourceRequirementsSchema,
+} from '../../application/dtos/update-service-resource-requirements.dto';
+import {
+  UpdateServiceBookingPolicyDto,
+  UpdateServiceBookingPolicySchema,
+} from '../../application/dtos/update-service-booking-policy.dto';
+import {
+  PublishServiceIntakeSchemaDto,
+  PublishServiceIntakeSchemaSchema,
+} from '../../application/dtos/publish-service-intake-schema.dto';
 import {
   ActivateServiceUseCase,
   ActivateServiceUseCaseResult,
@@ -31,9 +48,29 @@ import {
   GetServiceByIdUseCaseResult,
 } from '../../application/use-cases/get-service-by-id.use-case';
 import {
+  GetServiceIntakeSchemaUseCase,
+  GetServiceIntakeSchemaUseCaseResult,
+} from '../../application/use-cases/get-service-intake-schema.use-case';
+import {
   GetServicesUseCase,
   GetServicesUseCaseResult,
 } from '../../application/use-cases/get-services.use-case';
+import {
+  UpdateServiceLegsUseCase,
+  UpdateServiceLegsUseCaseResult,
+} from '../../application/use-cases/update-service-legs.use-case';
+import {
+  UpdateServiceResourceRequirementsUseCase,
+  UpdateServiceResourceRequirementsUseCaseResult,
+} from '../../application/use-cases/update-service-resource-requirements.use-case';
+import {
+  UpdateServiceBookingPolicyUseCase,
+  UpdateServiceBookingPolicyUseCaseResult,
+} from '../../application/use-cases/update-service-booking-policy.use-case';
+import {
+  PublishServiceIntakeSchemaUseCase,
+  PublishServiceIntakeSchemaUseCaseResult,
+} from '../../application/use-cases/publish-service-intake-schema.use-case';
 import {
   UpdateServiceUseCase,
   UpdateServiceUseCaseResult,
@@ -51,6 +88,11 @@ export class ServiceController {
     private readonly activateService: ActivateServiceUseCase,
     private readonly updateService: UpdateServiceUseCase,
     private readonly deactivateService: DeactivateServiceUseCase,
+    private readonly updateServiceResourceRequirements: UpdateServiceResourceRequirementsUseCase,
+    private readonly updateServiceLegs: UpdateServiceLegsUseCase,
+    private readonly updateServiceBookingPolicy: UpdateServiceBookingPolicyUseCase,
+    private readonly publishServiceIntakeSchema: PublishServiceIntakeSchemaUseCase,
+    private readonly getServiceIntakeSchema: GetServiceIntakeSchemaUseCase,
   ) {}
 
   @Get()
@@ -90,7 +132,69 @@ export class ServiceController {
         tenantId: this.tenantContext.tenantId,
         currency: this.tenantContext.settings.localization.currency,
         locale: this.tenantContext.settings.localization.language,
+        tenantServiceBufferMinutes: this.tenantContext.settings.booking.serviceBufferMinutes,
       })
+      .catch(mapBookingError);
+  }
+
+  @Patch(':id/resource-requirements')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  updateResourceRequirements(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceResourceRequirementsSchema))
+    body: UpdateServiceResourceRequirementsDto,
+  ): Promise<UpdateServiceResourceRequirementsUseCaseResult> {
+    return this.updateServiceResourceRequirements
+      .execute({ ...body, id, tenantId: this.tenantContext.tenantId })
+      .catch(mapBookingError);
+  }
+
+  @Put(':id/legs')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  updateLegs(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceLegsSchema)) body: UpdateServiceLegsDto,
+  ): Promise<UpdateServiceLegsUseCaseResult> {
+    return this.updateServiceLegs
+      .execute({ ...body, id, tenantId: this.tenantContext.tenantId })
+      .catch(mapBookingError);
+  }
+
+  @Patch(':id/booking-policy')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  updateBookingPolicy(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceBookingPolicySchema))
+    body: UpdateServiceBookingPolicyDto,
+  ): Promise<UpdateServiceBookingPolicyUseCaseResult> {
+    return this.updateServiceBookingPolicy
+      .execute({ ...body, id, tenantId: this.tenantContext.tenantId })
+      .catch(mapBookingError);
+  }
+
+  @Post(':id/intake-schema')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(StaffOrManagerRoleGuard)
+  publishIntakeSchema(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(PublishServiceIntakeSchemaSchema))
+    body: PublishServiceIntakeSchemaDto,
+  ): Promise<PublishServiceIntakeSchemaUseCaseResult> {
+    return this.publishServiceIntakeSchema
+      .execute({ ...body, id, tenantId: this.tenantContext.tenantId })
+      .catch(mapBookingError);
+  }
+
+  @Get(':id/intake-schema')
+  @UseGuards(StaffOrManagerRoleGuard)
+  getIntakeSchema(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<GetServiceIntakeSchemaUseCaseResult> {
+    return this.getServiceIntakeSchema
+      .execute({ id, tenantId: this.tenantContext.tenantId })
       .catch(mapBookingError);
   }
 

@@ -175,6 +175,35 @@ describe('HotsiteAdminController', () => {
       expect(result.success).toBe(false);
     });
 
+    // M20-S08 — audienceMode/questions write LeadFormConfig via this same consolidated schema.
+    it('accepts a body with only audienceMode, no branding/layout/seo', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({ audienceMode: 'CUSTOMER_ONLY' });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts a body with only questions, no branding/layout/seo', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        questions: [
+          {
+            id: '00000000-0000-4000-8000-000000000001',
+            label: 'Qual serviço você procura?',
+            type: 'TEXT',
+            required: true,
+            order: 0,
+          },
+        ],
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects an invalid audienceMode enum value', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({ audienceMode: 'EVERYONE' });
+
+      expect(result.success).toBe(false);
+    });
+
     it('accepts a tmp/ staging path for logoUrl (not-yet-promoted upload)', () => {
       const result = UpdateHotsiteContentBodySchema.safeParse({
         branding: { logoUrl: 'tmp/10000000-0000-4000-8000-000000000001/branding/u1/logo.png' },

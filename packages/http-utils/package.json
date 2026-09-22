@@ -5,9 +5,13 @@
   "description": "Shared, framework-agnostic HTTP request utilities for backend, bff, and web",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\" --no-error-on-unmatched-pattern --cache --cache-location .eslintcache --cache-strategy content",
     "test": "jest",
     "test:cov": "jest --coverage"
   },
@@ -15,6 +19,7 @@
     "@ikaro/config": "workspace:*",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.4",
+    "eslint-plugin-jest": "^29.16.1",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11"
   }

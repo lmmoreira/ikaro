@@ -12,19 +12,46 @@ import { BookingLineEntity } from '../../../contexts/booking/infrastructure/enti
 import { ScheduleClosureEntity } from '../../../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../../../contexts/booking/infrastructure/entities/service.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../../../contexts/booking/infrastructure/entities/service-resource-requirement.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+} from '../../../contexts/booking/infrastructure/entities/service-leg.entity';
+import { ServiceClassResourcePoolEntity } from '../../../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
+import { ResourceEntity } from '../../../contexts/booking/infrastructure/entities/resource.entity';
+import { BookingLineResourceAssignmentEntity } from '../../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { ResourceOccupancyEntity } from '../../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { CustomerEntity } from '../../../contexts/customer/infrastructure/entities/customer.entity';
 import { NotificationLogEntity } from '../../../contexts/notification/infrastructure/entities/notification-log.entity';
 import { OutboxEventEntity } from './outbox-event.entity';
 
 const PLATFORM_KEY = 'outbox-full-topology-test-key-xxxxxx';
 
+// M21-S02: ResourceEntity is required here even though this test doesn't touch resources
+// directly — POST /internal/tenants below drives the real outbox → BookingModule's
+// TenantProvisionedHandler, which always queries booking.resources on every TenantProvisioned
+// event. Omitting it here doesn't fail this test (RoutingInMemoryEventBus swallows handler
+// errors, matching production Pub/Sub fire-and-forget), but silently breaks that handler.
 const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
   ServiceEntity,
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+  ServiceLegResourceRequirementPoolEntity,
+  ServiceClassResourcePoolEntity,
   ScheduleClosureEntity,
   ScheduleOpeningEntity,
   CustomerEntity,
+  ResourceEntity,
+  BookingLineResourceAssignmentEntity,
+  ResourceOccupancyEntity,
 ] as const;
 
 // TD24-S02 — the one new test exercising the *production* pipeline shape end-to-end: a real HTTP

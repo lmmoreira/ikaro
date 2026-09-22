@@ -55,8 +55,13 @@ const config: Config = {
       transform: sharedTransform,
       testEnvironment: 'node',
       // Single container set shared across all integration test files — must run sequentially
-      // to avoid concurrent Pub/Sub subscription conflicts.
-      maxWorkers: 1,
+      // to avoid concurrent Pub/Sub subscription conflicts, and to avoid races between spec files
+      // that manipulate overlapping global state (e.g. an unscoped backfill-style migration
+      // re-invoked mid-suite touching a fixture tenant another file just created). `maxWorkers` is
+      // NOT a supported per-project option (Jest logs a validation warning and silently ignores
+      // it here) — the actual serialization is enforced via the `--maxWorkers=1` CLI flag on this
+      // project's own npm script (`test:integration` in package.json), the only invocation that
+      // ever selects this project.
       globalSetup: '<rootDir>/test/integration-global-setup.ts',
       globalTeardown: '<rootDir>/test/integration-global-teardown.ts',
     },

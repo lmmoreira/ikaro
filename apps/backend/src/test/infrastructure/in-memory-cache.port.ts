@@ -15,8 +15,14 @@ export class InMemoryCachePort implements CachePort {
   private nextGetError: unknown = NONE;
   private nextSetError: unknown = NONE;
   private nextDelError: unknown = NONE;
+  // Recorded regardless of failure injection — state-based replacement for a jest.fn()
+  // `.mock.calls`/`toHaveBeenCalledWith` assertion on a cache call.
+  readonly getCalls: string[] = [];
+  readonly setCalls: Array<{ key: string; value: unknown }> = [];
+  readonly delCalls: string[] = [];
 
   async get<T>(key: string): Promise<T | null> {
+    this.getCalls.push(key);
     if (this.nextGetError !== NONE) {
       const err = this.nextGetError;
       this.nextGetError = NONE;
@@ -26,6 +32,7 @@ export class InMemoryCachePort implements CachePort {
   }
 
   async set<T>(key: string, value: T): Promise<void> {
+    this.setCalls.push({ key, value });
     if (this.nextSetError !== NONE) {
       const err = this.nextSetError;
       this.nextSetError = NONE;
@@ -35,6 +42,7 @@ export class InMemoryCachePort implements CachePort {
   }
 
   async del(key: string): Promise<void> {
+    this.delCalls.push(key);
     if (this.nextDelError !== NONE) {
       const err = this.nextDelError;
       this.nextDelError = NONE;

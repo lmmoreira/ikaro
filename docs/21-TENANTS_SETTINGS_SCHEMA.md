@@ -24,11 +24,12 @@ The `tenants.settings` column is a JSONB field that stores per-tenant configurat
   "notification": { ... },
   "localization": { ... },
   "businessInfo": { ... },
-  "chatbot": { ... }
+  "chatbot": { ... },
+  "leadForm": { ... }
 }
 ```
 
-> **`chatbot` is the first category that deviates from this doc's own default-at-creation rule (§ Defaults below) — only its `knowledgeText` field is written into every tenant's row at creation; its other fields are deliberately absent unless Ikaro explicitly overrides one. See §7 below for the full rationale.
+> **`chatbot` is the first category that deviates from this doc's own default-at-creation rule (§ Defaults below) — only its `knowledgeText` field is written into every tenant's row at creation; its other fields are deliberately absent unless Ikaro explicitly overrides one. See §7 below for the full rationale. `leadForm` (§8) does NOT follow this deviation — all three of its fields (`retentionMonths`, `maxSubmissionsPerDay`, `maxSubmissionsPerIpPerDay`) are genuinely per-tenant and follow the normal default-at-creation rule; see §8 for why Chatbot's reasoning doesn't transfer.
 
 ---
 
@@ -75,12 +76,17 @@ Controls booking lifecycle and rules.
 | Key | Type | Default | Min | Max | Description |
 |-----|------|---------|-----|-----|-------------|
 | `cancellationWindowHours` | integer | 48 | 0 | 720 | Hours before appointment when customer can still cancel (0 = no self-cancellation) |
-| `autoApproveEnabled` | boolean | false | — | — | **Reserved — post-MVP only. Currently ignored.** Automatically approve bookings without admin review. |
+| `autoApproveEnabled` | boolean | false | — | — | Tenant-wide default approval mode for appointment bookings — inherited by `Service.defaultApprovalMode` when left `null` (UC-055, consumed starting M22-S02). Editable via dashboard Configurações → Booking since earlier; this is the first consumer. |
 | `minBookingAdvanceHours` | integer | 0 | 0 | 8760 | Minimum hours in advance customer must book (0 = can book same day) |
 | `maxBookingAdvanceDays` | integer | 90 | 1 | 365 | Maximum days in advance customer can book |
 | `serviceBufferMinutes` | integer | 60 | 0 | 120 | Buffer time between service end and next booking (cleaning, prep time) |
 | `slotGranularityMinutes` | integer | 30 | 15 | 60 | Calendar slot unit in minutes. Valid values: 15, 30, 60. Controls granularity of available start times shown in UC-011. |
 | `welcomeStaffScreenDays` | integer | 14 | 1 | 90 | (`M13-S17`) Size of the configurable date window shown/filtered on the staff booking queue's day-strip navigator (`/dashboard/bookings`). |
+| `classCancellationWindowHours` | integer | — | 0 | 720 | (M24 Cluster 4, UC-089) Hours before a class session's start when a customer can still self-cancel a plain (non-recurring) booking. Deliberately separate from `cancellationWindowHours` — a studio/gym's late-cancel window for a class is commonly different, often shorter, than a private appointment's, and a capacity-constrained class with an active waitlist has a real cost a private 1:1 slot doesn't share. |
+| `classSkipWindowHours` | integer | — | 0 | 720 | (M24 Cluster 4, UC-094) Minimum notice to skip a single occurrence of a recurring enrollment — deliberately separate from `classCancellationWindowHours`; a studio's notice requirement for "skip this week, keep my slot" commonly differs from "cancel entirely." |
+| `classAllowsReschedule` | boolean | false | — | — | (M24 Cluster 4, UC-102) Whether a skipped recurring-enrollment occurrence may be rescheduled to a same-service replacement session ("reposição") instead of a plain skip. |
+| `classRescheduleWindowDays` | integer | — | 1 | 90 | (M24 Cluster 4) How far ahead a replacement session may be picked when `classAllowsReschedule = true`. |
+| `classMaxReschedulesPerCycle` | integer | null | 1 | — | (M24 Cluster 4) Optional cap on reschedules per cycle (a "cycle" is the calendar month containing the skipped occurrence, unless the service overrides it). `null`/unset = unlimited. |
 
 **Example:**
 ```json
@@ -92,17 +98,27 @@ Controls booking lifecycle and rules.
     "maxBookingAdvanceDays": 90,
     "serviceBufferMinutes": 60,
     "slotGranularityMinutes": 30,
-    "welcomeStaffScreenDays": 14
+    "welcomeStaffScreenDays": 14,
+    "classCancellationWindowHours": 24,
+    "classSkipWindowHours": 12,
+    "classAllowsReschedule": true,
+    "classRescheduleWindowDays": 14,
+    "classMaxReschedulesPerCycle": null
   }
 }
 ```
 
 **Validation Rules:**
 - `cancellationWindowHours` must be 0–720 (0–30 days)
-- `minBookingAdvanceHours` must be ≥ 0
-- `maxBookingAdvanceDays` must be ≥ 1
+- `minBookingAdvanceHours` must be ≥ 0, documented ceiling 8760 (1 year)
+- `maxBookingAdvanceDays` must be ≥ 1, documented ceiling 365
 - `minBookingAdvanceHours` / 24 must be < `maxBookingAdvanceDays`
+
+> **Not yet enforced (found via `/docs-audit` 2026-09-17):** none of the three rules above — the two upper bounds or the cross-field rule — are actually checked in `booking-settings.validator.ts` or the Zod schema (`packages/validation/src/tenant-settings.ts`) today; only the lower bounds (`≥ 0`, `≥ 1`) are. Documented as the intended ceiling for a future validation pass, not a currently-enforced constraint.
 - `slotGranularityMinutes` must be one of: 15, 30, 60
+- `classCancellationWindowHours`/`classSkipWindowHours` must be 0–720 when set (M24 Cluster 4)
+- `classRescheduleWindowDays` must be ≥ 1 when `classAllowsReschedule = true` (M24 Cluster 4)
+- `classMaxReschedulesPerCycle`, when set, must be ≥ 1 (M24 Cluster 4)
 
 ---
 
@@ -315,7 +331,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 
 ### **7. Chatbot Settings** (`settings.chatbot`)
 
-Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT) — an LLM-backed FAQ widget scoped to the tenant's own business data. Full design rationale: `docs/discovery/CHATBOT/CHATBOT.md`.
+Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT) — an LLM-backed FAQ widget scoped to the tenant's own business data. Full design rationale: `docs/04-USE_CASES.md` UC-033–UC-036.
 
 **Deliberate deviation from this doc's own pattern, explained once here:** every other category above writes its full default into every tenant's row at creation (§ Defaults), because those fields are meant to diverge per tenant over time — each tenant genuinely owns its own value going forward. `chatbot`'s caps are the opposite: they're meant to stay **uniform across every tenant**. Copying today's default into every row at creation would mean a future platform-wide default change silently doesn't apply to any tenant already provisioned — a migration would be needed to bulk-update everyone, defeating the point of a cap that's supposed to be adjustable without a deploy touching tenant data. So: only `knowledgeText` follows the normal pattern (real per-tenant content, defaulted to `""` at creation). Every other field in this category is **absent from a tenant's row unless Ikaro explicitly overrides it for that one tenant** — resolved at read time as `tenant.settings.chatbot?.X ?? DEFAULT_X`, where `DEFAULT_X` is a plain code constant (`contexts/platform/chatbot.constants.ts`), not a database value. Changing a platform-wide default is a one-line code change through a normal reviewed deploy, applying instantly to every tenant with no migration.
 
@@ -333,7 +349,7 @@ Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITE
 | `llmProvider` | `'openrouter'` \| `'anthropic'` \| `'openai'` \| null | null (falls back to `CHATBOT_LLM_PROVIDER` env var) | No | Per-tenant override of which adapter answers this tenant's chatbot (e.g. a premium contract, or a tenant testing a different model) |
 | `llmModel` | string \| null | null (adapter's own default model) | No | Per-tenant override of which model the resolved provider uses |
 
-**Not in this category, on purpose:** two platform-wide operational breakers — `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (25) and `CHATBOT_MIN_PROVIDER_BALANCE_USD` (2) — stay env vars, never a `tenants.settings` field at all, even as an override. No tenant should be able to opt out of a platform-protecting backstop, and these need to change fast during a real incident (an env var updates in minutes; a code constant needs a full deploy cycle) — the opposite risk profile from the security-critical guardrail rules (`buildAssistantRules()`'s text), which deliberately need *friction* to change and are a hardcoded string, never sourced from any tenant data or settings field at all.
+**Not in this category, on purpose:** two platform-wide operational breakers — `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (1 — revised from the original 25, see `docs/04-USE_CASES.md` UC-033–UC-036's dated correction) and `CHATBOT_MIN_PROVIDER_BALANCE_USD` (2) — stay env vars, never a `tenants.settings` field at all, even as an override. No tenant should be able to opt out of a platform-protecting backstop, and these need to change fast during a real incident (an env var updates in minutes; a code constant needs a full deploy cycle) — the opposite risk profile from the security-critical guardrail rules (`buildAssistantRules()`'s text), which deliberately need *friction* to change and are a hardcoded string, never sourced from any tenant data or settings field at all.
 
 **Example** (a tenant with only `knowledgeText` set — the common case):
 ```json
@@ -357,10 +373,31 @@ Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITE
 
 **Validation Rules:**
 - `knowledgeText`, when present, must not exceed the resolved `maxKnowledgeTextLength` (default 4000, or this tenant's own override if one exists)
-- Every other field in this category is rejected by `PATCH /v1/tenants/settings` if a request attempts to set it through the normal admin-facing settings form path — these are set only via a direct database update or an ad hoc script, run by a developer, not through the API (see `docs/discovery/CHATBOT/CHATBOT.md` §5 — deliberately not gold-plated with a dedicated internal endpoint at this frequency)
+- Every other field in this category is rejected by `PATCH /v1/tenants/settings` if a request attempts to set it through the normal admin-facing settings form path — these are set only via a direct database update or an ad hoc script, run by a developer, not through the API (see `docs/04-USE_CASES.md` UC-033–UC-036 — deliberately not gold-plated with a dedicated internal endpoint at this frequency)
 - `llmProvider`, when present, must be one of the built adapters (`'openrouter'`, `'anthropic'`, `'openai'`)
 
-**Usage:** Read by UC-033's system-prompt assembly (`knowledgeText`) and by the per-tenant LLM provider/model resolution (`llmProvider`/`llmModel`) — see `docs/04-USE_CASES.md` UC-033/UC-034 and `docs/discovery/CHATBOT/CHATBOT.md` §4/§6.
+**Usage:** Read by UC-033's system-prompt assembly (`knowledgeText`) and by the per-tenant LLM provider/model resolution (`llmProvider`/`llmModel`) — see `docs/04-USE_CASES.md` UC-033/UC-034 and `docs/04-USE_CASES.md` UC-033–UC-036/§6.
+
+---
+
+### **8. Lead Form Settings** (`settings.leadForm`)
+
+Configuration for the `LEAD_FORM` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM) — a manager-configurable lead-capture form. Full design rationale: `docs/04-USE_CASES.md` UC-037–UC-043.
+
+**Not a `chatbot`-style deviation — all three fields are genuinely per-tenant, all default-at-creation, all `UC-042`-editable.** An earlier draft of this section copied `chatbot`'s "platform-wide code constant" treatment for the two volume caps, reasoning by surface resemblance to Chatbot's own caps rather than by the actual underlying justification. That reasoning doesn't transfer: Chatbot's caps exist to protect **Ikaro's own LLM provider spend** — a real, shared platform-wide financial exposure that genuinely justifies keeping them uniform and Ikaro-controlled. A lead-form submission costs Ikaro nothing; `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` are pure **abuse/bot protection**, with no platform-wide cost to protect — so there's no reason to deny an individual tenant control over their own limit. This also directly avoids a real risk a platform-wide default would create: Brazilian mobile carriers commonly use CGNAT, where many unrelated visitors share one public IP — a hardcoded `maxSubmissionsPerIpPerDay: 3` with no tenant override would risk falsely blocking legitimate guests on any tenant with real mobile traffic, with no way for that tenant to raise their own limit.
+
+| Key | Type | Default | Tenant-editable via UC-042 form? | Description |
+|-----|------|---------|---|-------------|
+| `retentionMonths` | integer | 6 | **Yes** — bounds 1-24 | How long a submission is kept before the daily retention cron (UC-043) purges it. Applies only to future submissions — an already-stored row's `expiresAt` was computed once, at insert time, from whatever `retentionMonths` the tenant had *then* |
+| `maxSubmissionsPerDay` | integer | 100 | **Yes** — bounds 1-1000 | Tenant-wide daily submission cap (abuse protection, not cost protection — see above) |
+| `maxSubmissionsPerIpPerDay` | integer | 3 | **Yes** — bounds 1-100 | Per-visitor daily cap. Raise this if a tenant's real traffic pattern (e.g. a mobile-heavy audience behind CGNAT) is triggering false positives |
+
+**Validation Rules:**
+- `retentionMonths`, when present, must be an integer 1-24 — `400 PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID` otherwise (`LeadFormSettingsValidator`, mirrors `BookingSettingsValidator`'s per-field dedicated-code pattern)
+- `maxSubmissionsPerDay`, when present, must be an integer 1-1000 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_DAY_INVALID` otherwise
+- `maxSubmissionsPerIpPerDay`, when present, must be an integer 1-100 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_IP_PER_DAY_INVALID` otherwise
+
+**Usage:** `retentionMonths` read by `LeadFormSubmission.create()` at insert time (UC-039/UC-040) and by the daily retention purge (UC-043). `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` read by the backend's pre-insert cap check (UC-039/UC-040 step 6) via the normal `tenant.settings.leadForm.X` read — no `?? DEFAULT_X` fallback needed since, unlike `chatbot`'s caps, every tenant's row genuinely has these written at creation (§ Defaults below). The count-query mechanism itself still mirrors `chatbot`'s `maxConversationsPerDay`/`maxConversationsPerIpPerDay` check (`chatbot-session-resolution.helpers.ts`'s `checkNewSessionVolumeCaps`) — only the *resolution* (per-tenant value vs. code constant) differs, not the enforcement pattern.
 
 ---
 
@@ -424,11 +461,16 @@ Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITE
   },
   "chatbot": {
     "knowledgeText": "Trabalhamos apenas com agendamento — não atendemos por ordem de chegada. Aceitamos Pix, cartão de débito e crédito."
+  },
+  "leadForm": {
+    "retentionMonths": 6,
+    "maxSubmissionsPerDay": 100,
+    "maxSubmissionsPerIpPerDay": 3
   }
 }
 ```
 
-Note: this example tenant has no `chatbot` override fields set (`maxConversationsPerDay`, `llmProvider`, etc.) — that's the common case. See §7 above for what a tenant *with* an explicit Ikaro-granted override looks like.
+Note: this example tenant has no `chatbot` override fields set (`maxConversationsPerDay`, `llmProvider`, etc.) — those genuinely stay absent unless Ikaro grants an override (§7). `leadForm`'s three fields, by contrast, are always present with their tenant's own value (defaulted at creation, editable via UC-042) — not an override pattern at all. See §7/§8 above for the full contrast.
 
 ---
 
@@ -482,11 +524,18 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
   },
   "chatbot": {
     "knowledgeText": ""
+  },
+  "leadForm": {
+    "retentionMonths": 6,
+    "maxSubmissionsPerDay": 100,
+    "maxSubmissionsPerIpPerDay": 3
   }
 }
 ```
 
 **`chatbot` only gets `knowledgeText: ""` written here — none of its other fields (the 8 caps, `llmProvider`, `llmModel`) are written into a new tenant's row.** This is the deviation §7 explains: those fields are resolved `tenant.settings.chatbot?.X ?? DEFAULT_X` at read time, with `DEFAULT_X` a code constant, not a per-tenant database value copied at creation.
+
+**`leadForm` gets all three fields written here, in full — no deviation.** Unlike `chatbot`'s caps, `maxSubmissionsPerDay`/`maxSubmissionsPerIpPerDay` are genuinely per-tenant (abuse protection, not shared-cost protection — §8 explains why Chatbot's reasoning doesn't transfer) and are read directly as `tenant.settings.leadForm.X`, no `?? DEFAULT_X` fallback.
 
 ---
 
@@ -574,5 +623,5 @@ When implementing any feature that reads tenant configuration:
 
 ---
 
-**Status:** Complete — UC-026 (Tenant Settings Edit) implemented in `M13-S31`; §7 Chatbot Settings promoted from discovery, not yet implemented — see the chatbot milestone plan  
-**Reference:** 04-USE_CASES.md UC-026/UC-033/UC-034, 02-DOMAIN_MODEL.md tenants section, `docs/discovery/CHATBOT/CHATBOT.md`
+**Status:** Complete — UC-026 (Tenant Settings Edit) implemented in `M13-S31`; §7 Chatbot Settings implemented across M19 (M19-S04 category/validation, M19-S13 tenant-settings form section)  
+**Reference:** 04-USE_CASES.md UC-026/UC-033/UC-034, 02-DOMAIN_MODEL.md tenants section, `docs/04-USE_CASES.md` UC-033–UC-036

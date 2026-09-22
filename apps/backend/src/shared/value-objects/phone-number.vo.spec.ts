@@ -52,4 +52,14 @@ describe('PhoneNumber', () => {
       expect((err as PhoneNumberValidationError).code).toBe(PhoneErrorCode.FORMAT_INVALID);
     }
   });
+
+  it('reconstitute stores the value as-is without validating', () => {
+    const p = PhoneNumber.reconstitute('+5511912345678');
+    expect(p.value).toBe('+5511912345678');
+  });
+
+  it('reconstitute skips validation the way create() does not — accepts an invalid-format value', () => {
+    expect(() => PhoneNumber.reconstitute('not-a-valid-phone')).not.toThrow();
+    expect(PhoneNumber.reconstitute('not-a-valid-phone').value).toBe('not-a-valid-phone');
+  });
 });

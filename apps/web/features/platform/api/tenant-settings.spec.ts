@@ -6,7 +6,9 @@ import {
   featureBookingPhoto,
   generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
+  getChatbotCapStatus,
   getHotsiteConfig,
+  getTenantSettings,
   publishHotsite,
   resolveTenantFormatting,
   resolveWelcomeStaffScreenDays,
@@ -71,6 +73,7 @@ const tenantSettingsResponse = {
       socialLinks: null,
     },
     chatbot: { knowledgeText: '' },
+    leadForm: { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 },
   },
 } as const;
 
@@ -258,6 +261,22 @@ describe('fetchTenantSettingsFresh', () => {
       'Failed to fetch tenant settings',
     );
     vi.unstubAllGlobals();
+  });
+});
+
+describe('getTenantSettings', () => {
+  it('calls GET /tenants/settings', async () => {
+    mock.onGet('/tenants/settings').reply(200, tenantSettingsResponse);
+    const res = await getTenantSettings();
+    expect(res).toEqual(tenantSettingsResponse);
+  });
+});
+
+describe('getChatbotCapStatus', () => {
+  it('calls GET /tenants/chatbot/cap-status', async () => {
+    mock.onGet('/tenants/chatbot/cap-status').reply(200, { dailyCapReachedToday: true });
+    const res = await getChatbotCapStatus();
+    expect(res).toEqual({ dailyCapReachedToday: true });
   });
 });
 

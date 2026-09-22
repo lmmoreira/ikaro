@@ -24,12 +24,13 @@ describe('TypeOrmTenantRepository', () => {
 
   describe('findBySlug', () => {
     it('returns a Tenant aggregate when found', async () => {
-      mockRepo.findOne.mockResolvedValue(new TenantEntityBuilder().build());
+      const entity = new TenantEntityBuilder().build();
+      mockRepo.findOne.mockResolvedValue(entity);
 
       const result = await repo.findBySlug('beloauto');
 
       expect(result).toBeInstanceOf(Tenant);
-      expect(result!.id).toBe('tenant-id-1');
+      expect(result!.id).toBe(entity.id);
       expect(result!.slug.value).toBe('beloauto');
       expect(result!.name).toBe('BeloAuto');
       expect(result!.isActive).toBe(true);

@@ -1,5 +1,7 @@
 # M13 — Dashboard Frontend: Implementation Details (AI Agent Reference)
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 > Token-efficient reference. No prose. Load only when working on M14+ tasks that touch the staff/manager dashboard (`apps/web/app/dashboard/**`), the customer account area (`apps/web/app/[slug]/my-account/**`), the hotsite editor (`apps/web/app/dashboard/hotsite/**`), the BFF's booking/service/loyalty/staff/platform modules, or the Playwright E2E suite.
 
 ---
@@ -48,8 +50,8 @@
 |---|---|---|
 | Transport | `bff-client.ts` (axios, `withCredentials: true`), `bff-server.ts` (`bffServerFetch(token, path)`), `errors.ts` (`AuthError`/`ForbiddenError`/`ApiError`) | `shared/lib/api/` |
 | Transport | `QueryProvider` (`staleTime: 30_000`, `retry: 1`), `TenantProvider` (`useTenant()`) | `providers/` |
-| Middleware | `middleware.ts` — JWT decode (Edge-safe `atob`), STAFF/MANAGER guard on `/dashboard/**`, MANAGER-only on `/dashboard/{settings,team,hotsite}`, CUSTOMER+slug-match guard on `/{slug}/my-account/**`, CSP headers | `apps/web/middleware.ts` |
-| Dashboard shell | `DashboardShell`, `Sidebar`, `Topbar`, `BottomNav`, `ManagerSheet` | `shells/dashboard/components/` |
+| Middleware | `middleware.ts` — JWT decode (Edge-safe `atob`), STAFF/MANAGER guard on `/dashboard/**`, MANAGER-only on `/dashboard/{settings,team,hotsite}`, CUSTOMER+slug-match guard on `/{slug}/my-account/**`, CSP headers | `apps/web/proxy.ts` |
+| Dashboard shell | `DashboardShell`, `Sidebar`, `Topbar`, `BottomNav`, `ManagerSheet` (renamed `MoreSheet` in `M20-S10`) | `shells/dashboard/components/` |
 | Dashboard shell | `DashboardLayoutShell`, `DashboardSectionShell` (shared layout-composition helpers — **not used by every section**, see Gotchas) | `shells/dashboard/components/` |
 | Dashboard shell | `topbar-status-context.tsx` (`DashboardTopbarStatusProvider` — route-scoped chrome state: booking/service/staff-role status badge, back-href/back-label/onBack overrides) | `shells/dashboard/components/` |
 | Dashboard shell | `mobile-action-bar.ts` (`MOBILE_ACTION_BAR_CLEARANCE_CLASS`) | `shells/dashboard/utils/` |
@@ -202,8 +204,8 @@ Both loyalty amounts and staff status follow the same principle — a value that
 - **Login = dev-login, never real OAuth.** `loginAsCustomer(page, email, tenantSlug)`/`loginAsStaff(...)` POST `BFF /auth/dev-login` (`ENABLE_DEV_AUTH=true` + `X-Internal-Key`), then set the real `access_token` cookie — byte-identical to a genuine session.
 - **Seeded accounts:** `admin@lavacar.com.br` (manager, `lavacar-beloauto`), `funcionario@lavacar.com.br` (staff, same tenant), `admin@ikaro.com` (`ikaro`), `admin@autospa.com.br` (`autospa-premium`). Fresh customers minted per-test via `uniqueTestEmail(prefix)`.
 - **Cookie-jar gotcha:** `page.request` shares the *page's* cookie jar. Any helper that seeds a fixture via dev-login as a *different* user (e.g. `linkStaffGoogleAccount()`) must use an isolated `playwrightRequest.newContext()` — otherwise dev-login's side-effect cookie silently hijacks the running test's session, causing spurious 403s later in the same test.
-- **`data-testid`-only, enforced by `scripts/pre-pr.sh` (E2E-1/E2E-2/E2E-3):** no `getByLabel(`/`getByText(` (E2E-1); no ISO date literal embedded in a `data-testid` value — use a separate `data-date` attribute (E2E-2); no template-literal `data-testid` — encode the variable part in its own `data-*` attribute (E2E-3). This took 4 follow-up commits to stick after S41 and caught real defects as late as M13-S37.
-- **`playwright.config.ts` has no `webServer`** — tests run against an already-running stack (local `docker compose up -d && pnpm dev`; CI's `pr-e2e.yml` starts its own). `PLAYWRIGHT_BASE_URL`/`PLAYWRIGHT_BFF_URL` override defaults (`localhost:3000`/`localhost:3002/v1`) — separate from `NEXT_PUBLIC_BFF_URL` since the Playwright process doesn't inherit the web server's env.
+- **`data-testid`-only, enforced by ESLint (`apps/web/eslint.config.js`, E2E-1/E2E-2/E2E-3 — `scripts/pre-pr.sh` retired these checks in TD37-S23):** no `getByLabel(`/`getByText(` (E2E-1); no ISO date literal embedded in a `data-testid` value — use a separate `data-date` attribute (E2E-2); no template-literal `data-testid` — encode the variable part in its own `data-*` attribute (E2E-3). This took 4 follow-up commits to stick after S41 and caught real defects as late as M13-S37.
+- **`playwright.config.ts` has no `webServer`** — tests run against an already-running stack (local `docker compose up -d && pnpm dev`; CI's `pr-tests.yml` starts its own). `PLAYWRIGHT_BASE_URL`/`PLAYWRIGHT_BFF_URL` override defaults (`localhost:3000`/`localhost:3002/v1`) — separate from `NEXT_PUBLIC_BFF_URL` since the Playwright process doesn't inherit the web server's env.
 - **Convention since S41:** every new `app/**/page.tsx` ships a Playwright spec in the same story.
 
 ---
@@ -230,7 +232,7 @@ Both loyalty amounts and staff status follow the same principle — a value that
 9. **Guest-token verification is duplicated in three places** (BFF, web, E2E helper) with no shared package — a payload-shape change must be applied to all three or they silently drift.
 10. **`decodeUnverifiedTenantSlug()` is a deliberate, narrowly-scoped exception** to "always verify JWTs" — used only to pick branding colors for an invalid-link screen, never for authorization. Still validates against `SLUG_PATTERN` before use (open-redirect guard) — don't remove that check when touching this function.
 11. **E2E helpers sharing `page.request`'s cookie jar can silently hijack the running test's session** — any fixture-seeding call that logs in as a *different* user must use an isolated Playwright request context.
-12. **`data-testid` must never embed a date literal or use a template literal** — encode variable parts in a separate `data-*` attribute (E2E-2/E2E-3, enforced by `scripts/pre-pr.sh`).
+12. **`data-testid` must never embed a date literal or use a template literal** — encode variable parts in a separate `data-*` attribute (E2E-2/E2E-3, enforced by ESLint via `apps/web/eslint.config.js` since TD37-S23; `scripts/pre-pr.sh` no longer runs this check).
 13. **The S01 BFF-client design (singleton + manual headers) is gone** — replaced end-to-end by cookie auth + `TenantProvider` in S17. Any doc or memory describing `configureBffClient()`/`X-Tenant-Slug` interceptor headers as the current transport is stale.
 14. **`tenant-settings.mapper.ts` doesn't exist** — the backend's settings JSONB is camelCase natively; the BFF's tenant-settings controller is a pure passthrough. Don't recreate a translation-layer mapper here.
 15. **Dark-theme branding pairing bugs recur around the hotsite auth bar/login page** — background and text CSS variables must always be set together (`--ba-background` + `--ba-text`), and any element deriving contrast (initials avatar, dropdown surface) must respect `buttonTextColor` overrides, not hardcode white/black.

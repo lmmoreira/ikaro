@@ -6,7 +6,14 @@ import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 
 // Shared manager-only route list for /dashboard — M13-S31/S32 own this single edit;
 // M13-S35 (hotsite editor) reuses it. STAFF hitting these is sent back to the dashboard home.
-const MANAGER_ONLY_ROUTES = ['/dashboard/settings', '/dashboard/team', '/dashboard/hotsite'];
+// Resource Management is MANAGER-only, matching the backend/BFF's own restriction —
+// docs/14-API_CONTRACTS.md § Resource Management.
+const MANAGER_ONLY_ROUTES = [
+  '/dashboard/settings',
+  '/dashboard/team',
+  '/dashboard/hotsite',
+  '/dashboard/resources',
+];
 
 function isManagerOnlyRoute(pathname: string): boolean {
   return MANAGER_ONLY_ROUTES.some(
@@ -48,6 +55,21 @@ function needsMapsFrameSrc(pathname: string): boolean {
   );
 }
 
+// Cloudflare Turnstile (M20-S09) loads its script from and renders its challenge inside an
+// iframe from challenges.cloudflare.com — without both script-src and frame-src allowing that
+// origin, the widget silently never renders (no console error visible to a casual check; caught
+// only by a real-browser Playwright run, PR #433 review round 2). Originally scoped to
+// /[slug]/lead-form only, which was itself a bug (M20-S15): CSP is a document-response header
+// the browser only re-reads on a fresh top-level navigation, never on a Next.js client-side
+// (next/link) transition — a guest who soft-navigates from the hotsite home page into
+// /lead-form keeps enforcing the home page's (Turnstile-less) CSP, so the widget silently never
+// renders. Scoped to the whole hotsite route tree instead, mirroring needsMapsFrameSrc's own
+// tree-wide scoping just above, so whichever hotsite page a guest's browser actually loaded
+// fresh already carries a CSP that permits Turnstile.
+function needsTurnstileSrc(pathname: string): boolean {
+  return isHotsiteRoute(pathname);
+}
+
 // scheme+host+port only — CSP source expressions don't need (or want) the path.
 function originOf(rawUrl: string | undefined): string | null {
   if (!rawUrl) return null;
@@ -65,17 +87,34 @@ function originOf(rawUrl: string | undefined): string | null {
 // hotsite home page is deliberately ISR/CDN-cached (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md) —
 // so a nonce would either go stale against cached HTML or require auditing every route's
 // rendering mode. 'unsafe-inline' on script-src is a blanket, verified-working baseline instead.
+// The Maps embed URL (ContactModule.tsx) requests https://maps.google.com/maps?...&output=embed,
+// which 302-redirects to https://www.google.com/maps/embed?... — CSP frame-src is checked
+// against every hop of a navigation/redirect chain, so both origins must be allowed or the final
+// navigation is silently blocked ("This content is blocked" in the browser).
+function buildFrameSrc(allowMapsFrame: boolean, allowTurnstile: boolean): string[] {
+  const allowed = [
+    allowMapsFrame && 'https://maps.google.com',
+    allowMapsFrame && 'https://www.google.com',
+    allowTurnstile && 'https://challenges.cloudflare.com',
+  ].filter((v): v is string => Boolean(v));
+  return allowed.length > 0 ? allowed : ["'none'"];
+}
+
 function buildContentSecurityPolicy(pathname: string): string {
   const isDev = process.env.NODE_ENV !== 'production';
   const allowMapsFrame = needsMapsFrameSrc(pathname);
+  const allowTurnstile = needsTurnstileSrc(pathname);
   const bffOrigin = originOf(getPublicEnv('NEXT_PUBLIC_BFF_URL'));
   // Public hotsite images and private signed booking-photo URLs are served from the same
   // GCS/S3-compatible backend, so one origin (no path) covers both.
   const storageOrigin = originOf(getPublicEnv('NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL'));
 
-  const scriptSrc = ["'self'", "'unsafe-inline'", isDev && "'unsafe-eval'"].filter(
-    (v): v is string => Boolean(v),
-  );
+  const scriptSrc = [
+    "'self'",
+    "'unsafe-inline'",
+    isDev && "'unsafe-eval'",
+    allowTurnstile && 'https://challenges.cloudflare.com',
+  ].filter((v): v is string => Boolean(v));
   const imgSrc = ["'self'", 'blob:', storageOrigin].filter((v): v is string => Boolean(v));
   // Booking/after-service photo uploads PUT directly to a signed storage URL from the browser
   // (PhotoUpload.tsx, AfterServicePhotoUpload.tsx) — connect-src needs the same storage origin
@@ -88,15 +127,10 @@ function buildContentSecurityPolicy(pathname: string): string {
     bffOrigin,
     storageOrigin,
     'https://viacep.com.br',
+    allowTurnstile && 'https://challenges.cloudflare.com',
     isDev && 'ws://localhost:*',
   ].filter((v): v is string => Boolean(v));
-  // The embed URL (ContactModule.tsx) requests https://maps.google.com/maps?...&output=embed,
-  // which 302-redirects to https://www.google.com/maps/embed?... — CSP frame-src is checked
-  // against every hop of a navigation/redirect chain, so both origins must be allowed or the
-  // final navigation is silently blocked ("This content is blocked" in the browser).
-  const frameSrc = allowMapsFrame
-    ? ['https://maps.google.com', 'https://www.google.com']
-    : ["'none'"];
+  const frameSrc = buildFrameSrc(allowMapsFrame, allowTurnstile);
 
   return [
     `default-src 'self'`,

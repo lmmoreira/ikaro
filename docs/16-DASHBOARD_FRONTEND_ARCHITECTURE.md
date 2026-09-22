@@ -12,16 +12,16 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 
 > **Naming note:** the customer area's pt-BR *concept* "Minha Conta" keeps that name in UI copy and in the prototype folder (`plan/journey/customer/prototypes/minha-conta/` — prototypes are conceptual mockups, kept pt-BR on purpose). The production route/file/component names are English (`my-account`, not `minha-conta`) per the code-standards English-only rule (`CLAUDE.md` §7) — established in `M13-S42`.
 
-### **Staff/Manager Shell — `/dashboard/**` (UC-003, UC-004, UC-005, UC-008, UC-009, UC-010, UC-012, UC-013, UC-025 through UC-031)**
-- **Focus:** Efficiency and task management for STAFF and MANAGER roles. The "Somente Gerente" section (Equipe, Configurações, Hotsite) covers UC-025 through UC-031 (staff/settings/hotsite management) — not listed in earlier revisions of this doc, added here for completeness.
-- **Route protection:** `apps/web/proxy.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`. A separate check further restricts `/dashboard/{settings,team,hotsite}` to `MANAGER` only (STAFF hitting these is redirected to `/dashboard`, not to login — a soft redirect, not an auth failure).
-- **Layout:** `apps/web/app/dashboard/layout.tsx` (server component) reads `{ tenantId, tenantSlug, tenantName, userName, role, locale }` from the JWT via `cookies()`, and renders `<DashboardShell>`. **Updated (`M13-S15`):** the JWT payload was enriched to carry `tenantName`/`userName`/`locale` directly (see `JwtIssuerService`) specifically so shells never need a separate profile/tenant-info fetch — `apps/web/shells/dashboard/model/dashboard-shell-context.ts`'s `buildDashboardShellContext`/`loadDashboardShellContext` read these fields straight off the decoded token, with no extra API call.
+### **Staff/Manager Shell — `/dashboard/**` (UC-003, UC-004, UC-005, UC-008, UC-009, UC-010, UC-012, UC-013, UC-025 through UC-031, UC-044 through UC-049)**
+- **Focus:** Efficiency and task management for STAFF and MANAGER roles. The "Somente Gerente" section (Recursos, Equipe, Configurações, Hotsite) covers UC-025 through UC-031 (staff/settings/hotsite management) and UC-044 through UC-049 (resource management, `M21-S04`) — not listed in earlier revisions of this doc, added here for completeness.
+- **Route protection:** `apps/web/proxy.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`. A separate check further restricts `/dashboard/{settings,team,hotsite,resources}` to `MANAGER` only (STAFF hitting these is redirected to `/dashboard`, not to login — a soft redirect, not an auth failure). `/dashboard/resources` added `M21-S04` (Resource Management dashboard — matches the backend/BFF's own MANAGER-only restriction, `docs/14-API_CONTRACTS.md` § Resource Management).
+- **Layout:** there is no single shared layout for `/dashboard/**` — `apps/web/app/dashboard/layout.tsx` is a bare passthrough (`return <>{children}</>`). Each top-level section owns its own `layout.tsx` (`bookings/`, `hotsite/`, `loyalty/`, `schedule/`, `services/`, `settings/`, `team/`, `leads/` as of `M20-S10`, `resources/` as of `M21-S04`) that independently reads `{ tenantId, tenantSlug, tenantName, userName, role, locale }` from the JWT via `cookies()`/`getAccessToken()`, calls the shared `loadDashboardShellContext(token, payload)` (`apps/web/shells/dashboard/model/dashboard-shell-context.ts`), and renders `<DashboardShell>`. **Updated (`M13-S15`):** the JWT payload was enriched to carry `tenantName`/`userName`/`locale` directly (see `JwtIssuerService`) specifically so shells never need a separate profile/tenant-info fetch — `buildDashboardShellContext`/`loadDashboardShellContext` read these fields straight off the decoded token, with no extra API call. **Corrected (`M20-S10`, story-discovery 2026-08-27):** this doc previously (incorrectly) described a single shared `app/dashboard/layout.tsx` doing this work — it never did; the per-section duplication above is the real, longstanding pattern.
 - **Key components (`apps/web/shells/dashboard/components/`):**
   - `DashboardShell.tsx` — `'use client'` shell wrapper: sidebar (desktop, `≥1024px`) + topbar + bottom nav (mobile, `<1024px`); conditionally renders manager-only nav based on `role`.
-  - `Sidebar.tsx` — logo block, nav items (Agenda, Horários, Serviços, Fidelidade), and a "Somente Gerente" section (Equipe, Configurações, Hotsite) shown only when `role === 'MANAGER'`.
+  - `Sidebar.tsx` — logo block, nav items (Agenda, Horários, Serviços, Fidelidade, plus Leads when the `LEAD_FORM` module is enabled — `leadFormEnabled`, `M20-S10`), and a "Somente Gerente" section (Recursos, Equipe, Configurações, Hotsite — `Recursos` added `M21-S04`) shown only when `role === 'MANAGER'`.
   - `Topbar.tsx` — back arrow + title on drill-down pages, page title on list pages, avatar + date on desktop.
-  - `BottomNav.tsx` — mobile-only tab bar mirroring the sidebar's nav items, role-aware. Hides itself only on genuine drill-down routes (booking/service/loyalty/team detail) that have their own topbar back arrow — top-level sections like `/dashboard/settings` and `/dashboard/hotsite` must stay visible here, or mobile users lose all navigation (a real bug found and fixed in `M13-S37`; see that story's implementation notes).
-  - `ManagerSheet.tsx` — mobile "Mais" bottom-sheet exposing the manager-only nav items on small viewports.
+  - `BottomNav.tsx` — mobile-only tab bar mirroring the sidebar's nav items, role-aware. Hides itself only on genuine drill-down routes (booking/service/loyalty/team detail) that have their own topbar back arrow — top-level sections like `/dashboard/settings` and `/dashboard/hotsite` must stay visible here, or mobile users lose all navigation (a real bug found and fixed in `M13-S37`; see that story's implementation notes). Its "Mais" trigger also shows for STAFF once `leadFormEnabled` (`M20-S10`) — previously MANAGER-only.
+  - `MoreSheet.tsx` (renamed from `ManagerSheet.tsx`, `M20-S10`) — mobile "Mais" bottom-sheet. Renders a header-less "Leads" item for either role when `leadFormEnabled`, plus the manager-only nav items (Recursos, Equipe, Configurações, Hotsite — `Recursos` added `M21-S04`) when `role === 'MANAGER'`.
   - `topbar-status-context.tsx` (`DashboardTopbarStatusProvider`) — route-scoped chrome state (status badge, back-href/label/onBack overrides), mounted per-section above both the shell and the page.
   - `DashboardLayoutShell.tsx`/`DashboardSectionShell.tsx` — shared layout-composition helpers used by `services/`, `team/`, `settings/`, `hotsite/` (not yet adopted by `bookings/`, `schedule/`, `loyalty/`, which still hand-roll the same provider nesting inline).
 
@@ -59,6 +59,8 @@ We use **shadcn/ui** as the component foundation. Components are copied into the
 - **Quality Rule:** Every UI component must be accessible (WCAG 2.1 AA) and responsive.
 
 **Booking action sheets use native `<dialog>` semantics**, not a CSS-only overlay: open with `showModal()` (gives the browser's own top-layer centering), close with `close()`/the `onCancel` handler, and keep the visual card inside an inner wrapper `<div>` rather than styling the `<dialog>` element itself. If a dialog renders top-left/unstyled instead of centered, check for a plain `open` attribute in place of `showModal()` before touching any layout CSS — see `docs/ANTI_PATTERNS.md`'s `<dialog className="flex ...">` row for the exact failure mode.
+
+**Tabbed single-page editor pattern** (added via `/docs-audit`, 2026-09-18 — real precedent, previously undocumented): a form with several independently-savable sections uses one page with a tab bar, not stacked sections or separate routes. First shipped in the Hotsite editor (`HotsiteEditorMainView.tsx`/`HotsiteEditor.tsx`, Branding/Layout/SEO/Manifest tabs) and reused verbatim for `ServiceEditPage`'s M22 Cluster 2 extension (Detalhes/Recursos/Políticas de reserva/Formulário de reserva). Shape: a `role="tablist"` bar of `role="tab"` buttons with `aria-selected`, each controlling a `role="tabpanel"`; `activeTab` is a single piece of state (`useState<TabKey>`) owned by the page-level component, not per-panel local state. Each panel saves independently against its own endpoint and stays on the page (no redirect away) — pair this with a shared dirty-state store (not per-component state) if any panel needs an unsaved-changes warning, since the warning and the tab-label indicator both need to read the same signal.
 
 ---
 
@@ -164,47 +166,26 @@ apps/web/
 
 ## 7. Deployment
 
-> ⚠️ **Superseded** by `plan/M17-CLOUD-DEPLOY.md` (2026-07-07) and `td/TD29-WEB-RUNTIME-PUBLIC-CONFIG.md` — this section predates both. Concretely stale: the Dockerfile (`docker/web/Dockerfile` doesn't exist; the real one is `apps/web/Dockerfile`, `node:22-alpine`, no `next.config.js`-style `env: {}` block), the `NEXT_PUBLIC_BFF_URL` "Injected at build time via Cloud Run `--set-env-vars`" claim (TD29 replaced this with a runtime-injected accessor — see that doc), and the named CI/CD workflows (`ci-frontend.yml`/`deploy-frontend.yml` don't exist; the real ones are `deploy-staging.yml`/`.github/workflows/pr-tests.yml`). On any conflict, M17-CLOUD-DEPLOY and TD29 win. Only this section is stale — the rest of this document (RBR, folder structure, communication patterns) is current.
+**Runtime public configuration:** browser-visible configuration is injected at runtime by the root-layout Server Component through `PublicEnvScript`; client code reads it through `apps/web/shared/lib/runtime-env/public-env.ts`. Do not use build-time `NEXT_PUBLIC_*` values for deployment-specific endpoints: the same web image is promoted from staging to production, while Cloud Run supplies environment-specific values at runtime. See `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer for transport rules and `plan/M17-CLOUD-DEPLOY.md` D8 for delivery topology.
 
 **Runtime:** GCP Cloud Run — Next.js runs as an SSR Node.js server, not a static export. SSR is required for dynamic `[slug]` routing and server-side session handling.
 
-**Container:** Multi-stage Docker build in `docker/web/Dockerfile`.
+**Container:** the multi-stage production Docker build lives at `apps/web/Dockerfile` and runs the Next.js SSR server on Cloud Run.
 
-```dockerfile
-# Stage 1: build
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
-COPY apps/web/package.json apps/web/
-COPY packages/ packages/
-RUN corepack enable && pnpm install --frozen-lockfile
-COPY apps/web/ apps/web/
-RUN pnpm --filter web build    # next build
-
-# Stage 2: runtime
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/apps/web/.next ./.next
-COPY --from=builder /app/apps/web/public ./public
-COPY --from=builder /app/apps/web/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-EXPOSE 3000
-CMD ["node_modules/.bin/next", "start"]
-```
+The image is built from the repository's digest-pinned Node 22 Alpine base. Its builder installs production dependencies, builds `@ikaro/web`, and creates `/standalone` with `pnpm deploy --prod --legacy`; the runtime image copies that standalone output and `.next/`, runs as the unprivileged `nodeapp` user, and exposes a container health check. Treat [`apps/web/Dockerfile`](../apps/web/Dockerfile) as the executable source of truth rather than duplicating it here.
 
 **Environment variables at runtime:**
 
 | Variable | Value (prod) | Notes |
 |---|---|---|
-| `NEXT_PUBLIC_BFF_URL` | `/v1` | Runtime-injected browser base for the same-origin gateway |
+| `NEXT_PUBLIC_BFF_URL` | `/v1` | Runtime-injected browser base for the same-origin gateway; never a Docker build argument |
 | `BFF_UPSTREAM_URL` | `https://bff.<ikaro-domain>/v1` | Server-only absolute BFF base; never exposed to browser code |
 | `NODE_ENV` | `production` | |
 | `PORT` | `3000` | Cloud Run sets this automatically |
 
 **Gateway:** `app/v1/[...path]/route.ts` forwards `/v1/*` to `BFF_UPSTREAM_URL`; no Next.js rewrite or browser-visible BFF host is used.
 
-**CI/CD:** Full pipeline in `docs/09-CI_CD_PIPELINE.md` (`ci-frontend.yml` + `deploy-frontend.yml`). Summary:
+**CI/CD:** Full pipeline in `docs/09-CI_CD_PIPELINE.md` and `.github/workflows/deploy-staging.yml`. Summary:
 - PR gate: ESLint, `tsc --noEmit`, Vitest, Playwright, Gitleaks
 - Merge to `main`: build → GAR, deploy Cloud Run staging (auto), production (1 reviewer required)
 - Smoke test: `curl` against Cloud Run URL after deploy

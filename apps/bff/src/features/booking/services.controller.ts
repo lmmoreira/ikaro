@@ -8,38 +8,50 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
-import { z } from 'zod';
-import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
+import {
+  ServiceIntakeSchemaResponse,
+  StaffServiceEditViewResponse,
+  StaffServiceListResponse,
+  StaffServiceResponse,
+} from '@ikaro/types';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
-import { ServiceDetail, ServiceListResponse } from './services.types';
-import { toStaffServiceListResponse, toStaffServiceResponse } from './services.mapper';
+import {
+  GetServiceIntakeSchemaResult,
+  PublishServiceIntakeSchemaResult,
+  ServiceDetail,
+  ServiceListResponse,
+  UpdateServiceBookingPolicyResult,
+  UpdateServiceLegsResult,
+  UpdateServiceResourceRequirementsResult,
+} from './services.types';
+import {
+  toServiceIntakeSchemaResponse,
+  toStaffServiceEditViewResponse,
+  toStaffServiceListResponse,
+  toStaffServiceResponse,
+} from './services.mapper';
+import {
+  CreateServiceBody,
+  CreateServiceBodySchema,
+  PublishServiceIntakeSchemaBody,
+  PublishServiceIntakeSchemaBodySchema,
+  UpdateServiceBody,
+  UpdateServiceBodySchema,
+  UpdateServiceBookingPolicyBody,
+  UpdateServiceBookingPolicyBodySchema,
+  UpdateServiceLegsBody,
+  UpdateServiceLegsBodySchema,
+  UpdateServiceResourceRequirementsBody,
+  UpdateServiceResourceRequirementsBodySchema,
+} from './services.schemas';
 
-const CreateServiceBodySchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  priceAmount: z.number().positive(),
-  durationMinutes: z.number().int().positive(),
-  loyaltyPointsValue: z.number().int().min(0),
-  requiresPickupAddress: z.boolean().optional(),
-  isActive: z.boolean().optional(),
-});
-
-const UpdateServiceBodySchema = z
-  .object({
-    name: z.string().min(1).optional(),
-    description: z.string().nullable().optional(),
-    priceAmount: z.number().positive().optional(),
-    durationMinutes: z.number().int().positive().optional(),
-    loyaltyPointsValue: z.number().int().min(0).optional(),
-    requiresPickupAddress: z.boolean().optional(),
-  })
-  .default({});
-
-type CreateServiceBody = z.infer<typeof CreateServiceBodySchema>;
-type UpdateServiceBody = z.infer<typeof UpdateServiceBodySchema>;
+// Request Zod schemas moved to services.schemas.ts — re-exported here so existing
+// imports of these symbols from this file keep working unchanged.
+export * from './services.schemas';
 
 @Controller('services')
 export class ServicesController {
@@ -57,6 +69,19 @@ export class ServicesController {
   async getOne(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<StaffServiceResponse> {
     const result = await this.backendHttp.get<ServiceDetail>(`/services/${id}`);
     return toStaffServiceResponse(result);
+  }
+
+  // The Serviços edit page's composite read — owns the fan-out so `apps/web` consumes one contract.
+  @Get(':id/edit-view')
+  @Roles('MANAGER', 'STAFF')
+  async getEditView(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<StaffServiceEditViewResponse> {
+    const [service, intakeSchema] = await Promise.all([
+      this.backendHttp.get<ServiceDetail>(`/services/${id}`),
+      this.backendHttp.get<GetServiceIntakeSchemaResult>(`/services/${id}/intake-schema`),
+    ]);
+    return toStaffServiceEditViewResponse(service, intakeSchema);
   }
 
   @Post()
@@ -78,6 +103,69 @@ export class ServicesController {
   ): Promise<StaffServiceResponse> {
     const result = await this.backendHttp.patch<ServiceDetail>(`/services/${id}`, body);
     return toStaffServiceResponse(result);
+  }
+
+  @Patch(':id/resource-requirements')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  async updateResourceRequirements(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceResourceRequirementsBodySchema))
+    body: UpdateServiceResourceRequirementsBody,
+  ): Promise<UpdateServiceResourceRequirementsResult> {
+    return this.backendHttp.patch<UpdateServiceResourceRequirementsResult>(
+      `/services/${id}/resource-requirements`,
+      body,
+    );
+  }
+
+  @Put(':id/legs')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  async updateLegs(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceLegsBodySchema)) body: UpdateServiceLegsBody,
+  ): Promise<UpdateServiceLegsResult> {
+    return this.backendHttp.put<UpdateServiceLegsResult>(`/services/${id}/legs`, body);
+  }
+
+  @Patch(':id/booking-policy')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  async updateBookingPolicy(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceBookingPolicyBodySchema))
+    body: UpdateServiceBookingPolicyBody,
+  ): Promise<UpdateServiceBookingPolicyResult> {
+    return this.backendHttp.patch<UpdateServiceBookingPolicyResult>(
+      `/services/${id}/booking-policy`,
+      body,
+    );
+  }
+
+  @Post(':id/intake-schema')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles('MANAGER', 'STAFF')
+  async publishIntakeSchema(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(PublishServiceIntakeSchemaBodySchema))
+    body: PublishServiceIntakeSchemaBody,
+  ): Promise<PublishServiceIntakeSchemaResult> {
+    return this.backendHttp.post<PublishServiceIntakeSchemaResult>(
+      `/services/${id}/intake-schema`,
+      body,
+    );
+  }
+
+  @Get(':id/intake-schema')
+  @Roles('MANAGER', 'STAFF')
+  async getIntakeSchema(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<ServiceIntakeSchemaResponse> {
+    const result = await this.backendHttp.get<GetServiceIntakeSchemaResult>(
+      `/services/${id}/intake-schema`,
+    );
+    return toServiceIntakeSchemaResponse(result);
   }
 
   @Patch(':id/activate')

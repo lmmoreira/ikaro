@@ -66,3 +66,57 @@ export function startOfDayUTC(date: string): string {
 export function endOfDayUTC(date: string): string {
   return `${date}T23:59:59.999Z`;
 }
+
+/**
+ * Adds `months` calendar months to a Date, clamping to the shorter month's last day where
+ * needed (e.g. Jan 31 + 1 month => Feb 28, not the overflow a plain `Date.setMonth()` call would
+ * produce by spilling into March). Use for month-based expiry windows computed once at insert
+ * time (e.g. LeadFormSubmission.expiresAt from the tenant's retentionMonths).
+ */
+export function addMonthsUTC(date: Date, months: number): Date {
+  return DateTime.fromJSDate(date, { zone: 'utc' }).plus({ months }).toJSDate();
+}
+
+/**
+ * Returns the [start, end] UTC instant boundaries of "today" in the given IANA timezone, as of
+ * `now`. Use this for a per-tenant local-calendar-day range query against a UTC-stored timestamp
+ * column (e.g. a daily submission-cap COUNT) — resolving a local date via `utcDateToLocalDate()`
+ * and then re-interpreting that YYYY-MM-DD string as a *UTC* day via `startOfDayUTC()`/
+ * `endOfDayUTC()` silently miscounts rows near local midnight for any non-UTC timezone (PR #417
+ * review finding, M20-S02, 2026-08-24): a submission at 22:00 local (America/Sao_Paulo, UTC-3) on
+ * Aug 24 lands at 01:00 UTC on Aug 25 — outside a UTC-day-24 window even though it's still local
+ * Aug 24. Passing real UTC instant boundaries end-to-end (this function) avoids the round-trip
+ * through an ambiguous bare date string entirely.
+ */
+export function localDayBoundsUTC(now: Date, timezone: string): { start: Date; end: Date } {
+  const zoned = DateTime.fromJSDate(now, { zone: 'utc' }).setZone(timezone);
+  return {
+    start: zoned.startOf('day').toUTC().toJSDate(),
+    end: zoned.endOf('day').toUTC().toJSDate(),
+  };
+}
+
+/**
+ * Converts a [from, to] YYYY-MM-DD calendar-date range — both inclusive, expressed in the given
+ * IANA timezone — into half-open UTC instant boundaries: [start of `from`'s local day, start of
+ * the day *after* `to`'s local day). Use this instead of startOfDayUTC()/endOfDayUTC() whenever
+ * the date strings are a tenant-local calendar range being compared against a UTC-stored instant
+ * column — startOfDayUTC()/endOfDayUTC() re-interpret the string as if it were already a UTC day,
+ * the same class of bug localDayBoundsUTC() above documents (PR #417, M20-S02): a resource_
+ * occupancy row starting at 22:00 local (America/Sao_Paulo, UTC-3) on the 24th lands at 01:00 UTC
+ * on the 25th — a UTC-day-24 window silently excludes it even though it's still local day 24.
+ */
+export function localDateRangeBoundsUTC(
+  from: string,
+  to: string,
+  timezone: string,
+): { start: Date; end: Date } {
+  return {
+    start: DateTime.fromISO(from, { zone: timezone }).startOf('day').toUTC().toJSDate(),
+    end: DateTime.fromISO(to, { zone: timezone })
+      .plus({ days: 1 })
+      .startOf('day')
+      .toUTC()
+      .toJSDate(),
+  };
+}

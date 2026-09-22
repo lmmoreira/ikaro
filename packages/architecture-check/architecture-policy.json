@@ -45,15 +45,27 @@
         "owner": "booking"
       },
       {
+        "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-staff.adapter.ts",
+        "target": "staff",
+        "targetPaths": [
+          "apps/backend/src/contexts/staff/application/use-cases/get-staff-by-id.use-case.ts",
+          "apps/backend/src/contexts/staff/domain/errors/staff-domain.error.ts"
+        ],
+        "rationale": "Booking checks staff active/schedulable status through the existing cross-context adapter (M21-S01, Resource-STAFF-wrap validation).",
+        "owner": "booking"
+      },
+      {
         "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-platform.adapter.ts",
         "target": "platform",
         "targetPaths": [
           "apps/backend/src/contexts/platform/application/ports/frontend-revalidation.port.ts",
           "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts",
-          "apps/backend/src/contexts/platform/application/use-cases/get-tenants.use-case.ts"
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenants.use-case.ts",
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-business-hours-for-update.use-case.ts"
         ],
-        "rationale": "Booking uses platform settings through the existing cross-context adapter.",
-        "owner": "booking"
+        "rationale": "Booking uses platform settings through the existing cross-context adapter; get-tenant-business-hours-for-update.use-case.ts is OpenScheduleUseCase's row-locked, cache-bypassing read of tenant business hours (M21-S03, PR #460 round-7 fix for a stale-cache TOCTOU bug).",
+        "owner": "booking",
+        "reviewBy": "2026-09-30"
       },
       {
         "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-booking.adapter.ts",
@@ -135,6 +147,14 @@
         ],
         "rationale": "Staff reacts to the platform tenant-provisioned domain event.",
         "owner": "staff",
+        "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/booking/infrastructure/events/staff-deactivated.handler.ts",
+        "target": "staff",
+        "targetPaths": ["apps/backend/src/contexts/staff/domain/events/staff-deactivated.event.ts"],
+        "rationale": "Booking reacts to the staff-deactivated domain event to cascade-deactivate the wrapping Resource (M21-S01, UC-048).",
+        "owner": "booking",
         "reviewBy": "2026-09-30"
       },
       {
@@ -390,12 +410,249 @@
       ]
     }
   ],
+  "aggregateValueObjectRegistry": [
+    {
+      "requiredType": "Email",
+      "voFile": "apps/backend/src/shared/value-objects/email.vo.ts",
+      "exactNames": ["email"],
+      "suffixes": ["Email"]
+    },
+    {
+      "requiredType": "PhoneNumber",
+      "voFile": "apps/backend/src/shared/value-objects/phone-number.vo.ts",
+      "exactNames": ["phone"],
+      "suffixes": ["Phone", "PhoneNumber"]
+    },
+    {
+      "requiredType": "Address",
+      "voFile": "apps/backend/src/shared/value-objects/address.ts",
+      "exactNames": ["address"],
+      "suffixes": ["Address"]
+    },
+    {
+      "requiredType": "Slug",
+      "voFile": "apps/backend/src/shared/value-objects/slug.vo.ts",
+      "exactNames": ["slug"],
+      "suffixes": ["Slug"]
+    },
+    {
+      "requiredType": "HexColor",
+      "voFile": "apps/backend/src/shared/value-objects/hex-color.vo.ts",
+      "exactNames": ["color"],
+      "suffixes": ["Color"]
+    },
+    {
+      "requiredType": "Money",
+      "voFile": "apps/backend/src/shared/value-objects/money.ts",
+      "exactNames": ["price", "totalPrice", "totalActualPrice", "discountAmount"],
+      "suffixes": []
+    },
+    {
+      "requiredType": "TimeOfDay",
+      "voFile": "apps/backend/src/shared/value-objects/time-of-day.vo.ts",
+      "exactNames": ["startTime", "endTime"],
+      "suffixes": []
+    },
+    {
+      "requiredType": "Timezone",
+      "voFile": "apps/backend/src/shared/value-objects/timezone.vo.ts",
+      "exactNames": ["timezone"],
+      "suffixes": []
+    }
+  ],
+  "voConstructionValidationRegistry": [
+    {
+      "ownerClass": "TenantSettings",
+      "ownerFile": "apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts",
+      "propertyPath": "businessInfo.email",
+      "requiredVo": "Email",
+      "requiredVoFile": "apps/backend/src/shared/value-objects/email.vo.ts",
+      "validatorFile": "apps/backend/src/contexts/platform/domain/value-objects/validators/business-info.validator.ts"
+    },
+    {
+      "ownerClass": "TenantSettings",
+      "ownerFile": "apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts",
+      "propertyPath": "notification.fromEmail",
+      "requiredVo": "Email",
+      "requiredVoFile": "apps/backend/src/shared/value-objects/email.vo.ts",
+      "validatorFile": "apps/backend/src/contexts/platform/domain/value-objects/validators/notification-settings.validator.ts"
+    }
+  ],
+  "closedEnumRegistry": [
+    {
+      "name": "HotsiteModuleType",
+      "canonical": {
+        "path": "packages/validation/src/hotsite.ts",
+        "kind": "constArray",
+        "exportName": "HOTSITE_MODULE_TYPES"
+      },
+      "mirror": {
+        "path": "packages/types/src/enums.ts",
+        "kind": "union",
+        "exportName": "HotsiteModuleType"
+      },
+      "rationale": "packages/types/src/enums.ts must always exactly mirror packages/validation's canonical, backend/BFF-only HOTSITE_MODULE_TYPES -- no permitted lag in either direction. It historically lagged behind during LEAD_FORM's staged rollout (M20-S01 -> M20-S07); this entry closes that exact gap going forward -- a new module type must land in both files in the same change.",
+      "owner": "platform",
+      "reviewBy": "2027-03-01"
+    }
+  ],
+  "testDataHarnessRegistrations": [
+    {
+      "file": "apps/backend/src/test/integration-global-setup.ts",
+      "completeness": "complete",
+      "requiresMigrations": true,
+      "rationale": "Full DB bootstrap shared by every integration spec — must carry every production entity and migration or a new one silently errors on first query (docs/ENGINEERING_RULES.md § Migration / entity registration)."
+    },
+    {
+      "file": "apps/backend/src/test/test-datasource.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "LeadFormConfigEntity",
+        "ServiceEntity",
+        "ServiceResourceRequirementEntity",
+        "ServiceResourceRequirementPoolEntity",
+        "ServiceLegEntity",
+        "ServiceLegResourceRequirementEntity",
+        "ServiceLegResourceRequirementPoolEntity",
+        "ServiceClassResourcePoolEntity",
+        "ServiceBookingIntakeSchemaEntity",
+        "BookingAttendeeEntity",
+        "ResourceEntity",
+        "ScheduleClosureEntity",
+        "ScheduleOpeningEntity",
+        "BookingEntity",
+        "BookingLineEntity",
+        "CustomerEntity",
+        "StaffEntity",
+        "NotificationLogEntity",
+        "LoyaltyEntryEntity",
+        "LoyaltyBalanceEntity",
+        "LoyaltyRedemptionEntity",
+        "BalanceExpiryLogEntity",
+        "InboxRecordEntity",
+        "OutboxEventEntity",
+        "ChatbotSessionEntity",
+        "ChatbotMessageEntity",
+        "ChatbotProviderBalanceEntity",
+        "LeadFormSubmissionEntity",
+        "LeadFormAnswerEntity",
+        "BookingLineResourceAssignmentEntity",
+        "ResourceOccupancyEntity"
+      ],
+      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so the resource-occupancy repository's own integration spec can round-trip the exclusivity-lock tables."
+    },
+    {
+      "file": "apps/backend/src/test/utils/booking-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "CustomerEntity",
+        "ServiceEntity",
+        "ServiceResourceRequirementEntity",
+        "ServiceResourceRequirementPoolEntity",
+        "ServiceLegEntity",
+        "ServiceLegResourceRequirementEntity",
+        "ServiceLegResourceRequirementPoolEntity",
+        "ServiceClassResourcePoolEntity",
+        "ServiceBookingIntakeSchemaEntity",
+        "BookingAttendeeEntity",
+        "ScheduleClosureEntity",
+        "ScheduleOpeningEntity",
+        "BookingEntity",
+        "BookingLineEntity",
+        "ResourceEntity",
+        "StaffEntity",
+        "InboxRecordEntity",
+        "BookingLineResourceAssignmentEntity",
+        "ResourceOccupancyEntity"
+      ],
+      "rationale": "Booking context integration app — scoped to booking's own aggregates plus the platform/customer/staff read dependencies it needs. StaffEntity was added in M21-S01 for the StaffDeactivatedHandler cross-context integration test (UC-048), which needs a real Staff row to deactivate via DeactivateStaffUseCase. The M22-S01 Service child-table entities (resource requirements, legs, class resource pool) were added so ServiceController's integration spec can exercise PATCH .../resource-requirements and PUT .../legs against real tables. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added so the same spec can exercise PATCH .../booking-policy and POST .../intake-schema against real tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so booking.controller.integration.spec.ts's request/approve/reschedule/reject/cancel flows exercise the real exclusivity-lock tables end-to-end."
+    },
+    {
+      "file": "apps/backend/src/test/utils/customer-integration-app.ts",
+      "completeness": "partial",
+      "entities": ["TenantEntity", "HotsiteConfigEntity", "CustomerEntity", "InboxRecordEntity"],
+      "rationale": "Customer context integration app — scoped to customer plus its platform read dependency."
+    },
+    {
+      "file": "apps/backend/src/test/utils/loyalty-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "CustomerEntity",
+        "LoyaltyEntryEntity",
+        "LoyaltyBalanceEntity",
+        "LoyaltyRedemptionEntity",
+        "BalanceExpiryLogEntity",
+        "InboxRecordEntity"
+      ],
+      "rationale": "Loyalty context integration app — scoped to loyalty's own aggregates plus its platform/customer read dependencies."
+    },
+    {
+      "file": "apps/backend/src/test/utils/notification-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "StaffEntity",
+        "NotificationLogEntity",
+        "NotificationTemplateEntity",
+        "InboxRecordEntity",
+        "OutboxEventEntity"
+      ],
+      "rationale": "Notification context integration app — scoped to notification's own aggregates plus its platform/staff read dependencies. Callers may additionally pass a runtime `...extraEntities` spread — the detector only checks this static list, not the spread."
+    },
+    {
+      "file": "apps/backend/src/test/utils/platform-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "LeadFormConfigEntity",
+        "LeadFormSubmissionEntity",
+        "LeadFormAnswerEntity",
+        "InboxRecordEntity",
+        "ChatbotSessionEntity",
+        "ChatbotMessageEntity",
+        "ChatbotProviderBalanceEntity"
+      ],
+      "rationale": "Platform context integration app — scoped to platform's own aggregates. LeadFormSubmissionEntity added M20-S06 for the new admin submissions list/detail controller integration tests. LeadFormAnswerEntity added M20-S12 for the new search/filters/filter-options controller integration tests."
+    }
+  ],
   "exceptions": [
+    {
+      "rule": "knip-unused-dependency",
+      "path": ".",
+      "name": "dependency-cruiser",
+      "rationale": "Invoked by scripts/dep-cruise.cjs via spawnSync against the resolved node_modules/dependency-cruiser/bin/dependency-cruise.mjs binary path, never through a JS import/require('dependency-cruiser') statement — knip's dependency-usage graph can only trace the latter.",
+      "owner": "architecture-check",
+      "reviewBy": "2027-02-22"
+    },
+    {
+      "rule": "knip-unresolved-import",
+      "path": "packages/config",
+      "name": "next",
+      "rationale": "tsconfig.nextjs.json's `compilerOptions.plugins: [{ name: \"next\" }]` is a TypeScript-language-service plugin declaration (editor/tsc IntelliSense only), not a runtime import — knip's unresolved-import check misreads the plugin `name` field as a module specifier. packages/config has no dependency on next itself; the real consumer (apps/web) already declares it.",
+      "owner": "architecture-check",
+      "reviewBy": "2027-02-22"
+    },
     {
       "rule": "error-mapper-coverage",
       "class": "EmailDeliveryException",
       "path": "apps/backend/src/contexts/notification/domain/errors/notification-domain.error.ts",
       "rationale": "Notification delivery failures are consumed by asynchronous event handlers and have no HTTP transport mapper.",
+      "owner": "notification",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "shared-vo-error-mapper-coverage",
+      "context": "notification",
+      "path": "apps/backend/src/contexts/notification/domain/notification-log.aggregate.ts",
+      "rationale": "notification is fully event-driven and has no contexts/notification/infrastructure/http/notification-error.mapper.ts at all — same reasoning as the EmailDeliveryException error-mapper-coverage exception above: notification-log.aggregate.ts (this path) constructs Email, but any validation failure there is handled by the async event-handler flow, never an HTTP transport mapper.",
       "owner": "notification",
       "reviewBy": "2026-09-30"
     },
@@ -457,6 +714,13 @@
     },
     {
       "rule": "raw-fetch-web",
+      "path": "apps/web/features/platform/hotsite/api/lead-form.ts",
+      "rationale": "submitLeadFormClient() calls /api/platform/lead-form/submissions, this app's own Route Handler, not the BFF directly — that route reads the session cookie server-side and forwards it as Authorization: Bearer for a logged-in customer submission (UC-040), mirroring createCustomerAttachmentSignedUrl()'s exact reasoning (TD31 Story 7 pattern, M20-S09 story-discovery).",
+      "owner": "web",
+      "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "raw-fetch-web",
       "path": "apps/web/features/booking/api/public.ts",
       "rationale": "createAttachmentSignedUrl()/createGuestAttachmentSignedUrl() call /api/bookings/attachments/signed-url, this app's own Route Handler, not the BFF directly — the route deliberately ignores any leftover cookie when a guestToken is present in the body; routing through bffClient's generic gateway would transparently forward whatever cookie the browser has and risk misattributing the upload (TD31 Story 7, 2026-07-31).",
       "owner": "web",
@@ -475,6 +739,188 @@
       "rationale": "Calls the public ViaCEP Brazilian postal-code lookup API (viacep.com.br) — an approved third-party service, not the BFF/backend.",
       "owner": "web",
       "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "max-lines-aggregate",
+      "path": "apps/backend/src/contexts/booking/domain/booking.aggregate.ts",
+      "rationale": "TD37-S05: a domain aggregate with many small, cohesive methods naturally exceeds the 250-line file cap even after extracting every type/mapper that could safely move out (booking.types.ts) — splitting Booking's remaining methods across files to satisfy the metric would fragment one cohesive domain concept, not reduce real complexity (max-lines-per-function still applies and is enforced/fixed on this file).",
+      "owner": "booking",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "max-lines-aggregate",
+      "path": "apps/backend/src/contexts/booking/domain/service.aggregate.ts",
+      "rationale": "M22-S01: same shape as booking.aggregate.ts's own exception above — Service's props/create-input interfaces already moved out to service.types.ts, and its own eligibility/booking-model-matching assertions moved out to resource-requirement-availability.ts; the remaining overage is inherent to the aggregate's cohesive method set (create/reconstitute/update/setResourceRequirements/setLegs/setBufferAfterMinutes/changeBookingModel/activate/deactivate), not something a further file split would meaningfully reduce (max-lines-per-function still applies and is enforced/fixed on this file).",
+      "owner": "booking",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "aggregate-primitive-vo",
+      "path": "apps/backend/src/contexts/platform/domain/lead-form-submission.aggregate.ts",
+      "property": "ipAddress",
+      "rationale": "M20-S02: naming-heuristic false positive — the registry's `Address` concept matches any property name ending in the literal suffix 'Address', but LeadFormSubmission.ipAddress is a network IP address (abuse-investigation trail / rate-limit key, VARCHAR(45), docs/13-DATABASE_SCHEMA.md), not a postal address (street/city/state/zipCode). The same real-world concept already exists elsewhere in this codebase as a plain string with no VO — ChatbotSession.clientIp (chatbot-session.aggregate.ts) — which only avoided this same flag because its property name doesn't happen to end in 'Address'.",
+      "owner": "platform",
+      "reviewBy": "2027-08-24"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/contexts/platform/infrastructure/llm/openrouter-credits.client.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The test must load the client after jest.mock('undici') so module-level transport initialization uses the mocked implementation; a static import would load it before the mock setup.",
+      "owner": "platform",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The test must load the adapter after jest.mock('undici') so module-level transport initialization uses the mocked implementation; a static import would load it before the mock setup.",
+      "owner": "platform",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/eslint/persistence-boundary.eslint.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The regression test loads the real CommonJS ESLint configuration dynamically so it can execute the production config rather than duplicate its rules.",
+      "owner": "architecture-check",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/eslint/restricted-imports-syntax.eslint.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The regression test loads the real CommonJS ESLint configuration dynamically so it can execute the production config rather than duplicate its rules.",
+      "owner": "architecture-check",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/backend/src/shared/utils/fetch-and-parse-json.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The test must load the module after jest.mock('undici') so module-level dispatcher construction uses the mocked transport; a static import would load it before the mock setup.",
+      "owner": "shared-infrastructure",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shared/lib/eslint/restricted-syntax.eslint.spec.ts",
+      "name": "@typescript-eslint/no-require-imports",
+      "rationale": "The regression test loads the real CommonJS ESLint configuration dynamically so it can execute the production config rather than duplicate its rules.",
+      "owner": "architecture-check",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shared/lib/i18n/resolve-error-message.ts",
+      "name": "no-console:missing-placeholder",
+      "rationale": "Development-only placeholder mismatch and unknown-error warnings are deliberate observability signals for translation/catalog drift; replacing them with a user-facing logger would hide the local diagnostic signal.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shared/lib/i18n/resolve-error-message.ts",
+      "name": "no-console:extra-param",
+      "rationale": "Development-only placeholder mismatch and unknown-error warnings are deliberate observability signals for translation/catalog drift; replacing them with a user-facing logger would hide the local diagnostic signal.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shared/lib/i18n/resolve-error-message.ts",
+      "name": "no-console:unknown-code",
+      "rationale": "Development-only placeholder mismatch and unknown-error warnings are deliberate observability signals for translation/catalog drift; replacing them with a user-facing logger would hide the local diagnostic signal.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/PhotoTile.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/dashboard/bookings/AfterServicePhotoUpload.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/dashboard/bookings/MarkCompleteSuccessView.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/booking/components/public/PhotoUpload.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/customer/components/my-account/CustomerPhotoUpload.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Customer photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/platform/components/hotsite/SingleImageUploadField.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Hotsite editor previews render local object URLs or runtime-signed asset URLs before publication; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/platform/components/hotsite/modules/BookingPhotoThumbnailGroup.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Hotsite editor previews render local object URLs or runtime-signed asset URLs before publication; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/features/platform/components/hotsite/modules/GalleryImageManager.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Hotsite editor previews render local object URLs or runtime-signed asset URLs before publication; the native element is intentionally limited to this preview boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shells/hotsite/components/GalleryGrid.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "Published gallery images use runtime asset URLs whose optimization contract is owned by the hotsite storage boundary; the native element is intentionally limited to this gallery rendering boundary.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "eslint-suppression",
+      "path": "apps/web/shells/hotsite/components/GalleryGrid.spec.tsx",
+      "name": "@next/next/no-img-element",
+      "rationale": "This fixture intentionally renders the gallery's native runtime-image boundary so the component test exercises the same published gallery markup as production.",
+      "owner": "web",
+      "reviewBy": "2026-11-30"
     }
   ],
   "projects": [

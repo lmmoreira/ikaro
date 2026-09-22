@@ -31,19 +31,19 @@ function parseNonNegativeInteger(value: string): number | null {
   return Number(value);
 }
 
-export function validateServiceForm(
+function buildServiceFormErrors(
   values: ServiceFormValues,
+  parsed: {
+    trimmedName: string;
+    trimmedDescription: string;
+    price: number;
+    duration: number;
+    points: number | null;
+  },
   t: ServiceFormTranslator,
-): {
-  readonly errors: ServiceFormErrors;
-  readonly normalized: NormalizedServiceFormValues | null;
-} {
-  const trimmedName = values.name.trim();
-  const trimmedDescription = values.description.trim();
-  const price = Number(values.priceAmount);
-  const duration = Number(values.durationMinutes);
-  const points = parseNonNegativeInteger(values.loyaltyPointsValue);
+): ServiceFormErrors {
   const errors: ServiceFormErrors = {};
+  const { trimmedName, trimmedDescription, price, duration, points } = parsed;
 
   if (!trimmedName) {
     errors.name = t('createNameRequired');
@@ -70,6 +70,27 @@ export function validateServiceForm(
   if (points === null) {
     errors.loyaltyPointsValue = t('createPointsInvalid');
   }
+
+  return errors;
+}
+
+export function validateServiceForm(
+  values: ServiceFormValues,
+  t: ServiceFormTranslator,
+): {
+  readonly errors: ServiceFormErrors;
+  readonly normalized: NormalizedServiceFormValues | null;
+} {
+  const trimmedName = values.name.trim();
+  const trimmedDescription = values.description.trim();
+  const price = Number(values.priceAmount);
+  const duration = Number(values.durationMinutes);
+  const points = parseNonNegativeInteger(values.loyaltyPointsValue);
+  const errors = buildServiceFormErrors(
+    values,
+    { trimmedName, trimmedDescription, price, duration, points },
+    t,
+  );
 
   return {
     errors,

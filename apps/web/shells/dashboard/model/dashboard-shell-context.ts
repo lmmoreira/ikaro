@@ -1,5 +1,8 @@
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
+import {
+  fetchLeadFormStatus,
+  fetchTenantSettings,
+} from '@/features/platform/api/tenant-settings.server';
 import { resolveTenantFormatting } from '@/features/platform/model/tenant-settings';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveDateFormat } from '@/shared/lib/formatting/locale-validators';
@@ -13,11 +16,14 @@ export interface DashboardShellContext {
   readonly locale: string;
   readonly messages: Awaited<ReturnType<typeof getMessages>>;
   readonly formatting: ReturnType<typeof resolveTenantFormatting>;
+  // Gates the "Leads" sidebar/bottom-nav item — a tenant that never enabled LEAD_FORM never
+  // sees it, since it would otherwise point at a permanently-empty screen (M20-S10).
+  readonly leadFormEnabled: boolean;
 }
 
 export function buildDashboardShellContext(
   payload: ReturnType<typeof decodeJwtPayload>,
-): Omit<DashboardShellContext, 'messages' | 'formatting'> {
+): Omit<DashboardShellContext, 'messages' | 'formatting' | 'leadFormEnabled'> {
   return {
     tenantName: payload.tenantName ?? '',
     tenantSlug: payload.tenantSlug ?? '',
@@ -33,15 +39,17 @@ export async function loadDashboardShellContext(
   payload: ReturnType<typeof decodeJwtPayload>,
 ): Promise<DashboardShellContext> {
   const base = buildDashboardShellContext(payload);
-  const [messages, tenantSettings] = await Promise.all([
+  const [messages, tenantSettings, leadFormStatus] = await Promise.all([
     getMessages(base.locale),
     fetchTenantSettings(token),
+    fetchLeadFormStatus(token),
   ]);
 
   return {
     ...base,
     messages,
     formatting: resolveTenantFormatting(tenantSettings),
+    leadFormEnabled: leadFormStatus.enabled,
   };
 }
 

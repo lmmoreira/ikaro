@@ -8,8 +8,9 @@
     "pnpm": ">=11"
   },
   "scripts": {
-    "postinstall": "pnpm --filter @ikaro/i18n build && pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build && pnpm --filter @ikaro/types build && pnpm --filter @ikaro/nestjs-http build && pnpm --filter @ikaro/validation build && pnpm --filter @ikaro/http-utils build",
-    "dev": "pnpm -r --parallel run dev",
+    "postinstall": "pnpm build:libs",
+    "build:libs": "pnpm --filter @ikaro/i18n build && pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build && pnpm --filter @ikaro/types build && pnpm --filter @ikaro/nestjs-http build && pnpm --filter @ikaro/validation build && pnpm --filter @ikaro/http-utils build",
+    "dev": "pnpm build:libs && pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
     "up": "pnpm infra:up && pnpm dev",
     "test": "pnpm -r run test",
@@ -24,21 +25,30 @@
     "db:seed": "pnpm --filter @ikaro/backend seed",
     "fix": "pnpm prettier --write . && pnpm -r run lint --fix",
     "pre-pr": "bash scripts/pre-pr.sh",
-    "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test:unit",
+    "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm architecture-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test:unit",
     "ci:integration": "pnpm --filter @ikaro/backend test:integration && pnpm --filter @ikaro/bff test:component && pnpm --filter @ikaro/web test",
     "ci:full": "pnpm ci:fast && pnpm ci:integration",
     "ci:local": "bash scripts/ci-local.sh",
     "architecture-check": "pnpm --filter @ikaro/architecture-check run check",
     "dep-cruise": "node scripts/dep-cruise.cjs",
-    "dep-cruise:test": "node --test scripts/dependency-cruiser-config.spec.cjs"
+    "dep-cruise:test": "node --test scripts/dependency-cruiser-config.spec.cjs",
+    "knip": "knip",
+    "knip:production": "knip --production --strict -W apps/backend -W apps/bff -W apps/web",
+    "knip:test": "node --test scripts/knip-config.spec.cjs",
+    "attw-check": "node scripts/attw-check.cjs",
+    "attw-check:runtime": "node scripts/attw-runtime-smoke.cjs",
+    "attw-check:test": "node --test scripts/attw-check-config.spec.cjs",
+    "pr-round-status:test": "node --test scripts/pr-round-status.spec.cjs"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "dependency-cruiser": "18.1.1",
     "eslint": "^10.6.0",
+    "knip": "^6.32.2",
     "prettier": "^3.9.4",
     "ts-morph": "^28.0.0",
     "typescript": "^6.0.3",

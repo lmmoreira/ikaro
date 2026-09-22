@@ -11,6 +11,7 @@
 
 @baseUrl   = {{backendUrl}}
 @openingId = {{createOpening.response.body.id}}
+@resourceId = 00000000-0000-7000-8000-000000000001
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — list openings in range
@@ -18,6 +19,13 @@
 
 ### List openings (2026-12-01 to 2026-12-31)
 GET {{baseUrl}}/schedule/openings?from=2026-12-01&to=2026-12-31
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### List openings scoped to one resource (omit resourceId for tenant-wide only)
+GET {{baseUrl}}/schedule/openings?from=2026-12-01&to=2026-12-31&resourceId={{resourceId}}
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
 X-Actor-Type: STAFF
@@ -41,6 +49,56 @@ Content-Type: application/json
   "startTime": "09:00",
   "endTime": "14:00",
   "notes": "Special Sunday opening for end-of-year event"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — resource-scoped opening, MANAGER-only (UC-010f, M21 Cluster 1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### POST resource-scoped opening — 201 (set @resourceId to a real Resource id first)
+POST {{baseUrl}}/schedule/openings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00",
+  "resourceId": "{{resourceId}}",
+  "notes": "Extra Sunday for this resource only"
+}
+
+### 403 — STAFF cannot set resourceId (UC-010f)
+POST {{baseUrl}}/schedule/openings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+Content-Type: application/json
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00",
+  "resourceId": "{{resourceId}}"
+}
+
+### 404 — resourceId does not exist or belongs to another tenant (UC-010f A3)
+POST {{baseUrl}}/schedule/openings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00",
+  "resourceId": "00000000-0000-7000-8000-000000000099"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -205,7 +205,7 @@ module "cloudrun_backend" {
       # apply (a new Cloud Run revision, no application code build/test/deploy) during a real
       # incident, without waiting for the next app release. Final, confirmed values — not
       # placeholders.
-      CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD     = "25"
+      CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD     = "1"
       CHATBOT_MIN_PROVIDER_BALANCE_USD         = "2"
       CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES = "5"
       OUTBOX_CLAIM_LEASE_SECONDS               = "120"
@@ -232,6 +232,10 @@ module "cloudrun_backend" {
     OPENROUTER_API_KEY = module.secrets.secret_ids["openrouter-api-key"]
     ANTHROPIC_API_KEY  = module.secrets.secret_ids["anthropic-api-key"]
     OPENAI_API_KEY     = module.secrets.secret_ids["openai-api-key"]
+    # M20-S14 PR2 of 3: moved here from the BFF (whose ALL_TRAFFIC egress has no Cloud NAT, so
+    # its own outbound siteverify call had no route out). PR1 already granted this SA accessor
+    # rights on the existing secret container — see runtime-identities/main.tf's own comment.
+    TURNSTILE_SECRET_KEY = module.secrets.secret_ids["turnstile-secret-key"]
     # M19-S08: distinct Management/Provisioning key, not OPENROUTER_API_KEY above — see
     # SECRETS.md. Per TD39, the foundation SA accessor grant lands in a genuine follow-up PR
     # (can't be in the same PR as this envs/* change) — until that grant is applied AND a real
@@ -358,6 +362,7 @@ module "cloudrun_web" {
     BFF_UPSTREAM_URL                   = "${module.cloudrun_bff.service_uri}/v1"
     NEXT_PUBLIC_SITE_URL               = var.web_real_uri
     NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY     = var.turnstile_site_key
 
     # TD38: BFF only accepts calls carrying a valid Google ID token now — web mints one and
     # attaches it on every server-side call (route.ts, bff-server.ts).

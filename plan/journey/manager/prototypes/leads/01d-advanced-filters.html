@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leads — busca avançada — BeloAuto Demo</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .filter-row { display:grid; grid-template-columns:1fr 1fr auto; gap:0.625rem; align-items:center; margin-bottom:0.625rem; }
+    .filter-remove { background:none; border:none; color:#dc2626; cursor:pointer; font-size:1rem; padding:0.375rem; }
+    .filter-panel { background:var(--ba-secondary); border-radius:var(--ba-radius); padding:1rem; margin-bottom:1rem; }
+    .filter-and-label { font-size:0.75rem; font-weight:700; text-transform:uppercase; opacity:0.5; margin:0.375rem 0; }
+    .pagination { display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-top:1.25rem; }
+    .page-btn { padding:0.375rem 0.75rem; border:1px solid var(--ba-secondary); border-radius:var(--ba-radius); background:white; font-size:0.8125rem; cursor:pointer; }
+    .page-btn.active { background:#2563eb; color:white; border-color:#2563eb; }
+    .date-range-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:1.25rem; flex-wrap:wrap; }
+    .filter-hint { font-size:0.75rem; opacity:0.5; margin:0 0 0.75rem; }
+    @media (max-width: 480px) {
+      .filter-row { grid-template-columns:1fr; }
+      .date-range-row { flex-direction:column; align-items:stretch; }
+      .date-range-row input[type="date"] { max-width:none !important; width:100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    Variant: UC-041 step 4-5 / A4-A5 — advanced structured search + date range, added
+    post-promotion 2026-08-23 (M20-S12/S13). Distinct interaction pattern from
+    01-submissions-list.html's basic search box (mutually exclusive modes, per the backend's
+    own contract) — deserves its own screen rather than being described only in prose.
+
+    Every filter row is ANDed (not OR) — this is the whole point vs. the basic search box,
+    which can't correctly attribute a match to a specific question. Example shown: "Qual seu
+    estado civil?" contém "casado" E "Onde você mora?" contém "São Paulo" -> only submissions
+    matching BOTH.
+
+    COMPONENT (GAP): LeadFormAdvancedFilters (child of LeadFormSubmissionsList)
+    FILE: apps/web/app/dashboard/leads/page.tsx (GAP)
+    BFF CALL: GET /v1/tenants/lead-form/submissions/filter-options (STAFF|MANAGER)
+      Response: { questionLabels: string[] } — populates the "pergunta" dropdown, includes
+      questions since edited/removed from the live config (matches by snapshot, not live config).
+    BFF CALL: GET /v1/tenants/lead-form/submissions?filters=[{"questionLabel":"...","value":"..."}]
+      Each filter's value requires >= 3 characters (same pg_trgm constraint as basic search).
+      Max 5 filter rows.
+      &submittedFrom=&submittedTo= (UC-041 step 5, A5): date range, ORTHOGONAL to filters —
+      combines via AND with the filters above, tenant-timezone resolved server-side.
+  -->
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand"><div class="topbar-logo-mark">B</div><span class="topbar-tenant-name">BeloAuto Demo</span></div>
+    <h1 class="topbar-page-title">Leads</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">23 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">B</div>
+        <div><p class="sidebar-tenant-name">BeloAuto Demo</p><p class="sidebar-tenant-slug">@beloauto</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Serviços</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Fidelidade</a>
+        <a class="sidebar-nav-item active" href="01-submissions-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="9" y1="9" x2="10" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>Leads</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../equipe/01-team-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a>
+        <a class="sidebar-nav-item" href="../configuracoes/01-settings-form.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
+        <a class="sidebar-nav-item" href="../hotsite/01-hotsite-editor.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <h2 style="font-size:1rem;font-weight:700;color:var(--ba-text);">Busca avançada</h2>
+          <a href="01-submissions-list.html" class="btn-secondary" style="font-size:0.8125rem;padding:0.5rem 0.875rem;">Voltar para busca simples</a>
+        </div>
+
+        <div class="filter-panel">
+          <p class="form-hint" style="margin-top:0;margin-bottom:0.75rem;">Todos os filtros abaixo são combinados com "E" — só aparecem envios que atendem a todos ao mesmo tempo.</p>
+
+          <div class="filter-row">
+            <select class="form-input">
+              <option>Selecione uma pergunta...</option>
+              <option selected>Qual seu estado civil?</option>
+              <option>Onde você mora?</option>
+              <option>Qual serviço te interessa?</option>
+            </select>
+            <input type="text" class="form-input" placeholder="Contém... (mín. 3 caracteres)" value="casado">
+            <button class="filter-remove" title="Remover filtro">✕</button>
+          </div>
+
+          <p class="filter-and-label">E</p>
+
+          <div class="filter-row">
+            <select class="form-input">
+              <option>Selecione uma pergunta...</option>
+              <option>Qual seu estado civil?</option>
+              <option selected>Onde você mora?</option>
+              <option>Qual serviço te interessa?</option>
+            </select>
+            <input type="text" class="form-input" placeholder="Contém... (mín. 3 caracteres)" value="São Paulo">
+            <button class="filter-remove" title="Remover filtro">✕</button>
+          </div>
+
+          <button type="button" class="btn-secondary" style="margin-top:0.5rem;padding:0.5rem 0.875rem;font-size:0.8125rem;">+ Adicionar filtro</button>
+          <p class="form-hint" style="margin-top:0.5rem;">Até 5 filtros por busca. A lista de perguntas inclui perguntas já removidas ou editadas do formulário atual — a busca considera a pergunta como estava no momento do envio.</p>
+        </div>
+
+        <!--
+          Date range — orthogonal to the filters above, same &submittedFrom=&submittedTo=
+          contract as 01-submissions-list.html's basic-mode version. PROTOTYPE ONLY: native
+          <input type="date">; REAL implementation uses shadcn/ui's Calendar (range mode) —
+          see dev-notes.md.
+        -->
+        <p class="filter-hint">O período abaixo funciona junto com os filtros acima (E) — não é mais um filtro do mesmo tipo.</p>
+        <div class="date-range-row">
+          <label class="form-label" for="date-from" style="margin-bottom:0;">De</label>
+          <input type="date" id="date-from" class="form-input" style="max-width:11rem;">
+          <label class="form-label" for="date-to" style="margin-bottom:0;">Até</label>
+          <input type="date" id="date-to" class="form-input" style="max-width:11rem;">
+        </div>
+
+        <div style="display:flex;gap:0.75rem;margin-bottom:1.25rem;">
+          <a href="01-submissions-list.html" class="btn-primary">Aplicar filtros</a>
+          <a href="01-submissions-list.html" class="btn-secondary">Limpar filtros</a>
+        </div>
+
+        <p style="opacity:0.6;font-size:0.875rem;margin-bottom:1rem;">14 envios encontrados</p>
+
+        <div class="card" style="padding:0 1rem;">
+          <a href="02-submission-detail.html" class="lead-row" style="display:flex;align-items:center;gap:0.875rem;padding:0.875rem 0;border-bottom:1px solid var(--ba-secondary);text-decoration:none;color:inherit;">
+            <div class="list-avatar">MF</div>
+            <div style="flex:1;min-width:0;">
+              <p style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Maria Fernanda Costa</p>
+              <p style="font-size:0.8125rem;opacity:0.55;color:var(--ba-text);margin-top:0.125rem;">maria.fernanda@email.com · (11) 97777-1234</p>
+            </div>
+            <p style="font-size:0.75rem;opacity:0.45;white-space:nowrap;">21 ago, 09:15</p>
+          </a>
+          <a href="02-submission-detail.html" class="lead-row" style="display:flex;align-items:center;gap:0.875rem;padding:0.875rem 0;text-decoration:none;color:inherit;">
+            <div class="list-avatar list-avatar-2">RS</div>
+            <div style="flex:1;min-width:0;">
+              <p style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Roberta Salave</p>
+              <p style="font-size:0.8125rem;opacity:0.55;color:var(--ba-text);margin-top:0.125rem;">roberta.s@email.com · (11) 96666-4321</p>
+            </div>
+            <p style="font-size:0.75rem;opacity:0.45;white-space:nowrap;">20 ago, 18:02</p>
+          </a>
+        </div>
+
+        <!--
+          Pagination applies identically here — same GET .../submissions?page=&pageSize=
+          contract as the unfiltered/basic-search list (01-submissions-list.html), just
+          combined with &filters=. Not a separate paging mechanism for filtered results.
+        -->
+        <div class="pagination">
+          <button class="page-btn" disabled style="opacity:0.4;">‹</button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">›</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a>
+    <a class="bottom-nav-item active" href="01-submissions-list.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="9" y1="9" x2="10" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>Leads</a>
+    <button class="bottom-nav-item" onclick="openSheet()"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button>
+  </nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item" href="../equipe/01-team-list.html"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a>
+    <a class="bottom-sheet-item" href="../configuracoes/01-settings-form.html"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
+    <a class="bottom-sheet-item" href="../hotsite/01-hotsite-editor.html"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
+    <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
+      <a href="../../../shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sair</a>
+    </div>
+  </div>
+
+  <script>
+    function openSheet() {
+      document.getElementById('manager-sheet').classList.add('open');
+      document.getElementById('sheet-backdrop').classList.add('open');
+    }
+    function closeSheet() {
+      document.getElementById('manager-sheet').classList.remove('open');
+      document.getElementById('sheet-backdrop').classList.remove('open');
+    }
+  </script>
+
+</body>
+</html>

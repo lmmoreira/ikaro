@@ -1,15 +1,17 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { ScheduleOpeningEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
+import { ScheduleOpeningAlreadyExistsError } from '../../domain/errors/booking-domain.error';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { TypeOrmScheduleOpeningRepository } from './typeorm-schedule-opening.repository';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
 const OPENING_ID = '00000000-0000-7000-8000-000000000003';
+const RESOURCE_ID = '00000000-0000-7000-8000-000000000004';
 
 describe('TypeOrmScheduleOpeningRepository', () => {
   let repo: TypeOrmScheduleOpeningRepository;
@@ -24,6 +26,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),
+            exists: jest.fn(),
             save: jest.fn(),
             delete: jest.fn(),
           },
@@ -107,6 +110,22 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       expect(result).toBeInstanceOf(ScheduleOpening);
       expect(result!.date).toBe('2026-12-28');
     });
+
+    it('scopes to tenant-wide (resourceId IS NULL) when resourceId is omitted', async () => {
+      ormRepo.findOne.mockResolvedValue(null);
+      await repo.findByTenantAndDate(TENANT_ID, '2026-12-28');
+      expect(ormRepo.findOne).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID, date: '2026-12-28', resourceId: IsNull() },
+      });
+    });
+
+    it('scopes to the given resourceId when provided', async () => {
+      ormRepo.findOne.mockResolvedValue(null);
+      await repo.findByTenantAndDate(TENANT_ID, '2026-12-28', RESOURCE_ID);
+      expect(ormRepo.findOne).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID, date: '2026-12-28', resourceId: RESOURCE_ID },
+      });
+    });
   });
 
   describe('findByTenantAndDateRange', () => {
@@ -139,6 +158,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       const opening = ScheduleOpening.reconstitute({
         id: OPENING_ID,
         tenantId: TENANT_ID,
+        resourceId: null,
         date: '2026-12-28',
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
@@ -166,6 +186,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       const opening = ScheduleOpening.reconstitute({
         id: OPENING_ID,
         tenantId: TENANT_ID,
+        resourceId: null,
         date: '2026-12-28',
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
@@ -178,6 +199,105 @@ describe('TypeOrmScheduleOpeningRepository', () => {
 
       expect(ormRepo.save).toHaveBeenCalledWith(expect.objectContaining({ notes: null }));
     });
+
+    it('maps resourceId onto the entity', async () => {
+      ormRepo.save.mockResolvedValue(new ScheduleOpeningEntityBuilder().build());
+      const opening = ScheduleOpening.reconstitute({
+        id: OPENING_ID,
+        tenantId: TENANT_ID,
+        resourceId: RESOURCE_ID,
+        date: '2026-12-28',
+        startTime: TimeOfDay.create('09:00'),
+        endTime: TimeOfDay.create('14:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await repo.save(opening);
+
+      expect(ormRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ resourceId: RESOURCE_ID }),
+      );
+    });
+
+    it('translates a concurrent duplicate tenant-wide unique-index violation to ScheduleOpeningAlreadyExistsError', async () => {
+      // OpenScheduleUseCase's pre-check closes the common case; the advisory lock only guards
+      // the tenant-window bound, not this plain duplicate check — this proves the DB partial
+      // unique index is still the authoritative backstop for the rare concurrent race (Codex
+      // PR #460 round-5 finding, mirrors typeorm-resource.repository.spec.ts's equivalent test).
+      ormRepo.save.mockRejectedValue(
+        new QueryFailedError(
+          'INSERT INTO booking.schedule_openings ...',
+          [],
+          Object.assign(new Error(), {
+            code: '23505',
+            constraint: 'UQ_booking_schedule_openings_tenant_date_no_resource',
+          }),
+        ),
+      );
+      const opening = ScheduleOpening.reconstitute({
+        id: OPENING_ID,
+        tenantId: TENANT_ID,
+        resourceId: null,
+        date: '2026-12-28',
+        startTime: TimeOfDay.create('09:00'),
+        endTime: TimeOfDay.create('14:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(repo.save(opening)).rejects.toBeInstanceOf(ScheduleOpeningAlreadyExistsError);
+    });
+
+    it('translates a concurrent duplicate resource-scoped unique-index violation to ScheduleOpeningAlreadyExistsError', async () => {
+      ormRepo.save.mockRejectedValue(
+        new QueryFailedError(
+          'INSERT INTO booking.schedule_openings ...',
+          [],
+          Object.assign(new Error(), {
+            code: '23505',
+            constraint: 'UQ_booking_schedule_openings_tenant_resource_date',
+          }),
+        ),
+      );
+      const opening = ScheduleOpening.reconstitute({
+        id: OPENING_ID,
+        tenantId: TENANT_ID,
+        resourceId: RESOURCE_ID,
+        date: '2026-12-28',
+        startTime: TimeOfDay.create('09:00'),
+        endTime: TimeOfDay.create('14:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(repo.save(opening)).rejects.toBeInstanceOf(ScheduleOpeningAlreadyExistsError);
+    });
+
+    it('rethrows an unrelated QueryFailedError unchanged', async () => {
+      const unrelatedError = new QueryFailedError(
+        'INSERT INTO booking.schedule_openings ...',
+        [],
+        Object.assign(new Error(), { code: '23505', constraint: 'some_other_constraint' }),
+      );
+      ormRepo.save.mockRejectedValue(unrelatedError);
+      const opening = ScheduleOpening.reconstitute({
+        id: OPENING_ID,
+        tenantId: TENANT_ID,
+        resourceId: null,
+        date: '2026-12-28',
+        startTime: TimeOfDay.create('09:00'),
+        endTime: TimeOfDay.create('14:00'),
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await expect(repo.save(opening)).rejects.toBe(unrelatedError);
+    });
   });
 
   describe('delete', () => {
@@ -187,6 +307,27 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       await repo.delete(OPENING_ID, TENANT_ID);
 
       expect(ormRepo.delete).toHaveBeenCalledWith({ id: OPENING_ID, tenantId: TENANT_ID });
+    });
+  });
+
+  describe('existsResourceScopedForDate', () => {
+    it('queries for any non-null resourceId on that tenant/date', async () => {
+      ormRepo.exists.mockResolvedValue(true);
+
+      const result = await repo.existsResourceScopedForDate(TENANT_ID, '2026-12-28');
+
+      expect(result).toBe(true);
+      expect(ormRepo.exists).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID, date: '2026-12-28', resourceId: Not(IsNull()) },
+      });
+    });
+
+    it('returns false when no resource-scoped opening exists for that date', async () => {
+      ormRepo.exists.mockResolvedValue(false);
+
+      const result = await repo.existsResourceScopedForDate(TENANT_ID, '2026-12-28');
+
+      expect(result).toBe(false);
     });
   });
 });

@@ -7,17 +7,11 @@ import { Button } from '@/shared/components/ui/button';
 import { Calendar } from '@/shared/components/ui/calendar';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 import { buildTimeOptions } from './time-options';
+import { TimeSelectField } from './TimeSelectField';
 
 export interface ScheduleDateTimeRangeFormValues {
   readonly date: string;
@@ -173,37 +167,22 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
         {children}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block space-y-2">
-            <span className="block text-sm font-medium text-gray-700">{startTimeLabel}</span>
-            <Select value={startTime} onValueChange={setStartTime}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={timePlaceholder} />
-              </SelectTrigger>
-              <SelectContent container={portalContainer}>
-                {timeOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-
-          <label className="block space-y-2">
-            <span className="block text-sm font-medium text-gray-700">{endTimeLabel}</span>
-            <Select value={endTime} onValueChange={setEndTime}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={timePlaceholder} />
-              </SelectTrigger>
-              <SelectContent container={portalContainer}>
-                {timeOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
+          <TimeSelectField
+            label={startTimeLabel}
+            value={startTime}
+            onValueChange={setStartTime}
+            options={timeOptions}
+            placeholder={timePlaceholder}
+            portalContainer={portalContainer}
+          />
+          <TimeSelectField
+            label={endTimeLabel}
+            value={endTime}
+            onValueChange={setEndTime}
+            options={timeOptions}
+            placeholder={timePlaceholder}
+            portalContainer={portalContainer}
+          />
         </div>
 
         {fullDayHint ? <p className="text-xs text-gray-500">{fullDayHint}</p> : null}

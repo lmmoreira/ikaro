@@ -1,7 +1,10 @@
 import type { TenantSettingsResponse } from '@ikaro/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
+import {
+  fetchLeadFormStatus,
+  fetchTenantSettings,
+} from '@/features/platform/api/tenant-settings.server';
 import { resolveTenantFormatting } from '@/features/platform/model/tenant-settings';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import {
@@ -24,6 +27,7 @@ vi.mock('@/features/platform/api/tenant-settings.server', async (importOriginal)
   return {
     ...actual,
     fetchTenantSettings: vi.fn(),
+    fetchLeadFormStatus: vi.fn(),
   };
 });
 
@@ -81,9 +85,10 @@ describe('buildDashboardShellContext', () => {
 });
 
 describe('loadDashboardShellContext', () => {
-  it('loads localized messages and tenant formatting for the resolved locale', async () => {
+  it('loads localized messages, tenant formatting, and lead-form status for the resolved locale', async () => {
     vi.mocked(getMessages).mockResolvedValue({ dashboard: { servicesPage: {} } } as never);
     vi.mocked(fetchTenantSettings).mockResolvedValue(tenantSettings);
+    vi.mocked(fetchLeadFormStatus).mockResolvedValue({ enabled: true });
 
     const context = await loadDashboardShellContext('token-123', {
       tenantName: 'Lavacar',
@@ -96,6 +101,7 @@ describe('loadDashboardShellContext', () => {
 
     expect(getMessages).toHaveBeenCalledWith('en');
     expect(fetchTenantSettings).toHaveBeenCalledWith('token-123');
+    expect(fetchLeadFormStatus).toHaveBeenCalledWith('token-123');
     expect(context).toMatchObject({
       tenantName: 'Lavacar',
       tenantSlug: 'lavacar',
@@ -105,7 +111,25 @@ describe('loadDashboardShellContext', () => {
       locale: 'en',
       messages: { dashboard: { servicesPage: {} } },
       formatting: resolveTenantFormatting(tenantSettings),
+      leadFormEnabled: true,
     });
+  });
+
+  it('resolves leadFormEnabled to false when the module has never been enabled', async () => {
+    vi.mocked(getMessages).mockResolvedValue({ dashboard: { servicesPage: {} } } as never);
+    vi.mocked(fetchTenantSettings).mockResolvedValue(tenantSettings);
+    vi.mocked(fetchLeadFormStatus).mockResolvedValue({ enabled: false });
+
+    const context = await loadDashboardShellContext('token-123', {
+      tenantName: 'Lavacar',
+      tenantSlug: 'lavacar',
+      tenantId: 'tenant-1',
+      userName: 'Ana',
+      role: 'STAFF',
+      locale: 'en-GB',
+    } as ReturnType<typeof decodeJwtPayload>);
+
+    expect(context.leadFormEnabled).toBe(false);
   });
 });
 

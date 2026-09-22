@@ -107,25 +107,31 @@ Each Bounded Context (e.g., Booking) follows the same internal structure to ensu
 
 ## Folder Structure (Pattern)
 
-Within the monorepo, each context will look like this:
+Within the monorepo, each context looks like this (verified against `apps/backend/src/contexts/booking/`):
 
 ```text
 src/contexts/booking/
-├── domain/                # Pure business logic
-│   ├── entities/
-│   ├── value-objects/
+├── domain/                # Pure business logic — flat, no entities/ subfolder
+│   ├── *.aggregate.ts     # booking.aggregate.ts, service.aggregate.ts, schedule-closure.aggregate.ts, ...
 │   ├── events/
-│   └── services/
+│   ├── commands/          # cron-emitted Command classes (distinct from DomainEvent)
+│   ├── errors/
+│   └── services/          # domain services, e.g. availability.service.ts
 ├── application/           # Orchestration
 │   ├── use-cases/
 │   ├── ports/             # Interfaces (Repositories, Clients)
+│   ├── services/          # application-level services
+│   ├── jobs/               # cron job classes
 │   └── dtos/
-└── infrastructure/        # External implementations
-    ├── adapters/
-    │   ├── persistence/   # Database impl
-    │   ├── clients/       # API/Email impl
-    │   └── controllers/   # REST API
-    └── module.config.ts   # NestJS Module definition
+├── infrastructure/        # External implementations — flat, no adapters/ wrapper
+│   ├── controllers/       # REST API
+│   ├── repositories/      # TypeORM repository adapters
+│   ├── entities/          # TypeORM entity classes
+│   ├── events/            # event/trigger handlers
+│   ├── http/              # <context>-error.mapper.ts
+│   ├── migrations/
+│   └── cross-context/     # sanctioned cross-context Port+Adapter (docs/05-BOUNDED_CONTEXTS.md § Rule 1)
+└── booking.module.ts      # NestJS Module definition — at the context root, not inside infrastructure/
 ```
 
 ---
@@ -144,7 +150,7 @@ src/contexts/booking/
 - **Technology Mapping:**
   - *Publisher:* `BookingContext` completes a wash → `eventBus.publish(new BookingCompleted(data))`.
   - *Subscriber:* `LoyaltyContext` → `eventBus.subscribe('BookingCompleted', handleLoyaltyUpdate)`.
-- **Transactional guarantee (`shared.outbox` / `shared.inbox`, TD24):** `IEventBus.publish()`'s implied contract — a published fact reaches consumers exactly-once *in effect* — is made real by a transactional outbox on the publish side and a shared inbox on the consume side, **for consumers whose write path is idempotency-safe** (loyalty/staff via a DB unique constraint, notification via `shared.inbox`'s atomic `tryClaim`/`unclaim`). One known exception: notification's multi-recipient dispatch (`dispatchTemplatesToMany`) can still resend to already-successful recipients after a partial batch failure — see `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, still open. Both `shared.outbox`/`shared.inbox` are **shared transport infrastructure, not a bounded context** — the same category as Pub/Sub itself, not a 7th context alongside Booking/Loyalty/Notification/Customer/Staff/Platform. See `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section and `td/TD24-OUTBOX-INBOX-PATTERN.md` for the full design.
+- **Transactional guarantee (`shared.outbox` / `shared.inbox`, TD24):** `IEventBus.publish()`'s implied contract — a published fact reaches consumers exactly-once *in effect* — is made real by a transactional outbox on the publish side and a shared inbox on the consume side, **for consumers whose write path is idempotency-safe** (loyalty/staff via a DB unique constraint, notification via `shared.inbox`'s atomic `tryClaim`/`unclaim`). One known exception: notification's multi-recipient dispatch (`dispatchTemplatesToMany`) can still resend to already-successful recipients after a partial batch failure — see `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, still open. Both `shared.outbox`/`shared.inbox` are **shared transport infrastructure, not a bounded context** — the same category as Pub/Sub itself, not a 7th context alongside Booking/Loyalty/Notification/Customer/Staff/Platform. See `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section and `docs/03-DOMAIN_EVENTS.md` for the full design.
 
 ---
 

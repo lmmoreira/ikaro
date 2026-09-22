@@ -348,6 +348,21 @@ describe('HotsitePreview', () => {
     expect(onPublish).toHaveBeenCalledTimes(1);
   });
 
+  // Without this, ChatbotWidget's `position: fixed` bubble button resolves against the real
+  // browser viewport instead of this frame, pinning it to the dashboard shell's corner rather
+  // than the small preview box (found via manual testing after M19-S12 first wired CHATBOT into
+  // the preview render dispatcher).
+  it('establishes a CSS containing block on the preview frame so a fixed-position descendant (the chatbot bubble) stays confined to it', async () => {
+    mockFetchManifest.mockResolvedValue(makeManifest());
+    renderWithIntl(<HotsitePreview draft={makeDraft()} onPublish={vi.fn()} isPublishing={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hotsite-preview-content')).toBeInTheDocument();
+    });
+    const frame = screen.getByTestId('hotsite-preview-content').parentElement;
+    expect(frame).toHaveStyle({ transform: 'translateZ(0)' });
+  });
+
   it('disables the publish buttons while isPublishing is true', async () => {
     mockFetchManifest.mockResolvedValue(makeManifest());
     renderWithIntl(<HotsitePreview draft={makeDraft()} onPublish={vi.fn()} isPublishing={true} />);

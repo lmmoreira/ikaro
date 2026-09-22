@@ -31,7 +31,7 @@ import {
 import { GetOwnLoyaltyBalanceUseCase } from '../../application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import {
   GetOwnLoyaltyBalancesUseCase,
-  LoyaltyBalanceByTenantResult,
+  GetOwnLoyaltyBalancesUseCaseResult,
 } from '../../application/use-cases/get-own-loyalty-balances/get-own-loyalty-balances.use-case';
 import {
   GetLoyaltyEntriesUseCase,
@@ -97,7 +97,7 @@ export class LoyaltyController {
   // another customer's balance.
   @Get('loyalty/balances/own')
   @UseGuards(CustomerRoleGuard)
-  getOwnBalances(): Promise<LoyaltyBalanceByTenantResult[]> {
+  getOwnBalances(): Promise<GetOwnLoyaltyBalancesUseCaseResult[]> {
     const { tenantId: contextTenantId, actorId } = this.tenantContext;
     return this.getOwnLoyaltyBalances
       .execute({ contextTenantId, actorId: actorId! })

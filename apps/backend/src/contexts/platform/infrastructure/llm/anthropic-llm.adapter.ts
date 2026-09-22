@@ -60,7 +60,22 @@ export class AnthropicLlmAdapter implements ILlmProvider {
       ...request.history,
       { role: 'user', content: request.userMessage },
     ];
+    const responseBody = await this.callAnthropicApi(request, messages);
+    const { text, usage, model } = this.parseAndValidate(responseBody);
 
+    return {
+      text,
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      modelId: model,
+      costUsd: computeCostUsd(usage.input_tokens, usage.output_tokens),
+    };
+  }
+
+  private async callAnthropicApi(
+    request: ChatCompletionRequest,
+    messages: ChatTurn[],
+  ): Promise<unknown> {
     const response = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
       headers: {
@@ -81,13 +96,18 @@ export class AnthropicLlmAdapter implements ILlmProvider {
       throw new Error(`Anthropic request failed: ${response.status} ${await response.text()}`);
     }
 
-    let responseBody: unknown;
     try {
-      responseBody = await response.json();
+      return await response.json();
     } catch {
       throw new Error('Anthropic returned a malformed response: invalid JSON');
     }
+  }
 
+  private parseAndValidate(responseBody: unknown): {
+    text: string;
+    usage: { input_tokens: number; output_tokens: number };
+    model: string;
+  } {
     const parsed = anthropicResponseSchema.safeParse(responseBody);
     if (!parsed.success) {
       throw new Error(`Anthropic returned a malformed response: ${parsed.error.message}`);
@@ -97,13 +117,6 @@ export class AnthropicLlmAdapter implements ILlmProvider {
     if (textBlock?.text === undefined) {
       throw new Error('Anthropic returned a malformed response: no text content block');
     }
-
-    return {
-      text: textBlock.text,
-      inputTokens: body.usage.input_tokens,
-      outputTokens: body.usage.output_tokens,
-      modelId: body.model,
-      costUsd: computeCostUsd(body.usage.input_tokens, body.usage.output_tokens),
-    };
+    return { text: textBlock.text, usage: body.usage, model: body.model };
   }
 }

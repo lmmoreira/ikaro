@@ -118,6 +118,35 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, OUTPUT_CONTENT_TYPE, WEBP_QUALITY));
 }
 
+function renderCroppedCanvas(
+  bitmap: ImageBitmap,
+  crop: CropRect,
+  width: number,
+  height: number,
+): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(bitmap, crop.sx, crop.sy, crop.sWidth, crop.sHeight, 0, 0, width, height);
+  return canvas;
+}
+
+function finalizeCompressedFile(
+  file: File,
+  blob: Blob,
+  targetAspectRatio: number | undefined,
+): File {
+  if (!targetAspectRatio && (blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size)) {
+    // Safe even when minHeight was requested: scaledDimensions only ever downscales, so the
+    // original file's natural height is always >= the already-passed minHeight check above.
+    return file;
+  }
+  const extension = extensionForBlobType(blob.type);
+  return new File([blob], withExtension(file.name, extension), { type: blob.type });
+}
+
 // Resizes to MAX_DIMENSION max-dimension WebP before upload — cuts storage/egress ~10x for phone
 // photos with no visible quality loss. Fail-open: an unsupported API, a thrown error, or (when no
 // targetAspectRatio is requested) a "compressed" result that isn't actually smaller/WebP returns
@@ -162,11 +191,8 @@ async function compressDecodedBitmap(
       throw new Error(LOW_RESOLUTION_ERROR_MESSAGE);
     }
 
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
+    const canvas = renderCroppedCanvas(bitmap, crop, width, height);
+    if (!canvas) {
       return failOpenOrThrow(
         file,
         targetAspectRatio,
@@ -174,8 +200,6 @@ async function compressDecodedBitmap(
         'Canvas rendering is not supported in this browser',
       );
     }
-
-    ctx.drawImage(bitmap, crop.sx, crop.sy, crop.sWidth, crop.sHeight, 0, 0, width, height);
 
     const blob = await toBlob(canvas);
     if (!blob) {
@@ -186,14 +210,8 @@ async function compressDecodedBitmap(
         'Failed to encode the cropped image',
       );
     }
-    if (!targetAspectRatio && (blob.type !== OUTPUT_CONTENT_TYPE || blob.size >= file.size)) {
-      // Safe even when minHeight was requested: scaledDimensions only ever downscales, so the
-      // original file's natural height is always >= the already-passed minHeight check above.
-      return file;
-    }
 
-    const extension = extensionForBlobType(blob.type);
-    return new File([blob], withExtension(file.name, extension), { type: blob.type });
+    return finalizeCompressedFile(file, blob, targetAspectRatio);
   } catch (err) {
     return rethrowOrFailOpen(file, targetAspectRatio, minHeight, err);
   }

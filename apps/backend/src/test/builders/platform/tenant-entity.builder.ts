@@ -3,10 +3,11 @@ import {
   TenantSettingsProps,
 } from '../../../contexts/platform/domain/value-objects/tenant-settings.vo';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
+import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
 export class TenantEntityBuilder {
-  private id = 'tenant-id-1';
-  private readonly name = 'BeloAuto';
+  private id = uuidv7();
+  private name = 'BeloAuto';
   private slug = 'beloauto';
   private isActive = true;
   private settings: TenantSettingsProps = TenantSettings.default().toJSON();
@@ -15,6 +16,11 @@ export class TenantEntityBuilder {
 
   withId(id: string): this {
     this.id = id;
+    return this;
+  }
+
+  withName(name: string): this {
+    this.name = name;
     return this;
   }
 

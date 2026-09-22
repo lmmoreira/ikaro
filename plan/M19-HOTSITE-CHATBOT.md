@@ -4,13 +4,13 @@
 **Goal:** Add an LLM-backed FAQ chatbot widget to the public hotsite, scoped to each tenant's own business data — informational only (never confirms/creates/modifies a booking, never accesses customer/staff/booking records), with a ten-layer cost/abuse-prevention design and a swappable multi-provider LLM adapter (OpenRouter primary + Anthropic + OpenAI).
 **Depends on:** M12 (Hotsite Frontend — module rendering/manifest pattern), M13 (Dashboard Frontend — per-module config panel pattern, tenant settings form pattern), M15/M17 (GCP Infrastructure — Secret Manager + Cloud Scheduler modules, reused not rebuilt)
 **Blocks:** none yet
-**Design rationale:** `docs/discovery/CHATBOT/CHATBOT.md` (promoted via `/discovery-to-milestone` on 2026-08-08) — kept as the permanent *why*; this file and the canonical docs it cites (`docs/04-USE_CASES.md` UC-033–UC-036 + UC-026/UC-027 extensions, `docs/02-DOMAIN_MODEL.md`, `docs/05-BOUNDED_CONTEXTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7) are the source of truth for implementation — nothing below should require opening the discovery doc to understand.
+**Design rationale:** `docs/04-USE_CASES.md` UC-033–UC-036 (promoted via `/discovery-to-milestone` on 2026-08-08) — kept as the permanent *why*; this file and the canonical docs it cites (`docs/04-USE_CASES.md` UC-033–UC-036 + UC-026/UC-027 extensions, `docs/02-DOMAIN_MODEL.md`, `docs/05-BOUNDED_CONTEXTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7) are the source of truth for implementation — nothing below should require opening the discovery doc to understand.
 
 **Non-Goals (explicitly deferred or dropped — not gaps in this plan):**
-- A "spend by tenant" dashboard — MVP visibility is a periodic query against `chatbot_messages`, not new pipeline infrastructure (`CHATBOT.md` §8; avoids the premature-metrics-infra failure mode `docs/ENGINEERING_RULES.md` already documents an incident about)
-- RAG/vector retrieval, availability-aware answers, booking actions from chat, multi-turn memory across sessions, self-hosted open-weight models — all explicitly out of scope per `CHATBOT.md` §11
-- A recurring adversarial-eval cadence — no owner/schedule decided; tracked as an ops follow-up outside this milestone, not a story (`CHATBOT.md` §10.9)
-- Vertex AI as a fourth LLM adapter — dropped from scope entirely during promotion, not deferred (`CHATBOT.md` §3 correction, 2026-08-08)
+- A "spend by tenant" dashboard — MVP visibility is a periodic query against `chatbot_messages`, not new pipeline infrastructure (`docs/04-USE_CASES.md` UC-033; avoids the premature-metrics-infra failure mode `docs/ENGINEERING_RULES.md` already documents an incident about)
+- RAG/vector retrieval, availability-aware answers, booking actions from chat, multi-turn memory across sessions, self-hosted open-weight models — all explicitly out of scope per M19 non-goals
+- A recurring adversarial-eval cadence — no owner/schedule decided; tracked as an ops follow-up outside this milestone, not a story (M19 operations follow-up)
+- Vertex AI as a fourth LLM adapter — dropped from scope entirely during promotion, not deferred (`docs/22-TECH_STACK_DECISIONS.md` correction, 2026-08-08)
 - `ChatbotDailyCapReached` tenant-admin notification email — replaced by S12's module-config-screen banner; the event itself is not built
 
 ---
@@ -101,10 +101,10 @@ Migration: `apps/backend/src/contexts/platform/infrastructure/migrations/<timest
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/discovery/CHATBOT/CHATBOT.md` § 3 (Model Sourcing & Cost), § 4 (Architecture), `docs/AGENT_PATTERNS.md` Pattern #1 (port+adapter)
+**Docs to load:** `docs/04-USE_CASES.md` UC-033–UC-036 (Model Sourcing & Cost), § 4 (Architecture), `docs/AGENT_PATTERNS.md` Pattern #1 (port+adapter)
 
 **Description:**
-Create `ILlmProvider` port (`apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts`) per `CHATBOT.md` §4's exact interface: `ChatTurn { role, content }`, `ChatCompletionRequest { systemPrompt, history, userMessage, maxOutputTokens }`, `ChatCompletionResult { text, inputTokens, outputTokens, modelId }`, `ILlmProvider.complete(request): Promise<ChatCompletionResult>`.
+Create `ILlmProvider` port (`apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts`) per `docs/14-API_CONTRACTS.md` § Chatbot Widget's exact interface: `ChatTurn { role, content }`, `ChatCompletionRequest { systemPrompt, history, userMessage, maxOutputTokens }`, `ChatCompletionResult { text, inputTokens, outputTokens, modelId }`, `ILlmProvider.complete(request): Promise<ChatCompletionResult>`.
 
 **Follow-up (M19-S04 story-discovery, 2026-08-11): `ChatCompletionResult` gains a required `costUsd: Decimal` field.** Originally this story planned a shared `MODEL_PRICING` lookup (`contexts/platform/chatbot.constants.ts`, consumed later by S05's spend query) — dropped in favor of each adapter reporting its own cost directly, since verifying the real APIs live during S04's discovery found OpenRouter's response already includes an authoritative `usage.cost` field (confirmed always present, no opt-in needed) that the original design was silently discarding in favor of a self-computed estimate. Anthropic and OpenAI never return cost in their responses, so their adapters (S03) still compute it, but from a private per-adapter constant, not a shared table. Uses `decimal.js`, matching the precedent already set by `ChatbotProviderBalance.remainingUsd` — never a plain `number`, to avoid float precision loss on dollar amounts.
 
@@ -115,7 +115,7 @@ Build `openrouter-llm.adapter.ts` (`apps/backend/src/contexts/platform/infrastru
 Register via `useClass` (never `useExisting` — tests need to swap in a fake `ILlmProvider`).
 
 **Acceptance Criteria:**
-- [ ] `ILlmProvider` port matches `CHATBOT.md` §4's interface exactly
+- [ ] `ILlmProvider` port matches `docs/14-API_CONTRACTS.md` § Chatbot Widget's interface exactly
 - [ ] `openrouter-llm.adapter.ts` always sends `reasoning: { effort: "none" }` — a regression test that would fail if the field were ever omitted or defaulted
 - [ ] `LlmProviderRegistry` resolves `tenant.settings.chatbot?.llmProvider ?? CHATBOT_LLM_PROVIDER ?? 'openrouter'` correctly, including the all-unset case
 - [ ] Adapter maps OpenRouter's response (`usage.prompt_tokens`, `usage.completion_tokens`, `usage.cost`) into `ChatCompletionResult` correctly, including `costUsd` read directly from `usage.cost` (required, non-nullable in the response schema — an unexpected missing/null cost fails as a controlled "malformed response" error, the same principle already applied to a missing `usage` object, rather than silently defaulting to zero)
@@ -133,7 +133,7 @@ Register via `useClass` (never `useExisting` — tests need to swap in a fake `I
 
 **Agent:** `backend-ts`
 **Complexity:** S
-**Docs to load:** `docs/discovery/CHATBOT/CHATBOT.md` § 4
+**Docs to load:** `docs/04-USE_CASES.md` UC-033–UC-036
 
 **Description:**
 Build `anthropic-llm.adapter.ts` and `openai-llm.adapter.ts` against the same `ILlmProvider` port S02 established, in the same `infrastructure/llm/` folder. Each maps its own provider's response shape into `ChatCompletionResult` (`inputTokens`/`outputTokens`/`modelId`/`costUsd`). Both registered in `LlmProviderRegistry` alongside `openrouter`. This is the actual point of the port earning its keep — zero interface change to add either.
@@ -163,7 +163,7 @@ Build `anthropic-llm.adapter.ts` and `openai-llm.adapter.ts` against the same `I
 **Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` § 7, `docs/14-API_CONTRACTS.md` § Tenant Settings
 
 **Description:**
-Add `chatbot` as a new category to `TenantSettings` VO (`apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts`). **Deliberate deviation from every other category's pattern** (already documented in `docs/21` §7, apply it exactly): `TenantSettings.default()` writes only `knowledgeText: ""` — the 8 caps + `llmProvider`/`llmModel` are never written into any tenant's row by default, resolved instead as `tenant.settings.chatbot?.X ?? DEFAULT_X` at read time, where `DEFAULT_X` lives in a new `contexts/platform/chatbot.constants.ts` (the 8 cap defaults from `CHATBOT.md` §8). No `MODEL_PRICING` lookup here — originally planned as a stub in this file, removed during this same story-discovery session once live API verification found a cleaner design; see S02's follow-up note for the full reasoning.
+Add `chatbot` as a new category to `TenantSettings` VO (`apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts`). **Deliberate deviation from every other category's pattern** (already documented in `docs/21` §7, apply it exactly): `TenantSettings.default()` writes only `knowledgeText: ""` — the 8 caps + `llmProvider`/`llmModel` are never written into any tenant's row by default, resolved instead as `tenant.settings.chatbot?.X ?? DEFAULT_X` at read time, where `DEFAULT_X` lives in a new `contexts/platform/chatbot.constants.ts` (the 8 cap defaults from `docs/04-USE_CASES.md` UC-033). No `MODEL_PRICING` lookup here — originally planned as a stub in this file, removed during this same story-discovery session once live API verification found a cleaner design; see S02's follow-up note for the full reasoning.
 
 Add `chatbot` to the fixed category-key list in both `UpdateTenantSettingsSchema` (backend DTO, `.strict()`) and `UpdateTenantSettingsBodySchema` (BFF, `.strict()`). Within the `chatbot` category, accept **only** `knowledgeText` — a request setting any cap/provider field is rejected `400`, not silently stripped (an explicit, deliberate choice, not left ambiguous).
 
@@ -191,10 +191,10 @@ Add `chatbot` to the fixed category-key list in both `UpdateTenantSettingsSchema
 
 **Agent:** `backend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` UC-033, `docs/discovery/CHATBOT/CHATBOT.md` § 8 (Cost Controls & Abuse Prevention), `docs/13-DATABASE_SCHEMA.md` § chatbot tables, `docs/ENGINEERING_RULES.md` § Transactions (PR #267 precedent)
+**Docs to load:** `docs/04-USE_CASES.md` UC-033, `docs/04-USE_CASES.md` UC-033–UC-036 (Cost Controls & Abuse Prevention), `docs/13-DATABASE_SCHEMA.md` § chatbot tables, `docs/ENGINEERING_RULES.md` § Transactions (PR #267 precedent)
 
 **Description:**
-The core use case — `SendChatMessageUseCase` in `apps/backend/src/contexts/platform/application/use-cases/`. Implements every cap layer from `CHATBOT.md` §8 exactly:
+The core use case — `SendChatMessageUseCase` in `apps/backend/src/contexts/platform/application/use-cases/`. Implements every cap layer from `docs/04-USE_CASES.md` UC-033 exactly:
 - **Volume caps (1–3, new-session only):** `maxConversationsPerDay`, `maxConversationsPerIpPerDay`, `maxConcurrentConversations` — all `COUNT`-based against `chatbot_sessions`, queried directly against Postgres, **never a per-instance `CachePort` cache** (would undercount independently on each Cloud Run replica, silently turning a platform-wide/tenant-wide limit into limit × replica count).
 - **`maxMessagesPerConversation` (4, existing-session):** `COUNT` of all `chatbot_messages` rows for the session, both roles.
 - **`maxMessageLengthChars` (5):** rejected upstream at the BFF DTO layer (S09) for the real UX-facing error, **and** re-enforced here against the same tenant-resolved value (PR #360 review — a generous static Zod ceiling at the backend DTO layer alone left the tenant's real, often-smaller cap unenforced for any caller reaching this endpoint directly, bypassing the BFF's check).
@@ -211,7 +211,7 @@ Resolves the tenant's LLM provider **and model** via `LlmProviderRegistry` (S02/
 **This story's scope also includes the backend HTTP endpoint, not just the use case class** (gap found during M19-S05 story-discovery, 2026-08-12 — see the follow-up note below). A controller (e.g. `ChatbotController`, `apps/backend/src/contexts/platform/infrastructure/controllers/`) exposing the route S09's BFF calls via `BackendHttpService.postForPublic(...)`, plus its Zod-validated DTO and `mapPlatformError` wiring for the 5 new error codes. Follows the existing bare-route + `RequestContext` pattern already used for every other guest-reachable backend route in this codebase — `ServiceController` (`apps/backend/src/contexts/booking/infrastructure/controllers/service.controller.ts`) and `TenantSettingsController` are the two precedents to mirror: **no** `/public/` prefix on the backend side (that convention is BFF-only, `.public.controller.ts`), `tenantId`/`settings.chatbot` read from the injected `RequestContext` (already eager-loaded per-request, no extra tenant-settings query needed), forwarded to the use case as explicit DTO fields. Exact route path is this story's own call — not dictated here.
 
 **Acceptance Criteria:**
-- [ ] All cap layers enforced exactly per `CHATBOT.md` §8, using S04's constants (tenant-overridable via `tenant.settings.chatbot?.X ?? DEFAULT_X`)
+- [ ] All cap layers enforced exactly per `docs/04-USE_CASES.md` UC-033, using S04's constants (tenant-overridable via `tenant.settings.chatbot?.X ?? DEFAULT_X`)
 - [ ] Global spend breaker and balance floor computed via direct Postgres queries, never `CachePort` — a code-review-verifiable fact, not just a test
 - [ ] History truncated to `maxHistoryMessagesSentToLlm` before every LLM call — a test proving message N+1 of a long conversation sends a bounded history size, not the full conversation
 - [ ] LLM call is never inside `txManager.run()`
@@ -221,11 +221,11 @@ Resolves the tenant's LLM provider **and model** via `LlmProviderRegistry` (S02/
 - [ ] New error code per cap-rejection reason, both locale files (e.g. `PLATFORM_CHATBOT_DAILY_CAP_REACHED`, `PLATFORM_CHATBOT_CONCURRENCY_CAP_REACHED`, `PLATFORM_CHATBOT_MESSAGE_CAP_REACHED`, `PLATFORM_CHATBOT_GLOBAL_SPEND_LIMIT_REACHED`, `PLATFORM_CHATBOT_PROVIDER_BALANCE_LOW`) — all 5 map to HTTP `429` in `platform-error.mapper.ts` (decided during story-discovery, 2026-08-12: one status for every "try again later" case, including the 2 platform-wide backstops, not just the 4 per-tenant volume caps)
 - [ ] Backend controller + DTO + route for `SendChatMessageUseCase` exists (this story's own scope — see Description), wired through `mapPlatformError`
 - [ ] `FakeLlmProvider`-based unit tests for the use case — deterministic, no real LLM call ever in CI
-- [ ] Integration test against the real test DB proving the common case: sequential requests correctly rejected once at cap (not the accepted race-window itself — a known, tolerated gap per `CHATBOT.md` §8, not a bug to chase)
+- [ ] Integration test against the real test DB proving the common case: sequential requests correctly rejected once at cap (not the accepted race-window itself — a known, tolerated gap per `docs/04-USE_CASES.md` UC-033, not a bug to chase)
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S01, S02, S03, S04.
-**New env var:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `25`).
+**New env var:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `1` — revised from the original `25`, see `docs/04-USE_CASES.md` UC-033–UC-036's dated correction).
 **New error codes:** 5 listed above, both locale files, all mapped to `429`.
 
 **Follow-up (M19-S05 story-discovery, 2026-08-12) — 4 gaps found and resolved before implementation:**
@@ -235,10 +235,10 @@ Resolves the tenant's LLM provider **and model** via `LlmProviderRegistry` (S02/
 4. **HTTP status for the 2 platform-wide backstops (layers 9-10) was undefined** — `docs/14-API_CONTRACTS.md` only defined `429`/`503` for the 4 per-tenant caps and the LLM-failure case respectively. Resolved: `429` for all 5 new error codes, including the platform-wide ones (`docs/14-API_CONTRACTS.md` and `docs/04-USE_CASES.md` UC-033 A6 updated to match).
 
 **Follow-up (PR #360 cross-tool review, Codex, 2026-08-12) — 5 findings, all fixed before merge:**
-1. **Concurrency-cap race was wider than the accepted one.** The new session wasn't persisted until *after* the LLM call returned, so `countActiveSince()` couldn't see any in-flight request for the full LLM-latency window (seconds), not the narrow DB-round-trip window `CHATBOT.md` §8 accepts for layers 1-2. Fixed: the session (and, for an existing session, its updated `messageCount`) is now persisted via its own `txManager.run()` immediately after cap checks pass, *before* calling the LLM — narrows the race back to the same accepted window.
+1. **Concurrency-cap race was wider than the accepted one.** The new session wasn't persisted until *after* the LLM call returned, so `countActiveSince()` couldn't see any in-flight request for the full LLM-latency window (seconds), not the narrow DB-round-trip window `docs/04-USE_CASES.md` UC-033 accepts for layers 1-2. Fixed: the session (and, for an existing session, its updated `messageCount`) is now persisted via its own `txManager.run()` immediately after cap checks pass, *before* calling the LLM — narrows the race back to the same accepted window.
 2. **Message-cap (layer 4) had a real deterministic overshoot, not just a race.** `messages.length >= maxMessages` only rejected once already at/over cap, so an odd `maxMessagesPerConversation` override could overshoot by 1 (a bug I'd found and merely commented on, not fixed, before this review). Fixed: checks `session.messageCount + 2 > maxMessages` — an exact ceiling for any configured value — and switched from counting live `chatbot_messages` rows to the already-maintained `session.messageCount`, avoiding a full-conversation read on every turn as a side benefit.
 3. **`maxMessageLengthChars` (layer 5) was a bypassable defense-in-depth-only check**, not real enforcement — see the Description bullet above.
-4. **Platform-wide backstops (layers 9-10) were checked on every message, contradicting `CHATBOT.md` §8.9's own text** ("already-open conversations remain bounded by their own per-session caps regardless") — a misreading of UC-033 A6 during this story's own discovery. Fixed: reverted to new-session-only, matching the canonical doc; `docs/04-USE_CASES.md` UC-033 A6 clarified to prevent the same misreading again.
+4. **Platform-wide backstops (layers 9-10) were checked on every message, contradicting `docs/04-USE_CASES.md` UC-033 A6's own text** ("already-open conversations remain bounded by their own per-session caps regardless") — a misreading of UC-033 A6 during this story's own discovery. Fixed: reverted to new-session-only, matching the canonical doc; `docs/04-USE_CASES.md` UC-033 A6 clarified to prevent the same misreading again.
 5. **503 responses embedded the raw upstream provider error text** (`ChatbotProviderUnavailableError`'s `cause` param) directly in the public Problem Details `detail` field — a real info-disclosure gap once a real adapter's error message could include vendor-specific diagnostic details. Fixed: the public error message is now a fixed, generic string; the real cause is logged server-side only, via `AppLogger`, before the error is thrown.
 
 Also added, incidental to fix #2: `IChatbotMessageRepository.findRecentBySession()` — a SQL-level `LIMIT`, not "fetch the whole conversation and slice in JS" (the previous `findBySession()`-based history assembly) — closing a real performance finding from the same review pass.
@@ -249,7 +249,7 @@ Also added, incidental to fix #2: `IChatbotMessageRepository.findRecentBySession
 
 **Agent:** `backend-ts`
 **Complexity:** L (bumped from M during story-discovery, 2026-08-12 — see Resolved note below)
-**Docs to load:** `docs/04-USE_CASES.md` UC-034, `docs/discovery/CHATBOT/CHATBOT.md` § 7 (Widget States), § 8.10 (balance floor), `docs/13-DATABASE_SCHEMA.md` § `platform.chatbot_provider_balance`, `docs/02-DOMAIN_MODEL.md` § `ChatbotProviderBalance`
+**Docs to load:** `docs/04-USE_CASES.md` UC-034, `docs/04-USE_CASES.md` UC-033–UC-036 (Widget States), § 8.10 (balance floor), `docs/13-DATABASE_SCHEMA.md` § `platform.chatbot_provider_balance`, `docs/02-DOMAIN_MODEL.md` § `ChatbotProviderBalance`
 
 **Description:**
 `GetChatbotStatusUseCase` evaluating the 5 "not available" conditions per UC-034, for the tenant resolved from the request: tenant daily cap already exhausted, tenant concurrency cap already exhausted, resolved LLM provider (`tenant override ?? platform default`) failing a health check, global daily spend breaker already tripped, resolved provider's balance floor already tripped (`chatbot_provider_balance`, a local lookup — never a live external call in this path, per S08's periodic poll). Pure read, no writes of its own.
@@ -258,7 +258,7 @@ Backend controller: extend the existing `ChatbotController` (`platform/chatbot`,
 
 **Resolved (M19-S06 story-discovery, 2026-08-12) — the provider health-check mechanism (condition c), the one open design detail this story started with:**
 
-A dedicated live ping was ruled out — it would add real external latency/cost to every hotsite page load platform-wide (every widget mount, not just real chats), the exact hot-path cost `CHATBOT.md` §8.10 already explicitly avoids for the balance-floor check one condition over. Instead: extend `chatbot_provider_balance` (already read for condition e) with `last_success_at`/`last_failure_at`, written by `SendChatMessageUseCase` (S05, already merged — this story adds two write calls to its existing single success path and existing single `catch` block around `provider.complete()`) as a passive side effect of real chat traffic. `GetChatbotStatusUseCase` reads the same row already fetched for the balance-floor check — one query serves both conditions.
+A dedicated live ping was ruled out — it would add real external latency/cost to every hotsite page load platform-wide (every widget mount, not just real chats), the exact hot-path cost `docs/04-USE_CASES.md` UC-034 already explicitly avoids for the balance-floor check one condition over. Instead: extend `chatbot_provider_balance` (already read for condition e) with `last_success_at`/`last_failure_at`, written by `SendChatMessageUseCase` (S05, already merged — this story adds two write calls to its existing single success path and existing single `catch` block around `provider.complete()`) as a passive side effect of real chat traffic. `GetChatbotStatusUseCase` reads the same row already fetched for the balance-floor check — one query serves both conditions.
 
 **Availability rule — a half-open/circuit-breaker cooldown, not a plain "last event wins" comparison:** unhealthy only if `last_failure_at` is more recent than `last_success_at` **and** within `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (new env var, default `5`) of now. A plain "most recent event wins" rule was considered and rejected during discovery: since `available: false` means the widget never renders at all (UC-034 A1), a single transient failure with no cooldown would permanently lock the widget dark — no visitor could ever attempt the message that would produce the success needed to clear it. The cooldown gives the next real visitor's attempt, after the window elapses, the chance to either confirm recovery (fresh `last_success_at`) or restart the wait (fresh `last_failure_at`). Contrast with the other 4 conditions, which all self-heal on a clock with no visitor dependency: (a)/(b) are rolling time-windowed `COUNT`s, (d) resets at UTC midnight, (e) recovers via S08's independently-scheduled poll (or the manual `POST /cron/chatbot-balance-poll` trigger) regardless of widget state — (c) is the only condition with no independent signal source, which is why it alone needed this cooldown.
 
@@ -316,12 +316,12 @@ Mirrors the loyalty-expiry cron pattern exactly (`docs/04-USE_CASES.md` UC-016b,
 
 **Agent:** `backend-ts` + `devops`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` UC-036, `docs/discovery/CHATBOT/CHATBOT.md` § 8.10, `docs/14-API_CONTRACTS.md` § `POST /cron/chatbot-balance-poll`
+**Docs to load:** `docs/04-USE_CASES.md` UC-036, `docs/04-USE_CASES.md` UC-033–UC-036, `docs/14-API_CONTRACTS.md` § `POST /cron/chatbot-balance-poll`
 
 **Description:**
-Same cron pattern as S07. `POST /cron/chatbot-balance-poll`, Cloud Scheduler every 15 minutes, new Pub/Sub topic `ikaro-cron-chatbot-balance-poll`. Job calls OpenRouter's `GET /api/v1/credits` (reuse S02's adapter's HTTP client, or a small dedicated client — implementer's choice) and upserts `chatbot_provider_balance` (`provider='openrouter'`, `remaining_usd`, `checked_at=now()`). On API failure: log a warning, leave the existing row unchanged — never throw or crash the job (staleness in either direction is safe at this cost scale, per `CHATBOT.md` §8.10).
+Same cron pattern as S07. `POST /cron/chatbot-balance-poll`, Cloud Scheduler every 15 minutes, new Pub/Sub topic `ikaro-cron-chatbot-balance-poll`. Job calls OpenRouter's `GET /api/v1/credits` (reuse S02's adapter's HTTP client, or a small dedicated client — implementer's choice) and upserts `chatbot_provider_balance` (`provider='openrouter'`, `remaining_usd`, `checked_at=now()`). On API failure: log a warning, leave the existing row unchanged — never throw or crash the job (staleness in either direction is safe at this cost scale, per `docs/04-USE_CASES.md` UC-034).
 
-**New secret required — found during implementation, 2026-08-14, not anticipated by this story's original text or `CHATBOT.md`:** OpenRouter's own API reference states `GET /api/v1/credits` requires a **Management (Provisioning) API key** — verbatim, "Management key required... Only management keys can perform this operation." This is a distinct credential type from `OPENROUTER_API_KEY` (S02's chat-completions key — management keys cannot call the completions endpoint and vice versa). Response shape confirmed against OpenRouter's live docs: `{ data: { total_credits: number, total_usage: number } }` — remaining balance = `total_credits - total_usage`.
+**New secret required — found during implementation, 2026-08-14, not anticipated by this story's original text or the promoted chatbot design:** OpenRouter's own API reference states `GET /api/v1/credits` requires a **Management (Provisioning) API key** — verbatim, "Management key required... Only management keys can perform this operation." This is a distinct credential type from `OPENROUTER_API_KEY` (S02's chat-completions key — management keys cannot call the completions endpoint and vice versa). Response shape confirmed against OpenRouter's live docs: `{ data: { total_credits: number, total_usage: number } }` — remaining balance = `total_credits - total_usage`.
 
 **Secret rollout is staged across 2 PRs — corrected during implementation, 2026-08-14, after an initially-drafted 3-PR plan (container+code now, `secret_env_vars` last) turned out not to be viable.** TD39's resolution (`infra/terraform/README.md`'s gotcha entry) confirms the same live-IAM-read-at-plan-time problem that blocked pubsub topics also applies to `google_secret_manager_secret_iam_member` ("the equivalent for secrets" is named explicitly) — so the `foundation` accessor grant can never land in the same PR as the secret container, same `no-foundation-plus-other-infra-mix` CI guardrail as the pubsub/scheduler split above. The 3-PR plan tried to also defer `secret_env_vars` wiring to a 3rd PR to avoid any Cloud Run deploy risk — but `packages/infra-scripts/src/env-contract.ts`'s CI check requires every `env.validation.ts` key to be wired into `cloudrun_backend`'s `env_vars`/`secret_env_vars` in both env roots unconditionally (Zod `.optional()` doesn't exempt it), so a PR that adds the schema entry without the Terraform wiring fails `env-contract` outright — confirmed by running `pnpm --filter @ikaro/infra-scripts test` locally. Sequence:
 1. **This story's PR** (`envs/*` only, no `foundation/**`): `openrouter-management-api-key` Secret Manager container (`modules/secrets`) + `secret_env_vars` wiring on `cloudrun_backend` (both env roots) + `OPENROUTER_MANAGEMENT_API_KEY` in `env.validation.ts` + all backend code (job/client/trigger handler/controller route) + the pubsub topic/scheduler job. Accepted consequence: the next `envs/*` apply's Cloud Run revision creation for `backend` fails resolving `secret_key_ref` until step 2 lands (old revision keeps serving 100% of traffic — a deploy-pipeline failure, not a live outage; same shape S02 already established for `openrouter-api-key`/`anthropic-api-key`/`openai-api-key`, pre-TD39).
@@ -350,7 +350,7 @@ Real key value populated out-of-band via `gcloud secrets versions add`, same as 
 
 **Agent:** `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/14-API_CONTRACTS.md` § Chatbot Widget, `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions, `docs/discovery/CHATBOT/CHATBOT.md` § 6
+**Docs to load:** `docs/14-API_CONTRACTS.md` § Chatbot Widget, `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions, `docs/04-USE_CASES.md` UC-033–UC-036
 
 **Description:**
 New `apps/bff/src/features/platform/chatbot/public/chatbot.public.controller.ts` (`public/` prefix — per the `.public.controller.ts` naming convention, M13-S05 precedent) exposing `GET /public/platform/chatbot/status` and `POST /public/platform/chatbot/messages`. Neither forwards actor headers (guest-only route, no actor exists).
@@ -364,7 +364,7 @@ System prompt rebuilt fresh on every message (not frozen at session start) — f
 **Acceptance Criteria:**
 - [ ] Both routes under the `public/` prefix; a test verifies neither forwards actor headers
 - [ ] `buildSystemPrompt()` unit tested exhaustively as a pure function: empty `knowledgeText`, missing business fields, services-list formatting, locale substitution
-- [ ] `buildAssistantRules()` text matches `CHATBOT.md` §6's exact validated wording
+- [ ] `buildAssistantRules()` text matches `docs/04-USE_CASES.md` UC-033's exact validated wording
 - [ ] System prompt rebuilt fresh on every message — a price edited mid-conversation shows up correctly in the bot's next answer (test)
 - [ ] Tenant settings read via the backend's existing settings-read path, not a fresh raw query
 - [ ] `400`/`429`/`503` responses mapped per `docs/14-API_CONTRACTS.md`'s spec
@@ -375,8 +375,8 @@ System prompt rebuilt fresh on every message (not frozen at session start) — f
 
 **Follow-up (M19-S09 story-discovery, 2026-08-15) — 5 gaps found and resolved before implementation:**
 1. **"The backend's existing tenant-settings read path" was ambiguous, and the literal candidate is wrong.** `GET /tenants/settings` (`TenantSettingsController`) is guarded by `StaffOrManagerRoleGuard` — unreachable for a guest call, would 403. Resolved: a `chatbot-context.ts` function calls `backendHttp.get<GetTenantByIdUseCaseResult>('/internal/tenants/' + tenantId)` (`InternalTenantReadController`, no guard, already used by `platform.public.controller.ts` for slug resolution) — one call already returns `settings.businessInfo`, `settings.businessHours`, `settings.chatbot.knowledgeText`, and top-level `locale`, all via `CachingTenantRepository`. (Originally split into two functions — `getBusinessInfoContext`/`getKnowledgeTextContext` — each independently re-fetching the same payload; merged into one `getBusinessContext()` during PR #373 review, see below.)
-2. **Business hours were missing from scope.** `CHATBOT.md` §6 lists "services, prices, hours, address" as the four business-data fields the prompt needs, but only business info was named (no separate hours function). Resolved: the merged business-context fetch folds in `settings.businessHours` (same `/internal/tenants/:tenantId` payload, no extra call) — "when are you open" is a near-certain FAQ.
-3. **`chatbot-context.ts`'s return shape conflicted with this story's own AC.** `CHATBOT.md` §6's sample code has context functions return pre-formatted `Promise<string>`, but AC #2 requires `buildSystemPrompt()` to be pure-function-testable for "services-list formatting" — not possible if formatting already happened inside an async fetch. Resolved: `chatbot-context.ts` functions return raw typed data (fetch only); `chatbot.mapper.ts`'s `buildSystemPrompt()` owns all text formatting, matching `docs/24`'s mapper convention (mapper = shaping, context = fetching).
+2. **Business hours were missing from scope.** `docs/04-USE_CASES.md` UC-033 lists "services, prices, hours, address" as the four business-data fields the prompt needs, but only business info was named (no separate hours function). Resolved: the merged business-context fetch folds in `settings.businessHours` (same `/internal/tenants/:tenantId` payload, no extra call) — "when are you open" is a near-certain FAQ.
+3. **`chatbot-context.ts`'s return shape conflicted with this story's own AC.** `docs/04-USE_CASES.md` UC-033's sample code has context functions return pre-formatted `Promise<string>`, but AC #2 requires `buildSystemPrompt()` to be pure-function-testable for "services-list formatting" — not possible if formatting already happened inside an async fetch. Resolved: `chatbot-context.ts` functions return raw typed data (fetch only); `chatbot.mapper.ts`'s `buildSystemPrompt()` owns all text formatting, matching `docs/24`'s mapper convention (mapper = shaping, context = fetching).
 4. **File layout simplified — no new controller class.** The story as drafted named a new `apps/bff/src/features/platform/chatbot/public/chatbot.public.controller.ts` (nested subfolder, new controller). No BFF domain currently nests controllers below the domain folder, and no domain has two `.public.controller.ts` files — `docs/24` explicitly allows one `.public.controller.ts` to serve multiple module types. Resolved: add `GET chatbot/status` and `POST chatbot/messages` directly to the existing `platform.public.controller.ts` (`@Controller('public/platform')` already produces the correct `public/platform/chatbot/...` paths). `chatbot-context.ts` and `chatbot.mapper.ts` are new flat sibling files in `features/platform/` — no `chatbot/` subfolder.
 5. **The story's forwarded payload was missing a required field.** Description text says the BFF forwards `{ systemPrompt, sessionId, userMessage }`, but the backend's `SendChatMessageSchema` requires non-optional `clientIp` (per-IP daily cap, layer 2). Resolved: forward `clientIp` too, resolved via the existing `getClientIp()` helper (`apps/bff/src/shared/http/client-ip.ts`, same one `AppThrottlerGuard` already uses).
 
@@ -388,58 +388,98 @@ System prompt rebuilt fresh on every message (not frozen at session start) — f
 
 ---
 
-### M19-S10 — Chatbot cap-status admin BFF endpoint (UC-027 A5)
+### M19-S10 — Chatbot cap-status admin BFF endpoint (UC-027 A5) ✅ Done
 
-**Agent:** `bff-ts`
+**Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
 **Docs to load:** `docs/14-API_CONTRACTS.md` § Chatbot Cap Status
 
 **Description:**
 `GET /v1/tenants/chatbot/cap-status` (`MANAGER`-only, matching Hotsite Admin Management's all-`MANAGER` convention since this reads out inside `/dashboard/hotsite`) → `{ dailyCapReachedToday: boolean }`. Reuses the identical per-tenant daily-cap `COUNT` query S05's cap enforcement already runs against `chatbot_sessions` — not a new counting mechanism.
 
+**This story's scope also includes a small backend addition, not just the BFF route** (gap found during M19-S10 story-discovery, 2026-08-17 — see Follow-up below): a `GetChatbotCapStatusUseCase` (reuses `IChatbotSessionRepository.countByTenantAndDate()` + `chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY`, same comparison `GetChatbotStatusUseCase` already does for its own layer-(a) check) exposed via a new `@Get('chatbot/cap-status')` route on the existing backend `TenantSettingsController` (`@Controller('tenants')`, guarded by `ManagerRoleGuard` — **not** the guest/bare-route `ChatbotController`, whose class doc explicitly documents it as unguarded). BFF side adds `@Get('chatbot/cap-status') @Roles('MANAGER')` to the existing `apps/bff/src/features/platform/tenant-settings.controller.ts`, calling `backendHttp.get('/tenants/chatbot/cap-status')` — same shape as that file's existing `getSettings()`. New response type `ChatbotCapStatusResponse` in `packages/types/src/tenant.dto.ts` (sibling to `TenantSettingsResponse`, not `hotsite.ts` — this isn't part of the hotsite public/manifest response family).
+
 **Acceptance Criteria:**
 - [ ] `MANAGER`-only; `STAFF` gets `403`
 - [ ] Correctly reflects today's cap status using the same `COUNT` query/threshold as S05's enforcement — a test proving both agree at the boundary
+- [ ] Tenant isolation: Tenant A reaching its daily cap doesn't affect Tenant B's `dailyCapReachedToday` result — a test proving the count is tenant-scoped
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S05.
 
+**Follow-up (M19-S10 story-discovery, 2026-08-17) — 1 gap found and resolved before implementation:**
+1. **The story was labeled BFF-only, but no backend endpoint or use case for cap-status existed anywhere in the codebase** (confirmed via `grep` for `cap-status`/`dailyCapReachedToday`/`CapStatus` across `apps/`) — the daily-cap `COUNT` query it needs to reuse only exists reachable from the backend (`IChatbotSessionRepository.countByTenantAndDate`, used today by `SendChatMessageUseCase` and `GetChatbotStatusUseCase`), not from the BFF. Same class of gap S05 hit and resolved for itself ("Backend HTTP controller was entirely unspecified"). Resolved: backend piece folded into this story's own scope (see Description); `Agent` updated to `backend-ts` + `bff-ts` to match.
+
+**Follow-up (M19-S10 implementation, 2026-08-17) — cross-story production bug found and fixed:**
+1. **`PlatformTenantSettingsAdapter` (feeds `RequestContext.settings` for every guest/tenant request via `RequestInterceptor` — its sole production populator) silently discarded every Ikaro-only `chatbot` override in production, affecting already-merged S05/S06.** It reused `GetTenantByIdUseCase`'s result, which deliberately hardcodes `chatbot: { knowledgeText: tenant.settings.chatbot.knowledgeText }` — correct for that use case's other caller (the admin `GET /tenants/settings` HTTP response must never leak `maxConversationsPerDay`/`llmProvider`/etc. to the client), but wrong for this port's contract, since `SendChatMessageUseCase`/`GetChatbotStatusUseCase`/this story's own `GetChatbotCapStatusUseCase` all resolve tenant overrides from exactly this value. Any tenant with a real Ikaro-granted override silently got platform defaults instead, with no error anywhere. Not caught earlier because every existing chatbot integration test swaps `TENANT_SETTINGS_PORT` for an in-memory fake that bypasses this exact code path — this story's own "agrees at the boundary" integration test was the first to exercise the real adapter with a configured override. Fixed: `PlatformTenantSettingsAdapter` now reads `ITenantRepository` directly (`tenant.settings.toJSON()` + `tenant.settings.chatbot`, both unstripped) instead of reusing the admin-projected use case — same fix shape as the "one canonical use case, caller derives its own projection" rule already in `docs/ANTI_PATTERNS.md`. Regression test added: `platform-tenant-settings.adapter.spec.ts`'s "preserves Ikaro-only chatbot overrides" case.
+
 ---
 
-### M19-S11 — `CHATBOT` module type + widget component + `page.tsx` registration
+### M19-S11 — `CHATBOT` module type + widget component + `page.tsx` registration ✅ Done
 
-**Agent:** `frontend-ts`
+**Agent:** `frontend-ts` + `backend-ts`
 **Complexity:** L
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT, `docs/04-USE_CASES.md` UC-033/UC-034, `docs/14-API_CONTRACTS.md` § Chatbot Widget
+**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT, `docs/04-USE_CASES.md` UC-033/UC-034, `docs/14-API_CONTRACTS.md` § Chatbot Widget, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer
 **Prototype references:** `plan/journey/guest/prototypes/ask-chatbot/` (`00-hotsite.html`, `01-active-chat.html`, `01b-interrupted.html`, `01c-not-available.html`, `01d-inline-variant.html`, `dev-notes.md`)
 
 **Description:**
-Add `'CHATBOT'` to `HotsiteModuleType` union (`packages/types/src/hotsite.ts`) and the `ChatbotModuleData` interface (`variant?: 'bubble' | 'inline'`, `accentColor?: 'primary' | 'secondary'`, `botName?: string`, `welcomeMessage?: string`).
+Add `'CHATBOT'` to `HotsiteModuleType` union (`packages/types/src/hotsite.ts`) and the `ChatbotModuleData` interface (`variant?: 'bubble' | 'inline'`, `accentColor?: 'primary' | 'secondary'`, `botName?: string`, `welcomeMessage?: string`). Add a matching `ChatbotModuleDataSchema` to `apps/web/features/platform/hotsite/module-schemas.ts`, registered in `MODULE_DATA_SCHEMAS` — every `HotsiteModuleType` needs a schema before it ships (`docs/15` §7 step 3), otherwise `isValidModuleData('CHATBOT', data)` accepts any malformed payload.
 
-Build `ChatbotWidget.tsx` (`apps/web/shells/hotsite/components/`) covering all 3 states from the prototype: **not available** (renders nothing — pre-flight `GET /public/platform/chatbot/status` on mount), **active chat** (bubble + inline variants), **interrupted** (cap/error mid-conversation — input disables, tenant's phone/WhatsApp offered as fallback contact, already resolved onto the manifest per `docs/15` §4 CONTACT). A visitor never sees a chat button that then fails when clicked.
+Build `ChatbotWidget.tsx` (`apps/web/shells/hotsite/components/`) covering all 3 states from the prototype: **not available** (renders nothing — pre-flight `GET /public/platform/chatbot/status` on mount), **active chat** (bubble + inline variants), **interrupted** (cap/error mid-conversation — input disables, tenant's phone/WhatsApp offered as fallback contact, already resolved onto the manifest per `docs/15` §4 CONTACT). A visitor never sees a chat button that then fails when clicked. Fully `'use client'` (real-time chat is inherently interactive — `docs/CODE_STANDARDS.md`'s server-component-default exception).
 
-Add the `CHATBOT` branch to the if/else-if chain in `apps/web/app/[slug]/page.tsx` (per `docs/15`'s corrected description — a direct component-import branch, not a `MODULE_MAP` lookup).
+Add the `CHATBOT` branch to the if/else-if chain in `apps/web/app/[slug]/page.tsx` (per `docs/15`'s corrected description — a direct component-import branch, not a `MODULE_MAP` lookup). Unlike every other branch, `CHATBOT` renders with **no divider** before/after it (matches the existing `FOOTER` special-case in that same render loop) — the `bubble` variant is `position: fixed`, outside document flow, so a generic divider would render as a stray orphaned line.
+
+**Client transport:** `apps/web/features/platform/hotsite/api/chatbot.ts` — two client-only fetchers using `bffClient` with an explicit `X-Tenant-Slug` header, following the exact precedent already established by `apps/web/features/platform/hotsite/api/services.ts`'s `fetchServicesClient()` (`bffClient.get('/public/services', { headers: { 'X-Tenant-Slug': slug } })`). `bffClient`'s `/v1` baseURL is proxied by the existing generic same-origin gateway (`apps/web/app/v1/[...path]/route.ts`) straight through to the BFF, whose NestJS app has `setGlobalPrefix('v1')` — so `/public/platform/chatbot/status` is genuinely reachable at `/v1/public/platform/chatbot/status`. No new Route Handler needed; this corrects an initial story-discovery finding (see Follow-up below).
 
 Widget header reads `"{tenant name} — Assistente IA"` / `"— AI Assistant"` per locale — doubles as the AI disclosure, no separate disclaimer banner needed.
 
-`sessionId` held in `sessionStorage`, sent on every subsequent message.
+`sessionId` **and** the visible `messages` transcript both held in `sessionStorage`, so a page reload restores the visible conversation client-side (no new backend read endpoint) — resolves `dev-notes.md`'s previously-open reload-behavior question in favor of client-side caching, since S11 stays frontend-scoped this way.
+
+**Fake LLM provider for CI/E2E (folded in from story-discovery — see Follow-up below):** add a DI-registered fake/noop `ILlmProvider` (`apps/backend/src/contexts/platform/infrastructure/llm/`), a new provider-name constant, and register it in `LlmProviderRegistry`'s map. Wire it as a selectable (never default) option for `CHATBOT_LLM_PROVIDER` — mirrors the existing `EMAIL_ADAPTER=mailhog` precedent (a real, free, safe local adapter, not a network-level mock). Production/staging keep `openrouter` as the default; only the E2E environment sets `CHATBOT_LLM_PROVIDER=fake`.
+
+On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags and "Pages referenced" table (all currently `Story: TBD`) to reflect the shipped flow — the GUEST-facing UC-033/UC-034 journey is complete end-to-end once this story ships (`docs/DEFINITION_OF_DONE.md` § Journey GAP-status drift).
 
 **Acceptance Criteria:**
 - [ ] All 3 states implemented, matching the prototype's visual treatment
 - [ ] Both `variant: 'bubble'` and `'inline'` render correctly
 - [ ] Widget never shows a chat button that then fails when clicked
-- [ ] `sessionId` held in `sessionStorage`, sent on every subsequent message
+- [ ] `ChatbotModuleDataSchema` added to `module-schemas.ts` and registered in `MODULE_DATA_SCHEMAS.CHATBOT`
+- [ ] No divider renders adjacent to the `CHATBOT` module in `page.tsx`'s render loop (matches `FOOTER`'s existing special-case)
+- [ ] `sessionId` **and** `messages` transcript held in `sessionStorage`; a reload with an existing session restores the visible conversation; `sessionId` sent on every subsequent message
 - [ ] Widget title includes `"— Assistente IA"`/`"— AI Assistant"` per locale
+- [ ] `apps/web/features/platform/hotsite/api/chatbot.ts` exports client-only fetchers calling `bffClient` with an explicit `X-Tenant-Slug` header, matching `fetchServicesClient()`'s existing pattern — never a raw `fetch()`, never a server transport helper called client-side
 - [ ] `.spec.tsx` ships in the same commit (`jsdom` + `@testing-library/react`), covering all 3 states as distinct rendering branches
-- [ ] New locale keys (placeholder text, interrupted message, not-available fallback) in both `pt-BR` and `en` in the same commit
-- [ ] At minimum one Playwright E2E flow exercising a real conversation against a fake/stubbed LLM response end to end (widget → BFF → backend → adapter) — never a real billed model call in CI
+- [ ] New locale keys (placeholder text, interrupted message, not-available fallback) in both `pt-BR` and `en` in the same commit, under `hotsite.chatbot.*`
+- [ ] A DI-registered fake/noop `ILlmProvider` exists, selectable via `CHATBOT_LLM_PROVIDER=fake`, registered in `LlmProviderRegistry`; a unit test confirms it never performs real network I/O; production/staging default (`openrouter`) unchanged
+- [ ] At minimum one Playwright E2E flow exercising a real conversation against the fake provider end to end (widget → BFF → backend → fake adapter), with the E2E environment set to `CHATBOT_LLM_PROVIDER=fake` — never a real billed model call in CI
+- [ ] `plan/journey/guest/ask-chatbot.md`'s mermaid flowchart and "Pages referenced" table updated (GAP tags cleared, Story column set to M19-S11) in the same commit
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S09.
 
+**Follow-up (M19-S11 story-discovery, 2026-08-17) — 2 blockers + 4 risks found and resolved before implementation:**
+1. **[BLOCKER] The E2E AC ("fake/stubbed LLM response end to end") was unimplementable as originally scoped.** Playwright runs against the real, already-running backend/BFF stack (no mocked network layer), but `LlmProviderRegistry` only supports 3 real, billed adapters, the existing `FakeLlmProviderBuilder` is Jest-only (not DI-registered), and `docs/08-TESTING_STRATEGY.md` has no guidance for this case. Resolved: folded a minimal fake/noop `ILlmProvider` + registry entry + `CHATBOT_LLM_PROVIDER=fake` env option into this story's own scope (mirrors the `EMAIL_ADAPTER=mailhog` precedent); `Agent` updated to `frontend-ts` + `backend-ts`, matching the M19-S10 precedent for folding a discovered backend gap into a nominally single-layer story.
+2. **[BLOCKER, later found to be a false alarm] No existing Web→BFF transport helper appeared to cover an unauthenticated, client-side, tenant-slug-scoped call** — `docs/24`'s decision table reads as `bffPublicFetch` being public-but-server-only and `bffClient` being client-only-but-cookie-authenticated, with neither an exact fit. Story-discovery's first pass proposed two new Route Handler proxies to bridge this. **Corrected during implementation:** `apps/web/features/platform/hotsite/api/services.ts`'s `fetchServicesClient()` already calls `bffClient.get('/public/services', { headers: { 'X-Tenant-Slug': slug } })` — a working precedent for exactly this case. `bffClient`'s `/v1` baseURL is proxied by the existing generic same-origin gateway (`apps/web/app/v1/[...path]/route.ts`) through to the BFF's real routes (`setGlobalPrefix('v1')` makes `/public/platform/chatbot/status` genuinely live at `/v1/public/platform/chatbot/status`). No new Route Handlers needed — `chatbot.ts` mirrors `services.ts`'s existing pattern instead. Left in this log as a reminder to search for an existing precedent (`grep -rn bffClient apps/web/features/`) before treating a doc's abstract decision table as exhaustive.
+3. **[RISK] `dev-notes.md`'s open reload-behavior question was never resolved.** Resolved: client-side cache (`messages` persisted to `sessionStorage` alongside `sessionId`) — no new backend endpoint, keeps the story frontend-scoped on this axis.
+4. **[RISK] `module-schemas.ts` had no path to a `CHATBOT` entry**, though `docs/15` §7 step 3 makes this mandatory before any new module type ships. Folded into this story's scope.
+5. **[RISK] `page.tsx`'s per-module divider didn't account for a `position: fixed` widget.** Resolved: `CHATBOT` gets the same no-divider treatment as `FOOTER`.
+6. **[RISK] `plan/journey/guest/ask-chatbot.md` still marks every node `❓ GAP`** even though this story completes the guest-facing flow end-to-end. Folded into this story's own Definition-of-Done scope rather than deferred to milestone close-out.
+
+**Follow-up (M19-S11 implementation, 2026-08-17) — 1 additional gap found and fixed, not caught at story-discovery:**
+1. **The backend and BFF independently hardcode their own module-type allow-lists, neither derived from `@ikaro/types`'s `HotsiteModuleType`, and neither included `CHATBOT`.** Two separate call sites: the shared Zod schema `packages/validation/src/hotsite.ts`'s `HotsiteModuleSchema` (used by both `apps/bff/src/features/platform/hotsite-admin.schemas.ts`'s `UpdateHotsiteContentBodySchema` and the backend's `update-hotsite-content.dto.ts` via `ZodValidationPipe`), and `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`'s own `HotsiteModuleType` union + `MODULE_TYPES` set (enforced in `validateLayout()`, throws `HotsiteModuleTypeInvalidError`). Without this fix, `PATCH /v1/tenants/hotsite` would reject any `{ type: 'CHATBOT', ... }` module outright — not just an E2E-test-blocking gap, but one that would've blocked the feature from ever working in production, regardless of which story eventually builds the admin config UI. Fixed: added `'CHATBOT'` to both the shared Zod enum and the backend aggregate's own type/set (plus a `ChatbotModuleData` interface in the aggregate, needed once a real `HotsiteModule` literal with `type: 'CHATBOT'` is constructed anywhere — TypeScript's structural typing caught this immediately via a literal-assignment error in the aggregate's own test file). Test coverage added at both layers (`packages/validation/src/hotsite.spec.ts`, `apps/backend/.../hotsite-config.spec.ts`). Found only because the E2E test needed to actually PATCH a CHATBOT module onto a real tenant's layout — a lesson for future new-module-type stories: verify the backend/BFF persistence-validation layer accepts the new type, not just the web-side schema and the type union.
+
+**Follow-up (PR #385 review, Codex, 2026-08-17) — 1 critical + 3 important + 3 minor findings, all fixed:**
+1. **[CRITICAL] `page.tsx`'s no-divider check only looked at the module being rendered, not the one before it** — a module immediately after `CHATBOT` (e.g. `HERO → CHATBOT → CONTACT`) still rendered its own leading divider. Fixed by extracting a `shouldSkipDivider(index, type, previousType)` helper into `page-model.ts` (page.tsx itself can't carry a unit spec — WEB-5), checking both the current and preceding module's type; 7 new unit tests cover the ordering.
+2. **[IMPORTANT] `CHATBOT_LLM_PROVIDER=fake` had no environment guard** — would have been silently accepted in staging/production, replacing the real assistant with the echo adapter. Fixed with a `validateChatbotConfig()` guard in `env.validation.ts` rejecting `fake` when `APP_ENV !== 'local'`, mirroring the existing `EMAIL_ADAPTER=mailhog` guard exactly.
+3. **[IMPORTANT] `FakeLlmAdapter` ignored `request.maxOutputTokens`**, echoing the full input regardless of the requested ceiling — a real `ILlmProvider` contract violation. Fixed: reply truncated to `maxOutputTokens`.
+4. **[IMPORTANT] `dev-notes.md` still described the feature as entirely unbuilt** (stale File map rows, "messages not persisted" contradicting a note two paragraphs above it) — a stale-reference-sweep miss. Updated to reflect what M19-S11 actually shipped.
+5. **[MINOR] `docs/02-DOMAIN_MODEL.md`'s canonical layout-module list stopped at `FOOTER`** — added `CHATBOT`.
+6. **[MINOR] `ChatbotWidget.tsx`'s `readStoredMessages()` trusted any syntactically-valid JSON shape** — a malformed turn (e.g. `content: {}`) reached JSX unchecked and would crash the widget. Added an `isStoredChatTurn()` type guard that discards malformed entries instead.
+7. **[MINOR] `fake-llm.adapter.spec.ts`'s "never a real network call" test only asserted on the returned value** — renamed and rewritten to spy on `globalThis.fetch` and assert it's never called.
+
 ---
 
-### M19-S12 — Chatbot module config panel
+### M19-S12 — Chatbot module config panel ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
@@ -449,19 +489,28 @@ Widget header reads `"{tenant name} — Assistente IA"` / `"— AI Assistant"` p
 **Description:**
 `ChatbotConfigPanel.tsx` (`apps/web/features/platform/components/hotsite/modules/`), same drill-down pattern as the other 8 module panels (M13-S36 precedent). Fields: `variant` (bubble/inline pill-toggle), `accentColor` (primary/secondary), `botName`, `welcomeMessage`. Standing (non-dismissible) info note about the AI-provider-credit dependency. Conditional red banner — queries S10's `GET /v1/tenants/chatbot/cap-status` on mount, shown only when `dailyCapReachedToday` is `true`.
 
+Also requires `apps/web/features/platform/hotsite/default-layout.ts`: add `'CHATBOT'` to `MODULE_ORDER` and a minimal `DEFAULT_MODULE_DATA.CHATBOT` entry (`{}` — every field is optional) — without this the Layout tab never materializes a CHATBOT row (`materializeLayout()` only walks `MODULE_ORDER`) and `manifest-schema.ts`'s Manifesto-tab validation keeps rejecting a pasted `CHATBOT` module, making the new panel unreachable. Cap-status fetch follows the existing hotsite hook convention: `getChatbotCapStatus()` in `apps/web/features/platform/api/tenant-settings.ts` (client-side `bffClient` call) + `useChatbotCapStatus()` in `useHotsite.ts` (`useQuery` wrapper) — called from inside the panel, not a bespoke fetch embedded in the component.
+
 **Acceptance Criteria:**
 - [ ] Panel matches the prototype's field set and standing disclosure note
 - [ ] Red banner appears only when the cap-status endpoint returns `{ dailyCapReachedToday: true }`; absent otherwise
 - [ ] Registered as the `CHATBOT` module's config panel via the same drill-down registration mechanism as the other 8 panels
+- [ ] `'CHATBOT'` added to `default-layout.ts`'s `MODULE_ORDER` and `DEFAULT_MODULE_DATA`; the Layout tab shows a CHATBOT row for every tenant (new or existing) and the Manifesto tab accepts a pasted `CHATBOT` module
 - [ ] New locale keys (panel labels, disclosure text, banner text) in both `pt-BR` and `en` in the same commit
 - [ ] `.spec.tsx` covering both banner states (shown/hidden) and field editing/persistence
+- [ ] `plan/journey/manager/hotsite.md`'s open-question line and `index.html`'s GAP tag for `01e-module-config-chatbot.html` updated to resolved, in the same commit
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S09, S10, S11.
 
+**Follow-up (M19-S12 story-discovery, 2026-08-18) — 1 blocker + 2 risks found and resolved before implementation:**
+1. **[BLOCKER] The story's original Description never mentioned `default-layout.ts`, but the panel is unreachable without editing it.** `MODULE_ORDER`/`DEFAULT_MODULE_DATA` both excluded `'CHATBOT'`, with the code already carrying an explicit forward-reference comment placed during S11 ("CHATBOT... ships in M19-S12"). `materializeLayout()` only walks `MODULE_ORDER`, so without this edit no tenant ever gets a CHATBOT row in the Layout tab and `manifest-schema.ts`'s `MODULE_TYPE_SET`/`tooManyModules` cap (both derived from `MODULE_ORDER.length`) keep rejecting a pasted `CHATBOT` module in the Manifesto tab. Resolved: folded into this story's own Description/AC above.
+2. **[RISK] No existing module panel does its own data fetch** — all 8 prior panels (`grep`-confirmed) are pure `{ data, onChange }` local-state editors with zero network I/O; `HotsiteEditor.tsx` owns all mutations. Resolved: `ChatbotConfigPanel` follows the existing hotsite hook convention (`api/tenant-settings.ts` + `useHotsite.ts`'s `useQuery` wrappers), not a bespoke fetch embedded in the component.
+3. **[RISK] Journey GAP-status drift not originally in scope** — `plan/journey/manager/hotsite.md` line 71 and `index.html`'s GAP tag on `01e-module-config-chatbot.html` were never flagged for this story, unlike S11's equivalent flip for the guest journey. Resolved: added as its own AC above.
+
 ---
 
-### M19-S13 — Tenant settings form — Chatbot section
+### M19-S13 — Tenant settings form — Chatbot section ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
@@ -484,29 +533,28 @@ Add a "Chatbot" section to `SettingsForm.tsx` (`apps/web/features/platform/compo
 
 ---
 
-### M19-S14 — Infra: secrets, env vars, scheduler jobs
+### M19-S14 — Infra: fix stale CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD value ✅ Done
 
 **Agent:** `devops`
-**Complexity:** S
-**Docs to load:** `infra/terraform/README.md`, the existing `modules/secret-manager` and `modules/scheduler` Terraform modules, `docs/14-API_CONTRACTS.md` § Chatbot Widget / cron entries
+**Complexity:** XS
+**Docs to load:** `infra/terraform/README.md`, `infra/terraform/modules/secrets/`, `infra/terraform/modules/scheduler/`, `docs/14-API_CONTRACTS.md` § Chatbot Widget / cron entries, `docs/04-USE_CASES.md` UC-033–UC-036
 
 **Description:**
-Not new infra capability — the Secret Manager and Cloud Scheduler modules already exist (`M15-S06`, `M15-S10`/`M17-S21`). This story adds new instances via those existing modules, mirroring the exact shape of the existing `loyalty_expire_points` scheduler resource and existing secret entries.
+Originally drafted as "add 2 env vars + 2 Pub/Sub topics + 2 Cloud Scheduler jobs" for the chatbot module. Story-discovery (2026-08-19) found nearly all of that already delivered by earlier stories, confirmed via live `gcloud` checks against `ikaro-staging`:
 
-**Note (scope moved during `/story-discovery`, 2026-08-10):** the 3 LLM provider secrets (`OPENROUTER_API_KEY`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) and the `CHATBOT_LLM_PROVIDER` env var were pulled forward into S02 instead of waiting for this story — S02 needed the Terraform pattern established immediately rather than deferred, and building it once for all 3 providers avoided repeating the same Terraform PR shape across S02/S03/S14. This story's remaining scope:
+- **2 Pub/Sub topics + 2 Cloud Scheduler jobs** (`ikaro-cron-chatbot-retention-purge` daily `0 3 * * *`, `ikaro-cron-chatbot-balance-poll` every 15 min `*/15 * * * *`) — provisioned directly by **S07** (PR #365) and **S08** (PR #370/#371), including the Foundation `scheduler_publisher_*` IAM grants. Confirmed live: both topics + DLQs exist, both jobs `ENABLED` with the correct schedules.
+- **2 env vars wired to the backend Cloud Run service** — done by **S06** (PR #363), not this story. `CHATBOT_MIN_PROVIDER_BALANCE_USD=2` is live and correct.
 
-- **2 new plain env vars** on the backend Cloud Run service: `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (default `25`), `CHATBOT_MIN_PROVIDER_BALANCE_USD` (default `2`)
-- **2 new Pub/Sub topics + 2 new Cloud Scheduler jobs**: `ikaro-cron-chatbot-retention-purge` (daily, `0 3 * * *`) and `ikaro-cron-chatbot-balance-poll` (every 15 min, `*/15 * * * *`) — if not already added directly in S07/S08 (implementer's call on sequencing; not a hard dependency either way)
-
-Not a functional blocker for local development, which uses local `.env` values + the manual `POST /cron/...` trigger endpoints, same as every existing cron job. Required before real staging/prod traffic — mirrors `M11`→`M15`'s precedent (SendGrid's secret was provisioned in a later, separate infra pass, not blocking `M11`'s own app-code stories).
+**The one real gap found:** `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` is hardcoded to `"25"` in both `infra/terraform/envs/staging/main.tf` and `infra/terraform/envs/prod/main.tf` (set during S06, before the value was later revised) — a live check confirms staging's deployed Cloud Run revision is actually running with `25`. `docs/04-USE_CASES.md` UC-033–UC-036's dated correction (2026-08-18, M19-S12) lowered the intended default to `1`, and `apps/backend/src/config/env.validation.ts` already has `.default(1)` — but that Zod default only applies when the env var is unset, and Terraform explicitly sets it, so `25` wins live in both environments. This story's entire remaining scope is correcting that value.
 
 **Acceptance Criteria:**
-- [ ] 2 env vars set on the backend Cloud Run service with the documented defaults
-- [ ] 2 Pub/Sub topics + 2 Cloud Scheduler jobs provisioned via the existing `modules/scheduler`, matching the real `loyalty_expire_points` resource's shape
-- [ ] Terraform plan/apply verified in a real (staging) environment, not just `terraform validate`
-- [ ] No secret value committed anywhere in the repo (Gitleaks-clean)
+- [x] `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` changed from `"25"` to `"1"` in both `envs/staging/main.tf` and `envs/prod/main.tf`
+- [x] `terraform plan` reviewed for both env roots — the only diff is this one value on the existing `cloudrun_backend` env var, no resource replacement
+- [x] Applied for real in staging (not just `terraform validate`/`plan`); live value re-verified via `gcloud run services describe ikaro-backend --project=ikaro-staging ...` — confirmed `1`
+- [x] Applied in prod once staging is confirmed — confirmed `1` live via the same check against `ikaro-prod`
+- [x] No secret value committed anywhere in the repo (Gitleaks-clean) — N/A, no secret touched; CI Gitleaks Secret Scan passed
 
-**Dependencies:** None (can run in parallel with any wave). Required before staging/prod activation of S07, S08.
+**Dependencies:** None. S07/S08 already delivered the topics/scheduler jobs independently; S06 already delivered the env var wiring. This story only fixes the stale value.
 
 ---
 

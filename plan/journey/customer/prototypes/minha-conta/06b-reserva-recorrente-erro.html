@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reserva recorrente — Conflito — Vitta Studio</title><link rel="stylesheet" href="../../../shared/tokens.css"><style>.row{padding:1rem 0;border-bottom:1px solid var(--ba-secondary)}.row:last-child{border:0}.meta{font-size:.8125rem;opacity:.7;margin-top:.25rem}.notice{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--ba-radius);padding:1rem;margin-top:1rem}</style></head><body>
+<!--
+  DISCOVERY PROTOTYPE -- illustrative only, NOT a plan/journey/ prototype.
+  Error-state sibling of customer-09-reserva-recorrente.html — this is the CREATION step that
+  precedes it (customer-09 itself only shows an already-standing reservation being managed).
+  CAND-45 (System Manages a Recurring Private Reservation Schedule) alt A1:
+  "A future pattern conflicts at creation -> Creation is blocked; no partial schedule exists."
+  See ../multivertical-booking_USECASES.md CAND-45 alt. A1 and
+  ../multivertical-booking_DATA_MODEL.md's recurring_booking_schedules section.
+-->
+<div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">
+  Protótipo — CAND-45 alt. A1 — padrão futuro conflita, criação bloqueada
+</div>
+<header style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem"><strong>Vitta Studio</strong></header>
+<main class="step-container">
+  <p class="step-indicator">Sala Aurora · nova reserva recorrente</p>
+  <h1 style="font-size:1.5rem">Toda terça, 10:00–12:00</h1>
+  <p style="opacity:.7">Este horário viraria um compromisso recorrente, com reservas geradas até 90 dias à frente.</p>
+
+  <div class="card" style="border-color:#fca5a5;background:#fef2f2;">
+    <h2 style="font-size:1.1rem;color:#dc2626">Não foi possível criar esta recorrência</h2>
+    <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — a criação é bloqueada por inteiro; nenhuma reserva parcial foi feita.</p>
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <strong>Ocorrências em conflito</strong>
+    <div class="row">
+      <strong>25 de agosto · 10:00–12:00</strong>
+      <p class="meta">Sala Aurora já está comprometida neste horário com outra reserva de terça.</p>
+    </div>
+    <div class="row">
+      <strong>08 de setembro · 10:00–12:00</strong>
+      <p class="meta">Mesmo conflito — o padrão semanal repete o choque a cada quatro semanas.</p>
+    </div>
+  </div>
+
+  <div class="notice">
+    <strong>O que fazer agora</strong>
+    <p class="meta">Escolha outro dia/horário para a recorrência, ou reserve a Sala Horizonte (disponível no mesmo padrão) em vez de insistir na Sala Aurora.</p>
+  </div>
+
+  <div class="nav-buttons">
+    <a class="btn-secondary" href="../../../guest/prototypes/book-a-service/12-reserva-por-tempo.html">Escolher outro horário</a>
+    <button class="btn-primary" style="opacity:.5;pointer-events:none;" disabled>Confirmar recorrência</button>
+  </div>
+</main>
+</body></html>

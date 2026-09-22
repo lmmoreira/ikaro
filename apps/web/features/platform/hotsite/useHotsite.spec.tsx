@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  useChatbotCapStatus,
   useFeatureBookingPhoto,
   useGenerateHotsiteImageSignedUrl,
   useHotsiteConfig,
@@ -21,6 +22,7 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
     .fn()
     .mockResolvedValue({ signedUrl: 'https://example.com', filePath: 'path', expiresAt: '' }),
   featureBookingPhoto: vi.fn().mockResolvedValue({ success: true }),
+  getChatbotCapStatus: vi.fn().mockResolvedValue({ dailyCapReachedToday: false }),
 }));
 
 vi.mock('@/providers/tenant-provider', () => ({
@@ -87,5 +89,13 @@ describe('useFeatureBookingPhoto', () => {
       result.current.mutate({ bookingId: 'b-1', photoType: 'after', filePath: 'path/photo.jpg' }),
     );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+});
+
+describe('useChatbotCapStatus', () => {
+  it('fetches the chatbot cap status', async () => {
+    const { result } = renderHook(() => useChatbotCapStatus(), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual({ dailyCapReachedToday: false });
   });
 });

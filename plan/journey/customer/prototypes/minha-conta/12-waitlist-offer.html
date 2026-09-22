@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Oferta de vaga — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .customer-nav { display:flex;background:white;border-bottom:1px solid var(--ba-secondary);padding:0 1.5rem;gap:.25rem; }
+    .customer-nav a { padding:.75rem 1rem;text-decoration:none;font-size:.875rem;color:var(--ba-text);opacity:.55; }
+    .customer-nav a.active { color:#2563eb;opacity:1;border-bottom:2px solid #2563eb;font-weight:600; }
+  </style>
+</head>
+<body>
+  <!--
+    AUTHENTICATED CUSTOMER VIEW. This is reached from the customer's in-app notification
+    or "Minhas Turmas", not from the public hotsite. A verified guest gets an equivalent
+    single-use email-link view; that flow must not pretend the guest has a customer session.
+  -->
+  <div class="dashboard-topbar"><div class="topbar-brand"><div class="topbar-logo-mark">V</div><span class="topbar-tenant-name">Vitta Studio</span></div><div style="margin-left:auto;display:flex;align-items:center;gap:.5rem"><span style="font-size:.875rem;font-weight:600">Ana Costa</span><div class="list-avatar" style="width:2rem;height:2rem;font-size:.8125rem">AC</div></div></div>
+  <nav class="customer-nav" aria-label="Navegação da conta"><a href="../../../shared/customer-dashboard.html">Início</a><a href="01-minha-conta.html">Agendamentos</a><a class="active" href="08-turmas-lista.html">Turmas</a><a href="04-fidelidade.html">Fidelidade</a></nav>
+  <div class="dashboard-layout"><main class="main-content"><div class="dashboard-body" style="max-width:42rem">
+    <a href="08-turmas-lista.html" style="font-size:.875rem;color:var(--ba-text);text-decoration:none">← Minhas Turmas</a>
+    <p style="font-size:.8125rem;color:#b45309;font-weight:700;margin:1.25rem 0 .5rem">OFERTA DE FILA DE ESPERA</p>
+    <div class="card" style="background:#fffbeb;border-color:#fbbf24"><h1 style="font-size:1.45rem">Uma vaga abriu para seu grupo</h1><p style="margin-top:.75rem;line-height:1.55">Estamos segurando <strong>2 vagas</strong> para Ana Costa e Bia Santos até <strong>domingo, 17:00</strong>. Confirme para concluir esta reserva pontual.</p></div>
+    <div class="card" style="margin-top:1rem"><strong>Pilates · Seg, 18 ago · 18:00</strong><p style="font-size:.875rem;opacity:.72;margin-top:.4rem">A oferta aparece nos seus agendamentos e você também recebeu uma notificação por e-mail.</p></div>
+    <div class="card" style="margin-top:1rem"><strong>Antes de confirmar</strong><p style="font-size:.875rem;opacity:.72;margin-top:.4rem">Se não puder ir, recuse a oferta. Sem resposta até o prazo, as vagas são liberadas para a próxima pessoa.</p></div>
+    <div class="nav-buttons"><a class="btn-secondary" href="01-minha-conta.html">Recusar oferta</a><a class="btn-primary" href="12b-waitlist-confirmed.html">Confirmar 2 vagas</a></div>
+  </div></main></div>
+</body>
+</html>

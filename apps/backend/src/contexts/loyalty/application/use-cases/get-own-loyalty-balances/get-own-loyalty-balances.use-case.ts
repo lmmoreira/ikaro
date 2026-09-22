@@ -10,7 +10,7 @@ export interface GetOwnLoyaltyBalancesUseCaseInput {
   actorId: string;
 }
 
-export interface LoyaltyBalanceByTenantResult {
+export interface GetOwnLoyaltyBalancesUseCaseResult {
   tenantId: string;
   currentPoints: number;
 }
@@ -26,7 +26,9 @@ export class GetOwnLoyaltyBalancesUseCase {
     @Inject(LOYALTY_CUSTOMER_PORT) private readonly loyaltyCustomer: ILoyaltyCustomerPort,
   ) {}
 
-  async execute(input: GetOwnLoyaltyBalancesUseCaseInput): Promise<LoyaltyBalanceByTenantResult[]> {
+  async execute(
+    input: GetOwnLoyaltyBalancesUseCaseInput,
+  ): Promise<GetOwnLoyaltyBalancesUseCaseResult[]> {
     const { contextTenantId, actorId } = input;
     const pairs = await this.loyaltyCustomer.resolveAllTenantsByOAuthId(actorId, contextTenantId);
     const balances = await this.balanceRepo.findManyByTenantCustomerPairs(pairs);

@@ -7,6 +7,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendBookingApprovedNotificationDto } from '../../dtos/send-booking-approved-notification.dto';
+import { BaseContactNotificationDto } from '../../dtos/base-contact-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -30,7 +31,11 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER;
 
-export type SendBookingApprovedNotificationUseCaseInput = SendBookingApprovedNotificationDto;
+export interface SendBookingApprovedNotificationUseCaseInput extends BaseContactNotificationDto {
+  approvedSlot: SendBookingApprovedNotificationDto['approvedSlot'];
+  totalPrice: SendBookingApprovedNotificationDto['totalPrice'];
+  lineSummary: SendBookingApprovedNotificationDto['lineSummary'];
+}
 
 export interface SendBookingApprovedNotificationUseCaseResult {
   emailSent: boolean;

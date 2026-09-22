@@ -5,6 +5,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendServicePointsEarnedNotificationDto } from '../../dtos/send-service-points-earned-notification.dto';
+import { BaseNotificationDto } from '../../dtos/base-notification.dto';
 import {
   INotificationCustomerPort,
   NOTIFICATION_CUSTOMER_PORT,
@@ -36,8 +37,14 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.SERVICE_POINTS_EARNED;
 
-export type SendServicePointsEarnedNotificationUseCaseInput =
-  SendServicePointsEarnedNotificationDto;
+export interface SendServicePointsEarnedNotificationUseCaseInput extends BaseNotificationDto {
+  customerId: SendServicePointsEarnedNotificationDto['customerId'];
+  bookingId: SendServicePointsEarnedNotificationDto['bookingId'];
+  totalPointsEarned: SendServicePointsEarnedNotificationDto['totalPointsEarned'];
+  earnedAt: SendServicePointsEarnedNotificationDto['earnedAt'];
+  lines: SendServicePointsEarnedNotificationDto['lines'];
+  currentBalance: SendServicePointsEarnedNotificationDto['currentBalance'];
+}
 
 export interface SendServicePointsEarnedNotificationUseCaseResult {
   emailSent: boolean;

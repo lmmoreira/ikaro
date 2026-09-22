@@ -43,4 +43,11 @@ export class InMemoryBookingRepository implements IBookingRepository {
     this.store.set(booking.id, booking);
     await drainDomainEvents(booking, this.outboxPublisher);
   }
+
+  async existsByServiceId(serviceId: string, tenantId: string): Promise<boolean> {
+    return Array.from(this.store.values()).some(
+      (booking) =>
+        booking.tenantId === tenantId && booking.lines.some((line) => line.serviceId === serviceId),
+    );
+  }
 }

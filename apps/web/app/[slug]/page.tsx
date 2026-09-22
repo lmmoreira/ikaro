@@ -3,18 +3,21 @@ import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/features/platform/api.server';
 import { AboutModule } from '@/shells/hotsite/components/AboutModule';
 import { BookingCtaModule } from '@/shells/hotsite/components/BookingCtaModule';
+import { ChatbotWidget } from '@/shells/hotsite/components/ChatbotWidget';
 import { ContactModule } from '@/shells/hotsite/components/ContactModule';
 import { JsonLdScript } from '@/shells/hotsite/components/JsonLdScript';
 import { Footer } from '@/shells/hotsite/components/Footer';
 import { GalleryModule } from '@/shells/hotsite/components/GalleryModule';
 import { HeroModule } from '@/shells/hotsite/components/HeroModule';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
+import { LeadFormModule } from '@/shells/hotsite/components/LeadFormModule';
 import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
 import { TestimonialsModule } from '@/shells/hotsite/components/TestimonialsModule';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
+  shouldSkipDivider,
 } from '@/features/platform/hotsite/page-model';
 import { buildHotsiteMetadata, buildLocalBusinessJsonLd } from '@/features/platform/hotsite/seo';
 import { fetchServices } from '@/features/platform/hotsite/api/services.server';
@@ -75,6 +78,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
       <JsonLdScript data={localBusinessJsonLd} />
       {modulesWithVariant.map(({ parsed, bgVariant }, index) => {
         const key = `${parsed.type}-${index}`;
+        const previousType = index > 0 ? modulesWithVariant[index - 1].parsed.type : undefined;
         let moduleEl: React.ReactNode = null;
 
         if (parsed.type === 'HERO') {
@@ -126,11 +130,23 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
               logoUrl={branding.logoUrl}
             />
           );
+        } else if (parsed.type === 'CHATBOT') {
+          moduleEl = (
+            <ChatbotWidget
+              key={key}
+              data={parsed.data}
+              slug={slug}
+              business={business}
+              tenantName={displayName}
+            />
+          );
+        } else if (parsed.type === 'LEAD_FORM') {
+          moduleEl = <LeadFormModule key={key} data={parsed.data} slug={slug} />;
         }
 
         return moduleEl ? (
           <div key={key}>
-            {index > 0 && parsed.type !== 'FOOTER' && dividerEl}
+            {!shouldSkipDivider(index, parsed.type, previousType) && dividerEl}
             {moduleEl}
           </div>
         ) : null;

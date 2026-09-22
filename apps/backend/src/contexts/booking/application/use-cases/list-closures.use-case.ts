@@ -6,7 +6,7 @@ import {
 import { ListClosuresDto } from '../dtos/close-schedule.dto';
 import { ScheduleClosureListItem } from '../dtos/schedule-list-item.dto';
 
-export type ListClosuresInput = ListClosuresDto & {
+export type ListClosuresUseCaseInput = ListClosuresDto & {
   tenantId: string;
 };
 
@@ -21,17 +21,19 @@ export class ListClosuresUseCase {
     private readonly closureRepo: IScheduleClosureRepository,
   ) {}
 
-  async execute(input: ListClosuresInput): Promise<ListClosuresUseCaseResult> {
+  async execute(input: ListClosuresUseCaseInput): Promise<ListClosuresUseCaseResult> {
     const { tenantId } = input;
     const closures = await this.closureRepo.findByTenantAndDateRange(
       tenantId,
       input.from,
       input.to,
+      input.resourceId,
     );
 
     return {
       items: closures.map((c) => ({
         id: c.id,
+        resourceId: c.resourceId,
         date: c.date,
         startTime: c.startTime?.value ?? null,
         endTime: c.endTime?.value ?? null,

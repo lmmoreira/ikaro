@@ -86,7 +86,7 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
   ) {}
 
   async insert(event: Envelope, dedupKey: string): Promise<string | undefined> {
-    // TD24-S03: every publish site (the 3 event-emitting aggregates' repositories, the 3 cron
+    // TD24-S03: every publish site (the event-emitting aggregates' repositories, the cron
     // jobs, the loyalty re-emit) now always runs inside txManager.run() — the standalone
     // fallback this used to have was a legitimate path only until that was true everywhere.
     const manager = getActiveEntityManager();

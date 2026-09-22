@@ -48,6 +48,7 @@ describe('ChatbotController', () => {
       providers.openRouter ?? defaultProvider,
       providers.anthropic ?? defaultProvider,
       providers.openAi ?? defaultProvider,
+      defaultProvider,
     );
     const config = fakeConfig();
     const sendChatMessage = new SendChatMessageUseCase(
@@ -78,7 +79,7 @@ describe('ChatbotController', () => {
       .withSettings(settings as never)
       .build();
     const provider = new FakeLlmProviderBuilder().build();
-    const registry = new LlmProviderRegistry('openrouter', provider, provider, provider);
+    const registry = new LlmProviderRegistry('openrouter', provider, provider, provider, provider);
     const config = fakeConfig();
     const sendChatMessage = new SendChatMessageUseCase(
       sessionRepo,

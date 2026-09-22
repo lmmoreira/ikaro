@@ -140,6 +140,7 @@ export function PhotoUpload(props: PhotoUploadProps): React.JSX.Element {
         <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {items.map((item) => (
             <li key={item.id}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- local file previews use browser object URLs before upload */}
               <img
                 src={item.previewUrl}
                 alt={item.fileName}

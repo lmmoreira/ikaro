@@ -29,6 +29,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 | `eventName` | Routing & logging | PascalCase, matches the canonical name in this file |
 | `eventVersion` | Schema evolution | Integer; bump on breaking change (see §"Event Versioning") |
 | `data` | The payload below | Object; field names in camelCase |
+| `traceContext` | Optional OTel trace propagation | `Record<string, string>`; set by `OutboxPublisher.publish()` for distributed tracing — not business payload, omit from any `data` design |
 
 > **Multi-tenancy:** `tenantId` in the envelope is the authoritative tenant scope. The Notification Context running for Tenant A MUST discard any event whose envelope `tenantId` does not match Tenant A. Same rule for every other context.
 
@@ -275,6 +276,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 > Loyalty Context does NOT consume this event — loyalty is unaffected by rescheduling.
 
+> **Extended by M23 Cluster 3 (UC-069):** a customer-initiated reschedule (not just admin, UC-044) now goes through the same event — the trigger widens to include the customer's own "Reagendar" action, resource/bundle/leg re-validation is atomic before the original resource is released, and a `booking_quote_revisions` row is recorded when the reschedule changes the price (e.g. a variable-duration service). No new event type was introduced — this is a scope extension of the existing envelope, not a new candidate event.
+
 ---
 
 #### **BookingReminderDue**
@@ -348,11 +351,162 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
+> **M23 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions).** The events below are new Booking Context events for `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`, tenant-preset bootstrap, and appointment no-show.
+
+#### **RecurringBookingScheduleCreated**
+- **Trigger:** UC-070 confirms a recurring pattern on an `AUTO_CONFIRM` service, or UC-071 approves a `PENDING_APPROVAL` request on a `MANUAL_APPROVAL` service.
+- **State change:** `RecurringBookingSchedule.status → ACTIVE`; generation begins.
+- **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds: string[], assignmentPolicy, recurrence, startsOn }`
+- **Consumers:** Notification Context → confirmation email.
+
+#### **RecurringBookingScheduleApprovalRequested**
+- **Trigger:** UC-070 confirms a recurring pattern on a `MANUAL_APPROVAL` service.
+- **State change:** `RecurringBookingSchedule` created `PENDING_APPROVAL`, `approvalHoldExpiresAt` set. No occurrences generated.
+- **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds, assignmentPolicy, recurrence, startsOn, approvalHoldExpiresAt }`
+- **Consumers:** Notification Context → alerts staff, same role `BookingRequested` plays for a manual-approval appointment.
+
+#### **RecurringBookingScheduleRejected**
+- **Trigger:** UC-071 (staff rejects) or its hold-expiry worker (unresolved past `approvalHoldExpiresAt`).
+- **State change:** `RecurringBookingSchedule.status → CANCELLED`, `cancellationReason = APPROVAL_REJECTED | APPROVAL_EXPIRED`.
+- **Data:** `{ recurringScheduleId, customerId, serviceId, reason }`
+- **Consumers:** Notification Context → customer email.
+
+#### **RecurringBookingSchedulePaused**
+- **Trigger:** UC-045 A2 (customer pauses).
+- **State change:** `status → PAUSED`; no further occurrences generated until resumed.
+- **Data:** `{ recurringScheduleId, customerId, serviceId }`
+- **Consumers:** None in MVP.
+
+#### **RecurringBookingScheduleEnded**
+- **Trigger:** UC-045 A2 (customer ends entirely).
+- **State change:** `status → CANCELLED`; future materialized occurrences cancelled, releasing their `resource_occupancy` rows.
+- **Data:** `{ recurringScheduleId, customerId, serviceId, cancelledBookingIds: string[] }`
+- **Consumers:** Notification Context → customer email.
+
+#### **AvailabilityAlertCreated**
+- **Trigger:** UC-072.
+- **State change:** `availability_alerts` row created, `status = ACTIVE`.
+- **Data:** `{ alertId, customerId, serviceId, criteriaType, expiresAt }`
+- **Consumers:** None in MVP.
+
+#### **AvailabilityAlertUpdated**
+- **Trigger:** UC-076/UC-053 (customer edits criteria or expiry).
+- **Data:** `{ alertId, customerId, serviceId }`
+- **Consumers:** None in MVP.
+
+#### **AvailabilityAlertCancelled**
+- **Trigger:** UC-072 A2 (withdraws before a match) or UC-076/UC-053 (explicit cancel).
+- **State change:** `status → CANCELLED`.
+- **Data:** `{ alertId, customerId, serviceId }`
+- **Consumers:** None in MVP.
+
+#### **AvailabilityAlertExpired**
+- **Trigger:** System — `expiresAt` passed with no match.
+- **State change:** `status → EXPIRED`.
+- **Data:** `{ alertId, customerId, serviceId }`
+- **Consumers:** None in MVP.
+
+#### **AvailabilityAlertMatched**
+- **Trigger:** UC-072 step 3 — a released slot matches an `ACTIVE` alert's criteria.
+- **State change:** `status → NOTIFIED`; one `availability_alert_notification_attempts` row inserted for the matching window.
+- **Data:** `{ alertId, customerId, serviceId, matchingWindowStart, matchingWindowEnd, resourceId: string | null }`
+- **Consumers:** Notification Context → deduplicated email/in-app message.
+
+#### **FutureCommitmentExceptionRaised**
+- **Trigger:** UC-073 — a resource/hours/template/schedule change affects a future commitment nobody explicitly reviewed per-session (excludes a manager-initiated range cancellation, Cluster 4, whose own step is already the explicit resolution).
+- **State change:** `future_commitment_exceptions` row created, `status = OPEN`.
+- **Data:** `{ exceptionId, sourceType, sourceId, affectedType, affectedId, ownerStaffId: string | null }`
+- **Consumers:** Notification Context → alerts the owning manager.
+
+#### **FutureCommitmentExceptionResolved**
+- **Trigger:** UC-077 (manager keeps, reassigns, reschedules, or cancels).
+- **State change:** `status → RESOLVED`.
+- **Data:** `{ exceptionId, resolutionType, resolvedByStaffId, affectedType, affectedId }`
+- **Consumers:** Notification Context → customer email (the resulting booking/session change's own event carries the customer-facing detail; this one is the manager-side audit trail).
+
+#### **FutureCommitmentExceptionDismissed**
+- **Trigger:** UC-077 A2 (manager dismisses a genuinely resolved/non-impacting item).
+- **State change:** `status → DISMISSED`.
+- **Data:** `{ exceptionId, resolvedByStaffId, resolutionReason }`
+- **Consumers:** None in MVP.
+
+#### **TenantSchedulingBootstrapped**
+- **Trigger:** UC-075 (preset bootstrap commits).
+- **State change:** Tenant's initial `Resource`/`Service` graph created in one transaction (SESSION-preset templates arrive once Cluster 4 ships).
+- **Data:** `{ tenantId, presetId, serviceIds: string[], resourceIds: string[] }`
+- **Consumers:** None in MVP.
+
+#### **BookingNoShow**
+- **Trigger:** UC-074 — after an appointment's scheduled end time.
+- **State change:** `Booking.status → NO_SHOW` (new terminal state).
+- **Data:** `{ bookingId, actorId, reason, occurredAt }` (`tenantId`/`correlationId` are envelope fields)
+- **Consumers:** Notification Context → retryable customer email. Loyalty does **not** award completion points for this event.
+
+---
+
+> **M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions).** `ClassSession` and `ClassSessionBooking` are full `AggregateRoot`s whose events are drained through the transactional outbox, matching the existing `Booking` pattern — delivery failure never rolls back the committed booking state.
+
+#### **ClassSessionCancelled**
+- **Trigger:** UC-084 (single session cancelled with existing bookings) or UC-096 (date-range/from-date template cancellation, once per affected session).
+- **State change:** `ClassSession.status → CANCELLED`; every active `ClassSessionBooking` on it → `CANCELLED`.
+- **Data:** `{ classSessionId, serviceId, startTime, cancelledBookingIds: string[] }`
+- **Consumers:** Notification Context → email to every affected customer/guest.
+
+#### **ClassSessionBookingConfirmed**
+- **Trigger:** UC-086/087/088 (capacity check passes and confirms immediately) or UC-091 (waitlist offer accepted).
+- **State change:** `ClassSessionBooking.status → CONFIRMED`.
+- **Data:** `{ classSessionBookingId, sessionId, serviceId, customerId: string | null, contactEmail, contactName, quantity, priceAtBooking }` (mirrors `BookingRequested`'s self-contained-event shape)
+- **Consumers:** Notification Context → confirmation email.
+
+#### **ClassSessionBookingWaitlisted**
+- **Trigger:** UC-090.
+- **State change:** `ClassSessionBooking.status → WAITLISTED`. Does not consume capacity.
+- **Data:** `{ classSessionBookingId, sessionId, customerId, waitlistAccessIntent }`
+- **Consumers:** Notification Context → confirmation email with queue position (computed at read time, not stored).
+
+#### **WaitlistPromoted**
+- **Trigger:** UC-091 — capacity released, first fitting waitlisted entry offered the seat.
+- **State change:** `ClassSessionBooking.status → PROMOTION_PENDING`; `offerOfferedAt`/`offerExpiresAt` set; counts against capacity.
+- **Data:** `{ classSessionBookingId, sessionId, customerId, offerExpiresAt }`
+- **Consumers:** Notification Context → email + in-app offer with explicit accept/decline actions and deadline.
+
+#### **ClassSessionBookingCancelled**
+- **Trigger:** UC-089 (customer/staff cancels a one-off booking), UC-094 (skip one recurring occurrence), UC-098 (staff rejects a guest reservation), UC-100 (system expires an unresolved guest request at session start), UC-102 (original occurrence cancelled as part of a reschedule, `reason: ENROLLMENT_OCCURRENCE_SKIPPED`).
+- **State change:** `ClassSessionBooking.status → CANCELLED`; frees `quantity` back to `ClassSession.reservedCount`; triggers `WaitlistPromoted` if a waitlist exists.
+- **Data:** `{ classSessionBookingId, sessionId, customerId: string | null, reason, quantity }`
+- **Consumers:** Notification Context → cancellation email.
+
+#### **ClassSessionBookingCompleted**
+- **Trigger:** UC-101 — session closes with eligible attended contract/pay-per-class customer attendance.
+- **State change:** Parent reservation → `CLOSED`; attendee row(s) → `PRESENT`.
+- **Data:** `{ classSessionBookingId, customerId, serviceId, pointsValueAtBooking, priceAtBooking }` — mirrors `BookingCompleted`'s consumers.
+- **Consumers:** **Loyalty Context** (inserts a `LoyaltyEntry` via `class_session_booking_id`, mutually exclusive with the appointment path) and Notification Context. Not published for a guest attendee (guests earn no loyalty points) or a `NO_SHOW` outcome.
+
+#### **ClassSessionBookingNoShow**
+- **Trigger:** UC-101 — staff closes a session and marks an attendee absent.
+- **State change:** Attendee's `attendance → NO_SHOW`; the parent session booking remains auditable, no `ClassSessionBookingCompleted` for that attendee.
+- **Data:** `{ classSessionBookingId, attendeeId, classSessionId, customerId: string | null }`
+- **Consumers:** Notification Context → retryable customer email. Loyalty does **not** award points.
+
+#### **InPersonPaymentRecorded**
+- **Trigger:** UC-101 step 2 / UC-107 (staff records a manually reported charge outcome; Ikaro does not process the payment).
+- **State change:** `class_session_payments` manual operational record created.
+- **Data:** `{ paymentId, classSessionBookingId, amount, currency: "BRL", method, collectedByStaffId }`
+- **Consumers:** None in MVP.
+
+#### **InPersonPaymentReversed**
+- **Trigger:** UC-107 — a correction/reversal, never an overwrite of the original record.
+- **State change:** New `class_session_payments` row inserted with `reversalOfPaymentId` set; the original row is untouched.
+- **Data:** `{ paymentId, reversalOfPaymentId, classSessionBookingId, amount, correctionReason }`
+- **Consumers:** None in MVP.
+
+---
+
 ### **Loyalty Events** (Loyalty Context)
 
 #### **ServicePointsEarned**
-- **Trigger:** Loyalty Context inserted a `LoyaltyEntry` after consuming `BookingCompleted`. One event is published **per inserted entry** — a booking with 3 lines produces 3 `ServicePointsEarned` events.
-- **State change:** new row in `loyalty_entries` + `loyalty_balances.current_points` incremented. Both writes are in one transaction. Idempotent against replay via `shared.inbox` (early-exit) + `UNIQUE(tenant_id, booking_line_id)` (hard guard on the entry insert).
+- **Trigger:** Loyalty Context inserted a `LoyaltyEntry` after consuming `BookingCompleted`. One event is published **per inserted entry** — a booking with 3 lines produces 3 `ServicePointsEarned` events. **Extended by M24 Cluster 4:** also fires after consuming `ClassSessionBookingCompleted` — exactly one event per class-session completion (no "lines" concept for that family; `loyalty_entries.class_session_booking_id` is set instead of `booking_id`/`booking_line_id`, per `CHK_loyalty_entries_source_exclusive`, `docs/13-DATABASE_SCHEMA.md`).
+- **State change:** new row in `loyalty_entries` + `loyalty_balances.current_points` incremented. Both writes are in one transaction. Idempotent against replay via `shared.inbox` (early-exit) + `UNIQUE(tenant_id, booking_line_id)` (appointment) or `UNIQUE(tenant_id, class_session_booking_id)` (class, M24 Cluster 4) as the hard guard on the entry insert.
 - **Data (booking-scoped — one event per booking, not per line):**
   ```
   {
@@ -510,7 +664,8 @@ Customer clicks "Cancel"
   }
   ```
   (`tenantId`/`correlationId` are envelope fields on every event, not part of `data`. `deactivatedBy` is **not** part of the event payload — it's tracked on the `Staff` row itself, same pattern as `StaffInvited`'s `invitedBy`.)
-- **Consumers:** None in MVP (sessions expire naturally via JWT TTL)
+- **Consumers:**
+  - **Booking Context** (UC-048, added M21 Cluster 1) → cascades to the wrapping `STAFF`-type `Resource`: `isActive = false` for new scheduling, any active class-schedule-template bundle containing it ends for future generation. First real consumer of this event — sessions themselves still expire naturally via JWT TTL, independent of this.
 
 #### **StaffActivated**
 - **Trigger:** MANAGER-role staff member reactivates a previously deactivated team member (UC-031)
@@ -547,12 +702,28 @@ Customer clicks "Cancel"
 
 ---
 
+#### **LeadFormSubmissionReceived**
+- **Trigger:** A visitor (guest or logged-in customer) submits the `LEAD_FORM` hotsite module's public form (`docs/04-USE_CASES.md` UC-039/UC-040)
+- **State change:** `platform.lead_form_submissions` row created
+- **Data:**
+  ```json
+  {
+    "submissionId": "uuid-v7",
+    "customerId":   "uuid-v7 | null"
+  }
+  ```
+  (`tenantId`/`eventId`/`occurredAt`/`correlationId` are the envelope's own fields, not part of `data`. Deliberately thin — the submitted content itself, e.g. name/email/answers, is never carried in the event payload, matching how other PII-bearing events in this codebase keep bulk content out of the envelope and readable only via the aggregate's own row.)
+- **Consumers:** `audit-log` (`LeadFormSubmissionReceivedHandler` → `LogLeadFormSubmissionReceivedUseCase`, `platform` context) — a placeholder that only logs the fields above, added in M20-S16 purely to give the event a real Pub/Sub topic (see Outbox note below). A real notification/webhook consumer to the manager is still the obvious fast-follow, still explicitly deferred — `docs/04-USE_CASES.md` UC-037–UC-043 Non-Goals.
+- **Outbox note:** `LeadFormSubmission`'s repository joins the transactional-outbox pattern (`shared.outbox`, TD24-S02) to deliver this event — the 4th aggregate repository (alongside `Booking`/`Staff`/`Tenant`) to drain `clearDomainEvents()` into the outbox, following the exact same pattern.
+
+---
+
 ## Event Publishing & Consumption
 
 - **Transport:** technology-agnostic `IEventBus` port. Local dev: GCP Pub/Sub Emulator (Docker). Production: GCP Pub/Sub (managed). Swappable to SQS/Kafka via a new adapter — domain code never changes.
 - **Delivery semantics:** at-least-once. **All consumers MUST be idempotent** (deduplicate by `eventId`).
 - **Ordering:** not guaranteed across events. Consumers MUST tolerate out-of-order delivery (e.g. `BookingCompleted` arriving before `BookingApproved` should be rejected with a retry, not crash).
-- **Transactional outbox (`shared.outbox` + relay, TD24):** event publication for aggregate-driven events is transactional with the state change that produced it — the 3 event-emitting aggregates' repositories (`Booking`, `Staff`, `Tenant`) drain `clearDomainEvents()` into `shared.outbox` inside the same transaction as the business write (TD24-S02). A relay then delivers each row via Pub/Sub — inline immediately after commit on the happy path, with a scheduled sweep (`SKIP LOCKED`, every 5 min) as the durability guarantee if the inline attempt fails or the process crashes between commit and publish. End-to-end guarantee: **at-least-once delivery, exactly-once effect for idempotency-safe consumers** — dedup at both edges (`dedup_key` producer-side via `UNIQUE` + `ON CONFLICT DO NOTHING`, `eventId` consumer-side via `shared.inbox`). One documented exception: notification's multi-recipient dispatch can still resend to already-successful recipients after a partial batch failure (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, open). The 4 cron-published `Command` classes (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system goes through the same durable path now. See `td/TD24-OUTBOX-INBOX-PATTERN.md` for the full design and `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section for the table shapes.
+- **Transactional outbox (`shared.outbox` + relay, TD24):** event publication for aggregate-driven events is transactional with the state change that produced it — the 4 event-emitting aggregates' repositories (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) drain `clearDomainEvents()` into `shared.outbox` inside the same transaction as the business write (TD24-S02). A relay then delivers each row via Pub/Sub — inline immediately after commit on the happy path, with a scheduled sweep (`SKIP LOCKED`, every 5 min) as the durability guarantee if the inline attempt fails or the process crashes between commit and publish. End-to-end guarantee: **at-least-once delivery, exactly-once effect for idempotency-safe consumers** — dedup at both edges (`dedup_key` producer-side via `UNIQUE` + `ON CONFLICT DO NOTHING`, `eventId` consumer-side via `shared.inbox`). One documented exception: notification's multi-recipient dispatch can still resend to already-successful recipients after a partial batch failure (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, open). The 4 cron-published `Command` classes (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system goes through the same durable path now. See `docs/03-DOMAIN_EVENTS.md` for the full design and `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section for the table shapes.
 
 ---
 

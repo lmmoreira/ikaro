@@ -53,6 +53,11 @@ const settingsResponse: TenantSettingsResponse = {
     chatbot: {
       knowledgeText: '',
     },
+    leadForm: {
+      retentionMonths: 6,
+      maxSubmissionsPerDay: 100,
+      maxSubmissionsPerIpPerDay: 3,
+    },
   },
 };
 
@@ -100,6 +105,28 @@ describe('TenantSettingsController (component)', () => {
         .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
         .send({ settings: { loyalty: { expiryDays: 90 } } });
       expect(res.status).toBe(403);
+    });
+
+    it('GET /v1/tenants/chatbot/cap-status → 403 for STAFF role', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/chatbot/cap-status')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('getChatbotCapStatus', () => {
+    it('GET /v1/tenants/chatbot/cap-status → 200, proxies to backend unchanged', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ dailyCapReachedToday: true });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/tenants/chatbot/cap-status')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ dailyCapReachedToday: true });
+      expect(backendHttpService.get).toHaveBeenCalledWith('/tenants/chatbot/cap-status');
     });
   });
 
@@ -194,15 +221,51 @@ describe('TenantSettingsController (component)', () => {
     it('PATCH /v1/tenants/settings → forwards the backend error status (e.g. 422 invalid field)', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.patch.mockRejectedValueOnce(
-        new HttpException({ status: 422, detail: 'invalid timezone' }, 422),
+        new HttpException({ status: 422, detail: 'invalid field' }, 422),
       );
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/settings')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ settings: { businessHours: { timezone: 'America/Sao_Paulo' } } });
+
+      expect(res.status).toBe(422);
+    });
+
+    it('PATCH /v1/tenants/settings → 400 for a non-IANA timezone string', async () => {
+      setupActiveGuardMock(httpService);
 
       const res = await request(app.getHttpServer())
         .patch('/v1/tenants/settings')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
         .send({ settings: { businessHours: { timezone: 'Not/AZone' } } });
 
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
+    });
+
+    it('PATCH /v1/tenants/settings → 400 when notificationMinPoints exceeds the shared upper bound', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/settings')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ settings: { loyalty: { notificationMinPoints: 10001 } } });
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
+    });
+
+    it('PATCH /v1/tenants/settings → 400 when pointsPerCurrencyUnit is not an integer', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/settings')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ settings: { loyalty: { pointsPerCurrencyUnit: 1.5 } } });
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
     });
   });
 });

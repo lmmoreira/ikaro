@@ -47,8 +47,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const cookieNonce = extractCookie(req, OAUTH_NONCE_COOKIE_NAME);
     let loginType: 'staff' | undefined;
     let tenantSlug: string | undefined;
+    let returnTo: string | undefined;
     try {
-      ({ loginType, tenantSlug } = this.oauthState.decodeOAuthState(state, cookieNonce));
+      ({ loginType, tenantSlug, returnTo } = this.oauthState.decodeOAuthState(state, cookieNonce));
     } catch (err) {
       done(err as Error);
       return;
@@ -59,6 +60,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       name: profile.displayName,
       tenantSlug,
       loginType,
+      returnTo,
     });
   }
 }

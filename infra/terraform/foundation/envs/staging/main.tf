@@ -31,7 +31,7 @@ module "runtime_identities" {
   uploads_bucket_name = "ikaro-uploads-${var.environment}"
   public_bucket_name  = "ikaro-public-${var.environment}"
   secret_ids = {
-    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key", "web-internal-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key", "openrouter-management-api-key"] : name => "projects/${var.project_id}/secrets/${name}"
+    for name in ["db-password", "db-migrator-password", "jwt-secret", "internal-api-key", "platform-admin-key", "hotsite-revalidate-secret", "google-oauth-client-id", "google-oauth-client-secret", "brevo-smtp-key", "web-internal-key", "openrouter-api-key", "anthropic-api-key", "openai-api-key", "openrouter-management-api-key", "turnstile-secret-key"] : name => "projects/${var.project_id}/secrets/${name}"
   }
 }
 
@@ -130,7 +130,7 @@ locals {
       member = "serviceAccount:ikaro-backend@${var.project_id}.iam.gserviceaccount.com"
     }
     }, {
-    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge", "cron-chatbot-balance-poll"] : "scheduler_publisher_${event}" => {
+    for event in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge", "cron-chatbot-balance-poll", "cron-lead-form-retention", "cron-resource-occupancy-retention-purge"] : "scheduler_publisher_${event}" => {
       topic  = "ikaro-${event}"
       role   = "roles/pubsub.publisher"
       member = "serviceAccount:${local.workload_scheduler_service_agent}"

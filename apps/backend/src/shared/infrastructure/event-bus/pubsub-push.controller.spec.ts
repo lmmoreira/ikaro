@@ -1,7 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import { ITracingPort } from '@ikaro/observability';
 import { PubSubPushController } from './pubsub-push.controller';
-import { IPushableEventBus } from '../../ports/pushable-event-bus.port';
+import { InMemoryEventBus } from '../../../test/infrastructure/in-memory-event-bus';
 
 // Records what it was called with instead of talking to real OTel primitives — this suite only
 // needs to prove the controller wires the extracted carrier through, not that extraction itself
@@ -28,11 +28,11 @@ class FakeTracingPort implements ITracingPort {
 
 describe('PubSubPushController', () => {
   let controller: PubSubPushController;
-  let eventBus: jest.Mocked<IPushableEventBus>;
+  let eventBus: InMemoryEventBus;
   let tracingPort: FakeTracingPort;
 
   beforeEach(() => {
-    eventBus = { dispatchPushMessage: jest.fn().mockResolvedValue(undefined) };
+    eventBus = new InMemoryEventBus();
     tracingPort = new FakeTracingPort();
     controller = new PubSubPushController(eventBus, tracingPort);
   });
@@ -43,10 +43,12 @@ describe('PubSubPushController', () => {
       subscription: 'projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer',
     });
 
-    expect(eventBus.dispatchPushMessage).toHaveBeenCalledWith(
-      'projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer',
-      'base64-payload',
-    );
+    expect(eventBus.dispatchedPushMessages).toEqual([
+      {
+        subscriptionFullName: 'projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer',
+        base64Data: 'base64-payload',
+      },
+    ]);
   });
 
   it('resolves with no content when dispatch succeeds', async () => {
@@ -59,7 +61,7 @@ describe('PubSubPushController', () => {
   });
 
   it('rethrows as a 500 Problem Detail when the adapter throws, so Pub/Sub redelivers', async () => {
-    eventBus.dispatchPushMessage.mockRejectedValueOnce(new Error('handler boom'));
+    eventBus.failNextDispatchPushMessage(new Error('handler boom'));
 
     try {
       await controller.push({
@@ -87,14 +89,14 @@ describe('PubSubPushController', () => {
         subscription: 'sub',
       }),
     ).resolves.toBeUndefined();
-    expect(eventBus.dispatchPushMessage).not.toHaveBeenCalled();
+    expect(eventBus.dispatchedPushMessages).toHaveLength(0);
   });
 
   it('acks instead of dispatching when message is missing entirely (malformed envelope)', async () => {
     await expect(
       controller.push({ subscription: 'sub' } as unknown as Parameters<typeof controller.push>[0]),
     ).resolves.toBeUndefined();
-    expect(eventBus.dispatchPushMessage).not.toHaveBeenCalled();
+    expect(eventBus.dispatchedPushMessages).toHaveLength(0);
   });
 
   it('acks instead of dispatching when subscription is missing (malformed envelope)', async () => {
@@ -103,7 +105,7 @@ describe('PubSubPushController', () => {
         message: { data: 'x', messageId: 'm-5', attributes: {} },
       } as unknown as Parameters<typeof controller.push>[0]),
     ).resolves.toBeUndefined();
-    expect(eventBus.dispatchPushMessage).not.toHaveBeenCalled();
+    expect(eventBus.dispatchedPushMessages).toHaveLength(0);
   });
 
   describe('trace context propagation (TD28)', () => {
@@ -116,7 +118,9 @@ describe('PubSubPushController', () => {
       });
 
       expect(tracingPort.extractedCarriers).toEqual([attributes]);
-      expect(eventBus.dispatchPushMessage).toHaveBeenCalledWith('sub', 'base64-payload');
+      expect(eventBus.dispatchedPushMessages).toEqual([
+        { subscriptionFullName: 'sub', base64Data: 'base64-payload' },
+      ]);
     });
 
     it('extracts from an empty carrier when message.attributes is absent', async () => {

@@ -5,8 +5,15 @@ import { ITransactionManager } from '../../shared/ports/transaction-manager.port
 export class InMemoryTransactionManager implements ITransactionManager {
   private readonly afterCommitCallbacks: Array<() => Promise<void> | void> = [];
   private inTransaction = false;
+  // Counts every run() invocation — state-based replacement for a jest.fn() call-count assertion.
+  runCallCount = 0;
+
+  get isInTransaction(): boolean {
+    return this.inTransaction;
+  }
 
   async run<T>(work: () => Promise<T>): Promise<T> {
+    this.runCallCount++;
     this.inTransaction = true;
     try {
       const result = await work();

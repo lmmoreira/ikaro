@@ -200,3 +200,22 @@ Content-Type: application/json
 {
   "settings": { "notification": { "fromEmail": "not-an-email" } }
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHATBOT CAP STATUS (M19-S10, UC-027 A5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 200 — Cap status for the CHATBOT module's own config-screen banner
+GET {{bffUrl}}/v1/tenants/chatbot/cap-status
+Authorization: Bearer {{managerToken}}
+
+###
+
+### 403 — STAFF role not allowed
+GET {{bffUrl}}/v1/tenants/chatbot/cap-status
+Authorization: Bearer {{staffToken}}
+
+###
+
+### 401 — Missing token
+GET {{bffUrl}}/v1/tenants/chatbot/cap-status

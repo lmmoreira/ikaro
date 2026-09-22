@@ -4,55 +4,21 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
-import type { TenantOption } from '@ikaro/types';
+import type { HotsiteBrandingResponse, TenantOption } from '@ikaro/types';
 import { fetchCustomerTenants, switchTenant } from '@/features/auth/api';
 import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
+import { TenantAvatar, TenantOptionRow } from './TenantOptionRow';
 
 interface SwitchTenantClientProps {
   readonly currentTenantSlug: string | null;
+  readonly branding?: HotsiteBrandingResponse;
 }
 
 type FetchState = 'loading' | 'loaded' | 'error';
 
-function TenantAvatar({
-  name,
-  size = 'md',
-}: {
-  readonly name: string;
-  readonly size?: 'sm' | 'md';
-}): React.JSX.Element {
-  const dimension = size === 'sm' ? 'h-8 w-8 text-sm' : 'h-10 w-10 text-base';
-  return (
-    <div
-      className={`flex shrink-0 items-center justify-center font-bold text-white ${dimension}`}
-      style={{ backgroundColor: 'var(--ba-primary)', borderRadius: 'var(--ba-radius)' }}
-    >
-      {name.charAt(0).toUpperCase()}
-    </div>
-  );
-}
-
-function ChevronIcon(): React.JSX.Element {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="shrink-0 opacity-40"
-      aria-hidden="true"
-    >
-      <path d="m9 18 6-6-6-6" />
-    </svg>
-  );
-}
-
 export function SwitchTenantClient({
   currentTenantSlug,
+  branding,
 }: SwitchTenantClientProps): React.JSX.Element {
   const t = useTranslations('auth');
   const router = useRouter();
@@ -97,18 +63,24 @@ export function SwitchTenantClient({
   }
 
   const currentTenant = tenants.find((tenant) => tenant.slug === currentTenantSlug);
+  const backgroundColor = branding?.backgroundColor ?? '#f9fafb';
+  const textColor = branding?.textColor ?? '#111827';
+  const secondaryColor = branding?.secondaryColor ?? '#e5e7eb';
+  const primaryColor = branding?.primaryColor ?? '#4f46e5';
+  const borderRadius = branding?.borderRadius === 'pill' ? '9999px' : '8px';
+  const resolvedBorderRadius = branding?.borderRadius === 'sharp' ? '0px' : borderRadius;
 
   return (
     <main
       className="flex min-h-screen items-center justify-center px-6 py-16"
-      style={{ backgroundColor: 'var(--ba-background)' }}
+      style={{ backgroundColor }}
     >
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           {currentTenant && (
             <div className="mb-3 flex flex-col items-center gap-2">
               <TenantAvatar name={currentTenant.name} size="sm" />
-              <p className="text-sm font-bold" style={{ color: 'var(--ba-text)' }}>
+              <p className="text-sm font-bold" style={{ color: textColor }}>
                 {currentTenant.name}
               </p>
             </div>
@@ -116,11 +88,11 @@ export function SwitchTenantClient({
           <h1
             data-testid="switch-tenant-heading"
             className="text-xl font-bold"
-            style={{ color: 'var(--ba-text)' }}
+            style={{ color: textColor }}
           >
             {t('switchTenantHeading')}
           </h1>
-          <p className="mt-1.5 text-sm opacity-60" style={{ color: 'var(--ba-text)' }}>
+          <p className="mt-1.5 text-sm opacity-60" style={{ color: textColor }}>
             {t('switchTenantSubtitle')}
           </p>
         </div>
@@ -131,7 +103,7 @@ export function SwitchTenantClient({
               <div
                 key={i}
                 className="h-[4.5rem] animate-pulse"
-                style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
+                style={{ backgroundColor: secondaryColor, borderRadius: resolvedBorderRadius }}
               />
             ))}
           </div>
@@ -147,69 +119,17 @@ export function SwitchTenantClient({
 
         {fetchState === 'loaded' && (
           <div className="flex flex-col gap-3" data-testid="switch-tenant-list">
-            {tenants.map((tenant) => {
-              const isCurrent = tenant.slug === currentTenantSlug;
-              return isCurrent ? (
-                <div
-                  key={tenant.id}
-                  data-testid="switch-tenant-current"
-                  className="flex items-center gap-4 border-2 px-5 py-4 opacity-70"
-                  style={{
-                    borderColor: 'var(--ba-primary)',
-                    backgroundColor: 'var(--ba-secondary)',
-                    borderRadius: 'var(--ba-radius)',
-                    boxShadow: 'var(--ba-shadow)',
-                  }}
-                >
-                  <TenantAvatar name={tenant.name} />
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="text-[0.9375rem] font-semibold"
-                      style={{ color: 'var(--ba-text)' }}
-                    >
-                      {tenant.name}
-                    </p>
-                    <p className="text-[0.8125rem] opacity-60" style={{ color: 'var(--ba-text)' }}>
-                      {t('tenantLoyaltyPoints', { count: tenant.loyaltyPoints })}
-                    </p>
-                  </div>
-                  <span
-                    className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[0.6875rem] font-bold"
-                    style={{ backgroundColor: 'var(--ba-primary)', color: 'var(--ba-btn-text)' }}
-                  >
-                    {t('switchTenantCurrentBadge')}
-                  </span>
-                </div>
-              ) : (
-                <button
-                  key={tenant.id}
-                  type="button"
-                  data-testid="switch-tenant-option"
-                  disabled={switchingId !== null}
-                  onClick={() => handleSelect(tenant.id)}
-                  className="flex cursor-pointer items-center gap-4 px-5 py-4 text-left transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
-                  style={{
-                    backgroundColor: 'var(--ba-secondary)',
-                    borderRadius: 'var(--ba-radius)',
-                    boxShadow: 'var(--ba-shadow)',
-                  }}
-                >
-                  <TenantAvatar name={tenant.name} />
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="text-[0.9375rem] font-semibold"
-                      style={{ color: 'var(--ba-text)' }}
-                    >
-                      {tenant.name}
-                    </p>
-                    <p className="text-[0.8125rem] opacity-60" style={{ color: 'var(--ba-text)' }}>
-                      {t('tenantLoyaltyPoints', { count: tenant.loyaltyPoints })}
-                    </p>
-                  </div>
-                  <ChevronIcon />
-                </button>
-              );
-            })}
+            {tenants.map((tenant) => (
+              <TenantOptionRow
+                key={tenant.id}
+                tenant={tenant}
+                isCurrent={tenant.slug === currentTenantSlug}
+                disabled={switchingId !== null}
+                currentBadgeLabel={t('switchTenantCurrentBadge')}
+                loyaltyPointsLabel={t('tenantLoyaltyPoints', { count: tenant.loyaltyPoints })}
+                onSelect={() => handleSelect(tenant.id)}
+              />
+            ))}
           </div>
         )}
 
@@ -232,13 +152,14 @@ export function SwitchTenantClient({
               // to land (the tenant they're already authenticated against), so go there directly
               // instead of relying on history.
               if (currentTenantSlug) {
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- hard reload avoids stale authenticated hotsite back-forward cache
                 globalThis.location.href = `/${currentTenantSlug}`;
               } else {
                 router.back();
               }
             }}
             className="cursor-pointer text-sm font-medium"
-            style={{ color: 'var(--ba-primary)' }}
+            style={{ color: primaryColor }}
           >
             {t('switchTenantBack')}
           </button>

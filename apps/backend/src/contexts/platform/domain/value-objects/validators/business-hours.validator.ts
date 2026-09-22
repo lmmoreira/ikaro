@@ -1,21 +1,12 @@
 import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
-import type {
-  BusinessHours,
-  DayHours,
+import {
+  DAYS_OF_WEEK,
+  type BusinessHours,
+  type DayHours,
 } from '../../../../../shared/value-objects/business-hours.vo';
 import { TimeOfDay } from '../../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../../shared/value-objects/timezone.vo';
 import { TenantSettingsValidationError } from '../../errors/platform-domain.error';
-
-const DAYS_OF_WEEK = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as const;
 
 export class BusinessHoursValidator {
   static validate(businessHours: BusinessHours): void {

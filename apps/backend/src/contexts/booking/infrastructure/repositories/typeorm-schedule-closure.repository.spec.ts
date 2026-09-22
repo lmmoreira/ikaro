@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ScheduleClosureEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { ClosureReason, ScheduleClosure } from '../../domain/schedule-closure.aggregate';
@@ -10,6 +10,7 @@ import { TypeOrmScheduleClosureRepository } from './typeorm-schedule-closure.rep
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
 const CLOSURE_ID = '00000000-0000-7000-8000-000000000003';
+const RESOURCE_ID = '00000000-0000-7000-8000-000000000004';
 
 describe('TypeOrmScheduleClosureRepository', () => {
   let repo: TypeOrmScheduleClosureRepository;
@@ -127,6 +128,26 @@ describe('TypeOrmScheduleClosureRepository', () => {
       expect(result).toHaveLength(2);
       expect(result.every((c) => c instanceof ScheduleClosure)).toBe(true);
     });
+
+    it('scopes to tenant-wide (resourceId IS NULL) when resourceId is omitted', async () => {
+      ormRepo.find.mockResolvedValue([]);
+      await repo.findByTenantAndDate(TENANT_ID, '2026-12-25');
+      expect(ormRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tenantId: TENANT_ID, date: '2026-12-25', resourceId: IsNull() },
+        }),
+      );
+    });
+
+    it('scopes to the given resourceId when provided', async () => {
+      ormRepo.find.mockResolvedValue([]);
+      await repo.findByTenantAndDate(TENANT_ID, '2026-12-25', RESOURCE_ID);
+      expect(ormRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tenantId: TENANT_ID, date: '2026-12-25', resourceId: RESOURCE_ID },
+        }),
+      );
+    });
   });
 
   describe('findByTenantAndDateRange', () => {
@@ -144,6 +165,16 @@ describe('TypeOrmScheduleClosureRepository', () => {
         expect.objectContaining({ order: { date: 'ASC', startTime: 'ASC' } }),
       );
     });
+
+    it('scopes to the given resourceId when provided', async () => {
+      ormRepo.find.mockResolvedValue([]);
+      await repo.findByTenantAndDateRange(TENANT_ID, '2026-12-01', '2026-12-31', RESOURCE_ID);
+      expect(ormRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ resourceId: RESOURCE_ID }),
+        }),
+      );
+    });
   });
 
   describe('save', () => {
@@ -152,6 +183,7 @@ describe('TypeOrmScheduleClosureRepository', () => {
       const closure = ScheduleClosure.reconstitute({
         id: CLOSURE_ID,
         tenantId: TENANT_ID,
+        resourceId: null,
         date: '2026-12-25',
         startTime: null,
         endTime: null,
@@ -173,6 +205,7 @@ describe('TypeOrmScheduleClosureRepository', () => {
       const closure = ScheduleClosure.reconstitute({
         id: CLOSURE_ID,
         tenantId: TENANT_ID,
+        resourceId: null,
         date: '2026-12-25',
         startTime: TimeOfDay.create('10:00'),
         endTime: TimeOfDay.create('12:00'),
@@ -186,6 +219,28 @@ describe('TypeOrmScheduleClosureRepository', () => {
 
       expect(ormRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ startTime: '10:00', endTime: '12:00' }),
+      );
+    });
+
+    it('maps resourceId onto the entity', async () => {
+      ormRepo.save.mockResolvedValue(new ScheduleClosureEntityBuilder().build());
+      const closure = ScheduleClosure.reconstitute({
+        id: CLOSURE_ID,
+        tenantId: TENANT_ID,
+        resourceId: RESOURCE_ID,
+        date: '2026-12-25',
+        startTime: null,
+        endTime: null,
+        reason: ClosureReason.HOLIDAY,
+        notes: null,
+        createdBy: STAFF_ID,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+
+      await repo.save(closure);
+
+      expect(ormRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ resourceId: RESOURCE_ID }),
       );
     });
   });

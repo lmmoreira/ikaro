@@ -6,6 +6,8 @@ Ikaro follows a **RESTful API** standard using **JSON** for all payloads. All co
 
 **Error Response Standard:** [RFC 9457 Problem Details](https://tools.ietf.org/html/rfc9457) — see [25-ERROR_CATALOG.md](25-ERROR_CATALOG.md) for complete error reference.
 
+> ⚠️ **PLANNED, NOT YET BUILT:** every endpoint/param tagged `(M21)` / `(M21 Cluster N)` throughout this doc (Service Extensions §1, Recurring Reservations/Availability Alerts/Future Commitment Exceptions §4, Classes & Sessions §4b, and the M21-tagged extensions to Reschedule/Availability/Services) belongs to the Multi-Vertical Scheduling epic — none of it exists in code yet. See `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exceptions — fully live:** Resource Management §4 (UC-044–UC-049), shipped in M21-S01 (backend/BFF) and M21-S04 (manager dashboard frontend); and the `resourceId` (M21 Cluster 1) param on the schedule closures/openings endpoints below, shipped in M21-S03. Untagged content in this doc is live MVP behavior — as are M22-tagged endpoints/params (Service Extensions — M22 Cluster 2 below), a separate milestone this banner doesn't cover, **mostly shipped as of M22-S01/S02/S03 — except `GET /schedule/day-grid` (UC-057), still unbuilt pending stories M22-S05/S06.**
+
 ---
 
 ## Base Standards
@@ -221,7 +223,7 @@ Used by `app/sitemap.ts` to enumerate every published tenant hotsite for search-
 - Backed by `GET /internal/tenants/published-hotsites` (Platform context, gated by the global `InternalApiGuard`)
 
 ### **Chatbot Widget (Public — UC-033, UC-034)**
-The `CHATBOT` hotsite module's own endpoints — never part of the cached manifest (§ above), since availability and message content are visitor-specific/live, not static per-tenant data. Full design: `docs/discovery/CHATBOT/CHATBOT.md`.
+The `CHATBOT` hotsite module's own endpoints — never part of the cached manifest (§ above), since availability and message content are visitor-specific/live, not static per-tenant data. Full design: `docs/04-USE_CASES.md` UC-033–UC-036.
 
 - `GET /public/platform/chatbot/status`
   - **Public** — `X-Tenant-Slug` header required (same convention as `GET /public/services`, not a query param; `.public.controller.ts` routes always carry the `public/` prefix — `docs/24-BFF_ARCHITECTURE.md`)
@@ -235,25 +237,54 @@ The `CHATBOT` hotsite module's own endpoints — never part of the cached manife
   - **Request body:** `{ "sessionId"?: "uuid-v7", "message": "string, max 5000 chars" }` — `sessionId` omitted on the first message of a conversation
   - **Response `200 OK`:** `{ "sessionId": "uuid-v7", "reply": "string" }`
   - `400` — `message` exceeds 5000 chars (BFF-side absurd-payload outer bound) **or** the tenant's real, resolved `maxMessageLengthChars` (default 1000, an Ikaro-only override never exposed to the BFF — `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7), enforced backend-only in `SendChatMessageUseCase`, still before any LLM call
-  - `429` — a volume cap rejected the request: new-session caps (daily/per-IP/concurrency), existing-session cap (`maxMessagesPerConversation`), **or** either platform-wide backstop (global daily spend circuit breaker, provider balance floor — `CHATBOT.md` §8 layers 9-10; decided during M19-S05 story-discovery, 2026-08-12, that these map to the same status as the per-tenant caps, not `503`) — a specific error code per layer, see `docs/discovery/CHATBOT/CHATBOT.md` §8 for the full list. **The platform-wide backstops are evaluated on new-session creation only** — `CHATBOT.md` §8.9: "already-open conversations remain bounded by their own per-session caps regardless"; an existing session is never rejected by either backstop mid-conversation (PR #360 review)
+  - `429` — a volume cap rejected the request: new-session caps (daily/per-IP/concurrency), existing-session cap (`maxMessagesPerConversation`), **or** either platform-wide backstop (global daily spend circuit breaker, provider balance floor — a documented cap/backstop decision; decided during M19-S05 story-discovery, 2026-08-12, that these map to the same status as the per-tenant caps, not `503`) — a specific error code per layer, see `docs/04-USE_CASES.md` UC-033 for the full list. **The platform-wide backstops are evaluated on new-session creation only** — the documented rule that already-open conversations remain bounded by their own per-session caps; an existing session is never rejected by either backstop mid-conversation (PR #360 review)
   - `503` — LLM provider call failed (timeout, upstream error, insufficient credits) — widget shows the interrupted state, phone/WhatsApp fallback offered
   - `404` — tenant slug not found, or `sessionId` doesn't belong to this tenant
+
+### **Lead Form Widget (Public — UC-038, UC-039, UC-040)**
+The `LEAD_FORM` hotsite module's own endpoints — extends the existing `platform.public.controller.ts` (`.public.controller.ts` under `public/`, `docs/24-BFF_ARCHITECTURE.md`), never part of the cached manifest, since the question catalog and submission are live/write data, not static per-tenant data. Full design: `docs/04-USE_CASES.md` UC-037–UC-043. Backend surface: a new bare, guest-reachable `platform/lead-form` controller (mirrors `platform/chatbot`'s `ChatbotController` shape exactly — no `/public/` prefix, that convention is BFF-only) — resolved during M20-S05's own story-discovery, 2026-08-25, since M20-S02 deferred all HTTP wiring to S05.
+
+- `GET /public/platform/lead-form/:slug`
+  - **Public** — `X-Tenant-Slug` header required (same convention as the Chatbot Widget above). The header is the authoritative tenant resolver; the `:slug` path segment must match it exactly (`400 GENERIC_VALUE_INVALID`, `field: slug`, if they disagree — a caller-side inconsistency, not "tenant doesn't exist," so `400` rather than `404`)
+  - **Response:** `200 OK` — `{ "audienceMode": "GUEST_AND_CUSTOMER" | "CUSTOMER_ONLY", "questions": [{ "id", "label", "type", "required", "options"? }] }` — `options` present only for `SINGLE_CHOICE`/`MULTIPLE_CHOICE`
+  - `404` — tenant slug not found (`withPublicTenant`), or the `LEAD_FORM` module isn't `enabled` in the tenant's layout (backend `LeadFormNotEnabledError`, `PLATFORM_LEAD_FORM_NOT_ENABLED`)
+
+- `POST /public/platform/lead-form/:slug/submissions`
+  - **Public** — `X-Tenant-Slug` header required. Route stays `@Public()` even for an authenticated customer — see the 401 row below for how customer identity is resolved without a guard
+  - **Request body:** `{ "name": "string", "email": "string", "phone": "string", "answers": [{ "questionId": "uuid", "value": "string | string[]" }], "turnstileToken": "string" }`
+  - **Response `200 OK`:** `{ "submissionId": "uuid-v7" }`
+  - BFF forwards `turnstileToken` unverified; the **backend** verifies it via Cloudflare `siteverify` as the first step of `CreateLeadFormSubmissionUseCase.execute()`, before even reading the tenant's `LeadFormConfig` (relocated here from the BFF in M20-S14 — the BFF's `ALL_TRAFFIC` egress has no Cloud NAT, so its own outbound call to Cloudflare had no route out; the backend's `PRIVATE_RANGES_ONLY` egress already reaches third parties unconditionally)
+  - BFF optionally decodes a customer session from the `Authorization: Bearer <jwt>` header via the existing `decodeUserJwt()` helper (`apps/bff/src/shared/auth/decode-user-jwt.ts` — the established pattern for a `@Public()` route that needs to identify an authenticated user manually, already used by the attachment-upload flow) and forwards `customerId: user.sub` only when the decoded token is both a genuine `CUSTOMER` role **and** scoped to the resolved tenant (`user.tenantId === tenantId`) — any other case (STAFF/MANAGER token, or a customer of a different tenant) forwards `customerId: null` instead of rejecting outright, since browsing another tenant's public hotsite while logged in elsewhere is a normal, benign scenario. This is identification only, never an auth requirement at the BFF layer
+  - `400` — the `:slug` path segment doesn't match the `X-Tenant-Slug` header (`GENERIC_VALUE_INVALID`, `field: slug` — same rule as the `GET` row above; checked at the BFF, independent of Turnstile), missing/invalid `name`/`email`/`phone` (`EMAIL_FORMAT_INVALID`/`PHONE_FORMAT_INVALID`/`GENERIC_FIELD_REQUIRED`), a `required: true` question left unanswered (`GENERIC_FIELD_REQUIRED`), an answer referencing a `questionId` not in the tenant's current question catalog (`GENERIC_VALUE_INVALID` — whole submission rejected, not silently dropped), **or** Turnstile verification failed/expired — checked backend-side, as the very first step, before any of the other `400` checks above (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`, M20-S14 — was `BFF_TURNSTILE_VERIFICATION_FAILED` before relocation)
+  - `401 AUTH_UNAUTHORIZED` — `audienceMode === 'CUSTOMER_ONLY'` and no customer session was decoded. Thrown **backend-side**, inside `CreateLeadFormSubmissionUseCase` (which already reads `LeadFormConfig` once for answer enrichment below, so this reuses that same read rather than costing a second BFF→backend round-trip) — the error's `code` is the existing `AuthErrorCode.UNAUTHORIZED`, not a new code
+  - `429 PLATFORM_LEAD_FORM_DAILY_CAP_REACHED` — tenant-wide or per-IP daily submission cap reached, enforced backend-side via `lead_form_submissions` count queries (mirrors `POST /public/platform/chatbot/messages`'s cap-enforcement pattern exactly — never a BFF-layer check)
+  - `404` — tenant slug not found, or the `LEAD_FORM` module isn't `enabled`
+  - Every answer that passes validation is enriched backend-side from the tenant's own live question catalog into the full `{questionId, questionLabel, questionType, answerValue}` snapshot shape `LeadFormSubmission.create()` requires — the backend is the only trusted source for `questionLabel`/`questionType`, client-supplied values for those fields are never used even if present
 
 ### **Tenant Settings (Admin — UC-026)**
 First documented entry for this route — it existed and was implemented (`M13-S31`) before it had a dedicated API contract entry; see `docs/04-USE_CASES.md` UC-026 and `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the full field-level rules this section doesn't repeat.
 
-- `GET /v1/tenants/settings` → `200 { tenantId, name, slug, settings: { loyalty, booking, businessHours, notification, localization, businessInfo, chatbot } }` — `STAFF`|`MANAGER` (read allowed to both roles)
+- `GET /v1/tenants/settings` → `200 { tenantId, name, slug, settings: { loyalty, booking, businessHours, notification, localization, businessInfo, chatbot, leadForm } }` — `STAFF`|`MANAGER` (read allowed to both roles)
 - `PATCH /v1/tenants/settings` → body `{ settings: { <category>?: {...}, ... } }` — partial update, any subset of the category keys nested under `settings` (unspecified categories/fields unchanged); `200` returns updated state — `MANAGER` only, `STAFF` gets `403`
-  - Request body is validated against a `.strict()` schema with a fixed category key list on both the BFF (`UpdateTenantSettingsBodySchema`, `apps/bff/src/features/platform/tenant-settings.controller.ts`) and backend DTO layers (`UpdateTenantSettingsSchema`, `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts`) — an unrecognized top-level key under `settings` is rejected as `400`, not silently ignored. `chatbot` is a category in that fixed list (added by this milestone) alongside the six pre-existing ones.
-  - `chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7): optional string, no hardcoded length bound at the Zod layer — the resolved `maxKnowledgeTextLength` cap (default 4000, or a tenant's own Ikaro-granted override) is enforced solely by the domain-layer `ChatbotSettingsValidator`, `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` if exceeded (a static Zod max would make an above-4000 override unenforceable, since Zod would reject the request before the domain layer's resolved check ever ran — decided during M19-S04 `/story-discovery`, 2026-08-11). This is the **only** tenant-editable field in the `chatbot` settings category; the 8 volume/cost caps and `llmProvider`/`llmModel` are never accepted in this body — a request including any of them is rejected `400` (not silently stripped), same as any other unrecognized key under `chatbot`, since `chatbot` accepts only `knowledgeText` at the Zod layer (see `docs/discovery/CHATBOT/CHATBOT.md` §5 for why these stay Ikaro-only overrides)
+  - Request body is validated against a `.strict()` schema with a fixed category key list on both the BFF (`UpdateTenantSettingsBodySchema`, `apps/bff/src/features/platform/tenant-settings.schemas.ts`) and backend DTO layers (`UpdateTenantSettingsSchema`, `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts`) — an unrecognized top-level key under `settings` is rejected as `400`, not silently ignored. `chatbot` and `leadForm` are categories in that fixed list alongside the six pre-existing ones.
+  - `chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7): optional string, no hardcoded length bound at the Zod layer — the resolved `maxKnowledgeTextLength` cap (default 4000, or a tenant's own Ikaro-granted override) is enforced solely by the domain-layer `ChatbotSettingsValidator`, `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` if exceeded (a static Zod max would make an above-4000 override unenforceable, since Zod would reject the request before the domain layer's resolved check ever ran — decided during M19-S04 `/story-discovery`, 2026-08-11). This is the **only** tenant-editable field in the `chatbot` settings category; the 8 volume/cost caps and `llmProvider`/`llmModel` are never accepted in this body — a request including any of them is rejected `400` (not silently stripped), same as any other unrecognized key under `chatbot`, since `chatbot` accepts only `knowledgeText` at the Zod layer (see `docs/04-USE_CASES.md` UC-033–UC-036 for why these stay Ikaro-only overrides)
 - `400 PLATFORM_SETTINGS_UPDATE_EMPTY` — body has no recognized fields at all
+- `leadForm` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §8, UC-042): `leadForm` is a category in the fixed key list (added by M20) alongside the seven pre-existing ones. **All three fields are tenant-editable — unlike `chatbot`, this category has no Ikaro-only deviation** (these caps are abuse protection, not shared-cost protection, so there's no reason to deny a tenant control over their own value):
+  - `retentionMonths`: integer 1-24, default 6 — `400 PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID` if out of range
+  - `maxSubmissionsPerDay`: integer 1-1000, default 100 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_DAY_INVALID` if out of range
+  - `maxSubmissionsPerIpPerDay`: integer 1-100, default 3 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_IP_PER_DAY_INVALID` if out of range. Raising this is the documented mitigation for a tenant seeing false-positive blocks from legitimate visitors sharing one carrier-assigned IP (common on Brazilian mobile networks)
+  - All three validated by the domain-layer `LeadFormSettingsValidator` (mirrors `BookingSettingsValidator`'s per-field dedicated-code pattern)
 
 ### **Hotsite Admin Management (Admin — UC-027, M12-S02)**
 Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors the public manifest's `branding`/`layout`/`isPublished` shape, but `GET` always returns the full draft state regardless of publish status — unlike the public endpoint, which stubs `layout: []` and `business` (all fields `null`) when `isPublished: false` (see §1 above).
 
 - `GET /v1/tenants/hotsite` → `200 { branding, layout, seo, isPublished, updatedAt }` — `MANAGER` only
-- `PATCH /v1/tenants/hotsite` → body `{ branding?, layout?, seo? }` (partial update — unspecified fields unchanged); `200` returns updated state
+- `PATCH /v1/tenants/hotsite` → body `{ branding?, layout?, seo?, audienceMode?, questions? }` (partial update — unspecified fields unchanged); `200` returns updated state
   - Validation: hex colors must be `#rrggbb` · `borderRadius/buttonStyle/spacing/shadowStyle` must be known enum values · layout module `type` must be a known `HotsiteModuleType` — any violation → `400`
+  - `audienceMode?`/`questions?` (M20-S01, folded into this endpoint at M20-S08 — see "Lead Form Admin Config" below) write the separate `LeadFormConfig` aggregate, not `HotsiteConfig` — both saved in the same transaction when either is present. `layout[]`'s own `LEAD_FORM` entry must never carry `audienceMode`/`questions` inside its `data`; only these two top-level fields do
+    - `400 PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED` — more than 20 questions
+    - `400 PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID` — a `SINGLE_CHOICE`/`MULTIPLE_CHOICE` question with < 2 or > 10 options
+    - `400 GENERIC_FIELD_REQUIRED` — a question with an empty `label`
   - `branding.buttonBackgroundColor`/`branding.buttonTextColor` (M12-S11) are optional hex overrides for CTA button colors — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 "Button Color Tokens" for `filled`/`outline`/`ghost` semantics
   - Image promotion (TD22): every non-empty image path submitted (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) is either a `tmp/<tenantId>/...` staging path — validated (tenant-owned, exists in the private bucket), promoted to a permanent `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` object in the public bucket, then rewritten and the tmp original deleted — or an already-permanent `tenants/<tenantId>/hotsite/...` path, validated as still existing and left untouched. A path matching neither shape, a cross-tenant `tmp/` path, or a nonexistent object → `400 hotsite-image-not-uploaded`. A field that changed from one permanent object to another also deletes the superseded object from the public bucket (delete-previous-on-replace); an untouched field is never re-promoted or deleted. See "Hotsite Image Upload" below for the full contract.
   - `seo.title`/`seo.description` (M12-S09) are optional `string | null` overrides for the public hotsite's `<title>`/meta description — `title` max 70 chars, `description` max 160 chars; exceeding either → `400`
@@ -269,10 +300,38 @@ Powers the red banner on the `CHATBOT` module's own config screen only (not show
   - Reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement (`docs/13-DATABASE_SCHEMA.md`'s `platform.chatbot_sessions` index on `(tenant_id, conversation_date)`) — not a new counting mechanism
   - Deliberately narrow: only reports the daily-cap condition. Concurrency cap, platform-wide spend breaker, and provider balance floor are not surfaced here — they stay covered by the visitor-facing "not available" state only, since they aren't specific to or actionable by one tenant
 
+### **Lead Form Admin Config (Admin — UC-037)**
+
+**One read endpoint; writes go through the generic hotsite endpoint.** The teaser fields (`title`/`subtitle`/`eyebrow`/`ctaLabel`/`variant`/`backgroundImageUrl`/`backgroundImagePosition`/`bgStyle`) live in `HotsiteConfig`'s `layout[]` entry for this module (same as every other module type), while `audienceMode`/`questions[]` live in the separate `LeadFormConfig` aggregate (deliberately — see `docs/13-DATABASE_SCHEMA.md` § `platform.lead_form_configs` for why: embedding up to 20 questions in the publicly-cached manifest would bloat it for every visitor who never opens the form). That split is correct and stays.
+
+An earlier design (M20-S01–S08) gave this its own parallel `PATCH /v1/tenants/lead-form/config`, accepting `branding`/`layout`/`seo` as a redundant second copy of the same fields `PATCH /v1/tenants/hotsite` already accepted, purely so both aggregates could save in one transaction. That duplicated `UpdateHotsiteContentUseCase`'s own image-promotion/persist logic near-completely in a second use case, and the frontend had to special-case which endpoint to call depending on whether the manager was editing `LEAD_FORM`. M20-S08 folded `audienceMode`/`questions` into `PATCH /v1/tenants/hotsite` as two additional optional fields instead (see that endpoint's own doc above) — one use case, one endpoint, one transaction, no redundant field duplication. The panel's "Aplicar" button still only commits to the hotsite editor's temporary local draft; "Publicar" is still the persistence boundary, now always through the one generic mutation.
+
+**The module's `enabled` on/off toggle** is also just `layout[].enabled` on that same generic `PATCH /v1/tenants/hotsite` call, exactly like every other module type — nothing special about it.
+
+- `GET /v1/tenants/lead-form/config` → `200 { title, subtitle, eyebrow, ctaLabel, variant, backgroundImageUrl, backgroundImagePosition, bgStyle, audienceMode, questions: [{id,label,type,required,options?,order,hasSubmissions}] }` — `MANAGER` only. Teaser fields resolved from `HotsiteConfig`'s current layout entry, `audienceMode`/`questions` from `LeadFormConfig` — one read, two sources, merged before responding. `hasSubmissions` is computed with one tenant-scoped lookup of distinct question IDs from submission snapshots, so the config panel can decide whether removal needs confirmation without one request per question. This is a genuinely distinct read shape from `GET /v1/tenants/hotsite` (the `hasSubmissions` computation, the merge of two aggregates into one config-panel-shaped response), which is why it stays its own endpoint even though the write side folded away.
+- Writes: see `PATCH /v1/tenants/hotsite` above — no separate PATCH here.
+
+### **Lead Form Status (Admin, nav-gating — UC-041)**
+Powers the dashboard's "Leads" sidebar item, which is **gated**, not always shown — a tenant that has never enabled the `LEAD_FORM` module gets no nav item pointing at a screen that would be permanently empty. Deliberately separate from `GET /v1/tenants/lead-form/config` above (which is `MANAGER`-only and returns far more than a boolean) because both `STAFF` and `MANAGER` need to know whether to render this nav item — mirrors `GET /public/platform/chatbot/status`'s own shape, admin-side instead of public-side.
+
+- `GET /v1/tenants/lead-form/status` → `200 { enabled: boolean }` — `STAFF`\|`MANAGER`. Reads the `LEAD_FORM` module's `enabled` flag from `HotsiteConfig`'s layout array only — no `audienceMode`/`questions` exposed. Called server-side by `loadDashboardShellContext()` (`apps/web/shells/dashboard/model/dashboard-shell-context.ts`, called independently by every top-level dashboard section's own `layout.tsx` — there is no single shared layout) on every dashboard page load (cheap, single boolean) to decide whether to render the "Leads" item for `Sidebar`/`BottomNav`/`MoreSheet`
+
+### **Leads Submissions (Admin — UC-041)**
+
+- `GET /v1/tenants/lead-form/submissions?page=&pageSize=&search=&filters=&submittedFrom=&submittedTo=` → `200 { items: [{id, name, email, phone, submittedAt}], page, pageSize, total }` — `STAFF`\|`MANAGER`, ordered `submittedAt DESC`
+  - `search` (optional, M20-S12) — **basic** free-text search: case-insensitive partial match against `name`, `email`, or any `platform.lead_form_answers` row's `question_label`/`answer_value` for that submission (`docs/13-DATABASE_SCHEMA.md`). **Non-empty required, no minimum length beyond that** (revised M20-S13, 2026-08-27 — the original M20-S12 design rejected anything under 3 characters, reasoning the backing `pg_trgm` GIN index can't accelerate a pattern with no extractable trigram; that reasoning about the index is still correct, but rejecting the request outright was reconsidered after a more precise cost estimate: the per-question match is an `EXISTS` correlated on `(tenant_id, submission_id)`, which `lead_form_answers`'s own `(tenant_id, submission_id, question_label)` index covers, so the unindexed fallback only costs a short ILIKE over one submission's own ≤20 answer rows — the real bound scales with a tenant's own submission count (up to ~730,000 at this feature's absolute configured ceiling), not the much larger cross-submission answer-row total. Rejecting a real short search (an age, "25") outright was judged the worse trade-off — full reasoning: `packages/validation/src/lead-form-submission.ts`). An empty `search` is rejected `400 GENERIC_VALUE_TOO_SHORT`. `search` and `filters` are mutually exclusive in one request — pass one or the other, never both (the UI's basic/advanced modes are alternatives, not combinable in M20). Sending both is rejected `400 GENERIC_VALUE_INVALID` before the query runs (story-discovery decision, M20-S12, 2026-08-27).
+  - `filters` (optional, M20-S12) — **advanced**, structured, ANDed per-question search: a URL-encoded JSON array, `[{"questionLabel": "Qual seu estado civil?", "value": "casado"}, {"questionLabel": "Onde você mora?", "value": "São Paulo"}]`. Each entry becomes one `EXISTS (... WHERE question_label = :questionLabel AND answer_value ILIKE '%'||:value||'%')`, ANDed together — matches only a submission satisfying *every* filter. `questionLabel` matches by **exact equality** (populated from a dropdown — see the filter-options endpoint below — never free-typed), `value` by the same non-empty-only rule as `search` (M20-S13). Capped at 5 filters per request (`400 GENERIC_VALUE_OUT_OF_RANGE` beyond that) — a deliberate small bound, not a real usage limit, purely to keep one request's `EXISTS` chain bounded.
+  - `submittedFrom`/`submittedTo` (optional, M20-S12) — a **date range**, each `YYYY-MM-DD`, expressed in the tenant's own `settings.businessHours.timezone`, both inclusive from the caller's perspective. Orthogonal to `search`/`filters` — combines with either (or neither) via `AND`, never a third mutually-exclusive mode; "leads from Aug 1–15" works standalone or narrowed further by a search term. Resolved server-side to a half-open UTC instant range `[submittedFrom's tenant-local midnight, day-after-submittedTo's tenant-local midnight)` via `localDateTimeToUTCIso()` (`apps/backend/src/shared/utils/calendar-date.ts` — the same real utility Chatbot's own tenant-timezone-aware `conversationDate` bucketing uses, not the UTC-naive `todayUTC()`/`startOfDayUTC()` pair that exists only for the platform-wide, not-tenant-scoped spend breaker). `submittedFrom > submittedTo` (when both given) → `400 GENERIC_VALUE_OUT_OF_RANGE`. Uses the existing `(tenant_id, submitted_at DESC)` index directly — no new index needed.
+  - Empty/omitted `search`/`filters`/`submittedFrom`/`submittedTo` behaves exactly as before this addition. A result set of zero matches is `200 { items: [], total: 0 }`, never `404`.
+- `GET /v1/tenants/lead-form/submissions/filter-options` → `200 { questionLabels: string[] }` — `STAFF`\|`MANAGER`. Distinct `question_label` values ever recorded for this tenant in `platform.lead_form_answers`, alphabetically ordered — **includes labels from questions since edited or removed from the live `LeadFormConfig`** (decided explicitly during design: a manager can still filter by an old question's answers even after changing the live form, since the filter matches the submission's own snapshot, not the current config). Powers the advanced filter's "pergunta" dropdown; not paginated (bounded by how many distinct questions a tenant has ever asked, not by submission volume).
+- `GET /v1/tenants/lead-form/submissions/:id` → `200 { id, name, email, phone, answers: [{questionLabel, questionType, answerValue}], submittedAt, customerId: string | null }` — `STAFF`\|`MANAGER`. `customerId` is set when the submitter was an authenticated customer at submission time, `null` for a guest — powers the detail page's guest/customer indicator (M20-S10, story-discovery 2026-08-27)
+  - `404` — submission doesn't exist in this tenant
+- **Not implemented:** no CSV export endpoint — removed from this milestone's scope entirely (see `plan/M20-LEAD-FORM-MODULE.md` Non-Goals for the accepted-risk note this implies alongside UC-043's retention purge). Do not assume `GET .../submissions/export` exists.
+
 ### **Hotsite Image Upload (Admin — UC-027, M12-S02 + M12-S10; tmp/ staging — TD22)**
 Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgrounds, gallery, about photos). Reuses the same `IStorageService`/`GcsSignedUrlAdapter` and upload constraints introduced for booking attachments in M115-S01 (15-minute *upload*-URL expiry, content-type lock, 10 MB cap) — no new upload mechanics.
 
-> **Staging, not final placement (TD22):** the signed URL targets a `tmp/<tenantId>/<purpose>/<uuid>/<fileName>` path in the **private** media bucket — not the public hotsite bucket. Nothing uploaded here is public or permanent yet. The object only becomes a real, publicly-addressable hotsite asset once `PATCH /v1/tenants/hotsite` promotes it (see below). This closes three leaks the previous "upload straight to the public bucket" design had: an abandoned upload, an explicit "Remove" before save, and a superseded upload all used to leave an orphaned object in the public bucket forever — see `td/TD22-ORPHANED-UPLOAD-CLEANUP.md`.
+> **Staging, not final placement (TD22):** the signed URL targets a `tmp/<tenantId>/<purpose>/<uuid>/<fileName>` path in the **private** media bucket — not the public hotsite bucket. Nothing uploaded here is public or permanent yet. The object only becomes a real, publicly-addressable hotsite asset once `PATCH /v1/tenants/hotsite` promotes it (see below). This closes three leaks the previous "upload straight to the public bucket" design had: an abandoned upload, an explicit "Remove" before save, and a superseded upload all used to leave an orphaned object in the public bucket forever — see `docs/14-API_CONTRACTS.md`.
 
 **BFF:** `POST /v1/tenants/hotsite/images/signed-url`
 - Requires JWT + `MANAGER` role
@@ -285,7 +344,7 @@ Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgro
     "purpose":     "branding"
   }
   ```
-  `purpose`: one of `branding | hero | gallery | about | booking-cta | testimonials | seo-og-image` (M18-S03) — groups uploaded assets by what they're for; also encoded into the staging path so promotion can rebuild the permanent path without a second lookup.
+  `purpose`: one of `branding | hero | gallery | about | booking-cta | testimonials | seo-og-image | lead-form` (M18-S03, extended M20-S08) — groups uploaded assets by what they're for; also encoded into the staging path so promotion can rebuild the permanent path without a second lookup.
 
 - **Response (201 Created):**
   ```json
@@ -371,9 +430,81 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket.
 - `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Returns `{ items: [...], total: number }` (`StaffServiceListResponse`) — each item uses `serviceId` (not `id`) and `price: { amount, currency }` (no `formatted`); see `StaffServiceResponse` in `service.dto.ts`. Lives on the bare `/services` path — see `docs/24-BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
 - `GET /services/:id` -> Single service by id, active or inactive (STAFF|MANAGER). `StaffServiceResponse`. `404` if not found or wrong tenant.
-- `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`).
-- `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER).
+- `GET /services/:id/edit-view` -> The Serviços edit page's composite read (STAFF|MANAGER; added M22-S04): `{ service: StaffServiceResponse, intakeSchema: ServiceIntakeSchemaResponse }` (`StaffServiceEditViewResponse`). BFF-only — it fans out to backend `GET /services/:id` and `GET /services/:id/intake-schema` so `apps/web` consumes one contract (`docs/24-BFF_ARCHITECTURE.md` § composite views). `404` if the service is not found or belongs to another tenant.
+- `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`), and, from M22 Cluster 2, `bookingModel: 'APPOINTMENT'|'SESSION'` (UC-056, default `APPOINTMENT`) and, when `bookingModel: 'SESSION'`, `classResourceSlots` (UC-056 step 3 — inert until M24).
+- `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER). From M22 Cluster 2, also accepts `bufferAfterMinutes` (UC-053) and `bookingModel` (UC-056, immutable once the service has booking history).
 - `DELETE /services/:id` -> Deactivate service (STAFF|MANAGER). Returns `204 No Content`.
+
+### **Service Extensions — M22 Cluster 2 (UC-050–056)**
+
+> Auth: JWT + `MANAGER|STAFF` on every endpoint below (same as UC-012/013 — this stays a Service management surface, not the MANAGER-only Resource Management restriction M21 Cluster 1 introduced).
+
+- `PATCH /services/:id/resource-requirements` -> Set/replace a flat (non-legged) service's resource requirements (UC-050 create/edit, UC-051 for a bundle). Body:
+  ```json
+  {
+    "resourceRequirements": [
+      { "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE", "resourcePoolIds": ["uuid", "uuid"], "requiredQuantity": 1 },
+      { "type": "EQUIPMENT", "selectionMode": "AUTO_ANY" }
+    ]
+  }
+  ```
+  - `200` on success
+  - `422` if no active resource of a chosen type exists (UC-050 A1)
+  - `422` `BOOKING_SERVICE_RESOURCE_REQUIREMENT_INVALID` (field `requiredQuantity`) if a requirement's `requiredQuantity` exceeds its eligible resources — the explicit `resourcePoolIds`, or every active resource of the type when none is set (UC-050 A3); the same check applies to each leg's requirements on `PUT /services/:id/legs`
+  - `409` if the service has `legs` set (UC-050 A2)
+
+- `PUT /services/:id/legs` -> Set/replace a service's sequential legs (UC-052). Clears `resourceRequirements`/`bufferAfterMinutes` on save. Body:
+  ```json
+  {
+    "legs": [
+      { "legIndex": 0, "name": "Sauna", "durationMinutes": 20, "resourceRequirements": [{ "type": "ROOM", "selectionMode": "AUTO_ANY" }], "transitionGapAfterMinutes": 10 },
+      { "legIndex": 1, "name": "Massagem", "durationMinutes": 50, "resourceRequirements": [{ "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }, { "type": "ROOM", "selectionMode": "AUTO_ANY" }], "transitionGapAfterMinutes": 5 }
+    ]
+  }
+  ```
+  - `200` on success; response includes the computed total span
+  - `422` if fewer than 2 legs (UC-052 A1)
+
+- `POST /services/:id/intake-schema` -> Publish a new booking-intake schema version (UC-054). Body:
+  ```json
+  {
+    "questions": [{ "fieldKey": "accessNeeds", "label": "Necessidades de acesso", "type": "FREE_TEXT", "required": false }],
+    "consentText": "...", "requiresNamedAttendees": true, "participantCountRequired": true
+  }
+  ```
+  - `201` on success — new version `is_active = true`, previous version `is_active = false`
+
+- `GET /services/:id/intake-schema` -> Read a service's active intake schema and its most recent previous versions — `history` is capped at the 5 latest (`SERVICE_INTAKE_HISTORY_LIMIT` in `@ikaro/types`), older versions stay stored but are not listed (UC-054 read path; added M22-S04, 2026-09-18 — no read endpoint existed for the aggregate `POST` above published to). Response:
+  ```json
+  {
+    "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." },
+    "history": [ { "version": 1, "questions": [...], "consentText": "...", "consentVersion": 1, "requiresNamedAttendees": false, "participantCountRequired": false, "createdAt": "..." } ]
+  }
+  ```
+  - `200` on success — `active: null` if no version has ever been published
+  - `404` if the service doesn't exist or belongs to another tenant
+  - Backed by one bounded read, `IServiceIntakeSchemaRepository.findLatestByServiceId(…, SERVICE_INTAKE_HISTORY_LIMIT + 1)`, partitioned by `isActive` (the active version is always the newest) — the payload does not grow with every publish; no separate per-version endpoint
+
+- `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:
+  ```json
+  {
+    "defaultApprovalMode": "MANUAL_APPROVAL", "manualHoldMinutes": 30,
+    "cancellationWindowHoursOverride": null, "rescheduleWindowHoursOverride": null,
+    "minBookingAdvanceHoursOverride": null, "maxBookingAdvanceDaysOverride": null,
+    "recurrenceEligible": true, "availabilityAlertEligible": true,
+    "durationPolicy": "CUSTOMER_SELECTED", "durationMinMinutes": 60, "durationMaxMinutes": 480, "durationIncrementMinutes": 30,
+    "pricingPolicy": "PER_TIME_INCREMENT", "pricingIncrementMinutes": 60, "pricePerIncrementAmount": 50.00, "minimumChargeAmount": 100.00
+  }
+  ```
+  - `200` on success
+  - `422` if `durationPolicy = CUSTOMER_SELECTED` with no `pricingPolicy` (UC-055 A2)
+
+- `GET /schedule/day-grid?date=` -> Combined multi-resource day grid (UC-057). MANAGER only.
+  ```json
+  { "date": "2026-08-04", "columns": [{ "resourceId": "uuid", "name": "Camila Duarte", "type": "STAFF", "blocks": [{ "startsAt": "...", "endsAt": "...", "kind": "BOOKING"|"CLASS_SESSION", "refId": "uuid" }] }] }
+  ```
+
+**`GET /schedule/availability` (UC-011) — extended by M22 Cluster 2 (UC-058, UC-059):** the existing endpoint's response is unchanged in shape; internally, once a queried service has non-default `resourceRequirements`/`legs`, the backend scopes the query to the relevant `resourceId(s)` via `IBookingAvailabilityPort` against `booking.resource_occupancy` instead of the whole tenant — see `docs/02-DOMAIN_MODEL.md`. No new query params for this cluster.
 
 ---
 
@@ -606,11 +737,17 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 **Cancel** (JWT + `CUSTOMER|MANAGER|STAFF` role required):
 - `PATCH /bookings/:id/cancel` → (UC-007, UC-008) Cancel a booking. The BFF dispatches to a different backend route depending on the caller's role: `CUSTOMER` → `cancel-customer` (no body), `MANAGER`/`STAFF` → `cancel-admin` (body: `{ reason?: string }`). Returns `200 { bookingId, status: 'CANCELLED' }`.
 
-### **Reschedule (UC-008)**
+### **Reschedule (UC-008, extended by M23 Cluster 3 UC-069)**
 - `PATCH /bookings/:id/reschedule`
-- **Body:** `{ "scheduledAt": "ISO8601", "adminNotes": "..." }`
-- **Validation:** New `scheduledAt + totalDurationMins` window must be free. Returns `409 slot-unavailable` if not.
-- **Event:** Publishes `BookingRescheduled` → Notification sends customer email.
+- **Body (UC-008, staff-only):** `{ "scheduledAt": "ISO8601", "adminNotes": "..." }`
+- **Body (UC-069, customer-initiated, M23 Cluster 3):** `{ "scheduledAt": "ISO8601", "resourceSelections": {...}, "durationMinutes": number }` — `resourceSelections`/`durationMinutes` only relevant for a bundle/leg/variable-duration service; validated and locked atomically before the original resource(s) are released.
+- **Validation:** New window must be free for every required resource. Returns `409 slot-unavailable` if not (UC-069 A1). A bundle/journey revalidates every resource/leg as one atomic change (UC-069 A2).
+- **Response, M23 Cluster 3 addition:** if the reschedule changes the price (e.g. a variable-duration service), a `booking_quote_revisions` row is recorded and the response includes `{ "quoteRevision": { "revisionNo": number, "amount": {...} } }`.
+- **Event:** Publishes `BookingRescheduled` (extended scope, see `docs/03-DOMAIN_EVENTS.md`) → Notification sends customer email.
+
+### **No-Show (UC-074, M23 Cluster 3)**
+- `POST /bookings/:id/no-show` -> Mark an appointment as a no-show (STAFF|MANAGER). `422` if the scheduled end time hasn't passed; `409` if already terminal.
+- `POST /bookings/:id/no-show/correct` -> Manager correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED"|..., "reason": "..." }`. Loyalty is awarded only if `correctedStatus = COMPLETED`.
 
 ### **Information Workflow (UC-005)**
 See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
@@ -662,9 +799,11 @@ Availability is a **two-phase API** — one call for calendar navigation, one fo
 Loads all data for the date range in 3 DB queries. Use for week/month calendar rendering.
 
 ```
-GET /v1/schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid1,uuid2
+GET /v1/schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid1,uuid2&resourceId=
 X-Tenant-Slug: lavacar-test
 ```
+
+`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — omit for tenant-wide availability (today's exact unchanged behavior). When set, scopes the calculation to that resource's own closures/openings/workingHours, combined with the tenant-wide ones (`docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution). Cluster 2 (UC-058/UC-059, planned) will additionally derive this automatically from a queried service's `resourceRequirements` when the caller doesn't pass one explicitly — this explicit param is the foundation that later auto-derivation builds on, not a competing mechanism.
 
 Response `200`:
 ```json
@@ -677,6 +816,7 @@ Response `200`:
 
 Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
+- `404` — `resourceId` set and does not exist or belongs to another tenant
 - `422` — `from > to`, or range exceeds `maxBookingAdvanceDays` (default 90 days)
 
 Constraints: past dates return `{ available: false, slotCount: 0 }` without an error (for seamless calendar rendering).
@@ -686,9 +826,11 @@ Constraints: past dates return `{ available: false, slotCount: 0 }` without an e
 Called when user clicks a specific day. Returns full slot list with UTC timestamps.
 
 ```
-GET /v1/schedule/availability?date=YYYY-MM-DD&serviceIds=uuid1,uuid2
+GET /v1/schedule/availability?date=YYYY-MM-DD&serviceIds=uuid1,uuid2&resourceId=
 X-Tenant-Slug: lavacar-test
 ```
+
+`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — same meaning as Phase 1's `resourceId` above.
 
 Response `200`:
 ```json
@@ -704,50 +846,203 @@ Response `200`:
 
 Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
+- `404` — `resourceId` set and does not exist or belongs to another tenant
 - `422` — date is in the past
 
-### **Schedule Closures (UC-010a, UC-010b)**
-Auth: JWT + `MANAGER|STAFF` on all write endpoints.
+### **Schedule Closures (UC-010a, UC-010b, UC-010e)**
+Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):** a request body with `resourceId` set requires `MANAGER` specifically — `resourceId` omitted (tenant-wide, today's behavior) stays open to `MANAGER|STAFF`.
 
-- `GET /schedule/closures?from=YYYY-MM-DD&to=YYYY-MM-DD` → list closures in range (sorted by date ASC)
+- `GET /schedule/closures?from=YYYY-MM-DD&to=YYYY-MM-DD&resourceId=` → list closures in range (sorted by date ASC). `resourceId` optional — omit for tenant-wide only.
 - `POST /schedule/closures` → create closure (full-day or partial)
   ```json
   {
-    "date":      "2026-12-26",
-    "reason":    "HOLIDAY",
-    "startTime": "10:00",   // optional — omit for full-day
-    "endTime":   "12:00",   // optional — omit for full-day
-    "notes":     "..."      // optional
+    "date":       "2026-12-26",
+    "reason":     "HOLIDAY",
+    "startTime":  "10:00",   // optional — omit for full-day
+    "endTime":    "12:00",   // optional — omit for full-day
+    "resourceId": "uuid",    // optional (M21 Cluster 1) — omit for tenant-wide, matching today's behavior
+    "notes":      "..."      // optional
   }
   ```
   - `201` on success; response body includes the created closure `id`
   - `422` if date is in the past
-  - `409` if an overlapping closure already exists for that date
+  - `409` if an overlapping closure already exists for that `(date, resourceId)`
+  - `404` if `resourceId` is set and does not exist or belongs to another tenant (UC-010e)
 
 - `DELETE /schedule/closures/:id` → remove closure
   - `204` on success
   - `404` if not found or belongs to another tenant
 
-### **Schedule Openings (UC-010c, UC-010d)**
-Auth: JWT + `MANAGER|STAFF` on all write endpoints.
+### **Schedule Openings (UC-010c, UC-010d, UC-010f)**
+Auth: JWT + `MANAGER|STAFF` on all write endpoints. **Exception (M21 Cluster 1):** a request body with `resourceId` set requires `MANAGER` specifically — `resourceId` omitted (tenant-wide, today's behavior) stays open to `MANAGER|STAFF`.
 
-- `GET /schedule/openings?from=YYYY-MM-DD&to=YYYY-MM-DD` → list openings in range
+- `GET /schedule/openings?from=YYYY-MM-DD&to=YYYY-MM-DD&resourceId=` → list openings in range. `resourceId` optional — omit for tenant-wide only.
 - `POST /schedule/openings` → open a normally-closed day
   ```json
   {
-    "date":      "2026-12-28",
-    "startTime": "09:00",
-    "endTime":   "14:00",
-    "notes":     "..."   // optional
+    "date":       "2026-12-28",
+    "startTime":  "09:00",
+    "endTime":    "14:00",
+    "resourceId": "uuid",   // optional (M21 Cluster 1) — omit for tenant-wide, matching today's behavior
+    "notes":      "..."     // optional
   }
   ```
   - `201` on success
-  - `422` if date is past OR day-of-week is already open in `businessHours`
-  - `409` if an opening already exists for that date
+  - `422` if date is past, OR day-of-week is already open in the effective hours source (tenant `businessHours` for a tenant-wide opening; the resource's own `workingHours[day]` when `resourceId` is set and the resource has a non-null `workingHours`, else falling back to `businessHours` — M21 Cluster 1), OR (`resourceId` set only) the day is normally closed for the tenant and no tenant-wide opening exists yet for that date (`BOOKING_TENANT_OPENING_REQUIRED` — open the tenant level first), OR (`resourceId` set only) the requested window extends beyond the bounding tenant window for that date (`BOOKING_OPENING_EXCEEDS_TENANT_WINDOW` — the tenant's own `businessHours[day]` window when the day is normally open for the tenant, else the prerequisite tenant-wide opening's window)
+  - `409` if an opening already exists for that `(date, resourceId)`
+  - `404` if `resourceId` is set and does not exist or belongs to another tenant (UC-010f)
 
 - `DELETE /schedule/openings/:id` → remove opening; day reverts to default-closed
   - `204` on success
   - `404` if not found or belongs to another tenant
+  - `409` if the opening is tenant-wide (`resourceId` unset) and one or more resource-scoped openings still depend on it for that date (`BOOKING_TENANT_OPENING_HAS_RESOURCE_DEPENDENTS` — M21 Cluster 1) — remove the resource-scoped openings first. Never applies when deleting a resource-scoped opening directly.
+
+### **Resource Management (UC-044–UC-049)**
+
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). **Shipped in M21-S01** (backend + BFF); the `GET /resources/:id` single-item read below was added in M21-S04 (needed by the resource edit page — missed in S01, mirrors Staff's/Services' existing `GET /:id` pattern).
+
+Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent restriction distinct from every other Booking-context admin surface (`MANAGER|STAFF`), per the discovery's own review call (dev-notes.md item 1) with no existing precedent to derive it from.
+
+- `GET /resources?type=&isActive=` → list resources (UC-044). `type` optional — `LOCATION | STAFF | ROOM | EQUIPMENT`. `isActive` optional boolean.
+  ```json
+  { "items": [ { "id": "uuid", "type": "STAFF", "refId": "uuid", "name": "Camila Duarte", "workingHours": null, "turnoverMinutes": 15, "maxCapacity": null, "isActive": true } ] }
+  ```
+- `GET /resources/:id` → get a single resource (added M21-S04, powers the edit page). Same response shape as one list item above.
+  - `200` on success
+  - `404` if not found or belongs to another tenant
+- `GET /resources/staff-options?excludeResourceId=` → **BFF-only, no backend route** (added M21-S04). Merges a `GET /staff` read with a `GET /resources?type=STAFF` read server-side and returns each staff member annotated with whether they're already wrapped by a *different* `Resource` — the STAFF-picker's underlying data source on the create/edit forms, kept out of `apps/web` per `docs/24-BFF_ARCHITECTURE.md` § Web-facing composite views. `excludeResourceId` (optional) excludes one resource from the wrap check — the resource currently being edited, so its own already-wrapped staff member isn't marked as taken.
+  ```json
+  { "items": [ { "id": "uuid", "name": "Camila Duarte", "email": "camila@lavacar.com.br", "isActive": true, "isWrapped": false } ] }
+  ```
+  - `200` on success
+- `POST /resources` → create a resource (UC-045)
+  ```json
+  {
+    "type":            "STAFF",           // "STAFF" | "ROOM" | "EQUIPMENT" — never "LOCATION" (backfilled only)
+    "refId":           "uuid",            // required iff type = "STAFF" — an existing Staff id
+    "name":            "Camila Duarte",   // required for ROOM/EQUIPMENT; denormalized display name for STAFF too
+    "workingHours":    { "monday": { "open": "09:00", "close": "18:00" }, "...": "..." }, // optional — omit to inherit tenant hours
+    "turnoverMinutes": 15,                // optional, default 0
+    "maxCapacity":     null               // optional, ROOM/EQUIPMENT/LOCATION only
+  }
+  ```
+  - `201` on success
+  - `409` if `type = STAFF` and that staff member is already wrapped by a `Resource` (A1)
+  - `422` if `type = LOCATION` — never manually created, only the M21-S02 backfill migration creates it
+  - `422` if no working hours are set and the tenant has no `businessHours` either (A2)
+- `PATCH /resources/:id` → edit a resource (UC-046). Body: every field independently optional (unsent = unchanged) — `{ "name"?, "type"?, "refId"?: "uuid" | null, "workingHours"?: { ... } | null, "turnoverMinutes"?, "maxCapacity"?: number | null }`. An empty body `{}` is valid and changes nothing. **UC-046 A1's "warn before saving hours that put existing appointments outside them" is not implemented in M21-S01 and saves directly** — no `Service`/`Booking` references a `Resource` yet (Cluster 2's `resourceRequirements` wiring), so no appointment can exist to check against; same Cluster-1-scope deferral as UC-047's own "empty worklist for a Cluster-1-only tenant" (`docs/04-USE_CASES.md`).
+  - `200` on success
+  - `404` if not found, belongs to another tenant, or (when `type` is changing to `STAFF`) the target staff member is not found/inactive (mirrors `POST /resources`' A1 staff-lookup semantics — UC-045)
+  - `409` if `type = STAFF` and the target staff member is already wrapped by a *different* `Resource` — re-saving the same `refId` this resource already holds is not a conflict
+  - `409` if `type` is changing to or from `LOCATION` — a tenant's `LOCATION` resource can never change type, and no other resource can become `LOCATION`
+  - `409` if `workingHours` is set (non-null) while `type` is (or is being changed to) `LOCATION` — a `LOCATION` resource always inherits the tenant's business hours and can never carry a custom schedule
+  - `400`/`422` if `type` is changing away from `STAFF` without the request also explicitly sending `refId: null`
+  - `422` if no working hours are set (after the update) and the tenant has no `businessHours` either
+- `DELETE /resources/:id` → deactivate a resource (UC-047)
+  - `204` on success
+  - `404` if not found or belongs to another tenant
+  - `409` if `type = LOCATION` — a tenant must always retain exactly one active LOCATION resource
+- `POST /resources/:id/reactivate` → reactivate a deactivated resource (UC-049)
+  - `200` on success
+  - `404` if not found, belongs to another tenant, or (for a `type = STAFF` resource) the wrapped staff member is still inactive
+  - `409` if already active
+
+### **Recurring Private Reservation Schedules — M23 Cluster 3 (UC-070, UC-071)**
+
+Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or create on a customer's behalf).
+
+- `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": {...}, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn"? }`
+  - `201` — `{ "status": "ACTIVE" }` (AUTO_CONFIRM) or `{ "status": "PENDING_APPROVAL", "approvalHoldExpiresAt": "..." }` (MANUAL_APPROVAL)
+  - `409` on a future-pattern conflict (A1) or at the `MAX_ACTIVE_*` cap (A4)
+- `GET /recurring-booking-schedules` → list the caller's own (Customer) or all for the tenant (STAFF|MANAGER, approval queue)
+- `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart` → skip or reschedule one occurrence (UC-070 A2). Body: `{ "action": "SKIP"|"RESCHEDULE", "replacementBookingId"? }`
+- `POST /recurring-booking-schedules/:id/pause` / `POST /recurring-booking-schedules/:id/end`
+- `POST /recurring-booking-schedules/:id/approve` / `POST /recurring-booking-schedules/:id/reject` → UC-071. STAFF|MANAGER only.
+  - `409` if already resolved (A1) or past `approvalHoldExpiresAt` (A2)
+
+### **Availability Alerts — M23 Cluster 3 (UC-072, UC-076)**
+
+Auth: JWT + Customer only — unauthenticated visitors are redirected to login (UC-072 A1).
+
+- `POST /availability-alerts` → create (UC-072). Body: `{ "serviceId", "preferredResourceId"?, "criteriaType": "ONE_TIME_RANGE"|"WEEKLY_PREFERENCE", "acceptableStartAt"?, "acceptableEndAt"?, "weekdays"?, "localStartTime"?, "localEndTime"?, "durationMinutes"?, "participantCount"? }`
+- `GET /availability-alerts` → list the caller's own (UC-076)
+- `PATCH /availability-alerts/:id` → edit criteria/expiry (UC-076)
+- `DELETE /availability-alerts/:id` → cancel (UC-076)
+
+### **Future Commitment Exceptions — M23 Cluster 3 (UC-077)**
+
+Auth: JWT + MANAGER only.
+
+- `GET /scheduling-exceptions?status=OPEN` → list open worklist items (UC-073's output)
+- `POST /scheduling-exceptions/:id/resolve` → Body: `{ "resolutionType": "KEEP"|"REASSIGN"|"RESCHEDULE"|"CANCEL", "reason"? }`
+- `POST /scheduling-exceptions/:id/dismiss` → Body: `{ "reason" }`
+
+### **Tenant Onboarding Bootstrap — M23 Cluster 3 (UC-075)**
+
+Auth: JWT + MANAGER only.
+
+- `POST /onboarding/bootstrap` → Body: `{ "presetId": "AUTO_ESTETICA"|"SALAO_BARBEARIA"|..., "answers": {...} }` (per-preset minimum-answer shape, see `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md`)
+  - `201` — generated configuration as an editable review; whole bootstrap rolls back atomically on any failure (A3)
+  - `422` on invalid minimum answers (A2)
+  - **M24 Cluster 4 completion:** for a SESSION preset (D/E/F), step 4 also creates the first `ClassScheduleTemplate`(s) — inert until this cluster ships (Cluster 3 alone only completes Presets A/B/C/G).
+
+---
+
+## 4b. Classes & Sessions — M24 Cluster 4
+
+> Auth: STAFF|MANAGER on every staff-facing endpoint below unless noted; Customer/Guest on the booking endpoints, matching UC-085–107's own actor fields.
+
+### **Session Templates (UC-078–080)**
+
+- `PATCH /services/:id/guest-access-policy` → Body: `{ "guestAccessEnabled": boolean, "guestTrialPolicy": "NONE"|"FIRST_FREE_PER_EMAIL" }` (UC-078)
+- `POST /class-schedule-templates` → Body: `{ "serviceId", "resourceIds": string[], "recurrence": {...}, "capacity": number, "trialSlots"?: number }`
+  - `201` on success
+  - `409` on resource conflict (A1/A2) or `MAX_ACTIVE_TEMPLATES_PER_RESOURCE` cap (A4)
+  - `422` if capacity exceeds a resource's `maxCapacity` ceiling (A3)
+- `PATCH /class-schedule-templates/:id` → edit (UC-080). `409` if new default capacity < an in-flight session's `reservedCount` (A2).
+- `DELETE /class-schedule-templates/:id` → deactivate (UC-080)
+- `POST /class-schedule-templates/:id/cancel-range` → Body: `{ "rangeStart": "date", "rangeEnd": "date"|null }` (UC-096). `422` if entirely in the past (A1).
+
+### **Sessions (UC-081–085, UC-101)**
+
+- `GET /class-sessions?scope=mine|all&from=&to=` → list (UC-082)
+- `GET /class-sessions?serviceId=&from=` → customer/guest browse (UC-085) — public/authenticated variant of the same read model
+- `PATCH /class-sessions/:id` → override capacity/resources (UC-083). `409` if new capacity < `reservedCount` (A1); `422` if it exceeds a resource ceiling (A2).
+- `POST /class-sessions/:id/cancel` → UC-084
+- `POST /class-sessions/:id/close` → Body: `{ "attendeeOutcomes": [{ "attendeeId", "attendance": "PRESENT"|"NO_SHOW" }] }` (UC-101). `409` if already `CLOSED` (A1); `422` if before `endTime` (A2).
+
+### **Class Session Bookings (UC-086–090, UC-097–098, UC-105)**
+
+- `POST /class-session-bookings` → create (UC-086 contract / UC-087 pay-per-class / UC-088 guest group). Body varies by path — see each UC's Main Flow.
+  - `201` — `CONFIRMED`, `PENDING_APPROVAL`, or falls through to waitlist per the trialSlots threshold
+  - `409` if session fills at write time (A1) or no qualifying contract (A2, UC-086)
+- `POST /class-session-bookings/guest-verification` → Body: `{ serviceId, sessionId, quantity, attendees: [{ name }], contactEmail, contactName, contactPhone }` (UC-097 step 1)
+- `POST /class-session-bookings/guest-verification/:token/confirm` → UC-097 step 2–3
+- `POST /class-session-bookings/:id/cancel` → UC-089. `422` inside the cancellation window (A1).
+- `POST /class-sessions/:id/waitlist` → UC-090. `409` on a duplicate entry (A1).
+- `POST /class-session-bookings/:id/approve` / `POST /class-session-bookings/:id/reject` → UC-098, STAFF|MANAGER
+- `PATCH /class-session-bookings/:id/attendees` → Body: `{ "removeAttendeeIds": string[], "reason" }` (UC-105). `422` if it would leave zero attendees (A2) or past cutoff (A3).
+- `POST /class-session-bookings/:id/waitlist-offer/accept` / `.../decline` → UC-091's offer acceptance
+
+### **Recurring Enrollments (UC-093–095, UC-102–104)**
+
+- `POST /recurring-enrollments` → Body: `{ "templateId", "startDate" }` (UC-093)
+- `PATCH /recurring-enrollments/:id/occurrences/:sessionId` → Body: `{ "action": "SKIP" }` (UC-094). `422` inside the skip window (A3) or if the occurrence already passed (A2).
+- `POST /recurring-enrollments/:id/occurrences/:sessionId/reschedule` → Body: `{ "replacementSessionId" }` (UC-102)
+- `POST /recurring-enrollments/:id/cancel` → UC-095
+- `GET /class-schedule-templates/:serviceId/enrollments?status=&type=` → UC-103, STAFF|MANAGER
+- `POST /class-session-bookings` / `POST /recurring-enrollments` with `createdByStaff: true` → UC-104, STAFF|MANAGER. `409` if the customer has no qualifying access (A1).
+
+### **Class Access Contracts (UC-099)**
+
+- `POST /class-access-contracts` → Body: `{ "customerId", "startsOn", "endsOn", "eligibleServiceIds": string[] }`
+  - `409` if an eligible service overlaps an existing active contract's period (A2)
+- `POST /class-access-contracts/:id/cancel` → UC-099 step 4
+
+### **Payments — In-Person Record (UC-107)**
+
+- `POST /class-session-bookings/:id/payment` → Body: `{ "amount"?, "method", "outcome": "PAID"|"UNPAID"|"WAIVED" }`
+- `POST /class-session-bookings/:id/payment/:paymentId/reverse` → Body: `{ "correctionReason" }`
 
 ---
 
@@ -1053,6 +1348,31 @@ resource "google_cloud_scheduler_job" "chatbot_balance_poll" {
   time_zone = "UTC"
   pubsub_target {
     topic_name = google_pubsub_topic.cron_chatbot_balance_poll.id
+    data       = base64encode("{}")
+  }
+}
+```
+
+---
+
+### `POST /cron/lead-form-retention` — Publish the daily lead-form-retention trigger (UC-043)
+
+Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path only, `InternalApiGuard`-protected, not the endpoint Cloud Scheduler calls in prod (Scheduler publishes to the `ikaro-cron-lead-form-retention` Pub/Sub topic directly). The trigger handler deletes every `lead_form_submissions` row where `expires_at < now()`, a cross-tenant scan using the standalone `(expires_at)` index (not the `(tenant_id, expires_at)` composite, which this unscoped query can't seek — `docs/13-DATABASE_SCHEMA.md`).
+
+**Request headers:** `X-Internal-Key` required.
+
+**Request body:** none
+
+**Response `200 OK`:** `{ "ok": true }` — returned once the trigger is published, not once the purge job finishes.
+
+**GCP Cloud Scheduler resource (Terraform — `modules/scheduler`):**
+```hcl
+resource "google_cloud_scheduler_job" "lead_form_retention" {
+  name      = "lead-form-retention"
+  schedule  = "0 3 * * *"
+  time_zone = "UTC"
+  pubsub_target {
+    topic_name = google_pubsub_topic.cron_lead_form_retention.id
     data       = base64encode("{}")
   }
 }

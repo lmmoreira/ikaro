@@ -6,6 +6,7 @@
    DO NOT duplicate this file per prototype — always reference via ../../../shared/tokens.css
    ============================================================ */
 :root {
+  color-scheme: only light;
   --ba-primary:       #2563eb;
   --ba-secondary:     #eff6ff;
   --ba-background:    #ffffff;
@@ -26,7 +27,9 @@
 
 body {
   font-family: var(--ba-body-font);
+  background-color: #ffffff;
   background-color: var(--ba-background);
+  color: #111827;
   color: var(--ba-text);
   line-height: 1.5;
 }

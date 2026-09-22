@@ -47,12 +47,13 @@ describe('TypeOrmHotsiteConfigRepository', () => {
 
   describe('findByTenantId', () => {
     it('returns a HotsiteConfig aggregate when found', async () => {
-      mockRepo.findOne.mockResolvedValue(new HotsiteConfigEntityBuilder().build());
+      const entity = new HotsiteConfigEntityBuilder().build();
+      mockRepo.findOne.mockResolvedValue(entity);
 
       const result = await repo.findByTenantId('tenant-id-1');
 
       expect(result).toBeInstanceOf(HotsiteConfig);
-      expect(result!.id).toBe('config-id-1');
+      expect(result!.id).toBe(entity.id);
       expect(result!.tenantId).toBe('tenant-id-1');
       expect(result!.isPublished).toBe(false);
       expect(result!.branding).toEqual(DEFAULT_HOTSITE_BRANDING);
@@ -105,6 +106,30 @@ describe('TypeOrmHotsiteConfigRepository', () => {
       mockRepo.findBy.mockResolvedValue([]);
 
       expect(await repo.findByTenantIds(['no-such-tenant'])).toEqual([]);
+    });
+  });
+
+  describe('isModuleEnabled', () => {
+    it('returns null when the tenant has no HotsiteConfig row', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
+
+      expect(await repo.isModuleEnabled('unknown-tenant', 'LEAD_FORM')).toBeNull();
+    });
+
+    it("returns the layout entry's enabled flag when the module type is present", async () => {
+      const entity = new HotsiteConfigEntityBuilder()
+        .withLayout([{ type: 'LEAD_FORM', enabled: true, data: {} }])
+        .build();
+      mockRepo.findOne.mockResolvedValue(entity);
+
+      expect(await repo.isModuleEnabled('tenant-id-1', 'LEAD_FORM')).toBe(true);
+    });
+
+    it('returns false when the module type is absent from the layout', async () => {
+      const entity = new HotsiteConfigEntityBuilder().build();
+      mockRepo.findOne.mockResolvedValue(entity);
+
+      expect(await repo.isModuleEnabled('tenant-id-1', 'LEAD_FORM')).toBe(false);
     });
   });
 

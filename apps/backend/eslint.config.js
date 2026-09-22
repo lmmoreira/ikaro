@@ -1,8 +1,17 @@
 const baseConfig = require('@ikaro/config/eslint-base');
+const jestPlugin = require('eslint-plugin-jest');
 const architecturePolicy = require('../../packages/architecture-check/architecture-policy.json');
 
 const reviewedRawPersistencePaths = architecturePolicy.exceptions
   .filter((exception) => exception.rule === 'raw-persistence-api')
+  .map((exception) => exception.path.replace(/^apps\/backend\//, ''));
+
+// TD37-S05: reviewed max-lines (file-length) exceptions for domain aggregates — see
+// packages/architecture-check/architecture-policy.json's max-lines-aggregate entries for
+// rationale. Exempts the file-length rule only; max-lines-per-function still applies to these
+// files (a long aggregate file is expected, a long method inside it is not).
+const maxLinesAggregateExceptionPaths = architecturePolicy.exceptions
+  .filter((exception) => exception.rule === 'max-lines-aggregate')
   .map((exception) => exception.path.replace(/^apps\/backend\//, ''));
 
 // ESLint flat config REPLACES (not merges) a rule's options when two config objects
@@ -37,7 +46,7 @@ const OPENTELEMETRY_PATTERN = {
 const EVENT_BUS_PORT_PATTERN = {
   regex: '\\/event-bus\\.port$',
   message:
-    'Publish sites depend on OUTBOX_PUBLISHER/IOutboxPublisher (shared/ports/outbox-publisher.port), not EVENT_BUS — see td/TD24-OUTBOX-INBOX-PATTERN.md D14.',
+    'Publish sites depend on OUTBOX_PUBLISHER/IOutboxPublisher (shared/ports/outbox-publisher.port), not EVENT_BUS — see docs/03-DOMAIN_EVENTS.md D14.',
 };
 // Use cases and application services must not inject RequestContext — caller context is
 // passed via the input DTO instead, keeping use cases callable from event handlers, scheduled
@@ -96,10 +105,25 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/booking/infrastructure/migrations/1748000000012-CreateBookingScheduleClosures.ts',
   'src/contexts/booking/infrastructure/migrations/1748000000013-CreateBookingScheduleOpenings.ts',
   'src/contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000007-CreateBookingResources.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000008-BackfillLocationResources.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000009-AddResourceIdToScheduleClosuresAndOpenings.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000010-AddServiceResourceRequirementsAndLegs.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000011-AddServiceBookingPolicyAndIntakeSchema.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000012-CreateResourceOccupancy.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000013-BackfillResourceOccupancy.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000014-DropTenantWideExclusion.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000015-AddEndsAtIndexToResourceOccupancy.ts',
+  'src/contexts/platform/infrastructure/migrations/1748500000004-CreateLeadFormSubmissionQuestionRefs.ts',
+  'src/contexts/platform/infrastructure/migrations/1748500000005-AddVersionToLeadFormConfigs.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts',
+  'src/contexts/booking/infrastructure/repositories/typeorm-resource.repository.ts',
+  'src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-schedule-closure.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-schedule-opening.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-service.repository.ts',
+  'src/contexts/booking/infrastructure/repositories/typeorm-service-child-loader.ts',
+  'src/contexts/booking/infrastructure/repositories/typeorm-service-intake-schema.repository.ts',
   'src/contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers.ts',
   'src/contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint.ts',
   'src/contexts/customer/infrastructure/repositories/typeorm-customer.repository.ts',
@@ -125,10 +149,16 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/platform/infrastructure/migrations/1748400000011-AddCostUsdToChatbotMessages.ts',
   'src/contexts/platform/infrastructure/migrations/1748400000012-AddHealthColumnsToChatbotProviderBalance.ts',
   'src/contexts/platform/infrastructure/migrations/1748400000013-AddStartedAtIndexToChatbotSessions.ts',
+  'src/contexts/platform/infrastructure/migrations/1748400000014-CreateLeadFormSubmissions.ts',
+  'src/contexts/platform/infrastructure/migrations/1748500000002-CreatePlatformLeadFormConfigs.ts',
+  'src/contexts/platform/infrastructure/migrations/1748500000003-AddExpiresAtIndexToLeadFormSubmissions.ts',
+  'src/contexts/platform/infrastructure/migrations/1748500000006-CreateLeadFormAnswers.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-message.repository.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-provider-balance.repository.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-chatbot-session.repository.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-hotsite-config.repository.ts',
+  'src/contexts/platform/infrastructure/repositories/typeorm-lead-form-config.repository.ts',
+  'src/contexts/platform/infrastructure/repositories/typeorm-lead-form-submission.repository.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-tenant.repository.ts',
   'src/contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff.ts',
   'src/contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff.ts',
@@ -361,6 +391,61 @@ module.exports = [
         ZOD_UUID_SELECTOR,
         ZOD_EMAIL_SELECTOR,
       ],
+    },
+  },
+
+  // Tier L1 — TD37-S05: docs/CODE_STANDARDS.md's function-length limit, enforced via ESLint core
+  // (zero new dependency). Specs are exempt (test bodies are naturally longer due to setup/
+  // assertions — the rule's intent targets production logic); migrations and the seed script are
+  // exempt (DDL/seed data, not application logic — same rationale as PERSISTENCE_BYPASS_IGNORES
+  // above); src/test/** is exempt (test infrastructure, not production code). Applies to every
+  // production file, including the max-lines-aggregate exceptions below — a long aggregate FILE
+  // is expected, a long method inside it is not.
+  {
+    files: ['src/**/*.ts'],
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.integration.spec.ts',
+      'src/contexts/**/infrastructure/migrations/**',
+      'src/shared/infrastructure/migrations/**',
+      'src/shared/database/seed.ts',
+      'src/test/**',
+    ],
+    rules: {
+      'max-lines-per-function': ['error', { max: 40, skipBlankLines: true, skipComments: true }],
+    },
+  },
+
+  // Tier L2 — same as Tier L1 but for the file-length limit, additionally exempting the reviewed
+  // max-lines-aggregate paths (see architecture-policy.json) — domain aggregates whose file
+  // length is a natural consequence of many small, cohesive methods, not a complexity smell that
+  // splitting across files would fix.
+  {
+    files: ['src/**/*.ts'],
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.integration.spec.ts',
+      'src/contexts/**/infrastructure/migrations/**',
+      'src/shared/infrastructure/migrations/**',
+      'src/shared/database/seed.ts',
+      'src/test/**',
+      ...maxLinesAggregateExceptionPaths,
+    ],
+    rules: {
+      'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],
+    },
+  },
+
+  // TD37-S15: no .skip()/.only() — a skipped test hides a real regression behind a green CI
+  // run, and a focused describe/it silently stops every sibling test in the file from running
+  // at all. Scoped to spec files only; zero baseline violations confirmed repo-wide before this
+  // shipped directly as `error` (docs/ANTI_PATTERNS.md, docs/08-TESTING_STRATEGY.md).
+  {
+    files: ['src/**/*.spec.ts', 'src/**/*.integration.spec.ts'],
+    plugins: { jest: jestPlugin },
+    rules: {
+      'jest/no-disabled-tests': 'error',
+      'jest/no-focused-tests': 'error',
     },
   },
 ];

@@ -17,6 +17,7 @@ import { addDays, inWindow, isSameDay, toISODate } from '@/shared/lib/formatting
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { BookingCard } from './BookingCard';
+import { BookingQueueSection } from './BookingQueueSection';
 
 export interface BookingQueuePageProps {
   readonly initialActionNeeded?: StaffBookingListResponse;
@@ -142,88 +143,66 @@ export function BookingQueuePage({
           </Card>
         )}
 
-        <section className="mb-6">
-          <div className="mb-3 flex items-center gap-2">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-              {t('actionNeededTitle')}
-            </h2>
-            <div className="h-px flex-1 bg-gray-200" />
-            {!!actionNeeded?.items.length && (
-              <span className="text-[0.6875rem] font-bold text-gray-400">
-                {t('bookingCount', { count: actionNeeded.items.length })}
-              </span>
-            )}
-          </div>
-          {actionNeeded?.items.length ? (
-            actionNeeded.items.map((b) => (
-              <BookingCard
-                key={b.bookingId}
-                booking={b}
-                variant="action-needed"
-                onApprove={() => handleApproveBooking(b.bookingId)}
-                isApproving={approveBookingMutation.isPending}
-              />
-            ))
-          ) : (
-            <p className="text-sm text-gray-400">{t('emptyActionNeeded')}</p>
-          )}
-        </section>
+        <BookingQueueSection
+          title={t('actionNeededTitle')}
+          countLabel={
+            actionNeeded?.items.length
+              ? t('bookingCount', { count: actionNeeded.items.length })
+              : null
+          }
+          hasItems={!!actionNeeded?.items.length}
+          emptyMessage={t('emptyActionNeeded')}
+        >
+          {actionNeeded?.items.map((b) => (
+            <BookingCard
+              key={b.bookingId}
+              booking={b}
+              variant="action-needed"
+              onApprove={() => handleApproveBooking(b.bookingId)}
+              isApproving={approveBookingMutation.isPending}
+            />
+          ))}
+        </BookingQueueSection>
 
         {todayInWindow && (
-          <section className="mb-6">
-            <div className="mb-3 flex items-center gap-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                {t('todayTitle')}
-              </h2>
-              <div className="h-px flex-1 bg-gray-200" />
-              {!!todayData?.items.length && (
-                <span className="text-[0.6875rem] font-bold text-gray-400">
-                  {t('bookingCount', { count: todayData.items.length })}
-                </span>
-              )}
-            </div>
-            {todayData?.items.length ? (
-              todayData.items.map((b) => (
-                <BookingCard key={b.bookingId} booking={b} variant="today" />
-              ))
-            ) : (
-              <p className="text-sm text-gray-400">{t('emptyToday')}</p>
-            )}
-          </section>
+          <BookingQueueSection
+            title={t('todayTitle')}
+            countLabel={
+              todayData?.items.length ? t('bookingCount', { count: todayData.items.length }) : null
+            }
+            hasItems={!!todayData?.items.length}
+            emptyMessage={t('emptyToday')}
+          >
+            {todayData?.items.map((b) => (
+              <BookingCard key={b.bookingId} booking={b} variant="today" />
+            ))}
+          </BookingQueueSection>
         )}
 
         {upcomingVisible && (
-          <section className="mb-6">
-            <div className="mb-3 flex items-center gap-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                {selectedUpcomingDate
-                  ? t('upcomingTitleFiltered', {
-                      date: `${selectedUpcomingDate.slice(8, 10)}/${selectedUpcomingDate.slice(5, 7)}`,
-                    })
-                  : t('upcomingTitle')}
-              </h2>
-              <div className="h-px flex-1 bg-gray-200" />
-              {!!upcomingItems.length && (
-                <span className="text-[0.6875rem] font-bold text-gray-400">
-                  {t('bookingCount', { count: upcomingItems.length })}
-                </span>
-              )}
-            </div>
-            {upcomingItems.length ? (
-              upcomingItems.map((b) => (
-                <BookingCard
-                  key={b.bookingId}
-                  booking={b}
-                  variant="upcoming"
-                  emphasized={!!selectedUpcomingDate}
-                />
-              ))
-            ) : (
-              <p className="text-sm text-gray-400">
-                {selectedUpcomingDate ? t('emptyUpcomingFiltered') : t('emptyUpcoming')}
-              </p>
-            )}
-          </section>
+          <BookingQueueSection
+            title={
+              selectedUpcomingDate
+                ? t('upcomingTitleFiltered', {
+                    date: `${selectedUpcomingDate.slice(8, 10)}/${selectedUpcomingDate.slice(5, 7)}`,
+                  })
+                : t('upcomingTitle')
+            }
+            countLabel={
+              upcomingItems.length ? t('bookingCount', { count: upcomingItems.length }) : null
+            }
+            hasItems={upcomingItems.length > 0}
+            emptyMessage={selectedUpcomingDate ? t('emptyUpcomingFiltered') : t('emptyUpcoming')}
+          >
+            {upcomingItems.map((b) => (
+              <BookingCard
+                key={b.bookingId}
+                booking={b}
+                variant="upcoming"
+                emphasized={!!selectedUpcomingDate}
+              />
+            ))}
+          </BookingQueueSection>
         )}
       </div>
     </div>

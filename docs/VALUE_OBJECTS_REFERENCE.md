@@ -16,6 +16,9 @@
 | IANA timezone | `Timezone` | `timezone.vo.ts` | validates against `Intl.supportedValuesOf('timeZone')`; getter: `.value` |
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` | validates HH:MM string; `isBefore()` comparison; getter: `.value` |
 | URL-safe slug | `Slug` | `slug.vo.ts` | `/^[a-z0-9-]+$/`; used for tenant slugs; getter: `.value` |
+| ISO country code | `CountryCode` | `country-code.vo.ts` | validates against supported country list; getter: `.value` |
+| SEO page title | `SeoTitle` | `seo-title.vo.ts` | length-bounded per SEO best practice; getter: `.value` |
+| SEO meta description | `SeoDescription` | `seo-description.vo.ts` | length-bounded per SEO best practice; getter: `.value` |
 
 ---
 
@@ -86,7 +89,7 @@ toEntity(customer: Customer): CustomerEntity {
 | VO | How to extract primitive |
 |---|---|
 | `Email` | `.address` |
-| `PhoneNumber`, `Slug`, `HexColor`, `Timezone`, `TimeOfDay` | `.value` |
+| `PhoneNumber`, `Slug`, `HexColor`, `Timezone`, `TimeOfDay`, `CountryCode`, `SeoTitle`, `SeoDescription` | `.value` |
 | `Address` | `.toJSON()` (for JSONB) |
 
 ---

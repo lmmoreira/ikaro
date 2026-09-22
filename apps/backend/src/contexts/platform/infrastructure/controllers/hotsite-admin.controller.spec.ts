@@ -5,6 +5,7 @@ import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructur
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
+import { InMemoryLeadFormConfigRepository } from '../../../../test/repositories/platform/in-memory-lead-form-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
@@ -30,6 +31,7 @@ const BOOKING_ID = '20000000-0000-4000-8000-000000000001';
 
 describe('HotsiteAdminController', () => {
   let repo: InMemoryHotsiteConfigRepository;
+  let leadFormConfigRepo: InMemoryLeadFormConfigRepository;
   let tenantRepo: InMemoryTenantRepository;
   let storageService: InMemoryStorageService;
   let frontendRevalidation: InMemoryFrontendRevalidationPort;
@@ -37,6 +39,7 @@ describe('HotsiteAdminController', () => {
 
   beforeEach(async () => {
     repo = new InMemoryHotsiteConfigRepository();
+    leadFormConfigRepo = new InMemoryLeadFormConfigRepository();
     tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
     frontendRevalidation = new InMemoryFrontendRevalidationPort();
@@ -66,6 +69,7 @@ describe('HotsiteAdminController', () => {
       new GetHotsiteContentUseCase(hotsiteContentReader),
       new UpdateHotsiteContentUseCase(
         repo,
+        leadFormConfigRepo,
         tenantRepo,
         txManager,
         imagePathsService,

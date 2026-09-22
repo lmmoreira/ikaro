@@ -1,3 +1,4 @@
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
@@ -8,11 +9,13 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
 describe('GetServiceByIdUseCase', () => {
   let repo: InMemoryServiceRepository;
+  let bookingPlatform: InMemoryBookingPlatformPort;
   let useCase: GetServiceByIdUseCase;
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new GetServiceByIdUseCase(repo);
+    bookingPlatform = new InMemoryBookingPlatformPort();
+    useCase = new GetServiceByIdUseCase(repo, bookingPlatform);
   });
 
   it('returns the service with pt-BR formatted price', async () => {
@@ -37,6 +40,16 @@ describe('GetServiceByIdUseCase', () => {
     const result = await useCase.execute({ id: service.id, tenantId: TENANT_A, locale: 'pt-BR' });
 
     expect(result.isActive).toBe(false);
+  });
+
+  it('resolves a null bookingPolicy.defaultApprovalMode from the tenant autoApproveEnabled setting', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await repo.save(service);
+    bookingPlatform.seedAutoApproveEnabled(TENANT_A, true);
+
+    const result = await useCase.execute({ id: service.id, tenantId: TENANT_A, locale: 'pt-BR' });
+
+    expect(result.bookingPolicy.defaultApprovalMode).toBe('AUTO_CONFIRM');
   });
 
   it('throws ServiceNotFoundError when service does not exist', async () => {

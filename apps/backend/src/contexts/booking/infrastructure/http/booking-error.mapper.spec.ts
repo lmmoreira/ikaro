@@ -26,12 +26,26 @@ import {
   BookingNotFoundError,
   BookingPhotoNotUploadedError,
   BookingRejectionReasonTooShortError,
+  BookingServiceBookingModelImmutableError,
+  BookingServiceBookingModelMismatchError,
+  BookingServiceConcurrentModificationError,
+  BookingServiceHasLegsError,
+  BookingServiceLegsTooFewError,
+  BookingServiceResourceTypeUnavailableError,
+  BookingServiceSessionNotBookableError,
   BookingSlotUnavailableError,
+  ClassResourceSlotBookingModelMismatchError,
+  ClassResourceSlotDuplicateTypeError,
+  ClassResourceSlotEmptyPoolError,
+  ClassResourceSlotResourceNotActiveError,
   ClosureDateInPastError,
   InvalidBookingTransitionError,
+  ResourceNotActiveError,
+  ResourceRequirementInvalidError,
   ScheduleAlreadyClosedError,
   ScheduleClosureNotFoundError,
   ServiceDeactivatedError,
+  ServiceLegInvalidError,
   ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from './booking-error.mapper';
@@ -131,6 +145,90 @@ describe('mapBookingError', () => {
     const err = call(new ServiceDeactivatedError());
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps ResourceNotActiveError to 409', () => {
+    const err = call(new ResourceNotActiveError('resource-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceHasLegsError to 409', () => {
+    const err = call(new BookingServiceHasLegsError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceBookingModelImmutableError to 409', () => {
+    const err = call(new BookingServiceBookingModelImmutableError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceBookingModelMismatchError to 409', () => {
+    const err = call(new BookingServiceBookingModelMismatchError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceSessionNotBookableError to 409', () => {
+    const err = call(new BookingServiceSessionNotBookableError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceConcurrentModificationError to 409', () => {
+    const err = call(new BookingServiceConcurrentModificationError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceLegsTooFewError to 422', () => {
+    const err = call(new BookingServiceLegsTooFewError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps BookingServiceResourceTypeUnavailableError to 422', () => {
+    const err = call(new BookingServiceResourceTypeUnavailableError('EQUIPMENT'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ResourceRequirementInvalidError to 422', () => {
+    const err = call(new ResourceRequirementInvalidError('quantity-must-be-positive'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ServiceLegInvalidError to 422', () => {
+    const err = call(new ServiceLegInvalidError('duration-must-be-positive'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ClassResourceSlotDuplicateTypeError to 422', () => {
+    const err = call(new ClassResourceSlotDuplicateTypeError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ClassResourceSlotResourceNotActiveError to 422', () => {
+    const err = call(new ClassResourceSlotResourceNotActiveError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ClassResourceSlotEmptyPoolError to 422', () => {
+    const err = call(new ClassResourceSlotEmptyPoolError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps ClassResourceSlotBookingModelMismatchError to 422', () => {
+    const err = call(new ClassResourceSlotBookingModelMismatchError('required-for-session'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
   it('maps ScheduleAlreadyClosedError to 409', () => {

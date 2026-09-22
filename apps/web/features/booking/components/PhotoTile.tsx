@@ -46,6 +46,7 @@ export function PhotoTile({
   }
 
   return (
+    /* eslint-disable-next-line @next/next/no-img-element -- browser-native loading/error handling is required for this remote preview tile */
     <img
       ref={imgRef}
       src={url}

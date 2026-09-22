@@ -1,13 +1,15 @@
 ---
 name: pre-pr
-description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately. Once it opens the PR, dispatches Codex /pr-review in the background and verifies it started.
+description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately. Once it opens the PR, posts the CodeRabbit review trigger, dispatches Codex /pr-review in the background, verifies it started, then hands off to /pr-land.
 metadata:
   short-description: Run the mandatory pre-PR checklist
 ---
 
 Run the pre-PR checklist against the current branch. This is the mandatory gate — run it **once** when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately.
 
-> **AGENT RULE:** Never invoke this skill autonomously. Ask the user: *"I believe the story is complete — may I run /pre-pr?"* Wait for explicit yes before starting.
+> **AGENT RULE:** Runs automatically once local implementation self-verification (type-check, lint, tests) is clean — no separate permission prompt to start it. This was already authorized when `/story-discovery` returned READY for this story (CLAUDE.md §9's autonomous implementation chain).
+
+> **STUCK-CONDITION RULE (applies to every step below, not just Step 4):** "Fix it and re-run" has an implicit bound — if the same failure survives a couple of genuine fix attempts, or the only apparent fix would be a workaround CLAUDE.md §7 forbids, stop and escalate to the user as a stuck condition (CLAUDE.md §9) rather than continuing to iterate.
 
 ---
 
@@ -24,11 +26,7 @@ If a PR exists → print its number and URL, then **stop**:
 ```bash
 git status --short
 ```
-If there are staged or modified files → list all of them and apply the commit gate:
-
-*"Here are the files I'm about to commit: [list]. Anything else to add before I commit?"*
-
-Wait for explicit yes, then commit with specific file names (never `git add -A`). Follow the commit format from CLAUDE.md §9.
+If there are staged or modified files → list all of them for visibility, then commit with specific file names (never `git add -A`) — no permission prompt needed, this is already covered by the chain-wide authorization from story-discovery's READY verdict (CLAUDE.md §9). Follow the commit format from CLAUDE.md §9.
 
 ---
 
@@ -39,7 +37,7 @@ Run:
 bash scripts/pre-pr.sh
 ```
 
-This covers: checks 1, 5, 6, 7, 11, 12, 14, 15, 16, 17, 18, 22–27; W1; WEB-1/WEB-4/WEB-5/WEB-6/WEB-7; E2E-1/E2E-2/E2E-3; BE-2–BE-5/BE-7 (changed files only).
+This covers: checks 1, 5, 6, 7, 11, 12, 14, 15, 17, 18, 22–27; W1; WEB-1/WEB-4/WEB-5/WEB-6/WEB-7; BE-2–BE-5/BE-7 (changed files only). Check 16 (`.skip()`/`.only()` in tests) was retired (TD37-S15) — now enforced full-codebase via ESLint (`jest/no-disabled-tests`/`jest/no-focused-tests`, `vitest/no-disabled-tests`/`vitest/no-focused-tests`) as part of `pnpm lint`, not this script. E2E-1/E2E-2/E2E-3 were likewise retired (TD37-S23) — now enforced via ESLint (`apps/web/eslint.config.js`'s `no-restricted-syntax` E2E-1/E2E-2/E2E-3 selectors) within each rule's configured scope (E2E-1: `apps/web/e2e/**/*.spec.ts`; E2E-2/E2E-3: `apps/web/**/*.tsx`, excluding `*.spec.tsx`) as part of `pnpm lint`, not this script.
 
 If the script exits with issues, fix them and re-run. Do not proceed to Step 2 with script failures outstanding.
 
@@ -154,7 +152,7 @@ apps/bff/ changed      →  /bad-smell-audit bff --pr
 apps/web/ changed      →  /bad-smell-audit web --pr
 ```
 
-The `--pr` flag scopes the audit to files changed in this branch only (skips BE-4). Use `/bad-smell-audit backend` (no flag) for a full codebase audit on demand.
+The `--pr` flag scopes the audit to files changed in this branch only. BE-4 is retired entirely (mechanized by `pnpm architecture-check`, TD37-S07) and no longer runs in either mode. Use `/bad-smell-audit backend` (no flag) for a full codebase audit on demand.
 
 Wait for all invocations to complete before continuing. Any FAIL from bad-smell-audit blocks Step 4.
 
@@ -179,6 +177,8 @@ or:
 Blocked: fix failures before opening the PR.
 ```
 
+If a failure survives a couple of genuine fix attempts, or the only apparent fix would be a workaround CLAUDE.md §7 forbids, stop and escalate to the user as a stuck condition (CLAUDE.md §9) rather than continuing to iterate.
+
 ---
 
 ## Final — Verdict and PR gate
@@ -199,33 +199,45 @@ Step 4   integration tests   ✅  X suites, Y tests
 Total issues: 0
 ```
 
-**If all steps pass**, ask the user:
-> "All pre-PR checks passed — shall I open the PR now?"
-
-Wait for explicit yes before running `gh pr create` (per CLAUDE.md §9 Step 8).
+**If all steps pass**, proceed directly to `gh pr create` (per CLAUDE.md §9) — no permission prompt; this was authorized when `/story-discovery` returned READY. State that all checks passed and the PR is being opened, then open it.
 
 **If any step failed**, list the blocking issues and stop. Do not open the PR.
 
 ---
 
-## Step 5 — Dispatch cross-tool review (mandatory, once the PR exists)
+## Step 5 — Trigger CodeRabbit, dispatch Codex, hand off (mandatory, once the PR exists)
 
-Once `gh pr create` succeeds and you have the PR number, dispatch `/pr-review` to Codex. Do not merely state that it was dispatched: start the process with a closed stdin, capture its PID and log, then verify it actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
+**5a. Trigger CodeRabbit's full review.** This repo's CodeRabbit config skips automatic review on this OSS repo ("manual review required") — its own auto-posted summary comment says so. Post the trigger comment right after `gh pr create` succeeds:
 
 ```bash
-review_log="/tmp/pr-<N>-codex-review.log"
-nohup codex exec -C "$(pwd)" "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro." \
-  </dev/null >"$review_log" 2>&1 &
-review_pid=$!
-sleep 2
-
-if kill -0 "$review_pid" 2>/dev/null; then
-  echo "Codex PR review started (PID $review_pid; log: $review_log)"
-else
-  echo "Codex PR review did not stay running; inspect $review_log before reporting dispatch."
-  tail -80 "$review_log"
-  exit 1
-fi
+gh pr comment <N> --repo lmmoreira/ikaro --body "@coderabbitai review"
 ```
 
-Tell the user the PR is open and that Codex review was **verified started** (include its PID/log). Do not wait for completion before considering pre-pr complete. If it exits before the two-second verification, report the launch failure; never claim a review was dispatched.
+This is a one-time trigger for round 1 only — `/pr-land` never re-posts it on later rounds.
+
+**5b. Dispatch `/pr-review` to Codex.** First capture the round-1 timestamp `/pr-land` needs to distinguish this round's comments from anything later: `since=$(date -u +%Y-%m-%dT%H:%M:%SZ)`. Then dispatch. Do not merely state that it was dispatched: verify that the reviewer actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
+
+**Runtime-specific dispatch:**
+
+- **Claude runtime:** use the existing detached process flow below (`nohup`, closed stdin, log, PID verification).
+- **Codex runtime:** do not use `nohup ... &`. Start `codex exec` as a persistent terminal session with the prompt as its argument, retain the returned session ID, and poll that session with `write_stdin`. The returned session ID and initial `thread.started` event are the launch evidence. Do not claim success if the terminal session is not returned or the process exits before emitting `thread.started`.
+
+**Worktree gotcha:** if this session is in a worktree (`EnterWorktree`), the block that used to be attributed to `codex exec` itself is actually a structural complexity guard on the Bash tool: a single compound command (`&&` chains, variable assignment + backgrounding + `if/kill -0` verification all in one call) gets refused with "too complex to verify that it stays inside the worktree" — regardless of whether the path it targets is inside or outside the worktree. Confirmed empirically (2026-08-23, probing with a disposable worktree): plain `codex exec`, backgrounded `codex exec &`, and `codex exec -C <path outside the worktree>` all run with **zero** blocking as long as each is its own simple, single-statement Bash call — no `&&`, no `if`, no capturing `$!` for a later call (Bash tool shell state doesn't persist between calls anyway). Spawning a fresh `Agent` to route around this is unnecessary and doesn't reliably help (a plain new agent is not actually exempt from the parent session's worktree pinning, contrary to earlier guidance here) — just split the dispatch into two separate, minimal Bash tool calls in this same session:
+
+For the Claude runtime, Call 1 — dispatch (its own tool call, nothing else in it):
+```bash
+nohup codex exec -C <main-repo-absolute-path> "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro." </dev/null >/tmp/pr-<N>-codex-review.log 2>&1 &
+```
+Compute `<main-repo-absolute-path>` yourself from the current worktree's cwd (strip the `/.claude/worktrees/<name>` suffix) and substitute it as a literal string — don't use `$(pwd)` or any other substitution inside this call.
+
+For the Claude runtime, Call 2 — verify, as its own separate tool call (no `sleep`/`if` combined with it):
+```bash
+pgrep -af "codex exec.*PR #<N>"
+```
+A matching process line confirms it started; no match means it exited immediately — inspect `/tmp/pr-<N>-codex-review.log` in a third call.
+
+Pass `$since` to `/pr-land` along with the PR number when handing off (Step 5c) — it's round 1's waiting timestamp for `scripts/pr-round-status.sh`.
+
+Tell the user the PR is open, the CodeRabbit trigger was posted, and Codex review was **verified started** (include the PID/log for Claude, or session ID/thread ID for Codex). Do not wait for completion before considering pre-pr complete. If Codex exits before the relevant launch verification, report the launch failure; never claim a review was dispatched.
+
+**5c. Hand off to `/pr-land`.** This is where `/pre-pr`'s own scope ends — round 1's CI, CodeRabbit, and Codex results are collected and triaged by `/pr-land`, not here. Invoke it with the PR number.

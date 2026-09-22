@@ -1,7 +1,54 @@
 import { Money } from '../../../shared/value-objects/money';
 import { ServiceBuilder } from '../../../test/builders/booking/index';
-import { BookingDomainError, ServiceDeactivatedError } from './errors/booking-domain.error';
+import { ClassResourceSlot } from './class-resource-slot';
+import {
+  BookingDomainError,
+  BookingServiceBookingConfigModelMismatchError,
+  BookingServiceBookingModelImmutableError,
+  BookingServiceBookingModelMismatchError,
+  BookingServiceHasLegsError,
+  BookingServiceLegsTooFewError,
+  BookingServiceResourceTypeUnavailableError,
+  ClassResourceSlotBookingModelMismatchError,
+  ClassResourceSlotDuplicateTypeError,
+  ClassResourceSlotResourceNotActiveError,
+  ResourceRequirementInvalidError,
+  ServiceBookingPolicyInvalidError,
+  ServiceBufferAfterMinutesInvalidError,
+  ServiceDeactivatedError,
+  ServiceDurationPolicyRequiresPricingError,
+  ServiceLegInvalidError,
+} from './errors/booking-domain.error';
+import { defaultServiceBookingPolicyProps, ServiceBookingPolicyProps } from './service.types';
+import { ActiveResourceIdsByType } from './resource-requirement-availability';
+import { ResourceRequirement } from './resource-requirement';
+import { ResourceType } from './resource.types';
 import { Service } from './service.aggregate';
+import { ServiceLeg } from './service-leg';
+
+function requirement(type: ResourceType = ResourceType.STAFF): ResourceRequirement {
+  return ResourceRequirement.create({ type, selectionMode: 'CUSTOMER_CHOICE' });
+}
+
+function leg(legIndex: number, type: ResourceType = ResourceType.ROOM): ServiceLeg {
+  return ServiceLeg.create({
+    legIndex,
+    name: `Etapa ${legIndex}`,
+    durationMinutes: 20,
+    resourceRequirements: [ResourceRequirement.create({ type, selectionMode: 'AUTO_ANY' })],
+    transitionGapAfterMinutes: 5,
+  });
+}
+
+// Builds the "every active resource id per type" map setResourceRequirements()/setLegs() expect.
+// None of these tests exercise resourcePoolIds, so a single placeholder id per type is enough.
+function activeIds(...types: ResourceType[]): ActiveResourceIdsByType {
+  return new Map(types.map((type) => [type, new Set(['resource-1'])]));
+}
+
+function policy(overrides: Partial<ServiceBookingPolicyProps> = {}): ServiceBookingPolicyProps {
+  return { ...defaultServiceBookingPolicyProps(), ...overrides };
+}
 
 const TENANT = 'tenant-abc';
 const PRICE = Money.from(150, 'BRL');
@@ -183,6 +230,108 @@ describe('Service', () => {
       });
       expect(service.loyaltyPointsValue).toBe(0);
     });
+
+    it('rejects classResourceSlots listing the same type more than once (round-trip integrity — type is the persistence grouping key)', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Yoga',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          bookingModel: 'SESSION',
+          classResourceSlots: [
+            ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
+            ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-2'] }),
+          ],
+        }),
+      ).toThrow(ClassResourceSlotDuplicateTypeError);
+    });
+
+    it('accepts classResourceSlots with distinct types, each an active resource of the matching type', () => {
+      const service = Service.create({
+        tenantId: TENANT,
+        name: 'Yoga',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: POINTS,
+        bookingModel: 'SESSION',
+        classResourceSlots: [
+          ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
+          ClassResourceSlot.create({ type: ResourceType.STAFF, eligibleResourceIds: ['r-2'] }),
+        ],
+        activeResourceIdsByType: new Map([
+          [ResourceType.ROOM, new Set(['r-1'])],
+          [ResourceType.STAFF, new Set(['r-2'])],
+        ]),
+      });
+      expect(service.classResourceSlots).toHaveLength(2);
+    });
+
+    it('rejects a classResourceSlots type with no active resources', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Yoga',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          bookingModel: 'SESSION',
+          classResourceSlots: [
+            ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
+          ],
+        }),
+      ).toThrow(BookingServiceResourceTypeUnavailableError);
+    });
+
+    it('rejects a classResourceSlots eligibleResourceIds entry that is not an active resource', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Yoga',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          bookingModel: 'SESSION',
+          classResourceSlots: [
+            ClassResourceSlot.create({
+              type: ResourceType.ROOM,
+              eligibleResourceIds: ['not-active'],
+            }),
+          ],
+          activeResourceIdsByType: new Map([[ResourceType.ROOM, new Set(['r-1'])]]),
+        }),
+      ).toThrow(ClassResourceSlotResourceNotActiveError);
+    });
+
+    it('allows creating a SESSION service with an empty classResourceSlots pool (deferred to the M24 Turmas module)', () => {
+      const service = Service.create({
+        tenantId: TENANT,
+        name: 'Yoga',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: POINTS,
+        bookingModel: 'SESSION',
+      });
+      expect(service.classResourceSlots).toEqual([]);
+      expect(service.bufferAfterMinutes).toBeNull();
+    });
+
+    it('rejects creating a non-SESSION service with classResourceSlots supplied', () => {
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Lavagem',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+          classResourceSlots: [
+            ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['r-1'] }),
+          ],
+          activeResourceIdsByType: new Map([[ResourceType.ROOM, new Set(['r-1'])]]),
+        }),
+      ).toThrow(ClassResourceSlotBookingModelMismatchError);
+    });
   });
 
   describe('reconstitute()', () => {
@@ -200,6 +349,12 @@ describe('Service', () => {
         isActive: false,
         createdAt: now,
         updatedAt: now,
+        bookingModel: 'APPOINTMENT',
+        resourceRequirements: [],
+        bufferAfterMinutes: 60,
+        legs: null,
+        classResourceSlots: null,
+        bookingPolicy: defaultServiceBookingPolicyProps(),
       });
       expect(service.id).toBe('some-id');
       expect(service.isActive).toBe(false);
@@ -296,6 +451,461 @@ describe('Service', () => {
     it('does not emit domain events', () => {
       service.deactivate();
       expect(service.clearDomainEvents()).toHaveLength(0);
+    });
+  });
+
+  describe('setResourceRequirements()', () => {
+    let service: Service;
+
+    beforeEach(() => {
+      service = new ServiceBuilder().withTenantId(TENANT).build();
+    });
+
+    it('sets a single flat resource requirement', () => {
+      service.setResourceRequirements(
+        [requirement(ResourceType.STAFF)],
+        activeIds(ResourceType.STAFF),
+      );
+      expect(service.resourceRequirements).toHaveLength(1);
+      expect(service.resourceRequirements[0].type).toBe(ResourceType.STAFF);
+    });
+
+    it('sets a bundle of 2+ requirements', () => {
+      service.setResourceRequirements(
+        [requirement(ResourceType.STAFF), requirement(ResourceType.EQUIPMENT)],
+        activeIds(ResourceType.STAFF, ResourceType.EQUIPMENT),
+      );
+      expect(service.resourceRequirements).toHaveLength(2);
+    });
+
+    it('rejects a single resource requirement referencing a type with no active resources (UC-050 A1)', () => {
+      expect(() =>
+        service.setResourceRequirements([requirement(ResourceType.EQUIPMENT)], activeIds()),
+      ).toThrow(BookingServiceResourceTypeUnavailableError);
+    });
+
+    it('rejects a bundle referencing a resource type with no active resources (UC-051)', () => {
+      expect(() =>
+        service.setResourceRequirements(
+          [requirement(ResourceType.STAFF), requirement(ResourceType.EQUIPMENT)],
+          activeIds(ResourceType.STAFF),
+        ),
+      ).toThrow(BookingServiceResourceTypeUnavailableError);
+    });
+
+    it('rejects when the service currently has legs (UC-050 A2)', () => {
+      service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+      expect(() =>
+        service.setResourceRequirements(
+          [requirement(ResourceType.STAFF)],
+          activeIds(ResourceType.STAFF),
+        ),
+      ).toThrow(BookingServiceHasLegsError);
+    });
+
+    it('rejects when the service is a SESSION (mutual exclusivity with classResourceSlots)', () => {
+      const sessionService = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      expect(() =>
+        sessionService.setResourceRequirements(
+          [requirement(ResourceType.STAFF)],
+          activeIds(ResourceType.STAFF),
+        ),
+      ).toThrow(BookingServiceBookingModelMismatchError);
+    });
+
+    it('rejects a duplicate resource type within the bundle', () => {
+      expect(() =>
+        service.setResourceRequirements(
+          [requirement(ResourceType.STAFF), requirement(ResourceType.STAFF)],
+          activeIds(ResourceType.STAFF),
+        ),
+      ).toThrow(ResourceRequirementInvalidError);
+    });
+
+    it('rejects a resourcePoolIds entry that is not an active resource of the matching type', () => {
+      const withPool = ResourceRequirement.create({
+        type: ResourceType.STAFF,
+        selectionMode: 'CUSTOMER_CHOICE',
+        resourcePoolIds: ['not-active-id'],
+      });
+      expect(() =>
+        service.setResourceRequirements([withPool], activeIds(ResourceType.STAFF)),
+      ).toThrow(ResourceRequirementInvalidError);
+    });
+  });
+
+  describe('setLegs()', () => {
+    let service: Service;
+
+    beforeEach(() => {
+      service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withResourceRequirements([requirement(ResourceType.STAFF)])
+        .withBufferAfterMinutes(30)
+        .build();
+    });
+
+    it('clears resourceRequirements and bufferAfterMinutes when legs is set (mutual exclusivity)', () => {
+      service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+      expect(service.resourceRequirements).toEqual([]);
+      expect(service.bufferAfterMinutes).toBeNull();
+      expect(service.legs).toHaveLength(2);
+    });
+
+    it('rejects fewer than 2 legs (UC-052 A1)', () => {
+      expect(() => service.setLegs([leg(0)], activeIds(ResourceType.ROOM))).toThrow(
+        BookingServiceLegsTooFewError,
+      );
+    });
+
+    it('rejects a leg referencing a resource type with no active resources', () => {
+      expect(() => service.setLegs([leg(0), leg(1)], activeIds())).toThrow(
+        BookingServiceResourceTypeUnavailableError,
+      );
+    });
+
+    it('returns the total span: sum(durations) + sum(gaps except the last leg)', () => {
+      const totalSpan = service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+      // 20 + 20 (durations) + 5 (leg 0's gap only — the last leg's gap never applies)
+      expect(totalSpan).toBe(45);
+    });
+
+    it('orders legs by legIndex regardless of submission order — both the stored legs and the returned span reflect itinerary order, not array order', () => {
+      // legIndex 1 submitted first, legIndex 0 second.
+      const totalSpan = service.setLegs([leg(1), leg(0)], activeIds(ResourceType.ROOM));
+      // Same 45 as the sorted-submission case above — legIndex 1's gap (the itinerary's last
+      // leg) must never be counted, regardless of array position.
+      expect(totalSpan).toBe(45);
+      expect(service.legs!.map((l) => l.legIndex)).toEqual([0, 1]);
+    });
+
+    it('rejects when the service is a SESSION (mutual exclusivity with classResourceSlots)', () => {
+      const sessionService = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      expect(() => sessionService.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM))).toThrow(
+        BookingServiceBookingModelMismatchError,
+      );
+    });
+
+    it('rejects legs repeating the same legIndex', () => {
+      expect(() =>
+        service.setLegs(
+          [leg(0), leg(0, ResourceType.STAFF)],
+          activeIds(ResourceType.ROOM, ResourceType.STAFF),
+        ),
+      ).toThrow(ServiceLegInvalidError);
+    });
+  });
+
+  describe('setBufferAfterMinutes()', () => {
+    it('sets the buffer for a flat/non-legged service', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBufferAfterMinutes(15);
+      expect(service.bufferAfterMinutes).toBe(15);
+    });
+
+    it('rejects when the service has legs (UC-053 A1, since legs use per-leg transition gaps)', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+      expect(() => service.setBufferAfterMinutes(15)).toThrow(BookingServiceHasLegsError);
+    });
+
+    it('rejects when the service is a SESSION (mutual exclusivity)', () => {
+      const sessionService = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      expect(() => sessionService.setBufferAfterMinutes(15)).toThrow(
+        BookingServiceBookingModelMismatchError,
+      );
+    });
+
+    it('rejects a negative buffer', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() => service.setBufferAfterMinutes(-1)).toThrow(
+        ServiceBufferAfterMinutesInvalidError,
+      );
+    });
+
+    it('allows a buffer of zero', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBufferAfterMinutes(0);
+      expect(service.bufferAfterMinutes).toBe(0);
+    });
+  });
+
+  describe('setBookingPolicy()', () => {
+    it('persists all policy fields', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          defaultApprovalMode: 'MANUAL_APPROVAL',
+          manualHoldMinutes: 30,
+          cancellationWindowHoursOverride: 24,
+          recurrenceEligible: true,
+          availabilityAlertEligible: true,
+        }),
+      );
+      expect(service.bookingPolicy).toEqual(
+        policy({
+          defaultApprovalMode: 'MANUAL_APPROVAL',
+          manualHoldMinutes: 30,
+          cancellationWindowHoursOverride: 24,
+          recurrenceEligible: true,
+          availabilityAlertEligible: true,
+        }),
+      );
+    });
+
+    it('rejects durationPolicy=CUSTOMER_SELECTED with pricingPolicy=FIXED (UC-055 A2)', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({ durationPolicy: 'CUSTOMER_SELECTED', pricingPolicy: 'FIXED' }),
+        ),
+      ).toThrow(ServiceDurationPolicyRequiresPricingError);
+    });
+
+    it('accepts durationPolicy=CUSTOMER_SELECTED with a non-FIXED pricingPolicy', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 15,
+          pricingIncrementMinutes: 15,
+          pricePerIncrementAmount: 10,
+        }),
+      );
+      expect(service.bookingPolicy.durationPolicy).toBe('CUSTOMER_SELECTED');
+    });
+
+    it('rejects on a SESSION service (UC-054/055 shared precondition)', () => {
+      const sessionService = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      expect(() => sessionService.setBookingPolicy(policy())).toThrow(
+        BookingServiceBookingConfigModelMismatchError,
+      );
+    });
+
+    it('rejects durationMaxMinutes < durationMinMinutes even when resolved from a partial PATCH', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({
+            durationPolicy: 'CUSTOMER_SELECTED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            durationMinMinutes: 120,
+            durationMaxMinutes: 60,
+            durationIncrementMinutes: 15,
+            pricingIncrementMinutes: 15,
+            pricePerIncrementAmount: 10,
+          }),
+        ),
+      ).toThrow(ServiceBookingPolicyInvalidError);
+    });
+
+    it('rejects pricingPolicy=PER_TIME_INCREMENT with no pricingIncrementMinutes/pricePerIncrementAmount', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({
+            durationPolicy: 'CUSTOMER_SELECTED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            durationMinMinutes: 30,
+            durationMaxMinutes: 120,
+            durationIncrementMinutes: 15,
+          }),
+        ),
+      ).toThrow(ServiceBookingPolicyInvalidError);
+    });
+
+    it('rejects durationPolicy=CUSTOMER_SELECTED with no duration bounds/increment set', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({
+            durationPolicy: 'CUSTOMER_SELECTED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            pricingIncrementMinutes: 15,
+            pricePerIncrementAmount: 10,
+          }),
+        ),
+      ).toThrow(ServiceBookingPolicyInvalidError);
+    });
+
+    it('rejects pricingPolicy=PER_TIME_INCREMENT with durationPolicy=FIXED (reverse pairing)', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      expect(() =>
+        service.setBookingPolicy(
+          policy({
+            durationPolicy: 'FIXED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            pricingIncrementMinutes: 15,
+            pricePerIncrementAmount: 10,
+          }),
+        ),
+      ).toThrow(ServiceBookingPolicyInvalidError);
+    });
+
+    it('clears stale duration detail fields when durationPolicy reverts to FIXED', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          durationPolicy: 'FIXED',
+          pricingPolicy: 'FIXED',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 15,
+        }),
+      );
+      expect(service.bookingPolicy.durationMinMinutes).toBeNull();
+      expect(service.bookingPolicy.durationMaxMinutes).toBeNull();
+      expect(service.bookingPolicy.durationIncrementMinutes).toBeNull();
+    });
+
+    it('clears stale pricing detail fields when pricingPolicy reverts to FIXED', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          durationPolicy: 'FIXED',
+          pricingPolicy: 'FIXED',
+          pricingIncrementMinutes: 15,
+          pricePerIncrementAmount: 10,
+        }),
+      );
+      expect(service.bookingPolicy.pricingIncrementMinutes).toBeNull();
+      expect(service.bookingPolicy.pricePerIncrementAmount).toBeNull();
+    });
+
+    it('clears a stale minimumChargeAmount when pricingPolicy reverts to FIXED', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setBookingPolicy(
+        policy({
+          durationPolicy: 'FIXED',
+          pricingPolicy: 'FIXED',
+          minimumChargeAmount: 20,
+        }),
+      );
+      expect(service.bookingPolicy.minimumChargeAmount).toBeNull();
+    });
+  });
+
+  describe('changeBookingModel()', () => {
+    it('changes bookingModel when the service has no booking history', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .build();
+      service.changeBookingModel(
+        'SESSION',
+        false,
+        [
+          ClassResourceSlot.create({
+            type: ResourceType.ROOM,
+            eligibleResourceIds: ['resource-1'],
+          }),
+        ],
+        activeIds(ResourceType.ROOM),
+      );
+      expect(service.bookingModel).toBe('SESSION');
+    });
+
+    it('rejects converting to SESSION without classResourceSlots', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .build();
+      expect(() => service.changeBookingModel('SESSION', false)).toThrow(
+        ClassResourceSlotBookingModelMismatchError,
+      );
+    });
+
+    it('rejects a bookingModel change once the service has booking history (UC-056 A1)', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .build();
+      expect(() => service.changeBookingModel('SESSION', true)).toThrow(
+        BookingServiceBookingModelImmutableError,
+      );
+    });
+
+    it('allows an unchanged resubmission of the current value even with booking history (compare-before-validate)', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .build();
+      expect(() => service.changeBookingModel('APPOINTMENT', true)).not.toThrow();
+      expect(service.bookingModel).toBe('APPOINTMENT');
+    });
+
+    it('clears resourceRequirements/legs/bufferAfterMinutes when switching to SESSION (mutual exclusivity)', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .withResourceRequirements([requirement(ResourceType.STAFF)])
+        .withBufferAfterMinutes(30)
+        .build();
+      const slots = [
+        ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['resource-1'] }),
+      ];
+      service.changeBookingModel('SESSION', false, slots, activeIds(ResourceType.ROOM));
+      expect(service.resourceRequirements).toEqual([]);
+      expect(service.legs).toBeNull();
+      expect(service.bufferAfterMinutes).toBeNull();
+      expect(service.classResourceSlots).toEqual(slots);
+    });
+
+    it('clears classResourceSlots when switching to APPOINTMENT (mutual exclusivity)', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('SESSION')
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(null)
+        .withClassResourceSlots([])
+        .build();
+      service.changeBookingModel('APPOINTMENT', false);
+      expect(service.classResourceSlots).toBeNull();
+    });
+
+    it('resets bookingPolicy to defaults when switching to SESSION (bookingPolicy is APPOINTMENT-only)', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .build();
+      service.setBookingPolicy(
+        policy({ defaultApprovalMode: 'MANUAL_APPROVAL', recurrenceEligible: true }),
+      );
+      expect(service.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+
+      const slots = [
+        ClassResourceSlot.create({ type: ResourceType.ROOM, eligibleResourceIds: ['resource-1'] }),
+      ];
+      service.changeBookingModel('SESSION', false, slots, activeIds(ResourceType.ROOM));
+
+      expect(service.bookingPolicy).toEqual(defaultServiceBookingPolicyProps());
     });
   });
 });

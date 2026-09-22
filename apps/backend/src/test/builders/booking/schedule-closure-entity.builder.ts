@@ -5,6 +5,7 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 export class ScheduleClosureEntityBuilder {
   private id = uuidv7();
   private tenantId = '00000000-0000-7000-8000-000000000001';
+  private resourceId: string | null = null;
   private date = '2026-12-25';
   private startTime: string | null = null;
   private endTime: string | null = null;
@@ -20,6 +21,11 @@ export class ScheduleClosureEntityBuilder {
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
+    return this;
+  }
+
+  withResourceId(resourceId: string | null): this {
+    this.resourceId = resourceId;
     return this;
   }
 
@@ -57,6 +63,7 @@ export class ScheduleClosureEntityBuilder {
     const e = new ScheduleClosureEntity();
     e.id = this.id;
     e.tenantId = this.tenantId;
+    e.resourceId = this.resourceId;
     e.date = this.date;
     e.startTime = this.startTime;
     e.endTime = this.endTime;

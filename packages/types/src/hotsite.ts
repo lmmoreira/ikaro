@@ -1,6 +1,6 @@
 import type { HotsiteModuleType } from './enums';
 import type { Money } from './money';
-import type { TenantInfoResponse } from './tenant.dto';
+import type { LeadFormAudienceMode, LeadFormQuestion, TenantInfoResponse } from './tenant.dto';
 
 export type { HotsiteModuleType };
 
@@ -134,6 +134,32 @@ export interface ContactModuleData {
   whatsappCtaLabel?: string;
 }
 
+// Only fields rendered verbatim to every visitor — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md
+// § CHATBOT for why knowledgeText and the volume/cost caps are deliberately excluded here and
+// fetched separately, never shipped into the cached public manifest.
+export interface ChatbotModuleData {
+  variant?: 'bubble' | 'inline';
+  accentColor?: 'primary' | 'secondary';
+  botName?: string;
+  welcomeMessage?: string;
+}
+
+// Teaser-only — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md § LEAD_FORM for why the manager-
+// authored question catalog (up to 20 questions) stays out of this manifest-embedded shape and is
+// fetched separately, only when a visitor actually reaches /[slug]/lead-form. Deliberately
+// excludes audienceMode/questions, which live behind their own endpoints, not the cached manifest.
+export interface LeadFormModuleData {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+  ctaLabel: string;
+  variant?: 'centered' | 'left-aligned';
+  // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
+  backgroundImageUrl?: string | null;
+  backgroundImagePosition?: HorizontalPosition;
+  bgStyle?: 'primary' | 'background';
+}
+
 // ─── BFF response types ───────────────────────────────────────────────────────
 
 export interface HotsiteModuleResponse {
@@ -258,7 +284,14 @@ export interface UnpublishHotsiteResponse {
 // own Zod enum in sync separately (packages/validation doesn't re-export this, since those are
 // runtime validators, not just a type).
 export type HotsiteImagePurpose =
-  'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials' | 'seo-og-image';
+  | 'branding'
+  | 'hero'
+  | 'gallery'
+  | 'about'
+  | 'booking-cta'
+  | 'testimonials'
+  | 'seo-og-image'
+  | 'lead-form';
 
 export interface GenerateHotsiteImageSignedUrlResponse {
   signedUrl: string;
@@ -315,4 +348,20 @@ export interface HotsiteChatbotStatusResponse {
 export interface HotsiteChatbotMessageResponse {
   sessionId: string;
   reply: string;
+}
+
+// ─── Lead Form widget (Public — UC-038, UC-039, UC-040, M20-S05) ───────────────
+
+export interface HotsiteLeadFormConfigResponse {
+  audienceMode: LeadFormAudienceMode;
+  questions: LeadFormQuestion[];
+}
+
+export interface HotsiteLeadFormAnswerRequest {
+  questionId: string;
+  value: string | string[];
+}
+
+export interface HotsiteLeadFormSubmissionResponse {
+  submissionId: string;
 }

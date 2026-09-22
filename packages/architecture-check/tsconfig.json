@@ -5,6 +5,8 @@
     "moduleResolution": "Node",
     "outDir": "dist",
     "rootDir": "src",
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
     "ignoreDeprecations": "6.0",
     "types": ["node", "jest"]
   },

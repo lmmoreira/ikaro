@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    /* ── Week strip nav ── */
+    .week-nav {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      box-shadow: var(--ba-shadow);
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .week-nav-header {
+      display: flex; align-items: center;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--ba-secondary);
+      gap: 0.5rem;
+    }
+    .week-label {
+      flex: 1; font-size: 0.875rem; font-weight: 700; color: var(--ba-text);
+      text-align: center;
+    }
+    .week-arrow {
+      width: 2rem; height: 2rem; border-radius: 6px;
+      background: none; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #6b7280; font-family: var(--ba-body-font);
+      transition: background 0.1s;
+    }
+    .week-arrow:hover { background: #f3f4f6; }
+    .today-link {
+      font-size: 0.75rem; font-weight: 600; color: #2563eb;
+      background: none; border: none; cursor: pointer;
+      font-family: var(--ba-body-font); padding: 0 0.25rem;
+      transition: opacity 0.15s;
+    }
+
+    .week-days {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+    }
+    .day-pill {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 0.5rem 0.25rem 0.5625rem;
+      cursor: pointer; border: none; background: none;
+      font-family: var(--ba-body-font);
+      transition: background 0.1s;
+      position: relative;
+    }
+    .day-pill:hover { background: #f9fafb; }
+    .day-pill-wd {
+      font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #9ca3af; margin-bottom: 0.3125rem;
+    }
+    .day-pill-num {
+      width: 2rem; height: 2rem; border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.875rem; font-weight: 600; color: var(--ba-text);
+    }
+    .day-pill.is-today .day-pill-wd { color: #2563eb; }
+    .day-pill.is-today .day-pill-num { color: #2563eb; }
+    .day-pill.selected .day-pill-num {
+      background: #2563eb; color: white;
+    }
+    .day-pill.is-today.selected .day-pill-num {
+      background: #2563eb; color: white;
+    }
+    /* session dot indicator */
+    .day-dot {
+      width: 0.3125rem; height: 0.3125rem; border-radius: 9999px;
+      background: #d1d5db; margin-top: 0.25rem;
+    }
+    .day-pill.has-sessions .day-dot { background: #2563eb; }
+    .day-pill.selected .day-dot { background: rgba(255,255,255,0.6); }
+
+    /* ── Day summary ── */
+    .day-summary {
+      display: flex; gap: 1rem; margin-bottom: 1rem;
+      font-size: 0.8125rem; color: #6b7280;
+    }
+    .day-summary-num { font-weight: 700; color: var(--ba-text); }
+
+    /* ── Session card ── */
+    .session-card {
+      background: white;
+      border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      box-shadow: var(--ba-shadow);
+      margin-bottom: 0.5rem;
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.875rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .session-card:hover {
+      border-color: #93c5fd;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.1);
+    }
+    .session-time { flex-shrink: 0; width: 3.25rem; }
+    .session-time-start { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); line-height: 1.1; }
+    .session-time-end   { font-size: 0.6875rem; color: #9ca3af; }
+    .session-accent { width: 3px; height: 2.25rem; border-radius: 9999px; flex-shrink: 0; }
+    .accent-pilates  { background: #2563eb; }
+    .accent-crossfit { background: #7c3aed; }
+    .accent-yoga     { background: #0891b2; }
+    .session-info { flex: 1; min-width: 0; }
+    .session-name { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); margin-bottom: 0.1875rem; }
+    .session-meta { font-size: 0.8125rem; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cap-badge {
+      font-size: 0.8125rem; font-weight: 600; padding: 0.1875rem 0.5rem;
+      border-radius: 9999px; white-space: nowrap; flex-shrink: 0;
+    }
+    .cap-ok   { background: #dcfce7; color: #15803d; }
+    .cap-full { background: #fef3c7; color: #92400e; }
+    .cap-low  { background: #dbeafe; color: #1d4ed8; }
+    .cap-zero { background: #f3f4f6; color: #9ca3af; }
+    .session-arrow { color: #d1d5db; flex-shrink: 0; }
+
+    .empty-day { text-align: center; padding: 3rem 1rem; color: #9ca3af; font-size: 0.875rem; }
+
+    /* ══ SLIDE-OVER ══ */
+    .overlay-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.3); z-index: 50;
+    }
+    .overlay-backdrop.open { display: block; }
+
+    .slide-panel {
+      position: fixed; background: white; z-index: 60;
+      display: flex; flex-direction: column; overflow: hidden;
+      /* mobile: bottom sheet */
+      bottom: 0; left: 0; right: 0;
+      border-radius: 1.25rem 1.25rem 0 0;
+      max-height: 88dvh;
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+    }
+    .slide-panel.open { transform: translateY(0); }
+
+    @media (min-width: 1024px) {
+      .slide-panel {
+        top: 0; right: 0; bottom: 0; left: auto;
+        width: 28rem; border-radius: 0; max-height: 100%;
+        transform: translateX(110%);
+        transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+        box-shadow: -4px 0 32px rgba(0,0,0,0.14);
+      }
+      .slide-panel.open { transform: translateX(0); }
+    }
+
+    .panel-handle {
+      width: 2.5rem; height: 0.25rem;
+      background: rgba(17,24,39,0.12); border-radius: 9999px;
+      margin: 0.75rem auto 0; flex-shrink: 0;
+    }
+    @media (min-width: 1024px) { .panel-handle { display: none; } }
+
+    .panel-header {
+      padding: 1rem 1.25rem 0.875rem;
+      border-bottom: 1px solid var(--ba-secondary); flex-shrink: 0;
+    }
+    .panel-header-top { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .panel-close {
+      margin-left: auto; flex-shrink: 0; width: 2rem; height: 2rem; border-radius: 9999px;
+      background: #f3f4f6; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #6b7280; font-family: var(--ba-body-font); transition: background 0.1s;
+    }
+    .panel-close:hover { background: #e5e7eb; }
+    .panel-title { font-size: 1.125rem; font-weight: 700; color: var(--ba-text); line-height: 1.2; }
+    .panel-sub { font-size: 0.8125rem; color: #6b7280; display: flex; flex-wrap: wrap; gap: 0.25rem 0.875rem; }
+    .panel-sub-item { display: flex; align-items: center; gap: 0.3125rem; }
+    .panel-sub-item svg { opacity: 0.45; }
+    .panel-cap-row { display: flex; align-items: center; gap: 0.625rem; margin-top: 0.625rem; }
+
+    .panel-body { flex: 1; overflow-y: auto; }
+
+    .panel-section {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #9ca3af;
+      padding: 0.875rem 1.25rem 0.375rem;
+    }
+
+    .pr-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.625rem 1.25rem;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .pr-row:last-of-type { border-bottom: none; }
+    .pr-dot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; flex-shrink: 0; }
+    .dot-present { background: #16a34a; }
+    .dot-pending { background: #d1d5db; }
+    .pr-name { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); flex: 1; min-width: 0;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .type-tag {
+      font-size: 0.625rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; padding: 0.125rem 0.4375rem; border-radius: 4px; flex-shrink: 0;
+    }
+    .tag-fixa       { background: #dbeafe; color: #1d4ed8; }
+    .tag-dropin     { background: #f3e8ff; color: #7e22ce; }
+    .tag-reagendada { background: #fef3c7; color: #92400e; }
+
+    .pr-checkin {
+      width: 2.25rem; height: 2.25rem; border-radius: 9999px; border: none;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-family: var(--ba-body-font); transition: background 0.12s;
+    }
+    .pr-checkin.pending { background: #f3f4f6; color: #9ca3af; }
+    .pr-checkin.pending:hover { background: #dcfce7; color: #16a34a; }
+    .pr-checkin.present { background: #dcfce7; color: #16a34a; }
+
+    .wl-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.625rem 1.25rem;
+      background: #fafafa; border-bottom: 1px solid #f3f4f6;
+    }
+    .wl-pos {
+      width: 1.5rem; height: 1.5rem; border-radius: 9999px;
+      background: #f3f4f6; color: #6b7280;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6875rem; font-weight: 700; flex-shrink: 0;
+    }
+    .wl-info { flex: 1; min-width: 0; }
+    .wl-name { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
+    .wl-meta { font-size: 0.75rem; color: #9ca3af; }
+    .promote-btn {
+      font-size: 0.8125rem; font-weight: 600; color: #2563eb;
+      background: none; border: none; cursor: pointer; padding: 0.25rem 0;
+      font-family: var(--ba-body-font); white-space: nowrap;
+    }
+
+    .panel-empty { padding: 2rem 1.25rem; text-align: center; color: #9ca3af; font-size: 0.875rem; font-style: italic; }
+
+    .panel-footer {
+      border-top: 1px solid var(--ba-secondary);
+      padding: 0.875rem 1.25rem;
+      display: flex; gap: 0.625rem; flex-shrink: 0;
+      padding-bottom: calc(0.875rem + env(safe-area-inset-bottom, 0px));
+    }
+    .panel-footer a {
+      flex: 1; text-align: center; font-size: 0.875rem; font-weight: 600;
+      text-decoration: none; border-radius: var(--ba-radius);
+      padding: 0.625rem 0.5rem; display: inline-block;
+    }
+    .pf-primary   { background: #2563eb; color: white; border: none; }
+    .pf-secondary { background: none; color: #6b7280; border: 1px solid var(--ba-secondary); }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — manager: agenda do dia com semana navegável + slide-over.
+
+    UX decisions:
+    - Week strip: 7 dias visíveis, dot indica dias com sessões, avança/volta semana a semana
+    - "Hoje" sempre visível no header da semana; some quando já está no dia atual
+    - Roster sempre completo no drawer — sem atalho de "N alunos inscritos"
+    - Slide-over: bottom sheet mobile, drawer lateral desktop
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand">
+      <div class="sidebar-logo" style="width:1.75rem;height:1.75rem;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <h1 class="topbar-page-title">Agenda</h1>
+    <div style="margin-left:auto;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item active" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="manager-turmas-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="#"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a>
+        <a class="sidebar-nav-item" href="#"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
+        <a class="sidebar-nav-item" href="#"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+
+        <!-- Week strip -->
+        <div class="week-nav">
+          <div class="week-nav-header">
+            <button class="week-arrow" onclick="shiftWeek(-1)">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="week-label" id="week-label"></span>
+            <button class="today-link" id="today-btn" onclick="goToday()">Hoje</button>
+            <button class="week-arrow" onclick="shiftWeek(1)">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+          <div class="week-days" id="week-days"></div>
+        </div>
+
+        <!-- Day summary -->
+        <div class="day-summary" id="day-summary"></div>
+
+        <!-- Session list -->
+        <div id="session-list"></div>
+
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item active" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="manager-turmas-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+  </nav>
+
+  <!-- SLIDE-OVER -->
+  <div class="overlay-backdrop" id="backdrop" onclick="closePanel()"></div>
+  <div class="slide-panel" id="panel">
+    <div class="panel-handle"></div>
+    <div class="panel-header">
+      <div class="panel-header-top">
+        <div>
+          <div class="panel-title" id="panel-title"></div>
+          <div class="panel-sub" id="panel-sub" style="margin-top:0.3125rem;"></div>
+        </div>
+        <button class="panel-close" onclick="closePanel()">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="panel-cap-row" id="panel-cap"></div>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+    <div class="panel-footer">
+      <a href="manager-roster-dia.html" class="panel-footer-primary pf-primary">Gerenciar roster</a>
+      <a href="manager-definir-staff.html" class="panel-footer-secondary pf-secondary">Staff</a>
+    </div>
+  </div>
+
+  <script>
+    /* ══ DATA ══ */
+    const TODAY = new Date(2026, 7, 12); // ter 12 ago
+    const WD = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const MONTHS_LONG  = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    const MONTHS_FULL  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+
+    // Sessions keyed by date offset from TODAY (0 = today, 1 = tomorrow, etc.)
+    // Negative offsets for past days
+    const SESSION_DATA = {
+      '-1': [ // ontem — dia vazio (domingo)
+      ],
+      '0': [ // hoje — ter 12 ago
+        { id:'p08', time:'08:00', end:'08:50', accent:'pilates', name:'Pilates', meta:'Carlos M. · Estúdio 1',
+          cap:{f:4,t:4,cls:'cap-full'},
+          roster:[
+            {name:'Fernanda Lima',    tag:'fixa',       present:true },
+            {name:'Rafael Monteiro',  tag:'fixa',       present:false},
+            {name:'Camila Santos',    tag:'dropin',     present:false},
+            {name:'Juliana Oliveira', tag:'reagendada', present:false},
+          ],
+          waitlist:[{name:'Bruno Nascimento', meta:'Na fila desde 09 ago'}]
+        },
+        { id:'p09', time:'09:00', end:'09:50', accent:'pilates', name:'Pilates', meta:'Mariana L. · Estúdio 2',
+          cap:{f:3,t:4,cls:'cap-ok'},
+          roster:[
+            {name:'Paulo Teixeira', tag:'fixa',   present:false},
+            {name:'Ana Costa',      tag:'fixa',   present:false},
+            {name:'Lucas Ferreira', tag:'dropin', present:false},
+          ],
+          waitlist:[]
+        },
+        { id:'cf10', time:'10:00', end:'11:00', accent:'crossfit', name:'CrossFit', meta:'Pedro A. · Área CrossFit',
+          cap:{f:20,t:20,cls:'cap-full'},
+          roster:[
+            {name:'André Barbosa',     tag:'fixa',   present:false},
+            {name:'Beatriz Cunha',     tag:'fixa',   present:false},
+            {name:'Carlos Duarte',     tag:'fixa',   present:false},
+            {name:'Diana Esteves',     tag:'fixa',   present:false},
+            {name:'Eduardo Fonseca',   tag:'fixa',   present:false},
+            {name:'Fernanda Gomes',    tag:'fixa',   present:false},
+            {name:'Gustavo Henriques', tag:'fixa',   present:false},
+            {name:'Helena Ivo',        tag:'fixa',   present:false},
+            {name:'Igor Jacinto',      tag:'fixa',   present:false},
+            {name:'Joana Lopes',       tag:'fixa',   present:false},
+            {name:'Kevin Melo',        tag:'fixa',   present:false},
+            {name:'Laura Neves',       tag:'fixa',   present:false},
+            {name:'Marcos Oliveira',   tag:'fixa',   present:false},
+            {name:'Natália Pinto',     tag:'fixa',   present:false},
+            {name:'Orlando Queirós',   tag:'fixa',   present:false},
+            {name:'Paula Reis',        tag:'dropin', present:false},
+            {name:'Quintino Silva',    tag:'dropin', present:false},
+            {name:'Raquel Torres',     tag:'fixa',   present:false},
+            {name:'Samuel Urbano',     tag:'fixa',   present:false},
+            {name:'Tânia Viana',       tag:'fixa',   present:false},
+          ],
+          waitlist:[{name:'Rodrigo Pinto', meta:'Na fila desde 10 ago'}]
+        },
+        { id:'y18', time:'18:00', end:'19:00', accent:'yoga', name:'Yoga', meta:'Sofia R. · Estúdio 1',
+          cap:{f:2,t:8,cls:'cap-low'},
+          roster:[
+            {name:'Marina Guedes', tag:'fixa',   present:false},
+            {name:'Thiago Ramos',  tag:'dropin', present:false},
+          ],
+          waitlist:[]
+        },
+        { id:'cf19', time:'19:00', end:'20:00', accent:'crossfit', name:'CrossFit', meta:'Pedro A. · Área CrossFit',
+          cap:{f:15,t:20,cls:'cap-ok'},
+          roster:[
+            {name:'Aline Batista',    tag:'fixa',       present:false},
+            {name:'Bruno Castro',     tag:'fixa',       present:false},
+            {name:'Carla Dias',       tag:'fixa',       present:false},
+            {name:'Daniel Estrada',   tag:'fixa',       present:false},
+            {name:'Elisa Faria',      tag:'fixa',       present:false},
+            {name:'Fábio Guimarães',  tag:'fixa',       present:false},
+            {name:'Gisela Hora',      tag:'fixa',       present:false},
+            {name:'Henrique Iglesias',tag:'fixa',       present:false},
+            {name:'Íris Janela',      tag:'dropin',     present:false},
+            {name:'Jorge Kosta',      tag:'fixa',       present:false},
+            {name:'Kátia Lima',       tag:'fixa',       present:false},
+            {name:'Léo Monteiro',     tag:'reagendada', present:false},
+            {name:'Marta Novais',     tag:'fixa',       present:false},
+            {name:'Nelson Oliveira',  tag:'fixa',       present:false},
+            {name:'Olga Pedrosa',     tag:'fixa',       present:false},
+          ],
+          waitlist:[]
+        },
+        { id:'p20', time:'20:00', end:'20:50', accent:'pilates', name:'Pilates', meta:'Mariana L. · Estúdio 2',
+          cap:{f:0,t:4,cls:'cap-zero'},
+          roster:[],
+          waitlist:[]
+        },
+      ],
+      '1': [ // qua 13 ago
+        { id:'p08b', time:'08:00', end:'08:50', accent:'pilates', name:'Pilates', meta:'Carlos M. · Estúdio 1',
+          cap:{f:2,t:4,cls:'cap-low'},
+          roster:[
+            {name:'Sandra Vaz',   tag:'fixa',   present:false},
+            {name:'Rui Antunes',  tag:'dropin', present:false},
+          ],
+          waitlist:[]
+        },
+        { id:'cf10b', time:'10:00', end:'11:00', accent:'crossfit', name:'CrossFit', meta:'Pedro A. · Área CrossFit',
+          cap:{f:18,t:20,cls:'cap-ok'},
+          roster:[
+            {name:'André Barbosa',     tag:'fixa', present:false},
+            {name:'Beatriz Cunha',     tag:'fixa', present:false},
+            {name:'Carlos Duarte',     tag:'fixa', present:false},
+            {name:'Diana Esteves',     tag:'fixa', present:false},
+            {name:'Eduardo Fonseca',   tag:'fixa', present:false},
+            {name:'Fernanda Gomes',    tag:'fixa', present:false},
+            {name:'Gustavo Henriques', tag:'fixa', present:false},
+            {name:'Helena Ivo',        tag:'fixa', present:false},
+            {name:'Igor Jacinto',      tag:'fixa', present:false},
+            {name:'Joana Lopes',       tag:'fixa', present:false},
+            {name:'Kevin Melo',        tag:'fixa', present:false},
+            {name:'Laura Neves',       tag:'fixa', present:false},
+            {name:'Marcos Oliveira',   tag:'fixa', present:false},
+            {name:'Natália Pinto',     tag:'fixa', present:false},
+            {name:'Orlando Queirós',   tag:'fixa', present:false},
+            {name:'Paula Reis',        tag:'fixa', present:false},
+            {name:'Quintino Silva',    tag:'fixa', present:false},
+            {name:'Raquel Torres',     tag:'fixa', present:false},
+          ],
+          waitlist:[]
+        },
+        { id:'y18b', time:'18:00', end:'19:00', accent:'yoga', name:'Yoga', meta:'Sofia R. · Estúdio 1',
+          cap:{f:5,t:8,cls:'cap-ok'},
+          roster:[
+            {name:'Marina Guedes',  tag:'fixa',   present:false},
+            {name:'Thiago Ramos',   tag:'dropin', present:false},
+            {name:'Vanessa Sousa',  tag:'fixa',   present:false},
+            {name:'Wilson Teles',   tag:'fixa',   present:false},
+            {name:'Xana Urbano',    tag:'dropin', present:false},
+          ],
+          waitlist:[]
+        },
+      ],
+      '2': [], // qui 14 — dia vazio (exemplo de dia sem sessões)
+      '3': [   // sex 15
+        { id:'p09c', time:'09:00', end:'09:50', accent:'pilates', name:'Pilates', meta:'Mariana L. · Estúdio 2',
+          cap:{f:4,t:4,cls:'cap-full'},
+          roster:[
+            {name:'Paulo Teixeira', tag:'fixa', present:false},
+            {name:'Ana Costa',      tag:'fixa', present:false},
+            {name:'Lucas Ferreira', tag:'fixa', present:false},
+            {name:'Sandra Vaz',     tag:'fixa', present:false},
+          ],
+          waitlist:[{name:'Tânia Viana', meta:'Na fila desde 11 ago'}]
+        },
+        { id:'cf19c', time:'19:00', end:'20:00', accent:'crossfit', name:'CrossFit', meta:'Pedro A. · Área CrossFit',
+          cap:{f:12,t:20,cls:'cap-ok'},
+          roster:[
+            {name:'Aline Batista',   tag:'fixa',   present:false},
+            {name:'Bruno Castro',    tag:'fixa',   present:false},
+            {name:'Carla Dias',      tag:'fixa',   present:false},
+            {name:'Daniel Estrada',  tag:'fixa',   present:false},
+            {name:'Elisa Faria',     tag:'fixa',   present:false},
+            {name:'Fábio Guimarães', tag:'fixa',   present:false},
+            {name:'Gisela Hora',     tag:'fixa',   present:false},
+            {name:'Henrique Iglesias',tag:'fixa',  present:false},
+            {name:'Íris Janela',     tag:'dropin', present:false},
+            {name:'Jorge Kosta',     tag:'fixa',   present:false},
+            {name:'Kátia Lima',      tag:'fixa',   present:false},
+            {name:'Léo Monteiro',    tag:'fixa',   present:false},
+          ],
+          waitlist:[]
+        },
+      ],
+    };
+
+    /* ══ State ══ */
+    let currentDate = new Date(TODAY);
+    let weekOffset  = 0; // semanas relativas a hoje
+
+    function dateKey(d) {
+      const diff = Math.round((d - TODAY) / 86400000);
+      return String(diff);
+    }
+
+    function sessionsForDate(d) {
+      return SESSION_DATA[dateKey(d)] || [];
+    }
+
+    /* ══ Week strip ══ */
+    function getWeekStart(refDate, offset) {
+      // Monday-based week containing refDate, shifted by offset weeks
+      const d = new Date(refDate);
+      const day = d.getDay(); // 0=Sun
+      const diff = (day === 0 ? -6 : 1 - day); // shift to Monday
+      d.setDate(d.getDate() + diff + offset * 7);
+      return d;
+    }
+
+    function renderWeek() {
+      const weekStart = getWeekStart(TODAY, weekOffset);
+      const weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
+
+      // Label: "ago 2026" or "12–18 ago" etc.
+      const sm = weekStart.getMonth(), em = weekEnd.getMonth();
+      const label = sm === em
+        ? `${weekStart.getDate()}–${weekEnd.getDate()} ${MONTHS_LONG[sm]} ${weekStart.getFullYear()}`
+        : `${weekStart.getDate()} ${MONTHS_LONG[sm]} – ${weekEnd.getDate()} ${MONTHS_LONG[em]}`;
+      document.getElementById('week-label').textContent = label;
+
+      // Today button visibility
+      const todayInThisWeek = TODAY >= weekStart && TODAY <= weekEnd;
+      const todayBtn = document.getElementById('today-btn');
+      todayBtn.style.opacity = todayInThisWeek ? '0' : '1';
+      todayBtn.style.pointerEvents = todayInThisWeek ? 'none' : 'auto';
+
+      // Day pills
+      const container = document.getElementById('week-days');
+      container.innerHTML = '';
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(weekStart); d.setDate(d.getDate() + i);
+        const isToday    = d.toDateString() === TODAY.toDateString();
+        const isSelected = d.toDateString() === currentDate.toDateString();
+        const hasSessions = (sessionsForDate(d)).length > 0;
+
+        const btn = document.createElement('button');
+        btn.className = 'day-pill' +
+          (isToday    ? ' is-today'    : '') +
+          (isSelected ? ' selected'    : '') +
+          (hasSessions ? ' has-sessions' : '');
+        btn.innerHTML = `
+          <span class="day-pill-wd">${WD[d.getDay()]}</span>
+          <span class="day-pill-num">${d.getDate()}</span>
+          <span class="day-dot"></span>`;
+        btn.onclick = () => { currentDate = new Date(d); renderWeek(); renderDay(); };
+        container.appendChild(btn);
+      }
+    }
+
+    /* ══ Day list ══ */
+    const ACCENT_CLS = { pilates:'accent-pilates', crossfit:'accent-crossfit', yoga:'accent-yoga' };
+    const CAP_LABEL  = { 'cap-ok':'cap-ok', 'cap-full':'cap-full', 'cap-low':'cap-low', 'cap-zero':'cap-zero' };
+
+    function renderDay() {
+      const sessions = sessionsForDate(currentDate);
+      const summaryEl = document.getElementById('day-summary');
+      const listEl    = document.getElementById('session-list');
+
+      if (!sessions.length) {
+        const wd = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'][currentDate.getDay()];
+        summaryEl.innerHTML = '';
+        listEl.innerHTML = `<div class="empty-day">Sem sessões nesta ${wd}.</div>`;
+        return;
+      }
+
+      const totalAlunos  = sessions.reduce((s,x) => s + x.cap.f, 0);
+      const totalFila    = sessions.reduce((s,x) => s + x.waitlist.length, 0);
+      summaryEl.innerHTML =
+        `<span><span class="day-summary-num">${sessions.length}</span> sessões</span>
+         <span><span class="day-summary-num">${totalAlunos}</span> alunos</span>` +
+        (totalFila ? `<span style="color:#92400e;"><span class="day-summary-num" style="color:#92400e;">${totalFila}</span> na fila</span>` : '');
+
+      listEl.innerHTML = sessions.map(s => `
+        <div class="session-card" onclick="openPanel('${s.id}')">
+          <div class="session-time">
+            <div class="session-time-start">${s.time}</div>
+            <div class="session-time-end">${s.end}</div>
+          </div>
+          <div class="session-accent ${ACCENT_CLS[s.accent]}"></div>
+          <div class="session-info">
+            <div class="session-name">${s.name}</div>
+            <div class="session-meta">${s.meta}</div>
+          </div>
+          <span class="cap-badge ${s.cap.cls}">${s.cap.f}/${s.cap.t}</span>
+          <svg class="session-arrow" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>`).join('');
+    }
+
+    /* ══ Week navigation ══ */
+    function shiftWeek(delta) {
+      weekOffset += delta;
+      // Move currentDate to same weekday in new week
+      currentDate.setDate(currentDate.getDate() + delta * 7);
+      renderWeek(); renderDay();
+    }
+
+    function goToday() {
+      weekOffset  = 0;
+      currentDate = new Date(TODAY);
+      renderWeek(); renderDay();
+    }
+
+    /* ══ Slide-over ══ */
+    const AVATARS = ['list-avatar','list-avatar-2','list-avatar-3','list-avatar-4','list-avatar-5'];
+    const TAG_CLS   = { fixa:'tag-fixa', dropin:'tag-dropin', reagendada:'tag-reagendada' };
+    const TAG_LABEL = { fixa:'Fixa', dropin:'Drop-in', reagendada:'Reag.' };
+    const ICON = {
+      clock:  `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+      pin:    `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+      person: `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    };
+
+    // flat lookup across all days
+    function findSession(id) {
+      for (const key of Object.keys(SESSION_DATA)) {
+        const found = SESSION_DATA[key].find(s => s.id === id);
+        if (found) return found;
+      }
+    }
+
+    function openPanel(id) {
+      const s = findSession(id);
+      if (!s) return;
+
+      document.getElementById('panel-title').textContent = `${s.name} — ${s.time}`;
+
+      const metaParts = s.meta.split(' · ');
+      document.getElementById('panel-sub').innerHTML =
+        `<span class="panel-sub-item">${ICON.clock} ${s.time}–${s.end}</span>
+         <span class="panel-sub-item">${ICON.pin} ${metaParts[1] || ''}</span>
+         <span class="panel-sub-item">${ICON.person} ${metaParts[0] || ''}</span>`;
+
+      document.getElementById('panel-cap').innerHTML =
+        `<span class="cap-badge ${s.cap.cls}">${s.cap.f}/${s.cap.t} vagas</span>` +
+        (s.waitlist.length ? `<span style="font-size:0.8125rem;color:#92400e;font-weight:600;">· ${s.waitlist.length} na fila</span>` : '');
+
+      let html = '';
+      if (s.roster.length) {
+        html += `<div class="panel-section">Confirmados · ${s.roster.length}</div>`;
+        s.roster.forEach((p, i) => {
+          const avCls = AVATARS[i % 5];
+          const initials = p.name.split(' ').slice(0,2).map(w=>w[0]).join('');
+          html += `<div class="pr-row">
+            <div class="pr-dot ${p.present ? 'dot-present' : 'dot-pending'}"></div>
+            <div class="list-avatar ${avCls}" style="width:1.875rem;height:1.875rem;font-size:0.6875rem;flex-shrink:0;">${initials}</div>
+            <div class="pr-name">${p.name}</div>
+            <span class="type-tag ${TAG_CLS[p.tag]}">${TAG_LABEL[p.tag]}</span>
+            <button class="pr-checkin ${p.present ? 'present' : 'pending'}" onclick="toggleCheckin(this)">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+          </div>`;
+        });
+      } else {
+        html += `<div class="panel-empty">Nenhum aluno inscrito ainda.</div>`;
+      }
+
+      if (s.waitlist.length) {
+        html += `<div class="panel-section" style="background:#fafafa;border-top:1px solid #f3f4f6;">Fila de espera · ${s.waitlist.length}</div>`;
+        s.waitlist.forEach((w, i) => {
+          html += `<div class="wl-row">
+            <div class="wl-pos">${i+1}</div>
+            <div class="wl-info">
+              <div class="wl-name">${w.name}</div>
+              <div class="wl-meta">${w.meta}</div>
+            </div>
+            <button class="promote-btn">Promover</button>
+          </div>`;
+        });
+      }
+
+      document.getElementById('panel-body').innerHTML = html;
+      document.getElementById('backdrop').classList.add('open');
+      document.getElementById('panel').classList.add('open');
+    }
+
+    function closePanel() {
+      document.getElementById('backdrop').classList.remove('open');
+      document.getElementById('panel').classList.remove('open');
+    }
+
+    function toggleCheckin(btn) {
+      const row = btn.closest('.pr-row');
+      const dot = row.querySelector('.pr-dot');
+      if (btn.classList.contains('pending')) {
+        btn.classList.replace('pending','present');
+        dot.classList.replace('dot-pending','dot-present');
+      } else {
+        btn.classList.replace('present','pending');
+        dot.classList.replace('dot-present','dot-pending');
+      }
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+    /* ══ Init ══ */
+    renderWeek();
+    renderDay();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,132 @@
+# Platform — Lead Form (M20-S01): LeadFormConfig aggregate; read-only config here (GET)
+# UC-037: Manager configures the lead form module — config WRITES (audienceMode/questions/teaser)
+#   moved to PATCH /tenants/hotsite as of M20-S08; see hotsite-admin.http's own "Lead form config"
+#   happy-path block and its audienceMode/questions error cases.
+# UC-041 (Trigger): status endpoint powers the dashboard's gated "Leads" nav item
+# UC-041 (M20-S06): admin submissions read — paginated list + read-only detail
+# UC-041 (M20-S12): search/filters/date range on the list, plus filter-options for the
+#   advanced-filter dropdown
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get current lead form config (default shape for a tenant with no row yet)
+GET {{baseUrl}}/tenants/lead-form/config
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### Status — nav-gating read (STAFF can also read)
+GET {{baseUrl}}/tenants/lead-form/status
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### List submissions — paginated, ordered submittedAt DESC (STAFF can also read)
+GET {{baseUrl}}/tenants/lead-form/submissions?page=1&pageSize=20
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### List submissions — basic search (M20-S12, min 1 char as of M20-S13)
+GET {{baseUrl}}/tenants/lead-form/submissions?page=1&pageSize=20&search=casado
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### List submissions — advanced filters, ANDed (M20-S12, JSON-encoded array, max 5 entries)
+GET {{baseUrl}}/tenants/lead-form/submissions?page=1&pageSize=20&filters=%5B%7B%22questionLabel%22%3A%22Estado%20civil%22%2C%22value%22%3A%22casado%22%7D%5D
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### List submissions — date range, orthogonal to search/filters (M20-S12)
+GET {{baseUrl}}/tenants/lead-form/submissions?page=1&pageSize=20&submittedFrom=2026-01-01&submittedTo=2026-01-31
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### Filter-options — distinct question labels for the advanced-filter dropdown (M20-S12)
+GET {{baseUrl}}/tenants/lead-form/submissions/filter-options
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### Submission detail — full answers snapshot (STAFF can also read)
+GET {{baseUrl}}/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000201
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FAILURE PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### empty search → 400 GENERIC_VALUE_TOO_SHORT (M20-S13 — no minimum length beyond non-empty)
+GET {{baseUrl}}/tenants/lead-form/submissions?search=
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### search and filters both present → 400 GENERIC_VALUE_INVALID (M20-S12)
+GET {{baseUrl}}/tenants/lead-form/submissions?search=casado&filters=%5B%7B%22questionLabel%22%3A%22Estado%20civil%22%2C%22value%22%3A%22casado%22%7D%5D
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### submittedFrom after submittedTo → 400 GENERIC_VALUE_OUT_OF_RANGE (M20-S12)
+GET {{baseUrl}}/tenants/lead-form/submissions?submittedFrom=2026-02-01&submittedTo=2026-01-01
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### Submission detail for an unknown id → 404 PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND
+GET {{baseUrl}}/tenants/lead-form/submissions/01234567-0000-7000-8000-000000000999
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER

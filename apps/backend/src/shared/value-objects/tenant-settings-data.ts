@@ -76,6 +76,15 @@ export interface ChatbotSettings {
   llmModel?: string;
 }
 
+// Unlike `chatbot`, these are normal, tenant-editable settings rather than Ikaro-only overrides
+// (docs/21-TENANTS_SETTINGS_SCHEMA.md §8). TenantSettings.reconstitute() supplies these defaults
+// for rows created before M20-S03, so the domain contract can remain required.
+export interface LeadFormSettings {
+  retentionMonths: number;
+  maxSubmissionsPerDay: number;
+  maxSubmissionsPerIpPerDay: number;
+}
+
 export interface TenantSettingsData {
   loyalty: LoyaltySettings;
   booking: BookingSettings;
@@ -84,4 +93,5 @@ export interface TenantSettingsData {
   notification?: NotificationSettings;
   businessInfo?: BusinessInfo;
   chatbot?: ChatbotSettings;
+  leadForm: LeadFormSettings;
 }

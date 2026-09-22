@@ -73,6 +73,38 @@ describe('OAuthStateService', () => {
       expect(payload.tenantSlug).toBeUndefined();
     });
 
+    it('customer with a valid tenantSlug and a returnTo scoped to that tenant — payload carries it', () => {
+      const { state } = service.encodeOAuthState('customer', 'lavacar-bh', '/lavacar-bh/lead-form');
+      const payload = jwtService.verify<OAuthStatePayload>(state);
+      expect(payload.returnTo).toBe('/lavacar-bh/lead-form');
+    });
+
+    it('returnTo scoped to a different tenant than tenantSlug — dropped from the payload', () => {
+      const { state } = service.encodeOAuthState(
+        'customer',
+        'lavacar-bh',
+        '/other-tenant/lead-form',
+      );
+      const payload = jwtService.verify<OAuthStatePayload>(state);
+      expect(payload.returnTo).toBeUndefined();
+    });
+
+    it('returnTo with no tenantSlug at all — dropped from the payload', () => {
+      const { state } = service.encodeOAuthState('customer', undefined, '/lavacar-bh/lead-form');
+      const payload = jwtService.verify<OAuthStatePayload>(state);
+      expect(payload.returnTo).toBeUndefined();
+    });
+
+    it('an absolute-URL returnTo (open-redirect attempt) — dropped from the payload', () => {
+      const { state } = service.encodeOAuthState(
+        'customer',
+        'lavacar-bh',
+        'https://evil.example.com/lavacar-bh/lead-form',
+      );
+      const payload = jwtService.verify<OAuthStatePayload>(state);
+      expect(payload.returnTo).toBeUndefined();
+    });
+
     it('two calls produce different nonces', () => {
       const first = service.encodeOAuthState('customer');
       const second = service.encodeOAuthState('customer');
@@ -98,6 +130,36 @@ describe('OAuthStateService', () => {
       expect(service.decodeOAuthState(state, nonce)).toEqual({
         loginType: undefined,
         tenantSlug: 'lavacar-bh',
+        returnTo: undefined,
+      });
+    });
+
+    it('round-trips a customer state with a valid returnTo when the nonce cookie matches', () => {
+      const { state, nonce } = service.encodeOAuthState(
+        'customer',
+        'lavacar-bh',
+        '/lavacar-bh/lead-form',
+      );
+      expect(service.decodeOAuthState(state, nonce)).toEqual({
+        loginType: undefined,
+        tenantSlug: 'lavacar-bh',
+        returnTo: '/lavacar-bh/lead-form',
+      });
+    });
+
+    // Defense in depth: a state signed with a mismatched returnTo/tenantSlug pair (e.g. by an
+    // older build during a rolling deploy) must still not survive decode, even though the
+    // signature alone already proves the payload wasn't tampered with in transit.
+    it('drops a returnTo scoped to a different tenant than the state itself carries', () => {
+      const { nonce } = service.encodeOAuthState('customer', 'lavacar-bh');
+      const forgedState = jwtService.sign(
+        { nonce, tenantSlug: 'lavacar-bh', returnTo: '/other-tenant/lead-form' },
+        { expiresIn: '5m' },
+      );
+      expect(service.decodeOAuthState(forgedState, nonce)).toEqual({
+        loginType: undefined,
+        tenantSlug: 'lavacar-bh',
+        returnTo: undefined,
       });
     });
 

@@ -1,11 +1,13 @@
 ---
 name: story-discovery
-description: Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and - for frontend stories - alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+description: Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, alignment with the validated UX prototype (frontend stories), and locks in the architectural pattern and a concrete test/e2e coverage plan - asking the user as many questions as needed to resolve every open decision before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
 metadata:
   short-description: Pre-implementation story discovery
 ---
 
-Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and — for frontend stories — alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, alignment with the validated UX prototype (frontend stories), and locks in the architectural pattern and a concrete test/e2e coverage plan — asking the user as many questions as needed to resolve every open decision before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+
+This session is the one deep, front-loaded decision point in the workflow (CLAUDE.md §9): once it returns READY, the entire rest of the implementation — commit, push, `/pre-pr`, PR, CI-fix, bot-fix — runs autonomously with no further per-step permission asks. That's only safe if every pattern choice, test-strategy decision, and business-rule ambiguity gets resolved here, not deferred to implementation time.
 
 > **HARD RULE — NO CODE CHANGES:** This skill only reads code and updates documentation files (`.md` plan and doc files). It NEVER writes or modifies any `.ts`, `.js`, or any source/test/config file. If a gap requires a code change (e.g. enriching an event payload, adding a method to an aggregate), flag it as a recommendation in the readiness verdict and let the user decide when and how to handle it — do NOT make the change.
 
@@ -48,15 +50,11 @@ Surface any findings here immediately. If a BLOCKER is found in Step 0, stop and
 Read the file and find `### <story-id> —` (full `M<milestone>-S<NN>` form, e.g. `M13-S01` — not a bare `S01`). For TDs, find the primary heading or section. If not found, stop:
 > Story `<story-id>` not found in `<file>`. Check the ID and try again.
 
-Extract these fields from the story block:
-- Title, Agent target, Complexity
-- **Docs to load** — every path + optional `§ Section` listed
-- Description (all prose)
-- Backend use case steps (numbered list)
-- BFF endpoint spec (method, path, auth, response)
-- Acceptance criteria (all checkboxes)
-- Dependencies (story IDs) — note their status (Done / Pending)
+Extract the story block's fields per **the canonical schema, `docs/STORY_SCHEMA.md`** (load it now if not already loaded this session). In particular:
+- **Files to create/modify** — if listed, verify each modified-file path actually exists (same Explore-agent discipline as the dependency-symbol check below); flag a missing declared path as a **RISK**, not silently
 - **Prototype references** — every `plan/journey/...` path listed under a "Prototype references:", "Prototype reference:", or milestone-level "Journey prototype:" line
+- **Acceptance criteria — product / technical** — if the story predates the product/technical split (an older milestone or pre-standardization TD), treat its single flat AC list as-is rather than blocking on the missing split; note the gap as a RISK only if it makes verification ambiguous
+- **Infra-specific fields** (IAM/permissions, Live-verification check, PR sequence) — for any `devops`-agent story, confirm these are present; a missing Live-verification check on an infra-touching story is a RISK per CLAUDE.md §9 Step 5 item 6, not silently assumed unnecessary
 - Any mention of: new DB migration/entity, new i18n keys, new env vars, new Pub/Sub topics, feature flags
 
 **Also check story status:** Look for `✅ Done` next to the story heading (Step 0 check #3).
@@ -106,6 +104,8 @@ The symbol vocabulary (used to brief the agent and to interpret its results):
 - **`devops` dependencies (live infra/cloud state):** when a dependency story is tagged `Agent: devops` and its own Acceptance Criteria describe *live* cloud state (an org policy, an IAM binding, an enabled API, a DNS record, a provisioned account) rather than committed code, a `✅ Done` marker is **not sufficient evidence** the AC is still true — plan-file status only proves the story was closed out, not that the described state exists today. Run one live, read-only check per such AC line — a real cloud-API read (`gcloud ... describe`/`list`, or equivalent) or a refresh-backed Terraform check (`terraform plan -refresh-only`) — before treating it as a **Confirmation**. **Never `terraform state show`**: it only reflects what the state *file* records, not the live provider, so it cannot catch the exact class of drift this rule exists to catch. If the check can't be run yet, or fails, it becomes a **BLOCKER** — same treatment as a missing code symbol below, never a softer RISK — with the exact command and its actual output (or the reason it couldn't run) noted, so the gap is visible before any code is written. (M17-S14 precedent, 2026-07-17: S07 was marked ✅ Done but its own "project-level org-policy exceptions" AC line had never actually been executed — caught only mid-implementation via a live check that should have run here instead.)
 - **`devops` IAM/binding forward-references (target resource doesn't exist yet):** when a devops story's own IAM/permission table includes a binding whose *target resource* (a specific Cloud Run service, Pub/Sub topic, secret, bucket, etc.) is created by a story that comes *later* in the dependency chain — or isn't a dependency at all — that binding cannot literally be created by this story; Terraform can't reference a resource that doesn't exist yet. For every binding row in the story's own table, check whether the target resource's owning story appears in this story's own Dependencies list (or is this same story). If not, flag as **[ORDERING]** RISK and propose the binding be created by whichever story actually owns the target resource instead (which must then depend on this story for the principal to exist) — never attempt to grant IAM on a resource this story's Terraform has no way to reference. (M17-S15/S17 precedent, 2026-07-18: S15's registry module originally described granting reader access to "runtime SAs" that don't exist until S17; S17's own table listed `run.invoker`/`pubsub.publisher` bindings on Cloud Run services and Pub/Sub topics that don't exist until S18/S19 — both caught only during story-discovery, twice in the same session.)
 
+- **Shared closed-enum/union extension impact:** when a story's own description or acceptance criteria call for adding a new member to a shared closed enum, string union, or Zod `z.enum([...])` (e.g. `HotsiteModuleType`, an error-code union, a status/type discriminator) — check whether that same conceptual value set has more than one independent copy across the codebase before assuming a single-file edit is sufficient. Grep the enum's own member names (not just its declared name) across `packages/types/src/`, `apps/backend/src/contexts/**/domain/`, `packages/validation/src/`, and any `apps/web/` exhaustive `Record<Type, ...>` map keyed by it. If more than one copy exists, list every copy found and add an explicit acceptance criterion to update all of them together — and flag whether any consumer (an exhaustive `Record`/`switch` in `apps/web/`, an ESLint exhaustiveness rule) would break on an addition to only one copy. Treat as a **RISK**, not a BLOCKER, unless the check can't be completed. (M20-S01 precedent, 2026-08-24: `'LEAD_FORM'` was added to the shared `HotsiteModuleType` union in `packages/types/src/enums.ts` without checking that `apps/backend/.../hotsite-config.types.ts` and `packages/validation/src/hotsite.ts` each carry an independent copy of the same conceptual type; the shared-package edit broke `apps/web`'s exhaustive `Record<HotsiteModuleType,...>` maps and had to be reverted mid-implementation. `td/TD37-CI-ARCHITECTURE-VALIDATION-HARDENING.md` Story 21 is mechanizing this as a CI detector, but a story can be discovered before that detector exists — check by hand until it lands.)
+
 Also check: do any dependency stories have status **Pending**? If a required upstream story is not done → **BLOCKER**: "Story `<dep-id>` is a dependency and is not yet marked Done."
 
 If a symbol has `found: false` → **BLOCKER — dependency artifact not found in codebase**. The same applies to a failed or unconfirmed live infra-state check above.
@@ -145,6 +145,7 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 - At least one tenant-isolation acceptance criterion (Tenant A data + Tenant B caller → 404/403)
 - At least one integration test scenario is specified
 - Acceptance criteria are concrete enough to derive test names from
+- **For a frontend story creating multiple distinct `page.tsx` routes** (a list + create + edit + deactivate-or-similar shape), the E2E acceptance criteria must name at least one scenario touching *each* route, not just the ones with the most obvious business action — a route with zero E2E coverage is a full-stack-wiring gap invisible to unit tests, since jsdom/Testing Library never exercises real routing, the real BFF, or the real backend. Cross-check the story's own "Files to create" list's `page.tsx` entries against its E2E AC bullets one-for-one. (M21-S04 precedent, 2026-09-02: the story's own E2E AC named only a create→deactivate→reactivate round trip; the Edit route — its own `page.tsx` at `/dashboard/resources/[id]/`, editing every field including the LOCATION-hours lock — had zero E2E coverage from the original implementation through 12+ rounds of bot review, found only when the user asked directly whether every flow was covered.)
 
 ### 4g. Cross-context data access
 - Data from another context is accessed via events, BFF orchestration, or a named port — not direct repo injection
@@ -162,6 +163,8 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 - Story doesn't contradict `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, or `docs/ANTI_PATTERNS.md` — these are the primary sources now, not CLAUDE.md §7/§8's excerpts of them
 - Story doesn't conflict with patterns locked in prior milestones' `_IMPLEMENTATION_DETAILS_IA.md`
 - Any file path the story specifies matches CLAUDE.md §11's domain-slice rules — in particular, an actor-scoped view of another domain's aggregate (e.g. a Customer reading their own Booking/Loyalty data) belongs in the *owning* domain's slice, never the actor's slice (TD31 Story 11 precedent — this exact mistake already happened once)
+- **For a new page/route nested under an existing shared layout** (e.g. anything under `app/[slug]/`): grep that layout file for components rendered unconditionally, outside the `{children}` slot — these apply to *every* route beneath it, including the new one, whether or not the story's author was aware of them. If the story's AC assumes uninterrupted access to the new page (e.g. "the customer fills in their phone directly on this form"), check whether any such component could intercept that flow first (a mandatory profile-completion gate, an auth redirect, a maintenance banner) and either fold the interaction into the AC or flag it as a **RISK** for the user to resolve before implementation. Don't assume a new page starts from a blank slate just because its own component tree looks self-contained (M20-S09 PR #433 precedent, 2026-08-26: `InformationCompletionPrompt`, rendered unconditionally by `app/[slug]/layout.tsx` for every route, silently blocked the lead-form's own "customer edits their phone inline" AC for any customer with an incomplete profile — found only via live manual testing, well after the story's AC had already been written and implemented)
+- **For a new top-level dashboard section** (`app/dashboard/<name>/**`): grep `apps/web/shells/dashboard/` for every existing per-section registry a sibling section is already wired into — `Sidebar.tsx`'s nav list, `apps/web/proxy.ts`'s `MANAGER_ONLY_ROUTES` (if role-gated), `BottomNav.tsx`'s hide-on-drilldown route matcher, and `topbar-route.ts`'s `PAGE_TITLE_KEYS`/per-action title resolver — and confirm the story's file list wires the new section into *all* of them, not just whichever one a specific component happened to need built first. Building a route-matcher module to satisfy one consumer's need doesn't mean every other consumer picked it up automatically. (M21-S04 precedent, 2026-09-02: `resource-route.ts` was built and correctly wired into `BottomNav.tsx`'s mobile hide-on-drilldown logic during the original implementation, but `topbar-route.ts`/`Topbar.tsx` were never updated — the dashboard topbar showed the generic "Dashboard" title on every Resources route instead of "Recursos," through 12+ rounds of automated bot review, found only via live manual testing)
 
 ### 4k. Journey / prototype alignment (frontend stories — `Agent: frontend-ts`/`web-ts`, or any story citing a `plan/journey/` path)
 - Frontend-facing story with **no** prototype reference at all → **RISK** — UI wasn't UX-validated via a prototype before this story was written
@@ -170,6 +173,8 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 - Every unhappy-path/variant screen present in the prototype folder (loading, fetch-error, validation-error, empty, success states) has a corresponding acceptance criterion — a screen that exists in the prototype but is silently dropped from the story's AC is a UX regression, not a scope simplification
 - Every "Known limitations" bullet in the prototype's `dev-notes.md` is either addressed by this story's AC or explicitly carried into the story's own open questions
 - `index.html`'s dry-run checklist questions are either answered by the story's AC or explicitly left open
+- **Precedent pattern, per action — not just by name.** If the story's design (or `dev-notes.md`) names a sibling feature as its structural precedent (e.g. "follows Team's list/create/deactivate/reactivate shape"), citing the precedent by folder/name is not enough — read the precedent's actual component code for *each* action the new story also implements (create, edit, deactivate, reactivate, etc.) and record which concrete UI mechanic it uses (confirmation screen vs. one-click inline row action, a shared component vs. a new one). A precedent cited only at the folder level is exactly how a reactivate flow ends up as a full confirmation screen when the cited precedent actually does it inline with no screen at all. (M21-S04 precedent, 2026-09-02: `dev-notes.md` correctly named `manager/equipe.md`'s "Ativar" as the precedent for reactivation during discovery, and even correctly described it as "same one-click-row-action pattern" — but the shipped implementation still built a full confirmation screen anyway. The written note was right; nothing checked the code against it before or during implementation. Caught only via live manual testing, after 9 rounds of automated bot review missed it too — user feedback: "I want [reactivate] to be really simple as we have in staff screen — we only do it on the grid.")
+- **Domain-model field semantics, for every planned form field.** For a create/edit form's field list, cross-check each field against `docs/02-DOMAIN_MODEL.md`'s own documented semantics for that aggregate — specifically, whether a field described as "denormalized" or "independent of X" is planned as independently editable in the UI, not silently re-derived from whatever it's denormalized from. A field that looks safe to auto-populate from a linked entity may be explicitly documented as an independent, user-owned value. (M21-S04 precedent, 2026-09-02: `Resource.name` is documented as "denormalized display name, independent of `Staff.name`," but the STAFF picker never got an editable name field at all — every edit silently overwrote it with the linked staff member's current name.)
 
 ### 4l. Infrastructure / environment
 - Does the story introduce a new **secret**, **Pub/Sub topic**, **Cloud Scheduler job**, or **env var** — or touch `infra/terraform/**` at all? → **Consult `infra/terraform/README.md`'s "New-resource PR-sequencing playbook" table now, before continuing.** Match the story's change against the table's rows and state the required PR count and sequence explicitly as a finding — not a bare "flag it." Carry the same statement into the Scope Summary's `Devops PR sequence` line (Step 5). This table exists specifically because this exact class of gap (foundation/envs split, `env-contract`'s all-or-nothing schema requirement, Cloud Run's `secret_env_vars` deploy hazard) was independently rediscovered from scratch across M19-S02, S07, and S08 — the whole point is to stop that from happening an S09th time.
@@ -197,6 +202,15 @@ Check the story's *proposed design*, not just its documentation completeness, ag
 If this story replaces or removes an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint) — does the story's own scope explicitly include grepping `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/commands/**`, `.claude/skills/**`, and `scripts/**` for stale references to the old version? If the story is silent on this, flag it now — `docs/DEFINITION_OF_DONE.md` makes this mandatory, and catching the gap here is cheaper than at milestone close-out (M13 precedent: 18 such findings across 8 files, found only when the milestone closed).
 
 **Inverse case — journey GAP-status drift:** if this story's own `Prototype references` point at a `plan/journey/<actor>/<slug>.md` that currently marks the relevant screen/flow `❓ GAP`, does the story's scope include flipping that status in the same commit? A full `/docs-audit` sweep (2026-08-04) found this exact pattern in *every actor's* journeys (28 findings) — `dev-notes.md` consistently got updated when a gap shipped, the parent journey `.md`'s mermaid/Prototype table consistently didn't. Flag as **RISK** if the story is silent on it.
+
+### 4q. Pattern & test-strategy lock-in
+- **Architectural pattern:** does the story's design name the concrete pattern it uses (strategy, factory, builder, plain composition, etc.) and why — or explicitly state that no named pattern applies? A story that's silent on this pushes an undocumented judgment call into implementation time; surface it as a question in Step 6 instead.
+- **Test/e2e coverage plan:** does the story name concrete test scenarios — the specific unit cases, integration flows, and (for frontend stories) e2e/Playwright scenarios — rather than a vague "at least one integration test"? A vague coverage statement here becomes an implementation-time judgment call instead of a discovery-time decision.
+- **Business-rule ambiguity:** does anything in the story's description leave a business rule underspecified (a threshold, an edge case, a precedence between two rules)? Surface each as a question in Step 6 rather than letting the implementation step infer one.
+- **Ripple effects:** does this story's change plausibly affect another existing flow, screen, or use case not explicitly listed in its scope? If so, name it as a RISK — either fold it into this story's scope or explicitly note it's out of scope and why.
+
+### 4r. Business-logic reference doc (`docs/27-BUSINESS_LOGIC_REFERENCE.md`)
+Does this story introduce or change an algorithm, state machine, or formula that spans multiple use cases or aggregates within its bounded context — the kind of logic a future dev/agent would otherwise have to re-derive from scattered prose across `docs/02`/`docs/04`/`docs/13`? If so, flag as a RISK that the story's own scope should include adding or updating that context's section in `docs/27-BUSINESS_LOGIC_REFERENCE.md` (a permanent, mermaid-diagrammed reference, additive by bounded context — read its own header before writing). A context with no section yet is normal; a story that meaningfully *changes* an existing section's algorithm without touching the doc is the actual gap to catch here. Not every story needs this — only genuinely complex, cross-cutting logic, not a single new field or endpoint.
 
 ---
 
@@ -338,6 +352,8 @@ Do not start implementation until all blockers are cleared.
 
 If NOT READY, stop here. Do not proceed to Step 9.
 
+A ✅ READY verdict is the single authorization for the rest of the implementation workflow (CLAUDE.md §9) — commit, push, `/pre-pr`, PR, CI-fix, and bot-fix all proceed autonomously from here with no further per-step asks; only the final merge review and any stuck condition come back to the user.
+
 ---
 
 ## Step 9 — Working environment setup
@@ -362,12 +378,13 @@ Wait for reply, then:
 **If worktree:**
 - Use the `EnterWorktree` tool with branch name `feat/<story-id-lowercase>-<short-description>` (e.g. `feat/m09-s04-booking-reschedule`).
 - After `EnterWorktree` completes, confirm the worktree path and branch to the user.
-- Remind: after the PR is merged, clean up with:
+- Cleanup is automatic, not a reminder to the user: CLAUDE.md §9 Step 11 (mark-done) removes the worktree immediately afterward, no permission needed —
   ```bash
   git worktree remove .claude/worktrees/<name> --force
   git branch -D <branch-name>
+  git fetch --prune origin
   ```
-  Then verify with `git worktree list` and `ls .claude/worktrees/`.
+  Then verify with `git worktree list` and `ls .claude/worktrees/` — don't trust a success message alone.
 
 **If direct branch:**
 - Output the branch creation command for the user to run (per §9 Step 1 of CLAUDE.md):
@@ -379,5 +396,8 @@ Wait for reply, then:
 Either way, end with:
 ```
 Ready. Next: implement per §9 Step 2 — write all files from the story spec.
-Remember: before every `git commit`, list the files and ask "Anything else to add before I commit?" (§0).
+This READY verdict already authorizes the rest of the chain (§9 Steps 3–9) —
+commit, push, /pre-pr, PR, CI-fix, and bot-fix all proceed autonomously from
+here with no further per-step asks. I'll come back to you only for the merge
+review (§9 Step 10) or a stuck condition.
 ```

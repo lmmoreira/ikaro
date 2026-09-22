@@ -1,5 +1,7 @@
 # M00 — Implementation Details for AI Agents
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 **Audience:** AI coding agents working on M01 and beyond.  
 **Purpose:** Avoid re-learning what M00 already solved. Read this before touching any file in `apps/` or `packages/`.  
 **Companion:** Always read `CLAUDE.md` first (root). This file adds what CLAUDE.md cannot: runtime discoveries, version-specific gotchas, and structural decisions made during implementation.

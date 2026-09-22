@@ -3,346 +3,509 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Serviço criado — BeloAuto</title>
+  <title>Editar Serviço — Enceramento Premium — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
-    /* Desktop-only create button in topbar */
-    .topbar-create-btn { display: none; }
-    @media (min-width: 1024px) { .topbar-create-btn { display: inline-flex; } }
-
-    /* Filter tabs */
-    .filter-tabs {
-      display: flex; gap: 0.25rem;
-      padding: 0 1rem 0.875rem;
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.45); margin-bottom: 0.375rem; }
+    .form-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .form-textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; resize: vertical; min-height: 80px; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .input-prefix-group { position: relative; }
+    .input-prefix { position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.9375rem; font-weight: 600; color: rgba(17,24,39,0.45); pointer-events: none; }
+    .input-with-prefix { padding-left: 2.25rem !important; }
+    .input-suffix-group { position: relative; }
+    .input-suffix { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.8125rem; color: rgba(17,24,39,0.45); pointer-events: none; }
+    .input-with-suffix { padding-right: 3.5rem !important; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem; }
+    @media (max-width: 640px) { .form-row-3 { grid-template-columns: 1fr; } }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1rem; border-radius: var(--ba-radius); background: var(--ba-secondary); margin-bottom: 0.75rem; }
+    .toggle-label { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); }
+    .toggle-sub { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
+    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #d1d5db; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; }
+    .toggle-switch.on { background: var(--ba-primary); }
+    .toggle-knob { position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch.on .toggle-knob { transform: translateX(1.25rem); }
+    .section-divider { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.35); margin: 1.5rem 0 0.75rem; }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+    .form-actions .btn-primary  { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    .danger-zone { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1.5px solid #fecaca; }
+    .danger-zone-title { font-size: 0.75rem; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem; }
+    .danger-zone-desc { font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); margin-bottom: 0.875rem; line-height: 1.5; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
     }
-    .filter-tab {
-      padding: 0.375rem 0.875rem; border-radius: 9999px;
-      font-size: 0.8125rem; font-weight: 600;
-      border: 1.5px solid var(--ba-secondary);
-      background: white; color: var(--ba-text);
-      text-decoration: none; cursor: pointer;
-    }
-    .filter-tab.active {
-      background: var(--ba-primary); color: white; border-color: var(--ba-primary);
-    }
-
-    /* Service row */
-    .service-row {
-      display: flex; align-items: flex-start; gap: 1rem;
-      padding: 1rem; border-bottom: 1px solid var(--ba-secondary);
-      text-decoration: none; color: var(--ba-text);
-    }
-    .service-row:last-child { border-bottom: none; }
-    .service-row:hover { background: #f8faff; }
-    .service-icon {
-      width: 2.5rem; height: 2.5rem; flex-shrink: 0;
-      background: var(--ba-secondary); border-radius: var(--ba-radius);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .service-info { flex: 1; min-width: 0; }
-    .service-name { font-size: 0.9375rem; font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
-    .service-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; font-size: 0.8125rem; opacity: 0.55; color: var(--ba-text); }
-    .service-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.375rem; flex-shrink: 0; }
-    .service-price { font-size: 0.9375rem; font-weight: 700; color: var(--ba-text); }
-
-    /* Badges */
-    .badge-active   { background: #dcfce7; color: #166534; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
-    .badge-inactive { background: #f1f5f9; color: #475569; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
-    .badge-points   { background: #fef9c3; color: #854d0e; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
-    .badge-pickup   { background: #ede9fe; color: #6d28d9; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; white-space: nowrap; }
-
-    /* FAB */
-    .fab {
-      position: fixed; bottom: 1.5rem; right: 1.5rem;
-      width: 3.5rem; height: 3.5rem;
-      background: var(--ba-primary); color: white;
-      border-radius: 9999px; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 12px rgba(37,99,235,0.35);
-      text-decoration: none; font-size: 1.5rem; font-weight: 300; line-height: 1;
-    }
-    @media (max-width: 1023px) { .fab { bottom: 5rem; } } /* clear bottom nav */
-    @media (min-width: 1024px) { .fab { display: none; } }
+    .editor-tabs { display: flex; gap: 0.25rem; padding: 0 0 1rem; border-bottom: 1px solid var(--ba-secondary); margin-bottom: 1.25rem; overflow-x: auto; }
+    .editor-tab { padding: 0.625rem 1rem; border-radius: var(--ba-radius) var(--ba-radius) 0 0; font-size: 0.9375rem; font-weight: 600; border: none; background: none; color: var(--ba-text); opacity: 0.5; cursor: pointer; white-space: nowrap; }
+    .editor-tab.active { opacity: 1; color: var(--ba-primary); border-bottom: 2px solid var(--ba-primary); margin-bottom: -1px; }
+    .editor-panel { display: none; }
+    .editor-panel.active { display: block; }
+    .model-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .model-card { padding: 1rem; cursor: pointer; }
+    .model-card p.title { font-weight: 700; color: var(--ba-text); margin-bottom: 0.25rem; }
+    .model-card p.sub { font-size: 0.8125rem; opacity: 0.6; }
+    .resource-check-row { border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.75rem; margin-bottom: 0.625rem; }
+    .resource-check-row.checked { border-color: #2563eb; border-width: 2px; } /* fixed platform blue, not --ba-primary */
+    .radio-row-title { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .nested-selmode { margin: 0.625rem 0 0.125rem 1.875rem; padding-top: 0.625rem; border-top: 1px solid var(--ba-secondary); display: flex; flex-direction: column; gap: 0.5rem; }
+    .nested-selmode label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--ba-text); cursor: pointer; }
+    .eligible-count { font-size: 0.8125rem; font-weight: 600; color: var(--ba-text); margin-bottom: 0.5rem; }
+    .eligible-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .eligible-chip { display: inline-flex; align-items: center; gap: 0.375rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 9999px; padding: 0.3125rem 0.5rem 0.3125rem 0.75rem; font-size: 0.8125rem; font-weight: 600; }
+    .chip-remove { background: none; border: none; color: #1d4ed8; opacity: 0.6; cursor: pointer; font-size: 0.9375rem; line-height: 1; padding: 0.125rem; }
+    .chip-remove:hover { opacity: 1; }
+    .eligible-add-select { margin-top: 0.625rem; }
+    .empty-state { text-align: center; padding: 2.5rem 1.5rem; border: 1.5px dashed var(--ba-secondary); border-radius: var(--ba-radius); }
+    .empty-state-icon { width: 3rem; height: 3rem; border-radius: 9999px; background: var(--ba-secondary); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+    .empty-state-title { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); margin-bottom: 0.375rem; }
+    .empty-state-desc { font-size: 0.875rem; opacity: 0.6; max-width: 26rem; margin: 0 auto; line-height: 1.5; }
+    .inherited-badge { font-size: 0.6875rem; font-weight: 700; color: #6b7280; background: #f3f4f6; border-radius: 9999px; padding: 0.1875rem 0.625rem; display: inline-block; margin-top: 0.375rem; }
+    .tab-dirty-dot { display: none; width: 0.4375rem; height: 0.4375rem; border-radius: 9999px; background: #f59e0b; margin-left: 0.375rem; vertical-align: middle; }
+    .tab-label-short { display: none; }
+    @media (max-width: 480px) { .tab-label-full { display: none; } .tab-label-short { display: inline; } }
+    .save-confirm { display: none; align-items: center; gap: 0.375rem; font-size: 0.8125rem; font-weight: 600; color: #15803d; margin-left: 0.75rem; }
+    .save-row { display: flex; align-items: center; }
   </style>
 </head>
 <body>
 
   <!--
-    STATE: UC-012 happy path — service created successfully (201).
-    Same ServiceListPage as 01-servicos-list.html, with the new service appended and an
-    inline success banner shown at the top of the content area. Per servicos.md's mermaid
-    flow, "CreateSuccess" was a gap node ("Lista com toast verde") — this screen fills that
-    gap using the canonical inline banner pattern (README), not a toast.
+    STATE: UC-012 happy path — service created successfully (201), redirected straight into
+    the edit page instead of back to the list (redesigned 2026-09-17, user-proposed during
+    the M22-S04 prototype pass: "should not [it] get back to list, but should still [land] on
+    details, but now loads with ALL tabs"). Replaces the old "banner on the list page" pattern
+    this same filename used to show (same slot number kept — 02c is still "the state right
+    after creating" — but its actual content changed from a list-page banner to an edit-page
+    banner; see dev-notes.md's own note on this).
 
-    PAGE: apps/web/app/dashboard/services/page.tsx  (EXISTS — no [slug] segment)
-    DATA: GET /v1/services  →  ServiceListResponse
-    AUTH: STAFF | MANAGER
+    This is also the first prototype screen to show Recursos/Políticas de reserva/Formulário
+    de reserva in their EMPTY/default state (no resource requirements configured yet, policy
+    fields still inheriting tenant defaults, no intake schema published) — 03-service-edit.html
+    only ever showed the fully-configured Massagem Relaxante example; nothing modeled "what a
+    brand-new, unconfigured service's tabs look like" until this pass.
+
+    COMPONENT: ServiceEditPage — same component as 03-service-edit.html, this is its
+    just-created state (Detalhes tab active, inline success banner, other 3 tabs empty/default).
+    PAGE: apps/web/app/dashboard/services/[id]/edit/page.tsx
+    201 (POST /v1/services) → this page, not 01-servicos-list.html
   -->
 
   <!-- Prototype banner -->
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo — UC-012: serviço criado com sucesso. Mesma lista, com banner inline (não toast).
+    Protótipo — UC-012: serviço criado com sucesso, aberto direto na edição (Detalhes)
   </div>
 
   <!-- TOP BAR -->
   <div class="dashboard-topbar">
-    <div class="topbar-brand">
-      <div class="topbar-logo-mark">B</div>
-      <span class="topbar-tenant-name">BeloAuto Demo</span>
-    </div>
-    <h1 class="topbar-page-title">Serviços</h1>
+    <a href="01-servicos-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="topbar-brand" style="font-weight:600;">Serviços</span>
+    </a>
+    <h1 class="topbar-page-title">Editar serviço — Enceramento Premium</h1>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
-      <a href="02-service-create.html" class="btn-primary topbar-create-btn"
-         style="font-size:0.8125rem;padding:0.5rem 0.875rem;align-items:center;gap:0.375rem;">
-        + Criar serviço
-      </a>
+      <span class="status-badge" style="background:#dcfce7;color:#166534;font-size:0.75rem;">Ativo</span>
       <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
-      <span class="topbar-date">Hoje, 16 de junho de 2026</span>
+      <span class="topbar-date">Hoje, 17 de setembro de 2026</span>
     </div>
   </div>
 
   <!-- LAYOUT -->
   <div class="dashboard-layout">
-
-    <!-- Sidebar — desktop only -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">B</div>
-        <div>
-          <p class="sidebar-tenant-name">BeloAuto Demo</p>
-          <p class="sidebar-tenant-slug">@beloauto</p>
-        </div>
+        <div><p class="sidebar-tenant-name">BeloAuto Demo</p><p class="sidebar-tenant-slug">@beloauto</p></div>
       </div>
       <nav class="sidebar-nav" style="margin-top:0.5rem;">
         <a class="sidebar-nav-item" href="../agenda/00-agenda.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           Agenda
         </a>
         <a class="sidebar-nav-item" href="../horarios/00-schedule.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           Horários
         </a>
         <a class="sidebar-nav-item active" href="../servicos/01-servicos-list.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
           Serviços
         </a>
         <a class="sidebar-nav-item" href="../fidelidade/00-customer-search.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           Fidelidade
         </a>
       </nav>
       <p class="sidebar-section-label">Somente Gerente</p>
       <nav class="sidebar-nav">
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          Equipe
-        </a>
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          Configurações
-        </a>
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-          Hotsite
-        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
       </nav>
       <div class="sidebar-footer">
         <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
-        <div style="min-width:0;">
-          <p class="sidebar-user-name">Ana Pereira</p>
-          <span class="role-badge role-badge-manager">Gerente</span>
-        </div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
         <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </a>
       </div>
     </aside>
 
-    <!-- MAIN CONTENT -->
     <main class="main-content">
       <div class="dashboard-body">
+        <div class="detail-layout"><div>
 
-        <!-- Inline success banner -->
-        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--ba-radius);
-                    padding:1.125rem 1.25rem;margin-bottom:1.5rem;
-                    display:flex;align-items:flex-start;gap:0.875rem;">
-          <div style="width:2rem;height:2rem;border-radius:9999px;background:#16a34a;
-                      display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white"
-                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
+        <!-- Inline success banner — Detalhes tab only -->
+        <div id="success-banner" style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--ba-radius);padding:1.125rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:0.875rem;">
+          <div style="width:2rem;height:2rem;border-radius:9999px;background:#16a34a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div>
             <p style="font-weight:700;font-size:0.9375rem;color:#15803d;margin-bottom:0.125rem;">Serviço criado!</p>
-            <p style="font-size:0.875rem;color:#166534;opacity:0.85;line-height:1.5;">"Enceramento Premium" foi criado como ativo e já está disponível no formulário de agendamento.</p>
+            <p style="font-size:0.875rem;color:#166534;opacity:0.85;line-height:1.5;">"Enceramento Premium" foi criado como ativo e já está disponível no formulário de agendamento. Recursos, políticas de reserva e formulário de reserva abaixo são opcionais — os padrões do negócio já funcionam sem eles.</p>
           </div>
         </div>
 
-        <!-- Filter tabs -->
-        <div class="filter-tabs">
-          <a href="#" class="filter-tab active">Todos (5)</a>
-          <a href="#" class="filter-tab">Ativos (4)</a>
-          <a href="#" class="filter-tab">Inativos (1)</a>
+        <div class="editor-tabs" role="tablist">
+          <button class="editor-tab active" id="tab-detalhes" data-tab="detalhes" role="tab" aria-selected="true" aria-controls="panel-detalhes" onclick="showTab('detalhes', this)"><span class="tab-label-full">Detalhes</span><span class="tab-label-short">Detalhes</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab" id="tab-recursos" data-tab="recursos" role="tab" aria-selected="false" aria-controls="panel-recursos" onclick="showTab('recursos', this)"><span class="tab-label-full">Recursos</span><span class="tab-label-short">Recursos</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab" id="tab-politicas" data-tab="politicas" role="tab" aria-selected="false" aria-controls="panel-politicas" onclick="showTab('politicas', this)"><span class="tab-label-full">Políticas de reserva</span><span class="tab-label-short">Políticas</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab" id="tab-intake" data-tab="intake" role="tab" aria-selected="false" aria-controls="panel-intake" onclick="showTab('intake', this)"><span class="tab-label-full">Formulário de reserva</span><span class="tab-label-short">Formulário</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
         </div>
 
-        <!-- Service list -->
-        <div class="card" style="padding:0;overflow:hidden;">
-
-          <!-- Service 0 — NEW: just created -->
-          <a href="03-service-edit.html" class="service-row" style="background:#f0fdf4;">
-            <div class="service-icon" style="background:#dcfce7;">
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-              </svg>
+        <!-- ═══ TAB 1 — DETALHES (just submitted) ═══ -->
+        <div class="editor-panel active" id="panel-detalhes" role="tabpanel" aria-labelledby="tab-detalhes">
+          <div class="form-group">
+            <label class="form-label" for="name">Nome do serviço *</label>
+            <input id="name" type="text" class="form-input" value="Enceramento Premium">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="description">Descrição</label>
+            <textarea id="description" class="form-textarea">Aplicação de cera de carnaúba com proteção UV.</textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="price">Preço *</label>
+              <div class="input-prefix-group"><span class="input-prefix">R$</span><input id="price" type="number" class="form-input input-with-prefix" value="90"></div>
             </div>
-            <div class="service-info">
-              <div class="service-name">Enceramento Premium</div>
-              <div class="service-meta">
-                <span>45 min</span>
-                <span class="badge-points">15 pts</span>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="duration">Duração *</label>
+              <div class="input-suffix-group"><input id="duration" type="number" class="form-input input-with-suffix" value="45"><span class="input-suffix">min</span></div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:1.25rem;">
+            <label class="form-label" for="points">Pontos de fidelidade</label>
+            <input id="points" type="number" class="form-input" value="15">
+          </div>
+          <p class="section-divider">Opções</p>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Coleta e entrega</div><div class="toggle-sub">Exige endereço de coleta no agendamento</div></div>
+            <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="form-actions save-row">
+            <a href="01-servicos-list.html" class="btn-secondary">Voltar à lista</a>
+            <button type="button" class="btn-primary" onclick="saveTab('detalhes')">Salvar alterações</button>
+            <span class="save-confirm" id="saved-msg-detalhes">✓ Detalhes salvos</span>
+          </div>
+          <div class="danger-zone">
+            <p class="danger-zone-title">Zona de perigo</p>
+            <p class="danger-zone-desc">Desativar o serviço remove-o do formulário de agendamento. Agendamentos existentes <strong>não são cancelados</strong>.</p>
+            <a href="03b-deactivate-confirm.html" class="btn-danger" style="display:inline-block;padding:0.6875rem 1.25rem;">Desativar serviço</a>
+          </div>
+        </div><!-- /panel-detalhes -->
+
+        <!-- ═══ TAB 2 — RECURSOS (empty/default state — never modeled before this pass) ═══ -->
+        <div class="editor-panel" id="panel-recursos" role="tabpanel" aria-labelledby="tab-recursos">
+          <p class="form-hint" style="margin-bottom:1.25rem;">
+            Modelo de agendamento: <strong>Agendamento</strong> — definido na criação do serviço e não pode ser
+            alterado depois (UC-056 A1). Ver <a href="02-service-create.html" style="color:var(--ba-primary);">Criar serviço</a>
+            para a escolha entre Agendamento/Turma.
+          </p>
+
+          <div class="empty-state" style="margin-bottom:1.25rem;">
+            <div class="empty-state-icon">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--ba-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <p class="empty-state-title">Nenhum recurso configurado</p>
+            <p class="empty-state-desc">Este serviço usa o modelo padrão do negócio (o serviço inteiro é o recurso, o mesmo que já vale para os demais serviços hoje). Configure abaixo só se este serviço específico precisar de um recurso dedicado.</p>
+          </div>
+
+          <label class="form-label">Como este serviço usa recursos?</label>
+          <div class="model-picker">
+            <div class="card model-card selected" id="resmode-flat" onclick="selectResourceMode('flat')">
+              <p class="title">Recurso único ou pacote</p>
+              <p class="sub">Um ou mais recursos, todos livres na mesma janela</p>
+            </div>
+            <div class="card model-card" id="resmode-legs" onclick="selectResourceMode('legs')">
+              <p class="title">Jornada com múltiplas etapas</p>
+              <p class="sub">Etapas ordenadas, cada uma com seu próprio recurso</p>
+            </div>
+          </div>
+          <p class="form-hint" id="resmode-hint" style="margin-bottom:1.25rem;">"Recurso único ou pacote" selecionado — nenhum recurso marcado ainda (padrão do negócio se aplica). "Jornada com múltiplas etapas" mostra a tela de etapas — mutuamente exclusivo com recursos/pacote (UC-052).</p>
+
+          <div id="flat-resource-config">
+            <label class="form-label">Quais recursos este serviço precisa? (marque todos que se aplicam)</label>
+            <div class="resource-check-row">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                <div style="flex:1;"><div class="radio-row-title">Profissional</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um membro da equipe realiza o atendimento</div></div>
+              </label>
+              <div class="nested-selmode" style="display:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+              </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <p class="eligible-count">Elegíveis (0)</p>
+                <div class="eligible-chip-row"></div>
+                <select class="form-input eligible-add-select" disabled style="opacity:0.6;">
+                  <option value="">Nenhum profissional cadastrado no tenant ainda</option>
+                </select>
+                <p class="form-hint">Cadastre profissionais em Recursos antes de marcá-los elegíveis aqui.</p>
+              </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Como é escolhido dentro do grupo elegível?</label>
+                <label><input type="radio" name="selmode-staff"> Cliente escolhe entre os elegíveis</label>
+                <label><input type="radio" name="selmode-staff" checked> Sistema atribui automaticamente entre os elegíveis</label>
               </div>
             </div>
-            <div class="service-right">
-              <span class="service-price">R$ 90,00</span>
-              <span class="badge-active">Ativo</span>
-            </div>
-          </a>
-
-          <!-- Service 1 — active, has points -->
-          <a href="03-service-edit.html" class="service-row">
-            <div class="service-icon">
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="var(--ba-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-              </svg>
-            </div>
-            <div class="service-info">
-              <div class="service-name">Lavagem Completa Detalhada</div>
-              <div class="service-meta">
-                <span>60 min</span>
-                <span class="badge-points">20 pts</span>
+            <div class="resource-check-row">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                <div style="flex:1;"><div class="radio-row-title">Sala</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Uma sala específica é reservada</div></div>
+              </label>
+              <div class="nested-selmode" style="display:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantas deste tipo, ao mesmo tempo)</span></label>
+                <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+              </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <p class="eligible-count">Elegíveis (0)</p>
+                <div class="eligible-chip-row"></div>
+                <select class="form-input eligible-add-select" disabled style="opacity:0.6;">
+                  <option value="">Nenhuma sala cadastrada no tenant ainda</option>
+                </select>
+                <p class="form-hint">Cadastre salas em Recursos antes de marcá-las elegíveis aqui.</p>
+              </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label><input type="radio" name="selmode-room" checked> Sistema atribui automaticamente entre as elegíveis</label>
               </div>
             </div>
-            <div class="service-right">
-              <span class="service-price">R$ 180,00</span>
-              <span class="badge-active">Ativo</span>
-            </div>
-          </a>
-
-          <!-- Service 2 — active, has points -->
-          <a href="03-service-edit.html" class="service-row">
-            <div class="service-icon">
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="var(--ba-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-              </svg>
-            </div>
-            <div class="service-info">
-              <div class="service-name">Cristalização de Pintura</div>
-              <div class="service-meta">
-                <span>90 min</span>
-                <span class="badge-points">40 pts</span>
+            <div class="resource-check-row">
+              <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+                <input type="checkbox" onchange="toggleResourceType(this)" style="margin-top:0.1875rem;">
+                <div style="flex:1;"><div class="radio-row-title">Equipamento</div><div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">Um equipamento específico é reservado</div></div>
+              </label>
+              <div class="nested-selmode" style="display:none;">
+                <label style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:0.125rem;">Quantidade necessária <span style="text-transform:none;font-weight:400;">(quantos deste tipo, ao mesmo tempo)</span></label>
+                <input type="number" class="form-input" style="max-width:6rem;" min="1" value="1">
+              </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <p class="eligible-count">Elegíveis (0)</p>
+                <div class="eligible-chip-row"></div>
+                <select class="form-input eligible-add-select" disabled style="opacity:0.6;">
+                  <option value="">Nenhum equipamento cadastrado no tenant ainda</option>
+                </select>
+                <p class="form-hint">Cadastre equipamentos em Recursos antes de marcá-los elegíveis aqui.</p>
+              </div>
+              <div class="nested-selmode" style="display:none;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--ba-secondary);">
+                <label><input type="radio" name="selmode-equip" checked> Sistema atribui automaticamente entre os elegíveis</label>
               </div>
             </div>
-            <div class="service-right">
-              <span class="service-price">R$ 320,00</span>
-              <span class="badge-active">Ativo</span>
-            </div>
-          </a>
 
-          <!-- Service 3 — active, requiresPickupAddress -->
-          <a href="03-service-edit.html" class="service-row">
-            <div class="service-icon">
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="var(--ba-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-              </svg>
+            <p class="form-hint" style="margin-top:0.5rem;">
+              Nenhuma caixa marcada = modelo de hoje (o negócio inteiro é o recurso, ex. car wash). Uma caixa
+              marcada = recurso único. Duas ou mais marcadas = bundle — todas precisam estar livres na mesma
+              janela ao mesmo tempo (UC-051).
+            </p>
+
+            <div class="form-group" style="margin-top:1.25rem;">
+              <label class="form-label">Tempo de preparo após o serviço (buffer)</label>
+              <div class="input-suffix-group"><input class="form-input input-with-suffix" type="number" min="0" value="60"><span class="input-suffix">min</span></div>
+              <p class="form-hint">Valor inicial copiado do padrão do negócio no momento da criação — já é um valor real e editável, não um placeholder (diferente das políticas abaixo, que ficam vazias/herdadas até serem definidas explicitamente). Combina com o tempo mínimo de virada do próprio recurso — vale o maior dos dois (<code>max(service.bufferAfterMinutes, resource.turnoverMinutes)</code>, UC-053/UC-059).</p>
             </div>
-            <div class="service-info">
-              <div class="service-name">Coleta e Entrega</div>
-              <div class="service-meta">
-                <span>120 min</span>
-                <span class="badge-pickup">🚗 Coleta</span>
-                <span class="badge-points">30 pts</span>
+          </div><!-- /flat-resource-config -->
+
+          <div id="legs-resource-config" style="display:none;">
+            <div class="empty-state">
+              <div class="empty-state-icon">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--ba-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </div>
+              <p class="empty-state-title">Nenhuma etapa adicionada ainda</p>
+              <p class="empty-state-desc">Uma jornada precisa de pelo menos 2 etapas ordenadas, cada uma com seu próprio recurso e tempo de transição até a próxima (UC-052 A1). Ver exemplo em <a href="03-service-edit.html" style="color:var(--ba-primary);">Jornada Spa Vitta</a>.</p>
+            </div>
+            <button type="button" class="btn-secondary" style="width:100%;margin-top:1rem;">+ Adicionar etapa</button>
+          </div><!-- /legs-resource-config -->
+
+          <div class="form-actions save-row">
+            <a href="01-servicos-list.html" class="btn-secondary">Voltar à lista</a>
+            <button type="button" class="btn-primary" onclick="saveTab('recursos')">Salvar alterações</button>
+            <span class="save-confirm" id="saved-msg-recursos">✓ Recursos salvos</span>
+          </div>
+        </div><!-- /panel-recursos -->
+
+        <!-- ═══ TAB 3 — POLÍTICAS DE RESERVA (empty/default state) ═══ -->
+        <div class="editor-panel" id="panel-politicas" role="tabpanel" aria-labelledby="tab-politicas">
+          <p style="opacity:.7;margin-bottom:1rem;">Nenhuma política própria definida ainda — todos os campos abaixo herdam o padrão do negócio até serem editados.</p>
+
+          <div class="card">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Duração</h2>
+            <div class="form-group">
+              <label class="form-label" for="pol-duration">Política de duração</label>
+              <select id="pol-duration" class="form-input" onchange="toggleDurationPolicy(this)">
+                <option value="fixed" selected>Fixa (45 min, ver aba Detalhes)</option>
+                <option value="customer">Cliente escolhe</option>
+              </select>
+            </div>
+            <div id="pol-duration-detail" style="display:none;">
+              <div class="form-row-3">
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-min">Mínimo</label><div class="input-suffix-group"><input id="dur-min" class="form-input input-with-suffix" type="number" min="1" placeholder="—"><span class="input-suffix">min</span></div></div>
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-max">Máximo</label><div class="input-suffix-group"><input id="dur-max" class="form-input input-with-suffix" type="number" min="1" placeholder="—"><span class="input-suffix">min</span></div></div>
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="dur-increment">Incremento</label><div class="input-suffix-group"><input id="dur-increment" class="form-input input-with-suffix" type="number" min="1" placeholder="—"><span class="input-suffix">min</span></div></div>
+              </div>
+              <p class="form-hint">Granularidade que o cliente pode escolher — independente do incremento de cobrança abaixo.</p>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Preço</h2>
+            <div class="form-group">
+              <label class="form-label" for="pol-pricing">Política de preço</label>
+              <select id="pol-pricing" class="form-input" onchange="togglePricingPolicy(this)" disabled style="opacity:0.6;">
+                <option value="fixed" selected>Fixo — ver aba Detalhes (R$ 90,00)</option>
+                <option value="increment">Por incremento de tempo</option>
+              </select>
+              <p class="form-hint" id="pol-pricing-hint">Habilitado quando a duração é "Cliente escolhe" — obrigatório nesse caso (UC-055 A2).</p>
+            </div>
+            <div id="pol-pricing-detail" style="display:none;">
+              <div class="form-row-3">
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="price-increment">Incremento de cobrança</label><div class="input-suffix-group"><input id="price-increment" class="form-input input-with-suffix" type="number" min="1" placeholder="—"><span class="input-suffix">min</span></div></div>
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="price-per-increment">Valor por incremento</label><div class="input-prefix-group"><span class="input-prefix">R$</span><input id="price-per-increment" class="form-input input-with-prefix" type="number" min="0" step="0.01" placeholder="0,00"></div></div>
+                <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="min-charge">Cobrança mínima <span style="text-transform:none;font-weight:400;opacity:0.7;">(opcional)</span></label><div class="input-prefix-group"><span class="input-prefix">R$</span><input id="min-charge" class="form-input input-with-prefix" type="number" min="0" step="0.01" placeholder="Sem mínimo"></div></div>
               </div>
             </div>
-            <div class="service-right">
-              <span class="service-price">R$ 250,00</span>
-              <span class="badge-active">Ativo</span>
-            </div>
-          </a>
+          </div>
 
-          <!-- Service 4 — inactive -->
-          <a href="03-service-edit.html" class="service-row" style="opacity:0.55;">
-            <div class="service-icon" style="background:#f1f5f9;">
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-              </svg>
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Confirmação e alterações</h2>
+            <label style="display:block;margin:.75rem 0"><input type="radio" name="approval" checked> Aprovação manual <span class="inherited-badge">Herdado do padrão do negócio</span></label>
+            <label style="display:block;margin:.75rem 0"><input type="radio" name="approval"> Confirmar automaticamente</label>
+            <div class="form-row" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="cancel">Cancelar até</label><input id="cancel" class="form-input" placeholder="48 horas antes (padrão do negócio)"></div>
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="reschedule">Reagendar até</label><input id="reschedule" class="form-input" placeholder="48 horas antes (padrão do negócio)"></div>
             </div>
-            <div class="service-info">
-              <div class="service-name">Polimento + Higienização</div>
-              <div class="service-meta">
-                <span>180 min</span>
-                <span class="badge-points">50 pts</span>
-              </div>
-            </div>
-            <div class="service-right">
-              <span class="service-price">R$ 380,00</span>
-              <span class="badge-inactive">Inativo</span>
-            </div>
-          </a>
+          </div>
 
-        </div>
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Janela de reserva</h2>
+            <div class="form-row" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="min-advance">Aviso mínimo</label><input id="min-advance" class="form-input" placeholder="0h (padrão do negócio)"></div>
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" for="max-advance">Antecedência máxima</label><input id="max-advance" class="form-input" placeholder="90 dias (padrão do negócio)"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Quem e como reserva</h2>
+            <label style="display:block;margin:.5rem 0"><input type="checkbox"> Permitir recorrência para clientes autenticados</label>
+            <label style="display:block;margin:.5rem 0"><input type="checkbox"> Permitir alerta de disponibilidade</label>
+            <p class="form-hint">Desligadas por padrão para todo serviço novo (UC-055). Participantes nomeados, contagem de participantes e termo de consentimento ficam na aba Formulário de reserva (UC-054).</p>
+          </div>
+
+          <div class="form-actions save-row">
+            <a href="01-servicos-list.html" class="btn-secondary">Voltar à lista</a>
+            <button type="button" class="btn-primary" onclick="saveTab('politicas')">Salvar políticas</button>
+            <span class="save-confirm" id="saved-msg-politicas">✓ Políticas salvas</span>
+          </div>
+        </div><!-- /panel-politicas -->
+
+        <!-- ═══ TAB 4 — FORMULÁRIO DE RESERVA (empty, but now a real inline builder —
+             fixed 2026-09-17: previously just a CTA linking out to 03-service-edit.html
+             ("go look at an example"), the only tab that didn't let you interact in place
+             the way Recursos/Políticas already did. Found via user testing: "there is no
+             way to create a single question?" ═══ -->
+        <div class="editor-panel" id="panel-intake" role="tabpanel" aria-labelledby="tab-intake">
+          <p style="opacity:.7;margin-bottom:1rem;">
+            Este serviço aceita reservas sem perguntas adicionais nem termo de consentimento até que um
+            formulário seja publicado. Adicione uma pergunta abaixo se precisar coletar informações (ex.:
+            restrições de saúde) ou exigir aceite de termos antes da reserva — totalmente opcional.
+          </p>
+
+          <div class="card">
+            <h2 style="font-size:1.05rem;margin-bottom:0.25rem;">Perguntas do formulário</h2>
+            <p class="form-hint" style="margin-bottom:1rem;">Ordem importa — é a ordem em que o cliente vê as perguntas.</p>
+            <div id="questions-list" class="questions-list"></div>
+            <p class="form-hint questions-empty-hint" style="text-align:center;padding:1rem 0;">Nenhuma pergunta ainda — clique abaixo para adicionar a primeira.</p>
+            <button type="button" class="btn-secondary" style="width:100%;" onclick="addQuestion('intake')">+ Adicionar pergunta</button>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Participantes</h2>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Solicitar contagem de participantes</div><div class="toggle-sub">Ex.: uma aula em grupo pode exigir só o número de pessoas</div></div>
+              <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+            </div>
+            <div class="toggle-row" style="margin-bottom:0;">
+              <div><div class="toggle-label">Solicitar participantes nomeados</div><div class="toggle-sub">Ex.: uma sala de reunião pode exigir uma lista de nomes</div></div>
+              <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Termo de consentimento</h2>
+            <div class="form-group">
+              <label class="form-label" for="consent-text">Texto do termo</label>
+              <textarea id="consent-text" class="form-textarea" style="min-height:110px;" placeholder="Escreva o termo que o cliente precisa aceitar (obrigatório para publicar)…"></textarea>
+            </div>
+          </div>
+
+          <div class="intake-publish-bar" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--ba-secondary);">
+            <p class="form-hint" style="margin:0;max-width:24rem;" id="intake-publish-hint">Precisa de pelo menos 1 pergunta e um termo de consentimento para publicar.</p>
+            <span class="save-row">
+              <button type="button" class="btn-primary" style="white-space:nowrap;padding:0.75rem 1.25rem;" disabled id="intake-publish-btn" onclick="publishFirstIntakeVersion()">Publicar formulário de reserva</button>
+              <span class="save-confirm" id="saved-msg-intake">✓ Versão 1 publicada</span>
+            </span>
+          </div>
+        </div><!-- /panel-intake -->
+
+        </div><!-- /form col -->
+        <div class="detail-aside">
+          <div class="card" style="padding:1.25rem;">
+            <p style="font-size:0.6875rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:rgba(17,24,39,0.4);margin-bottom:0.75rem;">Status</p>
+            <span class="status-badge" style="background:#dcfce7;color:#166534;margin-bottom:1rem;display:inline-block;">Ativo</span>
+            <button type="button" id="aside-save-btn" class="btn-primary" style="display:block;width:100%;text-align:center;padding:0.75rem;margin-bottom:0.625rem;" onclick="saveTab(currentTab)">Salvar Detalhes</button>
+            <a href="01-servicos-list.html" class="btn-secondary" style="display:block;text-align:center;padding:0.75rem;">Voltar à lista</a>
+            <p class="form-hint" style="margin-top:0.75rem;" id="aside-save-hint">Salva só a aba atual — cada aba grava em um endpoint diferente (ver dev-notes.md).</p>
+            <hr style="border:none;border-top:1.5px solid #fecaca;margin:1rem 0;">
+            <a href="03b-deactivate-confirm.html" style="display:block;text-align:center;font-size:0.875rem;color:#dc2626;text-decoration:none;font-weight:500;">Desativar serviço →</a>
+          </div>
+        </div><!-- /aside -->
+      </div><!-- /detail-layout -->
       </div>
     </main>
   </div>
 
-  <!-- FAB — mobile create button -->
-  <a href="02-service-create.html" class="fab" title="Criar serviço">+</a>
-
   <!-- Bottom nav — mobile -->
   <nav class="bottom-nav">
     <a class="bottom-nav-item" href="../agenda/00-agenda.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Agenda
     </a>
     <a class="bottom-nav-item" href="../horarios/00-schedule.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Horários
     </a>
     <a class="bottom-nav-item active" href="../servicos/01-servicos-list.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
       Serviços
     </a>
     <a class="bottom-nav-item" href="../fidelidade/00-customer-search.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       Fidelidade
     </a>
     <button class="bottom-nav-item" onclick="openSheet()">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
       Mais
     </button>
   </nav>
@@ -353,43 +516,261 @@
     <div class="bottom-sheet-handle"></div>
     <p class="bottom-sheet-label">Somente Gerente</p>
     <a class="bottom-sheet-item" href="../../../manager/prototypes/equipe/01-team-list.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Equipe
     </a>
     <a class="bottom-sheet-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Configurações
     </a>
     <a class="bottom-sheet-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-      </svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       Hotsite
     </a>
     <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
-      <a href="../../../shared/staff-login.html"
-         style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
+      <a href="../../../shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sair
       </a>
     </div>
   </div>
 
   <script>
-    function openSheet() {
-      document.getElementById('manager-sheet').classList.add('open');
-      document.getElementById('sheet-backdrop').classList.add('open');
+    // Same dirty-tracking/save-scope mechanism as 03-service-edit.html — see that file's own
+    // comment for the full rationale. Formulário de reserva has no dirty tracking here (unlike
+    // 03) because there's genuinely nothing to type yet — it's a CTA linking out, not a form.
+    var TAB_LABELS = { detalhes: 'Detalhes', recursos: 'Recursos', politicas: 'Políticas de reserva', intake: 'Formulário de reserva' };
+    var currentTab = 'detalhes';
+    var dirtyTabs = { detalhes: false, recursos: false, politicas: false };
+
+    function showTab(name, btn) {
+      document.querySelectorAll('.editor-panel').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.editor-tab').forEach(el => { el.classList.remove('active'); el.setAttribute('aria-selected', 'false'); });
+      document.getElementById('panel-' + name).classList.add('active');
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      currentTab = name;
+      // The success banner is specific to "you just landed here from create" — only makes
+      // sense while looking at Detalhes, the tab that shows what was just submitted.
+      document.getElementById('success-banner').style.display = name === 'detalhes' ? '' : 'none';
+      updateAsideButton();
     }
-    function closeSheet() {
-      document.getElementById('manager-sheet').classList.remove('open');
-      document.getElementById('sheet-backdrop').classList.remove('open');
+
+    function updateAsideButton() {
+      var btn = document.getElementById('aside-save-btn');
+      var hint = document.getElementById('aside-save-hint');
+      if (!btn) return;
+      if (currentTab === 'intake') {
+        btn.style.display = 'none';
+        hint.textContent = 'A aba "Formulário de reserva" publica seu próprio formulário — não usa este botão.';
+      } else {
+        btn.style.display = '';
+        btn.textContent = 'Salvar ' + TAB_LABELS[currentTab];
+        hint.textContent = 'Salva só a aba "' + TAB_LABELS[currentTab] + '" — cada aba grava em um endpoint diferente.';
+      }
     }
+
+    function markDirty(tab) {
+      if (dirtyTabs[tab]) return;
+      dirtyTabs[tab] = true;
+      var dot = document.querySelector('.editor-tab[data-tab="' + tab + '"] .tab-dirty-dot');
+      if (dot) dot.style.display = 'inline-block';
+    }
+
+    function clearDirty(tab) {
+      dirtyTabs[tab] = false;
+      var dot = document.querySelector('.editor-tab[data-tab="' + tab + '"] .tab-dirty-dot');
+      if (dot) dot.style.display = 'none';
+    }
+
+    function showSavedConfirmation(tab) {
+      var el = document.getElementById('saved-msg-' + tab);
+      if (!el) return;
+      el.style.display = 'inline-flex';
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(function () { el.style.display = 'none'; }, 3000);
+    }
+
+    function saveTab(tab) {
+      clearDirty(tab);
+      showSavedConfirmation(tab);
+    }
+
+    ['detalhes', 'recursos', 'politicas'].forEach(function (tab) {
+      var panel = document.getElementById('panel-' + tab);
+      panel.addEventListener('input', function () { markDirty(tab); });
+      panel.addEventListener('change', function () { markDirty(tab); });
+    });
+
+    window.addEventListener('beforeunload', function (e) {
+      if (Object.keys(dirtyTabs).some(function (t) { return dirtyTabs[t]; })) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    // Same mechanism as 03-service-edit.html's identical function — checking a resource type
+    // reveals its own "Quantidade necessária"/"Elegíveis" detail (nothing to configure for a
+    // type this service doesn't use). Neither file wired this interactively before 2026-09-17.
+    // ═══ Question-list builder — same functions as 03-service-edit.html, added 2026-09-17
+    // (user testing: "there is no way to create a single question?"). This tab previously had
+    // no builder at all, just a CTA linking to 03-service-edit.html's example — the one tab
+    // that didn't let you interact in place. ═══
+    function slugifyFieldKey(label) {
+      if (!label) return '';
+      var normalized = label.normalize('NFD').replace(/[̀-ͯ]/g, '');
+      var words = normalized.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return '';
+      return words[0] + words.slice(1).map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join('');
+    }
+
+    function renumberQuestions(container) {
+      var cards = container.querySelectorAll('.question-card');
+      cards.forEach(function (card, i) {
+        card.querySelector('.question-order-badge').textContent = i + 1;
+        var actionBtns = card.querySelectorAll('.icon-btn');
+        actionBtns[0].disabled = i === 0;
+        actionBtns[1].disabled = i === cards.length - 1;
+      });
+      var emptyHint = container.parentElement.querySelector('.questions-empty-hint');
+      if (emptyHint) emptyHint.style.display = cards.length === 0 ? '' : 'none';
+      updateIntakePublishState();
+    }
+
+    function addQuestion(tab) {
+      var container = document.querySelector('#panel-' + tab + ' .questions-list');
+      var card = document.createElement('div');
+      card.className = 'question-card';
+      card.innerHTML =
+        '<div class="question-card-head">' +
+          '<div style="display:flex;align-items:center;gap:0.625rem;">' +
+            '<span class="question-order-badge"></span>' +
+            '<span class="radio-row-title question-title-preview">Nova pergunta</span>' +
+          '</div>' +
+          '<div class="question-row-actions">' +
+            '<button type="button" class="icon-btn" title="Mover para cima" aria-label="Mover pergunta para cima" onclick="moveQuestion(this, -1)">↑</button>' +
+            '<button type="button" class="icon-btn" title="Mover para baixo" aria-label="Mover pergunta para baixo" onclick="moveQuestion(this, 1)">↓</button>' +
+            '<button type="button" class="icon-btn" title="Remover" aria-label="Remover pergunta" onclick="removeQuestion(this)">×</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group" style="margin-bottom:0;">' +
+            '<label class="form-label">Rótulo (visível ao cliente)</label>' +
+            '<input class="form-input question-label-input" placeholder="Ex.: Precisa de acesso sem escadas?">' +
+            '<p class="form-hint question-fieldkey-hint">Chave interna: <code>—</code> (aparece ao digitar o rótulo)</p>' +
+          '</div>' +
+          '<div class="form-group" style="margin-bottom:0;">' +
+            '<label class="form-label">Tipo</label>' +
+            '<select class="form-input"><option selected>Texto livre</option><option>Participantes nomeados</option><option>Endereço de coleta</option></select>' +
+          '</div>' +
+        '</div>' +
+        '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;margin-top:0.75rem;"><input type="checkbox"> Obrigatória</label>';
+      container.appendChild(card);
+      renumberQuestions(container);
+      if (typeof markDirty === 'function') markDirty(tab);
+      card.querySelector('.question-label-input').focus();
+    }
+
+    function removeQuestion(btn) {
+      var card = btn.closest('.question-card');
+      var container = card.closest('.questions-list');
+      var tab = card.closest('.editor-panel').id.replace('panel-', '');
+      card.remove();
+      renumberQuestions(container);
+      if (typeof markDirty === 'function') markDirty(tab);
+    }
+
+    function moveQuestion(btn, direction) {
+      var card = btn.closest('.question-card');
+      var container = card.closest('.questions-list');
+      if (direction === -1 && card.previousElementSibling) {
+        container.insertBefore(card, card.previousElementSibling);
+      } else if (direction === 1 && card.nextElementSibling) {
+        container.insertBefore(card.nextElementSibling, card);
+      }
+      renumberQuestions(container);
+      var tab = card.closest('.editor-panel').id.replace('panel-', '');
+      if (typeof markDirty === 'function') markDirty(tab);
+    }
+
+    function updateIntakePublishState() {
+      var btn = document.getElementById('intake-publish-btn');
+      var hint = document.getElementById('intake-publish-hint');
+      if (!btn) return;
+      var hasQuestion = document.querySelectorAll('#panel-intake .question-card').length > 0;
+      var consentEl = document.getElementById('consent-text');
+      var hasConsent = !!(consentEl && consentEl.value.trim().length > 0);
+      btn.disabled = !(hasQuestion && hasConsent);
+      if (hasQuestion && hasConsent) {
+        hint.textContent = 'Publicar cria a primeira versão deste formulário para o serviço.';
+      } else if (!hasQuestion && !hasConsent) {
+        hint.textContent = 'Precisa de pelo menos 1 pergunta e um termo de consentimento para publicar.';
+      } else if (!hasQuestion) {
+        hint.textContent = 'Adicione pelo menos 1 pergunta para publicar.';
+      } else {
+        hint.textContent = 'Escreva o termo de consentimento para publicar.';
+      }
+    }
+
+    function publishFirstIntakeVersion() {
+      if (document.getElementById('intake-publish-btn').disabled) return;
+      clearDirty('intake');
+      showSavedConfirmation('intake');
+    }
+
+    document.addEventListener('input', function (e) {
+      if (e.target.id === 'consent-text') updateIntakePublishState();
+      if (!e.target.classList.contains('question-label-input')) return;
+      var card = e.target.closest('.question-card');
+      var key = slugifyFieldKey(e.target.value);
+      var hint = card.querySelector('.question-fieldkey-hint');
+      if (hint) {
+        hint.innerHTML = key
+          ? 'Chave interna: <code>' + key + '</code> — gerada automaticamente do rótulo, precisa ser única no formulário (<code>fieldKey</code>).'
+          : 'Chave interna: <code>—</code> (aparece ao digitar o rótulo)';
+      }
+      var titlePreview = card.querySelector('.question-title-preview');
+      if (titlePreview) titlePreview.textContent = e.target.value || 'Nova pergunta';
+    });
+
+    function toggleResourceType(checkbox) {
+      var row = checkbox.closest('.resource-check-row');
+      row.classList.toggle('checked', checkbox.checked);
+      row.querySelectorAll('.nested-selmode').forEach(function (el) {
+        el.style.display = checkbox.checked ? '' : 'none';
+      });
+    }
+
+    function toggleDurationPolicy(select) {
+      var isCustom = select.value === 'customer';
+      document.getElementById('pol-duration-detail').style.display = isCustom ? '' : 'none';
+
+      var pricingSelect = document.getElementById('pol-pricing');
+      pricingSelect.disabled = !isCustom;
+      pricingSelect.style.opacity = isCustom ? '1' : '0.6';
+      pricingSelect.value = 'fixed';
+      document.getElementById('pol-pricing-detail').style.display = 'none';
+      document.getElementById('pol-pricing-hint').textContent = isCustom
+        ? 'Obrigatório para "Cliente escolhe" — escolha "Por incremento de tempo" e preencha os campos abaixo antes de salvar (UC-055 A2).'
+        : 'Habilitado quando a duração é "Cliente escolhe" — obrigatório nesse caso (UC-055 A2).';
+    }
+
+    function togglePricingPolicy(select) {
+      document.getElementById('pol-pricing-detail').style.display = select.value === 'increment' ? '' : 'none';
+    }
+
+    function selectResourceMode(mode) {
+      var isLegs = mode === 'legs';
+      document.getElementById('resmode-flat').classList.toggle('selected', !isLegs);
+      document.getElementById('resmode-legs').classList.toggle('selected', isLegs);
+      document.getElementById('flat-resource-config').style.display = isLegs ? 'none' : '';
+      document.getElementById('legs-resource-config').style.display = isLegs ? '' : 'none';
+      document.getElementById('resmode-hint').textContent = isLegs
+        ? '"Jornada com múltiplas etapas" selecionado — adicione pelo menos 2 etapas (UC-052 A1). Mutuamente exclusivo com recursos/pacote.'
+        : '"Recurso único ou pacote" selecionado — nenhum recurso marcado ainda (padrão do negócio se aplica). "Jornada com múltiplas etapas" mostra a tela de etapas — mutuamente exclusivo com recursos/pacote (UC-052).';
+    }
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
   </script>
 
 </body>

@@ -9,6 +9,7 @@ interface RemoveClosureDialogProps {
   readonly target: ScheduleClosure | null;
   readonly onClose: () => void;
   readonly onSubmit: (id: string) => Promise<void>;
+  readonly resourceNameById: ReadonlyMap<string, string>;
 }
 
 function getReasonLabel(t: (key: string) => string, reason: ScheduleClosure['reason']): string {
@@ -22,10 +23,13 @@ export function RemoveClosureDialog({
   target,
   onClose,
   onSubmit,
+  resourceNameById,
 }: RemoveClosureDialogProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.schedule');
 
   if (!open || !target) return null;
+
+  const resourceName = target.resourceId ? resourceNameById.get(target.resourceId) : undefined;
 
   return (
     <ScheduleRemovalDialog
@@ -44,6 +48,7 @@ export function RemoveClosureDialog({
         target.startTime && target.endTime ? `${target.startTime}–${target.endTime}` : t('allDay')
       }
       notesLabel={t('notesLabel')}
+      resourceLabel={resourceName ? `${t('resourcePickerLabel')}: ${resourceName}` : null}
     />
   );
 }

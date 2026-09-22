@@ -71,6 +71,20 @@ describe('TypeOrmServiceRepository (integration)', () => {
     expect(result).toBeNull();
   });
 
+  it('existsById is true for the owning tenant, false for another tenant and for an unknown id (isolation)', async () => {
+    const tenantId = '00000000-0000-0000-0000-000000000055';
+    const service = new ServiceBuilder().withTenantId(tenantId).build();
+    await repo.save(service);
+
+    await expect(repo.existsById(service.id, tenantId)).resolves.toBe(true);
+    await expect(repo.existsById(service.id, '00000000-0000-0000-0000-000000000099')).resolves.toBe(
+      false,
+    );
+    await expect(repo.existsById('00000000-0000-4000-8000-0000000000ff', tenantId)).resolves.toBe(
+      false,
+    );
+  });
+
   it('findAllByTenant returns only services for the given tenant', async () => {
     const tenantA = '00000000-0000-0000-0000-000000000053';
     const tenantB = '00000000-0000-0000-0000-000000000054';

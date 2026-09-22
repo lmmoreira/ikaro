@@ -81,7 +81,7 @@ type LayoutModuleEnvelope = z.infer<typeof LayoutModuleEnvelopeSchema>;
 // `type` membership and uniqueness are checked here (not left to the backend) because an unknown
 // or duplicate type breaks the *client* immediately once Aplicar merges it into `draft` —
 // LayoutTab/ModuleConfigShell key their rows and dnd-kit ids by `type`, and
-// HotsiteEditor.MODULE_CONFIG_PANELS[type] would be undefined for anything outside the known 8.
+// HotsiteEditor.MODULE_CONFIG_PANELS[type] would be undefined for anything outside the known 10.
 function validateLayoutModules(
   layout: readonly LayoutModuleEnvelope[],
 ): ManifestParseErrorReason | null {
@@ -89,16 +89,16 @@ function validateLayoutModules(
     return { code: 'tooManyModules', max: MODULE_ORDER.length };
   }
   const seenTypes = new Set<string>();
-  for (const module of layout) {
-    if (!MODULE_TYPE_SET.has(module.type)) {
-      return { code: 'unknownModuleType', moduleType: module.type };
+  for (const layoutModule of layout) {
+    if (!MODULE_TYPE_SET.has(layoutModule.type)) {
+      return { code: 'unknownModuleType', moduleType: layoutModule.type };
     }
-    if (seenTypes.has(module.type)) {
-      return { code: 'duplicateModuleType', moduleType: module.type };
+    if (seenTypes.has(layoutModule.type)) {
+      return { code: 'duplicateModuleType', moduleType: layoutModule.type };
     }
-    seenTypes.add(module.type);
-    if (!isValidModuleData(module.type as HotsiteModuleType, module.data)) {
-      return { code: 'invalidModuleData', moduleType: module.type };
+    seenTypes.add(layoutModule.type);
+    if (!isValidModuleData(layoutModule.type as HotsiteModuleType, layoutModule.data)) {
+      return { code: 'invalidModuleData', moduleType: layoutModule.type };
     }
   }
   return null;

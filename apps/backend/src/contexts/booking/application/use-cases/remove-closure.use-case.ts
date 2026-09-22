@@ -9,7 +9,7 @@ import {
   SCHEDULE_CLOSURE_REPOSITORY,
 } from '../ports/schedule-closure-repository.port';
 
-export type RemoveClosureInput = {
+export type RemoveClosureUseCaseInput = {
   id: string;
   tenantId: string;
 };
@@ -22,7 +22,7 @@ export class RemoveClosureUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: RemoveClosureInput): Promise<void> {
+  async execute(input: RemoveClosureUseCaseInput): Promise<void> {
     const { id, tenantId } = input;
     const closure = await this.closureRepo.findById(id, tenantId);
     if (!closure) throw new ScheduleClosureNotFoundError(id);

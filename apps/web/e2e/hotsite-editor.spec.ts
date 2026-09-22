@@ -11,8 +11,11 @@ import {
   updateHotsiteConfig,
 } from './helpers/hotsite';
 import {
+  getLeadFormConfig,
   getTenantSettings,
+  toLeadFormUpdateRequest,
   toUpdateRequest as toSettingsUpdateRequest,
+  updateLeadFormConfig,
   updateTenantSettings,
 } from './helpers/platform';
 
@@ -104,11 +107,13 @@ const HERO_PNG_BUFFER = makeSolidPng(1604, 494);
 test.describe.serial('hotsite editor (MANAGER)', () => {
   let original: HotsiteAdminContentResponse;
   let originalSettings: Awaited<ReturnType<typeof getTenantSettings>>;
+  let originalLeadForm: Awaited<ReturnType<typeof getLeadFormConfig>>;
 
   test.beforeEach(async ({ page }) => {
     await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
     original = await getHotsiteConfig(page);
     originalSettings = await getTenantSettings(page);
+    originalLeadForm = await getLeadFormConfig(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -125,6 +130,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       await unpublishHotsite(page);
     }
     await updateTenantSettings(page, toSettingsUpdateRequest(originalSettings.settings));
+    // LeadFormConfig is a separate aggregate from HotsiteConfig (audienceMode/questions, not
+    // part of layout[].data) — updateHotsiteConfig's restore above doesn't touch it, so it needs
+    // its own restore or a test that mutates it leaks state into every later run.
+    await updateLeadFormConfig(page, toLeadFormUpdateRequest(originalLeadForm));
   });
 
   test('loads with the Branding tab active by default, pre-filled with the tenant current values', async ({
@@ -445,7 +454,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     });
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
 
-    await page.locator('[data-testid="hero-background-image-position-right"]').click();
+    await page
+      .locator('[data-testid="hero-background-image-position"][data-value="right"]')
+      .click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -456,7 +467,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator(configureButton('HERO')).click();
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
     await expect(
-      page.locator('[data-testid="hero-background-image-position-right"]'),
+      page.locator('[data-testid="hero-background-image-position"][data-value="right"]'),
     ).toHaveAttribute('aria-checked', 'true');
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
@@ -488,9 +499,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     // Explicit, not assumed from seed state — the X picker only renders for 'centered' (M18-S05
     // review finding, PR #295).
-    await page.locator('[data-testid="hero-variant-centered"]').click();
-    await page.locator('[data-testid="hero-content-position-x-right"]').click();
-    await page.locator('[data-testid="hero-content-position-y-top"]').click();
+    await page.locator('[data-testid="hero-variant"][data-value="centered"]').click();
+    await page.locator('[data-testid="hero-content-position-x"][data-value="right"]').click();
+    await page.locator('[data-testid="hero-content-position-y"][data-value="top"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -499,14 +510,12 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.reload();
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
-    await expect(page.locator('[data-testid="hero-content-position-x-right"]')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    await expect(page.locator('[data-testid="hero-content-position-y-top"]')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await expect(
+      page.locator('[data-testid="hero-content-position-x"][data-value="right"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(
+      page.locator('[data-testid="hero-content-position-y"][data-value="top"]'),
+    ).toHaveAttribute('aria-checked', 'true');
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
     const heroSection = page.locator('[data-variant="centered"]');
@@ -531,8 +540,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator('#booking-cta-title').fill('Agende seu horário');
     await page.locator('#booking-cta-cta-label').fill('Agendar agora');
 
-    await page.locator('[data-testid="booking-cta-content-position-x-right"]').click();
-    await page.locator('[data-testid="booking-cta-content-position-y-top"]').click();
+    await page
+      .locator('[data-testid="booking-cta-content-position-x"][data-value="right"]')
+      .click();
+    await page.locator('[data-testid="booking-cta-content-position-y"][data-value="top"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -542,10 +553,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('BOOKING_CTA')).click();
     await expect(
-      page.locator('[data-testid="booking-cta-content-position-x-right"]'),
+      page.locator('[data-testid="booking-cta-content-position-x"][data-value="right"]'),
     ).toHaveAttribute('aria-checked', 'true');
     await expect(
-      page.locator('[data-testid="booking-cta-content-position-y-top"]'),
+      page.locator('[data-testid="booking-cta-content-position-y"][data-value="top"]'),
     ).toHaveAttribute('aria-checked', 'true');
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
@@ -576,7 +587,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     });
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
 
-    await page.locator('[data-testid="booking-cta-background-image-position-right"]').click();
+    await page
+      .locator('[data-testid="booking-cta-background-image-position"][data-value="right"]')
+      .click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -587,7 +600,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator(configureButton('BOOKING_CTA')).click();
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
     await expect(
-      page.locator('[data-testid="booking-cta-background-image-position-right"]'),
+      page.locator('[data-testid="booking-cta-background-image-position"][data-value="right"]'),
     ).toHaveAttribute('aria-checked', 'true');
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
@@ -637,7 +650,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     });
     await expect(page.getByTestId('gallery-image')).toHaveCount(2);
 
-    await page.getByTestId('gallery-layout-masonry').click();
+    await page.locator('[data-testid="gallery-layout"][data-value="masonry"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -676,10 +689,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     }
 
     // Exactly 5 images — "Destaque" must be selectable, not disabled.
-    const featuredPill = page.getByTestId('gallery-layout-featured');
+    const featuredPill = page.locator('[data-testid="gallery-layout"][data-value="featured"]');
     await expect(featuredPill).toBeEnabled();
     await featuredPill.click();
-    await page.getByTestId('gallery-featured-position-right').click();
+    await page.locator('[data-testid="gallery-featured-position"][data-value="right"]').click();
     await page.getByTestId('module-config-apply-desktop').click();
 
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -822,14 +835,15 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator('#booking-cta-cta-label').fill('Agendar agora');
 
     // Default datePickerType is carousel — carouselDays is visible
-    await expect(page.getByTestId('booking-cta-date-picker-type-carousel')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await expect(
+      page.locator('[data-testid="booking-cta-date-picker-type"][data-value="carousel"]'),
+    ).toHaveAttribute('aria-checked', 'true');
     await page.locator('#booking-cta-carousel-days').fill('21');
 
     // Switching to calendar hides carouselDays
-    await page.getByTestId('booking-cta-date-picker-type-calendar').click();
+    await page
+      .locator('[data-testid="booking-cta-date-picker-type"][data-value="calendar"]')
+      .click();
     await expect(page.locator('#booking-cta-carousel-days')).toHaveCount(0);
 
     await page.getByTestId('module-config-apply-desktop').click();
@@ -840,16 +854,17 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('BOOKING_CTA')).click();
 
-    await expect(page.getByTestId('booking-cta-date-picker-type-calendar')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    await expect(
+      page.locator('[data-testid="booking-cta-date-picker-type"][data-value="calendar"]'),
+    ).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('#booking-cta-carousel-days')).toHaveCount(0);
 
     // Switching back to carousel must reveal the *previously saved* carouselDays (21), not the
     // default (14) — proves the value actually persisted across the save/reload above, rather
     // than the mode toggle alone happening to look like it did.
-    await page.getByTestId('booking-cta-date-picker-type-carousel').click();
+    await page
+      .locator('[data-testid="booking-cta-date-picker-type"][data-value="carousel"]')
+      .click();
     await expect(page.locator('#booking-cta-carousel-days')).toHaveValue('21');
   });
 
@@ -1033,6 +1048,176 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await availableDay.click();
 
     await expect(availableDay).toHaveCSS('background-color', 'rgb(124, 58, 237)');
+  });
+
+  // M19-S12 — CHATBOT is the 9th module type, auto-materialized disabled by default (not in the
+  // seed, same as ABOUT/TESTIMONIALS/CONTACT above) via default-layout.ts's MODULE_ORDER. Its
+  // config panel is also the first to carry a standing disclosure note — asserted here alongside
+  // the field set, matching the prototype (01e-module-config-chatbot.html).
+  test('enables and configures Chatbot (variant, accent color, name, welcome message), and the changes survive a reload', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    await page.locator(layoutToggle('CHATBOT')).click();
+    await page.locator(configureButton('CHATBOT')).click();
+
+    await expect(page.getByTestId('chatbot-availability-note')).toBeVisible();
+
+    await page.locator('#chatbot-bot-name').fill('Bot da AutoSpa');
+    await page.locator('#chatbot-welcome-message').fill('Oi! Como posso ajudar você hoje?');
+    await page.locator('[data-testid="chatbot-variant"][data-value="inline"]').click();
+    await page.locator('[data-testid="chatbot-accent-color"][data-value="secondary"]').click();
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await expect(page.locator(layoutToggle('CHATBOT'))).toHaveAttribute('aria-checked', 'true');
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await expect(page.locator(layoutToggle('CHATBOT'))).toHaveAttribute('aria-checked', 'true');
+    await page.locator(configureButton('CHATBOT')).click();
+
+    await expect(page.locator('#chatbot-bot-name')).toHaveValue('Bot da AutoSpa');
+    await expect(page.locator('#chatbot-welcome-message')).toHaveValue(
+      'Oi! Como posso ajudar você hoje?',
+    );
+    await expect(
+      page.locator('[data-testid="chatbot-variant"][data-value="inline"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(
+      page.locator('[data-testid="chatbot-accent-color"][data-value="secondary"]'),
+    ).toHaveAttribute('aria-checked', 'true');
+  });
+
+  // M19-S12 — the cap-reached banner (UC-027 A5) is the only module-panel state sourced from a
+  // live read (GET /tenants/chatbot/cap-status) instead of draft.layout, so it's driven here via
+  // page.route() rather than real quota state — deterministic, and doesn't burn any of the
+  // tenant's real daily conversation cap (shared with chatbot-widget.spec.ts's real fake-adapter
+  // conversations against this same tenant).
+  test('shows the daily-cap-reached banner only when the cap-status endpoint reports it', async ({
+    page,
+  }) => {
+    await page.route('**/v1/tenants/chatbot/cap-status', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ dailyCapReachedToday: true }),
+      }),
+    );
+
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('CHATBOT')).click();
+
+    await expect(page.getByTestId('chatbot-cap-reached-banner')).toBeVisible();
+  });
+
+  test('hides the daily-cap-reached banner when the cap-status endpoint reports false', async ({
+    page,
+  }) => {
+    await page.route('**/v1/tenants/chatbot/cap-status', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ dailyCapReachedToday: false }),
+      }),
+    );
+
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await page.locator(configureButton('CHATBOT')).click();
+
+    await expect(page.getByTestId('chatbot-cap-reached-banner')).toHaveCount(0);
+  });
+
+  // M20-S08 — the same "manager configures a module, publishes, reload persists" pattern every
+  // other module type above already has. Deliberately does not cover a guest's own submission
+  // or reordering questions via drag-and-drop: the full config→submit→list→detail journey is
+  // M20-S10's own spanning golden-path E2E (needs M20-S09's public page, which doesn't exist
+  // yet), and drag-reorder has no E2E precedent anywhere in this file — handleDragEnd's own
+  // arrayMove logic is already covered at the Vitest layer.
+  test('configures LEAD_FORM (teaser, audience mode, a question), publishes, and the changes survive a reload', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    await page.locator(layoutToggle('LEAD_FORM')).click();
+    await page.locator(configureButton('LEAD_FORM')).click();
+    await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
+
+    await page.locator('#lead-form-teaser-title').fill('Fale com a nossa equipe');
+    await page.locator('#lead-form-teaser-subtitle').fill('Responda algumas perguntas rápidas');
+    await page.locator('#lead-form-teaser-cta').fill('Quero conversar');
+    await page.getByRole('radio', { name: 'Somente clientes logados' }).click();
+
+    await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
+    await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
+
+    await page.getByTestId('module-config-apply-desktop').click();
+
+    await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
+    await page.locator(configureButton('LEAD_FORM')).click();
+
+    await expect(page.locator('#lead-form-teaser-title')).toHaveValue('Fale com a nossa equipe');
+    await expect(page.locator('#lead-form-teaser-subtitle')).toHaveValue(
+      'Responda algumas perguntas rápidas',
+    );
+    await expect(page.locator('#lead-form-teaser-cta')).toHaveValue('Quero conversar');
+    await expect(page.getByRole('radio', { name: 'Somente clientes logados' })).toBeChecked();
+    await expect(page.getByTestId('lead-form-question-label')).toHaveValue(
+      'Qual serviço você procura?',
+    );
+  });
+
+  // Both PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID (docs/14-API_CONTRACTS.md) and this
+  // client-side check exist for the same rule — this proves they agree, same rationale as the
+  // branding-color and SEO-title tests above. Also exercises the module-config-preview -> Publish
+  // path specifically (not Aplicar), which is the one path that skipped this validation until a
+  // PR #429 review fix — Aplicar's own gate already has Vitest coverage in
+  // hotsite-editor-views.spec.tsx.
+  test('an invalid lead-form question blocks Publish from the module-config preview and shows the error banner', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.getByRole('tab', { name: 'Layout' }).click();
+
+    await page.locator(layoutToggle('LEAD_FORM')).click();
+    await page.locator(configureButton('LEAD_FORM')).click();
+    await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
+
+    await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
+    await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
+    await page.getByTestId('lead-form-question-type').selectOption('SINGLE_CHOICE');
+    await page.getByRole('button', { name: '+ Adicionar opção' }).click();
+    // E2E-1: static data-testid + a separate data-option-index attribute, not a template-literal
+    // testid — matches LeadFormQuestionField's own established data-option-* convention.
+    await page
+      .locator('[data-testid="lead-form-question-option-input"][data-option-index="0"]')
+      .fill('Somente uma opção');
+
+    await page.getByTestId('module-config-preview-desktop').click();
+    await page.getByTestId('hotsite-preview-publish-desktop').click();
+
+    await expect(page.getByTestId('hotsite-action-error-banner')).toContainText(
+      'Corrija as perguntas inválidas antes de publicar.',
+    );
+    // Back on the main tabs view (not still on the preview/module-config screen), and the earlier
+    // enable-toggle click is untouched by the blocked-publish path — this only short-circuits
+    // handlePublish, it never reverts draft.layout.
+    await expect(page.getByRole('tablist')).toBeVisible();
+    await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
   });
 });
 

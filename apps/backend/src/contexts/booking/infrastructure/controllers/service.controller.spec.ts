@@ -1,14 +1,24 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { InMemoryServiceIntakeSchemaRepository } from '../../../../test/repositories/booking/in-memory-service-intake-schema.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { ServiceBuilder } from '../../../../test/builders/booking/index';
+import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { ResourceType } from '../../domain/resource.types';
 import { ActivateServiceUseCase } from '../../application/use-cases/activate-service.use-case';
 import { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case';
 import { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case';
 import { GetServiceByIdUseCase } from '../../application/use-cases/get-service-by-id.use-case';
 import { GetServicesUseCase } from '../../application/use-cases/get-services.use-case';
+import { UpdateServiceLegsUseCase } from '../../application/use-cases/update-service-legs.use-case';
+import { UpdateServiceResourceRequirementsUseCase } from '../../application/use-cases/update-service-resource-requirements.use-case';
+import { UpdateServiceBookingPolicyUseCase } from '../../application/use-cases/update-service-booking-policy.use-case';
+import { PublishServiceIntakeSchemaUseCase } from '../../application/use-cases/publish-service-intake-schema.use-case';
+import { GetServiceIntakeSchemaUseCase } from '../../application/use-cases/get-service-intake-schema.use-case';
 import { UpdateServiceUseCase } from '../../application/use-cases/update-service.use-case';
 import { ServiceController } from './service.controller';
 
@@ -25,9 +35,21 @@ const validBody = {
 describe('ServiceController', () => {
   let controller: ServiceController;
   let repo: InMemoryServiceRepository;
+  let resourceRepo: InMemoryResourceRepository;
+  let intakeSchemaRepo: InMemoryServiceIntakeSchemaRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     repo = new InMemoryServiceRepository();
+    resourceRepo = new InMemoryResourceRepository();
+    intakeSchemaRepo = new InMemoryServiceIntakeSchemaRepository();
+    await resourceRepo.save(
+      new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.STAFF)
+        .withRefId(uuidv7())
+        .build(),
+    );
+    const bookingRepo = new InMemoryBookingRepository();
     const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
@@ -39,12 +61,17 @@ describe('ServiceController', () => {
     const bookingPlatform = new InMemoryBookingPlatformPort();
     controller = new ServiceController(
       ctx,
-      new CreateServiceUseCase(repo, bookingPlatform, txManager),
-      new GetServicesUseCase(repo),
-      new GetServiceByIdUseCase(repo),
+      new CreateServiceUseCase(repo, resourceRepo, bookingPlatform, txManager),
+      new GetServicesUseCase(repo, bookingPlatform),
+      new GetServiceByIdUseCase(repo, bookingPlatform),
       new ActivateServiceUseCase(repo, bookingPlatform, txManager),
-      new UpdateServiceUseCase(repo, bookingPlatform, txManager),
+      new UpdateServiceUseCase(repo, bookingRepo, resourceRepo, bookingPlatform, txManager),
       new DeactivateServiceUseCase(repo, bookingPlatform, txManager),
+      new UpdateServiceResourceRequirementsUseCase(repo, resourceRepo, bookingPlatform, txManager),
+      new UpdateServiceLegsUseCase(repo, resourceRepo, bookingPlatform, txManager),
+      new UpdateServiceBookingPolicyUseCase(repo, bookingPlatform, txManager),
+      new PublishServiceIntakeSchemaUseCase(repo, intakeSchemaRepo, bookingPlatform, txManager),
+      new GetServiceIntakeSchemaUseCase(repo, intakeSchemaRepo),
     );
   });
 
@@ -145,6 +172,187 @@ describe('ServiceController', () => {
 
     it('maps ServiceNotFoundError to 404', async () => {
       const err = await controller.activate('non-existent-id').catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('updateResourceRequirements()', () => {
+    it('sets a flat resource requirement', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.updateResourceRequirements(service.id, {
+        resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+      });
+
+      expect(result.resourceRequirements).toHaveLength(1);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .updateResourceRequirements('non-existent-id', {
+          resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('updateLegs()', () => {
+    it('sets sequential legs and returns the total span', async () => {
+      await resourceRepo.save(
+        new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build(),
+      );
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.updateLegs(service.id, {
+        legs: [
+          {
+            legIndex: 0,
+            name: 'Sauna',
+            durationMinutes: 20,
+            resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY' }],
+            transitionGapAfterMinutes: 10,
+          },
+          {
+            legIndex: 1,
+            name: 'Massagem',
+            durationMinutes: 50,
+            resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+          },
+        ],
+      });
+
+      expect(result.legs).toHaveLength(2);
+      expect(result.totalSpanMinutes).toBe(80);
+    });
+
+    it('maps BookingServiceLegsTooFewError to 422', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const err = await controller
+        .updateLegs(service.id, {
+          legs: [
+            {
+              legIndex: 0,
+              name: 'Sauna',
+              durationMinutes: 20,
+              resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+            },
+          ],
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+  });
+
+  describe('updateBookingPolicy()', () => {
+    it('sets booking policy fields', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.updateBookingPolicy(service.id, {
+        defaultApprovalMode: 'MANUAL_APPROVAL',
+        recurrenceEligible: true,
+      });
+
+      expect(result.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+      expect(result.bookingPolicy.recurrenceEligible).toBe(true);
+    });
+
+    it('maps ServiceDurationPolicyRequiresPricingError to 422 (UC-055 A2)', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const err = await controller
+        .updateBookingPolicy(service.id, { durationPolicy: 'CUSTOMER_SELECTED' })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .updateBookingPolicy('non-existent-id', { recurrenceEligible: true })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('publishIntakeSchema()', () => {
+    const validQuestions = [
+      {
+        fieldKey: 'accessNeeds',
+        label: 'Necessidades de acesso',
+        type: 'FREE_TEXT' as const,
+        required: false,
+      },
+    ];
+
+    it('publishes the first version, starting at 1', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.publishIntakeSchema(service.id, {
+        questions: validQuestions,
+        consentText: 'Concordo com os termos',
+      });
+
+      expect(result.version).toBe(1);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .publishIntakeSchema('non-existent-id', {
+          questions: validQuestions,
+          consentText: 'Concordo',
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('getIntakeSchema()', () => {
+    it('returns active: null and an empty history when nothing has been published', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.getIntakeSchema(service.id);
+      expect(result.active).toBeNull();
+      expect(result.history).toEqual([]);
+    });
+
+    it('returns the active version and prior versions in history after a publish', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+      await controller.publishIntakeSchema(service.id, {
+        questions: [
+          {
+            fieldKey: 'accessNeeds',
+            label: 'Necessidades de acesso',
+            type: 'FREE_TEXT' as const,
+            required: false,
+          },
+        ],
+        consentText: 'v1',
+      });
+
+      const result = await controller.getIntakeSchema(service.id);
+      expect(result.active?.version).toBe(1);
+      expect(result.history).toEqual([]);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .getIntakeSchema('00000000-0000-4000-8000-000000009999')
+        .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });

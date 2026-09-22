@@ -1,9 +1,11 @@
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceType } from '../../domain/resource.types';
 import {
   BookingNotFoundError,
   BookingForbiddenError,
@@ -27,13 +29,50 @@ const ctx = {
 
 describe('CancelBookingAsCustomerUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
   let useCase: CancelBookingAsCustomerUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
     bookingRepo = new InMemoryBookingRepository(eventBus);
-    useCase = new CancelBookingAsCustomerUseCase(bookingRepo, new InMemoryTransactionManager());
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
+    useCase = new CancelBookingAsCustomerUseCase(
+      bookingRepo,
+      occupancyRepo,
+      new InMemoryTransactionManager(),
+    );
+  });
+
+  it('releases the booking line(s) occupancy row(s) on cancellation (M22-S03)', async () => {
+    const scheduledAt = new Date(`${futureDate(10)}T13:00:00.000Z`);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withCustomerId(CUSTOMER_ID)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(scheduledAt)
+      .build();
+    await bookingRepo.save(booking);
+    occupancyRepo.seed(TENANT_A, booking.lines[0].lineId, {
+      resourceId: 'resource-1',
+      resourceType: ResourceType.LOCATION,
+      resourceName: 'Localização Principal',
+      legIndex: null,
+      quantityPosition: null,
+      startsAt: scheduledAt,
+      endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
+    });
+
+    await useCase.execute({ bookingId: booking.id, ...ctx });
+
+    const conflicting = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+      {
+        resourceId: 'resource-1',
+        startsAt: scheduledAt,
+        endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
+      },
+    ]);
+    expect(conflicting).toEqual([]);
   });
 
   describe('cancelling an APPROVED booking', () => {

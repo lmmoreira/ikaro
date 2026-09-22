@@ -11,7 +11,7 @@ import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-reposit
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { SubmitGuestBookingInfoDto } from '../dtos/submit-guest-booking-info.dto';
 
-export type SubmitGuestBookingInfoInput = SubmitGuestBookingInfoDto & {
+export type SubmitGuestBookingInfoUseCaseInput = SubmitGuestBookingInfoDto & {
   tenantId: string;
   correlationId: string;
 };
@@ -30,7 +30,9 @@ export class SubmitGuestBookingInfoUseCase {
     private readonly photoExistenceService: PhotoExistenceService,
   ) {}
 
-  async execute(input: SubmitGuestBookingInfoInput): Promise<SubmitGuestBookingInfoUseCaseResult> {
+  async execute(
+    input: SubmitGuestBookingInfoUseCaseInput,
+  ): Promise<SubmitGuestBookingInfoUseCaseResult> {
     const { tenantId, correlationId } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);

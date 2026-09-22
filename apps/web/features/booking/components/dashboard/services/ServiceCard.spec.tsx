@@ -32,6 +32,29 @@ function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceRes
     requiresPickupAddress: true,
     isActive: true,
     createdAt: '2026-06-01T00:00:00.000Z',
+    bookingModel: 'APPOINTMENT',
+    resourceRequirements: [],
+    bufferAfterMinutes: null,
+    legs: null,
+    classResourceSlots: null,
+    bookingPolicy: {
+      defaultApprovalMode: null,
+      manualHoldMinutes: null,
+      cancellationWindowHoursOverride: null,
+      rescheduleWindowHoursOverride: null,
+      minBookingAdvanceHoursOverride: null,
+      maxBookingAdvanceDaysOverride: null,
+      recurrenceEligible: false,
+      availabilityAlertEligible: false,
+      durationPolicy: 'FIXED',
+      durationMinMinutes: null,
+      durationMaxMinutes: null,
+      durationIncrementMinutes: null,
+      pricingPolicy: 'FIXED',
+      pricingIncrementMinutes: null,
+      pricePerIncrementAmount: null,
+      minimumChargeAmount: null,
+    },
     ...overrides,
   };
 }
@@ -55,5 +78,15 @@ describe('ServiceCard', () => {
     const link = screen.getByRole('link');
     expect(link.className).toContain('opacity-[0.55]');
     expect(screen.getByText('Inativo')).toBeInTheDocument();
+  });
+
+  it('renders the Turma badge iff bookingModel is SESSION', () => {
+    renderWithIntl(<ServiceCard service={makeService({ bookingModel: 'SESSION' })} />);
+    expect(screen.getByText('Turma')).toBeInTheDocument();
+  });
+
+  it('does not render the Turma badge for APPOINTMENT services', () => {
+    renderWithIntl(<ServiceCard service={makeService({ bookingModel: 'APPOINTMENT' })} />);
+    expect(screen.queryByText('Turma')).not.toBeInTheDocument();
   });
 });

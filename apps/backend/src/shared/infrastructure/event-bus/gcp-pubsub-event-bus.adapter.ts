@@ -7,21 +7,9 @@ import { AppLogger } from '../../observability/app-logger';
 import { IEventBus } from '../../ports/event-bus.port';
 import { IPushableEventBus } from '../../ports/pushable-event-bus.port';
 import { ITriggerBus } from '../../ports/trigger-bus.port';
-import { DEAD_LETTER_CHANNEL_NAME } from './dead-letter-channel.constant';
-
-interface PendingSubscription {
-  eventName: string;
-  topicName: string;
-  subscriptionName: string;
-  handler: (event: Envelope) => Promise<void>;
-}
-
-interface PendingTrigger {
-  triggerName: string;
-  topicName: string;
-  subscriptionName: string;
-  handler: () => Promise<void>;
-}
+import { PubSubTopicProvisioner } from './pubsub-topic-provisioner';
+import { publishToDlq } from './pubsub-dead-letter.publisher';
+import { PendingSubscription, PendingTrigger } from './pubsub-pending.types';
 
 @Injectable()
 export class GcpPubSubEventBusAdapter
@@ -32,7 +20,7 @@ export class GcpPubSubEventBusAdapter
   private readonly pending = new Map<string, PendingSubscription>();
   private readonly pendingTriggers = new Map<string, PendingTrigger>();
   private readonly active: Subscription[] = [];
-  private readonly ensuredTopics = new Set<string>();
+  private readonly topicProvisioner: PubSubTopicProvisioner;
 
   constructor(
     private readonly config: ConfigService,
@@ -42,11 +30,12 @@ export class GcpPubSubEventBusAdapter
     @Optional() private readonly tracingPort: ITracingPort = defaultTracingPort,
   ) {
     this.pubsub = new PubSub({ projectId: config.getOrThrow<string>('PUBSUB_PROJECT_ID') });
+    this.topicProvisioner = new PubSubTopicProvisioner(this.pubsub, this.config, this.logger);
   }
 
   async publish(event: Envelope): Promise<void> {
     const topicName = `ikaro-${event.eventName}`;
-    await this.ensureTopicOnce(topicName);
+    await this.topicProvisioner.ensureTopicOnce(topicName);
     await this.pubsub.topic(topicName).publishMessage({
       data: Buffer.from(JSON.stringify(event)),
       // event.traceContext (TD28) was captured once by OutboxPublisher.publish() at the moment
@@ -98,7 +87,7 @@ export class GcpPubSubEventBusAdapter
 
   async publishTrigger(name: string): Promise<void> {
     const topicName = `ikaro-${name}`;
-    await this.ensureTopicOnce(topicName);
+    await this.topicProvisioner.ensureTopicOnce(topicName);
     // Empty payload — mirrors what Cloud Scheduler's Pub/Sub target publishes in prod
     // (data = base64("{}")); the trigger carries no data, only "run now".
     await this.pubsub.topic(topicName).publishMessage({ data: Buffer.from('{}') });
@@ -121,34 +110,37 @@ export class GcpPubSubEventBusAdapter
     }
 
     for (const config of this.pending.values()) {
-      await this.ensureTopicOnce(config.topicName);
-      await this.ensureSubscription(config.topicName, config.subscriptionName);
-
-      const subscription = this.pubsub.subscription(config.subscriptionName);
-      subscription.on('message', (message: Message) => {
+      await this.attachSubscription(config.topicName, config.subscriptionName, (message) => {
         this.dispatch(message, config.eventName, config.handler).catch(() => undefined);
       });
-      subscription.on('error', (err: Error) => {
-        this.logger.error(`[pubsub] subscription error on ${config.subscriptionName}`, err.stack);
-      });
-      this.active.push(subscription);
-      this.logger.log(`[pubsub] listening on ${config.subscriptionName}`);
     }
 
     for (const config of this.pendingTriggers.values()) {
-      await this.ensureTopicOnce(config.topicName);
-      await this.ensureSubscription(config.topicName, config.subscriptionName);
-
-      const subscription = this.pubsub.subscription(config.subscriptionName);
-      subscription.on('message', (message: Message) => {
+      await this.attachSubscription(config.topicName, config.subscriptionName, (message) => {
         this.dispatchTrigger(message, config.triggerName, config.handler).catch(() => undefined);
       });
-      subscription.on('error', (err: Error) => {
-        this.logger.error(`[pubsub] subscription error on ${config.subscriptionName}`, err.stack);
-      });
-      this.active.push(subscription);
-      this.logger.log(`[pubsub] listening on ${config.subscriptionName}`);
     }
+  }
+
+  // Identical wiring for both pending maps in onApplicationBootstrap() above — the only
+  // difference between the two loops is which dispatch method the message handler calls, which
+  // stays inline at each call site so the dispatch()/dispatchTrigger() symmetry is visible at
+  // the call site, not hidden behind this helper.
+  private async attachSubscription(
+    topicName: string,
+    subscriptionName: string,
+    onMessage: (message: Message) => void,
+  ): Promise<void> {
+    await this.topicProvisioner.ensureTopicOnce(topicName);
+    await this.topicProvisioner.ensureSubscription(topicName, subscriptionName);
+
+    const subscription = this.pubsub.subscription(subscriptionName);
+    subscription.on('message', onMessage);
+    subscription.on('error', (err: Error) => {
+      this.logger.error(`[pubsub] subscription error on ${subscriptionName}`, err.stack);
+    });
+    this.active.push(subscription);
+    this.logger.log(`[pubsub] listening on ${subscriptionName}`);
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -184,18 +176,35 @@ export class GcpPubSubEventBusAdapter
       );
       message.ack();
     } catch (err) {
-      const attempt = message.deliveryAttempt ?? 1;
-      const max = this.config.get<number>('PUBSUB_MAX_DELIVERY_ATTEMPTS', 5);
-      this.logger.error(
-        `[pubsub] handler failed for ${eventName} (attempt ${attempt}/${max})`,
-        err instanceof Error ? err.stack : String(err),
+      await this.handleDispatchFailure(message, event, eventName, err);
+    }
+  }
+
+  private async handleDispatchFailure(
+    message: Message,
+    event: Envelope,
+    eventName: string,
+    err: unknown,
+  ): Promise<void> {
+    const attempt = message.deliveryAttempt ?? 1;
+    const max = this.config.get<number>('PUBSUB_MAX_DELIVERY_ATTEMPTS', 5);
+    this.logger.error(
+      `[pubsub] handler failed for ${eventName} (attempt ${attempt}/${max})`,
+      err instanceof Error ? err.stack : String(err),
+    );
+    if (attempt >= max) {
+      await publishToDlq(
+        this.pubsub,
+        this.topicProvisioner,
+        this.logger,
+        message,
+        event,
+        eventName,
+        err,
       );
-      if (attempt >= max) {
-        await this.publishToDlq(message, event, eventName, err);
-        message.ack();
-      } else {
-        message.nack();
-      }
+      message.ack();
+    } else {
+      message.nack();
     }
   }
 
@@ -283,65 +292,5 @@ export class GcpPubSubEventBusAdapter
     await this.tracingPort.startActiveSpan(`pubsub.event.${config.eventName}`, () =>
       config.handler(event),
     );
-  }
-
-  private async publishToDlq(
-    message: Message,
-    event: Envelope,
-    eventName: string,
-    err: unknown,
-  ): Promise<void> {
-    const dlqTopic = `ikaro-${DEAD_LETTER_CHANNEL_NAME}`;
-    await this.ensureTopicOnce(dlqTopic);
-    // event is spread into a new object below, never mutated — no defensive clone needed.
-    const enrichedData = {
-      ...event,
-      deadLetterReason: err instanceof Error ? err.message : String(err),
-      deliveryAttempt: message.deliveryAttempt ?? 1,
-    };
-    await this.pubsub.topic(dlqTopic).publishMessage({
-      data: Buffer.from(JSON.stringify(enrichedData)),
-      attributes: {
-        ...message.attributes,
-        originalEventName: eventName,
-      },
-    });
-    this.logger.warn(`[pubsub] routed to DLQ: ${eventName}`, {
-      eventId: event.eventId,
-      tenantId: event.tenantId,
-      deliveryAttempt: message.deliveryAttempt ?? 1,
-    });
-  }
-
-  private async ensureTopicOnce(topicName: string): Promise<void> {
-    if (!this.config.get<boolean>('PUBSUB_AUTO_CREATE', true)) return;
-    if (this.ensuredTopics.has(topicName)) return;
-    const [exists] = await this.pubsub.topic(topicName).exists();
-    if (!exists) {
-      try {
-        await this.pubsub.createTopic(topicName);
-        this.logger.log(`[pubsub] created topic ${topicName}`);
-      } catch (err) {
-        // gRPC ALREADY_EXISTS (code 6): another process beat us to creation — safe to ignore
-        if ((err as { code?: number }).code !== 6) throw err;
-      }
-    }
-    this.ensuredTopics.add(topicName);
-  }
-
-  private async ensureSubscription(topicName: string, subscriptionName: string): Promise<void> {
-    if (!this.config.get<boolean>('PUBSUB_AUTO_CREATE', true)) return;
-    const topic = this.pubsub.topic(topicName);
-    const subscription = topic.subscription(subscriptionName);
-    const [exists] = await subscription.exists();
-    if (!exists) {
-      try {
-        await topic.createSubscription(subscriptionName);
-        this.logger.log(`[pubsub] created subscription ${subscriptionName}`);
-      } catch (err) {
-        // gRPC ALREADY_EXISTS (code 6): another process beat us to creation — safe to ignore
-        if ((err as { code?: number }).code !== 6) throw err;
-      }
-    }
   }
 }

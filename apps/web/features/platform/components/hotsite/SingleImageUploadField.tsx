@@ -26,15 +26,17 @@ const TARGET_ASPECT_RATIO: Partial<Record<HotsiteImagePurpose, number>> = {
   'seo-og-image': 1200 / 630,
 };
 
-// Minimum post-compression stored height (M18-S04; extended to 'booking-cta' in M18-S05 — same
-// wide-banner mobile-crop treatment, same threshold) — only purposes rendered at the same 21:9
-// mobile aspect ratio get an entry, mirroring TARGET_ASPECT_RATIO's own "only purposes with a
-// real requirement get one" precedent. Sized to cover a 21:9 mobile crop (needs ~502px at a
-// typical 390px/3x-DPR phone) with at most a mild ~1.1x upscale — see
+// Minimum post-compression stored height (M18-S04; extended to 'booking-cta' in M18-S05, then to
+// 'lead-form' in M20-S08 — same wide-banner mobile-crop treatment, same threshold, since the
+// LEAD_FORM teaser is the same CTA-banner shape family as BOOKING_CTA) — only purposes rendered at
+// the same 21:9 mobile aspect ratio get an entry, mirroring TARGET_ASPECT_RATIO's own "only
+// purposes with a real requirement get one" precedent. Sized to cover a 21:9 mobile crop (needs
+// ~502px at a typical 390px/3x-DPR phone) with at most a mild ~1.1x upscale — see
 // plan/M18-BOOKING-IMPROVEMENTS.md M18-S04 for the derivation.
 const MINIMUM_STORED_HEIGHT: Partial<Record<HotsiteImagePurpose, number>> = {
   hero: 450,
   'booking-cta': 450,
+  'lead-form': 450,
 };
 
 interface SingleImageUploadFieldProps {
@@ -88,7 +90,7 @@ export function SingleImageUploadField({
   // A not-yet-promoted tmp/ upload lives in the private bucket — it can't resolve via the
   // public-bucket string template, so re-mounting this field after the local blob preview is
   // gone (e.g. a tab switch) needs a fresh private signed read URL instead (see
-  // td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview). Tagged with the `value` it was
+  // docs/14-API_CONTRACTS.md § tmp/ image preview). Tagged with the `value` it was
   // resolved for, so a stale URL from a previous tmp/ value is never rendered against a new one
   // while its own fetch is still pending — derived below, not reset via a synchronous setState
   // in the effect (see https://react.dev/learn/you-might-not-need-an-effect).
@@ -192,6 +194,7 @@ export function SingleImageUploadField({
         className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/50"
       >
         {displaySrc && status !== 'uploading' && (
+          /* eslint-disable-next-line @next/next/no-img-element -- preview may be a local object URL or signed storage URL */
           <img
             src={displaySrc}
             alt=""

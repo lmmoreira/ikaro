@@ -34,13 +34,14 @@ export function DashboardLayoutShell({
         dateFormat={resolveDashboardDateFormat(shell.formatting)}
         timeFormat={shell.formatting.timeFormat}
       >
-        <TenantProvider tenantId={shell.tenantId} tenantSlug={shell.tenantSlug}>
+        <TenantProvider tenantId={shell.tenantId} tenantSlug={shell.tenantSlug} role={shell.role}>
           <DashboardTopbarStatusProvider {...topbarStatusProps}>
             <DashboardShell
               tenantName={shell.tenantName}
               tenantSlug={shell.tenantSlug}
               userName={shell.userName}
               role={shell.role}
+              leadFormEnabled={shell.leadFormEnabled}
               topbarAction={topbarAction ?? null}
             >
               {children}

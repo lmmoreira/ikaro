@@ -33,7 +33,7 @@ export class HotsiteImagePromotionService {
    * Pure validation + path computation — call before the aggregate is mutated/saved. No storage
    * mutation happens here; the actual copy/delete is deferred to `executeImagePromotion`, called
    * via `scheduleAfterCommit()` only once the config is safely persisted (see
-   * td/TD22-ORPHANED-UPLOAD-CLEANUP.md — `config.updateContent()`'s `validateBranding()` can still
+   * docs/14-API_CONTRACTS.md — `config.updateContent()`'s `validateBranding()` can still
    * throw after this step, so storage must not be mutated until the save actually succeeds).
    */
   async prepareImagePromotion(
@@ -42,35 +42,13 @@ export class HotsiteImagePromotionService {
     seo: HotsiteSeo,
     tenantId: string,
   ): Promise<PreparedImagePromotion> {
-    const tenantPrefix = `tenants/${tenantId}/`;
-    const tmpPrefix = `tmp/${tenantId}/`;
-
-    // Existence checks are independent per path (no shared mutable state, no early-exit
-    // dependency between them) — run them concurrently rather than one round-trip at a time.
-    // A tenant with many gallery/testimonial images no longer pays for each one sequentially.
     const results = await Promise.all(
-      this.imagePathsService.collect(branding, layout, seo).map(async (path) => {
-        if (path.startsWith(tmpPrefix)) {
-          // Requires the hotsite-specific tmp/<tenantId>/<purpose>/<uuid>/<fileName> shape —
-          // layout module image fields (data: Record<string, unknown> in the DTO) carry no shape
-          // validation upstream, so this is the only gate standing between a same-tenant booking
-          // tmp/ upload and being promoted into the public hotsite bucket (both shapes share the
-          // tmp/<tenantId>/ prefix; only the extra purpose segment tells them apart).
-          if (!HOTSITE_TMP_PATH_REGEX.test(path) || extractTenantIdFromTmpPath(path) !== tenantId) {
-            throw new HotsiteImageNotUploadedError(path);
-          }
-          const exists = await this.storageService.exists(path, 'private');
-          if (!exists) throw new HotsiteImageNotUploadedError(path);
-
-          const newPermanentPath = `tenants/${tenantId}/hotsite/${path.slice(tmpPrefix.length)}`;
-          return { from: path, to: newPermanentPath };
-        }
-
-        if (!path.startsWith(tenantPrefix)) throw new HotsiteImageNotUploadedError(path);
-        const exists = await this.storageService.exists(path, 'public');
-        if (!exists) throw new HotsiteImageNotUploadedError(path);
-        return null;
-      }),
+      // Existence checks are independent per path (no shared mutable state, no early-exit
+      // dependency between them) — run them concurrently rather than one round-trip at a time.
+      // A tenant with many gallery/testimonial images no longer pays for each one sequentially.
+      this.imagePathsService
+        .collect(branding, layout, seo)
+        .map((path) => this.checkAndPreparePath(path, tenantId)),
     );
 
     const promotions = results.filter(
@@ -94,6 +72,53 @@ export class HotsiteImagePromotionService {
       seo: rewritten.seo,
       promotions,
     };
+  }
+
+  private async checkAndPreparePath(
+    path: string,
+    tenantId: string,
+  ): Promise<ImagePromotionOperation | null> {
+    const tmpPrefix = `tmp/${tenantId}/`;
+    if (path.startsWith(tmpPrefix)) {
+      // Requires the hotsite-specific tmp/<tenantId>/<purpose>/<uuid>/<fileName> shape —
+      // layout module image fields (data: Record<string, unknown> in the DTO) carry no shape
+      // validation upstream, so this is the only gate standing between a same-tenant booking
+      // tmp/ upload and being promoted into the public hotsite bucket (both shapes share the
+      // tmp/<tenantId>/ prefix; only the extra purpose segment tells them apart).
+      if (!HOTSITE_TMP_PATH_REGEX.test(path) || extractTenantIdFromTmpPath(path) !== tenantId) {
+        throw new HotsiteImageNotUploadedError(path);
+      }
+      const exists = await this.storageService.exists(path, 'private');
+      if (!exists) throw new HotsiteImageNotUploadedError(path);
+
+      const newPermanentPath = `tenants/${tenantId}/hotsite/${path.slice(tmpPrefix.length)}`;
+      return { from: path, to: newPermanentPath };
+    }
+
+    const tenantPrefix = `tenants/${tenantId}/`;
+    if (!path.startsWith(tenantPrefix)) throw new HotsiteImageNotUploadedError(path);
+    const exists = await this.storageService.exists(path, 'public');
+    if (!exists) throw new HotsiteImageNotUploadedError(path);
+    return null;
+  }
+
+  /**
+   * A `tenants/<tenantId>/...` path present before the write but absent from the new state is a
+   * now-superseded permanent object — safe to delete. Never touches paths outside this tenant's
+   * own prefix (e.g. a shared/default asset). UpdateHotsiteContentUseCase's own image-promotion
+   * step is the sole caller — also covers the LEAD_FORM module's own teaser image, folded into
+   * that same use case at M20-S08 (previously a separate UpdateLeadFormModuleUseCase call site).
+   */
+  computeDeletions(
+    oldPaths: string[],
+    branding: HotsiteBranding,
+    layout: HotsiteModule[],
+    seo: HotsiteSeo,
+    tenantId: string,
+  ): string[] {
+    const newPaths = this.imagePathsService.collect(branding, layout, seo);
+    const tenantPrefix = `tenants/${tenantId}/`;
+    return oldPaths.filter((path) => !newPaths.includes(path) && path.startsWith(tenantPrefix));
   }
 
   /**

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    /* ── Grid de cards no desktop ── */
+    .dash-grid {
+      display: flex; flex-direction: column; gap: 1.25rem;
+    }
+    @media (min-width: 1024px) {
+      .dash-grid {
+        display: grid;
+        grid-template-columns: 1fr 22rem;
+        grid-template-rows: auto auto 1fr;
+        gap: 1.25rem;
+        align-items: start;
+      }
+      .dash-col-full  { grid-column: 1 / -1; }
+      .dash-col-main  { grid-column: 1; }
+      .dash-col-aside { grid-column: 2; }
+    }
+
+    /* ── Saudação ── */
+    .greeting {
+      font-size: 1.0625rem; font-weight: 700; color: var(--ba-text);
+    }
+    .greeting-sub {
+      font-size: 0.8125rem; color: #6b7280; margin-top: 0.125rem;
+    }
+
+    /* ── Seção com título ── */
+    .section-header {
+      display: flex; align-items: baseline; gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-size: 0.875rem; font-weight: 700; color: var(--ba-text);
+    }
+    .section-link {
+      font-size: 0.8125rem; font-weight: 600; color: #2563eb;
+      text-decoration: none; margin-left: auto;
+    }
+
+    /* ── Alertas ── */
+    .alert-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .alert-card {
+      background: white; border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius); box-shadow: var(--ba-shadow);
+      padding: 0.875rem 1rem;
+      display: flex; align-items: flex-start; gap: 0.875rem;
+    }
+    .alert-card.alert-warn  { border-left: 3px solid #f59e0b; }
+    .alert-card.alert-error { border-left: 3px solid #dc2626; }
+    .alert-card.alert-info  { border-left: 3px solid #2563eb; }
+
+    .alert-icon {
+      width: 2rem; height: 2rem; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 0.0625rem;
+    }
+    .icon-warn  { background: #fef3c7; color: #d97706; }
+    .icon-error { background: #fee2e2; color: #dc2626; }
+    .icon-info  { background: #dbeafe; color: #2563eb; }
+
+    .alert-body { flex: 1; min-width: 0; }
+    .alert-title { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); margin-bottom: 0.1875rem; }
+    .alert-desc  { font-size: 0.8125rem; color: #6b7280; line-height: 1.4; }
+    .alert-action {
+      font-size: 0.8125rem; font-weight: 600; color: #2563eb;
+      text-decoration: none; background: none; border: none;
+      cursor: pointer; padding: 0; font-family: var(--ba-body-font);
+      margin-top: 0.4375rem; display: inline-block;
+    }
+
+    /* ── Agenda do dia (mini) ── */
+    .agenda-mini { display: flex; flex-direction: column; gap: 0.375rem; }
+
+    .agenda-row {
+      background: white; border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius); box-shadow: var(--ba-shadow);
+      padding: 0.75rem 1rem;
+      display: flex; align-items: center; gap: 0.75rem;
+      text-decoration: none; color: inherit;
+      transition: border-color 0.12s;
+    }
+    .agenda-row:hover { border-color: #93c5fd; }
+
+    .agenda-time {
+      flex-shrink: 0; width: 2.75rem;
+      font-size: 0.875rem; font-weight: 700; color: var(--ba-text);
+    }
+    .agenda-accent {
+      width: 3px; height: 2rem; border-radius: 9999px; flex-shrink: 0;
+    }
+    .acc-pilates  { background: #2563eb; }
+    .acc-crossfit { background: #7c3aed; }
+    .acc-yoga     { background: #0891b2; }
+    .acc-appt     { background: #059669; }
+
+    .agenda-info { flex: 1; min-width: 0; }
+    .agenda-name { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text);
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .agenda-meta { font-size: 0.8125rem; color: #6b7280; }
+
+    .agenda-badge {
+      font-size: 0.75rem; font-weight: 600; padding: 0.1875rem 0.5rem;
+      border-radius: 9999px; flex-shrink: 0; white-space: nowrap;
+    }
+    .ab-full  { background: #fef3c7; color: #92400e; }
+    .ab-ok    { background: #dcfce7; color: #15803d; }
+    .ab-low   { background: #dbeafe; color: #1d4ed8; }
+    .ab-pend  { background: #f3f4f6; color: #6b7280; }
+
+    .agenda-type-tag {
+      font-size: 0.625rem; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 0.125rem 0.4375rem; border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .att-aula { background: #ede9fe; color: #6d28d9; }
+    .att-appt { background: #d1fae5; color: #065f46; }
+
+    .agenda-more {
+      display: flex; align-items: center; justify-content: center; gap: 0.375rem;
+      padding: 0.625rem 1rem; border-radius: var(--ba-radius);
+      border: 1px dashed #d1d5db; color: #6b7280;
+      font-size: 0.8125rem; text-decoration: none;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .agenda-more:hover { border-color: #2563eb; color: #2563eb; }
+
+    /* ── Previsão de ações ── */
+    .forecast-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .forecast-card {
+      background: white; border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius); box-shadow: var(--ba-shadow);
+      padding: 0.875rem 1rem;
+    }
+    .forecast-when {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #9ca3af; margin-bottom: 0.3125rem;
+    }
+    .forecast-when.soon { color: #d97706; }
+    .forecast-title { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); margin-bottom: 0.1875rem; }
+    .forecast-desc  { font-size: 0.8125rem; color: #6b7280; line-height: 1.4; }
+
+    /* ── KPIs rápidos (aside) ── */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem; }
+
+    .kpi-card {
+      background: white; border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius); box-shadow: var(--ba-shadow);
+      padding: 0.875rem 1rem;
+    }
+    .kpi-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em;
+                 text-transform: uppercase; color: #9ca3af; margin-bottom: 0.375rem; }
+    .kpi-value { font-size: 1.375rem; font-weight: 700; color: var(--ba-text); line-height: 1.1; }
+    .kpi-sub   { font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; }
+    .kpi-trend { font-size: 0.75rem; font-weight: 600; margin-top: 0.25rem; }
+    .trend-up   { color: #16a34a; }
+    .trend-down { color: #dc2626; }
+
+    /* ── Ocupação barra ── */
+    .occ-bar-track { height: 5px; background: #f3f4f6; border-radius: 9999px; margin-top: 0.5rem; }
+    .occ-bar-fill  { height: 100%; border-radius: 9999px; background: #2563eb; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — manager: dashboard inicial.
+
+    UX decisions:
+    - Três zonas: alertas acionáveis → agenda do dia (resumo) → previsão de ações futuras
+    - KPIs financeiros no aside (desktop) ou abaixo (mobile) — leitura rápida, sem drill-down aqui
+    - Agenda do dia mostra só as próximas 4 entradas (aulas + appointments intercaladas por horário)
+      com link "Ver agenda completa" → manager-agenda-dia.html
+    - Alertas têm ação inline quando possível; caso contrário, link para a tela certa
+    - Previsão de ações: olhar para frente (amanhã / esta semana) — não repetir o que já está nos alertas
+    - Sem dados históricos nem gráficos — isso é relatório, não dashboard operacional
+
+    Nav: "Início" no menu (ativo), "Agenda" → manager-agenda-dia.html, "Aulas" → manager-turmas-list.html
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand">
+      <div class="sidebar-logo" style="width:1.75rem;height:1.75rem;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <h1 class="topbar-page-title">Início</h1>
+    <div style="margin-left:auto;">
+      <a href="../../../../plan/journey/shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item active" href="manager-dashboard.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Início
+        </a>
+        <a class="sidebar-nav-item" href="manager-agenda-dia.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="manager-turmas-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Aulas
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="#">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../plan/journey/shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div class="dash-grid">
+
+          <!-- Saudação -->
+          <div class="dash-col-full">
+            <div class="greeting">Bom dia, Ana.</div>
+            <div class="greeting-sub">Terça-feira, 12 de agosto · 3 itens precisam da sua atenção</div>
+          </div>
+
+          <!-- Coluna principal -->
+          <div class="dash-col-main" style="display:flex;flex-direction:column;gap:1.25rem;">
+
+            <!-- Alertas -->
+            <div>
+              <div class="section-header">
+                <span class="section-title">Pendências</span>
+              </div>
+              <div class="alert-list">
+
+                <div class="alert-card alert-error">
+                  <div class="alert-icon icon-error">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </div>
+                  <div class="alert-body">
+                    <div class="alert-title">2 pagamentos em atraso</div>
+                    <div class="alert-desc">Rafael Monteiro (Pilates, plano mensal) e Joana Lopes (CrossFit) estão com pagamento pendente há mais de 7 dias.</div>
+                    <a href="#" class="alert-action">Ver cobranças →</a>
+                  </div>
+                </div>
+
+                <div class="alert-card alert-warn">
+                  <div class="alert-icon icon-warn">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </div>
+                  <div class="alert-body">
+                    <div class="alert-title">3 aprovações pendentes</div>
+                    <div class="alert-desc">Novos alunos aguardam confirmação de vaga: 1 no Pilates das 08h, 2 no CrossFit das 19h.</div>
+                    <a href="#" class="alert-action">Aprovar agora →</a>
+                  </div>
+                </div>
+
+                <div class="alert-card alert-info">
+                  <div class="alert-icon icon-info">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                  <div class="alert-body">
+                    <div class="alert-title">Staff não definido — Yoga 18h</div>
+                    <div class="alert-desc">A sessão de hoje às 18h ainda não tem instrutor atribuído.</div>
+                    <a href="manager-definir-staff.html" class="alert-action">Definir staff →</a>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Próximos agendamentos -->
+            <div>
+              <div class="section-header">
+                <span class="section-title">Próximos agendamentos</span>
+                <a href="manager-agenda-dia.html" class="section-link">Ver agenda →</a>
+              </div>
+              <div class="agenda-mini">
+
+                <a href="#" class="agenda-row">
+                  <div class="agenda-time">09:30</div>
+                  <div class="agenda-accent acc-appt"></div>
+                  <div class="agenda-info">
+                    <div class="agenda-name">Avaliação — Fernanda Lima</div>
+                    <div class="agenda-meta">Carlos M. · Sala de avaliação</div>
+                  </div>
+                  <span class="agenda-badge ab-pend">Confirmado</span>
+                </a>
+
+                <a href="#" class="agenda-row">
+                  <div class="agenda-time">11:00</div>
+                  <div class="agenda-accent acc-appt"></div>
+                  <div class="agenda-info">
+                    <div class="agenda-name">Consulta — Bruno Nascimento</div>
+                    <div class="agenda-meta">Mariana L. · Sala de avaliação</div>
+                  </div>
+                  <span class="agenda-badge ab-pend" style="background:#fef3c7;color:#92400e;">Pendente</span>
+                </a>
+
+                <a href="#" class="agenda-row">
+                  <div class="agenda-time">14:00</div>
+                  <div class="agenda-accent acc-appt"></div>
+                  <div class="agenda-info">
+                    <div class="agenda-name">Retorno — Paula Reis</div>
+                    <div class="agenda-meta">Mariana L. · Sala de avaliação</div>
+                  </div>
+                  <span class="agenda-badge ab-pend">Confirmado</span>
+                </a>
+
+                <a href="manager-agenda-dia.html" class="agenda-more">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  + 2 agendamentos hoje
+                </a>
+
+              </div>
+            </div>
+
+            <!-- Próximas aulas -->
+            <div>
+              <div class="section-header">
+                <span class="section-title">Próximas aulas</span>
+                <a href="manager-agenda-dia.html" class="section-link">Ver roster →</a>
+              </div>
+              <div class="agenda-mini">
+
+                <a href="manager-agenda-dia.html" class="agenda-row">
+                  <div class="agenda-time">08:00</div>
+                  <div class="agenda-accent acc-pilates"></div>
+                  <div class="agenda-info">
+                    <div class="agenda-name">Pilates</div>
+                    <div class="agenda-meta">Carlos M. · Estúdio 1 · 4 alunos</div>
+                  </div>
+                  <span class="agenda-badge ab-full">4/4</span>
+                </a>
+
+                <a href="manager-agenda-dia.html" class="agenda-row">
+                  <div class="agenda-time">09:00</div>
+                  <div class="agenda-accent acc-pilates"></div>
+                  <div class="agenda-info">
+                    <div class="agenda-name">Pilates</div>
+                    <div class="agenda-meta">Mariana L. · Estúdio 2 · 3 alunos</div>
+                  </div>
+                  <span class="agenda-badge ab-ok">3/4</span>
+                </a>
+
+                <a href="manager-agenda-dia.html" class="agenda-row">
+                  <div class="agenda-time">10:00</div>
+                  <div class="agenda-accent acc-crossfit"></div>
+                  <div class="agenda-info">
+                    <div class="agenda-name">CrossFit</div>
+                    <div class="agenda-meta">Pedro A. · Área CrossFit · 20 alunos</div>
+                  </div>
+                  <span class="agenda-badge ab-full">20/20</span>
+                </a>
+
+                <a href="manager-agenda-dia.html" class="agenda-more">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  + 3 aulas hoje
+                </a>
+
+              </div>
+            </div>
+
+            <!-- Previsão de ações -->
+            <div>
+              <div class="section-header">
+                <span class="section-title">Nos próximos dias</span>
+              </div>
+              <div class="forecast-list">
+
+                <div class="forecast-card">
+                  <div class="forecast-when soon">Amanhã · Qua 13 ago</div>
+                  <div class="forecast-title">Yoga das 18h com baixa ocupação</div>
+                  <div class="forecast-desc">2 de 8 vagas preenchidas. Se a tendência continuar, considere divulgar a aula ou ajustar a recorrência.</div>
+                </div>
+
+                <div class="forecast-card">
+                  <div class="forecast-when soon">Em 2 dias · Qui 14 ago</div>
+                  <div class="forecast-title">3 planos vencem esta semana</div>
+                  <div class="forecast-desc">Camila Santos, Gustavo Henriques e Natália Pinto têm plano encerrando até sexta. Nenhum renovou ainda.</div>
+                </div>
+
+                <div class="forecast-card">
+                  <div class="forecast-when">Esta semana</div>
+                  <div class="forecast-title">Appointment de avaliação sem staff — Sex 15h</div>
+                  <div class="forecast-desc">Orlando Queirós tem avaliação marcada na sexta-feira às 15h, mas nenhum instrutor foi atribuído ainda.</div>
+                </div>
+
+              </div>
+            </div>
+
+          </div><!-- /col-main -->
+
+          <!-- Aside: KPIs -->
+          <div class="dash-col-aside">
+
+            <div class="section-header" style="margin-bottom:0.75rem;">
+              <span class="section-title">Este mês</span>
+              <span style="font-size:0.75rem;color:#9ca3af;margin-left:auto;">ago 2026</span>
+            </div>
+
+            <div class="kpi-grid" style="margin-bottom:1.25rem;">
+
+              <div class="kpi-card" style="grid-column:1/-1;">
+                <div class="kpi-label">Receita</div>
+                <div class="kpi-value">R$ 8.420</div>
+                <div class="kpi-trend trend-up">↑ 12% vs. julho</div>
+                <div class="occ-bar-track" style="margin-top:0.625rem;">
+                  <div class="occ-bar-fill" style="width:56%;background:#16a34a;"></div>
+                </div>
+                <div class="kpi-sub" style="margin-top:0.375rem;">56% da meta de R$ 15.000</div>
+              </div>
+
+              <div class="kpi-card">
+                <div class="kpi-label">Alunos ativos</div>
+                <div class="kpi-value">47</div>
+                <div class="kpi-trend trend-up">↑ 3 novos</div>
+              </div>
+
+              <div class="kpi-card">
+                <div class="kpi-label">Em atraso</div>
+                <div class="kpi-value" style="color:#dc2626;">R$ 380</div>
+                <div class="kpi-sub">2 alunos</div>
+              </div>
+
+              <div class="kpi-card" style="grid-column:1/-1;">
+                <div class="kpi-label">Ocupação média</div>
+                <div style="display:flex;align-items:baseline;gap:0.375rem;">
+                  <div class="kpi-value">74%</div>
+                  <div class="kpi-sub" style="margin:0;">das vagas</div>
+                </div>
+                <div class="occ-bar-track">
+                  <div class="occ-bar-fill" style="width:74%;"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Mini resumo de aulas desta semana -->
+            <div class="section-header">
+              <span class="section-title">Aulas esta semana</span>
+            </div>
+            <div style="background:white;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);box-shadow:var(--ba-shadow);overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:0.75rem;padding:0.625rem 1rem;border-bottom:1px solid #f3f4f6;">
+                <div style="width:0.625rem;height:0.625rem;border-radius:9999px;background:#2563eb;flex-shrink:0;"></div>
+                <span style="font-size:0.875rem;color:var(--ba-text);flex:1;">Pilates</span>
+                <span style="font-size:0.8125rem;font-weight:600;color:var(--ba-text);">18 sessões</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.75rem;padding:0.625rem 1rem;border-bottom:1px solid #f3f4f6;">
+                <div style="width:0.625rem;height:0.625rem;border-radius:9999px;background:#7c3aed;flex-shrink:0;"></div>
+                <span style="font-size:0.875rem;color:var(--ba-text);flex:1;">CrossFit</span>
+                <span style="font-size:0.8125rem;font-weight:600;color:var(--ba-text);">10 sessões</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.75rem;padding:0.625rem 1rem;">
+                <div style="width:0.625rem;height:0.625rem;border-radius:9999px;background:#0891b2;flex-shrink:0;"></div>
+                <span style="font-size:0.875rem;color:var(--ba-text);flex:1;">Yoga</span>
+                <span style="font-size:0.8125rem;font-weight:600;color:var(--ba-text);">4 sessões</span>
+              </div>
+            </div>
+
+          </div><!-- /aside -->
+
+        </div><!-- /dash-grid -->
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item active" href="manager-dashboard.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Início
+    </a>
+    <a class="bottom-nav-item" href="manager-agenda-dia.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="manager-turmas-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Aulas
+    </a>
+    <a class="bottom-nav-item" href="#">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+  </nav>
+
+</body>
+</html>

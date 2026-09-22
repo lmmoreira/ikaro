@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   EncodedOAuthState,
+  isValidReturnTo,
   isValidSlug,
   OAuthState,
   OAuthStateInvalidError,
@@ -26,13 +27,22 @@ function nonceMatches(a: string, b: string): boolean {
 export class OAuthStateService {
   constructor(private readonly jwt: JwtService) {}
 
-  encodeOAuthState(type: 'staff' | 'customer', tenantSlug?: string): EncodedOAuthState {
+  encodeOAuthState(
+    type: 'staff' | 'customer',
+    tenantSlug?: string,
+    returnTo?: string,
+  ): EncodedOAuthState {
     const slug = tenantSlug && isValidSlug(tenantSlug) ? tenantSlug : undefined;
+    // Invalid/mismatched returnTo is silently dropped, never rejected — it degrades to the
+    // existing hotsite-home fallback in handleTenantLogin, it must never fail the login itself.
+    const validReturnTo =
+      slug && returnTo && isValidReturnTo(returnTo, slug) ? returnTo : undefined;
     const nonce = randomUUID();
     const payload: OAuthStatePayload = {
       nonce,
       ...(type === 'staff' ? { loginType: 'staff' as const } : {}),
       ...(slug ? { tenantSlug: slug } : {}),
+      ...(validReturnTo ? { returnTo: validReturnTo } : {}),
     };
     const state = this.jwt.sign(payload, { expiresIn: OAUTH_STATE_TTL });
     return { state, nonce };
@@ -57,6 +67,16 @@ export class OAuthStateService {
         'OAuth state nonce does not match the browser that started the flow',
       );
     }
-    return { loginType: payload.loginType, tenantSlug: payload.tenantSlug };
+    // Defense in depth — the signature already protects the payload from tampering, but
+    // re-validating returnTo here means a future bug in encodeOAuthState (or a state signed by
+    // an older, pre-validation build during a rolling deploy) still can't reach handleTenantLogin
+    // with an unsafe redirect target.
+    const returnTo =
+      payload.returnTo &&
+      payload.tenantSlug &&
+      isValidReturnTo(payload.returnTo, payload.tenantSlug)
+        ? payload.returnTo
+        : undefined;
+    return { loginType: payload.loginType, tenantSlug: payload.tenantSlug, returnTo };
   }
 }

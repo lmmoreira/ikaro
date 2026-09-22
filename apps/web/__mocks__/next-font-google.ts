@@ -1,5 +1,8 @@
 // Replaces next/font/google in the Vitest environment.
 // The real module writes font metadata to disk during Next.js build — unusable in tests.
+// Curried (id) => () => {...}, not a plain object: real next/font/google exports are callable
+// (e.g. Inter({ subsets: ['latin'] })), so a mock export must stay callable too, or a component
+// invoking it as a function would throw against the mock while working fine against the real one.
 const font = (id: string) => (): { variable: string; className: string } => ({
   variable: `--font-${id}`,
   className: `font-${id}`,

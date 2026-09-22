@@ -1,5 +1,7 @@
 # M05 — Service Catalog: Implementation Details (AI Agent Reference)
 
+> ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
+
 **Milestone:** M05-SERVICE-CATALOG  
 **Status:** ✅ All 5 stories done  
 **Contexts touched:** `booking` (backend), `services` (BFF)

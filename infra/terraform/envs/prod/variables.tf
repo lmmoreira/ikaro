@@ -28,8 +28,24 @@ variable "brevo_smtp_login" {
   default     = ""
 }
 
+variable "cloudflare_account_id" {
+  description = "Cloudflare account ID (M20-S05) — plain, non-secret identifier, required by the cloudflare_turnstile_widget resource below (Turnstile widgets are account-scoped, not zone-scoped, unlike the DNS/ruleset resources in modules/edge). Not sensitive, but sourced from the vars.CLOUDFLARE_ACCOUNT_ID GitHub Actions repository variable (injected as TF_VAR_cloudflare_account_id in infra-deploy.yml) rather than committed to terraform.tfvars — same TF_VAR_* injection pattern as iam_admin_user/notification_email, by the user's preference. Discover via: the account's Overview page sidebar in the Cloudflare dashboard, or `cloudflare account list`."
+  type        = string
+
+  # A required variable with no default still silently accepts an empty string — confirmed live
+  # (2026-08-25): an unset vars.CLOUDFLARE_ACCOUNT_ID resolved to TF_VAR_cloudflare_account_id="",
+  # and `terraform plan` planned cloudflare_turnstile_widget.site for creation anyway, since
+  # Terraform doesn't call Cloudflare's API to validate account_id at plan time — the exact same
+  # class of gap var.turnstile_site_key had before it was replaced by this resource. This
+  # validation closes it explicitly, matching cloudflare_zone_id's own format check above.
+  validation {
+    condition     = can(regex("^[0-9a-f]{32}$", var.cloudflare_account_id))
+    error_message = "cloudflare_account_id must be a 32-character lowercase hex account ID, not empty or an account name."
+  }
+}
+
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token (S09 — scoped Zone:DNS:Edit + Zone:Cache Purge for ikaro.online only, never a Global API Key). A genuine secret — never committed: gitignored local.auto.tfvars / TF_VAR_cloudflare_api_token locally, the CLOUDFLARE_API_TOKEN GitHub Secret in the pipeline (S23/S24)."
+  description = "Cloudflare API token (S09 — scoped Zone:DNS:Edit + Zone:Cache Purge for ikaro.online only, never a Global API Key). A genuine secret — never committed: gitignored local.auto.tfvars / TF_VAR_cloudflare_api_token locally, the CLOUDFLARE_API_TOKEN GitHub Secret in the pipeline (S23/S24). M20-S05: this token also needs the Account > Turnstile > Edit permission added for the cloudflare_turnstile_widget resource below to be creatable — the original S09 scoping predates Turnstile and doesn't include it by default; add the permission to the existing token in the Cloudflare dashboard rather than minting a second token."
   type        = string
   sensitive   = true
 }
@@ -139,3 +155,4 @@ variable "region" {
   type        = string
   default     = "southamerica-east1"
 }
+

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Serviço — Erro no formulário — Massagem Relaxante — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.45); margin-bottom: 0.375rem; }
+    .form-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .form-textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; resize: vertical; min-height: 80px; }
+    .form-textarea.error { border-color: #ef4444; background: #fef2f2; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .form-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.375rem; display: flex; align-items: center; gap: 0.25rem; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+    .form-actions .btn-primary  { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
+    .editor-tabs { display: flex; gap: 0.25rem; padding: 0 0 1rem; border-bottom: 1px solid var(--ba-secondary); margin-bottom: 1.25rem; overflow-x: auto; }
+    .editor-tab { padding: 0.625rem 1rem; border-radius: var(--ba-radius) var(--ba-radius) 0 0; font-size: 0.9375rem; font-weight: 600; border: none; background: none; color: var(--ba-text); opacity: 0.5; cursor: pointer; white-space: nowrap; }
+    .editor-tab.active { opacity: 1; color: var(--ba-primary); border-bottom: 2px solid var(--ba-primary); margin-bottom: -1px; }
+    .tab-label-short { display: none; }
+    @media (max-width: 480px) { .tab-label-full { display: none; } .tab-label-short { display: inline; } }
+    .empty-state { text-align: center; padding: 2rem 1.5rem; border: 1.5px dashed #fca5a5; border-radius: var(--ba-radius); background: #fef2f2; }
+    .empty-state-icon { width: 3rem; height: 3rem; border-radius: 9999px; background: #fee2e2; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; color: #dc2626; }
+    .empty-state-title { font-weight: 700; font-size: 0.9375rem; color: #991b1b; margin-bottom: 0.375rem; }
+    .empty-state-desc { font-size: 0.875rem; color: #7f1d1d; opacity: 0.85; max-width: 26rem; margin: 0 auto; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+  <!--
+    Error-state sibling of 03-service-edit.html — Formulário de reserva tab, demonstrating
+    2 real 422s from PublishServiceIntakeSchemaSchema (packages/validation/src/booking.ts)
+    that had no prototype anywhere until this pass (UX review finding, 2026-09-17):
+      - questions: z.array(...).min(1) — admin removed both of Massagem Relaxante's
+        questions, 0 remain, publish blocked
+      - consentText: z.string().min(1) — admin also cleared the consent text
+    A third real validation (duplicate fieldKey across questions) isn't shown here since it
+    requires 2+ questions to collide — the question-list builder in 03-service-edit.html
+    already auto-derives fieldKey from the label, so a same-label duplicate is the realistic
+    trigger; noted in dev-notes.md as a case to design for rather than fully mocked here.
+
+    Only the "Formulário de reserva" tab differs from 03-service-edit.html's happy path;
+    Detalhes/Recursos/Políticas de reserva are omitted for brevity, same convention as
+    03d-service-edit-policy-error.html.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — UC-054 — formulário sem perguntas e sem termo de consentimento
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="01-servicos-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="topbar-brand" style="font-weight:600;">Serviços</span>
+    </a>
+    <h1 class="topbar-page-title">Editar serviço — Massagem Relaxante</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <span class="status-badge" style="background:#dcfce7;color:#166534;font-size:0.75rem;">Ativo</span>
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 17 de setembro de 2026</span>
+    </div>
+  </div>
+
+  <main class="main-content">
+    <div class="dashboard-body">
+      <div class="detail-layout"><div>
+
+      <div class="editor-tabs" role="tablist">
+        <button class="editor-tab" role="tab" aria-selected="false" onclick="location.href='03-service-edit.html'"><span class="tab-label-full">Detalhes</span><span class="tab-label-short">Detalhes</span></button>
+        <button class="editor-tab" role="tab" aria-selected="false" onclick="location.href='03-service-edit.html'"><span class="tab-label-full">Recursos</span><span class="tab-label-short">Recursos</span></button>
+        <button class="editor-tab" role="tab" aria-selected="false" onclick="location.href='03-service-edit.html'"><span class="tab-label-full">Políticas de reserva</span><span class="tab-label-short">Políticas</span></button>
+        <button class="editor-tab active" role="tab" aria-selected="true" aria-controls="panel-intake"><span class="tab-label-full">Formulário de reserva</span><span class="tab-label-short">Formulário</span></button>
+      </div>
+
+      <div class="editor-panel" id="panel-intake" role="tabpanel">
+        <p style="opacity:.7;margin-bottom:1rem;">
+          Perguntas que o cliente responde ao reservar este serviço, termo de consentimento e regras de
+          participantes.
+        </p>
+
+        <div class="card">
+          <h2 style="font-size:1.05rem;margin-bottom:0.25rem;">Perguntas do formulário</h2>
+          <p class="form-hint" style="margin-bottom:1rem;">Ordem importa — é a ordem em que o cliente vê as perguntas.</p>
+
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <p class="empty-state-title">Nenhuma pergunta — obrigatório pelo menos 1</p>
+            <p class="empty-state-desc">As duas perguntas de Massagem Relaxante foram removidas. Um formulário de reserva precisa de pelo menos 1 pergunta para ser publicado (UC-054).</p>
+          </div>
+
+          <button type="button" class="btn-secondary" style="width:100%;margin-top:1rem;">+ Adicionar pergunta</button>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Participantes</h2>
+          <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-radius:var(--ba-radius);background:var(--ba-secondary);margin-bottom:0.75rem;">
+            <div><div style="font-weight:600;font-size:0.9375rem;">Solicitar contagem de participantes</div></div>
+            <button class="toggle-switch" style="width:2.75rem;height:1.5rem;border-radius:9999px;background:#d1d5db;position:relative;cursor:pointer;flex-shrink:0;border:none;padding:0;" onclick="this.classList.toggle('on')"><span style="position:absolute;top:2px;left:2px;width:1.25rem;height:1.25rem;border-radius:9999px;background:white;"></span></button>
+          </div>
+          <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-radius:var(--ba-radius);background:var(--ba-secondary);margin-bottom:0;">
+            <div><div style="font-weight:600;font-size:0.9375rem;">Solicitar participantes nomeados</div></div>
+            <button class="toggle-switch" style="width:2.75rem;height:1.5rem;border-radius:9999px;background:#d1d5db;position:relative;cursor:pointer;flex-shrink:0;border:none;padding:0;" onclick="this.classList.toggle('on')"><span style="position:absolute;top:2px;left:2px;width:1.25rem;height:1.25rem;border-radius:9999px;background:white;"></span></button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Termo de consentimento</h2>
+          <div class="form-group">
+            <label class="form-label" for="consent-text">Texto do termo</label>
+            <textarea id="consent-text" class="form-textarea error" style="min-height:110px;" placeholder="Escreva o termo que o cliente precisa aceitar…"></textarea>
+            <p class="form-error">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Obrigatório — um formulário de reserva precisa de um termo de consentimento antes de publicar (UC-054).
+            </p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">Histórico de versões</h2>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0.875rem;border:1.5px solid #2563eb;background:#eff6ff;border-radius:var(--ba-radius);">
+            <div>
+              <span style="font-size:0.75rem;font-weight:700;">Versão 2</span>
+              <p style="font-size:0.8125rem;opacity:0.6;margin-top:0.125rem;">Publicada em 15/09/2026 — continua ativa até uma nova versão válida ser publicada</p>
+            </div>
+            <span style="font-size:0.6875rem;font-weight:700;color:#1d4ed8;background:#dbeafe;border-radius:9999px;padding:0.1875rem 0.625rem;">Atual</span>
+          </div>
+          <p class="form-hint" style="margin-top:0.75rem;">
+            A versão 2 continua em vigor para novas reservas até que uma versão válida seja publicada — remover
+            todas as perguntas aqui não desativa o formulário sozinho, só bloqueia salvar este estado como a
+            próxima versão.
+          </p>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--ba-secondary);">
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:0.75rem;font-size:0.8125rem;color:#dc2626;max-width:24rem;">
+            2 problemas: adicione pelo menos 1 pergunta e escreva o termo de consentimento antes de publicar.
+          </div>
+          <button class="btn-primary" style="white-space:nowrap;padding:0.75rem 1.25rem;opacity:.5;pointer-events:none;" disabled>Publicar nova versão</button>
+        </div>
+      </div><!-- /panel-intake -->
+
+      </div>
+      <aside class="detail-aside" aria-label="Ações">
+        <div class="card" style="padding:1.25rem;">
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:.75rem;margin-bottom:1rem;font-size:.8125rem;color:#dc2626;">
+            2 problemas: adicione pelo menos 1 pergunta e escreva o termo de consentimento antes de publicar.
+          </div>
+          <button class="btn-primary" style="display:block;width:100%;text-align:center;padding:.75rem;margin-bottom:.625rem;opacity:.5;pointer-events:none;" disabled>Publicar nova versão</button>
+          <a class="btn-secondary" href="03-service-edit.html" style="display:block;text-align:center;padding:.75rem">Voltar à edição</a>
+        </div>
+      </aside>
+      </div><!-- /detail-layout -->
+    </div>
+  </main>
+
+</body>
+</html>

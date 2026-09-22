@@ -9,6 +9,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendStaffInvitationDto } from '../../dtos/send-staff-invitation.dto';
+import { BaseNotificationDto } from '../../dtos/base-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -36,7 +37,9 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.STAFF_INVITATION;
 
-export type SendStaffInvitationUseCaseInput = SendStaffInvitationDto;
+export interface SendStaffInvitationUseCaseInput extends BaseNotificationDto {
+  staffId: SendStaffInvitationDto['staffId'];
+}
 
 export interface SendStaffInvitationUseCaseResult {
   sent: boolean;

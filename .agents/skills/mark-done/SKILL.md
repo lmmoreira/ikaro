@@ -1,6 +1,6 @@
 ---
 name: mark-done
-description: Mark a story as done in its milestone plan file and commit the change to main.
+description: Mark a story as done in its milestone plan file and commit the change to main. The last-mile check that acceptance criteria were truly met and no Critical/Important review finding was left unresolved - opens a bug-fix TD for any real gap found rather than silently marking done.
 metadata:
   short-description: Mark a story done in the milestone plan
 ---
@@ -9,9 +9,9 @@ Mark a story as done in its milestone plan file and commit the change to main.
 
 Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
-**TD stories** (`TDxx Story N`) are not covered by this command — `$ARGUMENTS` only parses `M0X-SYY` milestone syntax, and Step 6 requires being on `main`. Mark a TD story done by appending ` ✅ Done` directly to its `#### Story N —` heading in the `td/TDxx-*.md` file, bundled into the same feature-branch commit as the story's implementation — not as a separate post-merge `main` commit. See TD23 Stories 4-7 for precedent.
+**TD stories** (`TDxx Story N`) are not covered by this command — `$ARGUMENTS` only parses `M0X-SYY` milestone syntax, and Step 6 requires being on `main`. The same Step 4 audit discipline below (AC evidence, bot/review-finding resolution, bug-fix-TD-on-gap) still applies — only the mechanics of *where* `✅ Done` gets written differ. Mark a TD story done by appending ` ✅ Done` directly to its existing story heading in the `td/TDxx-*.md` file — **check that TD's own heading level first, don't assume one**: existing TDs mix `### Story N —` (three `#` — TD01, TD-18-19-20, TD-21, TD31, TD37) and `#### Story N —` (four `#` — TD23, TD30). New TDs drafted via `/create-td` standardize on three `#` going forward, but an existing TD keeps whatever level it already uses. Bundle the change into the same feature-branch commit as the story's implementation — not as a separate post-merge `main` commit. See TD23 Stories 4-7 for precedent.
 
-**Single-scope TDs** (no `#### Story N —` subdivision, just one `## Status` block for the whole TD — e.g. TD27) don't have a heading to append `✅ Done` to. Update the `- **State**:` line in that `## Status` block instead (e.g. `**State**: ✅ Done — implemented and merged via PR #<N> (<date>)`). Same bundling preference applies (into the feature-branch commit, not a separate post-merge commit) — only fall back to a standalone `main` commit if the branch is already merged and gone, as happened with TD27 (PR #185, 2026-07-22).
+**Single-scope TDs** (no `Story N —` subdivision at all, just one `## Status` block for the whole TD — e.g. TD27) don't have a heading to append `✅ Done` to. Update the `- **State**:` line in that `## Status` block instead (e.g. `**State**: ✅ Done — implemented and merged via PR #<N> (<date>)`). Same bundling preference applies (into the feature-branch commit, not a separate post-merge commit) — only fall back to a standalone `main` commit if the branch is already merged and gone, as happened with TD27 (PR #185, 2026-07-22).
 
 ---
 
@@ -25,15 +25,21 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    - If the line already ends with `✅ Done`, report "Already marked done — nothing to do." and stop.
    - If the story ID is not found, report the error and stop.
 
-4. **Before marking any milestone or TD story done:** independently audit every stated Acceptance Criterion against the repository and concrete verification evidence (for example, targeted tests, lint/type-check output, CI results, or an inspected live resource). A pre-existing `✅ Done` label, implementation claim, or green-looking diff is not evidence. Report the criterion-by-criterion evidence before changing the status. If any criterion is partial or unverified, stop and report the gap; never mark the story done with a silently-unmet criterion.
+4. **Before marking any milestone or TD story done:** independently audit every stated Acceptance Criterion against the repository and concrete verification evidence (for example, targeted tests, lint/type-check output, CI results, or an inspected live resource). A pre-existing `✅ Done` label, implementation claim, or green-looking diff is not evidence. Report the criterion-by-criterion evidence before changing the status.
 
-   For any `devops`/infra AC line describing *live* cloud state (an org policy, an IAM binding, an enabled API, a provisioned account, a DNS record — as opposed to a Terraform resource merely existing in committed code), confirm it was actually executed and verified — a runbook step that was written about but never run does not satisfy its AC. If any such line's live execution can't be confirmed right now, stop and ask the user whether to (a) execute/verify it now before marking done, or (b) mark the story done anyway, with that specific AC line annotated as an open follow-up — never mark done with a silently-unmet AC line.
+   **Also verify the bot/review chain actually resolved, not just merged.** Pull the merged PR's review comments (`gh api repos/lmmoreira/ikaro/pulls/<PR>/comments` and `.../reviews`) and confirm every Critical or Important finding — from `/pr-review`, CodeRabbit, or Codex — either has a visible fixing commit afterward or an explicit, reasoned dismissal in the thread. A PR that merged past an unaddressed Critical/Important finding is exactly as much a silently-unmet gap as an unverified AC line — treat it identically. Minor findings don't gate this.
 
-   If (b) is chosen, the only permitted extra edit beyond Step 5's heading change is a single line appended directly below that AC's own checkbox, in the form `  - ⚠️ Not verified as of <date> — <one-line reason>`; nothing else in the file changes. Before writing it, apply the doc/config gate explicitly: summarise the exact line you intend to add and ask *"May I now update `<path>`?"* — the earlier (a)/(b) choice is not itself that permission.
+   For any `devops`/infra AC line describing *live* cloud state (an org policy, an IAM binding, an enabled API, a provisioned account, a DNS record — as opposed to a Terraform resource merely existing in committed code), confirm it was actually executed and verified — a runbook step that was written about but never run does not satisfy its AC.
+
+   **Also check `docs/27-BUSINESS_LOGIC_REFERENCE.md`** if this story's bounded context has a section there: does that section still accurately describe the algorithm/state machine/formulas as this story actually shipped them, not as originally planned at story-discovery time? A story frequently changes its own design mid-implementation (bot review, a user decision) — the reference doc needs to reflect the merged result, not the discovery-time plan. If the context has no section yet but this story's own business logic is genuinely complex/cross-cutting (same bar as `/story-discovery`'s 4r check), that's a real gap too, not just a "changed section" one.
+
+   **If any AC line is partial/unverified, a devops live-state check can't be confirmed, or a Critical/Important review finding is unresolved — never mark the story done with the gap left silent.** Resolve it one of two ways:
+   - **Trivial** — fix it immediately as a follow-up commit, verify it, then mark done with no annotation needed.
+   - **Not trivial** — open a bug-fix TD via `/create-td` describing the specific gap (not a vague catch-all), then mark done with a single line appended directly below the affected AC checkbox (or directly below the story heading, for a review-finding gap with no single AC line): `  - ⚠️ <gap description> — tracked in <new TD ID>, <date>`. Before writing that line, apply the doc/config gate explicitly: summarise the exact line you intend to add and ask *"May I now update `<path>`?"* — choosing this resolution path is not itself that permission. Nothing else in the file changes beyond this line and the `✅ Done` heading edit itself.
 
    (M17-S14 precedent, 2026-07-17: S07 was marked ✅ Done while its own "project-level org-policy exceptions" AC line had never been executed — surfaced only during a later story's implementation, well after the fact.)
 
-5. Append ` ✅ Done` to the end of that heading line. Do not change any other content, except the single follow-up annotation Step 4 may have added under an unverified AC line.
+5. Append ` ✅ Done` to the end of that heading line. Do not change any other content, except the single follow-up annotation Step 4 may have added (under the affected AC checkbox, or under the story heading for a review-finding gap).
 
 6. Verify the current branch is `main`. If not, warn the user:
    > "You are on branch `<branch>`. This commit should go to main. Switch to main first, or confirm you want to commit here."
@@ -54,10 +60,20 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    Commit: <hash>
    ```
 
+8a. **If a worktree was used for this story, clean it up now — no need to ask** (CLAUDE.md §9 Step 11 authorizes this automatically as part of the same chain the story's READY verdict already authorized). If this session is currently inside that worktree, use `ExitWorktree` with `action: "remove"`. If already back in the main checkout with the worktree directory still present, remove it directly:
+   ```bash
+   git worktree remove .claude/worktrees/<name> --force
+   git branch -D <branch-name>
+   git fetch --prune origin
+   ```
+   Either way, verify the removal actually took with `git worktree list` — don't trust a success/error message alone (`ExitWorktree` can report it couldn't verify worktree state, e.g. after a branch rename mid-session; re-invoke with `discard_changes: true` once you've independently confirmed via `git status`/`git log origin/main..HEAD` that nothing is lost).
+
 9. Check whether ALL stories in the milestone plan file are now marked `✅ Done`. If yes, remind the agent:
    > "All stories in <milestone> are done. Per §9 Step 12, create both wrap-up files before reporting milestone complete:
    > - `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` — token-efficient reference for AI agents: artifacts table, gotchas, version facts, structural decisions. No prose, no tutorials.
    > - `plan/<milestone>_IMPLEMENTATION_DETAILS_DEVELOPER.md` — detailed learning doc for the human developer: explain every concept with rationale, real code examples from this codebase, and enough context that a developer can learn NestJS, DDD, and the engineering patterns used here just by reading it.
    > Then add the IA doc to §10 of CLAUDE.md.
    >
-   > **Also do a stale-documentation sweep before declaring the milestone complete** — this is a safety net for the per-story Definition of Done check (`docs/DEFINITION_OF_DONE.md`), which should have caught most of this already, but milestones this size reliably leave a few behind. For each story that replaced or removed an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint), grep `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, and CLAUDE.md itself for anything still describing the *old* version. Present findings to the user before editing (doc/config gate) — do not silently rewrite docs without confirmation."
+   > **Also do a stale-documentation sweep before declaring the milestone complete** — this is a safety net for the per-story Definition of Done check (`docs/DEFINITION_OF_DONE.md`), which should have caught most of this already, but milestones this size reliably leave a few behind. For each story that replaced or removed an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint), grep `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, and CLAUDE.md itself for anything still describing the *old* version. Present findings to the user before editing (doc/config gate) — do not silently rewrite docs without confirmation.
+   >
+   > **Also confirm `docs/27-BUSINESS_LOGIC_REFERENCE.md` reflects the milestone's final shipped design**, not just each story's own individual mark-done check (Step 4 above) — a later story in the same milestone sometimes changes an earlier story's algorithm in a way its own section never got updated for. Cross-check the whole milestone's relevant section(s) in one pass, not per-story."

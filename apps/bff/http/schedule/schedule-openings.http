@@ -1,0 +1,184 @@
+# BFF — Schedule Opening endpoints
+# UC-010c (create), UC-010d (remove), list; resource-scoped: UC-010f (M21 Cluster 1)
+# JWT required. Role: MANAGER or STAFF (MANAGER-only when resourceId is set).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#   4. pnpm --filter @ikaro/bff run dev
+#   5. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+# ── File-level response captures (updated automatically when login request runs) ──
+@managerToken  = {{managerLogin.response.body.accessToken}}
+@staffToken    = {{staffLogin.response.body.accessToken}}
+@customerToken = {{customerLogin.response.body.accessToken}}
+@openingId     = {{createOpening.response.body.id}}
+@resourceId    = 00000000-0000-7000-8000-000000000001
+
+# ── DEV AUTH — run each login once per session, then use the captured token ──
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "staff@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name customerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "cliente@email.com.br", "tenantSlug": "{{tenantSlug}}", "type": "customer" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list openings
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### List openings in December 2026
+GET {{bffUrl}}/v1/schedule/openings?from=2026-12-01&to=2026-12-31
+Authorization: Bearer {{managerToken}}
+
+###
+
+### List openings scoped to one resource (omit resourceId for tenant-wide only)
+GET {{bffUrl}}/v1/schedule/openings?from=2026-12-01&to=2026-12-31&resourceId={{resourceId}}
+Authorization: Bearer {{managerToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — create opening on a normally-closed day (UC-010c)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Create an opening for a normally-closed Sunday
+# @name createOpening
+POST {{bffUrl}}/v1/schedule/openings
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00",
+  "notes": "Special Sunday opening for end-of-year event"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — resource-scoped opening, MANAGER-only (UC-010f, M21 Cluster 1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Create a resource-scoped opening (set @resourceId to a real Resource id first)
+POST {{bffUrl}}/v1/schedule/openings
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00",
+  "resourceId": "{{resourceId}}",
+  "notes": "Extra Sunday for this resource only"
+}
+
+###
+
+### 403 — STAFF cannot set resourceId (UC-010f)
+POST {{bffUrl}}/v1/schedule/openings
+Content-Type: application/json
+Authorization: Bearer {{staffToken}}
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00",
+  "resourceId": "{{resourceId}}"
+}
+
+###
+
+### 404 — resourceId does not exist or belongs to another tenant (UC-010f A3)
+POST {{bffUrl}}/v1/schedule/openings
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00",
+  "resourceId": "00000000-0000-7000-8000-000000000099"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — remove opening (UC-010d)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Remove an opening
+# Run createOpening above first; @openingId is captured from its response.
+DELETE {{bffUrl}}/v1/schedule/openings/{{openingId}}
+Authorization: Bearer {{managerToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 422 — Past date
+POST {{bffUrl}}/v1/schedule/openings
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "date": "2020-01-01",
+  "startTime": "09:00",
+  "endTime": "14:00"
+}
+
+###
+
+### 422 — Day already open in businessHours
+POST {{bffUrl}}/v1/schedule/openings
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "date": "2026-12-28",
+  "startTime": "09:00",
+  "endTime": "14:00"
+}
+
+###
+
+### 403 — Customer token
+POST {{bffUrl}}/v1/schedule/openings
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00"
+}
+
+###
+
+### 404 — Opening not found
+DELETE {{bffUrl}}/v1/schedule/openings/00000000-0000-4000-8000-000000000099
+Authorization: Bearer {{managerToken}}

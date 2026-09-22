@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reserva confirmada — Pilates</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1rem; border-radius: var(--ba-radius); background: var(--ba-secondary); margin: 1.25rem 0; }
+    .toggle-label { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); }
+    .toggle-sub { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
+    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #d1d5db; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; }
+    .toggle-knob { position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
+    Rebuilt on review (2026-07-29): replaces the old single-file public-06, which
+    stacked "opt-in" and "manage" into one static page with no real navigation. This is
+    screen 1 of a 6-screen navigable sequence — see index.html's "Recurring enrollment"
+    group for the full chain (confirm+opt-in → activated → surfaces in Agendamentos →
+    manage (before) → skip one occurrence (after) → cancel series (final state)).
+
+    CAND-26's actor note ("likely Customer-only in practice") is resolved here: this
+    screen uses the AUTHENTICATED customer bar (avatar dropdown), not the guest "Entrar"
+    bar — recurring enrollment requires an account to return to and manage, which a
+    guest checkout doesn't have. The session-picker step before this (public-02) stays
+    guest-accessible for a one-off booking; only the recurrence opt-in requires login.
+
+    See ../multivertical-booking.md (§6 RecurringEnrollment) and
+    ../multivertical-booking_USECASES.md (CAND-26).
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — sequência de recorrência, tela 1 de 6
+  </div>
+
+  <!-- AUTHENTICATED bar — brand left, avatar dropdown right (per plan/journey/README.md's documented pattern) -->
+  <div class="dashboard-topbar">
+    <div class="topbar-brand" style="display:flex;">
+      <div class="topbar-logo-mark">V</div>
+      <span class="topbar-tenant-name">Vitta Studio</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <div style="position:relative;">
+        <details>
+          <summary style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;color:var(--ba-text);font-size:0.875rem;font-weight:500;padding:0;">
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;flex-shrink:0;">FL</div>
+            <span style="font-weight:600;">Fernanda Lima</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div style="position:absolute;right:0;top:calc(100% + 0.5rem);background:white;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);box-shadow:0 4px 12px rgba(0,0,0,.12);min-width:12rem;overflow:hidden;z-index:50;">
+            <a href="customer-03-minha-conta-agendamentos.html" style="display:flex;padding:0.625rem 1rem;font-size:0.875rem;color:var(--ba-text);text-decoration:none;">Meus agendamentos</a>
+            <a href="../../../../plan/journey/shared/hotsite.html" style="display:flex;padding:0.625rem 1rem;font-size:0.875rem;color:#dc2626;text-decoration:none;font-weight:500;">Sair</a>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-container">
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.375rem; color: var(--ba-text)">
+      Reserva confirmada!
+    </h2>
+
+    <div class="card" style="margin-top: 1rem;">
+      <p style="font-size: 0.75rem; font-weight: 600; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Turma</p>
+      <p style="font-weight: 600; color: var(--ba-text)">Pilates</p>
+      <p style="font-size: 0.875rem; color: var(--ba-primary); margin-top: 0.125rem;">Segunda, 04 de agosto às 08:00</p>
+    </div>
+
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Repetir esta turma toda segunda-feira</div>
+        <div class="toggle-sub">Cria reservas nas próximas turmas de Pilates de segunda, 08:00, até 31 de agosto — fim do seu contrato. Depois de renovar, você escolhe novamente se quer repetir.</div>
+      </div>
+      <button
+        class="toggle-switch"
+        role="switch"
+        aria-checked="false"
+        aria-label="Repetir esta turma toda segunda-feira"
+        onclick="toggleRecurrence(this)"
+      >
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
+
+    <div class="nav-buttons">
+      <a id="confirmBtn" class="btn-primary" href="../../../../plan/journey/customer/prototypes/minha-conta/01-minha-conta.html">Confirmar, só esta vez</a>
+    </div>
+  </div>
+
+  <script>
+    function toggleRecurrence(btn) {
+      const on = !btn.classList.contains('on');
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-checked', String(on));
+      btn.style.background = on ? 'var(--ba-primary)' : '#d1d5db';
+      btn.querySelector('.toggle-knob').style.transform = on ? 'translateX(1.25rem)' : 'none';
+
+      const confirmBtn = document.getElementById('confirmBtn');
+      if (on) {
+        confirmBtn.textContent = 'Confirmar recorrência';
+        confirmBtn.href = 'customer-02-recorrencia-ativada.html';
+      } else {
+        confirmBtn.textContent = 'Confirmar, só esta vez';
+        confirmBtn.href = '../../../../plan/journey/customer/prototypes/minha-conta/01-minha-conta.html';
+      }
+    }
+  </script>
+</body>
+</html>

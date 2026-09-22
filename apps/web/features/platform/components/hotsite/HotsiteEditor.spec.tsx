@@ -13,6 +13,7 @@ import {
   updateHotsiteConfig,
   publishHotsite,
   unpublishHotsite,
+  getLeadFormConfig,
 } from '@/features/platform/api/tenant-settings';
 import { fetchManifestClient } from '@/features/platform/api';
 import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
@@ -27,6 +28,8 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
   featureBookingPhoto: vi.fn(),
+  getLeadFormConfig: vi.fn(),
+  updateLeadFormConfig: vi.fn(),
 }));
 
 vi.mock('@/providers/tenant-provider', () => ({
@@ -50,6 +53,7 @@ const mockPublishHotsite = vi.mocked(publishHotsite);
 const mockUnpublishHotsite = vi.mocked(unpublishHotsite);
 const mockFetchManifestClient = vi.mocked(fetchManifestClient);
 const mockFetchServicesClient = vi.mocked(fetchServicesClient);
+const mockGetLeadFormConfig = vi.mocked(getLeadFormConfig);
 
 const INITIAL: HotsiteAdminContentResponse = {
   branding: {
@@ -138,6 +142,12 @@ describe('HotsiteEditor', () => {
     mockUnpublishHotsite.mockReset();
     mockFetchManifestClient.mockReset().mockResolvedValue(MANIFEST);
     mockFetchServicesClient.mockReset().mockResolvedValue([]);
+    mockGetLeadFormConfig.mockReset().mockResolvedValue({
+      title: '',
+      ctaLabel: '',
+      audienceMode: 'GUEST_AND_CUSTOMER',
+      questions: [],
+    });
   });
 
   afterEach(() => {
@@ -271,7 +281,7 @@ describe('HotsiteEditor', () => {
     // promotion the backend just performed (and deleted the tmp/ object for). Before this fix,
     // `draft` never absorbed that response, so a *second* save resubmitted the stale tmp/
     // reference — which the backend then rejects with HotsiteImageNotUploadedError, because the
-    // tmp/ object no longer exists (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
+    // tmp/ object no longer exists (see docs/14-API_CONTRACTS.md).
     it('refreshes the draft with the promoted path from the PATCH response, so a second save does not resubmit a dead tmp/ reference', async () => {
       const tmpPath = 'tmp/tenant-a-id/hero/u1/banner.png';
       const promotedPath = 'tenants/tenant-a-id/hotsite/hero/u1/banner.png';
@@ -577,8 +587,11 @@ describe('HotsiteEditor', () => {
         { type: 'SERVICE_LIST', testId: 'service-list-show-prices' },
         { type: 'GALLERY', testId: 'gallery-open-picker' },
         { type: 'TESTIMONIALS', testId: 'testimonials-add' },
-        { type: 'BOOKING_CTA', testId: 'booking-cta-variant-centered' },
-        { type: 'ABOUT', testId: 'about-image-position-left' },
+        // PillSelect (TD37-S23, Codex review PR #450) now shares one static data-testid per
+        // group (disambiguated by a separate data-value attribute) — this smoke check only
+        // needs to confirm the panel rendered something identifiable, not which option.
+        { type: 'BOOKING_CTA', testId: 'booking-cta-variant' },
+        { type: 'ABOUT', testId: 'about-image-position' },
         { type: 'CONTACT', testId: 'contact-show-address' },
         { type: 'FOOTER', testId: 'footer-show-whatsapp' },
       ];
@@ -589,7 +602,9 @@ describe('HotsiteEditor', () => {
             .getAllByTestId('layout-row-configure')
             .find((el) => el.dataset.moduleType === panel.type)!,
         );
-        expect(await screen.findByTestId(panel.testId)).toBeInTheDocument();
+        // findAllByTestId (not findByTestId) — a PillSelect group's options now share one static
+        // data-testid, so more than one match is expected for those two entries above.
+        expect((await screen.findAllByTestId(panel.testId)).length).toBeGreaterThan(0);
         await user.click(screen.getByTestId('module-config-cancel-desktop'));
         expect(await screen.findByRole('tablist')).toBeInTheDocument();
       }
@@ -708,6 +723,36 @@ describe('HotsiteEditor', () => {
       const submittedBody = mockUpdateHotsiteConfig.mock.calls[0]![0];
       const submittedHero = submittedBody.layout?.find((m) => m.type === 'HERO');
       expect((submittedHero?.data as { title: string }).title).toBe('Publicado direto');
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+    });
+
+    it('blocks Publish from that preview when a lead-form question is invalid, and submits nothing', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'LEAD_FORM')!,
+      );
+      await screen.findByTestId('lead-form-config-panel');
+
+      // A freshly added question starts with an empty label, which
+      // hasInvalidLeadFormQuestion rejects — no need to type anything to reach the invalid state.
+      await user.click(screen.getByRole('button', { name: '+ Adicionar pergunta' }));
+      await user.click(screen.getByTestId('module-config-preview-desktop'));
+      await user.click(
+        await screen.findByTestId('hotsite-preview-publish-desktop', {}, { timeout: 5000 }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-error-banner')).toHaveTextContent(
+          'Corrija as perguntas inválidas antes de publicar.',
+        );
+      });
+      expect(mockUpdateHotsiteConfig).not.toHaveBeenCalled();
+      expect(mockPublishHotsite).not.toHaveBeenCalled();
       expect(screen.getByRole('tablist')).toBeInTheDocument();
     });
   });

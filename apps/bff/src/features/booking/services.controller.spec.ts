@@ -9,6 +9,25 @@ const validCreateBody = {
   loyaltyPointsValue: 10,
 };
 
+const mockBookingPolicy = {
+  defaultApprovalMode: null,
+  manualHoldMinutes: null,
+  cancellationWindowHoursOverride: null,
+  rescheduleWindowHoursOverride: null,
+  minBookingAdvanceHoursOverride: null,
+  maxBookingAdvanceDaysOverride: null,
+  recurrenceEligible: false,
+  availabilityAlertEligible: false,
+  durationPolicy: 'FIXED' as const,
+  durationMinMinutes: null,
+  durationMaxMinutes: null,
+  durationIncrementMinutes: null,
+  pricingPolicy: 'FIXED' as const,
+  pricingIncrementMinutes: null,
+  pricePerIncrementAmount: null,
+  minimumChargeAmount: null,
+};
+
 const mockServiceDetail: ServiceDetail = {
   id: '10000000-0000-4000-8000-000000000001',
   name: 'Lavagem Completa',
@@ -19,6 +38,12 @@ const mockServiceDetail: ServiceDetail = {
   requiresPickupAddress: false,
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
+  bookingModel: 'APPOINTMENT',
+  resourceRequirements: [],
+  bufferAfterMinutes: 60,
+  legs: null,
+  classResourceSlots: null,
+  bookingPolicy: mockBookingPolicy,
 };
 
 const SERVICE_ID = '10000000-0000-4000-8000-000000000001';
@@ -47,6 +72,12 @@ describe('ServicesController', () => {
             requiresPickupAddress: false,
             isActive: true,
             createdAt: '2026-01-01T00:00:00.000Z',
+            bookingModel: 'APPOINTMENT',
+            resourceRequirements: [],
+            bufferAfterMinutes: 60,
+            legs: null,
+            classResourceSlots: null,
+            bookingPolicy: mockBookingPolicy,
           },
         ],
         total: 1,
@@ -131,6 +162,205 @@ describe('ServicesController', () => {
       const controller = new ServicesController(backendHttp);
 
       await expect(controller.update(SERVICE_ID, { name: 'X' })).rejects.toThrow('404');
+    });
+  });
+
+  describe('updateResourceRequirements()', () => {
+    it('calls PATCH /services/:id/resource-requirements with body', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue({ id: SERVICE_ID, resourceRequirements: [] }),
+      });
+      const controller = new ServicesController(backendHttp);
+      const body = {
+        resourceRequirements: [
+          { type: 'STAFF' as const, selectionMode: 'CUSTOMER_CHOICE' as const },
+        ],
+      };
+
+      const result = await controller.updateResourceRequirements(SERVICE_ID, body);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/resource-requirements`,
+        body,
+      );
+      expect(result.id).toBe(SERVICE_ID);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ patch: jest.fn().mockRejectedValue(new Error('422')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(
+        controller.updateResourceRequirements(SERVICE_ID, {
+          resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }],
+        }),
+      ).rejects.toThrow('422');
+    });
+  });
+
+  describe('updateLegs()', () => {
+    it('calls PUT /services/:id/legs with body', async () => {
+      const backendHttp = makeBackendHttp({
+        put: jest.fn().mockResolvedValue({ id: SERVICE_ID, legs: [], totalSpanMinutes: 0 }),
+      });
+      const controller = new ServicesController(backendHttp);
+      const body = { legs: [] };
+
+      const result = await controller.updateLegs(SERVICE_ID, body);
+
+      expect(backendHttp.put).toHaveBeenCalledWith(`/services/${SERVICE_ID}/legs`, body);
+      expect(result.id).toBe(SERVICE_ID);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ put: jest.fn().mockRejectedValue(new Error('422')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(controller.updateLegs(SERVICE_ID, { legs: [] })).rejects.toThrow('422');
+    });
+  });
+
+  describe('updateBookingPolicy()', () => {
+    it('calls PATCH /services/:id/booking-policy with body', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue({ id: SERVICE_ID, bookingPolicy: mockBookingPolicy }),
+      });
+      const controller = new ServicesController(backendHttp);
+      const body = { defaultApprovalMode: 'MANUAL_APPROVAL' as const };
+
+      const result = await controller.updateBookingPolicy(SERVICE_ID, body);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/booking-policy`,
+        body,
+      );
+      expect(result.id).toBe(SERVICE_ID);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ patch: jest.fn().mockRejectedValue(new Error('422')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(
+        controller.updateBookingPolicy(SERVICE_ID, { durationPolicy: 'CUSTOMER_SELECTED' }),
+      ).rejects.toThrow('422');
+    });
+  });
+
+  describe('publishIntakeSchema()', () => {
+    const publishBody = {
+      questions: [
+        {
+          fieldKey: 'accessNeeds',
+          label: 'Necessidades de acesso',
+          type: 'FREE_TEXT' as const,
+          required: false,
+        },
+      ],
+      consentText: 'Concordo com os termos',
+    };
+
+    it('calls POST /services/:id/intake-schema with body', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue({
+          id: 'schema-1',
+          version: 1,
+          questions: publishBody.questions,
+          consentText: publishBody.consentText,
+          consentVersion: 1,
+          requiresNamedAttendees: false,
+          participantCountRequired: false,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        }),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      const result = await controller.publishIntakeSchema(SERVICE_ID, publishBody);
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/intake-schema`,
+        publishBody,
+      );
+      expect(result.version).toBe(1);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ post: jest.fn().mockRejectedValue(new Error('409')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(controller.publishIntakeSchema(SERVICE_ID, publishBody)).rejects.toThrow('409');
+    });
+  });
+
+  describe('getEditView()', () => {
+    it('fans out to the service and its intake schema and returns one composite', async () => {
+      const get = jest
+        .fn()
+        .mockImplementation((path: string) =>
+          Promise.resolve(
+            path.endsWith('/intake-schema') ? { active: null, history: [] } : mockServiceDetail,
+          ),
+        );
+      const controller = new ServicesController(makeBackendHttp({ get }));
+
+      const result = await controller.getEditView(SERVICE_ID);
+
+      expect(get).toHaveBeenCalledWith(`/services/${SERVICE_ID}`);
+      expect(get).toHaveBeenCalledWith(`/services/${SERVICE_ID}/intake-schema`);
+      expect(result.service.serviceId).toBe(SERVICE_ID);
+      expect(result.intakeSchema).toEqual({ active: null, history: [] });
+    });
+
+    it('propagates a backend error from either read', async () => {
+      const get = jest.fn().mockRejectedValue(new Error('404'));
+      const controller = new ServicesController(makeBackendHttp({ get }));
+
+      await expect(controller.getEditView(SERVICE_ID)).rejects.toThrow('404');
+    });
+  });
+
+  describe('getIntakeSchema()', () => {
+    it('calls GET /services/:id/intake-schema and returns it mapped to the canonical response', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({
+          active: {
+            id: 'schema-2',
+            version: 2,
+            questions: [],
+            consentText: 'v2',
+            consentVersion: 2,
+            requiresNamedAttendees: false,
+            participantCountRequired: false,
+            createdAt: '2026-01-02T00:00:00.000Z',
+          },
+          history: [
+            {
+              id: 'schema-1',
+              version: 1,
+              questions: [],
+              consentText: 'v1',
+              consentVersion: 1,
+              requiresNamedAttendees: false,
+              participantCountRequired: false,
+              createdAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        }),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      const result = await controller.getIntakeSchema(SERVICE_ID);
+
+      expect(backendHttp.get).toHaveBeenCalledWith(`/services/${SERVICE_ID}/intake-schema`);
+      expect(result.active?.version).toBe(2);
+      expect(result.history).toHaveLength(1);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('404')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(controller.getIntakeSchema(SERVICE_ID)).rejects.toThrow('404');
     });
   });
 

@@ -100,4 +100,53 @@ describe('ListClosuresUseCase', () => {
     expect(items[0].startTime).toBeNull();
     expect(items[0].endTime).toBeNull();
   });
+
+  describe('resourceId (M21 Cluster 1)', () => {
+    const RESOURCE_ID = '00000000-0000-7000-8000-000000000003';
+
+    it('omitting resourceId returns only tenant-wide closures', async () => {
+      await repo.save(
+        new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate('2026-12-25').build(),
+      );
+      await repo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_ID)
+          .withResourceId(RESOURCE_ID)
+          .withDate('2026-12-25')
+          .build(),
+      );
+
+      const { items } = await useCase.execute({
+        from: '2026-12-01',
+        to: '2026-12-31',
+        tenantId: TENANT_ID,
+      });
+
+      expect(items).toHaveLength(1);
+      expect(items[0].resourceId).toBeNull();
+    });
+
+    it("providing resourceId returns only that resource's closures", async () => {
+      await repo.save(
+        new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate('2026-12-25').build(),
+      );
+      await repo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_ID)
+          .withResourceId(RESOURCE_ID)
+          .withDate('2026-12-26')
+          .build(),
+      );
+
+      const { items } = await useCase.execute({
+        from: '2026-12-01',
+        to: '2026-12-31',
+        tenantId: TENANT_ID,
+        resourceId: RESOURCE_ID,
+      });
+
+      expect(items).toHaveLength(1);
+      expect(items[0].resourceId).toBe(RESOURCE_ID);
+    });
+  });
 });

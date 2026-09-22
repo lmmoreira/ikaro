@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O que você gostaria de agendar?</title>
+  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <style>
+    .type-card { padding: 1.25rem; display: flex; align-items: center; gap: 1rem; text-decoration: none; }
+    .type-icon {
+      width: 3rem; height: 3rem; border-radius: var(--ba-radius); flex-shrink: 0;
+      background: var(--ba-secondary); color: var(--ba-primary);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .type-name { font-weight: 700; color: var(--ba-text); font-size: 1.0625rem; }
+    .type-meta { font-size: 0.8125rem; opacity: 0.65; margin-top: 0.125rem; }
+    .type-next { font-size: 0.8125rem; color: var(--ba-primary); font-weight: 600; margin-top: 0.375rem; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
+    See ../multivertical-booking.md (§2 taxonomy model #6 — multi-service
+    concurrent timetables) and ../multivertical-booking_USECASES.md (CAND-21).
+
+    This is the canonical booking entry point for Vitta Studio's hotsite. The customer
+    first chooses WHAT they want to book; only then do we expose the scheduling model.
+    Vitta can run different models side by side: Hair Styling (appointment, per-staff
+    choice), Pilates/CrossFit (session, capacity), a room (variable-duration exclusive
+    reservation), and composed services. Selecting a card routes into the appropriate
+    model while retaining the selected serviceId.
+
+    A staff profile/calendar is a deliberate deep link, for example from a professional's
+    profile or campaign. It is not the generic hotsite starting point: a generic customer
+    must select a service before choosing its eligible professional.
+
+    Today's hotsite (plan/journey/shared/hotsite.html) has one BookingCtaModule that
+    always leads into the SAME single-resource flow — this screen is the new fork point.
+  -->
+
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
+                  color:white;display:flex;align-items:center;justify-content:center;
+                  font-weight:700;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <a href="../../../../plan/journey/shared/login.html" style="display:flex;align-items:center;gap:0.375rem;
+       font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      Entrar
+    </a>
+  </div>
+
+  <div class="step-container">
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--ba-text)">
+      O que você gostaria de agendar?
+    </h2>
+
+    <ul style="display: flex; flex-direction: column; gap: 0.75rem; list-style: none; padding: 0;">
+
+      <li>
+        <a class="card type-card" href="public-02b-class-agenda.html">
+          <div class="type-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div style="flex:1;">
+            <p class="type-name">Pilates</p>
+            <!-- Fixed 2026-08-05: was "a partir de R$ 45,00" (starting from) — Service.price has no
+                 range/tier concept anywhere in the model, and every class_session_bookings example
+                 (multivertical-booking_DATA_MODEL.md §2, sb_1-sb_4) prices Pilates flat at R$60,00.
+                 Corrected to match, and dropped "a partir de" since nothing backs a range. -->
+            <p class="type-meta">Turmas de até 4 pessoas — R$ 60,00 por aula</p>
+            <p class="type-next">Próxima turma: hoje, 18:00 (2 vagas)</p>
+          </div>
+        </a>
+      </li>
+
+      <!-- Same ClassSessionList component as Pilates, filtered by serviceId=svc_crossfit —
+           taxonomy model #6: independent timetable, independent capacity, running concurrently. -->
+      <li>
+        <a class="card type-card" href="public-02b-class-agenda.html">
+          <div class="type-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 6.5l11 11M4 4l3 3M17 17l3 3M2.5 8.5l3-3M18.5 21.5l3-3M20 4l-3 3M4 20l3-3"/>
+            </svg>
+          </div>
+          <div style="flex:1;">
+            <p class="type-name">CrossFit</p>
+            <!-- Fixed 2026-08-05: dropped "a partir de" (same reasoning as the Pilates tile above) —
+                 no range/tier pricing concept exists in the model, so a flat number reads honestly. -->
+            <p class="type-meta">Turmas de até 20 pessoas — R$ 60,00 por aula</p>
+            <p class="type-next">Próxima turma: amanhã, 07:00 (12 vagas)</p>
+          </div>
+        </a>
+      </li>
+
+      <!-- Appointment-style, per-staff choice — model #2, not a class at all -->
+      <li>
+        <a class="card type-card" href="public-01-staff-picker.html">
+          <div class="type-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 3v18M18 3v18"/><path d="M6 8h12M6 16h12"/>
+            </svg>
+          </div>
+          <div style="flex:1;">
+            <!-- Fixed 2026-08-05: this tile said "Corte e Coloração" but links to public-01-staff-picker.html,
+                 which shows a differently-named service — "Corte + Escova — R$ 90,00 — 50 min". Renamed
+                 this tile to match (same price coincided, name didn't) and dropped "a partir de" for the
+                 same no-range-pricing reason as the Pilates/CrossFit tiles above. -->
+            <p class="type-name">Corte + Escova</p>
+            <p class="type-meta">Atendimento individual, escolha o profissional — R$ 90,00, 50 min</p>
+            <p class="type-next">Próximo horário: hoje, 15:30</p>
+          </div>
+        </a>
+      </li>
+
+      <!-- Bundle — model #7, added on review to close the CAND-18 gap -->
+      <li>
+        <a class="card type-card" href="public-04-bundle-booking.html">
+          <div class="type-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 5v10m-5-5h10"/>
+            </svg>
+          </div>
+          <div style="flex:1;">
+            <p class="type-name">Massagem Relaxante</p>
+            <p class="type-meta">Terapeuta + sala reservados juntos — R$ 120,00, 60 min</p>
+            <p class="type-next">Próximo horário: hoje, 11:00</p>
+          </div>
+        </a>
+      </li>
+
+      <!-- Sequential multi-stage — model #8, added on review to close the CAND-19 gap -->
+      <li>
+        <a class="card type-card" href="public-14-appointment-availability.html?service=journey">
+          <div class="type-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+            </svg>
+          </div>
+          <div style="flex:1;">
+            <p class="type-name">Jornada Spa Vitta</p>
+            <p class="type-meta">Sauna → Massagem → Relaxamento — R$ 260,00, 105 min no total</p>
+            <p class="type-next">Próximo horário: hoje, 13:00</p>
+          </div>
+        </a>
+      </li>
+
+      <!-- Variable-duration exclusive reservation — model #10. -->
+      <li>
+        <a class="card type-card" href="public-11-reserva-por-tempo.html">
+          <div class="type-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>
+            </svg>
+          </div>
+          <div style="flex:1;">
+            <p class="type-name">Sala Aurora</p>
+            <p class="type-meta">Sala exclusiva por tempo — R$ 50,00 por hora, mínimo de 1 hora</p>
+            <p class="type-next">Disponível hoje a partir das 10:00</p>
+          </div>
+        </a>
+      </li>
+
+    </ul>
+  </div>
+</body>
+</html>

@@ -7,6 +7,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
 import { SendAdminDailyScheduleReminderNotificationDto } from '../../dtos/send-admin-daily-schedule-reminder-notification.dto';
+import { BaseNotificationDto } from '../../dtos/base-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -35,8 +36,11 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 const TRIGGER = NotificationTemplateKey.ADMIN_DAILY_SCHEDULE_REMINDER;
 const TABLE_KEY = 'adminDailySchedule';
 
-export type SendAdminDailyScheduleReminderNotificationUseCaseInput =
-  SendAdminDailyScheduleReminderNotificationDto;
+export interface SendAdminDailyScheduleReminderNotificationUseCaseInput extends BaseNotificationDto {
+  localDate: SendAdminDailyScheduleReminderNotificationDto['localDate'];
+  bookingsToday: SendAdminDailyScheduleReminderNotificationDto['bookingsToday'];
+  totalBookingsToday: SendAdminDailyScheduleReminderNotificationDto['totalBookingsToday'];
+}
 
 export interface SendAdminDailyScheduleReminderNotificationUseCaseResult {
   emailSent: boolean;

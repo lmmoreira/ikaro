@@ -21,6 +21,7 @@ export enum ClosureReason {
 export interface ScheduleClosureProps {
   id: string;
   tenantId: string;
+  resourceId: string | null;
   date: string;
   startTime: TimeOfDay | null;
   endTime: TimeOfDay | null;
@@ -28,6 +29,17 @@ export interface ScheduleClosureProps {
   notes: string | null;
   createdBy: string;
   createdAt: Date;
+}
+
+export interface CloseScheduleInput {
+  tenantId: string;
+  date: string;
+  reason: ClosureReason;
+  createdBy: string;
+  resourceId?: string;
+  startTime?: string;
+  endTime?: string;
+  notes?: string;
 }
 
 export class ScheduleClosure extends AggregateRoot {
@@ -43,6 +55,9 @@ export class ScheduleClosure extends AggregateRoot {
   }
   get tenantId(): string {
     return this.props.tenantId;
+  }
+  get resourceId(): string | null {
+    return this.props.resourceId;
   }
   get date(): string {
     return this.props.date;
@@ -79,19 +94,13 @@ export class ScheduleClosure extends AggregateRoot {
     return myStart.value < otherEnd.value && otherStart.value < myEnd.value;
   }
 
-  static close(
-    tenantId: string,
-    date: string,
-    reason: ClosureReason,
-    createdBy: string,
-    startTime?: string,
-    endTime?: string,
-    notes?: string,
-  ): ScheduleClosure {
+  static close(input: CloseScheduleInput): ScheduleClosure {
+    const { tenantId, date, reason, createdBy, resourceId, startTime, endTime, notes } = input;
     ScheduleClosure.assertValid(tenantId, date, reason, createdBy, startTime, endTime);
     return new ScheduleClosure({
       id: uuidv7(),
       tenantId,
+      resourceId: resourceId ?? null,
       date,
       startTime: startTime == null ? null : TimeOfDay.create(startTime),
       endTime: endTime == null ? null : TimeOfDay.create(endTime),

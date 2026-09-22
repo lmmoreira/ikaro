@@ -11,6 +11,7 @@
 
 @baseUrl   = {{backendUrl}}
 @closureId = {{createClosure.response.body.id}}
+@resourceId = 00000000-0000-7000-8000-000000000001
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — list closures
@@ -20,6 +21,15 @@
 
 ### List closures in December 2026
 GET {{baseUrl}}/schedule/closures?from=2026-12-01&to=2026-12-31
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### List closures scoped to one resource (omit resourceId for tenant-wide only)
+GET {{baseUrl}}/schedule/closures?from=2026-12-01&to=2026-12-31&resourceId={{resourceId}}
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
 X-Actor-Type: STAFF
@@ -77,6 +87,58 @@ X-Actor-Role: STAFF
 {
   "date": "2026-12-27",
   "reason": "STAFF_DAY_OFF"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — resource-scoped closure, MANAGER-only (UC-010e, M21 Cluster 1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Create a resource-scoped full-day closure (set @resourceId to a real Resource id first)
+POST {{baseUrl}}/schedule/closures
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "date": "2026-12-29",
+  "reason": "STAFF_DAY_OFF",
+  "resourceId": "{{resourceId}}"
+}
+
+###
+
+### 403 — STAFF cannot set resourceId (UC-010e)
+POST {{baseUrl}}/schedule/closures
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+{
+  "date": "2026-12-30",
+  "reason": "STAFF_DAY_OFF",
+  "resourceId": "{{resourceId}}"
+}
+
+###
+
+### 404 — resourceId does not exist or belongs to another tenant (UC-010e A3)
+POST {{baseUrl}}/schedule/closures
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "date": "2026-12-31",
+  "reason": "STAFF_DAY_OFF",
+  "resourceId": "00000000-0000-7000-8000-000000000099"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

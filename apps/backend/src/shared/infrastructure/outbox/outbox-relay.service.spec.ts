@@ -1,42 +1,23 @@
 import { ConfigService } from '@nestjs/config';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
-import { IEventBus } from '../../ports/event-bus.port';
-import { IInboxRepository } from '../../ports/inbox.port';
-import { IOutboxRepository } from '../../ports/outbox-repository.port';
-import { ITransactionManager } from '../../ports/transaction-manager.port';
+import { InMemoryEventBus } from '../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryInboxRepository } from '../../../test/infrastructure/in-memory-inbox.repository';
+import { InMemoryOutboxRepository } from '../../../test/infrastructure/in-memory-outbox.repository';
+import { InMemoryTransactionManager } from '../../../test/infrastructure/in-memory-transaction-manager';
 import { OutboxRelayService } from './outbox-relay.service';
 
 describe('OutboxRelayService', () => {
-  let outboxRepo: jest.Mocked<IOutboxRepository>;
-  let eventBus: jest.Mocked<IEventBus>;
-  let inboxRepo: jest.Mocked<IInboxRepository>;
-  let txManager: jest.Mocked<ITransactionManager>;
+  let outboxRepo: InMemoryOutboxRepository;
+  let eventBus: InMemoryEventBus;
+  let inboxRepo: InMemoryInboxRepository;
+  let txManager: InMemoryTransactionManager;
   let config: ConfigService;
 
   beforeEach(() => {
-    outboxRepo = {
-      insert: jest.fn(),
-      claimUnpublishedById: jest.fn(),
-      markPublished: jest.fn(),
-      claimUnpublished: jest.fn(),
-      releaseClaim: jest.fn(),
-      countUnpublished: jest.fn().mockResolvedValue({ count: 0, oldestAgeSeconds: null }),
-      deleteOldPublished: jest.fn().mockResolvedValue(0),
-    } as jest.Mocked<IOutboxRepository>;
-    eventBus = {
-      publish: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<IEventBus>;
-    inboxRepo = {
-      hasBeenProcessed: jest.fn(),
-      markProcessed: jest.fn(),
-      tryClaim: jest.fn(),
-      unclaim: jest.fn(),
-      deleteOldProcessed: jest.fn().mockResolvedValue(0),
-    } as jest.Mocked<IInboxRepository>;
-    txManager = {
-      run: jest.fn((work) => work()),
-      scheduleAfterCommit: jest.fn(),
-    } as jest.Mocked<ITransactionManager>;
+    outboxRepo = new InMemoryOutboxRepository();
+    eventBus = new InMemoryEventBus();
+    inboxRepo = new InMemoryInboxRepository();
+    txManager = new InMemoryTransactionManager();
     config = makeConfigService();
   });
 
@@ -45,7 +26,7 @@ describe('OutboxRelayService', () => {
 
   describe('relay(rowIds) — inline dispatch path', () => {
     it('publishes and marks the given row id', async () => {
-      outboxRepo.claimUnpublishedById.mockResolvedValue({
+      outboxRepo.setNextClaimByIdResult({
         id: 'row-1',
         leaseToken: 'lease-1',
         payload: { eventName: 'X' },
@@ -53,106 +34,97 @@ describe('OutboxRelayService', () => {
 
       await createService().relay(['row-1']);
 
-      expect(eventBus.publish).toHaveBeenCalledTimes(1);
-      expect(outboxRepo.claimUnpublishedById).toHaveBeenCalledWith(
-        'row-1',
-        expect.any(String),
-        120,
-      );
-      expect(outboxRepo.markPublished).toHaveBeenCalledWith('row-1', 'lease-1');
-      expect(txManager.run).toHaveBeenCalledTimes(2);
+      expect(eventBus.publishCallCount).toBe(1);
+      expect(outboxRepo.claimedById).toEqual([
+        { id: 'row-1', leaseToken: expect.any(String), leaseSeconds: 120 },
+      ]);
+      expect(outboxRepo.markedPublished).toEqual([{ id: 'row-1', leaseToken: 'lease-1' }]);
+      expect(txManager.runCallCount).toBe(2);
     });
 
     it('does nothing for a row that is already published or missing', async () => {
-      outboxRepo.claimUnpublishedById.mockResolvedValue(null);
+      outboxRepo.setNextClaimByIdResult(null);
       await createService().relay(['row-1']);
-      expect(eventBus.publish).not.toHaveBeenCalled();
+      expect(eventBus.publishCallCount).toBe(0);
     });
 
     it('swallows a publish failure — relay() never throws', async () => {
-      outboxRepo.claimUnpublishedById.mockResolvedValue({
+      outboxRepo.setNextClaimByIdResult({
         id: 'row-1',
         leaseToken: 'lease-1',
         payload: { eventName: 'X' },
       });
-      eventBus.publish.mockRejectedValue(new Error('pubsub down'));
+      eventBus.failNextPublish(new Error('pubsub down'));
       await expect(createService().relay(['row-1'])).resolves.toBeUndefined();
     });
 
     it('is a no-op for an explicitly empty rowIds array — never falls through to sweep+GC', async () => {
       await createService().relay([]);
-      expect(outboxRepo.claimUnpublishedById).not.toHaveBeenCalled();
-      expect(txManager.run).not.toHaveBeenCalled();
+      expect(outboxRepo.claimedById).toHaveLength(0);
+      expect(txManager.runCallCount).toBe(0);
     });
   });
 
   describe('relay() — sweep + GC path (no rowIds)', () => {
     it('leases in a transaction, publishes outside it, then marks in a second transaction', async () => {
-      outboxRepo.claimUnpublished.mockResolvedValue([
+      outboxRepo.setSweepDefaultResult([
         { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
       ]);
-      let transactionOpen = false;
-      txManager.run.mockImplementation(async (work) => {
-        transactionOpen = true;
-        try {
-          return await work();
-        } finally {
-          transactionOpen = false;
-        }
-      });
-      eventBus.publish.mockImplementation(async () => {
-        expect(transactionOpen).toBe(false);
-      });
+      eventBus.onPublish = () => {
+        expect(txManager.isInTransaction).toBe(false);
+      };
 
       await createService().relay();
 
-      expect(outboxRepo.claimUnpublished).toHaveBeenCalledWith(30, 100, expect.any(String), 120);
-      expect(eventBus.publish).toHaveBeenCalledTimes(1);
-      expect(outboxRepo.markPublished).toHaveBeenCalledWith('row-1', 'lease-1');
-      expect(txManager.run).toHaveBeenCalledTimes(3); // short claim, mark, then retention GC
-      expect(outboxRepo.countUnpublished).toHaveBeenCalledTimes(1);
-      expect(outboxRepo.deleteOldPublished).toHaveBeenCalledTimes(1);
-      expect(inboxRepo.deleteOldProcessed).toHaveBeenCalledTimes(1);
+      expect(outboxRepo.swept).toEqual([
+        { graceSeconds: 30, batchSize: 100, leaseToken: expect.any(String), leaseSeconds: 120 },
+      ]);
+      expect(eventBus.publishCallCount).toBe(1);
+      expect(outboxRepo.markedPublished).toEqual([{ id: 'row-1', leaseToken: 'lease-1' }]);
+      expect(txManager.runCallCount).toBe(3); // short claim, mark, then retention GC
+      expect(outboxRepo.countUnpublishedCallCount).toBe(1);
+      expect(outboxRepo.deleteOldPublishedCallCount).toBe(1);
+      expect(inboxRepo.deleteOldProcessedCallCount).toBe(1);
     });
 
     it('releases a failed publish lease and continues the rest of its batch', async () => {
-      outboxRepo.claimUnpublished
-        .mockResolvedValueOnce([
-          { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
-          { id: 'row-2', leaseToken: 'lease-2', payload: { eventName: 'Y' } },
-        ])
-        .mockResolvedValueOnce([]);
-      eventBus.publish.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined);
+      outboxRepo.queueSweepResult([
+        { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
+        { id: 'row-2', leaseToken: 'lease-2', payload: { eventName: 'Y' } },
+      ]);
+      outboxRepo.queueSweepResult([]);
+      eventBus.failNextPublish(new Error('down'));
 
       await expect(createService().relay()).resolves.toBeUndefined();
 
-      expect(outboxRepo.releaseClaim).toHaveBeenCalledWith('row-1', 'lease-1');
-      expect(outboxRepo.markPublished).toHaveBeenCalledWith('row-2', 'lease-2');
-      expect(eventBus.publish).toHaveBeenCalledTimes(2);
+      expect(outboxRepo.releasedClaims).toEqual([{ id: 'row-1', leaseToken: 'lease-1' }]);
+      expect(outboxRepo.markedPublished).toEqual([{ id: 'row-2', leaseToken: 'lease-2' }]);
+      expect(eventBus.publishCallCount).toBe(2);
     });
 
     it('loops when a batch is full', async () => {
-      outboxRepo.claimUnpublished
-        .mockResolvedValueOnce([
-          { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
-        ])
-        .mockResolvedValueOnce([]);
+      outboxRepo.queueSweepResult([
+        { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
+      ]);
+      outboxRepo.queueSweepResult([]);
 
       await createService(makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 })).relay();
 
-      expect(outboxRepo.claimUnpublished).toHaveBeenCalledTimes(2);
+      expect(outboxRepo.swept).toHaveLength(2);
     });
 
     it('stops after a failed full batch so one tick cannot retry forever', async () => {
-      outboxRepo.claimUnpublished.mockResolvedValue([
+      outboxRepo.setSweepDefaultResult([
         { id: 'row-1', leaseToken: 'lease-1', payload: { eventName: 'X' } },
       ]);
-      eventBus.publish.mockRejectedValue(new Error('down'));
+      // Every publish() call fails for this test — failNextPublish covers the loop's one attempt
+      // since relay() stops sweeping after a failed full batch (see the test name/assertion below).
+      eventBus.failNextPublish(new Error('down'));
 
       await createService(makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 })).relay();
 
-      expect(outboxRepo.claimUnpublished).toHaveBeenCalledTimes(1);
-      expect(outboxRepo.releaseClaim).toHaveBeenCalledWith('row-1', 'lease-1');
+      expect(outboxRepo.swept).toHaveLength(1);
+      expect(outboxRepo.releasedClaims).toEqual([{ id: 'row-1', leaseToken: 'lease-1' }]);
     });
   });
 });

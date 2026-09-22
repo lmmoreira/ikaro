@@ -1,160 +1,170 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { BookingEntityBuilder } from '../../../../test/builders/booking/index';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
-import { BookingStatus } from '../../domain/booking.aggregate';
-import { BookingEntity } from '../entities/booking.entity';
+import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { TypeOrmBookingAvailabilityAdapter } from './typeorm-booking-availability.adapter';
+
+function buildQueryBuilder(rows: { resourceId: string; startsAt: string; endsAt: string }[]) {
+  const qb = {
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue(rows),
+  };
+  return qb;
+}
 
 describe('TypeOrmBookingAvailabilityAdapter', () => {
   let adapter: TypeOrmBookingAvailabilityAdapter;
-  let ormRepo: jest.Mocked<Repository<BookingEntity>>;
+  let ormRepo: jest.Mocked<Repository<ResourceOccupancyEntity>>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         TypeOrmBookingAvailabilityAdapter,
         {
-          provide: getRepositoryToken(BookingEntity),
-          useValue: { find: jest.fn() },
+          provide: getRepositoryToken(ResourceOccupancyEntity),
+          useValue: { createQueryBuilder: jest.fn() },
         },
       ],
     }).compile();
 
     adapter = moduleRef.get(TypeOrmBookingAvailabilityAdapter);
-    ormRepo = moduleRef.get(getRepositoryToken(BookingEntity));
+    ormRepo = moduleRef.get(getRepositoryToken(ResourceOccupancyEntity));
   });
 
   afterEach(() => {
     jest.resetAllMocks();
   });
 
-  describe('findApprovedByTenantAndDate', () => {
-    it('uses a 64-bit advisory transaction lock per tenant/day', async () => {
-      const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
-
-      await runWithEntityManager(manager, () => adapter.lockTenantDay('tenant-1', '2026-06-01'));
-
-      expect(manager.query).toHaveBeenCalledWith(
-        `SELECT pg_advisory_xact_lock(
-         hashtextextended($1::text, 0::bigint)
-       )`,
-        ['tenant-1:2026-06-01'],
+  describe('findOccupancyByTenantAndResource', () => {
+    it('returns [] without querying when no resourceIds are given', async () => {
+      const result = await adapter.findOccupancyByTenantAndResource(
+        'tenant-1',
+        [],
+        '2026-06-01',
+        '2026-06-01',
+        'America/Sao_Paulo',
       );
+
+      expect(result).toEqual([]);
+      expect(ormRepo.createQueryBuilder).not.toHaveBeenCalled();
     });
 
-    it('throws when lockTenantDay is called outside a transaction', async () => {
-      await expect(adapter.lockTenantDay('tenant-1', '2026-06-01')).rejects.toThrow(
-        'Booking slot lock requires an active transaction',
+    it('returns [] when no occupancy rows exist for the resource on that date', async () => {
+      ormRepo.createQueryBuilder.mockReturnValue(buildQueryBuilder([]) as never);
+
+      const result = await adapter.findOccupancyByTenantAndResource(
+        'tenant-1',
+        ['resource-1'],
+        '2026-06-01',
+        '2026-06-01',
+        'America/Sao_Paulo',
       );
-    });
-
-    it('returns empty array when no approved bookings on that date', async () => {
-      ormRepo.find.mockResolvedValue([]);
-
-      const result = await adapter.findApprovedByTenantAndDate('tenant-1', '2026-06-01');
 
       expect(result).toEqual([]);
     });
 
-    it('returns BookedSlots for approved bookings on the date', async () => {
-      const scheduledAt = new Date('2026-06-01T10:00:00.000Z');
-      const entity = new BookingEntityBuilder()
-        .withStatus(BookingStatus.APPROVED)
-        .withScheduledAt(scheduledAt)
-        .withTotalDurationMins(60)
-        .build();
-      ormRepo.find.mockResolvedValue([entity]);
+    it('derives UTC instant boundaries from the tenant-local calendar day, not the bare UTC date string', async () => {
+      const qb = buildQueryBuilder([]);
+      ormRepo.createQueryBuilder.mockReturnValue(qb as never);
 
-      const result = await adapter.findApprovedByTenantAndDate('tenant-1', '2026-06-01');
+      // America/Sao_Paulo is UTC-3 year-round (no DST since 2019) — local day 2026-06-01 starts
+      // at 2026-06-01T03:00:00.000Z and runs through 2026-06-02T02:59:59.999Z. A bare
+      // startOfDayUTC('2026-06-01')/endOfDayUTC('2026-06-01') would instead produce
+      // 2026-06-01T00:00:00.000Z .. T23:59:59.999Z — 3 hours off at both ends.
+      await adapter.findOccupancyByTenantAndResource(
+        'tenant-1',
+        ['resource-1'],
+        '2026-06-01',
+        '2026-06-01',
+        'America/Sao_Paulo',
+      );
 
-      expect(result).toHaveLength(1);
-      expect(result[0].scheduledAt).toEqual(scheduledAt);
-      expect(result[0].totalDurationMins).toBe(60);
+      expect(qb.andWhere).toHaveBeenCalledWith('ro.startsAt < :isoEnd', {
+        isoEnd: new Date('2026-06-02T03:00:00.000Z'),
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('ro.endsAt > :isoStart', {
+        isoStart: new Date('2026-06-01T03:00:00.000Z'),
+      });
     });
 
-    it('queries with Between boundaries for the full UTC day', async () => {
-      ormRepo.find.mockResolvedValue([]);
+    it('maps occupancy rows to ResourceOccupiedSlot', async () => {
+      const rows = [
+        {
+          resourceId: 'resource-1',
+          startsAt: '2026-06-01T10:00:00.000Z',
+          endsAt: '2026-06-01T11:00:00.000Z',
+        },
+      ];
+      ormRepo.createQueryBuilder.mockReturnValue(buildQueryBuilder(rows) as never);
 
-      await adapter.findApprovedByTenantAndDate('tenant-1', '2026-06-01');
-
-      expect(ormRepo.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            tenantId: 'tenant-1',
-            status: BookingStatus.APPROVED,
-          }),
-        }),
+      const result = await adapter.findOccupancyByTenantAndResource(
+        'tenant-1',
+        ['resource-1'],
+        '2026-06-01',
+        '2026-06-01',
+        'America/Sao_Paulo',
       );
+
+      expect(result).toEqual([
+        {
+          resourceId: 'resource-1',
+          startsAt: new Date('2026-06-01T10:00:00.000Z'),
+          endsAt: new Date('2026-06-01T11:00:00.000Z'),
+        },
+      ]);
     });
 
     it('uses the active transaction repository when one exists', async () => {
-      const scheduledAt = new Date('2026-06-01T10:00:00.000Z');
-      const managerRepo = {
-        find: jest
-          .fn()
-          .mockResolvedValue([
-            new BookingEntityBuilder()
-              .withStatus(BookingStatus.APPROVED)
-              .withScheduledAt(scheduledAt)
-              .withTotalDurationMins(60)
-              .build(),
-          ]),
-      };
+      const managerQb = buildQueryBuilder([]);
+      const managerRepo = { createQueryBuilder: jest.fn().mockReturnValue(managerQb) };
       const manager = {
         getRepository: jest.fn().mockReturnValue(managerRepo),
       } as unknown as EntityManager;
 
-      const result = await runWithEntityManager(manager, () =>
-        adapter.findApprovedByTenantAndDate('tenant-1', '2026-06-01'),
+      await runWithEntityManager(manager, () =>
+        adapter.findOccupancyByTenantAndResource(
+          'tenant-1',
+          ['resource-1'],
+          '2026-06-01',
+          '2026-06-01',
+          'America/Sao_Paulo',
+        ),
       );
 
-      expect(manager.getRepository).toHaveBeenCalledWith(BookingEntity);
-      expect(managerRepo.find).toHaveBeenCalledTimes(1);
-      expect(ormRepo.find).not.toHaveBeenCalled();
-      expect(result).toHaveLength(1);
-    });
-  });
-
-  describe('findApprovedByTenantAndDateRange', () => {
-    it('returns empty array when no approved bookings in range', async () => {
-      ormRepo.find.mockResolvedValue([]);
-
-      const result = await adapter.findApprovedByTenantAndDateRange(
-        'tenant-1',
-        '2026-06-01',
-        '2026-06-07',
-      );
-
-      expect(result).toEqual([]);
+      expect(manager.getRepository).toHaveBeenCalledWith(ResourceOccupancyEntity);
+      expect(managerRepo.createQueryBuilder).toHaveBeenCalledTimes(1);
+      expect(ormRepo.createQueryBuilder).not.toHaveBeenCalled();
     });
 
-    it('returns multiple BookedSlots across multiple days', async () => {
-      const entities = [
-        new BookingEntityBuilder()
-          .withStatus(BookingStatus.APPROVED)
-          .withScheduledAt(new Date('2026-06-02T09:00:00.000Z'))
-          .withTotalDurationMins(30)
-          .build(),
-        new BookingEntityBuilder()
-          .withStatus(BookingStatus.APPROVED)
-          .withScheduledAt(new Date('2026-06-05T14:00:00.000Z'))
-          .withTotalDurationMins(45)
-          .build(),
+    it('returns multiple occupied slots across multiple resources', async () => {
+      const rows = [
+        {
+          resourceId: 'resource-1',
+          startsAt: '2026-06-02T09:00:00.000Z',
+          endsAt: '2026-06-02T09:30:00.000Z',
+        },
+        {
+          resourceId: 'resource-2',
+          startsAt: '2026-06-05T14:00:00.000Z',
+          endsAt: '2026-06-05T14:45:00.000Z',
+        },
       ];
-      ormRepo.find.mockResolvedValue(entities);
+      ormRepo.createQueryBuilder.mockReturnValue(buildQueryBuilder(rows) as never);
 
-      const result = await adapter.findApprovedByTenantAndDateRange(
+      const result = await adapter.findOccupancyByTenantAndResource(
         'tenant-1',
+        ['resource-1', 'resource-2'],
         '2026-06-01',
         '2026-06-07',
+        'America/Sao_Paulo',
       );
 
       expect(result).toHaveLength(2);
-      expect(result[0].totalDurationMins).toBe(30);
-      expect(result[1].totalDurationMins).toBe(45);
-      expect(ormRepo.find).toHaveBeenCalledTimes(1);
+      expect(result[0].resourceId).toBe('resource-1');
+      expect(result[1].resourceId).toBe('resource-2');
     });
   });
 });

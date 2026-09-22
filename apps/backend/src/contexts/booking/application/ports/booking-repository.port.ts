@@ -27,4 +27,7 @@ export interface IBookingRepository {
     filters: BookingListFilters,
   ): Promise<BookingPaginatedResult>;
   save(booking: Booking): Promise<void>;
+  // Narrow existence check (M22-S01, UC-056 A1) — never fetches full booking rows, just whether
+  // any booking line references this service, for the bookingModel-immutability check.
+  existsByServiceId(serviceId: string, tenantId: string): Promise<boolean>;
 }

@@ -167,6 +167,17 @@ describe('HotsiteConfig', () => {
       ).toThrow(PlatformDomainError);
     });
 
+    it('accepts a CHATBOT module (M19-S11)', () => {
+      const config = new HotsiteConfigBuilder().build();
+      const layout: HotsiteModule[] = [
+        ...VALID_LAYOUT,
+        { type: 'CHATBOT', enabled: true, data: { variant: 'bubble' } },
+      ];
+      config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, CTX);
+      expect(config.layout).toHaveLength(3);
+      expect(config.layout[2].type).toBe('CHATBOT');
+    });
+
     it('defaults seo to null title and description when not provided', () => {
       const config = new HotsiteConfigBuilder().build();
       config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX);

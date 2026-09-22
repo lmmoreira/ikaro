@@ -13,7 +13,14 @@ import {
   IHotsiteConfigRepository,
 } from '../ports/hotsite-config-repository.port';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
-import { ProvisionTenantDto } from '../dtos/provision-tenant.dto';
+
+export interface ProvisionTenantUseCaseInput {
+  name: string;
+  slug: string;
+  adminEmail: string;
+  country_code: string;
+  timezone?: string;
+}
 
 export interface ProvisionTenantUseCaseResult {
   tenantId: string;
@@ -29,20 +36,20 @@ export class ProvisionTenantUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(dto: ProvisionTenantDto): Promise<ProvisionTenantUseCaseResult> {
-    const countryCode = CountryCode.create(dto.country_code);
-    const timezone = dto.timezone ?? countryCode.spec.defaultTimezone;
+  async execute(input: ProvisionTenantUseCaseInput): Promise<ProvisionTenantUseCaseResult> {
+    const countryCode = CountryCode.create(input.country_code);
+    const timezone = input.timezone ?? countryCode.spec.defaultTimezone;
     // correlationId generated here — /internal routes skip RequestInterceptor
     const correlationId = uuidv7();
 
-    if (await this.tenantRepo.existsBySlug(dto.slug)) {
-      throw new SlugAlreadyTakenError(dto.slug);
+    if (await this.tenantRepo.existsBySlug(input.slug)) {
+      throw new SlugAlreadyTakenError(input.slug);
     }
 
     const tenant = Tenant.create(
-      dto.name,
-      dto.slug,
-      dto.adminEmail,
+      input.name,
+      input.slug,
+      input.adminEmail,
       correlationId,
       timezone,
       countryCode.value,

@@ -111,6 +111,27 @@ describe('validateEnv()', () => {
     ).toThrow('EMAIL_ADAPTER=mailhog is not allowed when APP_ENV is not "local"');
   });
 
+  it('throws when APP_ENV is not local and CHATBOT_LLM_PROVIDER=fake (M19-S11 PR #385 review)', () => {
+    expect(() =>
+      validateEnv({
+        ...valid,
+        NODE_ENV: 'development',
+        APP_ENV: 'staging',
+        PUBSUB_AUTO_CREATE: 'false',
+        PUBSUB_CONSUMER_MODE: 'push',
+        PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
+        PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
+        DB_INSTANCE_CONNECTION_NAME: 'ikaro-staging:southamerica-east1:ikaro-db-staging',
+        CHATBOT_LLM_PROVIDER: 'fake',
+      }),
+    ).toThrow('CHATBOT_LLM_PROVIDER=fake is not allowed when APP_ENV is not "local"');
+  });
+
+  it('accepts CHATBOT_LLM_PROVIDER=fake when APP_ENV is local', () => {
+    const result = validateEnv({ ...valid, CHATBOT_LLM_PROVIDER: 'fake' });
+    expect(result.CHATBOT_LLM_PROVIDER).toBe('fake');
+  });
+
   it('accepts non-local APP_ENV when push mode and brevo are configured', () => {
     const result = validateEnv({
       ...valid,

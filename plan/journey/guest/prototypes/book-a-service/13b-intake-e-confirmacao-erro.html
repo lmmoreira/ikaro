@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dados da reserva — Erro — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .field { margin:1rem 0; }
+    .field label { display:block;font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em; }
+    .hint { font-size:.8125rem;opacity:.68;margin-top:.35rem; }
+    .notice { padding:.875rem;background:#eff6ff;border-radius:var(--ba-radius);font-size:.875rem;color:#1d4ed8; }
+    .form-input.error { border-color:#ef4444;background:#fef2f2; }
+    .form-error { font-size:.8125rem;color:#dc2626;margin-top:.375rem;display:flex;align-items:center;gap:.25rem; }
+  </style>
+</head>
+<body>
+  <!--
+    DISCOVERY PROTOTYPE -- illustrative only, NOT a plan/journey/ prototype.
+    Error-state sibling of public-12-intake-e-confirmacao.html.
+    CAND-43 (Customer Submits Versioned Booking Intake and Attendees) — primary content is a
+    plain required-field validation (consent checkbox + responsible name left blank on submit
+    attempt); the secondary notice covers alt A1 ("the service form changes while the customer
+    is completing it — submission is validated against the displayed schema version; a
+    removed/changed field never silently rewrites the already-completed answers").
+    See ../multivertical-booking_USECASES.md CAND-43.
+  -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">
+    Protótipo — CAND-43 — campo obrigatório em branco ao enviar
+  </div>
+  <header style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem"><strong>Vitta Studio</strong></header>
+  <main class="step-container">
+    <p class="step-indicator">Sala de reunião · 18 de agosto · 10:00</p>
+    <h1 style="font-size:1.5rem">Complete os dados da reserva</h1>
+    <p style="opacity:.7">Estes campos dependem do serviço escolhido. O que você enviar fica registrado com a versão atual do formulário.</p>
+    <form id="intake-form">
+      <div class="field">
+        <label for="responsible">Responsável pela reserva</label>
+        <input id="responsible" class="form-input error" autocomplete="name" required aria-invalid="true">
+        <p class="form-error">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Este campo é obrigatório.
+        </p>
+      </div>
+      <div class="field"><label for="attendees">Participantes nomeados <span aria-hidden="true">(se solicitado)</span></label><textarea id="attendees" class="form-input" rows="3" placeholder="Ex.: Marina Lopes, João Silva">Marina Lopes</textarea><p class="hint">O responsável pode ser diferente das pessoas participantes.</p></div>
+      <div class="field"><label for="access">Necessidades de acesso <span aria-hidden="true">(opcional)</span></label><textarea id="access" class="form-input" rows="2" placeholder="Ex.: acesso sem escadas"></textarea></div>
+      <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
+      <p class="form-error" style="margin-left:1.875rem;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Você precisa aceitar os termos para continuar.
+      </p>
+      <div class="notice" style="margin-top:1rem;background:#fef2f2;color:#dc2626;">
+        <strong>Não foi possível enviar</strong><br>
+        2 campos precisam de atenção antes de confirmar — veja os destaques acima.
+      </div>
+      <div class="nav-buttons"><a class="btn-secondary" href="11-appointment-availability.html">Voltar</a><button class="btn-primary" type="submit" disabled style="opacity:.5;">Confirmar solicitação</button></div>
+    </form>
+
+    <div class="card" style="margin-top:1.5rem;background:#eff6ff;border-color:#bfdbfe;">
+      <strong style="color:#1d4ed8;">Se o formulário mudar enquanto você preenche (CAND-43 alt. A1)</strong>
+      <p style="font-size:.875rem;color:#1d4ed8;margin-top:.375rem;">
+        Caso a equipe publique uma nova versão deste formulário antes de você confirmar, sua tentativa
+        de envio é validada contra a versão que está na tela agora — nenhuma resposta já preenchida é
+        reescrita silenciosamente. Se um campo foi removido ou alterado nessa nova versão, pedimos que
+        você revise e reenvie com o formulário atualizado.
+      </p>
+    </div>
+  </main>
+</body>
+</html>

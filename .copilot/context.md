@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`
 **Audience:** Any AI coding agent
 **Rule:** Read this file first. Then use §10 to load only the docs you need.
-**Last updated:** 2026-08-04
+**Last updated:** 2026-09-20
 
 ---
 
@@ -13,11 +13,11 @@
 
 **Story / TD gate — NON-NEGOTIABLE:** Before writing any code for a story or TD, run `/story-discovery M0X-SYY` first. This is the first action after entering the worktree, no exceptions. Never skip — even for "obvious" tasks.
 
-**Doc/config gate:** Before writing or editing any `.md`, `.tf`, `.yml`, or config file: discuss → summarise → ask "May I now create/update `<path>`?" → write only after an explicit yes. Exception: once a story is approved, `.ts`/`.spec.ts` code files can be created autonomously. Read-only ops (`Read`, `grep`, `ls`, `git status`, memory) are always free.
+**Doc/config gate:** Before writing or editing any `.md`, `.tf`, `.yml`, or config file: discuss → summarise → ask "May I now create/update `<path>`?" → write only after an explicit yes. Exception: once a story is approved, `.ts`/`.spec.ts` code files can be created autonomously — and so can the files a code change cannot ship without: i18n locale JSON (`packages/i18n/locales/**/*.json`, both locales in the same change), `.http` request files, test fixtures and generated-by-tool files that must be committed. Every other config-shaped file (`.tf`, `.yml`, CI workflows, `package.json`, `tsconfig`, policy/registry JSON such as `architecture-policy.json`, env files) still needs the explicit yes. Read-only ops (`Read`, `grep`, `ls`, `git status`, memory) are always free.
 
-**Commit / push / PR gate — NON-NEGOTIABLE:** Before every `git commit`, explicitly ask: *"Here are the files I'm about to commit: [list]. Anything else to add before I commit?"* Before every `git push`, ask: *"Anything else to add before I push?"* Wait for an explicit yes at each step. Never commit, push, run `/pre-pr`, or open a PR without that confirmation. Never chain these steps automatically. For doc-only changes on `main`, also ask whether to use a feature branch or commit direct.
+**Autonomous implementation chain — one authorization, not per-step asks:** Once `/story-discovery` returns READY and the user confirms proceeding to implementation, that single authorization covers the entire chain through to an open, bot-reviewed PR — commit → push → `/pre-pr` → `gh pr create` → CI-fix loop → CodeRabbit/Codex bot-fix loop. No separate "may I commit / may I push / may I run pre-pr" prompts inside that chain. Full mechanics, the stuck-condition definitions, and the bot-finding verification discipline: §9. The **merge gate is separate and stays mandatory** — always ask before merging (§9 Step 10) — and that review must be substantive: it is now the primary point where implementation-time surprises get caught, not a formality. For doc-only changes on `main` outside a story, still ask whether to use a feature branch or commit direct.
 
-**Pre-push validation — NON-NEGOTIABLE:** `git push` automatically runs `ci:fast`; never use `git push --no-verify` to bypass it. If a terminal/session detaches while the hook runs, its result is unknown — capture the command's log, inspect the live process, and wait for its real exit status before treating the push as complete. A detached output stream is never evidence of a failed hook and never authorization to skip validation.
+**Pre-push validation — NON-NEGOTIABLE:** `git push` automatically runs `ci:fast`; never use `git push --no-verify` to bypass it. If a terminal/session detaches while the hook runs, its result is unknown — capture the command's log, inspect the live process, and wait for its real exit status before treating the push as complete. A detached output stream is never evidence of a failed hook and never authorization to skip validation. **In an agent session, run the push detached** (`nohup git push </dev/null >/tmp/push.log 2>&1 &`) and wait on the real process (`pgrep -f '^git push'`, or a Monitor on it): a foreground push held open by a tool call was SIGKILLed (exit 137) mid-hook twice in the M22-S04 session, leaving the commit unpushed while the hook died. Confirm with `git log origin/<branch> -1` that the remote head actually moved — an exit status alone is not proof. **Never `pkill -f <pattern>` in a session** — it can match the agent's own shell (exit 144/137); list PIDs with `pgrep`/`ss -ltnp` and kill those.
 
 **Workspace ownership gate:** Never run root-owned or containerized installs against the mounted workspace, and never use privileged cleanup on repo files unless the user explicitly approves it. If `node_modules` ownership is broken, stop and ask before repairing it.
 
@@ -34,7 +34,7 @@
 | **Branch** | `main` · Trunk-Based Development · short-lived `feat/M0X-SYY-*` / `fix/*` branches |
 | **Commits** | Conventional Commits: `feat(booking):`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:` |
 | **Stack** | TypeScript strict · NestJS v11 backend + BFF · Next.js 16 + React 19 frontend · pnpm workspaces |
-| **DB** | PostgreSQL 17 · TypeORM v0.3+ · single shared schema · `tenant_id` everywhere · migrations via separate CI job (never auto at startup) |
+| **DB** | PostgreSQL 17 · TypeORM v1.0+ · shared-schema multi-tenancy (tenant_id-scoped rows, not schema-per-tenant; physically schema-per-context — see `docs/13-DATABASE_SCHEMA.md`) · `tenant_id` everywhere · migrations via separate CI job (never auto at startup) |
 | **Event bus** | GCP Pub/Sub (prod) · emulator (local) · behind `IEventBus` port |
 | **Auth** | Google OAuth 2.0 · JWT (`sub` = backend UUID, `tenantId`, `tenantSlug`, `tenantName`, `userName`, `role`, `locale`) · httpOnly cookie, not a client-readable token · BFF forwards `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role` to the backend |
 | **Storage** | GCS/S3-compatible · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
@@ -70,7 +70,7 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 
 | Context | Type | Aggregates |
 |---|---|---|
-| **Booking** | Core | `Booking`, `Service`, `ScheduleClosure` |
+| **Booking** | Core | `Booking`, `Service`, `ScheduleClosure`, `ScheduleOpening`, `Resource` (M21) |
 | **Customer** | Supporting | `Customer` (multi-tenant rows) |
 | **Staff** | Supporting | `Staff` (multi-tenant rows) |
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance`, `LoyaltyRedemption` (append-only) |
@@ -106,11 +106,11 @@ These 5 names (`booking`, `customer`, `staff`, `loyalty`, `platform`) are also t
 ```
 PENDING        → INFO_REQUESTED | APPROVED | REJECTED | CANCELLED
 INFO_REQUESTED → PENDING (customer responded) | APPROVED | REJECTED | CANCELLED
-APPROVED       → COMPLETED | CANCELLED
-COMPLETED / REJECTED / CANCELLED  (terminal)
+APPROVED       → COMPLETED | CANCELLED | NO_SHOW   -- NO_SHOW added by M23 Cluster 3 (UC-074); not in MVP until that milestone ships
+COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal)
 ```
 
-`NO_SHOW` is **not** in MVP. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
+`NO_SHOW` is **not** in MVP today — it ships with M23 (Multi-Vertical Scheduling, Cluster 3), see `docs/04-USE_CASES.md` UC-074. Until that milestone lands, treat `NO_SHOW` as absent from the live state machine. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
 
 ---
 
@@ -119,7 +119,7 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 **Traps — don't implement these as written:**
 - UC-014 (customer login), UC-015 (staff login) — superseded by UC-021/UC-022
 - UC-017 (booking analytics) — future, out of MVP
-- UC-030 was superseded/renumbered as part of the M13 staff-lifecycle stories (UC-029 deactivate / UC-031 reactivate are the canonical pair) — check `docs/04-USE_CASES.md`'s table before citing a UC number in a story
+- UC-030 today means "Admin Edits Staff Member Profile" — a different concept from an earlier draft where UC-030 covered staff deactivate/reactivate; that pair now lives at UC-029 (deactivate) / UC-031 (reactivate). Don't confuse the two when citing UC-030 — check `docs/04-USE_CASES.md`'s table first.
 
 **Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry, manual admin loyalty-point redemption (`POST /v1/loyalty/redeem` exists and is implemented but has no UC — found via `/docs-audit` 2026-08-04, see `docs/04-USE_CASES.md` UC-016's note).
 
@@ -128,6 +128,8 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 ## 7. Engineering Rules
 
 → Full detail: `docs/ENGINEERING_RULES.md` + `docs/CODE_STANDARDS.md` (load when writing any code).
+
+**How to edit this file:** a rule stays here only if it's (a) a non-negotiable gate, (b) CI-enforced (name + one line — trust the gate, don't restate the rationale), or (c) a writing-time trap an agent would hit before it would think to load any doc. Everything else is a `→ doc § heading` pointer; the canonical-home rule puts each rule's full explanation in exactly one target doc, never here and there too. Before cutting a bullet, verify two things, not one: the target doc actually holds the content (grep it — never assume from an existing pointer alone), **and** §10's task→docs table actually guarantees that target loads for the situation the trigger describes — a pointer to a doc §10 wouldn't load for that task type is not a substitute for the inline trigger.
 
 ### No workarounds — best long-term solution only (NON-NEGOTIABLE)
 
@@ -150,30 +152,52 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 
 ### Architecture
 - **Layers per context:** `domain/` (zero framework deps) → `application/` (use cases, ports, DTOs) → `infrastructure/` (adapters, controllers, persistence). Shared cross-cutting → `src/shared/`.
-- **Value objects:** Domain-validated fields in `src/shared/value-objects/`. `create()` validates from raw strings; `reconstitute()` skips validation. Never plain primitives for domain fields.
-- **Transactions:** every `save()` wrapped in `ITransactionManager.run()`; cross-row invariants (e.g. no two APPROVED bookings overlap) enforced at the DB layer (exclusion constraint), not just in-transaction; optimistic locking on correctness-sensitive writes uses an explicit version-guarded `UPDATE`. Full rules: `docs/ENGINEERING_RULES.md` § Transactions.
-- **Event handlers:** `handle()` calls exactly one use case and rethrows, zero domain logic, pass `event.correlationId` into the DTO. Full rules: `docs/ENGINEERING_RULES.md` § Event Handlers.
-- **Cross-context data access (in priority order):** (1) Domain events — async, preferred; (2) BFF orchestration — sync reads, preferred; (3) Port+Adapter — last resort, same process. Grep `infrastructure/cross-context/` before adding a new port — extend existing adapters. Never a SQL JOIN across contexts.
-- **Architecture policy:** `packages/architecture-check/architecture-policy.json` is the canonical machine-readable registry for dependency exceptions. Add exact cross-context imports to `contextDependencyMatrix.permittedEdges`; add other reviewed detector exceptions to `exceptions`. Every entry needs an exact path, rationale, owner, and review/expiry date. Never bypass a boundary with a wildcard exception.
-- **Platform tenant cache:** keep tenant read caching in `CachingTenantRepository` behind `CachePort`, not in `TypeOrmTenantRepository`. Cache writes/invalidations must stay best-effort and invalidate after the transaction commits; do not reintroduce cache concerns into the raw TypeORM adapter.
+- **Value objects:** Domain-validated fields in `src/shared/value-objects/`, never plain primitives; `create()` constructs from raw strings, `reconstitute()` skips validation. → `docs/ENGINEERING_RULES.md` § Option A — aggregate props
+- **Transactions:** every `save()` wrapped in `ITransactionManager.run()`; cross-row invariants enforced at the DB layer, not just in-transaction. → `docs/ENGINEERING_RULES.md` § Transactions
+- **Race conditions — 3 primitives, picked by shape, not "add a lock":** DB exclusion constraint (rows exist, "no two can overlap") / `findByIdForUpdate()` row lock (a row exists, must be read-then-written consistently) / `pg_advisory_xact_lock` (no row exists yet). → `docs/ENGINEERING_RULES.md` § Choosing a race-condition primitive, and where its lock port should live
+- **Event handlers:** `handle()` calls exactly one use case and rethrows, zero domain logic, pass `event.correlationId` into the DTO. → `docs/ENGINEERING_RULES.md` § Event Handlers
+- **Cross-context data access (in priority order):** domain events (async, preferred) → BFF orchestration (sync reads, preferred) → Port+Adapter (last resort, same process). Grep `infrastructure/cross-context/` before adding a new port — extend existing adapters. Never a SQL JOIN across contexts.
+- **Architecture policy:** `packages/architecture-check/architecture-policy.json` is the canonical registry for dependency exceptions — cross-context imports go in `contextDependencyMatrix.permittedEdges`, other reviewed detector exceptions go in `exceptions`; every entry needs an exact path, rationale, owner, review date. Never a wildcard exception. → `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only
+- **Platform tenant cache:** keep tenant read caching in `CachingTenantRepository` behind `CachePort`, not in `TypeOrmTenantRepository`; invalidate best-effort, after the transaction commits. → `docs/ENGINEERING_RULES.md` § Platform tenant cache — adapter boundary and invalidation timing
 
-### Critical code invariants (not caught by linters — full list: `docs/ENGINEERING_RULES.md`)
+### Critical code invariants (compressed — full narrative, dates, PR numbers: `docs/ENGINEERING_RULES.md`. Items marked **CI-enforced** fail a mechanical check even if unread; still worth knowing to avoid a wasted round.)
 
-- Several invariants are already fully covered in `docs/CODE_STANDARDS.md`/`docs/ENGINEERING_RULES.md` (loaded for any coding task) — don't restate them here, go read them: `mapXxxError(err): never` at the HTTP layer; aggregate-driven events auto-flushing via the outbox on `save()`; the domain error base class's `Object.setPrototypeOf` requirement; use cases never injecting `RequestContext`; controllers/route files as composition-layer-only; feature-owned transport helpers staying with the feature.
-- **Protected-area layouts** read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` from the decoded JWT — never hardcode `'pt-BR'`.
-- **Anything that must exist even for a Guard-rejected request (a trace ID, a request-scoped flag) must be Express middleware, not a NestJS Interceptor.** Nest's pipeline runs `Middleware -> Guards -> Interceptors -> Pipes -> Controller` — an Interceptor never runs for a request a Guard rejected, so it silently misses every 401/403/429 (M17-S31 precedent — full incident: `docs/ENGINEERING_RULES.md` § RequestContext).
-- **Never put cross-service network I/O inside `txManager.run()` — not before, and not as a post-commit side effect either — and if a port is documented "best-effort/never throws," verify its *entire* method body honors that, not just the one call that looks obviously risky.** Network I/O inside the transaction block risks pool exhaustion/lock contention and couples write durability to an unrelated system's availability; a partially-wrapped best-effort contract still lets an already-committed write surface as a client-visible error (PR #267 precedent — full incident: `docs/ENGINEERING_RULES.md` § Transactions, `docs/ANTI_PATTERNS.md`).
-- **A `declare global` augmentation of an interface member a dependency already declares (e.g. BFF `Express.Request.user`, owned by `@types/passport`) silently does nothing under this repo's `skipLibCheck: true`** — the pre-existing declaration just wins everywhere, while `tsc --noEmit` still passes cleanly. Don't trust "`tsc` passed" as proof a `declare global` block took effect — verify the augmented property's inferred type at a real usage site. If the interface is already owned elsewhere, use a shared accessor function instead (TD31 PR4 precedent — full incident: `docs/ENGINEERING_RULES.md` § Express `Request.user` typing).
-- **A Server Component's `generateMetadata()` that needs the same data as the page/layout body must share one fetch, not re-fetch independently** — wrap it in React's `cache()` (M18-S03 precedent — full incident: `docs/CODE_STANDARDS.md` § shared data fetch between `generateMetadata()` and the page/layout body).
-- **A field documented as "unset renders identically to today" must check whether today's behavior is an *explicit* class/value or an *implicit* engine default** before wiring the field's own default through generically (M18-S05 precedent — full incident: `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § implicit vs. explicit CSS defaults).
-- **Any timer-driven flush or async worker queue running on a Cloud Run instance with `run.googleapis.com/cpu-throttling: "true"` can be silently starved once no request is active — this includes sidecar containers, not just the app's own process.** A background timer/queue scheduled during a throttled gap may simply never fire, with no error or log line (M17-S34 precedent, 2026-08-05: fixing the app-side `BatchSpanProcessor` timer only moved the same bug into the collector sidecar's own `batch` processor/async queue, causing ~73% of traces to silently never reach Cloud Trace — full incident: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling — timer/async work can be silently starved (sidecars included)). **Update, 2026-08-06: that 73% measurement was taken while the sampler bug below was still dropping most spans, making span arrival artificially sparse — the collector's `batch`/`sending_queue` were reintroduced the next day once real, dense traffic revealed a NEW round of export failures, and batching measurably (not completely) reduced them. A live A/B directly CONFIRMED this exact starvation mechanism still applies in a narrower case: a single low-volume request (a `/pubsub/push` cron trigger) too small to hit the batch's size threshold lost spans via the timer, while dense multi-request bursts were unaffected. Extended observation (~2 hours, 363 requests) put the actual rate at 2 loss events total, both early, none since — low-frequency and intermittent, not persistent. See `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling and `infra/docker/otel-collector/README.md` for the full, honest result — this is not a closed case.**
-- **Before documenting a hypothesis as a confirmed root cause, check it against the actual, direct evidence the target system exposes — not just arithmetic that happens to make the numbers line up.** A burst of 71 "context deadline exceeded" export failures (otel-collector → Cloud Trace) was attributed to Cloud Trace's per-project write-API quota (4,800 requests/60s) being burst past, reasoning "71 calls in 300ms ≈ 237 req/s, ~3x the quota." That reasoning shipped in docs before being checked against Cloud Monitoring's own quota metrics (`serviceruntime.googleapis.com/quota/exceeded`, `.../quota/rate/net_usage`) — which showed **zero** quota-rejection events and actual usage at ~21% of the limit at peak, directly refuting it. Caught by cross-tool PR review, not the original investigation. The real mechanism remains unconfirmed; a Cloud Run container's CPU metric is too coarse (effectively one sample per minute) to confirm or rule out contention either, so don't let ruling out one hypothesis promote the next to "confirmed" without its own evidence (M17-S34 follow-up precedent, 2026-08-06 — full incident: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling, `infra/docker/otel-collector/README.md`).
-- **`new ParentBasedSampler({ root: ... })` with only `root` set silently drops most real traces — its own defaults for `remoteParentNotSampled`/`localParentNotSampled` are `AlwaysOffSampler`, not the configured ratio.** Any span with *any* parent context showing "not sampled" skips `root` entirely and is never recorded, regardless of `OTEL_TRACES_SAMPLER_ARG`. No error anywhere — the span is never created as a recording span, so nothing ever reaches an export path that could fail. Always set `remoteParentNotSampled`/`localParentNotSampled` explicitly to the same ratio-based sampler as `root` (leave `remoteParentSampled`/`localParentSampled` at their `AlwaysOn` default, so a genuinely-sampled parent is still respected) (M17-S34 precedent, 2026-08-05: this was the actual dominant cause of the ~75-89% production trace loss the CPU-throttling bullet above was originally — and incompletely — blamed for; the two bugs produce an identical silent-loss signature but are otherwise unrelated — full incident: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling, `packages/observability/src/otel-tracing.ts`'s `createSampler()`).
-- **`OTLPTraceExporter`'s default `concurrencyLimit` (30 in-flight exports) rejects — never queues or retries — any export past that limit, and `SimpleSpanProcessor` doesn't retry either, so each rejection is a genuinely lost span (`Error('Concurrent export limit reached')`).** This limit is rarely hit at low traffic or when a sampling bug is masking most spans, but real traffic with correct sampling can easily burst past it — a single request can fan out to 20-30 child spans. Pass `concurrencyLimit` explicitly (this repo uses 200) rather than relying on the library default (M17-S34 follow-up precedent, 2026-08-05: found immediately after the `ParentBasedSampler` fix above started letting real traffic through — 598 rejections in ~80 minutes on staging, one burst of 500 in 29 seconds — full incident: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling, `packages/observability/src/otel-tracing.ts`).
-- **When one branch of a message dispatcher gets an explicit tracing span, check every sibling branch of the same dispatcher for the identical gap — don't assume symmetry.** `GcpPubSubEventBusAdapter`'s cron-trigger dispatch branch never got the `startActiveSpan()` wrap its sibling domain-event branch had, leaving cron-triggered `/pubsub/push` traces with no dispatch-boundary span (M17-S34 follow-up precedent, 2026-08-05 — full incident: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling, `apps/backend/src/shared/infrastructure/event-bus/gcp-pubsub-event-bus.adapter.ts`).
-- **A traces-only `NodeSDK` bootstrap must explicitly pass `metricReaders: []` — omitting it does not mean "no metrics," it silently activates `@opentelemetry/sdk-node`'s own default OTLP metrics export loop** (active whenever `OTEL_METRICS_EXPORTER` isn't `"none"` and no `metricReaders`/`metricReader` is passed), independent of whatever the app's own tracing config does. If the collector has no `metrics:` pipeline, every periodic export hits a genuine 404, logged as an ERROR forever (M17-S34 follow-up precedent, 2026-08-05 — full incident: `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling, `packages/observability/src/otel-tracing.ts`).
-- **There is no `InsertQueryBuilder.onConflict()` method — a raw `ON CONFLICT` string fails at compile time.** For a conditional upsert (only overwrite when the incoming value is actually newer), use the real API: `.orUpdate(overwrite, conflictTarget, { overwriteCondition: { where } })`. Its `overwrite`/`conflictTarget` arrays take real DB column names (`last_success_at`), not entity property names (`lastSuccessAt`) — unlike `.values()`, `orUpdate()` does no property→column translation (M19-S06 precedent, 2026-08-13 — full incident: `docs/ENGINEERING_RULES.md` § TypeORM upsert internals).
-- **`useDefineForClassFields` makes a declared-but-unassigned class field a real own-property — `'field' in entity` is `true` even when TypeORM's partial upsert correctly excluded it from `DO UPDATE SET`.** Assert on the value (`.toBeUndefined()`), never on `in` presence, when testing that a partial-column upsert excluded a column (M19-S06 precedent, 2026-08-13 — full incident: `docs/ENGINEERING_RULES.md` § TypeORM upsert internals).
+- **Protected-area layouts** read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` from the decoded JWT — never hardcode `'pt-BR'`. **CI-enforced**: ESLint `LOCALE_LITERAL_SELECTOR`. → `docs/ANTI_PATTERNS.md` § hardcodes a locale string
+- **Anything that must exist for a Guard-rejected request must be Express middleware, not a NestJS Interceptor** — Interceptors never run for a Guard-rejected request. → `docs/ENGINEERING_RULES.md` § RequestContext
+- **Never put cross-service network I/O inside `txManager.run()`.** **CI-enforced**: `transactional-io` detector + ESLint `TX_MANAGER_PUBLISH_SELECTOR`/`RUN_IN_TRANSACTION_SELECTOR`. → `docs/ENGINEERING_RULES.md` § Transactions
+- **A `declare global` augmenting an interface member a dependency already declares silently no-ops** under `skipLibCheck: true` — `tsc --noEmit` still passes. → `docs/ENGINEERING_RULES.md` § Express `Request.user` typing
+- **A Server Component's `generateMetadata()` needing the same data as the page/layout body must share one fetch via React's `cache()`.** → `docs/CODE_STANDARDS.md` § shared data fetch between `generateMetadata()`
+- **A field documented as "unset renders identically to today" must check whether today's behavior is an *explicit* value or an *implicit* engine default.** → `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § implicit vs. explicit CSS defaults
+- **Cloud Run timer/async starvation, OTel sampler defaults, and exporter limits have each independently caused silent trace loss** — a timer-driven flush/queue on a CPU-throttled instance can starve (every container, sidecars included, though confirmed as of 2026-08-06 to be low-frequency/intermittent, not the dominant cause); `ParentBasedSampler` needs `remoteParentNotSampled`/`localParentNotSampled` set explicitly or it silently drops most spans (this was the actual dominant cause); `OTLPTraceExporter` needs an explicit `concurrencyLimit`; every dispatcher branch needs its own tracing span, not assumed symmetry; a traces-only bootstrap's metric-reader config must stay in sync with the collector's real pipeline (metrics were re-enabled 2026-08-12 — `metricReaders: []` is no longer the steady state). Before documenting a root cause as confirmed, check it against the target system's own direct evidence, not arithmetic alone. → `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling *(dense multi-fact summary — kept per safeguard)*
+- **There is no `InsertQueryBuilder.onConflict()`** — use `.orUpdate(overwrite, conflictTarget, { overwriteCondition })` with real DB column names, not entity property names. → `docs/ANTI_PATTERNS.md` § InsertQueryBuilder.onConflict
+- **Adding a `CHECK` constraint to an existing table with live rows via a plain `ADD CONSTRAINT` takes `ACCESS EXCLUSIVE`** — split into `ADD CONSTRAINT ... NOT VALID` + a separate `VALIDATE CONSTRAINT`. → `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`
+- **A domain event drained into the outbox needs at least one real `eventBus.subscribe()`/`triggerBus.registerTrigger()` consumer before it ships** — the topic auto-generator can't see an event that's only published. → `docs/ANTI_PATTERNS.md` § A domain event is drained
+- **OpenRouter/undici outbound calls need:** an explicit retry config (undici excludes `POST` and connect-timeout errors from its retry defaults); awareness that a shared `AbortSignal.timeout()` caps *total* time across retries, not a fresh budget per attempt; `provider.ignore` for a specific provider caught not honoring `reasoning: { effort: 'none' }` even with `require_parameters: true`; `provider.sort: 'throughput'` over the "obvious" `'latency'` for a fixed-time-budget request; and the backend's per-attempt timeout kept safely below the BFF's own timeout for the same call. → `docs/ENGINEERING_RULES.md` § OpenRouter chatbot *(dense multi-fact summary — kept per safeguard)*
+- **A shared test builder's date-typed default (`expiresAt`, `startedAt`) must be computed relative to `Date.now()`, never a hardcoded calendar date.** → `docs/ENGINEERING_RULES.md` § Shared test-builder date defaults
+- **A new cross-tenant, unscoped system job needs its own standalone index matching its filter column** — an existing `(tenant_id, X)` composite index can't be seeked without `tenant_id` in the query. → `docs/ENGINEERING_RULES.md` § Standalone index for a cross-tenant
+- **A merge that changes a workspace package's exports needs that package rebuilt before trusting a local type-check; a worktree's `.env` can go stale relative to sibling stories merged after it was created.** → `docs/CI_TRAPS.md` § Stale local state
+- **Cloudflare Turnstile's test sitekey never renders an interactive challenge iframe** — wait on the hidden `cf-turnstile-response` input's value in E2E, not an iframe selector. → `docs/CI_TRAPS.md` § Cloudflare Turnstile's test sitekey
+- **A CSP allowance for a new external UI resource must be scoped to every page a user could soft-navigate *from*** — CSP is only re-read on a fresh top-level navigation. → `docs/ENGINEERING_RULES.md` § CSP allowances for a new external UI resource
+- **A new full-page hotsite component must explicitly paint `backgroundColor: 'var(--ba-background)'`** — `applyBranding()` never paints an actual background. → `docs/ENGINEERING_RULES.md` § Hotsite full-page components
+- **A documented "field X must never appear inside field Y" invariant isn't enforced unless validated at the request boundary** — especially an unconstrained `z.record(...)` schema. → `docs/ENGINEERING_RULES.md` § Schema-level enforcement
+- **Before skipping a migration's backfill because "no source data can exist yet," check whether the *endpoint/controller* has already merged to `main`** — an endpoint is a live traffic path the moment it deploys. → `docs/ENGINEERING_RULES.md` § Migration backfills
+- **Any user-supplied search term wrapped in a `%...%` LIKE/ILIKE pattern must be escaped first** (`escapeLikePattern()`). → `docs/ANTI_PATTERNS.md` § A user-supplied search term is wrapped
+- **A Cloud Run service's `vpc_egress` mode determines whether outbound calls to public destinations even reach the VPC's firewall/NAT layer.** → `docs/ENGINEERING_RULES.md` § Cloud Run `vpc_egress` mode
+- **A new `no-restricted-syntax` ESLint selector must be checked against the 3 already-documented bypass classes** before considering it complete. → `docs/ENGINEERING_RULES.md` § `no-restricted-syntax` selectors must be checked
+- **Before a blind `Write` on a file believed to be new, grep for its expected exported symbols first** — the "must Read first" safeguard only tracks files *this session* has read. → `docs/ENGINEERING_RULES.md` § Before a blind `Write` on a file
+- **Adding one new simple test can retroactively make SonarCloud's `S5976` flag a new 3+ duplicate-test group among pre-existing tests.** **CI-enforced**: SonarCloud quality gate. → `docs/ENGINEERING_RULES.md` § SonarCloud's duplicate-test rule
+- **A lock only orders callers who both acquire it** — pair it with a cache-bypassing read or a fresh re-read of in-memory state loaded before the lock. → `docs/ENGINEERING_RULES.md` § A lock only orders callers
+- **An advisory lock's key format cannot change once it has protected real production traffic** — a rolling deploy runs old and new code side by side; a brand-new key can be namespaced freely. → `docs/ENGINEERING_RULES.md` § Choosing a race-condition primitive
+- **A new event handler's class name must be unique across the whole codebase, not just its own context** — the Pub/Sub generator keys by bare class name. → `docs/ENGINEERING_RULES.md` § Event Handlers (Pub/Sub consumers)
+- **When a bot review prompts extending an existing algorithm to a genuinely new dimension, re-derive the new code against every invariant already documented for that feature area.** → `docs/ENGINEERING_RULES.md` § Re-check a same-file documented invariant
+- **`architecture-check`'s `transactional-save` detector requires `save()` to be textually inside the `txManager.run()` callback**, not merely reachable through a helper. **CI-enforced.** → `docs/ENGINEERING_RULES.md` § `architecture-check`'s `transactional-save` detector
+- **Locking several rows of the same kind together needs a single batched query with an explicit deterministic order**, not N sequential single-row locks. → `docs/ENGINEERING_RULES.md` § Choosing a race-condition primitive
+- **A repository that wholesale-replaces a child collection on every `save()` needs a dirty flag on the aggregate** so an untouched save skips the expensive delete+reinsert. → `docs/ENGINEERING_RULES.md` § A wholesale-replaced child collection
+- **A child table keyed only by a composite PK cannot represent "declared but empty"** — reject an empty grouping at the aggregate boundary. → `docs/ENGINEERING_RULES.md` § A child table with only a composite PK
+- **A bot review's "doc update missing from this PR" claim only checked this PR's diff, not whether the doc is already correct on `main`.** Verify with `gh api repos/<org>/<repo>/compare/main...<sha>`. → `docs/CI_TRAPS.md` (bot doc-update-diff-scoping entry)
+- **A Jest OOM kill on a host with plenty of free RAM is V8's default ~2.2GB heap ceiling, not a leak** — set `--max-old-space-size` explicitly on every entry point that can run a large suite. → `docs/ENGINEERING_RULES.md` § Node's default V8 heap limit
+- **An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown** — CI's `TESTCONTAINERS_REUSE_ENABLE` reuses the same Postgres container across unrelated runs; an incomplete `afterAll` corrupts a later run. → `docs/ENGINEERING_RULES.md` § An integration test seeding fixtures
+- **CI-enforced by `architecture-check` detectors not otherwise mentioned in this file:** every TypeORM UUID-PK entity's builder must default to `uuidv7()` (`entity-builder-pk-default`); every TypeORM entity needs a matching builder in `src/test/builders/<context>/` (`test-builder-coverage`); a use case's `execute()` input/output types must be named exactly `{ClassName}Input`/`{ClassName}Result` (`use-case-naming`) — `ClassName` is the full class name *including* the `UseCase` suffix (`GetFooUseCase` → `GetFooUseCaseInput`/`GetFooUseCaseResult`, never `GetFooInput`); BFF response interfaces/Zod schemas live in sibling `.types.ts`/`.schemas.ts`, never inline in the controller (`bff-controller-type-placement`); never construct a class with a `jest.fn()` stub for a port-typed constructor param — use an `InMemoryXxx` double (`jest-fn-port-mock`); VO normalization-reachability and closed-enum mirror consistency (`vo-construction-validation`, `closed-enum-registry`); `.copilot/context.md` itself is guarded against a deleted gate, a broken doc pointer, a re-added PR#/ISO-date literal, a section past its size budget, or a divergent `CLAUDE.md`/`AGENTS.md`/`gemini.md` symlink (`agent-context-file`).
 
 ### BFF naming & transport
 
@@ -183,18 +207,21 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 
 ### Cross-layer deployment invariants
 
-- **Separate Terraform roots and states do not exchange outputs automatically** — Foundation/environment sequencing is a recurring source of apply-order failures. Full worked examples: `infra/terraform/README.md`.
-- **A Terraform module with its own passing `terraform test` suite is not proof it's actually applied by any real root.** Module-level tests (`mock_provider`, `command = plan`) validate the module in isolation — they can't detect that the module is never referenced by a `module` block anywhere in `envs/*` or `foundation/*`. Before treating an existing module as the precedent/target for an IAM (or any) edit, confirm with `grep -rn 'source.*=.*modules/<name>' infra/terraform/` that a real `module` block actually instantiates it — a module referenced only in *comments* elsewhere in the codebase can be a leftover from a later migration that was never deleted. Also remember granting a new secret's IAM accessor role needs **three** places updated together, not one: the module's own `secret_accessors_base` list, the calling env root's own hardcoded `secret_ids` map (`envs/*/main.tf` or `foundation/envs/*/main.tf` — a separate literal list, not derived from the module), and the module's own test fixture. (M19-S02 precedent, 2026-08-11: `infra/terraform/modules/iam/` looked like the real per-SA accessor-binding module — matching naming, matching pattern, its own tests green — but TD34 had already moved the live implementation to `foundation/modules/runtime-identities/` and left the original orphaned, never wired into any root. The new secret's IAM grant was edited into the dead module and merged with all tests green; the real gap was found only when a live `gcloud run services update-traffic` call surfaced a `Permission denied` error days later. **Follow-up, same day:** the fix PR's own stale-reference sweep (`grep -rln "modules/iam"`) still missed two live files — `infra/terraform/envs/prod/main.tf`'s module-dependency-graph comment and `infra/terraform/modules/storage/outputs.tf`'s two bucket-output descriptions — because both referenced the dead module only by its story number (`M17-S17`), never the literal path string. Caught only by two separate cross-tool reviews (Codex, then Copilot independently), not by the sweep itself. **A rename/deletion sweep must grep for every alias of the removed thing, not just its current literal name or path** — a story/PR number, an old short name, a prior class name — since a codebase this well-annotated routinely cross-references the same target multiple ways. Re-run the sweep once per alias, and don't treat "I already swept for the obvious string" as proof the sweep is complete.)
-- **A manual diagnostic Cloud Run deploy can silently pin a service's traffic policy to one revision name (instead of `latestRevision: true`), and normal `gcloud run deploy` calls in CI do not reset that pin on their own.** Every subsequent deploy still creates a new revision and the CI job still reports success, but live traffic silently stays frozen on the old revision indefinitely — with no error anywhere in the pipeline. This sharpens the CPU-throttling entry above about reverting manual Cloud Run overrides after debugging: reverting the *image* isn't enough if a manual `gcloud run services update-traffic --to-revisions=<rev>=100` (or equivalent) was also run during that session — that pins the traffic *policy* itself. After any manual diagnostic Cloud Run operation, check `gcloud run services describe <svc> --format='value(spec.traffic)'` for an explicit `revisionName` (needs reverting) vs. `latestRevision: true` (correct), and run `gcloud run services update-traffic <svc> --to-latest` if pinned. (M19-S02 precedent, 2026-08-11: a manually deployed `broken-test`-tagged diagnostic revision on 2026-08-09 — debugging a different, unrelated observability story — pinned `ikaro-backend`'s staging traffic to that day's revision; 5 subsequent CI deploys across ~36 hours all reported "success" while live traffic silently never moved, caught only when this story's own new secrets prompted a live state check instead of trusting green CI.)
-- **A CI gate built on a path-diff filter (`dorny/paths-filter`, or the native `on.push.paths`) checks a static fact about one commit's diff — never live/current state — so `gh run rerun` cannot clear it, no matter how long ago the underlying condition was actually resolved.** Re-running a failed run re-executes against that same run's already-computed diff; a job gated on "did this push touch path X" will fail identically forever on that commit. The only correct recovery is a genuinely new push (an empty commit is fine — `git commit --allow-empty`) so a fresh diff gets computed against its own parent. Any workflow error message that tells an operator to "just re-run the failed job" after resolving an external prerequisite is very likely wrong — verify what the gate actually re-evaluates before writing that instruction. (M19-S02 precedent, 2026-08-11: the `foundation-apply-required` CI gate added the same day this bullet was written shipped with exactly this bug in its own first-drafted remediation message — caught immediately by the user asking "how do you know it was run, instead of failing always?" before the flawed instruction ever reached a real incident.)
-- **A diff-based CI gate ("did this push touch path X") is structurally insufficient for "is prerequisite Y currently satisfied," not just imprecise — any later, unrelated push has an equally empty diff against X and silently sails through even when Y was never actually done.** The fix isn't a better diff-based check — it's asking a different question: find the most recent commit that touched X, then verify (against a system that reflects current reality, not this push's own history) that Y has been satisfied for a commit at or after it. GitHub's own Actions API (run history, job conclusions) already is such a system for "did workflow W succeed" — no new infrastructure needed. **When that verification needs to cross a deliberately-separated security boundary (here: TD34's Foundation isolation), prefer whatever already-available signal requires zero new trust grant over reaching for a credential from the other side of that boundary — even a read-only one.** Impersonating a Foundation identity (even `ikaro-tf-foundation-planner`, read-only) from the normal `infra-deploy.yml` pipeline would itself widen that pipeline's blast radius into exactly the boundary TD34 exists to keep separate; querying GitHub's own Actions API for `foundation-deploy.yml`'s run history costs nothing on that front and answers the same question. (M19-S02 precedent, 2026-08-11, same session as the bullet above: the user caught this exact gap by walking through a concrete scenario — "if I don't run foundation and push again, would that pass?" — then, when a live-state Terraform-plan check was proposed as the fix, caught that it would require granting the normal pipeline a new Foundation-identity credential, before either flaw shipped. The final design walks `git log`/`git merge-base --is-ancestor` plus `gh api .../actions/workflows/foundation-deploy.yml/runs` — verified end-to-end against this repo's real run history, both the block-case and the pass-case, before merging.)
-- **Migrations that grant privileges to infrastructure-created database roles must enforce provisioning order or provide convergent reconciliation.** A migration that silently skips a missing role is safe only when the deployment process guarantees Foundation creates the role first; otherwise it records a one-time no-op and leaves the role permanently under-privileged.
-- **Security dependency overrides are temporary compatibility boundaries, not permanent pins.** When a fixed upstream release becomes available, update the override and lockfile together, then verify the resolved dependency graph with the repository scanners; never leave a stale vulnerable version pinned merely because the override once addressed an older advisory.
-- **A Dependabot Docker base-image digest bump must be verified to stay within the same image variant/family before merging** — digest-only `FROM image@sha256:...` pins give Dependabot no tag to anchor updates to, so it can silently resolve to a same-repository-different-variant digest (e.g. `node:22-alpine` → the full Debian `node:22` image), introducing a wave of new Trivy CVEs with no corresponding code change (PR #309 precedent — full verification steps: `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § Docker base-image digest pinning).
+- **Separate Terraform roots and states do not exchange outputs automatically** — Foundation/environment sequencing is a recurring source of apply-order failures. → `infra/terraform/README.md`
+- **A Terraform module with its own passing `terraform test` suite is not proof it's actually applied by any real root** — grep for a real `module` block first. → `infra/terraform/README.md` § Gotchas (dead-module / 3-places-IAM precedent)
+- **A manual diagnostic Cloud Run deploy can silently pin a service's traffic policy to one revision** — check `spec.traffic` for `latestRevision: true` after any manual operation. → `infra/terraform/README.md` § Gotchas (traffic-pin precedent)
+- **A CI gate built on a path-diff filter checks a static fact about one commit's diff, never live state — `gh run rerun` cannot clear it.** Verify against a system reflecting current reality instead. → `docs/CI_TRAPS.md` (path-diff CI gate row)
+- **Migrations that grant privileges to infrastructure-created database roles must enforce provisioning order or provide convergent reconciliation.** → `docs/ENGINEERING_RULES.md` § Migration-driven privilege grants to infrastructure-created roles
+- **Security dependency overrides are temporary compatibility boundaries, not permanent pins.** → `docs/CI_TRAPS.md` § Snyk SCA failures
+- **A Dependabot Docker base-image digest bump must be verified to stay within the same image variant/family before merging** — a digest-only pin gives Dependabot no tag to anchor to. → `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § Docker base-image digest pinning
+- **The autonomous implementation chain must not treat "tests pass, lint clean, bots clean" as sufficient for a story touching Terraform/IAM/Pub/Sub/CI-CD** — run the concrete live check the change implies (a module wired into a real root, an IAM grant that actually resolves, a real `terraform plan -refresh-only`) before presenting the PR as merge-ready; a failed or un-runnable check is its own stuck condition (3 separate M19 stories broke on live deploy despite clean bot review — none were spec-ambiguity or code-reading failures). *(§9's own live-verification gate cites this bullet as its "why" — kept substantive on purpose, not further compressed.)*
+- **A Terraform `type = string` variable with no `default` does not reject an empty string** — only an explicit `validation` block fails closed. → `infra/terraform/README.md` § Gotchas (empty-string var precedent)
+- **When a bot review flags "this PR deletes/removes X" and X should obviously still exist, check whether the branch is simply stale relative to `main`** (`git merge origin/main`, never rebase). → `docs/CI_TRAPS.md` (stale-branch / shallow-clone entry)
+- **Before adding any Terraform `output` block, check whether its value derives from a secret/sensitive-marked resource attribute** — `sensitive = true` only masks terminal display. → `infra/terraform/README.md` § Public-repository security
 
 ### Web styling boundary
 
-*(`--ba-*` dashboard/hotsite boundary already covered in §8's anti-patterns excerpt above — not restated here.)*
+*(`--ba-*` dashboard/hotsite boundary already covered in §8's anti-patterns excerpt below — not restated here.)*
 - If a new component needs both SaaS and hotsite variants, build separate implementations rather than one component reading both branding systems.
 - Prefer `shadcn/ui` primitives; use bespoke components only when the UI clearly needs something custom.
 - Route-scoped chrome state visible in a shell header/topbar lives in a provider above both shell and page — never shell-local state or effect-based sync (`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`).
@@ -213,37 +240,34 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - Playwright specs are test cases only; reusable flows/helpers live in `apps/web/e2e/helpers/<feature>/**`. → Vitest config, mocks, axe testing, E2E helper/dev-login conventions: `docs/08-TESTING_STRATEGY.md`
 
 ### CI gates (block merge)
-ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Snyk SCA · Gitleaks · Trivy · Checkov/Tfsec
+ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Gitleaks · Trivy · Checkov
+
+**Snyk SCA moved off the per-PR gate to a weekly scheduled scan** — no longer a required check on `main`; a deliberate, budget-driven tradeoff, not an oversight. → `docs/CI_TRAPS.md` § Snyk SCA failures
 
 When SonarCloud is failing, treat the live issue list/quality gate as the only source of truth — never fix from stale logs or guess from the diff (see `docs/ANTI_PATTERNS.md`'s SonarCloud row for the exact discipline and how to verify a fix actually moved the metric).
 
 ### Definition of Done
-Full checklist (coverage, migration pre-production exception, stale-reference sweep, all with precedents): `docs/DEFINITION_OF_DONE.md`. Checked before `/pre-pr` runs (§9 Step 7).
+Full checklist (coverage, migration pre-production exception, stale-reference sweep, all with precedents): `docs/DEFINITION_OF_DONE.md`. Checked before `/pre-pr` runs (§9 Steps 3–9).
 
 ---
 
 ## 8. Anti-Patterns (BLOCK MERGE)
 
-Full list (~115 entries) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). The ones below are the highest-severity/most-recurring — likely to be hit *while writing code*, before `/pre-pr` ever loads the full list:
+Full list (narrower single-incident precedents included) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). The 11 below are the highest-severity/most-universal — architecturally broad, still-relevant, likely to be hit *while writing code*, before `/pre-pr` ever loads the full list. (Trimmed from 20 to 11 on 2026-09-14 — the 9 removed were narrow, single-incident precedents already fully covered in `docs/ANTI_PATTERNS.md`.)
 
 | Pattern | Fix |
 |---|---|
-| `useExisting` when registering adapter token | Use `useClass` — `useExisting` still instantiates the class even when the token is overridden in tests |
+| `useExisting` when registering adapter token | Use `useClass` — `useExisting` still instantiates the class even when the token is overridden in tests. **CI-enforced**: `di-alias` detector |
 | New cross-context Port+Adapter when one already exists for the same context pair | Grep `infrastructure/cross-context/` first; add a method to the existing adapter instead |
-| Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError` |
-| New interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ |
+| Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError`. **CI-enforced**: `vo-bare-error` detector |
+| New interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ. **CI-enforced** by `packages/architecture-check`'s `ikaro-types-drift` detector — full-codebase, every PR, not diff-scoped |
 | Inline mapper functions accumulating in a BFF `*.controller.ts` | Extract to `<module>.mapper.ts` (plain functions, not a class) once a second mapper appears |
 | Duplicate read endpoints/use cases for projections of the same aggregate/config | Keep one canonical read endpoint/use case; derive caller-specific values in the BFF mapper or web helper |
-| Staff hotsite login link to `/dashboard/login` without `?tenantSlug=` | Append `?tenantSlug=${encodeURIComponent(slug)}` — without it, linked accounts at another tenant are silently routed there |
-| BFF `@CurrentUser()` used only to construct a backend `/internal/` URL | Move endpoint to authenticated controller — `BackendHttpService` already forwards actor headers; `/internal/` is pre-auth only |
 | Dashboard or account component uses a `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
 | Fixed a Zod/DTO validation rule in one layer (BFF or backend) without checking the other for a duplicate schema | Grep the field name in both layers — BFF and backend often maintain independent copies of the same schema |
-| Zod validation rule duplicates a VO's own check (e.g. `.refine(Email.isValid, ...)`) | Reuse that VO's error code — don't mint a new one. Rules with no VO behind them share a small closed `GenericErrorCode` set instead of one code per site (`docs/ENGINEERING_RULES.md` § Single source of truth for a validation rule's code) |
-| An aggregate's update method re-validates a field even when the value passed through unchanged | Compare against the current stored value first; skip validation when nothing actually changed (see the SEO-limit row in the full doc for why this matters) |
-| A route is added to an existing hide-list/allow-list by pattern-matching neighbors | Name the invariant every current member satisfies before adding a new one — surface similarity isn't the same as satisfying the same rule |
 | A non-repository class (service, publisher, handler) contains raw SQL, `@InjectRepository`, or TypeORM `Repository<T>` directly | Extract `IXxxRepository` (`shared/ports/` for cross-cutting, `<ctx>/application/ports/` for a bounded context) + `TypeOrmXxxRepository` adapter; the class depends on the port only — see `docs/AGENT_PATTERNS.md` Pattern #1 |
-| A module is marked `@Global()` (or re-marked when a token gains new consumers) without adding that token to `exports:` | `@Global()` only waives the *importing* module's need for an `imports:` entry — it never substitutes for `exports:`. A provider left out of `exports:` stays unresolvable everywhere, and the DI error points at the consumer, not the missing `exports:` line |
-| New error code added to `@ikaro/types` without a translation entry in both locale files | Add the entry to both `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` in the same commit — `apps/web`'s exhaustiveness test (TD23 Story 17) fails CI on a missing one, not just a lint warning (M17-S30 precedent, 2026-07-18: `AUTH_RATE_LIMITED` shipped without either translation, caught only by the Web Unit Tests CI job) |
+| A module is marked `@Global()` (or re-marked when a token gains new consumers) without adding that token to `exports:` | `@Global()` only waives the *importing* module's need for an `imports:` entry — it never substitutes for `exports:`. A provider left out of `exports:` stays unresolvable everywhere. **CI-enforced**: `di-alias` detector |
+| New error code added to `@ikaro/types` without a translation entry in both locale files | Add the entry to both `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` in the same commit — **CI-enforced**: `apps/web`'s exhaustiveness test (TD23 Story 17) fails CI on a missing one |
 
 ---
 
@@ -258,36 +282,35 @@ Full list (~115 entries) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/p
 **Before the first story of a new milestone:** offer to run `/docs-audit M0X` first.
 
 ### Step 0 — Run story discovery (BEFORE any code)
-Run `/story-discovery M0X-SYY` — wait for READY verdict before proceeding. Never skip for any story or TD.
+Run `/story-discovery M0X-SYY` — wait for READY verdict before proceeding. Never skip for any story or TD. Discovery is the one deep, front-loaded decision point: beyond doc consistency, it also locks in the architectural pattern the story will use (or explicitly states none is needed), a concrete test/e2e coverage plan (named scenarios, not just "at least one"), and any business-rule ambiguity — asking the user as many questions as needed to resolve every open decision before implementation starts (`story-discovery.md` § Pattern & test-strategy lock-in). Discovery ends by rewriting the story's own spec to capture every decision and committing + pushing that update (`story-discovery.md` Step 7).
+
+**A READY verdict is the single authorization for everything through Step 9** — the entire commit → push → `/pre-pr` → PR → CI-fix → bot-fix chain below runs unattended from here, with no further per-step asks.
 
 ### Step 1 — Create feature branch (BEFORE any code)
-`git checkout -b feat/M0X-SYY-<short-description>` — never code on `main`.
+`git checkout -b feat/M0X-SYY-<short-description>` — never code on `main`. (Already done here if story-discovery's Step 9 set up a worktree/branch.)
+
+**First thing in any worktree or fresh clone:** `git rev-parse --is-shallow-repository` — if `true`, `git fetch --unshallow origin` before drawing any "behind/ahead of `main`" conclusion (a shallow clone's `git log HEAD..origin/main` lists phantom commits and `git merge origin/main` fails with "refusing to merge unrelated histories"). A worktree also carries none of the gitignored env files (`apps/backend/.env`, `apps/bff/.env`, `apps/web/.env.local`) — copy them from the main checkout before running the stack.
 
 ### Step 2 — Implement
-Write all files from the story spec. For any frontend story referencing a prototype:
+Write all files from the story spec, following the pattern and test plan locked in during discovery. For any frontend story referencing a prototype:
 - Read the prototype HTML **before** writing components.
 - Use exact CSS class names from the story's reference table — do not substitute Tailwind for `tokens.css` names.
 - Every new component file needs a co-located `.spec.tsx` in the **same commit** (§7 Testing).
 
-### Steps 3–5 — Verify, commit, push
-Run type-check, lint, jest — zero errors.
+### Steps 3–9 — Autonomous chain (no per-step confirmation)
+Once implementation is self-verified locally (type-check, lint, tests all clean), proceed through the rest of this chain without asking again — the Step 0 READY verdict already authorized it.
 
-**Before committing:** list the files you're about to stage and ask: *"Here are the files I'm about to commit: [list]. Anything else to add before I commit?"* Wait for explicit yes.
-
-**Before pushing:** ask: *"Anything else to add before I push?"* Wait for explicit yes. Stage specific files only (never `git add -A`). Commit format:
+**1. Commit** — stage specific files only (never `git add -A`), list them for visibility, then commit. Format:
 ```
 feat(<context>): <description> (M0X-SYY)
 
 Co-Authored-By: <your-name> <your-noreply-email>
 ```
-
 **If you are Claude:**
 ```
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
 (Claude Code adds this automatically as part of its own commit workflow — this line is a reference, not something you need to remember to type.)
-
-`ci:fast` (lint + type-check + unit tests) runs automatically on push and blocks if it fails.
 
 **If you are Codex:** this repo requires the equivalent trailer on every commit you author — it does not happen by default, so add it explicitly:
 ```
@@ -297,41 +320,54 @@ Co-Authored-By: Codex <noreply@openai.com>
 ```
 This is not optional — it's the record of who actually wrote the code, same as Claude's trailer, and matters for attribution/history independent of any tooling. (`/pre-pr` (§17), which dispatches `/pr-review` to the other tool once a PR is open, does *not* need this trailer for that decision — it already knows its own identity without detecting it.)
 
-### Step 6 — `ci:local` (optional)
-`pnpm ci:local` (~5 min, Docker). Only when touching Dockerfiles, infra, or integration-test paths.
+**2. Push** — `ci:fast` (lint + type-check + architecture-check + unit tests) runs automatically and blocks if it fails. (`ci:local`, `pnpm ci:local` ~5 min Docker, is optional and only worth running first when touching Dockerfiles, infra, or integration-test paths.)
 
-### Step 7 — `/pre-pr` (MANDATORY before PR)
-Ask the user: *"I believe the story is complete — may I run /pre-pr?"* Wait for explicit yes. Run `/pre-pr` — it runs the script, agent checks, bad-smell-audit, and integration tests autonomously. Must report zero issues across all steps before opening the PR.
+**3. `/pre-pr`** — runs automatically once pushed (no permission prompt to start it): script, agent checks, bad-smell-audit, integration tests. Fix any failure and re-run; do not proceed until it reports zero issues across all steps.
 
-### Step 8 — Open the PR
+**4. Open the PR** once `/pre-pr` clears:
 ```bash
 gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
   --body "## Summary\n- <bullet>\n\n## Story\nM0X-SYY\n\n## Test plan\n- [ ] Unit tests pass\n- [ ] Type-check clean\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
   --repo lmmoreira/ikaro
 ```
 
-### Step 9 — Monitor CI; triage bot reviews
-`gh pr checks <PR-number> --repo lmmoreira/ikaro`. Also fetch inline comments: `gh api repos/lmmoreira/ikaro/pulls/<PR-number>/comments` and reviews: `gh api repos/lmmoreira/ikaro/pulls/<PR-number>/reviews`.
+**5. Monitor CI; triage bot reviews** — run `/pr-land` (full mechanics: `.claude/commands/pr-land.md`). It posts the CodeRabbit trigger and dispatches Codex (round 1, from `/pre-pr`), then loops: wait for every in-scope actor of the round (CI + Codex always, CodeRabbit round 1 only) to finish, pool every finding together, apply all fixes as **one commit + one push**, re-dispatch Codex only for the next round. Never react to a single actor mid-round — a fix based on Codex's result while CI is still running (or vice versa) wastes a round. Repeat until CI is green and Codex reports 0 unresolved Critical/Important.
 
-**Verify a bot's suggested fix against the actual source before applying:**
-- Bots often flag "inconsistencies" that are deliberate (e.g. different timezone conventions in two functions)
-- Severity labels (`Critical`) are not evidence — verify against framework source (`node_modules/.pnpm/...`)
-- **Check which commit range the review actually covers first** (stated in the review body, e.g. "between `<sha1>` and `<sha2>`") — local commits since then may have already fixed some findings. Cross-check each finding against the *current* file content, not the diff shown in the review, before triaging it as valid/stale/not-applicable.
-- **CodeRabbit's own pre-merge "Description check" and "Docstring Coverage" checks are calibrated to CodeRabbit's generic defaults, not this repo's conventions** — expect both to show as ⚠️ on every PR (this repo's own PR template omits CodeRabbit's expected UC-link/verification-checklist sections, and `docs/CODE_STANDARDS.md` § Comments and abstraction discipline says to default to no comments). Not actionable; don't chase them.
+**Bot-finding discipline (mandatory, every finding, every round):** read → check against actual codebase practice (grep the real precedent, don't take the bot's claim at face value) → check against the real business scenario (a flagged "inconsistency" may be deliberate) → only then apply the fix. If it doesn't survive, reply explaining why — never silent-ignore. A business/design-only finding, or one whose relevance genuinely can't be determined, escalates immediately — not gated on round count. This applies with equal force when *declining* a finding by citing an existing AC — an AC being written down doesn't make it correct; check whether the codebase's own overwhelming practice actually supports it first. Full discipline (severity-label skepticism, the decline-scrutiny and escalating-severity-recheck rules, with precedents): `.claude/commands/pr-land.md` § Step 3.
+
+**6. Infra-touching stories — live-verification gate:** if this story touches Terraform, IAM, Pub/Sub, or CI/CD, run the concrete live check the change implies (confirm a Terraform module is referenced by a real `module` block, confirm an IAM grant actually resolves, a real `terraform plan -refresh-only`) **before** treating the PR as ready for the human merge review — see §7's Cross-layer deployment invariants for why "tests pass, bots clean" isn't sufficient for this category. A failed or un-runnable check is its own stuck condition.
 
 **If the branch conflicts with `main` after it's already been pushed and reviewed:** merge, never rebase — full rule + fix: `docs/CI_TRAPS.md` § A compile/test failure only exists in CI, and won't reproduce even in a clean clone.
 
+**Stuck conditions — escalate to the user, never force through:**
+1. A CI/test failure that doesn't resolve within a reasonable number of genuine fix attempts, or whose only apparent fix would be a workaround the "no workarounds" rule (§7) forbids.
+2. A bot finding whose relevance can't be confidently determined either way (bot-finding discipline step 6 above), or one that needs a business/design decision (step 7 above) — the latter escalates immediately, not gated on round count.
+3. A failed or un-runnable live-verification check on an infra-touching story (item 6 above).
+4. `/pr-land` reaches round 5 with Codex still reporting ≥1 unresolved Critical or Important finding (Minor-only doesn't count). Describe what's recurring across rounds and what's been tried — don't attempt a 6th round unprompted.
+
+When stuck, stop and describe the specific blocker — don't keep iterating to force a green check, and don't silently drop the finding either.
+
 ### Step 10 — Ask user before merging
+This is now the primary point where implementation-time surprises get caught, not a formality — treat it as a substantive read of the actual diff.
+
+**Before asking, confirm mergeability directly** — a green Codex/CI/SonarCloud-issues read is not sufficient on its own. Run `gh pr view <PR-number> --repo lmmoreira/ikaro --json mergeStateStatus,mergeable` and only ask once `mergeStateStatus` is `CLEAN`. → `docs/CI_TRAPS.md` § A green Codex/CI/SonarCloud-issues read is not sufficient proof a PR can merge
+
 Ask: *"All checks are green on PR #N — happy to merge?"* Then:
 `gh pr merge <PR-number> --repo lmmoreira/ikaro --squash --delete-branch && git checkout main && git pull origin main && git branch -D <branch-name>`
 
 Always delete the local branch with `-D` (not `-d` — squash merges aren't recognized as fully merged).
 
 ### Step 11 — Mark done
-`/mark-done M0X-SYY` — updates plan file, commits to main, alerts if milestone complete. (TD stories: no separate command — see `mark-done.md`'s note on marking a TD story done directly in its own feature branch.)
+`/mark-done M0X-SYY` — the last-mile check, not just bookkeeping: independently re-verifies AC evidence and that any Critical/Important `/pr-review`/bot finding on the merged PR was actually resolved, opening a bug-fix TD via `/create-td` for any real gap rather than silently marking done — then updates the plan file, commits to main, alerts if milestone complete. (TD stories: no separate command — see `mark-done.md`'s note on marking a TD story done directly in its own feature branch.)
+
+**If a worktree was used, clean it up immediately after — no need to ask:** `git worktree remove .claude/worktrees/<name> --force`, delete the local branch(es) with `-D`, prune the stale remote-tracking ref (`git fetch --prune origin`). Verify the removal actually took with `git worktree list` — don't trust a success message alone.
 
 ### Step 12 — Milestone complete?
 If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10. Also do the stale-documentation sweep described in `/mark-done`'s milestone-complete reminder — a safety net for any story that skipped `docs/DEFINITION_OF_DONE.md`'s stale-reference-sweep item.
+
+### Parallel batch execution (optional)
+
+For a milestone with many independent stories, `/run-batch` runs a small batch (default 2, cap 5) concurrently instead of one story at a time — stricter than a milestone "wave" (zero dependency edges, zero overlapping files between every pair, checked live against the plan file, never assumed from wave membership). Discovery for the whole batch runs first sequentially (a spawned subagent can't pause mid-run for a live reply); only once every story is READY does implementation fan out across parallel worktrees. Stuck conditions and merge-readiness are reported per-story as they land — scrutiny stays the same as running one at a time. Full mechanics: `.claude/commands/run-batch.md`.
 
 ---
 
@@ -343,10 +379,12 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 | Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` |
 | CI failure / pre-PR | `docs/CI_TRAPS.md` |
 | Implement a UC | `docs/04-USE_CASES.md` (UC section) + `docs/02-DOMAIN_MODEL.md` + `docs/03-DOMAIN_EVENTS.md` |
+| Complex/cross-cutting business logic (an algorithm, state machine, or formula spanning multiple UCs/aggregates in one context) — writing one, or checking whether one already exists | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section first before re-deriving from scattered prose; see also `/story-discovery`'s 4r check and `/mark-done`'s Step 4 |
+| Resource-scoped scheduling / availability computation (M21+) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability, in addition to the Database/migration and Implement-a-UC rows above |
 | Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
 | Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES.md` |
-| Staff OAuth login / invite link | `docs/ENGINEERING_RULES.md` § Staff OAuth login URL format + `td/TD13-STAFF-INVITE-EMAIL-LINK.md` |
+| Staff OAuth login / invite link | `docs/ENGINEERING_RULES.md` § Staff OAuth login URL format |
 | New notification type | `docs/ENGINEERING_RULES.md` § Adding a new notification type |
 | New error code (`@ikaro/types`) | `docs/ENGINEERING_RULES.md` § Adding a new error — checklist (step 2: translation entry in **both** locale files, or CI's exhaustiveness test fails) |
 | New UI copy / locale key | `docs/ENGINEERING_RULES.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` |
@@ -363,11 +401,16 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 | CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` |
 | Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` |
 | Writing Terraform / infra code | vendored HashiCorp Terraform skills from `.claude/skills/` + `plan/M17-CLOUD-DEPLOY.md` §0–§2 + `infra/terraform/README.md` (layout, state, version-constraint + unit-test conventions) |
-| TD34 foundation / IAM transfer | `td/TD34-TERRAFORM-DEPLOYER-PRIVILEGE-ESCALATION.md` + `infra/terraform/foundation/README.md` before editing Terraform or workflows |
+| Foundation / IAM ownership | `infra/terraform/foundation/README.md` + `infra/terraform/README.md` before editing Terraform or workflows |
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
-| Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
+| Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
+| `Resource` aggregate / resource-scoped scheduling (M21 and later) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `plan/journey/README.md` |
+| Starting a new discovery from an idea | `/create-discovery` — see `.claude/commands/create-discovery.md` |
 | Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` — see `.claude/commands/discovery-to-milestone.md` |
+| Creating a brand-new TD | `/create-td` — see `.claude/commands/create-td.md` |
+| Appending one new story to an already-existing TD or milestone (a live bug, a freshly spotted gap — no discovery doc, no new-container ceremony) | `/create-story` — see `.claude/commands/create-story.md` |
+| Drafting or parsing any story (TD or milestone) | `docs/STORY_SCHEMA.md` — canonical field set; `/create-td`, `/create-story`, `/discovery-to-milestone`, `/story-discovery`, `/run-batch` all reference it instead of restating their own copy |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
 **Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
@@ -378,7 +421,7 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 
 ## 11. Repository Layout — Domain-Slice Architecture
 
-Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/11-ARCHITECTURE.md` · BFF detail: `docs/24-BFF_ARCHITECTURE.md` · Migration history: `td/TD-21-SEPARATION-REPOSITORY-INTO-DOMAIN-SLICES.md` (resolved — this is the live architecture, not a future plan).
+Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/11-ARCHITECTURE.md` · BFF detail: `docs/24-BFF_ARCHITECTURE.md`. This is the live architecture, not a future plan.
 
 Three slice types, consistent across all three apps:
 - **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`
@@ -409,8 +452,8 @@ Three slice types, consistent across all three apps:
 
 1. **`/story-discovery M0X-SYY` ran and returned READY** — first action, no exceptions (§9 Step 0)
 2. **Feature branch created before any code** — `git checkout -b feat/M0X-SYY-<desc>` (§9 Step 1)
-3. **Asked user before every `git commit` and `git push`** — never autonomous (§0)
-4. **Ran `/pre-pr` and waited for the integration gate to pass before `gh pr create`** (§9 Step 7)
+3. **One authorization obtained at story-discovery's READY verdict** covers commit/push/pre-pr/PR/CI-fix/bot-fix — no per-step asks after that (§0); the merge ask (§9 Step 10) is still separate and mandatory.
+4. **`/pre-pr` ran and cleared before `gh pr create`, and any stuck condition was escalated rather than forced through** (§9 Steps 3–9)
 5. **Milestone complete?** — see §9 Step 12 for the wrap-up-doc + stale-doc-sweep sequence.
 
 ---
@@ -425,6 +468,8 @@ Canonical registry: §17.
 
 > ❗ **HARD STOP — READ BEFORE TOUCHING ANY `plan/journey/` FILE**
 > `/docs-audit` MUST run and report a clean baseline first. Then: (1) write `<actor>/<slug>.md`, (2) update `<actor>/use-cases.md`, (3) update `plan/journey/README.md`'s index, (4) **only then** create files under `<actor>/prototypes/<slug>/`.
+
+**Scope of the hard stop:** it covers *creating or restructuring* journeys and prototypes. A one-sentence factual sync of an existing `plan/journey/**` file (e.g. correcting a `dev-notes.md` line after the implementation changed) needs only the normal doc-gate yes — no `/docs-audit` baseline.
 
 Full rules, folder structure, and CSS gotchas (`.topbar-avatar`, `.week-nav`, `padding-bottom`, floating toast, etc.): `plan/journey/README.md` — load whenever working on any journey file or prototype folder.
 
@@ -454,9 +499,15 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | Command | File |
 |---|---|
 | `/bad-smell-audit [backend\|bff\|web]` | `.claude/commands/bad-smell-audit.md` |
+| `/create-discovery <idea \| brief \| slug>` | `.claude/commands/create-discovery.md` |
+| `/create-story <M0X \| TDNN + description>` | `.claude/commands/create-story.md` |
+| `/create-td <problem description>` | `.claude/commands/create-td.md` |
 | `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
 | `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
+| `/grill-me` | `.claude/commands/grill-me.md` |
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |
+| `/pr-land [PR#]` | `.claude/commands/pr-land.md` |
 | `/pr-review [PR#]` | `.claude/commands/pr-review.md` |
+| `/run-batch [M0X \| M0X-SYY/TDNN ...]` | `.claude/commands/run-batch.md` |
 | `/story-discovery M0X-SYY` | `.claude/commands/story-discovery.md` |

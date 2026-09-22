@@ -11,6 +11,10 @@ import {
   UpdateTenantSettingsUseCase,
 } from '../../application/use-cases/update-tenant-settings.use-case';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
+import {
+  GetChatbotCapStatusUseCase,
+  GetChatbotCapStatusUseCaseResult,
+} from '../../application/use-cases/get-chatbot-cap-status.use-case';
 import { TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
@@ -28,6 +32,7 @@ export class TenantSettingsController {
   constructor(
     private readonly getTenantById: GetTenantByIdUseCase,
     private readonly updateTenantSettings: UpdateTenantSettingsUseCase,
+    private readonly getChatbotCapStatus: GetChatbotCapStatusUseCase,
     private readonly tenantContext: RequestContext,
   ) {}
 
@@ -52,5 +57,19 @@ export class TenantSettingsController {
       settings: dto.settings as UpdateTenantSettingsUseCaseInput['settings'],
     };
     return this.updateTenantSettings.execute(input).catch(mapPlatformError);
+  }
+
+  @Get('chatbot/cap-status')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ManagerRoleGuard)
+  getCapStatus(): Promise<GetChatbotCapStatusUseCaseResult> {
+    const { tenantId, settings } = this.tenantContext;
+    return this.getChatbotCapStatus
+      .execute({
+        tenantId,
+        chatbotSettings: settings.chatbot ?? {},
+        timezone: settings.businessHours.timezone,
+      })
+      .catch(mapPlatformError);
   }
 }

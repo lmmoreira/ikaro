@@ -33,13 +33,14 @@ export default async function LoyaltyLayout({
         dateFormat={resolveDashboardDateFormat(shell.formatting)}
         timeFormat={shell.formatting.timeFormat}
       >
-        <TenantProvider tenantId={shell.tenantId} tenantSlug={shell.tenantSlug}>
+        <TenantProvider tenantId={shell.tenantId} tenantSlug={shell.tenantSlug} role={shell.role}>
           <DashboardTopbarStatusProvider key={pathname}>
             <DashboardShell
               tenantName={shell.tenantName}
               tenantSlug={shell.tenantSlug}
               userName={shell.userName}
               role={shell.role}
+              leadFormEnabled={shell.leadFormEnabled}
             >
               {children}
             </DashboardShell>

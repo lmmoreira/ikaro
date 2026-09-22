@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Deep multi-perspective PR review - acceptance-criteria verification, correctness, security/tenant-isolation/ops risk, performance/scalability, and architecture/design-pattern/test-quality - plus infrastructure/cloud/DevOps-SRE review (IAM, secrets, blast radius, cost) when Terraform or CI/CD workflow files are touched - cross-checked against docs/ANTI_PATTERNS.md and this codebase's documented rules. Findings ordered Critical/Important/Minor. Always posts the report as a PR comment when a PR exists (mandatory, not gated on asking - required for headless runs dispatched by /pre-pr to complete). Standalone: does not invoke /pre-pr or /bad-smell-audit, and has no opinion about who wrote the code it's reviewing.
+description: Deep multi-perspective PR review - acceptance-criteria verification, correctness, security/tenant-isolation/ops risk, performance/scalability, and architecture/design-pattern/test-quality - plus infrastructure/cloud/DevOps-SRE review (IAM, secrets, blast radius, cost) when Terraform or CI/CD workflow files are touched - cross-checked against docs/ANTI_PATTERNS.md and this codebase's documented rules. Findings ordered Critical/Important/Minor. Every Critical/Important finding is independently re-verified and checked against the PR's own comment/review history before posting, to catch factually incorrect or duplicate findings before they go out. Always posts the report as a PR comment when a PR exists (mandatory, not gated on asking - required for headless runs dispatched by /pre-pr to complete). Standalone: does not invoke /pre-pr or /bad-smell-audit, and has no opinion about who wrote the code it's reviewing.
 metadata:
   short-description: Deep multi-perspective PR review
 ---
@@ -36,6 +36,18 @@ git show <headRefOid>:<path/to/file>
 ```
 In local-branch mode, the working directory already matches the diff being reviewed — no pinning needed, read files normally.
 
+**Resolve the PR number now and fetch its comment/review history — needed by Step 3's dedupe pass, and reused by Step 5's posting step so it's only resolved once:**
+```bash
+# $ARGUMENTS PR number, or — in local-branch mode — a PR already open for the current branch
+gh pr list --head "$(git rev-parse --abbrev-ref HEAD)" --repo lmmoreira/ikaro --json number,url --jq '.[0]'
+
+# If a PR number resolved, fetch its full history now:
+gh api repos/lmmoreira/ikaro/issues/<N>/comments --paginate    # top-level comments: prior /pr-review posts, triage replies, human declines
+gh api repos/lmmoreira/ikaro/pulls/<N>/comments --paginate     # inline review comments (CodeRabbit/Codex line comments + replies)
+gh api repos/lmmoreira/ikaro/pulls/<N>/reviews --paginate      # review-level verdicts
+```
+No PR resolves (pure local-diff mode, nothing open yet) — note it here once: Step 3's dedupe pass and Step 5's posting step both skip for the same reason, there's no history to check or comment on.
+
 **Resolve the story/TD ID** — check, in order: the PR body's `## Story` section, the branch name (`feat/M0X-SYY-*`, `fix/M0X-SYY-*`, `*TDNN*`), commit messages (`(M0X-SYY)` suffix per this repo's Conventional Commits format). If none of these resolve an ID, ask the user for it before continuing — acceptance-criteria verification cannot run blind.
 
 **Load the story/TD file** (`plan/M0X-*.md` or `td/TDNN-*.md`) and extract:
@@ -66,10 +78,12 @@ Spawn four agents in parallel (one message, four `Agent` calls, `subagent_type: 
 **Every agent applies this discipline to every finding, no exceptions:**
 1. Read the full surrounding context before reporting — never flag from pattern-matching a single line in isolation.
 2. Cross-check against `docs/ANTI_PATTERNS.md`'s full table and any explicit "never / don't / must / forbidden / avoid" rule in `CLAUDE.md` or the docs loaded for this lens. When a finding matches a documented rule or named anti-pattern, **cite it directly** (doc + section/row) instead of general reasoning alone — a grounded finding beats a stylistic opinion.
-3. **Verify against the real primary source before asserting anything about third-party or external behavior (2026-08-12).** A claim about a library's actual default, a cloud API's actual constraint, a framework's actual runtime behavior — never assert this from memory alone. Fetch the real docs (`WebFetch`), pull the real package (`npm pack`/`npm view`, then read its source), or run the real binary (`docker run`, a local repro) before writing the finding down. This is this codebase's own established discipline (`docs/ENGINEERING_RULES.md`'s incident history is built on "checked directly," "confirmed against the real pinned binary," "refuted, not just unconfirmed" — see `docs/ANTI_PATTERNS.md`'s rows on unverified quota/CPU hypotheses for what happens when this step is skipped). An unverified claim, even a plausible-sounding one, is not a finding yet.
-4. Attach a suggested severity (rubric in Step 2), a one-line rationale, and `file:line`.
-5. If genuinely unsure whether something is a real defect vs. an intentional, documented design choice, say so explicitly and suggest Minor rather than guessing Critical.
-6. Do not invoke `/pre-pr`, `/bad-smell-audit`, or any other skill.
+3. **Verify against the real primary source before asserting anything about third-party/external behavior, or about this codebase's own current state (2026-08-12; broadened 2026-09-17 — PR #483's history showed the codebase's-own-state case is just as often wrong).** A claim about a library's actual default, a cloud API's actual constraint, a framework's actual runtime behavior — never assert this from memory alone; fetch the real docs (`WebFetch`), pull the real package (`npm pack`/`npm view`, then read its source), or run the real binary (`docker run`, a local repro). The identical discipline applies to a claim about *this* codebase: if the finding asserts a schema/data invariant could be violated ("a tenant could have two X", "this row could be missing Y"), grep the actual migration/constraint before asserting it — a partial unique index or exclusion constraint can make the claimed scenario structurally impossible (PR #483, M22-S03: a Critical claiming duplicate `LOCATION` backfill rows was declined, factually incorrect, against a real DB-level unique index — then an equivalent claim was independently re-raised 9 rounds later). If the finding asserts broken/invalid behavior in code that ships with test coverage, check whether an existing test already exercises that exact scenario before asserting it's broken — a passing test is stronger evidence than re-reading the code by eye (PR #483 round 13: a Critical claiming an `ON CONFLICT` clause used invalid SQL was declined, factually incorrect, against an integration test that had exercised that exact clause successfully across all 13 review rounds). **A Critical alleging existing, tested code is fundamentally broken/non-functional carries the highest cost when wrong — it needs the highest evidence bar: reproduce it for real (run the query, run the test), not just read the code and reason about it.** This is this codebase's own established discipline (`docs/ENGINEERING_RULES.md`'s incident history is built on "checked directly," "confirmed against the real pinned binary," "refuted, not just unconfirmed" — see `docs/ANTI_PATTERNS.md`'s rows on unverified quota/CPU hypotheses for what happens when this step is skipped). An unverified claim, even a plausible-sounding one, is not a finding yet.
+4. **Once a bug/anti-pattern is confirmed at one call site, sweep for the same pattern at every structurally similar site in the same file and bounded context before finalizing — report all of them together, not just the one first noticed.** A bug found and fixed at one site while an identical, already-known instance sits untouched elsewhere just means the same defect gets rediscovered piecemeal, round after round (PR #483, M22-S03: a tenant-wide-vs-per-service buffer-override bug was fixed in the resource-scoped path across rounds 7-8, with round 7's own triage note recording that the identical pattern was "verified" to also exist, unchanged, in `GetAvailabilityUseCase.calculateDegenerate()` — that sibling instance wasn't independently confirmed-and-fixed until round 12, four rounds later, despite already being on record).
+5. **Before flagging missing precision/coverage as a defect, check the story/TD's own Non-Goals/out-of-scope language first.** A gap that's already a documented, deliberate scope boundary isn't a finding (PR #483, M22-S03: three separate findings across three different rounds were all eventually declined on the identical basis — the milestone's own Non-Goals section explicitly deferring that precision to a later milestone; two of the three were close to a word-for-word repeat of each other one round apart, which Step 3 below also would have caught, but checking Non-Goals up front avoids raising it at all).
+6. Attach a suggested severity (rubric in Step 2), a one-line rationale, and `file:line`.
+7. If genuinely unsure whether something is a real defect vs. an intentional, documented design choice, say so explicitly and suggest Minor rather than guessing Critical.
+8. Do not invoke `/pre-pr`, `/bad-smell-audit`, or any other skill.
 
 ### Agent A — Requirements & Correctness
 - Check off **every** acceptance-criteria bullet individually: Met / Not Met / Partial, each with evidence (`file:line`, or "no corresponding change found").
@@ -149,7 +163,32 @@ Collect all four agents' raw findings in the main thread:
 
 ---
 
-## Step 3 — Output format
+## Step 3 — Validate & dedupe against this PR's own history (mandatory, every Critical/Important finding)
+
+Run this pass over Step 2's synthesized list before anything reaches the report in Step 4. Two independent problems motivate it, both observed across the real 13-round review history of PR #483 (M22-S03) — and both stem from the same root cause: each `/pr-review` dispatch (from `/pre-pr`'s `nohup codex exec ...`, or a fresh `/pr-land` round) runs as a memoryless process with zero visibility into any earlier round, so nothing catches these unless this step explicitly goes and looks.
+
+- **A finding that's confidently wrong resurfaces after already being refuted.** Round 4 flagged a Critical — the backfill migration would insert duplicate `LOCATION` occupancy rows for a tenant with two active locations — declined as factually incorrect against a real DB-level unique index. Round 13, nine rounds later, independently re-derived the same false premise as a fresh Important finding, costing a full round to re-prove an already-settled fact.
+- **A finding repeats an already-answered one almost immediately.** Round 10 declined "the write path deterministically picks the first N pool members and can reject a slot the read path advertises as available" as an already-documented M23 scope boundary. Round 11, the very next round, raised close to the same finding again, word-for-word, and it was declined again on identical grounds.
+
+**1. Independently re-verify every Critical/Important finding before it's finalized.** Step 1 item 3 already requires primary-source verification, including for the codebase's own state — treat this as the final check, not a repeat of the agent's own claimed diligence:
+   - Re-read the cited `file:line` yourself, in full surrounding context — not the agent's excerpt.
+   - If the finding asserts a schema/data invariant, grep the actual migration/constraint yourself before accepting it.
+   - If the finding asserts broken/invalid behavior in tested code, check for an existing passing test exercising that exact scenario before accepting it — and for any Critical alleging existing code is fundamentally broken, actually reproduce it (run the query, run the test) rather than reasoning from a read-through.
+   - Re-confirm the cited doc/anti-pattern/rule actually says what the finding claims — open the section, don't trust the agent's paraphrase.
+   - A finding that doesn't survive this re-check is dropped, not downgraded to Minor "just in case."
+
+**2. Check this PR's existing comment/review history before including anything**, using what Step 0 fetched:
+   - Search for the same `file:line` or the same underlying claim — a differently-worded finding about the same fact still counts as the same finding; match on substance, not exact text.
+   - **Already fixed** by a later commit → drop it, it's stale.
+   - **Already raised and declined/answered with reasoning that still holds against the current diff** → drop it; cite the existing comment instead of re-litigating (`file:line — see <comment URL>, already addressed`). Don't blindly trust an old decline either — if the code touching that fact changed since the reply, re-verify per step 1 above before trusting it.
+   - **Already raised, still open, no reply yet** → don't repost a duplicate finding; reference the open thread instead of restating it fresh.
+   - **Replies are not threaded.** Answers to findings are ordinary PR-level comments (posted from the same account as this bot's reviews), conventionally starting `**Re: <finding summary> (file:line)**`. Before calling a finding "still unresolved", scan every comment posted *after* the original for a `Re:` line or the same file/symbol; a finding that was fixed or declined-with-evidence is *not* "open" just because the original comment has no linked reply. If a decline's cited evidence is wrong at the current head, re-raise it and quote the correct code — otherwise cite the reply and drop it.
+   - **Never raised before** → keep it as a new finding.
+   - No PR exists yet (pure local-diff mode) → skip this whole step, there's no history to check.
+
+---
+
+## Step 4 — Output format
 
 ```
 ## PR Review — <branch or PR#> — <story/TD ID>
@@ -183,22 +222,18 @@ Collect all four agents' raw findings in the main thread:
 Total: N critical · M important · K minor
 ```
 
-If a section has no findings, print `(none found)`. Print the AC/UC sections even when everything is met — visibility on what was checked is as important as what failed.
+If a section has no findings, print `(none found)`. Print the AC/UC sections even when everything is met — visibility on what was checked is as important as what failed. A finding kept only because Step 3 found it already open and unanswered elsewhere should link the existing comment instead of restating it fully (`file:line — see <comment URL>, already flagged, still unresolved`).
 
 ---
 
-## Step 4 — Post as a PR comment (mandatory)
+## Step 5 — Post as a PR comment (mandatory)
 
 Only skipped when there is no actual GitHub PR to comment on (pure local-diff mode, nothing on GitHub yet). Otherwise, posting is **mandatory, not conditional on asking** — a headless run (`codex exec`, `claude -p`, e.g. dispatched by `/pre-pr`) has no one to answer a confirmation prompt, so an ask-gate here just silently produces nothing; the review must complete end-to-end on its own, same as any other step in this workflow (`/pre-pr` doesn't pause mid-script to ask before each check either).
 
-Resolve the PR to comment on: the `$ARGUMENTS` PR number, or — in local-branch mode — a PR already open for the current branch:
-```bash
-gh pr list --head "$(git rev-parse --abbrev-ref HEAD)" --repo lmmoreira/ikaro --json number,url --jq '.[0]'
-```
-If neither applies, skip this step silently — there's nothing to comment on.
+Reuse the PR number resolved in Step 0 — no need to re-resolve it. If none resolved there, skip this step silently — there's nothing to comment on.
 
 Otherwise, post automatically:
-1. Write the exact Step 3 report to a temp file, with the 🟢 Minor section wrapped in a collapsible block so a long comment stays scannable:
+1. Write the exact Step 4 report to a temp file, with the 🟢 Minor section wrapped in a collapsible block so a long comment stays scannable:
    ```
    <details>
    <summary>🟢 Minor (nice to have) — N findings</summary>

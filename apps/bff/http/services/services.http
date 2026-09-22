@@ -132,6 +132,59 @@ Authorization: Bearer {{managerToken}}
   "description": null
 }
 
+###
+
+### Convert an APPOINTMENT service to SESSION (UC-056) — classResourceSlots required in the same request
+PATCH {{bffUrl}}/v1/services/{{serviceId}}
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "bookingModel": "SESSION",
+  "classResourceSlots": [
+    { "type": "ROOM", "eligibleResourceIds": ["00000000-0000-4000-8000-000000000001"] }
+  ]
+}
+# There is no separate slot-management endpoint this milestone — classResourceSlots can only be
+# supplied where bookingModel itself is set (here, or at POST /v1/services).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — resource requirements / legs (M22 Cluster 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Set a flat resource requirement (UC-050)
+PATCH {{bffUrl}}/v1/services/{{serviceId}}/resource-requirements
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "resourceRequirements": [
+    { "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }
+  ]
+}
+
+###
+
+### Set sequential legs (UC-052)
+PUT {{bffUrl}}/v1/services/{{serviceId}}/legs
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "legs": [
+    { "legIndex": 0, "name": "Sauna", "durationMinutes": 20, "resourceRequirements": [{ "type": "ROOM", "selectionMode": "AUTO_ANY" }], "transitionGapAfterMinutes": 10 },
+    { "legIndex": 1, "name": "Massagem", "durationMinutes": 50, "resourceRequirements": [{ "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE" }], "transitionGapAfterMinutes": 0 }
+  ]
+}
+
+###
+
+### Read the active intake schema and its version history (UC-054 read path, M22-S04)
+GET {{bffUrl}}/v1/services/{{serviceId}}/intake-schema
+Authorization: Bearer {{managerToken}}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — deactivate service (UC-013)
 # ─────────────────────────────────────────────────────────────────────────────

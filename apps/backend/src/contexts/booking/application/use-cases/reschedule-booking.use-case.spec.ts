@@ -1,10 +1,14 @@
-import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceType } from '../../domain/resource.types';
+import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   BookingNotFoundError,
   BookingScheduledInPastError,
@@ -24,18 +28,23 @@ const newFutureSlot = `${futureDate(6)}T14:00:00.000Z`;
 
 describe('RescheduleBookingUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
-  let availabilityPort: InMemoryBookingAvailabilityPort;
+  let fixtures: ReturnType<typeof createAutoBookingResourceFixtures>;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
   let useCase: RescheduleBookingUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
     bookingRepo = new InMemoryBookingRepository(eventBus);
-    availabilityPort = new InMemoryBookingAvailabilityPort();
-    const slotConflictService = new BookingSlotConflictService(availabilityPort);
+    fixtures = createAutoBookingResourceFixtures();
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
     useCase = new RescheduleBookingUseCase(
       bookingRepo,
-      slotConflictService,
+      fixtures.serviceRepo,
+      fixtures.resourceRepo,
+      occupancyRepo,
+      new AvailabilityService(),
+      new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new InMemoryTransactionManager(),
     );
   });
@@ -105,6 +114,62 @@ describe('RescheduleBookingUseCase', () => {
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
       expect(saved!.adminNotes).toBe('Customer requested earlier slot');
     });
+
+    it('moves the occupancy row(s) to the new window (M22-S03)', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .withTotalDurationMins(30)
+        .build();
+      await bookingRepo.save(booking);
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      await occupancyRepo.assign(
+        TENANT_A,
+        booking.lines[0].lineId,
+        [
+          {
+            resourceId: resource.id,
+            resourceType: ResourceType.LOCATION,
+            resourceName: resource.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: new Date(futureSlot),
+            endsAt: new Date(new Date(futureSlot).getTime() + 30 * 60_000),
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+
+      await useCase.execute({
+        bookingId: booking.id,
+        scheduledAt: newFutureSlot,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+      });
+
+      // Old window is free again.
+      const oldWindowConflicts = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        {
+          resourceId: resource.id,
+          startsAt: new Date(futureSlot),
+          endsAt: new Date(new Date(futureSlot).getTime() + 30 * 60_000),
+        },
+      ]);
+      expect(oldWindowConflicts).toEqual([]);
+      // New window is occupied.
+      const newWindowConflicts = await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+        {
+          resourceId: resource.id,
+          startsAt: new Date(newFutureSlot),
+          endsAt: new Date(new Date(newFutureSlot).getTime() + 30 * 60_000),
+        },
+      ]);
+      expect(newWindowConflicts).toEqual([resource.id]);
+    });
   });
 
   describe('BookingRescheduled event', () => {
@@ -151,10 +216,17 @@ describe('RescheduleBookingUseCase', () => {
       await bookingRepo.save(booking);
 
       // another booking occupies the new slot
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
       const conflictAt = new Date(newFutureSlot);
-      availabilityPort.setSlots([
-        { id: 'other-booking-id', scheduledAt: conflictAt, totalDurationMins: 60 },
-      ]);
+      occupancyRepo.seed(TENANT_A, 'other-line-id', {
+        resourceId: resource.id,
+        resourceType: ResourceType.LOCATION,
+        resourceName: resource.name,
+        legIndex: null,
+        quantityPosition: null,
+        startsAt: conflictAt,
+        endsAt: new Date(conflictAt.getTime() + 60 * 60_000),
+      });
 
       await expect(
         useCase.execute({
@@ -168,7 +240,7 @@ describe('RescheduleBookingUseCase', () => {
       ).rejects.toThrow(BookingSlotUnavailableError);
     });
 
-    it('does not self-conflict when new slot overlaps the original slot on the same day', async () => {
+    it('does not self-conflict when new slot overlaps the original slot on the same day (UC-060 A2)', async () => {
       const original = new Date(`${futureDate(5)}T10:00:00.000Z`);
       const overlapping = `${futureDate(5)}T10:15:00.000Z`;
       const booking = new BookingBuilder()
@@ -178,9 +250,25 @@ describe('RescheduleBookingUseCase', () => {
         .withTotalDurationMins(60)
         .build();
       await bookingRepo.save(booking);
-
-      // the booking itself appears in the availability check at its original slot
-      availabilityPort.setSlots([{ id: booking.id, scheduledAt: original, totalDurationMins: 60 }]);
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      // the booking's own existing occupancy row, at its original window
+      await occupancyRepo.assign(
+        TENANT_A,
+        booking.lines[0].lineId,
+        [
+          {
+            resourceId: resource.id,
+            resourceType: ResourceType.LOCATION,
+            resourceName: resource.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: original,
+            endsAt: new Date(original.getTime() + 60 * 60_000),
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
 
       await expect(
         useCase.execute({

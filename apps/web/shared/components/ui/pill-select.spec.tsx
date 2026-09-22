@@ -22,6 +22,36 @@ describe('PillSelect', () => {
     expect(screen.getByRole('radio', { name: 'Retos' })).toHaveAttribute('aria-checked', 'false');
   });
 
+  // TD37-S23 (Codex review, PR #450): data-testid used to be a template literal
+  // (`${testId}-${option.value}`), which the new E2E-3 ESLint rule correctly flags — a computed
+  // testid forces every consuming e2e spec to reconstruct the same computation. Fixed to a static
+  // data-testid plus a separate data-value attribute, matching this repo's documented pattern.
+  it('renders a static data-testid shared across options, disambiguated by a separate data-value attribute', () => {
+    render(
+      <PillSelect
+        label="Cantos"
+        value="rounded"
+        options={OPTIONS}
+        onChange={vi.fn()}
+        testId="corners"
+      />,
+    );
+
+    const selected = screen.getByRole('radio', { name: 'Arredondados' });
+    expect(selected).toHaveAttribute('data-testid', 'corners');
+    expect(selected).toHaveAttribute('data-value', 'rounded');
+
+    const other = screen.getByRole('radio', { name: 'Retos' });
+    expect(other).toHaveAttribute('data-testid', 'corners');
+    expect(other).toHaveAttribute('data-value', 'sharp');
+  });
+
+  it('omits data-testid entirely when no testId prop is passed', () => {
+    render(<PillSelect label="Cantos" value="rounded" options={OPTIONS} onChange={vi.fn()} />);
+
+    expect(screen.getByRole('radio', { name: 'Retos' })).not.toHaveAttribute('data-testid');
+  });
+
   it('calls onChange with the clicked option value', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();

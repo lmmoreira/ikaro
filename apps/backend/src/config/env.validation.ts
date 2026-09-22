@@ -96,6 +96,11 @@ export const schema = z.object({
   // own live API reference). Optional for the same reason: ChatbotBalancePollJob treats a
   // failed credits call as a safe no-op (log a warning, leave the stored balance unchanged).
   OPENROUTER_MANAGEMENT_API_KEY: z.string().optional(),
+  // M20-S14 — Cloudflare Turnstile verification, relocated here from the BFF (whose ALL_TRAFFIC
+  // egress has no Cloud NAT). Optional, same reasoning as OPENROUTER_API_KEY above:
+  // CloudflareTurnstileAdapter's own getOrThrow() is the only place a missing value actually
+  // surfaces (a scoped fail-closed `false`, not a boot crash).
+  TURNSTILE_SECRET_KEY: z.string().optional(),
   // Chatbot cost/abuse-prevention platform-wide backstops (M19-S05/S06) — deliberately env vars,
   // not tenants.settings fields (docs/discovery/CHATBOT/CHATBOT.md §8.9-8.10): no tenant can opt
   // out, and all three can be changed via a Terraform var update + apply (a new Cloud Run
@@ -104,7 +109,7 @@ export const schema = z.object({
   // IApplicationConfig.getOrThrow() always resolves — the single source of truth for the default
   // value, not duplicated per call site. Positive-only: zero/negative would silently disable the
   // safety backstop instead of enforcing it.
-  CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: z.coerce.number().positive().default(25),
+  CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: z.coerce.number().positive().default(1),
   CHATBOT_MIN_PROVIDER_BALANCE_USD: z.coerce.number().positive().default(2),
   CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES: z.coerce.number().int().positive().default(5),
 });
@@ -193,10 +198,26 @@ function validateDatabaseConfig(data: Env, ctx: z.RefinementCtx): void {
   }
 }
 
+// M19-S11 PR #385 review (Codex): CHATBOT_LLM_PROVIDER had no environment guard at all — the
+// fake/noop adapter (never billed, echoes the guest's own message) would have been silently
+// accepted in staging/production, replacing the real assistant with an echo service. Mirrors
+// validateEmailConfig's EMAIL_ADAPTER=mailhog guard above exactly: 'fake' is E2E/local-only.
+function validateChatbotConfig(data: Env, ctx: z.RefinementCtx): void {
+  if (data.APP_ENV !== 'local' && data.CHATBOT_LLM_PROVIDER === 'fake') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['CHATBOT_LLM_PROVIDER'],
+      message:
+        'CHATBOT_LLM_PROVIDER=fake is not allowed when APP_ENV is not "local" — use openrouter, anthropic, or openai',
+    });
+  }
+}
+
 const validatedSchema = schema.superRefine((data, ctx) => {
   validateEmailConfig(data, ctx);
   validatePubSubConfig(data, ctx);
   validateDatabaseConfig(data, ctx);
+  validateChatbotConfig(data, ctx);
 });
 
 export function validateEnv(config: Record<string, unknown>): Env {

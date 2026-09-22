@@ -6,6 +6,8 @@ A **journey** documents one cohesive sequence of screens/actions a specific acto
 
 A **prototype** is a folder of static HTML files that makes the journey clickable in a browser. It uses the real `--ba-*` branding tokens and serves as the handoff spec from UX validation to React implementation.
 
+> **Resolved exception (2026-08-21 → 2026-08-22):** `customer/prototypes/reservar-aula/`, the Turmas addition to `customer/prototypes/minha-conta/`, and the Turmas/Reservar-aula additions to `minha-conta/01-minha-conta.html`, `minha-conta/index.html`, `minha-conta/dev-notes.md`, and `shared/customer-dashboard.html` briefly sat here ahead of the normal `/discovery-to-milestone` order (2026-08-21), reaching implementation-grade rigor during a discovery merge. On 2026-08-22, as part of restructuring that discovery into `docs/discovery/multivertical-booking/`, all of it was pulled back out for consistency: the wholly-new folders/files relocated into that discovery's own `prototype/`, and the four modified files reverted to their pristine shipped state (their GAP additions preserved in the discovery folder, not lost). This folder is back to containing only real, shipped content — see `docs/discovery/multivertical-booking/multivertical-booking.md` §9 for the dated entry.
+
 ---
 
 ## Folder structure
@@ -715,6 +717,17 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Reviewed |
 | MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Reviewed |
 | MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Reviewed |
+| GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Reviewed |
+| CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Reviewed |
+| MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Draft |
+| MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Reviewed |
+| MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Reviewed |
+| MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Draft (M23 Cluster 3) |
+| MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M23 Cluster 3) |
+| CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M24 Cluster 4) |
+| MANAGER — Turmas (Class Configuration & Enrollment Management) | `manager/turmas.md` | `manager/prototypes/turmas/` | Draft (M24 Cluster 4) |
+| STAFF — Turmas (Daily Class Operations) | `staff/turmas.md` | `staff/prototypes/turmas/` | Draft (M24 Cluster 4) |
+| GUEST — Book a Class (Trial/Drop-In) | `guest/book-a-class.md` | `guest/prototypes/book-a-class/` | Draft (M24 Cluster 4) |
 
 ---
 
