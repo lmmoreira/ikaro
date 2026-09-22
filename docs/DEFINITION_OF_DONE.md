@@ -11,6 +11,7 @@ Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 St
 - [ ] If this story replaces or removes an existing flow/mechanism, the stale-reference sweep below is done
 - [ ] If this story ships something a `plan/journey/<actor>/<slug>.md` currently marks `❓ GAP` (a screen, a mermaid node, a Prototype-table row), that doc's status is flipped in the same commit — not just `dev-notes.md`. See "Journey GAP-status drift" below.
 - [ ] If this story's UI splits one conceptual flow across sibling files (e.g. a Create form and an Edit form for the same aggregate), the sibling files are diffed for structural asymmetry — actions, hints, and navigation present on one but silently missing from the other. See "Sibling-file structural parity" below.
+- [ ] If this story adds a new rule or pattern that touches `.copilot/context.md`: the full explanation was written into its one canonical doc first (`docs/ANTI_PATTERNS.md`/`docs/ENGINEERING_RULES.md`/`docs/CODE_STANDARDS.md`/`docs/CI_TRAPS.md`), and it only gets a `context.md` line if it passes the keep-in-file test (context.md §7's "How to edit this file" header).
 
 ---
 

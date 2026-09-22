@@ -40,39 +40,27 @@
   "forbiddenPatternAllowlist": [
     {
       "text": "2026-07-23",
-      "rationale": "TD31 decision-precedent citations in §11 (repository-layout ownership call)",
+      "rationale": "TD31 Story 12 BFF-flat-shape correction citation in \u00a711's slice-shape table (the separate TD31 Story 11 actor-scoped-view citation was relocated to docs/REPOSITORY_STRUCTURE.md by TD41-S2)",
       "owner": "TD31",
       "reviewBy": "2027-03-20"
     },
     {
-      "text": "2026-08-04",
-      "rationale": "docs-audit finding citation for the undocumented POST /v1/loyalty/redeem UC gap in §6",
-      "owner": "docs-audit",
-      "reviewBy": "2027-03-20"
-    },
-    {
       "text": "2026-08-06",
-      "rationale": "Cloud Run CPU-throttling root-cause investigation date cited in the OTel trace-loss invariant (§7)",
+      "rationale": "Cloud Run CPU-throttling root-cause investigation date cited in the OTel trace-loss invariant (\u00a77)",
       "owner": "observability",
       "reviewBy": "2027-03-20"
     },
     {
       "text": "2026-08-12",
-      "rationale": "OTel metric-reader re-enable date cited in the same Cloud Run trace-loss invariant (§7)",
+      "rationale": "OTel metric-reader re-enable date cited in the same Cloud Run trace-loss invariant (\u00a77)",
       "owner": "observability",
-      "reviewBy": "2027-03-20"
-    },
-    {
-      "text": "2026-09-14",
-      "rationale": "Snyk SCA per-PR-gate removal date, and the same-day §8 anti-patterns table trim (20 -> 11 rows)",
-      "owner": "ci-governance",
       "reviewBy": "2027-03-20"
     }
   ],
   "budgets": {
     "file": {
-      "maxLines": 514,
-      "maxChars": 57716
+      "maxLines": 502,
+      "maxChars": 55826
     },
     "sections": {
       "0": {
@@ -101,7 +89,7 @@
       },
       "6": {
         "maxLines": 11,
-        "maxChars": 921
+        "maxChars": 885
       },
       "7": {
         "maxLines": 126,
@@ -109,19 +97,19 @@
       },
       "8": {
         "maxLines": 20,
-        "maxChars": 3195
+        "maxChars": 3051
       },
       "9": {
-        "maxLines": 100,
-        "maxChars": 10727
+        "maxLines": 98,
+        "maxChars": 9413
       },
       "10": {
         "maxLines": 48,
-        "maxChars": 5011
+        "maxChars": 4841
       },
       "11": {
         "maxLines": 23,
-        "maxChars": 2242
+        "maxChars": 2141
       },
       "12": {
         "maxLines": 6,
@@ -131,21 +119,13 @@
         "maxLines": 10,
         "maxChars": 676
       },
-      "14": {
-        "maxLines": 6,
-        "maxChars": 75
-      },
       "15": {
         "maxLines": 11,
         "maxChars": 863
       },
-      "16": {
-        "maxLines": 6,
-        "maxChars": 181
-      },
       "17": {
-        "maxLines": 31,
-        "maxChars": 1440
+        "maxLines": 33,
+        "maxChars": 1573
       }
     }
   }

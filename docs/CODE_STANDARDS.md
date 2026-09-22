@@ -96,7 +96,7 @@ Both `{UseCaseName}Input` and `{UseCaseName}Result` are defined in the use case 
 
 ## `/internal` routes and RequestContext
 
-`/internal` routes skip `RequestInterceptor` — `RequestContext` is never populated for them. Use `/internal` only for auth-flow lookups where the caller passes `tenantId` explicitly. Management endpoints that need `tenantId`/`actorId` from context must live on a non-`/internal` path so `RequestInterceptor` runs.
+`/internal` routes skip `RequestInterceptor` — `RequestContext` is never populated for them. → `docs/ENGINEERING_RULES.md` § `/internal/` routes are pre-auth only
 
 `RequestModule` is **not** `@Global()`. Every module whose controller injects `RequestContext` must import `RequestModule` explicitly.
 
