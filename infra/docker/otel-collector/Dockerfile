@@ -3,10 +3,10 @@
 # (CLAUDE.md's Dependabot Docker digest convention); Dependabot watches this
 # directory (see .github/dependabot.yml) for base-image bumps.
 #
-# Pinned 2026-08-04 to otel/opentelemetry-collector-contrib:0.157.0 — the
-# latest stable release as of this story (confirmed via Docker Hub's tags
-# API, not the moving `:latest` tag).
-FROM otel/opentelemetry-collector-contrib@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5
+# Originally pinned 2026-08-04 to 0.157.0 (M17-S34). Current digest is
+# otel/opentelemetry-collector-contrib:0.161.0 (confirmed 2026-09-22 via the
+# image's org.opencontainers.image.version label).
+FROM otel/opentelemetry-collector-contrib@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
 
 # Explicit non-root USER (Snyk IaC hardening). The base image already runs as
 # 10001:10001 by default (confirmed empirically via `docker inspect` on this
