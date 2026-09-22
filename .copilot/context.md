@@ -121,7 +121,7 @@ COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal)
 - UC-017 (booking analytics) — future, out of MVP
 - UC-030 today means "Admin Edits Staff Member Profile" — a different concept from an earlier draft where UC-030 covered staff deactivate/reactivate; that pair now lives at UC-029 (deactivate) / UC-031 (reactivate). Don't confuse the two when citing UC-030 — check `docs/04-USE_CASES.md`'s table first.
 
-**Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry, manual admin loyalty-point redemption (`POST /v1/loyalty/redeem` exists and is implemented but has no UC — found via `/docs-audit` 2026-08-04, see `docs/04-USE_CASES.md` UC-016's note).
+**Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry, manual admin loyalty-point redemption (`POST /v1/loyalty/redeem` exists and is implemented but has no UC — see `docs/04-USE_CASES.md` UC-016's note).
 
 ---
 
@@ -253,7 +253,7 @@ Full checklist (coverage, migration pre-production exception, stale-reference sw
 
 ## 8. Anti-Patterns (BLOCK MERGE)
 
-Full list (narrower single-incident precedents included) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). The 11 below are the highest-severity/most-universal — architecturally broad, still-relevant, likely to be hit *while writing code*, before `/pre-pr` ever loads the full list. (Trimmed from 20 to 11 on 2026-09-14 — the 9 removed were narrow, single-incident precedents already fully covered in `docs/ANTI_PATTERNS.md`.)
+Full list (narrower single-incident precedents included) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). The 11 below are the highest-severity/most-universal — architecturally broad, still-relevant, likely to be hit *while writing code*, before `/pre-pr` ever loads the full list.
 
 | Pattern | Fix |
 |---|---|
@@ -331,9 +331,7 @@ gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
   --repo lmmoreira/ikaro
 ```
 
-**5. Monitor CI; triage bot reviews** — run `/pr-land` (full mechanics: `.claude/commands/pr-land.md`). It posts the CodeRabbit trigger and dispatches Codex (round 1, from `/pre-pr`), then loops: wait for every in-scope actor of the round (CI + Codex always, CodeRabbit round 1 only) to finish, pool every finding together, apply all fixes as **one commit + one push**, re-dispatch Codex only for the next round. Never react to a single actor mid-round — a fix based on Codex's result while CI is still running (or vice versa) wastes a round. Repeat until CI is green and Codex reports 0 unresolved Critical/Important.
-
-**Bot-finding discipline (mandatory, every finding, every round):** read → check against actual codebase practice (grep the real precedent, don't take the bot's claim at face value) → check against the real business scenario (a flagged "inconsistency" may be deliberate) → only then apply the fix. If it doesn't survive, reply explaining why — never silent-ignore. A business/design-only finding, or one whose relevance genuinely can't be determined, escalates immediately — not gated on round count. This applies with equal force when *declining* a finding by citing an existing AC — an AC being written down doesn't make it correct; check whether the codebase's own overwhelming practice actually supports it first. Full discipline (severity-label skepticism, the decline-scrutiny and escalating-severity-recheck rules, with precedents): `.claude/commands/pr-land.md` § Step 3.
+**5. Monitor CI; triage bot reviews** — `/pre-pr` already posted the CodeRabbit trigger and dispatched Codex's round-1 review; hand off to `/pr-land`, which loads its own full mechanics as a skill invocation: `.claude/commands/pr-land.md` (Core Rule: wait for every in-scope actor before batching one commit + one push, never react to a single actor mid-round; § Step 3: the mandatory bot-finding discipline — read → check against real codebase practice → check against the real business scenario → fix or explain why not, with immediate escalation for business/design-only or undeterminable findings). It loops, re-dispatching Codex only for each code-changing round (never CodeRabbit again), until CI is green and Codex reports 0 unresolved Critical/Important.
 
 **6. Infra-touching stories — live-verification gate:** if this story touches Terraform, IAM, Pub/Sub, or CI/CD, run the concrete live check the change implies (confirm a Terraform module is referenced by a real `module` block, confirm an IAM grant actually resolves, a real `terraform plan -refresh-only`) **before** treating the PR as ready for the human merge review — see §7's Cross-layer deployment invariants for why "tests pass, bots clean" isn't sufficient for this category. A failed or un-runnable check is its own stuck condition.
 
@@ -367,7 +365,7 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 
 ### Parallel batch execution (optional)
 
-For a milestone with many independent stories, `/run-batch` runs a small batch (default 2, cap 5) concurrently instead of one story at a time — stricter than a milestone "wave" (zero dependency edges, zero overlapping files between every pair, checked live against the plan file, never assumed from wave membership). Discovery for the whole batch runs first sequentially (a spawned subagent can't pause mid-run for a live reply); only once every story is READY does implementation fan out across parallel worktrees. Stuck conditions and merge-readiness are reported per-story as they land — scrutiny stays the same as running one at a time. Full mechanics: `.claude/commands/run-batch.md`.
+For a milestone with many independent stories, `/run-batch` runs a small batch (default 2, cap 5) of non-overlapping stories concurrently instead of one at a time — stricter than a milestone "wave." Full mechanics: `.claude/commands/run-batch.md`.
 
 ---
 
@@ -379,8 +377,8 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` |
 | CI failure / pre-PR | `docs/CI_TRAPS.md` |
 | Implement a UC | `docs/04-USE_CASES.md` (UC section) + `docs/02-DOMAIN_MODEL.md` + `docs/03-DOMAIN_EVENTS.md` |
-| Complex/cross-cutting business logic (an algorithm, state machine, or formula spanning multiple UCs/aggregates in one context) — writing one, or checking whether one already exists | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section first before re-deriving from scattered prose; see also `/story-discovery`'s 4r check and `/mark-done`'s Step 4 |
-| Resource-scoped scheduling / availability computation (M21+) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability, in addition to the Database/migration and Implement-a-UC rows above |
+| Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
+| Resource-scoped scheduling / availability computation (M21+) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability (plus the Database/migration and Implement-a-UC rows) |
 | Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
 | Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES.md` |
@@ -400,7 +398,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES.md` |
 | CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` |
 | Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` |
-| Writing Terraform / infra code | vendored HashiCorp Terraform skills from `.claude/skills/` + `plan/M17-CLOUD-DEPLOY.md` §0–§2 + `infra/terraform/README.md` (layout, state, version-constraint + unit-test conventions) |
+| Writing Terraform / infra code | vendored HashiCorp Terraform skills (`.claude/skills/`) + `plan/M17-CLOUD-DEPLOY.md` §0–§2 + `infra/terraform/README.md` |
 | Foundation / IAM ownership | `infra/terraform/foundation/README.md` + `infra/terraform/README.md` before editing Terraform or workflows |
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
@@ -436,7 +434,7 @@ Three slice types, consistent across all three apps:
 
 - `schedule`/`services` live inside `booking`; `hotsite`-specific logic lives inside `platform` — never a standalone top-level domain.
 - `shared/` (any app) is cross-cutting only — a helper used by exactly one domain belongs in that domain's slice, not in `shared/`.
-- **Actor-scoped view of another domain's aggregate** (e.g. a Customer reading/mutating their own Booking or Loyalty data) lives in the *owning* domain's slice (`booking`/`loyalty`), never the actor's slice (`customer`) — matches the existing Staff-facing pattern, where Staff-facing Booking operations already live in `booking`, not `staff`. Scope the export names to make the actor obvious (e.g. `cancelBookingAsCustomer`), don't just drop an unqualified function into the owning slice (decided 2026-07-23 per TD31 Story 11, closing a prior undocumented split where Customer-facing Booking/Loyalty code had drifted into `features/customer/`).
+- **Actor-scoped view of another domain's aggregate** (e.g. a Customer reading/mutating their own Booking or Loyalty data) lives in the *owning* domain's slice (`booking`/`loyalty`), never the actor's slice (`customer`) — matches the existing Staff-facing pattern, where Staff-facing Booking operations already live in `booking`, not `staff`. Scope the export names to make the actor obvious (e.g. `cancelBookingAsCustomer`), don't just drop an unqualified function into the owning slice. → `docs/REPOSITORY_STRUCTURE.md` § Web placement rules
 - Web additionally has `shells/<surface>/` (route composition for `dashboard`/`hotsite` — no business policy) and `app/` (Next.js routes/layouts only, thin).
 - Test helpers: `apps/backend/src/test/utils/` + `src/test/infrastructure/`.
 
@@ -458,12 +456,6 @@ Three slice types, consistent across all three apps:
 
 ---
 
-## 14. Project Slash Commands (Claude Code)
-
-Canonical registry: §17.
-
----
-
 ## 15. Journey & Prototype Workflow Rules
 
 > ❗ **HARD STOP — READ BEFORE TOUCHING ANY `plan/journey/` FILE**
@@ -475,13 +467,9 @@ Full rules, folder structure, and CSS gotchas (`.topbar-avatar`, `.week-nav`, `p
 
 ---
 
-## 16. Vendored HashiCorp Terraform Skills
+## 17. Project Skills & Commands Registry
 
 Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring from upstream and updating each `VENDORED_FROM.md`.
-
----
-
-## 17. Project Skills & Commands Registry
 
 ### Vendored skills
 

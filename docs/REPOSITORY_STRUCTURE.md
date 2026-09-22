@@ -188,6 +188,7 @@ apps/web/
 - Shared UI primitives live only under `shared/components/ui/`.
 - Shared transport helpers live under `shared/lib/`.
 - Shared pure utilities live under `shared/utils/`.
+- **Actor-scoped view of another domain's aggregate** (e.g. a Customer reading/mutating their own Booking or Loyalty data) lives in the *owning* domain's slice (`booking`/`loyalty`), never the actor's own slice (`customer`) — matches the existing Staff-facing pattern. Decided 2026-07-23 per TD31 Story 11, closing a prior undocumented split where Customer-facing Booking/Loyalty code had drifted into `features/customer/`. See `.copilot/context.md` §11 for the export-naming convention (e.g. `cancelBookingAsCustomer`).
 
 ---
 
