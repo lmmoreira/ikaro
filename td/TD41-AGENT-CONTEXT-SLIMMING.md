@@ -151,7 +151,7 @@ Of the three pointer-less bullets: the meta bullet ("Several invariants are alre
 - [ ] Coverage ≥80% on changed code — n/a, no executable code changed (one JSON value)
 - [ ] `tsc --noEmit` clean, lint clean, `pnpm prettier --check .` clean
 
-### Story 2 — Slim the rest of the file and set the final budget 🟡
+### Story 2 — Slim the rest of the file and set the final budget 🟡 ✅ Done
 
 **Agent:** `devops`
 **Complexity:** M
