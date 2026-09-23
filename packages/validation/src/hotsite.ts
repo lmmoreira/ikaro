@@ -127,7 +127,7 @@ export const HotsiteModuleSchema = z
 //
 // Question-level bounds (≤20 entries, 2-10 options for choice types, non-empty label, unique id)
 // are deliberately NOT re-validated here — LeadFormConfig.updateQuestions() is this rule's sole
-// owner (docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code). A
+// owner (docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a validation rule's code). A
 // second Zod-side check here risks emitting a different code for the identical violation
 // depending on which layer catches it first.
 export const LeadFormQuestionSchema = z.object({

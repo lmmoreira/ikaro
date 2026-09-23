@@ -7,7 +7,7 @@ import {
 } from '@ikaro/types';
 
 // Only STAFF_DEACTIVATED is reused from StaffErrorCode (single source of truth for the
-// "account deactivated" condition — see docs/ENGINEERING_RULES.md § Single source of truth
+// "account deactivated" condition — see docs/ENGINEERING_RULES_SHARED.md § Single source of truth
 // for a validation rule's code). Narrowed to that one member, not the whole StaffErrorCode
 // union, so a BFF site can't accidentally throw an unrelated backend staff code — that would
 // defeat the compile-time governance TD23 §9 exists to provide.

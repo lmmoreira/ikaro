@@ -29,7 +29,7 @@
 # `terraform validate` or an offline `terraform test` (mock_provider) can
 # catch — verify these live against a real staging apply before treating
 # them as final, same discipline this repo already applies to the OTel
-# pipeline (see docs/ENGINEERING_RULES.md § Cloud Run CPU throttling for why
+# pipeline (see docs/ENGINEERING_RULES_INFRA.md § Cloud Run CPU throttling for why
 # "the plan succeeded" is never proof alone).
 #
 # Confirmed live (first real staging apply, 2026-08-08): the error_rate_5xx

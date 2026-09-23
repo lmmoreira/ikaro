@@ -33,7 +33,7 @@ processors:
   # starved by Cloud Run's `run.googleapis.com/cpu-throttling: "true"`, and a
   # 33-trace staging sample measured ~73% loss with it in place. That
   # measurement was taken while the app-side `ParentBasedSampler` bug (fixed
-  # the same day, see docs/ENGINEERING_RULES.md § Cloud Run CPU throttling)
+  # the same day, see docs/ENGINEERING_RULES_INFRA.md § Cloud Run CPU throttling)
   # was still silently dropping most spans before export was ever attempted —
   # meaning real span arrival at the collector was extremely sparse, with
   # long idle/throttled gaps between spans, which is exactly the condition

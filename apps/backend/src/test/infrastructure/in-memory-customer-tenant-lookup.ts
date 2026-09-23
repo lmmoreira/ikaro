@@ -5,7 +5,7 @@ import {
 import { CustomerTenantSummary } from '../../contexts/customer/application/ports/customer-repository.port';
 
 // Sentinel so `undefined`/`null` can themselves be injected as the rejection value — mirrors
-// InMemoryCachePort's failNextGet/Set/Del convention (docs/ENGINEERING_RULES.md § InMemory
+// InMemoryCachePort's failNextGet/Set/Del convention (docs/ENGINEERING_RULES_TESTING.md § InMemory
 // doubles): "no pending failure" is tracked by field presence, not by the value's own truthiness.
 const NONE = Symbol('no pending find failure');
 

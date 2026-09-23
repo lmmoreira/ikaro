@@ -131,7 +131,7 @@ export function buildOtlpExporterOptions(
  * the real @opentelemetry/otlp-exporter-base@0.220.0 source —
  * shared-configuration.js's getSharedConfigurationDefaults()). Past that limit,
  * BoundedQueueExportPromiseHandler rejects outright rather than queueing, exactly like the trace
- * exporter's own documented incident (`docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling,
+ * exporter's own documented incident (`docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling,
  * `buildOtlpExporterOptions()` above). 200 is carried over from that trace-side value as a
  * starting point, not independently re-derived — this metrics path has never carried real
  * traffic, so unlike the trace exporter's 200 (empirically sized from measured staging
@@ -196,7 +196,7 @@ export function bootstrapTracing(
     // every collector-side/CPU/timeout config tried — because the spans were never being
     // recorded in the first place, long before export was ever attempted. Verified via live A/B
     // on real staging traffic: 0/40 traces missing after this change, vs. the ~75-89% baseline
-    // before it — see docs/ENGINEERING_RULES.md § Cloud Run CPU throttling for the full
+    // before it — see docs/ENGINEERING_RULES_INFRA.md § Cloud Run CPU throttling for the full
     // investigation and why this was so hard to find (every collector/CPU/timeout fix was
     // chasing a red herring).
     sampler: createSampler(samplingRate),
@@ -219,7 +219,7 @@ export function bootstrapTracing(
     // PeriodicExportingMetricReader is timer-driven (default: one export every 60s) — the direct
     // metrics-side analog of the traces `BatchSpanProcessor` that was proven vulnerable to Cloud
     // Run's `run.googleapis.com/cpu-throttling: "true"` starving a timer tick mid-throttled-gap
-    // (see docs/ENGINEERING_RULES.md § Cloud Run CPU throttling). That risk is real for this
+    // (see docs/ENGINEERING_RULES_INFRA.md § Cloud Run CPU throttling). That risk is real for this
     // reader too and is NOT ruled out by code review alone — it requires the same live,
     // empirical verification on a real (including scale-to-zero / low-traffic) Cloud Run
     // instance that the traces pipeline needed three separate times before it could be trusted.

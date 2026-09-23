@@ -359,7 +359,7 @@ ClassResourceSlot {
 
 #### **Aggregate: ServiceBookingIntakeSchema** (Root Entity, append-only)
 
-> Added M22 — Multi-Vertical Scheduling, Cluster 2 (UC-054). Deliberately **not** a `Service`-owned field or child collection like `resourceRequirements`/`legs` above — `Service`'s own props hold no reference to it. Publishing a new version never edits or deletes the previous one, so it has its own identity, its own repository (`IServiceIntakeSchemaRepository`), and its own `publish()`/`reconstitute()` factory — see `docs/ENGINEERING_RULES.md` § "A versioned, append-only child concept... is an independent aggregate root with its own repository" for the full pattern rationale and its `architecture-check` consequence.
+> Added M22 — Multi-Vertical Scheduling, Cluster 2 (UC-054). Deliberately **not** a `Service`-owned field or child collection like `resourceRequirements`/`legs` above — `Service`'s own props hold no reference to it. Publishing a new version never edits or deletes the previous one, so it has its own identity, its own repository (`IServiceIntakeSchemaRepository`), and its own `publish()`/`reconstitute()` factory — see `docs/ENGINEERING_RULES_BACKEND.md` § "A versioned, append-only child concept... is an independent aggregate root with its own repository" for the full pattern rationale and its `architecture-check` consequence.
 
 **Properties:**
 ```

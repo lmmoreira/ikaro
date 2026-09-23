@@ -81,7 +81,7 @@ For each entry in "Docs to load":
 Also load unconditionally:
 - `docs/CODE_STANDARDS.md`
 - `docs/AGENT_PATTERNS.md`
-- `docs/ENGINEERING_RULES.md` — as of the 2026-08-04 CLAUDE.md size reduction, most "critical code invariants" (Transactions, Event Handlers, RequestContext, aggregate-events-outbox, Controller/Route boundaries) live here rather than inline in CLAUDE.md §7. A story can no longer be checked against them without loading this file explicitly.
+- `docs/ENGINEERING_RULES_SHARED.md` always, plus `docs/ENGINEERING_RULES_BACKEND.md`/`_INFRA.md`/`_FRONTEND.md`/`_TESTING.md` for whichever layer(s) this story touches (TD41-S4 split the former single `docs/ENGINEERING_RULES.md`, which is now just a redirect index) — most "critical code invariants" (Transactions, Event Handlers, RequestContext, aggregate-events-outbox, Controller/Route boundaries) live in these files rather than inline in CLAUDE.md §7. A story can no longer be checked against them without loading the relevant file(s) explicitly.
 - `docs/DEFINITION_OF_DONE.md` — know the full completion bar before writing the story, not just at `/pre-pr` time (see 4p below).
 - The matching `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` (if it exists — older milestones have one; use it to understand established patterns for this milestone)
 
@@ -160,7 +160,7 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 - No hardcoded business values in use-case steps
 
 ### 4j. Conflicts with project standards
-- Story doesn't contradict `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, or `docs/ANTI_PATTERNS.md` — these are the primary sources now, not CLAUDE.md §7/§8's excerpts of them
+- Story doesn't contradict the relevant `docs/ENGINEERING_RULES_*.md` file(s), `docs/CODE_STANDARDS.md`, or `docs/ANTI_PATTERNS.md` — these are the primary sources now, not CLAUDE.md §7/§8's excerpts of them
 - Story doesn't conflict with patterns locked in prior milestones' `_IMPLEMENTATION_DETAILS_IA.md`
 - Any file path the story specifies matches CLAUDE.md §11's domain-slice rules — in particular, an actor-scoped view of another domain's aggregate (e.g. a Customer reading their own Booking/Loyalty data) belongs in the *owning* domain's slice, never the actor's slice (TD31 Story 11 precedent — this exact mistake already happened once)
 - **For a new page/route nested under an existing shared layout** (e.g. anything under `app/[slug]/`): grep that layout file for components rendered unconditionally, outside the `{children}` slot — these apply to *every* route beneath it, including the new one, whether or not the story's author was aware of them. If the story's AC assumes uninterrupted access to the new page (e.g. "the customer fills in their phone directly on this form"), check whether any such component could intercept that flow first (a mandatory profile-completion gate, an auth redirect, a maintenance banner) and either fold the interaction into the AC or flag it as a **RISK** for the user to resolve before implementation. Don't assume a new page starts from a blank slate just because its own component tree looks self-contained (M20-S09 PR #433 precedent, 2026-08-26: `InformationCompletionPrompt`, rendered unconditionally by `app/[slug]/layout.tsx` for every route, silently blocked the lead-form's own "customer edits their phone inline" AC for any customer with an incomplete profile — found only via live manual testing, well after the story's AC had already been written and implemented)

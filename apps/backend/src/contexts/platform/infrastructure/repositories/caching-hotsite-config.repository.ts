@@ -8,7 +8,7 @@ import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.reposit
 
 type ModuleEnabledMap = Partial<Record<HotsiteModuleType, boolean>>;
 
-// Mirrors CachingTenantRepository's shape (docs/ENGINEERING_RULES.md § Platform tenant cache) —
+// Mirrors CachingTenantRepository's shape (docs/ENGINEERING_RULES_TESTING.md § Platform tenant cache) —
 // but deliberately caches only the derived module-enabled map, not the full HotsiteConfig
 // aggregate. findByTenantId/findByTenantIds stay uncached pass-throughs: the admin editor
 // (HotsiteContentReader) and the public manifest both need those fully fresh, and the aggregate's

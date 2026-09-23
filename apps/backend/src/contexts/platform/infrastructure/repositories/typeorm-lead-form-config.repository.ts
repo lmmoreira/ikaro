@@ -21,7 +21,7 @@ export class TypeOrmLeadFormConfigRepository implements ILeadFormConfigRepositor
   }
 
   /**
-   * Version-guarded — mirrors TypeOrmHotsiteConfigRepository.save() (docs/ENGINEERING_RULES.md §
+   * Version-guarded — mirrors TypeOrmHotsiteConfigRepository.save() (docs/ENGINEERING_RULES_BACKEND.md §
    * TypeORM optimistic locking on detached entities), the sibling aggregate this use case writes
    * in the same transaction. `config` is a detached, hand-built aggregate; a blind upsert() (the
    * previous implementation) would silently overwrite whatever the DB currently holds regardless

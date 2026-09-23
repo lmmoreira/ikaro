@@ -332,7 +332,7 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column (`@VersionColumn`) |
 | **UNIQUE** | (tenant_id, id) | Composite FK target for `booking_lines` |
 | **CHECK** | `CHK_booking_bookings_discount_consistency` | `discount_points_used`/`discount_amount` must be both `NULL` or both `> 0` |
-| **EXCLUDE** *(retired by M22-S03 — see below)* | `EX_booking_bookings_approved_slot` — `USING gist (tenant_id WITH =, tstzrange(scheduled_at, scheduled_end_at, '[)') WITH &&) WHERE (status = 'APPROVED')` | Dropped by migration `1748500000014-DropTenantWideExclusion` once `booking.resource_occupancy`'s own GIST exclusion constraint (`EX_booking_resource_occupancy_locked_window`) was live and backfilled — that constraint now enforces the same no-overlap invariant per-resource instead of per-tenant; `version` alone still cannot catch this (see `docs/ENGINEERING_RULES.md` § Transactions) |
+| **EXCLUDE** *(retired by M22-S03 — see below)* | `EX_booking_bookings_approved_slot` — `USING gist (tenant_id WITH =, tstzrange(scheduled_at, scheduled_end_at, '[)') WITH &&) WHERE (status = 'APPROVED')` | Dropped by migration `1748500000014-DropTenantWideExclusion` once `booking.resource_occupancy`'s own GIST exclusion constraint (`EX_booking_resource_occupancy_locked_window`) was live and backfilled — that constraint now enforces the same no-overlap invariant per-resource instead of per-tenant; `version` alone still cannot catch this (see `docs/ENGINEERING_RULES_BACKEND.md` § Transactions) |
 | **INDEX** | (tenant_id) | Tenant-scoped base filter |
 | **INDEX** | (tenant_id, status) | Main dashboard query |
 | **INDEX** | (tenant_id, customer_id) | Customer booking history |
@@ -628,7 +628,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | **CHECK** | `ends_at > starts_at` | |
 | **EXCLUDE USING gist** | (tenant_id WITH =, resource_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (lock_state IN ('HOLD','COMMITTED')) | The exclusivity guarantee itself — the one shared constraint every family's write path inserts into. `REQUESTED` rows are deliberately outside this WHERE clause — they exist for M22-S05's day-grid dependency, not for exclusivity (the day-grid's own query includes `REQUESTED` alongside `HOLD`/`COMMITTED`, unlike `findOccupancyByTenantAndResource`, which excludes it) |
 | **INDEX** | (tenant_id, resource_id, starts_at) | |
-| **INDEX** | (ends_at) | Standalone, TD40 Story 2 — supports `ResourceOccupancyRetentionPurgeJob`'s cross-tenant `WHERE ends_at < cutoff` sweep, which drops the `tenant_id` predicate and can't seek the composite index above (`docs/ENGINEERING_RULES.md` § Standalone index for a cross-tenant system job) |
+| **INDEX** | (ends_at) | Standalone, TD40 Story 2 — supports `ResourceOccupancyRetentionPurgeJob`'s cross-tenant `WHERE ends_at < cutoff` sweep, which drops the `tenant_id` predicate and can't seek the composite index above (`docs/ENGINEERING_RULES_TESTING.md` § Standalone index for a cross-tenant system job) |
 
 **Rules:**
 - Every manual-approval appointment inserts `lock_state='HOLD'` with its snapshotted expiry (`Service.manualHoldMinutes`); approval atomically converts it to `COMMITTED`, while expiry cancels and releases it. An `AUTO_CONFIRM` appointment inserts `COMMITTED` directly. A PENDING booking on a degenerate (LOCATION-fallback) service inserts `REQUESTED` instead of `HOLD` — approval converts it to `COMMITTED`, same as `HOLD`.

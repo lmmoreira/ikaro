@@ -169,7 +169,7 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
 
   // M20-S16: proves the outbox round-trips all the way through a real subscribed consumer, not
   // just as far as the shared.outbox row (the gap that let LeadFormSubmissionReceived ship with
-  // no real topic — see docs/ENGINEERING_RULES.md § Aggregate domain events → outbox for the
+  // no real topic — see docs/ENGINEERING_RULES_BACKEND.md § Aggregate domain events → outbox for the
   // incident). RoutingInMemoryEventBus (unlike the plain InMemoryEventBus every other test in this
   // file uses) actually dispatches to registered handlers, mirroring
   // tenant-provisioned.handler.integration.spec.ts's own real-consumer proof.

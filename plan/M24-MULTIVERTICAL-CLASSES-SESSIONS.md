@@ -273,7 +273,7 @@ Add `guestAccessEnabled: boolean` (default `false`) and `guestTrialPolicy: 'NONE
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `ClassSession`, `docs/13-DATABASE_SCHEMA.md` § `booking.class_sessions`/`class_session_resources`, `docs/04-USE_CASES.md` UC-081, `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling (timer/async work can be silently starved — this worker must run via the trigger-bus/Pub-Sub-push path, never a bare in-process `setInterval`)
+**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `ClassSession`, `docs/13-DATABASE_SCHEMA.md` § `booking.class_sessions`/`class_session_resources`, `docs/04-USE_CASES.md` UC-081, `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling (timer/async work can be silently starved — this worker must run via the trigger-bus/Pub-Sub-push path, never a bare in-process `setInterval`)
 **Dependencies:** M24-S01 (templates to generate from)
 **Pattern:** plain composition, mirrors the existing loyalty-expiry cron shape (`apps/backend/src/contexts/loyalty/application/jobs/expire-points.job.ts` + `apps/backend/src/contexts/loyalty/infrastructure/events/expire-points-trigger.handler.ts` + `apps/backend/src/contexts/booking/infrastructure/controllers/cron-booking.controller.ts`'s thin-publisher pattern) — real, verified precedent, not invented.
 

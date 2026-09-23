@@ -1382,7 +1382,7 @@ resource "google_cloud_scheduler_job" "lead_form_retention" {
 
 ## Error Handling (RFC 9457)
 
-All non-2xx responses follow the **Problem Details for HTTP APIs** standard. `type` is always the literal string `'about:blank'` — it is **not** a machine-readable identifier. `code` is the machine-readable identifier. See `docs/25-ERROR_CATALOG.md` for the full error reference and `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern for the end-to-end pattern (code catalog, naming convention, frontend resolver).
+All non-2xx responses follow the **Problem Details for HTTP APIs** standard. `type` is always the literal string `'about:blank'` — it is **not** a machine-readable identifier. `code` is the machine-readable identifier. See `docs/25-ERROR_CATALOG.md` for the full error reference and `docs/ENGINEERING_RULES_SHARED.md` § Exception handling & i18n pattern for the end-to-end pattern (code catalog, naming convention, frontend resolver).
 
 Single-cause error:
 

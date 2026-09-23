@@ -2,8 +2,8 @@
 
 > Eval spec for `.copilot/context.md` — not a reference doc. Each entry is a prompt to run in a
 > fresh session, a pass/fail criterion, and a citation. No rationale is restated here: the "why"
-> lives at the cited `docs/ANTI_PATTERNS.md`/`docs/CI_TRAPS.md` row, or `docs/ENGINEERING_RULES.md`
-> for the gate scenario. Restating it here would recreate the exact duplication TD41 (Story 0)
+> lives at the cited `docs/ANTI_PATTERNS.md`/`docs/CI_TRAPS.md` row, or the relevant
+> `docs/ENGINEERING_RULES_*.md` split file for the gate scenario. Restating it here would recreate the exact duplication TD41 (Story 0)
 > fixed for the `useExisting` triplication.
 >
 > **Evaluation:** run each prompt in a fresh session against `git show <base-sha>:.copilot/context.md`

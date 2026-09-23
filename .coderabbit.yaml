@@ -6,7 +6,11 @@ knowledge_base:
     filePatterns:
       - '.copilot/context.md'
       - 'docs/CODE_STANDARDS.md'
-      - 'docs/ENGINEERING_RULES.md'
+      - 'docs/ENGINEERING_RULES_SHARED.md'
+      - 'docs/ENGINEERING_RULES_BACKEND.md'
+      - 'docs/ENGINEERING_RULES_INFRA.md'
+      - 'docs/ENGINEERING_RULES_FRONTEND.md'
+      - 'docs/ENGINEERING_RULES_TESTING.md'
       - 'docs/ANTI_PATTERNS.md'
       - 'docs/AGENT_PATTERNS.md'
 

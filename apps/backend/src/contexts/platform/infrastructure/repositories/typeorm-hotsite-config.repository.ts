@@ -27,7 +27,7 @@ export class TypeOrmHotsiteConfigRepository implements IHotsiteConfigRepository 
   }
 
   /**
-   * Version-guarded — mirrors Booking's persistBooking (docs/ENGINEERING_RULES.md § TypeORM
+   * Version-guarded — mirrors Booking's persistBooking (docs/ENGINEERING_RULES_BACKEND.md § TypeORM
    * optimistic locking on detached entities). `config` is a detached, hand-built aggregate;
    * `manager.save()` on it would silently overwrite whatever the DB currently holds regardless of
    * what this request actually read. Scoping the UPDATE to id + tenant_id + the version this

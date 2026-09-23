@@ -51,11 +51,11 @@ const EVENT_BUS_PORT_PATTERN = {
 // Use cases and application services must not inject RequestContext — caller context is
 // passed via the input DTO instead, keeping use cases callable from event handlers, scheduled
 // jobs, and cross-context adapters without an HTTP request in scope
-// (docs/ENGINEERING_RULES.md §RequestContext).
+// (docs/ENGINEERING_RULES_SHARED.md §RequestContext).
 const REQUEST_CONTEXT_PATTERN = {
   regex: '\\/shared\\/request\\/request-context$',
   message:
-    'Use cases and application services must not inject RequestContext — pass tenantId/actorId/correlationId/settings via the input DTO instead (docs/ENGINEERING_RULES.md §RequestContext).',
+    'Use cases and application services must not inject RequestContext — pass tenantId/actorId/correlationId/settings via the input DTO instead (docs/ENGINEERING_RULES_SHARED.md §RequestContext).',
 };
 
 // TD37-S02: persistence APIs belong behind repository adapters. Keep this list name-based rather
@@ -208,7 +208,7 @@ const TX_MANAGER_PUBLISH_SELECTOR = {
   selector:
     "CallExpression[callee.property.name='run']:matches([callee.object.name=/^_?txManager$/], [callee.object.property.name=/^_?txManager$/]):has(CallExpression[callee.property.name='publish']:matches([callee.object.name=/^_?eventBus$/], [callee.object.property.name=/^_?eventBus$/]))",
   message:
-    'Do not call eventBus.publish() inside txManager.run(). Claim durable work in a short transaction, publish outside it, then mark/release in another short transaction (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
+    'Do not call eventBus.publish() inside txManager.run(). Claim durable work in a short transaction, publish outside it, then mark/release in another short transaction (TD37-S02; docs/ENGINEERING_RULES_BACKEND.md Transactions).',
 };
 const TYPEORM_NAMESPACE_SELECTOR = {
   selector: "ImportDeclaration[source.value='typeorm'] > ImportNamespaceSpecifier",
@@ -218,13 +218,13 @@ const TYPEORM_NAMESPACE_SELECTOR = {
 const RUN_IN_TRANSACTION_SELECTOR = {
   selector: "TSMethodSignature[key.name='runInTransaction']",
   message:
-    'Repository ports must not own transactions. Inject ITransactionManager into the orchestrating service/use case and let the TypeORM adapter join its ambient context (TD37-S02; docs/ENGINEERING_RULES.md Transactions).',
+    'Repository ports must not own transactions. Inject ITransactionManager into the orchestrating service/use case and let the TypeORM adapter join its ambient context (TD37-S02; docs/ENGINEERING_RULES_BACKEND.md Transactions).',
 };
 // DomainEvent.eventName is derived from the class's own name — a bare string literal at
 // the subscribe()/registerTrigger() call site can silently drift from the class if either is
 // renamed, and a mistyped literal creates a dead Pub/Sub channel no one publishes to correctly.
 // Cron triggers use a shared exported const (e.g. CRON_REMINDERS_TRIGGER) instead
-// (docs/ENGINEERING_RULES.md §Event Handlers). Matches both a string literal and a
+// (docs/ENGINEERING_RULES_BACKEND.md §Event Handlers). Matches both a string literal and a
 // no-substitution template literal (Codex review, PR #375: eventBus.subscribe(`BookingCompleted`,
 // ...) is an equally hand-typed name but is a distinct TemplateLiteral AST node, not a Literal, so
 // the original selector missed it).
@@ -232,7 +232,7 @@ const SUBSCRIBE_REGISTER_TRIGGER_LITERAL_SELECTOR = {
   selector:
     "CallExpression[callee.property.name=/^(subscribe|registerTrigger)$/]:matches([arguments.0.type='Literal'], [arguments.0.type='TemplateLiteral'][arguments.0.expressions.length=0])",
   message:
-    'Do not hand-type the event/trigger name as a string literal at the subscribe()/registerTrigger() call site — use <Event>.name or a shared exported trigger-name const instead (docs/ENGINEERING_RULES.md §Event Handlers).',
+    'Do not hand-type the event/trigger name as a string literal at the subscribe()/registerTrigger() call site — use <Event>.name or a shared exported trigger-name const instead (docs/ENGINEERING_RULES_BACKEND.md §Event Handlers).',
 };
 // Use cases must be framework-agnostic — throw domain errors only, and let
 // mapXxxError() convert them to HttpException at the HTTP layer (docs/ANTI_PATTERNS.md).

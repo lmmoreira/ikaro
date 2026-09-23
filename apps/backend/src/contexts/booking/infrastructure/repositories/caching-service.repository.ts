@@ -76,7 +76,7 @@ export class CachingServiceRepository implements IServiceRepository {
   }
 
   // Pass-through, same as findById()/findByIds() above — a real row lock must always bypass
-  // this decorator's cache entirely (docs/ENGINEERING_RULES.md's race-condition primitive 2).
+  // this decorator's cache entirely (docs/ENGINEERING_RULES_BACKEND.md's race-condition primitive 2).
   async findByIdForUpdate(id: string, tenantId: string): Promise<Service | null> {
     return this.repo.findByIdForUpdate(id, tenantId);
   }

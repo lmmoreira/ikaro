@@ -116,7 +116,7 @@ async function resolveCustomerDevActor(
   const googleOAuthId = `dev::${dto.email}`;
   if (googleOAuthId.length > 255) {
     // No VO backs this dev-only length check — reuses GenericErrorCode per
-    // docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code.
+    // docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a validation rule's code.
     throw throwProblemDetail(
       HttpStatus.BAD_REQUEST,
       GenericErrorCode.VALUE_TOO_LONG,

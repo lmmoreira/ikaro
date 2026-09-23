@@ -409,7 +409,7 @@ jobs:
           # collector image, silently missing whatever config.yaml pipeline
           # change this commit made (the exact metrics-404-export-loop incident
           # class this pipeline has already hit three times —
-          # docs/ENGINEERING_RULES.md § Cloud Run CPU throttling).
+          # docs/ENGINEERING_RULES_INFRA.md § Cloud Run CPU throttling).
           #
           # Same idiom already established in this repo for cross-workflow
           # readiness (infra-deploy.yml's foundation-applied-check): find the

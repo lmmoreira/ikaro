@@ -14,7 +14,7 @@ import { sourceLine } from '../project';
 // Closed, reviewed registry — TD37-S20. Generalizes Story 9's aggregate-primitive-vo check: a
 // field can correctly stay untyped as its VO (a JSONB/wire-shape field validated via the VO's
 // static `.isValid()` inside a delegated Validator class, per Story 9's own discovery note —
-// docs/ENGINEERING_RULES.md's Option A pattern doesn't apply to it) but still needs the VO's
+// docs/ENGINEERING_RULES_SHARED.md's Option A pattern doesn't apply to it) but still needs the VO's
 // full `.create()` treatment (validate + normalize) applied somewhere on its owning class's
 // construction path, not just a bare format check that silently skips normalization.
 export interface ConstructionValidationTarget {

@@ -45,7 +45,7 @@ const SECTION_CITATION_REGEX = /^\s*§\s*(.+)$/;
 
 // Strips a single trailing italicized annotation (e.g. " *(actively maintained)*") and a single
 // trailing sentence-final period — both observed in real citations and not part of the heading
-// itself (docs/ENGINEERING_RULES.md's "Cloud Run CPU throttling..." and "Transactions." cases).
+// itself (docs/ENGINEERING_RULES_INFRA.md's "Cloud Run CPU throttling..." and docs/ENGINEERING_RULES_BACKEND.md's "Transactions." cases).
 function cleanCitation(rawTail: string): string {
   return rawTail
     .trim()
@@ -65,9 +65,9 @@ function normalizeHeadingText(text: string): string {
 }
 
 // A citation resolves against a target doc's real anchors in one of three shapes this codebase
-// actually uses: a markdown heading (docs/ENGINEERING_RULES.md-style), a bold-lead-in bullet
-// label (25 such targets exist in that same file), or a table row's first-cell "Pattern" text
-// (docs/ANTI_PATTERNS.md/CI_TRAPS.md have no heading per row at all). Matched by case-insensitive
+// actually uses: a markdown heading (docs/ENGINEERING_RULES_BACKEND.md-style), a bold-lead-in
+// bullet label (docs/ENGINEERING_RULES_SHARED.md alone has 16 such targets), or a table row's
+// first-cell "Pattern" text (docs/ANTI_PATTERNS.md/CI_TRAPS.md have no heading per row at all). Matched by case-insensitive
 // prefix in either direction, so a context.md citation may be a shortened version of the real
 // anchor, or vice versa.
 function collectAnchorCandidates(targetContent: string): string[] {
@@ -99,7 +99,7 @@ function occursAtWordBoundary(haystack: string, needle: string): boolean {
   return !isWordChar(before) && !isWordChar(after);
 }
 
-// A real citation may be a shortened prefix of the full anchor text (docs/ENGINEERING_RULES.md-
+// A real citation may be a shortened prefix of the full anchor text (docs/ENGINEERING_RULES_BACKEND.md-
 // style) — checked with a word-boundary match, so an unrelated real heading that merely starts
 // with the same characters can't false-match, but a citation typo'd with a trailing suffix (e.g.
 // "§ Transactions typo" against a real "## Transactions" heading) can't false-match either, since

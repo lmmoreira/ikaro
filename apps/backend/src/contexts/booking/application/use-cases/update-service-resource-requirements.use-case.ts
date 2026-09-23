@@ -46,7 +46,7 @@ export class UpdateServiceResourceRequirementsUseCase {
       // Read inside the transaction, immediately before the write it guards — narrows the
       // window where a concurrent resource deactivation could commit between this validation
       // and the save below to a single DB round-trip, the same accepted race shape already
-      // tolerated elsewhere in this codebase (docs/ENGINEERING_RULES.md's count-then-insert
+      // tolerated elsewhere in this codebase (docs/ENGINEERING_RULES_BACKEND.md's count-then-insert
       // precedent), rather than the far wider window a pre-transaction read left open.
       const activeResourceIdsByType = await resolveActiveResourceIdsByType(
         this.resourceRepo,

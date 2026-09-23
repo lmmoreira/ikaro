@@ -20,7 +20,7 @@ describe('NOTIFICATION_TEMPLATE_KEY_MAPPING', () => {
 
 // packages/i18n/locales/**/notifications.json sits outside that package's compiled
 // dist and must be read via Node's own module resolution, the same way
-// JsonLocalizationAdapter does (docs/ENGINEERING_RULES.md "Static locale/config
+// JsonLocalizationAdapter does (docs/ENGINEERING_RULES_SHARED.md "Static locale/config
 // files in workspace packages") — never via a TS `import` of the JSON file.
 const SUPPORTED_LOCALES = ['pt-BR', 'en'] as const;
 type NotificationsFile = Record<string, Record<string, { subject: string; body: string }>>;

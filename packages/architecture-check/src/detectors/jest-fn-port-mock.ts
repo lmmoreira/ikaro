@@ -183,7 +183,7 @@ function resolveJestMockedArgument(argument: Node, visited = new Set<Node>()): N
 }
 
 // Scans every `new X(...)` in a spec file and, for each constructor parameter whose resolved
-// type is a repository/port interface (docs/ENGINEERING_RULES.md § InMemory doubles), checks
+// type is a repository/port interface (docs/ENGINEERING_RULES_TESTING.md § InMemory doubles), checks
 // whether the corresponding argument is a `jest.fn()`-backed stub instead of an InMemory double.
 //
 // Scoped to constructor-injection sites deliberately, not every jest.fn()-typed variable in a
@@ -245,7 +245,7 @@ export function checkNoJestFnForRepositoryOrPortMocks(project: Project): ScanRes
           rule: 'no-jest-fn-for-repository-or-port',
           file: sourceFile.getFilePath(),
           line: sourceLine(sourceFile, argument.getStart()),
-          message: `${constructedClass.getName()} is constructed with a jest.fn() stub for its ${interfaceName}-typed constructor parameter — use an InMemory${interfaceName.replace(/^I/, '')} double from src/test/infrastructure/ or src/test/repositories/ instead (docs/ENGINEERING_RULES.md § InMemory doubles).`,
+          message: `${constructedClass.getName()} is constructed with a jest.fn() stub for its ${interfaceName}-typed constructor parameter — use an InMemory${interfaceName.replace(/^I/, '')} double from src/test/infrastructure/ or src/test/repositories/ instead (docs/ENGINEERING_RULES_TESTING.md § InMemory doubles).`,
         });
       }
     }
