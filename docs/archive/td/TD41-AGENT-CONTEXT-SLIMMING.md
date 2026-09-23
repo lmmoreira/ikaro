@@ -7,7 +7,7 @@
 - **Context**: `.copilot/context.md` (symlinked as `CLAUDE.md` / `AGENTS.md` / `gemini.md`), `docs/*`, `packages/architecture-check`
 - **Created**: 2026-09-20
 - **Discovered**: M22-S04 session review, 2026-09-20 — `/context` showed memory files at ~24.8k tokens; an audit of the file followed.
-- **Decision status**: Ready for discovery in the order below; each story still begins with `/story-discovery`.
+- **Decision status**: ✅ **Complete** — all 6 stories (0–5) done. Split into 5 topic-focused `docs/ENGINEERING_RULES_*.md` files (PR #508), plus a follow-up sync fix for the `docs-audit` skill/command twin (PR #509, found during #508's review). Archived 2026-09-23.
 - **Related**: TD37 (architecture-check conventions), `docs/STORY_SCHEMA.md`, `docs/DEFINITION_OF_DONE.md` (stale-reference sweep)
 - **Revised**: 2026-09-20 — pre-discovery review session narrowed the trap-scenario scope, added a canonical-home dedup rule, and fixed a pointer-matching gap (bold-lead-in-bullet targets), all folded into Story 0 below before any story goes to `/story-discovery`.
 - **Extended**: 2026-09-20 — added Stories 3–4 (measure, then conditionally split `docs/ENGINEERING_RULES.md`) after the same session's real `/context` evidence suggested that file — not `context.md` — may be the larger per-session cost driver on ordinary coding tasks. TD scope broadens from "`.copilot/context.md` only" to "agent-loaded doc hygiene"; Stories 0–2 are unchanged.
