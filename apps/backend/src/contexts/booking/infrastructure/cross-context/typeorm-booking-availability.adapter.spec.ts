@@ -217,6 +217,27 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
       );
     });
 
+    it('derives UTC instant boundaries from the tenant-local calendar day, not the bare UTC date string', async () => {
+      const qb = buildDayGridQueryBuilder([]);
+      ormRepo.createQueryBuilder.mockReturnValue(qb as never);
+
+      // Same America/Sao_Paulo (UTC-3, no DST) reasoning as
+      // findOccupancyByTenantAndResource's own boundary test above — a single day here.
+      await adapter.findDayGridOccupancy(
+        'tenant-1',
+        ['resource-1'],
+        '2026-06-01',
+        'America/Sao_Paulo',
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith('ro.startsAt < :isoEnd', {
+        isoEnd: new Date('2026-06-02T03:00:00.000Z'),
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('ro.endsAt > :isoStart', {
+        isoStart: new Date('2026-06-01T03:00:00.000Z'),
+      });
+    });
+
     it('maps a BOOKING_LINE row to kind BOOKING with refId = bookingId', async () => {
       const rows = [
         {

@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import {
   BookingEntityBuilder,
   BookingLineEntityBuilder,
@@ -21,6 +21,7 @@ import { ResourceType } from '../../domain/resource.types';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000500';
 const TENANT_B = '10000000-0000-4000-8000-000000000501';
+const FIXTURE_TENANT_IDS = [TENANT_A, TENANT_B];
 const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
 const DATE = '2026-06-01';
 
@@ -28,12 +29,32 @@ describe('ScheduleDayGridController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
 
+  // Deletes in FK-safe order for both fixture tenants at once — used both defensively before
+  // seeding (self-heals if a prior run's afterAll never completed, e.g. under CI's
+  // TESTCONTAINERS_REUSE_ENABLE) and in afterAll's own teardown, so the two never drift apart
+  // (same discipline as drop-tenant-wide-exclusion.integration.spec.ts).
+  async function cleanupFixtures(): Promise<void> {
+    await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds
+      .getRepository(BookingLineResourceAssignmentEntity)
+      .delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(BookingLineEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(BookingEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(ServiceEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+    await ds.getRepository(ResourceEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+  }
+
   beforeAll(async () => {
     ({ app, ds } = await createBookingIntegrationApp());
+    await cleanupFixtures();
   });
 
   afterAll(async () => {
-    await app.close();
+    try {
+      await cleanupFixtures();
+    } finally {
+      await app.close();
+    }
   });
 
   // Real composite FKs require a genuinely persisted service + booking + line + assignment
@@ -147,6 +168,15 @@ describe('ScheduleDayGridController (integration)', () => {
         .build();
       await ds.getRepository(ResourceEntity).save([ownResource, otherResource]);
 
+      const { bookingId: otherTenantBookingId } = await seedOccupiedBlock(
+        TENANT_B,
+        otherResource.id,
+        ResourceType.ROOM,
+        'COMMITTED',
+        new Date(`${DATE}T15:00:00.000Z`),
+        new Date(`${DATE}T16:00:00.000Z`),
+      );
+
       const { body } = await request(app.getHttpServer())
         .get(`/schedule/day-grid?date=${DATE}`)
         .set(actorHeaders(TENANT_A, MANAGER_ID))
@@ -155,6 +185,11 @@ describe('ScheduleDayGridController (integration)', () => {
       const resourceIds = body.columns.map((c: { resourceId: string }) => c.resourceId);
       expect(resourceIds).toContain(ownResource.id);
       expect(resourceIds).not.toContain(otherResource.id);
+
+      const allRefIds = body.columns.flatMap((c: { blocks: { refId: string }[] }) =>
+        c.blocks.map((b) => b.refId),
+      );
+      expect(allRefIds).not.toContain(otherTenantBookingId);
     });
   });
 });
