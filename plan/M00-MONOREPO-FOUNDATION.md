@@ -69,7 +69,7 @@ Populate `packages/config` with the shared ESLint, TypeScript base, and Prettier
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/11-ARCHITECTURE.md` § hexagonal layers, `docs/ENGINEERING_RULES_*.md`
+**Docs to load:** `docs/11-ARCHITECTURE.md` § hexagonal layers, `docs/ENGINEERING_RULES_SHARED.md`
 
 **Description:**  
 Bootstrap the NestJS v11 backend application with the correct hexagonal folder structure, health check endpoints, and the IEventBus port wired to a no-op adapter for local development. No business logic yet — this is the structural scaffold all backend contexts will be built on top of.
@@ -256,7 +256,7 @@ Set up TypeORM DataSource configuration for each bounded context and the migrati
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § value objects, `docs/ENGINEERING_RULES_*.md` § Architecture
+**Docs to load:** `docs/02-DOMAIN_MODEL.md` § value objects, `docs/ENGINEERING_RULES_SHARED.md` § Architecture
 
 **Description:**  
 Implement the base domain classes that every bounded context's domain layer will extend or use. These live in `apps/backend/src/shared/` and are the only shared code importable across contexts. No framework dependencies — pure TypeScript.

@@ -45,7 +45,7 @@ Application and collector configuration are one contract: enabling an SDK signal
 
 Applications emit structured logs through the shared logging abstraction. Business/audit counters are derived from intentional structured events and exposed through Cloud Monitoring log-based metrics.
 
-Never log credentials, OAuth tokens, cookies, full authorization headers, Turnstile tokens, customer message content, or other secrets. Query strings and outbound telemetry must follow the redaction rules in `docs/ENGINEERING_RULES_SHARED.md`.
+Never log credentials, OAuth tokens, cookies, full authorization headers, Turnstile tokens, customer message content, or other secrets. Query strings and outbound telemetry must follow the same redaction discipline — see `packages/observability/src/otel-query-redaction.ts` for the actual implementation.
 
 ## Dashboards and alerts
 

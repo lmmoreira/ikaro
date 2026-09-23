@@ -899,7 +899,7 @@ Note: `M13-S12`'s plan already expects to "extend `UpdateTenantSettingsRequest` 
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` §1, `docs/04-USE_CASES.md` § UC-009 A6, `docs/ENGINEERING_RULES_*.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`
+**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` §1, `docs/04-USE_CASES.md` § UC-009 A6, `docs/ENGINEERING_RULES_BACKEND.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`
 
 **Description:**
 Three targeted additions across two bounded contexts. No new use cases in the booking context — Part B extends `CompleteBookingUseCase`. The loyalty context gets one new use case (Part C) so the event handler can keep calling exactly one use case.
@@ -1345,7 +1345,7 @@ export interface CompleteBookingRequest {
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/ENGINEERING_RULES_*.md`, `docs/CODE_STANDARDS.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-022 UC-025
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/CODE_STANDARDS.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-022 UC-025
 
 **Description:**
 Full-stack overhaul of the staff auth flow, driven by three bugs found during discovery: (1) staff was provisioned as `is_active=false` requiring a separate activation step that could be bypassed; (2) a deactivated staff who still had their invite link could re-activate their own account; (3) the global `UNIQUE(google_oauth_id)` constraint prevented the same person from being staff at multiple tenants.
@@ -1647,7 +1647,7 @@ Show reason code in small grey text at bottom: `"Código: <reason>"`.
 
 **Agent:** `frontend-ts` (frontend) + `bff-ts` (two new/changed BFF endpoints) + `backend-ts` (one new internal endpoint)
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_*.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`
 
 **Scope-change rationale (read before starting):** the story originally planned three deliverables: the tenant-branded login screen, a multi-tenant selection screen (`/select-tenant`, UC-021 Case B), and the phone-completion prompt. A discovery session found:
 1. The login screen was already built in `M13-S42` (out of build order) — nothing left to do there.
