@@ -371,7 +371,7 @@ function checkSymlinks(rootDir: string, policy: AgentContextPolicy): Finding[] {
 // it directly and runs plain string/regex checks instead of scanning a `Project`. Returns the same
 // `ScanResult` contract every sibling returns, and is wired into `cli.ts`'s `results` array the
 // same way, so `scannedTargets = 1` (or 0, if the file is ever moved) triggers the CLI's existing
-// zero-target guard unchanged. See `td/TD41-AGENT-CONTEXT-SLIMMING.md` Story 0 for the full design.
+// zero-target guard unchanged. See `docs/archive/td/TD41-AGENT-CONTEXT-SLIMMING.md` Story 0 for the full design.
 // checkSymlinks verifies the three aliases (CLAUDE.md, AGENTS.md, gemini.md) each correctly point
 // AT `.copilot/context.md` — but says nothing about `.copilot/context.md` itself. If the canonical
 // file were replaced by a symlink escaping the repo (while the three aliases still lexically point
