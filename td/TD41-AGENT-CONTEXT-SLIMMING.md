@@ -11,6 +11,7 @@
 - **Related**: TD37 (architecture-check conventions), `docs/STORY_SCHEMA.md`, `docs/DEFINITION_OF_DONE.md` (stale-reference sweep)
 - **Revised**: 2026-09-20 — pre-discovery review session narrowed the trap-scenario scope, added a canonical-home dedup rule, and fixed a pointer-matching gap (bold-lead-in-bullet targets), all folded into Story 0 below before any story goes to `/story-discovery`.
 - **Extended**: 2026-09-20 — added Stories 3–4 (measure, then conditionally split `docs/ENGINEERING_RULES.md`) after the same session's real `/context` evidence suggested that file — not `context.md` — may be the larger per-session cost driver on ordinary coding tasks. TD scope broadens from "`.copilot/context.md` only" to "agent-loaded doc hygiene"; Stories 0–2 are unchanged.
+- **Story 3 resolved**: 2026-09-23 — real, isolated token measurement (61,936 / 19,241 / 7,438 for `ENGINEERING_RULES.md` / `AGENT_PATTERNS.md` / `CODE_STANDARDS.md`; 88,615 combined) plus real-session corroboration. Decision: **GO** — Story 4 runs next, with a locked-in split-boundary list (see Story 3's own section for full detail).
 
 ## Problem
 
@@ -193,7 +194,7 @@ Same test on the remaining weight: §9 Story Implementation Workflow (10.7k) —
 - [ ] Coverage ≥80% on changed code — n/a, no executable code changed
 - [ ] `tsc --noEmit` clean, lint clean, `pnpm prettier --check .` clean
 
-### Story 3 — Measure `docs/ENGINEERING_RULES.md`'s real per-session cost and decide on a split 🟡
+### Story 3 — Measure `docs/ENGINEERING_RULES.md`'s real per-session cost and decide on a split 🟡 ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
@@ -209,14 +210,36 @@ Get real evidence before committing to a restructuring, instead of extrapolating
 3. **Decision, backed by the numbers from 1–2, not the heading-count analysis alone:** either (a) confirm the bundle's real cost justifies Story 4, and lock in a concrete split-file boundary list — informed by the heading-based categorization already produced during this TD's discussion (Testing as its own file, cleanly separable; Backend+Database merged, not split, since persistence patterns are backend patterns in this codebase; BFF evaluated for whether its small existing footprint justifies its own file or should fold into Backend; Frontend/Web as its own file; a Shared/cross-cutting file for patterns spanning 2+ layers, e.g. the exception-handling/i18n envelope, Value Objects, Controller/Route boundaries) — or (b) close this story with "not worth it," recording the measured numbers as the stated reason, in which case Story 4 does not run.
 4. Regardless of the split decision, record the confirmed routing mismatch found during this TD's discovery: the `Cloud Run CPU throttling`/`vpc_egress` entries live in a doc that `§10`'s "Writing Terraform / infra code" row never loads — a correctness bug independent of the size question. Fix it as part of Story 4 if it runs, or as a tiny standalone fix if Story 3 concludes "not worth it."
 
+**Resolved at story-discovery, 2026-09-23 — method substitution.** `/context` cannot literally be invoked the way the story describes: it reports the *current interactive session's* own accounting, and there is no way to script "open a fresh, otherwise-empty session and run `/context`" without a human at the terminal. Confirmed with the user before proceeding (never improvise past a named reference without asking): used **JSONL transcript introspection** instead — Claude Code writes every subagent's full transcript, including real per-turn Anthropic API `usage` blocks (`cache_creation_input_tokens`, `cache_read_input_tokens`, etc., straight from the API response), to `~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl`. A fresh, non-fork general-purpose subagent was scripted to `Read` the three files in fixed sequence and emit nothing else; each turn's `cache_creation_input_tokens` delta (minus the immediately preceding turn's own `output_tokens`, which get folded into the next turn's input) isolates that file's exact real token cost. This is a genuine tokenizer measurement, not a char/4 estimate, and needed no manual session-switching from the user.
+
+**Measured results (2026-09-23, post-Story-2 content):**
+
+| File | Real token cost | Notes |
+|---|---|---|
+| `docs/ENGINEERING_RULES.md` | **61,936** | A single unbounded `Read` call hits Claude Code's per-call token cap and returns only lines 1–361 of 974 (~38%) — not silent: the tool attaches an explicit `read_truncation_notice` banner verified in the raw transcript verbatim: *"[Truncated: PARTIAL view — .../docs/ENGINEERING_RULES.md: showing lines 1-361 of 974 total (57225 tokens, cap 25000). Call Read with offset=362 limit=361 for the next page, or Grep to find a specific section. Do NOT answer from this page alone if the answer may be further in the file.]"* — confirming the real 25,000-token cap and giving an independent, harness-side token estimate (57,225) that lands within ~8% of this row's own real, API-usage-derived total, cross-validating the measurement method. Getting the full file required 3 sequential paginated `Read` calls (offsets 1, 362, 723); the **61,936 total is the sum of each chunk's real `cache_creation_input_tokens` delta minus the immediately preceding turn's own `output_tokens`** (which get folded into the next turn's cached input) — 24,384 + 24,219 + 13,333 — so cached prefixes, assistant/tool-call scaffolding, and tool-result wrapper overhead are all netted out of each chunk before summing. |
+| `docs/AGENT_PATTERNS.md` | **19,241** | Full file in one `Read` call, no truncation. Same derivation: that turn's `cache_creation_input_tokens` (19,830) minus the preceding turn's `output_tokens` (589). |
+| `docs/CODE_STANDARDS.md` | **7,438** | Full file in one `Read` call, no truncation. Same derivation: that turn's `cache_creation_input_tokens` (7,528) minus the preceding turn's `output_tokens` (90). |
+| **Combined "Writing any code" bundle** | **88,615** | `ENGINEERING_RULES.md` alone is ~70% of it. |
+
+**Real-session corroboration (best-effort, item 2):** sampled two real past sessions' transcripts (an M21-S06 implementation session and a large M20-era session) for actual `Read`-tool calls on `docs/ENGINEERING_RULES.md`. Neither did a full load: both used `grep`/Bash to find a section first, then a small targeted `Read` with an explicit offset/limit — real marginal cost ~111 tokens per call, nowhere near the full-file number. This *discovery session itself* reproduced the same pattern live: when this skill's own Step 2 said "load unconditionally: `docs/ENGINEERING_RULES.md`," the actual action taken was a heading-only `grep`, not a full `Read`. Conclusion: in practice, agents (including this one, moments earlier) routinely route around the file's real cost by grepping instead of complying with "load unconditionally" — which means the doc's own stated safety net ("a story can no longer be checked against them without loading this file explicitly," §Step 2) is being informally bypassed in the field, independent of the pure cost question.
+
+**Decision: GO.** Both the raw cost (61,936 tokens, the dominant share of the bundle) and the truncation behavior (a compliant full read needs 3 calls; a naive one gets only ~38%, flagged by the tool's own truncation banner) are concrete, mechanically-confirmed reasons — not file-size arithmetic. Story 4 runs.
+
+**Split-file boundary list (locked in).** BFF-specific content in the file is genuinely tiny — three short headings (Express `Request.user` typing, Staff OAuth login URL format, `/internal/` routes are pre-auth only), ~30 lines total — so it folds into Backend rather than earning its own file; no `docs/ENGINEERING_RULES_BFF.md` is created.
+
+- **`docs/ENGINEERING_RULES_TESTING.md`** — Testing Patterns (detail) + all its subsections; Cloudflare Turnstile's test sitekey; SonarCloud's `S5976` duplicate-test rule; Node's default V8 heap limit; an integration test seeding fixtures under fixed tenant UUIDs.
+- **`docs/ENGINEERING_RULES_BACKEND.md`** (Backend + Database + BFF folded in) — Transactions + all subsections; Migration backfills; Migration-driven privilege grants; Adding a CHECK constraint to a live table; LIKE/ILIKE pattern escaping; Aggregate domain events → outbox; Cloud Run CPU throttling; OpenRouter chatbot outbound HTTP resilience; Cloud Run `vpc_egress` mode (this is where the routing-mismatch fix lands in Story 4); Backend read use cases for cross-context access; Adding a new notification type; Event Handlers (Pub/Sub consumers); the 3 BFF headings above; a lock only orders callers who both acquire it; `architecture-check`'s `transactional-save` detector; a wholesale-replaced child collection; a child table with only a composite PK; a versioned append-only child concept.
+- **`docs/ENGINEERING_RULES_FRONTEND.md`** — Web — Shared Helpers (`apps/web`) + all subsections; CSP allowances for a new external UI resource; Hotsite full-page components must paint `--ba-background`.
+- **`docs/ENGINEERING_RULES_SHARED.md`** (genuinely cross-cutting, 2+ layers) — Repository slice ownership; Value Objects + all subsections; Partial-update types for deeply-nested Zod schemas; Schema-level enforcement of "never persisted here" invariants; RequestContext; Observability ports; Controller, Route, and Shared-UI Boundaries; Static locale/config files in workspace packages; Authoring new i18n UI copy keys; Exception handling & i18n pattern + all subsections; `no-restricted-syntax` selectors must be checked against every bypass shape; before a blind `Write`, grep for expected exported symbols; re-check a same-file documented invariant when extending an algorithm.
+
 **Files to create/modify:**
 - `td/TD41-AGENT-CONTEXT-SLIMMING.md` (modify — record the measured numbers and the go/no-go decision)
 
 **Acceptance criteria — product:**
-- [ ] A real, isolated token measurement exists for `docs/ENGINEERING_RULES.md`, `docs/AGENT_PATTERNS.md`, and `docs/CODE_STANDARDS.md`, individually and combined — not a char-based estimate.
-- [ ] A clear go/no-go decision on Story 4 is recorded in this TD, with the measured numbers as the stated reason either way.
-- [ ] If "go": a concrete split-file boundary list is recorded, with every genuinely cross-cutting pattern explicitly assigned to the Shared file, not left ambiguous or duplicated.
-- [ ] The Cloud Run/`vpc_egress` routing mismatch is recorded as a finding regardless of the split decision.
+- [x] A real, isolated token measurement exists for `docs/ENGINEERING_RULES.md`, `docs/AGENT_PATTERNS.md`, and `docs/CODE_STANDARDS.md`, individually and combined — not a char-based estimate.
+- [x] A clear go/no-go decision on Story 4 is recorded in this TD, with the measured numbers as the stated reason either way.
+- [x] If "go": a concrete split-file boundary list is recorded, with every genuinely cross-cutting pattern explicitly assigned to the Shared file, not left ambiguous or duplicated.
+- [x] The Cloud Run/`vpc_egress` routing mismatch is recorded as a finding regardless of the split decision.
 
 **Acceptance criteria — technical:**
 - Unit: none — no code
