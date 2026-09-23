@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource, In } from 'typeorm';
+import { CalendarDateErrorCode } from '@ikaro/types';
 import {
   BookingEntityBuilder,
   BookingLineEntityBuilder,
@@ -146,6 +147,18 @@ describe('ScheduleDayGridController (integration)', () => {
 
       expect(body.columns).toHaveLength(1);
       expect(body.columns[0].blocks).toEqual([]);
+    });
+
+    it('returns 400 CALENDAR_DATE_FORMAT_INVALID for a calendar-impossible date', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/schedule/day-grid?date=2026-02-30')
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .expect(400);
+
+      expect(body.violations).toContainEqual({
+        field: 'date',
+        code: CalendarDateErrorCode.FORMAT_INVALID,
+      });
     });
 
     it('returns 403 for STAFF role', async () => {

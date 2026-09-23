@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { ScheduleClosureEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
+import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import { ClosureReason, ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { TypeOrmScheduleClosureRepository } from './typeorm-schedule-closure.repository';
@@ -184,7 +185,7 @@ describe('TypeOrmScheduleClosureRepository', () => {
         id: CLOSURE_ID,
         tenantId: TENANT_ID,
         resourceId: null,
-        date: '2026-12-25',
+        date: CalendarDate.reconstitute('2026-12-25'),
         startTime: null,
         endTime: null,
         reason: ClosureReason.HOLIDAY,
@@ -206,7 +207,7 @@ describe('TypeOrmScheduleClosureRepository', () => {
         id: CLOSURE_ID,
         tenantId: TENANT_ID,
         resourceId: null,
-        date: '2026-12-25',
+        date: CalendarDate.reconstitute('2026-12-25'),
         startTime: TimeOfDay.create('10:00'),
         endTime: TimeOfDay.create('12:00'),
         reason: ClosureReason.MAINTENANCE,
@@ -228,7 +229,7 @@ describe('TypeOrmScheduleClosureRepository', () => {
         id: CLOSURE_ID,
         tenantId: TENANT_ID,
         resourceId: RESOURCE_ID,
-        date: '2026-12-25',
+        date: CalendarDate.reconstitute('2026-12-25'),
         startTime: null,
         endTime: null,
         reason: ClosureReason.HOLIDAY,

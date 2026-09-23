@@ -11,7 +11,8 @@ export class InMemoryScheduleOpeningRepository implements IScheduleOpeningReposi
   ): Promise<ScheduleOpening | null> {
     return (
       this.store.find(
-        (o) => o.tenantId === tenantId && o.date === date && o.resourceId === (resourceId ?? null),
+        (o) =>
+          o.tenantId === tenantId && o.date.value === date && o.resourceId === (resourceId ?? null),
       ) ?? null
     );
   }
@@ -26,11 +27,11 @@ export class InMemoryScheduleOpeningRepository implements IScheduleOpeningReposi
       .filter(
         (o) =>
           o.tenantId === tenantId &&
-          o.date >= from &&
-          o.date <= to &&
+          o.date.value >= from &&
+          o.date.value <= to &&
           o.resourceId === (resourceId ?? null),
       )
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => a.date.value.localeCompare(b.date.value));
   }
 
   async findById(id: string, tenantId: string): Promise<ScheduleOpening | null> {
@@ -39,7 +40,7 @@ export class InMemoryScheduleOpeningRepository implements IScheduleOpeningReposi
 
   async existsResourceScopedForDate(tenantId: string, date: string): Promise<boolean> {
     return this.store.some(
-      (o) => o.tenantId === tenantId && o.date === date && o.resourceId !== null,
+      (o) => o.tenantId === tenantId && o.date.value === date && o.resourceId !== null,
     );
   }
 

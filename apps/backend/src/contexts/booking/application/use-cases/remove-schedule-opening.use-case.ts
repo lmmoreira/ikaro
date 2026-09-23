@@ -43,13 +43,13 @@ export class RemoveScheduleOpeningUseCase {
       // before its own dependent-check, so a concurrent create can't slip a new dependent in
       // between this check and the delete below.
       if (opening.resourceId === null) {
-        await this.tenantLock.lockTenantDay(tenantId, opening.date);
+        await this.tenantLock.lockTenantDay(tenantId, opening.date.value);
         const hasDependents = await this.openingRepo.existsResourceScopedForDate(
           tenantId,
-          opening.date,
+          opening.date.value,
         );
         if (hasDependents) {
-          throw new TenantOpeningHasResourceDependentsError(opening.date);
+          throw new TenantOpeningHasResourceDependentsError(opening.date.value);
         }
       }
       await this.openingRepo.delete(input.id, tenantId);

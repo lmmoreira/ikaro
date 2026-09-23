@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { IScheduleOpeningRepository } from '../../application/ports/schedule-opening-repository.port';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
@@ -90,7 +91,7 @@ export class TypeOrmScheduleOpeningRepository implements IScheduleOpeningReposit
       code === '23505' &&
       (constraint === TENANT_WIDE_UNIQUE_INDEX || constraint === RESOURCE_SCOPED_UNIQUE_INDEX)
     ) {
-      throw new ScheduleOpeningAlreadyExistsError(opening.date);
+      throw new ScheduleOpeningAlreadyExistsError(opening.date.value);
     }
     throw err;
   }
@@ -109,7 +110,7 @@ export class TypeOrmScheduleOpeningRepository implements IScheduleOpeningReposit
       id: entity.id,
       tenantId: entity.tenantId,
       resourceId: entity.resourceId,
-      date: entity.date,
+      date: CalendarDate.reconstitute(entity.date),
       startTime: TimeOfDay.create(entity.startTime),
       endTime: TimeOfDay.create(entity.endTime),
       notes: entity.notes,
@@ -123,7 +124,7 @@ export class TypeOrmScheduleOpeningRepository implements IScheduleOpeningReposit
     entity.id = opening.id;
     entity.tenantId = opening.tenantId;
     entity.resourceId = opening.resourceId;
-    entity.date = opening.date;
+    entity.date = opening.date.value;
     entity.startTime = opening.startTime.value;
     entity.endTime = opening.endTime.value;
     entity.notes = opening.notes;

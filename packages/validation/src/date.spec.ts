@@ -1,24 +1,25 @@
-import { DATE_ONLY_PATTERN, isValidTimeOfDay, isValidTimezone } from './date';
+import { isValidCalendarDate, isValidTimeOfDay, isValidTimezone } from './date';
 
-describe('DATE_ONLY_PATTERN', () => {
-  it('accepts a valid YYYY-MM-DD date', () => {
-    expect(DATE_ONLY_PATTERN.test('2026-08-03')).toBe(true);
+describe('isValidCalendarDate', () => {
+  it.each(['2026-08-03', '2026-12-31', '2028-02-29', '2000-02-29'])('accepts %s', (value) => {
+    expect(isValidCalendarDate(value)).toBe(true);
   });
 
-  it('rejects a date missing zero-padding', () => {
-    expect(DATE_ONLY_PATTERN.test('2026-8-3')).toBe(false);
-  });
-
-  it('rejects a date with slashes instead of dashes', () => {
-    expect(DATE_ONLY_PATTERN.test('2026/08/03')).toBe(false);
-  });
-
-  it('rejects a full ISO datetime string', () => {
-    expect(DATE_ONLY_PATTERN.test('2026-08-03T00:00:00.000Z')).toBe(false);
-  });
-
-  it('rejects an empty string', () => {
-    expect(DATE_ONLY_PATTERN.test('')).toBe(false);
+  it.each([
+    ['2026-02-30', 'day past the end of February'],
+    ['2026-02-29', 'Feb 29 in a non-leap year'],
+    ['1900-02-29', 'Feb 29 in a century year not divisible by 400'],
+    ['2026-04-31', 'day 31 in a 30-day month'],
+    ['2026-13-01', 'month 13'],
+    ['2026-00-10', 'month 0'],
+    ['2026-01-00', 'day 0'],
+    ['2026-8-3', 'missing zero-padding'],
+    ['2026/08/03', 'slashes instead of dashes'],
+    ['2026-08-03T00:00:00.000Z', 'a full ISO datetime'],
+    ['not-a-date', 'a non-numeric string'],
+    ['', 'an empty string'],
+  ])('rejects %s (%s)', (value) => {
+    expect(isValidCalendarDate(value)).toBe(false);
   });
 });
 

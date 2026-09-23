@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { ScheduleOpeningEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
+import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import { ScheduleOpeningAlreadyExistsError } from '../../domain/errors/booking-domain.error';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
@@ -66,7 +67,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       expect(result).toBeInstanceOf(ScheduleOpening);
       expect(result!.id).toBe(OPENING_ID);
       expect(result!.tenantId).toBe(TENANT_ID);
-      expect(result!.date).toBe('2026-12-28');
+      expect(result!.date.value).toBe('2026-12-28');
       expect(result!.startTime).toBeInstanceOf(TimeOfDay);
       expect(result!.startTime.value).toBe('09:00');
       expect(result!.endTime).toBeInstanceOf(TimeOfDay);
@@ -108,7 +109,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       const result = await repo.findByTenantAndDate(TENANT_ID, '2026-12-28');
 
       expect(result).toBeInstanceOf(ScheduleOpening);
-      expect(result!.date).toBe('2026-12-28');
+      expect(result!.date.value).toBe('2026-12-28');
     });
 
     it('scopes to tenant-wide (resourceId IS NULL) when resourceId is omitted', async () => {
@@ -159,7 +160,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
         id: OPENING_ID,
         tenantId: TENANT_ID,
         resourceId: null,
-        date: '2026-12-28',
+        date: CalendarDate.reconstitute('2026-12-28'),
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
         notes: 'Special event',
@@ -187,7 +188,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
         id: OPENING_ID,
         tenantId: TENANT_ID,
         resourceId: null,
-        date: '2026-12-28',
+        date: CalendarDate.reconstitute('2026-12-28'),
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
         notes: null,
@@ -206,7 +207,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
         id: OPENING_ID,
         tenantId: TENANT_ID,
         resourceId: RESOURCE_ID,
-        date: '2026-12-28',
+        date: CalendarDate.reconstitute('2026-12-28'),
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
         notes: null,
@@ -240,7 +241,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
         id: OPENING_ID,
         tenantId: TENANT_ID,
         resourceId: null,
-        date: '2026-12-28',
+        date: CalendarDate.reconstitute('2026-12-28'),
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
         notes: null,
@@ -266,7 +267,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
         id: OPENING_ID,
         tenantId: TENANT_ID,
         resourceId: RESOURCE_ID,
-        date: '2026-12-28',
+        date: CalendarDate.reconstitute('2026-12-28'),
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
         notes: null,
@@ -288,7 +289,7 @@ describe('TypeOrmScheduleOpeningRepository', () => {
         id: OPENING_ID,
         tenantId: TENANT_ID,
         resourceId: null,
-        date: '2026-12-28',
+        date: CalendarDate.reconstitute('2026-12-28'),
         startTime: TimeOfDay.create('09:00'),
         endTime: TimeOfDay.create('14:00'),
         notes: null,

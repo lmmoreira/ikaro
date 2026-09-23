@@ -188,7 +188,7 @@ export class OpenScheduleUseCase {
     return {
       id: opening.id,
       resourceId: opening.resourceId,
-      date: opening.date,
+      date: opening.date.value,
       startTime: opening.startTime.value,
       endTime: opening.endTime.value,
       notes: opening.notes,

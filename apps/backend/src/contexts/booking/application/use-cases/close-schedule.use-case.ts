@@ -87,7 +87,7 @@ export class CloseScheduleUseCase {
     return {
       id: closure.id,
       resourceId: closure.resourceId,
-      date: closure.date,
+      date: closure.date.value,
       startTime: closure.startTime?.value ?? null,
       endTime: closure.endTime?.value ?? null,
       reason: closure.reason,

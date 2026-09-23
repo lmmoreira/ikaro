@@ -34,7 +34,7 @@ export class ListOpeningsUseCase {
       items: openings.map((o) => ({
         id: o.id,
         resourceId: o.resourceId,
-        date: o.date,
+        date: o.date.value,
         startTime: o.startTime.value,
         endTime: o.endTime.value,
         notes: o.notes,

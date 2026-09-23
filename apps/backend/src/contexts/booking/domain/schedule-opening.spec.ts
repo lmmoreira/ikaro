@@ -8,6 +8,10 @@ import {
   ScheduleOpeningNotFoundError,
 } from './errors/booking-domain.error';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
+import {
+  CalendarDate,
+  CalendarDateValidationError,
+} from '../../../shared/value-objects/calendar-date.vo';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
@@ -29,7 +33,7 @@ describe('ScheduleOpening', () => {
       expect(opening.id).toBeDefined();
       expect(opening.tenantId).toBe(TENANT_ID);
       expect(opening.resourceId).toBeNull();
-      expect(opening.date).toBe(date);
+      expect(opening.date.value).toBe(date);
       expect(opening.startTime).toBeInstanceOf(TimeOfDay);
       expect(opening.startTime.value).toBe('09:00');
       expect(opening.endTime).toBeInstanceOf(TimeOfDay);
@@ -72,6 +76,18 @@ describe('ScheduleOpening', () => {
           createdBy: STAFF_ID,
         }),
       ).toThrow(OpeningDateInPastError);
+    });
+
+    it('throws CalendarDateValidationError for a calendar-impossible date', () => {
+      expect(() =>
+        ScheduleOpening.open({
+          tenantId: TENANT_ID,
+          date: '2999-02-30',
+          startTime: '09:00',
+          endTime: '14:00',
+          createdBy: STAFF_ID,
+        }),
+      ).toThrow(CalendarDateValidationError);
     });
 
     it('throws when endTime equals startTime', () => {
@@ -212,7 +228,7 @@ describe('ScheduleOpening', () => {
         id: '00000000-0000-7000-8000-000000000099',
         tenantId: TENANT_ID,
         resourceId: null,
-        date: past,
+        date: CalendarDate.reconstitute(past),
         startTime: TimeOfDay.create('08:00'),
         endTime: TimeOfDay.create('12:00'),
         notes: null,
@@ -220,7 +236,7 @@ describe('ScheduleOpening', () => {
         createdAt: new Date('2020-01-01T00:00:00Z'),
       });
 
-      expect(opening.date).toBe(past);
+      expect(opening.date.value).toBe(past);
       expect(opening.startTime.value).toBe('08:00');
       expect(opening.endTime.value).toBe('12:00');
       expect(opening.resourceId).toBeNull();
@@ -231,7 +247,7 @@ describe('ScheduleOpening', () => {
         id: '00000000-0000-7000-8000-000000000099',
         tenantId: TENANT_ID,
         resourceId: RESOURCE_ID,
-        date: '2020-01-01',
+        date: CalendarDate.reconstitute('2020-01-01'),
         startTime: TimeOfDay.create('08:00'),
         endTime: TimeOfDay.create('12:00'),
         notes: null,

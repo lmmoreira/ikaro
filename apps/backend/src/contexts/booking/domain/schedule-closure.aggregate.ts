@@ -1,7 +1,7 @@
 import { BookingErrorCode } from '@ikaro/types/protocol/errors';
-import { todayUTC } from '../../../shared/utils/calendar-date';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
+import { CalendarDate } from '../../../shared/value-objects/calendar-date.vo';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 import {
   ClosureDateInPastError,
@@ -22,7 +22,7 @@ export interface ScheduleClosureProps {
   id: string;
   tenantId: string;
   resourceId: string | null;
-  date: string;
+  date: CalendarDate;
   startTime: TimeOfDay | null;
   endTime: TimeOfDay | null;
   reason: ClosureReason;
@@ -59,7 +59,7 @@ export class ScheduleClosure extends AggregateRoot {
   get resourceId(): string | null {
     return this.props.resourceId;
   }
-  get date(): string {
+  get date(): CalendarDate {
     return this.props.date;
   }
   get startTime(): TimeOfDay | null {
@@ -101,7 +101,7 @@ export class ScheduleClosure extends AggregateRoot {
       id: uuidv7(),
       tenantId,
       resourceId: resourceId ?? null,
-      date,
+      date: CalendarDate.create(date),
       startTime: startTime == null ? null : TimeOfDay.create(startTime),
       endTime: endTime == null ? null : TimeOfDay.create(endTime),
       reason,
@@ -128,8 +128,8 @@ export class ScheduleClosure extends AggregateRoot {
     if (!Object.values(ClosureReason).includes(reason)) {
       throw new ClosureReasonInvalidError(reason);
     }
-    const today = todayUTC();
-    if (date < today) throw new ClosureDateInPastError();
+    if (CalendarDate.create(date).isBefore(CalendarDate.today()))
+      throw new ClosureDateInPastError();
     ScheduleClosure.assertTimeRange(startTime, endTime);
   }
 

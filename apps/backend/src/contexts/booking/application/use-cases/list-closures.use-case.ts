@@ -34,7 +34,7 @@ export class ListClosuresUseCase {
       items: closures.map((c) => ({
         id: c.id,
         resourceId: c.resourceId,
-        date: c.date,
+        date: c.date.value,
         startTime: c.startTime?.value ?? null,
         endTime: c.endTime?.value ?? null,
         reason: c.reason,

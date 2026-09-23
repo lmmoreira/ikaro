@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { TenantBusinessHours, TenantDayHours } from '@ikaro/types';
 import { addDays, toISODate } from '@/shared/lib/formatting/date-utils';
 
@@ -18,18 +19,11 @@ export function parseDateKey(dateKey: string): Date {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
-export function isValidDateKey(dateKey: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return false;
-  }
+// Same calendar-aware rule the BFF/backend enforce on every date param (TD42).
+const DATE_KEY_SCHEMA = z.iso.date();
 
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const parsed = parseDateKey(dateKey);
-  return (
-    parsed.getUTCFullYear() === year &&
-    parsed.getUTCMonth() === month - 1 &&
-    parsed.getUTCDate() === day
-  );
+export function isValidDateKey(dateKey: string): boolean {
+  return DATE_KEY_SCHEMA.safeParse(dateKey).success;
 }
 
 export function getWeekStartKey(dateKey: string): string {

@@ -1,11 +1,10 @@
 import { z } from 'zod';
-import { DATE_ONLY_PATTERN } from '@ikaro/validation';
 
 // Request Zod schemas and their inferred body/query types — split out of
 // schedule-opening.controller.ts so request-side shapes never live inline in the controller
 // (mirrors booking/bookings.schemas.ts's existing split).
 export const CreateOpeningBodySchema = z.object({
-  date: z.string().regex(DATE_ONLY_PATTERN, 'date must be YYYY-MM-DD'),
+  date: z.iso.date({ error: 'date must be a valid YYYY-MM-DD calendar date' }),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, 'startTime must be HH:MM'),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, 'endTime must be HH:MM'),
   resourceId: z.uuid().optional(),
@@ -13,8 +12,8 @@ export const CreateOpeningBodySchema = z.object({
 });
 
 export const ListOpeningsQuerySchema = z.object({
-  from: z.string().regex(DATE_ONLY_PATTERN, 'from must be YYYY-MM-DD'),
-  to: z.string().regex(DATE_ONLY_PATTERN, 'to must be YYYY-MM-DD'),
+  from: z.iso.date({ error: 'from must be a valid YYYY-MM-DD calendar date' }),
+  to: z.iso.date({ error: 'to must be a valid YYYY-MM-DD calendar date' }),
   resourceId: z.uuid().optional(),
 });
 

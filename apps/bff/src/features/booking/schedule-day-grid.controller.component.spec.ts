@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { CalendarDateErrorCode } from '@ikaro/types';
 import {
   MockHttpService,
   MockBackendHttpService,
@@ -68,6 +69,19 @@ describe('ScheduleDayGridController (component)', () => {
         .get('/v1/schedule/day-grid?date=not-a-date')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
       expect(res.status).toBe(400);
+    });
+
+    it('returns 400 CALENDAR_DATE_FORMAT_INVALID for a calendar-impossible date, without calling the backend', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .get('/v1/schedule/day-grid?date=2026-02-30')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+      expect(res.status).toBe(400);
+      expect(res.body.violations).toContainEqual({
+        field: 'date',
+        code: CalendarDateErrorCode.FORMAT_INVALID,
+      });
+      expect(backendHttpService.get).not.toHaveBeenCalled();
     });
 
     it('MANAGER JWT → 200, calls GET /schedule/day-grid on backend', async () => {
