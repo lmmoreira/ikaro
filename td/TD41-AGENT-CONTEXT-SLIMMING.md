@@ -249,27 +249,68 @@ Get real evidence before committing to a restructuring, instead of extrapolating
 - Coverage: n/a — no executable code changed
 - `tsc --noEmit` / lint: n/a — no code touched
 
-### Story 4 — Split `docs/ENGINEERING_RULES.md` into topic-focused docs 🟡 (conditional on Story 3's "go" decision)
+### Story 4 — Split `docs/ENGINEERING_RULES.md` into topic-focused docs 🟡
 
 **Agent:** `devops`
 **Complexity:** L
 **Docs to load:** `docs/ENGINEERING_RULES.md`, `docs/AGENT_PATTERNS.md`, `.copilot/context.md` §10, Story 3's recorded split-boundary decision
-**Dependencies:** Story 3 — **this story is dropped entirely, not deferred, if Story 3's verdict is "no."**
+**Dependencies:** Story 3 ✅ Done — GO decision confirmed (PR #507)
 **Pattern:** plain composition — documentation restructuring, no code
 
 **Description:**
-Execute the split decided in Story 3. Create the new topic-focused files (e.g. `docs/ENGINEERING_RULES_TESTING.md`, `docs/ENGINEERING_RULES_BACKEND.md` — merged with database per Story 3's analysis unless that story's evidence says otherwise — `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_BFF.md` only if Story 3 concludes it earned its own file, `docs/ENGINEERING_RULES_SHARED.md` for genuinely cross-cutting patterns) by relocating each heading's content wholesale — **no rewriting, no compression; this is a reorganization, not a slimming pass**, unlike Stories 1–2. Update `.copilot/context.md` §10's loading table so each task-type row points to the right split file(s) instead of the monolith, including fixing the confirmed Cloud Run/`vpc_egress` routing mismatch from Story 3 item 4. Run `/docs-audit` afterward to confirm every cross-reference to `docs/ENGINEERING_RULES.md § <heading>` anywhere in the codebase (`context.md`, `ANTI_PATTERNS.md`, `CI_TRAPS.md`, other docs, `.claude/commands/*.md`) still resolves to its new location. Apply the same manifest discipline as Stories 1–2: every relocated heading tracked, cross-checked against the canonical docs for pre-existing duplication before landing in its new home.
+Execute the split decided in Story 3 (refined at this story's own discovery, below). Create the new topic-focused files by relocating each heading's content wholesale — **no rewriting, no compression; this is a reorganization, not a slimming pass**, unlike Stories 1–2. Update `.copilot/context.md` §10's loading table so each task-type row points to the right split file(s) instead of the monolith. Run `/docs-audit` afterward to confirm every cross-reference to `docs/ENGINEERING_RULES.md § <heading>` anywhere in the codebase still resolves to its new location. Apply the same manifest discipline as Stories 1–2: every relocated heading tracked, cross-checked against the canonical docs for pre-existing duplication before landing in its new home.
+
+**Resolved at story-discovery, 2026-09-23.** A full-repo cross-reference scan (Explore agent, verified) found **277 matches across 90 files** citing `docs/ENGINEERING_RULES.md`. Four decisions locked in against that real data:
+
+1. **Split into 5 files, not 4** — Story 3's split-boundary list bundled Cloud Run CPU throttling and Cloud Run `vpc_egress` mode into Backend; refined here into their own **`docs/ENGINEERING_RULES_INFRA.md`**, since they're infra-authoring conventions, not backend business-logic/persistence ones, and this cleanly matches the exact §10 row (`Writing Terraform / infra code`) that had the confirmed routing mismatch. Final 5 files and their content:
+   - **`docs/ENGINEERING_RULES_TESTING.md`** — Testing Patterns (detail) + all subsections; Cloudflare Turnstile's test sitekey; SonarCloud's `S5976`; Node's V8 heap limit; integration test fixture teardown.
+   - **`docs/ENGINEERING_RULES_BACKEND.md`** (Backend + Database + BFF folded in) — Transactions + subsections; Migration backfills; Migration-driven privilege grants; CHECK constraint on a live table; LIKE/ILIKE escaping; Aggregate events → outbox; OpenRouter chatbot outbound HTTP resilience; Backend read use cases for cross-context access; Adding a new notification type; Event Handlers (Pub/Sub); the 3 BFF headings (Express `Request.user` typing, Staff OAuth login URL format, `/internal/` routes are pre-auth only); lock-ordering; `transactional-save` detector; wholesale-replaced child collection; composite-PK-only child table; versioned append-only child concept.
+   - **`docs/ENGINEERING_RULES_INFRA.md`** *(new, not in Story 3's original list)* — Cloud Run CPU throttling; Cloud Run `vpc_egress` mode.
+   - **`docs/ENGINEERING_RULES_FRONTEND.md`** — Web — Shared Helpers + subsections; CSP allowances; hotsite full-page components.
+   - **`docs/ENGINEERING_RULES_SHARED.md`** — Repository slice ownership; Value Objects + subsections; partial-update Zod types; schema-level enforcement; RequestContext; Observability ports; Controller/Route/Shared-UI Boundaries; static locale/config files; i18n copy-key authoring; Exception handling & i18n pattern + subsections; `no-restricted-syntax` selector check; grep-before-blind-Write; re-check-same-file-invariant.
+
+2. **`docs/ENGINEERING_RULES.md` survives as a thin redirect/index**, not deleted — one line per heading naming its new home. Costs nothing once §10 stops loading it directly, and is the safety net that makes decision 3 low-risk.
+
+3. **Fix scope: every file with a match, except `docs/archive/**`.** The 277 matches split roughly into ~25-30 "live surface" files (`.copilot/context.md`, `.claude/commands/*.md` + their byte-identical `.agents/skills/*/SKILL.md` twins — fix both copies of each — canonical `docs/*.md`, infra READMEs, source-code comments/strings in `apps/`/`packages/`) and ~45+ shipped milestone/TD plan files. Per this story-discovery, **all of them get repointed**, except `docs/archive/**` (2 matches, in `TD02-LOCALIZATION.md` and `TD-21-SEPARATION...md`) — left untouched, since `docs/archive/` is an explicit frozen historical record (§10: "Never load") and the redirect stub keeps its old citation resolving regardless.
+
+4. **§10 loading-table redesign** (not a pure find-replace — the generic "Writing any code" row loading all 5 split files would recreate the exact cost this split exists to remove):
+
+   | Task | New doc set |
+   |---|---|
+   | Writing any code | `CODE_STANDARDS.md` + `AGENT_PATTERNS.md` + `ENGINEERING_RULES_SHARED.md` |
+   | Database / migration | `DATABASE_SCHEMA.md` + `DOMAIN_MODEL.md` + `ENGINEERING_RULES_BACKEND.md` |
+   | Event handler | `DOMAIN_EVENTS.md` + `BOUNDED_CONTEXTS.md` + `ENGINEERING_RULES_BACKEND.md` |
+   | Staff OAuth login / invite link | `ENGINEERING_RULES_BACKEND.md` § Staff OAuth login URL format |
+   | New notification type | `ENGINEERING_RULES_BACKEND.md` § Adding a new notification type |
+   | New error code (`@ikaro/types`) | `ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist |
+   | New UI copy / locale key | `ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys + `CODE_STANDARDS.md` |
+   | Hotsite / public frontend | *(add)* `ENGINEERING_RULES_FRONTEND.md` |
+   | Dashboard / admin frontend | *(add)* `ENGINEERING_RULES_FRONTEND.md` |
+   | BFF implementation | *(add)* `ENGINEERING_RULES_BACKEND.md` |
+   | Testing patterns | `08-TESTING_STRATEGY.md` + `ENGINEERING_RULES_TESTING.md` |
+   | Value objects / mappers | `VALUE_OBJECTS_REFERENCE.md` + `ENGINEERING_RULES_SHARED.md` |
+   | Writing Terraform / infra code | *(add)* `ENGINEERING_RULES_INFRA.md` — fixes the routing mismatch |
+   | Observability | *(add)* `ENGINEERING_RULES_INFRA.md` |
+   | Deployment / infra | *(add)* `ENGINEERING_RULES_INFRA.md` |
+
+5. **5 config-shaped files approved for editing** (comment/rationale-string fixes only, zero behavior change — normally needs explicit yes per §0's doc/config gate, obtained at this discovery): `packages/architecture-check/architecture-policy.json` (L504 rationale string), `.coderabbit.yaml` (L9 path entry), `.github/workflows/deploy-staging.yml` (L412 comment), `infra/terraform/modules/monitoring/main.tf` (L32 comment), `infra/docker/otel-collector/config.yaml` (L36 comment). Also in scope, already covered by the standard code-file autonomy: `packages/architecture-check/src/detectors/jest-fn-port-mock.ts` (L248 runtime lint-error message string) and `agent-context-file.spec.ts` (3 hardcoded `'docs/ENGINEERING_RULES.md'` fixture-map keys).
 
 **Files to create/modify:**
-- New split files per Story 3's decision
-- `docs/ENGINEERING_RULES.md` (deleted or reduced to a redirect/index, per Story 3's decision)
-- `.copilot/context.md` (modify — §10 loading table repointed)
-- Every file anywhere in the repo carrying a `→ docs/ENGINEERING_RULES.md § <heading>` pointer (found via grep, listed in the PR)
+- `docs/ENGINEERING_RULES_TESTING.md`, `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_INFRA.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` (new)
+- `docs/ENGINEERING_RULES.md` (reduced to a redirect/index — not deleted)
+- `.copilot/context.md` (modify — §10 loading table repointed per the table above)
+- `packages/architecture-check/agent-context-policy.json` (modify — ratchet budgets for the changed §10 section)
+- Every live-surface file carrying a `→ docs/ENGINEERING_RULES.md § <heading>` pointer or bare mention (full list in the PR manifest — includes `.claude/commands/*.md` + `.agents/skills/*/SKILL.md` twins, canonical `docs/*.md`, infra READMEs, and source comments/strings across `apps/`/`packages/`)
+- Every shipped milestone/TD plan file with a match (full list in the PR manifest) — **except** `docs/archive/**`
+- The 5 approved config-shaped files (see item 5 above)
+- `packages/architecture-check/src/detectors/jest-fn-port-mock.ts`, `agent-context-file.spec.ts` (repoint doc citations)
 
 **Acceptance criteria — product:**
-- [ ] Every heading from the original `docs/ENGINEERING_RULES.md` exists in exactly one new location — zero content lost, zero duplicated across the new files (manifest in the PR, same discipline as Stories 1–2).
-- [ ] `§10`'s loading table routes each task type to the correct split file(s); the Cloud Run/`vpc_egress` mismatch is fixed.
-- [ ] `/docs-audit` run afterward reports zero broken cross-references to the old monolith path.
+- [ ] Every heading from the original `docs/ENGINEERING_RULES.md` exists in exactly one new location across the 5 new files — zero content lost, zero duplicated (manifest in the PR, same discipline as Stories 1–2).
+- [ ] `docs/ENGINEERING_RULES.md` is reduced to a redirect/index (one line per heading → new file), not deleted.
+- [ ] §10's loading table matches the locked-in table above exactly; the Cloud Run/`vpc_egress` routing mismatch is fixed via `ENGINEERING_RULES_INFRA.md`.
+- [ ] Every file found in the discovery-time cross-reference scan is repointed, except `docs/archive/**` (left untouched, redirect stub covers it).
+- [ ] `/docs-audit` run afterward reports zero broken cross-references to the old monolith path (excluding the intentional redirect-stub headings).
 - [ ] Genuinely cross-cutting patterns (error/i18n envelope, Value Objects, Controller/Route boundaries) live in exactly one Shared file, not duplicated across layer files.
 
 **Acceptance criteria — technical:**
