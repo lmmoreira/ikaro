@@ -31,7 +31,7 @@
 
 **Safety net before any cut:** a mechanical guard (required anchors, resolvable pointers, no PR#/ISO dates, per-section budgets as a ratchet) plus a set of named trap scenarios evaluated against the file before and after.
 
-**Canonical-home rule (added 2026-09-20, post-draft review).** Each rule/pattern gets exactly one file that holds its full explanation: `docs/ANTI_PATTERNS.md` for "what not to do + why + fix", `docs/ENGINEERING_RULES.md`/`docs/CODE_STANDARDS.md` for "how to do it correctly", `docs/CI_TRAPS.md` for CI/deploy-specific gotchas. Every other file — including `context.md` itself — gets a `→ doc § heading` pointer, never a second full explanation. Applies in two directions Story 0 now checks: (1) a pattern already fully explained in one canonical doc must not get a second full explanation in another (the `useExisting` case above), and (2) relocating a §7 bullet's rationale (Story 1) must land in the *one* doc that should canonically hold it, not wherever happens to already have some text on the topic.
+**Canonical-home rule (added 2026-09-20, post-draft review; filenames updated 2026-09-23 per TD41-S4's split).** Each rule/pattern gets exactly one file that holds its full explanation: `docs/ANTI_PATTERNS.md` for "what not to do + why + fix", the relevant `docs/ENGINEERING_RULES_*.md` split file / `docs/CODE_STANDARDS.md` for "how to do it correctly", `docs/CI_TRAPS.md` for CI/deploy-specific gotchas. Every other file — including `context.md` itself — gets a `→ doc § heading` pointer, never a second full explanation. Applies in two directions Story 0 now checks: (1) a pattern already fully explained in one canonical doc must not get a second full explanation in another (the `useExisting` case above), and (2) relocating a §7 bullet's rationale (Story 1) must land in the *one* doc that should canonically hold it, not wherever happens to already have some text on the topic.
 
 Rejected: deleting bullets and relying on §10's task→docs table (writing-time traps aren't loaded until the agent knows to look); reword-only compression (moves nothing, unverifiable); a size cap alone (invites deleting rules to pass); a mechanical cross-doc duplication *detector* in `architecture-check` (fuzzy/semantic — the same rule is worded differently in each duplicate location, so exact-match or budget-style checks won't catch it; this is exactly the "broad, exploratory" check `docs/ANTI_PATTERNS.md` row 143 says not to force into a blocking gate — routed to `/docs-audit` instead, non-blocking, see that skill's updated mandate).
 
@@ -249,7 +249,7 @@ Get real evidence before committing to a restructuring, instead of extrapolating
 - Coverage: n/a — no executable code changed
 - `tsc --noEmit` / lint: n/a — no code touched
 
-### Story 4 — Split `docs/ENGINEERING_RULES.md` into topic-focused docs 🟡
+### Story 4 — Split `docs/ENGINEERING_RULES.md` into topic-focused docs 🟡 ✅ Done
 
 **Agent:** `devops`
 **Complexity:** L
@@ -306,12 +306,41 @@ Execute the split decided in Story 3 (refined at this story's own discovery, bel
 - `packages/architecture-check/src/detectors/jest-fn-port-mock.ts`, `agent-context-file.spec.ts` (repoint doc citations)
 
 **Acceptance criteria — product:**
-- [ ] Every heading from the original `docs/ENGINEERING_RULES.md` exists in exactly one new location across the 5 new files — zero content lost, zero duplicated (manifest in the PR, same discipline as Stories 1–2).
-- [ ] `docs/ENGINEERING_RULES.md` is reduced to a redirect/index (one line per heading → new file), not deleted.
-- [ ] §10's loading table matches the locked-in table above exactly; the Cloud Run/`vpc_egress` routing mismatch is fixed via `ENGINEERING_RULES_INFRA.md`.
-- [ ] Every file found in the discovery-time cross-reference scan is repointed, except `docs/archive/**` (left untouched, redirect stub covers it).
-- [ ] `/docs-audit` run afterward reports zero broken cross-references to the old monolith path (excluding the intentional redirect-stub headings).
-- [ ] Genuinely cross-cutting patterns (error/i18n envelope, Value Objects, Controller/Route boundaries) live in exactly one Shared file, not duplicated across layer files.
+- [x] Every heading from the original `docs/ENGINEERING_RULES.md` exists in exactly one new location across the 5 new files — zero content lost, zero duplicated (byte-verified: 74 headings in, 74 out, only 41 bytes of deliberate blank-line spacers added; manifest in PR #508).
+- [x] `docs/ENGINEERING_RULES.md` is reduced to a redirect/index (one line per heading → new file), not deleted.
+- [x] §10's loading table matches the locked-in table above exactly; the Cloud Run/`vpc_egress` routing mismatch is fixed via `ENGINEERING_RULES_INFRA.md`.
+- [x] Every file found in the discovery-time cross-reference scan is repointed, except `docs/archive/**` (left untouched, redirect stub covers it).
+- [x] Cross-reference verification done via a full-repo grep sweep re-run against the post-split state (not a full `/docs-audit` invocation — its broader ~20-doc-vs-code drift check is orthogonal to this story's narrow "did the split break any pointer" concern, which the direct sweep answers precisely): confirmed zero remaining bare `docs/ENGINEERING_RULES.md` citations repo-wide except the new files' own accurate "split from" provenance notes and a handful of pre-existing, deliberately-untouched historical/negative references (`docs/CI_TRAPS.md`'s relocation note, two "file has no such section" mentions, TD41's own Story 0–3 narrative).
+- [x] Genuinely cross-cutting patterns (error/i18n envelope, Value Objects, Controller/Route boundaries) live in exactly one Shared file, not duplicated across layer files.
+
+**Acceptance criteria — technical:**
+- Unit: none — no code
+- Integration: none
+- Tenant isolation: n/a
+- E2E: none
+- Coverage: n/a — no executable code changed
+- `tsc --noEmit` / lint: n/a — docs only
+
+### Story 5 — Sync `.agents/skills/docs-audit/SKILL.md` with `.claude/commands/docs-audit.md`'s cross-doc-duplication and canonical-home-rule safeguards 🟡
+
+**Agent:** `devops`
+**Complexity:** S
+**Docs to load:** `.claude/commands/docs-audit.md`, `.agents/skills/docs-audit/SKILL.md`
+**Dependencies:** none
+**Pattern:** plain composition — mechanical content sync, no code
+
+**Discovered:** 2026-09-23, Codex `/pr-review` (Important finding) on TD41-S4's PR #508.
+**Root cause:** TD41-S0 (2026-09-20) added the cross-doc-duplication check and the canonical-home-rule enforcement paragraph to `.claude/commands/docs-audit.md` — its frontmatter `description` and body intro (adds "cross-doc content duplication" to what the audit covers), the "Standards/structure bucket" bullet (adds the duplication-flagging sentence + the `useExisting`/`ENGINEERING_RULES.md` worked example), two new bullets in the doc-consistency checklist (a `context.md`-vs-canonical-doc duplication cross-check; a `AGENT_CONTEXT_TRAP_SCENARIOS.md` drift check), a "Cross-doc duplication" findings section in the report template, and a canonical-home proposal paragraph — but never propagated any of it to `.agents/skills/docs-audit/SKILL.md`, the byte-identical twin Codex actually reads (confirmed via direct `diff`, 2026-09-23: 6 distinct blocks missing, `.claude/commands/docs-audit.md` at 213 lines vs. `.agents/skills/docs-audit/SKILL.md` at 206). TD41-S4 confirmed the drift is real while fixing two unrelated citations shared by both files, but backporting a whole prior story's missing methodology section is unrelated to splitting `ENGINEERING_RULES.md` and was correctly out of that PR's scope.
+
+**Description:**
+Port every block `diff .claude/commands/docs-audit.md .agents/skills/docs-audit/SKILL.md` currently reports as `.claude/commands`-only into `.agents/skills/docs-audit/SKILL.md`, verbatim (same content this skill's own Steps run against, not a reworded copy — the two files must stay byte-identical, same convention as every other `.claude/commands/*.md` / `.agents/skills/*/SKILL.md` pair in this repo). Concretely: the two `description` lines (frontmatter + body intro), the "Standards/structure bucket" bullet's duplication-flagging sentence and worked example, the two doc-consistency checklist bullets (`context.md`-vs-canonical-doc cross-check; trap-scenario drift check), the "Cross-doc duplication" findings-report section, and the canonical-home proposal paragraph. Re-run the same `diff` after and confirm zero remaining lines.
+
+**Files to create/modify:**
+- `.agents/skills/docs-audit/SKILL.md` (modify — port the 6 missing blocks from `.claude/commands/docs-audit.md`)
+
+**Acceptance criteria — product:**
+- [ ] `diff .claude/commands/docs-audit.md .agents/skills/docs-audit/SKILL.md` reports zero differences.
+- [ ] Codex's next `/pre-pr`-dispatched `/docs-audit`-equivalent reasoning has access to the same cross-doc-duplication and canonical-home-rule checks Claude's copy already has.
 
 **Acceptance criteria — technical:**
 - Unit: none — no code
