@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TimeOfDayErrorCode } from '@ikaro/types/protocol/errors';
+import { ScheduleClosuresRangeQuerySchema } from '@ikaro/validation';
 import { ClosureReason } from '../../domain/schedule-closure.aggregate';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 
@@ -26,10 +27,7 @@ export const CloseScheduleSchema = z.object({
 
 export type CloseScheduleDto = z.infer<typeof CloseScheduleSchema>;
 
-export const ListClosuresSchema = z.object({
-  from: z.iso.date({ error: 'from must be a valid YYYY-MM-DD calendar date' }),
-  to: z.iso.date({ error: 'to must be a valid YYYY-MM-DD calendar date' }),
-  resourceId: z.uuid().optional(),
-});
+// Shared verbatim with the BFF's ListClosuresQuerySchema — see @ikaro/validation booking.ts.
+export const ListClosuresSchema = ScheduleClosuresRangeQuerySchema;
 
 export type ListClosuresDto = z.infer<typeof ListClosuresSchema>;

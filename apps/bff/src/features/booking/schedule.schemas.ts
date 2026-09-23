@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ScheduleClosuresRangeQuerySchema } from '@ikaro/validation';
 
 // Request Zod schemas and their inferred body/query types — split out of schedule.controller.ts
 // so request-side shapes never live inline in the controller (mirrors
@@ -18,11 +19,8 @@ export const CreateClosureBodySchema = z.object({
   notes: z.string().optional(),
 });
 
-export const ListClosuresQuerySchema = z.object({
-  from: z.iso.date({ error: 'from must be a valid YYYY-MM-DD calendar date' }),
-  to: z.iso.date({ error: 'to must be a valid YYYY-MM-DD calendar date' }),
-  resourceId: z.uuid().optional(),
-});
+// Shared verbatim with the backend's ListClosuresSchema — see @ikaro/validation booking.ts.
+export const ListClosuresQuerySchema = ScheduleClosuresRangeQuerySchema;
 
 export type CreateClosureBody = z.infer<typeof CreateClosureBodySchema>;
 export type ListClosuresQuery = z.infer<typeof ListClosuresQuerySchema>;

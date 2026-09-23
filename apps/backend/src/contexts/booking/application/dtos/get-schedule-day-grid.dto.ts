@@ -1,7 +1,7 @@
 import { z } from 'zod';
+import { ScheduleDayGridQuerySchema } from '@ikaro/validation';
 
-export const GetScheduleDayGridSchema = z.object({
-  date: z.iso.date({ error: 'date must be a valid YYYY-MM-DD calendar date' }),
-});
+// Shared verbatim with the BFF's GetDayGridQuerySchema — see @ikaro/validation booking.ts.
+export const GetScheduleDayGridSchema = ScheduleDayGridQuerySchema;
 
 export type GetScheduleDayGridDto = z.infer<typeof GetScheduleDayGridSchema>;
