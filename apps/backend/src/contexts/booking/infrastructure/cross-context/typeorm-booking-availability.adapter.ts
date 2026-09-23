@@ -5,7 +5,10 @@ import { getActiveEntityManager } from '../../../../shared/infrastructure/transa
 import { localDateRangeBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { IBookingAvailabilityPort } from '../../application/ports/booking-availability.port';
 import { ResourceOccupiedSlot } from '../../domain/resource-occupied-slot';
+import { DayGridOccupancyBlock } from '../../domain/day-grid-occupancy-block';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
+import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
+import { BookingLineEntity } from '../entities/booking-line.entity';
 
 @Injectable()
 export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPort {
@@ -49,4 +52,71 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
       endsAt: new Date(row.endsAt),
     }));
   }
+
+  async findDayGridOccupancy(
+    tenantId: string,
+    resourceIds: string[],
+    date: string,
+    timezone: string,
+  ): Promise<DayGridOccupancyBlock[]> {
+    if (resourceIds.length === 0) return [];
+    const manager = getActiveEntityManager();
+    const repository = manager ? manager.getRepository(ResourceOccupancyEntity) : this.repo;
+
+    const { start: isoStart, end: isoEnd } = localDateRangeBoundsUTC(date, date, timezone);
+
+    const rows: DayGridOccupancyRow[] = await repository
+      .createQueryBuilder('ro')
+      .leftJoin(
+        BookingLineResourceAssignmentEntity,
+        'blra',
+        'blra.id = ro.bookingLineResourceAssignmentId AND blra.tenantId = ro.tenantId',
+      )
+      .leftJoin(
+        BookingLineEntity,
+        'bl',
+        'bl.lineId = blra.bookingLineId AND bl.tenantId = ro.tenantId',
+      )
+      .select([
+        'ro.resourceId AS "resourceId"',
+        'ro.startsAt AS "startsAt"',
+        'ro.endsAt AS "endsAt"',
+        'ro.sourceType AS "sourceType"',
+        'bl.bookingId AS "bookingId"',
+        'ro.classSessionId AS "classSessionId"',
+      ])
+      .where('ro.tenantId = :tenantId', { tenantId })
+      .andWhere('ro.resourceId IN (:...resourceIds)', { resourceIds })
+      // Unlike findOccupancyByTenantAndResource above, includes REQUESTED — see this method's
+      // own doc comment on IBookingAvailabilityPort for why.
+      .andWhere("ro.lockState IN ('REQUESTED', 'HOLD', 'COMMITTED')")
+      .andWhere('ro.startsAt < :isoEnd', { isoEnd })
+      .andWhere('ro.endsAt > :isoStart', { isoStart })
+      .getRawMany();
+
+    return rows.map(toDayGridOccupancyBlock);
+  }
+}
+
+interface DayGridOccupancyRow {
+  resourceId: string;
+  startsAt: Date;
+  endsAt: Date;
+  sourceType: 'BOOKING_LINE' | 'CLASS_SESSION';
+  bookingId: string | null;
+  classSessionId: string | null;
+}
+
+// Invariant: a BOOKING_LINE row's booking_line_resource_assignment_id always resolves to a real
+// booking (assign() never inserts one without the other); a CLASS_SESSION row always carries its
+// own class_session_id directly — see the CHECK constraint on resource_occupancy.
+function toDayGridOccupancyBlock(row: DayGridOccupancyRow): DayGridOccupancyBlock {
+  const isClassSession = row.sourceType === 'CLASS_SESSION';
+  return {
+    resourceId: row.resourceId,
+    startsAt: new Date(row.startsAt),
+    endsAt: new Date(row.endsAt),
+    kind: isClassSession ? 'CLASS_SESSION' : 'BOOKING',
+    refId: (isClassSession ? row.classSessionId : row.bookingId) as string,
+  };
 }

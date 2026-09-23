@@ -15,6 +15,26 @@ function buildQueryBuilder(rows: { resourceId: string; startsAt: string; endsAt:
   return qb;
 }
 
+function buildDayGridQueryBuilder(
+  rows: {
+    resourceId: string;
+    startsAt: string;
+    endsAt: string;
+    sourceType: 'BOOKING_LINE' | 'CLASS_SESSION';
+    bookingId: string | null;
+    classSessionId: string | null;
+  }[],
+) {
+  const qb = {
+    leftJoin: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue(rows),
+  };
+  return qb;
+}
+
 describe('TypeOrmBookingAvailabilityAdapter', () => {
   let adapter: TypeOrmBookingAvailabilityAdapter;
   let ormRepo: jest.Mocked<Repository<ResourceOccupancyEntity>>;
@@ -165,6 +185,135 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
       expect(result).toHaveLength(2);
       expect(result[0].resourceId).toBe('resource-1');
       expect(result[1].resourceId).toBe('resource-2');
+    });
+  });
+
+  describe('findDayGridOccupancy', () => {
+    it('returns [] without querying when no resourceIds are given', async () => {
+      const result = await adapter.findDayGridOccupancy(
+        'tenant-1',
+        [],
+        '2026-06-01',
+        'America/Sao_Paulo',
+      );
+
+      expect(result).toEqual([]);
+      expect(ormRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('includes REQUESTED alongside HOLD/COMMITTED, unlike findOccupancyByTenantAndResource', async () => {
+      const qb = buildDayGridQueryBuilder([]);
+      ormRepo.createQueryBuilder.mockReturnValue(qb as never);
+
+      await adapter.findDayGridOccupancy(
+        'tenant-1',
+        ['resource-1'],
+        '2026-06-01',
+        'America/Sao_Paulo',
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        "ro.lockState IN ('REQUESTED', 'HOLD', 'COMMITTED')",
+      );
+    });
+
+    it('maps a BOOKING_LINE row to kind BOOKING with refId = bookingId', async () => {
+      const rows = [
+        {
+          resourceId: 'resource-1',
+          startsAt: '2026-06-01T10:00:00.000Z',
+          endsAt: '2026-06-01T11:00:00.000Z',
+          sourceType: 'BOOKING_LINE' as const,
+          bookingId: 'booking-1',
+          classSessionId: null,
+        },
+      ];
+      ormRepo.createQueryBuilder.mockReturnValue(buildDayGridQueryBuilder(rows) as never);
+
+      const result = await adapter.findDayGridOccupancy(
+        'tenant-1',
+        ['resource-1'],
+        '2026-06-01',
+        'America/Sao_Paulo',
+      );
+
+      expect(result).toEqual([
+        {
+          resourceId: 'resource-1',
+          startsAt: new Date('2026-06-01T10:00:00.000Z'),
+          endsAt: new Date('2026-06-01T11:00:00.000Z'),
+          kind: 'BOOKING',
+          refId: 'booking-1',
+        },
+      ]);
+    });
+
+    it('maps a CLASS_SESSION row to kind CLASS_SESSION with refId = classSessionId', async () => {
+      const rows = [
+        {
+          resourceId: 'resource-2',
+          startsAt: '2026-06-01T09:00:00.000Z',
+          endsAt: '2026-06-01T10:00:00.000Z',
+          sourceType: 'CLASS_SESSION' as const,
+          bookingId: null,
+          classSessionId: 'session-1',
+        },
+      ];
+      ormRepo.createQueryBuilder.mockReturnValue(buildDayGridQueryBuilder(rows) as never);
+
+      const result = await adapter.findDayGridOccupancy(
+        'tenant-1',
+        ['resource-2'],
+        '2026-06-01',
+        'America/Sao_Paulo',
+      );
+
+      expect(result[0]).toEqual({
+        resourceId: 'resource-2',
+        startsAt: new Date('2026-06-01T09:00:00.000Z'),
+        endsAt: new Date('2026-06-01T10:00:00.000Z'),
+        kind: 'CLASS_SESSION',
+        refId: 'session-1',
+      });
+    });
+
+    it('joins booking_line_resource_assignments/booking_lines scoped to the same tenant', async () => {
+      const qb = buildDayGridQueryBuilder([]);
+      ormRepo.createQueryBuilder.mockReturnValue(qb as never);
+
+      await adapter.findDayGridOccupancy(
+        'tenant-1',
+        ['resource-1'],
+        '2026-06-01',
+        'America/Sao_Paulo',
+      );
+
+      expect(qb.leftJoin).toHaveBeenCalledWith(
+        expect.anything(),
+        'blra',
+        'blra.id = ro.bookingLineResourceAssignmentId AND blra.tenantId = ro.tenantId',
+      );
+      expect(qb.leftJoin).toHaveBeenCalledWith(
+        expect.anything(),
+        'bl',
+        'bl.lineId = blra.bookingLineId AND bl.tenantId = ro.tenantId',
+      );
+    });
+
+    it('uses the active transaction repository when one exists', async () => {
+      const managerQb = buildDayGridQueryBuilder([]);
+      const managerRepo = { createQueryBuilder: jest.fn().mockReturnValue(managerQb) };
+      const manager = {
+        getRepository: jest.fn().mockReturnValue(managerRepo),
+      } as unknown as EntityManager;
+
+      await runWithEntityManager(manager, () =>
+        adapter.findDayGridOccupancy('tenant-1', ['resource-1'], '2026-06-01', 'America/Sao_Paulo'),
+      );
+
+      expect(manager.getRepository).toHaveBeenCalledWith(ResourceOccupancyEntity);
+      expect(managerRepo.createQueryBuilder).toHaveBeenCalledTimes(1);
+      expect(ormRepo.createQueryBuilder).not.toHaveBeenCalled();
     });
   });
 });

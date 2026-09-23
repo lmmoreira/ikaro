@@ -1,0 +1,35 @@
+# Booking — Manager Combined Multi-Resource Day Grid (M22-S05, UC-057)
+# TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
+# MANAGER-only — same restriction tier as Resource Management
+# (docs/14-API_CONTRACTS.md § GET /schedule/day-grid).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — combined day grid for a given date
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Get the day grid
+GET {{baseUrl}}/schedule/day-grid?date=2026-06-01
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### STAFF role → 403 (MANAGER-only)
+GET {{baseUrl}}/schedule/day-grid?date=2026-06-01
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF

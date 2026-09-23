@@ -1,4 +1,4 @@
-import { ClosureReason } from '@ikaro/types';
+import { ClosureReason, ResourceType } from '@ikaro/types';
 
 export interface ScheduleClosureResponse {
   id: string;
@@ -49,3 +49,22 @@ export interface DaySummary {
 }
 
 export type AvailabilitySummaryResponse = DaySummary[];
+
+export interface DayGridBlock {
+  startsAt: string;
+  endsAt: string;
+  kind: 'BOOKING' | 'CLASS_SESSION';
+  refId: string;
+}
+
+export interface DayGridColumn {
+  resourceId: string;
+  name: string;
+  type: ResourceType;
+  blocks: DayGridBlock[];
+}
+
+export interface DayGridResponse {
+  date: string;
+  columns: DayGridColumn[];
+}
