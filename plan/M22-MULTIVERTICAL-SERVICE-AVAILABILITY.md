@@ -378,7 +378,7 @@ Rebuild `apps/web/features/booking/components/dashboard/services/ServiceEditPage
 
 ---
 
-### M22-S05 — Manager combined multi-resource day grid — backend + BFF
+### M22-S05 — Manager combined multi-resource day grid — backend + BFF ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
