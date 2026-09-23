@@ -1,11 +1,11 @@
 ---
 name: docs-audit
-description: Audit project documentation for staleness, internal inconsistency, drift from the actually-implemented code, and confusing/missing handoff info - across `docs/`, `plan/M0X-*.md` milestone files, `plan/journey/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`plan/journey/`), before starting a new milestone, or any time documentation might have drifted from reality.
+description: Audit project documentation for staleness, internal inconsistency, cross-doc content duplication (the same rule/pattern fully restated in more than one canonical doc), drift from the actually-implemented code, and confusing/missing handoff info - across `docs/`, `plan/M0X-*.md` milestone files, `plan/journey/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`plan/journey/`), before starting a new milestone, or any time documentation might have drifted from reality.
 metadata:
   short-description: Project documentation audit
 ---
 
-Audit project documentation for staleness, internal inconsistency, drift from the actually-implemented code, and confusing/missing handoff info — across `docs/`, `plan/M0X-*.md` milestone files, `plan/journey/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`plan/journey/`), before starting a new milestone, or any time documentation might have drifted from reality.
+Audit project documentation for staleness, internal inconsistency, cross-doc content duplication (the same rule/pattern fully restated in more than one canonical doc), drift from the actually-implemented code, and confusing/missing handoff info — across `docs/`, `plan/M0X-*.md` milestone files, `plan/journey/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`plan/journey/`), before starting a new milestone, or any time documentation might have drifted from reality.
 
 > Supersedes the old `/uc-audit` skill — its UC-vs-code logic is preserved verbatim as category (a) below, just no longer the only thing this skill checks.
 
@@ -97,7 +97,7 @@ Spawn 3 Explore agents, in parallel:
 
 - **Architecture/contracts bucket** (`05-BOUNDED_CONTEXTS.md`, `06-TENANT_ISOLATION_STRATEGY.md`, `11-ARCHITECTURE.md`, `14-API_CONTRACTS.md`, `15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `24-BFF_ARCHITECTURE.md`, `25-ERROR_CATALOG.md`, whichever are in scope): grep module/controller structure, error mapper classes, and the tenant-isolation interceptor for whether the doc's described boundaries/contracts/error catalog match.
 
-- **Standards/structure bucket** (`ANTI_PATTERNS.md`, `CI_TRAPS.md`, `CODE_STANDARDS.md`, the 5 `ENGINEERING_RULES_*.md` files, `REPOSITORY_STRUCTURE.md`, `VALUE_OBJECTS_REFERENCE.md`, whichever are in scope): grep for whether named patterns/forbidden-patterns/VO class names/file locations still match the actual codebase.
+- **Standards/structure bucket** (`ANTI_PATTERNS.md`, `CI_TRAPS.md`, `CODE_STANDARDS.md`, the 5 `ENGINEERING_RULES_*.md` files, `REPOSITORY_STRUCTURE.md`, `VALUE_OBJECTS_REFERENCE.md`, whichever are in scope): grep for whether named patterns/forbidden-patterns/VO class names/file locations still match the actual codebase. Also flag **cross-doc duplication**: the same named pattern/rule explained in full, independently, in more than one of these docs (or in `CLAUDE.md`/`.copilot/context.md`) where one isn't clearly just a pointer to the other's canonical explanation — report each location (file + line/heading). Confirmed real case as of 2026-09-20: the `useExisting`/`useClass` DI pattern was independently fully explained in both `ANTI_PATTERNS.md` (row 68) and (pre-split) `ENGINEERING_RULES.md` (lines 756–767) before TD41 collapsed it to one canonical copy — treat any similarly-shaped pair as a finding.
 
 - **Process/CI bucket** (`17-GITHUB_WORKFLOWS_GUIDELINES.md`, `18-RELEASE_LIFECYCLE_OPERATIONS.md`, whichever are in scope): grep `.github/workflows/*.yml` for whether the documented CI gate list (lint, type-check, tests, Snyk/Gitleaks, SonarCloud) and branch-naming convention actually match; grep `docker-compose.yml` for whether the documented local-dev services (Postgres, Pub/Sub emulator, Prometheus/Grafana) match; check whether a `/health/ready`-style endpoint exists if the doc claims a smoke test against one.
 
@@ -133,6 +133,8 @@ Direct-read pass per in-scope journey. Only promote to a real subagent — bound
 
 ### 3e. `CLAUDE.md`/`.copilot/context.md` self-consistency — always runs (cheap, one file, no agent spawn)
 - No duplicated subsections (read top to bottom once; flag any heading/content block that repeats)
+- No rule/pattern named in `context.md` is restated in full elsewhere when it should only be a pointer — cross-check `context.md`'s own bullets against the Standards/structure bucket's duplication findings (Step 2b) when that bucket is in scope; a `context.md` bullet describing a named pattern should point to its canonical doc (per TD41's canonical-home rule), not duplicate the explanation
+- Every criterion-(c) "writing-time trap" bullet in `context.md` (per TD41's keep-in-file test) has a matching scenario in `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`, and every scenario there still points to a bullet that exists — flag either direction of drift
 - §6's UC index matches `docs/04-USE_CASES.md`'s summary table (status + title)
 - §3's Bounded Contexts table matches `docs/05-BOUNDED_CONTEXTS.md`
 - §10's dynamic-loading table references files that actually exist on disk
@@ -159,6 +161,9 @@ No code/config artifact to diff against, so this is a direct read, not a grep-dr
 ### Internal inconsistencies (doc vs. doc)
 1. [CLAUDE.md §19] "Folder structure" subsection appears twice, identical content
 
+### Cross-doc duplication (same pattern fully restated in 2+ files)
+1. [useExisting/useClass DI pattern] `ANTI_PATTERNS.md` row 68 and (pre-split) `ENGINEERING_RULES.md` lines 756–767 both fully explain this independently → canonical home: `ANTI_PATTERNS.md` row 68; collapse the other to a pointer
+
 ### IA gaps (UC/doc implies something that doesn't exist)
 1. [UC-XXX] <flow> — no page under apps/web/app/... — candidate for plan/journey/<actor>/
 
@@ -178,6 +183,8 @@ If a category has no findings, print `(none found)`.
 For each "Stale/Conflicting" and "Internal inconsistency" finding:
 - If code (or the more-recently-updated doc) is the unambiguous source of truth and there's one obvious fix, propose the exact edit (old → new text).
 - If the fix requires a judgment call (terminology choice, which doc is authoritative, scope decision), collect it and ask via `AskUserQuestion` — batch all such questions into one round.
+
+For each "Cross-doc duplication" finding: propose one canonical home per the rule's type — `ANTI_PATTERNS.md` for "what not to do + why + fix", `docs/ENGINEERING_RULES_*.md`/`CODE_STANDARDS.md` for "how to do it correctly", `CI_TRAPS.md` for CI/deploy-specific gotchas; `CLAUDE.md`/`.copilot/context.md` never holds the full explanation for any of these, only a trigger + pointer. Replace every other location's full text with a `→ doc § heading` pointer. This check is deliberately non-blocking and lives only here, not as an `architecture-check` CI gate — cross-doc semantic duplication isn't a deterministic, low-ambiguity check (the same rule is usually worded differently in each copy), which is exactly the class of check `docs/ANTI_PATTERNS.md` row 143 says to keep out of a mandatory blocking gate.
 
 **File-type rules for what gets auto-fixed:**
 - ✅ Auto-fixable (with permission): any `.md` doc text — `docs/*.md`, `plan/M0X-*.md` (including the milestone file's own story headers and dependency references), `plan/journey/*/use-cases.md`, `plan/journey/README.md`'s index table, `CLAUDE.md`/`.copilot/context.md`. (Editing a `plan/journey/` `.md` file to correct a drifted index or stale cross-link is not the same thing CLAUDE.md §15's hard stop guards against — that hard stop is about *creating* new journey/prototype work casually, not about this audit fixing an existing inconsistency.)
