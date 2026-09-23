@@ -321,7 +321,7 @@ Execute the split decided in Story 3 (refined at this story's own discovery, bel
 - Coverage: n/a — no executable code changed
 - `tsc --noEmit` / lint: n/a — docs only
 
-### Story 5 — Sync `.agents/skills/docs-audit/SKILL.md` with `.claude/commands/docs-audit.md`'s cross-doc-duplication and canonical-home-rule safeguards 🟡
+### Story 5 — Sync `.agents/skills/docs-audit/SKILL.md` with `.claude/commands/docs-audit.md`'s cross-doc-duplication and canonical-home-rule safeguards 🟡 ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
@@ -339,8 +339,8 @@ Port every block `diff .claude/commands/docs-audit.md .agents/skills/docs-audit/
 - `.agents/skills/docs-audit/SKILL.md` (modify — port the 6 missing blocks from `.claude/commands/docs-audit.md`)
 
 **Acceptance criteria — product:**
-- [ ] `diff .claude/commands/docs-audit.md .agents/skills/docs-audit/SKILL.md` reports zero differences.
-- [ ] Codex's next `/pre-pr`-dispatched `/docs-audit`-equivalent reasoning has access to the same cross-doc-duplication and canonical-home-rule checks Claude's copy already has.
+- [x] `diff .claude/commands/docs-audit.md .agents/skills/docs-audit/SKILL.md` reports zero differences.
+- [x] Codex's next `/pre-pr`-dispatched `/docs-audit`-equivalent reasoning has access to the same cross-doc-duplication and canonical-home-rule checks Claude's copy already has.
 
 **Acceptance criteria — technical:**
 - Unit: none — no code
