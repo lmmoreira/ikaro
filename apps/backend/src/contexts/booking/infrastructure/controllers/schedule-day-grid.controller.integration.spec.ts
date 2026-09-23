@@ -128,10 +128,12 @@ describe('ScheduleDayGridController (integration)', () => {
     });
 
     it('returns 403 for STAFF role', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .get(`/schedule/day-grid?date=${DATE}`)
         .set(actorHeaders(TENANT_A, MANAGER_ID, 'STAFF'))
         .expect(403);
+
+      expect(body.status).toBe(403);
     });
 
     it('never includes another tenant’s resources or bookings', async () => {
