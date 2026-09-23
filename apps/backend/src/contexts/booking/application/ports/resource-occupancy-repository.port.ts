@@ -38,7 +38,7 @@ export interface IResourceOccupancyRepository {
   // (line, resource, leg, quantity) tuple already exists, e.g. a reschedule that re-resolves to
   // the same resource), never inserted a second time, since that table is the immutable
   // business/audit record (docs/13-DATABASE_SCHEMA.md) and is never deleted by release() below.
-  // The GIST exclusion constraint is the authoritative backstop (docs/ENGINEERING_RULES.md §
+  // The GIST exclusion constraint is the authoritative backstop (docs/ENGINEERING_RULES_BACKEND.md §
   // Cross-row invariants) — a genuine race surfaces as a BookingSlotUnavailableError from this
   // call, not a silent double-booking.
   assign(

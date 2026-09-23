@@ -137,7 +137,7 @@ export class SendChatMessageUseCase {
   }
 
   // Cross-service network I/O — never inside txManager.run() (PR #267 precedent,
-  // docs/ENGINEERING_RULES.md § Transactions). All reads/reservation writes above already
+  // docs/ENGINEERING_RULES_BACKEND.md § Transactions). All reads/reservation writes above already
   // happened; the two message saves after this call returns are the only write left.
   private async completeOrHandleFailure(
     input: SendChatMessageUseCaseInput,

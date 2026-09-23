@@ -13,7 +13,7 @@ export interface LogLeadFormSubmissionReceivedUseCaseInput {
 // Exists solely to give LeadFormSubmissionReceived a real eventBus.subscribe() call site, so
 // packages/infra-scripts/src/pubsub-catalog.ts provisions its Pub/Sub topic — without a real
 // subscriber, the outbox permanently fails to publish this event once deployed, with no automatic
-// recovery (docs/ENGINEERING_RULES.md § Aggregate domain events → outbox (repo auto-flush)). The
+// recovery (docs/ENGINEERING_RULES_BACKEND.md § Aggregate domain events → outbox (repo auto-flush)). The
 // log line is the audit trail the event was always meant to support (docs/03-DOMAIN_EVENTS.md §
 // LeadFormSubmissionReceived) — a real manager-notification consumer is a separate, deferred
 // future story, not this class.
@@ -25,7 +25,7 @@ export class LogLeadFormSubmissionReceivedUseCase {
 
   constructor(@Inject(INBOX_REPOSITORY) private readonly inboxRepo: IInboxRepository) {}
 
-  // Atomic claim (docs/ENGINEERING_RULES.md § Event Handlers), not check-then-mark — the log line
+  // Atomic claim (docs/ENGINEERING_RULES_BACKEND.md § Event Handlers), not check-then-mark — the log line
   // has no DB constraint of its own, so two concurrent redeliveries could both pass a
   // hasBeenProcessed check before either marked processed, producing a genuinely duplicate
   // audit-log entry (round-2 Codex finding). tryClaim's INSERT ... ON CONFLICT DO NOTHING is

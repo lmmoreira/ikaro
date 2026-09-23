@@ -20,6 +20,6 @@ export interface ITenantLockPort {
   // their own, unlike a single `SELECT ... FOR UPDATE`). Narrows the race window around
   // BookingSlotConflictService's resource_occupancy conflict pre-check; the GIST exclusion
   // constraint on resource_occupancy remains the authoritative backstop regardless (M22-S03,
-  // docs/ENGINEERING_RULES.md § Choosing a race-condition primitive).
+  // docs/ENGINEERING_RULES_BACKEND.md § Choosing a race-condition primitive).
   lockResources(tenantId: string, resourceIds: string[]): Promise<void>;
 }

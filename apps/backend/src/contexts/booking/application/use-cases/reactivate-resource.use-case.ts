@@ -52,7 +52,7 @@ export class ReactivateResourceUseCase {
     }
 
     // Config-only, no event published — descoped during story discovery (2026-09-01): see
-    // docs/ENGINEERING_RULES.md § Aggregate domain events → outbox (M20-S16 precedent).
+    // docs/ENGINEERING_RULES_BACKEND.md § Aggregate domain events → outbox (M20-S16 precedent).
     resource.reactivate();
 
     await this.txManager.run(async () => {

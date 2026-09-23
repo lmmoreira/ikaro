@@ -5,7 +5,7 @@ import { IPushableEventBus } from '../../shared/ports/pushable-event-bus.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
 // Sentinel so `undefined`/`null` can themselves be injected as the rejection value — mirrors
-// InMemoryCachePort's failNextGet/Set/Del convention (docs/ENGINEERING_RULES.md § InMemory
+// InMemoryCachePort's failNextGet/Set/Del convention (docs/ENGINEERING_RULES_TESTING.md § InMemory
 // doubles): "no pending failure" is tracked by field presence, not by the value's own truthiness.
 const NONE = Symbol('no pending publish failure');
 const NONE_DISPATCH = Symbol('no pending push-dispatch failure');

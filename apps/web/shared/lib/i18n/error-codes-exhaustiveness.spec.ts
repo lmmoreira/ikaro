@@ -24,7 +24,7 @@ import { describe, expect, it } from 'vitest';
 
 // Every per-origin catalog exported from packages/types/src/error-codes.ts (TD23 §3/§9). A new
 // origin catalog must be added here too — this is the mechanical enforcement side of the
-// "adding a new error" checklist in docs/ENGINEERING_RULES.md (TD23 Story 17).
+// "adding a new error" checklist in docs/ENGINEERING_RULES_SHARED.md (TD23 Story 17).
 const CATALOGS = {
   BookingErrorCode,
   CustomerErrorCode,

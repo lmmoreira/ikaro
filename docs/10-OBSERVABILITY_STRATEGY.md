@@ -14,7 +14,7 @@ Backend / BFF
                     └─> Cloud Logging
 ```
 
-The collector image and pipeline live under `infra/docker/otel-collector/`. Application bootstrap and hardening rules live in `packages/observability/` and `docs/ENGINEERING_RULES.md`.
+The collector image and pipeline live under `infra/docker/otel-collector/`. Application bootstrap and hardening rules live in `packages/observability/` and `docs/ENGINEERING_RULES_INFRA.md`.
 
 ## Required context
 
@@ -45,7 +45,7 @@ Application and collector configuration are one contract: enabling an SDK signal
 
 Applications emit structured logs through the shared logging abstraction. Business/audit counters are derived from intentional structured events and exposed through Cloud Monitoring log-based metrics.
 
-Never log credentials, OAuth tokens, cookies, full authorization headers, Turnstile tokens, customer message content, or other secrets. Query strings and outbound telemetry must follow the redaction rules in `docs/ENGINEERING_RULES.md`.
+Never log credentials, OAuth tokens, cookies, full authorization headers, Turnstile tokens, customer message content, or other secrets. Query strings and outbound telemetry must follow the redaction rules in `docs/ENGINEERING_RULES_SHARED.md`.
 
 ## Dashboards and alerts
 
@@ -70,7 +70,7 @@ Before naming a root cause:
 4. check collector pipeline compatibility;
 5. compare against direct target-system evidence.
 
-The detailed incident history and durable implementation rules are maintained in `docs/ENGINEERING_RULES.md` § Cloud Run CPU throttling.
+The detailed incident history and durable implementation rules are maintained in `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling.
 
 ## Local development
 
@@ -81,7 +81,7 @@ For focused telemetry debugging, run a collector using `infra/docker/otel-collec
 ## Canonical references
 
 - Collector operation and image lifecycle: `infra/docker/otel-collector/README.md`
-- Instrumentation invariants and incident lessons: `docs/ENGINEERING_RULES.md`
+- Instrumentation invariants and incident lessons: `docs/ENGINEERING_RULES_INFRA.md`
 - Terraform monitoring resources: `infra/terraform/modules/monitoring/`
 - Deployment lifecycle: `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md`
 - Current workflows: `.github/workflows/`

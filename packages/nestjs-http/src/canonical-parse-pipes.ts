@@ -27,7 +27,7 @@ function buildParseFailureProblem(
 // a 3rd incompatible error shape alongside the single-cause {code} and batch {violations[]}
 // shapes (TD23 Story 11). Single-cause per TD23 §2 (one param, one value) — top-level
 // code/field, never violations[]. No VO backs "is this a UUID/integer" — GenericErrorCode per
-// docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code.
+// docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a validation rule's code.
 // Shared between apps/backend and apps/bff (identical NestJS pipe logic, no per-app
 // customization needed) — lives in its own package (never consumed by apps/web) rather than
 // @ikaro/types, since a runtime @nestjs/common import inside a shared barrel apps/web also

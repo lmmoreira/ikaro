@@ -112,4 +112,4 @@ These documents define the implementation, testing, and deployment strategies:
 ## 🤖 AI Agent Guidelines
 - **Permission-First:** Discuss changes before writing (`CLAUDE.md` §0).
 - **Context-Optimized:** Load only relevant docs — see `CLAUDE.md` §10's dynamic-loading table.
-- **Standards Authority:** `docs/CODE_STANDARDS.md` + `docs/ENGINEERING_RULES.md` + `docs/ANTI_PATTERNS.md` for code standards and forbidden patterns; `docs/DEFINITION_OF_DONE.md` for the Definition of Done.
+- **Standards Authority:** `docs/CODE_STANDARDS.md` + `docs/ENGINEERING_RULES_*.md` (5 topic-focused files — see `.copilot/context.md` §10) + `docs/ANTI_PATTERNS.md` for code standards and forbidden patterns; `docs/DEFINITION_OF_DONE.md` for the Definition of Done.

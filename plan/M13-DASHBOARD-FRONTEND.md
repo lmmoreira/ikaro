@@ -551,7 +551,7 @@ Provide the full booking detail for a customer viewing their own booking. Owners
 > ✅ **Resolved — `notes` gets a real backend implementation, not dropped.** Decided during discovery: scope in the full field rather than removing the validated "Suas observações" prototype section. **Backend changes required (touches M07's booking-creation path, not just this story's BFF layer):**
 > - `booking.aggregate.ts` — add `notes: string | null` to `BookingProps` and `RequestBookingInput`; initialize alongside `adminNotes: null` in `Booking.requestBooking()`; add a `get notes()` getter (same unvalidated-raw-string pattern as `adminNotes` — no VO).
 > - `booking.entity.ts` — add `@Column({ name: 'notes', type: 'text', nullable: true })`.
-> - New migration (next sequential timestamp after `1748000000015-AddBookingVersion.ts`) — `ALTER TABLE ... ADD COLUMN IF NOT EXISTS "notes" TEXT NULL` / `DROP COLUMN IF EXISTS "notes"` in `down()`. **Register it in `integration-global-setup.ts` in the same commit** (missing registration is a silent integration-test failure — see `docs/ENGINEERING_RULES.md`).
+> - New migration (next sequential timestamp after `1748000000015-AddBookingVersion.ts`) — `ALTER TABLE ... ADD COLUMN IF NOT EXISTS "notes" TEXT NULL` / `DROP COLUMN IF EXISTS "notes"` in `down()`. **Register it in `integration-global-setup.ts` in the same commit** (missing registration is a silent integration-test failure — see `docs/ENGINEERING_RULES_TESTING.md`).
 > - `get-booking.use-case.ts` — add `notes: booking.notes` to `GetBookingUseCaseResult` and `toResult()`.
 > - `request-booking.dto.ts` and the authenticated-booking equivalent — accept optional `notes` and pass it into `Booking.requestBooking()`'s input.
 > - `BookingBuilder` test helper — add `private notes: string | null = null` + `withNotes()`.
@@ -747,7 +747,7 @@ Add the BFF module surface that doesn't exist today. At the time this story was 
 >
 > ✅ **Resolved during discovery:** `packages/types/src/tenant.dto.ts`'s existing `TenantSettings`/`UpdateTenantSettingsRequest`/`BusinessHours` are stale placeholders with **zero consumers** anywhere in `apps/bff`/`apps/web` (confirmed by grep) — `loyalty` has 1 of 5 real backend fields, `booking` has 2 of 6, the per-day-hours shape uses `{open,close,closed:boolean}` instead of backend's nullable `{open,close}|null`, and `businessInfo`/`notification` are missing entirely. Safe to fully replace, not merge — see the corrected shapes below. Read `apps/bff/src/platform/hotsite-admin.controller.ts` and `platform.module.ts` to copy the exact registration pattern for new controllers in the same module (per CLAUDE.md's BFF naming rule — this belongs in the `platform` module, not a new one).
 >
-> ✅ **Resolved during implementation — backend normalized to camelCase too:** after this story shipped its first version (snake_case↔camelCase mapper in `tenant-settings.mapper.ts`), the backend's `TenantSettingsProps`/`update-tenant-settings.dto.ts` were themselves normalized from snake_case to camelCase (no DB migration needed — `tenants.settings` is a plain `jsonb` column with no transformer; local dev DB dropped and reseeded since there's no production data). This made the BFF's translation layer dead code — `tenant-settings.mapper.ts`/`tenant-settings.types.ts` were deleted; `TenantSettingsController` now types its `BackendHttpService` calls directly against `@ikaro/types`, matching the `services`/`customers`/`staff` controller pattern. Backend's GET/PATCH response is `{ tenantId, name, slug, settings: TenantSettings }` (nested under `settings`, not flattened) — `TenantSettingsResponse` must mirror that nesting, not `extend TenantSettings` directly. `UpdateTenantSettingsRequest.settings` is a hand-written per-category partial type (not `Partial<TenantSettings>` or a blind recursive `DeepPartial`) — see `docs/ENGINEERING_RULES.md` § Partial-update types for deeply-nested Zod schemas for why; it also deliberately omits `notification`, since neither backend nor BFF accept it for writes.
+> ✅ **Resolved during implementation — backend normalized to camelCase too:** after this story shipped its first version (snake_case↔camelCase mapper in `tenant-settings.mapper.ts`), the backend's `TenantSettingsProps`/`update-tenant-settings.dto.ts` were themselves normalized from snake_case to camelCase (no DB migration needed — `tenants.settings` is a plain `jsonb` column with no transformer; local dev DB dropped and reseeded since there's no production data). This made the BFF's translation layer dead code — `tenant-settings.mapper.ts`/`tenant-settings.types.ts` were deleted; `TenantSettingsController` now types its `BackendHttpService` calls directly against `@ikaro/types`, matching the `services`/`customers`/`staff` controller pattern. Backend's GET/PATCH response is `{ tenantId, name, slug, settings: TenantSettings }` (nested under `settings`, not flattened) — `TenantSettingsResponse` must mirror that nesting, not `extend TenantSettings` directly. `UpdateTenantSettingsRequest.settings` is a hand-written per-category partial type (not `Partial<TenantSettings>` or a blind recursive `DeepPartial`) — see `docs/ENGINEERING_RULES_SHARED.md` § Partial-update types for deeply-nested Zod schemas for why; it also deliberately omits `notification`, since neither backend nor BFF accept it for writes.
 
 **What to create:**
 
@@ -899,7 +899,7 @@ Note: `M13-S12`'s plan already expects to "extend `UpdateTenantSettingsRequest` 
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` §1, `docs/04-USE_CASES.md` § UC-009 A6, `docs/ENGINEERING_RULES.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`
+**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` §1, `docs/04-USE_CASES.md` § UC-009 A6, `docs/ENGINEERING_RULES_*.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`
 
 **Description:**
 Three targeted additions across two bounded contexts. No new use cases in the booking context — Part B extends `CompleteBookingUseCase`. The loyalty context gets one new use case (Part C) so the event handler can keep calling exactly one use case.
@@ -1345,7 +1345,7 @@ export interface CompleteBookingRequest {
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-022 UC-025
+**Docs to load:** `docs/ENGINEERING_RULES_*.md`, `docs/CODE_STANDARDS.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-022 UC-025
 
 **Description:**
 Full-stack overhaul of the staff auth flow, driven by three bugs found during discovery: (1) staff was provisioned as `is_active=false` requiring a separate activation step that could be bypassed; (2) a deactivated staff who still had their invite link could re-activate their own account; (3) the global `UNIQUE(google_oauth_id)` constraint prevented the same person from being staff at multiple tenants.
@@ -1647,7 +1647,7 @@ Show reason code in small grey text at bottom: `"Código: <reason>"`.
 
 **Agent:** `frontend-ts` (frontend) + `bff-ts` (two new/changed BFF endpoints) + `backend-ts` (one new internal endpoint)
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_*.md`
 
 **Scope-change rationale (read before starting):** the story originally planned three deliverables: the tenant-branded login screen, a multi-tenant selection screen (`/select-tenant`, UC-021 Case B), and the phone-completion prompt. A discovery session found:
 1. The login screen was already built in `M13-S42` (out of build order) — nothing left to do there.

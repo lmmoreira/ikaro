@@ -36,7 +36,7 @@ const RAW_FETCH_SELECTOR = {
 };
 // Protected-area layouts must read the locale from the decoded JWT, never hardcode it — a
 // hardcoded locale silently ignores the tenant's configured language (M13-S15 incident;
-// docs/ENGINEERING_RULES.md §RequestContext). resolveSupportedLocale(payload.locale ?? 'pt-BR') —
+// docs/ENGINEERING_RULES_SHARED.md §RequestContext). resolveSupportedLocale(payload.locale ?? 'pt-BR') —
 // a literal used only as the fallback — still passes; only a bare literal as the sole argument is
 // banned. The selector itself (exact function name + single literal arg) is already narrow enough
 // that scoping this block to every .ts/.tsx file is safe — no other call site in the repo calls
@@ -49,7 +49,7 @@ const LOCALE_LITERAL_SELECTOR = {
   selector:
     "CallExpression[callee.name='resolveSupportedLocale'][arguments.length=1]:matches([arguments.0.type='Literal'], [arguments.0.type='TemplateLiteral'][arguments.0.expressions.length=0])",
   message:
-    "Do not hardcode a locale string in a protected-area layout — read payload.locale ?? 'pt-BR' from the decoded JWT instead (docs/ENGINEERING_RULES.md §RequestContext; M13-S15 incident).",
+    "Do not hardcode a locale string in a protected-area layout — read payload.locale ?? 'pt-BR' from the decoded JWT instead (docs/ENGINEERING_RULES_SHARED.md §RequestContext; M13-S15 incident).",
 };
 // `as React.CSSProperties` on a function's returned value is an unnecessary assertion
 // (SonarCloud) that also loses type precision on custom `--ba-*` keys — return

@@ -11,7 +11,7 @@ import { diffLocaleKeys } from './locale-key-parity';
 import type { LocaleTree } from './locale-key-parity';
 
 // Every locale JSON family under packages/i18n/locales must declare exactly
-// the same keys in both pt-BR and en (docs/ENGINEERING_RULES.md: "always add
+// the same keys in both pt-BR and en (docs/ENGINEERING_RULES_SHARED.md: "always add
 // the key to both locales in the same commit"). errors.json also has its own
 // dedicated catalog-vs-locale check (error-codes-exhaustiveness.spec.ts,
 // unchanged by this file) — it's included here too so all four families are

@@ -13,7 +13,7 @@ Every non-2xx response from the BFF is an RFC 9457 Problem Details object. `type
 
 An earlier version of this document specified a `type: 'https://api.<ikaro-domain>/errors#error-code'` URI-fragment scheme with frontend guidance to branch on `type`. That scheme was **never implemented** anywhere in the codebase — this document describes the pattern actually shipped.
 
-This document is the error-response *reference*. The canonical code catalog is `packages/types/src/error-codes.ts`, and translations live in `packages/i18n/locales/{locale}/errors.json` — both are the actual source of truth and are **not** duplicated inline here, since a copy would drift the moment either file changes. Full pattern detail (envelope shape, naming convention, frontend resolver, "adding a new error" checklist): `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern.
+This document is the error-response *reference*. The canonical code catalog is `packages/types/src/error-codes.ts`, and translations live in `packages/i18n/locales/{locale}/errors.json` — both are the actual source of truth and are **not** duplicated inline here, since a copy would drift the moment either file changes. Full pattern detail (envelope shape, naming convention, frontend resolver, "adding a new error" checklist): `docs/ENGINEERING_RULES_SHARED.md` § Exception handling & i18n pattern.
 
 ---
 
@@ -113,7 +113,7 @@ Every code is namespaced `<ORIGIN>_<REASON>` (upper snake case). Full catalog: `
 
 ## For API Developers (Backend/BFF, AI Agents)
 
-Adding a new error is a 3-step checklist — full detail in `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern:
+Adding a new error is a 3-step checklist — full detail in `docs/ENGINEERING_RULES_SHARED.md` § Exception handling & i18n pattern:
 
 1. Add the code to the relevant literal union in `packages/types/src/error-codes.ts`.
 2. Add a translation entry to **both** `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` — CI-enforced by `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`.
@@ -125,4 +125,4 @@ Codes are additive-only once shipped: never renamed or repurposed. Retiring a co
 
 **Status:** Live
 **Reference:** RFC 9457 (https://tools.ietf.org/html/rfc9457)
-**Full pattern:** `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern.
+**Full pattern:** `docs/ENGINEERING_RULES_SHARED.md` § Exception handling & i18n pattern.

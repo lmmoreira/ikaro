@@ -288,7 +288,7 @@ export const BffErrorCode = {
   DEV_AUTH_UNAVAILABLE: 'BFF_DEV_AUTH_UNAVAILABLE',
   UPSTREAM_UNAVAILABLE: 'BFF_UPSTREAM_UNAVAILABLE',
   // Signed OAuth `state` (M17-S32) failed to verify — tampered, expired, or missing. One
-  // generic code for all three trigger conditions (docs/ENGINEERING_RULES.md § Security-sensitive
+  // generic code for all three trigger conditions (docs/ENGINEERING_RULES_SHARED.md § Security-sensitive
   // errors) — distinguishing them in the response would tell a forger which part of their
   // attempt failed.
   OAUTH_STATE_INVALID: 'BFF_OAUTH_STATE_INVALID',
@@ -314,7 +314,7 @@ export type AuthErrorCode = (typeof AuthErrorCode)[keyof typeof AuthErrorCode];
 // Backs Zod validation rules with no owning VO (Story 9/10) — a small closed set reused
 // across many fields via `field`/`params`, not one bespoke code per call site. A rule that
 // duplicates a VO's own check must reuse that VO's code instead (see
-// docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code).
+// docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a validation rule's code).
 export const GenericErrorCode = {
   FIELD_REQUIRED: 'GENERIC_FIELD_REQUIRED',
   VALUE_TOO_SHORT: 'GENERIC_VALUE_TOO_SHORT',

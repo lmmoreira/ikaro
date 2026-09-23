@@ -501,7 +501,7 @@
       "file": "apps/backend/src/test/integration-global-setup.ts",
       "completeness": "complete",
       "requiresMigrations": true,
-      "rationale": "Full DB bootstrap shared by every integration spec — must carry every production entity and migration or a new one silently errors on first query (docs/ENGINEERING_RULES.md § Migration / entity registration)."
+      "rationale": "Full DB bootstrap shared by every integration spec — must carry every production entity and migration or a new one silently errors on first query (docs/ENGINEERING_RULES_TESTING.md § Migration / entity registration)."
     },
     {
       "file": "apps/backend/src/test/test-datasource.ts",

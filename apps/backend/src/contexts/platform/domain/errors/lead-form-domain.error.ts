@@ -43,7 +43,7 @@ export class LeadFormQuestionDuplicateIdError extends PlatformDomainError {
  * UC-037 A3 — an empty question label. Deliberately does NOT extend PlatformDomainError: its
  * `code` belongs to the shared GenericErrorCode namespace (no VO backs a plain non-empty-string
  * rule), not PlatformErrorCode — forcing a fake platform-origin code would misrepresent the type
- * (docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code; mirrors
+ * (docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a validation rule's code; mirrors
  * BookingAddressValidationError's identical reasoning for AddressErrorCode/CountryCodeErrorCode).
  */
 export class LeadFormQuestionLabelRequiredError extends Error implements DomainErrorShape {
@@ -63,7 +63,7 @@ export class LeadFormQuestionLabelRequiredError extends Error implements DomainE
  * `name` has no dedicated VO (unlike `email`/`phone`, which reuse `Email`/`PhoneNumber`'s own
  * codes) — a plain required-string rule with no VO behind it reuses the small closed
  * `GenericErrorCode` set instead of minting a new `PlatformErrorCode` for it
- * (docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code). Implements
+ * (docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a validation rule's code). Implements
  * `DomainErrorShape` directly rather than extending `PlatformDomainError`, since that base types
  * `code` to `PlatformErrorCode` only.
  */
@@ -132,7 +132,7 @@ export class LeadFormCustomerOnlyError extends Error implements DomainErrorShape
  * `LeadFormConfig.questions` catalog (e.g. a stale client cache after a manager edit). Rejects
  * the whole submission rather than silently dropping the answer — decided during story-discovery,
  * 2026-08-25. No dedicated VO backs this rule, so it reuses the closed `GenericErrorCode` set
- * (docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code).
+ * (docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a validation rule's code).
  */
 export class LeadFormAnswerQuestionInvalidError extends Error implements DomainErrorShape {
   readonly code: GenericErrorCode;

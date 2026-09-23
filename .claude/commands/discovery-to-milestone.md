@@ -82,9 +82,9 @@ Using `/docs-audit`'s own "deep-check docs" bucketing as the checklist (not a fr
 - `docs/05-BOUNDED_CONTEXTS.md` — if a new event gets cross-context consumers (check whether the discovery doc says something mirrors an existing event's consumer list, e.g. "mirrors BookingCompleted's consumers")
 - `docs/21-TENANTS_SETTINGS_SCHEMA.md` — any settings key added, moved, or deprecated
 - `docs/25-ERROR_CATALOG.md` — new RFC 9457 error codes
-- `docs/ENGINEERING_RULES.md` — a genuinely new critical invariant the discovery doc establishes (not every detail — same bar as everything already in that file)
+- `docs/ENGINEERING_RULES_*.md` (whichever of the 5 topic files fits — Shared/Backend/Infra/Frontend/Testing) — a genuinely new critical invariant the discovery doc establishes (not every detail — same bar as everything already in that file)
 
-The discovery doc's own deeper rationale (a taxonomy, a worked comparison of alternatives, the "why" behind a modeling choice) does **not** need to migrate word-for-word into these canonical docs — same principle as `docs/ENGINEERING_RULES.md` holding full incident narratives while CLAUDE.md keeps only the rule. Canonical docs get the *what*; the discovery doc stays as the permanent *why*, referenced by path, not deleted or archived once promoted (it's still real project history, not a stale bootstrap doc).
+The discovery doc's own deeper rationale (a taxonomy, a worked comparison of alternatives, the "why" behind a modeling choice) does **not** need to migrate word-for-word into these canonical docs — same principle as the `docs/ENGINEERING_RULES_*.md` files holding full incident narratives while CLAUDE.md keeps only the rule. Canonical docs get the *what*; the discovery doc stays as the permanent *why*, referenced by path, not deleted or archived once promoted (it's still real project history, not a stale bootstrap doc).
 
 ### 2c. Journeys and prototypes — respect CLAUDE.md §15's HARD STOP exactly
 

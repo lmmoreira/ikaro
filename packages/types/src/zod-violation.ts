@@ -10,7 +10,7 @@ type ZodIssue = core.$ZodIssue;
  * shapes, but a rule that duplicates a backend VO's own check must emit the SAME code
  * regardless of which layer catches it first, so this derivation logic has exactly one
  * implementation rather than two independently-maintained copies (see
- * docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code).
+ * docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a validation rule's code).
  *
  * Two categories:
  * - `custom` (`.refine()`) issues MUST supply their code via `params.code` — this is how a

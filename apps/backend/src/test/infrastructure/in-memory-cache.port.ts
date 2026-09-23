@@ -7,7 +7,7 @@ const NONE = Symbol('no pending cache failure');
 
 // Configurable failure injection (failNextGet/Set/Del) — the one thing a plain in-memory Map
 // can't exercise on its own — lets specs cover a CachingXxxRepository's best-effort try/catch
-// fallback paths without reaching for jest.fn() (docs/ENGINEERING_RULES.md § InMemory doubles).
+// fallback paths without reaching for jest.fn() (docs/ENGINEERING_RULES_TESTING.md § InMemory doubles).
 // Accepts any rejection value, not just Error instances, matching what a real cache backend
 // (a driver throwing a raw string/plain object) can actually reject with.
 export class InMemoryCachePort implements CachePort {
