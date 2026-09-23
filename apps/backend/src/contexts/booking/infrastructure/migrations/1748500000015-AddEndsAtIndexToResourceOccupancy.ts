@@ -4,7 +4,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 // `WHERE ends_at < $1` predicate — without this, that daily, unscoped scan degrades to a full
 // table scan as resource_occupancy grows, since the existing composite index
 // (IDX_booking_resource_occupancy_tenant_resource_starts) is led by tenant_id and can't be
-// seeked without a tenant_id predicate (docs/ENGINEERING_RULES_BACKEND.md § Standalone index for a
+// seeked without a tenant_id predicate (docs/ENGINEERING_RULES_TESTING.md § Standalone index for a
 // cross-tenant system job). Mirrors AddExpiresAtIndexToLeadFormSubmissions /
 // AddStartedAtIndexToChatbotSessions's identical fix for the same class of gap.
 //

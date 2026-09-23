@@ -628,7 +628,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | **CHECK** | `ends_at > starts_at` | |
 | **EXCLUDE USING gist** | (tenant_id WITH =, resource_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (lock_state IN ('HOLD','COMMITTED')) | The exclusivity guarantee itself — the one shared constraint every family's write path inserts into. `REQUESTED` rows are deliberately outside this WHERE clause — they exist for M22-S05's day-grid dependency, not for exclusivity (the day-grid's own query includes `REQUESTED` alongside `HOLD`/`COMMITTED`, unlike `findOccupancyByTenantAndResource`, which excludes it) |
 | **INDEX** | (tenant_id, resource_id, starts_at) | |
-| **INDEX** | (ends_at) | Standalone, TD40 Story 2 — supports `ResourceOccupancyRetentionPurgeJob`'s cross-tenant `WHERE ends_at < cutoff` sweep, which drops the `tenant_id` predicate and can't seek the composite index above (`docs/ENGINEERING_RULES_BACKEND.md` § Standalone index for a cross-tenant system job) |
+| **INDEX** | (ends_at) | Standalone, TD40 Story 2 — supports `ResourceOccupancyRetentionPurgeJob`'s cross-tenant `WHERE ends_at < cutoff` sweep, which drops the `tenant_id` predicate and can't seek the composite index above (`docs/ENGINEERING_RULES_TESTING.md` § Standalone index for a cross-tenant system job) |
 
 **Rules:**
 - Every manual-approval appointment inserts `lock_state='HOLD'` with its snapshotted expiry (`Service.manualHoldMinutes`); approval atomically converts it to `COMMITTED`, while expiry cancels and releases it. An `AUTO_CONFIRM` appointment inserts `COMMITTED` directly. A PENDING booking on a degenerate (LOCATION-fallback) service inserts `REQUESTED` instead of `HOLD` — approval converts it to `COMMITTED`, same as `HOLD`.
