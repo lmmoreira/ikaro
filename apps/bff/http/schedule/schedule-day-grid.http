@@ -1,0 +1,51 @@
+# BFF — Manager Combined Multi-Resource Day Grid (M22-S05, UC-057)
+# JWT required. Role: MANAGER only.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#   4. pnpm --filter @ikaro/bff run dev
+#   5. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+# ── File-level response captures (updated automatically when login request runs) ──
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+# ── DEV AUTH — run each login once per session, then use the captured token ──
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "staff@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — combined day grid for a given date
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Get the day grid
+GET {{bffUrl}}/v1/schedule/day-grid?date=2026-06-01
+Authorization: Bearer {{managerToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ALTERNATE — STAFF role → 403 (MANAGER-only)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### STAFF token → 403
+GET {{bffUrl}}/v1/schedule/day-grid?date=2026-06-01
+Authorization: Bearer {{staffToken}}

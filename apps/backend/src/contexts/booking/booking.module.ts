@@ -44,6 +44,7 @@ import { RequestBookingUseCase } from './application/use-cases/request-booking.u
 import { DeactivateServiceUseCase } from './application/use-cases/deactivate-service.use-case';
 import { GetAvailabilityUseCase } from './application/use-cases/get-availability.use-case';
 import { GetAvailabilitySummaryUseCase } from './application/use-cases/get-availability-summary.use-case';
+import { GetScheduleDayGridUseCase } from './application/use-cases/get-schedule-day-grid.use-case';
 import { GetServiceByIdUseCase } from './application/use-cases/get-service-by-id.use-case';
 import { ListClosuresUseCase } from './application/use-cases/list-closures.use-case';
 import { ListOpeningsUseCase } from './application/use-cases/list-openings.use-case';
@@ -101,6 +102,7 @@ import { CronBookingController } from './infrastructure/controllers/cron-booking
 import { ResourceController } from './infrastructure/controllers/resource.controller';
 import { ScheduleAvailabilityController } from './infrastructure/controllers/schedule-availability.controller';
 import { ScheduleAvailabilitySummaryController } from './infrastructure/controllers/schedule-availability-summary.controller';
+import { ScheduleDayGridController } from './infrastructure/controllers/schedule-day-grid.controller';
 import { ScheduleClosureController } from './infrastructure/controllers/schedule-closure.controller';
 import { ScheduleOpeningController } from './infrastructure/controllers/schedule-opening.controller';
 import { ServiceController } from './infrastructure/controllers/service.controller';
@@ -157,6 +159,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     ScheduleOpeningController,
     ScheduleAvailabilityController,
     ScheduleAvailabilitySummaryController,
+    ScheduleDayGridController,
     ResourceController,
     CronBookingController,
   ],
@@ -205,6 +208,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     ListOpeningsUseCase,
     GetAvailabilityUseCase,
     GetAvailabilitySummaryUseCase,
+    GetScheduleDayGridUseCase,
     ApproveBookingUseCase,
     RejectBookingUseCase,
     RequestMoreInfoUseCase,
