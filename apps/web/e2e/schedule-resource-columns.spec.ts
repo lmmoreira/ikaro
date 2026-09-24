@@ -78,7 +78,10 @@ test.describe('schedule resource columns board (M22-S06)', () => {
         // Clicking a block still opens its own detail dialog, same as the single timeline.
         await columnA.getByTestId(`schedule-closure-block-${closureA.id}`).click();
         await expect(page.getByRole('dialog')).toBeVisible();
-        await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
+        // BookingActionSheetShell renders two "Cancelar" buttons (a header close affordance and
+        // the footer action button) — .last() targets the footer one, matching the primary
+        // cancel action a user would actually click.
+        await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).last().click();
       } finally {
         await removeScheduleClosure(page, closureA.id);
         await removeScheduleClosure(page, closureB.id);

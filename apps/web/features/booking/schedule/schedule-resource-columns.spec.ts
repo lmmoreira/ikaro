@@ -65,6 +65,7 @@ const baseInput = {
   slotGranularityMinutes: 30,
   businessHours: makeBusinessHours(),
   placeholderBookingLabel: 'Ocupado',
+  selectedStatusSet: new Set([BOOKING_STATUS.APPROVED]),
 };
 
 describe('buildResourceColumns', () => {
@@ -220,6 +221,75 @@ describe('buildResourceColumns', () => {
     expect(
       bookingEvent && bookingEvent.kind === 'booking' ? bookingEvent.booking.contactName : null,
     ).toBe('Ocupado');
+  });
+
+  it('excludes a matched booking whose status is filtered out, rather than showing it as a placeholder', () => {
+    const pendingBooking = makeBooking({
+      bookingId: 'booking-pending',
+      status: BOOKING_STATUS.PENDING,
+    });
+
+    const columns = buildResourceColumns({
+      ...baseInput,
+      selectedStatusSet: new Set([BOOKING_STATUS.APPROVED]), // PENDING unchecked, matches the default
+      selectedResourceIds: new Set(['res-camila']),
+      resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
+      dayGridColumns: [
+        makeDayGridColumn({
+          resourceId: 'res-camila',
+          blocks: [
+            {
+              startsAt: '2026-08-17T12:00:00.000Z',
+              endsAt: '2026-08-17T12:30:00.000Z',
+              kind: 'BOOKING',
+              refId: 'booking-pending',
+            },
+          ],
+        }),
+      ],
+      bookings: [pendingBooking], // present in the full list — day-grid always includes REQUESTED
+      closures: [],
+      openings: [],
+    });
+
+    // Not the placeholder either — a real, filtered-out match is hidden outright, never
+    // shown as "Ocupado" (that fallback is reserved for a refId with no match at all).
+    expect(columns[0].timeline.events.filter((e) => e.kind === 'booking')).toHaveLength(0);
+  });
+
+  it('includes a matched booking once its status is checked', () => {
+    const pendingBooking = makeBooking({
+      bookingId: 'booking-pending',
+      status: BOOKING_STATUS.PENDING,
+    });
+
+    const columns = buildResourceColumns({
+      ...baseInput,
+      selectedStatusSet: new Set([BOOKING_STATUS.APPROVED, BOOKING_STATUS.PENDING]),
+      selectedResourceIds: new Set(['res-camila']),
+      resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
+      dayGridColumns: [
+        makeDayGridColumn({
+          resourceId: 'res-camila',
+          blocks: [
+            {
+              startsAt: '2026-08-17T12:00:00.000Z',
+              endsAt: '2026-08-17T12:30:00.000Z',
+              kind: 'BOOKING',
+              refId: 'booking-pending',
+            },
+          ],
+        }),
+      ],
+      bookings: [pendingBooking],
+      closures: [],
+      openings: [],
+    });
+
+    const bookingEvent = columns[0].timeline.events.find((e) => e.kind === 'booking');
+    expect(
+      bookingEvent && bookingEvent.kind === 'booking' ? bookingEvent.booking.bookingId : null,
+    ).toBe('booking-pending');
   });
 
   it('ignores CLASS_SESSION blocks (unreachable before M24)', () => {

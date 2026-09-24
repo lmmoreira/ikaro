@@ -65,7 +65,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
     resourceFilter,
     scheduleFetchError,
     resourceNameById,
-    visibleBookings,
+    bookingsItems,
     visibleClosures,
     visibleOpenings,
   } = useSchedulePageController(props);
@@ -140,7 +140,8 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         <ScheduleResourceColumnsBoard
           selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
           resourceNameById={resourceNameById}
-          bookings={visibleBookings}
+          bookings={bookingsItems}
+          selectedStatusSet={statusFilter.selectedStatusSet}
           closures={visibleClosures}
           openings={visibleOpenings}
           selectedDateKey={ui.selectedDateKey}

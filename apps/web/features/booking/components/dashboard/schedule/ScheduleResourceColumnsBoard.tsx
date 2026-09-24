@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import type {
+  BookingStatus,
   ScheduleClosure,
   ScheduleOpening,
   StaffBookingCardResponse,
@@ -19,7 +20,11 @@ import { ScheduleTimelineBoard } from './ScheduleTimelineBoard';
 interface ScheduleResourceColumnsBoardProps extends ScheduleTimelineRenderProps {
   readonly selectedResourceIdSet: ReadonlySet<string>;
   readonly resourceNameById: ReadonlyMap<string, string>;
+  // The full, status-unfiltered week bookings list — NOT visibleBookings. See
+  // schedule-resource-columns.ts's resolveResourceBookings for why the status filter must be
+  // re-applied per matched booking here rather than upstream.
   readonly bookings: readonly StaffBookingCardResponse[];
+  readonly selectedStatusSet: ReadonlySet<BookingStatus>;
   readonly closures: readonly ScheduleClosure[];
   readonly openings: readonly ScheduleOpening[];
   readonly selectedDateKey: string;
@@ -27,8 +32,8 @@ interface ScheduleResourceColumnsBoardProps extends ScheduleTimelineRenderProps 
 }
 
 // A day whose data hasn't arrived yet must not look identical to a day genuinely empty of
-// bookings — the columns board renders its own loading/error state before the empty-but-valid
-// grid ScheduleTimelineBoard already draws for zero events.
+// bookings — the columns board renders its own loading state before the empty-but-valid grid
+// ScheduleTimelineBoard already draws for zero events.
 function ColumnsFeedback({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
   return (
     <div className="flex min-h-[14rem] items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 text-center text-sm text-gray-500">
@@ -50,6 +55,7 @@ export function ScheduleResourceColumnsBoard(
     selectedResourceIdSet,
     resourceNameById,
     bookings,
+    selectedStatusSet,
     closures,
     openings,
     selectedDateKey,
@@ -68,6 +74,7 @@ export function ScheduleResourceColumnsBoard(
             resourceNameById,
             dayGridColumns: dayGrid.data.columns,
             bookings,
+            selectedStatusSet,
             closures,
             openings,
             selectedDateKey,
@@ -82,6 +89,7 @@ export function ScheduleResourceColumnsBoard(
       selectedResourceIdSet,
       resourceNameById,
       bookings,
+      selectedStatusSet,
       closures,
       openings,
       selectedDateKey,
@@ -93,10 +101,14 @@ export function ScheduleResourceColumnsBoard(
   );
 
   if (dayGrid.isError) {
+    // Same inline error-banner pattern as SchedulePage's own scheduleFetchError, per M22-S06's AC.
     return (
-      <ColumnsFeedback>
+      <p
+        data-testid="day-grid-fetch-error"
+        className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
+      >
         {t('dayGridFetchError')}: {resolveErrorMessageFromApiError(dayGrid.error, locale)}
-      </ColumnsFeedback>
+      </p>
     );
   }
 

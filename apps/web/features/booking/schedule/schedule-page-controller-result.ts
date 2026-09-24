@@ -48,6 +48,7 @@ export interface UseSchedulePageControllerResult {
   readonly selectedDayTimeline: TimelineDayData;
   readonly weekTimelineCards: TimelineDayData[];
   readonly visibleBookings: readonly StaffBookingCardResponse[];
+  readonly bookingsItems: readonly StaffBookingCardResponse[];
   readonly visibleClosures: readonly ScheduleClosure[];
   readonly visibleOpenings: readonly ScheduleOpening[];
   readonly selectedDayLabel: string;
@@ -187,8 +188,7 @@ export function buildControllerResult(
   statusLabels: Record<BookingStatus, string>,
 ): UseSchedulePageControllerResult {
   const { businessHours, todayKey, slotGranularityMinutes } = props;
-  const { ui, timezone, selectedDayTimeline, visibleBookings, visibleClosures, visibleOpenings } =
-    core;
+  const { ui, timezone, selectedDayTimeline } = core;
   const { selectedDayLabel, bookingEventCount, slotLabels } = labels;
   const handlers = buildControllerHandlers(props, core, t, mutations);
   const coreDerived = buildCoreDerivedFields(core, t);
@@ -206,9 +206,10 @@ export function buildControllerResult(
     hasBookingInSelectedDay: bookingEventCount > 0,
     slotLabels,
     scheduleReturnTo: buildScheduleReturnTo(ui.weekStartKey, ui.selectedDateKey),
-    visibleBookings,
-    visibleClosures,
-    visibleOpenings,
+    visibleBookings: core.visibleBookings,
+    bookingsItems: core.bookingsItems,
+    visibleClosures: core.visibleClosures,
+    visibleOpenings: core.visibleOpenings,
     ...coreDerived,
     ...handlers,
   };

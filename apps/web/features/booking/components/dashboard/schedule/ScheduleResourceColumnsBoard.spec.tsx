@@ -39,6 +39,7 @@ function baseProps() {
       ['res-bruno', 'Bruno Alves'],
     ]),
     bookings: [],
+    selectedStatusSet: new Set([BOOKING_STATUS.APPROVED]),
     closures: [],
     openings: [],
     selectedDateKey: '2026-08-17',
