@@ -22,6 +22,7 @@ import { RemoveClosureDialog } from './RemoveClosureDialog';
 import { RemoveOpeningDialog } from './RemoveOpeningDialog';
 import { ResourceFilterMenu } from './ResourceFilterMenu';
 import { ScheduleDayHeader } from './ScheduleDayHeader';
+import { ScheduleResourceColumnsBoard } from './ScheduleResourceColumnsBoard';
 import { ScheduleStatusFilterMenu } from './ScheduleStatusFilterMenu';
 import { ScheduleTimelineBoard } from './ScheduleTimelineBoard';
 import { ScheduleWeekView } from './ScheduleWeekView';
@@ -64,12 +65,18 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
     resourceFilter,
     scheduleFetchError,
     resourceNameById,
+    visibleBookings,
+    visibleClosures,
+    visibleOpenings,
   } = useSchedulePageController(props);
   const { role } = useTenant();
   const t = useTranslations('dashboard.schedule');
   const locale = useResolvedLocale();
 
   const isWeekView = scheduleViewMode === 'week';
+  // Bounded multi-resource columns (M22-S06) — MANAGER-only, driven entirely by the same
+  // ResourceFilterMenu checkboxes; zero checked keeps today's exact single-timeline behavior.
+  const showResourceColumns = role === 'MANAGER' && resourceFilter.selectedResourceIdSet.size > 0;
 
   return (
     <div className="space-y-4 px-4 pb-8">
@@ -122,6 +129,22 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
           selectedDateKey={ui.selectedDateKey}
           todayKey={todayKey}
           onSelectDate={weekNav.handleSelectDate}
+          slotGranularityMinutes={slotGranularityMinutes}
+          statusLabels={statusLabels}
+          timezone={timezone}
+          scheduleReturnTo={scheduleReturnTo}
+          onOpeningClick={ui.setRemoveOpeningTarget}
+          onClosureClick={ui.setRemoveClosureTarget}
+        />
+      ) : showResourceColumns ? (
+        <ScheduleResourceColumnsBoard
+          selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
+          resourceNameById={resourceNameById}
+          bookings={visibleBookings}
+          closures={visibleClosures}
+          openings={visibleOpenings}
+          selectedDateKey={ui.selectedDateKey}
+          businessHours={businessHours}
           slotGranularityMinutes={slotGranularityMinutes}
           statusLabels={statusLabels}
           timezone={timezone}

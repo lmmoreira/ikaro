@@ -9,6 +9,7 @@ import {
   useRemoveClosure,
   useRemoveOpening,
   useScheduleClosures,
+  useScheduleDayGrid,
   useScheduleOpenings,
   useWeekBookings,
 } from './useSchedule';
@@ -22,6 +23,7 @@ const scheduleApi = vi.hoisted(() => ({
   listClosures: vi.fn().mockResolvedValue({ items: [] }),
   listOpenings: vi.fn().mockResolvedValue({ items: [] }),
   listBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 25 }),
+  getScheduleDayGrid: vi.fn().mockResolvedValue({ date: '2026-08-17', columns: [] }),
 }));
 
 vi.mock('@/features/booking/api/schedule', () => ({
@@ -32,6 +34,7 @@ vi.mock('@/features/booking/api/schedule', () => ({
   createOpening: vi.fn().mockResolvedValue({ id: 'o-1' }),
   removeOpening: vi.fn().mockResolvedValue(undefined),
   listBookings: scheduleApi.listBookings,
+  getScheduleDayGrid: scheduleApi.getScheduleDayGrid,
 }));
 
 vi.mock('@/features/booking/api/booking', () => bookingApi);
@@ -261,5 +264,42 @@ describe('useWeekBookings', () => {
     rerender({ from: '2026-07-08', to: '2026-07-14' });
 
     await waitFor(() => expect(bookingApi.listBookings).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('useScheduleDayGrid', () => {
+  it('is disabled when no resources are selected, even with a date', () => {
+    const { result } = renderHook(() => useScheduleDayGrid('2026-08-17', []), { wrapper });
+    expect(result.current.data).toBeUndefined();
+    expect(scheduleApi.getScheduleDayGrid).not.toHaveBeenCalled();
+  });
+
+  it('is disabled when the date is empty, even with resources selected', () => {
+    const { result } = renderHook(() => useScheduleDayGrid('', ['res-1']), { wrapper });
+    expect(result.current.data).toBeUndefined();
+    expect(scheduleApi.getScheduleDayGrid).not.toHaveBeenCalled();
+  });
+
+  it('fetches the day grid once a date and at least one resource are selected', async () => {
+    const { result } = renderHook(() => useScheduleDayGrid('2026-08-17', ['res-1']), { wrapper });
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledWith('2026-08-17');
+    expect(result.current.data?.columns).toHaveLength(0);
+  });
+
+  it('refetches when the date changes, not when the resource selection changes', async () => {
+    const { rerender } = renderHook(
+      ({ date, resourceIds }) => useScheduleDayGrid(date, resourceIds),
+      { wrapper, initialProps: { date: '2026-08-17', resourceIds: ['res-1'] } },
+    );
+    await waitFor(() => expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledTimes(1));
+
+    // Same date, different resource selection — the query key doesn't include resourceIds (the
+    // response doesn't vary by which are checked), so this must not trigger a second fetch.
+    rerender({ date: '2026-08-17', resourceIds: ['res-1', 'res-2'] });
+    await waitFor(() => expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledTimes(1));
+
+    rerender({ date: '2026-08-18', resourceIds: ['res-1', 'res-2'] });
+    await waitFor(() => expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledTimes(2));
   });
 });

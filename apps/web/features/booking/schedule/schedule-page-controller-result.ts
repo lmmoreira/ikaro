@@ -2,7 +2,13 @@
 
 import { useMemo } from 'react';
 import type { useTranslations } from 'next-intl';
-import type { BookingStatus, TenantBusinessHours } from '@ikaro/types';
+import type {
+  BookingStatus,
+  ScheduleClosure,
+  ScheduleOpening,
+  StaffBookingCardResponse,
+  TenantBusinessHours,
+} from '@ikaro/types';
 import { parseDateKey } from '@/features/booking/schedule/date-utils';
 import {
   buildScheduleReturnTo,
@@ -41,6 +47,9 @@ export interface UseSchedulePageControllerResult {
   readonly dimmedDates: Set<string>;
   readonly selectedDayTimeline: TimelineDayData;
   readonly weekTimelineCards: TimelineDayData[];
+  readonly visibleBookings: readonly StaffBookingCardResponse[];
+  readonly visibleClosures: readonly ScheduleClosure[];
+  readonly visibleOpenings: readonly ScheduleOpening[];
   readonly selectedDayLabel: string;
   readonly timelineTitle: string;
   readonly bookingEventCount: number;
@@ -178,7 +187,8 @@ export function buildControllerResult(
   statusLabels: Record<BookingStatus, string>,
 ): UseSchedulePageControllerResult {
   const { businessHours, todayKey, slotGranularityMinutes } = props;
-  const { ui, timezone, selectedDayTimeline } = core;
+  const { ui, timezone, selectedDayTimeline, visibleBookings, visibleClosures, visibleOpenings } =
+    core;
   const { selectedDayLabel, bookingEventCount, slotLabels } = labels;
   const handlers = buildControllerHandlers(props, core, t, mutations);
   const coreDerived = buildCoreDerivedFields(core, t);
@@ -196,6 +206,9 @@ export function buildControllerResult(
     hasBookingInSelectedDay: bookingEventCount > 0,
     slotLabels,
     scheduleReturnTo: buildScheduleReturnTo(ui.weekStartKey, ui.selectedDateKey),
+    visibleBookings,
+    visibleClosures,
+    visibleOpenings,
     ...coreDerived,
     ...handlers,
   };

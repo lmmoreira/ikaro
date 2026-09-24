@@ -13,6 +13,7 @@ import type {
 import {
   createClosure,
   createOpening,
+  getScheduleDayGrid,
   listClosures,
   listOpenings,
   removeClosure,
@@ -147,5 +148,18 @@ export function useWeekBookings(from: string, to: string, initialData?: StaffBoo
     queryFn: () => listBookings({ status: SCHEDULE_BOOKING_STATUS_ALL, from, to, limit: 100 }),
     enabled: Boolean(from && to),
     initialData,
+  });
+}
+
+// The response doesn't vary by which resources are checked (it always covers every active
+// resource for the date), so the query key never includes resourceIds — only `enabled` does.
+// Never fetched for STAFF: resourceIds is always empty for STAFF, and the day-grid BFF route is
+// itself MANAGER-only, so this simply never fires rather than hitting a 403.
+export function useScheduleDayGrid(date: string, resourceIds: readonly string[]) {
+  const { tenantId } = useTenant();
+  return useQuery({
+    queryKey: ['schedule', 'day-grid', tenantId, date],
+    queryFn: () => getScheduleDayGrid(date),
+    enabled: Boolean(date) && resourceIds.length > 0,
   });
 }

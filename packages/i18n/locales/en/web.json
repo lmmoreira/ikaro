@@ -1493,6 +1493,9 @@
       "resourceFilterReset": "Default",
       "resourceFilterDone": "Close",
       "resourceFilterEmpty": "No resources yet",
+      "dayGridFetchError": "Couldn't load the resource columns",
+      "dayGridEmptyColumn": "Nothing scheduled this day",
+      "dayGridPlaceholderBooking": "Busy",
       "fetchError": "Couldn't load the schedule",
       "errors": {
         "requiredDate": "Enter the date.",

@@ -207,6 +207,8 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     timezone,
     formatDateLong,
     visibleBookings: visible.visibleBookings,
+    visibleClosures: visible.visibleClosures,
+    visibleOpenings: visible.visibleOpenings,
     selectedStatusSet: visible.selectedStatusSet,
     setSelectedStatuses: visible.setSelectedStatuses,
     selectedResourceIdSet: visible.selectedResourceIdSet,

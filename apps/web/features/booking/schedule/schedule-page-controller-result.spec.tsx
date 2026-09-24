@@ -54,6 +54,8 @@ function makeCore(overrides: Partial<ScheduleCoreData> = {}): ScheduleCoreData {
     timezone: 'America/Sao_Paulo',
     formatDateLong: (date: Date) => date.toISOString().slice(0, 10),
     visibleBookings: [],
+    visibleClosures: [],
+    visibleOpenings: [],
     selectedStatusSet: new Set<BookingStatus>([BOOKING_STATUS.APPROVED]),
     setSelectedStatuses: vi.fn(),
     selectedResourceIdSet: new Set<string>(),
