@@ -26,35 +26,41 @@ The whole scalability argument for the bounded-columns design rests on the subse
 ## Story 0 — Decide and implement a practical bound on simultaneously-rendered resource columns
 
 **Agent:** `frontend-ts`
-**Complexity:** S–M (depends on the chosen treatment)
+**Complexity:** S
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/08-TESTING_STRATEGY.md`
 **Dependencies:** none
-**Pattern:** not pre-decided — this is the story's own open question (see below).
+**Pattern:** plain composition — a guard added to the existing `handleToggleResource` handler plus a `disabled` state on the existing checkbox list; no new component, no new pattern.
 
-**Description:**
-This story's scope is deliberately not pre-decided beyond "the current unbounded state is wrong" — the concrete shape is a genuine product/UX decision for `/story-discovery` (or the user directly) to resolve, not something to presuppose here. Candidate treatments, not mutually exclusive:
+**Resolved design (locked in via `/story-discovery`, 2026-09-24):** a **hard cap of 6** simultaneously-checked resources, enforced at the source (the toggle handler), not downstream in the columns board — this was chosen over a soft-cap-with-warning or deferred/virtualized rendering specifically because it's the only option where the checked-set and the rendered-set can never diverge: no slicing logic, no second source of truth, no new rendering machinery in `ScheduleResourceColumnsBoard.tsx` at all (per CLAUDE.md §7's "mounting complexity" principle — the other two candidates each needed extra machinery this one doesn't).
 
-- A soft cap with a warning (e.g. "showing the first N of M checked resources — uncheck some for a clearer view") rather than a hard block.
-- A hard cap on how many checkboxes can be checked at once in `ResourceFilterMenu` itself, disabling further checks past the limit.
-- Deferred/virtualized rendering so columns past the visible viewport don't mount a full `ScheduleTimelineBoard` until scrolled into view, removing the need for any hard cap at all.
+- `handleToggleResource` (`apps/web/features/booking/schedule/schedule-page-interaction-handlers.ts`) gains a guard: attempting to **add** a 7th resource while 6 are already checked is a no-op (the set is returned unchanged). Unchecking (removing) an already-checked resource is always allowed, even while at the cap. Export the cap as a named constant (`RESOURCE_FILTER_MAX_SELECTED = 6`) from this file for `ResourceFilterMenu` to import directly — no prop-threading, consistent with how `SCHEDULE_BOOKING_STATUS_DEFAULT` is imported directly by its consumers elsewhere in this feature slice.
+- `ResourceFilterMenu.tsx` imports `RESOURCE_FILTER_MAX_SELECTED` and: (a) disables the checkbox `<input>` for any not-yet-checked resource once `selectedResourceIdSet.size >= RESOURCE_FILTER_MAX_SELECTED` (checked resources stay enabled so they can still be unchecked), and (b) renders an inline message below the options list, visible only while at the cap, using the new `resourceFilterMaxReached` i18n key (interpolated with the cap number).
+- No changes needed to `ScheduleResourceColumnsBoard.tsx` — since the checked set can never exceed 6, it never has more than 6 columns to render.
 
-Whichever is chosen, the acceptance criteria below assume *some* bound exists and is visible to the manager — fill in the exact number and UX once decided.
+**New i18n keys (`packages/i18n/locales/{pt-BR,en}/web.json`, under `dashboard.schedule`, both locales in the same commit):** `resourceFilterMaxReached` — pt-BR: `"Limite de {max} recursos atingido. Desmarque um para adicionar outro."`; en: `"Limit of {max} resources reached. Uncheck one to add another."` Follows the existing `resourceFilter<Suffix>` naming convention already used in this same namespace.
 
-**Files likely to create/modify (exact set depends on chosen treatment):**
-- `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx`
-- `apps/web/features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx`
-- `packages/i18n/locales/{pt-BR,en}/web.json` (if a warning/cap message is added)
+**Files to create/modify:**
+- `apps/web/features/booking/schedule/schedule-page-interaction-handlers.ts` (+ `.spec.ts`, already exists) (modify — cap guard in `handleToggleResource`, export `RESOURCE_FILTER_MAX_SELECTED`)
+- `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx` (+ `.spec.tsx`, already exists) (modify — disabled-checkbox state + cap message)
+- `packages/i18n/locales/pt-BR/web.json` + `.../en/web.json` (modify — `resourceFilterMaxReached`)
+- `apps/web/e2e/schedule-resource-columns.spec.ts` (modify — new scenario)
 
 **Acceptance criteria — product:**
-- [ ] A manager who checks an unreasonably large number of resources at once gets a bounded, comprehensible result (via cap, warning, or deferred rendering) rather than an unbounded number of full timeline boards rendering simultaneously with no feedback.
+- [ ] A manager who has 6 resources checked cannot check a 7th — the remaining checkboxes are visibly disabled once the cap is reached.
+- [ ] A manager at the cap sees an inline message explaining the limit (6) and that unchecking one frees up a slot.
+- [ ] A manager at the cap can still uncheck any of the 6 currently-checked resources, and can then check a different one again (cap is a live ceiling, not a one-time lock).
+- [ ] A manager with fewer than 6 checked sees no change from today (non-regression) — no message, no disabled checkboxes.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The chosen bound/deferred-rendering behavior is covered by a unit test exercising a selection count above the threshold
-  - [ ] Below-threshold behavior is unchanged (non-regression)
+  - [ ] `handleToggleResource` is a no-op when attempting to add a 7th resource while 6 are already selected
+  - [ ] `handleToggleResource` still allows removing a resource while at the cap
+  - [ ] `handleToggleResource` behavior below the cap is unchanged (non-regression)
+  - [ ] `ResourceFilterMenu` disables every unchecked checkbox once `selectedResourceIdSet.size === 6`, and renders the `resourceFilterMaxReached` message
+  - [ ] `ResourceFilterMenu` renders no message and no disabled checkboxes when `selectedResourceIdSet.size < 6`
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side only
-- E2E: at least one Playwright scenario exercising the bound with a realistic number of checked resources
+- E2E: manager checks 6 resources, confirms a 7th checkbox is disabled and the cap message is visible, unchecks one, confirms a different resource can then be checked
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
