@@ -454,6 +454,12 @@
       "suffixes": []
     },
     {
+      "requiredType": "CalendarDate",
+      "voFile": "apps/backend/src/shared/value-objects/calendar-date.vo.ts",
+      "exactNames": ["date"],
+      "suffixes": []
+    },
+    {
       "requiredType": "Timezone",
       "voFile": "apps/backend/src/shared/value-objects/timezone.vo.ts",
       "exactNames": ["timezone"],
