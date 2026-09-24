@@ -353,4 +353,27 @@ describe('useScheduleWeekDayGrid', () => {
     await waitFor(() => expect(result.current.week.data).toBeDefined());
     expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledTimes(1);
   });
+
+  // Without a module-level `combine`, useQueries returns a brand-new array/object every render,
+  // defeating every downstream useMemo keyed off this hook's return value (schedule-page-query-
+  // data.ts's bookingResourceIdsById, and transitively schedule-page-timeline-derived.ts's
+  // weekTimelineCards).
+  it('returns a referentially stable result across re-renders when the underlying data has not changed', async () => {
+    // Explicit override: a prior test in this file (`mockImplementation`) isn't cleared by
+    // `vi.clearAllMocks()` in beforeEach (that only clears call history, not implementations) —
+    // pin a fresh resolving implementation so this test doesn't depend on file execution order.
+    scheduleApi.getScheduleDayGrid.mockImplementation((date: string) =>
+      Promise.resolve({ date, columns: [] }),
+    );
+    const { result, rerender } = renderHook(
+      () => useScheduleWeekDayGrid(['2026-08-17', '2026-08-18'], ['res-1']),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    const firstData = result.current.data;
+
+    rerender();
+
+    expect(result.current.data).toBe(firstData);
+  });
 });

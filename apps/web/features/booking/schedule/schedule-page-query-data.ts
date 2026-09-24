@@ -81,7 +81,13 @@ interface ScopedFetchesInput {
   readonly initialOpenings: ScheduleOpeningListResponse;
   readonly initialBookings: StaffBookingListResponse;
   readonly resourceIds: readonly string[];
+  // Gates the week-range day-grid fan-out (TD44 Story 1) to Week view only — Day view renders its
+  // own single-date fetch via ScheduleResourceColumnsBoard instead, so without this gate a manager
+  // with resources checked in Day view would still issue 7 unused day-grid requests per week nav.
+  readonly isWeekView: boolean;
 }
+
+const EMPTY_WEEK_DATES: readonly string[] = [];
 
 // Extracted from useScheduleQueryData below — issuing the 4 underlying fetches (with the
 // initial-week server-fetched fallback, only ever valid on the tenant-wide scope — see
@@ -99,6 +105,7 @@ function useScopedFetches(input: ScopedFetchesInput) {
     initialOpenings,
     initialBookings,
     resourceIds,
+    isWeekView,
   } = input;
 
   const closuresResult = useScheduleClosures(
@@ -118,7 +125,10 @@ function useScopedFetches(input: ScopedFetchesInput) {
     weekEndKey,
     isInitialWeek ? initialBookings : undefined,
   );
-  const weekDayGridResult = useScheduleWeekDayGrid(weekDates, resourceIds);
+  const weekDayGridResult = useScheduleWeekDayGrid(
+    isWeekView ? weekDates : EMPTY_WEEK_DATES,
+    resourceIds,
+  );
 
   return { closuresResult, openingsResult, bookings, weekDayGridResult };
 }
@@ -148,20 +158,34 @@ function resolveIsInitialTenantWideView(
   return isInitialWeek && resourceIds.length === 0;
 }
 
+interface ScheduleQueryDataResultInput {
+  readonly weekDates: readonly string[];
+  readonly closuresResult: ScopedFetchResult<ScheduleClosureListResponse>;
+  readonly openingsResult: ScopedFetchResult<ScheduleOpeningListResponse>;
+  readonly weekDayGridResult: FetchErrorSource & { readonly data?: readonly DayGridResponse[] };
+  readonly bookings: StaffBookingListResponse;
+  readonly isInitialTenantWideView: boolean;
+  readonly initialClosures: ScheduleClosureListResponse;
+  readonly initialOpenings: ScheduleOpeningListResponse;
+  readonly resourceIds: readonly string[];
+}
+
 // Extracted from useScheduleQueryData below (40-line function cap) — resolving the fetch-error
 // state and folding in the TD44 Story 1 bookingId -> resourceId[] lookup is a self-contained tail
-// step once every underlying fetch has been issued.
-function useScheduleQueryDataResult(
-  weekDates: readonly string[],
-  closuresResult: ScopedFetchResult<ScheduleClosureListResponse>,
-  openingsResult: ScopedFetchResult<ScheduleOpeningListResponse>,
-  weekDayGridResult: FetchErrorSource & { readonly data?: readonly DayGridResponse[] },
-  bookings: StaffBookingListResponse,
-  isInitialTenantWideView: boolean,
-  initialClosures: ScheduleClosureListResponse,
-  initialOpenings: ScheduleOpeningListResponse,
-  resourceIds: readonly string[],
-) {
+// step once every underlying fetch has been issued. Takes a single input object (SonarCloud S107 —
+// max 7 positional params) rather than 9 individual arguments.
+function useScheduleQueryDataResult(input: ScheduleQueryDataResultInput) {
+  const {
+    weekDates,
+    closuresResult,
+    openingsResult,
+    weekDayGridResult,
+    bookings,
+    isInitialTenantWideView,
+    initialClosures,
+    initialOpenings,
+    resourceIds,
+  } = input;
   const { closures, openings, scheduleFetchError } = resolveScheduleFetchState(
     closuresResult,
     openingsResult,
@@ -196,6 +220,7 @@ export function useScheduleQueryData(
   initialOpenings: ScheduleOpeningListResponse,
   initialBookings: StaffBookingListResponse,
   resourceIds: readonly string[],
+  isWeekView: boolean,
 ) {
   const weekEndKey = useMemo(() => getWeekEndKey(weekStartKey), [weekStartKey]);
   const weekDates = useMemo(() => getWeekDates(weekStartKey), [weekStartKey]);
@@ -212,9 +237,10 @@ export function useScheduleQueryData(
     initialOpenings,
     initialBookings,
     resourceIds,
+    isWeekView,
   });
 
-  return useScheduleQueryDataResult(
+  return useScheduleQueryDataResult({
     weekDates,
     closuresResult,
     openingsResult,
@@ -224,5 +250,5 @@ export function useScheduleQueryData(
     initialClosures,
     initialOpenings,
     resourceIds,
-  );
+  });
 }

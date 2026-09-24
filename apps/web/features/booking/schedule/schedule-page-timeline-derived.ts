@@ -116,18 +116,35 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
 // Extracted from useWeekTimelineCards below purely to stay under the 40-line function cap once
 // TD44 Story 1's resource-filter/badge params landed there — same per-day mapping, no behavior
 // change. Not itself a hook: plain data transformation, called from inside the useMemo factory.
+interface WeekTimelineCardsSharedInput {
+  readonly visibleBookings: readonly StaffBookingCardResponse[];
+  readonly visibleClosures: readonly ScheduleClosure[];
+  readonly visibleOpenings: readonly ScheduleOpening[];
+  readonly businessHours: TenantBusinessHours;
+  readonly timezone: string;
+  readonly slotGranularityMinutes: number;
+  readonly resourceNameById: ReadonlyMap<string, string>;
+  readonly selectedResourceIdSet: ReadonlySet<string>;
+}
+
+// Bundles the shared fields into one object (SonarCloud S107 — max 7 positional params) rather
+// than 10 individual arguments.
 function buildWeekTimelineCards(
   weekDayInfo: readonly ScheduleWeekDayInfo[],
-  visibleBookings: readonly StaffBookingCardResponse[],
-  visibleClosures: readonly ScheduleClosure[],
-  visibleOpenings: readonly ScheduleOpening[],
-  businessHours: TenantBusinessHours,
-  timezone: string,
-  slotGranularityMinutes: number,
-  resourceNameById: ReadonlyMap<string, string>,
-  selectedResourceIdSet: ReadonlySet<string>,
+  shared: WeekTimelineCardsSharedInput,
   bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
 ): TimelineDayData[] {
+  const {
+    visibleBookings,
+    visibleClosures,
+    visibleOpenings,
+    businessHours,
+    timezone,
+    slotGranularityMinutes,
+    resourceNameById,
+    selectedResourceIdSet,
+  } = shared;
+
   return weekDayInfo.map((day) =>
     buildTimelineDayData({
       selectedDateKey: day.dateKey,
@@ -175,14 +192,16 @@ function useWeekTimelineCards(
     () =>
       buildWeekTimelineCards(
         weekDayInfo,
-        input.visibleBookings,
-        input.visibleClosures,
-        input.visibleOpenings,
-        input.businessHours,
-        input.timezone,
-        input.slotGranularityMinutes,
-        input.resourceNameById,
-        input.selectedResourceIdSet,
+        {
+          visibleBookings: input.visibleBookings,
+          visibleClosures: input.visibleClosures,
+          visibleOpenings: input.visibleOpenings,
+          businessHours: input.businessHours,
+          timezone: input.timezone,
+          slotGranularityMinutes: input.slotGranularityMinutes,
+          resourceNameById: input.resourceNameById,
+          selectedResourceIdSet: input.selectedResourceIdSet,
+        },
         bookingResourceNamesById,
       ),
     [

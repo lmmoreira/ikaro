@@ -397,6 +397,9 @@ describe('useScheduleCoreData', () => {
     }
 
     it('threads the checked resource set and its day-grid lookup through to weekTimelineCards', () => {
+      // Week view (default at desktop width, no persisted preference) — the week-range day-grid
+      // fan-out this test exercises is gated to Week view only.
+      mockMatchMedia(true);
       window.localStorage.setItem(
         'ikaro:schedule',
         JSON.stringify({ 'selectedResourceIds:tenant-badges': { selectedResourceIds: ['res-1'] } }),

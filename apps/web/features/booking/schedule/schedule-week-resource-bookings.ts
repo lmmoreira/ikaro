@@ -1,4 +1,32 @@
-import type { DayGridResponse } from '@ikaro/types';
+import type { DayGridColumn, DayGridResponse } from '@ikaro/types';
+
+function addBookingResourceId(
+  resourceIdsByBookingId: Map<string, Set<string>>,
+  bookingId: string,
+  resourceId: string,
+): void {
+  const existing = resourceIdsByBookingId.get(bookingId);
+  if (existing) {
+    existing.add(resourceId);
+  } else {
+    resourceIdsByBookingId.set(bookingId, new Set([resourceId]));
+  }
+}
+
+// Extracted from buildWeekBookingResourceIds below purely to keep its own Cognitive Complexity
+// under SonarCloud's cap (S3776) — a nested loop body extracted to its own function resets the
+// nesting-depth count the metric penalizes, no behavior change.
+function collectColumnBookingResourceIds(
+  resourceIdsByBookingId: Map<string, Set<string>>,
+  column: DayGridColumn,
+): void {
+  for (const block of column.blocks) {
+    // CLASS_SESSION blocks are unreachable before M24 (nothing generates them yet) — same
+    // scope exclusion schedule-resource-columns.ts already applies.
+    if (block.kind !== 'BOOKING') continue;
+    addBookingResourceId(resourceIdsByBookingId, block.refId, column.resourceId);
+  }
+}
 
 // Week view's own day-grid-as-lookup technique (TD44 Story 1) — the same "resourceId -> booking-id"
 // reuse schedule-resource-columns.ts already established for Day view's columns board, fanned across
@@ -18,17 +46,7 @@ export function buildWeekBookingResourceIds(
   for (const response of dayGridResponses) {
     for (const column of response.columns) {
       if (!selectedResourceIds.has(column.resourceId)) continue;
-      for (const block of column.blocks) {
-        // CLASS_SESSION blocks are unreachable before M24 (nothing generates them yet) — same
-        // scope exclusion schedule-resource-columns.ts already applies.
-        if (block.kind !== 'BOOKING') continue;
-        const existing = resourceIdsByBookingId.get(block.refId);
-        if (existing) {
-          existing.add(column.resourceId);
-        } else {
-          resourceIdsByBookingId.set(block.refId, new Set([column.resourceId]));
-        }
-      }
+      collectColumnBookingResourceIds(resourceIdsByBookingId, column);
     }
   }
 

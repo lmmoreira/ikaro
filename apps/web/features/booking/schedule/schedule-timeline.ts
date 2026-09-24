@@ -5,11 +5,7 @@ import type {
   TenantDayHours,
   TenantBusinessHours,
 } from '@ikaro/types';
-import {
-  getDayHoursForDate,
-  parseDateKey,
-  timeToMinutes,
-} from '@/features/booking/schedule/date-utils';
+import { getDayHoursForDate, timeToMinutes } from '@/features/booking/schedule/date-utils';
 import {
   assignLanes,
   buildBookingTimelineEvent,
@@ -24,6 +20,10 @@ import {
   type ActiveTimelineHours,
 } from '@/features/booking/schedule/schedule-timeline-window';
 import { isBookingVisibleForResourceFilter } from '@/features/booking/schedule/schedule-week-resource-bookings';
+import {
+  getEventMinutes,
+  getSlotHeight,
+} from '@/features/booking/schedule/schedule-timeline-formatting';
 
 export type {
   BookingTimelineEvent,
@@ -36,6 +36,11 @@ export {
   getBookingTimeKey,
 } from '@/features/booking/schedule/schedule-timeline-events';
 export {
+  getSlotHeight,
+  getEventMinutes,
+  buildWeekShift,
+  toLocalDate,
+  formatEventRange,
   getClosureReasonLabel,
   normalizeScheduleStatuses,
   buildScheduleReturnTo,
@@ -65,55 +70,42 @@ export interface TimelineLayoutInput {
   // schedule-page-core-data.ts). Omitted (STAFF, or the fetch hasn't resolved yet) means every
   // event renders with resourceName: null, same as a tenant-wide item.
   readonly resourceNameById?: ReadonlyMap<string, string>;
-  // Week view's own booking resource-filter/badges (TD44 Story 1) — see
-  // schedule-week-resource-bookings.ts for the filtering rule and lookup shape. Omitted/empty by
-  // every other caller (Day view never filters bookings at this layer).
+  // Week view's own booking resource-filter/badges (TD44 Story 1, schedule-week-resource-bookings.ts)
+  // — omitted/empty by every other caller (Day view never filters bookings at this layer).
   readonly selectedResourceIdSet?: ReadonlySet<string>;
   readonly bookingResourceNamesById?: ReadonlyMap<string, readonly string[]>;
-}
-
-export function getSlotHeight(slotGranularityMinutes: number, scale = 1): number {
-  return Math.max(18, Math.round((slotGranularityMinutes / 30) * 48 * scale));
-}
-
-export function getEventMinutes(
-  startMinutes: number,
-  endMinutes: number,
-  slotMinutes: number,
-): number {
-  return Math.max(slotMinutes, endMinutes - startMinutes);
-}
-
-export function buildWeekShift(weekStartKey: string, deltaDays: number): string {
-  const next = new Date(parseDateKey(weekStartKey));
-  next.setUTCDate(next.getUTCDate() + deltaDays);
-  return next.toISOString().slice(0, 10);
-}
-
-export function toLocalDate(dateKey: string): Date {
-  return new Date(`${dateKey}T00:00:00`);
-}
-
-export function formatEventRange(startTime: string, endTime: string): string {
-  return `${startTime}–${endTime}`;
 }
 
 const EMPTY_SELECTED_RESOURCE_IDS: ReadonlySet<string> = new Set();
 const EMPTY_BOOKING_RESOURCE_NAMES_BY_ID: ReadonlyMap<string, readonly string[]> = new Map();
 
+interface FilteredBookingEventsInput {
+  readonly bookings: readonly StaffBookingCardResponse[];
+  readonly timezone: string;
+  readonly selectedDateKey: string;
+  readonly selectedDayClosures: readonly ScheduleClosure[];
+  readonly activeStartTime: string;
+  readonly activeEndTime: string;
+  readonly selectedResourceIdSet: ReadonlySet<string>;
+  readonly bookingResourceNamesById: ReadonlyMap<string, readonly string[]>;
+}
+
 // Extracted from buildAllTimelineEvents below purely to stay under the 40-line function cap once
 // TD44 Story 1's resource-filter/badge params landed there — same booking-building logic, no
-// behavior change.
-function buildFilteredBookingEvents(
-  bookings: readonly StaffBookingCardResponse[],
-  timezone: string,
-  selectedDateKey: string,
-  selectedDayClosures: readonly ScheduleClosure[],
-  activeStartTime: string,
-  activeEndTime: string,
-  selectedResourceIdSet: ReadonlySet<string>,
-  bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
-) {
+// behavior change. Takes a single input object (SonarCloud S107 — max 7 positional params) rather
+// than 8 individual arguments.
+function buildFilteredBookingEvents(input: FilteredBookingEventsInput) {
+  const {
+    bookings,
+    timezone,
+    selectedDateKey,
+    selectedDayClosures,
+    activeStartTime,
+    activeEndTime,
+    selectedResourceIdSet,
+    bookingResourceNamesById,
+  } = input;
+
   return assignLanes(
     bookings
       .filter((booking) => getBookingDateKey(booking, timezone) === selectedDateKey)
@@ -148,7 +140,7 @@ function buildAllTimelineEvents(
 ): TimelineEvent[] {
   const { dayOpenings, selectedDayClosures, activeStartTime, activeEndTime } = active;
 
-  const bookingEvents = buildFilteredBookingEvents(
+  const bookingEvents = buildFilteredBookingEvents({
     bookings,
     timezone,
     selectedDateKey,
@@ -157,7 +149,7 @@ function buildAllTimelineEvents(
     activeEndTime,
     selectedResourceIdSet,
     bookingResourceNamesById,
-  );
+  });
 
   // Lane-split same-kind closures that overlap in time (e.g. two different resources each
   // blocked over the same window) — mirrors bookings' own overlap handling above.

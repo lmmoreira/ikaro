@@ -21,10 +21,18 @@ import type {
 } from '@ikaro/types';
 import { useTenant } from '@/providers/tenant-provider';
 
+// Also invalidates the day-grid cache (TD44 Story 1's own resourceId lookup source, keyed
+// ['schedule', 'day-grid', tenantId, date]) — a booking mutation (approve/cancel/reschedule/
+// complete/etc.) can change which resource a booking occupies, and Week view's resource
+// filter/badges read that separate cache, not the bookings one.
 function useInvalidateBookings() {
   const queryClient = useQueryClient();
   const { tenantId } = useTenant();
-  return () => queryClient.invalidateQueries({ queryKey: ['bookings', tenantId] });
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['bookings', tenantId] }),
+      queryClient.invalidateQueries({ queryKey: ['schedule', 'day-grid', tenantId] }),
+    ]);
 }
 
 export function useApproveBooking() {

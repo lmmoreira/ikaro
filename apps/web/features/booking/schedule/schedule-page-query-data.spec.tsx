@@ -49,6 +49,7 @@ describe('useScheduleQueryData', () => {
         emptyOpenings(),
         emptyBookings(),
         [],
+        true,
       ),
     );
 
@@ -74,6 +75,7 @@ describe('useScheduleQueryData', () => {
         emptyOpenings(),
         emptyBookings(),
         [],
+        true,
       ),
     );
 
@@ -105,6 +107,7 @@ describe('useScheduleQueryData', () => {
         emptyOpenings(),
         emptyBookings(),
         ['res-1'],
+        true,
       ),
     );
 
@@ -131,6 +134,7 @@ describe('useScheduleQueryData', () => {
         emptyOpenings(),
         emptyBookings(),
         ['res-1'],
+        true,
       ),
     );
 
@@ -172,6 +176,7 @@ describe('useScheduleQueryData', () => {
         { items: [tenantWideOpening] },
         emptyBookings(),
         ['res-1'],
+        true,
       ),
     );
 
@@ -193,6 +198,7 @@ describe('useScheduleQueryData', () => {
         emptyOpenings(),
         emptyBookings(),
         [],
+        true,
       ),
     );
 
@@ -209,6 +215,7 @@ describe('useScheduleQueryData', () => {
         emptyOpenings(),
         emptyBookings(),
         [],
+        true,
       ),
     );
 
@@ -235,6 +242,7 @@ describe('useScheduleQueryData', () => {
         emptyOpenings(),
         emptyBookings(),
         [],
+        true,
       ),
     );
 
@@ -253,6 +261,7 @@ describe('useScheduleQueryData', () => {
           emptyOpenings(),
           emptyBookings(),
           ['res-1'],
+          true,
         ),
       );
 
@@ -289,6 +298,7 @@ describe('useScheduleQueryData', () => {
           emptyOpenings(),
           emptyBookings(),
           [],
+          true,
         ),
       );
 
@@ -322,10 +332,29 @@ describe('useScheduleQueryData', () => {
           emptyOpenings(),
           emptyBookings(),
           ['res-1'],
+          true,
         ),
       );
 
       expect(result.current.bookingResourceIdsById).toEqual(new Map([['booking-1', ['res-1']]]));
+    });
+
+    it('gates the fan-out to Week view — Day view sends zero day-grid requests even with resources selected', () => {
+      renderHook(() =>
+        useScheduleQueryData(
+          '2026-08-17',
+          '2026-08-17',
+          emptyClosures(),
+          emptyOpenings(),
+          emptyBookings(),
+          ['res-1'],
+          false,
+        ),
+      );
+
+      // Day view renders its own single-date fetch via ScheduleResourceColumnsBoard instead — the
+      // week-range fan-out would otherwise issue 7 unused requests per week navigation.
+      expect(scheduleHooks.useScheduleWeekDayGrid).toHaveBeenCalledWith([], ['res-1']);
     });
 
     it('surfaces a week-day-grid fetch error the same way a closures/openings error does', () => {
@@ -343,6 +372,7 @@ describe('useScheduleQueryData', () => {
           emptyOpenings(),
           emptyBookings(),
           ['res-1'],
+          true,
         ),
       );
 

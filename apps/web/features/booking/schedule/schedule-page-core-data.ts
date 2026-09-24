@@ -120,11 +120,14 @@ function useScheduleFilterSets(
 
 // Extracted from useScheduleVisibleData below — the week's server data fetch (closures/openings/
 // bookings) is a self-contained concern, independent of the status/resource filter derivation and
-// the view-mode resolution around it.
+// the view-mode resolution around it. isWeekView gates the week-range day-grid fan-out (TD44
+// Story 1) — Day view renders its own single-date fetch via ScheduleResourceColumnsBoard instead,
+// so the 7-day fan-out would otherwise issue requests nothing renders.
 function useScheduleWeekData(
   props: SchedulePageControllerInput,
   ui: ScheduleUiState,
   selectedResourceIds: readonly string[],
+  isWeekView: boolean,
 ) {
   const {
     initialClosures,
@@ -140,6 +143,7 @@ function useScheduleWeekData(
     initialOpenings,
     initialBookings,
     selectedResourceIds,
+    isWeekView,
   );
 }
 
@@ -163,14 +167,14 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     persistedSelectedResourceIds,
     setSelectedResourceIds,
   );
+  const scheduleViewMode = useResolvedScheduleViewMode(viewMode);
 
-  const weekData = useScheduleWeekData(props, ui, selectedResourceIds);
+  const weekData = useScheduleWeekData(props, ui, selectedResourceIds, scheduleViewMode === 'week');
   const filterSets = useScheduleFilterSets(
     selectedStatuses,
     selectedResourceIds,
     weekData.bookingsItems,
   );
-  const scheduleViewMode = useResolvedScheduleViewMode(viewMode);
 
   return {
     ...weekData,

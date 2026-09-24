@@ -50,6 +50,12 @@ function wrapper({ children }: { readonly children: React.ReactNode }) {
   return React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+function wrapperWithClient(queryClient: QueryClient) {
+  return function InnerWrapper({ children }: { readonly children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+  };
+}
+
 beforeEach(() => vi.clearAllMocks());
 
 describe('useApproveBooking', () => {
@@ -88,6 +94,22 @@ describe('useCancelBooking', () => {
     const { result } = renderHook(() => useCancelBooking(), { wrapper });
     act(() => result.current.mutate({ id: 'b-1' }));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+
+  // TD44 Story 1 precedent: a mutation can change which resource a booking occupies, and Week
+  // view's resource filter/badges read the day-grid cache, not the bookings one — both must be
+  // invalidated together or Week view can show a stale resource assignment after this succeeds.
+  it('also invalidates the day-grid cache on success', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useCancelBooking(), {
+      wrapper: wrapperWithClient(queryClient),
+    });
+    act(() => result.current.mutate({ id: 'b-1' }));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['bookings', 't-1'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['schedule', 'day-grid', 't-1'] });
   });
 });
 

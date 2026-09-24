@@ -67,8 +67,8 @@ function renderBookingTimelineEvent(
       subtitle={event.subtitle}
       trailing={
         <div className="flex flex-wrap items-center justify-end gap-1">
-          {event.resourceNames.map((resourceName) => (
-            <ResourceNameBadge key={resourceName} resourceName={resourceName} />
+          {event.resourceNames.map((resourceName, index) => (
+            <ResourceNameBadge key={`${index}-${resourceName}`} resourceName={resourceName} />
           ))}
           <Badge
             variant="outline"
