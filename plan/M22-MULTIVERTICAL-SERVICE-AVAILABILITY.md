@@ -435,7 +435,7 @@ Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (
 
 ---
 
-### M22-S06 — Manager "Horários" bounded multi-resource column view frontend extension
+### M22-S06 — Manager "Horários" bounded multi-resource column view frontend extension ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
