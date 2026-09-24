@@ -5,6 +5,7 @@ import {
   buildResourceFilterHandlers,
   buildStatusFilterHandlers,
   buildWeekNavHandlers,
+  RESOURCE_FILTER_MAX_SELECTED,
 } from './schedule-page-interaction-handlers';
 
 function makeUi(overrides: Partial<ScheduleUiState> = {}): ScheduleUiState {
@@ -178,6 +179,45 @@ describe('buildResourceFilterHandlers', () => {
       current: readonly string[],
     ) => readonly string[];
     expect(updater(['res-1', 'res-2'])).toEqual(['res-2']);
+  });
+
+  it('handleToggleResource is a no-op when adding a resource once the cap is reached (TD44)', () => {
+    const ui = makeUi();
+    const setSelectedResourceIds = vi.fn();
+    const atCap = Array.from({ length: RESOURCE_FILTER_MAX_SELECTED }, (_, i) => `res-${i}`);
+    const handlers = buildResourceFilterHandlers(ui, new Set(atCap), setSelectedResourceIds);
+    handlers.handleToggleResource('res-overflow');
+
+    const updater = setSelectedResourceIds.mock.calls[0][0] as (
+      current: readonly string[],
+    ) => readonly string[];
+    expect(updater(atCap)).toEqual(atCap);
+  });
+
+  it('handleToggleResource still allows removing a resource while at the cap (TD44)', () => {
+    const ui = makeUi();
+    const setSelectedResourceIds = vi.fn();
+    const atCap = Array.from({ length: RESOURCE_FILTER_MAX_SELECTED }, (_, i) => `res-${i}`);
+    const handlers = buildResourceFilterHandlers(ui, new Set(atCap), setSelectedResourceIds);
+    handlers.handleToggleResource('res-0');
+
+    const updater = setSelectedResourceIds.mock.calls[0][0] as (
+      current: readonly string[],
+    ) => readonly string[];
+    expect(updater(atCap)).toEqual(atCap.slice(1));
+  });
+
+  it('handleToggleResource adds normally below the cap, non-regression (TD44)', () => {
+    const ui = makeUi();
+    const setSelectedResourceIds = vi.fn();
+    const belowCap = Array.from({ length: RESOURCE_FILTER_MAX_SELECTED - 1 }, (_, i) => `res-${i}`);
+    const handlers = buildResourceFilterHandlers(ui, new Set(belowCap), setSelectedResourceIds);
+    handlers.handleToggleResource('res-new');
+
+    const updater = setSelectedResourceIds.mock.calls[0][0] as (
+      current: readonly string[],
+    ) => readonly string[];
+    expect(updater(belowCap)).toEqual([...belowCap, 'res-new']);
   });
 
   it('handleResetResourceFilter clears the selection', () => {

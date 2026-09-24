@@ -1493,6 +1493,7 @@
       "resourceFilterReset": "Default",
       "resourceFilterDone": "Close",
       "resourceFilterEmpty": "No resources yet",
+      "resourceFilterMaxReached": "Limit of {max} resources reached. Uncheck one to add another.",
       "dayGridFetchError": "Couldn't load the resource columns",
       "dayGridEmptyColumn": "Nothing scheduled this day",
       "dayGridPlaceholderBooking": "Busy",

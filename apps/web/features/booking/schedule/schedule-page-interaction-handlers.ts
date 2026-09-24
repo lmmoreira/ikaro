@@ -74,6 +74,13 @@ export function buildStatusFilterHandlers(
   };
 }
 
+// TD44 Story 0 — bounds how many full ScheduleTimelineBoard columns ScheduleResourceColumnsBoard
+// ever has to render at once. Enforced here, at the toggle source, rather than by slicing/warning
+// downstream in the columns board: the checked set can then never exceed the cap, so there's no
+// second "rendered vs. checked" state to keep in sync. ResourceFilterMenu imports this same
+// constant to disable further checkboxes once the cap is reached.
+export const RESOURCE_FILTER_MAX_SELECTED = 6;
+
 // Mirrors buildStatusFilterHandlers above — the resource-filter popover's toggle/reset/open/close
 // handlers are the identical shape, just over resource ids instead of booking statuses. No
 // "normalize against a known set" step here (unlike statuses): resources are a dynamic,
@@ -88,6 +95,8 @@ export function buildResourceFilterHandlers(
       const next = new Set(current);
       if (next.has(resourceId)) {
         next.delete(resourceId);
+      } else if (next.size >= RESOURCE_FILTER_MAX_SELECTED) {
+        return current;
       } else {
         next.add(resourceId);
       }

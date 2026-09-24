@@ -13,6 +13,7 @@ import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import { useScheduleCoreData } from './schedule-page-core-data';
 import type { SchedulePageControllerInput } from './schedule-page-controller-types';
+import { RESOURCE_FILTER_MAX_SELECTED } from './schedule-page-interaction-handlers';
 
 const scheduleHooks = vi.hoisted(() => ({
   useScheduleClosures: vi.fn(),
@@ -229,6 +230,44 @@ describe('useScheduleCoreData', () => {
     });
   });
 
+  it('truncates a persisted selection larger than the cap to the first 6, by persisted order (TD44)', async () => {
+    const persistedIds = Array.from({ length: 7 }, (_, i) => `res-${i}`);
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({ 'selectedResourceIds:tenant-x': { selectedResourceIds: persistedIds } }),
+    );
+    selectableResourcesHooks.useSelectableResources.mockReturnValue({
+      resources: persistedIds.map((id) => makeResource({ id })),
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    const managerRole = 'MANAGER' as const;
+    function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: managerWrapper,
+    });
+
+    const expectedIds = persistedIds.slice(0, RESOURCE_FILTER_MAX_SELECTED);
+    expect(result.current.selectedResourceIdSet).toEqual(new Set(expectedIds));
+
+    await waitFor(() => {
+      const stored = JSON.parse(window.localStorage.getItem('ikaro:schedule') ?? '{}') as Record<
+        string,
+        unknown
+      >;
+      expect(stored['selectedResourceIds:tenant-x']).toEqual({ selectedResourceIds: expectedIds });
+    });
+  });
+
   it('preserves the persisted resource selection when the resource-list fetch errors, instead of reconciling it away', async () => {
     window.localStorage.setItem(
       'ikaro:schedule',
@@ -265,6 +304,46 @@ describe('useScheduleCoreData', () => {
     expect(stored['selectedResourceIds:tenant-x']).toEqual({
       selectedResourceIds: ['res-1', 'res-2'],
     });
+  });
+
+  it('caps the effective (rendered) selection at 6 even when the resource-list fetch errors, while leaving the persisted value untouched (TD44 round 2)', () => {
+    const persistedIds = Array.from({ length: 7 }, (_, i) => `res-${i}`);
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({ 'selectedResourceIds:tenant-x': { selectedResourceIds: persistedIds } }),
+    );
+    selectableResourcesHooks.useSelectableResources.mockReturnValue({
+      resources: [],
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+
+    const managerRole = 'MANAGER' as const;
+    function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: managerWrapper,
+    });
+
+    // Effective/rendered value is capped regardless of the fetch error...
+    expect(result.current.selectedResourceIdSet).toEqual(
+      new Set(persistedIds.slice(0, RESOURCE_FILTER_MAX_SELECTED)),
+    );
+
+    // ...but the persisted value itself is left exactly as-is — not destructively truncated over
+    // what may be a transient failure, same rationale as the sibling error-preservation test above.
+    const stored = JSON.parse(window.localStorage.getItem('ikaro:schedule') ?? '{}') as Record<
+      string,
+      unknown
+    >;
+    expect(stored['selectedResourceIds:tenant-x']).toEqual({ selectedResourceIds: persistedIds });
   });
 
   it('never applies a persisted resource selection for STAFF, even one left over from a prior MANAGER session on the same device', () => {

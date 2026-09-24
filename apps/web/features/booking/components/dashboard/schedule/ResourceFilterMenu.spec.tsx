@@ -40,6 +40,18 @@ const RESOURCES: ResourceResponse[] = [
   },
 ];
 
+// 7 selectable (non-LOCATION) resources — one past TD44's cap of 6 — for the max-reached tests.
+const MANY_RESOURCES: ResourceResponse[] = Array.from({ length: 7 }, (_, i) => ({
+  id: `res-${i}`,
+  type: 'STAFF',
+  refId: `s-${i}`,
+  name: `Staff ${i}`,
+  workingHours: null,
+  turnoverMinutes: 15,
+  maxCapacity: null,
+  isActive: true,
+}));
+
 const useResourcesMock = vi.fn();
 
 vi.mock('@/features/booking/hooks/useResources', () => ({
@@ -133,6 +145,44 @@ describe('ResourceFilterMenu', () => {
 
     expect(screen.getByTestId('resource-filter-empty')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('disables unchecked checkboxes and shows the max-reached message once 6 are selected (TD44)', () => {
+    useResourcesMock.mockReturnValue({
+      data: { items: MANY_RESOURCES },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    const selectedResourceIdSet = new Set(MANY_RESOURCES.slice(0, 6).map((r) => r.id));
+    renderWithIntl(
+      <ResourceFilterMenu {...baseProps()} open selectedResourceIdSet={selectedResourceIdSet} />,
+    );
+
+    expect(screen.getByTestId('resource-filter-max-reached')).toBeInTheDocument();
+    const checkedBoxes = MANY_RESOURCES.slice(0, 6).map((r) =>
+      screen.getByRole('checkbox', { name: r.name }),
+    );
+    checkedBoxes.forEach((box) => expect(box).not.toBeDisabled());
+    expect(screen.getByRole('checkbox', { name: 'Staff 6' })).toBeDisabled();
+  });
+
+  it('renders no max-reached message and no disabled checkboxes below the cap (TD44, non-regression)', () => {
+    useResourcesMock.mockReturnValue({
+      data: { items: MANY_RESOURCES },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    const selectedResourceIdSet = new Set(MANY_RESOURCES.slice(0, 5).map((r) => r.id));
+    renderWithIntl(
+      <ResourceFilterMenu {...baseProps()} open selectedResourceIdSet={selectedResourceIdSet} />,
+    );
+
+    expect(screen.queryByTestId('resource-filter-max-reached')).not.toBeInTheDocument();
+    MANY_RESOURCES.forEach((r) => {
+      expect(screen.getByRole('checkbox', { name: r.name })).not.toBeDisabled();
+    });
   });
 
   it('shows a translated error, not raw backend text, instead of checkboxes on fetch failure', () => {
