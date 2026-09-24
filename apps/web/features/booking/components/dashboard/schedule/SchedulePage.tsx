@@ -7,9 +7,6 @@ import type {
   TenantBusinessHours,
 } from '@ikaro/types';
 import { useTranslations } from 'next-intl';
-import { Badge } from '@/shared/components/ui/badge';
-import { Card } from '@/shared/components/ui/card';
-import { cn } from '@/shared/utils/cn';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -22,10 +19,8 @@ import { RemoveClosureDialog } from './RemoveClosureDialog';
 import { RemoveOpeningDialog } from './RemoveOpeningDialog';
 import { ResourceFilterMenu } from './ResourceFilterMenu';
 import { ScheduleDayHeader } from './ScheduleDayHeader';
-import { ScheduleResourceColumnsBoard } from './ScheduleResourceColumnsBoard';
+import { ScheduleMainView } from './ScheduleMainView';
 import { ScheduleStatusFilterMenu } from './ScheduleStatusFilterMenu';
-import { ScheduleTimelineBoard } from './ScheduleTimelineBoard';
-import { ScheduleWeekView } from './ScheduleWeekView';
 
 interface SchedulePageProps {
   readonly initialClosures: ScheduleClosureListResponse;
@@ -122,67 +117,31 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         bookingCount={bookingEventCount}
       />
 
-      {isWeekView ? (
-        <ScheduleWeekView
-          weekDayInfo={weekDayInfo}
-          weekTimelineCards={weekTimelineCards}
-          selectedDateKey={ui.selectedDateKey}
-          todayKey={todayKey}
-          onSelectDate={weekNav.handleSelectDate}
-          slotGranularityMinutes={slotGranularityMinutes}
-          statusLabels={statusLabels}
-          timezone={timezone}
-          scheduleReturnTo={scheduleReturnTo}
-          onOpeningClick={ui.setRemoveOpeningTarget}
-          onClosureClick={ui.setRemoveClosureTarget}
-        />
-      ) : showResourceColumns ? (
-        <ScheduleResourceColumnsBoard
-          selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
-          resourceNameById={resourceNameById}
-          bookings={bookingsItems}
-          selectedStatusSet={statusFilter.selectedStatusSet}
-          closures={visibleClosures}
-          openings={visibleOpenings}
-          selectedDateKey={ui.selectedDateKey}
-          businessHours={businessHours}
-          slotGranularityMinutes={slotGranularityMinutes}
-          statusLabels={statusLabels}
-          timezone={timezone}
-          scheduleReturnTo={scheduleReturnTo}
-          onOpeningClick={ui.setRemoveOpeningTarget}
-          onClosureClick={ui.setRemoveClosureTarget}
-        />
-      ) : (
-        <Card className="overflow-hidden" data-testid="schedule-mobile-view">
-          <div className="p-4">
-            <div className="mb-3 flex items-center justify-end gap-3">
-              <Badge
-                className={cn(
-                  'border-0',
-                  selectedDayTimeline.selectedOpening
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-gray-100 text-gray-700',
-                )}
-              >
-                {timelineTitle}
-              </Badge>
-            </div>
-
-            <ScheduleTimelineBoard
-              timeline={selectedDayTimeline}
-              compact={false}
-              slotGranularityMinutes={slotGranularityMinutes}
-              slotLabels={slotLabels}
-              statusLabels={statusLabels}
-              timezone={timezone}
-              scheduleReturnTo={scheduleReturnTo}
-              onOpeningClick={ui.setRemoveOpeningTarget}
-              onClosureClick={ui.setRemoveClosureTarget}
-            />
-          </div>
-        </Card>
-      )}
+      <ScheduleMainView
+        isWeekView={isWeekView}
+        showResourceColumns={showResourceColumns}
+        weekDayInfo={weekDayInfo}
+        weekTimelineCards={weekTimelineCards}
+        selectedDateKey={ui.selectedDateKey}
+        todayKey={todayKey}
+        onSelectDate={weekNav.handleSelectDate}
+        slotGranularityMinutes={slotGranularityMinutes}
+        statusLabels={statusLabels}
+        timezone={timezone}
+        scheduleReturnTo={scheduleReturnTo}
+        onOpeningClick={ui.setRemoveOpeningTarget}
+        onClosureClick={ui.setRemoveClosureTarget}
+        selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
+        resourceNameById={resourceNameById}
+        bookingsItems={bookingsItems}
+        selectedStatusSet={statusFilter.selectedStatusSet}
+        visibleClosures={visibleClosures}
+        visibleOpenings={visibleOpenings}
+        businessHours={businessHours}
+        selectedDayTimeline={selectedDayTimeline}
+        slotLabels={slotLabels}
+        timelineTitle={timelineTitle}
+      />
 
       <ScheduleStatusFilterMenu
         containerRef={ui.statusFilterRef}
