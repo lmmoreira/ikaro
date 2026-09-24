@@ -6,7 +6,7 @@
 - **Context**: `packages/validation` (fix lands here) — consumed by `apps/backend/src/contexts/booking/application/dtos/**` and `apps/bff/src/features/booking/*.schemas.ts`
 - **Created**: 2026-09-23
 - **Discovered**: CodeRabbit review on PR #506 (M22-S05, `GET /schedule/day-grid`) flagged the new `date` param's validation as shape-only; verified during triage that the same gap is systemic, not specific to that one field
-- **State**: Implemented on `feat/td42-s1-calendar-date-vo` (PR #510) — `/story-discovery` READY 2026-09-23 (approach revised twice — final scope: full `CalendarDate` VO chain, see Chosen approach); this doc reflects what was actually built, not the pre-implementation plan
+- **State**: ✅ Done — implemented and merged via [PR #510](https://github.com/lmmoreira/ikaro/pull/510) (2026-09-24). `/story-discovery` READY 2026-09-23 (approach revised twice — final scope: full `CalendarDate` VO chain, see Chosen approach); this doc reflects what was actually built, not the pre-implementation plan. `/mark-done` audit (2026-09-24): all product/technical ACs independently re-verified against `main` post-merge (not trusted from the PR diff) — backend 354 unit suites/3217 tests + 68 integration suites/645 tests, BFF 81 suites/1081 tests, web 8/8, `architecture-check` clean, zero `DATE_ONLY_PATTERN`/`.refine`-wrapper leftovers; PR #510's review chain (Codex rounds 1–2, CodeRabbit) closed with 0 Critical/Important/Minor findings; `docs/27-BUSINESS_LOGIC_REFERENCE.md`'s Booking section needs no update — TD42 tightens request-boundary validation only, it doesn't change the availability/occupancy algorithm described there. Also fixed an unrelated bug found while landing this PR: `scripts/pr-round-status.sh`'s Codex-comment regex (commit `f821f2239`, same day).
 - **Related**: none
 
 ---
@@ -64,7 +64,7 @@ Out of scope: `availability.service.ts` / `resource-scoped-availability.helpers.
 
 ---
 
-### Story 1 — `CalendarDate` VO chain: shared predicate, VO, aggregates, DTOs, BFF, web
+### Story 1 — `CalendarDate` VO chain: shared predicate, VO, aggregates, DTOs, BFF, web ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** M
@@ -102,8 +102,8 @@ Not touched, and not needed: `schedule-closure.builder.ts`/`schedule-opening.bui
 **New migration / env vars / feature flags:** none. **New error code + i18n:** yes — `CALENDAR_DATE_FORMAT_INVALID` in both locales, same commit (CI exhaustiveness test, both backend catalog and `apps/web`'s own).
 
 **Acceptance criteria — product:**
-- [ ] Any endpoint accepting a `date`/`from`/`to` query or body field returns `400` with code `CALENDAR_DATE_FORMAT_INVALID` for a calendar-impossible date (e.g. `2026-02-30`) instead of silently returning an empty result.
-- [ ] A valid calendar date works identically to today on every affected endpoint.
+- [x] Any endpoint accepting a `date`/`from`/`to` query or body field returns `400` with code `CALENDAR_DATE_FORMAT_INVALID` for a calendar-impossible date (e.g. `2026-02-30`) instead of silently returning an empty result. Re-verified on `main` post-merge: all 19 fields across the 11 files listed above use `z.iso.date()` (directly or via a shared schema); integration/component tests confirm `400`/`CALENDAR_DATE_FORMAT_INVALID` on both a backend and a BFF endpoint.
+- [x] A valid calendar date works identically to today on every affected endpoint. Re-verified via the full regression suites (backend unit+integration, BFF, web) passing unchanged on `main`.
 
 **Acceptance criteria — technical:**
 - Unit:
