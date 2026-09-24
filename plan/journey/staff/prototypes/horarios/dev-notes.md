@@ -263,6 +263,8 @@ That curation tool already exists and shipped in `M21-S05`: the floating **`Reso
 
 A rejected intermediate idea (worth recording so it isn't re-proposed): labeling each block in the *existing single merged timeline* with a resource-name badge (reusing the `ResourceNameBadge` pattern already used for closures/openings) instead of building columns at all. Rejected because it needed new backend plumbing (`StaffBookingCardResponse` has no resource field — bookings aren't resource-scoped in the DTO) for a *weaker* result (reading labels on shared overlap lanes) than just rendering the day-grid endpoint's already-resolved columns for the checked subset.
 
+**This rejection is scoped to Day view specifically, not badges in general.** `TD44` Story 1 (`/story-discovery`, 2026-09-24) later applies a materially different version of this same badge idea to **Week view**, where columns genuinely aren't viable (7 day-cards × N resource-columns doesn't fit, unlike Day view's single day). It sidesteps the objection above entirely: rather than needing a new resource field on the booking DTO, it derives resource identity client-side from the already-shipped `GET /schedule/day-grid` response (`M22-S05`) — the same lookup technique `schedule-resource-columns.ts` already uses for Day view's columns, just fanned across the 7 visible days instead of one. See the "TD44 addition" entry below.
+
 **File map:**
 
 | File | Status |
@@ -275,4 +277,12 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 
 **Open questions — both resolved during `M22-S06`'s own `/story-discovery` (2026-09-24):**
 - [x] `docs/04-USE_CASES.md` UC-057's Main Flow/A1 — reworded to match the bounded/checked-subset behavior (done, same date).
-- [x] Route-level relationship to `SchedulePage` — inline in the existing route's Day view only; Week view is completely untouched (its own per-day mini cards already reflect the resource filter today via the same closures/openings data, with no change needed). See `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`'s `M22-S06` entry for the full resolved design, including the tenant-wide-closure-in-every-column rule and the "Ocupado" fallback for an unmatched booking id.
+- [x] Route-level relationship to `SchedulePage` — inline in the existing route's Day view only; Week view was untouched **by M22-S06 itself** (its own per-day mini cards already reflected the resource filter for closures/openings, unchanged). See `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`'s `M22-S06` entry for the full resolved design, including the tenant-wide-closure-in-every-column rule and the "Ocupado" fallback for an unmatched booking id. **`TD44` Story 1 (2026-09-24) later changes Week view's own behavior for bookings** — see the entry immediately below.
+
+**`TD44` addition — Week view resource-filtered bookings + badges (pending, `TD44` Story 1, not yet started):**
+
+- Gap: Week view's booking rendering never respected "Filtrar recurso" at all (only closures/openings did) — inconsistent with Day view's columns board, which both narrows and labels bookings by resource.
+- Resolved design: a booking shows in Week view only if ≥1 of its assigned resources is checked; each shown booking gets a `ResourceNameBadge` per checked resource it's assigned to (a bundled booking with 2 checked resources renders once with both names; with only 1 of 2 checked, shows only that one badge). Zero checked = unchanged default.
+- Mechanism: a new week-range fan-out hook in `useSchedule.ts` (`useQueries`, one `GET /schedule/day-grid` call per visible day, gated on `resourceIds.length > 0`) — same shape as the existing per-resource `useScheduleClosures`/`useScheduleOpenings` fan-out, just fanned by day instead of by resource. No backend/BFF change.
+- Files: `useSchedule.ts`, `schedule-timeline-events.ts` (`BookingTimelineEvent.resourceNames: readonly string[]`), `schedule-timeline.ts`, `ScheduleTimelineEventRenderer.tsx`, `schedule-page-core-data.ts`/`schedule-page-timeline-derived.ts`, `ScheduleMainView.tsx` (forwards `selectedResourceIdSet`/`resourceNameById` into `ScheduleWeekView`, which receives neither today), `ScheduleWeekView.tsx`.
+- Inherits `TD43`'s cross-midnight day-grid membership gap (not re-fixed here). Full scope: `td/TD44-RESOURCE-COLUMNS-BOARD-SELECTION-CAP.md` Story 1.

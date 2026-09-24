@@ -74,30 +74,37 @@ The whole scalability argument for the bounded-columns design rests on the subse
 **Discovered:** Live observation during M22-S06 (PR #511) review/testing — Week view doesn't respect "Filtrar recurso" for bookings at all (only closures/openings do), unlike Day view's columns board, which both narrows to checked resources *and* makes resource identity visible. Refined through conversation from an initial badge-only idea (labels without filtering, rejected as insufficient) to this filtering-plus-badge design.
 **Dependencies:** none blocking (M22-S06 already shipped); reuses M22-S06's existing day-grid-as-lookup and booking-id resolution technique (`schedule-resource-columns.ts`) rather than reinventing it.
 **Pattern:** plain composition — reuses M22-S06's existing "day-grid as a `resourceId → booking-id` lookup" technique, applied across the 7 visible days instead of one; extends the existing closure/opening `resourceName` badge pattern (`ResourceNameBadge`) to bookings, generalized to a list (a bundled booking can be assigned to more than one resource); new week-range day-grid fan-out hook shaped like the existing per-resource fan-out (`useScheduleClosures`/`useScheduleOpenings`'s `useQueries` pattern), just fanned by day instead of by resource.
+**New migration / i18n keys / env vars / feature flags:** none — confirmed via `/story-discovery` (2026-09-24) that `ResourceNameBadge` renders the raw resource name with no wrapping copy, so no new i18n key is needed.
+**Prototype references:** none — no dedicated mock exists for this exact filtered+badge Week-view UI; the layout choice (merged timeline + badges, not columns or a resource×day grid) was resolved through direct conversation, cross-checked during `/story-discovery` against `dev-notes.md`'s "rejected intermediate idea" note from `M22-S06` (see the Description note below on why that rejection doesn't apply here).
 
 **Description:**
 Week view (`ScheduleWeekView`'s 7 day-cards) is unaffected by M22-S06: checking a resource in "Filtrar recurso" has zero effect on which bookings show — every booking for the week renders regardless, merged together, with no resource identity at all (`BookingTimelineEvent` carries no resource field today, unlike `ClosureTimelineEvent`/`OpeningTimelineEvent`, which already do). This is inconsistent with Day view, where checking a resource actually narrows what's shown (via columns) to that resource's own bookings.
 
 A full columns-per-day-card layout was considered and ruled impractical (7 days × N resource-columns is too cramped) — and a resource-by-day grid (rows = resources, columns = days) was also considered and ruled unnecessary: the agreed resolution keeps Week view's existing merged day-card shape, and makes it behave consistently with Day view through **filtering + labeling** instead of a new layout:
 
-- **Zero resources checked** → unchanged, today's exact behavior (non-regression) — every booking shows, merged, no badges.
+- **Zero resources checked** → unchanged, today's exact behavior (non-regression) — every booking shows, merged, no badges. This is the same default as Day view: no resources checked means no filtering and no badges anywhere in the schedule.
 - **One or more resources checked** → a booking shows in Week view **only if at least one of its assigned resources is checked** (the same narrowing rule Day view's columns already apply — just kept merged instead of split into separate columns, since Week view has no room for columns). Each shown booking gets a resource-name badge for **every one of its assigned resources that's checked** — plural, not singular: a bundled booking (`resourceRequirements.length > 1`, e.g. STAFF + EQUIPMENT both required, UC-051) assigned to two checked resources renders **once**, not duplicated, carrying both resource names.
-- **Open question, not resolved here — flag for `/story-discovery`:** for a bundled booking where only *some* of its assigned resources are checked (e.g. it needs Camila + a room, only Camila is checked), does the badge show only the checked resource(s) it's assigned to (the default assumption here, consistent with "respect the filter"), or every resource it's assigned to regardless of check state? Resolve explicitly, don't infer silently.
+- **Resolved via `/story-discovery` (2026-09-24):** for a bundled booking where only *some* of its assigned resources are checked (e.g. it needs Camila + a room, only Camila is checked), the badge shows **only the checked resource(s)** it's assigned to — never the unchecked one(s), consistent with "respect the filter."
+- **Design precedent check, resolved via `/story-discovery` (2026-09-24):** `dev-notes.md`'s M22-S06 discovery record notes a *rejected* intermediate idea — badging bookings in the merged timeline instead of building a columns board — rejected because it needed new backend plumbing (`StaffBookingCardResponse` had no resource field). This story's badge mechanism is materially different: it derives resource identity purely client-side from the already-shipped `GET /schedule/day-grid` response (no backend/DTO change at all), which is exactly the gap that killed the earlier idea. Confirmed with the user as a deliberately distinct case, not a re-litigation of that rejection. `dev-notes.md` and `plan/journey/staff/horarios.md` are updated in this same discovery session to record both the earlier rejection's scope (Day view, pre-day-grid) and this story's different resolution.
 - **Related caveat, not this story's own scope to fix:** the per-day booking membership test uses the day-grid response the same way TD43 describes — a booking whose buffer-extended occupancy crosses midnight could be membership-tested against the wrong day for the same reason TD43 documents. Don't silently re-fix TD43's scope inside this story; note the shared root cause if it comes up during implementation.
 
 **Files to create/modify:**
 - `apps/web/features/booking/schedule/useSchedule.ts` (modify — new week-range day-grid fan-out hook)
 - `apps/web/features/booking/schedule/schedule-timeline-events.ts` (modify — `resourceNames: readonly string[]` on `BookingTimelineEvent`; `buildBookingTimelineEvent` accepts a booking-id → resource-names lookup)
-- `apps/web/features/booking/schedule/schedule-timeline.ts` (modify — filter which bookings reach `buildAllTimelineEvents` per day based on checked-resource membership, thread the booking-id→resourceNames lookup through)
+- `apps/web/features/booking/schedule/schedule-timeline.ts` (modify — filter which bookings reach `buildAllTimelineEvents` per day based on checked-resource membership, thread the booking-id→resourceNames lookup through; export `buildAllTimelineEvents` if the new filtering needs to call it directly rather than only through the existing pipeline)
 - `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (modify — render one `<ResourceNameBadge>` per name in `event.resourceNames` on booking blocks)
 - `apps/web/features/booking/schedule/schedule-page-core-data.ts` / `schedule-page-timeline-derived.ts` (modify — wire the new week-range day-grid data + filtering into `weekTimelineCards`)
-- `apps/web/features/booking/components/dashboard/schedule/ScheduleWeekView.tsx` (modify — spacing/height for the badge(s))
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleMainView.tsx` (modify — forward `selectedResourceIdSet` and `resourceNameById` into `<ScheduleWeekView>`, which today receives neither prop; this is the wiring gap that connects the checked-resource state to Week view at all — found during `/story-discovery`, 2026-09-24)
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleWeekView.tsx` (modify — accept the new props, spacing/height for the badge(s))
+- `apps/web/e2e/schedule-resource-columns.spec.ts` (modify — add the new Week-view scenarios below; fix the existing comment/assertion stating "Week view stays completely untouched by this feature," which becomes false once this story ships)
 
 **Acceptance criteria — product:**
-- [ ] Manager viewing Week view with zero resources checked sees no change from today (non-regression).
+- [ ] Manager viewing Week view with zero resources checked sees no change from today (non-regression) — same default as Day view.
 - [ ] Manager viewing Week view with 1+ resources checked sees only bookings assigned to at least one checked resource — bookings with no checked resource assigned no longer appear.
 - [ ] Each shown booking is labeled with a resource-name badge for each of its checked resources — same visual pattern already used for closure/opening blocks, extended to support more than one name per block.
-- [ ] A booking assigned to two checked resources (bundle) renders once, with both names, not duplicated.
+- [ ] A booking assigned to two checked resources (bundle), both checked, renders once, with both names, not duplicated.
+- [ ] A booking assigned to two resources where only one is checked renders with a badge for the checked resource only — the unchecked one's name never appears.
+- [ ] Unchecking the last checked resource reverts Week view to today's exact unfiltered, unbadged behavior.
 - [ ] Day view and the resource-columns board (Story 0) are unaffected.
 
 **Acceptance criteria — technical:**
@@ -105,10 +112,18 @@ A full columns-per-day-card layout was considered and ruled impractical (7 days 
   - [ ] A booking with no checked-resource assignment is excluded from the built week timeline events when 1+ resources are checked
   - [ ] A booking assigned to exactly one checked resource renders with one badge
   - [ ] A booking assigned to two checked resources renders once, with two badge names, not two events
+  - [ ] A booking assigned to two resources where only one is checked renders with exactly one badge (the checked one)
   - [ ] Zero checked resources → filtering is a no-op, identical output to today
   - [ ] The week-range fan-out hook issues one query per visible day, gated on `resourceIds.length > 0`
+  - [ ] `ScheduleMainView` forwards `selectedResourceIdSet`/`resourceNameById` into `ScheduleWeekView` only (no change to what it forwards to `ScheduleResourceColumnsBoard`)
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side only
-- E2E: manager checks one resource in Week view, confirms a booking belonging to a different (unchecked) resource disappears and the checked resource's own booking shows with its badge
+- E2E (extends `apps/web/e2e/schedule-resource-columns.spec.ts`, all in Week view unless noted):
+  - [ ] Zero resources checked → Week view renders exactly as today (non-regression baseline)
+  - [ ] Manager checks one resource → a booking belonging to a different (unchecked) resource disappears; the checked resource's own booking shows with its badge
+  - [ ] Manager checks both resources a bundled booking is assigned to → the booking renders once, with both resource-name badges, not twice
+  - [ ] Manager checks only one of a bundled booking's two assigned resources → the booking still shows (≥1 assigned resource checked) but with a badge for only the checked resource
+  - [ ] Manager unchecks the checked resource(s) → Week view reverts to the unfiltered, unbadged baseline; a previously-hidden booking reappears
+  - [ ] Day view's columns board (Story 0) and STAFF's unfiltered view are unaffected by any of the above (non-regression)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
