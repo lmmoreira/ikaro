@@ -23,7 +23,7 @@ The whole scalability argument for the bounded-columns design rests on the subse
 
 ---
 
-## Story 0 — Decide and implement a practical bound on simultaneously-rendered resource columns
+## Story 0 — Decide and implement a practical bound on simultaneously-rendered resource columns ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
