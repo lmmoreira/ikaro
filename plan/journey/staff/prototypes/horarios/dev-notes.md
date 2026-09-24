@@ -269,8 +269,8 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 |---|---|
 | `apps/backend/.../schedule-day-grid.controller.ts` + `get-schedule-day-grid.use-case.ts` | ✅ Done (`M22-S05`) |
 | `apps/bff/src/features/booking/schedule-day-grid.controller.ts` | ✅ Done (`M22-S05`) |
-| `apps/web/features/booking/components/dashboard/schedule/DayGridPage.tsx` | ❓ Gap — superseded by the bounded-columns design; the implementing story (`M22-S06`) should decide the real component name/shape (likely a columns board rendered inline in `SchedulePage.tsx` when `selectedResourceIds.length > 0`, not a separate page/route) |
+| `apps/web/features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` | ❓ Gap — `M22-S06`, not yet built. Resolved shape (via `M22-S06`'s own `/story-discovery`, 2026-09-24): a thin layout wrapper rendering one *unmodified* `ScheduleTimelineBoard` per checked resource — day-grid is used only as a `resourceId → booking-id set` lookup, filtering the existing unscoped week-bookings list per column and feeding it straight into the existing `buildTimelineDayData`, not a new rendering engine. Inline in `SchedulePage.tsx`'s Day view, not a separate page/route. |
 
-**Open questions:**
-- [ ] `docs/04-USE_CASES.md` UC-057's Main Flow ("columns = active resources") and A1 (type-tab narrowing) describe the old unbounded design — needs reconciling with the bounded/checked-subset behavior above when `M22-S06` is drafted/run through `/story-discovery`.
-- [ ] Route-level relationship to `SchedulePage` — resolved in favor of "inline in the existing route," not a separate page (the standalone-page framing is what scaled badly in the first place).
+**Open questions — both resolved during `M22-S06`'s own `/story-discovery` (2026-09-24):**
+- [x] `docs/04-USE_CASES.md` UC-057's Main Flow/A1 — reworded to match the bounded/checked-subset behavior (done, same date).
+- [x] Route-level relationship to `SchedulePage` — inline in the existing route's Day view only; Week view is completely untouched (its own per-day mini cards already reflect the resource filter today via the same closures/openings data, with no change needed). See `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`'s `M22-S06` entry for the full resolved design, including the tenant-wide-closure-in-every-column rule and the "Ocupado" fallback for an unmatched booking id.

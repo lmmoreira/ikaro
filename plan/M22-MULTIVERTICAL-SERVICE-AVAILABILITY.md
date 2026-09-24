@@ -441,45 +441,66 @@ Add `GET /schedule/day-grid?date=` (MANAGER only): for every active `Resource` (
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/08-TESTING_STRATEGY.md`
 **Dependencies:** M22-S05 (day-grid BFF endpoint — ✅ Done, no changes needed by this story)
-**Pattern:** plain composition — extends the existing `SchedulePage.tsx`/`ResourceFilterMenu` composition M21-S05 already shipped; no new route, no new pattern.
+**Pattern:** plain composition — the columns board is a thin layout wrapper rendering multiple *unmodified* `ScheduleTimelineBoard` instances (one per checked resource), each fed its own resource-scoped `TimelineDayData` via the existing `buildTimelineDayData`. No new block-rendering code, no new route, no new pattern.
 
-**Description — redesigned 2026-09-24, before implementation started (see `plan/journey/staff/prototypes/horarios/dev-notes.md`'s Cluster 2 section and `08-visao-geral-manager.html` for the full rationale):**
+**Description — redesigned 2026-09-24, before implementation started (see `plan/journey/staff/prototypes/horarios/dev-notes.md`'s Cluster 2 section and `08-visao-geral-manager.html` for the full rationale; refined further during this story's own `/story-discovery`):**
 
 The original framing of this story (and of UC-057 as currently worded in `docs/04-USE_CASES.md`) was a standalone grid with **one column per every active resource**. That was dropped before implementation: a column-per-resource layout doesn't scale past a handful of resources — a tenant with dozens of staff/rooms/equipment can't fit that many columns on any screen, and UC-057 A1's proposed mitigation (a Profissionais/Salas/Equipamentos type-tab filter) only narrows to sub-groups still too large to render side by side. No layout can show *every* resource "at a glance" — the only workable shape is a manager curating a small subset, which is exactly what M21-S05's `ResourceFilterMenu` floating checkbox filter already does.
 
-**Resolved design:** no new page/route, no `DayGridPage`. Extend the existing `SchedulePage.tsx`:
+**Resolved design:** no new page/route, no `DayGridPage`. Extend the existing `SchedulePage.tsx`, **Day view only** (`scheduleViewMode === 'day'`):
 - **Zero resources checked** in `ResourceFilterMenu` (today's default) → unchanged single merged timeline (`ScheduleTimelineBoard`) — explicit non-regression requirement, byte-identical to today.
-- **One or more resources checked** → render those checked resources as real side-by-side columns for the selected day, instead of merging their events into one board. Column contents come from two sources, **no new backend/BFF work required**:
-  - *Bookings*: call `GET /schedule/day-grid` (M22-S05, already done) and render only the columns matching the checked `resourceId`s — the endpoint already returns every active resource's blocks with `refId` resolved to the booking id; this story just discards the unchecked columns client-side (an optional `resourceIds` server-side filter is a possible later efficiency follow-up, not required to ship this).
-  - *Closures/openings*: the existing `resourceId`-scoped fetch (M21-S05, `useScheduleClosures`/`useScheduleOpenings`) — unchanged. This already surfaces a checked resource's closures/openings today; this story renders them inside that resource's column instead of merging them into the single board.
+- **One or more resources checked** → render those checked resources as real side-by-side columns for the selected day.
+- **Week view (`Semana`) is completely untouched and out of scope for this story** — it already reflects the resource filter today (its per-day mini cards are driven by the same resource-scoped closures/openings data Day view uses), and nothing about the Dia/Semana toggle itself changes. The columns board only ever replaces Day view's content; it never needs to force or disable the toggle. (Resolved during story-discovery — the toggle stays exactly as-is.)
+
+**Column data — day-grid used purely as a `resourceId → booking-id set` lookup, no separate rendering path:**
+- Call `GET /schedule/day-grid?date=` (M22-S05, already done) once for the selected day.
+- For each checked resource, take its `blocks` of `kind: 'BOOKING'` and collect their `refId`s into a set of booking ids. (`kind: 'CLASS_SESSION'` needs no handling this story — unreachable before M24, since nothing generates `class_sessions` rows yet; a defensive no-op/ignore is enough.)
+- Filter the already-fetched, unscoped week-bookings list (`useWeekBookings` — fetches every approved booking regardless of resource filter, unchanged) down to that resource's booking-id set.
+- Feed that filtered booking list, plus that resource's own closures/openings (existing `resourceId`-scoped fetch, `useScheduleClosures`/`useScheduleOpenings`, unchanged) **plus every tenant-wide closure** (a tenant-wide closure blocks every resource, so it renders inside *every* checked resource's column — resolved during story-discovery), straight into the existing `buildTimelineDayData` — the exact same function the single timeline already uses. The result renders through an unmodified `<ScheduleTimelineBoard>` per column.
+- **No new backend/BFF work required.** An optional `resourceIds` server-side filter on the day-grid endpoint is a possible later efficiency follow-up (today's call always returns every active resource's blocks; this story discards the unchecked ones client-side), not required to ship this.
+- **Fallback:** if a `BOOKING` block's `refId` has no match in the locally-fetched week-bookings list (shouldn't normally happen), render a generic "Ocupado" placeholder block instead of crashing — still a clickable link through to `/dashboard/bookings/[refId]`.
 - A STAFF-role viewer is completely unaffected — `ResourceFilterMenu` was always MANAGER-only, never shown to STAFF, so STAFF never has resources checked and always sees the unchanged single timeline.
 
-A rejected alternative, recorded so it doesn't get re-proposed: badging each block in the existing merged timeline with a resource-name label (reusing `ResourceNameBadge`, already used for closures/openings) instead of building columns. Rejected because it needs new backend plumbing (`StaffBookingCardResponse` has no resource field — bookings aren't resource-scoped in that DTO today) for a weaker result than rendering the already-resolved day-grid columns.
+**Styling reminder:** the journey prototype (`08-visao-geral-manager.html`) uses `--ba-*` CSS variables, correct for a journey prototype but **never** valid in `apps/web` dashboard code — the real columns board must use Tailwind/shadcn only, per `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2.
+
+A rejected alternative, recorded so it doesn't get re-proposed: badging each block in the existing merged timeline with a resource-name label (reusing `ResourceNameBadge`, already used for closures/openings) instead of building columns. Rejected because it needs new backend plumbing (`StaffBookingCardResponse` has no resource field — bookings aren't resource-scoped in that DTO today) for a weaker result than the booking-id-set approach above.
+
+**New i18n keys (`packages/i18n/locales/{pt-BR,en}/web.json`, under `dashboard.schedule`, both locales in the same commit):** `dayGridColumnsSummary` (the "N recursos marcados..." helper line), `dayGridEmptyColumn` (a checked resource with zero blocks that day), `dayGridFetchError` (day-grid fetch failed — reuses the existing `scheduleFetchError` banner pattern already in `SchedulePage.tsx`), `dayGridPlaceholderBooking` ("Ocupado" fallback label). Follows the existing `resourceFilter<Suffix>` naming convention already used in this same namespace.
 
 **Pending doc reconciliation (not this story's own scope, flag for whoever runs `/story-discovery` on this):** `docs/04-USE_CASES.md` UC-057's Main Flow ("columns = active resources") and A1 (type-tab narrowing) still describe the old unbounded design and need rewording to match the bounded/checked-subset behavior above.
 
+**Prototype references:** `plan/journey/staff/horarios.md` (M22 Cluster 2 addition section), `plan/journey/staff/prototypes/horarios/08-visao-geral-manager.html`, `dev-notes.md`.
+
 **Files to create/modify:**
-- `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (modify — render a columns board instead of `ScheduleTimelineBoard` when `resourceFilter.selectedResourceIdSet.size > 0`)
-- `apps/web/features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` (+ `.spec.tsx`) (new — exact name TBD at implementation time; renders one column per checked resource, merging that resource's day-grid booking blocks with its closures/openings)
-- `apps/web/features/booking/schedule/useSchedule.ts` (modify — add a day-grid query hook, gated on `resourceIds.length > 0`)
-- `apps/web/features/booking/api/schedule.ts` (modify — add `getScheduleDayGrid` function; verify this file's exact name/location per M21-S05's own note)
-- `packages/i18n/locales/pt-BR/web.json` + `.../en/web.json` (modify — columns-view copy under `dashboard.schedule`, same namespace M21-S05/S04 already extended)
+- `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (modify — in the Day-view branch only, render the columns board instead of `ScheduleTimelineBoard` when `resourceFilter.selectedResourceIdSet.size > 0`; Week-view branch untouched)
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` (+ `.spec.tsx`) (new — exact name TBD at implementation time; thin layout wrapper rendering one `<ScheduleTimelineBoard>` per checked resource, no new block-rendering markup)
+- `apps/web/features/booking/schedule/useSchedule.ts` (modify — add a day-grid query hook, gated on `resourceIds.length > 0`; single-date query, no fan-out needed since the endpoint takes one `date` and returns every resource in one call)
+- `apps/web/features/booking/api/schedule.ts` (modify — add `getScheduleDayGrid` function; confirmed exact path, no change needed to the sibling `schedule.server.ts` — day-grid is client-fetched only, never SSR-prefetched)
+- `apps/web/features/booking/schedule/schedule-timeline-events.ts` or `schedule-page-core-data.ts` (modify — the booking-id-set filter + tenant-wide-closure merge described above; exact file TBD at implementation time, whichever already owns the closest adjacent logic)
+- `packages/i18n/locales/pt-BR/web.json` + `.../en/web.json` (modify — the 4 keys named above, under `dashboard.schedule`)
 
 **Acceptance criteria — product:**
 - [ ] Manager with zero resources checked in "Filtrar recurso" sees the unchanged single tenant-wide timeline (non-regression).
-- [ ] Manager who checks one or more resources sees those resources rendered as side-by-side columns for the selected day, each showing that resource's bookings and its closures/openings.
+- [ ] Manager who checks one or more resources, in Day view, sees those resources rendered as side-by-side columns for the selected day, each showing that resource's bookings, its own closures/openings, and every tenant-wide closure.
 - [ ] Manager can click any occupied block (booking, closure, or opening) to drill into its detail, same as today's single timeline.
+- [ ] Manager switching to Week view sees the unchanged week grid regardless of how many resources are checked — the Dia/Semana toggle itself is untouched by this story.
+- [ ] A checked resource with no bookings/closures/openings that day shows an explicit empty-column state, not a blank column indistinguishable from a loading state.
+- [ ] A day-grid fetch failure surfaces the same inline error banner pattern the existing `scheduleFetchError` already uses, not a silently empty columns board.
 - [ ] Staff opening "Horários" is unaffected — `ResourceFilterMenu` remains MANAGER-only, never shown to STAFF.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The columns board renders exactly one column per checked resource, correctly positioned blocks, no column for an unchecked resource despite it being present in the day-grid response
+  - [ ] The columns board renders exactly one column per checked resource, no column for an unchecked resource despite it being present in the day-grid response
   - [ ] Zero checked resources renders `ScheduleTimelineBoard`, not the columns board
-  - [ ] A checked resource's closure/opening blocks render inside its own column
+  - [ ] A checked resource's own closures/openings render inside its own column; a tenant-wide closure renders inside every checked resource's column
+  - [ ] A day-grid `BOOKING` block whose `refId` has no match in the week-bookings list renders the "Ocupado" placeholder, not a crash
+  - [ ] A `CLASS_SESSION` block is ignored without error
+  - [ ] Day-grid fetch error renders the `dayGridFetchError` banner
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side; server-side isolation already covered by S05
 - E2E:
   - [ ] Playwright: manager checks 2 resources in "Filtrar recurso", sees 2 columns, clicks a block, is taken to the booking detail
+  - [ ] Playwright: manager checks 1 resource, switches to Semana, sees the unchanged week grid (not a columns board), switches back to Dia, sees the column again
   - [ ] Playwright: staff opens Horários, sees the tenant-wide timeline unchanged (no `ResourceFilterMenu`), not a columns board
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
