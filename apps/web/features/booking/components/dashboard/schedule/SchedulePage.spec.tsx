@@ -47,14 +47,14 @@ vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShel
     description,
     error,
   }: {
-    children: React.ReactNode;
-    onClose: () => void;
-    onSubmit: (event: React.FormEvent<HTMLFormElement>) => void | Promise<void>;
-    cancelLabel: string;
-    submitLabel: string;
-    title: React.ReactNode;
-    description: React.ReactNode;
-    error: string | null;
+    readonly children: React.ReactNode;
+    readonly onClose: () => void;
+    readonly onSubmit: (event: React.FormEvent<HTMLFormElement>) => void | Promise<void>;
+    readonly cancelLabel: string;
+    readonly submitLabel: string;
+    readonly title: React.ReactNode;
+    readonly description: React.ReactNode;
+    readonly error: string | null;
   }) => (
     <form onSubmit={onSubmit}>
       <h2>{title}</h2>
