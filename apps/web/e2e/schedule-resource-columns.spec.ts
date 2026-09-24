@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { loginAsStaff } from '@/e2e/helpers/auth';
+import { loginAsStaff, uniqueTestEmail } from '@/e2e/helpers/auth';
 import {
+  createScheduleBooking,
   createScheduleClosureAt,
   createUniqueScheduleClosure,
   loginAsScheduleStaff,
@@ -10,6 +11,8 @@ import {
   uniqueLabel,
 } from '@/e2e/helpers/schedule';
 import { createResource, deactivateResource } from '@/e2e/helpers/booking';
+import { createService, deactivateService, makeUniqueServiceName } from '@/e2e/helpers/services';
+import { BFF_URL, WEB_INTERNAL_KEY } from '@/e2e/helpers/auth/shared';
 
 // funcionario@lavacar.com.br is the genuine STAFF-role fixture account for this same tenant
 // (admin@lavacar.com.br, behind loginAsScheduleStaff, is MANAGER — see
@@ -89,6 +92,78 @@ test.describe('schedule resource columns board (M22-S06)', () => {
     } finally {
       await deactivateResource(page, resourceA.id);
       await deactivateResource(page, resourceB.id);
+    }
+  });
+
+  test('manager checks a resource, sees its own booking block in the column, and clicking it opens the booking detail', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Sala Book'),
+    });
+    const service = await createService(page, {
+      name: makeUniqueServiceName('e2e-col-booking'),
+      priceAmount: 100,
+      durationMinutes: 30,
+      loyaltyPointsValue: 5,
+      isActive: true,
+    });
+
+    try {
+      // Binds the service to exactly this one resource — AUTO_FUNGIBLE_POOL with a single-id pool
+      // deterministically assigns that resource, unlike AUTO_ANY (which could pick any other
+      // active resource of the same type in the tenant).
+      const resourceReqResponse = await page.request.patch(
+        `${BFF_URL}/services/${service.serviceId}/resource-requirements`,
+        {
+          data: {
+            resourceRequirements: [
+              { type: 'ROOM', selectionMode: 'AUTO_FUNGIBLE_POOL', resourcePoolIds: [resource.id] },
+            ],
+          },
+          headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+        },
+      );
+      expect(resourceReqResponse.ok()).toBe(true);
+
+      const contactName = uniqueLabel('E2E Booking Column');
+      const dateKey = nextOpenDateKey(150);
+      const booking = await createScheduleBooking(page, {
+        dateKey,
+        contactName,
+        contactEmail: uniqueTestEmail('schedule-resource-column'),
+        approved: true,
+        time: '11:00',
+        serviceIds: [service.serviceId],
+      });
+
+      // Booking created above isn't explicitly removed — matches this suite's existing precedent
+      // (schedule.spec.ts's own booking-detail tests leave their fixture bookings in place too);
+      // only the resource/service fixtures below need explicit teardown.
+      await page.goto(scheduleRoute(dateKey));
+      await switchToDayView(page);
+
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: resource.name }).check();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+
+      const column = page
+        .getByTestId('schedule-resource-column')
+        .filter({ hasText: resource.name });
+      const bookingLink = column.getByRole('link', { name: contactName });
+      await expect(bookingLink).toHaveAttribute(
+        'href',
+        new RegExp(`/dashboard/bookings/${booking.bookingId}\\?returnTo=`),
+      );
+
+      await bookingLink.click();
+      await expect(page).toHaveURL(new RegExp(`/dashboard/bookings/${booking.bookingId}`));
+    } finally {
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, resource.id);
     }
   });
 

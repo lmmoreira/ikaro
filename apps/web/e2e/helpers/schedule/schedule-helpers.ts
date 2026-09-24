@@ -259,6 +259,7 @@ async function createScheduleBooking(
     readonly contactEmail: string;
     readonly approved?: boolean;
     readonly time?: string;
+    readonly serviceIds?: readonly string[];
   },
 ): Promise<{ readonly bookingId: string; readonly scheduledAt: string }> {
   const createResponse = await page.request.post(`${BFF_URL}/bookings`, {
@@ -271,7 +272,7 @@ async function createScheduleBooking(
       contactEmail: body.contactEmail,
       contactPhone: '+5511999999999',
       scheduledAt: toScheduledAt(body.dateKey, body.time ?? '10:00'),
-      serviceIds: [SCHEDULE_DEFAULT_SERVICE_ID],
+      serviceIds: body.serviceIds ?? [SCHEDULE_DEFAULT_SERVICE_ID],
     },
   });
 
