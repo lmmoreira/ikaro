@@ -1493,6 +1493,7 @@
       "resourceFilterReset": "Padrão",
       "resourceFilterDone": "Fechar",
       "resourceFilterEmpty": "Nenhum recurso ainda",
+      "resourceFilterMaxReached": "Limite de {max} recursos atingido. Desmarque um para adicionar outro.",
       "dayGridFetchError": "Não foi possível carregar as colunas dos recursos",
       "dayGridEmptyColumn": "Nada agendado neste dia",
       "dayGridPlaceholderBooking": "Ocupado",

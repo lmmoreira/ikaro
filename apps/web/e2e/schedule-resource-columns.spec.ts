@@ -221,4 +221,38 @@ test.describe('schedule resource columns board (M22-S06)', () => {
     await expect(page.getByRole('button', { name: 'Filtrar recurso' })).toHaveCount(0);
     await expect(page.getByTestId('schedule-resource-columns-board')).toHaveCount(0);
   });
+
+  test('manager cannot check a 7th resource past the cap of 6, and unchecking one frees a slot (TD44)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resources = await Promise.all(
+      Array.from({ length: 7 }, (_, i) =>
+        createResource(page, { type: 'EQUIPMENT', name: uniqueLabel(`E2E Cap ${i}`) }),
+      ),
+    );
+
+    try {
+      await page.goto(scheduleRoute(nextOpenDateKey(143)));
+      await switchToDayView(page);
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+
+      for (const resource of resources.slice(0, 6)) {
+        await page.getByRole('checkbox', { name: resource.name }).check();
+      }
+
+      const seventhCheckbox = page.getByRole('checkbox', { name: resources[6].name });
+      await expect(seventhCheckbox).toBeDisabled();
+      await expect(page.getByTestId('resource-filter-max-reached')).toBeVisible();
+
+      await page.getByRole('checkbox', { name: resources[0].name }).uncheck();
+      await expect(page.getByTestId('resource-filter-max-reached')).toHaveCount(0);
+      await expect(seventhCheckbox).toBeEnabled();
+      await seventhCheckbox.check();
+      await expect(seventhCheckbox).toBeChecked();
+    } finally {
+      await Promise.all(resources.map((resource) => deactivateResource(page, resource.id)));
+    }
+  });
 });

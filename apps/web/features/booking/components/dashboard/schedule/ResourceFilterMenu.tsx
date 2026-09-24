@@ -9,6 +9,7 @@ import { cn } from '@/shared/utils/cn';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useSelectableResources } from '@/features/booking/schedule/useSelectableResources';
+import { RESOURCE_FILTER_MAX_SELECTED } from '@/features/booking/schedule/schedule-page-interaction-handlers';
 
 interface ResourceOptionsListProps {
   readonly isLoading: boolean;
@@ -42,20 +43,30 @@ function ResourceOptionsList({
 
   return (
     <>
-      {resources.map((resource) => (
-        <label
-          key={resource.id}
-          className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-gray-50"
-        >
-          <input
-            type="checkbox"
-            checked={selectedResourceIdSet.has(resource.id)}
-            onChange={() => onToggleResource(resource.id)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">{resource.name}</span>
-        </label>
-      ))}
+      {resources.map((resource) => {
+        const isChecked = selectedResourceIdSet.has(resource.id);
+        const isDisabled = !isChecked && selectedResourceIdSet.size >= RESOURCE_FILTER_MAX_SELECTED;
+        return (
+          <label
+            key={resource.id}
+            className={cn(
+              'flex items-center gap-3 rounded-xl px-2 py-2 transition-colors',
+              isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-50',
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled={isDisabled}
+              onChange={() => onToggleResource(resource.id)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">
+              {resource.name}
+            </span>
+          </label>
+        );
+      })}
     </>
   );
 }
@@ -127,19 +138,29 @@ export function ResourceFilterMenu({
               {resolveErrorMessageFromApiError(error, locale)}
             </p>
           ) : (
-            <div
-              data-testid="resource-filter-options"
-              className="max-h-72 overflow-y-auto border-y border-gray-100 px-2 py-2"
-            >
-              <ResourceOptionsList
-                isLoading={isLoading}
-                resources={resources}
-                selectedResourceIdSet={selectedResourceIdSet}
-                onToggleResource={onToggleResource}
-                loadingLabel={commonT('loading')}
-                emptyLabel={t('resourceFilterEmpty')}
-              />
-            </div>
+            <>
+              <div
+                data-testid="resource-filter-options"
+                className="max-h-72 overflow-y-auto border-y border-gray-100 px-2 py-2"
+              >
+                <ResourceOptionsList
+                  isLoading={isLoading}
+                  resources={resources}
+                  selectedResourceIdSet={selectedResourceIdSet}
+                  onToggleResource={onToggleResource}
+                  loadingLabel={commonT('loading')}
+                  emptyLabel={t('resourceFilterEmpty')}
+                />
+              </div>
+              {selectedResourceIdSet.size >= RESOURCE_FILTER_MAX_SELECTED ? (
+                <p
+                  data-testid="resource-filter-max-reached"
+                  className="border-b border-gray-100 px-4 py-2 text-xs text-gray-500"
+                >
+                  {t('resourceFilterMaxReached', { max: RESOURCE_FILTER_MAX_SELECTED })}
+                </p>
+              ) : null}
+            </>
           )}
           <div className="flex items-center justify-between gap-2 px-4 py-3">
             <Button type="button" variant="ghost" size="sm" onClick={onReset}>
