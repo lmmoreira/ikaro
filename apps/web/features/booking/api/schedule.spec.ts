@@ -4,6 +4,7 @@ import { bffClient } from '@/shared/lib/api/bff-client';
 import {
   createClosure,
   createOpening,
+  getScheduleDayGrid,
   listClosures,
   listOpenings,
   removeClosure,
@@ -109,5 +110,16 @@ describe('removeOpening', () => {
   it('calls DELETE /schedule/openings/:id', async () => {
     mock.onDelete('/schedule/openings/o-1').reply(204);
     await expect(removeOpening('o-1')).resolves.toBeUndefined();
+  });
+});
+
+describe('getScheduleDayGrid', () => {
+  it('calls GET /schedule/day-grid with the date param', async () => {
+    mock.onGet('/schedule/day-grid').reply((config) => {
+      expect(config.params).toEqual({ date: '2026-08-04' });
+      return [200, { date: '2026-08-04', columns: [] }];
+    });
+    const res = await getScheduleDayGrid('2026-08-04');
+    expect(res.columns).toHaveLength(0);
   });
 });

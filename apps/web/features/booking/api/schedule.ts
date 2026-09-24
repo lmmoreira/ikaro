@@ -1,6 +1,7 @@
 import type {
   CreateClosureRequest,
   CreateOpeningRequest,
+  DayGridResponse,
   ScheduleClosure,
   ScheduleClosureListResponse,
   ScheduleOpening,
@@ -11,6 +12,7 @@ import { bffClient } from '@/shared/lib/api/bff-client';
 export type {
   CreateClosureRequest,
   CreateOpeningRequest,
+  DayGridResponse,
   ScheduleClosure,
   ScheduleClosureListResponse,
   ScheduleOpening,
@@ -55,4 +57,12 @@ export async function createOpening(body: CreateOpeningRequest): Promise<Schedul
 
 export async function removeOpening(id: string): Promise<void> {
   await bffClient.delete(`/schedule/openings/${id}`);
+}
+
+// MANAGER only — always returns every active resource's blocks for the given day, regardless of
+// the resource filter's selection. Callers narrow to the checked resources themselves; see
+// schedule-resource-columns.ts.
+export async function getScheduleDayGrid(date: string): Promise<DayGridResponse> {
+  const res = await bffClient.get<DayGridResponse>('/schedule/day-grid', { params: { date } });
+  return res.data;
 }

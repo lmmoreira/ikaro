@@ -1,4 +1,4 @@
-import type { ClosureReason } from './enums';
+import type { ClosureReason, ResourceType } from './enums';
 
 export interface ScheduleClosure {
   id: string;
@@ -62,3 +62,22 @@ export interface DaySummary {
 }
 
 export type AvailabilitySummaryResponse = DaySummary[];
+
+export interface DayGridBlock {
+  startsAt: string; // ISO-8601 datetime
+  endsAt: string; // ISO-8601 datetime
+  kind: 'BOOKING' | 'CLASS_SESSION'; // CLASS_SESSION unreachable before M24
+  refId: string;
+}
+
+export interface DayGridColumn {
+  resourceId: string;
+  name: string;
+  type: ResourceType;
+  blocks: DayGridBlock[];
+}
+
+export interface DayGridResponse {
+  date: string; // YYYY-MM-DD
+  columns: DayGridColumn[];
+}

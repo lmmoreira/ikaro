@@ -1493,6 +1493,9 @@
       "resourceFilterReset": "Padrão",
       "resourceFilterDone": "Fechar",
       "resourceFilterEmpty": "Nenhum recurso ainda",
+      "dayGridFetchError": "Não foi possível carregar as colunas dos recursos",
+      "dayGridEmptyColumn": "Nada agendado neste dia",
+      "dayGridPlaceholderBooking": "Ocupado",
       "fetchError": "Não foi possível carregar a agenda",
       "errors": {
         "requiredDate": "Informe a data.",

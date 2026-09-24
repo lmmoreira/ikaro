@@ -2,7 +2,13 @@
 
 import { useMemo } from 'react';
 import type { useTranslations } from 'next-intl';
-import type { BookingStatus, TenantBusinessHours } from '@ikaro/types';
+import type {
+  BookingStatus,
+  ScheduleClosure,
+  ScheduleOpening,
+  StaffBookingCardResponse,
+  TenantBusinessHours,
+} from '@ikaro/types';
 import { parseDateKey } from '@/features/booking/schedule/date-utils';
 import {
   buildScheduleReturnTo,
@@ -41,6 +47,10 @@ export interface UseSchedulePageControllerResult {
   readonly dimmedDates: Set<string>;
   readonly selectedDayTimeline: TimelineDayData;
   readonly weekTimelineCards: TimelineDayData[];
+  readonly visibleBookings: readonly StaffBookingCardResponse[];
+  readonly bookingsItems: readonly StaffBookingCardResponse[];
+  readonly visibleClosures: readonly ScheduleClosure[];
+  readonly visibleOpenings: readonly ScheduleOpening[];
   readonly selectedDayLabel: string;
   readonly timelineTitle: string;
   readonly bookingEventCount: number;
@@ -196,6 +206,10 @@ export function buildControllerResult(
     hasBookingInSelectedDay: bookingEventCount > 0,
     slotLabels,
     scheduleReturnTo: buildScheduleReturnTo(ui.weekStartKey, ui.selectedDateKey),
+    visibleBookings: core.visibleBookings,
+    bookingsItems: core.bookingsItems,
+    visibleClosures: core.visibleClosures,
+    visibleOpenings: core.visibleOpenings,
     ...coreDerived,
     ...handlers,
   };

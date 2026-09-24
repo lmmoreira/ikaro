@@ -2642,7 +2642,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 | UC-054 | Staff/manager configures a service's booking-intake schema | STAFF \| MANAGER | New `service_booking_intake_schema` version created |
 | UC-055 | Staff/manager configures an appointment service's booking policy | STAFF \| MANAGER | `Service` booking-policy fields updated |
 | UC-056 | Staff/manager chooses a service's booking model at creation | STAFF \| MANAGER | `Service.bookingModel` set (immutable once bookings exist) |
-| UC-057 | Manager views a combined multi-resource day grid | MANAGER | Read operation |
+| UC-057 | Manager views a bounded multi-resource column view | MANAGER | Read operation |
 | UC-058 | System computes availability scoped to a resource or bundle | System | Read path — extends `AvailabilityService` |
 | UC-059 | System applies resource turnover and leg transition gaps | System | Read path |
 | UC-060 | System rejects overlapping bookings across a shared resource | System | DB-enforced via `booking.resource_occupancy`'s shared exclusion constraint |

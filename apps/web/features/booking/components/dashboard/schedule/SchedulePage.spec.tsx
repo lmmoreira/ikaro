@@ -23,6 +23,7 @@ const scheduleHooks = vi.hoisted(() => ({
   useCreateOpening: vi.fn(),
   useRemoveClosure: vi.fn(),
   useRemoveOpening: vi.fn(),
+  useScheduleDayGrid: vi.fn(),
 }));
 
 vi.mock('@/features/booking/schedule/useSchedule', () => scheduleHooks);
@@ -46,14 +47,14 @@ vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShel
     description,
     error,
   }: {
-    children: React.ReactNode;
-    onClose: () => void;
-    onSubmit: (event: React.FormEvent<HTMLFormElement>) => void | Promise<void>;
-    cancelLabel: string;
-    submitLabel: string;
-    title: React.ReactNode;
-    description: React.ReactNode;
-    error: string | null;
+    readonly children: React.ReactNode;
+    readonly onClose: () => void;
+    readonly onSubmit: (event: React.FormEvent<HTMLFormElement>) => void | Promise<void>;
+    readonly cancelLabel: string;
+    readonly submitLabel: string;
+    readonly title: React.ReactNode;
+    readonly description: React.ReactNode;
+    readonly error: string | null;
   }) => (
     <form onSubmit={onSubmit}>
       <h2>{title}</h2>
@@ -152,6 +153,11 @@ beforeEach(() => {
   });
   scheduleHooks.useRemoveOpening.mockReturnValue({
     mutateAsync: vi.fn().mockResolvedValue(undefined),
+  });
+  scheduleHooks.useScheduleDayGrid.mockReturnValue({
+    isLoading: false,
+    isError: false,
+    data: { date: '2026-08-17', columns: [] },
   });
   tenantProvider.useTenant.mockReturnValue({
     tenantId: 't-1',
@@ -765,6 +771,82 @@ describe('SchedulePage', () => {
         ['res-1'],
       ),
     );
+  });
+
+  it('switches from the single timeline to the bounded columns board once a resource is checked (M22-S06)', async () => {
+    const user = userEvent.setup();
+    tenantProvider.useTenant.mockReturnValue({
+      tenantId: 't-1',
+      tenantSlug: 'lavacar-bh',
+      role: 'MANAGER',
+    });
+    resourcesHooks.useResources.mockReturnValue({
+      data: {
+        items: [
+          {
+            id: 'res-1',
+            type: 'ROOM',
+            refId: null,
+            name: 'Estúdio 1',
+            workingHours: null,
+            turnoverMinutes: 0,
+            maxCapacity: null,
+            isActive: true,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    renderWithIntl(
+      <SchedulePage
+        initialClosures={emptyClosures()}
+        initialOpenings={emptyOpenings()}
+        initialBookings={emptyBookings()}
+        businessHours={makeBusinessHours(true)}
+        todayKey="2026-06-29"
+        weekStartKey="2026-06-29"
+        slotGranularityMinutes={30}
+      />,
+    );
+
+    // Zero resources checked (default) — the existing single timeline, not the columns board.
+    expect(screen.getByTestId('schedule-mobile-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('schedule-resource-columns-board')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Filtrar recurso' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Estúdio 1' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('schedule-resource-columns-board')).toBeInTheDocument();
+      expect(screen.queryByTestId('schedule-mobile-view')).not.toBeInTheDocument();
+    });
+  });
+
+  it('never shows the columns board for STAFF, even if a resourceId were somehow persisted', () => {
+    tenantProvider.useTenant.mockReturnValue({
+      tenantId: 't-1',
+      tenantSlug: 'lavacar-bh',
+      role: 'STAFF',
+    });
+
+    renderWithIntl(
+      <SchedulePage
+        initialClosures={emptyClosures()}
+        initialOpenings={emptyOpenings()}
+        initialBookings={emptyBookings()}
+        businessHours={makeBusinessHours(true)}
+        todayKey="2026-06-29"
+        weekStartKey="2026-06-29"
+        slotGranularityMinutes={30}
+      />,
+    );
+
+    expect(screen.getByTestId('schedule-mobile-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('schedule-resource-columns-board')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Filtrar recurso' })).not.toBeInTheDocument();
   });
 
   it('passes the selected resourceId through to closure creation via the per-action resource field', async () => {

@@ -269,7 +269,9 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 |---|---|
 | `apps/backend/.../schedule-day-grid.controller.ts` + `get-schedule-day-grid.use-case.ts` | ✅ Done (`M22-S05`) |
 | `apps/bff/src/features/booking/schedule-day-grid.controller.ts` | ✅ Done (`M22-S05`) |
-| `apps/web/features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` | ❓ Gap — `M22-S06`, not yet built. Resolved shape (via `M22-S06`'s own `/story-discovery`, 2026-09-24): a thin layout wrapper rendering one *unmodified* `ScheduleTimelineBoard` per checked resource — day-grid is used only as a `resourceId → booking-id set` lookup, filtering the existing unscoped week-bookings list per column and feeding it straight into the existing `buildTimelineDayData`, not a new rendering engine. Inline in `SchedulePage.tsx`'s Day view, not a separate page/route. |
+| `apps/web/features/booking/components/dashboard/schedule/ScheduleMainView.tsx` | ✅ Done — `M22-S06`. Extracted from `SchedulePage.tsx` (avoids a 3-way nested ternary, SonarCloud S3358); picks week view / bounded columns board / single-day timeline. |
+| `apps/web/features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` | ✅ Done — `M22-S06`. A thin layout wrapper rendering one *unmodified* `ScheduleTimelineBoard` per checked resource — day-grid is used only as a `resourceId → booking-id` lookup, filtering the existing unscoped week-bookings list per column (respecting the status filter — a matched booking whose status is unchecked is excluded, not shown as a placeholder) and feeding it straight into the existing `buildTimelineDayData`, not a new rendering engine. Inline in `SchedulePage.tsx`'s Day view, not a separate page/route. |
+| `apps/web/features/booking/schedule/schedule-resource-columns.ts` | ✅ Done — `M22-S06`. The booking-id-set join + tenant-wide-closure/opening merge, pure and unit-tested. |
 
 **Open questions — both resolved during `M22-S06`'s own `/story-discovery` (2026-09-24):**
 - [x] `docs/04-USE_CASES.md` UC-057's Main Flow/A1 — reworded to match the bounded/checked-subset behavior (done, same date).

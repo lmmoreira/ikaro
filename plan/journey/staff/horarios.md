@@ -2,8 +2,8 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** View the calendar of approved bookings and manage schedule closures and openings  
-**UCs covered:** UC-010a, UC-010b, UC-010c, UC-010d, UC-010e, UC-010f (✅ Done) · UC-057 (❓ Gap — M22 Cluster 2, manager multi-resource day grid)  
-**Status:** Done — resource-scoped extension shipped in `M21-S05`; only the Cluster 2 multi-resource day grid remains a gap, see `dev-notes.md`
+**UCs covered:** UC-010a, UC-010b, UC-010c, UC-010d, UC-010e, UC-010f, UC-057 (✅ Done — M22 Cluster 2, manager bounded multi-resource column view)  
+**Status:** Done — resource-scoped extension shipped in `M21-S05`; the Cluster 2 bounded multi-resource columns board shipped in `M22-S06`, see `dev-notes.md`
 
 ## Flow
 
@@ -47,7 +47,7 @@ flowchart TD
 
     %% M21 Cluster 1 — resource-scoped extension (MANAGER-only, shipped M21-S05)
     Schedule --> ResourceFilter(("MANAGER marca um ou mais<br/>Resources no filtro"))
-    ResourceFilter --> ScheduleScoped["mesma tela, calendário mesclado<br/>dos Resources marcados (UC-010e/f)"]
+    ResourceFilter --> ScheduleScoped["Week view: mesma tela,<br/>calendário mesclado dos Resources<br/>marcados (UC-010e/f)"]
     ScheduleScoped --> ClickSlot
     ScheduleScoped --> ClickClosedDay
     ScheduleScoped --> ResourceFieldPick(("no formulário, MANAGER escolhe<br/>1 Resource p/ este bloqueio/abertura"))
@@ -55,6 +55,15 @@ flowchart TD
     ResourceFieldPick --> OpeningSheet
 
     class ResourceFilter,ScheduleScoped,ResourceFieldPick existing
+
+    %% M22 Cluster 2 — bounded multi-resource columns board (MANAGER-only, Day view, shipped M22-S06)
+    ResourceFilter --> ScheduleColumns["Day view: uma coluna por Resource<br/>marcado, bookings + closures/openings<br/>próprios + tenant-wide (UC-057)"]
+    ScheduleColumns --> ClickColumnBlock(("Click em bloco de uma coluna"))
+    ClickColumnBlock --> ClickSlot
+    ClickColumnBlock --> RemoveClosureSheet
+    ClickColumnBlock --> RemoveOpeningSheet
+
+    class ScheduleColumns,ClickColumnBlock existing
 ```
 
 ## Pages referenced
@@ -128,15 +137,16 @@ flowchart TD
 > Promoted from `docs/discovery/multivertical-booking/`. Covers UC-010e (resource-scoped closure) and UC-010f (resource-scoped opening) — see `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate), `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`. `07-horarios-recurso.html` (discovery-only illustrative material, not a validated `plan/journey/` prototype) informed the mechanism but not the final UI, which instead followed this file's own mermaid flow and `dev-notes.md`'s GAP section — see `M21-S05`'s story-discovery notes (`plan/M21-MULTIVERTICAL-FOUNDATION.md`) for the full resolution. Full implementation-handoff detail lives in `dev-notes.md`.
 
 - [x] Shipped in `M21-S05` as **two separate controls**, not one picker (revised mid-implementation, after live testing showed a single-select picker couldn't answer "show me everyone's schedule at once" — a real manager need):
-  - **`ResourceFilterMenu`** — a floating, multi-select checkbox filter at the top of the existing `/dashboard/schedule` route (`SchedulePage`), mirroring the existing `ScheduleStatusFilterMenu`'s own trigger+popover shape. Controls what the *calendar view* shows: zero resources checked = today's exact tenant-wide behavior (unchanged default); one or more checked = that resource's own closures/openings merged into the same timeline, in addition to the tenant-wide ones (which always apply regardless).
+  - **`ResourceFilterMenu`** — a floating, multi-select checkbox filter at the top of the existing `/dashboard/schedule` route (`SchedulePage`), mirroring the existing `ScheduleStatusFilterMenu`'s own trigger+popover shape. Controls what the *calendar view* shows: zero resources checked = today's exact tenant-wide behavior (unchanged default); one or more checked = that resource's own closures/openings merged into the same timeline, in addition to the tenant-wide ones (which always apply regardless) — this merged-timeline behavior is what M21-S05 shipped and is still exactly what **Week view** shows today. **Day view instead shows the M22 Cluster 2 bounded columns board below** once M22-S06 shipped it (one column per checked resource, not a merged single timeline) — see that section for the current Day-view behavior.
   - **`ResourceSelectField`** — a single-select field embedded inside `ClosureFormSheet`/`OpeningFormSheet`, deliberately decoupled from the filter menu's selection. It decides which *one* resource a new block/opening applies to (`resourceId` is a single nullable field on the aggregate, not a list), and always starts fresh at "Todo o negócio" each time a sheet opens — it does not inherit whatever is currently checked in the view filter.
   - Both are MANAGER-only (rendered only for `role === 'MANAGER'`, sourced via the dashboard-wide `TenantProvider`) and both exclude the tenant's own `LOCATION` resource from their options — `resourceId = null` ("Todo o negócio") already represents that scope.
 - [x] This extension is **MANAGER-only** when `resourceId` is set (a deliberate, self-consistent restriction the discovery applies to the whole Resource Management surface — no existing precedent to derive it from); the existing tenant-wide flow (UC-010a–d) stays open to STAFF|MANAGER, unchanged.
 - [ ] Pre-existing navigation gap found during this promotion, not fixed here: `07-horarios-recurso.html`'s sidebar/bottom-nav has 3 links pointing at Cluster 2/4 screens not yet promoted (`manager-05-visao-geral.html`, `manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) — resolves once those clusters land. Moot for the shipped design since it never navigates to that illustrative screen at all, but left unresolved for whenever that file is revisited.
 
-## M22 Cluster 2 addition — UC-057 (Manager multi-resource day grid, ❓ Gap)
+## M22 Cluster 2 addition — UC-057 (Manager bounded multi-resource column view, ✅ Done — `M22-S06`)
 
-> "Horários" is role-adaptive: a STAFF viewer keeps the tenant-wide timeline above, unchanged (UC-010a–d — resource scoping stays MANAGER-only per `M21-S05`, the picker itself is never rendered for STAFF); a MANAGER viewer gets this combined day grid instead — no new nav item, same "Horários" entry. Prototype: `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). BFF: `GET /v1/schedule/day-grid?date=` (`docs/14-API_CONTRACTS.md`), MANAGER only.
+> "Horários" is role-adaptive: a STAFF viewer keeps the tenant-wide timeline above, unchanged (UC-010a–d — resource scoping stays MANAGER-only per `M21-S05`, the picker itself is never rendered for STAFF); a MANAGER viewer who checks one or more resources in "Filtrar recurso", in Day view, gets a bounded columns board instead — one column per checked resource, no new nav item, same "Horários" entry, Week view untouched. Prototype: `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`, redesigned 2026-09-24 from an unbounded "every active resource" grid to this bounded, checkbox-driven column view). BFF: `GET /v1/schedule/day-grid?date=` (`docs/14-API_CONTRACTS.md`, shipped `M22-S05`), MANAGER only — used purely as a `resourceId → booking-id` lookup, not a separate rendering source; see `dev-notes.md`.
 
 - [x] Assigned to `M22-S06` — see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`.
 - [x] Route-level relationship to Cluster 1's resource-scoped timeline — **resolved during `M22-S06`'s own `/story-discovery` (2026-09-24):** no separate page/route. The columns board renders inline within the existing `/dashboard/schedule` route's Day view, replacing `ScheduleTimelineBoard` only when one or more resources are checked in the same `ResourceFilterMenu` Cluster 1 already shipped. Week view is untouched.
+- [x] Shipped `M22-S06` — `ScheduleMainView.tsx`/`ScheduleResourceColumnsBoard.tsx`/`schedule-resource-columns.ts` (`apps/web/features/booking/`). See `dev-notes.md` for the full file map.
