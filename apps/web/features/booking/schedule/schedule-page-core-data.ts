@@ -86,7 +86,16 @@ function useReconciledSelectedResourceIds(
   // different staff member's session on a shared device. STAFF has no UI to view or clear this
   // preference, so the persisted value itself is left untouched here; only the *effective* value
   // used downstream (query fan-out, filter set) is forced empty.
-  const effectiveSelectedResourceIds = isManager ? reconciled : EMPTY_RESOURCE_IDS;
+  //
+  // Capped again here, independently of `canReconcile`/`reconciled` above (TD44 follow-up,
+  // round 2): `reconciled` deliberately stays unsliced and unpersisted on a loading/error fetch —
+  // that's the isError guard's whole point, to not destructively overwrite a real persisted
+  // selection over a transient failure. But the *effective* (rendered/queried) value must never
+  // exceed the cap regardless of why the resource-list fetch didn't run — a legacy 7+ selection
+  // must not render 7+ columns just because this specific page load's fetch happened to error.
+  const effectiveSelectedResourceIds = isManager
+    ? reconciled.slice(0, RESOURCE_FILTER_MAX_SELECTED)
+    : EMPTY_RESOURCE_IDS;
 
   return { selectedResourceIds: effectiveSelectedResourceIds, resourceNameById };
 }

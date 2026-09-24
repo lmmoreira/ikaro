@@ -306,6 +306,46 @@ describe('useScheduleCoreData', () => {
     });
   });
 
+  it('caps the effective (rendered) selection at 6 even when the resource-list fetch errors, while leaving the persisted value untouched (TD44 round 2)', () => {
+    const persistedIds = Array.from({ length: 7 }, (_, i) => `res-${i}`);
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({ 'selectedResourceIds:tenant-x': { selectedResourceIds: persistedIds } }),
+    );
+    selectableResourcesHooks.useSelectableResources.mockReturnValue({
+      resources: [],
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+
+    const managerRole = 'MANAGER' as const;
+    function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: managerWrapper,
+    });
+
+    // Effective/rendered value is capped regardless of the fetch error...
+    expect(result.current.selectedResourceIdSet).toEqual(
+      new Set(persistedIds.slice(0, RESOURCE_FILTER_MAX_SELECTED)),
+    );
+
+    // ...but the persisted value itself is left exactly as-is — not destructively truncated over
+    // what may be a transient failure, same rationale as the sibling error-preservation test above.
+    const stored = JSON.parse(window.localStorage.getItem('ikaro:schedule') ?? '{}') as Record<
+      string,
+      unknown
+    >;
+    expect(stored['selectedResourceIds:tenant-x']).toEqual({ selectedResourceIds: persistedIds });
+  });
+
   it('never applies a persisted resource selection for STAFF, even one left over from a prior MANAGER session on the same device', () => {
     window.localStorage.setItem(
       'ikaro:schedule',
