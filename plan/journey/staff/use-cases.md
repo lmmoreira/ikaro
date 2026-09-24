@@ -16,7 +16,7 @@ Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder �
 | UC-012 | Admin Creates New Service | Confirmed STAFF + MANAGER (`@Roles('MANAGER','STAFF')`) | `staff/servicos.md` |
 | UC-013 | Admin Edits Service Details | Confirmed STAFF + MANAGER (`@Roles('MANAGER','STAFF')`) | `staff/servicos.md` |
 | UC-050–056 | Service Extensions (resource requirements, bundles, legs, buffer, intake schema, booking policy, booking model) | Promoted 2026-08-31 from `docs/discovery/multivertical-booking/` for `M22` (Cluster 2). STAFF\|MANAGER, same as UC-012/013. Draft — not yet shipped, no story assigned. | `staff/servicos.md` |
-| UC-057 | Manager Views a Combined Multi-Resource Day Grid | **MANAGER-only** — see `manager/use-cases.md`. | `staff/horarios.md` |
+| UC-057 | Manager Views a Bounded Multi-Resource Column View | **MANAGER-only** — see `manager/use-cases.md`. | `staff/horarios.md` |
 | UC-061–068 | Customer/guest appointment booking extensions | Cross-listed — see `guest/use-cases.md`/`customer/use-cases.md`. Backend/BFF portions shared with `staff/servicos.md`'s Service extensions. | — |
 | UC-071 | Staff Approves or Rejects a Recurring Schedule Request | Promoted 2026-08-31 from `docs/discovery/multivertical-booking/` for `M23` (Cluster 3). STAFF\|MANAGER. Draft — not yet shipped, no story assigned. | `staff/agenda.md` |
 | UC-074 | Staff or Manager Marks an Appointment as No-Show | Same promotion. STAFF\|MANAGER. Draft — not yet shipped, no story assigned. | `staff/agenda.md` |

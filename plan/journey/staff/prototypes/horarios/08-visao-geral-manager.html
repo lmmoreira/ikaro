@@ -3,69 +3,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visão Geral — Vitta Studio</title>
+  <title>Horários — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
-    .filter-tabs { display: flex; gap: 0.25rem; padding-bottom: 0.875rem; }
-    .filter-tab { padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.8125rem; font-weight: 600; border: 1.5px solid var(--ba-secondary); background: white; color: var(--ba-text); text-decoration: none; cursor: pointer; white-space: nowrap; }
-    .filter-tab.active { background: #2563eb; color: white; border-color: #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic */
+    /* ── Week navigation (synced to apps/web/shells/dashboard/components/WeekNav.tsx) ── */
+    .week-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; background: white; border-bottom: 1px solid var(--ba-secondary); }
+    .week-nav-btn { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: var(--ba-radius); border: 1.5px solid var(--ba-secondary); background: white; cursor: pointer; color: var(--ba-text); font-size: 1.125rem; text-decoration: none; line-height: 1; }
+    .week-nav-btn.disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+    .week-nav-month { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
 
-    .overview-scroll { overflow-x: auto; background: white; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); }
-    .overview-table { border-collapse: collapse; width: 100%; min-width: 52rem; }
-    .overview-table th, .overview-table td { border-bottom: 1px solid var(--ba-secondary); border-right: 1px solid var(--ba-secondary); padding: 0.375rem 0.625rem; font-size: 0.8125rem; vertical-align: top; }
-    .overview-table th:last-child, .overview-table td:last-child { border-right: none; }
-    .overview-table th {
-      position: sticky; top: 0; background: white; z-index: 2;
-      font-weight: 700; color: var(--ba-text); text-align: left; padding-top: 0.625rem; padding-bottom: 0.625rem;
-    }
-    .overview-table th.time-col, .overview-table td.time-col {
-      position: sticky; left: 0; background: white; z-index: 1;
-      font-size: 0.6875rem; color: rgba(17,24,39,0.4); font-variant-numeric: tabular-nums; white-space: nowrap;
-      border-right: 2px solid var(--ba-secondary);
-    }
-    .overview-table th.time-col { z-index: 3; }
-    .ov-booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic. APPOINTMENT-family. */
-    .ov-booking p.name { font-weight: 600; color: #2563eb; margin: 0; line-height: 1.2; } /* fixed platform blue, not --ba-primary */
-    .ov-booking p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
-    .ov-session { background: #ede9fe; border-left: 3px solid #7c3aed; } /* SESSION-family — distinct purple accent so a manager can tell appointment vs. class cells apart without reading the text */
-    .ov-session p.name { font-weight: 600; color: #7c3aed; margin: 0; line-height: 1.2; }
-    .ov-session p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
-    .ov-cont { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary */
-    .ov-cont.ov-session-cont { background: #ede9fe; border-left: 3px solid #7c3aed; }
-    .ov-empty-col { text-align: center; opacity: 0.35; font-style: italic; padding-top: 2rem; }
-    .ov-cell-link { display: block; height: 100%; width: 100%; padding: 0.375rem 0.625rem; margin: -0.375rem -0.625rem; cursor: pointer; text-decoration: none; color: inherit; box-sizing: content-box; }
+    .week-strip { display: flex; justify-content: space-evenly; gap: 0.25rem; padding: 0.5rem 0.375rem; background: white; border-bottom: 1px solid var(--ba-secondary); overflow-x: auto; }
+    .week-day { display: flex; flex-direction: column; align-items: center; gap: 0.125rem; flex: 1; min-width: 2.5rem; padding: 0.5rem 0.375rem; border-radius: 0.625rem; cursor: pointer; color: #1f2937; }
+    .week-day-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #9ca3af; }
+    .week-day-number { font-size: 1rem; font-weight: 700; line-height: 1; }
+    .week-day-dot { width: 6px; height: 6px; border-radius: 9999px; background: #2563eb; margin-top: 0.3rem; }
+    .week-day-dot.empty { background: transparent; }
+    .week-day.today { background: #2563eb; color: white; }
+    .week-day.today .week-day-label { color: #dbeafe; }
+    .week-day.today .week-day-dot { background: rgba(255,255,255,0.8); }
+    .week-day.selected { background: #030712; color: white; box-shadow: 0 0 0 2px #bfdbfe; }
+    .week-day.selected .week-day-label { color: #e5e7eb; }
+    .week-day.selected .week-day-dot { background: rgba(255,255,255,0.8); }
+
+    /* ── Day header (synced to ScheduleDayHeader.tsx) ── */
+    .day-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 0.875rem 1rem 0; }
+    .day-header-eyebrow { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: #9ca3af; margin: 0; }
+    .day-header-title { font-size: 1.125rem; font-weight: 600; color: #111827; margin: 0.125rem 0 0; }
+    .day-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .btn-outline-sm { display: inline-flex; align-items: center; gap: 0.25rem; height: 2.25rem; padding: 0 0.75rem; border-radius: 0.5rem; border: 1px solid var(--ba-secondary); background: white; color: var(--ba-text); font-size: 0.8125rem; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .view-mode-select { display: inline-flex; align-items: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.75rem; border-radius: 9999px; border: 1px solid var(--ba-secondary); background: white; color: var(--ba-text); font-size: 0.8125rem; font-weight: 600; }
+    .btn-primary-sm { display: inline-flex; align-items: center; gap: 0.25rem; height: 2.25rem; padding: 0 0.875rem; border-radius: 0.5rem; border: none; background: #2563eb; color: white; font-size: 0.8125rem; font-weight: 600; cursor: pointer; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic */
+    .day-header-summary { margin: 0.625rem 1rem 0; font-size: 0.8125rem; color: rgba(17,24,39,0.55); }
+
+    /* ── Bounded multi-resource columns (NEW — only the resources checked in "Filtrar recurso"
+       get a column; this is NOT "every active resource", see the comment block below) ── */
+    .columns-scroll { margin: 0.875rem 1rem 6.5rem; overflow-x: auto; background: white; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); }
+    .columns-table { border-collapse: collapse; width: 100%; min-width: 34rem; }
+    .columns-table th, .columns-table td { border-bottom: 1px solid var(--ba-secondary); border-right: 1px solid var(--ba-secondary); padding: 0.375rem 0.625rem; font-size: 0.8125rem; vertical-align: top; }
+    .columns-table th:last-child, .columns-table td:last-child { border-right: none; }
+    .columns-table th { position: sticky; top: 0; background: white; z-index: 2; font-weight: 700; color: var(--ba-text); text-align: left; padding-top: 0.625rem; padding-bottom: 0.625rem; }
+    .columns-table th.time-col, .columns-table td.time-col { position: sticky; left: 0; background: white; z-index: 1; font-size: 0.6875rem; color: rgba(17,24,39,0.4); font-variant-numeric: tabular-nums; white-space: nowrap; border-right: 2px solid var(--ba-secondary); }
+    .columns-table th.time-col { z-index: 3; }
+
+    .cv-block { display: block; border-radius: 0.5rem; padding: 0.375rem 0.5rem; text-decoration: none; color: inherit; }
+    .cv-booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic. APPOINTMENT-family */
+    .cv-booking p.name { font-weight: 600; color: #2563eb; margin: 0; line-height: 1.2; } /* fixed platform blue, not --ba-primary */
+    .cv-booking p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-session { background: #ede9fe; border-left: 3px solid #7c3aed; } /* SESSION-family — distinct purple accent, matches ScheduleTimelineEventRenderer */
+    .cv-session p.name { font-weight: 600; color: #7c3aed; margin: 0; line-height: 1.2; }
+    .cv-session p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-closure { border-left: 3px solid #64748b; background-image: repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px); } /* matches ScheduleTimelineEventRenderer's closure block exactly */
+    .cv-closure p.name { font-weight: 600; color: #475569; margin: 0; line-height: 1.2; }
+    .cv-closure p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-cont { background: var(--ba-secondary); border-left: 3px solid #2563eb; border-radius: 0 0 0.375rem 0.375rem; }
+    .cv-cont.cv-session-cont { background: #ede9fe; border-left: 3px solid #7c3aed; }
+    .cv-cont.cv-closure-cont { border-left: 3px solid #64748b; background-image: repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px); }
+
+    /* ── Floating filter balloons (synced to ResourceFilterMenu.tsx + ScheduleStatusFilterMenu.tsx —
+       stacked bottom-right, resource filter above status filter, same trigger+popover shape).
+       This balloon is what DRIVES the columns above — checking a resource here is what gives it
+       a column; nothing else narrows/selects columns (no separate type-tab UI). ── */
+    .filter-fab-stack { position: fixed; bottom: 1.25rem; right: 1rem; z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
+    .filter-fab { display: inline-flex; align-items: center; gap: 0.5rem; height: auto; padding: 0.625rem 0.875rem; border-radius: 9999px; border: 1px solid rgba(37,99,235,0.2); background: #2563eb; color: white; font-size: 0.8125rem; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.15); cursor: pointer; }
+    .filter-popover { width: min(19rem, calc(100vw - 2rem)); border-radius: 1rem; border: 1px solid var(--ba-secondary); background: white; box-shadow: 0 20px 45px rgba(0,0,0,0.2); overflow: hidden; margin-bottom: 0.5rem; }
+    .filter-popover-header { padding: 0.75rem 1rem; }
+    .filter-popover-header p.title { font-size: 0.875rem; font-weight: 600; color: #111827; margin: 0; }
+    .filter-popover-header p.desc { font-size: 0.75rem; color: #6b7280; margin: 0.2rem 0 0; }
+    .filter-popover-options { max-height: 16rem; overflow-y: auto; padding: 0.375rem 0.5rem; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+    .filter-option { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; border-radius: 0.75rem; cursor: pointer; }
+    .filter-option:hover { background: #f9fafb; }
+    .filter-option input { width: 1rem; height: 1rem; accent-color: #2563eb; }
+    .filter-option span { font-size: 0.8125rem; font-weight: 500; color: #111827; }
+    .filter-popover-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1rem; }
+    .filter-popover-footer button { border: none; background: none; font-size: 0.8125rem; font-weight: 600; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.5rem; }
+    .filter-popover-footer button.ghost { color: #6b7280; }
+    .filter-popover-footer button.outline { color: var(--ba-text); border: 1px solid var(--ba-secondary); }
   </style>
 </head>
 <body>
 
   <!--
-    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype. Added on
-    request (2026-07-29) — answers "as a manager, can I see all staff + salas +
-    equipamentos at once, or is everything fragmented per-resource?" Until this screen,
-    the answer was genuinely "fragmented": manager-01 is a flat resource LIST (no
-    calendar), staff-05 is ONE resource's own timeline, staff-04/manager-03 cover
-    session-style capacity only. Nothing showed every resource's day side by side.
+    SYNCED PROTOTYPE (2026-09-24, revised same day) — this file previously mocked a standalone
+    multi-column grid with ONE COLUMN PER EVERY ACTIVE RESOURCE, as a discovery concept (added
+    2026-07-29, CAND-13c; later as UC-057's literal "columns = active resources" wording). That
+    was dropped before M22-S06 implementation started: a column-per-resource layout doesn't
+    scale — a tenant with 60 resources (a large gym: dozens of instructors + rooms + equipment)
+    can't fit that many columns on any screen, and even UC-057 A1's type-tab filter
+    (Profissionais/Salas/Equipamentos) only narrows to sub-groups still too large to render side
+    by side. No layout can show every resource "at a glance" — the only workable approach is a
+    manager curating a small subset.
 
-    New candidate use case (CAND-13c, added alongside this) — see
-    ../multivertical-booking_USECASES.md. Deliberately MANAGER-only (like
-    Equipe/Configurações/Hotsite), since it's a broader oversight surface than the
-    Agenda "mine vs all" toggle (staff-01) — that shows every BOOKING, not every
-    resource's raw schedule shape side by side.
+    That curation tool already exists and shipped in M21-S05: the floating "Filtrar recurso"
+    checkbox filter below. The resolved design reuses it instead of building a separate grid:
+    checking 0 resources = today's unchanged single merged timeline (see 00-schedule-next.html,
+    07-horarios-recurso.html for that shape — not re-mocked here); checking 1+ resources renders
+    ONLY those checked resources as real side-by-side columns, as shown below (3 of the tenant's
+    19 total resources checked — not "5 of 19 shown as a representative sample" like the old
+    version of this file said; every checked resource gets a column, nothing is sampled/hidden).
 
-    Deliberately spans BOTH families in one grid — Camila/Bruno/Renata's columns are
-    APPOINTMENT-style individual bookings; Estúdio 1's column is a SESSION-style class
-    occupancy (Pilates). Same underlying IBookingAvailabilityPort query per resource
-    (§8), just run across several resources and rendered as columns instead of one
-    column at a time — no new domain concept, purely a read-side aggregation.
+    Real files this mockup is synced to:
+      apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx
+      apps/web/shells/dashboard/components/WeekNav.tsx (day-picker strip)
+      .../schedule/ScheduleDayHeader.tsx (day title, Hoje, view mode, primary action)
+      .../schedule/ResourceFilterMenu.tsx (floating "Filtrar recurso" balloon — drives the
+        columns below directly; no separate type-tab control exists or is proposed)
+      .../schedule/ScheduleTimelineEventRenderer.tsx (booking/closure/opening block styling —
+        closure = hatched grey + Lock icon, opening = emerald + CalendarDays icon, reused as-is
+        for the block styles inside each column below)
 
-    Showing 5 of 15 resources as a representative subset (not all — same scope
-    discipline as the rest of this prototype). Real build would need a resource-type
-    filter for tenants with many more staff/rooms than fit on screen at once (CAND-13c's
-    alt flow) — filter tabs below are illustrative only, not wired.
+    Data sources for the columns (both already exist — no new backend/BFF work):
+      Bookings   -> GET /schedule/day-grid (M22-S05, done) filtered client-side to the checked
+                    resourceIds. The endpoint already returns every active resource's blocks
+                    with `refId` resolved to the booking id; this story only renders the checked
+                    subset's columns instead of every resource's.
+      Closures/  -> the existing resourceId-scoped fetch (M21-S05, unchanged) — already fans out
+      openings      one call per checked resource + one tenant-wide call, merged client-side.
+                    Confirmed 2026-09-24: a manager who checks a resource with a closure already
+                    sees that closure today (see Bruno Alves' 13:00 block below) — this mockup
+                    just shows it rendered inside a column instead of the merged single board.
 
-    COMPONENT (GAP): MultiResourceOverviewGrid
-    BFF CALL (GAP): GET /bookings?resourceIds=res_a,res_b,...&date=2026-08-04
-      (same shape as today's per-resource query, just resourceIds plural)
+    REJECTED alternative (recorded so it isn't re-proposed): labeling each block in the existing
+    single merged timeline with a resource-name badge (reusing ResourceNameBadge, already used
+    for closures/openings) instead of building columns. Rejected because it needed new backend
+    work (StaffBookingCardResponse has no resource field — bookings aren't resource-scoped in
+    that DTO) for a weaker result than the already-resolved day-grid columns used here.
+
+    See plan/journey/staff/prototypes/horarios/dev-notes.md's Cluster 2 section and
+    plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md's M22-S06 entry for the full writeup.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -74,7 +138,7 @@
 
   <div class="dashboard-topbar">
     <div class="topbar-brand"><div class="topbar-logo-mark">V</div><span class="topbar-tenant-name">Vitta Studio</span></div>
-    <h1 class="topbar-page-title">Visão Geral</h1>
+    <h1 class="topbar-page-title">Horários</h1>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
       <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
       <span class="topbar-date">Hoje, 04 de agosto de 2026</span>
@@ -137,87 +201,171 @@
       </div>
     </aside>
 
-    <main class="main-content">
-      <div class="dashboard-body">
+    <main class="main-content" style="padding:0;overflow:hidden;">
 
-        <div class="filter-tabs">
-          <a href="#" class="filter-tab active">Todos os recursos</a>
-          <a href="#" class="filter-tab">Profissionais</a>
-          <a href="#" class="filter-tab">Salas</a>
-          <a href="#" class="filter-tab">Equipamentos</a>
-        </div>
-
-        <p style="font-size:0.8125rem;opacity:0.55;margin-bottom:0.75rem;">
-          Mostrando 5 de 19 recursos (representativo — ver todos em <a href="../../../manager/prototypes/resources/01-resources-list.html" style="color:var(--ba-primary);">Recursos</a>).
-          Role para o lado para ver mais colunas.
-        </p>
-
-        <div class="overview-scroll">
-          <table class="overview-table">
-            <thead>
-              <tr>
-                <th class="time-col">Hora</th>
-                <th>Camila Duarte</th>
-                <th>Bruno Alves</th>
-                <th>Renata Souza</th>
-                <th>Estúdio 1</th>
-                <th>Área CrossFit</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="time-col">08:00</td>
-                <td></td><td></td><td></td>
-                <td class="ov-session"><a class="ov-cell-link" href="staff-02-session-roster.html"><p class="name">Pilates</p><p class="meta">3/4 vagas</p></a></td>
-                <td></td>
-              </tr>
-              <tr><td class="time-col">08:30</td><td></td><td></td><td></td><td class="ov-cont ov-session-cont"></td><td></td></tr>
-              <tr><td class="time-col">09:00</td><td></td><td></td><td></td><td></td><td></td></tr>
-              <tr><td class="time-col">09:30</td><td></td><td></td><td></td><td></td><td></td></tr>
-
-              <!-- Fernanda Lima — Corte + Escova, same booking as staff-01/staff-05 -->
-              <tr>
-                <td class="time-col">10:00</td>
-                <td class="ov-booking"><a class="ov-cell-link" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Fernanda Lima</p><p class="meta">Corte + Escova</p></a></td>
-                <td></td><td></td><td></td><td></td>
-              </tr>
-              <tr><td class="time-col">10:30</td><td class="ov-cont"></td><td></td><td></td><td></td><td></td></tr>
-
-              <!-- Bruno + Renata — same "all-only" bookings as staff-01's Agenda de todos -->
-              <tr>
-                <td class="time-col">11:00</td>
-                <td></td>
-                <td class="ov-booking"><a class="ov-cell-link" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Marcos Vieira</p><p class="meta">Corte</p></a></td>
-                <td class="ov-booking"><a class="ov-cell-link" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Ana Costa</p><p class="meta">Massagem Relaxante</p></a></td>
-                <td></td><td></td>
-              </tr>
-              <tr><td class="time-col">11:30</td><td></td><td class="ov-cont"></td><td class="ov-cont"></td><td></td><td></td></tr>
-
-              <tr><td class="time-col">12:00</td><td></td><td></td><td></td><td></td><td></td></tr>
-              <tr><td class="time-col">12:30</td><td></td><td></td><td></td><td></td><td></td></tr>
-              <tr><td class="time-col">13:00</td><td></td><td></td><td></td><td></td><td></td></tr>
-              <tr><td class="time-col">13:30</td><td></td><td></td><td></td><td></td><td></td></tr>
-
-              <!-- Roberta Dias — Coloração (90 min), same booking as staff-01/staff-05 -->
-              <tr>
-                <td class="time-col">14:00</td>
-                <td class="ov-booking"><a class="ov-cell-link" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Roberta Dias</p><p class="meta">Coloração</p></a></td>
-                <td></td><td></td><td></td><td></td>
-              </tr>
-              <tr><td class="time-col">14:30</td><td class="ov-cont"></td><td></td><td></td><td></td><td></td></tr>
-              <tr><td class="time-col">15:00</td><td class="ov-cont"></td><td></td><td></td><td></td><td></td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p style="font-size:0.8125rem;opacity:0.55;margin-top:0.75rem;">
-          Área CrossFit está vazia hoje (segunda) de propósito — as turmas de CrossFit
-          acontecem terça e quarta (ver <a href="staff-04-turmas-proximas.html" style="color:var(--ba-primary);">Turmas</a>).
-          Nem todo recurso está ocupado todo dia.
-        </p>
-
+      <!-- Week navigation — synced to WeekNav.tsx (month row + 7-day strip, activity dot, today/selected states) -->
+      <div class="week-nav">
+        <button class="week-nav-btn" title="Semana anterior">‹</button>
+        <span class="week-nav-month">agosto 2026</span>
+        <button class="week-nav-btn" title="Próxima semana">›</button>
       </div>
+      <div class="week-strip">
+        <div class="week-day"><span class="week-day-label">Seg</span><span class="week-day-number">3</span><span class="week-day-dot"></span></div>
+        <div class="week-day today selected"><span class="week-day-label">Ter</span><span class="week-day-number">4</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Qua</span><span class="week-day-number">5</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day"><span class="week-day-label">Qui</span><span class="week-day-number">6</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Sex</span><span class="week-day-number">7</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Sáb</span><span class="week-day-number">8</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day" style="opacity:0.4;"><span class="week-day-label">Dom</span><span class="week-day-number">9</span><span class="week-day-dot empty"></span></div>
+      </div>
+
+      <!-- Day header — synced to ScheduleDayHeader.tsx -->
+      <div class="day-header">
+        <div>
+          <p class="day-header-eyebrow">Dia selecionado</p>
+          <h2 class="day-header-title">Terça-feira, 4 de agosto de 2026</h2>
+        </div>
+        <div class="day-header-actions">
+          <button class="btn-outline-sm">Hoje</button>
+          <span class="view-mode-select">Dia ▾</span>
+          <button class="btn-primary-sm">+ Bloquear período</button>
+        </div>
+      </div>
+      <p class="day-header-summary">
+        3 recursos marcados no balão "Filtrar recurso" — Camila Duarte, Bruno Alves e Estúdio 1 — cada um com sua
+        própria coluna abaixo. Desmarque todos para voltar à agenda única (comportamento de hoje, inalterado).
+      </p>
+
+      <!-- Bounded columns — one per CHECKED resource only (3 here), not "every active resource".
+           Bookings from GET /schedule/day-grid (M22-S05) filtered to these 3 ids; closures from
+           the existing resourceId-scoped fetch (M21-S05) — both merged per column, client-side. -->
+      <div class="columns-scroll">
+        <table class="columns-table">
+          <thead>
+            <tr>
+              <th class="time-col">Hora</th>
+              <th>Camila Duarte</th>
+              <th>Bruno Alves</th>
+              <th>Estúdio 1</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="time-col">08:00</td>
+              <td></td><td></td>
+              <td>
+                <a class="cv-block cv-session" href="staff-02-session-roster.html">
+                  <p class="name">Pilates</p>
+                  <p class="meta">3/4 vagas</p>
+                </a>
+              </td>
+            </tr>
+            <tr><td class="time-col">08:30</td><td></td><td></td><td class="cv-cont cv-session-cont"></td></tr>
+            <tr><td class="time-col">09:00</td><td></td><td></td><td></td></tr>
+            <tr><td class="time-col">09:30</td><td></td><td></td><td></td></tr>
+
+            <!-- Fernanda Lima — Corte + Escova (booking, day-grid) -->
+            <tr>
+              <td class="time-col">10:00</td>
+              <td>
+                <a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html">
+                  <p class="name">Fernanda Lima</p>
+                  <p class="meta">Corte + Escova</p>
+                </a>
+              </td>
+              <td></td><td></td>
+            </tr>
+            <tr><td class="time-col">10:30</td><td class="cv-cont"></td><td></td><td></td></tr>
+
+            <!-- Ana Costa — Manicure (booking, day-grid) alongside Marcos Vieira — Corte -->
+            <tr>
+              <td class="time-col">11:00</td>
+              <td>
+                <a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html">
+                  <p class="name">Ana Costa</p>
+                  <p class="meta">Manicure</p>
+                </a>
+              </td>
+              <td>
+                <a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html">
+                  <p class="name">Marcos Vieira</p>
+                  <p class="meta">Corte</p>
+                </a>
+              </td>
+              <td></td>
+            </tr>
+            <tr><td class="time-col">11:30</td><td class="cv-cont"></td><td class="cv-cont"></td><td></td></tr>
+
+            <tr><td class="time-col">12:00</td><td></td><td></td><td></td></tr>
+            <tr><td class="time-col">12:30</td><td></td><td></td><td></td></tr>
+
+            <!-- Bruno Alves — Manutenção de equipamento (CLOSURE, already resource-scoped since
+                 M21-S05 — this is not new, only rendered inside a column now instead of merged) -->
+            <tr>
+              <td class="time-col">13:00</td>
+              <td></td>
+              <td>
+                <a class="cv-block cv-closure" href="#">
+                  <p class="name">Manutenção de equipamento</p>
+                  <p class="meta">13:00–13:30</p>
+                </a>
+              </td>
+              <td></td>
+            </tr>
+            <tr><td class="time-col">13:30</td><td></td><td class="cv-cont cv-closure-cont"></td><td></td></tr>
+
+            <!-- Roberta Dias — Coloração (booking, day-grid) -->
+            <tr>
+              <td class="time-col">14:00</td>
+              <td>
+                <a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html">
+                  <p class="name">Roberta Dias</p>
+                  <p class="meta">Coloração</p>
+                </a>
+              </td>
+              <td></td><td></td>
+            </tr>
+            <tr><td class="time-col">14:30</td><td class="cv-cont"></td><td></td><td></td></tr>
+            <tr><td class="time-col">15:00</td><td class="cv-cont"></td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
     </main>
+  </div>
+
+  <!-- Floating filter balloons — synced to ResourceFilterMenu.tsx (open here, showing the
+       multi-select checkboxes that drive the columns above) stacked above ScheduleStatusFilterMenu.tsx -->
+  <div class="filter-fab-stack">
+    <div>
+      <div class="filter-popover">
+        <div class="filter-popover-header">
+          <p class="title">Recursos visíveis</p>
+          <p class="desc">Marque os recursos que devem aparecer no calendário.</p>
+        </div>
+        <div class="filter-popover-options">
+          <label class="filter-option"><input type="checkbox" checked><span>Camila Duarte</span></label>
+          <label class="filter-option"><input type="checkbox" checked><span>Bruno Alves</span></label>
+          <label class="filter-option"><input type="checkbox"><span>Renata Souza</span></label>
+          <label class="filter-option"><input type="checkbox" checked><span>Estúdio 1</span></label>
+          <label class="filter-option"><input type="checkbox"><span>Área CrossFit</span></label>
+        </div>
+        <div class="filter-popover-footer">
+          <button class="ghost">Padrão</button>
+          <button class="outline">Fechar</button>
+        </div>
+      </div>
+      <button class="filter-fab" aria-expanded="true">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filtrar recurso
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg);"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <button class="filter-fab">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filtrar status
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
   </div>
 
   <nav class="bottom-nav">

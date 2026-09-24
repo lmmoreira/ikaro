@@ -240,23 +240,37 @@ GET /v1/resources?type=&isActive=                            // UC-044 — feeds
 
 ---
 
-## ❓ GAP — M22 Cluster 2: Manager multi-resource day grid (UC-057, not yet built)
+## ✅ Backend/BFF done, frontend redesigned — M22 Cluster 2: Manager multi-resource column view (UC-057)
 
-**File:** `08-visao-geral-manager.html` (relocated from `manager-05-visao-geral.html`). MANAGER-only variant of "Horários" — columns = active resources, rows = time slots.
+**Backend + BFF:** `GET /v1/schedule/day-grid` — ✅ Done, shipped in `M22-S05` (merged, PR #506). Read-only, no migration.
 
-**File map (❓ none exist yet):**
-
-| File | Status |
-|---|---|
-| `apps/web/features/booking/components/dashboard/schedule/DayGridPage.tsx` | ❓ Gap |
-
-**BFF call:**
 ```
 GET /v1/schedule/day-grid?date=YYYY-MM-DD
   Header: Authorization: Bearer {jwt}   (MANAGER)
-  Response: { date, columns: [{ resourceId, name, type, blocks: [{ startsAt, endsAt, kind, refId }] }] }
+  Response: { date, columns: [{ resourceId, name, type, blocks: [{ startsAt, endsAt, kind: 'BOOKING'|'CLASS_SESSION', refId }] }] }
 ```
 
+Returns **every** active resource's column unconditionally — no `resourceIds` filter param. `blocks` only ever carries `BOOKING`/`CLASS_SESSION` occupancy; it does **not** include closures/openings.
+
+**Frontend — redesigned during discussion 2026-09-24, before `M22-S06` implementation started.** `08-visao-geral-manager.html` originally mocked (2026-07-29, CAND-13c) a standalone grid rendering **every** active resource as its own column. That was dropped: a column-per-resource layout doesn't scale (a 60-resource tenant — many instructors/rooms/equipment — can't fit that many columns regardless of UC-057 A1's type-tab narrowing, which only gets down to sub-groups still too large to render side by side). No layout can show every resource "at a glance" past a handful; the only workable shape is a manager curating a small subset.
+
+That curation tool already exists and shipped in `M21-S05`: the floating **`ResourceFilterMenu`** checkbox filter (see the "Resource-scoped extension" section above). The resolved design reuses it instead of building a new unbounded grid:
+
+- **Zero resources checked** (today's default) → unchanged single merged timeline — no regression.
+- **One or more resources checked** → render those checked resources as real side-by-side columns for the selected day, built from **two already-existing sources, no new backend work**:
+  - *Bookings* → `GET /schedule/day-grid` (M22-S05), filtered **client-side** to the checked `resourceId`s (the endpoint already resolves `refId` per resource; the frontend just discards the unchecked columns from the response — an optional `resourceIds` query param would trim payload size later, but isn't required to ship this).
+  - *Closures/openings* → the existing `resourceId`-scoped fetch (`M21-S05`, unchanged) — already fans out one call per checked resource + one tenant-wide call, merged client-side. **Confirmed 2026-09-24: a manager who checks a resource with a closure already sees that closure today** — this mechanism doesn't need to change, only get rendered per-column instead of merged into one board.
+
+A rejected intermediate idea (worth recording so it isn't re-proposed): labeling each block in the *existing single merged timeline* with a resource-name badge (reusing the `ResourceNameBadge` pattern already used for closures/openings) instead of building columns at all. Rejected because it needed new backend plumbing (`StaffBookingCardResponse` has no resource field — bookings aren't resource-scoped in the DTO) for a *weaker* result (reading labels on shared overlap lanes) than just rendering the day-grid endpoint's already-resolved columns for the checked subset.
+
+**File map:**
+
+| File | Status |
+|---|---|
+| `apps/backend/.../schedule-day-grid.controller.ts` + `get-schedule-day-grid.use-case.ts` | ✅ Done (`M22-S05`) |
+| `apps/bff/src/features/booking/schedule-day-grid.controller.ts` | ✅ Done (`M22-S05`) |
+| `apps/web/features/booking/components/dashboard/schedule/DayGridPage.tsx` | ❓ Gap — superseded by the bounded-columns design; the implementing story (`M22-S06`) should decide the real component name/shape (likely a columns board rendered inline in `SchedulePage.tsx` when `selectedResourceIds.length > 0`, not a separate page/route) |
+
 **Open questions:**
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
-- [ ] Route-level relationship to `SchedulePage`/the resource-scoped extension above (separate page vs. a view toggle) is a UI decision for the implementing story.
+- [ ] `docs/04-USE_CASES.md` UC-057's Main Flow ("columns = active resources") and A1 (type-tab narrowing) describe the old unbounded design — needs reconciling with the bounded/checked-subset behavior above when `M22-S06` is drafted/run through `/story-discovery`.
+- [ ] Route-level relationship to `SchedulePage` — resolved in favor of "inline in the existing route," not a separate page (the standalone-page framing is what scaled badly in the first place).

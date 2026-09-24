@@ -907,18 +907,22 @@ Returns:
 
 ---
 
-### **UC-057: MANAGER Views a Combined Multi-Resource Day Grid**
+### **UC-057: MANAGER Views a Bounded Multi-Resource Column View**
+
+> Redesigned 2026-09-24, before `M22-S06` implementation started (backend/BFF from `M22-S05` unchanged) — this UC previously described columns = **every** active resource, with a resource-type filter (Profissionais/Salas/Equipamentos) to narrow them when too many to fit. Dropped: a column-per-resource layout doesn't scale regardless of that filter — a tenant with dozens of staff/rooms/equipment (e.g. a large gym) can't fit that many columns on any screen even narrowed to one type. See `plan/journey/staff/prototypes/horarios/dev-notes.md`'s Cluster 2 section and `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`'s `M22-S06` entry for the full rationale.
 
 - **Actor:** MANAGER (deliberately manager-only, like Equipe/Configurações/Hotsite/Recursos — a broader oversight surface than any single-resource view)
-- **Endpoint:** `GET /schedule/day-grid?date=`
-- **Preconditions:** Tenant has ≥ 2 active resources.
-- **Trigger:** Manager opens "Horários" (role-adaptive: a STAFF viewer keeps the tenant-wide timeline unchanged — UC-010e/f's resource-scoped picker/view is deliberately MANAGER-only, never shown to STAFF, per M21-S05 — a MANAGER viewer gets this grid instead).
+- **Endpoint:** `GET /schedule/day-grid?date=` — unchanged; always returns every active resource's blocks, filtered to the checked subset client-side (see Main Flow step 2)
+- **Preconditions:** Manager has checked at least one resource in the existing "Filtrar recurso" floating filter (`ResourceFilterMenu`, `M21-S05`). Zero checked = the unchanged single tenant-wide timeline, not this UC.
+- **Trigger:** Manager checks one or more resources in "Filtrar recurso" while viewing "Horários" (role-adaptive: a STAFF viewer keeps the tenant-wide timeline unchanged — `ResourceFilterMenu` is deliberately MANAGER-only, never shown to STAFF, per `M21-S05`).
 - **Main Flow:**
-  1. System shows a grid: columns = active resources (any type), rows = time slots for the selected day.
-  2. Each cell shows a booking/session if that resource is occupied then, reusing the same visual block as the single-resource timeline.
-  3. Manager clicks any cell to drill into that booking/session's detail.
+  1. Manager checks one or more resources in "Filtrar recurso".
+  2. System renders one column **per checked resource only** (not every active resource) for the selected day: bookings from `GET /schedule/day-grid` filtered client-side to the checked resource ids, merged with that resource's closures/openings from the existing resource-scoped fetch (`M21-S05`, unchanged).
+  3. Each cell shows a booking/session/closure/opening block, reusing the same visual block as the single-resource timeline.
+  4. Manager clicks any block to drill into its detail.
 - **Alternative Flows:**
-  - **A1: Too many resources to fit on screen** → Horizontal scroll, plus a resource-type filter (Profissionais / Salas / Equipamentos) to narrow the visible columns.
+  - **A1: Manager checks many resources at once** → Horizontal scroll across the resulting columns; no separate narrowing control — the checkbox filter itself is the only narrowing mechanism, by design (a tenant-type filter was considered and rejected — see the redesign note above).
+  - **A2: Manager unchecks every resource** → Reverts to the unchanged single tenant-wide timeline (not this UC).
 - **Postconditions:** None (read-only).
 - **Events Triggered:** None.
 
