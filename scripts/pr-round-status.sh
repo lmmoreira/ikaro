@@ -173,10 +173,16 @@ while true; do
   if [ "$WAIT_CODEX" -eq 1 ]; then
     # The exact preamble wording isn't a stable contract — observed drifting between rounds
     # (backticks added around /pr-review, "4-agent" -> "4-perspective") on the same PR in the
-    # same session, which silently hung a literal-substring match forever. Tolerate an optional
-    # backtick around /pr-review instead of requiring it verbatim either way.
+    # same session, which silently hung a literal-substring match forever. Confirmed again on
+    # PR #510, 2026-09-24: round 1 dropped the leading emoji and used a plain hyphen instead of
+    # the em dash ("Automated review via /pr-review - Codex") while round 2 of the same PR/
+    # session reverted to the canonical "🤖 ... — Codex" wording — sampled against 19 other
+    # recent PRs (#450 onward), every one used the canonical wording, so this is occasional
+    # per-invocation variance, not a lasting format change. A `.*` between /pr-review and Codex
+    # tolerates the connector (hyphen, em dash, backticks) and an optional emoji prefix without
+    # needing to enumerate each variant by hand.
     CODEX_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
-      [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via `?/pr-review`? — Codex"))]
+      [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via `?/pr-review`?.*Codex"))]
       | sort_by(.createdAt) | last | .url // empty')
   fi
 
