@@ -17,12 +17,18 @@ import {
 import { useScheduleQueryData } from '@/features/booking/schedule/schedule-page-query-data';
 import { useScheduleTimelineDerived } from '@/features/booking/schedule/schedule-page-timeline-derived';
 import type { SchedulePageControllerInput } from '@/features/booking/schedule/schedule-page-controller-types';
+import { RESOURCE_FILTER_MAX_SELECTED } from '@/features/booking/schedule/schedule-page-interaction-handlers';
 
+// Drops any id no longer active, then truncates to the cap (TD44 Story 0) — covers a selection
+// persisted before the cap existed (or one grown past it in another browser tab), keeping first-N
+// by persisted order rather than leaving a stale, larger-than-6 set silently in effect.
 function reconcileResourceIds(
   selectedResourceIds: readonly string[],
   activeResourceIds: ReadonlySet<string>,
 ): readonly string[] {
-  return selectedResourceIds.filter((id) => activeResourceIds.has(id));
+  return selectedResourceIds
+    .filter((id) => activeResourceIds.has(id))
+    .slice(0, RESOURCE_FILTER_MAX_SELECTED);
 }
 
 const EMPTY_RESOURCE_IDS: readonly string[] = [];

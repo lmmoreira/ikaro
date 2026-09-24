@@ -227,13 +227,16 @@ test.describe('schedule resource columns board (M22-S06)', () => {
   }) => {
     await loginAsScheduleStaff(page);
 
-    const resources = await Promise.all(
-      Array.from({ length: 7 }, (_, i) =>
-        createResource(page, { type: 'EQUIPMENT', name: uniqueLabel(`E2E Cap ${i}`) }),
-      ),
-    );
-
+    // Created sequentially, inside the try, appending each as it succeeds — a mid-batch failure
+    // still leaves every already-created resource tracked for the finally block's cleanup.
+    const resources: Awaited<ReturnType<typeof createResource>>[] = [];
     try {
+      for (let i = 0; i < 7; i++) {
+        resources.push(
+          await createResource(page, { type: 'EQUIPMENT', name: uniqueLabel(`E2E Cap ${i}`) }),
+        );
+      }
+
       await page.goto(scheduleRoute(nextOpenDateKey(143)));
       await switchToDayView(page);
       await page.getByRole('button', { name: 'Filtrar recurso' }).click();

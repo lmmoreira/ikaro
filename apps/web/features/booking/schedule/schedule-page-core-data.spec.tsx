@@ -13,6 +13,7 @@ import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import { useScheduleCoreData } from './schedule-page-core-data';
 import type { SchedulePageControllerInput } from './schedule-page-controller-types';
+import { RESOURCE_FILTER_MAX_SELECTED } from './schedule-page-interaction-handlers';
 
 const scheduleHooks = vi.hoisted(() => ({
   useScheduleClosures: vi.fn(),
@@ -226,6 +227,44 @@ describe('useScheduleCoreData', () => {
       expect(stored['selectedResourceIds:tenant-x']).toEqual({
         selectedResourceIds: ['res-active'],
       });
+    });
+  });
+
+  it('truncates a persisted selection larger than the cap to the first 6, by persisted order (TD44)', async () => {
+    const persistedIds = Array.from({ length: 7 }, (_, i) => `res-${i}`);
+    window.localStorage.setItem(
+      'ikaro:schedule',
+      JSON.stringify({ 'selectedResourceIds:tenant-x': { selectedResourceIds: persistedIds } }),
+    );
+    selectableResourcesHooks.useSelectableResources.mockReturnValue({
+      resources: persistedIds.map((id) => makeResource({ id })),
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    const managerRole = 'MANAGER' as const;
+    function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: managerWrapper,
+    });
+
+    const expectedIds = persistedIds.slice(0, RESOURCE_FILTER_MAX_SELECTED);
+    expect(result.current.selectedResourceIdSet).toEqual(new Set(expectedIds));
+
+    await waitFor(() => {
+      const stored = JSON.parse(window.localStorage.getItem('ikaro:schedule') ?? '{}') as Record<
+        string,
+        unknown
+      >;
+      expect(stored['selectedResourceIds:tenant-x']).toEqual({ selectedResourceIds: expectedIds });
     });
   });
 
