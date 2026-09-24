@@ -1,5 +1,5 @@
 import type { core } from 'zod';
-import { EmailErrorCode, GenericErrorCode } from './error-codes';
+import { CalendarDateErrorCode, EmailErrorCode, GenericErrorCode } from './error-codes';
 import type { ValidationViolation } from './errors.dto';
 
 type ZodIssue = core.$ZodIssue;
@@ -26,10 +26,11 @@ type ZodIssue = core.$ZodIssue;
  *   compile if a future Zod upgrade adds an issue code this function doesn't handle yet —
  *   Zod v3→v4 already once restructured `invalid_string` into `invalid_format`).
  *
- * One native check is special-cased: `z.email()` is Zod's own built-in format validator, but
- * it duplicates the `Email` VO's rule exactly like a `.refine(Email.isValid, ...)` would — so
- * it reuses `EmailErrorCode.FORMAT_INVALID` instead of the generic bucket, without requiring
- * every `z.email()` call site to switch to an explicit `.refine()`.
+ * Two native checks are special-cased: `z.email()` and `z.iso.date()` are Zod's own built-in
+ * format validators, but each duplicates a backend VO's rule exactly like a
+ * `.refine(Xxx.isValid, ...)` would (`Email`, and `CalendarDate` — whose `isValid()` delegates to
+ * `z.iso.date()` itself, TD42) — so each reuses that VO's `FORMAT_INVALID` code instead of the
+ * generic bucket, without requiring every call site to switch to an explicit `.refine()`.
  *
  * `invalid_type` covers two different situations Zod doesn't separate by `code` alone — a
  * field that's missing entirely vs. one that's present with the wrong type (e.g. a boolean
@@ -39,6 +40,12 @@ type ZodIssue = core.$ZodIssue;
  * "missing" even when a wrong-type value was actually sent. The raw input is only used as a
  * presence check here — it is never forwarded into the outgoing violation.
  */
+function formatViolationCode(format: string): string {
+  if (format === 'email') return EmailErrorCode.FORMAT_INVALID;
+  if (format === 'date') return CalendarDateErrorCode.FORMAT_INVALID;
+  return GenericErrorCode.FORMAT_INVALID;
+}
+
 export function deriveViolation(issue: ZodIssue): ValidationViolation {
   const field = issue.path.join('.');
   switch (issue.code) {
@@ -69,13 +76,7 @@ export function deriveViolation(issue: ZodIssue): ValidationViolation {
         params: { maximum: Number(issue.maximum) },
       };
     case 'invalid_format':
-      return {
-        field,
-        code:
-          issue.format === 'email'
-            ? EmailErrorCode.FORMAT_INVALID
-            : GenericErrorCode.FORMAT_INVALID,
-      };
+      return { field, code: formatViolationCode(issue.format) };
     case 'not_multiple_of':
       return { field, code: GenericErrorCode.VALUE_OUT_OF_RANGE };
     case 'unrecognized_keys':

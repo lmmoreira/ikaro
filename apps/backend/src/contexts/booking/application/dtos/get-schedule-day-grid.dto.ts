@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { DATE_ONLY_PATTERN } from '@ikaro/validation';
+import { ScheduleDayGridQuerySchema } from '@ikaro/validation';
 
-export const GetScheduleDayGridSchema = z.object({
-  date: z.string().regex(DATE_ONLY_PATTERN, 'date must be YYYY-MM-DD'),
-});
+// Shared verbatim with the BFF's GetDayGridQuerySchema — see @ikaro/validation booking.ts.
+export const GetScheduleDayGridSchema = ScheduleDayGridQuerySchema;
 
 export type GetScheduleDayGridDto = z.infer<typeof GetScheduleDayGridSchema>;

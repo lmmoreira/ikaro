@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { DATE_ONLY_PATTERN } from '@ikaro/validation';
+import { ScheduleClosuresRangeQuerySchema } from '@ikaro/validation';
 
 // Request Zod schemas and their inferred body/query types — split out of schedule.controller.ts
 // so request-side shapes never live inline in the controller (mirrors
 // booking/bookings.schemas.ts's existing split).
 export const CreateClosureBodySchema = z.object({
-  date: z.string().regex(DATE_ONLY_PATTERN, 'date must be YYYY-MM-DD'),
+  date: z.iso.date({ error: 'date must be a valid YYYY-MM-DD calendar date' }),
   reason: z.enum(['STAFF_DAY_OFF', 'MAINTENANCE', 'HOLIDAY']),
   resourceId: z.uuid().optional(),
   startTime: z
@@ -19,11 +19,8 @@ export const CreateClosureBodySchema = z.object({
   notes: z.string().optional(),
 });
 
-export const ListClosuresQuerySchema = z.object({
-  from: z.string().regex(DATE_ONLY_PATTERN, 'from must be YYYY-MM-DD'),
-  to: z.string().regex(DATE_ONLY_PATTERN, 'to must be YYYY-MM-DD'),
-  resourceId: z.uuid().optional(),
-});
+// Shared verbatim with the backend's ListClosuresSchema — see @ikaro/validation booking.ts.
+export const ListClosuresQuerySchema = ScheduleClosuresRangeQuerySchema;
 
 export type CreateClosureBody = z.infer<typeof CreateClosureBodySchema>;
 export type ListClosuresQuery = z.infer<typeof ListClosuresQuerySchema>;

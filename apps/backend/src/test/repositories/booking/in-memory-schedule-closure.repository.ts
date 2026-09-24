@@ -14,13 +14,13 @@ export class InMemoryScheduleClosureRepository implements IScheduleClosureReposi
       .filter(
         (c) =>
           c.tenantId === tenantId &&
-          c.date >= from &&
-          c.date <= to &&
+          c.date.value >= from &&
+          c.date.value <= to &&
           c.resourceId === (resourceId ?? null),
       )
       .sort(
         (a, b) =>
-          a.date.localeCompare(b.date) ||
+          a.date.value.localeCompare(b.date.value) ||
           (a.startTime?.value ?? '').localeCompare(b.startTime?.value ?? ''),
       );
   }
@@ -32,7 +32,8 @@ export class InMemoryScheduleClosureRepository implements IScheduleClosureReposi
   ): Promise<ScheduleClosure[]> {
     return this.store
       .filter(
-        (c) => c.tenantId === tenantId && c.date === date && c.resourceId === (resourceId ?? null),
+        (c) =>
+          c.tenantId === tenantId && c.date.value === date && c.resourceId === (resourceId ?? null),
       )
       .sort((a, b) => (a.startTime?.value ?? '').localeCompare(b.startTime?.value ?? ''));
   }

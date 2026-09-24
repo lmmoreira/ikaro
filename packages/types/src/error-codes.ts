@@ -268,6 +268,12 @@ export const TimeOfDayErrorCode = {
 } as const;
 export type TimeOfDayErrorCode = (typeof TimeOfDayErrorCode)[keyof typeof TimeOfDayErrorCode];
 
+export const CalendarDateErrorCode = {
+  FORMAT_INVALID: 'CALENDAR_DATE_FORMAT_INVALID',
+} as const;
+export type CalendarDateErrorCode =
+  (typeof CalendarDateErrorCode)[keyof typeof CalendarDateErrorCode];
+
 export const EmailErrorCode = {
   FORMAT_INVALID: 'EMAIL_FORMAT_INVALID',
 } as const;
@@ -347,6 +353,7 @@ export type AnyErrorCode =
   | HexColorErrorCode
   | TimezoneErrorCode
   | TimeOfDayErrorCode
+  | CalendarDateErrorCode
   | EmailErrorCode
   | BffErrorCode
   | AuthErrorCode

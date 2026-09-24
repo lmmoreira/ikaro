@@ -143,7 +143,7 @@ describe('CloseScheduleUseCase', () => {
 
     const stored = await repo.findById(result.id, TENANT_ID);
     expect(stored).not.toBeNull();
-    expect(stored!.date).toBe(date);
+    expect(stored!.date.value).toBe(date);
   });
 
   it('does not check closures from another tenant', async () => {

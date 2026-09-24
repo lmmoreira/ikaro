@@ -1,5 +1,5 @@
 import type { core } from 'zod';
-import { EmailErrorCode, GenericErrorCode } from './error-codes';
+import { CalendarDateErrorCode, EmailErrorCode, GenericErrorCode } from './error-codes';
 import { deriveViolation } from './zod-violation';
 
 type ZodIssue = core.$ZodIssue;
@@ -67,6 +67,11 @@ describe('deriveViolation', () => {
   it('maps invalid_format with format "email" to EmailErrorCode.FORMAT_INVALID (z.email() duplicates the Email VO rule)', () => {
     const v = deriveViolation(issueOf({ code: 'invalid_format', format: 'email' }));
     expect(v.code).toBe(EmailErrorCode.FORMAT_INVALID);
+  });
+
+  it('maps invalid_format with format "date" to CalendarDateErrorCode.FORMAT_INVALID (z.iso.date() duplicates the CalendarDate VO rule)', () => {
+    const v = deriveViolation(issueOf({ code: 'invalid_format', format: 'date' }));
+    expect(v.code).toBe(CalendarDateErrorCode.FORMAT_INVALID);
   });
 
   it('maps not_multiple_of to VALUE_OUT_OF_RANGE', () => {

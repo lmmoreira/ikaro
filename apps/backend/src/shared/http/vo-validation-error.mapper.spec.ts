@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
+  CalendarDateErrorCode,
   EmailErrorCode,
   HexColorErrorCode,
   MoneyErrorCode,
@@ -17,6 +18,7 @@ import { SlugValidationError } from '../value-objects/slug.vo';
 import { HexColorValidationError } from '../value-objects/hex-color.vo';
 import { TimezoneValidationError } from '../value-objects/timezone.vo';
 import { TimeOfDayValidationError } from '../value-objects/time-of-day.vo';
+import { CalendarDateValidationError } from '../value-objects/calendar-date.vo';
 import { EmailValidationError } from '../value-objects/email.vo';
 import { mapSharedVoError } from './vo-validation-error.mapper';
 
@@ -83,6 +85,14 @@ describe('mapSharedVoError', () => {
     const err = call(new TimeOfDayValidationError('bad time', TimeOfDayErrorCode.FORMAT_INVALID));
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({ code: TimeOfDayErrorCode.FORMAT_INVALID });
+  });
+
+  it('maps CalendarDateValidationError to 400 with code', () => {
+    const err = call(
+      new CalendarDateValidationError('bad date', CalendarDateErrorCode.FORMAT_INVALID),
+    );
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: CalendarDateErrorCode.FORMAT_INVALID });
   });
 
   it('maps EmailValidationError to 400 with code', () => {

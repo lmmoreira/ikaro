@@ -92,9 +92,9 @@ export function calculateSlotsForDate(
     serviceBufferMinutes: number;
   },
 ): AvailableSlot[] {
-  const dayClosures = ctx.closures.filter((c) => c.date === date);
-  const dayTenantOpening = ctx.tenantOpenings.find((o) => o.date === date) ?? null;
-  const dayResourceOpening = ctx.resourceOpenings.find((o) => o.date === date) ?? null;
+  const dayClosures = ctx.closures.filter((c) => c.date.value === date);
+  const dayTenantOpening = ctx.tenantOpenings.find((o) => o.date.value === date) ?? null;
+  const dayResourceOpening = ctx.resourceOpenings.find((o) => o.date.value === date) ?? null;
   const dayBoundsUTC = localDateRangeBoundsUTC(date, date, ctx.businessHours.timezone);
   const dayOccupancy = ctx.occupancy.filter(
     (o) => o.startsAt < dayBoundsUTC.end && o.endsAt > dayBoundsUTC.start,
@@ -241,9 +241,9 @@ async function sliceScheduleContextForDate(
   const data = await loadRangeData(resourceId);
   return {
     resource: data.resource,
-    closures: data.scheduleRange.closures.filter((c) => c.date === date),
-    tenantOpening: data.scheduleRange.tenantOpenings.find((o) => o.date === date) ?? null,
-    resourceOpening: data.scheduleRange.resourceOpenings.find((o) => o.date === date) ?? null,
+    closures: data.scheduleRange.closures.filter((c) => c.date.value === date),
+    tenantOpening: data.scheduleRange.tenantOpenings.find((o) => o.date.value === date) ?? null,
+    resourceOpening: data.scheduleRange.resourceOpenings.find((o) => o.date.value === date) ?? null,
   };
 }
 

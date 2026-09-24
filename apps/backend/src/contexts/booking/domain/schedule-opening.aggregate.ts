@@ -1,7 +1,7 @@
 import { BookingErrorCode } from '@ikaro/types/protocol/errors';
-import { todayUTC } from '../../../shared/utils/calendar-date';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
+import { CalendarDate } from '../../../shared/value-objects/calendar-date.vo';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 import {
   CreatedByRequiredError,
@@ -14,7 +14,7 @@ export interface ScheduleOpeningProps {
   id: string;
   tenantId: string;
   resourceId: string | null;
-  date: string;
+  date: CalendarDate;
   startTime: TimeOfDay;
   endTime: TimeOfDay;
   notes: string | null;
@@ -49,7 +49,7 @@ export class ScheduleOpening extends AggregateRoot {
   get resourceId(): string | null {
     return this.props.resourceId;
   }
-  get date(): string {
+  get date(): CalendarDate {
     return this.props.date;
   }
   get startTime(): TimeOfDay {
@@ -75,7 +75,7 @@ export class ScheduleOpening extends AggregateRoot {
       id: uuidv7(),
       tenantId,
       resourceId: resourceId ?? null,
-      date,
+      date: CalendarDate.create(date),
       startTime: TimeOfDay.create(startTime),
       endTime: TimeOfDay.create(endTime),
       notes: notes?.trim() ?? null,
@@ -97,8 +97,8 @@ export class ScheduleOpening extends AggregateRoot {
   ): void {
     if (!tenantId) throw new TenantIdRequiredError();
     if (!createdBy) throw new CreatedByRequiredError();
-    const today = todayUTC();
-    if (date < today) throw new OpeningDateInPastError();
+    if (CalendarDate.create(date).isBefore(CalendarDate.today()))
+      throw new OpeningDateInPastError();
     if (!TimeOfDay.isValid(startTime) || !TimeOfDay.isValid(endTime)) {
       throw new InvalidTimeRangeError(
         'startTime and endTime must be in HH:MM format (00:00–23:59)',

@@ -157,6 +157,7 @@
   "HEX_COLOR_FORMAT_INVALID": "The color provided is invalid.",
   "TIMEZONE_INVALID": "The timezone provided is invalid.",
   "TIME_OF_DAY_FORMAT_INVALID": "The time must be in HH:MM format.",
+  "CALENDAR_DATE_FORMAT_INVALID": "The date must be a valid calendar date in YYYY-MM-DD format.",
   "EMAIL_FORMAT_INVALID": "The email address provided is invalid.",
   "PLATFORM_SETTINGS_UPDATE_EMPTY": "At least one settings field must be provided.",
   "PLATFORM_HOTSITE_UPDATE_EMPTY": "At least one of branding, layout, or SEO must be provided.",

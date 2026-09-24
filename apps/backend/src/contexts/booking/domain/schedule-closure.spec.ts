@@ -1,5 +1,9 @@
 import { futureDate, pastDate } from '../../../test/utils/date-helpers';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
+import {
+  CalendarDate,
+  CalendarDateValidationError,
+} from '../../../shared/value-objects/calendar-date.vo';
 import { BookingDomainError } from './errors/booking-domain.error';
 import { ClosureReason, ScheduleClosure } from './schedule-closure.aggregate';
 
@@ -20,7 +24,7 @@ describe('ScheduleClosure.close() — full-day', () => {
     expect(closure.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(closure.tenantId).toBe(TENANT_ID);
     expect(closure.resourceId).toBeNull();
-    expect(closure.date).toBe(date);
+    expect(closure.date.value).toBe(date);
     expect(closure.reason).toBe(ClosureReason.HOLIDAY);
     expect(closure.startTime).toBeNull();
     expect(closure.endTime).toBeNull();
@@ -52,6 +56,17 @@ describe('ScheduleClosure.close() — full-day', () => {
     ).toThrow(BookingDomainError);
   });
 
+  it('throws CalendarDateValidationError for a calendar-impossible date', () => {
+    expect(() =>
+      ScheduleClosure.close({
+        tenantId: TENANT_ID,
+        date: '2999-02-30',
+        reason: ClosureReason.HOLIDAY,
+        createdBy: STAFF_ID,
+      }),
+    ).toThrow(CalendarDateValidationError);
+  });
+
   it('throws past date — correct error message', () => {
     expect(() =>
       ScheduleClosure.close({
@@ -71,7 +86,7 @@ describe('ScheduleClosure.close() — full-day', () => {
       reason: ClosureReason.STAFF_DAY_OFF,
       createdBy: STAFF_ID,
     });
-    expect(closure.date).toBe(today);
+    expect(closure.date.value).toBe(today);
   });
 
   it('throws when tenantId is empty', () => {
@@ -289,7 +304,7 @@ describe('ScheduleClosure.reconstitute()', () => {
       id: '00000000-0000-7000-8000-000000000099',
       tenantId: TENANT_ID,
       resourceId: null,
-      date: '2020-01-01',
+      date: CalendarDate.reconstitute('2020-01-01'),
       startTime: null,
       endTime: null,
       reason: ClosureReason.HOLIDAY,
@@ -308,7 +323,7 @@ describe('ScheduleClosure.reconstitute()', () => {
       id: '00000000-0000-7000-8000-000000000099',
       tenantId: TENANT_ID,
       resourceId: RESOURCE_ID,
-      date: '2020-01-01',
+      date: CalendarDate.reconstitute('2020-01-01'),
       startTime: TimeOfDay.create('10:00'),
       endTime: TimeOfDay.create('12:00'),
       reason: ClosureReason.MAINTENANCE,

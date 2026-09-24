@@ -196,3 +196,17 @@ export const PublishServiceIntakeSchemaSchema = z.object({
   requiresNamedAttendees: z.boolean().optional(),
   participantCountRequired: z.boolean().optional(),
 });
+
+// TD42 — schedule query shapes the backend DTO and the BFF schema need identically, with no
+// per-app deviation, so they live here once instead of as two hand-written copies (same
+// direct-reuse rationale as the Resource schemas above). Dates use Zod's calendar-aware
+// z.iso.date(), which deriveViolation maps to CalendarDateErrorCode.FORMAT_INVALID.
+export const ScheduleDayGridQuerySchema = z.object({
+  date: z.iso.date({ error: 'date must be a valid YYYY-MM-DD calendar date' }),
+});
+
+export const ScheduleClosuresRangeQuerySchema = z.object({
+  from: z.iso.date({ error: 'from must be a valid YYYY-MM-DD calendar date' }),
+  to: z.iso.date({ error: 'to must be a valid YYYY-MM-DD calendar date' }),
+  resourceId: z.uuid().optional(),
+});

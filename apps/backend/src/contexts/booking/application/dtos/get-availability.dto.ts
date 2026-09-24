@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { DATE_ONLY_PATTERN } from '@ikaro/validation';
 
 export const GetAvailabilitySchema = z.object({
-  date: z.string().regex(DATE_ONLY_PATTERN, 'date must be YYYY-MM-DD'),
+  date: z.iso.date({ error: 'date must be a valid YYYY-MM-DD calendar date' }),
   serviceIds: z
     .string()
     .transform((s) => s.split(','))

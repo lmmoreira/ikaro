@@ -5,7 +5,7 @@ import {
   GenericErrorCode,
   PhoneErrorCode,
 } from '@ikaro/types';
-import { AddressShapeSchema, DATE_ONLY_PATTERN, isValidPhoneNumber } from '@ikaro/validation';
+import { AddressShapeSchema, isValidPhoneNumber } from '@ikaro/validation';
 
 // Split out of bookings.controller.ts to keep it under the file-length cap — request/query Zod
 // schemas and their inferred body types, re-exported from bookings.controller.ts so existing
@@ -107,9 +107,9 @@ const BOOKING_STATUS_RE =
 export const StaffListBookingsQuerySchema = z
   .object({
     status: z.string().regex(BOOKING_STATUS_RE).optional().default('PENDING,INFO_REQUESTED'),
-    date: z.string().regex(DATE_ONLY_PATTERN).optional(),
-    from: z.string().regex(DATE_ONLY_PATTERN).optional(),
-    to: z.string().regex(DATE_ONLY_PATTERN).optional(),
+    date: z.iso.date().optional(),
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
   })

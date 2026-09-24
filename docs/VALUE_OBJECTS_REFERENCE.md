@@ -15,6 +15,7 @@
 | Hex colour | `HexColor` | `hex-color.vo.ts` | must match `#RRGGBB`; normalises to uppercase; getter: `.value` |
 | IANA timezone | `Timezone` | `timezone.vo.ts` | validates against `Intl.supportedValuesOf('timeZone')`; getter: `.value` |
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` | validates HH:MM string; `isBefore()` comparison; getter: `.value` |
+| YYYY-MM-DD calendar date | `CalendarDate` | `calendar-date.vo.ts` | validates a real calendar date via `isValidCalendarDate` from `@ikaro/validation` (Zod's `z.iso.date()` — rejects `2026-02-30`, non-leap Feb 29); `isBefore()` comparison; `today()` (UTC); getter: `.value` |
 | URL-safe slug | `Slug` | `slug.vo.ts` | `/^[a-z0-9-]+$/`; used for tenant slugs; getter: `.value` |
 | ISO country code | `CountryCode` | `country-code.vo.ts` | validates against supported country list; getter: `.value` |
 | SEO page title | `SeoTitle` | `seo-title.vo.ts` | length-bounded per SEO best practice; getter: `.value` |
@@ -89,7 +90,7 @@ toEntity(customer: Customer): CustomerEntity {
 | VO | How to extract primitive |
 |---|---|
 | `Email` | `.address` |
-| `PhoneNumber`, `Slug`, `HexColor`, `Timezone`, `TimeOfDay`, `CountryCode`, `SeoTitle`, `SeoDescription` | `.value` |
+| `PhoneNumber`, `Slug`, `HexColor`, `Timezone`, `TimeOfDay`, `CalendarDate`, `CountryCode`, `SeoTitle`, `SeoDescription` | `.value` |
 | `Address` | `.toJSON()` (for JSONB) |
 
 ---
