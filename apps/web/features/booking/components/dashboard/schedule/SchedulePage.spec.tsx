@@ -24,6 +24,7 @@ const scheduleHooks = vi.hoisted(() => ({
   useRemoveClosure: vi.fn(),
   useRemoveOpening: vi.fn(),
   useScheduleDayGrid: vi.fn(),
+  useScheduleWeekDayGrid: vi.fn(),
 }));
 
 vi.mock('@/features/booking/schedule/useSchedule', () => scheduleHooks);
@@ -158,6 +159,11 @@ beforeEach(() => {
     isLoading: false,
     isError: false,
     data: { date: '2026-08-17', columns: [] },
+  });
+  scheduleHooks.useScheduleWeekDayGrid.mockReturnValue({
+    data: [],
+    isError: false,
+    error: undefined,
   });
   tenantProvider.useTenant.mockReturnValue({
     tenantId: 't-1',

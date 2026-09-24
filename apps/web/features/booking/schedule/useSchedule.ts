@@ -6,6 +6,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  DayGridResponse,
   ScheduleClosureListResponse,
   ScheduleOpeningListResponse,
   StaffBookingListResponse,
@@ -162,4 +163,33 @@ export function useScheduleDayGrid(date: string, resourceIds: readonly string[])
     queryFn: () => getScheduleDayGrid(date),
     enabled: Boolean(date) && resourceIds.length > 0,
   });
+}
+
+// Week view's own fan-out (TD44 Story 1) — same per-resource useQueries shape as
+// useScheduleClosures/useScheduleOpenings above, just fanned by day instead of by resource: one
+// GET /schedule/day-grid call per visible day, sharing the exact query key useScheduleDayGrid
+// already uses (so Day view's single-date query and Week view's 7-date fan-out share one cache
+// entry for whichever date the two happen to overlap on). Gated the same way: never fires for
+// STAFF or when zero resources are checked.
+export function useScheduleWeekDayGrid(
+  dateKeys: readonly string[],
+  resourceIds: readonly string[],
+) {
+  const { tenantId } = useTenant();
+  const enabled = resourceIds.length > 0;
+  const queries = useQueries({
+    queries: dateKeys.map((date) => ({
+      queryKey: ['schedule', 'day-grid', tenantId, date],
+      queryFn: () => getScheduleDayGrid(date),
+      enabled,
+    })),
+  });
+
+  const failed = queries.find((query) => query.isError);
+  const results = queries.map((query) => query.data);
+  const data = results.every((result): result is DayGridResponse => result !== undefined)
+    ? results
+    : undefined;
+
+  return { data, isError: Boolean(failed), error: failed?.error };
 }

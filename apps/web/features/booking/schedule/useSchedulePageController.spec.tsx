@@ -22,6 +22,7 @@ const scheduleHooks = vi.hoisted(() => ({
   useCreateOpening: vi.fn(),
   useRemoveClosure: vi.fn(),
   useRemoveOpening: vi.fn(),
+  useScheduleWeekDayGrid: vi.fn(),
 }));
 
 vi.mock('@/features/booking/schedule/useSchedule', () => scheduleHooks);
@@ -114,6 +115,11 @@ beforeEach(() => {
   });
   scheduleHooks.useRemoveOpening.mockReturnValue({
     mutateAsync: vi.fn().mockResolvedValue(undefined),
+  });
+  scheduleHooks.useScheduleWeekDayGrid.mockReturnValue({
+    data: [],
+    isError: false,
+    error: undefined,
   });
   selectableResourcesHooks.useSelectableResources.mockReturnValue({
     resources: [],

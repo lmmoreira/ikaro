@@ -164,28 +164,21 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     setSelectedResourceIds,
   );
 
-  const { weekDates, visibleClosures, visibleOpenings, bookingsItems, scheduleFetchError } =
-    useScheduleWeekData(props, ui, selectedResourceIds);
-  const { selectedStatusSet, selectedResourceIdSet, visibleBookings } = useScheduleFilterSets(
+  const weekData = useScheduleWeekData(props, ui, selectedResourceIds);
+  const filterSets = useScheduleFilterSets(
     selectedStatuses,
     selectedResourceIds,
-    bookingsItems,
+    weekData.bookingsItems,
   );
   const scheduleViewMode = useResolvedScheduleViewMode(viewMode);
 
   return {
-    weekDates,
-    visibleClosures,
-    visibleOpenings,
-    visibleBookings,
-    bookingsItems,
-    selectedStatusSet,
+    ...weekData,
+    ...filterSets,
     setSelectedStatuses,
-    selectedResourceIdSet,
     setSelectedResourceIds,
     setPersistedViewMode: setViewMode,
     scheduleViewMode,
-    scheduleFetchError,
     resourceNameById,
   };
 }
@@ -216,6 +209,8 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     slotGranularityMinutes,
     selectedDateKey: ui.selectedDateKey,
     resourceNameById: visible.resourceNameById,
+    selectedResourceIdSet: visible.selectedResourceIdSet,
+    bookingResourceIdsById: visible.bookingResourceIdsById,
   });
 
   return {

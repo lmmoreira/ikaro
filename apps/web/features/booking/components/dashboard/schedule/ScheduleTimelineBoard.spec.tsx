@@ -57,6 +57,7 @@ const OPEN_TIMELINE: TimelineDayData = {
       title: 'João Silva',
       subtitle: 'Lavagem completa',
       warning: false,
+      resourceNames: [],
       laneIndex: 0,
       laneCount: 1,
       booking: {

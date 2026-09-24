@@ -93,9 +93,11 @@ A full columns-per-day-card layout was considered and ruled impractical (7 days 
 - `apps/web/features/booking/schedule/schedule-timeline-events.ts` (modify — `resourceNames: readonly string[]` on `BookingTimelineEvent`; `buildBookingTimelineEvent` accepts a booking-id → resource-names lookup)
 - `apps/web/features/booking/schedule/schedule-timeline.ts` (modify — filter which bookings reach `buildAllTimelineEvents` per day based on checked-resource membership, thread the booking-id→resourceNames lookup through; export `buildAllTimelineEvents` if the new filtering needs to call it directly rather than only through the existing pipeline)
 - `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (modify — render one `<ResourceNameBadge>` per name in `event.resourceNames` on booking blocks)
-- `apps/web/features/booking/schedule/schedule-page-core-data.ts` / `schedule-page-timeline-derived.ts` (modify — wire the new week-range day-grid data + filtering into `weekTimelineCards`)
-- `apps/web/features/booking/components/dashboard/schedule/ScheduleMainView.tsx` (modify — forward `selectedResourceIdSet` and `resourceNameById` into `<ScheduleWeekView>`, which today receives neither prop; this is the wiring gap that connects the checked-resource state to Week view at all — found during `/story-discovery`, 2026-09-24)
-- `apps/web/features/booking/components/dashboard/schedule/ScheduleWeekView.tsx` (modify — accept the new props, spacing/height for the badge(s))
+- `apps/web/features/booking/schedule/schedule-page-core-data.ts` / `schedule-page-timeline-derived.ts` / `schedule-page-query-data.ts` (modify — wire the new week-range day-grid fetch + filtering/badging into `weekTimelineCards`)
+- `apps/web/features/booking/schedule/useSchedule.ts` (modify — new `useScheduleWeekDayGrid` fan-out hook)
+- `apps/web/features/booking/schedule/schedule-week-resource-bookings.ts` (new — `buildWeekBookingResourceIds`/`isBookingVisibleForResourceFilter`, the week-range day-grid-as-lookup + filtering-rule module)
+- `apps/web/features/booking/schedule/schedule-timeline-formatting.ts` (new — `getClosureReasonLabel`/`normalizeScheduleStatuses`/`buildScheduleReturnTo`, split out of `schedule-timeline.ts` purely to stay under the 250-line file cap once this story's resource-filter fields landed there; re-exported from `schedule-timeline.ts` so no consumer import changes)
+- **Correction, found during implementation (2026-09-24):** `ScheduleMainView.tsx`/`ScheduleWeekView.tsx` need **no changes** — filtering and badging happen entirely in the data layer (`schedule-page-timeline-derived.ts`, before `weekTimelineCards` is even computed), so the pre-filtered/badged events simply flow through the existing `weekTimelineCards` prop unchanged, the same way closure/opening badges already do today. The story-discovery finding that `ScheduleMainView.tsx` needed a wiring-gap fix was based on an incorrect assumption (that Week view would need the raw `selectedResourceIdSet`/`resourceNameById` props the way the Day-view columns board does) — it doesn't, since it never builds its own columns.
 - `apps/web/e2e/schedule-resource-columns.spec.ts` (modify — add the new Week-view scenarios below; fix the existing comment/assertion stating "Week view stays completely untouched by this feature," which becomes false once this story ships)
 
 **Acceptance criteria — product:**
@@ -115,7 +117,7 @@ A full columns-per-day-card layout was considered and ruled impractical (7 days 
   - [ ] A booking assigned to two resources where only one is checked renders with exactly one badge (the checked one)
   - [ ] Zero checked resources → filtering is a no-op, identical output to today
   - [ ] The week-range fan-out hook issues one query per visible day, gated on `resourceIds.length > 0`
-  - [ ] `ScheduleMainView` forwards `selectedResourceIdSet`/`resourceNameById` into `ScheduleWeekView` only (no change to what it forwards to `ScheduleResourceColumnsBoard`)
+  - [ ] `ScheduleMainView` forwards `weekTimelineCards` to `ScheduleWeekView` unchanged, verifying the filtering/badging happened upstream rather than requiring any new prop on either component
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side only
 - E2E (extends `apps/web/e2e/schedule-resource-columns.spec.ts`, all in Week view unless noted):

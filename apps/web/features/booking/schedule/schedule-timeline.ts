@@ -1,12 +1,10 @@
 import type {
-  BookingStatus,
   ScheduleClosure,
   ScheduleOpening,
   StaffBookingCardResponse,
   TenantDayHours,
   TenantBusinessHours,
 } from '@ikaro/types';
-import { SCHEDULE_BOOKING_STATUS_OPTIONS } from '@/features/booking/model/booking-status';
 import {
   getDayHoursForDate,
   parseDateKey,
@@ -25,6 +23,7 @@ import {
   resolveActiveTimelineHours,
   type ActiveTimelineHours,
 } from '@/features/booking/schedule/schedule-timeline-window';
+import { isBookingVisibleForResourceFilter } from '@/features/booking/schedule/schedule-week-resource-bookings';
 
 export type {
   BookingTimelineEvent,
@@ -36,6 +35,11 @@ export {
   getBookingDateKey,
   getBookingTimeKey,
 } from '@/features/booking/schedule/schedule-timeline-events';
+export {
+  getClosureReasonLabel,
+  normalizeScheduleStatuses,
+  buildScheduleReturnTo,
+} from '@/features/booking/schedule/schedule-timeline-formatting';
 
 export interface TimelineDayData {
   readonly selectedOpening: ScheduleOpening | null;
@@ -61,6 +65,11 @@ export interface TimelineLayoutInput {
   // schedule-page-core-data.ts). Omitted (STAFF, or the fetch hasn't resolved yet) means every
   // event renders with resourceName: null, same as a tenant-wide item.
   readonly resourceNameById?: ReadonlyMap<string, string>;
+  // Week view's own booking resource-filter/badges (TD44 Story 1) — see
+  // schedule-week-resource-bookings.ts for the filtering rule and lookup shape. Omitted/empty by
+  // every other caller (Day view never filters bookings at this layer).
+  readonly selectedResourceIdSet?: ReadonlySet<string>;
+  readonly bookingResourceNamesById?: ReadonlyMap<string, readonly string[]>;
 }
 
 export function getSlotHeight(slotGranularityMinutes: number, scale = 1): number {
@@ -89,18 +98,32 @@ export function formatEventRange(startTime: string, endTime: string): string {
   return `${startTime}–${endTime}`;
 }
 
-function buildAllTimelineEvents(
-  selectedDateKey: string,
-  timezone: string,
-  bookings: readonly StaffBookingCardResponse[],
-  active: ActiveTimelineHours,
-  resourceNameById: ReadonlyMap<string, string>,
-): TimelineEvent[] {
-  const { dayOpenings, selectedDayClosures, activeStartTime, activeEndTime } = active;
+const EMPTY_SELECTED_RESOURCE_IDS: ReadonlySet<string> = new Set();
+const EMPTY_BOOKING_RESOURCE_NAMES_BY_ID: ReadonlyMap<string, readonly string[]> = new Map();
 
-  const bookingEvents = assignLanes(
+// Extracted from buildAllTimelineEvents below purely to stay under the 40-line function cap once
+// TD44 Story 1's resource-filter/badge params landed there — same booking-building logic, no
+// behavior change.
+function buildFilteredBookingEvents(
+  bookings: readonly StaffBookingCardResponse[],
+  timezone: string,
+  selectedDateKey: string,
+  selectedDayClosures: readonly ScheduleClosure[],
+  activeStartTime: string,
+  activeEndTime: string,
+  selectedResourceIdSet: ReadonlySet<string>,
+  bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
+) {
+  return assignLanes(
     bookings
       .filter((booking) => getBookingDateKey(booking, timezone) === selectedDateKey)
+      .filter((booking) =>
+        isBookingVisibleForResourceFilter(
+          booking.bookingId,
+          selectedResourceIdSet,
+          bookingResourceNamesById,
+        ),
+      )
       .map((booking) =>
         buildBookingTimelineEvent(
           booking,
@@ -108,8 +131,32 @@ function buildAllTimelineEvents(
           selectedDayClosures,
           activeStartTime,
           activeEndTime,
+          bookingResourceNamesById.get(booking.bookingId) ?? [],
         ),
       ),
+  );
+}
+
+function buildAllTimelineEvents(
+  selectedDateKey: string,
+  timezone: string,
+  bookings: readonly StaffBookingCardResponse[],
+  active: ActiveTimelineHours,
+  resourceNameById: ReadonlyMap<string, string>,
+  selectedResourceIdSet: ReadonlySet<string>,
+  bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
+): TimelineEvent[] {
+  const { dayOpenings, selectedDayClosures, activeStartTime, activeEndTime } = active;
+
+  const bookingEvents = buildFilteredBookingEvents(
+    bookings,
+    timezone,
+    selectedDateKey,
+    selectedDayClosures,
+    activeStartTime,
+    activeEndTime,
+    selectedResourceIdSet,
+    bookingResourceNamesById,
   );
 
   // Lane-split same-kind closures that overlap in time (e.g. two different resources each
@@ -129,6 +176,25 @@ function buildAllTimelineEvents(
 
 const EMPTY_RESOURCE_NAME_BY_ID: ReadonlyMap<string, string> = new Map();
 
+function resolveSlotCount(
+  timelineStartMinutes: number,
+  timelineEndMinutes: number,
+  slotGranularityMinutes: number,
+): number {
+  return Math.max(
+    1,
+    Math.ceil((timelineEndMinutes - timelineStartMinutes) / slotGranularityMinutes),
+  );
+}
+
+interface TimelineWindow {
+  readonly timelineStartMinutes: number;
+  readonly timelineEndMinutes: number;
+  readonly slotCount: number;
+  readonly slotHeight: number;
+  readonly events: TimelineEvent[];
+}
+
 export function buildTimelineEvents({
   selectedDateKey,
   timezone,
@@ -139,13 +205,9 @@ export function buildTimelineEvents({
   openings,
   slotHeightScale = 1,
   resourceNameById = EMPTY_RESOURCE_NAME_BY_ID,
-}: TimelineLayoutInput): {
-  readonly timelineStartMinutes: number;
-  readonly timelineEndMinutes: number;
-  readonly slotCount: number;
-  readonly slotHeight: number;
-  readonly events: TimelineEvent[];
-} {
+  selectedResourceIdSet = EMPTY_SELECTED_RESOURCE_IDS,
+  bookingResourceNamesById = EMPTY_BOOKING_RESOURCE_NAMES_BY_ID,
+}: TimelineLayoutInput): TimelineWindow {
   const active = resolveActiveTimelineHours(selectedDateKey, businessHours, closures, openings);
   const slotHeight = getSlotHeight(slotGranularityMinutes, slotHeightScale);
 
@@ -155,9 +217,10 @@ export function buildTimelineEvents({
 
   const timelineStartMinutes = timeToMinutes(active.activeStartTime);
   const timelineEndMinutes = timeToMinutes(active.activeEndTime);
-  const slotCount = Math.max(
-    1,
-    Math.ceil((timelineEndMinutes - timelineStartMinutes) / slotGranularityMinutes),
+  const slotCount = resolveSlotCount(
+    timelineStartMinutes,
+    timelineEndMinutes,
+    slotGranularityMinutes,
   );
   const events = buildAllTimelineEvents(
     selectedDateKey,
@@ -165,6 +228,8 @@ export function buildTimelineEvents({
     bookings,
     active,
     resourceNameById,
+    selectedResourceIdSet,
+    bookingResourceNamesById,
   );
 
   return { timelineStartMinutes, timelineEndMinutes, slotCount, slotHeight, events };
@@ -214,26 +279,4 @@ export function buildBlockStyle(
     top: `${top}px`,
     height: `${height * slotHeight}px`,
   };
-}
-
-export function getClosureReasonLabel(
-  t: (key: 'reasonDayOff' | 'reasonMaintenance' | 'reasonHoliday') => string,
-  reason: ScheduleClosure['reason'],
-): string {
-  if (reason === 'MAINTENANCE') return t('reasonMaintenance');
-  if (reason === 'HOLIDAY') return t('reasonHoliday');
-  return t('reasonDayOff');
-}
-
-export function normalizeScheduleStatuses(
-  statuses: readonly BookingStatus[],
-): readonly BookingStatus[] {
-  const selected = new Set(statuses);
-  return SCHEDULE_BOOKING_STATUS_OPTIONS.filter((status) => selected.has(status));
-}
-
-export function buildScheduleReturnTo(weekStartKey: string, selectedDateKey: string): string {
-  return `/dashboard/schedule?weekStart=${encodeURIComponent(
-    weekStartKey,
-  )}&date=${encodeURIComponent(selectedDateKey)}`;
 }
