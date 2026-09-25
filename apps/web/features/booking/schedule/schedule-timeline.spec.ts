@@ -277,6 +277,115 @@ describe('buildTimelineEvents', () => {
     expect(result.events[0].kind).toBe('closure');
     expect(result.events[0].kind === 'closure' && result.events[0].resourceName).toBeNull();
   });
+
+  describe('Week view resource filter/badges (TD44 Story 1)', () => {
+    function makeBooking(
+      overrides: Partial<StaffBookingCardResponse> = {},
+    ): StaffBookingCardResponse {
+      return {
+        bookingId: 'booking-1',
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-17T12:00:00.000Z', // 09:00 America/Sao_Paulo
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        totalPrice: { amount: 100, currency: 'BRL' },
+        totalDurationMins: 30,
+        isCustomer: false,
+        ...overrides,
+      };
+    }
+
+    it('is a no-op (unfiltered, unbadged) when selectedResourceIdSet is omitted, identical to today', () => {
+      const result = buildTimelineEvents({
+        selectedDateKey: '2026-08-17',
+        timezone: 'America/Sao_Paulo',
+        slotGranularityMinutes: 30,
+        businessHours: makeBusinessHours(),
+        bookings: [makeBooking()],
+        closures: [],
+        openings: [],
+      });
+
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].kind === 'booking' && result.events[0].resourceNames).toEqual([]);
+    });
+
+    it('excludes a booking whose id has no entry in bookingResourceNamesById once 1+ resources are checked', () => {
+      const result = buildTimelineEvents({
+        selectedDateKey: '2026-08-17',
+        timezone: 'America/Sao_Paulo',
+        slotGranularityMinutes: 30,
+        businessHours: makeBusinessHours(),
+        bookings: [makeBooking({ bookingId: 'booking-unmatched' })],
+        closures: [],
+        openings: [],
+        selectedResourceIdSet: new Set(['res-camila']),
+        bookingResourceNamesById: new Map(),
+      });
+
+      expect(result.events).toHaveLength(0);
+    });
+
+    it('includes and badges a booking matched to exactly one checked resource', () => {
+      const result = buildTimelineEvents({
+        selectedDateKey: '2026-08-17',
+        timezone: 'America/Sao_Paulo',
+        slotGranularityMinutes: 30,
+        businessHours: makeBusinessHours(),
+        bookings: [makeBooking()],
+        closures: [],
+        openings: [],
+        selectedResourceIdSet: new Set(['res-camila']),
+        bookingResourceNamesById: new Map([['booking-1', ['Camila Duarte']]]),
+      });
+
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].kind === 'booking' && result.events[0].resourceNames).toEqual([
+        'Camila Duarte',
+      ]);
+    });
+
+    it('renders a bundled booking once, with both checked-resource names, not duplicated', () => {
+      const result = buildTimelineEvents({
+        selectedDateKey: '2026-08-17',
+        timezone: 'America/Sao_Paulo',
+        slotGranularityMinutes: 30,
+        businessHours: makeBusinessHours(),
+        bookings: [makeBooking()],
+        closures: [],
+        openings: [],
+        selectedResourceIdSet: new Set(['res-camila', 'res-room']),
+        bookingResourceNamesById: new Map([['booking-1', ['Camila Duarte', 'Sala 1']]]),
+      });
+
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].kind === 'booking' && result.events[0].resourceNames).toEqual([
+        'Camila Duarte',
+        'Sala 1',
+      ]);
+    });
+
+    it('badges only the checked resource(s) of a bundled booking when only some are checked', () => {
+      // The lookup itself only ever carries checked-resource names (built upstream in
+      // schedule-page-timeline-derived.ts) — this asserts the timeline layer trusts that lookup
+      // as-is rather than re-deriving which names are "checked" on its own.
+      const result = buildTimelineEvents({
+        selectedDateKey: '2026-08-17',
+        timezone: 'America/Sao_Paulo',
+        slotGranularityMinutes: 30,
+        businessHours: makeBusinessHours(),
+        bookings: [makeBooking()],
+        closures: [],
+        openings: [],
+        selectedResourceIdSet: new Set(['res-camila']),
+        bookingResourceNamesById: new Map([['booking-1', ['Camila Duarte']]]),
+      });
+
+      expect(result.events[0].kind === 'booking' && result.events[0].resourceNames).toEqual([
+        'Camila Duarte',
+      ]);
+    });
+  });
 });
 
 describe('buildTimelineDayData', () => {

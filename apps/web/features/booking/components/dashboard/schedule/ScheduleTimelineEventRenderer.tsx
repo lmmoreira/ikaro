@@ -66,16 +66,21 @@ function renderBookingTimelineEvent(
       title={event.title}
       subtitle={event.subtitle}
       trailing={
-        <Badge
-          variant="outline"
-          className={cn(
-            'shrink-0 border-0',
-            compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
-            SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
-          )}
-        >
-          {props.statusLabels[event.booking.status]}
-        </Badge>
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {event.resourceNames.map((resourceName, index) => (
+            <ResourceNameBadge key={`${index}-${resourceName}`} resourceName={resourceName} />
+          ))}
+          <Badge
+            variant="outline"
+            className={cn(
+              'shrink-0 border-0',
+              compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
+              SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
+            )}
+          >
+            {props.statusLabels[event.booking.status]}
+          </Badge>
+        </div>
       }
       footer={
         <div className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}>

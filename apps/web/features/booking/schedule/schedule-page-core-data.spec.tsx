@@ -19,6 +19,7 @@ const scheduleHooks = vi.hoisted(() => ({
   useScheduleClosures: vi.fn(),
   useScheduleOpenings: vi.fn(),
   useWeekBookings: vi.fn(),
+  useScheduleWeekDayGrid: vi.fn(),
 }));
 
 vi.mock('@/features/booking/schedule/useSchedule', () => scheduleHooks);
@@ -116,6 +117,11 @@ beforeEach(() => {
   scheduleHooks.useScheduleClosures.mockReturnValue({ data: emptyClosures() });
   scheduleHooks.useScheduleOpenings.mockReturnValue({ data: emptyOpenings() });
   scheduleHooks.useWeekBookings.mockReturnValue({ data: emptyBookings() });
+  scheduleHooks.useScheduleWeekDayGrid.mockReturnValue({
+    data: [],
+    isError: false,
+    error: undefined,
+  });
   selectableResourcesHooks.useSelectableResources.mockReturnValue({
     resources: [],
     isLoading: false,
@@ -376,5 +382,84 @@ describe('useScheduleCoreData', () => {
       expect.anything(),
       [],
     );
+  });
+
+  describe('Week view resource filter/badges (TD44 Story 1)', () => {
+    function managerWrapperWith(tenantId: string) {
+      const managerRole = 'MANAGER' as const;
+      return function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+        return (
+          <TenantProvider tenantId={tenantId} tenantSlug={tenantId} role={managerRole}>
+            {wrapper({ children })}
+          </TenantProvider>
+        );
+      };
+    }
+
+    it('threads the checked resource set and its day-grid lookup through to weekTimelineCards', () => {
+      // Week view (default at desktop width, no persisted preference) — the week-range day-grid
+      // fan-out this test exercises is gated to Week view only.
+      mockMatchMedia(true);
+      window.localStorage.setItem(
+        'ikaro:schedule',
+        JSON.stringify({ 'selectedResourceIds:tenant-badges': { selectedResourceIds: ['res-1'] } }),
+      );
+      selectableResourcesHooks.useSelectableResources.mockReturnValue({
+        resources: [makeResource({ id: 'res-1', name: 'Camila Duarte' })],
+        isLoading: false,
+        isError: false,
+        error: null,
+      });
+      scheduleHooks.useWeekBookings.mockReturnValue({
+        data: {
+          items: [
+            {
+              bookingId: 'booking-1',
+              status: BOOKING_STATUS.APPROVED,
+              scheduledAt: '2026-08-17T12:00:00.000Z',
+              contactName: 'João Silva',
+              serviceNames: [],
+              totalPrice: { amount: 0, currency: 'BRL' },
+              totalDurationMins: 30,
+              isCustomer: false,
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+        },
+      });
+      scheduleHooks.useScheduleWeekDayGrid.mockReturnValue({
+        data: [
+          {
+            date: '2026-08-17',
+            columns: [
+              {
+                resourceId: 'res-1',
+                name: 'Camila Duarte',
+                type: 'STAFF',
+                blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+              },
+            ],
+          },
+        ],
+        isError: false,
+        error: undefined,
+      });
+
+      const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+        wrapper: managerWrapperWith('tenant-badges'),
+      });
+
+      const weekEvents = result.current.weekTimelineCards[0].events;
+      expect(weekEvents).toHaveLength(1);
+      expect(weekEvents[0].kind === 'booking' && weekEvents[0].resourceNames).toEqual([
+        'Camila Duarte',
+      ]);
+
+      // Day view's own merged timeline is unaffected by this same booking/filter (it renders
+      // through the separate ScheduleResourceColumnsBoard when 1+ resources are checked instead).
+      expect(result.current.selectedDayTimeline.events).toHaveLength(1);
+    });
   });
 });

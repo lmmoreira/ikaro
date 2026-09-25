@@ -83,6 +83,21 @@ describe('buildBookingTimelineEvent', () => {
     const event = buildBookingTimelineEvent(booking, TIMEZONE, closures, '08:00', '18:00');
     expect(event.warning).toBe(true);
   });
+
+  it('defaults resourceNames to an empty array when omitted', () => {
+    const booking = makeBooking();
+    const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00');
+    expect(event.resourceNames).toEqual([]);
+  });
+
+  it('carries every checked resource name it was given, in order (TD44 Story 1)', () => {
+    const booking = makeBooking();
+    const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00', [
+      'Camila Duarte',
+      'Sala 1',
+    ]);
+    expect(event.resourceNames).toEqual(['Camila Duarte', 'Sala 1']);
+  });
 });
 
 describe('buildClosureTimelineEvent', () => {
@@ -186,6 +201,7 @@ function bookingEvent(id: string, startMinutes: number, endMinutes: number): Boo
     title: id,
     subtitle: '',
     warning: false,
+    resourceNames: [],
     laneIndex: 0,
     laneCount: 1,
     booking: makeBooking({ bookingId: id }),

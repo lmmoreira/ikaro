@@ -11,6 +11,7 @@ import {
   useScheduleClosures,
   useScheduleDayGrid,
   useScheduleOpenings,
+  useScheduleWeekDayGrid,
   useWeekBookings,
 } from './useSchedule';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
@@ -301,5 +302,78 @@ describe('useScheduleDayGrid', () => {
 
     rerender({ date: '2026-08-18', resourceIds: ['res-1', 'res-2'] });
     await waitFor(() => expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('useScheduleWeekDayGrid', () => {
+  it('is disabled (no fetches) when no resources are selected, even with date keys', () => {
+    const { result } = renderHook(() => useScheduleWeekDayGrid(['2026-08-17', '2026-08-18'], []), {
+      wrapper,
+    });
+    expect(result.current.data).toBeUndefined();
+    expect(scheduleApi.getScheduleDayGrid).not.toHaveBeenCalled();
+  });
+
+  it('fetches one day-grid per visible day once a resource is selected', async () => {
+    const { result } = renderHook(
+      () => useScheduleWeekDayGrid(['2026-08-17', '2026-08-18'], ['res-1']),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledTimes(2);
+    expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledWith('2026-08-17');
+    expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledWith('2026-08-18');
+    expect(result.current.data).toHaveLength(2);
+  });
+
+  it('surfaces isError/error when any day fails, instead of silently resolving to no data', async () => {
+    const fetchError = new Error('one day request failed');
+    scheduleApi.getScheduleDayGrid.mockImplementation((date: string) =>
+      date === '2026-08-18' ? Promise.reject(fetchError) : Promise.resolve({ date, columns: [] }),
+    );
+
+    const { result } = renderHook(
+      () => useScheduleWeekDayGrid(['2026-08-17', '2026-08-18'], ['res-1']),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error).toBe(fetchError);
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('shares its query key with useScheduleDayGrid for the same date, avoiding a duplicate fetch', async () => {
+    function useBoth() {
+      const day = useScheduleDayGrid('2026-08-17', ['res-1']);
+      const week = useScheduleWeekDayGrid(['2026-08-17'], ['res-1']);
+      return { day, week };
+    }
+
+    const { result } = renderHook(() => useBoth(), { wrapper });
+    await waitFor(() => expect(result.current.week.data).toBeDefined());
+    expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledTimes(1);
+  });
+
+  // Without a module-level `combine`, useQueries returns a brand-new array/object every render,
+  // defeating every downstream useMemo keyed off this hook's return value (schedule-page-query-
+  // data.ts's bookingResourceIdsById, and transitively schedule-page-timeline-derived.ts's
+  // weekTimelineCards).
+  it('returns a referentially stable result across re-renders when the underlying data has not changed', async () => {
+    // Explicit override: a prior test in this file (`mockImplementation`) isn't cleared by
+    // `vi.clearAllMocks()` in beforeEach (that only clears call history, not implementations) —
+    // pin a fresh resolving implementation so this test doesn't depend on file execution order.
+    scheduleApi.getScheduleDayGrid.mockImplementation((date: string) =>
+      Promise.resolve({ date, columns: [] }),
+    );
+    const { result, rerender } = renderHook(
+      () => useScheduleWeekDayGrid(['2026-08-17', '2026-08-18'], ['res-1']),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    const firstData = result.current.data;
+
+    rerender();
+
+    expect(result.current.data).toBe(firstData);
   });
 });

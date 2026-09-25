@@ -66,6 +66,7 @@ describe('renderTimelineEvent', () => {
       title: 'João Silva',
       subtitle: 'Lavagem completa',
       warning: false,
+      resourceNames: [],
       laneIndex: 0,
       laneCount: 1,
       booking: {
@@ -82,6 +83,59 @@ describe('renderTimelineEvent', () => {
     const link = screen.getByRole('link', { name: 'João Silva' });
     expect(link).toHaveAttribute('href', expect.stringContaining('/dashboard/bookings/booking-1'));
     expect(screen.getByText('Aprovado')).toBeInTheDocument();
+  });
+
+  it('renders no resource-name badge on a booking when resourceNames is empty (TD44 Story 1)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: [],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30,
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    expect(screen.queryByTestId('timeline-block-resource-name')).not.toBeInTheDocument();
+  });
+
+  it('renders one resource-name badge per checked resource on a booking (TD44 Story 1)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: ['Camila Duarte', 'Sala 1'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30,
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    const badges = screen.getAllByTestId('timeline-block-resource-name');
+    expect(badges.map((badge) => badge.textContent)).toEqual(['Camila Duarte', 'Sala 1']);
   });
 
   it('renders an opening event as a button that calls onOpeningClick', async () => {

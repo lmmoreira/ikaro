@@ -18,6 +18,11 @@ export interface BookingTimelineEvent extends TimelineEventBase {
   readonly kind: 'booking';
   readonly booking: StaffBookingCardResponse;
   readonly warning: boolean;
+  // Checked-resource display names this booking is assigned to (Week view, TD44 Story 1) — empty
+  // when resource filtering isn't active (zero checked) or this milestone's Day-view merged
+  // timeline, which never populates this field at all. A bundled booking assigned to more than one
+  // checked resource carries every one of them here, not just the first match.
+  readonly resourceNames: readonly string[];
 }
 
 export interface ClosureTimelineEvent extends TimelineEventBase {
@@ -56,8 +61,6 @@ export function getBookingDateKey(booking: StaffBookingCardResponse, timezone: s
   return toISODateInTimezone(new Date(booking.scheduledAt), timezone);
 }
 
-// Bookings aren't resource-scoped in this milestone (out of scope), so there's no equivalent
-// lookup for buildBookingTimelineEvent.
 function resolveResourceName(
   resourceId: string | null,
   resourceNameById: ReadonlyMap<string, string>,
@@ -71,6 +74,7 @@ export function buildBookingTimelineEvent(
   selectedDayClosures: readonly ScheduleClosure[],
   activeStartTime: string,
   activeEndTime: string,
+  resourceNames: readonly string[] = [],
 ): BookingTimelineEvent {
   const { startTime, endTime } = getBookingTimeKey(booking, timezone);
   const startMinutes = timeToMinutes(startTime);
@@ -95,6 +99,7 @@ export function buildBookingTimelineEvent(
     subtitle: booking.serviceNames.join(', '),
     booking,
     warning,
+    resourceNames,
     laneIndex: 0,
     laneCount: 1,
   };

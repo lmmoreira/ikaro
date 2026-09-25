@@ -20,13 +20,18 @@ import { BFF_URL, WEB_INTERNAL_KEY } from '@/e2e/helpers/auth/shared';
 const STAFF_ROLE_EMAIL = 'funcionario@lavacar.com.br';
 const SCHEDULE_TENANT_SLUG = 'lavacar-beloauto';
 
-// Day view only — the columns board never renders in Week view (M22-S06's own resolved design:
-// Week view stays completely untouched by this feature, see plan/M22-MULTIVERTICAL-SERVICE-
-// AVAILABILITY.md's M22-S06 entry). Force it via the view-mode select rather than a mobile
-// viewport, matching schedule.spec.ts's own "switch to day view" pattern.
+// Day view only — the columns board never renders in Week view (M22-S06's own resolved design).
+// Force it via the view-mode select rather than a mobile viewport, matching schedule.spec.ts's
+// own "switch to day view" pattern. Week view gained its own, separate resource-filter/badge
+// behavior later (TD44 Story 1) — see the describe block below for its own coverage.
 async function switchToDayView(page: Page): Promise<void> {
   await page.getByRole('combobox', { name: 'Visualização' }).click();
   await page.getByRole('option', { name: 'Dia' }).click();
+}
+
+async function switchToWeekView(page: Page): Promise<void> {
+  await page.getByRole('combobox', { name: 'Visualização' }).click();
+  await page.getByRole('option', { name: 'Semana' }).click();
 }
 
 test.describe('schedule resource columns board (M22-S06)', () => {
@@ -192,7 +197,9 @@ test.describe('schedule resource columns board (M22-S06)', () => {
 
         await expect(page.getByTestId('schedule-resource-columns-board')).toBeVisible();
 
-        // Week view stays completely untouched — no columns board there, resource checked or not.
+        // No columns board in Week view, resource checked or not — the columns board is a
+        // Day-view-only concept. Week view's own (separate) resource-filter/badge behavior is
+        // covered by the "Week view resource filter/badges (TD44 Story 1)" describe block below.
         await page.getByRole('combobox', { name: 'Visualização' }).click();
         await page.getByRole('option', { name: 'Semana' }).click();
         await expect(page.getByTestId('schedule-resource-columns-board')).toHaveCount(0);
@@ -256,6 +263,272 @@ test.describe('schedule resource columns board (M22-S06)', () => {
       await expect(seventhCheckbox).toBeChecked();
     } finally {
       await Promise.all(resources.map((resource) => deactivateResource(page, resource.id)));
+    }
+  });
+});
+
+// Binds a service to one or more specific resources via AUTO_FUNGIBLE_POOL (single-id pools are
+// deterministic, unlike AUTO_ANY — see the Day-view columns board test above for the same
+// rationale) — reused across the Week-view scenarios below to build both single-resource and
+// bundled (resourceRequirements.length > 1, UC-051) bookings.
+async function bindServiceToResources(
+  page: Page,
+  serviceId: string,
+  requirements: readonly {
+    readonly type: 'ROOM' | 'EQUIPMENT' | 'STAFF';
+    readonly resourceId: string;
+  }[],
+): Promise<void> {
+  const response = await page.request.patch(
+    `${BFF_URL}/services/${serviceId}/resource-requirements`,
+    {
+      data: {
+        resourceRequirements: requirements.map((requirement) => ({
+          type: requirement.type,
+          selectionMode: 'AUTO_FUNGIBLE_POOL',
+          resourcePoolIds: [requirement.resourceId],
+        })),
+      },
+      headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+    },
+  );
+  expect(response.ok()).toBe(true);
+}
+
+test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
+  test('checking one resource filters out a booking assigned to none and badges the matched one', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, { type: 'ROOM', name: uniqueLabel('E2E Week A') });
+    const service = await createService(page, {
+      name: makeUniqueServiceName('e2e-week-a'),
+      priceAmount: 100,
+      durationMinutes: 30,
+      loyaltyPointsValue: 5,
+      isActive: true,
+    });
+
+    try {
+      await bindServiceToResources(page, service.serviceId, [
+        { type: 'ROOM', resourceId: resource.id },
+      ]);
+
+      const dateKey = nextOpenDateKey(151);
+      const matchedName = uniqueLabel('E2E Week Matched');
+      await createScheduleBooking(page, {
+        dateKey,
+        contactName: matchedName,
+        contactEmail: uniqueTestEmail('schedule-week-matched'),
+        approved: true,
+        time: '11:00',
+        serviceIds: [service.serviceId],
+      });
+      const unrelatedName = uniqueLabel('E2E Week Unrelated');
+      await createScheduleBooking(page, {
+        dateKey,
+        contactName: unrelatedName,
+        contactEmail: uniqueTestEmail('schedule-week-unrelated'),
+        approved: true,
+        time: '13:00',
+      });
+
+      await page.goto(scheduleRoute(dateKey));
+      await switchToWeekView(page);
+
+      // Zero resources checked (today's default) — both bookings show, unbadged.
+      await expect(page.getByRole('link', { name: matchedName })).toBeVisible();
+      await expect(page.getByRole('link', { name: unrelatedName })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: resource.name }).check();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+
+      await expect(page.getByRole('link', { name: unrelatedName })).toHaveCount(0);
+      const matchedBlock = page.getByRole('link', { name: matchedName });
+      await expect(matchedBlock).toBeVisible();
+      await expect(matchedBlock.getByTestId('timeline-block-resource-name')).toHaveText(
+        resource.name,
+      );
+    } finally {
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, resource.id);
+    }
+  });
+
+  test('a bundled booking with both required resources checked renders once, with both badges', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resourceA = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Week Bundle A'),
+    });
+    const resourceB = await createResource(page, {
+      type: 'EQUIPMENT',
+      name: uniqueLabel('E2E Week Bundle B'),
+    });
+    const service = await createService(page, {
+      name: makeUniqueServiceName('e2e-week-bundle'),
+      priceAmount: 100,
+      durationMinutes: 30,
+      loyaltyPointsValue: 5,
+      isActive: true,
+    });
+
+    try {
+      await bindServiceToResources(page, service.serviceId, [
+        { type: 'ROOM', resourceId: resourceA.id },
+        { type: 'EQUIPMENT', resourceId: resourceB.id },
+      ]);
+
+      const dateKey = nextOpenDateKey(152);
+      const contactName = uniqueLabel('E2E Week Bundle Booking');
+      await createScheduleBooking(page, {
+        dateKey,
+        contactName,
+        contactEmail: uniqueTestEmail('schedule-week-bundle'),
+        approved: true,
+        time: '11:00',
+        serviceIds: [service.serviceId],
+      });
+
+      await page.goto(scheduleRoute(dateKey));
+      await switchToWeekView(page);
+
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: resourceA.name }).check();
+      await page.getByRole('checkbox', { name: resourceB.name }).check();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+
+      const bookingBlocks = page.getByRole('link', { name: contactName });
+      await expect(bookingBlocks).toHaveCount(1);
+      const badges = bookingBlocks.getByTestId('timeline-block-resource-name');
+      await expect(badges).toHaveCount(2);
+      await expect(badges).toContainText([resourceA.name, resourceB.name]);
+    } finally {
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, resourceA.id);
+      await deactivateResource(page, resourceB.id);
+    }
+  });
+
+  test('a bundled booking with only one of its two required resources checked badges only that one', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resourceA = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Week Partial A'),
+    });
+    const resourceB = await createResource(page, {
+      type: 'EQUIPMENT',
+      name: uniqueLabel('E2E Week Partial B'),
+    });
+    const service = await createService(page, {
+      name: makeUniqueServiceName('e2e-week-partial'),
+      priceAmount: 100,
+      durationMinutes: 30,
+      loyaltyPointsValue: 5,
+      isActive: true,
+    });
+
+    try {
+      await bindServiceToResources(page, service.serviceId, [
+        { type: 'ROOM', resourceId: resourceA.id },
+        { type: 'EQUIPMENT', resourceId: resourceB.id },
+      ]);
+
+      const dateKey = nextOpenDateKey(153);
+      const contactName = uniqueLabel('E2E Week Partial Booking');
+      await createScheduleBooking(page, {
+        dateKey,
+        contactName,
+        contactEmail: uniqueTestEmail('schedule-week-partial'),
+        approved: true,
+        time: '11:00',
+        serviceIds: [service.serviceId],
+      });
+
+      await page.goto(scheduleRoute(dateKey));
+      await switchToWeekView(page);
+
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: resourceA.name }).check();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+
+      const bookingBlock = page.getByRole('link', { name: contactName });
+      await expect(bookingBlock).toBeVisible();
+      const badges = bookingBlock.getByTestId('timeline-block-resource-name');
+      await expect(badges).toHaveCount(1);
+      await expect(badges).toHaveText(resourceA.name);
+    } finally {
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, resourceA.id);
+      await deactivateResource(page, resourceB.id);
+    }
+  });
+
+  test('unchecking the checked resource reverts Week view to the unfiltered, unbadged baseline', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resource = await createResource(page, { type: 'ROOM', name: uniqueLabel('E2E Week C') });
+    const service = await createService(page, {
+      name: makeUniqueServiceName('e2e-week-revert'),
+      priceAmount: 100,
+      durationMinutes: 30,
+      loyaltyPointsValue: 5,
+      isActive: true,
+    });
+
+    try {
+      await bindServiceToResources(page, service.serviceId, [
+        { type: 'ROOM', resourceId: resource.id },
+      ]);
+
+      const dateKey = nextOpenDateKey(154);
+      const matchedName = uniqueLabel('E2E Week Revert Matched');
+      await createScheduleBooking(page, {
+        dateKey,
+        contactName: matchedName,
+        contactEmail: uniqueTestEmail('schedule-week-revert-matched'),
+        approved: true,
+        time: '11:00',
+        serviceIds: [service.serviceId],
+      });
+      const unrelatedName = uniqueLabel('E2E Week Revert Unrelated');
+      await createScheduleBooking(page, {
+        dateKey,
+        contactName: unrelatedName,
+        contactEmail: uniqueTestEmail('schedule-week-revert-unrelated'),
+        approved: true,
+        time: '13:00',
+      });
+
+      await page.goto(scheduleRoute(dateKey));
+      await switchToWeekView(page);
+
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: resource.name }).check();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+      await expect(page.getByRole('link', { name: unrelatedName })).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: resource.name }).uncheck();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+
+      await expect(page.getByRole('link', { name: unrelatedName })).toBeVisible();
+      const matchedBlock = page.getByRole('link', { name: matchedName });
+      await expect(matchedBlock).toBeVisible();
+      await expect(matchedBlock.getByTestId('timeline-block-resource-name')).toHaveCount(0);
+    } finally {
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, resource.id);
     }
   });
 });

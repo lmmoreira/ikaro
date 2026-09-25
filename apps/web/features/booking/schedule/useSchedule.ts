@@ -6,6 +6,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  DayGridResponse,
   ScheduleClosureListResponse,
   ScheduleOpeningListResponse,
   StaffBookingListResponse,
@@ -161,5 +162,45 @@ export function useScheduleDayGrid(date: string, resourceIds: readonly string[])
     queryKey: ['schedule', 'day-grid', tenantId, date],
     queryFn: () => getScheduleDayGrid(date),
     enabled: Boolean(date) && resourceIds.length > 0,
+  });
+}
+
+// Module-level (not inline) so useQueries' own structural-sharing memoization actually applies —
+// an inline arrow recreated every render would defeat it, leaving every downstream useMemo keyed
+// off this hook's return value (schedule-page-query-data.ts's bookingResourceIdsById) recomputing
+// on every render regardless of whether the underlying query data changed.
+function combineWeekDayGrid(queries: readonly UseQueryResult<DayGridResponse>[]): {
+  readonly data?: readonly DayGridResponse[];
+  readonly isError: boolean;
+  readonly error: unknown;
+} {
+  const failed = queries.find((query) => query.isError);
+  const results = queries.map((query) => query.data);
+  const data = results.every((result): result is DayGridResponse => result !== undefined)
+    ? results
+    : undefined;
+
+  return { data, isError: Boolean(failed), error: failed?.error };
+}
+
+// Week view's own fan-out (TD44 Story 1) — same per-resource useQueries shape as
+// useScheduleClosures/useScheduleOpenings above, just fanned by day instead of by resource: one
+// GET /schedule/day-grid call per visible day, sharing the exact query key useScheduleDayGrid
+// already uses (so Day view's single-date query and Week view's 7-date fan-out share one cache
+// entry for whichever date the two happen to overlap on). Gated the same way: never fires for
+// STAFF or when zero resources are checked.
+export function useScheduleWeekDayGrid(
+  dateKeys: readonly string[],
+  resourceIds: readonly string[],
+) {
+  const { tenantId } = useTenant();
+  const enabled = resourceIds.length > 0;
+  return useQueries({
+    queries: dateKeys.map((date) => ({
+      queryKey: ['schedule', 'day-grid', tenantId, date],
+      queryFn: () => getScheduleDayGrid(date),
+      enabled,
+    })),
+    combine: combineWeekDayGrid,
   });
 }
