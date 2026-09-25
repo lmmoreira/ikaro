@@ -24,6 +24,7 @@ import { BookingSlotConflictService } from '../services/booking-slot-conflict.se
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
 import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
+  deriveResourceSelectionsFromAssignments,
   resolveBookingLinesResourceCandidates,
   ResolvedLineCandidates,
 } from './resource-occupancy.helpers';
@@ -74,6 +75,7 @@ export class ApproveBookingUseCase {
         serviceMap,
         tenantId,
         scheduledAt,
+        input.timezone,
       );
 
       booking.approve(staffId, correlationId, isRescheduling ? scheduledAt : undefined);
@@ -128,22 +130,33 @@ export class ApproveBookingUseCase {
     serviceMap: Map<string, Service>,
     tenantId: string,
     scheduledAt: Date,
+    timezone: string,
   ): Promise<Map<string, ResolvedLineCandidates>> {
     const lineInputs = booking.lines.map((line) => ({
       lineId: line.lineId,
       serviceId: line.serviceId,
       durationMinsAtBooking: line.durationMinsAtBooking,
     }));
-    const candidatesByLine = await resolveBookingLinesResourceCandidates(
-      this.resourceRepo,
-      this.availabilityService,
+    const bookingLineIds = booking.lines.map((l) => l.lineId);
+    const lineIdToServiceId = new Map(booking.lines.map((l) => [l.lineId, l.serviceId]));
+    const resourceSelections = await deriveResourceSelectionsFromAssignments(
+      this.occupancyRepo,
+      tenantId,
+      bookingLineIds,
+      lineIdToServiceId,
+    );
+    const candidatesByLine = await resolveBookingLinesResourceCandidates({
+      resourceRepo: this.resourceRepo,
+      availabilityService: this.availabilityService,
+      occupancyRepo: this.occupancyRepo,
       tenantId,
       scheduledAt,
-      lineInputs,
+      timezone,
+      lines: lineInputs,
       serviceMap,
-    );
+      resourceSelections,
+    });
     const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
-    const bookingLineIds = booking.lines.map((l) => l.lineId);
     await this.slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);
     return candidatesByLine;
   }

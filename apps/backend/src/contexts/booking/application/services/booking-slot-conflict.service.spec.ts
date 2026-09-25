@@ -2,7 +2,11 @@ import { InMemoryResourceOccupancyRepository } from '../../../../test/repositori
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { ResourceType } from '../../domain/resource.types';
-import { BookingSlotUnavailableError } from '../../domain/errors/booking-domain.error';
+import {
+  BookingBundlePartiallyUnavailableError,
+  BookingLegUnavailableError,
+  BookingSlotUnavailableError,
+} from '../../domain/errors/booking-domain.error';
 import { ResourceOccupancyCandidate } from '../ports/resource-occupancy-repository.port';
 import { BookingSlotConflictService } from './booking-slot-conflict.service';
 
@@ -10,7 +14,11 @@ const TENANT_ID = '10000000-0000-4000-8000-000000000300';
 const RESOURCE_ID = '20000000-0000-4000-8000-000000000300';
 const scheduledAt = new Date(`${futureDate(5)}T13:00:00.000Z`);
 
-function candidate(startsAt: Date, endsAt: Date): ResourceOccupancyCandidate {
+function candidate(
+  startsAt: Date,
+  endsAt: Date,
+  overrides: Partial<ResourceOccupancyCandidate> = {},
+): ResourceOccupancyCandidate {
   return {
     resourceId: RESOURCE_ID,
     resourceType: ResourceType.LOCATION,
@@ -19,6 +27,9 @@ function candidate(startsAt: Date, endsAt: Date): ResourceOccupancyCandidate {
     quantityPosition: null,
     startsAt,
     endsAt,
+    selectionMode: 'NONE',
+    isBundleMember: false,
+    ...overrides,
   };
 }
 
@@ -114,5 +125,68 @@ describe('BookingSlotConflictService', () => {
         ['aaaaaaaa-0000-4000-8000-000000000001'],
       ),
     ).rejects.toThrow(BookingSlotUnavailableError);
+  });
+
+  describe('error granularity (M23-S01, UC-064 A2 / UC-065 A1)', () => {
+    const RESOURCE_ID_2 = '30000000-0000-4000-8000-000000000300';
+
+    it('throws BookingLegUnavailableError when the conflicting candidate has a legIndex', async () => {
+      const existingEnd = new Date(scheduledAt.getTime() + 60 * 60_000);
+      occupancyRepo.seed(TENANT_ID, 'other-line', candidate(scheduledAt, existingEnd));
+
+      const endsAt = new Date(scheduledAt.getTime() + 30 * 60_000);
+      await expect(
+        service.assertSlotFree(TENANT_ID, [candidate(scheduledAt, endsAt, { legIndex: 0 })]),
+      ).rejects.toThrow(BookingLegUnavailableError);
+    });
+
+    it('throws BookingBundlePartiallyUnavailableError when a true bundle member (isBundleMember) conflicts', async () => {
+      const existingEnd = new Date(scheduledAt.getTime() + 60 * 60_000);
+      occupancyRepo.seed(TENANT_ID, 'other-line', candidate(scheduledAt, existingEnd));
+
+      const endsAt = new Date(scheduledAt.getTime() + 30 * 60_000);
+      await expect(
+        service.assertSlotFree(TENANT_ID, [
+          candidate(scheduledAt, endsAt, { isBundleMember: true }),
+          candidate(scheduledAt, endsAt, { resourceId: RESOURCE_ID_2, isBundleMember: true }),
+        ]),
+      ).rejects.toThrow(BookingBundlePartiallyUnavailableError);
+    });
+
+    // Inferring "bundle" from flat-candidate-count across the whole booking would mislabel an
+    // ordinary multi-service basket (two independent single-resource services, neither itself a
+    // bundle) as a bundle conflict. isBundleMember is stamped per-candidate from its own line's
+    // requirement count instead, so this case must fall through to the generic message.
+    it('throws the generic BookingSlotUnavailableError for a multi-service basket where neither service is a bundle', async () => {
+      const existingEnd = new Date(scheduledAt.getTime() + 60 * 60_000);
+      occupancyRepo.seed(TENANT_ID, 'other-line', candidate(scheduledAt, existingEnd));
+
+      const endsAt = new Date(scheduledAt.getTime() + 30 * 60_000);
+      await expect(
+        service.assertSlotFree(TENANT_ID, [
+          candidate(scheduledAt, endsAt),
+          candidate(scheduledAt, endsAt, { resourceId: RESOURCE_ID_2 }),
+        ]),
+      ).rejects.toThrow(BookingSlotUnavailableError);
+      await expect(
+        service.assertSlotFree(TENANT_ID, [
+          candidate(scheduledAt, endsAt),
+          candidate(scheduledAt, endsAt, { resourceId: RESOURCE_ID_2 }),
+        ]),
+      ).rejects.not.toBeInstanceOf(BookingBundlePartiallyUnavailableError);
+    });
+
+    it('throws the generic BookingSlotUnavailableError for a single flat, non-legged candidate', async () => {
+      const existingEnd = new Date(scheduledAt.getTime() + 60 * 60_000);
+      occupancyRepo.seed(TENANT_ID, 'other-line', candidate(scheduledAt, existingEnd));
+
+      const endsAt = new Date(scheduledAt.getTime() + 30 * 60_000);
+      await expect(
+        service.assertSlotFree(TENANT_ID, [candidate(scheduledAt, endsAt)]),
+      ).rejects.toThrow(BookingSlotUnavailableError);
+      await expect(
+        service.assertSlotFree(TENANT_ID, [candidate(scheduledAt, endsAt)]),
+      ).rejects.not.toBeInstanceOf(BookingBundlePartiallyUnavailableError);
+    });
   });
 });

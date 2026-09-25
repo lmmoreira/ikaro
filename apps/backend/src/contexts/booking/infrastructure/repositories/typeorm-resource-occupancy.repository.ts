@@ -1,103 +1,34 @@
 import { Injectable } from '@nestjs/common';
-import { EntityManager } from 'typeorm';
-import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
   IResourceOccupancyRepository,
+  ResourceLineAssignment,
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
 } from '../../application/ports/resource-occupancy-repository.port';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { rethrowOccupancyInsertError } from './typeorm-resource-occupancy.persistence-errors';
+import {
+  buildOccupancyRows,
+  insertOccupancyRows,
+  upsertBookingLineResourceAssignments,
+} from './typeorm-resource-occupancy.write-queries';
 
 interface ConflictRow {
   resource_id: string;
 }
 
-interface AssignmentRow {
-  id: string;
+interface WorkloadCountRow {
   resource_id: string;
+  count: string;
+}
+
+interface AssignmentByLineRow {
+  booking_line_id: string;
+  resource_id: string;
+  resource_type: ResourceLineAssignment['resourceType'];
   leg_index: number | null;
-  quantity_position: number | null;
-}
-
-// ResourceOccupancyEntity has 14 columns; PostgreSQL's hard 65,535 bound-parameter limit divided
-// by 14 is ~4,681 rows per multi-row INSERT — 1,000 leaves ample margin for future columns.
-const OCCUPANCY_INSERT_CHUNK_SIZE = 1000;
-
-// Null-safe tuple key, matching the null-safe UNIQUE index on booking_line_resource_assignments
-// (COALESCE(leg_index, -1), COALESCE(quantity_position, -1)) — used to map a batched upsert's
-// result rows (arbitrary UNION ALL order) back to the candidate that produced each one.
-function occupancyKey(
-  resourceId: string,
-  legIndex: number | null,
-  quantityPosition: number | null,
-): string {
-  return `${resourceId}|${legIndex ?? -1}|${quantityPosition ?? -1}`;
-}
-
-// booking_line_resource_assignments is the immutable business/audit record
-// (docs/13-DATABASE_SCHEMA.md) — release() never deletes it, so re-resolving the same
-// (line, resource, leg, quantity) tuple on a reschedule/re-approval must reuse the existing row
-// instead of violating its null-safe unique index. True ON CONFLICT DO NOTHING can't RETURNING
-// the pre-existing row, so the insert attempt is unioned with a fallback lookup — batched across
-// every candidate in one round trip (TD40 Story 1) via the same unnest-into-a-CTE technique
-// findConflictingResourceIds uses below. The fallback SELECT's plain table scan runs against this
-// statement's initial snapshot, so it naturally excludes whatever `ins` just inserted in the same
-// statement — no extra de-duplication needed between the two UNION ALL arms.
-const UPSERT_ASSIGNMENTS_SQL = `
-  WITH input AS (
-    SELECT * FROM unnest($1::uuid[], $3::uuid[], $4::varchar[], $5::int[], $6::int[], $7::varchar[])
-      AS c(new_id, resource_id, resource_type, leg_index, quantity_position, resource_name)
-  ),
-  ins AS (
-    INSERT INTO booking.booking_line_resource_assignments
-      (id, tenant_id, booking_line_id, resource_id, resource_type, leg_index,
-       quantity_position, resource_name_at_assignment, assigned_at)
-    SELECT new_id, $2, $8, resource_id, resource_type, leg_index, quantity_position, resource_name, $9
-    FROM input
-    ON CONFLICT (tenant_id, booking_line_id, resource_id, COALESCE(leg_index, -1), COALESCE(quantity_position, -1))
-    DO NOTHING
-    RETURNING id, resource_id, leg_index, quantity_position
-  )
-  SELECT id, resource_id, leg_index, quantity_position FROM ins
-  UNION ALL
-  SELECT a.id, a.resource_id, a.leg_index, a.quantity_position
-  FROM booking.booking_line_resource_assignments a
-  JOIN input i
-    ON a.resource_id = i.resource_id
-    AND COALESCE(a.leg_index, -1) = COALESCE(i.leg_index, -1)
-    AND COALESCE(a.quantity_position, -1) = COALESCE(i.quantity_position, -1)
-  WHERE a.tenant_id = $2 AND a.booking_line_id = $8
-`;
-
-function buildUpsertAssignmentsParams(
-  tenantId: string,
-  bookingLineId: string,
-  candidates: ResourceOccupancyCandidate[],
-  now: Date,
-): unknown[] {
-  return [
-    candidates.map(() => uuidv7()),
-    tenantId,
-    candidates.map((c) => c.resourceId),
-    candidates.map((c) => c.resourceType),
-    candidates.map((c) => c.legIndex),
-    candidates.map((c) => c.quantityPosition),
-    candidates.map((c) => c.resourceName),
-    bookingLineId,
-    now,
-  ];
-}
-
-function toAssignmentIdMap(rows: AssignmentRow[]): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const row of rows) {
-    map.set(occupancyKey(row.resource_id, row.leg_index, row.quantity_position), row.id);
-  }
-  return map;
 }
 
 @Injectable()
@@ -160,94 +91,24 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
     const now = new Date();
 
     try {
-      const assignmentIds = await this.upsertAssignments(
+      const assignmentIds = await upsertBookingLineResourceAssignments(
         manager,
         tenantId,
         bookingLineId,
         candidates,
         now,
       );
-      const rows = this.buildOccupancyRows(candidates, {
+      const rows = buildOccupancyRows(candidates, {
         tenantId,
         assignmentIds,
         lockState,
         holdExpiresAt,
         now,
       });
-      await this.insertOccupancyRows(manager, rows);
+      await insertOccupancyRows(manager, rows);
     } catch (err) {
       rethrowOccupancyInsertError(err);
     }
-  }
-
-  // TypeORM's multi-row manager.insert() binds one SQL parameter per cell, not per row — at
-  // ResourceOccupancyEntity's 14 columns, PostgreSQL's 65,535 bound-parameter limit is reachable
-  // once requiredQuantity (validated only as > 0, no upper bound — resource-requirement.ts) drives
-  // a large-enough candidate count. Chunking keeps today's realistic candidate counts at one query
-  // (the common case this story targets) while staying correct at any size.
-  private async insertOccupancyRows(
-    manager: EntityManager,
-    rows: QueryDeepPartialEntity<ResourceOccupancyEntity>[],
-  ): Promise<void> {
-    for (let i = 0; i < rows.length; i += OCCUPANCY_INSERT_CHUNK_SIZE) {
-      await manager.insert(ResourceOccupancyEntity, rows.slice(i, i + OCCUPANCY_INSERT_CHUNK_SIZE));
-    }
-  }
-
-  private buildOccupancyRows(
-    candidates: ResourceOccupancyCandidate[],
-    ctx: {
-      tenantId: string;
-      assignmentIds: Map<string, string>;
-      lockState: ResourceOccupancyLockState;
-      holdExpiresAt: Date | null;
-      now: Date;
-    },
-  ): QueryDeepPartialEntity<ResourceOccupancyEntity>[] {
-    return candidates.map((candidate) => ({
-      id: uuidv7(),
-      tenantId: ctx.tenantId,
-      resourceId: candidate.resourceId,
-      resourceType: candidate.resourceType,
-      sourceType: 'BOOKING_LINE' as const,
-      bookingLineResourceAssignmentId: this.resolveAssignmentId(ctx.assignmentIds, candidate),
-      legIndex: candidate.legIndex,
-      classSessionId: null,
-      resourceNameAtAssignment: candidate.resourceName,
-      startsAt: candidate.startsAt,
-      endsAt: candidate.endsAt,
-      lockState: ctx.lockState,
-      holdExpiresAt: ctx.holdExpiresAt,
-      createdAt: ctx.now,
-    }));
-  }
-
-  private resolveAssignmentId(
-    assignmentIds: Map<string, string>,
-    candidate: ResourceOccupancyCandidate,
-  ): string {
-    const key = occupancyKey(candidate.resourceId, candidate.legIndex, candidate.quantityPosition);
-    const assignmentId = assignmentIds.get(key);
-    if (!assignmentId) {
-      throw new Error(
-        `resource_occupancy: batched upsert returned no assignment id for candidate ${key}`,
-      );
-    }
-    return assignmentId;
-  }
-
-  private async upsertAssignments(
-    manager: EntityManager,
-    tenantId: string,
-    bookingLineId: string,
-    candidates: ResourceOccupancyCandidate[],
-    now: Date,
-  ): Promise<Map<string, string>> {
-    const rows: AssignmentRow[] = await manager.query(
-      UPSERT_ASSIGNMENTS_SQL,
-      buildUpsertAssignmentsParams(tenantId, bookingLineId, candidates, now),
-    );
-    return toAssignmentIdMap(rows);
   }
 
   // Deletes only the short-lived lock rows — booking_line_resource_assignments is the immutable
@@ -284,6 +145,80 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
       .where('ends_at < :cutoff', { cutoff })
       .execute();
     return result.affected ?? 0;
+  }
+
+  // AUTO_ANY tie-break (UC-063 A1, M23-S01) — same HOLD/COMMITTED lock-state filter and tstzrange
+  // overlap operator as findConflictingResourceIds above, grouped/counted per resource instead of
+  // just existence-checked. excludeBookingLineIds mirrors findConflictingResourceIds' own
+  // self-exclusion LEFT JOIN — approve-booking/reschedule-booking's fresh AUTO_ANY re-resolution
+  // must never count the booking's own existing HOLD/COMMITTED row as workload against itself.
+  async countActiveByResource(
+    tenantId: string,
+    resourceIds: string[],
+    from: Date,
+    to: Date,
+    excludeBookingLineIds?: string[],
+  ): Promise<Map<string, number>> {
+    if (resourceIds.length === 0) return new Map();
+    const manager = this.requireActiveManager();
+    const rows: WorkloadCountRow[] = await manager.query(
+      `
+      SELECT ro.resource_id, COUNT(*)::text AS count
+      FROM booking.resource_occupancy ro
+      LEFT JOIN booking.booking_line_resource_assignments bla
+        ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
+      WHERE ro.tenant_id = $1
+        AND ro.resource_id = ANY($2::uuid[])
+        AND ro.lock_state IN ('HOLD', 'COMMITTED')
+        AND tstzrange(ro.starts_at, ro.ends_at, '[)') && tstzrange($3::timestamptz, $4::timestamptz, '[)')
+        AND (
+          $5::uuid[] IS NULL
+          OR bla.booking_line_id IS NULL
+          OR NOT (bla.booking_line_id = ANY($5::uuid[]))
+        )
+      GROUP BY ro.resource_id
+      `,
+      [tenantId, resourceIds, from, to, excludeBookingLineIds ?? null],
+    );
+    return new Map(rows.map((row) => [row.resource_id, Number(row.count)]));
+  }
+
+  // Approval/reschedule re-resolution replay (M23-S01 story-discovery) — reads the LIVE
+  // resource_occupancy projection (joined to booking_line_resource_assignments for
+  // resourceType/legIndex), not the booking_line_resource_assignments audit table directly. That
+  // table is append-only and never deletes a superseded row on reassignment, so a booking
+  // rescheduled to a different resource more than once would otherwise return stale,
+  // no-longer-occupying resource ids alongside the current one. Ordered primarily by each row's
+  // own booking_line_id's position within the caller-supplied bookingLineIds array — the same
+  // order resolveBookingLinesResourceCandidates() re-iterates lines in — so two lines booking the
+  // same duplicated service (docs/14-API_CONTRACTS.md) group their own assignments together, in
+  // resolution order, rather than interleaving arbitrarily (Postgres gives no defined secondary
+  // order among rows tied on quantity_position alone, which is NULL for every single-unit
+  // requirement — the common case). quantity_position is still the secondary tiebreaker within one
+  // line's own multi-unit requirement, preserving its original positional assignment.
+  async findAssignmentsByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<ResourceLineAssignment[]> {
+    if (bookingLineIds.length === 0) return [];
+    const manager = this.requireActiveManager();
+    const rows: AssignmentByLineRow[] = await manager.query(
+      `
+      SELECT bla.booking_line_id, ro.resource_id, ro.resource_type, ro.leg_index
+      FROM booking.resource_occupancy ro
+      JOIN booking.booking_line_resource_assignments bla
+        ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
+      WHERE ro.tenant_id = $1 AND bla.booking_line_id = ANY($2::uuid[])
+      ORDER BY array_position($2::uuid[], bla.booking_line_id), bla.quantity_position ASC NULLS FIRST
+      `,
+      [tenantId, bookingLineIds],
+    );
+    return rows.map((row) => ({
+      bookingLineId: row.booking_line_id,
+      resourceId: row.resource_id,
+      resourceType: row.resource_type,
+      legIndex: row.leg_index,
+    }));
   }
 
   private requireActiveManager() {

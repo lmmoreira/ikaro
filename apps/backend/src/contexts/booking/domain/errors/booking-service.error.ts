@@ -209,6 +209,21 @@ export class BookingServiceResourceTypeUnavailableError extends BookingDomainErr
   }
 }
 
+// Thrown when a CUSTOMER_CHOICE requirement has no matching entry in the request's
+// resourceSelections (or fewer entries than requiredQuantity) — a distinct client-input gap from
+// BookingServiceResourceTypeUnavailableError above, which means "no eligible resource exists at
+// all" rather than "you didn't tell us which one you want" (M23-S01).
+export class BookingResourceSelectionRequiredError extends BookingDomainError {
+  constructor(type: string) {
+    super(
+      `A resourceSelections entry is required for resource type ${type}`,
+      BookingErrorCode.RESOURCE_SELECTION_REQUIRED,
+      'resourceSelections',
+    );
+    this.name = 'BookingResourceSelectionRequiredError';
+  }
+}
+
 type ResourceRequirementInvalidReason =
   | 'quantity-must-be-positive'
   | 'quantity-exceeds-candidates'

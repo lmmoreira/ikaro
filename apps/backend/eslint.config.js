@@ -119,6 +119,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-resource.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.ts',
+  'src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.write-queries.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-schedule-closure.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-schedule-opening.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-service.repository.ts',

@@ -1,0 +1,167 @@
+import { EntityManager } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { ResourceOccupancyCandidate } from '../../application/ports/resource-occupancy-repository.port';
+import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
+import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
+
+// Split out of typeorm-resource-occupancy.repository.ts (docs/CODE_STANDARDS.md's file-length
+// limit) — the write-path (upsert booking_line_resource_assignments, then insert
+// resource_occupancy) called by that class's assign(). Free functions, not class methods, since
+// none of them need `this` beyond the caller-supplied EntityManager.
+
+interface AssignmentRow {
+  id: string;
+  resource_id: string;
+  leg_index: number | null;
+  quantity_position: number | null;
+}
+
+// Null-safe tuple key, matching the null-safe UNIQUE index on booking_line_resource_assignments
+// (COALESCE(leg_index, -1), COALESCE(quantity_position, -1)) — used to map a batched upsert's
+// result rows (arbitrary UNION ALL order) back to the candidate that produced each one.
+function occupancyKey(
+  resourceId: string,
+  legIndex: number | null,
+  quantityPosition: number | null,
+): string {
+  return `${resourceId}|${legIndex ?? -1}|${quantityPosition ?? -1}`;
+}
+
+// booking_line_resource_assignments is the immutable business/audit record
+// (docs/13-DATABASE_SCHEMA.md) — release() never deletes it, so re-resolving the same
+// (line, resource, leg, quantity) tuple on a reschedule/re-approval must reuse the existing row
+// instead of violating its null-safe unique index. True ON CONFLICT DO NOTHING can't RETURNING
+// the pre-existing row, so the insert attempt is unioned with a fallback lookup — batched across
+// every candidate in one round trip (TD40 Story 1) via the same unnest-into-a-CTE technique
+// findConflictingResourceIds uses. The fallback SELECT's plain table scan runs against this
+// statement's initial snapshot, so it naturally excludes whatever `ins` just inserted in the same
+// statement — no extra de-duplication needed between the two UNION ALL arms.
+const UPSERT_ASSIGNMENTS_SQL = `
+  WITH input AS (
+    SELECT * FROM unnest($1::uuid[], $3::uuid[], $4::varchar[], $5::int[], $6::int[], $7::varchar[])
+      AS c(new_id, resource_id, resource_type, leg_index, quantity_position, resource_name)
+  ),
+  ins AS (
+    INSERT INTO booking.booking_line_resource_assignments
+      (id, tenant_id, booking_line_id, resource_id, resource_type, leg_index,
+       quantity_position, resource_name_at_assignment, assigned_at)
+    SELECT new_id, $2, $8, resource_id, resource_type, leg_index, quantity_position, resource_name, $9
+    FROM input
+    ON CONFLICT (tenant_id, booking_line_id, resource_id, COALESCE(leg_index, -1), COALESCE(quantity_position, -1))
+    DO NOTHING
+    RETURNING id, resource_id, leg_index, quantity_position
+  )
+  SELECT id, resource_id, leg_index, quantity_position FROM ins
+  UNION ALL
+  SELECT a.id, a.resource_id, a.leg_index, a.quantity_position
+  FROM booking.booking_line_resource_assignments a
+  JOIN input i
+    ON a.resource_id = i.resource_id
+    AND COALESCE(a.leg_index, -1) = COALESCE(i.leg_index, -1)
+    AND COALESCE(a.quantity_position, -1) = COALESCE(i.quantity_position, -1)
+  WHERE a.tenant_id = $2 AND a.booking_line_id = $8
+`;
+
+function buildUpsertAssignmentsParams(
+  tenantId: string,
+  bookingLineId: string,
+  candidates: ResourceOccupancyCandidate[],
+  now: Date,
+): unknown[] {
+  return [
+    candidates.map(() => uuidv7()),
+    tenantId,
+    candidates.map((c) => c.resourceId),
+    candidates.map((c) => c.resourceType),
+    candidates.map((c) => c.legIndex),
+    candidates.map((c) => c.quantityPosition),
+    candidates.map((c) => c.resourceName),
+    bookingLineId,
+    now,
+  ];
+}
+
+function toAssignmentIdMap(rows: AssignmentRow[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    map.set(occupancyKey(row.resource_id, row.leg_index, row.quantity_position), row.id);
+  }
+  return map;
+}
+
+export async function upsertBookingLineResourceAssignments(
+  manager: EntityManager,
+  tenantId: string,
+  bookingLineId: string,
+  candidates: ResourceOccupancyCandidate[],
+  now: Date,
+): Promise<Map<string, string>> {
+  const rows: AssignmentRow[] = await manager.query(
+    UPSERT_ASSIGNMENTS_SQL,
+    buildUpsertAssignmentsParams(tenantId, bookingLineId, candidates, now),
+  );
+  return toAssignmentIdMap(rows);
+}
+
+interface OccupancyRowContext {
+  tenantId: string;
+  assignmentIds: Map<string, string>;
+  lockState: ResourceOccupancyLockState;
+  holdExpiresAt: Date | null;
+  now: Date;
+}
+
+function resolveAssignmentId(
+  assignmentIds: Map<string, string>,
+  candidate: ResourceOccupancyCandidate,
+): string {
+  const key = occupancyKey(candidate.resourceId, candidate.legIndex, candidate.quantityPosition);
+  const assignmentId = assignmentIds.get(key);
+  if (!assignmentId) {
+    throw new Error(
+      `resource_occupancy: batched upsert returned no assignment id for candidate ${key}`,
+    );
+  }
+  return assignmentId;
+}
+
+export function buildOccupancyRows(
+  candidates: ResourceOccupancyCandidate[],
+  ctx: OccupancyRowContext,
+): QueryDeepPartialEntity<ResourceOccupancyEntity>[] {
+  return candidates.map((candidate) => ({
+    id: uuidv7(),
+    tenantId: ctx.tenantId,
+    resourceId: candidate.resourceId,
+    resourceType: candidate.resourceType,
+    sourceType: 'BOOKING_LINE' as const,
+    bookingLineResourceAssignmentId: resolveAssignmentId(ctx.assignmentIds, candidate),
+    legIndex: candidate.legIndex,
+    classSessionId: null,
+    resourceNameAtAssignment: candidate.resourceName,
+    startsAt: candidate.startsAt,
+    endsAt: candidate.endsAt,
+    lockState: ctx.lockState,
+    holdExpiresAt: ctx.holdExpiresAt,
+    createdAt: ctx.now,
+  }));
+}
+
+// ResourceOccupancyEntity has 14 columns; PostgreSQL's hard 65,535 bound-parameter limit divided
+// by 14 is ~4,681 rows per multi-row INSERT — 1,000 leaves ample margin for future columns.
+const OCCUPANCY_INSERT_CHUNK_SIZE = 1000;
+
+// TypeORM's multi-row manager.insert() binds one SQL parameter per cell, not per row — at
+// ResourceOccupancyEntity's 14 columns, PostgreSQL's 65,535 bound-parameter limit is reachable
+// once requiredQuantity (validated only as > 0, no upper bound — resource-requirement.ts) drives
+// a large-enough candidate count. Chunking keeps today's realistic candidate counts at one query
+// (the common case) while staying correct at any size.
+export async function insertOccupancyRows(
+  manager: EntityManager,
+  rows: QueryDeepPartialEntity<ResourceOccupancyEntity>[],
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += OCCUPANCY_INSERT_CHUNK_SIZE) {
+    await manager.insert(ResourceOccupancyEntity, rows.slice(i, i + OCCUPANCY_INSERT_CHUNK_SIZE));
+  }
+}

@@ -1,5 +1,6 @@
 import {
   IResourceOccupancyRepository,
+  ResourceLineAssignment,
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
 } from '../../../contexts/booking/application/ports/resource-occupancy-repository.port';
@@ -73,5 +74,56 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     const before = this.store.length;
     this.store = this.store.filter((row) => row.endsAt >= cutoff);
     return before - this.store.length;
+  }
+
+  async countActiveByResource(
+    tenantId: string,
+    resourceIds: string[],
+    from: Date,
+    to: Date,
+    excludeBookingLineIds?: string[],
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    for (const row of this.store) {
+      if (
+        row.tenantId !== tenantId ||
+        row.lockState === 'REQUESTED' ||
+        !resourceIds.includes(row.resourceId) ||
+        (excludeBookingLineIds ?? []).includes(row.bookingLineId) ||
+        !(row.startsAt < to && from < row.endsAt)
+      ) {
+        continue;
+      }
+      counts.set(row.resourceId, (counts.get(row.resourceId) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  // Mirrors the real repository's ORDER BY quantity_position — this store only ever holds live
+  // occupancy (release() removes rows outright, same effect as the real query's JOIN to the live
+  // resource_occupancy projection), so no separate staleness filter is needed here.
+  async findAssignmentsByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<ResourceLineAssignment[]> {
+    // Mirrors the TypeORM adapter's ORDER BY: primarily by each row's own bookingLineId's
+    // position within the caller-supplied bookingLineIds array, quantityPosition as the secondary
+    // tiebreaker — see that adapter's own doc comment for why (two lines booking the same
+    // duplicated service must group their own assignments together, in resolution order).
+    return this.store
+      .filter((row) => row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId))
+      .sort((a, b) => {
+        const linePositionDiff =
+          bookingLineIds.indexOf(a.bookingLineId) - bookingLineIds.indexOf(b.bookingLineId);
+        return linePositionDiff !== 0
+          ? linePositionDiff
+          : (a.quantityPosition ?? -1) - (b.quantityPosition ?? -1);
+      })
+      .map((row) => ({
+        bookingLineId: row.bookingLineId,
+        resourceId: row.resourceId,
+        resourceType: row.resourceType,
+        legIndex: row.legIndex,
+      }));
   }
 }

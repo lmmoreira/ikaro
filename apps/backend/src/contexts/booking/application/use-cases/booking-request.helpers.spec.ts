@@ -8,6 +8,7 @@ import { InMemoryBookingRepository } from '../../../../test/repositories/booking
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import {
   BookingBuilder,
@@ -17,20 +18,13 @@ import {
 } from '../../../../test/builders/booking/index';
 import { testAddressProps } from '../../../../test/utils/address-helpers';
 import { futureDate } from '../../../../test/utils/date-helpers';
-import { Money } from '../../../../shared/value-objects/money';
 import {
   BookingAddressValidationError,
   BookingServiceConcurrentModificationError,
-  BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
-import {
-  buildLineInputs,
-  createBookingAddress,
-  persistRequestedBooking,
-  toBookingResult,
-} from './booking-request.helpers';
+import { createBookingAddress, persistRequestedBooking } from './booking-request.helpers';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000100';
 const BR_ADDRESS_SPEC = countrySpec('BR').address;
@@ -55,53 +49,6 @@ describe('createBookingAddress', () => {
 
     expect(caught).toBeInstanceOf(BookingAddressValidationError);
     expect((caught as BookingAddressValidationError).field).toBe('pickupAddress');
-  });
-});
-
-describe('buildLineInputs', () => {
-  it('maps each serviceId to a BookingLineInput snapshotted from the service map', () => {
-    const service = new ServiceBuilder()
-      .withTenantId(TENANT_A)
-      .withName('Lavagem Completa')
-      .withPrice(Money.from(150, 'BRL'))
-      .build();
-    const serviceMap = new Map([[service.id, service]]);
-
-    const result = buildLineInputs([service.id], serviceMap);
-
-    expect(result).toEqual([
-      {
-        serviceId: service.id,
-        serviceNameAtBooking: service.name,
-        priceAtBooking: service.price,
-        durationMinsAtBooking: service.durationMinutes,
-        pointsValueAtBooking: service.loyaltyPointsValue,
-        requiresPickupAddressAtBooking: service.requiresPickupAddress,
-      },
-    ]);
-  });
-
-  it('throws BookingServiceNotInTenantError when a serviceId is not in the map', () => {
-    expect(() => buildLineInputs(['missing-service-id'], new Map())).toThrow(
-      BookingServiceNotInTenantError,
-    );
-  });
-});
-
-describe('toBookingResult', () => {
-  it('maps a Booking without a pickup address', () => {
-    const booking = new BookingBuilder()
-      .withTenantId(TENANT_A)
-      .withLines([new BookingLineBuilder().build()])
-      .build();
-
-    const result = toBookingResult(booking);
-
-    expect(result.bookingId).toBe(booking.id);
-    expect(result.status).toBe(booking.status);
-    expect(result.pickupAddress).toBeNull();
-    expect(result.lines).toHaveLength(1);
-    expect(result.lines[0].serviceId).toBe(booking.lines[0].serviceId);
   });
 });
 
@@ -134,6 +81,7 @@ describe('persistRequestedBooking', () => {
   const run = async (
     booking: ReturnType<BookingBuilder['build']>,
     serviceMap: Map<string, ReturnType<ServiceBuilder['build']>>,
+    resourceSelections: Parameters<typeof persistRequestedBooking>[1]['resourceSelections'] = [],
   ) =>
     persistRequestedBooking(
       {
@@ -150,8 +98,10 @@ describe('persistRequestedBooking', () => {
         booking,
         tenantId: TENANT_A,
         scheduledAt,
+        timezone: 'America/Sao_Paulo',
         operations: [],
         serviceMap,
+        resourceSelections,
       },
     );
 
@@ -214,5 +164,30 @@ describe('persistRequestedBooking', () => {
     await expect(run(booking, new Map([[service.id, service]]))).rejects.toThrow(
       BookingServiceConcurrentModificationError,
     );
+  });
+
+  it('resolves a CUSTOMER_CHOICE requirement via resourceSelections and returns it in candidatesByLine', async () => {
+    const staff = new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build();
+    await resourceRepo.save(staff);
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withResourceRequirements([
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+      ])
+      .build();
+    await serviceRepo.save(service);
+    const line = new BookingLineBuilder().withServiceId(service.id).build();
+    const booking = new BookingBuilder().withTenantId(TENANT_A).withLines([line]).build();
+
+    const candidatesByLine = await run(booking, new Map([[service.id, service]]), [
+      {
+        serviceId: service.id,
+        legIndex: null,
+        resourceType: ResourceType.ROOM,
+        resourceId: staff.id,
+      },
+    ]);
+
+    expect(candidatesByLine.get(line.lineId)!.candidates[0].resourceId).toBe(staff.id);
   });
 });

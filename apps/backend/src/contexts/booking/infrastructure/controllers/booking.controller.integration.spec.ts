@@ -16,6 +16,9 @@ import { CustomerEntity } from '../../../customer/infrastructure/entities/custom
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
+import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
+import { StaffEntityBuilder } from '../../../../test/builders/staff';
+import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
 
 const TEST_KEY = 'booking-integ-test-key-booking-xxxx'; // 36 chars
 const ACTOR_ID = '20000000-0000-4000-8000-000000000001';
@@ -260,6 +263,241 @@ describe('BookingController (integration)', () => {
 
       expect(body.lines).toHaveLength(2);
       expect(body.totalDurationMins).toBe(60);
+    });
+  });
+
+  describe('POST /bookings — resource resolution (M23-S01)', () => {
+    // Distinct scheduledAt from the module-level `scheduledAt` above so this block's resource
+    // locks never contend with the plain POST /bookings tests' degenerate LOCATION bookings.
+    const resolutionScheduledAt = `${futureDate(20)}T13:00:00.000Z`;
+    let staffResourceId: string;
+    let customerChoiceServiceId: string;
+    let autoAnyServiceId: string;
+    let poolServiceId: string;
+    let leggedServiceId: string;
+
+    let staffCounter = 0;
+
+    async function createResource(
+      type: string,
+      name: string,
+      tenantId = tenantAId,
+    ): Promise<string> {
+      let refId: string | undefined;
+      if (type === 'STAFF') {
+        const staff = new StaffEntityBuilder()
+          .withTenantId(tenantId)
+          .withEmail(`m23-s01-staff-${staffCounter++}@example.com`)
+          .withIsActive(true)
+          .build();
+        await ds.getRepository(StaffEntity).save(staff);
+        refId = staff.id;
+      }
+      const { body } = await request(app.getHttpServer())
+        .post('/resources')
+        .set(actorHeaders(tenantId, ACTOR_ID))
+        .send({ type, name, ...(refId ? { refId } : {}) })
+        .expect(201);
+      return body.id as string;
+    }
+
+    async function createService(name: string): Promise<string> {
+      const { body } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          name,
+          description: 'Descrição',
+          priceAmount: 100,
+          durationMinutes: 30,
+          loyaltyPointsValue: 5,
+          requiresPickupAddress: false,
+        })
+        .expect(201);
+      return body.id as string;
+    }
+
+    beforeAll(async () => {
+      staffResourceId = await createResource('STAFF', 'Ana Souza');
+      const staffResourceId2 = await createResource('STAFF', 'Bruno Lima');
+      const roomResourceId = await createResource('ROOM', 'Quadra 1');
+      const roomResourceId2 = await createResource('ROOM', 'Quadra 2');
+      const legRoomResourceId = await createResource('ROOM', 'Sala Spa');
+      const legEquipmentResourceId = await createResource('EQUIPMENT', 'Maca de Massagem');
+
+      customerChoiceServiceId = await createService('Corte com Profissional');
+      await request(app.getHttpServer())
+        .patch(`/services/${customerChoiceServiceId}/resource-requirements`)
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({ resourceRequirements: [{ type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE' }] })
+        .expect(200);
+
+      autoAnyServiceId = await createService('Corte Rápido');
+      await request(app.getHttpServer())
+        .patch(`/services/${autoAnyServiceId}/resource-requirements`)
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          resourceRequirements: [
+            {
+              type: 'STAFF',
+              selectionMode: 'AUTO_ANY',
+              resourcePoolIds: [staffResourceId, staffResourceId2],
+            },
+          ],
+        })
+        .expect(200);
+
+      poolServiceId = await createService('Aluguel de Quadra');
+      await request(app.getHttpServer())
+        .patch(`/services/${poolServiceId}/resource-requirements`)
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          resourceRequirements: [
+            {
+              type: 'ROOM',
+              selectionMode: 'AUTO_FUNGIBLE_POOL',
+              resourcePoolIds: [roomResourceId, roomResourceId2],
+            },
+          ],
+        })
+        .expect(200);
+
+      leggedServiceId = await createService('Jornada Spa');
+      await request(app.getHttpServer())
+        .put(`/services/${leggedServiceId}/legs`)
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          legs: [
+            {
+              legIndex: 0,
+              name: 'Sauna',
+              durationMinutes: 15,
+              resourceRequirements: [
+                { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: [legRoomResourceId] },
+              ],
+            },
+            {
+              legIndex: 1,
+              name: 'Massagem',
+              durationMinutes: 20,
+              resourceRequirements: [
+                {
+                  type: 'EQUIPMENT',
+                  selectionMode: 'AUTO_ANY',
+                  resourcePoolIds: [legEquipmentResourceId],
+                },
+              ],
+            },
+          ],
+        })
+        .expect(200);
+    });
+
+    it('CUSTOMER_CHOICE: persists a resolved resource_occupancy row for the chosen resource', async () => {
+      await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: resolutionScheduledAt,
+          serviceIds: [customerChoiceServiceId],
+          resourceSelections: [
+            {
+              serviceId: customerChoiceServiceId,
+              legIndex: null,
+              resourceType: 'STAFF',
+              resourceId: staffResourceId,
+            },
+          ],
+        })
+        .expect(201);
+
+      const occupancyRows = await ds
+        .getRepository(ResourceOccupancyEntity)
+        .find({ where: { tenantId: tenantAId, resourceId: staffResourceId } });
+      expect(occupancyRows.length).toBeGreaterThan(0);
+    });
+
+    it("CUSTOMER_CHOICE: rejects a resourceSelections entry naming another tenant's resource", async () => {
+      const otherTenantResourceId = await createResource('STAFF', 'Fora do Tenant', tenantBId);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(21)}T13:00:00.000Z`,
+          serviceIds: [customerChoiceServiceId],
+          resourceSelections: [
+            {
+              serviceId: customerChoiceServiceId,
+              legIndex: null,
+              resourceType: 'STAFF',
+              resourceId: otherTenantResourceId,
+            },
+          ],
+        })
+        .expect(422);
+
+      expect(body.code).toBe('BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE');
+    });
+
+    it('CUSTOMER_CHOICE: rejects with no resourceSelections entry for the requirement', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(22)}T13:00:00.000Z`,
+          serviceIds: [customerChoiceServiceId],
+        })
+        .expect(422);
+
+      expect(body.code).toBe('BOOKING_RESOURCE_SELECTION_REQUIRED');
+    });
+
+    it('AUTO_ANY: reveals the assigned resource name in the response', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(23)}T13:00:00.000Z`,
+          serviceIds: [autoAnyServiceId],
+        })
+        .expect(201);
+
+      expect(body.lines[0].assignedResourceName).toBeTruthy();
+    });
+
+    it('AUTO_FUNGIBLE_POOL: never reveals resource identity in the response', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(24)}T13:00:00.000Z`,
+          serviceIds: [poolServiceId],
+        })
+        .expect(201);
+
+      expect(body.lines[0].assignedResourceName).toBeUndefined();
+    });
+
+    it('legged service: response includes the full itinerary', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(25)}T13:00:00.000Z`,
+          serviceIds: [leggedServiceId],
+        })
+        .expect(201);
+
+      expect(body.lines[0].itinerary).toHaveLength(2);
+      expect(body.lines[0].itinerary[0].legIndex).toBe(0);
+      expect(body.lines[0].itinerary[1].legIndex).toBe(1);
     });
   });
 

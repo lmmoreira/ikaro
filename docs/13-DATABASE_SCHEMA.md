@@ -355,7 +355,7 @@ One row per service unit. Snapshots from `booking.services` at request time — 
 | service_id | UUID | NOT NULL — intra-context ref to `booking.services` |
 | service_name_at_booking | VARCHAR(255) | NOT NULL — snapshot of `services.name` at booking time |
 | price_at_booking_amount | NUMERIC(10,2) | NOT NULL CHECK >= 0 — snapshot of `services.price_amount` |
-| duration_mins_at_booking | INTEGER | NOT NULL CHECK > 0 — snapshot of `services.duration_minutes` |
+| duration_mins_at_booking | INTEGER | NOT NULL CHECK > 0 — snapshot of `services.duration_minutes`, or of the customer's own submitted `durationMinutes` when the service's `duration_policy = 'CUSTOMER_SELECTED'` (M23-S02, locked at story-discovery — no separate column needed for the variable-duration case, this one is reused) |
 | points_value_at_booking | INTEGER | NOT NULL DEFAULT 0 CHECK >= 0 — snapshot of `services.loyalty_points_value` |
 | requires_pickup_address_at_booking | BOOLEAN | NOT NULL DEFAULT false — snapshot of `services.requires_pickup_address` |
 | actual_price_charged_amount | NUMERIC(10,2) | NULLABLE CHECK >= 0 — null until COMPLETED; zero = waived |

@@ -1100,7 +1100,9 @@ Returns:
 - **Alternative Flows:**
   - **A1: Another booking takes any required resource before submission** → `409 Conflict`; customer keeps their chosen criteria and selects another compatible interval.
   - **A2: Interval crosses midnight** → Allowed only when the full span is within the configured maximum and every required resource is open for its own occupied window. Hotel/accommodation stays out of scope.
-  - **A3: Fungible requirement has `requiredQuantity > 1`** → System assigns that many distinct eligible units in the same transaction or offers no slot; never partially creates a reservation.
+  - **A3: Fungible requirement has `requiredQuantity > 1`** → System assigns that many distinct eligible units in the same transaction or offers no slot; never partially creates a reservation. `participantCount` is a customer-supplied capacity/attendee-count input only — it never overrides `requiredQuantity`, which stays the service's static configured value.
+  - **A4: `serviceIds` (the request basket) contains more than one service that is `durationPolicy = CUSTOMER_SELECTED` and/or carries an active intake schema (UC-068)** → `422 Unprocessable` — at most one such service is allowed per request; a customer-built cart combining multiple variable-duration/intake services in one submission is out of scope (multi-service bookings remain business-configured bundles/journeys, per `docs/discovery/multivertical-booking/multivertical-booking.md` §"Coworking/rental" note).
+  - **A5: `durationMinutes` is omitted for a `CUSTOMER_SELECTED` service** → `422 Unprocessable` (`BOOKING_DURATION_OUT_OF_RANGE`) — no fallback to any service-level default; `Service.durationMinutes` is not authoritative once `durationPolicy = CUSTOMER_SELECTED` (`docs/02-DOMAIN_MODEL.md`).
 - **Postconditions:** The selected span is protected by normal occupancy; fixed-duration services remain unchanged.
 - **Events Triggered:** Existing appointment booking events, per the resulting `PENDING`/`APPROVED` state.
 
@@ -1113,13 +1115,15 @@ Returns:
 - **Preconditions:** Service declares intake fields, participant/count rules, or both.
 - **Trigger:** Customer reaches booking review for a service with intake or attendee requirements.
 - **Main Flow:**
-  1. Customer completes the service's current intake schema (`GET /services/:id/intake-schema`).
+  1. Customer completes the service's current intake schema (`GET /services/:id/intake-schema/public` — active version only, no history; distinct from the staff-facing `GET /services/:id/intake-schema`, M22-S04, which also returns prior versions).
   2. System validates required answers, projects operational values (e.g. pickup address, participant count) into typed booking fields.
   3. System snapshots schema version, answers, consent, and optional named attendees with the submitted booking.
 - **Alternative Flows:**
   - **A1: The service form changes while the customer is completing it** → Submission validates against the displayed schema version; a removed/changed field never silently rewrites already-completed answers.
   - **A2: A minor attends** → A responsible authenticated adult may be the booker; no family-account hierarchy implied.
   - **A3: A required intake question or the consent checkbox is left unanswered** → `422 Unprocessable` — inline validation error naming the missing field(s).
+  - **A4: `serviceIds` contains more than one intake-bearing and/or `CUSTOMER_SELECTED` service** → same `422` rejection as UC-067 A4 — one shared basket-scope rule for both extensions.
+  - **A5: `intakeAnswers`/`attendees` are submitted for a service with no active intake schema** → Silently ignored (not persisted, not an error) — the precondition never applied, so there is nothing to validate against.
 - **Postconditions:** Historical bookings remain readable under the form version used at submission.
 - **Events Triggered:** None beyond the resulting booking-request event.
 
