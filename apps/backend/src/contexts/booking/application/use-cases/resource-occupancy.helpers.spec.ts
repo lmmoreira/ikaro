@@ -457,6 +457,45 @@ describe('resolveBookingLinesResourceCandidates', () => {
       expect(result.get('line-1')!.candidates[0].resourceId).toBe(chosen.id);
     });
 
+    // resourcePoolIds: [] (a real, empty, non-null array — ResourceRequirementSchema has no
+    // .min(1)) means unrestricted, identically to null/unset — same convention isDegenerateService
+    // and resolveEligibleResources already use. A bare truthiness check on the array (empty arrays
+    // are truthy in JS) would wrongly treat this as "restricted to nothing" and reject every
+    // selection.
+    it('accepts any active resource of the type when resourcePoolIds is an explicit empty array', async () => {
+      const chosen = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(chosen);
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.ROOM,
+            selectionMode: 'CUSTOMER_CHOICE',
+            resourcePoolIds: [],
+          }),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+        [
+          {
+            serviceId: 'service-1',
+            legIndex: null,
+            resourceType: ResourceType.ROOM,
+            resourceId: chosen.id,
+          },
+        ],
+      );
+
+      expect(result.get('line-1')!.candidates[0].resourceId).toBe(chosen.id);
+    });
+
     it('throws BookingResourceSelectionRequiredError when no matching selection is provided', async () => {
       await resourceRepo.save(
         new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build(),
