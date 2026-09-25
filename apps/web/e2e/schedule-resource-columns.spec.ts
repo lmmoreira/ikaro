@@ -357,7 +357,7 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
     }
   });
 
-  test('a bundled booking with both required resources checked renders once, with both badges', async ({
+  test('a bundled booking with both required resources checked renders once, with the type-prioritized name + "+1" (TD44 Story 2)', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -405,9 +405,11 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
 
       const bookingBlocks = page.getByRole('link', { name: contactName });
       await expect(bookingBlocks).toHaveCount(1);
-      const badges = bookingBlocks.getByTestId('timeline-block-resource-name');
-      await expect(badges).toHaveCount(2);
-      await expect(badges).toContainText([resourceA.name, resourceB.name]);
+      // ROOM outranks EQUIPMENT (STAFF > ROOM > EQUIPMENT), so resourceA (ROOM) is the primary
+      // name; resourceB is folded into "+1" instead of getting its own badge.
+      const summary = bookingBlocks.getByTestId('timeline-block-resource-summary');
+      await expect(summary).toHaveText(`${resourceA.name} +1`);
+      await expect(summary).toHaveAttribute('aria-label', `${resourceA.name}, ${resourceB.name}`);
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resourceA.id);
@@ -415,7 +417,7 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
     }
   });
 
-  test('a bundled booking with only one of its two required resources checked badges only that one', async ({
+  test('a bundled booking with only one of its two required resources checked shows only that one, no "+N" (TD44 Story 2)', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -462,13 +464,75 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
 
       const bookingBlock = page.getByRole('link', { name: contactName });
       await expect(bookingBlock).toBeVisible();
-      const badges = bookingBlock.getByTestId('timeline-block-resource-name');
-      await expect(badges).toHaveCount(1);
-      await expect(badges).toHaveText(resourceA.name);
+      const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
+      await expect(summary).toHaveText(resourceA.name);
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resourceA.id);
       await deactivateResource(page, resourceB.id);
+    }
+  });
+
+  test('a booking matching 3 checked resources shows the STAFF-prioritized name + "+2" (TD44 Story 2)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const staffResource = await createResource(page, {
+      type: 'STAFF',
+      name: uniqueLabel('E2E Week Triple Staff'),
+    });
+    const roomResource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Week Triple Room'),
+    });
+    const equipmentResource = await createResource(page, {
+      type: 'EQUIPMENT',
+      name: uniqueLabel('E2E Week Triple Equipment'),
+    });
+    const service = await createService(page, {
+      name: makeUniqueServiceName('e2e-week-triple'),
+      priceAmount: 100,
+      durationMinutes: 30,
+      loyaltyPointsValue: 5,
+      isActive: true,
+    });
+
+    try {
+      await bindServiceToResources(page, service.serviceId, [
+        { type: 'STAFF', resourceId: staffResource.id },
+        { type: 'ROOM', resourceId: roomResource.id },
+        { type: 'EQUIPMENT', resourceId: equipmentResource.id },
+      ]);
+
+      const dateKey = nextOpenDateKey(155);
+      const contactName = uniqueLabel('E2E Week Triple Booking');
+      await createScheduleBooking(page, {
+        dateKey,
+        contactName,
+        contactEmail: uniqueTestEmail('schedule-week-triple'),
+        approved: true,
+        time: '11:00',
+        serviceIds: [service.serviceId],
+      });
+
+      await page.goto(scheduleRoute(dateKey));
+      await switchToWeekView(page);
+
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: staffResource.name }).check();
+      await page.getByRole('checkbox', { name: roomResource.name }).check();
+      await page.getByRole('checkbox', { name: equipmentResource.name }).check();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+
+      const bookingBlock = page.getByRole('link', { name: contactName });
+      const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
+      await expect(summary).toHaveText(`${staffResource.name} +2`);
+    } finally {
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, staffResource.id);
+      await deactivateResource(page, roomResource.id);
+      await deactivateResource(page, equipmentResource.id);
     }
   });
 

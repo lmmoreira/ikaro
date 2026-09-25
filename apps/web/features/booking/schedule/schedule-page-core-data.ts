@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import type { BookingStatus, StaffBookingCardResponse } from '@ikaro/types';
+import type { BookingStatus, ResourceType, StaffBookingCardResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import {
   type ScheduleViewMode,
@@ -39,6 +39,10 @@ interface ReconciledResourceIdsResult {
   // resourceId -> name lookup (timeline block labels, removal dialogs) don't issue a second,
   // redundant fetch for the same data.
   readonly resourceNameById: ReadonlyMap<string, string>;
+  // Sibling to resourceNameById, built from the same resources array (TD44 Story 2) — feeds the
+  // type-priority comparator in schedule-page-timeline-derived.ts. Never contains a LOCATION
+  // entry: useSelectableResources already excludes it.
+  readonly resourceTypeById: ReadonlyMap<string, ResourceType>;
 }
 
 // Extracted from useScheduleVisibleData below — drops any persisted selected-resource id no
@@ -59,6 +63,10 @@ function useReconciledSelectedResourceIds(
   const activeResourceIds = useMemo(() => new Set(resources.map((r) => r.id)), [resources]);
   const resourceNameById = useMemo(
     () => new Map(resources.map((resource) => [resource.id, resource.name])),
+    [resources],
+  );
+  const resourceTypeById = useMemo(
+    () => new Map(resources.map((resource) => [resource.id, resource.type])),
     [resources],
   );
   // Still loading or the fetch errored: pass through untouched rather than reconciling against a
@@ -97,7 +105,7 @@ function useReconciledSelectedResourceIds(
     ? reconciled.slice(0, RESOURCE_FILTER_MAX_SELECTED)
     : EMPTY_RESOURCE_IDS;
 
-  return { selectedResourceIds: effectiveSelectedResourceIds, resourceNameById };
+  return { selectedResourceIds: effectiveSelectedResourceIds, resourceNameById, resourceTypeById };
 }
 
 // Extracted from useScheduleVisibleData below — the status/resource Set derivation and the
@@ -163,10 +171,8 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     selectedResourceIds: persistedSelectedResourceIds,
     setSelectedResourceIds,
   } = useSchedulePreferences();
-  const { selectedResourceIds, resourceNameById } = useReconciledSelectedResourceIds(
-    persistedSelectedResourceIds,
-    setSelectedResourceIds,
-  );
+  const { selectedResourceIds, resourceNameById, resourceTypeById } =
+    useReconciledSelectedResourceIds(persistedSelectedResourceIds, setSelectedResourceIds);
   const scheduleViewMode = useResolvedScheduleViewMode(viewMode);
 
   const weekData = useScheduleWeekData(props, ui, selectedResourceIds, scheduleViewMode === 'week');
@@ -184,6 +190,7 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
     setPersistedViewMode: setViewMode,
     scheduleViewMode,
     resourceNameById,
+    resourceTypeById,
   };
 }
 
@@ -213,6 +220,7 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     slotGranularityMinutes,
     selectedDateKey: ui.selectedDateKey,
     resourceNameById: visible.resourceNameById,
+    resourceTypeById: visible.resourceTypeById,
     selectedResourceIdSet: visible.selectedResourceIdSet,
     bookingResourceIdsById: visible.bookingResourceIdsById,
   });

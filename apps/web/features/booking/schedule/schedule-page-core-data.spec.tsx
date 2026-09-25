@@ -462,4 +462,36 @@ describe('useScheduleCoreData', () => {
       expect(result.current.selectedDayTimeline.events).toHaveLength(1);
     });
   });
+
+  it('builds resourceTypeById as a sibling of resourceNameById, from the same resources array (TD44 Story 2)', () => {
+    selectableResourcesHooks.useSelectableResources.mockReturnValue({
+      resources: [
+        makeResource({ id: 'res-staff', type: 'STAFF', name: 'Camila' }),
+        makeResource({ id: 'res-room', type: 'ROOM', name: 'Sala 2' }),
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    const managerRole = 'MANAGER' as const;
+    function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+      return (
+        <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+          {wrapper({ children })}
+        </TenantProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+      wrapper: managerWrapper,
+    });
+
+    expect(result.current.resourceTypeById).toEqual(
+      new Map([
+        ['res-staff', 'STAFF'],
+        ['res-room', 'ROOM'],
+      ]),
+    );
+  });
 });

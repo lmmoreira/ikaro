@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type {
+  ResourceType,
   ScheduleClosure,
   ScheduleOpening,
   StaffBookingCardResponse,
@@ -17,6 +18,7 @@ import {
   buildWeekDayInfo,
   type ScheduleWeekDayInfo,
 } from '@/features/booking/schedule/schedule-page-derived';
+import { compareResourceIdsByTypePriority } from '@/features/booking/schedule/schedule-resource-priority';
 
 interface ScheduleTimelineDerivedInput {
   readonly weekDates: readonly string[];
@@ -28,6 +30,8 @@ interface ScheduleTimelineDerivedInput {
   readonly slotGranularityMinutes: number;
   readonly selectedDateKey: string;
   readonly resourceNameById: ReadonlyMap<string, string>;
+  // Sibling to resourceNameById (TD44 Story 2) — feeds compareResourceIdsByTypePriority below.
+  readonly resourceTypeById: ReadonlyMap<string, ResourceType>;
   // Week view's own booking resource-filtering/badges (TD44 Story 1) — deliberately consumed only
   // by useWeekTimelineCards below, never useSelectedDayTimeline: Day view's merged single-day
   // timeline only ever renders when zero resources are checked (1+ switches to the separate
@@ -38,19 +42,23 @@ interface ScheduleTimelineDerivedInput {
 }
 
 // Translates the query layer's bookingId -> resourceId[] lookup (schedule-page-query-data.ts) into
-// bookingId -> resourceName[], sorted per booking for a stable badge order regardless of check
-// order — mirrors schedule-resource-columns.ts's own alphabetical-stability choice for the
-// analogous Day-view case. Built once per render and reused across all 7 week day-cards below.
+// bookingId -> resourceName[], sorted per booking for a stable order regardless of check order —
+// type-prioritized (STAFF > ROOM > EQUIPMENT) first, alphabetical tiebreak within the same type
+// (TD44 Story 2; was a plain alphabetical sort before). The renderer only ever reads index 0 +
+// length, so the priority resource is always resourceNames[0]. Built once per render and reused
+// across all 7 week day-cards below.
 function buildBookingResourceNamesById(
   bookingResourceIdsById: ReadonlyMap<string, readonly string[]>,
   resourceNameById: ReadonlyMap<string, string>,
+  resourceTypeById: ReadonlyMap<string, ResourceType>,
 ): ReadonlyMap<string, readonly string[]> {
+  const compare = compareResourceIdsByTypePriority(resourceNameById, resourceTypeById);
   return new Map(
     [...bookingResourceIdsById].map(([bookingId, resourceIds]) => [
       bookingId,
       [...resourceIds]
-        .map((resourceId) => resourceNameById.get(resourceId) ?? resourceId)
-        .sort((a, b) => a.localeCompare(b)),
+        .sort(compare)
+        .map((resourceId) => resourceNameById.get(resourceId) ?? resourceId),
     ]),
   );
 }
@@ -168,10 +176,11 @@ function buildWeekTimelineCards(
 function useBookingResourceNamesById(
   bookingResourceIdsById: ReadonlyMap<string, readonly string[]>,
   resourceNameById: ReadonlyMap<string, string>,
+  resourceTypeById: ReadonlyMap<string, ResourceType>,
 ): ReadonlyMap<string, readonly string[]> {
   return useMemo(
-    () => buildBookingResourceNamesById(bookingResourceIdsById, resourceNameById),
-    [bookingResourceIdsById, resourceNameById],
+    () => buildBookingResourceNamesById(bookingResourceIdsById, resourceNameById, resourceTypeById),
+    [bookingResourceIdsById, resourceNameById, resourceTypeById],
   );
 }
 
@@ -186,6 +195,7 @@ function useWeekTimelineCards(
   const bookingResourceNamesById = useBookingResourceNamesById(
     input.bookingResourceIdsById,
     input.resourceNameById,
+    input.resourceTypeById,
   );
 
   return useMemo(

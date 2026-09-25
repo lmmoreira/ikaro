@@ -85,7 +85,7 @@ describe('renderTimelineEvent', () => {
     expect(screen.getByText('Aprovado')).toBeInTheDocument();
   });
 
-  it('renders no resource-name badge on a booking when resourceNames is empty (TD44 Story 1)', () => {
+  it('renders no resource-summary line on a booking when resourceNames is empty (TD44 Story 2)', () => {
     const event: TimelineEvent = {
       kind: 'booking',
       id: 'booking-1',
@@ -108,10 +108,12 @@ describe('renderTimelineEvent', () => {
     };
 
     renderWithIntl(<Host event={event} props={baseProps()} />);
+    expect(screen.queryByTestId('timeline-block-resource-summary')).not.toBeInTheDocument();
+    // Booking blocks never render the openings/closures-only per-resource badge either.
     expect(screen.queryByTestId('timeline-block-resource-name')).not.toBeInTheDocument();
   });
 
-  it('renders one resource-name badge per checked resource on a booking (TD44 Story 1)', () => {
+  it('shows the resource name with no "+N" for exactly one matched resource (TD44 Story 2)', () => {
     const event: TimelineEvent = {
       kind: 'booking',
       id: 'booking-1',
@@ -120,6 +122,36 @@ describe('renderTimelineEvent', () => {
       title: 'João Silva',
       subtitle: 'Lavagem completa',
       warning: false,
+      resourceNames: ['Camila Duarte'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30,
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    const line = screen.getByTestId('timeline-block-resource-summary');
+    expect(line).toHaveTextContent('Camila Duarte');
+    expect(line).not.toHaveTextContent('+');
+  });
+
+  it('shows the primary type-prioritized name + "+N" for a booking matching 2+ resources (TD44 Story 2)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      // Already type-prioritized by the data layer (buildBookingResourceNamesById) — the renderer
+      // only ever reads index 0 + length, it never re-sorts.
       resourceNames: ['Camila Duarte', 'Sala 1'],
       laneIndex: 0,
       laneCount: 1,
@@ -134,8 +166,43 @@ describe('renderTimelineEvent', () => {
     };
 
     renderWithIntl(<Host event={event} props={baseProps()} />);
-    const badges = screen.getAllByTestId('timeline-block-resource-name');
-    expect(badges.map((badge) => badge.textContent)).toEqual(['Camila Duarte', 'Sala 1']);
+    const line = screen.getByTestId('timeline-block-resource-summary');
+    expect(line).toHaveTextContent('Camila Duarte +1');
+    expect(line).toHaveAttribute('aria-label', 'Camila Duarte, Sala 1');
+  });
+
+  it('renders the resource-summary line before the time-range text within the footer (TD44 Story 2)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: ['Camila Duarte'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30,
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    const link = screen.getByRole('link', { name: 'João Silva' });
+    const resourceLine = screen.getByTestId('timeline-block-resource-summary');
+    const position = resourceLine.compareDocumentPosition(link);
+    // link (the whole block) contains resourceLine; assert the resource line comes before the
+    // formatted time-range text in document order.
+    const allText = link.textContent ?? '';
+    expect(position & Node.DOCUMENT_POSITION_CONTAINS).toBeTruthy();
+    // scheduledAt 2026-08-18T12:00:00.000Z in America/Sao_Paulo (UTC-3) is 09:00 local.
+    expect(allText.indexOf('Camila Duarte')).toBeLessThan(allText.indexOf('09:00'));
   });
 
   it('renders an opening event as a button that calls onOpeningClick', async () => {
