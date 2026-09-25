@@ -18,6 +18,14 @@ import {
   type ScheduleWeekDayInfo,
 } from '@/features/booking/schedule/schedule-page-derived';
 
+// TD44 Story 4 — raised from 0.45. The page now pins its own toolbar (SchedulePage.tsx's sticky
+// wrapper) instead of needing the whole week grid to fit inside one screen height, so Week view
+// no longer needs to compress this aggressively; a
+// higher scale narrows the gap between a short booking's true slot height and the smallest
+// per-block content floor (schedule-timeline-formatting.ts's getBlockMinHeightPx), which is what
+// was making a 30-minute booking visually span multiple real hours of grid.
+const WEEK_VIEW_SLOT_HEIGHT_SCALE = 0.85;
+
 interface ScheduleTimelineDerivedInput {
   readonly weekDates: readonly string[];
   readonly visibleClosures: readonly ScheduleClosure[];
@@ -139,7 +147,7 @@ function buildWeekTimelineCards(
       bookings: visibleBookings,
       closures: visibleClosures,
       openings: visibleOpenings,
-      slotHeightScale: 0.45,
+      slotHeightScale: WEEK_VIEW_SLOT_HEIGHT_SCALE,
       resourceNameById,
       selectedResourceIdSet,
       // Only ever used for a presence check (isBookingVisibleForResourceFilter — "did this

@@ -111,4 +111,16 @@ describe('ScheduleTimelineBoard', () => {
     const marker = screen.getByTestId('schedule-now-marker');
     expect(marker.style.top).toBe('24px');
   });
+
+  it('mounts the scroll-to-now marker in the closed-day empty state too (TD44 Story 4)', () => {
+    renderWithIntl(
+      <ScheduleTimelineBoard
+        {...baseProps(CLOSED_TIMELINE, false)}
+        nowMarkerRef={{ current: null }}
+        nowMarkerTopPx={0}
+      />,
+    );
+    expect(screen.getByText('Fechado')).toBeInTheDocument();
+    expect(screen.getByTestId('schedule-now-marker')).toBeInTheDocument();
+  });
 });

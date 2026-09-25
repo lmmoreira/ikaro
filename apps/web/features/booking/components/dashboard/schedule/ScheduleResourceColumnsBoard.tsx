@@ -147,9 +147,10 @@ export function ScheduleResourceColumnsBoard(
             <p className="mb-2 truncate text-sm font-semibold text-gray-900">
               {column.resourceName}
             </p>
-            {column.timeline.events.length === 0 && !column.timeline.selectedDayClosed ? (
-              <p className="mb-2 text-xs text-gray-400">{t('dayGridEmptyColumn')}</p>
-            ) : null}
+            {/* TD44 Story 4 — the per-column "Nothing scheduled this day" message was removed:
+                the grid itself already shows this (an empty board with no blocks); the selected
+                day's total booking count is shown once, at the page level, in ScheduleDayHeader
+                instead of repeating it per column. */}
             <ScheduleTimelineBoard
               timeline={column.timeline}
               compact={false}

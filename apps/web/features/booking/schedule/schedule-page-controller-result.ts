@@ -51,6 +51,7 @@ export interface UseSchedulePageControllerResult {
   readonly visibleClosures: readonly ScheduleClosure[];
   readonly visibleOpenings: readonly ScheduleOpening[];
   readonly selectedDayLabel: string;
+  readonly bookingCount: number;
   readonly slotLabels: string[];
   readonly scheduleReturnTo: string;
   readonly weekNav: ScheduleWeekNavHandlers;
@@ -61,11 +62,13 @@ export interface UseSchedulePageControllerResult {
 
 // Extracted from SchedulePage (TD37-S5A) — deriving the selected-day label, booking count, and
 // per-slot time labels from the core timeline data is a cohesive, self-contained computation.
+// bookingCount (TD44 Story 4) feeds ScheduleDayHeader's inline badge.
 export function useScheduleLabels(
   core: ScheduleCoreData,
   slotGranularityMinutes: number,
 ): {
   readonly selectedDayLabel: string;
+  readonly bookingCount: number;
   readonly slotLabels: string[];
 } {
   const { ui, formatDateLong, selectedDayTimeline } = core;
@@ -74,6 +77,9 @@ export function useScheduleLabels(
     () => formatDateLong(parseDateKey(ui.selectedDateKey)),
     [formatDateLong, ui.selectedDateKey],
   );
+  const bookingCount = selectedDayTimeline.events.filter(
+    (event) => event.kind === 'booking',
+  ).length;
   const slotLabels = useMemo(
     () =>
       buildSlotLabels(
@@ -88,7 +94,7 @@ export function useScheduleLabels(
     ],
   );
 
-  return { selectedDayLabel, slotLabels };
+  return { selectedDayLabel, bookingCount, slotLabels };
 }
 
 export interface ScheduleMutations {
@@ -173,7 +179,7 @@ export function buildControllerResult(
 ): UseSchedulePageControllerResult {
   const { businessHours, todayKey, slotGranularityMinutes } = props;
   const { ui, timezone, selectedDayTimeline } = core;
-  const { selectedDayLabel, slotLabels } = labels;
+  const { selectedDayLabel, bookingCount, slotLabels } = labels;
   const handlers = buildControllerHandlers(props, core, t, mutations);
   const coreDerived = buildCoreDerivedFields(core);
 
@@ -186,6 +192,7 @@ export function buildControllerResult(
     statusLabels,
     selectedDayTimeline,
     selectedDayLabel,
+    bookingCount,
     slotLabels,
     scheduleReturnTo: buildScheduleReturnTo(ui.weekStartKey, ui.selectedDateKey),
     visibleBookings: core.visibleBookings,

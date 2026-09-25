@@ -1460,7 +1460,7 @@
       "bookingsLegend": "Agendamentos",
       "closuresLegend": "Bloqueios",
       "openingsLegend": "Aberturas especiais",
-      "bookingsOnDay": "{count, plural, one {# agendamento neste dia} other {# agendamentos neste dia}}",
+      "bookingsOnDay": "{count, plural, =0 {Sem agendamentos} one {# agendamento} other {# agendamentos}}",
       "allDay": "Dia inteiro",
       "reasonDayOff": "Folga da equipe",
       "reasonMaintenance": "Manutenção",
@@ -1495,7 +1495,6 @@
       "resourceFilterEmpty": "Nenhum recurso ainda",
       "resourceFilterMaxReached": "Limite de {max} recursos atingido. Desmarque um para adicionar outro.",
       "dayGridFetchError": "Não foi possível carregar as colunas dos recursos",
-      "dayGridEmptyColumn": "Nada agendado neste dia",
       "dayGridPlaceholderBooking": "Ocupado",
       "fetchError": "Não foi possível carregar a agenda",
       "errors": {

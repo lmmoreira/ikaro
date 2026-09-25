@@ -49,6 +49,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
     selectedDayTimeline,
     weekTimelineCards,
     selectedDayLabel,
+    bookingCount,
     slotLabels,
     scheduleReturnTo,
     weekNav,
@@ -81,36 +82,46 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         </p>
       ) : null}
 
-      <WeekNav
-        windowStart={toLocalDate(ui.weekStartKey)}
-        windowDays={7}
-        today={toLocalDate(todayKey)}
-        onPrev={weekNav.handlePrevWeek}
-        onNext={weekNav.handleNextWeek}
-        selectedDate={ui.selectedDateKey}
-        onSelectDate={weekNav.handleSelectDate}
-        activeDates={activeDates}
-        dimmedDates={dimmedDates}
-      />
+      {/* TD44 Story 4 — pinned below the dashboard Topbar (sticky top-0 z-10 itself;
+          top-[3.375rem] matches the same already-verified topbar-height offset CustomerTabNav
+          uses for its own sticky sub-header), so the week/day picker and filters stay put while
+          only the calendar grid below scrolls — reusing the shell's own sticky pattern
+          (Sidebar/Topbar) rather than a new nested scroll container. z-30 (matching
+          ResourceFilterMenu's own always-on-top FAB) — the grid's own booking/opening blocks
+          reach z-20, which would otherwise paint over this as they scroll under it. */}
+      <div className="sticky top-[3.375rem] z-30 space-y-4 bg-[#f9fafb] pb-2">
+        <WeekNav
+          windowStart={toLocalDate(ui.weekStartKey)}
+          windowDays={7}
+          today={toLocalDate(todayKey)}
+          onPrev={weekNav.handlePrevWeek}
+          onNext={weekNav.handleNextWeek}
+          selectedDate={ui.selectedDateKey}
+          onSelectDate={weekNav.handleSelectDate}
+          activeDates={activeDates}
+          dimmedDates={dimmedDates}
+        />
 
-      <ScheduleDayHeader
-        selectedDayLabel={selectedDayLabel}
-        scheduleViewMode={scheduleViewMode}
-        onViewModeChange={setPersistedViewMode}
-        onGoToToday={weekNav.handleGoToToday}
-        selectedDayClosed={selectedDayTimeline.selectedDayClosed}
-        onOpenSpecialDay={() => {
-          ui.setClosureWarning(null);
-          ui.setOpeningSheetOpen(true);
-          ui.setClosureSheetOpen(false);
-        }}
-        onBlockPeriod={() => {
-          ui.setClosureWarning(null);
-          ui.setClosureSheetOpen(true);
-          ui.setOpeningSheetOpen(false);
-        }}
-        closureWarning={ui.closureWarning}
-      />
+        <ScheduleDayHeader
+          selectedDayLabel={selectedDayLabel}
+          bookingCount={bookingCount}
+          scheduleViewMode={scheduleViewMode}
+          onViewModeChange={setPersistedViewMode}
+          onGoToToday={weekNav.handleGoToToday}
+          selectedDayClosed={selectedDayTimeline.selectedDayClosed}
+          onOpenSpecialDay={() => {
+            ui.setClosureWarning(null);
+            ui.setOpeningSheetOpen(true);
+            ui.setClosureSheetOpen(false);
+          }}
+          onBlockPeriod={() => {
+            ui.setClosureWarning(null);
+            ui.setClosureSheetOpen(true);
+            ui.setOpeningSheetOpen(false);
+          }}
+          closureWarning={ui.closureWarning}
+        />
+      </div>
 
       <ScheduleMainView
         isWeekView={isWeekView}

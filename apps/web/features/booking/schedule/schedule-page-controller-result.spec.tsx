@@ -90,6 +90,20 @@ describe('useScheduleLabels', () => {
     const { result } = renderHook(() => useScheduleLabels(core, 30));
     expect(result.current.slotLabels).toEqual(['09:00', '09:30']);
   });
+
+  it('counts only booking-kind events for bookingCount (TD44 Story 4 — feeds the header badge)', () => {
+    const core = makeCore({
+      selectedDayTimeline: makeTimeline({
+        events: [
+          { kind: 'booking' } as never,
+          { kind: 'booking' } as never,
+          { kind: 'closure' } as never,
+        ],
+      }),
+    });
+    const { result } = renderHook(() => useScheduleLabels(core, 30));
+    expect(result.current.bookingCount).toBe(2);
+  });
 });
 
 describe('buildControllerResult', () => {
@@ -131,6 +145,7 @@ describe('buildControllerResult', () => {
     const core = makeCore();
     const labels = {
       selectedDayLabel: '17 de agosto',
+      bookingCount: 2,
       slotLabels: ['09:00'],
     };
 
@@ -139,6 +154,7 @@ describe('buildControllerResult', () => {
     expect(result.ui).toBe(core.ui);
     expect(result.businessHours).toBe(props.businessHours);
     expect(result.selectedDayLabel).toBe('17 de agosto');
+    expect(result.bookingCount).toBe(2);
     expect(result.slotLabels).toEqual(['09:00']);
     expect(result.scheduleReturnTo).toBe(
       '/dashboard/schedule?weekStart=2026-08-17&date=2026-08-17',
@@ -147,14 +163,14 @@ describe('buildControllerResult', () => {
 
   it('wires the status filter handlers to the core selectedStatusSet', () => {
     const core = makeCore();
-    const labels = { selectedDayLabel: '17 de agosto', slotLabels: [] };
+    const labels = { selectedDayLabel: '17 de agosto', bookingCount: 0, slotLabels: [] };
     const result = buildControllerResult(props, core, labels, t, mutations, statusLabels);
     expect(result.statusFilter.selectedStatusSet).toBe(core.selectedStatusSet);
   });
 
   it('wires the resource filter handlers to the core selectedResourceIdSet', () => {
     const core = makeCore({ selectedResourceIdSet: new Set(['res-1']) });
-    const labels = { selectedDayLabel: '17 de agosto', slotLabels: [] };
+    const labels = { selectedDayLabel: '17 de agosto', bookingCount: 0, slotLabels: [] };
     const result = buildControllerResult(props, core, labels, t, mutations, statusLabels);
     expect(result.resourceFilter.selectedResourceIdSet).toBe(core.selectedResourceIdSet);
   });

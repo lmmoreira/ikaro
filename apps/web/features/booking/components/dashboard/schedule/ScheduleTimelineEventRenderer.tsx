@@ -46,14 +46,22 @@ function renderBookingTimelineEvent(
   );
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
+  // A booking at the schedule's minimum granularity drops the time-range line in every board (its
+  // position in the grid already conveys the time now that item 1 restored a readable grid
+  // density). In compact mode specifically (Week view), it also drops the resource-summary line —
+  // Week view's own grid stays meaningfully denser than Day view even after re-tuning its scale, so
+  // a 2-line floor is what actually lets a 30-min block's rendered height approach its true slot
+  // height (see schedule-timeline-formatting.ts's content-aware floor this feeds). Desktop keeps
+  // the resource line unconditionally per the original design — its natural slot height already
+  // absorbs a 3-line floor reasonably.
+  const isMinimumGranularity = event.booking.totalDurationMins === props.slotGranularityMinutes;
+  const showResourceLine = event.resourceNames.length > 0 && !(compact && isMinimumGranularity);
+  const showTimeRangeLine = !isMinimumGranularity;
+  const extraLineCount = Number(showResourceLine) + Number(showTimeRangeLine);
   // Content-fit floor, decoupled from the grid's own coordinate unit (TD44 Story 4) — lets this
   // block render visually taller than its own slot when its content needs it, without affecting
   // slotHeight/top for any other block.
-  const minHeight = `${getBlockMinHeightPx(compact)}px`;
-  // A booking at the schedule's minimum granularity drops only the time-range line (its position
-  // in the grid already conveys the time now that item 1 above restored a readable grid density);
-  // the resource-summary line, when assigned, is unaffected (TD44 Story 4).
-  const isMinimumGranularity = event.booking.totalDurationMins === props.slotGranularityMinutes;
+  const minHeight = `${getBlockMinHeightPx(compact, extraLineCount)}px`;
 
   return (
     <TimelineBlockShell
@@ -93,8 +101,11 @@ function renderBookingTimelineEvent(
       }
       footer={
         <div className="flex flex-col gap-1">
-          <BookingResourceSummaryLine resourceNames={event.resourceNames} compact={compact} />
-          {isMinimumGranularity ? null : (
+          <BookingResourceSummaryLine
+            resourceNames={showResourceLine ? event.resourceNames : []}
+            compact={compact}
+          />
+          {showTimeRangeLine ? (
             <div
               data-testid="timeline-block-time-range"
               className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}
@@ -110,7 +121,7 @@ function renderBookingTimelineEvent(
                 ),
               )}
             </div>
-          )}
+          ) : null}
         </div>
       }
     />
@@ -160,7 +171,9 @@ function renderOpeningTimelineEvent(
   // findTenantWideOpening's note in schedule-timeline.ts) — a higher z-index keeps it readable
   // on top of that full-width backdrop instead of blending into it.
   const isResourceScoped = event.resourceName !== null;
-  const minHeight = `${getBlockMinHeightPx(compact)}px`;
+  // Opening blocks never render a footer (only title/subtitle + the trailing resource badge) — 0
+  // extra lines, same content shape regardless of duration.
+  const minHeight = `${getBlockMinHeightPx(compact, 0)}px`;
 
   return (
     <TimelineBlockShell
@@ -200,7 +213,8 @@ function renderClosureTimelineEvent(
   );
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
-  const minHeight = `${getBlockMinHeightPx(compact)}px`;
+  // Closure blocks never render a footer either — same reasoning as the opening block above.
+  const minHeight = `${getBlockMinHeightPx(compact, 0)}px`;
 
   return (
     <TimelineBlockShell

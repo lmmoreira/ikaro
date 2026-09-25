@@ -28,27 +28,45 @@ export function resolveNowMarkerTopPx(
   return ((targetMinutes - timelineStartMinutes) / slotGranularityMinutes) * slotHeight;
 }
 
-// Fires scrollIntoView on the marker element exactly once per `dateKey` change (Day view:
-// selectedDateKey; Week view: the visible week's start key) — never on a same-key re-render from
-// data refetch/polling, so a user's own manual scroll mid-session is never fought. `enabled` gates
-// whether the viewed date/week actually includes "now" at all (a past/future date is a no-op, same
-// as today's exact behavior). Deliberately has no dependency array: if the marker hasn't mounted
-// yet on the render where `enabled`/`dateKey` first qualify (e.g. data still loading), it retries on
-// the next render instead of silently missing the scroll — the guard ref keeps this a no-op once it
-// has actually fired for the current key.
+// Fires scrollIntoView on the marker element once per (dateKey, DOM node) pair — never on a
+// same-key, same-node re-render from data refetch/polling, so a user's own manual scroll mid-
+// session is never fought. `enabled` gates whether the viewed date/week actually includes "now" at
+// all (a past/future date is a no-op, same as today's exact behavior).
+//
+// Guarding on dateKey alone is not enough: the caller (ScheduleMainView) keeps one hook instance
+// across every branch it renders (single timeline / resource-columns board / week view), and
+// switching between them — e.g. Week → Day view with the date unchanged — unmounts the old
+// marker <div> and mounts a brand new one. A dateKey-only guard would see "already fired for this
+// key" and skip the new node's scroll entirely, leaving the page scrolled to wherever the previous
+// view left it. Tracking the scrolled-to node's own identity alongside the key fixes this: a same-key
+// render that reuses the same node is still a no-op, but a same-key render with a *different* node
+// (or a genuinely new key) re-fires.
+//
+// Deliberately has no dependency array: if the marker hasn't mounted yet on the render where
+// `enabled`/`dateKey` first qualify (e.g. data still loading, or the day starts in its closed empty
+// state before real hours resolve), it retries on the next render instead of silently missing the
+// scroll — the guard refs keep this a no-op once it has actually fired for the current (key, node).
 export function useScrollToNowOnce(
   enabled: boolean,
   dateKey: string,
 ): RefObject<HTMLDivElement | null> {
   const markerRef = useRef<HTMLDivElement | null>(null);
-  const firedForKeyRef = useRef<string | null>(null);
+  const scrolledForKeyRef = useRef<string | null>(null);
+  const scrolledNodeRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!enabled || firedForKeyRef.current === dateKey || !markerRef.current) {
+    const node = markerRef.current;
+    if (!enabled || !node) {
       return;
     }
-    firedForKeyRef.current = dateKey;
-    markerRef.current.scrollIntoView({ block: 'start', behavior: 'auto' });
+    const alreadyScrolled =
+      scrolledForKeyRef.current === dateKey && scrolledNodeRef.current === node;
+    if (alreadyScrolled) {
+      return;
+    }
+    scrolledForKeyRef.current = dateKey;
+    scrolledNodeRef.current = node;
+    node.scrollIntoView({ block: 'start', behavior: 'auto' });
   });
 
   return markerRef;

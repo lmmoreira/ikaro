@@ -44,14 +44,18 @@ function NowMarker({
 function TimelineEmptyState({
   compact,
   t,
+  nowMarkerRef,
+  nowMarkerTopPx,
 }: {
   readonly compact: boolean;
   readonly t: ReturnType<typeof useTranslations>;
+  readonly nowMarkerRef?: RefObject<HTMLDivElement | null>;
+  readonly nowMarkerTopPx?: number;
 }): React.JSX.Element {
   return (
     <div
       className={cn(
-        'flex items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center',
+        'relative flex items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center',
         compact ? 'min-h-[10rem]' : 'min-h-[14rem] p-6',
       )}
     >
@@ -71,6 +75,12 @@ function TimelineEmptyState({
           {t('closedDayEmpty')}
         </p>
       </div>
+      {/* TD44 Story 4 — a "today" that's closed still needs its marker mounted so scroll-to-now
+          fires (there's nothing meaningful to scroll to within this small box, but the AC's own
+          wording — "the viewed range includes today" — doesn't carve out a closed exception, and
+          Week view's scroll guard is keyed per date, so a missing mount here silently blocks the
+          scroll for the whole week if today happens to be the tenant's one closed weekday). */}
+      <NowMarker nowMarkerRef={nowMarkerRef} nowMarkerTopPx={nowMarkerTopPx} />
     </div>
   );
 }
@@ -181,7 +191,14 @@ export function ScheduleTimelineBoard(props: ScheduleTimelineBoardProps): React.
   const hasHours = !timeline.selectedDayClosed;
 
   if (!hasHours) {
-    return <TimelineEmptyState compact={compact} t={t} />;
+    return (
+      <TimelineEmptyState
+        compact={compact}
+        t={t}
+        nowMarkerRef={props.nowMarkerRef}
+        nowMarkerTopPx={props.nowMarkerTopPx}
+      />
+    );
   }
 
   if (compact) {

@@ -49,9 +49,16 @@ describe('getSlotHeight', () => {
 });
 
 describe('getBlockMinHeightPx', () => {
-  it('resolves the desktop vs. compact content-fit floor (TD44 Story 4 — decoupled from getSlotHeight)', () => {
-    expect(getBlockMinHeightPx(false)).toBe(DESKTOP_MIN_BLOCK_HEIGHT_PX);
-    expect(getBlockMinHeightPx(true)).toBe(COMPACT_MIN_BLOCK_HEIGHT_PX);
+  it('reproduces the worst-case (2 extra lines) desktop/compact constants exactly, unchanged from TD44 Story 2 round 2', () => {
+    expect(getBlockMinHeightPx(false, 2)).toBe(DESKTOP_MIN_BLOCK_HEIGHT_PX);
+    expect(getBlockMinHeightPx(true, 2)).toBe(COMPACT_MIN_BLOCK_HEIGHT_PX);
+  });
+
+  it('scales down for fewer rendered footer lines (TD44 Story 4)', () => {
+    expect(getBlockMinHeightPx(false, 0)).toBe(60);
+    expect(getBlockMinHeightPx(false, 1)).toBe(84);
+    expect(getBlockMinHeightPx(true, 0)).toBe(48);
+    expect(getBlockMinHeightPx(true, 1)).toBe(72);
   });
 });
 

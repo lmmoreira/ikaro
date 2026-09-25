@@ -49,18 +49,21 @@ function resolveWeekDayCardClasses(
   return { weekdayClass, numberClass };
 }
 
-function resolveWeekDayBadge(
+// TD44 Story 4 — the day-card badge used to restate the open/special-opening/closed status,
+// which is already visible from the grid itself (an open day shows its hour grid, a closed one
+// shows the "Fechado" empty state) — purely redundant text.
+// Replaced with a booking count instead, which the grid doesn't otherwise surface as a single
+// glanceable number: 0 (gray, "Sem agendamentos"/muted) vs. 1+ (blue, count) gives a quick signal
+// of which days actually have something to look at.
+function resolveWeekDayBookingCountBadge(
   timeline: TimelineDayData,
-  isClosed: boolean,
-  t: (key: string) => string,
+  t: ReturnType<typeof useTranslations>,
 ): { className: string; label: string } {
-  if (timeline.selectedOpening) {
-    return { className: 'bg-emerald-100 text-emerald-800', label: t('specialOpeningBadge') };
-  }
-  if (isClosed) {
-    return { className: 'bg-gray-100 text-gray-700', label: t('statusClosed') };
-  }
-  return { className: 'bg-blue-100 text-blue-800', label: t('statusRegularOpen') };
+  const bookingCount = timeline.events.filter((event) => event.kind === 'booking').length;
+  return {
+    className: bookingCount > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700',
+    label: t('bookingsOnDay', { count: bookingCount }),
+  };
 }
 
 // Extracted from SchedulePage (TD37-S5A) — the week-mode grid of 7 day cards is a self-contained
@@ -97,9 +100,8 @@ export function ScheduleWeekView({
           const isSelected = day.dateKey === selectedDateKey;
           const isToday = day.dateKey === todayKey;
           const { weekdayClass, numberClass } = resolveWeekDayCardClasses(isSelected, isToday);
-          const { className: badgeClassName, label: badgeLabel } = resolveWeekDayBadge(
+          const { className: badgeClassName, label: badgeLabel } = resolveWeekDayBookingCountBadge(
             timeline,
-            day.isClosed,
             t,
           );
 

@@ -8,6 +8,7 @@ import { ScheduleDayHeader } from './ScheduleDayHeader';
 function baseProps() {
   return {
     selectedDayLabel: '18 de agosto',
+    bookingCount: 0,
     scheduleViewMode: 'week' as const,
     onViewModeChange: vi.fn(),
     onGoToToday: vi.fn(),
@@ -53,5 +54,17 @@ describe('ScheduleDayHeader', () => {
     renderWithIntl(<ScheduleDayHeader {...props} />);
 
     expect(screen.getByText('Aviso de sobreposição')).toBeInTheDocument();
+  });
+
+  it('shows a muted "no bookings" badge when bookingCount is 0 (TD44 Story 4)', () => {
+    renderWithIntl(<ScheduleDayHeader {...baseProps()} />);
+    expect(screen.getByTestId('schedule-day-header-booking-count')).toHaveTextContent(
+      'Sem agendamentos',
+    );
+  });
+
+  it('shows the booking count when bookingCount is greater than 0', () => {
+    renderWithIntl(<ScheduleDayHeader {...baseProps()} bookingCount={3} />);
+    expect(screen.getByTestId('schedule-day-header-booking-count')).toHaveTextContent('3');
   });
 });

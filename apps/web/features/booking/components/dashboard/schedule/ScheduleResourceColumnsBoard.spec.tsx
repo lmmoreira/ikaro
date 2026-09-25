@@ -98,7 +98,7 @@ describe('ScheduleResourceColumnsBoard', () => {
     expect(screen.queryByText('Renata Souza')).not.toBeInTheDocument();
   });
 
-  it('shows an explicit empty-column message for a checked resource with no blocks that day', () => {
+  it('renders no redundant empty-column message for a checked resource with no blocks (TD44 Story 4 — the grid itself already shows this)', () => {
     useScheduleDayGridMock.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -113,7 +113,8 @@ describe('ScheduleResourceColumnsBoard', () => {
         selectedResourceIdSet={new Set(['res-camila'])}
       />,
     );
-    expect(screen.getByText('Nada agendado neste dia')).toBeInTheDocument();
+    expect(screen.getByText('Camila Duarte')).toBeInTheDocument();
+    expect(screen.queryByText(/[Nn]ada agendado/)).not.toBeInTheDocument();
   });
 
   it('renders a scroll-to-now marker only in the first column, only when viewing today (TD44 Story 4)', () => {

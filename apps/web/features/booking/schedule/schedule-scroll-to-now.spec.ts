@@ -100,4 +100,39 @@ describe('useScrollToNowOnce', () => {
 
     expect(secondElement.scrollIntoView).toHaveBeenCalledTimes(1);
   });
+
+  it('fires again when the marker node changes even though dateKey stays the same (e.g. switching Week to Day view without a date change)', () => {
+    const { result, rerender } = renderHook(
+      ({ enabled, dateKey }: { enabled: boolean; dateKey: string }) =>
+        useScrollToNowOnce(enabled, dateKey),
+      { initialProps: { enabled: true, dateKey: '2026-08-17' } },
+    );
+    const weekViewElement = makeMarkerElement();
+    result.current.current = weekViewElement;
+    rerender({ enabled: true, dateKey: '2026-08-17' });
+    expect(weekViewElement.scrollIntoView).toHaveBeenCalledTimes(1);
+
+    // Same dateKey, but a different DOM node — the old marker was unmounted (e.g. the view
+    // switched from Week to Day) and a new one took its place. A dateKey-only guard would
+    // wrongly treat this as "already scrolled".
+    const dayViewElement = makeMarkerElement();
+    result.current.current = dayViewElement;
+    rerender({ enabled: true, dateKey: '2026-08-17' });
+
+    expect(dayViewElement.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-fire for the same node reused across renders with the same dateKey', () => {
+    const { result, rerender } = renderHook(
+      ({ enabled, dateKey }: { enabled: boolean; dateKey: string }) =>
+        useScrollToNowOnce(enabled, dateKey),
+      { initialProps: { enabled: true, dateKey: '2026-08-17' } },
+    );
+    const element = makeMarkerElement();
+    result.current.current = element;
+    rerender({ enabled: true, dateKey: '2026-08-17' });
+    rerender({ enabled: true, dateKey: '2026-08-17' });
+
+    expect(element.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
 });

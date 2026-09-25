@@ -611,11 +611,19 @@ test.describe('schedule page coverage', () => {
   test("loading today's schedule scrolls the current-time marker into view, in both Day and Week view (TD44 Story 4)", async ({
     page,
   }) => {
+    // nextOpenDateKey(0) is today unless today happens to be the tenant's one closed weekday
+    // (Sunday), in which case it rolls forward to Monday — decoupling the fixture date from the
+    // app's own todayKey, which makes the marker assertions below meaningless. Skip rather than
+    // assert against a fixture that no longer represents today.
+    const rawToday = new Date();
+    rawToday.setHours(12, 0, 0, 0);
+    test.skip(
+      rawToday.getDay() === 0,
+      "today is the tenant's closed weekday (Sunday) — nextOpenDateKey(0) would roll to Monday",
+    );
+
     await loginAsScheduleStaff(page);
 
-    // nextOpenDateKey(0) is today unless today happens to be the tenant's one closed weekday
-    // (Sunday), in which case it rolls forward to Monday — a pre-existing helper limitation shared
-    // by every other startOffset-based test in this file, not something new to this test.
     const today = await createUniqueScheduleBooking(
       page,
       {
@@ -668,7 +676,7 @@ test.describe('schedule page coverage', () => {
     await expect(page.getByTestId('schedule-now-marker')).toHaveCount(0);
   });
 
-  test("a Week-view day-card shows its status exactly once, not duplicated by the grid's own copy (TD44 Story 4)", async ({
+  test("a Week-view day-card shows its own header badge exactly once, not duplicated by the grid's own copy (TD44 Story 4)", async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -679,9 +687,9 @@ test.describe('schedule page coverage', () => {
 
     await expect(page.getByTestId('schedule-week-view')).toBeVisible();
     const card = page.getByTestId('schedule-week-day-card').nth(weekDayIndex(dateKey));
-    // Exactly one status badge (the day-card's own header) — TimelineCompactBoard's own duplicate
-    // copy is gone (removed alongside its "N agendamento(s) neste dia" count span, which had no
-    // testid of its own since it no longer exists anywhere in the rendered tree to select).
+    // Exactly one badge (the day-card's own header, showing a booking count rather than the
+    // redundant open/closed status) — TimelineCompactBoard's own duplicate status/count copy is
+    // gone entirely.
     await expect(card.getByTestId('schedule-week-day-badge')).toHaveCount(1);
   });
 });

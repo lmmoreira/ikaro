@@ -203,9 +203,9 @@ describe('useScheduleTimelineDerived', () => {
       expect(result.current.selectedDayTimeline.slotHeight).toBe(48);
     });
 
-    it('gives Week view (weekTimelineCards) the plain scaled-down unit (scale 0.45)', () => {
+    it('gives Week view (weekTimelineCards) the plain scaled-down unit (scale 0.85, TD44 Story 4 live-testing correction — raised from 0.45)', () => {
       const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
-      expect(result.current.weekTimelineCards[0].slotHeight).toBe(22);
+      expect(result.current.weekTimelineCards[0].slotHeight).toBe(41);
     });
   });
 });
