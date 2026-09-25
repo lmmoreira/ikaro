@@ -50,38 +50,47 @@ export async function resolveFlatLineCandidates(
   for (const requirement of requirements) {
     const chosenResourceIds =
       selectionsByKey.get(selectionKey(service.id, null, requirement.type)) ?? [];
+    // windowEnd is the RAW (pre-buffer/turnover) line end — known upfront, unlike the final
+    // gap-adjusted endsAt below, which varies per resource. Good enough for AUTO_ANY's
+    // availability pre-filter (resolveRequirementResources); a resource that's free on this raw
+    // window but busy only during its own trailing turnover still gets caught by the real
+    // assertSlotFree() check later, same as before.
     const resources = await resolveRequirementResources(
       requirement,
       ctx,
       chosenResourceIds,
       lineStart,
+      lineEnd,
     );
     candidates.push(
-      ...buildFlatCandidatesForRequirement(
-        resources,
-        requirement,
+      ...buildFlatCandidatesForRequirement(resources, requirement, {
         service,
         lineStart,
         lineEnd,
         isLastLine,
-        isBundle,
-        ctx.availabilityService,
-      ),
+        isBundleMember: isBundle,
+        availabilityService: ctx.availabilityService,
+      }),
     );
   }
   return candidates;
 }
 
+interface FlatCandidateBuildContext {
+  service: Service;
+  lineStart: Date;
+  lineEnd: Date;
+  isLastLine: boolean;
+  isBundleMember: boolean;
+  availabilityService: AvailabilityService;
+}
+
 function buildFlatCandidatesForRequirement(
   resources: Resource[],
   requirement: ResourceRequirement,
-  service: Service,
-  lineStart: Date,
-  lineEnd: Date,
-  isLastLine: boolean,
-  isBundleMember: boolean,
-  availabilityService: AvailabilityService,
+  buildCtx: FlatCandidateBuildContext,
 ): ResourceOccupancyCandidate[] {
+  const { service, lineStart, lineEnd, isLastLine, isBundleMember, availabilityService } = buildCtx;
   return resources.map((resource, index) => {
     const gap = isLastLine
       ? availabilityService.effectiveFlatGapMinutes(
@@ -160,11 +169,17 @@ async function resolvePerLegResources(
     for (const requirement of leg.resourceRequirements) {
       const chosenResourceIds =
         selectionsByKey.get(selectionKey(serviceId, leg.legIndex, requirement.type)) ?? [];
+      // windowEnd is null (not the raw leg span) on purpose — a leg's exact sub-window isn't
+      // known until computeLegSpans runs, which itself needs resources chosen first. Legs also
+      // don't want the availability pre-filter at all: UC-065 A1's atomic all-or-nothing design
+      // means a leg conflict should fail the whole chain via assertSlotFree(), not silently retry
+      // a different resource for this one leg.
       const resources = await resolveRequirementResources(
         requirement,
         ctx,
         chosenResourceIds,
         windowStart,
+        null,
       );
       resources.forEach((resource, index) => {
         perLeg.push({

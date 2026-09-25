@@ -12,13 +12,24 @@ import { ResolutionContext } from './resource-resolution-context.helpers';
 // resourceSelections entry (if any) into concrete Resource(s), shared by both the flat and legged
 // candidate builders in resource-occupancy-candidate-builders.helpers.ts.
 
+// windowEnd is the requirement's own exact window end when known upfront (a flat line's raw,
+// pre-gap lineEnd), or null when it isn't (a legged requirement — see
+// resource-occupancy-candidate-builders.helpers.ts's call site for why legs deliberately opt out
+// of the AUTO_ANY availability pre-filter below).
 export async function resolveRequirementResources(
   requirement: ResourceRequirement,
   ctx: ResolutionContext,
   chosenResourceIds: string[],
   windowStart: Date,
+  windowEnd: Date | null,
 ): Promise<Resource[]> {
-  const candidateIds = await resolveCandidateIds(requirement, ctx, chosenResourceIds, windowStart);
+  const candidateIds = await resolveCandidateIds(
+    requirement,
+    ctx,
+    chosenResourceIds,
+    windowStart,
+    windowEnd,
+  );
   if (candidateIds.length < requirement.requiredQuantity) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
@@ -32,8 +43,10 @@ export async function resolveRequirementResources(
 }
 
 // selectionMode-aware since M23-S01 (UC-061/062/063): CUSTOMER_CHOICE uses the caller-supplied
-// resourceSelections entry; AUTO_ANY sorts its eligible candidates by least already-locked
-// workload on the tenant-local day, resourceId as stable secondary sort (UC-063 A1);
+// resourceSelections entry; AUTO_ANY narrows to candidates actually free for the exact requested
+// window (when known) before sorting by least already-locked workload on the tenant-local day,
+// resourceId as stable secondary sort (UC-063 A1 — the tie-break only applies "among candidates
+// already free for the chosen slot," not as a substitute for checking availability at all);
 // AUTO_FUNGIBLE_POOL/NONE keep the original deterministic first-eligible pick (no identity
 // reveal, no tie-break rule specified for a pool).
 async function resolveCandidateIds(
@@ -41,15 +54,49 @@ async function resolveCandidateIds(
   ctx: ResolutionContext,
   chosenResourceIds: string[],
   windowStart: Date,
+  windowEnd: Date | null,
 ): Promise<string[]> {
   if (requirement.selectionMode === 'CUSTOMER_CHOICE') {
     return resolveCustomerChoiceCandidateIds(requirement, chosenResourceIds);
   }
   const eligible = await resolveEligibleCandidateIds(requirement, ctx);
   if (requirement.selectionMode === 'AUTO_ANY') {
-    return sortByLeastWorkload(eligible, ctx, windowStart);
+    const free = await preferFreeCandidateIds(eligible, ctx, windowStart, windowEnd);
+    return sortByLeastWorkload(free, ctx, windowStart);
   }
   return eligible;
+}
+
+// Narrows to the subset of candidateIds with no conflicting HOLD/COMMITTED row for the exact
+// requested window, before the workload sort ever runs — otherwise a lower-workload-but-busy
+// candidate could be preferred over a higher-workload-but-free one, and the booking would fail
+// with a 409 even though a genuinely free resource existed (UC-063's main flow: "assigns
+// whichever eligible staff member is free"). windowEnd === null (legs) or a single candidate
+// skips the filter entirely — see resolveRequirementResources' own doc comment for why.
+// Falls back to the full candidateIds list when every one of them appears busy, so the caller's
+// requiredQuantity/assertSlotFree checks still run and produce the correct "unavailable" error,
+// rather than this function returning [] and misreporting via a wrong error path.
+async function preferFreeCandidateIds(
+  candidateIds: string[],
+  ctx: ResolutionContext,
+  windowStart: Date,
+  windowEnd: Date | null,
+): Promise<string[]> {
+  if (windowEnd === null || candidateIds.length <= 1) return candidateIds;
+  const windows = candidateIds.map((resourceId) => ({
+    resourceId,
+    startsAt: windowStart,
+    endsAt: windowEnd,
+  }));
+  const conflicting = new Set(
+    await ctx.occupancyRepo.findConflictingResourceIds(
+      ctx.tenantId,
+      windows,
+      ctx.excludeBookingLineIds,
+    ),
+  );
+  const free = candidateIds.filter((id) => !conflicting.has(id));
+  return free.length > 0 ? free : candidateIds;
 }
 
 // requiredQuantity > 1 combined with CUSTOMER_CHOICE has no named UC example (the "several

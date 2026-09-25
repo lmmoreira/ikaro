@@ -660,6 +660,92 @@ describe('resolveBookingLinesResourceCandidates', () => {
 
       expect(result.get('line-1')!.candidates[0].resourceId).toBe(expected);
     });
+
+    // UC-063 A1's tie-break ("least already-locked workload") only applies "among candidates
+    // already free for the chosen slot" — it is not itself an availability check. A candidate
+    // with lower total day-workload but a real conflict at the exact requested window must never
+    // be preferred over a busier-overall candidate that's actually free at that window; otherwise
+    // the booking would incorrectly 409 even though a genuinely free resource exists.
+    it('prefers a resource that is actually free at the requested window over a lower-workload one that conflicts', async () => {
+      const lowWorkloadButBusy = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      const higherWorkloadButFree = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(lowWorkloadButBusy);
+      await resourceRepo.save(higherWorkloadButFree);
+
+      // Exactly one row, but it overlaps the requested window itself (day-workload count: 1).
+      await occupancyRepo.assign(
+        TENANT_ID,
+        'other-line-1',
+        [
+          {
+            resourceId: lowWorkloadButBusy.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: lowWorkloadButBusy.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: SCHEDULED_AT,
+            endsAt: new Date(SCHEDULED_AT.getTime() + 30 * 60_000),
+            selectionMode: 'AUTO_ANY',
+            isBundleMember: false,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+      // Two rows earlier the same day, well clear of the requested window (day-workload count: 2
+      // — higher than the resource above — but genuinely free at the requested time).
+      await occupancyRepo.assign(
+        TENANT_ID,
+        'other-line-2',
+        [
+          {
+            resourceId: higherWorkloadButFree.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: higherWorkloadButFree.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: new Date('2026-06-01T08:00:00.000Z'),
+            endsAt: new Date('2026-06-01T08:30:00.000Z'),
+            selectionMode: 'AUTO_ANY',
+            isBundleMember: false,
+          },
+          {
+            resourceId: higherWorkloadButFree.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: higherWorkloadButFree.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: new Date('2026-06-01T08:30:00.000Z'),
+            endsAt: new Date('2026-06-01T09:00:00.000Z'),
+            selectionMode: 'AUTO_ANY',
+            isBundleMember: false,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+      );
+
+      expect(result.get('line-1')!.candidates[0].resourceId).toBe(higherWorkloadButFree.id);
+    });
   });
 
   it('caches a resolved resource across repeated lookups within the same resolution call', async () => {
