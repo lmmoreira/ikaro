@@ -25,6 +25,7 @@ function makeBooking(overrides: Partial<StaffBookingCardResponse> = {}): StaffBo
     totalPrice: { amount: 100, currency: 'BRL' },
     totalDurationMins: 30,
     isCustomer: false,
+    assignedResources: [],
     ...overrides,
   };
 }
@@ -84,18 +85,21 @@ describe('buildBookingTimelineEvent', () => {
     expect(event.warning).toBe(true);
   });
 
-  it('defaults resourceNames to an empty array when omitted', () => {
-    const booking = makeBooking();
+  it('defaults resourceNames to an empty array when the booking has no assigned resources', () => {
+    const booking = makeBooking({ assignedResources: [] });
     const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00');
     expect(event.resourceNames).toEqual([]);
   });
 
-  it('carries every checked resource name it was given, in order (TD44 Story 1)', () => {
-    const booking = makeBooking();
-    const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00', [
-      'Camila Duarte',
-      'Sala 1',
-    ]);
+  it("sources resourceNames from the booking's own assignedResources, type-prioritized (TD44-S2 round 3)", () => {
+    const booking = makeBooking({
+      assignedResources: [
+        { resourceId: 'res-sala', resourceType: 'ROOM', resourceName: 'Sala 1' },
+        { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+      ],
+    });
+    const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00');
+    // STAFF outranks ROOM regardless of the input array's own order.
     expect(event.resourceNames).toEqual(['Camila Duarte', 'Sala 1']);
   });
 });

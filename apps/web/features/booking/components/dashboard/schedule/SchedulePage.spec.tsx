@@ -106,6 +106,7 @@ function makeBookingCard(
     totalPrice: { amount: 100, currency: 'BRL' },
     totalDurationMins: 60,
     isCustomer: false,
+    assignedResources: [],
     ...overrides,
   };
 }

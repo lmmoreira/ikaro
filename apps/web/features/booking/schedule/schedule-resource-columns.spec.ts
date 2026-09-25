@@ -33,6 +33,7 @@ function makeBooking(overrides: Partial<StaffBookingCardResponse> = {}): StaffBo
     totalPrice: { amount: 100, currency: 'BRL' },
     totalDurationMins: 30,
     isCustomer: false,
+    assignedResources: [],
     ...overrides,
   };
 }

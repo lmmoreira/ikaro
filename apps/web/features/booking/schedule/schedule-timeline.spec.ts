@@ -196,6 +196,7 @@ describe('buildTimelineEvents', () => {
       totalPrice: { amount: 100, currency: 'BRL' },
       totalDurationMins: 30,
       isCustomer: false,
+      assignedResources: [],
     };
     const otherDayBooking: StaffBookingCardResponse = {
       ...booking,
@@ -307,6 +308,7 @@ describe('buildTimelineEvents', () => {
         totalPrice: { amount: 100, currency: 'BRL' },
         totalDurationMins: 30,
         isCustomer: false,
+        assignedResources: [],
         ...overrides,
       };
     }
@@ -342,17 +344,22 @@ describe('buildTimelineEvents', () => {
       expect(result.events).toHaveLength(0);
     });
 
-    it('includes and badges a booking matched to exactly one checked resource', () => {
+    it('includes a booking matched to exactly one checked resource, badge sourced from the booking itself', () => {
+      const booking = makeBooking({
+        assignedResources: [
+          { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+        ],
+      });
       const result = buildTimelineEvents({
         selectedDateKey: '2026-08-17',
         timezone: 'America/Sao_Paulo',
         slotGranularityMinutes: 30,
         businessHours: makeBusinessHours(),
-        bookings: [makeBooking()],
+        bookings: [booking],
         closures: [],
         openings: [],
         selectedResourceIdSet: new Set(['res-camila']),
-        bookingResourceNamesById: new Map([['booking-1', ['Camila Duarte']]]),
+        bookingResourceNamesById: new Map([['booking-1', ['res-camila']]]),
       });
 
       expect(result.events).toHaveLength(1);
@@ -361,17 +368,23 @@ describe('buildTimelineEvents', () => {
       ]);
     });
 
-    it('renders a bundled booking once, with both checked-resource names, not duplicated', () => {
+    it('renders a bundled booking once, with all of its assigned resource names, not duplicated', () => {
+      const booking = makeBooking({
+        assignedResources: [
+          { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+          { resourceId: 'res-room', resourceType: 'ROOM', resourceName: 'Sala 1' },
+        ],
+      });
       const result = buildTimelineEvents({
         selectedDateKey: '2026-08-17',
         timezone: 'America/Sao_Paulo',
         slotGranularityMinutes: 30,
         businessHours: makeBusinessHours(),
-        bookings: [makeBooking()],
+        bookings: [booking],
         closures: [],
         openings: [],
         selectedResourceIdSet: new Set(['res-camila', 'res-room']),
-        bookingResourceNamesById: new Map([['booking-1', ['Camila Duarte', 'Sala 1']]]),
+        bookingResourceNamesById: new Map([['booking-1', ['res-camila', 'res-room']]]),
       });
 
       expect(result.events).toHaveLength(1);
@@ -381,24 +394,31 @@ describe('buildTimelineEvents', () => {
       ]);
     });
 
-    it('badges only the checked resource(s) of a bundled booking when only some are checked', () => {
-      // The lookup itself only ever carries checked-resource names (built upstream in
-      // schedule-page-timeline-derived.ts) — this asserts the timeline layer trusts that lookup
-      // as-is rather than re-deriving which names are "checked" on its own.
+    it("shows every one of a bundled booking's assigned resources even when only some are checked (TD44-S2 round 3 — always show, not just the checked ones)", () => {
+      const booking = makeBooking({
+        assignedResources: [
+          { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+          { resourceId: 'res-room', resourceType: 'ROOM', resourceName: 'Sala 1' },
+        ],
+      });
+      // Only res-camila is checked — the booking is still *visible* (isBookingVisibleForResourceFilter
+      // only needs one match), and as of round 3 its badge line shows both assigned resources, not
+      // just the checked one.
       const result = buildTimelineEvents({
         selectedDateKey: '2026-08-17',
         timezone: 'America/Sao_Paulo',
         slotGranularityMinutes: 30,
         businessHours: makeBusinessHours(),
-        bookings: [makeBooking()],
+        bookings: [booking],
         closures: [],
         openings: [],
         selectedResourceIdSet: new Set(['res-camila']),
-        bookingResourceNamesById: new Map([['booking-1', ['Camila Duarte']]]),
+        bookingResourceNamesById: new Map([['booking-1', ['res-camila']]]),
       });
 
       expect(result.events[0].kind === 'booking' && result.events[0].resourceNames).toEqual([
         'Camila Duarte',
+        'Sala 1',
       ]);
     });
   });

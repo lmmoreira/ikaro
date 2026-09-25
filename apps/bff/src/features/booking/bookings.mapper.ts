@@ -44,6 +44,11 @@ export function toStaffBookingCard(item: BookingListItem): StaffBookingCardRespo
     totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
     totalDurationMins: item.totalDurationMins,
     isCustomer: item.customerId !== null,
+    assignedResources: item.assignedResources.map((r) => ({
+      resourceId: r.resourceId,
+      resourceType: r.resourceType,
+      resourceName: r.resourceName,
+    })),
   };
 }
 

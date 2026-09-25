@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ResourceType } from '@ikaro/types';
-import { compareResourceIdsByTypePriority, resourceTypeRank } from './schedule-resource-priority';
+import {
+  compareResourceAssignmentsByTypePriority,
+  resourceTypeRank,
+} from './schedule-resource-priority';
 
 describe('resourceTypeRank', () => {
   it('orders STAFF before ROOM before EQUIPMENT', () => {
@@ -15,38 +18,26 @@ describe('resourceTypeRank', () => {
   });
 });
 
-describe('compareResourceIdsByTypePriority', () => {
-  const resourceNameById = new Map([
-    ['staff-camila', 'Camila'],
-    ['staff-ana', 'Ana'],
-    ['room-2', 'Sala 2'],
-    ['equip-dryer', 'Secador'],
-  ]);
-  const resourceTypeById = new Map<string, ResourceType>([
-    ['staff-camila', 'STAFF'],
-    ['staff-ana', 'STAFF'],
-    ['room-2', 'ROOM'],
-    ['equip-dryer', 'EQUIPMENT'],
-  ]);
-  const compare = compareResourceIdsByTypePriority(resourceNameById, resourceTypeById);
+describe('compareResourceAssignmentsByTypePriority', () => {
+  function makeAssignment(resourceType: ResourceType, resourceName: string) {
+    return { resourceType, resourceName };
+  }
 
   it('orders STAFF before ROOM before EQUIPMENT regardless of input order', () => {
-    const ids = ['equip-dryer', 'room-2', 'staff-camila'];
-    expect([...ids].sort(compare)).toEqual(['staff-camila', 'room-2', 'equip-dryer']);
+    const assignments = [
+      makeAssignment('EQUIPMENT', 'Secador'),
+      makeAssignment('ROOM', 'Sala 2'),
+      makeAssignment('STAFF', 'Camila'),
+    ];
+    expect(
+      [...assignments].sort(compareResourceAssignmentsByTypePriority).map((a) => a.resourceName),
+    ).toEqual(['Camila', 'Sala 2', 'Secador']);
   });
 
   it('tiebreaks alphabetically by name within the same type', () => {
-    const ids = ['staff-camila', 'staff-ana'];
-    expect([...ids].sort(compare)).toEqual(['staff-ana', 'staff-camila']);
-  });
-
-  it('falls back to the raw id when a name is missing, without throwing', () => {
-    const ids = ['staff-camila', 'unknown-id'];
-    const typeById = new Map<string, ResourceType>([
-      ['staff-camila', 'STAFF'],
-      ['unknown-id', 'STAFF'],
-    ]);
-    const compareWithMissingName = compareResourceIdsByTypePriority(resourceNameById, typeById);
-    expect(() => [...ids].sort(compareWithMissingName)).not.toThrow();
+    const assignments = [makeAssignment('STAFF', 'Camila'), makeAssignment('STAFF', 'Ana')];
+    expect(
+      [...assignments].sort(compareResourceAssignmentsByTypePriority).map((a) => a.resourceName),
+    ).toEqual(['Ana', 'Camila']);
   });
 });

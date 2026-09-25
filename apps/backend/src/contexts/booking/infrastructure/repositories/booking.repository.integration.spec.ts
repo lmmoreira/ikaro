@@ -12,6 +12,7 @@ import { BookingConcurrentModificationError } from '../../domain/errors/booking-
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
+import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
 
 const TENANT_A = '00000000-0000-7000-8000-000000000060';
@@ -31,6 +32,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
     repo = new TypeOrmBookingRepository(
       dataSource.getRepository(BookingEntity),
       dataSource.getRepository(BookingLineEntity),
+      dataSource.getRepository(BookingLineResourceAssignmentEntity),
       settingsPort,
       new InMemoryEventBus(),
     );

@@ -347,7 +347,10 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.getByRole('button', { name: 'Fechar' }).click();
 
       await expect(page.getByRole('link', { name: unrelatedName })).toHaveCount(0);
-      const matchedBlock = page.getByRole('link', { name: matchedName });
+      // The booking link's own accessible name composes contactName + every matched resource
+      // (round 3 fix — the visible summary line is aria-hidden; the link is the one focusable/
+      // announced unit).
+      const matchedBlock = page.getByRole('link', { name: `${matchedName}, ${resource.name}` });
       await expect(matchedBlock).toBeVisible();
       // TD44 Story 2: a booking's matched-resource identity now renders via the compact summary
       // line, not the per-resource ResourceNameBadge (that testid stays reserved for openings/
@@ -407,15 +410,17 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.getByRole('checkbox', { name: resourceB.name }).check();
       await page.getByRole('button', { name: 'Fechar' }).click();
 
-      const bookingBlocks = page.getByRole('link', { name: contactName });
+      // The booking link's own accessible name now composes contactName + every matched resource
+      // (round 3 fix — the summary div is aria-hidden; the link is the one focusable/announced
+      // unit, so that's where the full resource list actually needs to live for assistive tech).
+      const bookingBlocks = page.getByRole('link', {
+        name: `${contactName}, ${resourceA.name}, ${resourceB.name}`,
+      });
       await expect(bookingBlocks).toHaveCount(1);
       // ROOM outranks EQUIPMENT (STAFF > ROOM > EQUIPMENT), so resourceA (ROOM) is the primary
       // name; resourceB is folded into "+1" instead of getting its own badge.
       const summary = bookingBlocks.getByTestId('timeline-block-resource-summary');
       await expect(summary).toHaveText(`${resourceA.name} +1`);
-      // role="group" is required for aria-label to actually name the element — verify the real,
-      // browser-computed accessible name, not just the raw attribute (PR #514 round 2 finding).
-      await expect(summary).toHaveAccessibleName(`${resourceA.name}, ${resourceB.name}`);
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resourceA.id);
@@ -468,7 +473,7 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.getByRole('checkbox', { name: resourceA.name }).check();
       await page.getByRole('button', { name: 'Fechar' }).click();
 
-      const bookingBlock = page.getByRole('link', { name: contactName });
+      const bookingBlock = page.getByRole('link', { name: `${contactName}, ${resourceA.name}` });
       await expect(bookingBlock).toBeVisible();
       const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
       await expect(summary).toHaveText(resourceA.name);
@@ -541,7 +546,9 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.getByRole('checkbox', { name: equipmentResource.name }).check();
       await page.getByRole('button', { name: 'Fechar' }).click();
 
-      const bookingBlock = page.getByRole('link', { name: contactName });
+      const bookingBlock = page.getByRole('link', {
+        name: `${contactName}, ${staffResource.name}, ${roomResource.name}, ${equipmentResource.name}`,
+      });
       const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
       await expect(summary).toHaveText(`${staffResource.name} +2`);
     } finally {

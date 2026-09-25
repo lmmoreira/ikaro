@@ -2,7 +2,7 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { BOOKING_STATUS } from '@ikaro/types';
-import type { ResourceType, StaffBookingCardResponse, TenantBusinessHours } from '@ikaro/types';
+import type { StaffBookingCardResponse, TenantBusinessHours } from '@ikaro/types';
 import { useScheduleTimelineDerived } from './schedule-page-timeline-derived';
 import { COMPACT_MIN_BLOCK_HEIGHT_PX, DESKTOP_MIN_BLOCK_HEIGHT_PX } from './schedule-timeline';
 
@@ -29,6 +29,7 @@ function makeBooking(overrides: Partial<StaffBookingCardResponse> = {}): StaffBo
     totalPrice: { amount: 100, currency: 'BRL' },
     totalDurationMins: 30,
     isCustomer: false,
+    assignedResources: [],
     ...overrides,
   };
 }
@@ -44,7 +45,6 @@ function baseInput(overrides: Partial<Parameters<typeof useScheduleTimelineDeriv
     slotGranularityMinutes: 30,
     selectedDateKey: '2026-08-17',
     resourceNameById: new Map<string, string>(),
-    resourceTypeById: new Map<string, ResourceType>(),
     selectedResourceIdSet: new Set<string>(),
     bookingResourceIdsById: new Map<string, readonly string[]>(),
     ...overrides,
@@ -154,13 +154,17 @@ describe('useScheduleTimelineDerived', () => {
       expect(result.current.weekTimelineCards[0].events).toHaveLength(0);
     });
 
-    it('resolves resourceIds to display names and badges the matched Week-view booking', () => {
-      const booking = makeBooking({ scheduledAt: '2026-08-17T12:00:00.000Z' });
+    it('shows every assigned resource on a matched Week-view booking, sourced from the booking itself', () => {
+      const booking = makeBooking({
+        scheduledAt: '2026-08-17T12:00:00.000Z',
+        assignedResources: [
+          { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+        ],
+      });
       const { result } = renderHook(() =>
         useScheduleTimelineDerived(
           baseInput({
             visibleBookings: [booking],
-            resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
             selectedResourceIdSet: new Set(['res-camila']),
             bookingResourceIdsById: new Map([['booking-1', ['res-camila']]]),
           }),
@@ -171,65 +175,21 @@ describe('useScheduleTimelineDerived', () => {
       expect(events).toHaveLength(1);
       expect(events[0].kind === 'booking' && events[0].resourceNames).toEqual(['Camila Duarte']);
     });
-  });
 
-  describe('Type-priority resource ordering (TD44 Story 2)', () => {
-    it('orders resourceNames by type priority (STAFF > ROOM > EQUIPMENT), not alphabetically', () => {
-      const booking = makeBooking({ scheduledAt: '2026-08-17T12:00:00.000Z' });
+    it("shows a booking's assigned resources even when zero resources are checked (TD44-S2 round 3 — always show, not just when filtering)", () => {
+      const booking = makeBooking({
+        scheduledAt: '2026-08-17T12:00:00.000Z',
+        assignedResources: [
+          { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+        ],
+      });
       const { result } = renderHook(() =>
-        useScheduleTimelineDerived(
-          baseInput({
-            visibleBookings: [booking],
-            resourceNameById: new Map([
-              ['res-equip', 'Aparador'],
-              ['res-room', 'Sala 2'],
-              ['res-staff', 'Zeca'],
-            ]),
-            resourceTypeById: new Map<string, ResourceType>([
-              ['res-equip', 'EQUIPMENT'],
-              ['res-room', 'ROOM'],
-              ['res-staff', 'STAFF'],
-            ]),
-            selectedResourceIdSet: new Set(['res-equip', 'res-room', 'res-staff']),
-            bookingResourceIdsById: new Map([
-              ['booking-1', ['res-equip', 'res-room', 'res-staff']],
-            ]),
-          }),
-        ),
+        useScheduleTimelineDerived(baseInput({ visibleBookings: [booking] })),
       );
 
       const events = result.current.weekTimelineCards[0].events;
-      // "Zeca" (STAFF) sorts first despite losing alphabetically to "Aparador"/"Sala 2" — type
-      // priority wins over the alphabetical tiebreak, which only applies within the same type.
-      expect(events[0].kind === 'booking' && events[0].resourceNames).toEqual([
-        'Zeca',
-        'Sala 2',
-        'Aparador',
-      ]);
-    });
-
-    it('tiebreaks alphabetically within the same resource type', () => {
-      const booking = makeBooking({ scheduledAt: '2026-08-17T12:00:00.000Z' });
-      const { result } = renderHook(() =>
-        useScheduleTimelineDerived(
-          baseInput({
-            visibleBookings: [booking],
-            resourceNameById: new Map([
-              ['res-staff-b', 'Bruna'],
-              ['res-staff-a', 'Ana'],
-            ]),
-            resourceTypeById: new Map<string, ResourceType>([
-              ['res-staff-b', 'STAFF'],
-              ['res-staff-a', 'STAFF'],
-            ]),
-            selectedResourceIdSet: new Set(['res-staff-b', 'res-staff-a']),
-            bookingResourceIdsById: new Map([['booking-1', ['res-staff-b', 'res-staff-a']]]),
-          }),
-        ),
-      );
-
-      const events = result.current.weekTimelineCards[0].events;
-      expect(events[0].kind === 'booking' && events[0].resourceNames).toEqual(['Ana', 'Bruna']);
+      expect(events).toHaveLength(1);
+      expect(events[0].kind === 'booking' && events[0].resourceNames).toEqual(['Camila Duarte']);
     });
   });
 

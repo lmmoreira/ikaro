@@ -34,6 +34,7 @@ describe('toStaffBookingCard()', () => {
     ],
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
+    assignedResources: [],
   };
 
   it('maps backend booking-list item fields to StaffBookingCardResponse', () => {
@@ -48,7 +49,23 @@ describe('toStaffBookingCard()', () => {
       totalPrice: { amount: 100, currency: 'BRL' },
       totalDurationMins: 30,
       isCustomer: true,
+      assignedResources: [],
     });
+  });
+
+  it('maps every assigned resource, display-only and unrelated to any client filter (TD44-S2 round 3)', () => {
+    const result = toStaffBookingCard({
+      ...backendItem,
+      assignedResources: [
+        { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+        { resourceId: 'res-sala-1', resourceType: 'ROOM', resourceName: 'Sala 1' },
+      ],
+    });
+
+    expect(result.assignedResources).toEqual([
+      { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+      { resourceId: 'res-sala-1', resourceType: 'ROOM', resourceName: 'Sala 1' },
+    ]);
   });
 
   it('sets isCustomer false for guest bookings (customerId null)', () => {
@@ -96,6 +113,7 @@ describe('toCustomerBookingListItem()', () => {
     ],
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
+    assignedResources: [],
   };
 
   it('maps backend booking-list item fields to CustomerBookingListItem, dropping contact info and formatted price', () => {
@@ -367,6 +385,7 @@ describe('toBookingListResponse()', () => {
         ],
         createdAt: '2026-01-01T00:00:00.000Z',
         cancellableUntil: null,
+        assignedResources: [],
       },
     ],
     pagination: { limit: 20, offset: 0, total: 1, hasMore: false },

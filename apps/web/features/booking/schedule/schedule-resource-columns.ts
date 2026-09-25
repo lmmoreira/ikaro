@@ -59,6 +59,7 @@ function buildPlaceholderBooking(
     totalPrice: { amount: 0, currency: 'BRL' },
     totalDurationMins: durationMins,
     isCustomer: false,
+    assignedResources: [],
   };
 }
 

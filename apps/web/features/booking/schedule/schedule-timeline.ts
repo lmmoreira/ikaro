@@ -76,8 +76,12 @@ export interface TimelineLayoutInput {
   // schedule-page-core-data.ts). Omitted (STAFF, or the fetch hasn't resolved yet) means every
   // event renders with resourceName: null, same as a tenant-wide item.
   readonly resourceNameById?: ReadonlyMap<string, string>;
-  // Week view's own booking resource-filter/badges (TD44 Story 1, schedule-week-resource-bookings.ts)
-  // — omitted/empty by every other caller (Day view never filters bookings at this layer).
+  // Week view's own booking *visibility* filter (TD44 Story 1, schedule-week-resource-bookings.ts)
+  // — omitted/empty by every other caller (Day view never filters bookings at this layer). Despite
+  // the field name, only presence (.has(bookingId)) is ever checked — the values are the raw
+  // checked-resource-matched resourceIds from the day-grid lookup, unrelated to badge naming
+  // (BookingTimelineEvent.resourceNames sources from booking.assignedResources directly as of
+  // TD44-S2 round 3, not from this map).
   readonly selectedResourceIdSet?: ReadonlySet<string>;
   readonly bookingResourceNamesById?: ReadonlyMap<string, readonly string[]>;
 }
@@ -129,7 +133,6 @@ function buildFilteredBookingEvents(input: FilteredBookingEventsInput) {
           selectedDayClosures,
           activeStartTime,
           activeEndTime,
-          bookingResourceNamesById.get(booking.bookingId) ?? [],
         ),
       ),
   );

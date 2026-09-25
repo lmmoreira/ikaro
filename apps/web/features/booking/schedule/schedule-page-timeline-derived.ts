@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import type {
-  ResourceType,
   ScheduleClosure,
   ScheduleOpening,
   StaffBookingCardResponse,
@@ -20,7 +19,6 @@ import {
   buildWeekDayInfo,
   type ScheduleWeekDayInfo,
 } from '@/features/booking/schedule/schedule-page-derived';
-import { compareResourceIdsByTypePriority } from '@/features/booking/schedule/schedule-resource-priority';
 
 interface ScheduleTimelineDerivedInput {
   readonly weekDates: readonly string[];
@@ -32,37 +30,16 @@ interface ScheduleTimelineDerivedInput {
   readonly slotGranularityMinutes: number;
   readonly selectedDateKey: string;
   readonly resourceNameById: ReadonlyMap<string, string>;
-  // Sibling to resourceNameById (TD44 Story 2) — feeds compareResourceIdsByTypePriority below.
-  readonly resourceTypeById: ReadonlyMap<string, ResourceType>;
-  // Week view's own booking resource-filtering/badges (TD44 Story 1) — deliberately consumed only
-  // by useWeekTimelineCards below, never useSelectedDayTimeline: Day view's merged single-day
+  // Week view's own booking *visibility* filter (TD44 Story 1) — deliberately consumed only by
+  // useWeekTimelineCards below, never useSelectedDayTimeline: Day view's merged single-day
   // timeline only ever renders when zero resources are checked (1+ switches to the separate
   // ScheduleResourceColumnsBoard instead, which pre-filters its own bookings list before this
-  // layer ever sees it), so threading these into the Day-view path would be dead code.
+  // layer ever sees it), so threading these into the Day-view path would be dead code. Booking
+  // *badge naming* is unrelated and no longer threaded through here at all (TD44-S2 round 3) —
+  // BookingTimelineEvent.resourceNames now comes straight from booking.assignedResources inside
+  // buildBookingTimelineEvent, since every booking carries its own resource assignments directly.
   readonly selectedResourceIdSet: ReadonlySet<string>;
   readonly bookingResourceIdsById: ReadonlyMap<string, readonly string[]>;
-}
-
-// Translates the query layer's bookingId -> resourceId[] lookup (schedule-page-query-data.ts) into
-// bookingId -> resourceName[], sorted per booking for a stable order regardless of check order —
-// type-prioritized (STAFF > ROOM > EQUIPMENT) first, alphabetical tiebreak within the same type
-// (TD44 Story 2; was a plain alphabetical sort before). The renderer only ever reads index 0 +
-// length, so the priority resource is always resourceNames[0]. Built once per render and reused
-// across all 7 week day-cards below.
-function buildBookingResourceNamesById(
-  bookingResourceIdsById: ReadonlyMap<string, readonly string[]>,
-  resourceNameById: ReadonlyMap<string, string>,
-  resourceTypeById: ReadonlyMap<string, ResourceType>,
-): ReadonlyMap<string, readonly string[]> {
-  const compare = compareResourceIdsByTypePriority(resourceNameById, resourceTypeById);
-  return new Map(
-    [...bookingResourceIdsById].map(([bookingId, resourceIds]) => [
-      bookingId,
-      [...resourceIds]
-        .sort(compare)
-        .map((resourceId) => resourceNameById.get(resourceId) ?? resourceId),
-    ]),
-  );
 }
 
 function useScheduleWeekDayDerived(input: ScheduleTimelineDerivedInput): {
@@ -125,8 +102,8 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
 }
 
 // Extracted from useWeekTimelineCards below purely to stay under the 40-line function cap once
-// TD44 Story 1's resource-filter/badge params landed there — same per-day mapping, no behavior
-// change. Not itself a hook: plain data transformation, called from inside the useMemo factory.
+// TD44 Story 1's resource-filter params landed there — same per-day mapping, no behavior change.
+// Not itself a hook: plain data transformation, called from inside the useMemo factory.
 interface WeekTimelineCardsSharedInput {
   readonly visibleBookings: readonly StaffBookingCardResponse[];
   readonly visibleClosures: readonly ScheduleClosure[];
@@ -143,7 +120,7 @@ interface WeekTimelineCardsSharedInput {
 function buildWeekTimelineCards(
   weekDayInfo: readonly ScheduleWeekDayInfo[],
   shared: WeekTimelineCardsSharedInput,
-  bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
+  bookingResourceIdsById: ReadonlyMap<string, readonly string[]>,
 ): TimelineDayData[] {
   const {
     visibleBookings,
@@ -169,22 +146,11 @@ function buildWeekTimelineCards(
       minSlotHeightPx: COMPACT_MIN_BLOCK_HEIGHT_PX,
       resourceNameById,
       selectedResourceIdSet,
-      bookingResourceNamesById,
+      // Only ever used for a presence check (isBookingVisibleForResourceFilter — "did this
+      // booking match any checked resource"), never its values, so the raw resourceId map
+      // passes straight through with no name-conversion step (TD44-S2 round 3).
+      bookingResourceNamesById: bookingResourceIdsById,
     }),
-  );
-}
-
-// Extracted from useWeekTimelineCards below (same 40-line-cap reason) — its own useMemo, so the
-// resolved names map stays referentially stable across renders whenever its own inputs don't
-// change; buildBookingResourceNamesById itself always returns a fresh Map.
-function useBookingResourceNamesById(
-  bookingResourceIdsById: ReadonlyMap<string, readonly string[]>,
-  resourceNameById: ReadonlyMap<string, string>,
-  resourceTypeById: ReadonlyMap<string, ResourceType>,
-): ReadonlyMap<string, readonly string[]> {
-  return useMemo(
-    () => buildBookingResourceNamesById(bookingResourceIdsById, resourceNameById, resourceTypeById),
-    [bookingResourceIdsById, resourceNameById, resourceTypeById],
   );
 }
 
@@ -196,12 +162,6 @@ function useWeekTimelineCards(
   input: ScheduleTimelineDerivedInput,
   weekDayInfo: readonly ScheduleWeekDayInfo[],
 ): TimelineDayData[] {
-  const bookingResourceNamesById = useBookingResourceNamesById(
-    input.bookingResourceIdsById,
-    input.resourceNameById,
-    input.resourceTypeById,
-  );
-
   return useMemo(
     () =>
       buildWeekTimelineCards(
@@ -216,7 +176,7 @@ function useWeekTimelineCards(
           resourceNameById: input.resourceNameById,
           selectedResourceIdSet: input.selectedResourceIdSet,
         },
-        bookingResourceNamesById,
+        input.bookingResourceIdsById,
       ),
     [
       weekDayInfo,
@@ -228,7 +188,7 @@ function useWeekTimelineCards(
       input.slotGranularityMinutes,
       input.resourceNameById,
       input.selectedResourceIdSet,
-      bookingResourceNamesById,
+      input.bookingResourceIdsById,
     ],
   );
 }

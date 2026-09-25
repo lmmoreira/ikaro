@@ -60,7 +60,11 @@ function renderBookingTimelineEvent(
       href={`/dashboard/bookings/${event.booking.bookingId}?returnTo=${encodeURIComponent(
         props.scheduleReturnTo,
       )}`}
-      ariaLabel={event.booking.contactName}
+      ariaLabel={
+        event.resourceNames.length > 0
+          ? `${event.booking.contactName}, ${event.resourceNames.join(', ')}`
+          : event.booking.contactName
+      }
       icon={
         event.warning ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" /> : null
       }

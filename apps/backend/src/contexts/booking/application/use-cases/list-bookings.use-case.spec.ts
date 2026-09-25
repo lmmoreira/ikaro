@@ -1,6 +1,7 @@
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceType } from '../../domain/resource.types';
 import { ListBookingsUseCase } from './list-bookings.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000120';
@@ -177,6 +178,38 @@ describe('ListBookingsUseCase', () => {
       const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
 
       expect(result.items).toHaveLength(1);
+    });
+
+    it('defaults assignedResources to an empty array for a booking with no resource assignments', async () => {
+      await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
+
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
+
+      expect(result.items[0].assignedResources).toEqual([]);
+    });
+
+    it('includes every assigned resource for a booking, display-only and unrelated to any client filter (TD44-S2 round 3)', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(booking);
+      repo.setResourceAssignments(booking.id, [
+        {
+          resourceId: 'res-camila',
+          resourceType: ResourceType.STAFF,
+          resourceName: 'Camila Duarte',
+        },
+        { resourceId: 'res-sala-1', resourceType: ResourceType.ROOM, resourceName: 'Sala 1' },
+      ]);
+
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
+
+      expect(result.items[0].assignedResources).toEqual([
+        {
+          resourceId: 'res-camila',
+          resourceType: ResourceType.STAFF,
+          resourceName: 'Camila Duarte',
+        },
+        { resourceId: 'res-sala-1', resourceType: ResourceType.ROOM, resourceName: 'Sala 1' },
+      ]);
     });
   });
 

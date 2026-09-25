@@ -4,14 +4,26 @@ import {
   BookingFilters,
   BookingListFilters,
   BookingPaginatedResult,
+  BookingResourceAssignmentSummary,
   IBookingRepository,
 } from '../../../contexts/booking/application/ports/booking-repository.port';
 import { Booking } from '../../../contexts/booking/domain/booking.aggregate';
 
 export class InMemoryBookingRepository implements IBookingRepository {
   private readonly store = new Map<string, Booking>();
+  private readonly resourceAssignmentsByBookingId = new Map<
+    string,
+    BookingResourceAssignmentSummary[]
+  >();
 
   constructor(private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} }) {}
+
+  // Test-only seeding hook — the real repository derives this from booking_line_resource_
+  // assignments; this double has no such table, so a test that needs assignedResources populated
+  // seeds it explicitly.
+  setResourceAssignments(bookingId: string, assignments: BookingResourceAssignmentSummary[]): void {
+    this.resourceAssignmentsByBookingId.set(bookingId, assignments);
+  }
 
   async findById(id: string, tenantId: string): Promise<Booking | null> {
     const booking = this.store.get(id);
@@ -36,7 +48,11 @@ export class InMemoryBookingRepository implements IBookingRepository {
   ): Promise<BookingPaginatedResult> {
     const all = await this.findAllByTenant(tenantId, filters);
     const total = all.length;
-    return { items: all.slice(filters.offset, filters.offset + filters.limit), total };
+    return {
+      items: all.slice(filters.offset, filters.offset + filters.limit),
+      total,
+      resourceAssignmentsByBookingId: this.resourceAssignmentsByBookingId,
+    };
   }
 
   async save(booking: Booking): Promise<void> {

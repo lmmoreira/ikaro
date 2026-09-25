@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { BOOKING_STATUS, type BookingStatus, type ResourceType } from '@ikaro/types';
+import { BOOKING_STATUS, type BookingStatus } from '@ikaro/types';
 import type { TimelineDayData } from './schedule-timeline';
 import type { ScheduleCoreData } from './schedule-page-core-data';
 import type { ScheduleUiState } from './schedule-page-ui-state';
@@ -66,7 +66,6 @@ function makeCore(overrides: Partial<ScheduleCoreData> = {}): ScheduleCoreData {
     scheduleViewMode: 'week',
     scheduleFetchError: null,
     resourceNameById: new Map<string, string>(),
-    resourceTypeById: new Map<string, ResourceType>(),
     bookingResourceIdsById: new Map<string, readonly string[]>(),
     weekDayInfo: [],
     activeDates: new Set(),

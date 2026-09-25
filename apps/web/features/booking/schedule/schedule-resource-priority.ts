@@ -16,21 +16,17 @@ export function resourceTypeRank(type: ResourceType | undefined): number {
   return RESOURCE_TYPE_RANK[type];
 }
 
-// Sorts resource *ids* by type priority (STAFF > ROOM > EQUIPMENT) first, then alphabetically by
-// display name within the same type — compares by id (not the resolved name) so two resources that
-// happen to share a display name can never be conflated. Callers map the sorted ids to display
-// names afterward (see buildBookingResourceNamesById).
-export function compareResourceIdsByTypePriority(
-  resourceNameById: ReadonlyMap<string, string>,
-  resourceTypeById: ReadonlyMap<string, ResourceType>,
-): (leftId: string, rightId: string) => number {
-  return (leftId, rightId) => {
-    const rankDiff =
-      resourceTypeRank(resourceTypeById.get(leftId)) -
-      resourceTypeRank(resourceTypeById.get(rightId));
-    if (rankDiff !== 0) return rankDiff;
-    const leftName = resourceNameById.get(leftId) ?? leftId;
-    const rightName = resourceNameById.get(rightId) ?? rightId;
-    return leftName.localeCompare(rightName);
-  };
+// Sorts resource assignments by type priority (STAFF > ROOM > EQUIPMENT) first, then
+// alphabetically by display name within the same type. Round 3: a booking's own
+// StaffBookingCardResponse.assignedResources already carries {resourceType, resourceName}
+// directly, so this sorts that shape straight — no resourceId-keyed lookup map needed (that
+// approach, resolving names via the tenant's checked-resource day-grid fetch, only existed
+// because bookings didn't carry their own resource assignments yet; TD44-S2 round 3 added that
+// backend field specifically to remove this indirection).
+export function compareResourceAssignmentsByTypePriority<
+  T extends { readonly resourceType: ResourceType; readonly resourceName: string },
+>(left: T, right: T): number {
+  const rankDiff = resourceTypeRank(left.resourceType) - resourceTypeRank(right.resourceType);
+  if (rankDiff !== 0) return rankDiff;
+  return left.resourceName.localeCompare(right.resourceName);
 }

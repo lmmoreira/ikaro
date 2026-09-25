@@ -1,4 +1,5 @@
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceType } from '../../domain/resource.types';
 
 export const BOOKING_REPOSITORY = Symbol('IBookingRepository');
 
@@ -14,9 +15,22 @@ export interface BookingListFilters extends BookingFilters {
   offset: number;
 }
 
+// A display-only projection of booking_line_resource_assignments (the immutable audit record —
+// see docs/13-DATABASE_SCHEMA.md), deliberately kept out of the Booking aggregate itself: which
+// physical resource a line resolved to has no bearing on Booking's own state-transition business
+// rules, unlike `lines`, which the aggregate genuinely owns and reasons about (pricing, duration).
+// One entry per physical resource per booking (deduplicated — a booking with the same resource
+// assigned across multiple lines/legs lists it once, not once per line).
+export interface BookingResourceAssignmentSummary {
+  resourceId: string;
+  resourceType: ResourceType;
+  resourceName: string;
+}
+
 export interface BookingPaginatedResult {
   items: Booking[];
   total: number;
+  resourceAssignmentsByBookingId: ReadonlyMap<string, readonly BookingResourceAssignmentSummary[]>;
 }
 
 export interface IBookingRepository {

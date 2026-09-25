@@ -1,6 +1,6 @@
 import type { Address } from './address';
 import type { MoneyAmount } from './money';
-import type { BookingStatus } from './enums';
+import type { BookingStatus, ResourceType } from './enums';
 export { ALLOWED_IMAGE_CONTENT_TYPES } from './media';
 export type { ImageContentType } from './media';
 
@@ -70,6 +70,12 @@ export interface AttachmentSignedUrlResponse {
   expiresAt: string;
 }
 
+export interface StaffBookingCardResourceAssignment {
+  resourceId: string;
+  resourceType: ResourceType;
+  resourceName: string;
+}
+
 export interface StaffBookingCardResponse {
   bookingId: string;
   status: BookingStatus;
@@ -79,6 +85,9 @@ export interface StaffBookingCardResponse {
   totalPrice: MoneyAmount;
   totalDurationMins: number;
   isCustomer: boolean; // true = authenticated customer booking; false = guest
+  // Which physical resource(s), if any, this booking's line(s) resolved to — display-only,
+  // always present regardless of any client-side filter state (TD44-S2 round 3).
+  assignedResources: StaffBookingCardResourceAssignment[];
 }
 
 export interface StaffBookingListResponse {

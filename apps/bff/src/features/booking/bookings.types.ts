@@ -1,4 +1,4 @@
-import { BookingStatus, BookingType } from '@ikaro/types';
+import { BookingStatus, BookingType, ResourceType } from '@ikaro/types';
 
 export interface BookingLineResponse {
   lineId: string;
@@ -38,6 +38,12 @@ export interface BookingLineSummary {
   priceAtBooking: { amount: number; currency: string };
 }
 
+export interface BookingResourceAssignment {
+  resourceId: string;
+  resourceType: ResourceType;
+  resourceName: string;
+}
+
 export interface BookingListItem {
   id: string;
   status: BookingStatus;
@@ -52,6 +58,9 @@ export interface BookingListItem {
   createdAt: string;
   // Customer self-cancellation deadline (UC-007) — non-null only for APPROVED bookings.
   cancellableUntil: string | null;
+  // Which physical resource(s), if any, this booking's line(s) resolved to — display-only,
+  // always present regardless of any client-side filter state (TD44-S2 round 3).
+  assignedResources: BookingResourceAssignment[];
 }
 
 export interface BookingListResponse {

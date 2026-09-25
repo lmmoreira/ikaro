@@ -1,6 +1,7 @@
 import type { ScheduleClosure, ScheduleOpening, StaffBookingCardResponse } from '@ikaro/types';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { getLocalTimeKey, overlaps, timeToMinutes } from '@/features/booking/schedule/date-utils';
+import { compareResourceAssignmentsByTypePriority } from '@/features/booking/schedule/schedule-resource-priority';
 
 export interface TimelineEventBase {
   readonly id: string;
@@ -18,10 +19,13 @@ export interface BookingTimelineEvent extends TimelineEventBase {
   readonly kind: 'booking';
   readonly booking: StaffBookingCardResponse;
   readonly warning: boolean;
-  // Checked-resource display names this booking is assigned to (Week view, TD44 Story 1) — empty
-  // when resource filtering isn't active (zero checked) or this milestone's Day-view merged
-  // timeline, which never populates this field at all. A bundled booking assigned to more than one
-  // checked resource carries every one of them here, not just the first match.
+  // Every resource this booking is actually assigned to (type-prioritized, STAFF > ROOM >
+  // EQUIPMENT) — sourced directly from booking.assignedResources, always populated regardless of
+  // any resource-filter check state, in every view (Day merged timeline, Day resource-columns
+  // board, Week day-cards). Unrelated to the *filtering* rule (which bookings are visible at all
+  // when 1+ resources are checked — see isBookingVisibleForResourceFilter), which is Week-view
+  // only and still keyed off the checked-resource set. TD44-S2 round 3 (was Week-view-only,
+  // checked-resources-only, day-grid-derived through TD44-S1/round 2).
   readonly resourceNames: readonly string[];
 }
 
@@ -74,7 +78,6 @@ export function buildBookingTimelineEvent(
   selectedDayClosures: readonly ScheduleClosure[],
   activeStartTime: string,
   activeEndTime: string,
-  resourceNames: readonly string[] = [],
 ): BookingTimelineEvent {
   const { startTime, endTime } = getBookingTimeKey(booking, timezone);
   const startMinutes = timeToMinutes(startTime);
@@ -89,6 +92,14 @@ export function buildBookingTimelineEvent(
       timeToMinutes(closureEnd),
     );
   });
+  // Always sourced from the booking's own assigned resources — present on every booking
+  // regardless of any resource-filter check state (TD44-S2 round 3). Type-prioritized
+  // (STAFF > ROOM > EQUIPMENT), alphabetical tiebreak within the same type. Falls back to an
+  // empty array defensively — the field is required at the type level, but this guards against a
+  // stale cached response from before it existed.
+  const resourceNames = [...(booking.assignedResources ?? [])]
+    .sort(compareResourceAssignmentsByTypePriority)
+    .map((r) => r.resourceName);
 
   return {
     kind: 'booking',
