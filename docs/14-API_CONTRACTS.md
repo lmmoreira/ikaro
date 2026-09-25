@@ -485,6 +485,14 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   - `404` if the service doesn't exist or belongs to another tenant
   - Backed by one bounded read, `IServiceIntakeSchemaRepository.findLatestByServiceId(…, SERVICE_INTAKE_HISTORY_LIMIT + 1)`, partitioned by `isActive` (the active version is always the newest) — the payload does not grow with every publish; no separate per-version endpoint
 
+- `GET /services/:id/intake-schema/public` -> Read a service's **active** intake schema only (UC-068 step 1; M23-S02, locked at story-discovery). Public — no auth guard, reuses `GetServiceIntakeSchemaUseCase` but returns only the `active` half of its result, never `history` — a customer has no reason to see prior form versions. Distinct path from the staff-facing `GET /services/:id/intake-schema` above (same path can't carry two different guards/handlers). Response:
+  ```json
+  { "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." } }
+  ```
+  - `200` on success — `active: null` if no version has ever been published
+  - `404` if the service doesn't exist, belongs to another tenant, or is inactive
+  - BFF: fronted by the existing `apps/bff/src/features/booking/services.public.controller.ts` (already exists — only had the services-list route before this story)
+
 - `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:
   ```json
   {
@@ -636,6 +644,13 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
     "beforeServicePhotoUrls": ["https://..."],
     "resourceSelections": [
       { "serviceId": "uuid-basic-wash", "legIndex": null, "resourceType": "STAFF", "resourceId": "uuid-staff-resource" }
+    ],
+    "durationMinutes":       60,
+    "participantCount":      2,
+    "intakeSchemaVersion":   3,
+    "intakeAnswers":         { "vehiclePlate": "ABC1D23" },
+    "attendees": [
+      { "name": "Maria Silva", "isMinor": false }
     ]
   }
   ```
@@ -643,6 +658,9 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   - `contactAddress` optional (general home address for the guest).
   - `beforeServicePhotoUrls` optional, defaults to `[]`.
   - `resourceSelections` optional (M23-S01, UC-061/064/065) — one entry per `CUSTOMER_CHOICE` resource requirement the customer picked, keyed by `(serviceId, legIndex, resourceType)`. `legIndex` is `null`/omitted for a flat (non-legged) requirement, set for a legged service's per-leg choice. Ignored for `AUTO_ANY`/`AUTO_FUNGIBLE_POOL`/`NONE` requirements — a service with no `resourceRequirements` (the pre-M22 default) needs no entries at all. **When `serviceIds` contains the same service more than once** (§ above, "duplicates are allowed"), submit that service's `resourceSelections` entries in the same relative order as its occurrences in `serviceIds` — the backend disambiguates duplicate-service lines by matching each occurrence to the next unconsumed entry for that `(serviceId, legIndex, resourceType)` key, not by any other identifier (booking line IDs don't exist yet at request time).
+  - `durationMinutes`/`participantCount` (M23-S02, UC-067) — **required** when the request's basket includes a service with `durationPolicy = CUSTOMER_SELECTED`; ignored otherwise. `participantCount` is a capacity/attendee-count input only — it never overrides `ResourceRequirement.requiredQuantity`, which stays the service's static configured value.
+  - `intakeSchemaVersion`/`intakeAnswers`/`attendees` (M23-S02, UC-068) — required when the basket includes a service with an active `service_booking_intake_schema`; `intakeSchemaVersion` must be the currently-active version or an explicitly-displayed prior one (never rejected solely for "not the latest"). Submitted for a service with no active schema → silently ignored, not an error. `attendees` populated only when that schema's `requiresNamedAttendees = true`.
+  - **At most one service in `serviceIds` may be `CUSTOMER_SELECTED` and/or intake-bearing per request** — a basket combining two such services (or the same one twice) is rejected with `422 invalid-multiple-variable-services` (UC-067 A4/UC-068 A4). A customer-built cart mixing multiple variable-duration/intake services in one submission is out of scope; multi-service bookings remain business-configured bundles/journeys.
 
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
 
@@ -659,6 +677,9 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   - `422 service-resource-type-unavailable` (M23-S01) — a `resourceSelections` entry names a resource that's inactive, the wrong type, outside the service's configured pool, or belongs to another tenant.
   - `409 bundle-partially-unavailable` (M23-S01, UC-064 A2) — a bundle requirement (`resourceRequirements.length >= 2` on one service) had a real submit-time conflict on one of its resources; the whole booking fails atomically.
   - `409 leg-unavailable` (M23-S01, UC-065 A1) — a legged service's chain had a real submit-time conflict on one leg's resource; the whole chain fails atomically.
+  - `422 booking-duration-out-of-range` (M23-S02, UC-067) — `durationMinutes` missing (for a `CUSTOMER_SELECTED` service), or outside the service's min/max/increment rules.
+  - `422 booking-intake-answer-missing` (M23-S02, UC-068 A3) — a required intake question or the consent checkbox was left unanswered; the response names the missing field(s).
+  - `422 invalid-multiple-variable-services` (M23-S02, UC-067 A4/UC-068 A4) — more than one `CUSTOMER_SELECTED`/intake-bearing service in the same basket.
 
 #### **Authenticated Customer Booking (UC-002) — `POST /bookings/authenticated`**
 
@@ -682,7 +703,7 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
   - Guest fields (`contactEmail`, `contactName`, `contactPhone`, `contactAddress`) are **not accepted** — the backend reads them from the Customer record identified by the JWT `sub`.
   - `pickupAddress` **required** when any service has `requiresPickupAddress = true`. If omitted, falls back to `Customer.defaultAddress` when set; if that is also absent, returns `400 missing-pickup-address`.
   - `beforeServicePhotoUrls` optional, defaults to `[]`.
-  - `resourceSelections` optional — identical shape and semantics to the guest endpoint above.
+  - `resourceSelections`, `durationMinutes`, `participantCount`, `intakeSchemaVersion`, `intakeAnswers`, `attendees` — identical shape, semantics, and validation rules (including the single-variable-service-per-basket restriction) as the guest endpoint above.
 
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
 

@@ -261,7 +261,10 @@ Service {
   name:                   ServiceName
   description:            String
   price:                  Money
-  durationMinutes:        Duration
+  durationMinutes:        Duration        -- not authoritative once durationPolicy=CUSTOMER_SELECTED (M23-S02,
+                                           -- locked at story-discovery): the customer's own submitted
+                                           -- durationMinutes governs that booking; omitting it is a `422`
+                                           -- (BOOKING_DURATION_OUT_OF_RANGE), never a silent fallback to this field
   loyaltyPointsValue:     LoyaltyPoints (e.g., Basic=1pt, Premium=2pts, Wax=3pts)
   requiresPickupAddress:  Boolean        -- true = booking form must collect a pickup address
                                          -- (e.g. "Coleta e Entrega"). Default false.
