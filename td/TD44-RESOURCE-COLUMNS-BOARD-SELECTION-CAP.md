@@ -176,25 +176,26 @@ Order top to bottom: title/subtitle + status badge (unchanged today's row) → d
 - `plan/journey/staff/horarios.md` (modify — factual sync, TD44 addition section)
 - `plan/journey/staff/prototypes/horarios/dev-notes.md` (modify — factual sync, TD44 addition section)
 
-**Acceptance criteria — product:**
-- [ ] A booking with 0 matched resources renders identically to today — no divider, no new line.
-- [ ] A booking with exactly 1 matched resource shows a divider + that resource's name, no `+N`.
-- [ ] A booking with 2+ matched resources shows a divider + the type-prioritized name (STAFF over ROOM over EQUIPMENT) + `+N` (N = remaining count, not total).
-- [ ] Two same-type matched resources tiebreak alphabetically (unchanged behavior, now type-scoped).
-- [ ] A booking block's total height never varies with match count — always exactly one additional line when 1+ resources matched.
+**Acceptance criteria — product (superseded by Round 3's "always show" — see below for the current, correct text):**
+- [ ] A booking with 0 assigned resources renders identically to today — no divider, no new line.
+- [ ] A booking with exactly 1 assigned resource shows a divider + that resource's name, no `+N`, **regardless of `ResourceFilterMenu` check state** (Round 3 — the summary line is sourced from `booking.assignedResources`, not from which resources happen to be checked).
+- [ ] A booking with 2+ assigned resources shows a divider + the type-prioritized name (STAFF over ROOM over EQUIPMENT) + `+N` (N = remaining count, not total), **regardless of check state**.
+- [ ] Two same-type assigned resources tiebreak alphabetically (unchanged behavior, now type-scoped).
+- [ ] A booking block's total height never varies with assigned-resource count — always exactly one additional line when 1+ resources are assigned.
 - [ ] The resource-summary line renders directly below the title/subtitle/status row, and the time-range line renders below the resource-summary line (not above it) — final order: title/subtitle+status → divider → resource line → time range.
-- [ ] A screen reader on a 2+-match block announces every matched resource name, not just the visible primary one.
+- [ ] A screen reader announces every assigned resource name via the enclosing booking block's own accessible name (composed into the block `Link`'s `ariaLabel`, Round 3 take 3 — not an `aria-label` on the inner summary line itself, which is plain `aria-hidden="true"` presentational text), not just the visible primary name.
+- [ ] Whether a booking is *visible at all* in Week view still depends on checked-resource state, unchanged from Story 1 (`isBookingVisibleForResourceFilter`) — only the summary line's content stopped being filter-dependent. Day view (merged timeline + resource-columns board) always showed every visible booking regardless of check state already, so this line applies to Week view specifically.
 
-**Acceptance criteria — technical:**
+**Acceptance criteria — technical (superseded by Round 3 — `resourceTypeById`/`bookingResourceNamesById`-as-name-lookup were removed as dead code; kept for history, see Round 3 note below for the current shape):**
 - Unit:
-  - [ ] `resourceTypeRank`/type-priority comparator (in the new `schedule-resource-priority.ts`) orders STAFF before ROOM before EQUIPMENT, alphabetical within the same type
+  - [ ] `compareResourceAssignmentsByTypePriority` (in `schedule-resource-priority.ts`) orders STAFF before ROOM before EQUIPMENT, alphabetical within the same type, operating on `{resourceType, resourceName}` pairs directly (no `resourceTypeById` map — removed in Round 3)
   - [ ] `resourceNames.length === 0` → renderer adds no divider/line (non-regression)
   - [ ] `resourceNames.length === 1` → renderer shows the name with no `+N`
-  - [ ] `resourceNames.length === 3` → renderer shows `resourceNames[0]` + `+2`, and the `aria-label` lists all 3 names
-  - [ ] `resourceTypeById` is built correctly from the `resources` array in `schedule-page-core-data.ts` (sibling test to the existing `resourceNameById` coverage)
-- Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
-- Tenant isolation: n/a — client-side only
-- E2E: rewrite TD44-S1's two bundled-booking Week-view scenarios (both-checked, partial-checked) to assert the new primary+`+N` shape via `timeline-block-resource-summary` instead of per-resource badges; add one scenario for 3 matched resources asserting `+2`
+  - [ ] `resourceNames.length === 3` → renderer shows `resourceNames[0]` + `+2`, and the enclosing `Link`'s `ariaLabel` lists all 3 names plus the contact name
+  - [ ] `buildBookingTimelineEvent` derives `resourceNames` from `booking.assignedResources` (type-prioritized), independent of any checked-resource state, and defaults to `[]` when `assignedResources` is absent (BFF/backend rollback safety)
+- Integration: n/a for the frontend tier — no `.integration.spec.ts` tier for `apps/web`; backend integration coverage for `findResourceAssignmentsByBookingId` lives in the standard backend integration suite (Round 3)
+- Tenant isolation: Round 3's backend query filters `blra.tenantId = :tenantId` — verified alongside the existing `findAllByTenantPaginated` tenant-isolation coverage
+- E2E: rewrite TD44-S1's two bundled-booking Week-view scenarios (both-checked, partial-checked) to assert the new primary+`+N` shape via `timeline-block-resource-summary`, always visible regardless of check state, instead of per-resource badges; add one scenario for 3 matched resources asserting `+2`; add a Day-view scenario confirming the summary line renders there too (Round 3)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

@@ -68,6 +68,15 @@ describe('toStaffBookingCard()', () => {
     ]);
   });
 
+  it('defaults to an empty array when assignedResources is absent, for independent-rollback safety (TD44-S2 round 4)', () => {
+    const itemWithoutAssignedResources: Partial<BookingListItem> = { ...backendItem };
+    delete itemWithoutAssignedResources.assignedResources;
+
+    const result = toStaffBookingCard(itemWithoutAssignedResources as BookingListItem);
+
+    expect(result.assignedResources).toEqual([]);
+  });
+
   it('sets isCustomer false for guest bookings (customerId null)', () => {
     const result = toStaffBookingCard({ ...backendItem, customerId: null });
     expect(result.isCustomer).toBe(false);
