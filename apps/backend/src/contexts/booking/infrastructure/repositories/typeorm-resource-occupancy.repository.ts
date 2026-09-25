@@ -188,9 +188,14 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
   // resourceType/legIndex), not the booking_line_resource_assignments audit table directly. That
   // table is append-only and never deletes a superseded row on reassignment, so a booking
   // rescheduled to a different resource more than once would otherwise return stale,
-  // no-longer-occupying resource ids alongside the current one. Ordered by quantity_position so a
-  // multi-unit requirement's resourceSelections array preserves its original positional
-  // assignment.
+  // no-longer-occupying resource ids alongside the current one. Ordered primarily by each row's
+  // own booking_line_id's position within the caller-supplied bookingLineIds array — the same
+  // order resolveBookingLinesResourceCandidates() re-iterates lines in — so two lines booking the
+  // same duplicated service (docs/14-API_CONTRACTS.md) group their own assignments together, in
+  // resolution order, rather than interleaving arbitrarily (Postgres gives no defined secondary
+  // order among rows tied on quantity_position alone, which is NULL for every single-unit
+  // requirement — the common case). quantity_position is still the secondary tiebreaker within one
+  // line's own multi-unit requirement, preserving its original positional assignment.
   async findAssignmentsByBookingLines(
     tenantId: string,
     bookingLineIds: string[],
@@ -204,7 +209,7 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
       JOIN booking.booking_line_resource_assignments bla
         ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
       WHERE ro.tenant_id = $1 AND bla.booking_line_id = ANY($2::uuid[])
-      ORDER BY bla.quantity_position ASC NULLS FIRST
+      ORDER BY array_position($2::uuid[], bla.booking_line_id), bla.quantity_position ASC NULLS FIRST
       `,
       [tenantId, bookingLineIds],
     );

@@ -106,9 +106,19 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     tenantId: string,
     bookingLineIds: string[],
   ): Promise<ResourceLineAssignment[]> {
+    // Mirrors the TypeORM adapter's ORDER BY: primarily by each row's own bookingLineId's
+    // position within the caller-supplied bookingLineIds array, quantityPosition as the secondary
+    // tiebreaker — see that adapter's own doc comment for why (two lines booking the same
+    // duplicated service must group their own assignments together, in resolution order).
     return this.store
       .filter((row) => row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId))
-      .sort((a, b) => (a.quantityPosition ?? -1) - (b.quantityPosition ?? -1))
+      .sort((a, b) => {
+        const linePositionDiff =
+          bookingLineIds.indexOf(a.bookingLineId) - bookingLineIds.indexOf(b.bookingLineId);
+        return linePositionDiff !== 0
+          ? linePositionDiff
+          : (a.quantityPosition ?? -1) - (b.quantityPosition ?? -1);
+      })
       .map((row) => ({
         bookingLineId: row.bookingLineId,
         resourceId: row.resourceId,

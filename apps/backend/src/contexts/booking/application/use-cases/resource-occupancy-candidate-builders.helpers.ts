@@ -6,7 +6,11 @@ import { Service } from '../../domain/service.aggregate';
 import { ServiceLeg } from '../../domain/service-leg';
 import { ResourceOccupancyCandidate } from '../ports/resource-occupancy-repository.port';
 import { resolveRequirementResources } from './resource-requirement-resolution.helpers';
-import { ResolutionContext, selectionKey } from './resource-resolution-context.helpers';
+import {
+  consumeSelections,
+  ResolutionContext,
+  selectionKey,
+} from './resource-resolution-context.helpers';
 
 // Split out of resource-occupancy.helpers.ts (docs/CODE_STANDARDS.md's file-length limit) — the
 // flat vs. legged candidate-building shapes, both ultimately calling
@@ -87,8 +91,11 @@ async function resolveFlatCandidatesForRequirement(
   resolutionCtx: FlatRequirementResolutionContext,
 ): Promise<ResourceOccupancyCandidate[]> {
   const { lineStart, lineEnd, isBundleMember, gapMinutesFor, selectionsByKey } = resolutionCtx;
-  const chosenResourceIds =
-    selectionsByKey.get(selectionKey(serviceId, null, requirement.type)) ?? [];
+  const chosenResourceIds = consumeSelections(
+    selectionsByKey,
+    selectionKey(serviceId, null, requirement.type),
+    requirement.requiredQuantity,
+  );
   const resources = await resolveRequirementResources(
     requirement,
     ctx,
@@ -195,8 +202,11 @@ async function resolvePerLegResources(
   for (const leg of legs) {
     const span = spanByLegIndex.get(leg.legIndex)!;
     for (const requirement of leg.resourceRequirements) {
-      const chosenResourceIds =
-        selectionsByKey.get(selectionKey(serviceId, leg.legIndex, requirement.type)) ?? [];
+      const chosenResourceIds = consumeSelections(
+        selectionsByKey,
+        selectionKey(serviceId, leg.legIndex, requirement.type),
+        requirement.requiredQuantity,
+      );
       // windowEnd is this leg's own raw (pre-resource-turnover) span end, known upfront from
       // computeLegSpans above — a leg's baseline window never depended on which resource gets
       // chosen (only its OWN trailing turnover extension does, added via the gap callback), so

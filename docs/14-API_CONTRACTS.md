@@ -642,7 +642,7 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   - `pickupAddress` **required** when any `serviceId` has `requiresPickupAddress = true`; omit otherwise.
   - `contactAddress` optional (general home address for the guest).
   - `beforeServicePhotoUrls` optional, defaults to `[]`.
-  - `resourceSelections` optional (M23-S01, UC-061/064/065) — one entry per `CUSTOMER_CHOICE` resource requirement the customer picked, keyed by `(serviceId, legIndex, resourceType)`. `legIndex` is `null`/omitted for a flat (non-legged) requirement, set for a legged service's per-leg choice. Ignored for `AUTO_ANY`/`AUTO_FUNGIBLE_POOL`/`NONE` requirements — a service with no `resourceRequirements` (the pre-M22 default) needs no entries at all.
+  - `resourceSelections` optional (M23-S01, UC-061/064/065) — one entry per `CUSTOMER_CHOICE` resource requirement the customer picked, keyed by `(serviceId, legIndex, resourceType)`. `legIndex` is `null`/omitted for a flat (non-legged) requirement, set for a legged service's per-leg choice. Ignored for `AUTO_ANY`/`AUTO_FUNGIBLE_POOL`/`NONE` requirements — a service with no `resourceRequirements` (the pre-M22 default) needs no entries at all. **When `serviceIds` contains the same service more than once** (§ above, "duplicates are allowed"), submit that service's `resourceSelections` entries in the same relative order as its occurrences in `serviceIds` — the backend disambiguates duplicate-service lines by matching each occurrence to the next unconsumed entry for that `(serviceId, legIndex, resourceType)` key, not by any other identifier (booking line IDs don't exist yet at request time).
 
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
 

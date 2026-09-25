@@ -234,6 +234,98 @@ describe('ApproveBookingUseCase', () => {
       expect(assignments[0].resourceId).toBe(ownResource.id);
     });
 
+    // docs/14-API_CONTRACTS.md: "duplicates are allowed (two Basic Wash lines = two cars)" — two
+    // lines booking the SAME CUSTOMER_CHOICE service each hold a different customer-picked
+    // resource. deriveResourceSelectionsFromAssignments() replays both existing assignments back
+    // into resourceSelections for re-resolution; each line must keep its own original resource,
+    // never collapse onto the first one or swap between lines.
+    it('keeps each duplicate-service line on its own originally-chosen resource across approval replay', async () => {
+      const staffA = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      const staffB = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      await fixtures.resourceRepo.save(staffA);
+      await fixtures.resourceRepo.save(staffB);
+
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+        ])
+        .build();
+      await fixtures.serviceRepo.save(service);
+
+      const line1 = new BookingLineBuilder().withServiceId(service.id).build();
+      const line2 = new BookingLineBuilder().withServiceId(service.id).build();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .withLines([line1, line2])
+        .build();
+      await bookingRepo.save(booking);
+
+      const line1End = new Date(scheduledAt.getTime() + line1.durationMinsAtBooking * 60_000);
+      const line2End = new Date(line1End.getTime() + line2.durationMinsAtBooking * 60_000);
+      // Deliberately assigned out of line order (line2's row written before line1's) — proves the
+      // replay reads back in bookingLineIds' own order, not insertion/storage order, which a real
+      // SQL backend never guarantees for rows tied on quantity_position (NULL for every
+      // single-unit requirement, the common case).
+      await occupancyRepo.assign(
+        TENANT_A,
+        line2.lineId,
+        [
+          {
+            resourceId: staffB.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: staffB.name,
+            legIndex: null,
+            quantityPosition: null,
+            selectionMode: 'CUSTOMER_CHOICE' as const,
+            isBundleMember: false,
+            startsAt: line1End,
+            endsAt: line2End,
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+      await occupancyRepo.assign(
+        TENANT_A,
+        line1.lineId,
+        [
+          {
+            resourceId: staffA.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: staffA.name,
+            legIndex: null,
+            quantityPosition: null,
+            selectionMode: 'CUSTOMER_CHOICE' as const,
+            isBundleMember: false,
+            startsAt: scheduledAt,
+            endsAt: line1End,
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const line1Assignments = await occupancyRepo.findAssignmentsByBookingLines(TENANT_A, [
+        line1.lineId,
+      ]);
+      const line2Assignments = await occupancyRepo.findAssignmentsByBookingLines(TENANT_A, [
+        line2.lineId,
+      ]);
+      expect(line1Assignments[0].resourceId).toBe(staffA.id);
+      expect(line2Assignments[0].resourceId).toBe(staffB.id);
+    });
+
     it('assigns a fresh COMMITTED occupancy row when the booking has no existing assignment at all (pre-M22-S03 legacy booking)', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)

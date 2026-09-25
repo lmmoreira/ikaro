@@ -590,6 +590,54 @@ describe('resolveBookingLinesResourceCandidates', () => {
 
       expect(result.get('line-1')!.candidates[0].resourceId).toBe(chosen.id);
     });
+
+    // docs/14-API_CONTRACTS.md: "duplicates are allowed (two Basic Wash lines = two cars)" — two
+    // lines booking the SAME service share one selectionKey(), so each line must consume its own
+    // batch of that key's submitted selections in order, never the same (first) batch every line.
+    it('disambiguates two duplicate-service lines by resourceSelections submission order', async () => {
+      const staffA = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      const staffB = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(staffA);
+      await resourceRepo.save(staffB);
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+        ])
+        .build();
+
+      const result = await resolve(
+        [
+          { lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 },
+          { lineId: 'line-2', serviceId: 'service-1', durationMinsAtBooking: 30 },
+        ],
+        new Map([['service-1', service]]),
+        [
+          {
+            serviceId: 'service-1',
+            legIndex: null,
+            resourceType: ResourceType.ROOM,
+            resourceId: staffA.id,
+          },
+          {
+            serviceId: 'service-1',
+            legIndex: null,
+            resourceType: ResourceType.ROOM,
+            resourceId: staffB.id,
+          },
+        ],
+      );
+
+      expect(result.get('line-1')!.candidates[0].resourceId).toBe(staffA.id);
+      expect(result.get('line-2')!.candidates[0].resourceId).toBe(staffB.id);
+    });
   });
 
   describe('AUTO_ANY least-workload tie-break (UC-063 A1, M23-S01)', () => {
