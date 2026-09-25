@@ -49,9 +49,6 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
     selectedDayTimeline,
     weekTimelineCards,
     selectedDayLabel,
-    timelineTitle,
-    bookingEventCount,
-    hasBookingInSelectedDay,
     slotLabels,
     scheduleReturnTo,
     weekNav,
@@ -113,8 +110,6 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
           ui.setOpeningSheetOpen(false);
         }}
         closureWarning={ui.closureWarning}
-        hasBookingInSelectedDay={hasBookingInSelectedDay}
-        bookingCount={bookingEventCount}
       />
 
       <ScheduleMainView
@@ -140,7 +135,6 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         businessHours={businessHours}
         selectedDayTimeline={selectedDayTimeline}
         slotLabels={slotLabels}
-        timelineTitle={timelineTitle}
       />
 
       <ScheduleStatusFilterMenu

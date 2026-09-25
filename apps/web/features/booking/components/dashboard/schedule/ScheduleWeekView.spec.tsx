@@ -30,6 +30,23 @@ function buildEmptyTimeline(): TimelineDayData {
   };
 }
 
+// An open (not-closed) day — needed for the scroll-to-now marker tests below, since
+// ScheduleTimelineBoard only renders a grid (and therefore only ever mounts the marker) for a day
+// that actually has hours; buildEmptyTimeline()'s selectedDayClosed: true renders the empty state
+// instead.
+function buildOpenTimeline(): TimelineDayData {
+  return {
+    selectedOpening: null,
+    selectedDayHours: { open: '08:00', close: '18:00' },
+    selectedDayClosed: false,
+    timelineStartMinutes: 480,
+    timelineEndMinutes: 1080,
+    slotCount: 20,
+    slotHeight: 20,
+    events: [],
+  };
+}
+
 const WEEK_DAY_INFO: ScheduleWeekDayInfo[] = [
   {
     dateKey: '2026-08-17',
@@ -88,5 +105,45 @@ describe('ScheduleWeekView', () => {
     );
 
     expect(screen.getAllByText('Fechado').length).toBeGreaterThan(0);
+  });
+
+  it("renders the scroll-to-now marker only on today's day-card (TD44 Story 4)", () => {
+    renderWithIntl(
+      <ScheduleWeekView
+        weekDayInfo={WEEK_DAY_INFO}
+        weekTimelineCards={[buildOpenTimeline(), buildEmptyTimeline()]}
+        selectedDateKey="2026-08-17"
+        todayKey="2026-08-17"
+        onSelectDate={vi.fn()}
+        slotGranularityMinutes={30}
+        statusLabels={STATUS_LABELS}
+        timezone="America/Sao_Paulo"
+        scheduleReturnTo="/dashboard/schedule"
+        onOpeningClick={vi.fn()}
+        onClosureClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByTestId('schedule-now-marker')).toHaveLength(1);
+  });
+
+  it('renders no scroll-to-now marker when today is outside the visible week (TD44 Story 4, non-regression)', () => {
+    renderWithIntl(
+      <ScheduleWeekView
+        weekDayInfo={WEEK_DAY_INFO}
+        weekTimelineCards={[buildOpenTimeline(), buildEmptyTimeline()]}
+        selectedDateKey="2026-08-17"
+        todayKey="2026-09-01"
+        onSelectDate={vi.fn()}
+        slotGranularityMinutes={30}
+        statusLabels={STATUS_LABELS}
+        timezone="America/Sao_Paulo"
+        scheduleReturnTo="/dashboard/schedule"
+        onOpeningClick={vi.fn()}
+        onClosureClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('schedule-now-marker')).not.toBeInTheDocument();
   });
 });

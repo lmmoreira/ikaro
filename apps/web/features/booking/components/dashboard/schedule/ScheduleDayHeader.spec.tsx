@@ -15,8 +15,6 @@ function baseProps() {
     onOpenSpecialDay: vi.fn(),
     onBlockPeriod: vi.fn(),
     closureWarning: null,
-    hasBookingInSelectedDay: false,
-    bookingCount: 0,
   };
 }
 
@@ -55,12 +53,5 @@ describe('ScheduleDayHeader', () => {
     renderWithIntl(<ScheduleDayHeader {...props} />);
 
     expect(screen.getByText('Aviso de sobreposição')).toBeInTheDocument();
-  });
-
-  it('renders the booking count badge only when hasBookingInSelectedDay is true', () => {
-    const props = { ...baseProps(), hasBookingInSelectedDay: true, bookingCount: 3 };
-    renderWithIntl(<ScheduleDayHeader {...props} />);
-
-    expect(screen.getByText('3 agendamentos neste dia')).toBeInTheDocument();
   });
 });

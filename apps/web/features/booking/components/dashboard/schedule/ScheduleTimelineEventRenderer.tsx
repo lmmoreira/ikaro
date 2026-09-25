@@ -10,6 +10,7 @@ import { getLocalTimeKey } from '@/features/booking/schedule/date-utils';
 import {
   buildBlockStyle,
   formatEventRange,
+  getBlockMinHeightPx,
   getClosureReasonLabel,
   type BookingTimelineEvent,
   type ClosureTimelineEvent,
@@ -45,6 +46,14 @@ function renderBookingTimelineEvent(
   );
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
+  // Content-fit floor, decoupled from the grid's own coordinate unit (TD44 Story 4) — lets this
+  // block render visually taller than its own slot when its content needs it, without affecting
+  // slotHeight/top for any other block.
+  const minHeight = `${getBlockMinHeightPx(compact)}px`;
+  // A booking at the schedule's minimum granularity drops only the time-range line (its position
+  // in the grid already conveys the time now that item 1 above restored a readable grid density);
+  // the resource-summary line, when assigned, is unaffected (TD44 Story 4).
+  const isMinimumGranularity = event.booking.totalDurationMins === props.slotGranularityMinutes;
 
   return (
     <TimelineBlockShell
@@ -56,7 +65,7 @@ function renderBookingTimelineEvent(
           ? 'border-orange-300 bg-orange-50 text-orange-950'
           : SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
       )}
-      style={{ ...blockStyle, left: `${laneLeft}%`, width: `${laneWidth}%` }}
+      style={{ ...blockStyle, left: `${laneLeft}%`, width: `${laneWidth}%`, minHeight }}
       href={`/dashboard/bookings/${event.booking.bookingId}?returnTo=${encodeURIComponent(
         props.scheduleReturnTo,
       )}`}
@@ -85,18 +94,23 @@ function renderBookingTimelineEvent(
       footer={
         <div className="flex flex-col gap-1">
           <BookingResourceSummaryLine resourceNames={event.resourceNames} compact={compact} />
-          <div className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}>
-            {formatEventRange(
-              getLocalTimeKey(new Date(event.booking.scheduledAt), props.timezone),
-              getLocalTimeKey(
-                new Date(
-                  new Date(event.booking.scheduledAt).getTime() +
-                    event.booking.totalDurationMins * 60_000,
+          {isMinimumGranularity ? null : (
+            <div
+              data-testid="timeline-block-time-range"
+              className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}
+            >
+              {formatEventRange(
+                getLocalTimeKey(new Date(event.booking.scheduledAt), props.timezone),
+                getLocalTimeKey(
+                  new Date(
+                    new Date(event.booking.scheduledAt).getTime() +
+                      event.booking.totalDurationMins * 60_000,
+                  ),
+                  props.timezone,
                 ),
-                props.timezone,
-              ),
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       }
     />
@@ -146,6 +160,7 @@ function renderOpeningTimelineEvent(
   // findTenantWideOpening's note in schedule-timeline.ts) — a higher z-index keeps it readable
   // on top of that full-width backdrop instead of blending into it.
   const isResourceScoped = event.resourceName !== null;
+  const minHeight = `${getBlockMinHeightPx(compact)}px`;
 
   return (
     <TimelineBlockShell
@@ -155,7 +170,7 @@ function renderOpeningTimelineEvent(
         'border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100',
         isResourceScoped ? 'z-[15] border-emerald-300 shadow-md' : 'z-10',
       )}
-      style={{ ...blockStyle, left: `${laneLeft}%`, width: `${laneWidth}%` }}
+      style={{ ...blockStyle, left: `${laneLeft}%`, width: `${laneWidth}%`, minHeight }}
       testId={`schedule-opening-block-${event.opening.id}`}
       onClick={() => props.onOpeningClick(event.opening)}
       icon={<CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />}
@@ -185,6 +200,7 @@ function renderClosureTimelineEvent(
   );
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
+  const minHeight = `${getBlockMinHeightPx(compact)}px`;
 
   return (
     <TimelineBlockShell
@@ -195,6 +211,7 @@ function renderClosureTimelineEvent(
         ...blockStyle,
         left: `${laneLeft}%`,
         width: `${laneWidth}%`,
+        minHeight,
         backgroundImage:
           'repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px)',
       }}

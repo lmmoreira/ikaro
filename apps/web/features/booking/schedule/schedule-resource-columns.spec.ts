@@ -7,7 +7,6 @@ import type {
 } from '@ikaro/types';
 import { BOOKING_STATUS } from '@ikaro/types';
 import { buildResourceColumns } from './schedule-resource-columns';
-import { DESKTOP_MIN_BLOCK_HEIGHT_PX } from './schedule-timeline';
 
 function makeBusinessHours(overrides: Partial<TenantBusinessHours> = {}): TenantBusinessHours {
   return {
@@ -322,7 +321,7 @@ describe('buildResourceColumns', () => {
     expect(columns[0].timeline.events).toHaveLength(0);
   });
 
-  it('uses the desktop content-driven minimum block height, not the old bare 18px floor (TD44 Story 2 round 2)', () => {
+  it('uses the plain grid coordinate unit, not a content-fit floor (TD44 Story 4 — decoupled)', () => {
     const columns = buildResourceColumns({
       ...baseInput,
       selectedResourceIds: new Set(['res-camila']),
@@ -333,6 +332,8 @@ describe('buildResourceColumns', () => {
       openings: [],
     });
 
-    expect(columns[0].timeline.slotHeight).toBe(DESKTOP_MIN_BLOCK_HEIGHT_PX);
+    // 30-min granularity at the default scale (1) -> 48px; the content-fit floor
+    // (DESKTOP_MIN_BLOCK_HEIGHT_PX) is applied per block now, not fed into this grid unit.
+    expect(columns[0].timeline.slotHeight).toBe(48);
   });
 });

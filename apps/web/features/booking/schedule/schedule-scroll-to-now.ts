@@ -1,0 +1,55 @@
+'use client';
+
+import { useEffect, useRef, type RefObject } from 'react';
+
+// TD44 Story 4 — auto-scrolls the timeline once, on initial load/date change, to bring "now" into
+// view instead of always starting at the active window's opening time. Resolves purely from the
+// same top/height math buildBlockStyle already uses, so it needs no new coordinate system.
+
+const LOOKBACK_MINUTES = 60;
+
+interface NowMarkerTimeline {
+  readonly timelineStartMinutes: number;
+  readonly timelineEndMinutes: number;
+  readonly slotHeight: number;
+}
+
+// Clamps "now" into the active window first, then backs off by LOOKBACK_MINUTES (also clamped) —
+// this guarantees the returned pixel offset always lands inside the rendered slot range, even when
+// "now" falls outside today's active hours (before opening or after closing).
+export function resolveNowMarkerTopPx(
+  timeline: NowMarkerTimeline,
+  slotGranularityMinutes: number,
+  nowMinutes: number,
+): number {
+  const { timelineStartMinutes, timelineEndMinutes, slotHeight } = timeline;
+  const clampedNow = Math.min(Math.max(nowMinutes, timelineStartMinutes), timelineEndMinutes);
+  const targetMinutes = Math.max(timelineStartMinutes, clampedNow - LOOKBACK_MINUTES);
+  return ((targetMinutes - timelineStartMinutes) / slotGranularityMinutes) * slotHeight;
+}
+
+// Fires scrollIntoView on the marker element exactly once per `dateKey` change (Day view:
+// selectedDateKey; Week view: the visible week's start key) — never on a same-key re-render from
+// data refetch/polling, so a user's own manual scroll mid-session is never fought. `enabled` gates
+// whether the viewed date/week actually includes "now" at all (a past/future date is a no-op, same
+// as today's exact behavior). Deliberately has no dependency array: if the marker hasn't mounted
+// yet on the render where `enabled`/`dateKey` first qualify (e.g. data still loading), it retries on
+// the next render instead of silently missing the scroll — the guard ref keeps this a no-op once it
+// has actually fired for the current key.
+export function useScrollToNowOnce(
+  enabled: boolean,
+  dateKey: string,
+): RefObject<HTMLDivElement | null> {
+  const markerRef = useRef<HTMLDivElement | null>(null);
+  const firedForKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled || firedForKeyRef.current === dateKey || !markerRef.current) {
+      return;
+    }
+    firedForKeyRef.current = dateKey;
+    markerRef.current.scrollIntoView({ block: 'start', behavior: 'auto' });
+  });
+
+  return markerRef;
+}

@@ -9,8 +9,6 @@ import type {
 } from '@ikaro/types';
 import {
   buildTimelineDayData,
-  COMPACT_MIN_BLOCK_HEIGHT_PX,
-  DESKTOP_MIN_BLOCK_HEIGHT_PX,
   type TimelineDayData,
 } from '@/features/booking/schedule/schedule-timeline';
 import {
@@ -86,7 +84,6 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
         closures: visibleClosures,
         openings: visibleOpenings,
         resourceNameById,
-        minSlotHeightPx: DESKTOP_MIN_BLOCK_HEIGHT_PX,
       }),
     [
       businessHours,
@@ -143,7 +140,6 @@ function buildWeekTimelineCards(
       closures: visibleClosures,
       openings: visibleOpenings,
       slotHeightScale: 0.45,
-      minSlotHeightPx: COMPACT_MIN_BLOCK_HEIGHT_PX,
       resourceNameById,
       selectedResourceIdSet,
       // Only ever used for a presence check (isBookingVisibleForResourceFilter — "did this

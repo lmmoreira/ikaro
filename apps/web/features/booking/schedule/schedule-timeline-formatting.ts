@@ -6,23 +6,34 @@ import { parseDateKey } from '@/features/booking/schedule/date-utils';
 // consumer keeps importing from the same path; this split exists only to keep that file under the
 // 250-line cap once Story 1's own resource-filter fields/logic landed there.
 //
-// Content-driven minimum block heights (TD44 Story 2, round 2 — established as the shared pattern
-// for every board: Day view's single timeline, Day view's resource-columns board, and Week view's
-// day-cards all pass one of these instead of the old blanket 18px floor). A booking block's height
-// can never be shorter than one slot (buildBlockStyle floors event duration at
-// slotGranularityMinutes via getEventMinutes), so the true minimum block height *is* getSlotHeight's
-// own result — raising its floor here is what stops every board's shortest bookings from clipping
-// their own title/subtitle/resource-line/time-range content under TimelineBlockShell's
-// overflow-hidden. Desktop mode (larger fonts, Day view) needs more room than compact mode
-// (smaller fonts, Week view); both are sized for the worst case — 4 content lines (title, subtitle,
-// the divider+resource-summary line, the time range) — with headroom, not just the common 3-line
-// case, so a board's row height stays uniform regardless of which bookings happen to have a
-// resource match.
+// Grid coordinate unit vs. per-block content-fit floor (TD44 Story 4 — decoupled; previously TD44
+// Story 2 round 2 fed a single conflated `minHeightPx` into getSlotHeight, which raised the *whole
+// grid's* base unit along with each block's own floor, since slotCount * slotHeight is also the
+// board's total scroll height). getSlotHeight below is now purely the grid's pixels-per-slot
+// coordinate unit — no floor argument — restoring the pre-Story-2 density (48px per 30-min slot,
+// the value this formula already produced whenever a slot's duration reached 30+ minutes; the old
+// bare 18px floor never won against it). DESKTOP_MIN_BLOCK_HEIGHT_PX/COMPACT_MIN_BLOCK_HEIGHT_PX
+// (unchanged values) are applied separately, per block, as a CSS min-height on that block's own
+// rendered box (TimelineBlockShell's style prop) — never fed back into slotHeight/buildBlockStyle,
+// so a block whose content needs more room than its true duration-based height simply renders
+// visually taller than its own slot, the same way Google Calendar renders a short event, with zero
+// effect on sibling positioning or the day's total height. Desktop mode (larger fonts, Day view)
+// needs more room than compact mode (smaller fonts, Week view); both are sized for the worst case —
+// 4 content lines (title, subtitle, the divider+resource-summary line, the time range) — with
+// headroom, not just the common 3-line case, so a board's row height stays uniform regardless of
+// which bookings happen to have a resource match.
 export const DESKTOP_MIN_BLOCK_HEIGHT_PX = 108;
 export const COMPACT_MIN_BLOCK_HEIGHT_PX = 96;
 
-export function getSlotHeight(slotGranularityMinutes: number, scale = 1, minHeightPx = 18): number {
-  return Math.max(minHeightPx, Math.round((slotGranularityMinutes / 30) * 48 * scale));
+export function getSlotHeight(slotGranularityMinutes: number, scale = 1): number {
+  return Math.round((slotGranularityMinutes / 30) * 48 * scale);
+}
+
+// The per-block content-fit floor (TD44 Story 4) — resolves which of the two constants above
+// applies to a given board, so callers don't repeat the compact/desktop ternary at each of the 3
+// render sites (booking/opening/closure blocks all need the same floor within one board).
+export function getBlockMinHeightPx(compact: boolean): number {
+  return compact ? COMPACT_MIN_BLOCK_HEIGHT_PX : DESKTOP_MIN_BLOCK_HEIGHT_PX;
 }
 
 export function getEventMinutes(

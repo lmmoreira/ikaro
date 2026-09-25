@@ -16,7 +16,6 @@ import {
 } from '@/features/booking/schedule/schedule-timeline';
 import {
   buildSlotLabels,
-  resolveTimelineTitle,
   type ScheduleWeekDayInfo,
 } from '@/features/booking/schedule/schedule-page-derived';
 import type { ScheduleUiState } from '@/features/booking/schedule/schedule-page-ui-state';
@@ -52,9 +51,6 @@ export interface UseSchedulePageControllerResult {
   readonly visibleClosures: readonly ScheduleClosure[];
   readonly visibleOpenings: readonly ScheduleOpening[];
   readonly selectedDayLabel: string;
-  readonly timelineTitle: string;
-  readonly bookingEventCount: number;
-  readonly hasBookingInSelectedDay: boolean;
   readonly slotLabels: string[];
   readonly scheduleReturnTo: string;
   readonly weekNav: ScheduleWeekNavHandlers;
@@ -70,7 +66,6 @@ export function useScheduleLabels(
   slotGranularityMinutes: number,
 ): {
   readonly selectedDayLabel: string;
-  readonly bookingEventCount: number;
   readonly slotLabels: string[];
 } {
   const { ui, formatDateLong, selectedDayTimeline } = core;
@@ -79,9 +74,6 @@ export function useScheduleLabels(
     () => formatDateLong(parseDateKey(ui.selectedDateKey)),
     [formatDateLong, ui.selectedDateKey],
   );
-  const bookingEventCount = selectedDayTimeline.events.filter(
-    (event) => event.kind === 'booking',
-  ).length;
   const slotLabels = useMemo(
     () =>
       buildSlotLabels(
@@ -96,7 +88,7 @@ export function useScheduleLabels(
     ],
   );
 
-  return { selectedDayLabel, bookingEventCount, slotLabels };
+  return { selectedDayLabel, slotLabels };
 }
 
 export interface ScheduleMutations {
@@ -146,7 +138,6 @@ function buildControllerHandlers(
 // directly from core data are a cohesive, self-contained slice of the final result object.
 function buildCoreDerivedFields(
   core: ScheduleCoreData,
-  t: ReturnType<typeof useTranslations>,
 ): Pick<
   UseSchedulePageControllerResult,
   | 'scheduleViewMode'
@@ -157,9 +148,7 @@ function buildCoreDerivedFields(
   | 'activeDates'
   | 'dimmedDates'
   | 'weekTimelineCards'
-  | 'timelineTitle'
 > {
-  const { selectedDayTimeline } = core;
   return {
     scheduleViewMode: core.scheduleViewMode,
     setPersistedViewMode: core.setPersistedViewMode,
@@ -169,11 +158,6 @@ function buildCoreDerivedFields(
     activeDates: core.activeDates,
     dimmedDates: core.dimmedDates,
     weekTimelineCards: core.weekTimelineCards,
-    timelineTitle: resolveTimelineTitle(
-      t,
-      selectedDayTimeline.selectedOpening,
-      selectedDayTimeline.selectedDayClosed,
-    ),
   };
 }
 
@@ -189,9 +173,9 @@ export function buildControllerResult(
 ): UseSchedulePageControllerResult {
   const { businessHours, todayKey, slotGranularityMinutes } = props;
   const { ui, timezone, selectedDayTimeline } = core;
-  const { selectedDayLabel, bookingEventCount, slotLabels } = labels;
+  const { selectedDayLabel, slotLabels } = labels;
   const handlers = buildControllerHandlers(props, core, t, mutations);
-  const coreDerived = buildCoreDerivedFields(core, t);
+  const coreDerived = buildCoreDerivedFields(core);
 
   return {
     ui,
@@ -202,8 +186,6 @@ export function buildControllerResult(
     statusLabels,
     selectedDayTimeline,
     selectedDayLabel,
-    bookingEventCount,
-    hasBookingInSelectedDay: bookingEventCount > 0,
     slotLabels,
     scheduleReturnTo: buildScheduleReturnTo(ui.weekStartKey, ui.selectedDateKey),
     visibleBookings: core.visibleBookings,

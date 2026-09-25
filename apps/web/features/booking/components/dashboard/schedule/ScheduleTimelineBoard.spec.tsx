@@ -79,10 +79,13 @@ describe('ScheduleTimelineBoard', () => {
     expect(screen.getByText('Este dia está sem horário padrão.')).toBeInTheDocument();
   });
 
-  it('renders a compact board with the booking event', () => {
+  it('renders a compact board with the booking event, no redundant status/count labels (TD44 Story 4)', () => {
     renderWithIntl(<ScheduleTimelineBoard {...baseProps(OPEN_TIMELINE, true)} />);
     expect(screen.getByText('João Silva')).toBeInTheDocument();
-    expect(screen.getByText('Aberto na agenda padrão')).toBeInTheDocument();
+    // Status badge + "N agendamento(s) neste dia" count removed — redundant with the grid itself
+    // (and, for Week view specifically, with the day-card's own separate header badge).
+    expect(screen.queryByText('Aberto na agenda padrão')).not.toBeInTheDocument();
+    expect(screen.queryByText(/agendamento/)).not.toBeInTheDocument();
   });
 
   it('renders a desktop board with slot labels and the booking event', () => {
@@ -90,5 +93,22 @@ describe('ScheduleTimelineBoard', () => {
     expect(screen.getByText('09:00')).toBeInTheDocument();
     expect(screen.getByText('09:30')).toBeInTheDocument();
     expect(screen.getByText('João Silva')).toBeInTheDocument();
+  });
+
+  it('renders no scroll-to-now marker when nowMarkerRef/nowMarkerTopPx are omitted (TD44 Story 4)', () => {
+    renderWithIntl(<ScheduleTimelineBoard {...baseProps(OPEN_TIMELINE, false)} />);
+    expect(screen.queryByTestId('schedule-now-marker')).not.toBeInTheDocument();
+  });
+
+  it('renders the scroll-to-now marker at the given offset when provided (TD44 Story 4)', () => {
+    renderWithIntl(
+      <ScheduleTimelineBoard
+        {...baseProps(OPEN_TIMELINE, false)}
+        nowMarkerRef={{ current: null }}
+        nowMarkerTopPx={24}
+      />,
+    );
+    const marker = screen.getByTestId('schedule-now-marker');
+    expect(marker.style.top).toBe('24px');
   });
 });

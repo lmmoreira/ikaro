@@ -2,7 +2,6 @@
 
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Plus } from 'lucide-react';
-import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import {
   Select,
@@ -22,12 +21,12 @@ interface ScheduleDayHeaderProps {
   readonly onOpenSpecialDay: () => void;
   readonly onBlockPeriod: () => void;
   readonly closureWarning: string | null;
-  readonly hasBookingInSelectedDay: boolean;
-  readonly bookingCount: number;
 }
 
 // Extracted from SchedulePage (TD37-S5A) — the selected-day label, view-mode toggle, primary
-// action button, closure warning banner, and booking-count badge form one cohesive header block.
+// action button, and closure warning banner form one cohesive header block. TD44 Story 4 removed
+// the booking-count badge that used to render here — redundant with the grid itself, which now
+// reads clearly again once the shared slot-height fix (also Story 4) landed.
 export function ScheduleDayHeader({
   selectedDayLabel,
   scheduleViewMode,
@@ -37,8 +36,6 @@ export function ScheduleDayHeader({
   onOpenSpecialDay,
   onBlockPeriod,
   closureWarning,
-  hasBookingInSelectedDay,
-  bookingCount,
 }: ScheduleDayHeaderProps): React.JSX.Element {
   const t = useTranslations('dashboard.schedule');
 
@@ -85,14 +82,6 @@ export function ScheduleDayHeader({
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <p className="text-sm">{closureWarning}</p>
-        </div>
-      )}
-
-      {hasBookingInSelectedDay && (
-        <div className="flex flex-wrap gap-2">
-          <Badge className="border-0 bg-blue-100 text-blue-800">
-            {t('bookingsOnDay', { count: bookingCount })}
-          </Badge>
         </div>
       )}
     </div>
