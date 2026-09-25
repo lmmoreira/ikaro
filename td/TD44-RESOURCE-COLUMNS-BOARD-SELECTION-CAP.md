@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx`, `ScheduleResourceColumnsBoard.tsx` (M22-S06)
 - **Created**: 2026-09-24
 - **Discovered**: Codex round-4 review of PR #511 (M22-S06, manager bounded multi-resource column view)
-- **State**: In progress — Story 0/Story 1 ✅ Done; Story 2 (compact resource-badge row) and Story 3 (shared hour axis) drafted 2026-09-25, `/story-discovery` not yet run on either
+- **State**: In progress — Story 0/Story 1 ✅ Done; Story 2 (compact resource-badge row) `/story-discovery` complete 2026-09-25, READY for implementation; Story 3 (shared hour axis) drafted 2026-09-25, `/story-discovery` not yet run
 - **Related**: M22-S06 (`plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`), M21-S05 (`ResourceFilterMenu`)
 
 ---
@@ -142,22 +142,39 @@ A full columns-per-day-card layout was considered and ruled impractical (7 days 
 **Pattern:** plain composition — extends the existing sort step in `buildBookingResourceNamesById` (schedule-page-timeline-derived.ts) with a type-priority comparator; the new divider+resource line is composed entirely inside `renderBookingTimelineEvent`'s own `footer` value (`ScheduleTimelineEventRenderer.tsx`) — no shared-component API change, since `TimelineBlockShell`'s `footer` slot is only consumed by booking blocks today (closures/openings use `subtitle` for their own time text, not `footer`).
 
 **Description:**
-Today, a booking matching 2+ checked resources renders one `<ResourceNameBadge>` per matched resource, wrapped inline next to the status badge in the trailing row — unbounded height growth as match count grows. This story replaces that with a fixed-shape addition: the block's existing content (title = contact name, subtitle = services, status badge in the trailing row) stays exactly as it renders today; a new line is added below it, separated by a subtle divider, showing:
+Today, a booking matching 2+ checked resources renders one `<ResourceNameBadge>` per matched resource, wrapped inline next to the status badge in the trailing row — unbounded height growth as match count grows. This story replaces that with a fixed-shape addition: the block's existing content (title = contact name, subtitle = services, status badge in the trailing row) stays exactly as it renders today; a new line is added right after it, separated by a subtle divider, showing:
 - **Zero matched resources** (today's default, or filter inactive) → no divider, no new line — identical to today.
 - **Exactly one matched resource** → divider + that resource's name, no count suffix.
 - **Two or more matched resources** → divider + **one** resource's name, chosen by type priority **STAFF > ROOM > EQUIPMENT** (alphabetical tiebreak within the same type — unchanged from today's sort, just type-prioritized first), followed by a `+N` suffix where `N` is the count of *remaining* matched resources not shown (e.g. 3 total → "Camila +2"). LOCATION-type resources never reach this code path — `useSelectableResources` already excludes them from the resource filter entirely.
 
 This guarantees the block's height grows by exactly one fixed line regardless of how many resources matched, closing TD44-S1's own flagged overflow risk by design rather than by (already-verified-sufficient, but visually untested) `flex-wrap`.
 
-**Type-priority plumbing (new):** `resourceNames` currently carries only display names (`readonly string[]`), sorted alphabetically in `buildBookingResourceNamesById`. Resource *type* isn't threaded anywhere in this pipeline today — `useReconciledSelectedResourceIds` (`schedule-page-core-data.ts`) already has the full `ResourceResponse` list (`type` field included) when it builds `resourceNameById`; add a sibling `resourceTypeById: ReadonlyMap<string, ResourceType>` built from the same `resources` array, thread it through `useScheduleTimelineDerived`'s input the same way `resourceNameById` already flows, and use it in `buildBookingResourceNamesById`'s comparator: sort by type rank (`STAFF` → 0, `ROOM` → 1, `EQUIPMENT` → 2) first, then `localeCompare` on name. `resourceNames` itself stays `readonly string[]` — priority is baked into its order, so the renderer only ever needs `resourceNames[0]` and `resourceNames.length`.
+**Resolved via `/story-discovery` (2026-09-25) — final vertical layout, both views:**
+```
+[icon] Contact name              [Status badge]
+       Services subtitle
+       - - - - - - - - - - - - -
+       Camila +2
+       14:00 - 14:30
+```
+Order top to bottom: title/subtitle + status badge (unchanged today's row) → divider → resource-summary line → time-range line (the existing `footer` content, today the only thing in `footer`, now pushed below the new line rather than staying first). The user's own words resolving this: "I am proposing to have after that a --- and then the resource line" — placed directly after the title/subtitle/status content, with the time range moved to the very bottom. Implementation-wise, `renderBookingTimelineEvent`'s `footer` value becomes a small `flex-col` wrapping (in order) the divider+resource-summary block and the existing time-range `<div>`, not a change to `TimelineBlockShell` itself.
 
-**Open question, not resolved here — flag for `/story-discovery`:** exact vertical placement of the new divider+resource line relative to the existing time-range `footer` text (today's only `footer` content) — directly below title/subtitle/status (i.e. *above* the time range), or below the time range. The conversation that resolved this design named the sequence "name → status → divider → resources" without mentioning the time-range footer at all; the default assumption here is *above* the time range (resources read as identity metadata, closer to the title), but confirm before implementing.
+**Test id and accessibility (resolved via `/story-discovery`, 2026-09-25):** the resource-summary line renders as plain text (same visual weight as the time-range line, not a `Badge`/pill — `ResourceNameBadge` is not reused here), with `data-testid="timeline-block-resource-summary"` on its container (`timeline-block-resource-name` stays reserved for openings/closures, untouched by this story). The container also carries an `aria-label` listing **every** matched resource name (not just the visible primary one) joined together — e.g. `aria-label="Camila, Sala 2, Secador"` for a 3-match case rendering "Camila +2" — so assistive tech gets the full set even though only one name + count is visible. This needs a translated join separator or connector word; if the visible text itself needs no i18n key (per Story 1's precedent — raw names, no wrapping copy), the `aria-label`'s join is still just a plain-comma join with no wrapping copy either, so still no new i18n key.
+
+**Type-priority plumbing (new):** `resourceNames` currently carries only display names (`readonly string[]`), sorted alphabetically in `buildBookingResourceNamesById`. Resource *type* isn't threaded anywhere in this pipeline today — `useReconciledSelectedResourceIds` (`schedule-page-core-data.ts`) already has the full `ResourceResponse` list (`type` field included) when it builds `resourceNameById`; add a sibling `resourceTypeById: ReadonlyMap<string, ResourceType>` built from the same `resources` array, thread it through `useScheduleTimelineDerived`'s input the same way `resourceNameById` already flows.
+
+**File-cap risk (flagged during `/story-discovery`, 2026-09-25):** `schedule-page-timeline-derived.ts` is 236/250 lines and `schedule-page-core-data.ts` is 229/250 lines **before** this story's additions — both already near the CLAUDE.md §7 250-line file cap, the same class of pressure that forced TD44-S1's `schedule-timeline-formatting.ts` extraction. Don't thread the type-rank comparator logic inline into `buildBookingResourceNamesById` in `schedule-page-timeline-derived.ts` — extract it into a new small pure module, e.g. `schedule-resource-priority.ts` (`resourceTypeRank(type: ResourceType): number` returning `STAFF → 0, ROOM → 1, EQUIPMENT → 2`, and/or a full comparator function taking `resourceTypeById`), imported by `buildBookingResourceNamesById` instead of defined there. `resourceNames` itself stays `readonly string[]` — priority is baked into its order, so the renderer only ever needs `resourceNames[0]` and `resourceNames.length`.
+
+**Journey-doc sync (added during `/story-discovery`, 2026-09-25):** `plan/journey/staff/horarios.md` (the "TD44 addition" section) and `plan/journey/staff/prototypes/horarios/dev-notes.md` (the same section) both currently describe the per-resource `ResourceNameBadge` visual TD44-S1 shipped and this story replaces. Update both to describe the new primary-name+`+N` line instead, in the same commit as the code change — a factual sync of an already-existing journey entry, so per CLAUDE.md §15 this needs only the normal doc-gate yes, not a `/docs-audit` baseline.
 
 **Files to create/modify:**
 - `apps/web/features/booking/schedule/schedule-page-core-data.ts` (+ `.spec.tsx`) (modify — new `resourceTypeById` lookup, sibling to the existing `resourceNameById`)
-- `apps/web/features/booking/schedule/schedule-page-timeline-derived.ts` (+ `.spec.tsx`) (modify — thread `resourceTypeById` through; type-priority comparator in `buildBookingResourceNamesById`)
-- `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (+ `.spec.tsx`) (modify — replace the `resourceNames.map(...)` multi-badge trailing row with a single primary-name + `+N` line inside `footer`, below a subtle divider)
-- `apps/web/e2e/schedule-resource-columns.spec.ts` (modify — **rewrite**, not just extend, the two existing "Week view resource filter/badges" bundled-booking scenarios from TD44-S1, since they currently assert 2 separate named badges; they must assert the new primary+"+N" shape instead)
+- `apps/web/features/booking/schedule/schedule-resource-priority.ts` (+ `.spec.ts`) (new — type-rank comparator, extracted up front to keep `schedule-page-timeline-derived.ts` under the file cap)
+- `apps/web/features/booking/schedule/schedule-page-timeline-derived.ts` (+ `.spec.tsx`) (modify — thread `resourceTypeById` through; `buildBookingResourceNamesById` imports and uses the new comparator)
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (+ `.spec.tsx`) (modify — replace the `resourceNames.map(...)` multi-badge trailing row with a single primary-name + `+N` line inside `footer`, above the existing time-range line, below a subtle divider; `data-testid="timeline-block-resource-summary"` + `aria-label` listing all matched names)
+- `apps/web/e2e/schedule-resource-columns.spec.ts` (modify — **rewrite**, not just extend, the two existing "Week view resource filter/badges" bundled-booking scenarios from TD44-S1, since they currently assert 2 separate named badges; they must assert the new primary+"+N" shape instead, via `timeline-block-resource-summary`)
+- `plan/journey/staff/horarios.md` (modify — factual sync, TD44 addition section)
+- `plan/journey/staff/prototypes/horarios/dev-notes.md` (modify — factual sync, TD44 addition section)
 
 **Acceptance criteria — product:**
 - [ ] A booking with 0 matched resources renders identically to today — no divider, no new line.
@@ -165,16 +182,19 @@ This guarantees the block's height grows by exactly one fixed line regardless of
 - [ ] A booking with 2+ matched resources shows a divider + the type-prioritized name (STAFF over ROOM over EQUIPMENT) + `+N` (N = remaining count, not total).
 - [ ] Two same-type matched resources tiebreak alphabetically (unchanged behavior, now type-scoped).
 - [ ] A booking block's total height never varies with match count — always exactly one additional line when 1+ resources matched.
+- [ ] The resource-summary line renders directly below the title/subtitle/status row, and the time-range line renders below the resource-summary line (not above it) — final order: title/subtitle+status → divider → resource line → time range.
+- [ ] A screen reader on a 2+-match block announces every matched resource name, not just the visible primary one.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] Type-priority comparator orders STAFF before ROOM before EQUIPMENT, alphabetical within the same type
+  - [ ] `resourceTypeRank`/type-priority comparator (in the new `schedule-resource-priority.ts`) orders STAFF before ROOM before EQUIPMENT, alphabetical within the same type
   - [ ] `resourceNames.length === 0` → renderer adds no divider/line (non-regression)
   - [ ] `resourceNames.length === 1` → renderer shows the name with no `+N`
-  - [ ] `resourceNames.length === 3` → renderer shows `resourceNames[0]` + `+2`
+  - [ ] `resourceNames.length === 3` → renderer shows `resourceNames[0]` + `+2`, and the `aria-label` lists all 3 names
+  - [ ] `resourceTypeById` is built correctly from the `resources` array in `schedule-page-core-data.ts` (sibling test to the existing `resourceNameById` coverage)
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side only
-- E2E: rewrite TD44-S1's two bundled-booking Week-view scenarios (both-checked, partial-checked) to assert the new primary+`+N` shape instead of per-resource badges; add one scenario for 3 matched resources asserting `+2`
+- E2E: rewrite TD44-S1's two bundled-booking Week-view scenarios (both-checked, partial-checked) to assert the new primary+`+N` shape via `timeline-block-resource-summary` instead of per-resource badges; add one scenario for 3 matched resources asserting `+2`
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
