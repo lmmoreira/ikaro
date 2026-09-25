@@ -839,12 +839,13 @@ describe('resolveBookingLinesResourceCandidates', () => {
     });
   });
 
-  it('caches a resolved resource across repeated lookups within the same resolution call', async () => {
+  it("loads a type's active resources at most once per resolution call, across repeated lines sharing that type", async () => {
     const shared = new ResourceBuilder()
       .withTenantId(TENANT_ID)
       .withType(ResourceType.ROOM)
       .build();
     await resourceRepo.save(shared);
+    const findByTenantSpy = jest.spyOn(resourceRepo, 'findByTenant');
     const findByIdSpy = jest.spyOn(resourceRepo, 'findById');
     const service = new ServiceBuilder()
       .withId('service-1')
@@ -866,7 +867,11 @@ describe('resolveBookingLinesResourceCandidates', () => {
       new Map([['service-1', service]] as [string, Service][]),
     );
 
-    expect(findByIdSpy).toHaveBeenCalledTimes(1);
+    // The eligibility load itself is a single bulk findByTenant() (never a per-candidate
+    // findById()) — cached per type on the shared resolution context so the second line's
+    // identical requirement reuses it instead of re-querying.
+    expect(findByTenantSpy).toHaveBeenCalledTimes(1);
+    expect(findByIdSpy).not.toHaveBeenCalled();
   });
 
   it('throws BookingServiceResourceTypeUnavailableError when a resourcePoolIds member no longer exists', async () => {
@@ -915,6 +920,41 @@ describe('resolveBookingLinesResourceCandidates', () => {
         new Map([['service-1', service]]),
       ),
     ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
+  });
+
+  it('selects the active pool member instead of failing when another resourcePoolIds member has been deactivated', async () => {
+    const first = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
+    const second = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .build();
+    // Deactivate whichever one has the LOWER id — the tie-break's stable secondary sort
+    // (resourceId ascending, both have 0 workload here) would otherwise pick it deterministically
+    // regardless of uuidv7 generation order, so the test must not assume which resource that is.
+    const [tieBreakWinner, tieBreakLoser] = [first, second].sort((a, b) =>
+      a.id.localeCompare(b.id),
+    );
+    tieBreakWinner.deactivate();
+    await resourceRepo.save(tieBreakWinner);
+    await resourceRepo.save(tieBreakLoser);
+    const service = new ServiceBuilder()
+      .withId('service-1')
+      .withDurationMinutes(30)
+      .withResourceRequirements([
+        ResourceRequirement.create({
+          type: ResourceType.ROOM,
+          selectionMode: 'AUTO_ANY',
+          resourcePoolIds: [tieBreakWinner.id, tieBreakLoser.id],
+        }),
+      ])
+      .build();
+
+    const result = await resolve(
+      [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+      new Map([['service-1', service]]),
+    );
+
+    expect(result.get('line-1')!.candidates[0].resourceId).toBe(tieBreakLoser.id);
   });
 
   it('throws BookingServiceResourceTypeUnavailableError when a resourcePoolIds member has since had its type changed away from the requirement', async () => {

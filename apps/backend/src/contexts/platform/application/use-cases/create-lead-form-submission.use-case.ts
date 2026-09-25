@@ -111,7 +111,7 @@ export class CreateLeadFormSubmissionUseCase {
     const settings = await this.settingsPort.getSettings(tenantId);
     const leadFormSettings = settings.leadForm;
     // Bucketed in the tenant's own local calendar day (same intent as Chatbot's own daily caps —
-    // chatbot-session-resolution.helpers.ts's checkNewSessionVolumeCaps), so a submission near
+    // chatbot-cap-check.helpers.ts's checkNewSessionVolumeCaps), so a submission near
     // local midnight counts against the correct day from the submitter's own perspective. Passes
     // real UTC instant boundaries through to the repository rather than a bare date string
     // re-interpreted as a UTC day — see localDayBoundsUTC()'s own doc comment (PR #417 review

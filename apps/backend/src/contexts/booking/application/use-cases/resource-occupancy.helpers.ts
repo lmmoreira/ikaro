@@ -91,6 +91,7 @@ export async function resolveBookingLinesResourceCandidates(
     tenantId,
     timezone,
     resourceCache: new Map(),
+    activeResourcesByType: new Map(),
     // These lines' own pre-existing occupancy (if any — empty at creation, real at
     // approve/reschedule re-resolution) must never count as AUTO_ANY workload against itself.
     excludeBookingLineIds: lines.map((line) => line.lineId),

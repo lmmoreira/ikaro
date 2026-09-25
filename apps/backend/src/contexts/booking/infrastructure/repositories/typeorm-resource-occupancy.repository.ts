@@ -13,7 +13,7 @@ import {
   buildOccupancyRows,
   insertOccupancyRows,
   upsertBookingLineResourceAssignments,
-} from './typeorm-resource-occupancy-upsert.helpers';
+} from './typeorm-resource-occupancy.write-queries';
 
 interface ConflictRow {
   resource_id: string;

@@ -69,55 +69,46 @@ async function resolveCandidateIds(
   if (requirement.selectionMode === 'CUSTOMER_CHOICE') {
     return resolveCustomerChoiceCandidateIds(requirement, chosenResourceIds);
   }
-  const eligible = await resolveEligibleCandidateIds(requirement, ctx);
+  const eligible = await resolveEligibleResources(requirement, ctx);
   if (requirement.selectionMode === 'AUTO_ANY') {
-    const free = await preferFreeCandidateIds(
+    const free = await preferFreeResources(
       eligible,
       ctx,
       windowStart,
       windowEnd,
       effectiveGapMinutes,
     );
-    return sortByLeastWorkload(free, ctx, windowStart);
+    return sortResourcesByLeastWorkload(free, ctx, windowStart);
   }
-  return eligible;
+  return eligible.map((resource) => resource.id);
 }
 
-// Narrows to the subset of candidateIds with no conflicting HOLD/COMMITTED row for each
-// candidate's own true effective window (raw window + that resource's own trailing
-// buffer/turnover gap, via effectiveGapMinutes), before the workload sort ever runs — otherwise a
-// lower-workload-but-busy candidate could be preferred over a higher-workload-but-free one, and
-// the booking would fail with a 409 even though a genuinely free resource existed (UC-063's main
-// flow: "assigns whichever eligible staff member is free"; UC-065's chained itinerary needs the
-// identical treatment per leg). windowEnd === null or a single candidate skips the filter entirely
-// — see resolveRequirementResources' own doc comment for why null still occurs for some callers.
-// Falls back to the full candidateIds list when every one of them appears busy, so the caller's
+// Narrows to the subset of resources with no conflicting HOLD/COMMITTED row for each candidate's
+// own true effective window (raw window + that resource's own trailing buffer/turnover gap, via
+// effectiveGapMinutes), before the workload sort ever runs — otherwise a lower-workload-but-busy
+// candidate could be preferred over a higher-workload-but-free one, and the booking would fail
+// with a 409 even though a genuinely free resource existed (UC-063's main flow: "assigns whichever
+// eligible staff member is free"; UC-065's chained itinerary needs the identical treatment per
+// leg). windowEnd === null or a single candidate skips the filter entirely — see
+// resolveRequirementResources' own doc comment for why null still occurs for some callers. Falls
+// back to the full resource list when every one of them appears busy, so the caller's
 // requiredQuantity/assertSlotFree checks still run and produce the correct "unavailable" error,
-// rather than this function returning [] and misreporting via a wrong error path. Resource lookups
-// go through the shared fetchResourceCached() so the later, authoritative lookupResource() call
-// for whichever candidate is actually chosen doesn't re-fetch it.
-async function preferFreeCandidateIds(
-  candidateIds: string[],
+// rather than this function returning [] and misreporting via a wrong error path. Takes already-
+// resolved Resource objects (from resolveEligibleResources) rather than bare ids — no per-candidate
+// findById() here.
+async function preferFreeResources(
+  resources: Resource[],
   ctx: ResolutionContext,
   windowStart: Date,
   windowEnd: Date | null,
   effectiveGapMinutes: (resource: Resource) => number,
-): Promise<string[]> {
-  if (windowEnd === null || candidateIds.length <= 1) return candidateIds;
-  const windows = [];
-  for (const resourceId of candidateIds) {
-    const resource = await fetchResourceCached(resourceId, ctx);
-    // An unresolvable id (e.g. deactivated since resolveEligibleCandidateIds ran) is left out of
-    // the free-window check entirely — lookupResource() will reject it later with the correct
-    // error if it's ever actually chosen; it's simply never preferred here.
-    if (!resource) continue;
-    const gapMinutes = effectiveGapMinutes(resource);
-    windows.push({
-      resourceId,
-      startsAt: windowStart,
-      endsAt: new Date(windowEnd.getTime() + gapMinutes * 60_000),
-    });
-  }
+): Promise<Resource[]> {
+  if (windowEnd === null || resources.length <= 1) return resources;
+  const windows = resources.map((resource) => ({
+    resourceId: resource.id,
+    startsAt: windowStart,
+    endsAt: new Date(windowEnd.getTime() + effectiveGapMinutes(resource) * 60_000),
+  }));
   const conflicting = new Set(
     await ctx.occupancyRepo.findConflictingResourceIds(
       ctx.tenantId,
@@ -125,8 +116,8 @@ async function preferFreeCandidateIds(
       ctx.excludeBookingLineIds,
     ),
   );
-  const free = candidateIds.filter((id) => !conflicting.has(id));
-  return free.length > 0 ? free : candidateIds;
+  const free = resources.filter((resource) => !conflicting.has(resource.id));
+  return free.length > 0 ? free : resources;
 }
 
 // requiredQuantity > 1 combined with CUSTOMER_CHOICE has no named UC example (the "several
@@ -146,45 +137,67 @@ function resolveCustomerChoiceCandidateIds(
   return distinct;
 }
 
-async function resolveEligibleCandidateIds(
+// Loads the tenant's full active set of this requirement's type in ONE query, at most once per
+// type per resolution call — cached on ctx.activeResourcesByType so a multi-line booking whose
+// lines share a service (and therefore a requirement type) doesn't re-query per line. This also
+// avoids an N-candidate findById() loop later (preferFreeResources/lookupResource reuse these same
+// objects via ctx.resourceCache, populated below) and, for a resourcePoolIds-restricted
+// requirement, lets the configured pool be filtered down to resources that are still active: a
+// pool is a fixed, curated list of ids that can drift out of date (a member deactivated since
+// configuration), and returning it unfiltered let a since-deactivated pool member reach the
+// workload sort, win the tie-break over a genuinely eligible one, and then fail the whole
+// requirement at the final lookupResource() check even though an active, free member existed.
+async function resolveEligibleResources(
   requirement: ResourceRequirement,
   ctx: ResolutionContext,
-): Promise<string[]> {
-  if (requirement.resourcePoolIds && requirement.resourcePoolIds.length > 0) {
-    return requirement.resourcePoolIds;
+): Promise<Resource[]> {
+  const cached = ctx.activeResourcesByType.get(requirement.type);
+  const activeOfType =
+    cached ??
+    (await ctx.resourceRepo.findByTenant(ctx.tenantId, {
+      type: requirement.type,
+      isActive: true,
+    }));
+  if (!cached) {
+    ctx.activeResourcesByType.set(requirement.type, activeOfType);
+    for (const resource of activeOfType) {
+      ctx.resourceCache.set(resource.id, resource);
+    }
   }
-  const active = await ctx.resourceRepo.findByTenant(ctx.tenantId, {
-    type: requirement.type,
-    isActive: true,
-  });
-  if (active.length === 0) {
+  if (requirement.resourcePoolIds && requirement.resourcePoolIds.length > 0) {
+    const poolIds = new Set(requirement.resourcePoolIds);
+    return activeOfType.filter((resource) => poolIds.has(resource.id));
+  }
+  if (activeOfType.length === 0) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
-  return active.map((r) => r.id);
+  return activeOfType;
 }
 
 // UC-063 A1 — "least already-locked workload on the tenant-local day, resourceId as stable
 // tie-breaker." Uses the line's own lineStart (not a per-leg sub-window, which isn't known yet at
 // resolution time — computeLegSpans runs after resources are chosen) as "the day"; a booking
 // spanning local midnight is an edge case this approximation doesn't need to solve precisely.
-async function sortByLeastWorkload(
-  resourceIds: string[],
+async function sortResourcesByLeastWorkload(
+  resources: Resource[],
   ctx: ResolutionContext,
   windowStart: Date,
 ): Promise<string[]> {
-  if (resourceIds.length <= 1) return resourceIds;
+  if (resources.length <= 1) return resources.map((r) => r.id);
   const { start, end } = localDayBoundsUTC(windowStart, ctx.timezone);
   const workload = await ctx.occupancyRepo.countActiveByResource(
     ctx.tenantId,
-    resourceIds,
+    resources.map((r) => r.id),
     start,
     end,
     ctx.excludeBookingLineIds,
   );
-  return [...resourceIds].sort((a, b) => {
-    const diff = (workload.get(a) ?? 0) - (workload.get(b) ?? 0);
-    return diff !== 0 ? diff : a.localeCompare(b);
-  });
+  return [...resources]
+    .sort((a, b) => {
+      const diff = (workload.get(a.id) ?? 0) - (workload.get(b.id) ?? 0);
+      return diff !== 0 ? diff : a.id.localeCompare(b.id);
+    })
+    .map((r) => r.id);
 }
 
 async function fetchResourceCached(id: string, ctx: ResolutionContext): Promise<Resource | null> {
@@ -206,8 +219,8 @@ async function lookupResource(
   // past a DIFFERENT requirement's pool restriction that excludes it. Matters now that
   // CUSTOMER_CHOICE can feed the same physical resource id through more than one requirement in a
   // single resolution call (M23-S01) — the pre-M23 cache-and-return-early shape didn't need this
-  // since every candidate id it ever saw was already sourced from resolveEligibleCandidateIds's
-  // own pool-correct output.
+  // since every candidate id it ever saw was already sourced from resolveEligibleResources's own
+  // pool-correct output.
   const found = await fetchResourceCached(id, ctx);
   const poolRestricted = !!requirement.resourcePoolIds && !requirement.resourcePoolIds.includes(id);
   if (!found?.isActive || found.type !== requirement.type || poolRestricted) {

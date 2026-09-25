@@ -18,7 +18,12 @@ export interface ResolutionContext {
   tenantId: string;
   timezone: string;
   resourceCache: Map<string, Resource>;
-  // The booking's own line ids, so AUTO_ANY's workload tie-break (sortByLeastWorkload) never
+  // The tenant's full active-resource set for a given type, loaded once by
+  // resolveEligibleResources() and reused by every later line/requirement needing the same type
+  // within this same resolution call — a multi-line booking with several lines sharing one
+  // service (and therefore one requirement type) must not re-query per line.
+  activeResourcesByType: Map<ResourceType, Resource[]>;
+  // The booking's own line ids, so AUTO_ANY's workload tie-break (sortResourcesByLeastWorkload) never
   // counts this booking's own existing HOLD/COMMITTED occupancy against itself when
   // approve-booking/reschedule-booking re-resolve fresh — same self-exclusion shape
   // findConflictingResourceIds already has via excludeBookingLineIds. Empty at creation time (the

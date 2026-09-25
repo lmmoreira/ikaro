@@ -82,7 +82,7 @@ export class LeadFormSubmissionNameRequiredError extends Error implements Domain
 /**
  * Covers both the tenant-wide daily cap and the per-IP daily cap — one error for either layer,
  * matching `ChatbotDailyCapReachedError`'s own "come back tomorrow" grouping
- * (chatbot-session-resolution.helpers.ts's `checkNewSessionVolumeCaps`).
+ * (chatbot-cap-check.helpers.ts's `checkNewSessionVolumeCaps`).
  */
 export class LeadFormDailyCapReachedError extends PlatformDomainError {
   constructor() {
