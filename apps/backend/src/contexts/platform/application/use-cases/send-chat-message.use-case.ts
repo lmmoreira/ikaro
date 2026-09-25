@@ -36,7 +36,7 @@ import {
   handleProviderFailure,
   resolveExistingSession,
   resolveNewSession,
-} from './chatbot-session-resolution.helpers';
+} from './chatbot-cap-check.helpers';
 import { ChatbotCapCheckDeps } from './chatbot-cap-check.types';
 
 export interface SendChatMessageUseCaseInput {

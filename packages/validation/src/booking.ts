@@ -107,6 +107,21 @@ export const ServiceLegSchema = z.object({
   transitionGapAfterMinutes: z.number().int().min(0).optional(),
 });
 
+// M23-S01 — customer's CUSTOMER_CHOICE pick(s) on POST /bookings (guest + authenticated), shared
+// by the backend DTOs and the BFF's identical bookings.schemas.ts shape (same direct-reuse
+// pattern as ResourceRequirementSchema above). serviceId addresses which booking line the choice
+// applies to (a basket can hold up to 20 services); legIndex is set only for a legged service's
+// per-leg choice; resourceType disambiguates within a bundle (more than one requirement on the
+// same line/leg). AUTO_ANY/AUTO_FUNGIBLE_POOL/NONE requirements ignore any entry that doesn't
+// match a CUSTOMER_CHOICE requirement of theirs — an extraneous entry is never a validation error
+// at this layer, only unused.
+export const ResourceSelectionSchema = z.object({
+  serviceId: z.uuid(),
+  legIndex: z.number().int().min(0).nullable().optional(),
+  resourceType: ResourceTypeSchema,
+  resourceId: z.uuid(),
+});
+
 export const ClassResourceSlotSchema = z.object({
   type: ResourceTypeSchema,
   // .min(1) — unlike ResourceRequirement's nullable resourcePoolIds (null = unrestricted, a

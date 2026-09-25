@@ -119,6 +119,8 @@ describe('ApproveBookingUseCase', () => {
             resourceName: resource.name,
             legIndex: null,
             quantityPosition: null,
+            selectionMode: 'NONE' as const,
+            isBundleMember: false,
             startsAt: scheduledAt,
             endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
           },
@@ -137,6 +139,191 @@ describe('ApproveBookingUseCase', () => {
         },
       ]);
       expect(conflicting).toEqual([resource.id]); // still occupied (now COMMITTED), just not HOLD anymore
+    });
+
+    // Approval re-resolves AUTO_ANY fresh (comment above on
+    // ApproveBookingUseCase.resolveAndCheckCandidates) — without excluding the booking's OWN
+    // existing HOLD from countActiveByResource, that HOLD counts as "workload" against the very
+    // resource it's already holding, biasing the tie-break toward reassigning to a different
+    // resource for no real reason. ownResource/tieBreakWinner are assigned by actual id comparison
+    // (not hardcoded) so a self-counting bug deterministically loses the tie-break to the wrong
+    // resource, rather than passing or failing by incidental uuidv7 ordering.
+    it("excludes the booking's own HOLD from the AUTO_ANY workload tie-break on approval", async () => {
+      const resourceX = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      const resourceY = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      await fixtures.resourceRepo.save(resourceX);
+      await fixtures.resourceRepo.save(resourceY);
+      const [tieBreakWinner, ownResource] = [resourceX, resourceY].sort((a, b) =>
+        a.id.localeCompare(b.id),
+      );
+
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.ROOM,
+            selectionMode: 'AUTO_ANY',
+            resourcePoolIds: [ownResource.id, tieBreakWinner.id],
+          }),
+        ])
+        .build();
+      await fixtures.serviceRepo.save(service);
+
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .withLines([new BookingLineBuilder().withServiceId(service.id).build()])
+        .build();
+      await bookingRepo.save(booking);
+
+      const windowEnd = new Date(scheduledAt.getTime() + 30 * 60_000);
+      // The booking's own existing HOLD, on ownResource — must be excluded from its own count.
+      await occupancyRepo.assign(
+        TENANT_A,
+        booking.lines[0].lineId,
+        [
+          {
+            resourceId: ownResource.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: ownResource.name,
+            legIndex: null,
+            quantityPosition: null,
+            selectionMode: 'AUTO_ANY' as const,
+            isBundleMember: false,
+            startsAt: scheduledAt,
+            endsAt: windowEnd,
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+      // A genuinely unrelated OTHER booking's occupancy on tieBreakWinner — real external workload.
+      await occupancyRepo.assign(
+        TENANT_A,
+        'other-booking-line',
+        [
+          {
+            resourceId: tieBreakWinner.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: tieBreakWinner.name,
+            legIndex: null,
+            quantityPosition: null,
+            selectionMode: 'AUTO_ANY' as const,
+            isBundleMember: false,
+            startsAt: scheduledAt,
+            endsAt: windowEnd,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const assignments = await occupancyRepo.findAssignmentsByBookingLines(TENANT_A, [
+        booking.lines[0].lineId,
+      ]);
+      expect(assignments).toHaveLength(1);
+      expect(assignments[0].resourceId).toBe(ownResource.id);
+    });
+
+    // docs/14-API_CONTRACTS.md: "duplicates are allowed (two Basic Wash lines = two cars)" — two
+    // lines booking the SAME CUSTOMER_CHOICE service each hold a different customer-picked
+    // resource. deriveResourceSelectionsFromAssignments() replays both existing assignments back
+    // into resourceSelections for re-resolution; each line must keep its own original resource,
+    // never collapse onto the first one or swap between lines.
+    it('keeps each duplicate-service line on its own originally-chosen resource across approval replay', async () => {
+      const staffA = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      const staffB = new ResourceBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .build();
+      await fixtures.resourceRepo.save(staffA);
+      await fixtures.resourceRepo.save(staffB);
+
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+        ])
+        .build();
+      await fixtures.serviceRepo.save(service);
+
+      const line1 = new BookingLineBuilder().withServiceId(service.id).build();
+      const line2 = new BookingLineBuilder().withServiceId(service.id).build();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .withLines([line1, line2])
+        .build();
+      await bookingRepo.save(booking);
+
+      const line1End = new Date(scheduledAt.getTime() + line1.durationMinsAtBooking * 60_000);
+      const line2End = new Date(line1End.getTime() + line2.durationMinsAtBooking * 60_000);
+      // Deliberately assigned out of line order (line2's row written before line1's) — proves the
+      // replay reads back in bookingLineIds' own order, not insertion/storage order, which a real
+      // SQL backend never guarantees for rows tied on quantity_position (NULL for every
+      // single-unit requirement, the common case).
+      await occupancyRepo.assign(
+        TENANT_A,
+        line2.lineId,
+        [
+          {
+            resourceId: staffB.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: staffB.name,
+            legIndex: null,
+            quantityPosition: null,
+            selectionMode: 'CUSTOMER_CHOICE' as const,
+            isBundleMember: false,
+            startsAt: line1End,
+            endsAt: line2End,
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+      await occupancyRepo.assign(
+        TENANT_A,
+        line1.lineId,
+        [
+          {
+            resourceId: staffA.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: staffA.name,
+            legIndex: null,
+            quantityPosition: null,
+            selectionMode: 'CUSTOMER_CHOICE' as const,
+            isBundleMember: false,
+            startsAt: scheduledAt,
+            endsAt: line1End,
+          },
+        ],
+        'HOLD',
+        new Date(Date.now() + 30 * 60_000),
+      );
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const line1Assignments = await occupancyRepo.findAssignmentsByBookingLines(TENANT_A, [
+        line1.lineId,
+      ]);
+      const line2Assignments = await occupancyRepo.findAssignmentsByBookingLines(TENANT_A, [
+        line2.lineId,
+      ]);
+      expect(line1Assignments[0].resourceId).toBe(staffA.id);
+      expect(line2Assignments[0].resourceId).toBe(staffB.id);
     });
 
     it('assigns a fresh COMMITTED occupancy row when the booking has no existing assignment at all (pre-M22-S03 legacy booking)', async () => {
@@ -203,6 +390,8 @@ describe('ApproveBookingUseCase', () => {
             resourceName: staleResource.name,
             legIndex: null,
             quantityPosition: null,
+            selectionMode: 'NONE' as const,
+            isBundleMember: false,
             startsAt: scheduledAt,
             endsAt: windowEnd,
           },
@@ -315,6 +504,8 @@ describe('ApproveBookingUseCase', () => {
         resourceName: resource.name,
         legIndex: null,
         quantityPosition: null,
+        selectionMode: 'NONE' as const,
+        isBundleMember: false,
         startsAt: scheduledAt,
         endsAt: new Date(scheduledAt.getTime() + 60 * 60_000),
       });
@@ -338,6 +529,8 @@ describe('ApproveBookingUseCase', () => {
         resourceName: resource.name,
         legIndex: null,
         quantityPosition: null,
+        selectionMode: 'NONE' as const,
+        isBundleMember: false,
         startsAt: otherSlotAt,
         endsAt: new Date(otherSlotAt.getTime() + 30 * 60_000),
       });

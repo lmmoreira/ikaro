@@ -34,12 +34,8 @@ import {
   PhotoPromotionOperation,
 } from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
-import {
-  buildLineInputs,
-  createBookingAddress,
-  persistRequestedBooking,
-  toBookingResult,
-} from './booking-request.helpers';
+import { createBookingAddress, persistRequestedBooking } from './booking-request.helpers';
+import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
 
 export type RequestAuthenticatedBookingUseCaseInput = RequestAuthenticatedBookingDto & {
@@ -83,7 +79,7 @@ export class RequestAuthenticatedBookingUseCase {
       pickupAddress,
     );
 
-    await persistRequestedBooking(
+    const candidatesByLine = await persistRequestedBooking(
       {
         txManager: this.txManager,
         slotConflictService: this.slotConflictService,
@@ -94,10 +90,18 @@ export class RequestAuthenticatedBookingUseCase {
         occupancyRepo: this.occupancyRepo,
         availabilityService: this.availabilityService,
       },
-      { booking, tenantId, scheduledAt, operations, serviceMap },
+      {
+        booking,
+        tenantId,
+        scheduledAt,
+        timezone: input.timezone,
+        operations,
+        serviceMap,
+        resourceSelections: toResourceSelections(input.resourceSelections),
+      },
     );
 
-    return this.toResult(booking);
+    return this.toResult(booking, candidatesByLine);
   }
 
   private async prepareBooking(
@@ -206,7 +210,10 @@ export class RequestAuthenticatedBookingUseCase {
     return undefined;
   }
 
-  private toResult(booking: Booking): RequestAuthenticatedBookingUseCaseResult {
-    return toBookingResult(booking);
+  private toResult(
+    booking: Booking,
+    candidatesByLine: Awaited<ReturnType<typeof persistRequestedBooking>>,
+  ): RequestAuthenticatedBookingUseCaseResult {
+    return toBookingResult(booking, candidatesByLine);
   }
 }

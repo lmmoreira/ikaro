@@ -358,6 +358,35 @@ X-Correlation-ID: test-corr-002
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — guest booking with a CUSTOMER_CHOICE resource selection (M23-S01, UC-061)
+# resourceType must match the service's own resourceRequirements[].type; legIndex is set only
+# for a legged service's per-leg choice (omit/null for a flat requirement, as below).
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Correlation-ID: test-corr-resource-choice-001
+
+{
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
+  "scheduledAt": "2026-06-15T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"],
+  "resourceSelections": [
+    {
+      "serviceId": "{{serviceId}}",
+      "legIndex": null,
+      "resourceType": "STAFF",
+      "resourceId": "{{resourceId}}"
+    }
+  ]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR — missing serviceIds → 400
 # ─────────────────────────────────────────────────────────────────────────────
 

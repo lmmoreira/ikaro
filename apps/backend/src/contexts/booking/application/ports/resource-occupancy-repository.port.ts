@@ -1,5 +1,6 @@
-import { ResourceType } from '../../domain/resource.types';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
+import { ResourceRequirementSelectionMode } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
 
 export const RESOURCE_OCCUPANCY_REPOSITORY = Symbol('IResourceOccupancyRepository');
 
@@ -14,6 +15,21 @@ export interface ResourceOccupancyCandidate extends ResourceOccupancyWindow {
   resourceName: string;
   legIndex: number | null;
   quantityPosition: number | null;
+  // Carried through from the originating ResourceRequirement — response-shaping only (M23-S01):
+  // toBookingResult() reveals a flat AUTO_ANY candidate's name (UC-063) but never an
+  // AUTO_FUNGIBLE_POOL one (UC-062); a legged candidate's itinerary entry is always revealed
+  // regardless of this field (UC-065's schedule disclosure isn't selectionMode-conditional).
+  // Ignored by persistence — resource_occupancy/booking_line_resource_assignments don't store it,
+  // it's derivable from the service config at any time.
+  selectionMode: ResourceRequirementSelectionMode;
+  // True only for a flat (non-legged) candidate whose own service has >= 2 resourceRequirements —
+  // a genuine bundle (UC-064), matching the story's own definition. Never true for a legged
+  // candidate (legs use legIndex for their own conflict classification) or for a flat single-
+  // requirement service. Drives BookingSlotConflictService's error classification: the flattened
+  // candidate list alone can't distinguish a true bundle from an ordinary multi-service basket, so
+  // each candidate carries the verdict from its own line's requirement count instead of the
+  // classifier re-deriving it from candidate count across the whole booking.
+  isBundleMember: boolean;
 }
 
 // Internal, booking-context-local write-path port for the resource_occupancy/
@@ -61,4 +77,46 @@ export interface IResourceOccupancyRepository {
   // IChatbotMessageRepository.deleteOlderThan()'s identical cross-tenant shape. Never touches
   // booking_line_resource_assignments, same invariant as release() above.
   deleteOlderThan(cutoff: Date): Promise<number>;
+
+  // AUTO_ANY's least-loaded tie-break (UC-063 A1, M23-S01) — counts each candidate resource's own
+  // HOLD/COMMITTED occupancy rows overlapping [from, to) (the tenant-local calendar day of the
+  // booking being resolved). REQUESTED rows are excluded, same lock-state filter
+  // findConflictingResourceIds uses — a degenerate-service REQUESTED row was never a real
+  // commitment. Resources with zero occupancy in the window are simply absent from the returned
+  // map (callers treat a missing key as 0), not an error. `excludeBookingLineIds`, when set,
+  // ignores occupancy rows belonging to those exact lines — same self-exclusion shape as
+  // findConflictingResourceIds, needed so approve-booking/reschedule-booking's fresh AUTO_ANY
+  // re-resolution never counts the booking's own existing HOLD/COMMITTED row as workload against
+  // itself.
+  countActiveByResource(
+    tenantId: string,
+    resourceIds: string[],
+    from: Date,
+    to: Date,
+    excludeBookingLineIds?: string[],
+  ): Promise<Map<string, number>>;
+
+  // Replays a booking's already-persisted, CURRENTLY-occupying resource choice(s) for a fresh
+  // re-resolution (approve-booking / reschedule-booking's "resolve fresh every time" design,
+  // M23-S01 story-discovery) — a CUSTOMER_CHOICE requirement has no HTTP request to re-derive a
+  // selection from at approval/reschedule time. Reads via the live resource_occupancy projection
+  // (joined to booking_line_resource_assignments for resourceType/legIndex), not the
+  // booking_line_resource_assignments audit table directly — that table is append-only and never
+  // deletes a superseded row, so a booking rescheduled to a different resource more than once
+  // would otherwise return stale, no-longer-occupying resource ids alongside the current one.
+  // Ordered by quantity_position so a multi-unit requirement's
+  // resourceSelections array preserves its original positional assignment. AUTO_ANY/
+  // AUTO_FUNGIBLE_POOL requirements ignore these entries (they always re-derive fresh) — returning
+  // them anyway is harmless, not incorrect.
+  findAssignmentsByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<ResourceLineAssignment[]>;
+}
+
+export interface ResourceLineAssignment {
+  bookingLineId: string;
+  resourceId: string;
+  resourceType: ResourceType;
+  legIndex: number | null;
 }

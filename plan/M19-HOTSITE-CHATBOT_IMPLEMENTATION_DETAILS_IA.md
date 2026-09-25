@@ -24,7 +24,7 @@
 | `SendChatMessageUseCase` (UC-033) | `apps/backend/src/contexts/platform/application/use-cases/send-chat-message.use-case.ts` |
 | `GetChatbotStatusUseCase` (UC-034) | `apps/backend/src/contexts/platform/application/use-cases/get-chatbot-status.use-case.ts` |
 | `GetChatbotCapStatusUseCase` (UC-027 A5) | `apps/backend/src/contexts/platform/application/use-cases/get-chatbot-cap-status.use-case.ts` |
-| Session resolution / cap-check shared helpers | `apps/backend/src/contexts/platform/application/use-cases/chatbot-session-resolution.helpers.ts`, `chatbot-cap-check.types.ts` |
+| Session resolution / cap-check shared helpers | `apps/backend/src/contexts/platform/application/use-cases/chatbot-cap-check.helpers.ts`, `chatbot-cap-check.types.ts` |
 
 ### Backend — infrastructure (LLM adapters)
 

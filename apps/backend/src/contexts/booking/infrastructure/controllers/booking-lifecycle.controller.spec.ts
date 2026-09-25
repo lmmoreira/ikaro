@@ -161,6 +161,8 @@ describe('BookingLifecycleController', () => {
         resourceName: location.name,
         legIndex: null,
         quantityPosition: null,
+        selectionMode: 'NONE' as const,
+        isBundleMember: false,
         startsAt: scheduledAt,
         endsAt: new Date(scheduledAt.getTime() + 60 * 60_000),
       });

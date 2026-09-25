@@ -5,7 +5,7 @@ import {
   GenericErrorCode,
   PhoneErrorCode,
 } from '@ikaro/types';
-import { AddressShapeSchema, isValidPhoneNumber } from '@ikaro/validation';
+import { AddressShapeSchema, isValidPhoneNumber, ResourceSelectionSchema } from '@ikaro/validation';
 
 // Split out of bookings.controller.ts to keep it under the file-length cap — request/query Zod
 // schemas and their inferred body types, re-exported from bookings.controller.ts so existing
@@ -31,6 +31,8 @@ export const RequestBookingBodySchema = z.object({
   // Bound — mirrors the backend's identical cap (request-booking.dto.ts).
   serviceIds: z.array(z.uuid()).min(1).max(20),
   beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
+  // CUSTOMER_CHOICE picks (M23-S01, UC-061/064/065) — mirrors the backend's identical field.
+  resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
 });
 
 export const AuthenticatedBookingBodySchema = z.object({
@@ -39,6 +41,7 @@ export const AuthenticatedBookingBodySchema = z.object({
   pickupAddress: AddressShapeSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
   beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
+  resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
 });
 
 export const RejectBookingBodySchema = z.object({

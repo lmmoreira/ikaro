@@ -20,6 +20,8 @@ function buildCandidate(
     quantityPosition: null,
     startsAt: new Date('2026-06-01T10:00:00.000Z'),
     endsAt: new Date('2026-06-01T11:00:00.000Z'),
+    selectionMode: 'NONE',
+    isBundleMember: false,
     ...overrides,
   };
 }

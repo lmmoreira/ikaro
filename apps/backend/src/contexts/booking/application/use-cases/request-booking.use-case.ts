@@ -28,12 +28,8 @@ import {
   PhotoPromotionOperation,
 } from '../services/photo-existence.service';
 import { RequestBookingDto } from '../dtos/request-booking.dto';
-import {
-  buildLineInputs,
-  createBookingAddress,
-  persistRequestedBooking,
-  toBookingResult,
-} from './booking-request.helpers';
+import { createBookingAddress, persistRequestedBooking } from './booking-request.helpers';
+import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
 
 export type RequestBookingUseCaseInput = RequestBookingDto & {
@@ -74,7 +70,7 @@ export class RequestBookingUseCase {
       pickupAddress,
     );
 
-    await persistRequestedBooking(
+    const candidatesByLine = await persistRequestedBooking(
       {
         txManager: this.txManager,
         slotConflictService: this.slotConflictService,
@@ -85,7 +81,15 @@ export class RequestBookingUseCase {
         occupancyRepo: this.occupancyRepo,
         availabilityService: this.availabilityService,
       },
-      { booking, tenantId, scheduledAt, operations, serviceMap },
+      {
+        booking,
+        tenantId,
+        scheduledAt,
+        timezone: input.timezone,
+        operations,
+        serviceMap,
+        resourceSelections: toResourceSelections(input.resourceSelections),
+      },
     );
 
     this.logger.log('Booking requested', {
@@ -94,7 +98,7 @@ export class RequestBookingUseCase {
       bookingType: booking.type,
     });
 
-    return this.toResult(booking);
+    return this.toResult(booking, candidatesByLine);
   }
 
   private async resolveServices(
@@ -196,7 +200,10 @@ export class RequestBookingUseCase {
     });
   }
 
-  private toResult(booking: Booking): RequestBookingUseCaseResult {
-    return toBookingResult(booking);
+  private toResult(
+    booking: Booking,
+    candidatesByLine: Awaited<ReturnType<typeof persistRequestedBooking>>,
+  ): RequestBookingUseCaseResult {
+    return toBookingResult(booking, candidatesByLine);
   }
 }

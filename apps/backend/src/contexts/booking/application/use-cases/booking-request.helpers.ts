@@ -2,11 +2,9 @@ import type { AddressSpec } from '@ikaro/i18n';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Booking } from '../../domain/booking.aggregate';
-import { BookingLineInput } from '../../domain/booking-line.entity';
 import {
   BookingAddressValidationError,
   BookingServiceConcurrentModificationError,
-  BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
 import { Service } from '../../domain/service.aggregate';
 import {
@@ -23,12 +21,17 @@ import {
   PhotoPromotionOperation,
   PhotoExistenceService,
 } from '../services/photo-existence.service';
-import { BookingRequestResult } from './booking-request.types';
 import { assignBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
   resolveBookingLinesResourceCandidates,
   ResolvedLineCandidates,
+  ResourceSelectionInput,
 } from './resource-occupancy.helpers';
+
+// Transactional orchestration only — see booking-request.mapper.ts for the pure DTO/domain shape
+// translation functions this file's callers also need (docs/CODE_STANDARDS.md: a function that
+// awaits a port, holds a transaction, or enforces a business rule is not a "helper" in the same
+// sense as a no-I/O mapper, even when both are used by the same use cases).
 
 const DEFAULT_MANUAL_HOLD_MINUTES = 30; // platform default, docs/02-DOMAIN_MODEL.md
 
@@ -36,10 +39,14 @@ export interface PersistRequestedBookingParams {
   booking: Booking;
   tenantId: string;
   scheduledAt: Date;
+  timezone: string;
   operations: PhotoPromotionOperation[];
   // Snapshotted pre-transaction (resolveServices()) — compared against each service's own
   // freshly-locked state below to detect (not just narrow) a concurrent bookingModel change.
   serviceMap: Map<string, Service>;
+  // Customer's CUSTOMER_CHOICE picks from the request body (M23-S01) — AUTO_ANY/
+  // AUTO_FUNGIBLE_POOL/NONE requirements ignore this entirely.
+  resourceSelections: ResourceSelectionInput[];
 }
 
 // Bundled to keep persistRequestedBooking() under SonarCloud's max-parameters threshold (S107) —
@@ -68,61 +75,6 @@ export function createBookingAddress(
     }
     throw err;
   }
-}
-
-export function buildLineInputs(
-  serviceIds: string[],
-  serviceMap: Map<string, Service>,
-): BookingLineInput[] {
-  return serviceIds.map((serviceId) => {
-    const service = serviceMap.get(serviceId);
-    if (!service) throw new BookingServiceNotInTenantError(serviceId);
-    return {
-      serviceId: service.id,
-      serviceNameAtBooking: service.name,
-      priceAtBooking: service.price,
-      durationMinsAtBooking: service.durationMinutes,
-      pointsValueAtBooking: service.loyaltyPointsValue,
-      requiresPickupAddressAtBooking: service.requiresPickupAddress,
-    };
-  });
-}
-
-export function toBookingResult(booking: Booking): BookingRequestResult {
-  const pickup = booking.pickupAddress;
-  return {
-    bookingId: booking.id,
-    status: booking.status,
-    scheduledAt: booking.scheduledAt.toISOString(),
-    totalPrice: {
-      amount: booking.totalPrice.amount.toNumber(),
-      currency: booking.totalPrice.currency,
-    },
-    totalDurationMins: booking.totalDurationMins,
-    pickupAddress: pickup
-      ? {
-          street: pickup.street,
-          number: pickup.number,
-          complement: pickup.complement ?? null,
-          neighborhood: pickup.neighborhood ?? null,
-          city: pickup.city,
-          state: pickup.state,
-          zipCode: pickup.zipCode,
-        }
-      : null,
-    beforeServicePhotoUrls: booking.beforeServicePhotoUrls ?? [],
-    lines: booking.lines.map((l) => ({
-      lineId: l.lineId,
-      serviceId: l.serviceId,
-      priceAtBooking: {
-        amount: l.priceAtBooking.amount.toNumber(),
-        currency: l.priceAtBooking.currency,
-      },
-      durationMinsAtBooking: l.durationMinsAtBooking,
-      pointsValueAtBooking: l.pointsValueAtBooking,
-      requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-    })),
-  };
 }
 
 // Locks every referenced Service row, in one round trip, before this booking becomes its first
@@ -172,48 +124,53 @@ function resolveHoldExpiresAt(serviceMap: Map<string, Service>): Date {
 // same resolution, so it happens once. No excludeBookingId — this is a brand-new booking, nothing
 // of its own can exist yet to self-conflict with. Must stay inside the write transaction because
 // lockResources uses pg_advisory_xact_lock, which only protects the slot check for this tx.
+// Takes `deps`/`params` directly (not individual fields) to stay under SonarCloud's
+// max-parameters threshold (S107) — same bundling `persistRequestedBooking`
+// itself already uses.
 async function resolveAndCheckCandidates(
-  resourceRepo: IResourceRepository,
-  availabilityService: AvailabilityService,
-  slotConflictService: BookingSlotConflictService,
-  booking: Booking,
-  tenantId: string,
-  scheduledAt: Date,
-  serviceMap: Map<string, Service>,
+  deps: PersistRequestedBookingDeps,
+  params: Pick<
+    PersistRequestedBookingParams,
+    'booking' | 'tenantId' | 'scheduledAt' | 'timezone' | 'serviceMap' | 'resourceSelections'
+  >,
 ): Promise<Map<string, ResolvedLineCandidates>> {
-  const candidatesByLine = await resolveBookingLinesResourceCandidates(
-    resourceRepo,
-    availabilityService,
+  const { booking, tenantId, scheduledAt, timezone, serviceMap, resourceSelections } = params;
+  const candidatesByLine = await resolveBookingLinesResourceCandidates({
+    resourceRepo: deps.resourceRepo,
+    availabilityService: deps.availabilityService,
+    occupancyRepo: deps.occupancyRepo,
     tenantId,
     scheduledAt,
-    booking.lines.map((line) => ({
+    timezone,
+    lines: booking.lines.map((line) => ({
       lineId: line.lineId,
       serviceId: line.serviceId,
       durationMinsAtBooking: line.durationMinsAtBooking,
     })),
     serviceMap,
-  );
+    resourceSelections,
+  });
   const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
-  await slotConflictService.assertSlotFree(tenantId, allCandidates);
+  await deps.slotConflictService.assertSlotFree(tenantId, allCandidates);
   return candidatesByLine;
 }
 
 export async function persistRequestedBooking(
   deps: PersistRequestedBookingDeps,
   params: PersistRequestedBookingParams,
-): Promise<void> {
-  const { booking, tenantId, scheduledAt, operations, serviceMap } = params;
+): Promise<Map<string, ResolvedLineCandidates>> {
+  const { booking, tenantId, scheduledAt, timezone, operations, serviceMap, resourceSelections } =
+    params;
 
-  await deps.txManager.run(async () => {
-    const candidatesByLine = await resolveAndCheckCandidates(
-      deps.resourceRepo,
-      deps.availabilityService,
-      deps.slotConflictService,
+  return deps.txManager.run(async () => {
+    const candidatesByLine = await resolveAndCheckCandidates(deps, {
       booking,
       tenantId,
       scheduledAt,
+      timezone,
       serviceMap,
-    );
+      resourceSelections,
+    });
 
     const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
     await lockAndVerifyServiceModels(deps.serviceRepo, serviceIds, tenantId, serviceMap);
@@ -231,5 +188,7 @@ export async function persistRequestedBooking(
     await deps.txManager.scheduleAfterCommit(() =>
       deps.photoExistenceService.executePhotoPromotion(operations),
     );
+
+    return candidatesByLine;
   });
 }

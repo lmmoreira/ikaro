@@ -1,5 +1,14 @@
 import { BookingStatus, BookingType, ResourceType } from '@ikaro/types';
 
+// One leg's resolved schedule/resource entry on a legged-service booking line (UC-065) — mirrors
+// the backend's identical BookingLineItineraryLeg shape (M23-S01).
+export interface BookingLineItineraryLegResponse {
+  legIndex: number;
+  resourceName: string;
+  startsAt: string;
+  endsAt: string;
+}
+
 export interface BookingLineResponse {
   lineId: string;
   serviceId: string;
@@ -7,6 +16,11 @@ export interface BookingLineResponse {
   durationMinsAtBooking: number;
   pointsValueAtBooking: number;
   requiresPickupAddressAtBooking: boolean;
+  // Set only for a flat AUTO_ANY requirement (UC-063) — never for AUTO_FUNGIBLE_POOL or
+  // CUSTOMER_CHOICE (M23-S01).
+  assignedResourceName?: string;
+  // Set only for a legged service (UC-065); mutually exclusive with assignedResourceName above.
+  itinerary?: BookingLineItineraryLegResponse[];
 }
 
 export interface AddressResponse {
