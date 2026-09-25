@@ -12,6 +12,7 @@ import {
 } from '@/e2e/helpers/schedule';
 import { createResource, deactivateResource } from '@/e2e/helpers/booking';
 import { createService, deactivateService, makeUniqueServiceName } from '@/e2e/helpers/services';
+import { inviteStaff } from '@/e2e/helpers/staff';
 import { BFF_URL, WEB_INTERNAL_KEY } from '@/e2e/helpers/auth/shared';
 
 // funcionario@lavacar.com.br is the genuine STAFF-role fixture account for this same tenant
@@ -348,7 +349,10 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await expect(page.getByRole('link', { name: unrelatedName })).toHaveCount(0);
       const matchedBlock = page.getByRole('link', { name: matchedName });
       await expect(matchedBlock).toBeVisible();
-      await expect(matchedBlock.getByTestId('timeline-block-resource-name')).toHaveText(
+      // TD44 Story 2: a booking's matched-resource identity now renders via the compact summary
+      // line, not the per-resource ResourceNameBadge (that testid stays reserved for openings/
+      // closures, untouched by this story).
+      await expect(matchedBlock.getByTestId('timeline-block-resource-summary')).toHaveText(
         resource.name,
       );
     } finally {
@@ -478,9 +482,19 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
   }) => {
     await loginAsScheduleStaff(page);
 
+    // A STAFF-type resource must link to a real Staff row via refId (BOOKING_RESOURCE_TYPE_REF_ID_
+    // MISMATCH otherwise) — inviteStaff is enough to create one, no activation needed, matching
+    // resources-manage.spec.ts's own "creates a STAFF resource" precedent.
+    const linkedStaff = await inviteStaff(page, {
+      email: uniqueTestEmail('e2e-week-triple-staff'),
+      firstName: 'Triple',
+      lastName: 'Staff',
+      role: 'STAFF',
+    });
     const staffResource = await createResource(page, {
       type: 'STAFF',
       name: uniqueLabel('E2E Week Triple Staff'),
+      refId: linkedStaff.staffId,
     });
     const roomResource = await createResource(page, {
       type: 'ROOM',
