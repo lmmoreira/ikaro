@@ -1072,7 +1072,7 @@ Returns:
 ### **UC-066: Customer Views a Specific Staff Member's Own Calendar**
 
 - **Actor:** Customer or Guest
-- **Endpoint:** `GET /resources/:id/availability`
+- **Endpoint:** `GET /v1/schedule/availability?...&resourceId=` (existing UC-011 endpoint, `resourceId` query param — already shipped by M22-S03; see `docs/14-API_CONTRACTS.md`)
 - **Preconditions:** Tenant has `STAFF`-type resources with `CUSTOMER_CHOICE` on at least one service.
 - **Trigger:** Customer browses a staff directory before booking.
 - **Main Flow:**
