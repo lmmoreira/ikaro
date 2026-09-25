@@ -1,4 +1,3 @@
-import { AvailabilityService } from '../../domain/services/availability.service';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -46,43 +45,70 @@ export async function resolveFlatLineCandidates(
   // requiredQuantity (a fungible-pool multi-unit requirement is not a bundle). Drives
   // BookingSlotConflictService's error classification.
   const isBundle = requirements.length > 1;
+  // Single source of truth for "this resource's own trailing buffer/turnover gap" — shared by
+  // resolveRequirementResources' AUTO_ANY availability pre-filter (which must check each
+  // candidate's TRUE effective window, not just the raw one) and the final candidate build below,
+  // so the two never compute a different answer for the same resource.
+  const gapMinutesFor = (resource: Resource): number =>
+    isLastLine
+      ? ctx.availabilityService.effectiveFlatGapMinutes(
+          service.bufferAfterMinutes ?? 0,
+          resource.turnoverMinutes,
+        )
+      : 0;
   const candidates: ResourceOccupancyCandidate[] = [];
   for (const requirement of requirements) {
-    const chosenResourceIds =
-      selectionsByKey.get(selectionKey(service.id, null, requirement.type)) ?? [];
-    // windowEnd is the RAW (pre-buffer/turnover) line end — known upfront, unlike the final
-    // gap-adjusted endsAt below, which varies per resource. Good enough for AUTO_ANY's
-    // availability pre-filter (resolveRequirementResources); a resource that's free on this raw
-    // window but busy only during its own trailing turnover still gets caught by the real
-    // assertSlotFree() check later, same as before.
-    const resources = await resolveRequirementResources(
-      requirement,
-      ctx,
-      chosenResourceIds,
-      lineStart,
-      lineEnd,
-    );
     candidates.push(
-      ...buildFlatCandidatesForRequirement(resources, requirement, {
-        service,
+      ...(await resolveFlatCandidatesForRequirement(requirement, service.id, ctx, {
         lineStart,
         lineEnd,
-        isLastLine,
         isBundleMember: isBundle,
-        availabilityService: ctx.availabilityService,
-      }),
+        gapMinutesFor,
+        selectionsByKey,
+      })),
     );
   }
   return candidates;
 }
 
+interface FlatRequirementResolutionContext extends FlatCandidateBuildContext {
+  selectionsByKey: Map<string, string[]>;
+}
+
+// windowEnd passed to resolveRequirementResources is the RAW (pre-gap) line end — the final
+// per-resource gap-adjusted endsAt is computed by buildFlatCandidatesForRequirement below, and
+// resolveRequirementResources applies that same gapMinutesFor function to each AUTO_ANY
+// candidate's own availability pre-check too.
+async function resolveFlatCandidatesForRequirement(
+  requirement: ResourceRequirement,
+  serviceId: string,
+  ctx: ResolutionContext,
+  resolutionCtx: FlatRequirementResolutionContext,
+): Promise<ResourceOccupancyCandidate[]> {
+  const { lineStart, lineEnd, isBundleMember, gapMinutesFor, selectionsByKey } = resolutionCtx;
+  const chosenResourceIds =
+    selectionsByKey.get(selectionKey(serviceId, null, requirement.type)) ?? [];
+  const resources = await resolveRequirementResources(
+    requirement,
+    ctx,
+    chosenResourceIds,
+    lineStart,
+    lineEnd,
+    gapMinutesFor,
+  );
+  return buildFlatCandidatesForRequirement(resources, requirement, {
+    lineStart,
+    lineEnd,
+    isBundleMember,
+    gapMinutesFor,
+  });
+}
+
 interface FlatCandidateBuildContext {
-  service: Service;
   lineStart: Date;
   lineEnd: Date;
-  isLastLine: boolean;
   isBundleMember: boolean;
-  availabilityService: AvailabilityService;
+  gapMinutesFor: (resource: Resource) => number;
 }
 
 function buildFlatCandidatesForRequirement(
@@ -90,26 +116,18 @@ function buildFlatCandidatesForRequirement(
   requirement: ResourceRequirement,
   buildCtx: FlatCandidateBuildContext,
 ): ResourceOccupancyCandidate[] {
-  const { service, lineStart, lineEnd, isLastLine, isBundleMember, availabilityService } = buildCtx;
-  return resources.map((resource, index) => {
-    const gap = isLastLine
-      ? availabilityService.effectiveFlatGapMinutes(
-          service.bufferAfterMinutes ?? 0,
-          resource.turnoverMinutes,
-        )
-      : 0;
-    return {
-      resourceId: resource.id,
-      resourceType: resource.type,
-      resourceName: resource.name,
-      legIndex: null,
-      quantityPosition: resources.length > 1 ? index : null,
-      startsAt: lineStart,
-      endsAt: new Date(lineEnd.getTime() + gap * 60_000),
-      selectionMode: requirement.selectionMode,
-      isBundleMember,
-    };
-  });
+  const { lineStart, lineEnd, isBundleMember, gapMinutesFor } = buildCtx;
+  return resources.map((resource, index) => ({
+    resourceId: resource.id,
+    resourceType: resource.type,
+    resourceName: resource.name,
+    legIndex: null,
+    quantityPosition: resources.length > 1 ? index : null,
+    startsAt: lineStart,
+    endsAt: new Date(lineEnd.getTime() + gapMinutesFor(resource) * 60_000),
+    selectionMode: requirement.selectionMode,
+    isBundleMember,
+  }));
 }
 
 // computeLegSpans's turnover param only extends a leg's OWN endsAtWithTurnover — it never affects

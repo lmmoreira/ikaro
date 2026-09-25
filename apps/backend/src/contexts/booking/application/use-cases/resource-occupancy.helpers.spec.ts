@@ -746,6 +746,97 @@ describe('resolveBookingLinesResourceCandidates', () => {
 
       expect(result.get('line-1')!.candidates[0].resourceId).toBe(higherWorkloadButFree.id);
     });
+
+    // The pre-filter must check each candidate's own TRUE effective window (raw window + that
+    // resource's own trailing buffer/turnover gap), not just the raw window — otherwise a
+    // resource that's busy only during its own trailing gap still passes the pre-filter, gets
+    // picked for its lower day-workload, and then fails the final assertSlotFree() check with a
+    // 409 even though a genuinely (fully) free resource existed.
+    it('excludes a resource whose only conflict falls in its own trailing turnover gap, even with lower day-workload', async () => {
+      const lowWorkloadButBusyDuringGap = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .withTurnoverMinutes(15)
+        .build();
+      const higherWorkloadButFullyFree = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .withTurnoverMinutes(0)
+        .build();
+      await resourceRepo.save(lowWorkloadButBusyDuringGap);
+      await resourceRepo.save(higherWorkloadButFullyFree);
+
+      const rawLineEnd = new Date(SCHEDULED_AT.getTime() + 30 * 60_000);
+      // Conflicts only in [rawLineEnd, rawLineEnd + 15min) — this resource's own trailing
+      // turnover extension, not the raw [SCHEDULED_AT, rawLineEnd) window. Day-workload count: 1.
+      await occupancyRepo.assign(
+        TENANT_ID,
+        'other-line-gap',
+        [
+          {
+            resourceId: lowWorkloadButBusyDuringGap.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: lowWorkloadButBusyDuringGap.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: rawLineEnd,
+            endsAt: new Date(rawLineEnd.getTime() + 15 * 60_000),
+            selectionMode: 'AUTO_ANY',
+            isBundleMember: false,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+      // Two rows earlier the same day, well clear of the requested window (day-workload count: 2
+      // — higher — but genuinely free, including its own zero-turnover trailing gap).
+      await occupancyRepo.assign(
+        TENANT_ID,
+        'other-line-clear-1',
+        [
+          {
+            resourceId: higherWorkloadButFullyFree.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: higherWorkloadButFullyFree.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: new Date('2026-06-01T08:00:00.000Z'),
+            endsAt: new Date('2026-06-01T08:30:00.000Z'),
+            selectionMode: 'AUTO_ANY',
+            isBundleMember: false,
+          },
+          {
+            resourceId: higherWorkloadButFullyFree.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: higherWorkloadButFullyFree.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: new Date('2026-06-01T08:30:00.000Z'),
+            endsAt: new Date('2026-06-01T09:00:00.000Z'),
+            selectionMode: 'AUTO_ANY',
+            isBundleMember: false,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+      );
+
+      expect(result.get('line-1')!.candidates[0].resourceId).toBe(higherWorkloadButFullyFree.id);
+    });
   });
 
   it('caches a resolved resource across repeated lookups within the same resolution call', async () => {

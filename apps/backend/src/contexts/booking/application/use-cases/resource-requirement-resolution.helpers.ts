@@ -12,16 +12,23 @@ import { ResolutionContext } from './resource-resolution-context.helpers';
 // resourceSelections entry (if any) into concrete Resource(s), shared by both the flat and legged
 // candidate builders in resource-occupancy-candidate-builders.helpers.ts.
 
-// windowEnd is the requirement's own exact window end when known upfront (a flat line's raw,
-// pre-gap lineEnd), or null when it isn't (a legged requirement — see
+// windowEnd is the requirement's own raw (pre-buffer/turnover) window end when known upfront (a
+// flat line's lineEnd), or null when it isn't (a legged requirement — see
 // resource-occupancy-candidate-builders.helpers.ts's call site for why legs deliberately opt out
-// of the AUTO_ANY availability pre-filter below).
+// of the AUTO_ANY availability pre-filter below). effectiveGapMinutes computes each CANDIDATE's
+// own trailing buffer/turnover gap given its resolved Resource — the same
+// max(bufferAfterMinutes, resource.turnoverMinutes) math buildFlatCandidatesForRequirement uses
+// to build the final persisted endsAt, needed here too so the pre-filter checks each candidate
+// against its own true effective window, not just the raw one (a resource busy only during its
+// own trailing gap must still be excluded — UC-063's "assigns whichever eligible staff member is
+// free" means truly free, not free-until-the-buffer-starts).
 export async function resolveRequirementResources(
   requirement: ResourceRequirement,
   ctx: ResolutionContext,
   chosenResourceIds: string[],
   windowStart: Date,
   windowEnd: Date | null,
+  effectiveGapMinutes: (resource: Resource) => number = () => 0,
 ): Promise<Resource[]> {
   const candidateIds = await resolveCandidateIds(
     requirement,
@@ -29,6 +36,7 @@ export async function resolveRequirementResources(
     chosenResourceIds,
     windowStart,
     windowEnd,
+    effectiveGapMinutes,
   );
   if (candidateIds.length < requirement.requiredQuantity) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
@@ -55,39 +63,59 @@ async function resolveCandidateIds(
   chosenResourceIds: string[],
   windowStart: Date,
   windowEnd: Date | null,
+  effectiveGapMinutes: (resource: Resource) => number,
 ): Promise<string[]> {
   if (requirement.selectionMode === 'CUSTOMER_CHOICE') {
     return resolveCustomerChoiceCandidateIds(requirement, chosenResourceIds);
   }
   const eligible = await resolveEligibleCandidateIds(requirement, ctx);
   if (requirement.selectionMode === 'AUTO_ANY') {
-    const free = await preferFreeCandidateIds(eligible, ctx, windowStart, windowEnd);
+    const free = await preferFreeCandidateIds(
+      eligible,
+      ctx,
+      windowStart,
+      windowEnd,
+      effectiveGapMinutes,
+    );
     return sortByLeastWorkload(free, ctx, windowStart);
   }
   return eligible;
 }
 
-// Narrows to the subset of candidateIds with no conflicting HOLD/COMMITTED row for the exact
-// requested window, before the workload sort ever runs — otherwise a lower-workload-but-busy
-// candidate could be preferred over a higher-workload-but-free one, and the booking would fail
-// with a 409 even though a genuinely free resource existed (UC-063's main flow: "assigns
-// whichever eligible staff member is free"). windowEnd === null (legs) or a single candidate
-// skips the filter entirely — see resolveRequirementResources' own doc comment for why.
+// Narrows to the subset of candidateIds with no conflicting HOLD/COMMITTED row for each
+// candidate's own true effective window (raw window + that resource's own trailing
+// buffer/turnover gap, via effectiveGapMinutes), before the workload sort ever runs — otherwise a
+// lower-workload-but-busy candidate could be preferred over a higher-workload-but-free one, and
+// the booking would fail with a 409 even though a genuinely free resource existed (UC-063's main
+// flow: "assigns whichever eligible staff member is free"). windowEnd === null (legs) or a single
+// candidate skips the filter entirely — see resolveRequirementResources' own doc comment for why.
 // Falls back to the full candidateIds list when every one of them appears busy, so the caller's
 // requiredQuantity/assertSlotFree checks still run and produce the correct "unavailable" error,
-// rather than this function returning [] and misreporting via a wrong error path.
+// rather than this function returning [] and misreporting via a wrong error path. Resource lookups
+// go through the shared fetchResourceCached() so the later, authoritative lookupResource() call
+// for whichever candidate is actually chosen doesn't re-fetch it.
 async function preferFreeCandidateIds(
   candidateIds: string[],
   ctx: ResolutionContext,
   windowStart: Date,
   windowEnd: Date | null,
+  effectiveGapMinutes: (resource: Resource) => number,
 ): Promise<string[]> {
   if (windowEnd === null || candidateIds.length <= 1) return candidateIds;
-  const windows = candidateIds.map((resourceId) => ({
-    resourceId,
-    startsAt: windowStart,
-    endsAt: windowEnd,
-  }));
+  const windows = [];
+  for (const resourceId of candidateIds) {
+    const resource = await fetchResourceCached(resourceId, ctx);
+    // An unresolvable id (e.g. deactivated since resolveEligibleCandidateIds ran) is left out of
+    // the free-window check entirely — lookupResource() will reject it later with the correct
+    // error if it's ever actually chosen; it's simply never preferred here.
+    if (!resource) continue;
+    const gapMinutes = effectiveGapMinutes(resource);
+    windows.push({
+      resourceId,
+      startsAt: windowStart,
+      endsAt: new Date(windowEnd.getTime() + gapMinutes * 60_000),
+    });
+  }
   const conflicting = new Set(
     await ctx.occupancyRepo.findConflictingResourceIds(
       ctx.tenantId,
