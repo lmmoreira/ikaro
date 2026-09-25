@@ -93,11 +93,19 @@ export function buildBookingTimelineEvent(
     );
   });
   // Always sourced from the booking's own assigned resources — present on every booking
-  // regardless of any resource-filter check state (TD44-S2 round 3). Type-prioritized
-  // (STAFF > ROOM > EQUIPMENT), alphabetical tiebreak within the same type. Falls back to an
-  // empty array defensively — the field is required at the type level, but this guards against a
-  // stale cached response from before it existed.
+  // regardless of any resource-filter check state (TD44-S2 round 3). Excludes LOCATION: unlike
+  // the old day-grid-derived resourceNames (which only ever carried checked, hence never-LOCATION,
+  // resources — LOCATION is never selectable, useSelectableResources.ts), booking.assignedResources
+  // now comes straight from booking_line_resource_assignments and includes the tenant's LOCATION
+  // fallback that every "degenerate" (no resourceRequirements) service's booking gets assigned for
+  // occupancy purposes (resource-occupancy.helpers.ts's DEGENERATE_LOCATION_REQUIREMENT) — a
+  // near-universal, not resource-specific, assignment that the summary line was never meant to
+  // surface (TD44-S2's own AC: "LOCATION-type resources never reach this code path"). Type-
+  // prioritized (STAFF > ROOM > EQUIPMENT), alphabetical tiebreak within the same type. Falls back
+  // to an empty array defensively — the field is required at the type level, but this guards
+  // against a stale cached response from before it existed.
   const resourceNames = [...(booking.assignedResources ?? [])]
+    .filter((r) => r.resourceType !== 'LOCATION')
     .sort(compareResourceAssignmentsByTypePriority)
     .map((r) => r.resourceName);
 

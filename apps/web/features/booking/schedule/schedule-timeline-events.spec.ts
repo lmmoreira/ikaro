@@ -102,6 +102,36 @@ describe('buildBookingTimelineEvent', () => {
     // STAFF outranks ROOM regardless of the input array's own order.
     expect(event.resourceNames).toEqual(['Camila Duarte', 'Sala 1']);
   });
+
+  it('excludes LOCATION-type assigned resources from resourceNames (TD44-S2 round 5) — the tenant-wide fallback every degenerate-service booking gets assigned never surfaces in the summary line', () => {
+    const booking = makeBooking({
+      assignedResources: [
+        {
+          resourceId: 'res-location',
+          resourceType: 'LOCATION',
+          resourceName: 'Localização Principal',
+        },
+      ],
+    });
+    const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00');
+    expect(event.resourceNames).toEqual([]);
+  });
+
+  it('excludes LOCATION but keeps every other assigned resource, type-prioritized (TD44-S2 round 5)', () => {
+    const booking = makeBooking({
+      assignedResources: [
+        {
+          resourceId: 'res-location',
+          resourceType: 'LOCATION',
+          resourceName: 'Localização Principal',
+        },
+        { resourceId: 'res-sala', resourceType: 'ROOM', resourceName: 'Sala 1' },
+        { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+      ],
+    });
+    const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00');
+    expect(event.resourceNames).toEqual(['Camila Duarte', 'Sala 1']);
+  });
 });
 
 describe('buildClosureTimelineEvent', () => {
