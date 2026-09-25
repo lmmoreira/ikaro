@@ -66,7 +66,7 @@ The whole scalability argument for the bounded-columns design rests on the subse
 
 ---
 
-## Story 1 — Week view: filter bookings to checked resources, with per-resource badges
+## Story 1 — Week view: filter bookings to checked resources, with per-resource badges ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M–L
