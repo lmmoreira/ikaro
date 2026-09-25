@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx`, `ScheduleResourceColumnsBoard.tsx` (M22-S06)
 - **Created**: 2026-09-24
 - **Discovered**: Codex round-4 review of PR #511 (M22-S06, manager bounded multi-resource column view)
-- **State**: Open — not yet started; `/story-discovery` not yet run (the exact cap/UX treatment is deliberately left open below, not pre-decided)
+- **State**: In progress — Story 0/Story 1 ✅ Done; Story 2 (compact resource-badge row) and Story 3 (shared hour axis) drafted 2026-09-25, `/story-discovery` not yet run on either
 - **Related**: M22-S06 (`plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`), M21-S05 (`ResourceFilterMenu`)
 
 ---
@@ -127,5 +127,110 @@ A full columns-per-day-card layout was considered and ruled impractical (7 days 
   - [ ] Manager checks only one of a bundled booking's two assigned resources → the booking still shows (≥1 assigned resource checked) but with a badge for only the checked resource
   - [ ] Manager unchecks the checked resource(s) → Week view reverts to the unfiltered, unbadged baseline; a previously-hidden booking reappears
   - [ ] Day view's columns board (Story 0) and STAFF's unfiltered view are unaffected by any of the above (non-regression)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+## Story 2 — Week view: compact resource-badge row (STAFF>ROOM>EQUIPMENT priority, +N overflow)
+
+**Agent:** `frontend-ts`
+**Complexity:** M
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/08-TESTING_STRATEGY.md`
+**Discovered:** User conversation following TD44-S1's merge (2026-09-25) — TD44-S1 itself flagged a real, unverified risk in its own implementation notes: Week view's compact day-cards position booking blocks with a fixed height computed from duration, not content, so a short booking carrying 2+ resource badges (rendered via `flex-wrap` in the trailing row) could wrap past the block's height and clip under `overflow-hidden`.
+**Dependencies:** TD44-S1 (done) — this story only reshapes how `BookingTimelineEvent.resourceNames` is *ordered* and *rendered*, not the filtering logic itself.
+**Pattern:** plain composition — extends the existing sort step in `buildBookingResourceNamesById` (schedule-page-timeline-derived.ts) with a type-priority comparator; the new divider+resource line is composed entirely inside `renderBookingTimelineEvent`'s own `footer` value (`ScheduleTimelineEventRenderer.tsx`) — no shared-component API change, since `TimelineBlockShell`'s `footer` slot is only consumed by booking blocks today (closures/openings use `subtitle` for their own time text, not `footer`).
+
+**Description:**
+Today, a booking matching 2+ checked resources renders one `<ResourceNameBadge>` per matched resource, wrapped inline next to the status badge in the trailing row — unbounded height growth as match count grows. This story replaces that with a fixed-shape addition: the block's existing content (title = contact name, subtitle = services, status badge in the trailing row) stays exactly as it renders today; a new line is added below it, separated by a subtle divider, showing:
+- **Zero matched resources** (today's default, or filter inactive) → no divider, no new line — identical to today.
+- **Exactly one matched resource** → divider + that resource's name, no count suffix.
+- **Two or more matched resources** → divider + **one** resource's name, chosen by type priority **STAFF > ROOM > EQUIPMENT** (alphabetical tiebreak within the same type — unchanged from today's sort, just type-prioritized first), followed by a `+N` suffix where `N` is the count of *remaining* matched resources not shown (e.g. 3 total → "Camila +2"). LOCATION-type resources never reach this code path — `useSelectableResources` already excludes them from the resource filter entirely.
+
+This guarantees the block's height grows by exactly one fixed line regardless of how many resources matched, closing TD44-S1's own flagged overflow risk by design rather than by (already-verified-sufficient, but visually untested) `flex-wrap`.
+
+**Type-priority plumbing (new):** `resourceNames` currently carries only display names (`readonly string[]`), sorted alphabetically in `buildBookingResourceNamesById`. Resource *type* isn't threaded anywhere in this pipeline today — `useReconciledSelectedResourceIds` (`schedule-page-core-data.ts`) already has the full `ResourceResponse` list (`type` field included) when it builds `resourceNameById`; add a sibling `resourceTypeById: ReadonlyMap<string, ResourceType>` built from the same `resources` array, thread it through `useScheduleTimelineDerived`'s input the same way `resourceNameById` already flows, and use it in `buildBookingResourceNamesById`'s comparator: sort by type rank (`STAFF` → 0, `ROOM` → 1, `EQUIPMENT` → 2) first, then `localeCompare` on name. `resourceNames` itself stays `readonly string[]` — priority is baked into its order, so the renderer only ever needs `resourceNames[0]` and `resourceNames.length`.
+
+**Open question, not resolved here — flag for `/story-discovery`:** exact vertical placement of the new divider+resource line relative to the existing time-range `footer` text (today's only `footer` content) — directly below title/subtitle/status (i.e. *above* the time range), or below the time range. The conversation that resolved this design named the sequence "name → status → divider → resources" without mentioning the time-range footer at all; the default assumption here is *above* the time range (resources read as identity metadata, closer to the title), but confirm before implementing.
+
+**Files to create/modify:**
+- `apps/web/features/booking/schedule/schedule-page-core-data.ts` (+ `.spec.tsx`) (modify — new `resourceTypeById` lookup, sibling to the existing `resourceNameById`)
+- `apps/web/features/booking/schedule/schedule-page-timeline-derived.ts` (+ `.spec.tsx`) (modify — thread `resourceTypeById` through; type-priority comparator in `buildBookingResourceNamesById`)
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (+ `.spec.tsx`) (modify — replace the `resourceNames.map(...)` multi-badge trailing row with a single primary-name + `+N` line inside `footer`, below a subtle divider)
+- `apps/web/e2e/schedule-resource-columns.spec.ts` (modify — **rewrite**, not just extend, the two existing "Week view resource filter/badges" bundled-booking scenarios from TD44-S1, since they currently assert 2 separate named badges; they must assert the new primary+"+N" shape instead)
+
+**Acceptance criteria — product:**
+- [ ] A booking with 0 matched resources renders identically to today — no divider, no new line.
+- [ ] A booking with exactly 1 matched resource shows a divider + that resource's name, no `+N`.
+- [ ] A booking with 2+ matched resources shows a divider + the type-prioritized name (STAFF over ROOM over EQUIPMENT) + `+N` (N = remaining count, not total).
+- [ ] Two same-type matched resources tiebreak alphabetically (unchanged behavior, now type-scoped).
+- [ ] A booking block's total height never varies with match count — always exactly one additional line when 1+ resources matched.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] Type-priority comparator orders STAFF before ROOM before EQUIPMENT, alphabetical within the same type
+  - [ ] `resourceNames.length === 0` → renderer adds no divider/line (non-regression)
+  - [ ] `resourceNames.length === 1` → renderer shows the name with no `+N`
+  - [ ] `resourceNames.length === 3` → renderer shows `resourceNames[0]` + `+2`
+- Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
+- Tenant isolation: n/a — client-side only
+- E2E: rewrite TD44-S1's two bundled-booking Week-view scenarios (both-checked, partial-checked) to assert the new primary+`+N` shape instead of per-resource badges; add one scenario for 3 matched resources asserting `+2`
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+## Story 3 — Shared hour axis across resource columns and week day-cards, opt-out for exceptional openings
+
+**Agent:** `frontend-ts`
+**Complexity:** L
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/08-TESTING_STRATEGY.md`
+**Discovered:** User conversation following TD44-S1's merge (2026-09-25) — both `ScheduleResourceColumnsBoard` (Day view, one column per checked resource) and `ScheduleWeekView` (7 day-cards) render a full, independent hour-axis ruler per column/card via `ScheduleTimelineBoard`'s `slotLabels`/`compactLabelIndexes`, repeating the same visual information across every column/card and consuming horizontal space that scales with however many are checked/visible.
+**Dependencies:** none blocking (TD44-S0/S1 done); touches the same `ScheduleTimelineBoard`/`ScheduleResourceColumnsBoard`/`ScheduleWeekView` files Story 0/1/TD43 already modified — verify no conflicting in-flight change before starting.
+**Pattern:** plain composition, but a structurally larger change than Story 1/2 — a new "resolve shared timeline window across visible members" step runs once at the board level (`ScheduleResourceColumnsBoard.tsx` for Day view, the Week-view derivation in `schedule-page-timeline-derived.ts`), before per-column/per-card rendering; `ScheduleTimelineBoard` gains a way to render with an externally-supplied axis range instead of always deriving its own.
+
+**Description:**
+**Corrected understanding vs. the original conversation:** `Resource.workingHours` exists as a field and is consumed by the *backend's* availability computation (`availability.service.ts`), but is **not** currently wired into the frontend's Day-view columns timeline at all — every column in `ScheduleResourceColumnsBoard` is rendered for the same single selected date with the same tenant-wide `businessHours`, so today the *only* thing that can make one Day-view column's active window differ from another's is a resource-scoped `ScheduleOpening` (an exceptional opening) for that specific resource on that date. For Week view, the primary source of legitimate per-day-card variation is **per-weekday regular business hours** (`TenantBusinessHours` can differ per day of week, e.g. Saturday closes earlier) — not an exception, just normal variation — plus the same resource/tenant-wide exceptional-opening case layered on top for a given day.
+
+**Resolved design (from conversation, including the "manager opens an exceptional 2am slot" edge case):**
+- Compute a **shared hour axis** as the union (widest start-to-end) across every currently-visible column's (Day view) or day-card's (Week view) *regular-hours-driven* window only.
+- A column/day-card whose active window is currently **overridden by an exceptional opening** (tenant-wide or resource-scoped) **opts out** of the shared axis entirely and keeps rendering exactly as it does today — its own full independent ruler, own coordinate space. No new UI for this case; it's simply excluded from the union and from label-sharing.
+- Every column/day-card that *does* join the shared group renders its blocks positioned against the **shared** range (not its own individually-resolved one), so a shared 09:00 gridline means the same thing in every shared member.
+- The hour-label column itself renders **once** for the shared group (its first member); every other shared member renders only its grid-lines, no repeated labels. Opt-out members keep their own full label column, wherever they sit in the layout.
+- This naturally handles the 2am-exceptional-opening case: that one column/day-card is excluded from the union (so it doesn't force every other column/card to stretch to cover 02:00–18:00+), and keeps its own separate, correctly-scaled ruler.
+
+**New field:** `ActiveTimelineHours` (`schedule-timeline-window.ts`) gains `readonly isOverriddenByOpening: boolean` — true when `resolveActiveWindow` picked its window from `dayOpenings` (tenant-wide or resource-scoped), false when it fell back to `regularHours`. This is the exact signal the opt-out check needs; no new business logic to derive it; `resolveActiveWindow` already knows which branch it took.
+
+**New "resolve shared window" step:** a pure function, e.g. `resolveSharedTimelineWindow(members: readonly ActiveTimelineHours[])`, partitioning into shared/opt-out groups and returning `{ sharedStartMinutes, sharedEndMinutes, sharedMemberIndexes }` (or equivalent) — called once by `ScheduleResourceColumnsBoard.tsx` (over its checked resources' resolved hours) and once by the Week-view derivation in `schedule-page-timeline-derived.ts` (over its 7 days). Feed the resolved shared range into `buildTimelineEvents`/`buildBlockStyle` for shared members in place of their own `timelineStartMinutes`/`timelineEndMinutes` — their own events/closures/openings are unaffected, only the coordinate space they're positioned against changes.
+
+**Flag for `/story-discovery`, not resolved here — this is a genuinely large change, evaluate before committing:** this touches the core positioning math (`buildBlockStyle`, `TimelineCompactBoard`, `TimelineDesktopBoard`) shared by every existing timeline rendering path in this codebase (Day view single-timeline, Day view columns, Week view). Before implementing, re-validate this is worth the added machinery relative to a simpler alternative that achieves most of the same space saving with far less risk — e.g. just narrowing the repeated hour-label column's width (or hiding it on columns/cards past the first without touching any positioning math) rather than actually unifying coordinate spaces. Per CLAUDE.md §7's "mounting complexity" principle: if the simpler option gets most of the visual win with none of this story's cross-column-alignment risk, it may be the better call. Bring both options to the user explicitly rather than assuming the union approach is final.
+
+**Files likely touched (confirm exact list during `/story-discovery`):**
+- `apps/web/features/booking/schedule/schedule-timeline-window.ts` (+ `.spec.ts`) (modify — `isOverriddenByOpening` field)
+- `apps/web/features/booking/schedule/schedule-timeline.ts` (+ `.spec.ts`) (modify — accept an optional externally-supplied shared range)
+- New pure module, e.g. `schedule-shared-timeline-window.ts` (+ `.spec.ts`) (new — `resolveSharedTimelineWindow`)
+- `apps/web/features/booking/schedule/schedule-resource-columns.ts` (+ `.spec.ts`) (modify — resolve + apply the shared window across checked resources)
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` (+ `.spec.tsx`) (modify — render one shared label column instead of one per resource)
+- `apps/web/features/booking/schedule/schedule-page-timeline-derived.ts` (+ `.spec.tsx`) (modify — resolve + apply the shared window across the 7 visible days)
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleWeekView.tsx` (+ `.spec.tsx`) (modify — render one shared label column instead of one per day-card)
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineBoard.tsx` (+ `.spec.tsx`) (modify — support rendering against an externally-supplied range, with/without its own label column)
+- `apps/web/e2e/schedule-resource-columns.spec.ts` / `schedule.spec.ts` (modify — assert single shared ruler in the common case, independent ruler retained for the exceptional-opening case)
+
+**Acceptance criteria — product:**
+- [ ] Day view, 2+ checked resources, all on regular hours → one shared hour ruler, not one per column.
+- [ ] Week view, a normal week (no exceptional openings) → one shared hour ruler, not one per day-card.
+- [ ] A resource/day with an exceptional opening (including a wildly-outside-normal-hours one, e.g. 2am) keeps its own independent ruler and doesn't force the shared ruler to stretch to cover it.
+- [ ] Every block's vertical position still correctly reflects its real time, in both the shared-axis members and the opt-out member(s).
+- [ ] Non-regression: a single checked resource (Day view) or a week with only one day having any events renders sensibly (shared-group-of-one collapses to today's exact single-ruler look).
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `resolveActiveWindow` sets `isOverriddenByOpening: true` when driven by a tenant-wide or resource-scoped opening, `false` when driven by regular hours
+  - [ ] `resolveSharedTimelineWindow` unions only the non-overridden members' ranges, excluding overridden ones entirely from the union
+  - [ ] A member with `isOverriddenByOpening: true` renders positioned against its own range, unaffected by the shared range
+  - [ ] A shared-group member's blocks position correctly against the shared (not its own individual) range
+- Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
+- Tenant isolation: n/a — client-side only
+- E2E: Day view with 2 resources on regular hours shows one ruler; add a resource with an exceptional opening and confirm it keeps its own separate ruler while the other two still share one
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
