@@ -413,7 +413,9 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       // name; resourceB is folded into "+1" instead of getting its own badge.
       const summary = bookingBlocks.getByTestId('timeline-block-resource-summary');
       await expect(summary).toHaveText(`${resourceA.name} +1`);
-      await expect(summary).toHaveAttribute('aria-label', `${resourceA.name}, ${resourceB.name}`);
+      // role="group" is required for aria-label to actually name the element — verify the real,
+      // browser-computed accessible name, not just the raw attribute (PR #514 round 2 finding).
+      await expect(summary).toHaveAccessibleName(`${resourceA.name}, ${resourceB.name}`);
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resourceA.id);

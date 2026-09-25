@@ -12,6 +12,8 @@ import {
   buildTimelineDayData,
   buildTimelineEvents,
   buildWeekShift,
+  COMPACT_MIN_BLOCK_HEIGHT_PX,
+  DESKTOP_MIN_BLOCK_HEIGHT_PX,
   formatEventRange,
   getClosureReasonLabel,
   getEventMinutes,
@@ -35,11 +37,25 @@ function makeBusinessHours(overrides: Partial<TenantBusinessHours> = {}): Tenant
 }
 
 describe('getSlotHeight', () => {
-  it('scales proportionally to slot granularity, with an 18px floor', () => {
+  it('scales proportionally to slot granularity, with an 18px floor by default', () => {
     expect(getSlotHeight(30)).toBe(48);
     expect(getSlotHeight(60)).toBe(96);
     expect(getSlotHeight(30, 0.45)).toBe(22);
     expect(getSlotHeight(15, 0.1)).toBe(18);
+  });
+
+  it('applies a content-driven minHeightPx floor when the raw scaled value would be shorter (TD44 Story 2 round 2)', () => {
+    // Week view's own scale (0.45) would otherwise floor a 30-min slot at 22px — far too short to
+    // fit title/subtitle/resource-line/time-range without clipping.
+    expect(getSlotHeight(30, 0.45, COMPACT_MIN_BLOCK_HEIGHT_PX)).toBe(COMPACT_MIN_BLOCK_HEIGHT_PX);
+    // Day view's own scale (1, the default) already exceeds the old 18px floor at 48px, but still
+    // falls short of the desktop content-driven minimum.
+    expect(getSlotHeight(30, 1, DESKTOP_MIN_BLOCK_HEIGHT_PX)).toBe(DESKTOP_MIN_BLOCK_HEIGHT_PX);
+  });
+
+  it('never lowers a raw scaled value that already exceeds minHeightPx', () => {
+    // A longer booking's naturally-scaled height stays proportional — the floor never caps it.
+    expect(getSlotHeight(120, 1, DESKTOP_MIN_BLOCK_HEIGHT_PX)).toBe(192);
   });
 });
 

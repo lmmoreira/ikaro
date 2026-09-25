@@ -168,7 +168,9 @@ describe('renderTimelineEvent', () => {
     renderWithIntl(<Host event={event} props={baseProps()} />);
     const line = screen.getByTestId('timeline-block-resource-summary');
     expect(line).toHaveTextContent('Camila Duarte +1');
-    expect(line).toHaveAttribute('aria-label', 'Camila Duarte, Sala 1');
+    // role="group" (BookingResourceSummaryLine) is required for aria-label to actually name the
+    // element — verify the computed accessible name, not just the raw attribute.
+    expect(line).toHaveAccessibleName('Camila Duarte, Sala 1');
   });
 
   it('renders the resource-summary line before the time-range text within the footer (TD44 Story 2)', () => {

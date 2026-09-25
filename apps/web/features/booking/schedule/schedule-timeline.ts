@@ -44,6 +44,8 @@ export {
   getClosureReasonLabel,
   normalizeScheduleStatuses,
   buildScheduleReturnTo,
+  DESKTOP_MIN_BLOCK_HEIGHT_PX,
+  COMPACT_MIN_BLOCK_HEIGHT_PX,
 } from '@/features/booking/schedule/schedule-timeline-formatting';
 
 export interface TimelineDayData {
@@ -66,6 +68,10 @@ export interface TimelineLayoutInput {
   readonly closures: readonly ScheduleClosure[];
   readonly openings: readonly ScheduleOpening[];
   readonly slotHeightScale?: number;
+  // Content-driven floor for a single slot's rendered height (TD44 Story 2, round 2) — see
+  // DESKTOP_MIN_BLOCK_HEIGHT_PX/COMPACT_MIN_BLOCK_HEIGHT_PX in schedule-timeline-formatting.ts.
+  // Every caller passes one explicitly; falls back to the old bare-minimum 18px only if omitted.
+  readonly minSlotHeightPx?: number;
   // Resolves a closure's/opening's resourceId to its display name (MANAGER-only — see
   // schedule-page-core-data.ts). Omitted (STAFF, or the fetch hasn't resolved yet) means every
   // event renders with resourceName: null, same as a tenant-wide item.
@@ -196,12 +202,13 @@ export function buildTimelineEvents({
   closures,
   openings,
   slotHeightScale = 1,
+  minSlotHeightPx = 18,
   resourceNameById = EMPTY_RESOURCE_NAME_BY_ID,
   selectedResourceIdSet = EMPTY_SELECTED_RESOURCE_IDS,
   bookingResourceNamesById = EMPTY_BOOKING_RESOURCE_NAMES_BY_ID,
 }: TimelineLayoutInput): TimelineWindow {
   const active = resolveActiveTimelineHours(selectedDateKey, businessHours, closures, openings);
-  const slotHeight = getSlotHeight(slotGranularityMinutes, slotHeightScale);
+  const slotHeight = getSlotHeight(slotGranularityMinutes, slotHeightScale, minSlotHeightPx);
 
   if (!active) {
     return { timelineStartMinutes: 0, timelineEndMinutes: 0, slotCount: 0, slotHeight, events: [] };

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { BOOKING_STATUS } from '@ikaro/types';
 import type { ResourceType, StaffBookingCardResponse, TenantBusinessHours } from '@ikaro/types';
 import { useScheduleTimelineDerived } from './schedule-page-timeline-derived';
+import { COMPACT_MIN_BLOCK_HEIGHT_PX, DESKTOP_MIN_BLOCK_HEIGHT_PX } from './schedule-timeline';
 
 function makeBusinessHours(): TenantBusinessHours {
   return {
@@ -229,6 +230,18 @@ describe('useScheduleTimelineDerived', () => {
 
       const events = result.current.weekTimelineCards[0].events;
       expect(events[0].kind === 'booking' && events[0].resourceNames).toEqual(['Ana', 'Bruna']);
+    });
+  });
+
+  describe('Content-driven minimum block height (TD44 Story 2 round 2)', () => {
+    it('gives Day view (selectedDayTimeline) the desktop minimum, not the old bare 18px floor', () => {
+      const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
+      expect(result.current.selectedDayTimeline.slotHeight).toBe(DESKTOP_MIN_BLOCK_HEIGHT_PX);
+    });
+
+    it('gives Week view (weekTimelineCards) the compact minimum, not the old scaled-down 22px floor', () => {
+      const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
+      expect(result.current.weekTimelineCards[0].slotHeight).toBe(COMPACT_MIN_BLOCK_HEIGHT_PX);
     });
   });
 });

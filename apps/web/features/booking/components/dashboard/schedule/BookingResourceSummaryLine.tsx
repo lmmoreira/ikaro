@@ -23,6 +23,7 @@ export function BookingResourceSummaryLine({
   return (
     <div
       data-testid="timeline-block-resource-summary"
+      role="group"
       aria-label={resourceNames.join(', ')}
       className={cn(
         'truncate border-t border-current/10 pt-1 font-medium opacity-80',
