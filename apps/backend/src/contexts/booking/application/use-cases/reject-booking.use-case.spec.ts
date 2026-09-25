@@ -50,6 +50,7 @@ describe('RejectBookingUseCase', () => {
       resourceName: 'Localização Principal',
       legIndex: null,
       quantityPosition: null,
+      selectionMode: 'NONE' as const,
       startsAt: scheduledAt,
       endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
     });

@@ -44,6 +44,7 @@ describe('CancelBookingAsAdminUseCase', () => {
       resourceName: 'Localização Principal',
       legIndex: null,
       quantityPosition: null,
+      selectionMode: 'NONE' as const,
       startsAt: new Date('2026-06-01T13:00:00.000Z'),
       endsAt: new Date('2026-06-01T13:30:00.000Z'),
     });

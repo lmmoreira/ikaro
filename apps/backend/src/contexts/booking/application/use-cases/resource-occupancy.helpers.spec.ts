@@ -1,16 +1,25 @@
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
+import {
+  BookingResourceSelectionRequiredError,
+  BookingServiceNotInTenantError,
+} from '../../domain/errors/booking-domain.error';
 import { BookingServiceResourceTypeUnavailableError } from '../../domain/errors/booking-domain.error';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceLeg } from '../../domain/service-leg';
-import { resolveBookingLinesResourceCandidates } from './resource-occupancy.helpers';
+import {
+  resolveBookingLinesResourceCandidates,
+  ResourceSelectionInput,
+} from './resource-occupancy.helpers';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
+const OTHER_TENANT_ID = '00000000-0000-7000-8000-000000000099';
+const TIMEZONE = 'America/Sao_Paulo';
 const SCHEDULED_AT = new Date('2026-06-01T10:00:00.000Z');
 
 function leg(
@@ -29,20 +38,37 @@ function leg(
 
 describe('resolveBookingLinesResourceCandidates', () => {
   let resourceRepo: InMemoryResourceRepository;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let availabilityService: AvailabilityService;
 
   beforeEach(() => {
     resourceRepo = new InMemoryResourceRepository();
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
     availabilityService = new AvailabilityService();
   });
 
+  async function resolve(
+    lines: { lineId: string; serviceId: string; durationMinsAtBooking: number }[],
+    serviceMap: Map<string, Service>,
+    resourceSelections: ResourceSelectionInput[] = [],
+    scheduledAt: Date = SCHEDULED_AT,
+  ) {
+    return resolveBookingLinesResourceCandidates(
+      resourceRepo,
+      availabilityService,
+      occupancyRepo,
+      TENANT_ID,
+      scheduledAt,
+      TIMEZONE,
+      lines,
+      serviceMap,
+      resourceSelections,
+    );
+  }
+
   it('throws BookingServiceNotInTenantError when the line references a service missing from serviceMap', async () => {
     await expect(
-      resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      resolve(
         [{ lineId: 'line-1', serviceId: 'missing-service', durationMinsAtBooking: 30 }],
         new Map(),
       ),
@@ -51,9 +77,11 @@ describe('resolveBookingLinesResourceCandidates', () => {
 
   describe('flat (non-legged) services', () => {
     it('falls back to the degenerate LOCATION requirement when resourceRequirements is empty', async () => {
-      const location = await resourceRepo.save(
-        new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.LOCATION).build(),
-      );
+      const location = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.LOCATION)
+        .build();
+      await resourceRepo.save(location);
       const locationResource = (
         await resourceRepo.findByTenant(TENANT_ID, {
           type: ResourceType.LOCATION,
@@ -65,11 +93,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         .withResourceRequirements([])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
         new Map([['service-1', service]]),
       );
@@ -82,9 +106,11 @@ describe('resolveBookingLinesResourceCandidates', () => {
     });
 
     it('resolves a real resource-scoped requirement and is not degenerate', async () => {
-      const room = await resourceRepo.save(
-        new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build(),
-      );
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(room);
       const roomResource = (
         await resourceRepo.findByTenant(TENANT_ID, { type: ResourceType.ROOM })
       )[0];
@@ -96,11 +122,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         ])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
         new Map([['service-1', service]]),
       );
@@ -130,11 +152,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         ])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
         new Map([['service-1', service]]),
       );
@@ -144,9 +162,11 @@ describe('resolveBookingLinesResourceCandidates', () => {
     });
 
     it('resolves a resourcePoolIds-restricted requirement without querying findByTenant', async () => {
-      const pooled = await resourceRepo.save(
-        new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build(),
-      );
+      const pooled = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(pooled);
       const poolResource = (
         await resourceRepo.findByTenant(TENANT_ID, { type: ResourceType.ROOM })
       )[0];
@@ -156,17 +176,13 @@ describe('resolveBookingLinesResourceCandidates', () => {
         .withResourceRequirements([
           ResourceRequirement.create({
             type: ResourceType.ROOM,
-            selectionMode: 'CUSTOMER_CHOICE',
+            selectionMode: 'AUTO_ANY',
             resourcePoolIds: [poolResource.id],
           }),
         ])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
         new Map([['service-1', service]]),
       );
@@ -185,11 +201,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         .build();
 
       await expect(
-        resolveBookingLinesResourceCandidates(
-          resourceRepo,
-          availabilityService,
-          TENANT_ID,
-          SCHEDULED_AT,
+        resolve(
           [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
           new Map([['service-1', service]]),
         ),
@@ -208,7 +220,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         .withResourceRequirements([
           ResourceRequirement.create({
             type: ResourceType.ROOM,
-            selectionMode: 'CUSTOMER_CHOICE',
+            selectionMode: 'AUTO_ANY',
             resourcePoolIds: [pooled.id],
             requiredQuantity: 2,
           }),
@@ -216,11 +228,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         .build();
 
       await expect(
-        resolveBookingLinesResourceCandidates(
-          resourceRepo,
-          availabilityService,
-          TENANT_ID,
-          SCHEDULED_AT,
+        resolve(
           [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
           new Map([['service-1', service]]),
         ),
@@ -246,11 +254,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         .withResourceRequirements([requirement])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [
           { lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 },
           { lineId: 'line-2', serviceId: 'service-1', durationMinsAtBooking: 30 },
@@ -303,11 +307,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         ])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 35 }],
         new Map([['service-1', service]]),
       );
@@ -336,11 +336,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         ])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 20 }],
         new Map([['service-1', service]]),
       );
@@ -370,11 +366,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         ])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 20 }],
         new Map([['service-1', service]]),
       );
@@ -403,7 +395,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
             0,
             ResourceRequirement.create({
               type: ResourceType.ROOM,
-              selectionMode: 'CUSTOMER_CHOICE',
+              selectionMode: 'AUTO_ANY',
               resourcePoolIds: [lowTurnover.id, highTurnover.id],
               requiredQuantity: 2,
             }),
@@ -412,11 +404,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
         ])
         .build();
 
-      const result = await resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      const result = await resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 20 }],
         new Map([['service-1', service]]),
       );
@@ -429,6 +417,247 @@ describe('resolveBookingLinesResourceCandidates', () => {
       expect(highCandidate.endsAt.getTime()).toBe(
         highCandidate.startsAt.getTime() + (20 + 60) * 60_000,
       );
+    });
+  });
+
+  describe('CUSTOMER_CHOICE (M23-S01)', () => {
+    it('uses the matching resourceSelections entry for a flat requirement', async () => {
+      const chosen = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(chosen);
+      await resourceRepo.save(
+        new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build(),
+      );
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.ROOM,
+            selectionMode: 'CUSTOMER_CHOICE',
+          }),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+        [
+          {
+            serviceId: 'service-1',
+            legIndex: null,
+            resourceType: ResourceType.ROOM,
+            resourceId: chosen.id,
+          },
+        ],
+      );
+
+      expect(result.get('line-1')!.candidates[0].resourceId).toBe(chosen.id);
+    });
+
+    it('throws BookingResourceSelectionRequiredError when no matching selection is provided', async () => {
+      await resourceRepo.save(
+        new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build(),
+      );
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.ROOM,
+            selectionMode: 'CUSTOMER_CHOICE',
+          }),
+        ])
+        .build();
+
+      await expect(
+        resolve(
+          [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+          new Map([['service-1', service]]),
+          [],
+        ),
+      ).rejects.toBeInstanceOf(BookingResourceSelectionRequiredError);
+    });
+
+    it('rejects a resourceSelections entry naming a resource outside the resourcePoolIds restriction', async () => {
+      const inPool = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(inPool);
+      const outsidePool = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(outsidePool);
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.ROOM,
+            selectionMode: 'CUSTOMER_CHOICE',
+            resourcePoolIds: [inPool.id],
+          }),
+        ])
+        .build();
+
+      await expect(
+        resolve(
+          [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+          new Map([['service-1', service]]),
+          [
+            {
+              serviceId: 'service-1',
+              legIndex: null,
+              resourceType: ResourceType.ROOM,
+              resourceId: outsidePool.id,
+            },
+          ],
+        ),
+      ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
+    });
+
+    it("rejects a resourceSelections entry naming another tenant's resource", async () => {
+      const otherTenantResource = new ResourceBuilder()
+        .withTenantId(OTHER_TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(otherTenantResource);
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.ROOM,
+            selectionMode: 'CUSTOMER_CHOICE',
+          }),
+        ])
+        .build();
+
+      await expect(
+        resolve(
+          [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+          new Map([['service-1', service]]),
+          [
+            {
+              serviceId: 'service-1',
+              legIndex: null,
+              resourceType: ResourceType.ROOM,
+              resourceId: otherTenantResource.id,
+            },
+          ],
+        ),
+      ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
+    });
+
+    it('addresses a per-leg CUSTOMER_CHOICE selection by legIndex', async () => {
+      const chosen = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(chosen);
+      await resourceRepo.save(
+        new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build(),
+      );
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withLegs([
+          leg(
+            0,
+            ResourceRequirement.create({
+              type: ResourceType.ROOM,
+              selectionMode: 'CUSTOMER_CHOICE',
+            }),
+          ),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 20 }],
+        new Map([['service-1', service]]),
+        [
+          {
+            serviceId: 'service-1',
+            legIndex: 0,
+            resourceType: ResourceType.ROOM,
+            resourceId: chosen.id,
+          },
+        ],
+      );
+
+      expect(result.get('line-1')!.candidates[0].resourceId).toBe(chosen.id);
+    });
+  });
+
+  describe('AUTO_ANY least-workload tie-break (UC-063 A1, M23-S01)', () => {
+    it('picks the resource with the fewest active occupancy rows on the tenant-local day', async () => {
+      const busy = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(busy);
+      const free = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(free);
+      await occupancyRepo.assign(
+        TENANT_ID,
+        'other-line',
+        [
+          {
+            resourceId: busy.id,
+            resourceType: ResourceType.ROOM,
+            resourceName: busy.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: new Date('2026-06-01T08:00:00.000Z'),
+            endsAt: new Date('2026-06-01T09:00:00.000Z'),
+            selectionMode: 'AUTO_ANY',
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+      );
+
+      expect(result.get('line-1')!.candidates[0].resourceId).toBe(free.id);
+    });
+
+    it('falls back to resourceId ascending when workload is tied', async () => {
+      const a = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
+      await resourceRepo.save(a);
+      const b = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
+      await resourceRepo.save(b);
+      const expected = [a.id, b.id].sort()[0];
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+      );
+
+      expect(result.get('line-1')!.candidates[0].resourceId).toBe(expected);
     });
   });
 
@@ -445,17 +674,13 @@ describe('resolveBookingLinesResourceCandidates', () => {
       .withResourceRequirements([
         ResourceRequirement.create({
           type: ResourceType.ROOM,
-          selectionMode: 'CUSTOMER_CHOICE',
+          selectionMode: 'AUTO_ANY',
           resourcePoolIds: [shared.id],
         }),
       ])
       .build();
 
-    await resolveBookingLinesResourceCandidates(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
-      SCHEDULED_AT,
+    await resolve(
       [
         { lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 },
         { lineId: 'line-2', serviceId: 'service-1', durationMinsAtBooking: 30 },
@@ -473,18 +698,14 @@ describe('resolveBookingLinesResourceCandidates', () => {
       .withResourceRequirements([
         ResourceRequirement.create({
           type: ResourceType.ROOM,
-          selectionMode: 'CUSTOMER_CHOICE',
+          selectionMode: 'AUTO_ANY',
           resourcePoolIds: ['00000000-0000-7000-8000-000000009999'],
         }),
       ])
       .build();
 
     await expect(
-      resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
         new Map([['service-1', service]]),
       ),
@@ -504,18 +725,14 @@ describe('resolveBookingLinesResourceCandidates', () => {
       .withResourceRequirements([
         ResourceRequirement.create({
           type: ResourceType.ROOM,
-          selectionMode: 'CUSTOMER_CHOICE',
+          selectionMode: 'AUTO_ANY',
           resourcePoolIds: [deactivated.id],
         }),
       ])
       .build();
 
     await expect(
-      resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
         new Map([['service-1', service]]),
       ),
@@ -534,18 +751,14 @@ describe('resolveBookingLinesResourceCandidates', () => {
       .withResourceRequirements([
         ResourceRequirement.create({
           type: ResourceType.ROOM,
-          selectionMode: 'CUSTOMER_CHOICE',
+          selectionMode: 'AUTO_ANY',
           resourcePoolIds: [retyped.id],
         }),
       ])
       .build();
 
     await expect(
-      resolveBookingLinesResourceCandidates(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
-        SCHEDULED_AT,
+      resolve(
         [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
         new Map([['service-1', service]]),
       ),

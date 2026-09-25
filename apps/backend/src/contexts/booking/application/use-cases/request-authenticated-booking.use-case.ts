@@ -39,6 +39,7 @@ import {
   createBookingAddress,
   persistRequestedBooking,
   toBookingResult,
+  toResourceSelections,
 } from './booking-request.helpers';
 import { BookingRequestResult } from './booking-request.types';
 
@@ -83,7 +84,7 @@ export class RequestAuthenticatedBookingUseCase {
       pickupAddress,
     );
 
-    await persistRequestedBooking(
+    const candidatesByLine = await persistRequestedBooking(
       {
         txManager: this.txManager,
         slotConflictService: this.slotConflictService,
@@ -94,10 +95,18 @@ export class RequestAuthenticatedBookingUseCase {
         occupancyRepo: this.occupancyRepo,
         availabilityService: this.availabilityService,
       },
-      { booking, tenantId, scheduledAt, operations, serviceMap },
+      {
+        booking,
+        tenantId,
+        scheduledAt,
+        timezone: input.timezone,
+        operations,
+        serviceMap,
+        resourceSelections: toResourceSelections(input.resourceSelections),
+      },
     );
 
-    return this.toResult(booking);
+    return this.toResult(booking, candidatesByLine);
   }
 
   private async prepareBooking(
@@ -206,7 +215,10 @@ export class RequestAuthenticatedBookingUseCase {
     return undefined;
   }
 
-  private toResult(booking: Booking): RequestAuthenticatedBookingUseCaseResult {
-    return toBookingResult(booking);
+  private toResult(
+    booking: Booking,
+    candidatesByLine: Awaited<ReturnType<typeof persistRequestedBooking>>,
+  ): RequestAuthenticatedBookingUseCaseResult {
+    return toBookingResult(booking, candidatesByLine);
   }
 }

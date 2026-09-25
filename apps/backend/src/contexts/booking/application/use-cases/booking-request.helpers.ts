@@ -9,6 +9,7 @@ import {
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
 import { Service } from '../../domain/service.aggregate';
+import { ResourceType } from '../../domain/resource.types';
 import {
   Address,
   AddressProps,
@@ -28,6 +29,7 @@ import { assignBookingLinesOccupancy } from './resource-occupancy-assignment.hel
 import {
   resolveBookingLinesResourceCandidates,
   ResolvedLineCandidates,
+  ResourceSelectionInput,
 } from './resource-occupancy.helpers';
 
 const DEFAULT_MANUAL_HOLD_MINUTES = 30; // platform default, docs/02-DOMAIN_MODEL.md
@@ -36,10 +38,14 @@ export interface PersistRequestedBookingParams {
   booking: Booking;
   tenantId: string;
   scheduledAt: Date;
+  timezone: string;
   operations: PhotoPromotionOperation[];
   // Snapshotted pre-transaction (resolveServices()) — compared against each service's own
   // freshly-locked state below to detect (not just narrow) a concurrent bookingModel change.
   serviceMap: Map<string, Service>;
+  // Customer's CUSTOMER_CHOICE picks from the request body (M23-S01) — AUTO_ANY/
+  // AUTO_FUNGIBLE_POOL/NONE requirements ignore this entirely.
+  resourceSelections: ResourceSelectionInput[];
 }
 
 // Bundled to keep persistRequestedBooking() under SonarCloud's max-parameters threshold (S107) —
@@ -88,7 +94,53 @@ export function buildLineInputs(
   });
 }
 
-export function toBookingResult(booking: Booking): BookingRequestResult {
+// Set only when this line resolved a legged service — mutually exclusive with an AUTO_ANY name
+// reveal below (UC-065's itinerary always wins when both would otherwise apply, since a legged
+// requirement's own selectionMode already feeds into the itinerary entries themselves).
+function toLineIdentityFields(
+  resolved: ResolvedLineCandidates | undefined,
+): Pick<BookingRequestResult['lines'][number], 'assignedResourceName' | 'itinerary'> {
+  if (!resolved) return {};
+  const legCandidates = resolved.candidates
+    .filter((c) => c.legIndex !== null)
+    .sort((a, b) => a.legIndex! - b.legIndex!);
+  if (legCandidates.length > 0) {
+    return {
+      itinerary: legCandidates.map((c) => ({
+        legIndex: c.legIndex!,
+        resourceName: c.resourceName,
+        startsAt: c.startsAt.toISOString(),
+        endsAt: c.endsAt.toISOString(),
+      })),
+    };
+  }
+  const revealedNames = resolved.candidates
+    .filter((c) => c.legIndex === null && c.selectionMode === 'AUTO_ANY')
+    .map((c) => c.resourceName);
+  return revealedNames.length > 0 ? { assignedResourceName: revealedNames.join(', ') } : {};
+}
+
+// dto.resourceType is the Zod schema's plain string-literal union — same bridge-to-domain-enum
+// pattern as resource-requirement.dto.ts's toResourceRequirement(). legIndex defaults to null
+// (a flat, non-legged choice) when the client omits it, matching ResourceOccupancyCandidate's own
+// null-for-flat shape.
+export function toResourceSelections(
+  dtoSelections:
+    | { serviceId: string; legIndex?: number | null; resourceType: string; resourceId: string }[]
+    | undefined,
+): ResourceSelectionInput[] {
+  return (dtoSelections ?? []).map((selection) => ({
+    serviceId: selection.serviceId,
+    legIndex: selection.legIndex ?? null,
+    resourceType: selection.resourceType as ResourceType,
+    resourceId: selection.resourceId,
+  }));
+}
+
+export function toBookingResult(
+  booking: Booking,
+  candidatesByLine: Map<string, ResolvedLineCandidates>,
+): BookingRequestResult {
   const pickup = booking.pickupAddress;
   return {
     bookingId: booking.id,
@@ -121,6 +173,7 @@ export function toBookingResult(booking: Booking): BookingRequestResult {
       durationMinsAtBooking: l.durationMinsAtBooking,
       pointsValueAtBooking: l.pointsValueAtBooking,
       requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
+      ...toLineIdentityFields(candidatesByLine.get(l.lineId)),
     })),
   };
 }
@@ -175,23 +228,29 @@ function resolveHoldExpiresAt(serviceMap: Map<string, Service>): Date {
 async function resolveAndCheckCandidates(
   resourceRepo: IResourceRepository,
   availabilityService: AvailabilityService,
+  occupancyRepo: IResourceOccupancyRepository,
   slotConflictService: BookingSlotConflictService,
   booking: Booking,
   tenantId: string,
   scheduledAt: Date,
+  timezone: string,
   serviceMap: Map<string, Service>,
+  resourceSelections: ResourceSelectionInput[],
 ): Promise<Map<string, ResolvedLineCandidates>> {
   const candidatesByLine = await resolveBookingLinesResourceCandidates(
     resourceRepo,
     availabilityService,
+    occupancyRepo,
     tenantId,
     scheduledAt,
+    timezone,
     booking.lines.map((line) => ({
       lineId: line.lineId,
       serviceId: line.serviceId,
       durationMinsAtBooking: line.durationMinsAtBooking,
     })),
     serviceMap,
+    resourceSelections,
   );
   const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
   await slotConflictService.assertSlotFree(tenantId, allCandidates);
@@ -201,18 +260,22 @@ async function resolveAndCheckCandidates(
 export async function persistRequestedBooking(
   deps: PersistRequestedBookingDeps,
   params: PersistRequestedBookingParams,
-): Promise<void> {
-  const { booking, tenantId, scheduledAt, operations, serviceMap } = params;
+): Promise<Map<string, ResolvedLineCandidates>> {
+  const { booking, tenantId, scheduledAt, timezone, operations, serviceMap, resourceSelections } =
+    params;
 
-  await deps.txManager.run(async () => {
+  return deps.txManager.run(async () => {
     const candidatesByLine = await resolveAndCheckCandidates(
       deps.resourceRepo,
       deps.availabilityService,
+      deps.occupancyRepo,
       deps.slotConflictService,
       booking,
       tenantId,
       scheduledAt,
+      timezone,
       serviceMap,
+      resourceSelections,
     );
 
     const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
@@ -231,5 +294,7 @@ export async function persistRequestedBooking(
     await deps.txManager.scheduleAfterCommit(() =>
       deps.photoExistenceService.executePhotoPromotion(operations),
     );
+
+    return candidatesByLine;
   });
 }

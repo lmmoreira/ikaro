@@ -22,6 +22,7 @@ function buildCandidate(endsAt: Date): ResourceOccupancyCandidate {
     quantityPosition: null,
     startsAt: new Date(endsAt.getTime() - 60 * 60 * 1000),
     endsAt,
+    selectionMode: 'NONE',
   };
 }
 

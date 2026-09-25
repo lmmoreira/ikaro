@@ -280,6 +280,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       resourceName: location.name,
       legIndex: null,
       quantityPosition: null,
+      selectionMode: 'NONE' as const,
       startsAt: new Date(scheduledAt),
       endsAt: new Date(new Date(scheduledAt).getTime() + 60 * 60_000),
     });

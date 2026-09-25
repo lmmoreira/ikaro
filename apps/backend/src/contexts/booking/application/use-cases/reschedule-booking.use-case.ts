@@ -21,6 +21,7 @@ import { BookingSlotConflictService } from '../services/booking-slot-conflict.se
 import { RescheduleBookingDto } from '../dtos/reschedule-booking.dto';
 import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
+  deriveResourceSelectionsFromAssignments,
   resolveBookingLinesResourceCandidates,
   ResolvedLineCandidates,
 } from './resource-occupancy.helpers';
@@ -69,6 +70,7 @@ export class RescheduleBookingUseCase {
         serviceMap,
         tenantId,
         newScheduledAt,
+        input.timezone,
       );
 
       booking.reschedule(staffId, newScheduledAt, correlationId, input.adminNotes);
@@ -107,22 +109,33 @@ export class RescheduleBookingUseCase {
     serviceMap: Map<string, Service>,
     tenantId: string,
     newScheduledAt: Date,
+    timezone: string,
   ): Promise<Map<string, ResolvedLineCandidates>> {
     const lineInputs = booking.lines.map((line) => ({
       lineId: line.lineId,
       serviceId: line.serviceId,
       durationMinsAtBooking: line.durationMinsAtBooking,
     }));
+    const bookingLineIds = booking.lines.map((l) => l.lineId);
+    const lineIdToServiceId = new Map(booking.lines.map((l) => [l.lineId, l.serviceId]));
+    const resourceSelections = await deriveResourceSelectionsFromAssignments(
+      this.occupancyRepo,
+      tenantId,
+      bookingLineIds,
+      lineIdToServiceId,
+    );
     const candidatesByLine = await resolveBookingLinesResourceCandidates(
       this.resourceRepo,
       this.availabilityService,
+      this.occupancyRepo,
       tenantId,
       newScheduledAt,
+      timezone,
       lineInputs,
       serviceMap,
+      resourceSelections,
     );
     const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
-    const bookingLineIds = booking.lines.map((l) => l.lineId);
     await this.slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);
     return candidatesByLine;
   }

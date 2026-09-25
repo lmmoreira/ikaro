@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { PhoneErrorCode } from '@ikaro/types/protocol/errors';
-import { AddressShapeSchema } from '@ikaro/validation';
+import { AddressShapeSchema, ResourceSelectionSchema } from '@ikaro/validation';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-regex';
 
@@ -22,6 +22,9 @@ export const RequestBookingSchema = z.object({
   // bookings for the same tenant/day.
   serviceIds: z.array(z.uuid()).min(1).max(20),
   beforeServicePhotoUrls: BookingTmpPhotoPathsSchema.optional(),
+  // CUSTOMER_CHOICE picks (M23-S01, UC-061/064/065) — bounded generously above serviceIds' own
+  // cap since a bundle/legged service can need more than one entry per line.
+  resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
 });
 
 export type RequestBookingDto = z.infer<typeof RequestBookingSchema>;

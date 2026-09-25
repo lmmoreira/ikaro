@@ -40,6 +40,30 @@ export class BookingSlotUnavailableError extends BookingDomainError {
   }
 }
 
+// Thrown by BookingSlotConflictService.assertSlotFree() instead of the generic
+// BookingSlotUnavailableError above when the conflicting candidate(s) belong to a bundle
+// (a line with more than one flat, non-legged resource requirement) — UC-064 A2's "part of this
+// booking is no longer available" race (M23-S01).
+export class BookingBundlePartiallyUnavailableError extends BookingDomainError {
+  constructor() {
+    super(
+      'Part of this booking is no longer available',
+      BookingErrorCode.BUNDLE_PARTIALLY_UNAVAILABLE,
+    );
+    this.name = 'BookingBundlePartiallyUnavailableError';
+  }
+}
+
+// Same shape as BookingBundlePartiallyUnavailableError above, for a conflict on a legged
+// service's own resource(s) — UC-065 A1's "one part of this journey is no longer available" race
+// (M23-S01).
+export class BookingLegUnavailableError extends BookingDomainError {
+  constructor() {
+    super('One part of this journey is no longer available', BookingErrorCode.LEG_UNAVAILABLE);
+    this.name = 'BookingLegUnavailableError';
+  }
+}
+
 export class BookingConcurrentModificationError extends BookingDomainError {
   constructor() {
     super(

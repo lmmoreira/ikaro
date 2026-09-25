@@ -119,6 +119,7 @@ describe('ApproveBookingUseCase', () => {
             resourceName: resource.name,
             legIndex: null,
             quantityPosition: null,
+            selectionMode: 'NONE' as const,
             startsAt: scheduledAt,
             endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
           },
@@ -203,6 +204,7 @@ describe('ApproveBookingUseCase', () => {
             resourceName: staleResource.name,
             legIndex: null,
             quantityPosition: null,
+            selectionMode: 'NONE' as const,
             startsAt: scheduledAt,
             endsAt: windowEnd,
           },
@@ -315,6 +317,7 @@ describe('ApproveBookingUseCase', () => {
         resourceName: resource.name,
         legIndex: null,
         quantityPosition: null,
+        selectionMode: 'NONE' as const,
         startsAt: scheduledAt,
         endsAt: new Date(scheduledAt.getTime() + 60 * 60_000),
       });
@@ -338,6 +341,7 @@ describe('ApproveBookingUseCase', () => {
         resourceName: resource.name,
         legIndex: null,
         quantityPosition: null,
+        selectionMode: 'NONE' as const,
         startsAt: otherSlotAt,
         endsAt: new Date(otherSlotAt.getTime() + 30 * 60_000),
       });

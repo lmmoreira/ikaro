@@ -257,6 +257,7 @@ describe('RequestBookingUseCase', () => {
       resourceName: location.name,
       legIndex: null,
       quantityPosition: null,
+      selectionMode: 'NONE' as const,
       startsAt: new Date(`${futureDate(1)}T10:00:00.000Z`),
       endsAt: new Date(`${futureDate(1)}T10:30:00.000Z`),
     });

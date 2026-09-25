@@ -8,6 +8,7 @@ import { InMemoryBookingRepository } from '../../../../test/repositories/booking
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import {
   BookingBuilder,
@@ -95,13 +96,120 @@ describe('toBookingResult', () => {
       .withLines([new BookingLineBuilder().build()])
       .build();
 
-    const result = toBookingResult(booking);
+    const result = toBookingResult(booking, new Map());
 
     expect(result.bookingId).toBe(booking.id);
     expect(result.status).toBe(booking.status);
     expect(result.pickupAddress).toBeNull();
     expect(result.lines).toHaveLength(1);
     expect(result.lines[0].serviceId).toBe(booking.lines[0].serviceId);
+    expect(result.lines[0].assignedResourceName).toBeUndefined();
+    expect(result.lines[0].itinerary).toBeUndefined();
+  });
+
+  it('reveals assignedResourceName for a flat AUTO_ANY candidate but not a pool one', () => {
+    const line = new BookingLineBuilder().build();
+    const booking = new BookingBuilder().withTenantId(TENANT_A).withLines([line]).build();
+    const autoAnyCandidates = new Map([
+      [
+        line.lineId,
+        {
+          isDegenerate: false,
+          candidates: [
+            {
+              resourceId: 'resource-1',
+              resourceType: ResourceType.ROOM,
+              resourceName: 'Ana Souza',
+              legIndex: null,
+              quantityPosition: null,
+              startsAt: new Date(),
+              endsAt: new Date(),
+              selectionMode: 'AUTO_ANY' as const,
+            },
+          ],
+        },
+      ],
+    ]);
+    const poolCandidates = new Map([
+      [
+        line.lineId,
+        {
+          isDegenerate: false,
+          candidates: [
+            {
+              resourceId: 'resource-2',
+              resourceType: ResourceType.ROOM,
+              resourceName: 'Quadra 1',
+              legIndex: null,
+              quantityPosition: null,
+              startsAt: new Date(),
+              endsAt: new Date(),
+              selectionMode: 'AUTO_FUNGIBLE_POOL' as const,
+            },
+          ],
+        },
+      ],
+    ]);
+
+    expect(toBookingResult(booking, autoAnyCandidates).lines[0].assignedResourceName).toBe(
+      'Ana Souza',
+    );
+    expect(toBookingResult(booking, poolCandidates).lines[0].assignedResourceName).toBeUndefined();
+  });
+
+  it('always reveals the full itinerary for a legged line, regardless of selectionMode', () => {
+    const line = new BookingLineBuilder().build();
+    const booking = new BookingBuilder().withTenantId(TENANT_A).withLines([line]).build();
+    const legStart = new Date('2026-06-01T10:00:00.000Z');
+    const legEnd = new Date('2026-06-01T10:20:00.000Z');
+    const candidatesByLine = new Map([
+      [
+        line.lineId,
+        {
+          isDegenerate: false,
+          candidates: [
+            {
+              resourceId: 'resource-1',
+              resourceType: ResourceType.ROOM,
+              resourceName: 'Sala 1',
+              legIndex: 1,
+              quantityPosition: null,
+              startsAt: legEnd,
+              endsAt: new Date(legEnd.getTime() + 20 * 60_000),
+              selectionMode: 'CUSTOMER_CHOICE' as const,
+            },
+            {
+              resourceId: 'resource-0',
+              resourceType: ResourceType.EQUIPMENT,
+              resourceName: 'Equipamento 1',
+              legIndex: 0,
+              quantityPosition: null,
+              startsAt: legStart,
+              endsAt: legEnd,
+              selectionMode: 'AUTO_ANY' as const,
+            },
+          ],
+        },
+      ],
+    ]);
+
+    const result = toBookingResult(booking, candidatesByLine);
+
+    expect(result.lines[0].assignedResourceName).toBeUndefined();
+    expect(result.lines[0].itinerary).toEqual([
+      {
+        legIndex: 0,
+        resourceName: 'Equipamento 1',
+        startsAt: legStart.toISOString(),
+        endsAt: legEnd.toISOString(),
+      },
+      {
+        legIndex: 1,
+        resourceName: 'Sala 1',
+        startsAt: legEnd.toISOString(),
+        endsAt: new Date(legEnd.getTime() + 20 * 60_000).toISOString(),
+      },
+    ]);
   });
 });
 
@@ -134,6 +242,7 @@ describe('persistRequestedBooking', () => {
   const run = async (
     booking: ReturnType<BookingBuilder['build']>,
     serviceMap: Map<string, ReturnType<ServiceBuilder['build']>>,
+    resourceSelections: Parameters<typeof persistRequestedBooking>[1]['resourceSelections'] = [],
   ) =>
     persistRequestedBooking(
       {
@@ -150,8 +259,10 @@ describe('persistRequestedBooking', () => {
         booking,
         tenantId: TENANT_A,
         scheduledAt,
+        timezone: 'America/Sao_Paulo',
         operations: [],
         serviceMap,
+        resourceSelections,
       },
     );
 
@@ -214,5 +325,30 @@ describe('persistRequestedBooking', () => {
     await expect(run(booking, new Map([[service.id, service]]))).rejects.toThrow(
       BookingServiceConcurrentModificationError,
     );
+  });
+
+  it('resolves a CUSTOMER_CHOICE requirement via resourceSelections and returns it in candidatesByLine', async () => {
+    const staff = new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build();
+    await resourceRepo.save(staff);
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withResourceRequirements([
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+      ])
+      .build();
+    await serviceRepo.save(service);
+    const line = new BookingLineBuilder().withServiceId(service.id).build();
+    const booking = new BookingBuilder().withTenantId(TENANT_A).withLines([line]).build();
+
+    const candidatesByLine = await run(booking, new Map([[service.id, service]]), [
+      {
+        serviceId: service.id,
+        legIndex: null,
+        resourceType: ResourceType.ROOM,
+        resourceId: staff.id,
+      },
+    ]);
+
+    expect(candidatesByLine.get(line.lineId)!.candidates[0].resourceId).toBe(staff.id);
   });
 });

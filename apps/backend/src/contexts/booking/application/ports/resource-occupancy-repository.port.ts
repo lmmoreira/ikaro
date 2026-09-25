@@ -1,5 +1,6 @@
-import { ResourceType } from '../../domain/resource.types';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
+import { ResourceRequirementSelectionMode } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
 
 export const RESOURCE_OCCUPANCY_REPOSITORY = Symbol('IResourceOccupancyRepository');
 
@@ -14,6 +15,13 @@ export interface ResourceOccupancyCandidate extends ResourceOccupancyWindow {
   resourceName: string;
   legIndex: number | null;
   quantityPosition: number | null;
+  // Carried through from the originating ResourceRequirement — response-shaping only (M23-S01):
+  // toBookingResult() reveals a flat AUTO_ANY candidate's name (UC-063) but never an
+  // AUTO_FUNGIBLE_POOL one (UC-062); a legged candidate's itinerary entry is always revealed
+  // regardless of this field (UC-065's schedule disclosure isn't selectionMode-conditional).
+  // Ignored by persistence — resource_occupancy/booking_line_resource_assignments don't store it,
+  // it's derivable from the service config at any time.
+  selectionMode: ResourceRequirementSelectionMode;
 }
 
 // Internal, booking-context-local write-path port for the resource_occupancy/
@@ -61,4 +69,36 @@ export interface IResourceOccupancyRepository {
   // IChatbotMessageRepository.deleteOlderThan()'s identical cross-tenant shape. Never touches
   // booking_line_resource_assignments, same invariant as release() above.
   deleteOlderThan(cutoff: Date): Promise<number>;
+
+  // AUTO_ANY's least-loaded tie-break (UC-063 A1, M23-S01) — counts each candidate resource's own
+  // HOLD/COMMITTED occupancy rows overlapping [from, to) (the tenant-local calendar day of the
+  // booking being resolved). REQUESTED rows are excluded, same lock-state filter
+  // findConflictingResourceIds uses — a degenerate-service REQUESTED row was never a real
+  // commitment. Resources with zero occupancy in the window are simply absent from the returned
+  // map (callers treat a missing key as 0), not an error.
+  countActiveByResource(
+    tenantId: string,
+    resourceIds: string[],
+    from: Date,
+    to: Date,
+  ): Promise<Map<string, number>>;
+
+  // Replays a booking's already-persisted resource choice(s) for a fresh re-resolution
+  // (approve-booking / reschedule-booking's "resolve fresh every time" design, M23-S01
+  // story-discovery) — a CUSTOMER_CHOICE requirement has no HTTP request to re-derive a selection
+  // from at approval/reschedule time, so the original, immutable
+  // booking_line_resource_assignments record is the only source of truth for "which resource the
+  // customer actually picked." AUTO_ANY/AUTO_FUNGIBLE_POOL requirements ignore these entries
+  // (they always re-derive fresh) — returning them anyway is harmless, not incorrect.
+  findAssignmentsByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<ResourceLineAssignment[]>;
+}
+
+export interface ResourceLineAssignment {
+  bookingLineId: string;
+  resourceId: string;
+  resourceType: ResourceType;
+  legIndex: number | null;
 }

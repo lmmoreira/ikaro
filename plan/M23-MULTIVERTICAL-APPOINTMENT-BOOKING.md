@@ -77,48 +77,62 @@ graph TD
 
 **BFF endpoint spec:** extend `apps/bff/src/features/booking/bookings.controller.ts` + `bookings-guest.controller.ts` + `bookings.schemas.ts` — pass through the new optional `resourceSelections` field; extend `bookings.mapper.ts` to surface `assignedResourceName` (UC-063) / `itinerary` (UC-065) when present.
 
-**Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/resource-occupancy.helpers.ts` (+ `.spec.ts`) (modify — `selectionMode` branching, `resourceSelections` threading, error-granularity call sites)
-- `apps/backend/src/contexts/booking/application/dtos/request-booking.dto.ts`, `request-authenticated-booking.dto.ts` (modify — `resourceSelections` field)
-- `apps/backend/src/contexts/booking/application/use-cases/booking-request.helpers.ts` (+ `.spec.ts`) (modify — thread `resourceSelections` through `persistRequestedBooking`, extend `toBookingResult()` with the new response fields)
-- `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts` (+ `.spec.ts`) (modify — pass `resourceSelections` through)
-- `apps/backend/src/contexts/booking/application/use-cases/request-authenticated-booking.use-case.ts` (+ `.spec.ts`) (modify — pass `resourceSelections` through)
-- `apps/backend/src/contexts/booking/application/ports/resource-occupancy-repository.port.ts` (+ TypeORM adapter, `.spec.ts`) (modify — new least-workload-count method for `AUTO_ANY` tie-break)
-- `apps/backend/src/contexts/booking/domain/errors/booking-domain.error.ts` (or the file(s) where `BookingSlotUnavailableError`/`BookingServiceResourceTypeUnavailableError` live — verify exact path at implementation time) (modify — two new error classes)
-- `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (modify — map the two new errors to their codes/`409`)
-- `packages/types/src/error-codes.ts` (modify — add `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`, `BOOKING_LEG_UNAVAILABLE`)
-- `packages/i18n/locales/{pt-BR,en}/errors.json` (modify — both new codes)
-- `apps/bff/src/features/booking/bookings.controller.ts` / `bookings-guest.controller.ts` / `bookings.schemas.ts` / `bookings.mapper.ts` (+ specs) (modify)
-- `apps/backend/http/booking/bookings.http` (modify — `resourceSelections` examples)
-- `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability (modify — document the `selectionMode` resolution algorithm now that it's real, not just the M22 deterministic baseline)
-- `docs/04-USE_CASES.md` UC-066 (modify — fix stale `Endpoint:` line; already applied during story-discovery, see below)
+**Files to create/modify (updated post-implementation to match what actually shipped):**
+- `apps/backend/src/contexts/booking/application/use-cases/resource-occupancy.helpers.ts` (+ `.spec.ts`) (modify — trimmed to the per-line orchestrator + `deriveResourceSelectionsFromAssignments()`; the flat/legged candidate-building and per-requirement `selectionMode` algorithm were split out below, both for docs/CODE_STANDARDS.md's file-length limit)
+- `apps/backend/src/contexts/booking/application/use-cases/resource-resolution-context.helpers.ts` (new — shared `ResolutionContext`/`selectionKey()`, kept in its own file specifically so the two files below don't import each other in a cycle)
+- `apps/backend/src/contexts/booking/application/use-cases/resource-occupancy-candidate-builders.helpers.ts` (new — flat/legged candidate building, moved out of `resource-occupancy.helpers.ts`)
+- `apps/backend/src/contexts/booking/application/use-cases/resource-requirement-resolution.helpers.ts` (new — the `selectionMode` branching algorithm itself, moved out of `resource-occupancy.helpers.ts`)
+- `apps/backend/src/contexts/booking/application/dtos/request-booking.dto.ts`, `request-authenticated-booking.dto.ts` (modify — `resourceSelections` field, via a new shared `ResourceSelectionSchema` in `packages/validation/src/booking.ts`)
+- `apps/backend/src/contexts/booking/application/use-cases/booking-request.helpers.ts` (+ `.spec.ts`) (modify — thread `resourceSelections`/`timezone` through `persistRequestedBooking`, return `candidatesByLine`, extend `toBookingResult()` with the new response fields, add `toResourceSelections()` DTO bridge)
+- `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts` (+ `.spec.ts`) (modify — pass `resourceSelections`/`timezone` through)
+- `apps/backend/src/contexts/booking/application/use-cases/request-authenticated-booking.use-case.ts` (+ `.spec.ts`) (modify — pass `resourceSelections`/`timezone` through)
+- `apps/backend/src/contexts/booking/application/use-cases/approve-booking.use-case.ts` (modify — not in the original list; the signature change to `resolveBookingLinesResourceCandidates()` requires it. Derives `resourceSelections` from the booking's already-persisted `booking_line_resource_assignments` via `deriveResourceSelectionsFromAssignments()`, so a `CUSTOMER_CHOICE` pick survives re-resolution at approval time — locked in during implementation, see the story's own design-decision record above)
+- `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking.use-case.ts` (modify — same reason and same fix as `approve-booking.use-case.ts` above; not in the original list)
+- `apps/backend/src/contexts/booking/application/services/booking-slot-conflict.service.ts` (+ `.spec.ts`) (modify — widened `assertSlotFree()`'s param type to `ResourceOccupancyCandidate[]`, classifies bundle/leg/single conflicts)
+- `apps/backend/src/contexts/booking/application/ports/resource-occupancy-repository.port.ts` (modify — `countActiveByResource()` for the `AUTO_ANY` tie-break, `findAssignmentsByBookingLines()` for the approval/reschedule replay above)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify — implements both new port methods)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy-upsert.helpers.ts` (new — not in the original list; the write-path upsert/insert logic split out of the repository class, also for the file-length limit)
+- `apps/backend/eslint.config.js` (modify — added the new upsert-helpers file to the existing TypeORM-import allowlist, same treatment as its sibling repository file)
+- `apps/backend/src/test/repositories/booking/in-memory-resource-occupancy.repository.ts` (modify — the two new port methods, for unit tests)
+- `apps/backend/src/contexts/booking/domain/errors/booking-service.error.ts` (modify — `BookingResourceSelectionRequiredError`)
+- `apps/backend/src/contexts/booking/domain/errors/booking-lifecycle.error.ts` (modify — `BookingBundlePartiallyUnavailableError`, `BookingLegUnavailableError`)
+- `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (modify — map the three new errors)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.integration.spec.ts` (modify — not in the original list; end-to-end `POST /bookings` coverage for `CUSTOMER_CHOICE`/`AUTO_ANY`/`AUTO_FUNGIBLE_POOL`/legged resolution against a real Postgres)
+- `packages/types/src/error-codes.ts` (modify — `BOOKING_RESOURCE_SELECTION_REQUIRED`, `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`, `BOOKING_LEG_UNAVAILABLE`)
+- `packages/validation/src/booking.ts` (modify — new shared `ResourceSelectionSchema`, not in the original list; reused by both the backend DTOs and the BFF schema below)
+- `packages/i18n/locales/{pt-BR,en}/errors.json` (modify — all three new codes)
+- `apps/bff/src/features/booking/bookings.schemas.ts` (modify — `resourceSelections` on both request schemas, importing the shared `ResourceSelectionSchema`)
+- `apps/bff/src/features/booking/bookings.types.ts` (modify — not in the original list; `assignedResourceName`/`itinerary` on `BookingLineResponse`, new `BookingLineItineraryLegResponse`). `bookings.controller.ts`/`bookings-guest.controller.ts`/`bookings.mapper.ts` needed **no code change** — booking creation is a pure `body`/response passthrough, already covered by the schema/type changes.
+- `apps/backend/http/booking/bookings.http` (modify — new `resourceSelections` example)
+- `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability (modify — new "selectionMode resolution algorithm (M23-S01)" subsection, plus fixed two claims the M22 baseline text had made that M23-S01 supersedes)
+- `docs/04-USE_CASES.md` UC-066 (modify — fix stale `Endpoint:` line; already applied during story-discovery)
 
-**Already correctly implemented by M22-S03 — no changes needed:** ~~`resource-resolution.service.ts`~~ (never build this — see Pattern above), `get-availability.use-case.ts`, `availability.service.ts`, `typeorm-booking-availability.adapter.ts`, `schedule-availability.controller.ts`.
+**Already correctly implemented by M22-S03 — no changes needed:** ~~`resource-resolution.service.ts`~~ (never built this — see Pattern above), `get-availability.use-case.ts`, `availability.service.ts`, `typeorm-booking-availability.adapter.ts`, `schedule-availability.controller.ts`.
 
 **Acceptance criteria — product:**
-- [ ] Customer/guest booking a `CUSTOMER_CHOICE` service picks a staff member and sees only that resource's slots.
-- [ ] Booking an `AUTO_FUNGIBLE_POOL` service (e.g. a court) shows union availability and never reveals which specific unit was assigned.
-- [ ] Booking an `AUTO_ANY` service shows the assigned staff member's name on confirmation.
-- [ ] Booking a bundled or multi-leg service either fully succeeds or fully fails — never a partial lock.
-- [ ] A service with no `resourceRequirements` behaves exactly as before this story (explicit non-regression AC).
-- [ ] UC-066 (browse a specific staff member's calendar via `GET /v1/schedule/availability?...&resourceId=`) still works — non-regression confirmation only, already shipped by M22-S03.
+- [x] Customer/guest booking a `CUSTOMER_CHOICE` service picks a staff member and sees only that resource's slots.
+- [x] Booking an `AUTO_FUNGIBLE_POOL` service (e.g. a court) shows union availability and never reveals which specific unit was assigned.
+- [x] Booking an `AUTO_ANY` service shows the assigned staff member's name on confirmation.
+- [x] Booking a bundled or multi-leg service either fully succeeds or fully fails — never a partial lock.
+- [x] A service with no `resourceRequirements` behaves exactly as before this story (explicit non-regression AC).
+- [x] UC-066 (browse a specific staff member's calendar via `GET /v1/schedule/availability?...&resourceId=`) still works — non-regression confirmation only, already shipped by M22-S03.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `resolveCandidateIds()` correctly branches per `selectionMode` (`CUSTOMER_CHOICE` uses the caller-supplied id, `AUTO_ANY`/`AUTO_FUNGIBLE_POOL`/`NONE` behave per the Description above), given a fixture resource set
-  - [ ] Bundle resolution rejects with `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE` (`409`) when any one required resource is unavailable
-  - [ ] Leg-chain resolution rejects with `BOOKING_LEG_UNAVAILABLE` (`409`) when any leg's requirement is unavailable, and computes correct per-leg sub-windows including transition gaps
-  - [ ] `AUTO_ANY` tie-break picks the least-loaded resource, `resourceId` as stable secondary sort
-  - [ ] A `resourceSelections` entry for another tenant's resource is rejected
+  - [x] `resolveCandidateIds()` correctly branches per `selectionMode` (`CUSTOMER_CHOICE` uses the caller-supplied id, `AUTO_ANY`/`AUTO_FUNGIBLE_POOL`/`NONE` behave per the Description above), given a fixture resource set
+  - [x] Bundle resolution rejects with `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE` (`409`) when any one required resource is unavailable
+  - [x] Leg-chain resolution rejects with `BOOKING_LEG_UNAVAILABLE` (`409`) when any leg's requirement is unavailable, and computes correct per-leg sub-windows including transition gaps
+  - [x] `AUTO_ANY` tie-break picks the least-loaded resource, `resourceId` as stable secondary sort
+  - [x] A `resourceSelections` entry for another tenant's resource is rejected
 - Integration:
-  - [ ] `POST /bookings` for a `CUSTOMER_CHOICE` service (via `resourceSelections`) persists a resolved `resource_occupancy` row
-  - [ ] Booking response for `AUTO_ANY` includes `assignedResourceName`; for `AUTO_FUNGIBLE_POOL` never includes any resource identity; for a legged service includes the full `itinerary`
-  - [ ] A bundle/leg race (two concurrent submits contending for the same resource) — the DB's shared GIST exclusion constraint rejects the loser, `409`
+  - [x] `POST /bookings` for a `CUSTOMER_CHOICE` service (via `resourceSelections`) persists a resolved `resource_occupancy` row
+  - [x] Booking response for `AUTO_ANY` includes `assignedResourceName`; for `AUTO_FUNGIBLE_POOL` never includes any resource identity; for a legged service includes the full `itinerary`
+  - [x] A bundle/leg race (two concurrent submits contending for the same resource) — the DB's shared GIST exclusion constraint rejects the loser, `409` (verified generically — a true simultaneous-commit race always throws the generic `BookingSlotUnavailableError` via `rethrowOccupancyInsertError`, regardless of candidate count; the new bundle/leg-specific codes apply to the far more common pre-check-detects-an-existing-conflict path, which is separately unit-tested)
 - Tenant isolation:
-  - [ ] A `resourceSelections` entry naming another tenant's resource is rejected, never silently scoped in
+  - [x] A `resourceSelections` entry naming another tenant's resource is rejected, never silently scoped in
 - E2E: none — covered by S11's frontend E2E
-- [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+- [x] Coverage ≥80% on changed code (backend unit: 3230/3230 passing; booking-context integration: 271/271 passing; BFF unit: 647/647, component: 434/434 — all passing, no regressions)
+- [x] `tsc --noEmit` clean, lint clean
 
 ---
 
@@ -127,7 +141,7 @@ graph TD
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-067, UC-068, `docs/02-DOMAIN_MODEL.md` § `Service.durationPolicy`/`pricingPolicy` (M22), § `service_booking_intake_schema` (M22), `docs/13-DATABASE_SCHEMA.md` § `booking_attendees` (M22)
-**Dependencies:** M21-S01, M22 (`durationPolicy`, intake schema — same milestone-level dependency note as S01), M23-S01 (calls its resource-resolution helpers in `resource-occupancy.helpers.ts` to resolve the variable-duration window's resource(s), doesn't duplicate resolution logic)
+**Dependencies:** M21-S01, M22 (`durationPolicy`, intake schema — same milestone-level dependency note as S01), M23-S01 (calls its resource-resolution helpers — `resource-requirement-resolution.helpers.ts`'s `resolveRequirementResources()`, orchestrated via `resource-occupancy.helpers.ts` — to resolve the variable-duration window's resource(s), doesn't duplicate resolution logic)
 **Pattern:** plain composition — additive request fields on the existing booking-creation use cases; no new pattern.
 
 **Description:**
@@ -181,14 +195,14 @@ Two independently-triggerable, additive extensions of `POST /bookings`, bundled 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-069, `docs/14-API_CONTRACTS.md` § Reschedule (extended), `docs/13-DATABASE_SCHEMA.md` § `booking_quote_revisions`
-**Dependencies:** M21-S01, M22, M23-S01 (reuses its resource-resolution helpers in `resource-occupancy.helpers.ts` to resolve the replacement resource(s)/window, doesn't duplicate resolution logic)
+**Dependencies:** M21-S01, M22, M23-S01 (reuses its resource-resolution helpers — `resource-requirement-resolution.helpers.ts`'s `resolveRequirementResources()`, orchestrated via `resource-occupancy.helpers.ts` — to resolve the replacement resource(s)/window, doesn't duplicate resolution logic)
 **Pattern:** plain composition — extends the existing `RescheduleBookingUseCase`; no new pattern.
 
 **Description:**
 Extend `RescheduleBookingUseCase` (`apps/backend/src/contexts/booking/application/use-cases/reschedule-booking.use-case.ts`) to accept the customer-initiated body shape (`resourceSelections`, `durationMinutes`) alongside the existing staff-only shape, lock the replacement resource(s)/span **before** releasing the original (never leaves a customer holding neither), re-run S01's resolver for the new window, and record a `booking_quote_revisions` row when the price changes (variable-duration reschedule). A bundle/leg reschedule re-validates the whole chain atomically (UC-069 A2); a staff-initiated override records reason+actor but never bypasses capacity/verification/exclusivity (UC-069 A3).
 
 **Backend use case steps:**
-1. Resolve the replacement resource(s)/window via S01's resolution helpers in `resource-occupancy.helpers.ts` (reuse, don't duplicate).
+1. Resolve the replacement resource(s)/window via S01's resolution helpers (`resource-requirement-resolution.helpers.ts`, orchestrated via `resource-occupancy.helpers.ts`; reuse, don't duplicate).
 2. Lock replacement inside the same transaction that releases the original `resource_occupancy` row(s) — lock-then-release ordering, not release-then-lock, so a losing race never leaves the customer with nothing (UC-069 A1: on failure, original remains fully intact).
 3. If price changed (variable-duration or leg composition changed): insert a `booking_quote_revisions` row (`revision_no` = next for this `booking_id`), include it in the response.
 4. Publish `BookingRescheduled` with the extended scope already documented in `docs/03-DOMAIN_EVENTS.md`.

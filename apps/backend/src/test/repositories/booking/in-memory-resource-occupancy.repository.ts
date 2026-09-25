@@ -1,5 +1,6 @@
 import {
   IResourceOccupancyRepository,
+  ResourceLineAssignment,
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
 } from '../../../contexts/booking/application/ports/resource-occupancy-repository.port';
@@ -73,5 +74,40 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     const before = this.store.length;
     this.store = this.store.filter((row) => row.endsAt >= cutoff);
     return before - this.store.length;
+  }
+
+  async countActiveByResource(
+    tenantId: string,
+    resourceIds: string[],
+    from: Date,
+    to: Date,
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    for (const row of this.store) {
+      if (
+        row.tenantId !== tenantId ||
+        row.lockState === 'REQUESTED' ||
+        !resourceIds.includes(row.resourceId) ||
+        !(row.startsAt < to && from < row.endsAt)
+      ) {
+        continue;
+      }
+      counts.set(row.resourceId, (counts.get(row.resourceId) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  async findAssignmentsByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<ResourceLineAssignment[]> {
+    return this.store
+      .filter((row) => row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId))
+      .map((row) => ({
+        bookingLineId: row.bookingLineId,
+        resourceId: row.resourceId,
+        resourceType: row.resourceType,
+        legIndex: row.legIndex,
+      }));
   }
 }

@@ -1,16 +1,18 @@
-import {
-  BookingServiceNotInTenantError,
-  BookingServiceResourceTypeUnavailableError,
-} from '../../domain/errors/booking-domain.error';
+import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import { Resource } from '../../domain/resource.aggregate';
-import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
-import { ServiceLeg } from '../../domain/service-leg';
-import { ResourceOccupancyCandidate } from '../ports/resource-occupancy-repository.port';
+import {
+  IResourceOccupancyRepository,
+  ResourceOccupancyCandidate,
+} from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { isDegenerateService } from './availability-resource-scope.helpers';
+import {
+  resolveFlatLineCandidates,
+  resolveLeggedLineCandidates,
+} from './resource-occupancy-candidate-builders.helpers';
+import { ResolutionContext, selectionKey } from './resource-resolution-context.helpers';
 
 // isDegenerate carries isDegenerateService()'s verdict through to assignment time — see
 // resource-occupancy-assignment.helpers.ts's effectiveLockState() for why.
@@ -25,31 +27,37 @@ export interface BookingLineForResolution {
   durationMinsAtBooking: number;
 }
 
-interface ResolutionContext {
-  resourceRepo: IResourceRepository;
-  availabilityService: AvailabilityService;
-  tenantId: string;
-  resourceCache: Map<string, Resource>;
+// One customer-chosen resource for one CUSTOMER_CHOICE requirement (M23-S01). legIndex is null
+// for a flat (non-legged) requirement, matching ResourceOccupancyCandidate's own shape.
+// resourceType disambiguates within a bundle (more than one requirement on the same line/leg).
+// AUTO_ANY/AUTO_FUNGIBLE_POOL/NONE requirements never consult these — a selection entry for one
+// of those is simply ignored, never an error, so approve-booking/reschedule-booking's "replay
+// every existing assignment regardless of its original selectionMode" re-resolution stays safe.
+export interface ResourceSelectionInput {
+  serviceId: string;
+  legIndex: number | null;
+  resourceType: ResourceType;
+  resourceId: string;
 }
 
-interface PerLegResource {
-  legIndex: number;
-  resource: Resource;
-  quantityPosition: number | null;
+function buildSelectionsByKey(selections: ResourceSelectionInput[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const selection of selections) {
+    const key = selectionKey(selection.serviceId, selection.legIndex, selection.resourceType);
+    const existing = map.get(key);
+    if (existing) existing.push(selection.resourceId);
+    else map.set(key, [selection.resourceId]);
+  }
+  return map;
 }
 
 // Resolves every booking line's service resourceRequirements/legs into concrete
 // ResourceOccupancyCandidate rows (docs/13-DATABASE_SCHEMA.md § booking_line_resource_assignments
 // / resource_occupancy), one per (line, leg?, requirement, quantity unit).
 //
-// Deterministic pool pick: when a requirement has more than one active candidate (a fungible
-// pool / AUTO_ANY with no resourcePoolIds restriction), this always picks the first N (N =
-// requiredQuantity) — it does not retry a different pool member on conflict. True "pick whichever
-// pool member is actually free" resolution is real M23 booking-flow scope (a customer/staff
-// selection UI); Non-Goals excludes any customer-facing resource-scoped booking flow change in
-// M22. The GIST exclusion constraint + BookingSlotConflictService's pre-check still fully protect
-// this deterministic pick from double-booking — a busy first pick is correctly rejected, it's
-// just not auto-retried against a sibling pool member yet.
+// selectionMode-aware since M23-S01 (UC-061/062/063) — the actual per-requirement algorithm lives
+// in resource-requirement-resolution.helpers.ts's resolveRequirementResources(); this function is
+// just the per-line orchestrator.
 //
 // Multiple lines are sequential and back-to-back within the booking's own combined window,
 // matching today's Booking.totalDurationMins model (byte-identical for the degenerate case) — the
@@ -58,17 +66,23 @@ interface PerLegResource {
 export async function resolveBookingLinesResourceCandidates(
   resourceRepo: IResourceRepository,
   availabilityService: AvailabilityService,
+  occupancyRepo: IResourceOccupancyRepository,
   tenantId: string,
   scheduledAt: Date,
+  timezone: string,
   lines: BookingLineForResolution[],
   serviceMap: Map<string, Service>,
+  resourceSelections: ResourceSelectionInput[] = [],
 ): Promise<Map<string, ResolvedLineCandidates>> {
   const ctx: ResolutionContext = {
     resourceRepo,
     availabilityService,
+    occupancyRepo,
     tenantId,
+    timezone,
     resourceCache: new Map(),
   };
+  const selectionsByKey = buildSelectionsByKey(resourceSelections);
   const result = new Map<string, ResolvedLineCandidates>();
   let cursor = scheduledAt;
 
@@ -76,13 +90,16 @@ export async function resolveBookingLinesResourceCandidates(
     const line = lines[i];
     const service = serviceMap.get(line.serviceId);
     if (!service) throw new BookingServiceNotInTenantError(line.serviceId);
-    const isLastLine = i === lines.length - 1;
-    const lineStart = cursor;
     const lineEnd = new Date(cursor.getTime() + line.durationMinsAtBooking * 60_000);
 
-    const candidates = service.legs
-      ? await resolveLeggedLineCandidates(service, ctx, lineStart)
-      : await resolveFlatLineCandidates(service, ctx, lineStart, lineEnd, isLastLine);
+    const candidates = await resolveOneLineCandidates(
+      service,
+      ctx,
+      cursor,
+      lineEnd,
+      i === lines.length - 1,
+      selectionsByKey,
+    );
 
     result.set(line.lineId, { candidates, isDegenerate: isDegenerateService(service) });
     cursor = lineEnd;
@@ -91,163 +108,37 @@ export async function resolveBookingLinesResourceCandidates(
   return result;
 }
 
-// A service with zero resourceRequirements (every service starts this way — CreateServiceUseCase
-// never defaults them; a manager opts in via a separate PATCH) has nothing configured to scope
-// by, so it falls back to the tenant's LOCATION resource — same degenerate-service reasoning as
-// availability-resource-scope.helpers.ts's isDegenerateService(), applied here on the write path
-// so a not-yet-configured service still gets real exclusivity protection instead of none at all.
-const DEGENERATE_LOCATION_REQUIREMENT = ResourceRequirement.create({
-  type: ResourceType.LOCATION,
-  selectionMode: 'NONE',
-});
-
-async function resolveFlatLineCandidates(
+async function resolveOneLineCandidates(
   service: Service,
   ctx: ResolutionContext,
   lineStart: Date,
   lineEnd: Date,
   isLastLine: boolean,
+  selectionsByKey: Map<string, string[]>,
 ): Promise<ResourceOccupancyCandidate[]> {
-  const requirements =
-    service.resourceRequirements.length > 0
-      ? service.resourceRequirements
-      : [DEGENERATE_LOCATION_REQUIREMENT];
-  const candidates: ResourceOccupancyCandidate[] = [];
-  for (const requirement of requirements) {
-    const resources = await resolveRequirementResources(requirement, ctx);
-    resources.forEach((resource, index) => {
-      const gap = isLastLine
-        ? ctx.availabilityService.effectiveFlatGapMinutes(
-            service.bufferAfterMinutes ?? 0,
-            resource.turnoverMinutes,
-          )
-        : 0;
-      candidates.push({
-        resourceId: resource.id,
-        resourceType: resource.type,
-        resourceName: resource.name,
-        legIndex: null,
-        quantityPosition: resources.length > 1 ? index : null,
-        startsAt: lineStart,
-        endsAt: new Date(lineEnd.getTime() + gap * 60_000),
-      });
-    });
-  }
-  return candidates;
+  return service.legs
+    ? resolveLeggedLineCandidates(service, ctx, lineStart, selectionsByKey)
+    : resolveFlatLineCandidates(service, ctx, lineStart, lineEnd, isLastLine, selectionsByKey);
 }
 
-// computeLegSpans's turnover param only extends a leg's OWN endsAtWithTurnover — it never affects
-// the next leg's startsAt (that's transitionGapAfterMinutes alone, a static per-leg service
-// value). So turnover is entirely per-resource and per-leg-sequencing-independent: spans are
-// computed once with zero turnover, then each candidate adds its OWN resource's turnoverMinutes
-// to that raw leg end — never a pool-wide max applied uniformly to every candidate regardless of
-// which one actually ends up free.
-const NO_TURNOVER = new Map<number, number>();
-
-async function resolveLeggedLineCandidates(
-  service: Service,
-  ctx: ResolutionContext,
-  lineStart: Date,
-): Promise<ResourceOccupancyCandidate[]> {
-  const legs = service.legs!;
-  const perLeg = await resolvePerLegResources(legs, ctx);
-  const legSpans = ctx.availabilityService.computeLegSpans(
-    lineStart,
-    legs.map((leg) => ({
-      legIndex: leg.legIndex,
-      durationMinutes: leg.durationMinutes,
-      transitionGapAfterMinutes: leg.transitionGapAfterMinutes,
-    })),
-    NO_TURNOVER,
-  );
-  const spanByLegIndex = new Map(legSpans.map((span) => [span.legIndex, span]));
-
-  return perLeg.map(({ legIndex, resource, quantityPosition }) => {
-    const span = spanByLegIndex.get(legIndex)!;
-    return {
-      resourceId: resource.id,
-      resourceType: resource.type,
-      resourceName: resource.name,
-      legIndex,
-      quantityPosition,
-      startsAt: span.startsAt,
-      endsAt: new Date(span.endsAtWithTurnover.getTime() + resource.turnoverMinutes * 60_000),
-    };
-  });
-}
-
-async function resolvePerLegResources(
-  legs: ServiceLeg[],
-  ctx: ResolutionContext,
-): Promise<PerLegResource[]> {
-  const perLeg: PerLegResource[] = [];
-  for (const leg of legs) {
-    for (const requirement of leg.resourceRequirements) {
-      const resources = await resolveRequirementResources(requirement, ctx);
-      resources.forEach((resource, index) => {
-        perLeg.push({
-          legIndex: leg.legIndex,
-          resource,
-          quantityPosition: resources.length > 1 ? index : null,
-        });
-      });
-    }
-  }
-  return perLeg;
-}
-
-async function resolveRequirementResources(
-  requirement: ResourceRequirement,
-  ctx: ResolutionContext,
-): Promise<Resource[]> {
-  const candidateIds = await resolveCandidateIds(requirement, ctx);
-  if (candidateIds.length < requirement.requiredQuantity) {
-    throw new BookingServiceResourceTypeUnavailableError(requirement.type);
-  }
-
-  const chosenIds = candidateIds.slice(0, requirement.requiredQuantity);
-  const resources: Resource[] = [];
-  for (const id of chosenIds) {
-    resources.push(await lookupResource(id, requirement, ctx));
-  }
-  return resources;
-}
-
-async function resolveCandidateIds(
-  requirement: ResourceRequirement,
-  ctx: ResolutionContext,
-): Promise<string[]> {
-  if (requirement.resourcePoolIds && requirement.resourcePoolIds.length > 0) {
-    return requirement.resourcePoolIds;
-  }
-  const active = await ctx.resourceRepo.findByTenant(ctx.tenantId, {
-    type: requirement.type,
-    isActive: true,
-  });
-  if (active.length === 0) {
-    throw new BookingServiceResourceTypeUnavailableError(requirement.type);
-  }
-  return active.map((r) => r.id);
-}
-
-async function lookupResource(
-  id: string,
-  requirement: ResourceRequirement,
-  ctx: ResolutionContext,
-): Promise<Resource> {
-  const cached = ctx.resourceCache.get(id);
-  if (cached) return cached;
-  const found = await ctx.resourceRepo.findById(id, ctx.tenantId);
-  // Enforced here (not just at the findByTenant(isActive: true) call site) because a fixed
-  // resourcePoolIds requirement trusts its configured ids directly, bypassing that filter — a
-  // resource deactivated after a service was configured must not still be assignable. The type
-  // check guards the same trust: UpdateResourceUseCase permits changing a non-LOCATION resource's
-  // type after it was pinned into a requirement's resourcePoolIds (plan/M21-MULTIVERTICAL-
-  // FOUNDATION.md's UpdateResourceUseCase spec only rejects a type change to/from LOCATION), so a
-  // stale pool id could otherwise resolve to a resource of the wrong type.
-  if (!found?.isActive || found.type !== requirement.type) {
-    throw new BookingServiceResourceTypeUnavailableError(requirement.type);
-  }
-  ctx.resourceCache.set(id, found);
-  return found;
+// Replays a booking's already-persisted resource choice(s) into resourceSelections shape, for
+// approve-booking/reschedule-booking's "re-resolve fresh every time" design (story-discovery,
+// M23-S01) — there's no HTTP request to re-derive a CUSTOMER_CHOICE pick from at approval/
+// reschedule time, so the immutable booking_line_resource_assignments record is the only source
+// of truth for "which resource the customer actually picked." Every assignment is replayed
+// regardless of its own requirement's selectionMode — an entry that doesn't match a
+// CUSTOMER_CHOICE requirement is simply unused by resolveCandidateIds, never an error.
+export async function deriveResourceSelectionsFromAssignments(
+  occupancyRepo: IResourceOccupancyRepository,
+  tenantId: string,
+  bookingLineIds: string[],
+  lineIdToServiceId: Map<string, string>,
+): Promise<ResourceSelectionInput[]> {
+  const assignments = await occupancyRepo.findAssignmentsByBookingLines(tenantId, bookingLineIds);
+  return assignments.map((assignment) => ({
+    serviceId: lineIdToServiceId.get(assignment.bookingLineId)!,
+    legIndex: assignment.legIndex,
+    resourceType: assignment.resourceType,
+    resourceId: assignment.resourceId,
+  }));
 }

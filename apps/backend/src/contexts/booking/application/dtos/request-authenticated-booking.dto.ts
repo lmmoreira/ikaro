@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AddressShapeSchema } from '@ikaro/validation';
+import { AddressShapeSchema, ResourceSelectionSchema } from '@ikaro/validation';
 import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-regex';
 
 export const RequestAuthenticatedBookingSchema = z.object({
@@ -9,6 +9,8 @@ export const RequestAuthenticatedBookingSchema = z.object({
   pickupAddress: AddressShapeSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
   beforeServicePhotoUrls: BookingTmpPhotoPathsSchema.optional(),
+  // CUSTOMER_CHOICE picks — see request-booking.dto.ts's identical comment.
+  resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
 });
 
 export type RequestAuthenticatedBookingDto = z.infer<typeof RequestAuthenticatedBookingSchema>;

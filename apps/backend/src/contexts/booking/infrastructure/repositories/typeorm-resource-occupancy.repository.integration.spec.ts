@@ -38,6 +38,7 @@ function candidate(
     quantityPosition: null,
     startsAt,
     endsAt,
+    selectionMode: 'NONE',
     ...overrides,
   };
 }
@@ -513,6 +514,126 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
           AND indexname = 'IDX_booking_resource_occupancy_ends_at'
       `);
       expect(rows).toHaveLength(1);
+    });
+  });
+
+  describe('countActiveByResource (AUTO_ANY tie-break, M23-S01)', () => {
+    it('counts only HOLD/COMMITTED rows overlapping the given window, excluding REQUESTED and non-overlapping rows', async () => {
+      const lineCommitted = await seedBookingLine(TENANT_A);
+      const lineRequested = await seedBookingLine(TENANT_A);
+      const lineOutside = await seedBookingLine(TENANT_A);
+      const windowStart = new Date('2026-06-10T08:00:00.000Z');
+      const windowEnd = new Date('2026-06-10T20:00:00.000Z');
+
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineCommitted,
+          [
+            candidate(
+              resourceA,
+              new Date('2026-06-10T10:00:00.000Z'),
+              new Date('2026-06-10T11:00:00.000Z'),
+            ),
+          ],
+          'COMMITTED',
+          null,
+        ),
+      );
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineRequested,
+          [
+            candidate(
+              resourceA2,
+              new Date('2026-06-10T12:00:00.000Z'),
+              new Date('2026-06-10T13:00:00.000Z'),
+              { resourceType: ResourceType.EQUIPMENT },
+            ),
+          ],
+          'REQUESTED',
+          null,
+        ),
+      );
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineOutside,
+          [
+            candidate(
+              resourceA,
+              new Date('2026-06-11T10:00:00.000Z'),
+              new Date('2026-06-11T11:00:00.000Z'),
+            ),
+          ],
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      const counts = await txManager.run(() =>
+        repo.countActiveByResource(TENANT_A, [resourceA, resourceA2], windowStart, windowEnd),
+      );
+
+      expect(counts.get(resourceA)).toBe(1);
+      expect(counts.has(resourceA2)).toBe(false);
+    });
+  });
+
+  describe('findAssignmentsByBookingLines (approval/reschedule replay, M23-S01)', () => {
+    it('returns every assignment row for the given booking lines, scoped by tenant', async () => {
+      const lineId = await seedBookingLine(TENANT_A);
+      const otherTenantLineId = await seedBookingLine(TENANT_B);
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineId,
+          [
+            candidate(
+              resourceA,
+              new Date('2026-06-12T10:00:00.000Z'),
+              new Date('2026-06-12T11:00:00.000Z'),
+            ),
+          ],
+          'COMMITTED',
+          null,
+        ),
+      );
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_B,
+          otherTenantLineId,
+          [
+            candidate(
+              resourceB,
+              new Date('2026-06-12T10:00:00.000Z'),
+              new Date('2026-06-12T11:00:00.000Z'),
+            ),
+          ],
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      const assignments = await txManager.run(() =>
+        repo.findAssignmentsByBookingLines(TENANT_A, [lineId, otherTenantLineId]),
+      );
+
+      expect(assignments).toHaveLength(1);
+      expect(assignments[0]).toMatchObject({
+        bookingLineId: lineId,
+        resourceId: resourceA,
+        resourceType: ResourceType.LOCATION,
+        legIndex: null,
+      });
+    });
+
+    it('returns [] for an empty bookingLineIds array without querying', async () => {
+      const assignments = await txManager.run(() =>
+        repo.findAssignmentsByBookingLines(TENANT_A, []),
+      );
+      expect(assignments).toEqual([]);
     });
   });
 });

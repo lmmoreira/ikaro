@@ -158,6 +158,7 @@ describe('BookingController', () => {
         resourceName: location.name,
         legIndex: null,
         quantityPosition: null,
+        selectionMode: 'NONE' as const,
         startsAt: conflictAt,
         endsAt: new Date(conflictAt.getTime() + 30 * 60_000),
       });
