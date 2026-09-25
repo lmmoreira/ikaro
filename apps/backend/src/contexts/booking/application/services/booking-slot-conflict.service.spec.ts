@@ -28,6 +28,7 @@ function candidate(
     startsAt,
     endsAt,
     selectionMode: 'NONE',
+    isBundleMember: false,
     ...overrides,
   };
 }
@@ -139,7 +140,24 @@ describe('BookingSlotConflictService', () => {
       ).rejects.toThrow(BookingLegUnavailableError);
     });
 
-    it('throws BookingBundlePartiallyUnavailableError when more than one flat candidate is in play, even if only one conflicts', async () => {
+    it('throws BookingBundlePartiallyUnavailableError when a true bundle member (isBundleMember) conflicts', async () => {
+      const existingEnd = new Date(scheduledAt.getTime() + 60 * 60_000);
+      occupancyRepo.seed(TENANT_ID, 'other-line', candidate(scheduledAt, existingEnd));
+
+      const endsAt = new Date(scheduledAt.getTime() + 30 * 60_000);
+      await expect(
+        service.assertSlotFree(TENANT_ID, [
+          candidate(scheduledAt, endsAt, { isBundleMember: true }),
+          candidate(scheduledAt, endsAt, { resourceId: RESOURCE_ID_2, isBundleMember: true }),
+        ]),
+      ).rejects.toThrow(BookingBundlePartiallyUnavailableError);
+    });
+
+    // Inferring "bundle" from flat-candidate-count across the whole booking would mislabel an
+    // ordinary multi-service basket (two independent single-resource services, neither itself a
+    // bundle) as a bundle conflict. isBundleMember is stamped per-candidate from its own line's
+    // requirement count instead, so this case must fall through to the generic message.
+    it('throws the generic BookingSlotUnavailableError for a multi-service basket where neither service is a bundle', async () => {
       const existingEnd = new Date(scheduledAt.getTime() + 60 * 60_000);
       occupancyRepo.seed(TENANT_ID, 'other-line', candidate(scheduledAt, existingEnd));
 
@@ -149,7 +167,13 @@ describe('BookingSlotConflictService', () => {
           candidate(scheduledAt, endsAt),
           candidate(scheduledAt, endsAt, { resourceId: RESOURCE_ID_2 }),
         ]),
-      ).rejects.toThrow(BookingBundlePartiallyUnavailableError);
+      ).rejects.toThrow(BookingSlotUnavailableError);
+      await expect(
+        service.assertSlotFree(TENANT_ID, [
+          candidate(scheduledAt, endsAt),
+          candidate(scheduledAt, endsAt, { resourceId: RESOURCE_ID_2 }),
+        ]),
+      ).rejects.not.toBeInstanceOf(BookingBundlePartiallyUnavailableError);
     });
 
     it('throws the generic BookingSlotUnavailableError for a single flat, non-legged candidate', async () => {

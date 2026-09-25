@@ -225,35 +225,34 @@ function resolveHoldExpiresAt(serviceMap: Map<string, Service>): Date {
 // same resolution, so it happens once. No excludeBookingId — this is a brand-new booking, nothing
 // of its own can exist yet to self-conflict with. Must stay inside the write transaction because
 // lockResources uses pg_advisory_xact_lock, which only protects the slot check for this tx.
+// Takes `deps`/`params` directly (not individual fields) to stay under SonarCloud's
+// max-parameters threshold (S107) — same bundling `persistRequestedBooking`
+// itself already uses.
 async function resolveAndCheckCandidates(
-  resourceRepo: IResourceRepository,
-  availabilityService: AvailabilityService,
-  occupancyRepo: IResourceOccupancyRepository,
-  slotConflictService: BookingSlotConflictService,
-  booking: Booking,
-  tenantId: string,
-  scheduledAt: Date,
-  timezone: string,
-  serviceMap: Map<string, Service>,
-  resourceSelections: ResourceSelectionInput[],
+  deps: PersistRequestedBookingDeps,
+  params: Pick<
+    PersistRequestedBookingParams,
+    'booking' | 'tenantId' | 'scheduledAt' | 'timezone' | 'serviceMap' | 'resourceSelections'
+  >,
 ): Promise<Map<string, ResolvedLineCandidates>> {
-  const candidatesByLine = await resolveBookingLinesResourceCandidates(
-    resourceRepo,
-    availabilityService,
-    occupancyRepo,
+  const { booking, tenantId, scheduledAt, timezone, serviceMap, resourceSelections } = params;
+  const candidatesByLine = await resolveBookingLinesResourceCandidates({
+    resourceRepo: deps.resourceRepo,
+    availabilityService: deps.availabilityService,
+    occupancyRepo: deps.occupancyRepo,
     tenantId,
     scheduledAt,
     timezone,
-    booking.lines.map((line) => ({
+    lines: booking.lines.map((line) => ({
       lineId: line.lineId,
       serviceId: line.serviceId,
       durationMinsAtBooking: line.durationMinsAtBooking,
     })),
     serviceMap,
     resourceSelections,
-  );
+  });
   const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
-  await slotConflictService.assertSlotFree(tenantId, allCandidates);
+  await deps.slotConflictService.assertSlotFree(tenantId, allCandidates);
   return candidatesByLine;
 }
 
@@ -265,18 +264,14 @@ export async function persistRequestedBooking(
     params;
 
   return deps.txManager.run(async () => {
-    const candidatesByLine = await resolveAndCheckCandidates(
-      deps.resourceRepo,
-      deps.availabilityService,
-      deps.occupancyRepo,
-      deps.slotConflictService,
+    const candidatesByLine = await resolveAndCheckCandidates(deps, {
       booking,
       tenantId,
       scheduledAt,
       timezone,
       serviceMap,
       resourceSelections,
-    );
+    });
 
     const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
     await lockAndVerifyServiceModels(deps.serviceRepo, serviceIds, tenantId, serviceMap);

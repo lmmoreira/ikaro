@@ -41,6 +41,11 @@ export async function resolveFlatLineCandidates(
     service.resourceRequirements.length > 0
       ? service.resourceRequirements
       : [DEGENERATE_LOCATION_REQUIREMENT];
+  // True bundle per the story's own definition (resourceRequirements.length >= 2, UC-064) — never
+  // the degenerate-fallback single-entry array, and never conflated with a requirement's own
+  // requiredQuantity (a fungible-pool multi-unit requirement is not a bundle). Drives
+  // BookingSlotConflictService's error classification.
+  const isBundle = requirements.length > 1;
   const candidates: ResourceOccupancyCandidate[] = [];
   for (const requirement of requirements) {
     const chosenResourceIds =
@@ -59,6 +64,7 @@ export async function resolveFlatLineCandidates(
         lineStart,
         lineEnd,
         isLastLine,
+        isBundle,
         ctx.availabilityService,
       ),
     );
@@ -73,6 +79,7 @@ function buildFlatCandidatesForRequirement(
   lineStart: Date,
   lineEnd: Date,
   isLastLine: boolean,
+  isBundleMember: boolean,
   availabilityService: AvailabilityService,
 ): ResourceOccupancyCandidate[] {
   return resources.map((resource, index) => {
@@ -91,6 +98,7 @@ function buildFlatCandidatesForRequirement(
       startsAt: lineStart,
       endsAt: new Date(lineEnd.getTime() + gap * 60_000),
       selectionMode: requirement.selectionMode,
+      isBundleMember,
     };
   });
 }
@@ -133,6 +141,9 @@ export async function resolveLeggedLineCandidates(
       startsAt: span.startsAt,
       endsAt: new Date(span.endsAtWithTurnover.getTime() + resource.turnoverMinutes * 60_000),
       selectionMode,
+      // A legged candidate is classified via its own non-null legIndex, never isBundleMember —
+      // see BookingSlotConflictService's classifier.
+      isBundleMember: false,
     };
   });
 }

@@ -60,6 +60,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
       legIndex: null,
       quantityPosition: null,
       selectionMode: 'NONE' as const,
+      isBundleMember: false,
       startsAt: scheduledAt,
       endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
     });

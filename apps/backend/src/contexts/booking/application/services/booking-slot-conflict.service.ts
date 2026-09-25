@@ -12,22 +12,20 @@ import {
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 
 // UC-064 A2 / UC-065 A1 (M23-S01) — a conflict touching a legged candidate is "one part of this
-// journey," a conflict touching more than one flat candidate across the booking is "part of this
-// booking," and everything else keeps the original single-resource message. This is an
-// approximation, not a strict "only a true single-service bundle counts" rule: a multi-service
-// basket where two different single-resource services both contend counts as the bundle message
-// too, since from the customer's point of view "part of what I'm booking isn't available anymore"
-// is equally true either way, and getting the exact bundle-vs-basket distinction right would
-// require threading per-line requirement-grouping through this call, not just the flattened
-// candidate list it already receives.
+// journey"; a conflict touching a true bundle member (isBundleMember, stamped per the story's own
+// definition — resourceRequirements.length >= 2 on that candidate's own line, not just "more than
+// one flat candidate somewhere in the booking") is "part of this booking"; everything else keeps
+// the original single-resource message. An ordinary multi-service basket (two independent
+// single-resource services) correctly falls through to the generic message, since neither
+// service is itself a bundle — inferring "bundle" from flat-candidate-count alone would
+// conflate the two.
 function throwSlotConflictError(
   candidates: ResourceOccupancyCandidate[],
   conflictingResourceIds: string[],
 ): never {
   const conflicting = candidates.filter((c) => conflictingResourceIds.includes(c.resourceId));
   if (conflicting.some((c) => c.legIndex !== null)) throw new BookingLegUnavailableError();
-  const flatCandidateCount = candidates.filter((c) => c.legIndex === null).length;
-  if (flatCandidateCount > 1) throw new BookingBundlePartiallyUnavailableError();
+  if (conflicting.some((c) => c.isBundleMember)) throw new BookingBundlePartiallyUnavailableError();
   throw new BookingSlotUnavailableError();
 }
 

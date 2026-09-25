@@ -39,6 +39,7 @@ function candidate(
     startsAt,
     endsAt,
     selectionMode: 'NONE',
+    isBundleMember: false,
     ...overrides,
   };
 }

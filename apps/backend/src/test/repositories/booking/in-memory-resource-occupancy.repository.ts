@@ -81,6 +81,7 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     resourceIds: string[],
     from: Date,
     to: Date,
+    excludeBookingLineIds?: string[],
   ): Promise<Map<string, number>> {
     const counts = new Map<string, number>();
     for (const row of this.store) {
@@ -88,6 +89,7 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
         row.tenantId !== tenantId ||
         row.lockState === 'REQUESTED' ||
         !resourceIds.includes(row.resourceId) ||
+        (excludeBookingLineIds ?? []).includes(row.bookingLineId) ||
         !(row.startsAt < to && from < row.endsAt)
       ) {
         continue;
@@ -97,12 +99,16 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     return counts;
   }
 
+  // Mirrors the real repository's ORDER BY quantity_position — this store only ever holds live
+  // occupancy (release() removes rows outright, same effect as the real query's JOIN to the live
+  // resource_occupancy projection), so no separate staleness filter is needed here.
   async findAssignmentsByBookingLines(
     tenantId: string,
     bookingLineIds: string[],
   ): Promise<ResourceLineAssignment[]> {
     return this.store
       .filter((row) => row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId))
+      .sort((a, b) => (a.quantityPosition ?? -1) - (b.quantityPosition ?? -1))
       .map((row) => ({
         bookingLineId: row.bookingLineId,
         resourceId: row.resourceId,

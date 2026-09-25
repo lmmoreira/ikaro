@@ -633,12 +633,16 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
       "street": "Rua das Flores", "number": "123", "complement": "Apto 4B",
       "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130010"
     },
-    "beforeServicePhotoUrls": ["https://..."]
+    "beforeServicePhotoUrls": ["https://..."],
+    "resourceSelections": [
+      { "serviceId": "uuid-basic-wash", "legIndex": null, "resourceType": "STAFF", "resourceId": "uuid-staff-resource" }
+    ]
   }
   ```
   - `pickupAddress` **required** when any `serviceId` has `requiresPickupAddress = true`; omit otherwise.
   - `contactAddress` optional (general home address for the guest).
   - `beforeServicePhotoUrls` optional, defaults to `[]`.
+  - `resourceSelections` optional (M23-S01, UC-061/064/065) — one entry per `CUSTOMER_CHOICE` resource requirement the customer picked, keyed by `(serviceId, legIndex, resourceType)`. `legIndex` is `null`/omitted for a flat (non-legged) requirement, set for a legged service's per-leg choice. Ignored for `AUTO_ANY`/`AUTO_FUNGIBLE_POOL`/`NONE` requirements — a service with no `resourceRequirements` (the pre-M22 default) needs no entries at all.
 
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
 
@@ -651,6 +655,10 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   - `400 invalid-pickup-address` — `pickupAddress` fields fail validation (e.g. `zipCode` not 8 digits, `state` not a valid UF).
   - `400 photo-not-uploaded` — one or more `beforeServicePhotoUrls` paths were never confirmed as uploaded to GCS (the backend calls `IStorageService.exists()` on each path before persisting — a stale, never-uploaded, or hand-crafted path is rejected rather than stored).
   - `409 slot-unavailable` — the requested `scheduledAt + totalDurationMins` window overlaps another APPROVED booking or a `ScheduleClosure`.
+  - `422 resource-selection-required` (M23-S01) — a `CUSTOMER_CHOICE` requirement has no matching `resourceSelections` entry.
+  - `422 service-resource-type-unavailable` (M23-S01) — a `resourceSelections` entry names a resource that's inactive, the wrong type, outside the service's configured pool, or belongs to another tenant.
+  - `409 bundle-partially-unavailable` (M23-S01, UC-064 A2) — a bundle requirement (`resourceRequirements.length >= 2` on one service) had a real submit-time conflict on one of its resources; the whole booking fails atomically.
+  - `409 leg-unavailable` (M23-S01, UC-065 A1) — a legged service's chain had a real submit-time conflict on one leg's resource; the whole chain fails atomically.
 
 #### **Authenticated Customer Booking (UC-002) — `POST /bookings/authenticated`**
 
@@ -665,17 +673,21 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
       "street": "Rua das Flores", "number": "123", "complement": "Apto 4B",
       "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130010"
     },
-    "beforeServicePhotoUrls": ["https://..."]
+    "beforeServicePhotoUrls": ["https://..."],
+    "resourceSelections": [
+      { "serviceId": "uuid-basic-wash", "legIndex": null, "resourceType": "STAFF", "resourceId": "uuid-staff-resource" }
+    ]
   }
   ```
   - Guest fields (`contactEmail`, `contactName`, `contactPhone`, `contactAddress`) are **not accepted** — the backend reads them from the Customer record identified by the JWT `sub`.
   - `pickupAddress` **required** when any service has `requiresPickupAddress = true`. If omitted, falls back to `Customer.defaultAddress` when set; if that is also absent, returns `400 missing-pickup-address`.
   - `beforeServicePhotoUrls` optional, defaults to `[]`.
+  - `resourceSelections` optional — identical shape and semantics to the guest endpoint above.
 
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
 
 - **Errors (RFC 9457 Problem Details):**
-  - All errors from guest booking apply (`400`, `404`, `409`).
+  - All errors from guest booking apply (`400`, `404`, `409`, `422`).
   - `401 Unauthorized` — no valid JWT.
   - `403 Forbidden` — JWT role is not `CUSTOMER`.
   - `422 customer-phone-not-set` — the customer has not set a phone number on their profile; update via `PATCH /customers/me` before booking.
@@ -701,7 +713,8 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
       "priceAtBooking":                 { "amount": 100.00, "currency": "BRL" },
       "durationMinsAtBooking":          30,
       "pointsValueAtBooking":           1,
-      "requiresPickupAddressAtBooking": false
+      "requiresPickupAddressAtBooking": false,
+      "assignedResourceName":           "Ana Souza"
     },
     {
       "lineId":                         "uuid",
@@ -715,6 +728,16 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 }
 ```
 (`pickupAddress` omitted when null. `serviceNameAtBooking` stored on the line but not returned.)
+
+**Per-line resource identity fields (M23-S01), both optional and mutually exclusive:**
+- `assignedResourceName` — set only when that line resolved a flat `AUTO_ANY` requirement (UC-063), revealing the system-assigned staff member's name. Never set for `AUTO_FUNGIBLE_POOL` (UC-062 — pool identity must stay hidden) or `CUSTOMER_CHOICE` (the customer already knows their own pick).
+- `itinerary` — set only when that line resolved a legged service (UC-065), an array of `{ legIndex, resourceName, startsAt, endsAt }` covering every leg's resolved resource and computed sub-window, regardless of each leg's own `selectionMode` (schedule disclosure, not identity disclosure):
+  ```json
+  "itinerary": [
+    { "legIndex": 0, "resourceName": "Sala Spa",        "startsAt": "ISO8601", "endsAt": "ISO8601" },
+    { "legIndex": 1, "resourceName": "Maca de Massagem", "startsAt": "ISO8601", "endsAt": "ISO8601" }
+  ]
+  ```
 
 ### **Booking Management (UC-003 - UC-008)**
 - `GET /bookings` → List bookings. Query params (`M13-S03`): `status` (comma-separated), `date`, `from`, `to`, `page`, `limit`. **No `customerId` filter param** — for a CUSTOMER caller, scoping to their own bookings is role-derived server-side, not a query filter. Each list item includes `totalPrice`, `totalDurationMins`, and a compact `lineSummary: [{ lineId, serviceId, serviceNameAtBooking, durationMinsAtBooking, priceAtBooking }, …]`.

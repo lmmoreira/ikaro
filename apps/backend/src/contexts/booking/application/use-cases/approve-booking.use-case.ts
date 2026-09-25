@@ -145,17 +145,17 @@ export class ApproveBookingUseCase {
       bookingLineIds,
       lineIdToServiceId,
     );
-    const candidatesByLine = await resolveBookingLinesResourceCandidates(
-      this.resourceRepo,
-      this.availabilityService,
-      this.occupancyRepo,
+    const candidatesByLine = await resolveBookingLinesResourceCandidates({
+      resourceRepo: this.resourceRepo,
+      availabilityService: this.availabilityService,
+      occupancyRepo: this.occupancyRepo,
       tenantId,
       scheduledAt,
       timezone,
-      lineInputs,
+      lines: lineInputs,
       serviceMap,
       resourceSelections,
-    );
+    });
     const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
     await this.slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);
     return candidatesByLine;

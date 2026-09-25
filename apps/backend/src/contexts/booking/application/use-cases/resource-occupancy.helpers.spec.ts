@@ -53,17 +53,17 @@ describe('resolveBookingLinesResourceCandidates', () => {
     resourceSelections: ResourceSelectionInput[] = [],
     scheduledAt: Date = SCHEDULED_AT,
   ) {
-    return resolveBookingLinesResourceCandidates(
+    return resolveBookingLinesResourceCandidates({
       resourceRepo,
       availabilityService,
       occupancyRepo,
-      TENANT_ID,
+      tenantId: TENANT_ID,
       scheduledAt,
-      TIMEZONE,
+      timezone: TIMEZONE,
       lines,
       serviceMap,
       resourceSelections,
-    );
+    });
   }
 
   it('throws BookingServiceNotInTenantError when the line references a service missing from serviceMap', async () => {
@@ -617,6 +617,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
             startsAt: new Date('2026-06-01T08:00:00.000Z'),
             endsAt: new Date('2026-06-01T09:00:00.000Z'),
             selectionMode: 'AUTO_ANY',
+            isBundleMember: false,
           },
         ],
         'COMMITTED',

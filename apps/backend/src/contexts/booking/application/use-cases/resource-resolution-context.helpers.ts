@@ -18,6 +18,12 @@ export interface ResolutionContext {
   tenantId: string;
   timezone: string;
   resourceCache: Map<string, Resource>;
+  // The booking's own line ids, so AUTO_ANY's workload tie-break (sortByLeastWorkload) never
+  // counts this booking's own existing HOLD/COMMITTED occupancy against itself when
+  // approve-booking/reschedule-booking re-resolve fresh — same self-exclusion shape
+  // findConflictingResourceIds already has via excludeBookingLineIds. Empty at creation time (the
+  // lines are brand new, nothing to exclude).
+  excludeBookingLineIds: string[];
 }
 
 export function selectionKey(

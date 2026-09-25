@@ -51,6 +51,21 @@ function buildSelectionsByKey(selections: ResourceSelectionInput[]): Map<string,
   return map;
 }
 
+// Bundled to stay under SonarCloud's max-parameters threshold (S107) —
+// same shape every caller already builds from its own constructor-injected fields (mirrors
+// PersistRequestedBookingDeps/Params in booking-request.helpers.ts).
+export interface ResolveBookingLinesResourceCandidatesParams {
+  resourceRepo: IResourceRepository;
+  availabilityService: AvailabilityService;
+  occupancyRepo: IResourceOccupancyRepository;
+  tenantId: string;
+  scheduledAt: Date;
+  timezone: string;
+  lines: BookingLineForResolution[];
+  serviceMap: Map<string, Service>;
+  resourceSelections?: ResourceSelectionInput[];
+}
+
 // Resolves every booking line's service resourceRequirements/legs into concrete
 // ResourceOccupancyCandidate rows (docs/13-DATABASE_SCHEMA.md § booking_line_resource_assignments
 // / resource_occupancy), one per (line, leg?, requirement, quantity unit).
@@ -64,16 +79,11 @@ function buildSelectionsByKey(selections: ResourceSelectionInput[]): Map<string,
 // UC-059 buffer/turnover gap is applied once, at the very end of the LAST line only, never
 // between two lines of the same booking.
 export async function resolveBookingLinesResourceCandidates(
-  resourceRepo: IResourceRepository,
-  availabilityService: AvailabilityService,
-  occupancyRepo: IResourceOccupancyRepository,
-  tenantId: string,
-  scheduledAt: Date,
-  timezone: string,
-  lines: BookingLineForResolution[],
-  serviceMap: Map<string, Service>,
-  resourceSelections: ResourceSelectionInput[] = [],
+  params: ResolveBookingLinesResourceCandidatesParams,
 ): Promise<Map<string, ResolvedLineCandidates>> {
+  const { resourceRepo, availabilityService, occupancyRepo, tenantId, scheduledAt, timezone } =
+    params;
+  const { lines, serviceMap, resourceSelections = [] } = params;
   const ctx: ResolutionContext = {
     resourceRepo,
     availabilityService,
@@ -81,6 +91,9 @@ export async function resolveBookingLinesResourceCandidates(
     tenantId,
     timezone,
     resourceCache: new Map(),
+    // These lines' own pre-existing occupancy (if any — empty at creation, real at
+    // approve/reschedule re-resolution) must never count as AUTO_ANY workload against itself.
+    excludeBookingLineIds: lines.map((line) => line.lineId),
   };
   const selectionsByKey = buildSelectionsByKey(resourceSelections);
   const result = new Map<string, ResolvedLineCandidates>();

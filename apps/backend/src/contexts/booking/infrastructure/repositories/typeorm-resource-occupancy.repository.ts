@@ -149,33 +149,48 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
 
   // AUTO_ANY tie-break (UC-063 A1, M23-S01) — same HOLD/COMMITTED lock-state filter and tstzrange
   // overlap operator as findConflictingResourceIds above, grouped/counted per resource instead of
-  // just existence-checked.
+  // just existence-checked. excludeBookingLineIds mirrors findConflictingResourceIds' own
+  // self-exclusion LEFT JOIN — approve-booking/reschedule-booking's fresh AUTO_ANY re-resolution
+  // must never count the booking's own existing HOLD/COMMITTED row as workload against itself.
   async countActiveByResource(
     tenantId: string,
     resourceIds: string[],
     from: Date,
     to: Date,
+    excludeBookingLineIds?: string[],
   ): Promise<Map<string, number>> {
     if (resourceIds.length === 0) return new Map();
     const manager = this.requireActiveManager();
     const rows: WorkloadCountRow[] = await manager.query(
       `
-      SELECT resource_id, COUNT(*)::text AS count
-      FROM booking.resource_occupancy
-      WHERE tenant_id = $1
-        AND resource_id = ANY($2::uuid[])
-        AND lock_state IN ('HOLD', 'COMMITTED')
-        AND tstzrange(starts_at, ends_at, '[)') && tstzrange($3::timestamptz, $4::timestamptz, '[)')
-      GROUP BY resource_id
+      SELECT ro.resource_id, COUNT(*)::text AS count
+      FROM booking.resource_occupancy ro
+      LEFT JOIN booking.booking_line_resource_assignments bla
+        ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
+      WHERE ro.tenant_id = $1
+        AND ro.resource_id = ANY($2::uuid[])
+        AND ro.lock_state IN ('HOLD', 'COMMITTED')
+        AND tstzrange(ro.starts_at, ro.ends_at, '[)') && tstzrange($3::timestamptz, $4::timestamptz, '[)')
+        AND (
+          $5::uuid[] IS NULL
+          OR bla.booking_line_id IS NULL
+          OR NOT (bla.booking_line_id = ANY($5::uuid[]))
+        )
+      GROUP BY ro.resource_id
       `,
-      [tenantId, resourceIds, from, to],
+      [tenantId, resourceIds, from, to, excludeBookingLineIds ?? null],
     );
     return new Map(rows.map((row) => [row.resource_id, Number(row.count)]));
   }
 
-  // Approval/reschedule re-resolution replay (M23-S01 story-discovery) — reads the immutable
-  // audit table directly, not resource_occupancy (whose rows this same re-resolution is about to
-  // replace via release()+assign()).
+  // Approval/reschedule re-resolution replay (M23-S01 story-discovery) — reads the LIVE
+  // resource_occupancy projection (joined to booking_line_resource_assignments for
+  // resourceType/legIndex), not the booking_line_resource_assignments audit table directly. That
+  // table is append-only and never deletes a superseded row on reassignment, so a booking
+  // rescheduled to a different resource more than once would otherwise return stale,
+  // no-longer-occupying resource ids alongside the current one. Ordered by quantity_position so a
+  // multi-unit requirement's resourceSelections array preserves its original positional
+  // assignment.
   async findAssignmentsByBookingLines(
     tenantId: string,
     bookingLineIds: string[],
@@ -184,9 +199,12 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
     const manager = this.requireActiveManager();
     const rows: AssignmentByLineRow[] = await manager.query(
       `
-      SELECT booking_line_id, resource_id, resource_type, leg_index
-      FROM booking.booking_line_resource_assignments
-      WHERE tenant_id = $1 AND booking_line_id = ANY($2::uuid[])
+      SELECT bla.booking_line_id, ro.resource_id, ro.resource_type, ro.leg_index
+      FROM booking.resource_occupancy ro
+      JOIN booking.booking_line_resource_assignments bla
+        ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
+      WHERE ro.tenant_id = $1 AND bla.booking_line_id = ANY($2::uuid[])
+      ORDER BY bla.quantity_position ASC NULLS FIRST
       `,
       [tenantId, bookingLineIds],
     );

@@ -55,15 +55,18 @@ async function resolveCandidateIds(
 // requiredQuantity > 1 combined with CUSTOMER_CHOICE has no named UC example (the "several
 // distinct units, customer picks each" shape isn't part of UC-061/064/065's main flows) — this
 // still handles it correctly (one resourceSelections entry per unit, same key repeated), it's
-// just untested product territory today.
+// just untested product territory today. Deduplicated first
+// — the same resourceId submitted twice must not be able to satisfy a requiredQuantity of 2; that
+// would silently try to lock one physical resource as two distinct units.
 function resolveCustomerChoiceCandidateIds(
   requirement: ResourceRequirement,
   chosenResourceIds: string[],
 ): string[] {
-  if (chosenResourceIds.length < requirement.requiredQuantity) {
+  const distinct = [...new Set(chosenResourceIds)];
+  if (distinct.length < requirement.requiredQuantity) {
     throw new BookingResourceSelectionRequiredError(requirement.type);
   }
-  return chosenResourceIds;
+  return distinct;
 }
 
 async function resolveEligibleCandidateIds(
@@ -99,6 +102,7 @@ async function sortByLeastWorkload(
     resourceIds,
     start,
     end,
+    ctx.excludeBookingLineIds,
   );
   return [...resourceIds].sort((a, b) => {
     const diff = (workload.get(a) ?? 0) - (workload.get(b) ?? 0);

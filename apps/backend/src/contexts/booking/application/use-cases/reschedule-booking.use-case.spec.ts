@@ -135,6 +135,7 @@ describe('RescheduleBookingUseCase', () => {
             legIndex: null,
             quantityPosition: null,
             selectionMode: 'NONE' as const,
+            isBundleMember: false,
             startsAt: new Date(futureSlot),
             endsAt: new Date(new Date(futureSlot).getTime() + 30 * 60_000),
           },
@@ -226,6 +227,7 @@ describe('RescheduleBookingUseCase', () => {
         legIndex: null,
         quantityPosition: null,
         selectionMode: 'NONE' as const,
+        isBundleMember: false,
         startsAt: conflictAt,
         endsAt: new Date(conflictAt.getTime() + 60 * 60_000),
       });
@@ -265,6 +267,7 @@ describe('RescheduleBookingUseCase', () => {
             legIndex: null,
             quantityPosition: null,
             selectionMode: 'NONE' as const,
+            isBundleMember: false,
             startsAt: original,
             endsAt: new Date(original.getTime() + 60 * 60_000),
           },

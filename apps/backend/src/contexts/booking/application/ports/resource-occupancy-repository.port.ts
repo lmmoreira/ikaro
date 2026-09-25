@@ -22,6 +22,14 @@ export interface ResourceOccupancyCandidate extends ResourceOccupancyWindow {
   // Ignored by persistence — resource_occupancy/booking_line_resource_assignments don't store it,
   // it's derivable from the service config at any time.
   selectionMode: ResourceRequirementSelectionMode;
+  // True only for a flat (non-legged) candidate whose own service has >= 2 resourceRequirements —
+  // a genuine bundle (UC-064), matching the story's own definition. Never true for a legged
+  // candidate (legs use legIndex for their own conflict classification) or for a flat single-
+  // requirement service. Drives BookingSlotConflictService's error classification: the flattened
+  // candidate list alone can't distinguish a true bundle from an ordinary multi-service basket, so
+  // each candidate carries the verdict from its own line's requirement count instead of the
+  // classifier re-deriving it from candidate count across the whole booking.
+  isBundleMember: boolean;
 }
 
 // Internal, booking-context-local write-path port for the resource_occupancy/
@@ -75,21 +83,31 @@ export interface IResourceOccupancyRepository {
   // booking being resolved). REQUESTED rows are excluded, same lock-state filter
   // findConflictingResourceIds uses — a degenerate-service REQUESTED row was never a real
   // commitment. Resources with zero occupancy in the window are simply absent from the returned
-  // map (callers treat a missing key as 0), not an error.
+  // map (callers treat a missing key as 0), not an error. `excludeBookingLineIds`, when set,
+  // ignores occupancy rows belonging to those exact lines — same self-exclusion shape as
+  // findConflictingResourceIds, needed so approve-booking/reschedule-booking's fresh AUTO_ANY
+  // re-resolution never counts the booking's own existing HOLD/COMMITTED row as workload against
+  // itself.
   countActiveByResource(
     tenantId: string,
     resourceIds: string[],
     from: Date,
     to: Date,
+    excludeBookingLineIds?: string[],
   ): Promise<Map<string, number>>;
 
-  // Replays a booking's already-persisted resource choice(s) for a fresh re-resolution
-  // (approve-booking / reschedule-booking's "resolve fresh every time" design, M23-S01
-  // story-discovery) — a CUSTOMER_CHOICE requirement has no HTTP request to re-derive a selection
-  // from at approval/reschedule time, so the original, immutable
-  // booking_line_resource_assignments record is the only source of truth for "which resource the
-  // customer actually picked." AUTO_ANY/AUTO_FUNGIBLE_POOL requirements ignore these entries
-  // (they always re-derive fresh) — returning them anyway is harmless, not incorrect.
+  // Replays a booking's already-persisted, CURRENTLY-occupying resource choice(s) for a fresh
+  // re-resolution (approve-booking / reschedule-booking's "resolve fresh every time" design,
+  // M23-S01 story-discovery) — a CUSTOMER_CHOICE requirement has no HTTP request to re-derive a
+  // selection from at approval/reschedule time. Reads via the live resource_occupancy projection
+  // (joined to booking_line_resource_assignments for resourceType/legIndex), not the
+  // booking_line_resource_assignments audit table directly — that table is append-only and never
+  // deletes a superseded row, so a booking rescheduled to a different resource more than once
+  // would otherwise return stale, no-longer-occupying resource ids alongside the current one.
+  // Ordered by quantity_position so a multi-unit requirement's
+  // resourceSelections array preserves its original positional assignment. AUTO_ANY/
+  // AUTO_FUNGIBLE_POOL requirements ignore these entries (they always re-derive fresh) — returning
+  // them anyway is harmless, not incorrect.
   findAssignmentsByBookingLines(
     tenantId: string,
     bookingLineIds: string[],

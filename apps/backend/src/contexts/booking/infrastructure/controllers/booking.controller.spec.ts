@@ -159,6 +159,7 @@ describe('BookingController', () => {
         legIndex: null,
         quantityPosition: null,
         selectionMode: 'NONE' as const,
+        isBundleMember: false,
         startsAt: conflictAt,
         endsAt: new Date(conflictAt.getTime() + 30 * 60_000),
       });

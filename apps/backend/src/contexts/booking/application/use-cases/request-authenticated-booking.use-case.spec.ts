@@ -281,6 +281,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       legIndex: null,
       quantityPosition: null,
       selectionMode: 'NONE' as const,
+      isBundleMember: false,
       startsAt: new Date(scheduledAt),
       endsAt: new Date(new Date(scheduledAt).getTime() + 60 * 60_000),
     });
