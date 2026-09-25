@@ -19,6 +19,7 @@ import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typ
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
+import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
 
@@ -64,6 +65,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
     return new TypeOrmBookingRepository(
       dataSource.getRepository(BookingEntity),
       dataSource.getRepository(BookingLineEntity),
+      dataSource.getRepository(BookingLineResourceAssignmentEntity),
       settingsPort,
       outboxPublisher,
     );

@@ -29,6 +29,7 @@ const LIST_RESPONSE: StaffBookingListResponse = {
       totalPrice: { amount: 50, currency: 'BRL' },
       totalDurationMins: 30,
       isCustomer: true,
+      assignedResources: [],
     },
   ],
   total: 1,

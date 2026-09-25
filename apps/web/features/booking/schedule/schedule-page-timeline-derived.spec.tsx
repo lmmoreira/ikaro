@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { BOOKING_STATUS } from '@ikaro/types';
 import type { StaffBookingCardResponse, TenantBusinessHours } from '@ikaro/types';
 import { useScheduleTimelineDerived } from './schedule-page-timeline-derived';
+import { COMPACT_MIN_BLOCK_HEIGHT_PX, DESKTOP_MIN_BLOCK_HEIGHT_PX } from './schedule-timeline';
 
 function makeBusinessHours(): TenantBusinessHours {
   return {
@@ -28,6 +29,7 @@ function makeBooking(overrides: Partial<StaffBookingCardResponse> = {}): StaffBo
     totalPrice: { amount: 100, currency: 'BRL' },
     totalDurationMins: 30,
     isCustomer: false,
+    assignedResources: [],
     ...overrides,
   };
 }
@@ -152,13 +154,17 @@ describe('useScheduleTimelineDerived', () => {
       expect(result.current.weekTimelineCards[0].events).toHaveLength(0);
     });
 
-    it('resolves resourceIds to display names and badges the matched Week-view booking', () => {
-      const booking = makeBooking({ scheduledAt: '2026-08-17T12:00:00.000Z' });
+    it('shows every assigned resource on a matched Week-view booking, sourced from the booking itself', () => {
+      const booking = makeBooking({
+        scheduledAt: '2026-08-17T12:00:00.000Z',
+        assignedResources: [
+          { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+        ],
+      });
       const { result } = renderHook(() =>
         useScheduleTimelineDerived(
           baseInput({
             visibleBookings: [booking],
-            resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
             selectedResourceIdSet: new Set(['res-camila']),
             bookingResourceIdsById: new Map([['booking-1', ['res-camila']]]),
           }),
@@ -168,6 +174,34 @@ describe('useScheduleTimelineDerived', () => {
       const events = result.current.weekTimelineCards[0].events;
       expect(events).toHaveLength(1);
       expect(events[0].kind === 'booking' && events[0].resourceNames).toEqual(['Camila Duarte']);
+    });
+
+    it("shows a booking's assigned resources even when zero resources are checked (TD44-S2 round 3 — always show, not just when filtering)", () => {
+      const booking = makeBooking({
+        scheduledAt: '2026-08-17T12:00:00.000Z',
+        assignedResources: [
+          { resourceId: 'res-camila', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+        ],
+      });
+      const { result } = renderHook(() =>
+        useScheduleTimelineDerived(baseInput({ visibleBookings: [booking] })),
+      );
+
+      const events = result.current.weekTimelineCards[0].events;
+      expect(events).toHaveLength(1);
+      expect(events[0].kind === 'booking' && events[0].resourceNames).toEqual(['Camila Duarte']);
+    });
+  });
+
+  describe('Content-driven minimum block height (TD44 Story 2 round 2)', () => {
+    it('gives Day view (selectedDayTimeline) the desktop minimum, not the old bare 18px floor', () => {
+      const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
+      expect(result.current.selectedDayTimeline.slotHeight).toBe(DESKTOP_MIN_BLOCK_HEIGHT_PX);
+    });
+
+    it('gives Week view (weekTimelineCards) the compact minimum, not the old scaled-down 22px floor', () => {
+      const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
+      expect(result.current.weekTimelineCards[0].slotHeight).toBe(COMPACT_MIN_BLOCK_HEIGHT_PX);
     });
   });
 });

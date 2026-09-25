@@ -12,6 +12,7 @@ import {
 } from '@/e2e/helpers/schedule';
 import { createResource, deactivateResource } from '@/e2e/helpers/booking';
 import { createService, deactivateService, makeUniqueServiceName } from '@/e2e/helpers/services';
+import { inviteStaff } from '@/e2e/helpers/staff';
 import { BFF_URL, WEB_INTERNAL_KEY } from '@/e2e/helpers/auth/shared';
 
 // funcionario@lavacar.com.br is the genuine STAFF-role fixture account for this same tenant
@@ -162,6 +163,12 @@ test.describe('schedule resource columns board (M22-S06)', () => {
       await expect(bookingLink).toHaveAttribute(
         'href',
         new RegExp(`/dashboard/bookings/${booking.bookingId}\\?returnTo=`),
+      );
+      // Day view's resource-columns board renders through the same renderBookingTimelineEvent as
+      // Week view, so the "always show" resource-summary badge appears here too (TD44-S2 round 3),
+      // even though the column itself already conveys the same identity.
+      await expect(bookingLink.getByTestId('timeline-block-resource-summary')).toHaveText(
+        resource.name,
       );
 
       await bookingLink.click();
@@ -337,8 +344,13 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.goto(scheduleRoute(dateKey));
       await switchToWeekView(page);
 
-      // Zero resources checked (today's default) — both bookings show, unbadged.
-      await expect(page.getByRole('link', { name: matchedName })).toBeVisible();
+      // Zero resources checked (today's default) — both bookings show. The matched booking's own
+      // resource-summary badge is already visible even here (TD44-S2 round 3 — always show,
+      // independent of filter state); the unrelated booking has no resource assignment, so its
+      // own link name/summary stays bare regardless.
+      await expect(
+        page.getByRole('link', { name: `${matchedName}, ${resource.name}` }),
+      ).toBeVisible();
       await expect(page.getByRole('link', { name: unrelatedName })).toBeVisible();
 
       await page.getByRole('button', { name: 'Filtrar recurso' }).click();
@@ -346,9 +358,15 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.getByRole('button', { name: 'Fechar' }).click();
 
       await expect(page.getByRole('link', { name: unrelatedName })).toHaveCount(0);
-      const matchedBlock = page.getByRole('link', { name: matchedName });
+      // The booking link's own accessible name composes contactName + every matched resource
+      // (round 3 fix — the visible summary line is aria-hidden; the link is the one focusable/
+      // announced unit).
+      const matchedBlock = page.getByRole('link', { name: `${matchedName}, ${resource.name}` });
       await expect(matchedBlock).toBeVisible();
-      await expect(matchedBlock.getByTestId('timeline-block-resource-name')).toHaveText(
+      // TD44 Story 2: a booking's matched-resource identity now renders via the compact summary
+      // line, not the per-resource ResourceNameBadge (that testid stays reserved for openings/
+      // closures, untouched by this story).
+      await expect(matchedBlock.getByTestId('timeline-block-resource-summary')).toHaveText(
         resource.name,
       );
     } finally {
@@ -357,7 +375,7 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
     }
   });
 
-  test('a bundled booking with both required resources checked renders once, with both badges', async ({
+  test('a bundled booking with both required resources checked renders once, with the type-prioritized name + "+1" (TD44 Story 2)', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -403,11 +421,17 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.getByRole('checkbox', { name: resourceB.name }).check();
       await page.getByRole('button', { name: 'Fechar' }).click();
 
-      const bookingBlocks = page.getByRole('link', { name: contactName });
+      // The booking link's own accessible name now composes contactName + every matched resource
+      // (round 3 fix — the summary div is aria-hidden; the link is the one focusable/announced
+      // unit, so that's where the full resource list actually needs to live for assistive tech).
+      const bookingBlocks = page.getByRole('link', {
+        name: `${contactName}, ${resourceA.name}, ${resourceB.name}`,
+      });
       await expect(bookingBlocks).toHaveCount(1);
-      const badges = bookingBlocks.getByTestId('timeline-block-resource-name');
-      await expect(badges).toHaveCount(2);
-      await expect(badges).toContainText([resourceA.name, resourceB.name]);
+      // ROOM outranks EQUIPMENT (STAFF > ROOM > EQUIPMENT), so resourceA (ROOM) is the primary
+      // name; resourceB is folded into "+1" instead of getting its own badge.
+      const summary = bookingBlocks.getByTestId('timeline-block-resource-summary');
+      await expect(summary).toHaveText(`${resourceA.name} +1`);
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resourceA.id);
@@ -415,7 +439,7 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
     }
   });
 
-  test('a bundled booking with only one of its two required resources checked badges only that one', async ({
+  test('a bundled booking with only one of its two required resources checked stays visible and still shows both assigned resources (TD44-S2 round 3 — always show, not just the checked one)', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -460,11 +484,15 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.getByRole('checkbox', { name: resourceA.name }).check();
       await page.getByRole('button', { name: 'Fechar' }).click();
 
-      const bookingBlock = page.getByRole('link', { name: contactName });
+      // Only resourceA is checked, so the (unrelated) filter still narrows *visibility* to bookings
+      // matching at least one checked resource — but the summary content itself always reflects the
+      // booking's full assignment (both A and B), independent of check state.
+      const bookingBlock = page.getByRole('link', {
+        name: `${contactName}, ${resourceA.name}, ${resourceB.name}`,
+      });
       await expect(bookingBlock).toBeVisible();
-      const badges = bookingBlock.getByTestId('timeline-block-resource-name');
-      await expect(badges).toHaveCount(1);
-      await expect(badges).toHaveText(resourceA.name);
+      const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
+      await expect(summary).toHaveText(`${resourceA.name} +1`);
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resourceA.id);
@@ -472,7 +500,82 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
     }
   });
 
-  test('unchecking the checked resource reverts Week view to the unfiltered, unbadged baseline', async ({
+  test('a booking matching 3 checked resources shows the STAFF-prioritized name + "+2" (TD44 Story 2)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    // A STAFF-type resource must link to a real Staff row via refId (BOOKING_RESOURCE_TYPE_REF_ID_
+    // MISMATCH otherwise) — inviteStaff is enough to create one, no activation needed, matching
+    // resources-manage.spec.ts's own "creates a STAFF resource" precedent.
+    const linkedStaff = await inviteStaff(page, {
+      email: uniqueTestEmail('e2e-week-triple-staff'),
+      firstName: 'Triple',
+      lastName: 'Staff',
+      role: 'STAFF',
+    });
+    const staffResource = await createResource(page, {
+      type: 'STAFF',
+      name: uniqueLabel('E2E Week Triple Staff'),
+      refId: linkedStaff.staffId,
+    });
+    const roomResource = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Week Triple Room'),
+    });
+    const equipmentResource = await createResource(page, {
+      type: 'EQUIPMENT',
+      name: uniqueLabel('E2E Week Triple Equipment'),
+    });
+    const service = await createService(page, {
+      name: makeUniqueServiceName('e2e-week-triple'),
+      priceAmount: 100,
+      durationMinutes: 30,
+      loyaltyPointsValue: 5,
+      isActive: true,
+    });
+
+    try {
+      await bindServiceToResources(page, service.serviceId, [
+        { type: 'STAFF', resourceId: staffResource.id },
+        { type: 'ROOM', resourceId: roomResource.id },
+        { type: 'EQUIPMENT', resourceId: equipmentResource.id },
+      ]);
+
+      const dateKey = nextOpenDateKey(155);
+      const contactName = uniqueLabel('E2E Week Triple Booking');
+      await createScheduleBooking(page, {
+        dateKey,
+        contactName,
+        contactEmail: uniqueTestEmail('schedule-week-triple'),
+        approved: true,
+        time: '11:00',
+        serviceIds: [service.serviceId],
+      });
+
+      await page.goto(scheduleRoute(dateKey));
+      await switchToWeekView(page);
+
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: staffResource.name }).check();
+      await page.getByRole('checkbox', { name: roomResource.name }).check();
+      await page.getByRole('checkbox', { name: equipmentResource.name }).check();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+
+      const bookingBlock = page.getByRole('link', {
+        name: `${contactName}, ${staffResource.name}, ${roomResource.name}, ${equipmentResource.name}`,
+      });
+      const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
+      await expect(summary).toHaveText(`${staffResource.name} +2`);
+    } finally {
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, staffResource.id);
+      await deactivateResource(page, roomResource.id);
+      await deactivateResource(page, equipmentResource.id);
+    }
+  });
+
+  test('unchecking the checked resource reverts Week view to the unfiltered baseline — visibility only, the summary badge stays (TD44-S2 round 3 — always show)', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -522,10 +625,19 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await page.getByRole('checkbox', { name: resource.name }).uncheck();
       await page.getByRole('button', { name: 'Fechar' }).click();
 
-      await expect(page.getByRole('link', { name: unrelatedName })).toBeVisible();
-      const matchedBlock = page.getByRole('link', { name: matchedName });
+      // Unchecking reverts *visibility* — the previously-hidden unrelated booking reappears — but
+      // the matched booking's resource-summary line stays, since it always reflects the booking's
+      // own assignment regardless of filter state, and the unrelated booking (no resource
+      // requirement) correctly shows no summary line at all.
+      const unrelatedBlock = page.getByRole('link', { name: unrelatedName });
+      await expect(unrelatedBlock).toBeVisible();
+      await expect(unrelatedBlock.getByTestId('timeline-block-resource-summary')).toHaveCount(0);
+
+      const matchedBlock = page.getByRole('link', { name: `${matchedName}, ${resource.name}` });
       await expect(matchedBlock).toBeVisible();
-      await expect(matchedBlock.getByTestId('timeline-block-resource-name')).toHaveCount(0);
+      await expect(matchedBlock.getByTestId('timeline-block-resource-summary')).toHaveText(
+        resource.name,
+      );
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resource.id);

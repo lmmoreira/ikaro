@@ -18,6 +18,7 @@ import {
   type TimelineEvent,
 } from '@/features/booking/schedule/schedule-timeline';
 import { TimelineBlockShell } from './TimelineBlockShell';
+import { BookingResourceSummaryLine } from './BookingResourceSummaryLine';
 
 export interface ScheduleTimelineRenderProps {
   readonly slotGranularityMinutes: number;
@@ -59,41 +60,43 @@ function renderBookingTimelineEvent(
       href={`/dashboard/bookings/${event.booking.bookingId}?returnTo=${encodeURIComponent(
         props.scheduleReturnTo,
       )}`}
-      ariaLabel={event.booking.contactName}
+      ariaLabel={
+        event.resourceNames.length > 0
+          ? `${event.booking.contactName}, ${event.resourceNames.join(', ')}`
+          : event.booking.contactName
+      }
       icon={
         event.warning ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" /> : null
       }
       title={event.title}
       subtitle={event.subtitle}
       trailing={
-        <div className="flex flex-wrap items-center justify-end gap-1">
-          {event.resourceNames.map((resourceName, index) => (
-            <ResourceNameBadge key={`${index}-${resourceName}`} resourceName={resourceName} />
-          ))}
-          <Badge
-            variant="outline"
-            className={cn(
-              'shrink-0 border-0',
-              compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
-              SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
-            )}
-          >
-            {props.statusLabels[event.booking.status]}
-          </Badge>
-        </div>
+        <Badge
+          variant="outline"
+          className={cn(
+            'shrink-0 border-0',
+            compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
+            SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
+          )}
+        >
+          {props.statusLabels[event.booking.status]}
+        </Badge>
       }
       footer={
-        <div className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}>
-          {formatEventRange(
-            getLocalTimeKey(new Date(event.booking.scheduledAt), props.timezone),
-            getLocalTimeKey(
-              new Date(
-                new Date(event.booking.scheduledAt).getTime() +
-                  event.booking.totalDurationMins * 60_000,
+        <div className="flex flex-col gap-1">
+          <BookingResourceSummaryLine resourceNames={event.resourceNames} compact={compact} />
+          <div className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}>
+            {formatEventRange(
+              getLocalTimeKey(new Date(event.booking.scheduledAt), props.timezone),
+              getLocalTimeKey(
+                new Date(
+                  new Date(event.booking.scheduledAt).getTime() +
+                    event.booking.totalDurationMins * 60_000,
+                ),
+                props.timezone,
               ),
-              props.timezone,
-            ),
-          )}
+            )}
+          </div>
         </div>
       }
     />

@@ -9,6 +9,8 @@ import type {
 } from '@ikaro/types';
 import {
   buildTimelineDayData,
+  COMPACT_MIN_BLOCK_HEIGHT_PX,
+  DESKTOP_MIN_BLOCK_HEIGHT_PX,
   type TimelineDayData,
 } from '@/features/booking/schedule/schedule-timeline';
 import {
@@ -28,31 +30,16 @@ interface ScheduleTimelineDerivedInput {
   readonly slotGranularityMinutes: number;
   readonly selectedDateKey: string;
   readonly resourceNameById: ReadonlyMap<string, string>;
-  // Week view's own booking resource-filtering/badges (TD44 Story 1) — deliberately consumed only
-  // by useWeekTimelineCards below, never useSelectedDayTimeline: Day view's merged single-day
+  // Week view's own booking *visibility* filter (TD44 Story 1) — deliberately consumed only by
+  // useWeekTimelineCards below, never useSelectedDayTimeline: Day view's merged single-day
   // timeline only ever renders when zero resources are checked (1+ switches to the separate
   // ScheduleResourceColumnsBoard instead, which pre-filters its own bookings list before this
-  // layer ever sees it), so threading these into the Day-view path would be dead code.
+  // layer ever sees it), so threading these into the Day-view path would be dead code. Booking
+  // *badge naming* is unrelated and no longer threaded through here at all (TD44-S2 round 3) —
+  // BookingTimelineEvent.resourceNames now comes straight from booking.assignedResources inside
+  // buildBookingTimelineEvent, since every booking carries its own resource assignments directly.
   readonly selectedResourceIdSet: ReadonlySet<string>;
   readonly bookingResourceIdsById: ReadonlyMap<string, readonly string[]>;
-}
-
-// Translates the query layer's bookingId -> resourceId[] lookup (schedule-page-query-data.ts) into
-// bookingId -> resourceName[], sorted per booking for a stable badge order regardless of check
-// order — mirrors schedule-resource-columns.ts's own alphabetical-stability choice for the
-// analogous Day-view case. Built once per render and reused across all 7 week day-cards below.
-function buildBookingResourceNamesById(
-  bookingResourceIdsById: ReadonlyMap<string, readonly string[]>,
-  resourceNameById: ReadonlyMap<string, string>,
-): ReadonlyMap<string, readonly string[]> {
-  return new Map(
-    [...bookingResourceIdsById].map(([bookingId, resourceIds]) => [
-      bookingId,
-      [...resourceIds]
-        .map((resourceId) => resourceNameById.get(resourceId) ?? resourceId)
-        .sort((a, b) => a.localeCompare(b)),
-    ]),
-  );
 }
 
 function useScheduleWeekDayDerived(input: ScheduleTimelineDerivedInput): {
@@ -99,6 +86,7 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
         closures: visibleClosures,
         openings: visibleOpenings,
         resourceNameById,
+        minSlotHeightPx: DESKTOP_MIN_BLOCK_HEIGHT_PX,
       }),
     [
       businessHours,
@@ -114,8 +102,8 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
 }
 
 // Extracted from useWeekTimelineCards below purely to stay under the 40-line function cap once
-// TD44 Story 1's resource-filter/badge params landed there — same per-day mapping, no behavior
-// change. Not itself a hook: plain data transformation, called from inside the useMemo factory.
+// TD44 Story 1's resource-filter params landed there — same per-day mapping, no behavior change.
+// Not itself a hook: plain data transformation, called from inside the useMemo factory.
 interface WeekTimelineCardsSharedInput {
   readonly visibleBookings: readonly StaffBookingCardResponse[];
   readonly visibleClosures: readonly ScheduleClosure[];
@@ -132,7 +120,7 @@ interface WeekTimelineCardsSharedInput {
 function buildWeekTimelineCards(
   weekDayInfo: readonly ScheduleWeekDayInfo[],
   shared: WeekTimelineCardsSharedInput,
-  bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
+  bookingResourceIdsById: ReadonlyMap<string, readonly string[]>,
 ): TimelineDayData[] {
   const {
     visibleBookings,
@@ -155,23 +143,14 @@ function buildWeekTimelineCards(
       closures: visibleClosures,
       openings: visibleOpenings,
       slotHeightScale: 0.45,
+      minSlotHeightPx: COMPACT_MIN_BLOCK_HEIGHT_PX,
       resourceNameById,
       selectedResourceIdSet,
-      bookingResourceNamesById,
+      // Only ever used for a presence check (isBookingVisibleForResourceFilter — "did this
+      // booking match any checked resource"), never its values, so the raw resourceId map
+      // passes straight through with no name-conversion step (TD44-S2 round 3).
+      bookingResourceNamesById: bookingResourceIdsById,
     }),
-  );
-}
-
-// Extracted from useWeekTimelineCards below (same 40-line-cap reason) — its own useMemo, so the
-// resolved names map stays referentially stable across renders whenever its own inputs don't
-// change; buildBookingResourceNamesById itself always returns a fresh Map.
-function useBookingResourceNamesById(
-  bookingResourceIdsById: ReadonlyMap<string, readonly string[]>,
-  resourceNameById: ReadonlyMap<string, string>,
-): ReadonlyMap<string, readonly string[]> {
-  return useMemo(
-    () => buildBookingResourceNamesById(bookingResourceIdsById, resourceNameById),
-    [bookingResourceIdsById, resourceNameById],
   );
 }
 
@@ -183,11 +162,6 @@ function useWeekTimelineCards(
   input: ScheduleTimelineDerivedInput,
   weekDayInfo: readonly ScheduleWeekDayInfo[],
 ): TimelineDayData[] {
-  const bookingResourceNamesById = useBookingResourceNamesById(
-    input.bookingResourceIdsById,
-    input.resourceNameById,
-  );
-
   return useMemo(
     () =>
       buildWeekTimelineCards(
@@ -202,7 +176,7 @@ function useWeekTimelineCards(
           resourceNameById: input.resourceNameById,
           selectedResourceIdSet: input.selectedResourceIdSet,
         },
-        bookingResourceNamesById,
+        input.bookingResourceIdsById,
       ),
     [
       weekDayInfo,
@@ -214,7 +188,7 @@ function useWeekTimelineCards(
       input.slotGranularityMinutes,
       input.resourceNameById,
       input.selectedResourceIdSet,
-      bookingResourceNamesById,
+      input.bookingResourceIdsById,
     ],
   );
 }

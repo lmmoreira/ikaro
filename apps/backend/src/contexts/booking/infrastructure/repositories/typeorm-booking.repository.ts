@@ -22,6 +22,7 @@ import {
   BookingFilters,
   BookingListFilters,
   BookingPaginatedResult,
+  BookingResourceAssignmentSummary,
   IBookingRepository,
 } from '../../application/ports/booking-repository.port';
 import {
@@ -31,7 +32,15 @@ import {
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
+import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { toDomain, toEntity, toLineEntity, toUpdateSet } from './typeorm-booking.mapper';
+import {
+  groupResourceAssignmentsByBookingId,
+  ResourceAssignmentRow,
+} from './typeorm-booking-resource-assignments.helpers';
+
+const EMPTY_RESOURCE_ASSIGNMENTS: ReadonlyMap<string, readonly BookingResourceAssignmentSummary[]> =
+  new Map();
 
 @Injectable()
 export class TypeOrmBookingRepository implements IBookingRepository {
@@ -50,6 +59,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     private readonly repo: Repository<BookingEntity>,
     @InjectRepository(BookingLineEntity)
     private readonly lineRepo: Repository<BookingLineEntity>,
+    @InjectRepository(BookingLineResourceAssignmentEntity)
+    private readonly resourceAssignmentRepo: Repository<BookingLineResourceAssignmentEntity>,
     @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
   ) {}
@@ -83,13 +94,20 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       take: filters.limit,
       skip: filters.offset,
     });
-    if (!entities.length) return { items: [], total };
+    if (!entities.length) {
+      return { items: [], total, resourceAssignmentsByBookingId: EMPTY_RESOURCE_ASSIGNMENTS };
+    }
 
     const linesByBookingId = await this.findLinesByBookingId(entities, tenantId);
+    const resourceAssignmentsByBookingId = await this.findResourceAssignmentsByBookingId(
+      entities,
+      tenantId,
+    );
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return {
       items: entities.map((e) => toDomain(e, linesByBookingId.get(e.id) ?? [], currency)),
       total,
+      resourceAssignmentsByBookingId,
     };
   }
 
@@ -131,6 +149,37 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       linesByBookingId.set(line.bookingId, list);
     }
     return linesByBookingId;
+  }
+
+  // One batched query for the whole page (mirrors findLinesByBookingId's own shape) — never one
+  // query per booking, which would be a real N+1 risk on a list endpoint. booking_line_resource_
+  // assignments has no bookingId column of its own; join through booking_lines (per-tenant on
+  // every hop, not just the outer WHERE — see the same discipline in
+  // typeorm-booking-availability.adapter.ts's findDayGridOccupancy). Deduplicated by resourceId
+  // per booking — a resource assigned across 2+ lines/legs of the same booking is listed once.
+  private async findResourceAssignmentsByBookingId(
+    entities: BookingEntity[],
+    tenantId: string,
+  ): Promise<Map<string, BookingResourceAssignmentSummary[]>> {
+    const bookingIds = entities.map((e) => e.id);
+    const rows = await this.resourceAssignmentRepo
+      .createQueryBuilder('blra')
+      .innerJoin(
+        BookingLineEntity,
+        'bl',
+        'bl.lineId = blra.bookingLineId AND bl.tenantId = blra.tenantId',
+      )
+      .select([
+        'bl.bookingId AS "bookingId"',
+        'blra.resourceId AS "resourceId"',
+        'blra.resourceType AS "resourceType"',
+        'blra.resourceNameAtAssignment AS "resourceName"',
+      ])
+      .where('blra.tenantId = :tenantId', { tenantId })
+      .andWhere('bl.bookingId IN (:...bookingIds)', { bookingIds })
+      .getRawMany<ResourceAssignmentRow>();
+
+    return groupResourceAssignmentsByBookingId(rows);
   }
 
   async save(booking: Booking): Promise<void> {

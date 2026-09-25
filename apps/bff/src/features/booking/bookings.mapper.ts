@@ -44,6 +44,13 @@ export function toStaffBookingCard(item: BookingListItem): StaffBookingCardRespo
     totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
     totalDurationMins: item.totalDurationMins,
     isCustomer: item.customerId !== null,
+    // backend and bff can be rolled back independently (rollback-production.yml) —
+    // an older backend response won't carry this field yet.
+    assignedResources: (item.assignedResources ?? []).map((r) => ({
+      resourceId: r.resourceId,
+      resourceType: r.resourceType,
+      resourceName: r.resourceName,
+    })),
   };
 }
 

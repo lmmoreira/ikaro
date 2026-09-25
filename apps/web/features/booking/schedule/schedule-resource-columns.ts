@@ -8,6 +8,7 @@ import type {
 } from '@ikaro/types';
 import {
   buildTimelineDayData,
+  DESKTOP_MIN_BLOCK_HEIGHT_PX,
   type TimelineDayData,
 } from '@/features/booking/schedule/schedule-timeline';
 
@@ -58,6 +59,7 @@ function buildPlaceholderBooking(
     totalPrice: { amount: 0, currency: 'BRL' },
     totalDurationMins: durationMins,
     isCustomer: false,
+    assignedResources: [],
   };
 }
 
@@ -136,6 +138,7 @@ export function buildResourceColumns(input: BuildResourceColumnsInput): Schedule
         bookings: resourceBookings,
         closures: scopeToResource(input.closures, resourceId),
         openings: scopeToResource(input.openings, resourceId),
+        minSlotHeightPx: DESKTOP_MIN_BLOCK_HEIGHT_PX,
       });
 
       return { resourceId, resourceName, timeline };

@@ -1,5 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
+import {
+  BOOKING_REPOSITORY,
+  BookingResourceAssignmentSummary,
+  IBookingRepository,
+} from '../ports/booking-repository.port';
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
 
@@ -32,6 +36,10 @@ export interface BookingListItem {
   // Deadline for customer self-cancellation (UC-007) — scheduledAt minus the tenant's
   // cancellation window. Only APPROVED bookings carry it; other statuses are null.
   cancellableUntil: string | null;
+  // Which physical resource(s), if any, this booking's line(s) resolved to (M21/M22
+  // resource-scoped scheduling) — display-only, always shown regardless of any client-side
+  // filter state (TD44-S2 round 3). Empty for a booking with no resource requirements.
+  assignedResources: readonly BookingResourceAssignmentSummary[];
 }
 
 export interface ListBookingsUseCaseResult {
@@ -46,17 +54,20 @@ export class ListBookingsUseCase {
   async execute(input: ListBookingsUseCaseInput): Promise<ListBookingsUseCaseResult> {
     const { tenantId, customerId, cancellationWindowHours } = input;
 
-    const { items, total } = await this.bookingRepo.findAllByTenantPaginated(tenantId, {
-      status: input.status,
-      customerId,
-      scheduledAfter: input.from ? new Date(input.from) : undefined,
-      scheduledBefore: input.to ? new Date(input.to) : undefined,
-      limit: input.limit,
-      offset: input.offset,
-    });
+    const { items, total, resourceAssignmentsByBookingId } =
+      await this.bookingRepo.findAllByTenantPaginated(tenantId, {
+        status: input.status,
+        customerId,
+        scheduledAfter: input.from ? new Date(input.from) : undefined,
+        scheduledBefore: input.to ? new Date(input.to) : undefined,
+        limit: input.limit,
+        offset: input.offset,
+      });
 
     return {
-      items: items.map((b) => this.toListItem(b, cancellationWindowHours)),
+      items: items.map((b) =>
+        this.toListItem(b, cancellationWindowHours, resourceAssignmentsByBookingId.get(b.id) ?? []),
+      ),
       pagination: {
         limit: input.limit,
         offset: input.offset,
@@ -66,7 +77,11 @@ export class ListBookingsUseCase {
     };
   }
 
-  private toListItem(booking: Booking, cancellationWindowHours: number): BookingListItem {
+  private toListItem(
+    booking: Booking,
+    cancellationWindowHours: number,
+    assignedResources: readonly BookingResourceAssignmentSummary[],
+  ): BookingListItem {
     return {
       id: booking.id,
       status: booking.status,
@@ -92,6 +107,7 @@ export class ListBookingsUseCase {
       })),
       createdAt: booking.createdAt.toISOString(),
       cancellableUntil: booking.cancellableUntilIso(cancellationWindowHours),
+      assignedResources,
     };
   }
 }

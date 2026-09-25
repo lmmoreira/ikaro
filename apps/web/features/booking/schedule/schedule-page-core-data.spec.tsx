@@ -156,6 +156,7 @@ describe('useScheduleCoreData', () => {
             totalPrice: { amount: 0, currency: 'BRL' },
             totalDurationMins: 30,
             isCustomer: false,
+            assignedResources: [],
           },
           {
             bookingId: 'approved-1',
@@ -166,6 +167,7 @@ describe('useScheduleCoreData', () => {
             totalPrice: { amount: 0, currency: 'BRL' },
             totalDurationMins: 30,
             isCustomer: false,
+            assignedResources: [],
           },
         ],
         total: 2,
@@ -396,7 +398,7 @@ describe('useScheduleCoreData', () => {
       };
     }
 
-    it('threads the checked resource set and its day-grid lookup through to weekTimelineCards', () => {
+    it('threads the checked resource set (visibility) through weekTimelineCards, with badge naming sourced from the booking itself', () => {
       // Week view (default at desktop width, no persisted preference) — the week-range day-grid
       // fan-out this test exercises is gated to Week view only.
       mockMatchMedia(true);
@@ -422,6 +424,12 @@ describe('useScheduleCoreData', () => {
               totalPrice: { amount: 0, currency: 'BRL' },
               totalDurationMins: 30,
               isCustomer: false,
+              // Badge naming is sourced straight from the booking's own assignedResources
+              // (TD44-S2 round 3) — independent of the day-grid lookup below, which now only
+              // drives *visibility* filtering.
+              assignedResources: [
+                { resourceId: 'res-1', resourceType: 'STAFF', resourceName: 'Camila Duarte' },
+              ],
             },
           ],
           total: 1,

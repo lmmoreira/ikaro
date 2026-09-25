@@ -129,6 +129,7 @@ function makeList(names: string[]): StaffBookingListResponse {
       totalPrice: { amount: 100, currency: 'BRL' },
       totalDurationMins: 60,
       isCustomer: true,
+      assignedResources: [],
     })),
     total: names.length,
     page: 1,
@@ -148,6 +149,7 @@ function makeUpcomingList(): StaffBookingListResponse {
         totalPrice: { amount: 100, currency: 'BRL' },
         totalDurationMins: 60,
         isCustomer: true,
+        assignedResources: [],
       },
       {
         bookingId: 'b-28',
@@ -158,6 +160,7 @@ function makeUpcomingList(): StaffBookingListResponse {
         totalPrice: { amount: 100, currency: 'BRL' },
         totalDurationMins: 60,
         isCustomer: true,
+        assignedResources: [],
       },
     ],
     total: 2,

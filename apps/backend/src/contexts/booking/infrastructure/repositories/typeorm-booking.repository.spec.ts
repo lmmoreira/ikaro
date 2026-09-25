@@ -19,12 +19,21 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
+import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
+import { ResourceType } from '../../domain/resource.types';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
 
 describe('TypeOrmBookingRepository', () => {
   let repo: TypeOrmBookingRepository;
   let ormRepo: jest.Mocked<Repository<BookingEntity>>;
   let ormLineRepo: jest.Mocked<Repository<BookingLineEntity>>;
+  let mockResourceAssignmentQueryBuilder: {
+    innerJoin: jest.Mock;
+    select: jest.Mock;
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    getRawMany: jest.Mock;
+  };
   let mockUpdateBuilder: {
     update: jest.Mock;
     set: jest.Mock;
@@ -59,6 +68,14 @@ describe('TypeOrmBookingRepository', () => {
       createQueryBuilder: jest.fn().mockReturnValue(mockUpdateBuilder),
     };
 
+    mockResourceAssignmentQueryBuilder = {
+      innerJoin: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         TypeOrmBookingRepository,
@@ -80,6 +97,12 @@ describe('TypeOrmBookingRepository', () => {
         {
           provide: getRepositoryToken(BookingLineEntity),
           useValue: { find: jest.fn(), save: jest.fn(), delete: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(BookingLineResourceAssignmentEntity),
+          useValue: {
+            createQueryBuilder: jest.fn().mockReturnValue(mockResourceAssignmentQueryBuilder),
+          },
         },
         { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
         { provide: OUTBOX_PUBLISHER, useValue: new InMemoryEventBus() },
@@ -199,13 +222,14 @@ describe('TypeOrmBookingRepository', () => {
   describe('findAllByTenantPaginated', () => {
     const tenantId = '00000000-0000-7000-8000-000000000001';
 
-    it('returns empty result without loading lines when no bookings found', async () => {
+    it('returns empty result without loading lines or resource assignments when no bookings found', async () => {
       ormRepo.findAndCount.mockResolvedValue([[], 0]);
 
       const result = await repo.findAllByTenantPaginated(tenantId, { limit: 25, offset: 0 });
 
-      expect(result).toEqual({ items: [], total: 0 });
+      expect(result).toEqual({ items: [], total: 0, resourceAssignmentsByBookingId: new Map() });
       expect(ormLineRepo.find).not.toHaveBeenCalled();
+      expect(mockResourceAssignmentQueryBuilder.getRawMany).not.toHaveBeenCalled();
     });
 
     it('returns paginated items with total and loads lines in one query', async () => {
@@ -230,6 +254,40 @@ describe('TypeOrmBookingRepository', () => {
       expect(result.items).toHaveLength(2);
       expect(result.items[0].lines).toHaveLength(1);
       expect(ormLineRepo.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads and groups resource assignments for the whole page in one batched query (TD44-S2 round 3)', async () => {
+      const bookingId1 = '00000000-0000-7000-8000-000000000031';
+
+      ormRepo.findAndCount.mockResolvedValue([
+        [new BookingEntityBuilder().withId(bookingId1).withTenantId(tenantId).build()],
+        1,
+      ]);
+      ormLineRepo.find.mockResolvedValue([
+        new BookingLineEntityBuilder().withBookingId(bookingId1).withTenantId(tenantId).build(),
+      ]);
+      mockResourceAssignmentQueryBuilder.getRawMany.mockResolvedValue([
+        {
+          bookingId: bookingId1,
+          resourceId: 'res-camila',
+          resourceType: ResourceType.STAFF,
+          resourceName: 'Camila Duarte',
+        },
+      ]);
+
+      const result = await repo.findAllByTenantPaginated(tenantId, { limit: 25, offset: 0 });
+
+      expect(result.resourceAssignmentsByBookingId.get(bookingId1)).toEqual([
+        {
+          resourceId: 'res-camila',
+          resourceType: ResourceType.STAFF,
+          resourceName: 'Camila Duarte',
+        },
+      ]);
+      expect(mockResourceAssignmentQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'bl.bookingId IN (:...bookingIds)',
+        { bookingIds: [bookingId1] },
+      );
     });
 
     it('applies take, skip, and order to findAndCount', async () => {
