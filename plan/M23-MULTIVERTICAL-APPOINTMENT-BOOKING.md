@@ -57,7 +57,7 @@ graph TD
 
 ---
 
-### M23-S01 — Resource resolution for booking creation (chosen staff, fungible pool, auto-any, bundle, multi-leg)
+### M23-S01 — Resource resolution for booking creation (chosen staff, fungible pool, auto-any, bundle, multi-leg) ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
