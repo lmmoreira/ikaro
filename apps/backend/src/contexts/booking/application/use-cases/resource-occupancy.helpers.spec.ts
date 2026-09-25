@@ -942,4 +942,92 @@ describe('resolveBookingLinesResourceCandidates', () => {
       ),
     ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
   });
+
+  // Legged AUTO_ANY requirements get the identical exact-window availability pre-filter flat
+  // requirements already get (a leg's own raw span is knowable from the service's static leg
+  // definitions alone, before any resource is chosen — see resolveLeggedLineCandidates). Without
+  // it, the least-workload-overall resource could be picked for a leg it's actually busy during,
+  // even while a busier-overall resource sits genuinely free for that same leg.
+  it('for a legged AUTO_ANY requirement, prefers a resource actually free for that leg over a lower-workload one that conflicts with it', async () => {
+    const lowWorkloadButBusyForThisLeg = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .build();
+    const higherWorkloadButFreeForThisLeg = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .build();
+    await resourceRepo.save(lowWorkloadButBusyForThisLeg);
+    await resourceRepo.save(higherWorkloadButFreeForThisLeg);
+
+    // Conflicts with this leg's own [SCHEDULED_AT, SCHEDULED_AT + 20min) window. Day-workload
+    // count: 1.
+    await occupancyRepo.assign(
+      TENANT_ID,
+      'other-line-leg-conflict',
+      [
+        {
+          resourceId: lowWorkloadButBusyForThisLeg.id,
+          resourceType: ResourceType.ROOM,
+          resourceName: lowWorkloadButBusyForThisLeg.name,
+          legIndex: null,
+          quantityPosition: null,
+          startsAt: SCHEDULED_AT,
+          endsAt: new Date(SCHEDULED_AT.getTime() + 20 * 60_000),
+          selectionMode: 'AUTO_ANY',
+          isBundleMember: false,
+        },
+      ],
+      'COMMITTED',
+      null,
+    );
+    // Two rows earlier the same day, well clear of the leg's window (day-workload count: 2 —
+    // higher — but genuinely free for this leg).
+    await occupancyRepo.assign(
+      TENANT_ID,
+      'other-line-leg-clear-1',
+      [
+        {
+          resourceId: higherWorkloadButFreeForThisLeg.id,
+          resourceType: ResourceType.ROOM,
+          resourceName: higherWorkloadButFreeForThisLeg.name,
+          legIndex: null,
+          quantityPosition: null,
+          startsAt: new Date('2026-06-01T08:00:00.000Z'),
+          endsAt: new Date('2026-06-01T08:30:00.000Z'),
+          selectionMode: 'AUTO_ANY',
+          isBundleMember: false,
+        },
+        {
+          resourceId: higherWorkloadButFreeForThisLeg.id,
+          resourceType: ResourceType.ROOM,
+          resourceName: higherWorkloadButFreeForThisLeg.name,
+          legIndex: null,
+          quantityPosition: null,
+          startsAt: new Date('2026-06-01T08:30:00.000Z'),
+          endsAt: new Date('2026-06-01T09:00:00.000Z'),
+          selectionMode: 'AUTO_ANY',
+          isBundleMember: false,
+        },
+      ],
+      'COMMITTED',
+      null,
+    );
+
+    const service = new ServiceBuilder()
+      .withId('service-1')
+      .withLegs([
+        leg(0, ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }), {
+          durationMinutes: 20,
+        }),
+      ])
+      .build();
+
+    const result = await resolve(
+      [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 20 }],
+      new Map([['service-1', service]]),
+    );
+
+    expect(result.get('line-1')!.candidates[0].resourceId).toBe(higherWorkloadButFreeForThisLeg.id);
+  });
 });

@@ -12,16 +12,17 @@ import { ResolutionContext } from './resource-resolution-context.helpers';
 // resourceSelections entry (if any) into concrete Resource(s), shared by both the flat and legged
 // candidate builders in resource-occupancy-candidate-builders.helpers.ts.
 
-// windowEnd is the requirement's own raw (pre-buffer/turnover) window end when known upfront (a
-// flat line's lineEnd), or null when it isn't (a legged requirement — see
-// resource-occupancy-candidate-builders.helpers.ts's call site for why legs deliberately opt out
-// of the AUTO_ANY availability pre-filter below). effectiveGapMinutes computes each CANDIDATE's
-// own trailing buffer/turnover gap given its resolved Resource — the same
-// max(bufferAfterMinutes, resource.turnoverMinutes) math buildFlatCandidatesForRequirement uses
-// to build the final persisted endsAt, needed here too so the pre-filter checks each candidate
-// against its own true effective window, not just the raw one (a resource busy only during its
-// own trailing gap must still be excluded — UC-063's "assigns whichever eligible staff member is
-// free" means truly free, not free-until-the-buffer-starts).
+// windowEnd is the requirement's own raw (pre-resource-turnover) window end — a flat line's
+// lineEnd, or a legged requirement's own leg span end from computeLegSpans (known upfront from the
+// service's static leg definitions alone, independent of which resource ultimately gets chosen —
+// see resource-occupancy-candidate-builders.helpers.ts's resolveLeggedLineCandidates). Only null
+// for callers with no meaningful window at all. effectiveGapMinutes computes each CANDIDATE's own
+// trailing buffer/turnover gap given its resolved Resource — the same math
+// buildFlatCandidatesForRequirement/resolveLeggedLineCandidates use to build the final persisted
+// endsAt, needed here too so the pre-filter checks each candidate against its own true effective
+// window, not just the raw one (a resource busy only during its own trailing gap must still be
+// excluded — UC-063's "assigns whichever eligible staff member is free" means truly free, not
+// free-until-the-buffer-starts).
 export async function resolveRequirementResources(
   requirement: ResourceRequirement,
   ctx: ResolutionContext,
@@ -87,8 +88,9 @@ async function resolveCandidateIds(
 // buffer/turnover gap, via effectiveGapMinutes), before the workload sort ever runs — otherwise a
 // lower-workload-but-busy candidate could be preferred over a higher-workload-but-free one, and
 // the booking would fail with a 409 even though a genuinely free resource existed (UC-063's main
-// flow: "assigns whichever eligible staff member is free"). windowEnd === null (legs) or a single
-// candidate skips the filter entirely — see resolveRequirementResources' own doc comment for why.
+// flow: "assigns whichever eligible staff member is free"; UC-065's chained itinerary needs the
+// identical treatment per leg). windowEnd === null or a single candidate skips the filter entirely
+// — see resolveRequirementResources' own doc comment for why null still occurs for some callers.
 // Falls back to the full candidateIds list when every one of them appears busy, so the caller's
 // requiredQuantity/assertSlotFree checks still run and produce the correct "unavailable" error,
 // rather than this function returning [] and misreporting via a wrong error path. Resource lookups

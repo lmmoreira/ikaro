@@ -28,13 +28,8 @@ import {
   PhotoPromotionOperation,
 } from '../services/photo-existence.service';
 import { RequestBookingDto } from '../dtos/request-booking.dto';
-import {
-  buildLineInputs,
-  createBookingAddress,
-  persistRequestedBooking,
-  toBookingResult,
-  toResourceSelections,
-} from './booking-request.helpers';
+import { createBookingAddress, persistRequestedBooking } from './booking-request.helpers';
+import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
 
 export type RequestBookingUseCaseInput = RequestBookingDto & {

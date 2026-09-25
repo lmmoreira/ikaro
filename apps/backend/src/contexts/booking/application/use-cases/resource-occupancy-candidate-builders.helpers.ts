@@ -1,3 +1,4 @@
+import { LegSpan } from '../../domain/services/availability.service';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -132,10 +133,12 @@ function buildFlatCandidatesForRequirement(
 
 // computeLegSpans's turnover param only extends a leg's OWN endsAtWithTurnover — it never affects
 // the next leg's startsAt (that's transitionGapAfterMinutes alone, a static per-leg service
-// value). So turnover is entirely per-resource and per-leg-sequencing-independent: spans are
-// computed once with zero turnover, then each candidate adds its OWN resource's turnoverMinutes
-// to that raw leg end — never a pool-wide max applied uniformly to every candidate regardless of
-// which one actually ends up free.
+// value). So turnover is entirely per-resource and per-leg-sequencing-independent: a leg's raw
+// [startsAt, endsAtWithTurnover) span is knowable from the service's own leg definitions alone,
+// BEFORE any resource is chosen for it — computeLegSpans is called with zero turnover here for
+// exactly that reason, then each candidate adds its OWN resource's turnoverMinutes on top of that
+// raw leg end — never a pool-wide max applied uniformly to every candidate regardless of which one
+// actually ends up free.
 const NO_TURNOVER = new Map<number, number>();
 
 export async function resolveLeggedLineCandidates(
@@ -145,7 +148,6 @@ export async function resolveLeggedLineCandidates(
   selectionsByKey: Map<string, string[]>,
 ): Promise<ResourceOccupancyCandidate[]> {
   const legs = service.legs!;
-  const perLeg = await resolvePerLegResources(legs, ctx, selectionsByKey, service.id, lineStart);
   const legSpans = ctx.availabilityService.computeLegSpans(
     lineStart,
     legs.map((leg) => ({
@@ -156,6 +158,13 @@ export async function resolveLeggedLineCandidates(
     NO_TURNOVER,
   );
   const spanByLegIndex = new Map(legSpans.map((span) => [span.legIndex, span]));
+  const perLeg = await resolvePerLegResources(
+    legs,
+    ctx,
+    selectionsByKey,
+    service.id,
+    spanByLegIndex,
+  );
 
   return perLeg.map(({ legIndex, resource, quantityPosition, selectionMode }) => {
     const span = spanByLegIndex.get(legIndex)!;
@@ -180,24 +189,26 @@ async function resolvePerLegResources(
   ctx: ResolutionContext,
   selectionsByKey: Map<string, string[]>,
   serviceId: string,
-  windowStart: Date,
+  spanByLegIndex: Map<number, LegSpan>,
 ): Promise<PerLegResource[]> {
   const perLeg: PerLegResource[] = [];
   for (const leg of legs) {
+    const span = spanByLegIndex.get(leg.legIndex)!;
     for (const requirement of leg.resourceRequirements) {
       const chosenResourceIds =
         selectionsByKey.get(selectionKey(serviceId, leg.legIndex, requirement.type)) ?? [];
-      // windowEnd is null (not the raw leg span) on purpose — a leg's exact sub-window isn't
-      // known until computeLegSpans runs, which itself needs resources chosen first. Legs also
-      // don't want the availability pre-filter at all: UC-065 A1's atomic all-or-nothing design
-      // means a leg conflict should fail the whole chain via assertSlotFree(), not silently retry
-      // a different resource for this one leg.
+      // windowEnd is this leg's own raw (pre-resource-turnover) span end, known upfront from
+      // computeLegSpans above — a leg's baseline window never depended on which resource gets
+      // chosen (only its OWN trailing turnover extension does, added via the gap callback), so
+      // AUTO_ANY legged requirements get the identical exact-window availability pre-filter flat
+      // requirements already get, rather than opting out of it.
       const resources = await resolveRequirementResources(
         requirement,
         ctx,
         chosenResourceIds,
-        windowStart,
-        null,
+        span.startsAt,
+        span.endsAtWithTurnover,
+        (resource) => resource.turnoverMinutes,
       );
       resources.forEach((resource, index) => {
         perLeg.push({

@@ -34,13 +34,8 @@ import {
   PhotoPromotionOperation,
 } from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
-import {
-  buildLineInputs,
-  createBookingAddress,
-  persistRequestedBooking,
-  toBookingResult,
-  toResourceSelections,
-} from './booking-request.helpers';
+import { createBookingAddress, persistRequestedBooking } from './booking-request.helpers';
+import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
 
 export type RequestAuthenticatedBookingUseCaseInput = RequestAuthenticatedBookingDto & {

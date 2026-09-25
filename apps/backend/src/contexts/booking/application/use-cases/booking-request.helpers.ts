@@ -2,14 +2,11 @@ import type { AddressSpec } from '@ikaro/i18n';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Booking } from '../../domain/booking.aggregate';
-import { BookingLineInput } from '../../domain/booking-line.entity';
 import {
   BookingAddressValidationError,
   BookingServiceConcurrentModificationError,
-  BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
 import { Service } from '../../domain/service.aggregate';
-import { ResourceType } from '../../domain/resource.types';
 import {
   Address,
   AddressProps,
@@ -24,13 +21,17 @@ import {
   PhotoPromotionOperation,
   PhotoExistenceService,
 } from '../services/photo-existence.service';
-import { BookingRequestResult } from './booking-request.types';
 import { assignBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
   resolveBookingLinesResourceCandidates,
   ResolvedLineCandidates,
   ResourceSelectionInput,
 } from './resource-occupancy.helpers';
+
+// Transactional orchestration only — see booking-request.mapper.ts for the pure DTO/domain shape
+// translation functions this file's callers also need (docs/CODE_STANDARDS.md: a function that
+// awaits a port, holds a transaction, or enforces a business rule is not a "helper" in the same
+// sense as a no-I/O mapper, even when both are used by the same use cases).
 
 const DEFAULT_MANUAL_HOLD_MINUTES = 30; // platform default, docs/02-DOMAIN_MODEL.md
 
@@ -74,108 +75,6 @@ export function createBookingAddress(
     }
     throw err;
   }
-}
-
-export function buildLineInputs(
-  serviceIds: string[],
-  serviceMap: Map<string, Service>,
-): BookingLineInput[] {
-  return serviceIds.map((serviceId) => {
-    const service = serviceMap.get(serviceId);
-    if (!service) throw new BookingServiceNotInTenantError(serviceId);
-    return {
-      serviceId: service.id,
-      serviceNameAtBooking: service.name,
-      priceAtBooking: service.price,
-      durationMinsAtBooking: service.durationMinutes,
-      pointsValueAtBooking: service.loyaltyPointsValue,
-      requiresPickupAddressAtBooking: service.requiresPickupAddress,
-    };
-  });
-}
-
-// Set only when this line resolved a legged service — mutually exclusive with an AUTO_ANY name
-// reveal below (UC-065's itinerary always wins when both would otherwise apply, since a legged
-// requirement's own selectionMode already feeds into the itinerary entries themselves).
-function toLineIdentityFields(
-  resolved: ResolvedLineCandidates | undefined,
-): Pick<BookingRequestResult['lines'][number], 'assignedResourceName' | 'itinerary'> {
-  if (!resolved) return {};
-  const legCandidates = resolved.candidates
-    .filter((c) => c.legIndex !== null)
-    .sort((a, b) => a.legIndex! - b.legIndex!);
-  if (legCandidates.length > 0) {
-    return {
-      itinerary: legCandidates.map((c) => ({
-        legIndex: c.legIndex!,
-        resourceName: c.resourceName,
-        startsAt: c.startsAt.toISOString(),
-        endsAt: c.endsAt.toISOString(),
-      })),
-    };
-  }
-  const revealedNames = resolved.candidates
-    .filter((c) => c.legIndex === null && c.selectionMode === 'AUTO_ANY')
-    .map((c) => c.resourceName);
-  return revealedNames.length > 0 ? { assignedResourceName: revealedNames.join(', ') } : {};
-}
-
-// dto.resourceType is the Zod schema's plain string-literal union — same bridge-to-domain-enum
-// pattern as resource-requirement.dto.ts's toResourceRequirement(). legIndex defaults to null
-// (a flat, non-legged choice) when the client omits it, matching ResourceOccupancyCandidate's own
-// null-for-flat shape.
-export function toResourceSelections(
-  dtoSelections:
-    | { serviceId: string; legIndex?: number | null; resourceType: string; resourceId: string }[]
-    | undefined,
-): ResourceSelectionInput[] {
-  return (dtoSelections ?? []).map((selection) => ({
-    serviceId: selection.serviceId,
-    legIndex: selection.legIndex ?? null,
-    resourceType: selection.resourceType as ResourceType,
-    resourceId: selection.resourceId,
-  }));
-}
-
-export function toBookingResult(
-  booking: Booking,
-  candidatesByLine: Map<string, ResolvedLineCandidates>,
-): BookingRequestResult {
-  const pickup = booking.pickupAddress;
-  return {
-    bookingId: booking.id,
-    status: booking.status,
-    scheduledAt: booking.scheduledAt.toISOString(),
-    totalPrice: {
-      amount: booking.totalPrice.amount.toNumber(),
-      currency: booking.totalPrice.currency,
-    },
-    totalDurationMins: booking.totalDurationMins,
-    pickupAddress: pickup
-      ? {
-          street: pickup.street,
-          number: pickup.number,
-          complement: pickup.complement ?? null,
-          neighborhood: pickup.neighborhood ?? null,
-          city: pickup.city,
-          state: pickup.state,
-          zipCode: pickup.zipCode,
-        }
-      : null,
-    beforeServicePhotoUrls: booking.beforeServicePhotoUrls ?? [],
-    lines: booking.lines.map((l) => ({
-      lineId: l.lineId,
-      serviceId: l.serviceId,
-      priceAtBooking: {
-        amount: l.priceAtBooking.amount.toNumber(),
-        currency: l.priceAtBooking.currency,
-      },
-      durationMinsAtBooking: l.durationMinsAtBooking,
-      pointsValueAtBooking: l.pointsValueAtBooking,
-      requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-      ...toLineIdentityFields(candidatesByLine.get(l.lineId)),
-    })),
-  };
 }
 
 // Locks every referenced Service row, in one round trip, before this booking becomes its first
