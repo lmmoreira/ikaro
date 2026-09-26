@@ -794,7 +794,7 @@ X-Correlation-ID: test-corr-cancel-admin-005
 # HAPPY PATH — admin reschedules an APPROVED booking (UC-008b)
 # ─────────────────────────────────────────────────────────────────────────────
 
-PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule-admin
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
@@ -809,7 +809,7 @@ X-Correlation-ID: test-corr-reschedule-001
 ###
 
 # HAPPY PATH — reschedule with optional adminNotes
-PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule-admin
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
@@ -825,7 +825,7 @@ X-Correlation-ID: test-corr-reschedule-002
 ###
 
 # ERROR — booking not found → 404
-PATCH {{baseUrl}}/bookings/00000000-0000-4000-8000-000000009999/reschedule
+PATCH {{baseUrl}}/bookings/00000000-0000-4000-8000-000000009999/reschedule-admin
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
@@ -840,7 +840,7 @@ X-Correlation-ID: test-corr-reschedule-003
 ###
 
 # ERROR — booking is PENDING (only APPROVED) → 422
-PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule
+PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule-admin
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
@@ -853,7 +853,7 @@ X-Correlation-ID: test-corr-reschedule-004
 }
 
 # ERROR — slot taken → 409 (reschedule approvedBookingId to a conflicting slot)
-PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule-admin
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
@@ -868,7 +868,7 @@ X-Correlation-ID: test-corr-reschedule-006b
 ###
 
 # ERROR — new slot in the past → 422
-PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule
+PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule-admin
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
@@ -883,7 +883,7 @@ X-Correlation-ID: test-corr-reschedule-005
 ###
 
 # ERROR — slot taken by another APPROVED booking → 409
-PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule
+PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule-admin
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
@@ -898,13 +898,62 @@ X-Correlation-ID: test-corr-reschedule-006
 ###
 
 # ERROR — no staff role headers → 403
-PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule
+PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule-admin
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Correlation-ID: test-corr-reschedule-007
 
 {
   "scheduledAt": "2026-07-20T14:00:00.000Z"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M23 Cluster 3 (UC-069) — customer-initiated reschedule
+# ─────────────────────────────────────────────────────────────────────────────
+
+# HAPPY PATH — customer reschedules their own APPROVED booking
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule-customer
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-reschedule-customer-001
+
+{
+  "scheduledAt": "2026-07-23T14:00:00.000Z"
+}
+
+###
+
+# ERROR — outside the effective reschedule window → 422 reschedule-window-expired
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule-customer
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-reschedule-customer-002
+
+{
+  "scheduledAt": "2026-07-24T14:00:00.000Z"
+}
+
+###
+
+# ERROR — customer reschedules a booking they don't own → 403
+PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule-customer
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-reschedule-customer-003
+
+{
+  "scheduledAt": "2026-07-24T14:00:00.000Z"
 }
 
 

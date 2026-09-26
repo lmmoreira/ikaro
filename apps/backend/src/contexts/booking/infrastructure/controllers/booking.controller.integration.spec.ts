@@ -17,6 +17,7 @@ import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
+import { BookingQuoteRevisionEntity } from '../entities/booking-quote-revision.entity';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
 
@@ -1799,7 +1800,7 @@ describe('BookingController (integration)', () => {
     });
   });
 
-  describe('PATCH /bookings/:id/reschedule', () => {
+  describe('PATCH /bookings/:id/reschedule-admin', () => {
     const rescheduleSlot = `${futureDate(40)}T09:00:00.000Z`;
     const newSlot = `${futureDate(41)}T10:00:00.000Z`;
 
@@ -1822,7 +1823,7 @@ describe('BookingController (integration)', () => {
       const bookingId = await createApprovedBooking(rescheduleSlot);
 
       const { body } = await request(app.getHttpServer())
-        .patch(`/bookings/${bookingId}/reschedule`)
+        .patch(`/bookings/${bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({ scheduledAt: newSlot })
         .expect(200);
@@ -1845,7 +1846,7 @@ describe('BookingController (integration)', () => {
         .expect(200);
 
       await request(app.getHttpServer())
-        .patch(`/bookings/${created.bookingId}/reschedule`)
+        .patch(`/bookings/${created.bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({
           scheduledAt: `${futureDate(43)}T14:00:00.000Z`,
@@ -1870,7 +1871,7 @@ describe('BookingController (integration)', () => {
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
-        .patch(`/bookings/${created.bookingId}/reschedule`)
+        .patch(`/bookings/${created.bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({ scheduledAt: `${futureDate(45)}T10:00:00.000Z` })
         .expect(422);
@@ -1882,7 +1883,7 @@ describe('BookingController (integration)', () => {
       const bookingId = await createApprovedBooking(`${futureDate(46)}T09:00:00.000Z`);
 
       const { body } = await request(app.getHttpServer())
-        .patch(`/bookings/${bookingId}/reschedule`)
+        .patch(`/bookings/${bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({ scheduledAt: '2020-01-01T10:00:00.000Z' })
         .expect(422);
@@ -1896,7 +1897,7 @@ describe('BookingController (integration)', () => {
       const bookingId = await createApprovedBooking(`${futureDate(48)}T12:00:00.000Z`);
 
       const { body } = await request(app.getHttpServer())
-        .patch(`/bookings/${bookingId}/reschedule`)
+        .patch(`/bookings/${bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({ scheduledAt: conflictSlot })
         .expect(409);
@@ -1906,7 +1907,7 @@ describe('BookingController (integration)', () => {
 
     it('returns 404 when booking does not exist', async () => {
       const { body } = await request(app.getHttpServer())
-        .patch('/bookings/00000000-0000-4000-8000-000000009997/reschedule')
+        .patch('/bookings/00000000-0000-4000-8000-000000009997/reschedule-admin')
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({ scheduledAt: newSlot })
         .expect(404);
@@ -1918,7 +1919,7 @@ describe('BookingController (integration)', () => {
       const bookingId = await createApprovedBooking(`${futureDate(49)}T09:00:00.000Z`);
 
       const { body } = await request(app.getHttpServer())
-        .patch(`/bookings/${bookingId}/reschedule`)
+        .patch(`/bookings/${bookingId}/reschedule-admin`)
         .set(guestHeaders(tenantAId))
         .send({ scheduledAt: newSlot })
         .expect(403);
@@ -1964,9 +1965,156 @@ describe('BookingController (integration)', () => {
         .expect(200);
 
       const { body } = await request(app.getHttpServer())
-        .patch(`/bookings/${created.bookingId}/reschedule`)
+        .patch(`/bookings/${created.bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({ scheduledAt: newSlot })
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+  });
+
+  describe('PATCH /bookings/:id/reschedule-customer (M23 Cluster 3, UC-069)', () => {
+    let rescheduleCustomerId: string;
+    let variableDurationServiceId: string;
+
+    beforeAll(async () => {
+      const customer = new CustomerEntityBuilder()
+        .withTenantId(tenantAId)
+        .withGoogleOAuthId('google-sub-reschedule-customer')
+        .withEmail('reschedule-customer@booking.test')
+        .withName('Reschedule Customer')
+        .withPhone('+5531955555555')
+        .build();
+      await ds.getRepository(CustomerEntity).save(customer);
+      rescheduleCustomerId = customer.id;
+
+      const { body: svc } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          name: 'Sala Coworking Reagendamento',
+          description: 'Descrição',
+          priceAmount: 50,
+          durationMinutes: 30,
+          loyaltyPointsValue: 5,
+          requiresPickupAddress: false,
+        })
+        .expect(201);
+      variableDurationServiceId = svc.id as string;
+      await request(app.getHttpServer())
+        .patch(`/services/${variableDurationServiceId}/booking-policy`)
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 30,
+          pricePerIncrementAmount: 50,
+        })
+        .expect(200);
+    });
+
+    async function createApprovedCustomerBooking(
+      scheduledAt: string,
+      serviceIds = [serviceId],
+      durationMinutes?: number,
+    ) {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt, serviceIds, ...(durationMinutes ? { durationMinutes } : {}) })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      return created.bookingId as string;
+    }
+
+    it('reschedules the caller-owned APPROVED booking → 200 with updated scheduledAt', async () => {
+      const bookingId = await createApprovedCustomerBooking(`${futureDate(70)}T09:00:00.000Z`);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/reschedule-customer`)
+        .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(71)}T10:00:00.000Z` })
+        .expect(200);
+
+      expect(body.bookingId).toBe(bookingId);
+      expect(body.status).toBe('APPROVED');
+      expect(body.scheduledAt).toBe(new Date(`${futureDate(71)}T10:00:00.000Z`).toISOString());
+      expect(body.quoteRevision).toBeUndefined();
+    });
+
+    it('returns 403 when the caller is not the booking owner', async () => {
+      const bookingId = await createApprovedCustomerBooking(`${futureDate(72)}T09:00:00.000Z`);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/reschedule-customer`)
+        .set(actorHeaders(tenantAId, ACTOR_ID, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(73)}T10:00:00.000Z` })
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('returns 422 when inside the default 48h reschedule window', async () => {
+      // 47h2m out: still inside the 48h window, but far from every other now()-relative fixture
+      // in this file (30min/60min) to avoid colliding with the shared degenerate LOCATION
+      // resource those leave APPROVED/occupied.
+      const nearFuture = new Date(Date.now() + 47 * 3_600_000 + 2 * 60_000).toISOString();
+      const bookingId = await createApprovedCustomerBooking(nearFuture);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/reschedule-customer`)
+        .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(74)}T10:00:00.000Z` })
+        .expect(422);
+
+      expect(body.code).toBe('BOOKING_RESCHEDULE_WINDOW_EXPIRED');
+    });
+
+    it('durationMinutes change re-quotes the line, records a booking_quote_revisions row, and returns quoteRevision', async () => {
+      const bookingId = await createApprovedCustomerBooking(
+        `${futureDate(75)}T09:00:00.000Z`,
+        [variableDurationServiceId],
+        30,
+      );
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/reschedule-customer`)
+        .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(76)}T10:00:00.000Z`, durationMinutes: 90 })
+        .expect(200);
+
+      expect(body.quoteRevision).toEqual({
+        revisionNo: 1,
+        amount: { amount: '150.00', currency: 'BRL' },
+      });
+
+      const revisionRow = await ds
+        .getRepository(BookingQuoteRevisionEntity)
+        .findOne({ where: { bookingId, tenantId: tenantAId } });
+      expect(revisionRow).not.toBeNull();
+      expect(revisionRow!.revisionNo).toBe(1);
+      expect(revisionRow!.amount).toBe('150.00');
+      expect(revisionRow!.actorType).toBe('CUSTOMER');
+      expect(revisionRow!.actorId).toBe(rescheduleCustomerId);
+
+      const lineRows = await ds.getRepository(BookingLineEntity).find({ where: { bookingId } });
+      expect(lineRows[0].durationMinsAtBooking).toBe(90);
+    });
+
+    it('returns 404 when booking does not exist', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/bookings/00000000-0000-4000-8000-000000009996/reschedule-customer')
+        .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(77)}T10:00:00.000Z` })
         .expect(404);
 
       expect(body.status).toBe(404);

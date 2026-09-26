@@ -19,6 +19,7 @@ import { SCHEDULE_CLOSURE_REPOSITORY } from './application/ports/schedule-closur
 import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-opening-repository.port';
 import { SERVICE_REPOSITORY } from './application/ports/service-repository.port';
 import { SERVICE_INTAKE_SCHEMA_REPOSITORY } from './application/ports/service-intake-schema-repository.port';
+import { BOOKING_QUOTE_REVISION_REPOSITORY } from './application/ports/booking-quote-revision-repository.port';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { ResourceOccupancyRetentionPurgeJob } from './application/jobs/resource-occupancy-retention-purge.job';
@@ -67,6 +68,7 @@ import { ListBookingsUseCase } from './application/use-cases/list-bookings.use-c
 import { CancelBookingAsCustomerUseCase } from './application/use-cases/cancel-booking-as-customer.use-case';
 import { CancelBookingAsAdminUseCase } from './application/use-cases/cancel-booking-as-admin.use-case';
 import { RescheduleBookingUseCase } from './application/use-cases/reschedule-booking.use-case';
+import { RescheduleBookingAsCustomerUseCase } from './application/use-cases/reschedule-booking-as-customer.use-case';
 import { CompleteBookingUseCase } from './application/use-cases/complete-booking.use-case';
 import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/generate-attachment-signed-url.use-case';
 import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
@@ -91,6 +93,7 @@ import {
 } from './infrastructure/entities/service-leg.entity';
 import { ServiceClassResourcePoolEntity } from './infrastructure/entities/service-class-resource-pool.entity';
 import { ServiceBookingIntakeSchemaEntity } from './infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingQuoteRevisionEntity } from './infrastructure/entities/booking-quote-revision.entity';
 import { BookingAttendeeEntity } from './infrastructure/entities/booking-attendee.entity';
 import { ResourceEntity } from './infrastructure/entities/resource.entity';
 import { BookingLineResourceAssignmentEntity } from './infrastructure/entities/booking-line-resource-assignment.entity';
@@ -119,6 +122,7 @@ import { TypeOrmResourceOccupancyRepository } from './infrastructure/repositorie
 import { CachingServiceRepository } from './infrastructure/repositories/caching-service.repository';
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
 import { TypeOrmServiceIntakeSchemaRepository } from './infrastructure/repositories/typeorm-service-intake-schema.repository';
+import { TypeOrmBookingQuoteRevisionRepository } from './infrastructure/repositories/typeorm-booking-quote-revision.repository';
 import { AvailabilityService } from './domain/services/availability.service';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 
@@ -141,6 +145,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
       ResourceEntity,
       BookingLineResourceAssignmentEntity,
       ResourceOccupancyEntity,
+      BookingQuoteRevisionEntity,
     ]),
     EventBusModule,
     RequestModule,
@@ -169,6 +174,10 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     TypeOrmServiceRepository,
     { provide: SERVICE_REPOSITORY, useClass: CachingServiceRepository },
     { provide: SERVICE_INTAKE_SCHEMA_REPOSITORY, useClass: TypeOrmServiceIntakeSchemaRepository },
+    {
+      provide: BOOKING_QUOTE_REVISION_REPOSITORY,
+      useClass: TypeOrmBookingQuoteRevisionRepository,
+    },
     { provide: SCHEDULE_CLOSURE_REPOSITORY, useClass: TypeOrmScheduleClosureRepository },
     { provide: SCHEDULE_OPENING_REPOSITORY, useClass: TypeOrmScheduleOpeningRepository },
     { provide: RESOURCE_REPOSITORY, useClass: TypeOrmResourceRepository },
@@ -222,6 +231,7 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     CancelBookingAsCustomerUseCase,
     CancelBookingAsAdminUseCase,
     RescheduleBookingUseCase,
+    RescheduleBookingAsCustomerUseCase,
     CompleteBookingUseCase,
     GenerateAttachmentSignedUrlUseCase,
     CreateResourceUseCase,

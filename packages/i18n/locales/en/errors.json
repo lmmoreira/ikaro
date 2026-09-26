@@ -29,6 +29,7 @@
   "BOOKING_SERVICE_NOT_IN_TENANT": "This service does not belong to the selected business.",
   "BOOKING_SERVICE_SESSION_NOT_BOOKABLE": "This service is a class and cannot be booked directly yet.",
   "BOOKING_CANCELLATION_WINDOW_EXPIRED": "The cancellation window for this booking has expired.",
+  "BOOKING_RESCHEDULE_WINDOW_EXPIRED": "The reschedule window for this booking has expired.",
   "BOOKING_CUSTOMER_NOT_FOUND": "Customer not found.",
   "BOOKING_CUSTOMER_PHONE_NOT_SET": "You need to add a phone number before booking.",
   "BOOKING_REJECTION_REASON_TOO_SHORT": "The rejection reason must be at least 10 characters.",

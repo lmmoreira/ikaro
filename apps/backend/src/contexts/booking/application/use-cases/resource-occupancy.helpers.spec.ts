@@ -13,6 +13,7 @@ import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceLeg } from '../../domain/service-leg';
 import {
+  mergeResourceSelections,
   resolveBookingLinesResourceCandidates,
   ResourceSelectionInput,
 } from './resource-occupancy.helpers';
@@ -1156,5 +1157,39 @@ describe('resolveBookingLinesResourceCandidates', () => {
     );
 
     expect(result.get('line-1')!.candidates[0].resourceId).toBe(higherWorkloadButFreeForThisLeg.id);
+  });
+});
+
+// M23-S03 (UC-069) — a customer reschedule's body-supplied resourceSelections overrides the
+// default replay for whichever (serviceId, legIndex, resourceType) key it names.
+describe('mergeResourceSelections', () => {
+  const flat = (serviceId: string, resourceId: string): ResourceSelectionInput => ({
+    serviceId,
+    legIndex: null,
+    resourceType: ResourceType.STAFF,
+    resourceId,
+  });
+
+  it('returns the replayed selections unchanged when there are no overrides', () => {
+    const replayed = [flat('service-1', 'resource-a')];
+    expect(mergeResourceSelections(replayed, [])).toEqual(replayed);
+  });
+
+  it('overrides the replayed pick for a matching key, keeps every other key as-is', () => {
+    const replayed = [flat('service-1', 'resource-a'), flat('service-2', 'resource-b')];
+    const overrides = [flat('service-1', 'resource-c')];
+
+    const merged = mergeResourceSelections(replayed, overrides);
+
+    expect(merged).toEqual([flat('service-2', 'resource-b'), flat('service-1', 'resource-c')]);
+  });
+
+  it('adds an override with no matching replayed key rather than dropping it', () => {
+    const replayed = [flat('service-1', 'resource-a')];
+    const overrides = [flat('service-2', 'resource-b')];
+
+    const merged = mergeResourceSelections(replayed, overrides);
+
+    expect(merged).toEqual([flat('service-1', 'resource-a'), flat('service-2', 'resource-b')]);
   });
 });

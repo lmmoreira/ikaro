@@ -60,6 +60,7 @@ import {
   ResourceStaffNotFoundError,
   ResourceTypeNotCreatableError,
   ResourceWorkingHoursOutsideTenantHoursError,
+  RescheduleWindowExpiredError,
   ScheduleAlreadyClosedError,
   ScheduleClosureNotFoundError,
   ScheduleOpeningAlreadyExistsError,
@@ -133,7 +134,10 @@ const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
     ],
     HttpStatus.UNPROCESSABLE_ENTITY,
   ],
-  [[CancellationWindowExpiredError, BookingScheduledInPastError], HttpStatus.UNPROCESSABLE_ENTITY],
+  [
+    [CancellationWindowExpiredError, RescheduleWindowExpiredError, BookingScheduledInPastError],
+    HttpStatus.UNPROCESSABLE_ENTITY,
+  ],
   [[InvalidBookingTransitionError], HttpStatus.UNPROCESSABLE_ENTITY],
   [
     [

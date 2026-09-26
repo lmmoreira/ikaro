@@ -65,6 +65,13 @@ export class BookingLine {
     this.props.actualPriceCharged = price;
   }
 
+  // M23-S03 — a variable-duration reschedule (durationMinutes in the request body) re-quotes this
+  // line via BookingQuoteService before Booking.reschedule() recomputes totalDurationMins/totalPrice.
+  updateDurationAndPrice(durationMinutes: number, priceAtBooking: Money): void {
+    this.props.durationMinsAtBooking = durationMinutes;
+    this.props.priceAtBooking = priceAtBooking;
+  }
+
   static create(bookingId: string, tenantId: string, input: BookingLineInput): BookingLine {
     return new BookingLine({
       lineId: uuidv7(),

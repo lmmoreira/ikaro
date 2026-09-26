@@ -162,12 +162,20 @@ export class BookingsController {
 
   @Patch(':id/reschedule')
   @HttpCode(HttpStatus.OK)
-  @Roles('MANAGER', 'STAFF')
+  @Roles('CUSTOMER', 'MANAGER', 'STAFF')
   reschedule(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(RescheduleBookingBodySchema)) body: RescheduleBookingBody,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<RescheduleBookingResponse> {
-    return this.backendHttp.patch(`/bookings/${id}/reschedule`, body);
+    if (user.role === 'CUSTOMER') {
+      return this.backendHttp.patch(`/bookings/${id}/reschedule-customer`, {
+        scheduledAt: body.scheduledAt,
+        resourceSelections: body.resourceSelections,
+        durationMinutes: body.durationMinutes,
+      });
+    }
+    return this.backendHttp.patch(`/bookings/${id}/reschedule-admin`, body);
   }
 
   @Patch(':id/complete')

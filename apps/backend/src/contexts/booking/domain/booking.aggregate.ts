@@ -29,6 +29,7 @@ import {
   BookingStatus,
   BookingType,
   RequestBookingInput,
+  RescheduleDurationChange,
 } from './booking.types';
 
 // BookingStatus/BookingType/BookingProps/RequestBookingInput moved to booking.types.ts to keep
@@ -625,10 +626,12 @@ export class Booking extends AggregateRoot {
   }
 
   reschedule(
-    staffId: string,
+    actorId: string,
     newScheduledAt: Date,
     correlationId: string,
+    isBusiness: boolean,
     adminNotes?: string,
+    durationChange?: RescheduleDurationChange,
   ): void {
     if (this.props.status !== BookingStatus.APPROVED) {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.APPROVED);
@@ -637,32 +640,58 @@ export class Booking extends AggregateRoot {
     const previousEndTime = new Date(
       this.props.scheduledAt.getTime() + this.props.totalDurationMins * 60_000,
     );
-    const newEndTime = new Date(newScheduledAt.getTime() + this.props.totalDurationMins * 60_000);
-
     const previousSlot = {
       startTime: this.props.scheduledAt.toISOString(),
       endTime: previousEndTime.toISOString(),
     };
 
+    if (durationChange) this.applyRescheduleDurationChange(durationChange);
+
     this.props.scheduledAt = newScheduledAt;
     if (adminNotes !== undefined) this.props.adminNotes = normalizeOptionalText(adminNotes);
 
     this.addDomainEvent(
-      new BookingRescheduled(this.props.tenantId, correlationId, {
-        bookingId: this.props.id,
-        customerId: this.props.customerId,
-        contactEmail: this.props.contactEmail.address,
-        contactName: this.props.contactName,
-        newSlot: {
-          startTime: newScheduledAt.toISOString(),
-          endTime: newEndTime.toISOString(),
-        },
-        previousSlot,
-        rescheduledBy: staffId,
-        adminNotes: this.props.adminNotes,
-        lineSummary: this.lineSummaryPayload(),
-        totalPrice: this.totalPricePayload(),
-      }),
+      this.buildRescheduledEvent(actorId, newScheduledAt, correlationId, isBusiness, previousSlot),
+    );
+  }
+
+  private buildRescheduledEvent(
+    actorId: string,
+    newScheduledAt: Date,
+    correlationId: string,
+    isBusiness: boolean,
+    previousSlot: { startTime: string; endTime: string },
+  ): BookingRescheduled {
+    const newEndTime = new Date(newScheduledAt.getTime() + this.props.totalDurationMins * 60_000);
+    return new BookingRescheduled(this.props.tenantId, correlationId, {
+      bookingId: this.props.id,
+      customerId: this.props.customerId,
+      contactEmail: this.props.contactEmail.address,
+      contactName: this.props.contactName,
+      newSlot: { startTime: newScheduledAt.toISOString(), endTime: newEndTime.toISOString() },
+      previousSlot,
+      rescheduledBy: actorId,
+      isBusiness,
+      adminNotes: this.props.adminNotes,
+      lineSummary: this.lineSummaryPayload(),
+      totalPrice: this.totalPricePayload(),
+    });
+  }
+
+  // UC-067's re-quote applied to a reschedule (M23-S03) — the line was already resolved by the
+  // caller (RescheduleBookingUseCase/RescheduleBookingAsCustomerUseCase), so it's guaranteed to
+  // belong to this booking; same non-null-assertion convention as applyActualPrices() above.
+  private applyRescheduleDurationChange(change: RescheduleDurationChange): void {
+    const line = this.props.lines.find((l) => l.lineId === change.lineId)!;
+    line.updateDurationAndPrice(change.durationMinutes, change.priceAtBooking);
+    this._linesModified = true;
+    this.props.totalDurationMins = this.props.lines.reduce(
+      (sum, l) => sum + l.durationMinsAtBooking,
+      0,
+    );
+    this.props.totalPrice = this.props.lines.reduce(
+      (sum, l) => sum.add(l.priceAtBooking),
+      Money.zero(this.props.totalPrice.currency),
     );
   }
 
@@ -713,6 +742,18 @@ export class Booking extends AggregateRoot {
 
   isEligibleForCancellation(cancellationWindowHours: number): boolean {
     return Date.now() < this.cancellableUntil(cancellationWindowHours).getTime();
+  }
+
+  // UC-069 precondition, customer-initiated reschedule only — mirrors cancellableUntil()/
+  // isEligibleForCancellation() exactly; the effective window resolves from the same source
+  // (Service.rescheduleWindowHoursOverride ?? tenant default), computed by the caller.
+  rescheduleEligibleUntil(rescheduleWindowHours: number): Date {
+    const windowMs = rescheduleWindowHours * 60 * 60 * 1000;
+    return new Date(this.props.scheduledAt.getTime() - windowMs);
+  }
+
+  isEligibleForReschedule(rescheduleWindowHours: number): boolean {
+    return Date.now() < this.rescheduleEligibleUntil(rescheduleWindowHours).getTime();
   }
 
   pointsEarned(): number {

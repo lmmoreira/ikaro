@@ -254,7 +254,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
 
     // 10. Reschedule booking3 → BookingRescheduled
     await request(app.getHttpServer())
-      .patch(`/bookings/${booking3Id}/reschedule`)
+      .patch(`/bookings/${booking3Id}/reschedule-admin`)
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')

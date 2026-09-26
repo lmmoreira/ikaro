@@ -73,9 +73,16 @@ export const CancelAsAdminBodySchema = z
   })
   .default({});
 
+// M23 Cluster 3 (UC-069) — one permissive schema covering both the customer and admin bodies; the
+// controller picks which fields to forward based on the caller's role (mirrors CancelAsAdminBodySchema's
+// single-schema-then-role-branch shape). adminNotes is meaningless on the customer path — the
+// backend's customer-side Zod schema simply doesn't declare it, so a stray value here is dropped,
+// never validated or forwarded as a real field.
 export const RescheduleBookingBodySchema = z.object({
   scheduledAt: z.iso.datetime(),
   adminNotes: z.string().trim().min(1).max(500).optional(),
+  resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
+  durationMinutes: z.number().int().positive().optional(),
 });
 
 export const ApproveBookingBodySchema = z

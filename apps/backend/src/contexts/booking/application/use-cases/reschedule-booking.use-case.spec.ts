@@ -4,7 +4,10 @@ import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-te
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
-import { BookingBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryBookingQuoteRevisionRepository } from '../../../../test/repositories/booking/in-memory-booking-quote-revision.repository';
+import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
+import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
+import { Money } from '../../../../shared/value-objects/money';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceType } from '../../domain/resource.types';
@@ -16,6 +19,7 @@ import {
   InvalidBookingTransitionError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookingQuoteService } from '../services/booking-quote.service';
 import { RescheduleBookingUseCase } from './reschedule-booking.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000501';
@@ -30,6 +34,7 @@ describe('RescheduleBookingUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
   let fixtures: ReturnType<typeof createAutoBookingResourceFixtures>;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
+  let quoteRevisionRepo: InMemoryBookingQuoteRevisionRepository;
   let eventBus: InMemoryEventBus;
   let useCase: RescheduleBookingUseCase;
 
@@ -38,13 +43,16 @@ describe('RescheduleBookingUseCase', () => {
     bookingRepo = new InMemoryBookingRepository(eventBus);
     fixtures = createAutoBookingResourceFixtures();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    quoteRevisionRepo = new InMemoryBookingQuoteRevisionRepository();
     useCase = new RescheduleBookingUseCase(
       bookingRepo,
       fixtures.serviceRepo,
       fixtures.resourceRepo,
       occupancyRepo,
+      quoteRevisionRepo,
       new AvailabilityService(),
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
+      new BookingQuoteService(),
       new InMemoryTransactionManager(),
     );
   });
@@ -200,10 +208,88 @@ describe('RescheduleBookingUseCase', () => {
         previousSlot: { startTime: string; endTime: string };
         newSlot: { startTime: string; endTime: string };
         rescheduledBy: string;
+        isBusiness: boolean;
       };
       expect(data.previousSlot.startTime).toBe(original.toISOString());
       expect(data.newSlot.startTime).toBe(new Date(newFutureSlot).toISOString());
       expect(data.rescheduledBy).toBe(STAFF_ID);
+      expect(data.isBusiness).toBe(true);
+    });
+  });
+
+  describe('quote revisions (M23 Cluster 3)', () => {
+    it('does not record a quote revision for a same-price, time-only reschedule', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .build();
+      await bookingRepo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        scheduledAt: newFutureSlot,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+      });
+
+      expect(result.quoteRevision).toBeUndefined();
+      expect(await quoteRevisionRepo.findLatestRevisionNo(TENANT_A, booking.id)).toBe(0);
+    });
+
+    it('records a booking_quote_revisions row and returns quoteRevision when durationMinutes changes the price', async () => {
+      const serviceId = '30000000-0000-4000-8000-000000000501';
+      const service = new ServiceBuilder()
+        .withId(serviceId)
+        .withTenantId(TENANT_A)
+        .withPrice(Money.from(50, 'BRL'))
+        .withDurationMinutes(30)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 30,
+          pricePerIncrementAmount: 50,
+        })
+        .build();
+      await fixtures.serviceRepo.save(service);
+
+      const line = new BookingLineBuilder()
+        .withServiceId(serviceId)
+        .withPriceAtBooking(Money.from(50, 'BRL'))
+        .withDurationMinsAtBooking(30)
+        .build();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .withLines([line])
+        .withTotalDurationMins(30)
+        .withTotalPrice(Money.from(50, 'BRL'))
+        .build();
+      await bookingRepo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        scheduledAt: newFutureSlot,
+        durationMinutes: 90,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+      });
+
+      expect(result.quoteRevision).toEqual({
+        revisionNo: 1,
+        amount: { amount: '150.00', currency: 'BRL' },
+      });
+      expect(await quoteRevisionRepo.findLatestRevisionNo(TENANT_A, booking.id)).toBe(1);
+      const saved = await bookingRepo.findById(booking.id, TENANT_A);
+      expect(saved!.lines[0].durationMinsAtBooking).toBe(90);
     });
   });
 

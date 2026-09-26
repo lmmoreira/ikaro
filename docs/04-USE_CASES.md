@@ -1136,7 +1136,7 @@ Returns:
 - **Preconditions:** Booking is eligible under its snapshotted-effective per-service reschedule policy (`rescheduleWindowHoursOverride ?? tenant default`, UC-055) — customer path only; a staff override (A3) bypasses this check by design, the same way staff already bypasses the cancellation window.
 - **Trigger:** Customer chooses "Reagendar" on an eligible future appointment/reservation.
 - **Main Flow:**
-  1. System validates and locks the replacement resource/span **before** releasing the original one (lock-then-release ordering — a losing race must never leave the booking holding neither).
+  1. System releases the original resource/span and locks the replacement inside one transaction — a losing race (a concurrent booking wins the replacement resource) throws and rolls back the entire attempt, so the release is never actually committed and the booking keeps its original slot (transaction atomicity + the resource_occupancy exclusion constraint's insert-time blocking are what make this safe, not a specific statement order).
   2. System recalculates and displays the new quote — a body-supplied `resourceSelections` entry overrides the default replay of the booking's existing `CUSTOMER_CHOICE` picks (same precedence as `POST /bookings`); a body-supplied `durationMinutes` re-quotes via the same duration/pricing engine as UC-067.
   3. System records an append-only `booking_quote_revisions` row and a link to the prior arrangement.
   4. System notifies the customer after commit (`BookingRescheduled`, extended scope — see `docs/03-DOMAIN_EVENTS.md`).

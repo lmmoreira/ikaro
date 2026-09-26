@@ -18,9 +18,17 @@ import {
   RescheduleBookingUseCaseResult,
 } from '../../application/use-cases/reschedule-booking.use-case';
 import {
+  RescheduleBookingAsCustomerUseCase,
+  RescheduleBookingAsCustomerUseCaseResult,
+} from '../../application/use-cases/reschedule-booking-as-customer.use-case';
+import {
   RescheduleBookingDto,
   RescheduleBookingSchema,
 } from '../../application/dtos/reschedule-booking.dto';
+import {
+  RescheduleBookingAsCustomerDto,
+  RescheduleBookingAsCustomerSchema,
+} from '../../application/dtos/reschedule-booking-as-customer.dto';
 import {
   CompleteBookingDto,
   CompleteBookingSchema,
@@ -41,6 +49,7 @@ export class BookingCompletionController {
     private readonly cancelBookingAsCustomer: CancelBookingAsCustomerUseCase,
     private readonly cancelBookingAsAdmin: CancelBookingAsAdminUseCase,
     private readonly rescheduleBooking: RescheduleBookingUseCase,
+    private readonly rescheduleBookingAsCustomer: RescheduleBookingAsCustomerUseCase,
     private readonly completeBooking: CompleteBookingUseCase,
   ) {}
 
@@ -74,10 +83,33 @@ export class BookingCompletionController {
       .catch(mapBookingError);
   }
 
-  @Patch(':id/reschedule')
+  @Patch(':id/reschedule-customer')
+  @HttpCode(HttpStatus.OK)
+  rescheduleAsCustomer(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(RescheduleBookingAsCustomerSchema))
+    body: RescheduleBookingAsCustomerDto,
+  ): Promise<RescheduleBookingAsCustomerUseCaseResult> {
+    const { tenantId, actorId: customerId, correlationId, settings } = this.ctx;
+    return this.rescheduleBookingAsCustomer
+      .execute({
+        bookingId: id,
+        scheduledAt: body.scheduledAt,
+        resourceSelections: body.resourceSelections,
+        durationMinutes: body.durationMinutes,
+        tenantId,
+        customerId: customerId!,
+        correlationId,
+        timezone: settings.businessHours.timezone,
+        tenantDefaultRescheduleWindowHours: settings.booking.cancellationWindowHours,
+      })
+      .catch(mapBookingError);
+  }
+
+  @Patch(':id/reschedule-admin')
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
-  reschedule(
+  rescheduleAsAdmin(
     @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(RescheduleBookingSchema)) body: RescheduleBookingDto,
   ): Promise<RescheduleBookingUseCaseResult> {
@@ -87,6 +119,8 @@ export class BookingCompletionController {
         bookingId: id,
         scheduledAt: body.scheduledAt,
         adminNotes: body.adminNotes,
+        resourceSelections: body.resourceSelections,
+        durationMinutes: body.durationMinutes,
         tenantId,
         staffId: staffId!,
         correlationId,

@@ -137,6 +137,19 @@ export class CancellationWindowExpiredError extends BookingDomainError {
   }
 }
 
+// UC-069 precondition — customer-initiated reschedule only (Booking.isEligibleForReschedule()).
+// A staff/admin override (UC-069 A3) never runs this check, mirroring the existing
+// cancellation-window staff override.
+export class RescheduleWindowExpiredError extends BookingDomainError {
+  constructor() {
+    super(
+      'Reschedule window has expired for this booking',
+      BookingErrorCode.RESCHEDULE_WINDOW_EXPIRED,
+    );
+    this.name = 'RescheduleWindowExpiredError';
+  }
+}
+
 export class BookingCustomerNotFoundError extends BookingDomainError {
   constructor(customerId: string) {
     super(`Customer not found: ${customerId}`, BookingErrorCode.CUSTOMER_NOT_FOUND);
