@@ -6,23 +6,43 @@ import { parseDateKey } from '@/features/booking/schedule/date-utils';
 // consumer keeps importing from the same path; this split exists only to keep that file under the
 // 250-line cap once Story 1's own resource-filter fields/logic landed there.
 //
-// Content-driven minimum block heights (TD44 Story 2, round 2 — established as the shared pattern
-// for every board: Day view's single timeline, Day view's resource-columns board, and Week view's
-// day-cards all pass one of these instead of the old blanket 18px floor). A booking block's height
-// can never be shorter than one slot (buildBlockStyle floors event duration at
-// slotGranularityMinutes via getEventMinutes), so the true minimum block height *is* getSlotHeight's
-// own result — raising its floor here is what stops every board's shortest bookings from clipping
-// their own title/subtitle/resource-line/time-range content under TimelineBlockShell's
-// overflow-hidden. Desktop mode (larger fonts, Day view) needs more room than compact mode
-// (smaller fonts, Week view); both are sized for the worst case — 4 content lines (title, subtitle,
-// the divider+resource-summary line, the time range) — with headroom, not just the common 3-line
-// case, so a board's row height stays uniform regardless of which bookings happen to have a
-// resource match.
+// Grid coordinate unit vs. per-block content-fit floor (TD44 Story 4 — decoupled; previously TD44
+// Story 2 round 2 fed a single conflated `minHeightPx` into getSlotHeight, which raised the *whole
+// grid's* base unit along with each block's own floor, since slotCount * slotHeight is also the
+// board's total scroll height). getSlotHeight below is now purely the grid's pixels-per-slot
+// coordinate unit — no floor argument — restoring the pre-Story-2 density (48px per 30-min slot,
+// the value this formula already produced whenever a slot's duration reached 30+ minutes; the old
+// bare 18px floor never won against it).
+//
+// The per-block content-fit floor is now content-aware (TD44 Story 4): a single fixed floor per
+// board — even after decoupling it from the grid unit — still forced every block to the *worst
+// case* (4 lines: title, subtitle, resource-summary, time-range),
+// which visibly overflowed a short booking's own true time span once the grid itself became
+// correctly proportional again (a 30-min booking rendering ~4.4x taller than its real slot, per a
+// live report against the shipped build). getBlockMinHeightPx below instead scales with how many
+// *optional* footer lines a given block actually renders — 0 for closures/openings (no footer at
+// all), 0–2 for a booking depending on whether its resource-summary and/or time-range lines show.
+// DESKTOP_MIN_BLOCK_HEIGHT_PX/COMPACT_MIN_BLOCK_HEIGHT_PX (values unchanged) remain the *worst-case*
+// ceiling for a 4-line booking — CONTENT_LINE_HEIGHT_PX is derived so that
+// base + 2*lineHeight reproduces each exactly, so the worst case (which is what TD44 Story 2 round 2
+// was originally sized for) is unaffected by this change.
 export const DESKTOP_MIN_BLOCK_HEIGHT_PX = 108;
 export const COMPACT_MIN_BLOCK_HEIGHT_PX = 96;
+const DESKTOP_BASE_MIN_HEIGHT_PX = 60;
+const COMPACT_BASE_MIN_HEIGHT_PX = 48;
+const CONTENT_LINE_HEIGHT_PX = 24;
 
-export function getSlotHeight(slotGranularityMinutes: number, scale = 1, minHeightPx = 18): number {
-  return Math.max(minHeightPx, Math.round((slotGranularityMinutes / 30) * 48 * scale));
+export function getSlotHeight(slotGranularityMinutes: number, scale = 1): number {
+  return Math.round((slotGranularityMinutes / 30) * 48 * scale);
+}
+
+// The per-block content-fit floor (TD44 Story 4) — `extraLineCount` is the number of *optional*
+// footer lines this specific block renders beyond its always-present title/subtitle row (0, 1, or
+// 2): a closure/opening block (no footer) always passes 0; a booking block passes the count of its
+// resource-summary/time-range lines that actually render for it.
+export function getBlockMinHeightPx(compact: boolean, extraLineCount: number): number {
+  const base = compact ? COMPACT_BASE_MIN_HEIGHT_PX : DESKTOP_BASE_MIN_HEIGHT_PX;
+  return base + extraLineCount * CONTENT_LINE_HEIGHT_PX;
 }
 
 export function getEventMinutes(

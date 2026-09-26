@@ -16,7 +16,6 @@ import {
 } from '@/features/booking/schedule/schedule-timeline';
 import {
   buildSlotLabels,
-  resolveTimelineTitle,
   type ScheduleWeekDayInfo,
 } from '@/features/booking/schedule/schedule-page-derived';
 import type { ScheduleUiState } from '@/features/booking/schedule/schedule-page-ui-state';
@@ -52,9 +51,7 @@ export interface UseSchedulePageControllerResult {
   readonly visibleClosures: readonly ScheduleClosure[];
   readonly visibleOpenings: readonly ScheduleOpening[];
   readonly selectedDayLabel: string;
-  readonly timelineTitle: string;
-  readonly bookingEventCount: number;
-  readonly hasBookingInSelectedDay: boolean;
+  readonly bookingCount: number;
   readonly slotLabels: string[];
   readonly scheduleReturnTo: string;
   readonly weekNav: ScheduleWeekNavHandlers;
@@ -65,12 +62,13 @@ export interface UseSchedulePageControllerResult {
 
 // Extracted from SchedulePage (TD37-S5A) — deriving the selected-day label, booking count, and
 // per-slot time labels from the core timeline data is a cohesive, self-contained computation.
+// bookingCount (TD44 Story 4) feeds ScheduleDayHeader's inline badge.
 export function useScheduleLabels(
   core: ScheduleCoreData,
   slotGranularityMinutes: number,
 ): {
   readonly selectedDayLabel: string;
-  readonly bookingEventCount: number;
+  readonly bookingCount: number;
   readonly slotLabels: string[];
 } {
   const { ui, formatDateLong, selectedDayTimeline } = core;
@@ -79,7 +77,7 @@ export function useScheduleLabels(
     () => formatDateLong(parseDateKey(ui.selectedDateKey)),
     [formatDateLong, ui.selectedDateKey],
   );
-  const bookingEventCount = selectedDayTimeline.events.filter(
+  const bookingCount = selectedDayTimeline.events.filter(
     (event) => event.kind === 'booking',
   ).length;
   const slotLabels = useMemo(
@@ -96,7 +94,7 @@ export function useScheduleLabels(
     ],
   );
 
-  return { selectedDayLabel, bookingEventCount, slotLabels };
+  return { selectedDayLabel, bookingCount, slotLabels };
 }
 
 export interface ScheduleMutations {
@@ -146,7 +144,6 @@ function buildControllerHandlers(
 // directly from core data are a cohesive, self-contained slice of the final result object.
 function buildCoreDerivedFields(
   core: ScheduleCoreData,
-  t: ReturnType<typeof useTranslations>,
 ): Pick<
   UseSchedulePageControllerResult,
   | 'scheduleViewMode'
@@ -157,9 +154,7 @@ function buildCoreDerivedFields(
   | 'activeDates'
   | 'dimmedDates'
   | 'weekTimelineCards'
-  | 'timelineTitle'
 > {
-  const { selectedDayTimeline } = core;
   return {
     scheduleViewMode: core.scheduleViewMode,
     setPersistedViewMode: core.setPersistedViewMode,
@@ -169,11 +164,6 @@ function buildCoreDerivedFields(
     activeDates: core.activeDates,
     dimmedDates: core.dimmedDates,
     weekTimelineCards: core.weekTimelineCards,
-    timelineTitle: resolveTimelineTitle(
-      t,
-      selectedDayTimeline.selectedOpening,
-      selectedDayTimeline.selectedDayClosed,
-    ),
   };
 }
 
@@ -189,9 +179,9 @@ export function buildControllerResult(
 ): UseSchedulePageControllerResult {
   const { businessHours, todayKey, slotGranularityMinutes } = props;
   const { ui, timezone, selectedDayTimeline } = core;
-  const { selectedDayLabel, bookingEventCount, slotLabels } = labels;
+  const { selectedDayLabel, bookingCount, slotLabels } = labels;
   const handlers = buildControllerHandlers(props, core, t, mutations);
-  const coreDerived = buildCoreDerivedFields(core, t);
+  const coreDerived = buildCoreDerivedFields(core);
 
   return {
     ui,
@@ -202,8 +192,7 @@ export function buildControllerResult(
     statusLabels,
     selectedDayTimeline,
     selectedDayLabel,
-    bookingEventCount,
-    hasBookingInSelectedDay: bookingEventCount > 0,
+    bookingCount,
     slotLabels,
     scheduleReturnTo: buildScheduleReturnTo(ui.weekStartKey, ui.selectedDateKey),
     visibleBookings: core.visibleBookings,

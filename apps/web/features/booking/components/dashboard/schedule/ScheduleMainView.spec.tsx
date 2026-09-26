@@ -66,7 +66,6 @@ function baseProps() {
       events: [],
     },
     slotLabels: ['09:00'],
-    timelineTitle: 'Aberto',
   };
 }
 
@@ -90,5 +89,16 @@ describe('ScheduleMainView', () => {
     expect(screen.getByTestId('schedule-mobile-view')).toBeInTheDocument();
     expect(screen.queryByTestId('mock-week-view')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mock-columns-board')).not.toBeInTheDocument();
+  });
+
+  it('wires the scroll-to-now marker into the single-day timeline when it is showing today (TD44 Story 4)', () => {
+    // baseProps() already has selectedDateKey === todayKey.
+    renderWithIntl(<ScheduleMainView {...baseProps()} />);
+    expect(screen.getByTestId('schedule-now-marker')).toBeInTheDocument();
+  });
+
+  it('renders no scroll-to-now marker when the single-day timeline is showing a different date (TD44 Story 4)', () => {
+    renderWithIntl(<ScheduleMainView {...baseProps()} todayKey="2026-08-18" />);
+    expect(screen.queryByTestId('schedule-now-marker')).not.toBeInTheDocument();
   });
 });

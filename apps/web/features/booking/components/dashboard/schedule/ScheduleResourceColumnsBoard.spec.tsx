@@ -43,6 +43,9 @@ function baseProps() {
     closures: [],
     openings: [],
     selectedDateKey: '2026-08-17',
+    // Deliberately not today's key by default — existing tests here aren't about scroll-to-now
+    // (TD44 Story 4), which is covered by its own dedicated test below.
+    todayKey: '2026-08-16',
     businessHours: BUSINESS_HOURS,
     slotGranularityMinutes: 30 as const,
     statusLabels: STATUS_LABELS,
@@ -95,7 +98,7 @@ describe('ScheduleResourceColumnsBoard', () => {
     expect(screen.queryByText('Renata Souza')).not.toBeInTheDocument();
   });
 
-  it('shows an explicit empty-column message for a checked resource with no blocks that day', () => {
+  it('renders no redundant empty-column message for a checked resource with no blocks (TD44 Story 4 — the grid itself already shows this)', () => {
     useScheduleDayGridMock.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -110,6 +113,38 @@ describe('ScheduleResourceColumnsBoard', () => {
         selectedResourceIdSet={new Set(['res-camila'])}
       />,
     );
-    expect(screen.getByText('Nada agendado neste dia')).toBeInTheDocument();
+    expect(screen.getByText('Camila Duarte')).toBeInTheDocument();
+    expect(screen.queryByText(/[Nn]ada agendado/)).not.toBeInTheDocument();
+  });
+
+  it('renders a scroll-to-now marker only in the first column, only when viewing today (TD44 Story 4)', () => {
+    useScheduleDayGridMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        date: '2026-08-17',
+        columns: [
+          { resourceId: 'res-camila', name: 'Camila Duarte', type: 'STAFF', blocks: [] },
+          { resourceId: 'res-bruno', name: 'Bruno Alves', type: 'STAFF', blocks: [] },
+        ],
+      },
+    });
+    renderWithIntl(
+      <ScheduleResourceColumnsBoard {...baseProps()} todayKey={baseProps().selectedDateKey} />,
+    );
+    expect(screen.getAllByTestId('schedule-now-marker')).toHaveLength(1);
+  });
+
+  it('renders no scroll-to-now marker when the viewed date is not today (TD44 Story 4, non-regression)', () => {
+    useScheduleDayGridMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        date: '2026-08-17',
+        columns: [{ resourceId: 'res-camila', name: 'Camila Duarte', type: 'STAFF', blocks: [] }],
+      },
+    });
+    renderWithIntl(<ScheduleResourceColumnsBoard {...baseProps()} />);
+    expect(screen.queryByTestId('schedule-now-marker')).not.toBeInTheDocument();
   });
 });

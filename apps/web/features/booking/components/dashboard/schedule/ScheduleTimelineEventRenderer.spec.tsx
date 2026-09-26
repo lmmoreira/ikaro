@@ -48,12 +48,14 @@ function baseProps(
 function Host({
   event,
   props,
+  compact = false,
 }: {
   readonly event: TimelineEvent;
   readonly props: ScheduleTimelineRenderProps;
+  readonly compact?: boolean;
 }): React.JSX.Element {
   const t = useTranslations('dashboard.schedule');
-  return renderTimelineEvent(event, TIMELINE, false, props, t);
+  return renderTimelineEvent(event, TIMELINE, compact, props, t);
 }
 
 describe('renderTimelineEvent', () => {
@@ -225,7 +227,7 @@ describe('renderTimelineEvent', () => {
       kind: 'booking',
       id: 'booking-1',
       startMinutes: 540,
-      endMinutes: 570,
+      endMinutes: 600,
       title: 'João Silva',
       subtitle: 'Lavagem completa',
       warning: false,
@@ -238,7 +240,10 @@ describe('renderTimelineEvent', () => {
         serviceNames: ['Lavagem completa'],
         status: BOOKING_STATUS.APPROVED,
         scheduledAt: '2026-08-18T12:00:00.000Z',
-        totalDurationMins: 30,
+        // Longer than baseProps' slotGranularityMinutes (30) so the time-range line still renders
+        // (TD44 Story 4 drops it only at exact minimum granularity) — this test is about ordering,
+        // not about the minimum-granularity variant itself.
+        totalDurationMins: 60,
       } as never,
     };
 
@@ -252,6 +257,205 @@ describe('renderTimelineEvent', () => {
     expect(position & Node.DOCUMENT_POSITION_CONTAINS).toBeTruthy();
     // scheduledAt 2026-08-18T12:00:00.000Z in America/Sao_Paulo (UTC-3) is 09:00 local.
     expect(allText.indexOf('Camila Duarte')).toBeLessThan(allText.indexOf('09:00'));
+  });
+
+  it('in Day view (desktop), drops only the time-range line at minimum granularity, keeping the resource-summary line (TD44 Story 4)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: ['Camila Duarte'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30, // equals baseProps().slotGranularityMinutes (30)
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    expect(screen.getByTestId('timeline-block-resource-summary')).toHaveTextContent(
+      'Camila Duarte',
+    );
+    // scheduledAt 2026-08-18T12:00:00.000Z in America/Sao_Paulo (UTC-3) is 09:00 local.
+    expect(screen.queryByText('09:00–09:30')).not.toBeInTheDocument();
+  });
+
+  it('in Week view (compact), a minimum-granularity booking with a resource drops only the time-range line, keeping the resource-summary line (TD44 Story 4 — Week view resource filtering depends on this staying visible)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: ['Camila Duarte'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30, // equals baseProps().slotGranularityMinutes (30)
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} compact />);
+    expect(screen.getByTestId('timeline-block-resource-summary')).toHaveTextContent(
+      'Camila Duarte',
+    );
+    expect(screen.queryByText('09:00–09:30')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte' });
+    expect(link.style.minHeight).toBe('72px');
+  });
+
+  it('in Week view (compact), a longer booking with a resource keeps both footer lines (non-regression)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 600,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: ['Camila Duarte'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 60, // longer than baseProps().slotGranularityMinutes (30)
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} compact />);
+    expect(screen.getByTestId('timeline-block-resource-summary')).toHaveTextContent(
+      'Camila Duarte',
+    );
+    const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte' });
+    expect(link.style.minHeight).toBe('96px');
+  });
+
+  it('keeps the time-range line for a booking longer than the minimum granularity (TD44 Story 4)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 600,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: [],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 60, // longer than baseProps().slotGranularityMinutes (30)
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    expect(screen.getByText('09:00–10:00')).toBeInTheDocument();
+  });
+
+  it('applies the content-fit min-height to a block, decoupled from the grid unit (TD44 Story 4) — closures/openings have no footer, so the 0-extra-line floor applies', () => {
+    const closure = {
+      id: 'closure-1',
+      reason: 'MAINTENANCE',
+      notes: null,
+      startTime: null,
+      endTime: null,
+    } as never;
+    const event: TimelineEvent = {
+      kind: 'closure',
+      id: 'closure-1',
+      startMinutes: 540,
+      endMinutes: 600,
+      title: '',
+      subtitle: '',
+      closure,
+      resourceName: null,
+      laneIndex: 0,
+      laneCount: 1,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    const block = screen.getByTestId('schedule-closure-block-closure-1');
+    // Host always renders with compact=false (desktop) — 0 extra lines -> the desktop base floor.
+    expect(block.style.minHeight).toBe('60px');
+  });
+
+  it('applies the full 2-extra-line desktop floor to a longer booking with an assigned resource (both footer lines render)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 600,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: ['Camila Duarte'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 60, // longer than baseProps().slotGranularityMinutes (30)
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte' });
+    expect(link.style.minHeight).toBe('108px');
+  });
+
+  it('applies only the desktop 1-extra-line floor to a minimum-granularity booking with a resource (Day view keeps the resource line, drops only time-range)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: ['Camila Duarte'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30, // equals baseProps().slotGranularityMinutes (30)
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte' });
+    expect(link.style.minHeight).toBe('84px');
+    expect(screen.getByTestId('timeline-block-resource-summary')).toBeInTheDocument();
   });
 
   it('renders an opening event as a button that calls onOpeningClick', async () => {

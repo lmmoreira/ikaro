@@ -17,6 +17,14 @@ import {
 import { uniqueTestEmail } from '@/e2e/helpers/auth';
 import { createResource, deactivateResource } from '@/e2e/helpers/booking';
 
+// TD44 Story 4 — lavacar-beloauto's own seed data: the default schedule service
+// (SCHEDULE_DEFAULT_SERVICE_ID, 'Lavagem Simples') is a 30-minute service, and this tenant's own
+// `slotGranularityMinutes` (docs/21-TENANTS_SETTINGS_SCHEMA.md) is also 30 — so every booking
+// created via the default helper below is already exactly at minimum granularity, with no extra
+// service setup needed. 'Lavagem Completa' (60 min) is this tenant's shortest longer-than-minimum
+// service, used as the non-regression counterpart.
+const SCHEDULE_LONGER_SERVICE_ID = '00000000-0000-7000-8003-000000000002';
+
 function installHydrationGuard(page: Page): string[] {
   const hydrationErrors: string[] = [];
 
@@ -559,5 +567,134 @@ test.describe('schedule page coverage', () => {
     } finally {
       await deactivateResource(page, resource.id);
     }
+  });
+
+  test('a minimum-granularity booking shows no time-range text, while a longer one still does (TD44 Story 4)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const minimumName = uniqueLabel('min-granularity');
+    const minimumBooking = await createUniqueScheduleBooking(
+      page,
+      {
+        contactName: minimumName,
+        contactEmail: uniqueTestEmail('schedule-min-granularity'),
+        approved: true,
+        time: '10:00',
+      },
+      130,
+    );
+    const dateKey = minimumBooking.dateKey;
+
+    const longerName = uniqueLabel('longer-than-min');
+    await createScheduleBooking(page, {
+      dateKey,
+      contactName: longerName,
+      contactEmail: uniqueTestEmail('schedule-longer-than-min'),
+      approved: true,
+      time: '13:00',
+      serviceIds: [SCHEDULE_LONGER_SERVICE_ID],
+    });
+
+    await page.goto(scheduleRoute(dateKey));
+
+    const minimumBlock = page.getByRole('link', { name: minimumName });
+    const longerBlock = page.getByRole('link', { name: longerName });
+    await expect(minimumBlock).toBeVisible();
+    await expect(longerBlock).toBeVisible();
+
+    await expect(minimumBlock.getByTestId('timeline-block-time-range')).toHaveCount(0);
+    await expect(longerBlock.getByTestId('timeline-block-time-range')).toBeVisible();
+  });
+
+  test("loading today's schedule scrolls the current-time marker into view, in both Day and Week view (TD44 Story 4)", async ({
+    page,
+  }) => {
+    // The app computes todayKey via toISODateInTimezone(new Date(), businessHours.timezone) —
+    // i.e. "today" in America/Sao_Paulo, not the test runner's own clock. Using nextOpenDateKey(0)
+    // (naive local/UTC "today") diverges from that for up to 3 hours a day (00:00-03:00 UTC, when
+    // UTC's calendar date is already a day ahead of São Paulo's) — CI hit exactly this window and
+    // the fixture booking landed on a date the app itself doesn't consider "today," making the
+    // marker assertions below meaningless. Compute "today" the same way the app does instead.
+    //
+    // No skip needed even if today lands on the tenant's closed weekday (Sunday): verified live
+    // against a running backend+BFF that booking creation has no business-hours/closed-day check
+    // at all (a POST for a closed Sunday returns 201, not a conflict), and the marker itself mounts
+    // in the closed-day empty state too (ScheduleTimelineBoard's TimelineEmptyState renders
+    // NowMarker regardless of hasHours) — so the assertions below hold on every day of the week.
+    //
+    // No booking fixture needed either: nowMarkerTopPx is derived purely from the tenant's
+    // business-hours window and the current wall-clock time (schedule-scroll-to-now.ts's
+    // resolveNowMarkerTopPx), and NowMarker mounts unconditionally whenever that value is defined
+    // — with zero bookings on the day just as with any number of them. This tenant's single
+    // degenerate LOCATION resource has no per-time-of-day capacity (see
+    // approve-booking.ts's createFreshApprovedBooking), so a fixed "today, 10:00" booking with no
+    // retry-on-conflict logic collided with other specs' own daysAhead:0 fixtures on the same
+    // tenant — removing the unneeded booking removes the whole conflict class instead of adding a
+    // retry loop to route around it.
+    const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+    }).format(new Date());
+
+    await loginAsScheduleStaff(page);
+
+    const dateKey = tenantTodayKey;
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(scheduleRoute(dateKey));
+
+    // Week view first (the default on this viewport) — today's own day-card should already carry
+    // a scrolled-into-view marker.
+    await expect(page.getByTestId('schedule-week-view')).toBeVisible();
+    await expect(page.getByTestId('schedule-now-marker')).toBeInViewport();
+
+    // Switch to Day view — the single-timeline board's own marker should also be in view.
+    await page.getByRole('combobox', { name: 'Visualização' }).click();
+    await page.getByRole('option', { name: 'Dia' }).click();
+    await expect(page.getByTestId('schedule-mobile-view')).toBeVisible();
+    await expect(page.getByTestId('schedule-now-marker')).toBeInViewport();
+  });
+
+  test('loading a future date shows no scroll-to-now marker (TD44 Story 4, non-regression)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const future = await createUniqueScheduleBooking(
+      page,
+      {
+        contactName: uniqueLabel('future-no-scroll'),
+        contactEmail: uniqueTestEmail('schedule-future-no-scroll'),
+        approved: true,
+        time: '10:00',
+      },
+      131,
+    );
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(scheduleRoute(future.dateKey));
+
+    await page.getByRole('combobox', { name: 'Visualização' }).click();
+    await page.getByRole('option', { name: 'Dia' }).click();
+    await expect(page.getByTestId('schedule-mobile-view')).toBeVisible();
+    await expect(page.getByTestId('schedule-now-marker')).toHaveCount(0);
+  });
+
+  test("a Week-view day-card shows its own header badge exactly once, not duplicated by the grid's own copy (TD44 Story 4)", async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const dateKey = nextOpenDateKey(132);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(scheduleRoute(dateKey));
+
+    await expect(page.getByTestId('schedule-week-view')).toBeVisible();
+    const card = page.getByTestId('schedule-week-day-card').nth(weekDayIndex(dateKey));
+    // Exactly one badge (the day-card's own header, showing a booking count rather than the
+    // redundant open/closed status) — TimelineCompactBoard's own duplicate status/count copy is
+    // gone entirely.
+    await expect(card.getByTestId('schedule-week-day-badge')).toHaveCount(1);
   });
 });

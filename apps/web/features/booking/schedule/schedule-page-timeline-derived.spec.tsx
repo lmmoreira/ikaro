@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { BOOKING_STATUS } from '@ikaro/types';
 import type { StaffBookingCardResponse, TenantBusinessHours } from '@ikaro/types';
 import { useScheduleTimelineDerived } from './schedule-page-timeline-derived';
-import { COMPACT_MIN_BLOCK_HEIGHT_PX, DESKTOP_MIN_BLOCK_HEIGHT_PX } from './schedule-timeline';
 
 function makeBusinessHours(): TenantBusinessHours {
   return {
@@ -193,15 +192,20 @@ describe('useScheduleTimelineDerived', () => {
     });
   });
 
-  describe('Content-driven minimum block height (TD44 Story 2 round 2)', () => {
-    it('gives Day view (selectedDayTimeline) the desktop minimum, not the old bare 18px floor', () => {
+  describe('Grid coordinate unit, decoupled from the content-fit floor (TD44 Story 4)', () => {
+    // The content-fit floor (DESKTOP_MIN_BLOCK_HEIGHT_PX/COMPACT_MIN_BLOCK_HEIGHT_PX) no longer
+    // feeds into slotHeight at all as of Story 4 — it's applied per block instead (see
+    // schedule-timeline-formatting.spec.ts's getBlockMinHeightPx coverage, plus
+    // ScheduleTimelineEventRenderer.spec.tsx's own min-height assertion). This block now only
+    // covers the plain grid unit these two boards pass through buildTimelineDayData.
+    it('gives Day view (selectedDayTimeline) the plain 48px/30-min-slot unit (scale 1)', () => {
       const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
-      expect(result.current.selectedDayTimeline.slotHeight).toBe(DESKTOP_MIN_BLOCK_HEIGHT_PX);
+      expect(result.current.selectedDayTimeline.slotHeight).toBe(48);
     });
 
-    it('gives Week view (weekTimelineCards) the compact minimum, not the old scaled-down 22px floor', () => {
+    it('gives Week view (weekTimelineCards) the plain scaled-down unit (scale 0.85, TD44 Story 4 live-testing correction — raised from 0.45)', () => {
       const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
-      expect(result.current.weekTimelineCards[0].slotHeight).toBe(COMPACT_MIN_BLOCK_HEIGHT_PX);
+      expect(result.current.weekTimelineCards[0].slotHeight).toBe(41);
     });
   });
 });
