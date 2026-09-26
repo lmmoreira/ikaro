@@ -64,6 +64,7 @@ function baseProps() {
       slotCount: 2,
       slotHeight: 48,
       events: [],
+      isOverriddenByOpening: false,
     },
     slotLabels: ['09:00'],
   };
