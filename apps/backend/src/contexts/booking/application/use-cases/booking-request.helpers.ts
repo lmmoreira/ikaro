@@ -227,9 +227,11 @@ export async function resolveVariableServiceInputs(
 
 // UC-067 A4 / UC-068 A4 — a request's basket may name at most one service that is
 // durationPolicy=CUSTOMER_SELECTED and/or carries an active intake schema (M23-S02
-// story-discovery). A CUSTOMER_SELECTED service is already known variable from the in-memory
-// serviceMap (no I/O needed); only a non-CUSTOMER_SELECTED service needs the extra
-// findActiveByServiceId() round trip to check for an intake schema.
+// story-discovery), and that one service may not appear more than once in the basket either —
+// a flat duration/intake payload can't be unambiguously applied to two lines. A CUSTOMER_SELECTED
+// service is already known variable from the in-memory serviceMap (no I/O needed); only a
+// non-CUSTOMER_SELECTED service needs the extra findActiveByServiceId() round trip to check for
+// an intake schema.
 async function findVariableServiceId(
   intakeSchemaRepo: IServiceIntakeSchemaRepository,
   serviceIds: string[],
@@ -245,8 +247,14 @@ async function findVariableServiceId(
       !isCustomerSelected && (await intakeSchemaRepo.findActiveByServiceId(id, tenantId)) !== null;
     if (isCustomerSelected || hasActiveSchema) variableIds.push(id);
   }
-  if (variableIds.length > 1) throw new BookingInvalidMultipleVariableServicesError();
-  return variableIds[0] ?? null;
+  if (variableIds.length === 0) return null;
+  // Distinct variable services > 1, OR the single variable service occupies more than one line
+  // (the same serviceId repeated in the basket) — both are the same "ambiguous target" problem.
+  const variableLineOccurrences = serviceIds.filter((id) => variableIds.includes(id)).length;
+  if (variableIds.length > 1 || variableLineOccurrences > 1) {
+    throw new BookingInvalidMultipleVariableServicesError();
+  }
+  return variableIds[0];
 }
 
 export async function persistRequestedBooking(

@@ -1,5 +1,6 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { normalizeText } from '../../../shared/utils/text-normalization';
+import { BookingAttendeeNameRequiredError } from './errors/booking-domain.error';
 
 // UC-068 — an optional named attendee on a booking, populated only when the effective intake
 // schema's requiresNamedAttendees is true (docs/13-DATABASE_SCHEMA.md § booking_attendees).
@@ -47,11 +48,13 @@ export class BookingAttendee {
   }
 
   static create(bookingId: string, tenantId: string, input: BookingAttendeeInput): BookingAttendee {
+    const name = normalizeText(input.name);
+    if (!name) throw new BookingAttendeeNameRequiredError();
     return new BookingAttendee({
       id: uuidv7(),
       bookingId,
       tenantId,
-      name: normalizeText(input.name),
+      name,
       customerId: null,
       isMinor: input.isMinor ?? false,
     });

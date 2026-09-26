@@ -570,7 +570,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('422s when durationMinutes is omitted for a CUSTOMER_SELECTED service', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
         .send({
@@ -579,6 +579,8 @@ describe('BookingController (integration)', () => {
           serviceIds: [variableDurationServiceId],
         })
         .expect(422);
+
+      expect(body.code).toBe('BOOKING_DURATION_OUT_OF_RANGE');
     });
 
     it('snapshots intake answers immutably even after the service schema is later updated', async () => {
@@ -614,7 +616,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('422s when a required intake answer is missing', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
         .send({
@@ -625,10 +627,12 @@ describe('BookingController (integration)', () => {
           consentAccepted: true,
         })
         .expect(422);
+
+      expect(body.code).toBe('BOOKING_INTAKE_ANSWER_MISSING');
     });
 
     it('422s when the basket includes two variable services', async () => {
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
         .send({
@@ -638,6 +642,8 @@ describe('BookingController (integration)', () => {
           durationMinutes: 60,
         })
         .expect(422);
+
+      expect(body.code).toBe('BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES');
     });
   });
 

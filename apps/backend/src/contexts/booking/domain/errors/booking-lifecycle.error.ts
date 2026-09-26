@@ -74,16 +74,17 @@ export class BookingDurationOutOfRangeError extends BookingDomainError {
   }
 }
 
-// UC-068 A3 — a required intake question or the consent checkbox was left unanswered. Follows
-// CompleteBookingLinesIncompleteError's precedent of joining every missing item into one message
-// rather than a per-field `field` pointer, since more than one can be missing at once. Also
-// reused (with a single-entry array) for an `intakeSchemaVersion` that doesn't match any
-// version ever published for the service — an adversarial-only edge case with no dedicated
-// error code of its own (M23-S02 story-discovery).
+// UC-068 A3 — a required intake question or the consent checkbox was left unanswered, or an
+// answer's type doesn't match the question's declared type (FREE_TEXT -> string, BOOLEAN ->
+// boolean). Follows CompleteBookingLinesIncompleteError's precedent of joining every offending
+// field into one message rather than a per-field `field` pointer, since more than one can be
+// wrong at once. Also reused (with a single-entry array) for an `intakeSchemaVersion` that
+// doesn't match any version ever published for the service — an adversarial-only edge case with
+// no dedicated error code of its own (M23-S02 story-discovery).
 export class BookingIntakeAnswerMissingError extends BookingDomainError {
-  constructor(missingFieldKeys: string[]) {
+  constructor(fieldKeys: string[]) {
     super(
-      `Missing required intake answer(s): ${missingFieldKeys.join(', ')}`,
+      `Missing or invalid intake answer(s): ${fieldKeys.join(', ')}`,
       BookingErrorCode.INTAKE_ANSWER_MISSING,
     );
     this.name = 'BookingIntakeAnswerMissingError';
@@ -94,6 +95,18 @@ export class BookingIntakeAnswerMissingError extends BookingDomainError {
 // durationPolicy=CUSTOMER_SELECTED and/or intake-bearing. Locked at M23-S02 story-discovery:
 // arbitrary customer-built carts combining multiple variable-duration/intake services are out of
 // scope; multi-service bookings remain business-configured bundles/journeys.
+// UC-068 — the shared BookingAttendeeInputSchema checks the raw (untrimmed) string against
+// `min(1)`, so a whitespace-only name (e.g. "   ") passes Zod but normalizes to an empty string
+// in the domain layer — the same normalize-then-guard pattern already used by
+// ServiceNameRequiredError/CustomerNameRequiredError/StaffNameRequiredError for every other
+// required name field in this codebase.
+export class BookingAttendeeNameRequiredError extends BookingDomainError {
+  constructor() {
+    super('name is required', BookingErrorCode.ATTENDEE_NAME_REQUIRED, 'name');
+    this.name = 'BookingAttendeeNameRequiredError';
+  }
+}
+
 export class BookingInvalidMultipleVariableServicesError extends BookingDomainError {
   constructor() {
     super(

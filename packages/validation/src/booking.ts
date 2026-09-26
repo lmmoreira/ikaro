@@ -127,11 +127,18 @@ export const ResourceSelectionSchema = z.object({
 // request's basket may be CUSTOMER_SELECTED/intake-bearing (enforced at the use-case level, not
 // here — it depends on which Service each field's owning line resolves to).
 // intakeAnswers keys are ServiceIntakeQuestion.fieldKey; values are free text or a yes/no answer,
-// matching ServiceIntakeQuestionType ('FREE_TEXT' | 'BOOLEAN').
-export const BookingIntakeAnswersSchema = z.record(z.string(), z.union([z.string(), z.boolean()]));
+// matching ServiceIntakeQuestionType ('FREE_TEXT' | 'BOOLEAN'). Bounded (key length mirrors
+// ServiceIntakeQuestionSchema.fieldKey's own max(100); value length and entry count are generous
+// business-context ceilings, same rationale as uniqueUuidArray's own bounds above) — an
+// unconstrained z.record() would otherwise accept an unbounded payload at this exact boundary.
+export const BookingIntakeAnswersSchema = z
+  .record(z.string().min(1).max(100), z.union([z.string().max(2000), z.boolean()]))
+  .refine((answers) => Object.keys(answers).length <= 50, {
+    error: 'must not contain more than 50 answers',
+  });
 
 export const BookingAttendeeInputSchema = z.object({
-  name: z.string().min(1).max(255),
+  name: z.string().trim().min(1).max(255),
   isMinor: z.boolean().optional(),
 });
 

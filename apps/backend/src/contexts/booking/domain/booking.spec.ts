@@ -5,6 +5,7 @@ import { BookingLineBuilder } from '../../../test/builders/booking/booking-line.
 import { BookingLineInputBuilder } from '../../../test/builders/booking/booking-line-input.builder';
 import { Booking, BookingStatus, RequestBookingInput } from './booking.aggregate';
 import {
+  BookingAttendeeNameRequiredError,
   BookingDiscountExceedsTotalError,
   BookingInfoMessageTooShortError,
   BookingLineRequiredError,
@@ -179,6 +180,12 @@ describe('Booking.requestBooking()', () => {
     expect(booking.attendees[0].name).toBe('Maria Silva');
     expect(booking.attendees[0].isMinor).toBe(true);
     expect(booking.attendees[0].customerId).toBeNull();
+  });
+
+  it('throws BookingAttendeeNameRequiredError for a whitespace-only attendee name', () => {
+    expect(() => request({ attendeeInputs: [{ name: '   ' }] })).toThrow(
+      BookingAttendeeNameRequiredError,
+    );
   });
 });
 

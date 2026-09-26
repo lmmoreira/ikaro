@@ -459,6 +459,18 @@ describe('RequestBookingUseCase', () => {
       ).rejects.toBeInstanceOf(BookingInvalidMultipleVariableServicesError);
     });
 
+    it('throws BookingInvalidMultipleVariableServicesError when the same variable service is booked twice in one basket', async () => {
+      const variableServiceId = await saveVariableDurationService();
+
+      await expect(
+        useCase.execute({
+          ...baseInput(),
+          serviceIds: [variableServiceId, variableServiceId],
+          durationMinutes: 60,
+        }),
+      ).rejects.toBeInstanceOf(BookingInvalidMultipleVariableServicesError);
+    });
+
     it('stores participantCount independently of ResourceRequirement.requiredQuantity', async () => {
       const result = await useCase.execute({
         ...baseInput(),

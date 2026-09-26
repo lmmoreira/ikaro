@@ -50,7 +50,7 @@ export class BookingIntakeValidationService {
       input.intakeSchemaVersion,
     );
 
-    this.validateRequired(schema, input.intakeAnswers ?? {}, input.participantCount);
+    this.validateAnswers(schema, input.intakeAnswers ?? {}, input.participantCount);
     if (!input.consentAccepted) {
       throw new BookingIntakeAnswerMissingError(['consentAccepted']);
     }
@@ -86,19 +86,29 @@ export class BookingIntakeValidationService {
     return match;
   }
 
-  private validateRequired(
+  // Checks presence (required questions) and, for any answer actually submitted (required or
+  // optional), that its value matches the question's declared type (FREE_TEXT -> string,
+  // BOOLEAN -> boolean) — a mismatched type is never silently coerced or accepted.
+  private validateAnswers(
     schema: ServiceBookingIntakeSchema,
     answers: Record<string, string | boolean>,
     participantCount: number | undefined,
   ): void {
-    const missing = schema.questions
-      .filter(
-        (q) => q.required && (answers[q.fieldKey] === undefined || answers[q.fieldKey] === ''),
-      )
-      .map((q) => q.fieldKey);
-    if (schema.participantCountRequired && participantCount === undefined) {
-      missing.push('participantCount');
+    const invalid: string[] = [];
+    for (const question of schema.questions) {
+      const value = answers[question.fieldKey];
+      const isMissing = value === undefined || value === '';
+      if (isMissing) {
+        if (question.required) invalid.push(question.fieldKey);
+        continue;
+      }
+      const isCorrectType =
+        question.type === 'BOOLEAN' ? typeof value === 'boolean' : typeof value === 'string';
+      if (!isCorrectType) invalid.push(question.fieldKey);
     }
-    if (missing.length) throw new BookingIntakeAnswerMissingError(missing);
+    if (schema.participantCountRequired && participantCount === undefined) {
+      invalid.push('participantCount');
+    }
+    if (invalid.length) throw new BookingIntakeAnswerMissingError(invalid);
   }
 }

@@ -4,6 +4,7 @@ import { BookingIntakeAnswerMissingError } from '../../domain/errors/booking-dom
 import { BookingIntakeValidationService } from './booking-intake-validation.service';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
+const OTHER_TENANT_ID = '00000000-0000-7000-8000-000000000099';
 const SERVICE_ID = '00000000-0000-7000-8000-000000000002';
 
 describe('BookingIntakeValidationService', () => {
@@ -17,6 +18,26 @@ describe('BookingIntakeValidationService', () => {
 
   it('returns null intake and no attendees when the service has no active schema', async () => {
     const result = await service.resolve(SERVICE_ID, TENANT_ID, {
+      intakeAnswers: { anything: 'x' },
+      consentAccepted: true,
+    });
+
+    expect(result).toEqual({ intake: null, attendeeInputs: [] });
+  });
+
+  it("never resolves another tenant's schema for the same serviceId (tenant isolation)", async () => {
+    const schema = ServiceBookingIntakeSchema.publish({
+      tenantId: TENANT_ID,
+      serviceId: SERVICE_ID,
+      previousVersion: 0,
+      questions: [{ fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true }],
+      consentText: 'Aceito os termos',
+      requiresNamedAttendees: false,
+      participantCountRequired: false,
+    });
+    await repo.publish(schema);
+
+    const result = await service.resolve(SERVICE_ID, OTHER_TENANT_ID, {
       intakeAnswers: { anything: 'x' },
       consentAccepted: true,
     });
@@ -65,6 +86,66 @@ describe('BookingIntakeValidationService', () => {
     await expect(
       service.resolve(SERVICE_ID, TENANT_ID, { intakeAnswers: {}, consentAccepted: true }),
     ).rejects.toThrow(BookingIntakeAnswerMissingError);
+  });
+
+  it('throws when a BOOLEAN question receives a string answer', async () => {
+    const schema = ServiceBookingIntakeSchema.publish({
+      tenantId: TENANT_ID,
+      serviceId: SERVICE_ID,
+      previousVersion: 0,
+      questions: [{ fieldKey: 'hasAllergy', label: 'Alergia?', type: 'BOOLEAN', required: true }],
+      consentText: 'Aceito os termos',
+      requiresNamedAttendees: false,
+      participantCountRequired: false,
+    });
+    await repo.publish(schema);
+
+    await expect(
+      service.resolve(SERVICE_ID, TENANT_ID, {
+        intakeAnswers: { hasAllergy: 'yes' },
+        consentAccepted: true,
+      }),
+    ).rejects.toThrow(BookingIntakeAnswerMissingError);
+  });
+
+  it('throws when a FREE_TEXT question receives a boolean answer', async () => {
+    const schema = ServiceBookingIntakeSchema.publish({
+      tenantId: TENANT_ID,
+      serviceId: SERVICE_ID,
+      previousVersion: 0,
+      questions: [{ fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true }],
+      consentText: 'Aceito os termos',
+      requiresNamedAttendees: false,
+      participantCountRequired: false,
+    });
+    await repo.publish(schema);
+
+    await expect(
+      service.resolve(SERVICE_ID, TENANT_ID, {
+        intakeAnswers: { vehiclePlate: true },
+        consentAccepted: true,
+      }),
+    ).rejects.toThrow(BookingIntakeAnswerMissingError);
+  });
+
+  it('accepts a correctly-typed answer for an optional question', async () => {
+    const schema = ServiceBookingIntakeSchema.publish({
+      tenantId: TENANT_ID,
+      serviceId: SERVICE_ID,
+      previousVersion: 0,
+      questions: [{ fieldKey: 'hasAllergy', label: 'Alergia?', type: 'BOOLEAN', required: false }],
+      consentText: 'Aceito os termos',
+      requiresNamedAttendees: false,
+      participantCountRequired: false,
+    });
+    await repo.publish(schema);
+
+    const result = await service.resolve(SERVICE_ID, TENANT_ID, {
+      intakeAnswers: { hasAllergy: false },
+      consentAccepted: true,
+    });
+
+    expect(result.intake?.intakeAnswers).toEqual({ hasAllergy: false });
   });
 
   it('throws when consent is not accepted', async () => {

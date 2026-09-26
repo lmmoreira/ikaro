@@ -48,9 +48,13 @@ Content-Type: application/json
 GET {{bffUrl}}/v1/public/services
 X-Tenant-Slug: {{tenantSlug}}
 
+###
+
 ### Read a service's active intake schema only, no auth required (UC-068 step 1, M23-S02)
 GET {{bffUrl}}/v1/public/services/{{serviceId}}/intake-schema
 X-Tenant-Slug: {{tenantSlug}}
+
+###
 
 ### 400 — Missing X-Tenant-Slug on public intake-schema read
 GET {{bffUrl}}/v1/public/services/{{serviceId}}/intake-schema

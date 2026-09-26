@@ -23,6 +23,7 @@
   "BOOKING_DURATION_OUT_OF_RANGE": "A duração selecionada não é válida para este serviço.",
   "BOOKING_INTAKE_ANSWER_MISSING": "É necessário responder às perguntas obrigatórias e aceitar os termos.",
   "BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES": "Só é possível incluir um serviço de duração variável ou com formulário na mesma reserva.",
+  "BOOKING_ATTENDEE_NAME_REQUIRED": "O nome do convidado é obrigatório.",
   "BOOKING_CONCURRENT_MODIFICATION": "Este agendamento foi alterado por outra solicitação. Recarregue e tente novamente.",
   "BOOKING_SERVICE_NOT_ACTIVE": "Este serviço não está ativo no momento.",
   "BOOKING_SERVICE_NOT_IN_TENANT": "Este serviço não pertence ao estabelecimento selecionado.",

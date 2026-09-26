@@ -605,10 +605,12 @@ describe('TypeOrmBookingRepository', () => {
 
     describe('M23-S02 — attendees', () => {
       it('inserts attendee rows on the initial insert when the booking has named attendees', async () => {
+        const bookingId = '00000000-0000-7000-8000-000000000099';
         const aggregate = new BookingBuilder()
+          .withId(bookingId)
           .withTenantId('tenant-1')
           .withAttendees([
-            BookingAttendee.create('booking-1', 'tenant-1', { name: 'Maria Silva', isMinor: true }),
+            BookingAttendee.create(bookingId, 'tenant-1', { name: 'Maria Silva', isMinor: true }),
           ])
           .build();
 
@@ -616,7 +618,9 @@ describe('TypeOrmBookingRepository', () => {
 
         expect(mockTx.insert).toHaveBeenCalledWith(
           BookingAttendeeEntity,
-          expect.arrayContaining([expect.objectContaining({ name: 'Maria Silva', isMinor: true })]),
+          expect.arrayContaining([
+            expect.objectContaining({ bookingId, name: 'Maria Silva', isMinor: true }),
+          ]),
         );
       });
 
@@ -629,9 +633,11 @@ describe('TypeOrmBookingRepository', () => {
       });
 
       it('never re-inserts attendees on a guarded update (attendees are immutable post-creation)', async () => {
+        const bookingId = '00000000-0000-7000-8000-000000000098';
         const aggregate = new BookingBuilder()
+          .withId(bookingId)
           .withTenantId('tenant-1')
-          .withAttendees([BookingAttendee.create('booking-1', 'tenant-1', { name: 'Maria Silva' })])
+          .withAttendees([BookingAttendee.create(bookingId, 'tenant-1', { name: 'Maria Silva' })])
           .build();
 
         await repo.save(aggregate); // initial insert
