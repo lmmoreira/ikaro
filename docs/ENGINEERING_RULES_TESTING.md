@@ -148,3 +148,36 @@ Extract one cleanup helper covering every fixture tenant in FK-safe order; call 
 
 **TD08 AUD-045 precedent, PR #484, 2026-09-16:** a 3-tenant fixture's `afterAll` only cleaned 2 tenants' child rows; the third's FK violation aborted cleanup, and the reused CI container carried that into a later run, which failed a content assertion instead. Passed 3/3 locally; failed 2/2 on CI before the fix.
 
+
+## An E2E test that computes "today" itself must match the app's own tenant-timezone computation, not the runner's system clock
+
+**This app resolves "today" as `Intl.DateTimeFormat('en-CA', { timeZone: businessHours.timezone }).format(new Date())` (tenant-local, e.g. `America/Sao_Paulo`) — a naive UTC/local "today" (`new Date().toISOString().slice(0, 10)`, or a day-offset helper anchored to the runner's own clock) diverges from it for a real ~3-hour window every single day** (00:00–03:00 UTC, when UTC's calendar date is already a day ahead of São Paulo's). A fixture built on the wrong "today" doesn't fail loudly — it silently lands on a date the app itself doesn't consider "today," making any assertion about today-specific behavior (a scroll-to-now marker, a same-day badge, a cancellation-window boundary) meaningless rather than red.
+
+**Fix:** compute the fixture's date the exact same way the app under test does, not with a generic day-offset helper:
+
+```ts
+const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Sao_Paulo',
+}).format(new Date());
+```
+
+**Confirmed empirically (TD44-S4, PR #516, 2026-09-26):** a new scroll-to-now E2E test used a generic `nextOpenDateKey(0)` helper (runner-clock "today") for its fixture; CI hit the divergent window twice before the fixture was switched to the tenant-timezone computation above.
+
+
+## A fixed-time-slot booking fixture on a shared/reused tenant needs either a retry-on-conflict loop, or — check this first — no booking at all
+
+**At least one tenant used across this repo's E2E suite (`lavacar-beloauto`) has a single degenerate LOCATION resource with no per-time-of-day capacity — any two bookings whose windows overlap at all conflict, regardless of which spec file created them.** Several specs already book "today" (`daysAhead: 0`) on this same tenant for legitimate reasons (cancellation-window edge cases), and this codebase has an established, repeated pattern for exactly this shape of problem: retry booking-creation across candidate day offsets/times on a `409`, rather than assuming a fixed slot is free (see `createUniqueScheduleBooking`, `createAuthenticatedBooking`, `createFreshApprovedBooking`). A new test that creates a booking at a fixed date+time with no retry logic will eventually collide with another spec's own fixture on the same tenant.
+
+**Before reaching for that retry loop, check whether the feature under test actually needs a booking to exist at all.** The best fix is often to remove the fixture entirely, not to make its conflict-handling more robust.
+
+**Confirmed empirically (TD44-S4, PR #516, 2026-09-26):** a new scroll-to-now E2E test created a real "today, 10:00" booking with no retry, which passed in isolation but later collided with an unrelated spec's own `daysAhead: 0` fixture on the same tenant, failing with `409 BOOKING_SLOT_UNAVAILABLE` on every attempt including the first. The booking turned out to be unnecessary — the feature being tested (a marker positioned from wall-clock time and business hours) renders unconditionally whether or not any booking exists on the viewed day. Removing the booking fixture removed the whole conflict class, rather than adding a matching retry-across-times loop to route around it.
+
+
+## `scrollIntoView({ block: 'start' })` on a zero-height marker element is a fragile edge case for Playwright's `toBeInViewport()`
+
+**A zero-height `<div>` scrolled with `block: 'start'` lands its top edge exactly on the viewport boundary — a fencepost case an "in viewport" intersection check can report as a 0 ratio, intermittently, even though the element genuinely exists in the DOM at the expected position.** This reproduces as CI flakiness that looks unrelated to the actual feature (the failure is "viewport ratio 0", not "element not found"), and won't necessarily reproduce locally on every run.
+
+**Fix:** use `block: 'center'` instead of `'start'` for any zero-height (or otherwise boundary-hugging) scroll target — it clears the viewport edge entirely and, for a "scroll to this moment in time" feature, also better matches showing context on both sides rather than pinning the target to the very top.
+
+**Confirmed empirically (TD44-S4, PR #516, 2026-09-26):** a scroll-to-now marker div using `scrollIntoView({ block: 'start' })` passed locally and in early CI rounds, then failed a later round with `toBeInViewport()` reporting a 0 ratio on the very first assertion. Switching to `block: 'center'` resolved it.
+
