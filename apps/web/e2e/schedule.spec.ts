@@ -623,19 +623,22 @@ test.describe('schedule page coverage', () => {
     // at all (a POST for a closed Sunday returns 201, not a conflict), and the marker itself mounts
     // in the closed-day empty state too (ScheduleTimelineBoard's TimelineEmptyState renders
     // NowMarker regardless of hasHours) — so the assertions below hold on every day of the week.
+    //
+    // No booking fixture needed either: nowMarkerTopPx is derived purely from the tenant's
+    // business-hours window and the current wall-clock time (schedule-scroll-to-now.ts's
+    // resolveNowMarkerTopPx), and NowMarker mounts unconditionally whenever that value is defined
+    // — with zero bookings on the day just as with any number of them. This tenant's single
+    // degenerate LOCATION resource has no per-time-of-day capacity (see
+    // approve-booking.ts's createFreshApprovedBooking), so a fixed "today, 10:00" booking with no
+    // retry-on-conflict logic collided with other specs' own daysAhead:0 fixtures on the same
+    // tenant — removing the unneeded booking removes the whole conflict class instead of adding a
+    // retry loop to route around it.
     const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Sao_Paulo',
     }).format(new Date());
 
     await loginAsScheduleStaff(page);
 
-    await createScheduleBooking(page, {
-      dateKey: tenantTodayKey,
-      contactName: uniqueLabel('scroll-to-now'),
-      contactEmail: uniqueTestEmail('schedule-scroll-to-now'),
-      approved: true,
-      time: '10:00',
-    });
     const dateKey = tenantTodayKey;
 
     await page.setViewportSize({ width: 1440, height: 900 });
