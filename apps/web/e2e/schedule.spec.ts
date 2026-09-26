@@ -611,30 +611,31 @@ test.describe('schedule page coverage', () => {
   test("loading today's schedule scrolls the current-time marker into view, in both Day and Week view (TD44 Story 4)", async ({
     page,
   }) => {
-    // nextOpenDateKey(0) is today unless today happens to be the tenant's one closed weekday
-    // (Sunday), in which case it rolls forward to Monday — decoupling the fixture date from the
-    // app's own todayKey, which makes the marker assertions below meaningless. Skip rather than
-    // assert against a fixture that no longer represents today.
-    const rawToday = new Date();
-    rawToday.setHours(12, 0, 0, 0);
+    // The app computes todayKey via toISODateInTimezone(new Date(), businessHours.timezone) —
+    // i.e. "today" in America/Sao_Paulo, not the test runner's own clock. Using nextOpenDateKey(0)
+    // (naive local/UTC "today") diverges from that for up to 3 hours a day (00:00-03:00 UTC, when
+    // UTC's calendar date is already a day ahead of São Paulo's) — CI hit exactly this window and
+    // the fixture booking landed on a date the app itself doesn't consider "today," making the
+    // marker assertions below meaningless. Compute "today" the same way the app does instead.
+    const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+    }).format(new Date());
+    const tenantToday = new Date(`${tenantTodayKey}T12:00:00`);
     test.skip(
-      rawToday.getDay() === 0,
-      "today is the tenant's closed weekday (Sunday) — nextOpenDateKey(0) would roll to Monday",
+      tenantToday.getDay() === 0,
+      "today is the tenant's closed weekday (Sunday) in America/Sao_Paulo",
     );
 
     await loginAsScheduleStaff(page);
 
-    const today = await createUniqueScheduleBooking(
-      page,
-      {
-        contactName: uniqueLabel('scroll-to-now'),
-        contactEmail: uniqueTestEmail('schedule-scroll-to-now'),
-        approved: true,
-        time: '10:00',
-      },
-      0,
-    );
-    const dateKey = today.dateKey;
+    await createScheduleBooking(page, {
+      dateKey: tenantTodayKey,
+      contactName: uniqueLabel('scroll-to-now'),
+      contactEmail: uniqueTestEmail('schedule-scroll-to-now'),
+      approved: true,
+      time: '10:00',
+    });
+    const dateKey = tenantTodayKey;
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(scheduleRoute(dateKey));
