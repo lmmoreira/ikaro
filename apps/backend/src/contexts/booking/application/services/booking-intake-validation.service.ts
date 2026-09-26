@@ -88,7 +88,9 @@ export class BookingIntakeValidationService {
 
   // Checks presence (required questions) and, for any answer actually submitted (required or
   // optional), that its value matches the question's declared type (FREE_TEXT -> string,
-  // BOOLEAN -> boolean) — a mismatched type is never silently coerced or accepted.
+  // BOOLEAN -> boolean) — a mismatched type is never silently coerced or accepted. A
+  // whitespace-only string (e.g. "   ") counts as missing, not a valid FREE_TEXT answer — it
+  // must never reach the immutable intakeAnswers snapshot.
   private validateAnswers(
     schema: ServiceBookingIntakeSchema,
     answers: Record<string, string | boolean>,
@@ -97,7 +99,8 @@ export class BookingIntakeValidationService {
     const invalid: string[] = [];
     for (const question of schema.questions) {
       const value = answers[question.fieldKey];
-      const isMissing = value === undefined || value === '';
+      const isMissing =
+        value === undefined || (typeof value === 'string' && value.trim() === '');
       if (isMissing) {
         if (question.required) invalid.push(question.fieldKey);
         continue;

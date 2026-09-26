@@ -88,6 +88,26 @@ describe('BookingIntakeValidationService', () => {
     ).rejects.toThrow(BookingIntakeAnswerMissingError);
   });
 
+  it('treats a whitespace-only required FREE_TEXT answer as missing, not valid', async () => {
+    const schema = ServiceBookingIntakeSchema.publish({
+      tenantId: TENANT_ID,
+      serviceId: SERVICE_ID,
+      previousVersion: 0,
+      questions: [{ fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true }],
+      consentText: 'Aceito os termos',
+      requiresNamedAttendees: false,
+      participantCountRequired: false,
+    });
+    await repo.publish(schema);
+
+    await expect(
+      service.resolve(SERVICE_ID, TENANT_ID, {
+        intakeAnswers: { vehiclePlate: '   ' },
+        consentAccepted: true,
+      }),
+    ).rejects.toThrow(BookingIntakeAnswerMissingError);
+  });
+
   it('throws when a BOOLEAN question receives a string answer', async () => {
     const schema = ServiceBookingIntakeSchema.publish({
       tenantId: TENANT_ID,
