@@ -32,13 +32,13 @@ export class BookingQuoteService {
     const max = durationMaxMinutes!;
     const increment = durationIncrementMinutes!;
 
-    const isValid =
+    const isWithinAllowedRange =
       requestedDurationMinutes !== undefined &&
       requestedDurationMinutes >= min &&
       requestedDurationMinutes <= max &&
       (requestedDurationMinutes - min) % increment === 0;
 
-    if (!isValid) {
+    if (!isWithinAllowedRange) {
       throw new BookingDurationOutOfRangeError(
         `durationMinutes must be between ${min} and ${max} minutes, in increments of ${increment}`,
       );
