@@ -198,6 +198,20 @@ export class ServiceController {
       .catch(mapBookingError);
   }
 
+  // UC-068 step 1 (M23-S02) — customer/guest-facing, no guard. Distinct path from the
+  // staff-facing route above (same path can't carry two handlers/guards) and a narrower response:
+  // `active` only, never `history` — a customer has no reason to see prior form versions.
+  // Reuses GetServiceIntakeSchemaUseCase as-is rather than a dedicated use case (story-discovery).
+  @Get(':id/intake-schema/public')
+  async getPublicIntakeSchema(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<Pick<GetServiceIntakeSchemaUseCaseResult, 'active'>> {
+    const { active } = await this.getServiceIntakeSchema
+      .execute({ id, tenantId: this.tenantContext.tenantId })
+      .catch(mapBookingError);
+    return { active };
+  }
+
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)

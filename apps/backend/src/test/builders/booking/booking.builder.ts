@@ -4,7 +4,9 @@ import {
   BookingStatus,
   BookingType,
 } from '../../../contexts/booking/domain/booking.aggregate';
+import { BookingAttendee } from '../../../contexts/booking/domain/booking-attendee.entity';
 import { BookingLine } from '../../../contexts/booking/domain/booking-line.entity';
+import { BookingIntakeSnapshot } from '../../../contexts/booking/domain/booking.types';
 import { Address } from '../../../shared/value-objects/address';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { Money } from '../../../shared/value-objects/money';
@@ -51,6 +53,9 @@ export class BookingBuilder {
   private rejectionReason: string | null = null;
   private readonly createdAt = new Date();
   private linesModified = true;
+  private participantCount: number | null = null;
+  private intake: BookingIntakeSnapshot | null = null;
+  private attendees: BookingAttendee[] = [];
 
   static forStatus(
     tenantId: string,
@@ -188,6 +193,18 @@ export class BookingBuilder {
     this.linesModified = value;
     return this;
   }
+  withParticipantCount(count: number | null): this {
+    this.participantCount = count;
+    return this;
+  }
+  withIntake(intake: BookingIntakeSnapshot | null): this {
+    this.intake = intake;
+    return this;
+  }
+  withAttendees(attendees: BookingAttendee[]): this {
+    this.attendees = attendees;
+    return this;
+  }
 
   build(): Booking {
     const props: BookingProps = {
@@ -228,6 +245,9 @@ export class BookingBuilder {
       rejectedBy: this.rejectedBy,
       rejectionReason: this.rejectionReason,
       createdAt: this.createdAt,
+      participantCount: this.participantCount,
+      intake: this.intake,
+      attendees: this.attendees,
     };
     return Booking.reconstitute(props, this.linesModified);
   }

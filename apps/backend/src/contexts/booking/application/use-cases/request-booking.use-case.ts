@@ -22,13 +22,24 @@ import {
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import {
+  IServiceIntakeSchemaRepository,
+  SERVICE_INTAKE_SCHEMA_REPOSITORY,
+} from '../ports/service-intake-schema-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookingQuoteService } from '../services/booking-quote.service';
+import { BookingIntakeValidationService } from '../services/booking-intake-validation.service';
 import {
   PhotoExistenceService,
   PhotoPromotionOperation,
 } from '../services/photo-existence.service';
 import { RequestBookingDto } from '../dtos/request-booking.dto';
-import { createBookingAddress, persistRequestedBooking } from './booking-request.helpers';
+import {
+  createBookingAddress,
+  persistRequestedBooking,
+  resolveVariableServiceInputs,
+  VariableServiceResolution,
+} from './booking-request.helpers';
 import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
 
@@ -50,9 +61,13 @@ export class RequestBookingUseCase {
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
+    @Inject(SERVICE_INTAKE_SCHEMA_REPOSITORY)
+    private readonly intakeSchemaRepo: IServiceIntakeSchemaRepository,
     private readonly availabilityService: AvailabilityService,
     private readonly slotConflictService: BookingSlotConflictService,
     private readonly photoExistenceService: PhotoExistenceService,
+    private readonly quoteService: BookingQuoteService,
+    private readonly intakeValidationService: BookingIntakeValidationService,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
@@ -62,14 +77,38 @@ export class RequestBookingUseCase {
 
     const serviceMap = await this.resolveServices(input.serviceIds, tenantId);
     const { contactAddress, pickupAddress } = this.resolveAddresses(input);
+    const variableResolution = await resolveVariableServiceInputs(
+      {
+        intakeSchemaRepo: this.intakeSchemaRepo,
+        quoteService: this.quoteService,
+        intakeValidationService: this.intakeValidationService,
+      },
+      input.serviceIds,
+      serviceMap,
+      tenantId,
+      input,
+    );
 
     const { booking, scheduledAt, operations } = await this.prepareBooking(
       input,
       serviceMap,
-      contactAddress,
-      pickupAddress,
+      { contactAddress, pickupAddress },
+      variableResolution,
     );
 
+    return this.persistAndLog(input, { booking, scheduledAt, operations, serviceMap });
+  }
+
+  private async persistAndLog(
+    input: RequestBookingUseCaseInput,
+    prepared: {
+      booking: Booking;
+      scheduledAt: Date;
+      operations: PhotoPromotionOperation[];
+      serviceMap: Map<string, Service>;
+    },
+  ): Promise<RequestBookingUseCaseResult> {
+    const { booking, scheduledAt, operations, serviceMap } = prepared;
     const candidatesByLine = await persistRequestedBooking(
       {
         txManager: this.txManager,
@@ -83,7 +122,7 @@ export class RequestBookingUseCase {
       },
       {
         booking,
-        tenantId,
+        tenantId: input.tenantId,
         scheduledAt,
         timezone: input.timezone,
         operations,
@@ -93,7 +132,7 @@ export class RequestBookingUseCase {
     );
 
     this.logger.log('Booking requested', {
-      tenantId,
+      tenantId: input.tenantId,
       bookingId: booking.id,
       bookingType: booking.type,
     });
@@ -143,8 +182,8 @@ export class RequestBookingUseCase {
   private async prepareBooking(
     input: RequestBookingUseCaseInput,
     serviceMap: Map<string, Service>,
-    contactAddress: Address | undefined,
-    pickupAddress: Address | undefined,
+    addresses: { contactAddress: Address | undefined; pickupAddress: Address | undefined },
+    variableResolution: VariableServiceResolution,
   ): Promise<{
     booking: Booking;
     scheduledAt: Date;
@@ -160,16 +199,16 @@ export class RequestBookingUseCase {
         bookingId,
       );
 
-    const lineInputs = buildLineInputs(input.serviceIds, serviceMap);
-    const booking = this.buildBooking(
-      input,
-      bookingId,
-      scheduledAt,
-      lineInputs,
-      contactAddress,
-      pickupAddress,
-      beforeServicePhotoUrls,
+    const lineInputs = buildLineInputs(
+      input.serviceIds,
+      serviceMap,
+      variableResolution.lineOverride,
     );
+    const booking = this.buildBooking(input, bookingId, scheduledAt, lineInputs, {
+      ...addresses,
+      beforeServicePhotoUrls,
+      variableResolution,
+    });
 
     return { booking, scheduledAt, operations };
   }
@@ -179,10 +218,14 @@ export class RequestBookingUseCase {
     bookingId: string,
     scheduledAt: Date,
     lineInputs: ReturnType<typeof buildLineInputs>,
-    contactAddress: Address | undefined,
-    pickupAddress: Address | undefined,
-    beforeServicePhotoUrls: string[],
+    rest: {
+      contactAddress: Address | undefined;
+      pickupAddress: Address | undefined;
+      beforeServicePhotoUrls: string[];
+      variableResolution: VariableServiceResolution;
+    },
   ): Booking {
+    const { contactAddress, pickupAddress, beforeServicePhotoUrls, variableResolution } = rest;
     return Booking.requestBooking({
       id: bookingId,
       tenantId: input.tenantId,
@@ -197,6 +240,9 @@ export class RequestBookingUseCase {
       pickupAddress,
       notes: input.notes,
       beforeServicePhotoUrls,
+      participantCount: input.participantCount,
+      intake: variableResolution.intake ?? undefined,
+      attendeeInputs: variableResolution.attendeeInputs,
     });
   }
 

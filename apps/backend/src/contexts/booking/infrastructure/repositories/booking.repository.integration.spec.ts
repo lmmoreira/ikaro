@@ -11,6 +11,7 @@ import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
+import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
@@ -32,6 +33,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
     repo = new TypeOrmBookingRepository(
       dataSource.getRepository(BookingEntity),
       dataSource.getRepository(BookingLineEntity),
+      dataSource.getRepository(BookingAttendeeEntity),
       dataSource.getRepository(BookingLineResourceAssignmentEntity),
       settingsPort,
       new InMemoryEventBus(),

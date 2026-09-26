@@ -358,6 +358,45 @@ describe('ServiceController', () => {
     });
   });
 
+  describe('getPublicIntakeSchema() (M23-S02, UC-068)', () => {
+    it('returns active: null and no history key when nothing has been published', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.getPublicIntakeSchema(service.id);
+      expect(result.active).toBeNull();
+      expect(result).not.toHaveProperty('history');
+    });
+
+    it('returns the active version only, never history, after a publish', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+      await controller.publishIntakeSchema(service.id, {
+        questions: [
+          {
+            fieldKey: 'accessNeeds',
+            label: 'Necessidades de acesso',
+            type: 'FREE_TEXT' as const,
+            required: false,
+          },
+        ],
+        consentText: 'v1',
+      });
+
+      const result = await controller.getPublicIntakeSchema(service.id);
+      expect(result.active?.version).toBe(1);
+      expect(result).not.toHaveProperty('history');
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .getPublicIntakeSchema('00000000-0000-4000-8000-000000009999')
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
   describe('deactivate()', () => {
     it('sets isActive=false and returns { id, isActive: false }', async () => {
       const service = new ServiceBuilder().withTenantId(TENANT_A).build();

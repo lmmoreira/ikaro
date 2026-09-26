@@ -64,6 +64,59 @@ export class BookingLegUnavailableError extends BookingDomainError {
   }
 }
 
+// UC-067 — a CUSTOMER_SELECTED service booked with no durationMinutes (no fallback to
+// Service.durationMinutes, locked at M23-S02 story-discovery) or one outside the service's
+// configured min/max/increment rules.
+export class BookingDurationOutOfRangeError extends BookingDomainError {
+  constructor(detail: string) {
+    super(detail, BookingErrorCode.DURATION_OUT_OF_RANGE, 'durationMinutes');
+    this.name = 'BookingDurationOutOfRangeError';
+  }
+}
+
+// UC-068 A3 — a required intake question or the consent checkbox was left unanswered, or an
+// answer's type doesn't match the question's declared type (FREE_TEXT -> string, BOOLEAN ->
+// boolean). Follows CompleteBookingLinesIncompleteError's precedent of joining every offending
+// field into one message rather than a per-field `field` pointer, since more than one can be
+// wrong at once. Also reused (with a single-entry array) for an `intakeSchemaVersion` that
+// doesn't match any version ever published for the service — an adversarial-only edge case with
+// no dedicated error code of its own (M23-S02 story-discovery).
+export class BookingIntakeAnswerMissingError extends BookingDomainError {
+  constructor(fieldKeys: string[]) {
+    super(
+      `Missing or invalid intake answer(s): ${fieldKeys.join(', ')}`,
+      BookingErrorCode.INTAKE_ANSWER_MISSING,
+    );
+    this.name = 'BookingIntakeAnswerMissingError';
+  }
+}
+
+// UC-067 A4 / UC-068 A4 — a request's basket (serviceIds) names more than one service that is
+// durationPolicy=CUSTOMER_SELECTED and/or intake-bearing. Locked at M23-S02 story-discovery:
+// arbitrary customer-built carts combining multiple variable-duration/intake services are out of
+// scope; multi-service bookings remain business-configured bundles/journeys.
+// UC-068 — the shared BookingAttendeeInputSchema checks the raw (untrimmed) string against
+// `min(1)`, so a whitespace-only name (e.g. "   ") passes Zod but normalizes to an empty string
+// in the domain layer — the same normalize-then-guard pattern already used by
+// ServiceNameRequiredError/CustomerNameRequiredError/StaffNameRequiredError for every other
+// required name field in this codebase.
+export class BookingAttendeeNameRequiredError extends BookingDomainError {
+  constructor() {
+    super('name is required', BookingErrorCode.ATTENDEE_NAME_REQUIRED, 'name');
+    this.name = 'BookingAttendeeNameRequiredError';
+  }
+}
+
+export class BookingInvalidMultipleVariableServicesError extends BookingDomainError {
+  constructor() {
+    super(
+      'A booking request may include at most one variable-duration or intake-bearing service',
+      BookingErrorCode.INVALID_MULTIPLE_VARIABLE_SERVICES,
+    );
+    this.name = 'BookingInvalidMultipleVariableServicesError';
+  }
+}
+
 export class BookingConcurrentModificationError extends BookingDomainError {
   constructor() {
     super(

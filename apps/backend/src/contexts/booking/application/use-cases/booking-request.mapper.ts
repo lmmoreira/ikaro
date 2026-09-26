@@ -4,24 +4,31 @@ import { BookingServiceNotInTenantError } from '../../domain/errors/booking-doma
 import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import { BookingRequestResult } from './booking-request.types';
+import { LineOverride } from './booking-request.helpers';
 import { ResolvedLineCandidates, ResourceSelectionInput } from './resource-occupancy.helpers';
 
 // Pure DTO/domain shape translation shared by RequestBookingUseCase and
 // RequestAuthenticatedBookingUseCase — no I/O, no transaction, no business-rule enforcement. See
 // booking-request.helpers.ts for this booking-request flow's transactional orchestration logic.
 
+// lineOverride (M23-S02, UC-067) — the one variable-duration service's computed
+// duration/price, applied to every line referencing it (a duplicate-serviceId basket entry gets
+// the same override on each occurrence; per-occurrence overrides aren't supported, matching the
+// at-most-one-variable-service-per-request restriction locked at story-discovery).
 export function buildLineInputs(
   serviceIds: string[],
   serviceMap: Map<string, Service>,
+  lineOverride?: LineOverride,
 ): BookingLineInput[] {
   return serviceIds.map((serviceId) => {
     const service = serviceMap.get(serviceId);
     if (!service) throw new BookingServiceNotInTenantError(serviceId);
+    const useOverride = lineOverride?.serviceId === serviceId;
     return {
       serviceId: service.id,
       serviceNameAtBooking: service.name,
-      priceAtBooking: service.price,
-      durationMinsAtBooking: service.durationMinutes,
+      priceAtBooking: useOverride ? lineOverride.priceAtBooking : service.price,
+      durationMinsAtBooking: useOverride ? lineOverride.durationMinutes : service.durationMinutes,
       pointsValueAtBooking: service.loyaltyPointsValue,
       requiresPickupAddressAtBooking: service.requiresPickupAddress,
     };

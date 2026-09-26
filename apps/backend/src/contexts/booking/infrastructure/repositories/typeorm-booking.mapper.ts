@@ -4,7 +4,10 @@ import { Email } from '../../../../shared/value-objects/email.vo';
 import { Money } from '../../../../shared/value-objects/money';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import { Booking, BookingProps, BookingStatus, BookingType } from '../../domain/booking.aggregate';
+import { BookingAttendee } from '../../domain/booking-attendee.entity';
 import { BookingLine } from '../../domain/booking-line.entity';
+import { BookingIntakeSnapshot } from '../../domain/booking.types';
+import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 
@@ -15,11 +18,35 @@ import { BookingLineEntity } from '../entities/booking-line.entity';
 export function toDomain(
   entity: BookingEntity,
   lineEntities: BookingLineEntity[],
+  attendeeEntities: BookingAttendeeEntity[],
   currency: string,
 ): Booking {
   const lines = lineEntities.map((l) => toDomainLine(l, currency));
-  const props = toDomainProps(entity, lines, currency);
+  const attendees = attendeeEntities.map(toDomainAttendee);
+  const props = toDomainProps(entity, lines, attendees, currency);
   return Booking.reconstitute(props);
+}
+
+function toDomainAttendee(a: BookingAttendeeEntity): BookingAttendee {
+  return BookingAttendee.reconstitute({
+    id: a.id,
+    bookingId: a.bookingId,
+    tenantId: a.tenantId,
+    name: a.name,
+    customerId: a.customerId,
+    isMinor: a.isMinor,
+  });
+}
+
+// Both null or both set together — mirrors the DB's own CHECK (docs/13-DATABASE_SCHEMA.md).
+function toDomainIntake(entity: BookingEntity): BookingIntakeSnapshot | null {
+  if (entity.intakeSchemaVersion === null || entity.intakeAnswers === null) return null;
+  return {
+    intakeSchemaVersion: entity.intakeSchemaVersion,
+    intakeAnswers: entity.intakeAnswers as Record<string, string | boolean>,
+    consentAcceptedAt: entity.consentAcceptedAt!,
+    consentVersion: entity.consentVersion!,
+  };
 }
 
 function toDomainLine(l: BookingLineEntity, currency: string): BookingLine {
@@ -42,6 +69,7 @@ function toDomainLine(l: BookingLineEntity, currency: string): BookingLine {
 function toDomainProps(
   entity: BookingEntity,
   lines: BookingLine[],
+  attendees: BookingAttendee[],
   currency: string,
 ): BookingProps {
   return {
@@ -67,6 +95,9 @@ function toDomainProps(
     lines,
     beforeServicePhotoUrls: entity.beforeServicePhotoUrls,
     afterServicePhotoUrls: entity.afterServicePhotoUrls,
+    participantCount: entity.participantCount,
+    intake: toDomainIntake(entity),
+    attendees,
     ...toDomainLifecycleProps(entity),
   };
 }
@@ -147,6 +178,11 @@ function assignCoreFields(entity: BookingEntity, booking: Booking): void {
   entity.totalDurationMins = booking.totalDurationMins;
   entity.beforeServicePhotoUrls = booking.beforeServicePhotoUrls;
   entity.afterServicePhotoUrls = booking.afterServicePhotoUrls;
+  entity.participantCount = booking.participantCount;
+  entity.intakeSchemaVersion = booking.intake?.intakeSchemaVersion ?? null;
+  entity.intakeAnswers = booking.intake?.intakeAnswers ?? null;
+  entity.consentAcceptedAt = booking.intake?.consentAcceptedAt ?? null;
+  entity.consentVersion = booking.intake?.consentVersion ?? null;
 }
 
 function assignPriceFields(entity: BookingEntity, booking: Booking): void {
@@ -192,6 +228,21 @@ export function toLineEntity(
   entity.pointsValueAtBooking = line.pointsValueAtBooking;
   entity.requiresPickupAddressAtBooking = line.requiresPickupAddressAtBooking;
   entity.actualPriceChargedAmount = line.actualPriceCharged?.amount.toFixed(2) ?? null;
+  return entity;
+}
+
+export function toAttendeeEntity(
+  attendee: BookingAttendee,
+  bookingId: string,
+  tenantId: string,
+): BookingAttendeeEntity {
+  const entity = new BookingAttendeeEntity();
+  entity.id = attendee.id;
+  entity.bookingId = bookingId;
+  entity.tenantId = tenantId;
+  entity.name = attendee.name;
+  entity.customerId = attendee.customerId;
+  entity.isMinor = attendee.isMinor;
   return entity;
 }
 

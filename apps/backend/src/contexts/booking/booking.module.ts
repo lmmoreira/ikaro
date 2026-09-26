@@ -72,6 +72,8 @@ import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/gene
 import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
 import { BookingAttachmentsController } from './infrastructure/controllers/booking-attachments.controller';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
+import { BookingQuoteService } from './application/services/booking-quote.service';
+import { BookingIntakeValidationService } from './application/services/booking-intake-validation.service';
 import { PhotoExistenceService } from './application/services/photo-existence.service';
 import { BookingEntity } from './infrastructure/entities/booking.entity';
 import { BookingLineEntity } from './infrastructure/entities/booking-line.entity';
@@ -185,6 +187,8 @@ import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cach
     AdminScheduleReminderTriggerHandler,
     ResourceOccupancyRetentionPurgeTriggerHandler,
     BookingSlotConflictService,
+    BookingQuoteService,
+    BookingIntakeValidationService,
     PhotoExistenceService,
     ActivateServiceUseCase,
     CreateServiceUseCase,

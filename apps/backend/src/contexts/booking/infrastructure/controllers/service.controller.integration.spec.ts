@@ -754,6 +754,70 @@ describe('ServiceController (integration)', () => {
     });
   });
 
+  // ─── GET /services/:id/intake-schema/public (M23-S02, UC-068) ───────────────
+
+  describe('GET /services/:id/intake-schema/public', () => {
+    it('requires no actor headers — active: null and no history key before anything is published', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${created.id}/intake-schema/public`)
+        .set({ 'x-tenant-id': isolatedTenant, 'x-correlation-id': 'test-correlation-id' })
+        .expect(200);
+
+      expect(body.active).toBeNull();
+      expect(body).not.toHaveProperty('history');
+    });
+
+    it('returns the active version only, never history, after a publish', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/services/${created.id}/intake-schema`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({
+          questions: [
+            {
+              fieldKey: 'accessNeeds',
+              label: 'Necessidades de acesso',
+              type: 'FREE_TEXT',
+              required: false,
+            },
+          ],
+          consentText: 'v1',
+        })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${created.id}/intake-schema/public`)
+        .set({ 'x-tenant-id': isolatedTenant, 'x-correlation-id': 'test-correlation-id' })
+        .expect(200);
+
+      expect(body.active.version).toBe(1);
+      expect(body).not.toHaveProperty('history');
+    });
+
+    it('returns 404 for a cross-tenant service id', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${entity.id}/intake-schema/public`)
+        .set({ 'x-tenant-id': tenantA, 'x-correlation-id': 'test-correlation-id' })
+        .expect(404);
+      expect(body.status).toBe(404);
+    });
+  });
+
   // ─── PATCH /services/:id/activate ───────────────────────────────────────────
 
   describe('PATCH /services/:id/activate', () => {

@@ -1,9 +1,13 @@
 import type { AddressSpec } from '@ikaro/i18n';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
+import { Money } from '../../../../shared/value-objects/money';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Booking } from '../../domain/booking.aggregate';
+import { BookingAttendeeInput } from '../../domain/booking-attendee.entity';
+import { BookingIntakeSnapshot } from '../../domain/booking.types';
 import {
   BookingAddressValidationError,
+  BookingInvalidMultipleVariableServicesError,
   BookingServiceConcurrentModificationError,
 } from '../../domain/errors/booking-domain.error';
 import { Service } from '../../domain/service.aggregate';
@@ -16,7 +20,13 @@ import { IBookingRepository } from '../ports/booking-repository.port';
 import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { IServiceRepository } from '../ports/service-repository.port';
+import { IServiceIntakeSchemaRepository } from '../ports/service-intake-schema-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookingQuoteService } from '../services/booking-quote.service';
+import {
+  BookingIntakeValidationService,
+  IntakeSubmissionInput,
+} from '../services/booking-intake-validation.service';
 import {
   PhotoPromotionOperation,
   PhotoExistenceService,
@@ -153,6 +163,98 @@ async function resolveAndCheckCandidates(
   const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
   await deps.slotConflictService.assertSlotFree(tenantId, allCandidates);
   return candidatesByLine;
+}
+
+// M23-S02 (UC-067/068) — resolves the request's optional variable-duration/intake fields BEFORE
+// the write transaction (persistRequestedBooking below), since it only reads Service/intake-schema
+// state and needs no lock. Bundled deps for the same SonarCloud max-parameters reason as
+// PersistRequestedBookingDeps.
+export interface VariableServiceResolutionDeps {
+  intakeSchemaRepo: IServiceIntakeSchemaRepository;
+  quoteService: BookingQuoteService;
+  intakeValidationService: BookingIntakeValidationService;
+}
+
+export type VariableServiceInput = IntakeSubmissionInput & { durationMinutes?: number };
+
+export interface LineOverride {
+  serviceId: string;
+  durationMinutes: number;
+  priceAtBooking: Money;
+}
+
+export interface VariableServiceResolution {
+  lineOverride?: LineOverride;
+  intake: BookingIntakeSnapshot | null;
+  attendeeInputs: BookingAttendeeInput[];
+}
+
+const NO_VARIABLE_RESOLUTION: VariableServiceResolution = { intake: null, attendeeInputs: [] };
+
+export async function resolveVariableServiceInputs(
+  deps: VariableServiceResolutionDeps,
+  serviceIds: string[],
+  serviceMap: Map<string, Service>,
+  tenantId: string,
+  input: VariableServiceInput,
+): Promise<VariableServiceResolution> {
+  const variableServiceId = await findVariableServiceId(
+    deps.intakeSchemaRepo,
+    serviceIds,
+    serviceMap,
+    tenantId,
+  );
+  if (!variableServiceId) return NO_VARIABLE_RESOLUTION;
+
+  const service = serviceMap.get(variableServiceId)!;
+  const quote = deps.quoteService.quote(service, input.durationMinutes);
+  const resolvedIntake = await deps.intakeValidationService.resolve(
+    variableServiceId,
+    tenantId,
+    input,
+  );
+
+  return {
+    lineOverride: {
+      serviceId: variableServiceId,
+      durationMinutes: quote.durationMinutes,
+      priceAtBooking: quote.priceAtBooking,
+    },
+    intake: resolvedIntake.intake,
+    attendeeInputs: resolvedIntake.attendeeInputs,
+  };
+}
+
+// UC-067 A4 / UC-068 A4 — a request's basket may name at most one service that is
+// durationPolicy=CUSTOMER_SELECTED and/or carries an active intake schema (M23-S02
+// story-discovery), and that one service may not appear more than once in the basket either —
+// a flat duration/intake payload can't be unambiguously applied to two lines. A CUSTOMER_SELECTED
+// service is already known variable from the in-memory serviceMap (no I/O needed); only a
+// non-CUSTOMER_SELECTED service needs the extra findActiveByServiceId() round trip to check for
+// an intake schema.
+async function findVariableServiceId(
+  intakeSchemaRepo: IServiceIntakeSchemaRepository,
+  serviceIds: string[],
+  serviceMap: Map<string, Service>,
+  tenantId: string,
+): Promise<string | null> {
+  const variableIds: string[] = [];
+  for (const id of new Set(serviceIds)) {
+    const service = serviceMap.get(id);
+    if (!service) continue; // already validated to exist by the use case's resolveServices()
+    const isCustomerSelected = service.bookingPolicy.durationPolicy === 'CUSTOMER_SELECTED';
+    const hasActiveSchema =
+      !isCustomerSelected && (await intakeSchemaRepo.findActiveByServiceId(id, tenantId)) !== null;
+    if (isCustomerSelected || hasActiveSchema) variableIds.push(id);
+  }
+  if (variableIds.length === 0) return null;
+  // Distinct variable services > 1, OR the single variable service occupies more than one line
+  // (the same serviceId repeated in the basket) — both are the same "ambiguous target" problem.
+  const variableLineOccurrences = serviceIds.filter((id) => variableIds.includes(id)).length;
+  if (variableIds.length > 1 || variableLineOccurrences > 1) {
+    throw new BookingInvalidMultipleVariableServicesError();
+  }
+  return variableIds[0];
 }
 
 export async function persistRequestedBooking(
