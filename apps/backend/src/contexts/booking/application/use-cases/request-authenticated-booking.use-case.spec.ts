@@ -1,12 +1,15 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { InMemoryServiceIntakeSchemaRepository } from '../../../../test/repositories/booking/in-memory-service-intake-schema.repository';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceType } from '../../domain/resource.types';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookingQuoteService } from '../services/booking-quote.service';
+import { BookingIntakeValidationService } from '../services/booking-intake-validation.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -19,6 +22,8 @@ import { AddressErrorCode } from '@ikaro/types';
 import {
   BookingAddressValidationError,
   BookingCustomerNotFoundError,
+  BookingDurationOutOfRangeError,
+  BookingInvalidMultipleVariableServicesError,
   BookingPhotoNotUploadedError,
   BookingServiceSessionNotBookableError,
   BookingSlotUnavailableError,
@@ -37,6 +42,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
+  let intakeSchemaRepo: InMemoryServiceIntakeSchemaRepository;
   let bookingRepo: InMemoryBookingRepository;
   let eventBus: InMemoryEventBus;
   let customerProfilePort: InMemoryBookingCustomerPort;
@@ -48,6 +54,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     serviceRepo = new InMemoryServiceRepository();
     resourceRepo = new InMemoryResourceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    intakeSchemaRepo = new InMemoryServiceIntakeSchemaRepository();
     eventBus = new InMemoryEventBus();
     bookingRepo = new InMemoryBookingRepository(eventBus);
     customerProfilePort = new InMemoryBookingCustomerPort();
@@ -59,9 +66,12 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       serviceRepo,
       resourceRepo,
       occupancyRepo,
+      intakeSchemaRepo,
       new AvailabilityService(),
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
+      new BookingQuoteService(),
+      new BookingIntakeValidationService(intakeSchemaRepo),
       bookingRepo,
       txManager,
     );
@@ -163,9 +173,12 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       serviceRepo,
       resourceRepo,
       occupancyRepo,
+      intakeSchemaRepo,
       new AvailabilityService(),
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
+      new BookingQuoteService(),
+      new BookingIntakeValidationService(intakeSchemaRepo),
       bookingRepo,
       new InMemoryTransactionManager(),
     );
@@ -304,5 +317,79 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     await expect(
       useCase.execute({ ...baseInput(), serviceIds: [sessionService.id] }),
     ).rejects.toBeInstanceOf(BookingServiceSessionNotBookableError);
+  });
+
+  describe('M23-S02 — variable duration + intake', () => {
+    it('persists the customer-selected duration and computed quote on the line', async () => {
+      const variableService = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'FIXED',
+        })
+        .build();
+      await serviceRepo.save(variableService);
+
+      const result = await useCase.execute({
+        ...baseInput(),
+        serviceIds: [variableService.id],
+        durationMinutes: 120,
+      });
+
+      expect(result.lines[0].durationMinsAtBooking).toBe(120);
+    });
+
+    it('throws BookingDurationOutOfRangeError when durationMinutes is outside min/max', async () => {
+      const variableService = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'FIXED',
+        })
+        .build();
+      await serviceRepo.save(variableService);
+
+      await expect(
+        useCase.execute({
+          ...baseInput(),
+          serviceIds: [variableService.id],
+          durationMinutes: 30,
+        }),
+      ).rejects.toBeInstanceOf(BookingDurationOutOfRangeError);
+    });
+
+    it('throws BookingInvalidMultipleVariableServicesError for two CUSTOMER_SELECTED services in one basket', async () => {
+      const variablePolicy = {
+        durationPolicy: 'CUSTOMER_SELECTED' as const,
+        durationMinMinutes: 60,
+        durationMaxMinutes: 240,
+        durationIncrementMinutes: 30,
+        pricingPolicy: 'FIXED' as const,
+      };
+      const serviceA = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingPolicy(variablePolicy)
+        .build();
+      const serviceB = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingPolicy(variablePolicy)
+        .build();
+      await serviceRepo.save(serviceA);
+      await serviceRepo.save(serviceB);
+
+      await expect(
+        useCase.execute({
+          ...baseInput(),
+          serviceIds: [serviceA.id, serviceB.id],
+          durationMinutes: 90,
+        }),
+      ).rejects.toBeInstanceOf(BookingInvalidMultipleVariableServicesError);
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { InMemoryServiceIntakeSchemaRepository } from '../../../../test/repositories/booking/in-memory-service-intake-schema.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
@@ -23,6 +24,8 @@ import { RequestAuthenticatedBookingUseCase } from '../../application/use-cases/
 import { ListBookingsUseCase } from '../../application/use-cases/list-bookings.use-case';
 import { GetBookingByIdUseCase } from '../../application/use-cases/get-booking-by-id.use-case';
 import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
+import { BookingQuoteService } from '../../application/services/booking-quote.service';
+import { BookingIntakeValidationService } from '../../application/services/booking-intake-validation.service';
 import { PhotoExistenceService } from '../../application/services/photo-existence.service';
 import { BookingStatus } from '../../domain/booking.aggregate';
 
@@ -37,6 +40,7 @@ describe('BookingController', () => {
   let serviceRepo: InMemoryServiceRepository;
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
+  let intakeSchemaRepo: InMemoryServiceIntakeSchemaRepository;
   let bookingRepo: InMemoryBookingRepository;
   let storageService: InMemoryStorageService;
   let serviceId: string;
@@ -45,6 +49,7 @@ describe('BookingController', () => {
     serviceRepo = new InMemoryServiceRepository();
     resourceRepo = new InMemoryResourceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    intakeSchemaRepo = new InMemoryServiceIntakeSchemaRepository();
     bookingRepo = new InMemoryBookingRepository();
     storageService = new InMemoryStorageService();
     const staffCtx = new RequestContextBuilder()
@@ -73,9 +78,12 @@ describe('BookingController', () => {
         serviceRepo,
         resourceRepo,
         occupancyRepo,
+        intakeSchemaRepo,
         new AvailabilityService(),
         new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new PhotoExistenceService(storageService),
+        new BookingQuoteService(),
+        new BookingIntakeValidationService(intakeSchemaRepo),
         repo,
         new InMemoryTransactionManager(),
       ),
@@ -84,9 +92,12 @@ describe('BookingController', () => {
         serviceRepo,
         resourceRepo,
         occupancyRepo,
+        intakeSchemaRepo,
         new AvailabilityService(),
         new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new PhotoExistenceService(storageService),
+        new BookingQuoteService(),
+        new BookingIntakeValidationService(intakeSchemaRepo),
         repo,
         new InMemoryTransactionManager(),
       ),
@@ -174,9 +185,12 @@ describe('BookingController', () => {
           serviceRepo,
           resourceRepo,
           occupancyRepo,
+          intakeSchemaRepo,
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
+          new BookingQuoteService(),
+          new BookingIntakeValidationService(intakeSchemaRepo),
           repoB,
           new InMemoryTransactionManager(),
         ),
@@ -185,9 +199,12 @@ describe('BookingController', () => {
           serviceRepo,
           resourceRepo,
           occupancyRepo,
+          intakeSchemaRepo,
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
+          new BookingQuoteService(),
+          new BookingIntakeValidationService(intakeSchemaRepo),
           repoB,
           new InMemoryTransactionManager(),
         ),
@@ -245,9 +262,12 @@ describe('BookingController', () => {
           serviceRepo,
           resourceRepo,
           occupancyRepo,
+          intakeSchemaRepo,
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
+          new BookingQuoteService(),
+          new BookingIntakeValidationService(intakeSchemaRepo),
           repoC,
           new InMemoryTransactionManager(),
         ),
@@ -256,9 +276,12 @@ describe('BookingController', () => {
           serviceRepo,
           resourceRepo,
           occupancyRepo,
+          intakeSchemaRepo,
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
+          new BookingQuoteService(),
+          new BookingIntakeValidationService(intakeSchemaRepo),
           repoC,
           new InMemoryTransactionManager(),
         ),

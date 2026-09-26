@@ -333,6 +333,12 @@ X-Actor-Role: MANAGER
 
 ###
 
+### Read the active intake schema only, public/guest path — no actor required (UC-068 step 1, M23-S02)
+GET {{baseUrl}}/services/{{serviceId}}/intake-schema/public
+X-Tenant-ID: {{tenantId}}
+
+###
+
 ### 409 — booking-policy/intake-schema on a SESSION service
 PATCH {{baseUrl}}/services/{{serviceId}}/booking-policy
 Content-Type: application/json

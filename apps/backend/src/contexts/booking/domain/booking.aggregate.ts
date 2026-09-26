@@ -5,6 +5,7 @@ import { Email } from '../../../shared/value-objects/email.vo';
 import { Money } from '../../../shared/value-objects/money';
 import { PhoneNumber } from '../../../shared/value-objects/phone-number.vo';
 import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text-normalization';
+import { BookingAttendee } from './booking-attendee.entity';
 import { BookingLine } from './booking-line.entity';
 import {
   BookingDiscountExceedsTotalError,
@@ -22,7 +23,13 @@ import { BookingInfoSubmitted } from './events/booking-info-submitted.event';
 import { BookingRequested } from './events/booking-requested.event';
 import { BookingRescheduled } from './events/booking-rescheduled.event';
 import { BookingRejected } from './events/booking-rejected.event';
-import { BookingProps, BookingStatus, BookingType, RequestBookingInput } from './booking.types';
+import {
+  BookingIntakeSnapshot,
+  BookingProps,
+  BookingStatus,
+  BookingType,
+  RequestBookingInput,
+} from './booking.types';
 
 // BookingStatus/BookingType/BookingProps/RequestBookingInput moved to booking.types.ts to keep
 // this file under the file-length cap — re-exported so existing imports of these symbols keep
@@ -157,6 +164,15 @@ export class Booking extends AggregateRoot {
   get createdAt(): Date {
     return this.props.createdAt;
   }
+  get participantCount(): number | null {
+    return this.props.participantCount;
+  }
+  get intake(): BookingIntakeSnapshot | null {
+    return this.props.intake;
+  }
+  get attendees(): BookingAttendee[] {
+    return [...this.props.attendees];
+  }
 
   static requestBooking(input: RequestBookingInput): Booking {
     const {
@@ -179,9 +195,12 @@ export class Booking extends AggregateRoot {
       (sum, l) => sum.add(l.priceAtBooking),
       Money.zero(lines[0].priceAtBooking.currency),
     );
+    const attendees = (input.attendeeInputs ?? []).map((attendeeInput) =>
+      BookingAttendee.create(id, tenantId, attendeeInput),
+    );
 
     const booking = new Booking(
-      Booking.buildRequestedProps(id, input, lines, totalDurationMins, totalPrice),
+      Booking.buildRequestedProps(id, input, lines, attendees, totalDurationMins, totalPrice),
     );
     booking._linesModified = true;
 
@@ -204,6 +223,7 @@ export class Booking extends AggregateRoot {
     id: string,
     input: RequestBookingInput,
     lines: BookingLine[],
+    attendees: BookingAttendee[],
     totalDurationMins: number,
     totalPrice: Money,
   ): BookingProps {
@@ -226,6 +246,9 @@ export class Booking extends AggregateRoot {
       totalPrice,
       totalActualPrice: null,
       discountPointsUsed: null,
+      participantCount: input.participantCount ?? null,
+      intake: input.intake ?? null,
+      attendees,
       discountAmount: null,
       lines,
       beforeServicePhotoUrls: [...(input.beforeServicePhotoUrls ?? [])],

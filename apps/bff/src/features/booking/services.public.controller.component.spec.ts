@@ -68,4 +68,63 @@ describe('ServicesPublicController (component)', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  // ─── GET /v1/public/services/:id/intake-schema (M23-S02, UC-068) ────────────
+
+  const SERVICE_ID = '10000000-0000-4000-8000-000000000002';
+
+  describe('GET /v1/public/services/:id/intake-schema', () => {
+    it('returns 400 when X-Tenant-Slug header is missing', async () => {
+      const res = await request(app.getHttpServer()).get(
+        `/v1/public/services/${SERVICE_ID}/intake-schema`,
+      );
+      expect(res.status).toBe(400);
+      expect(res.body.status).toBe(400);
+    });
+
+    it('returns the active schema only, without a JWT', async () => {
+      const tenantInfo = { id: 'tenant-uuid', slug: 'lavacar-bh', name: 'Lavacar BH' };
+      backendHttpService.get.mockResolvedValueOnce(tenantInfo);
+      backendHttpService.getForPublic = jest.fn().mockResolvedValueOnce({
+        active: {
+          id: 'schema-uuid',
+          version: 1,
+          questions: [
+            { fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true },
+          ],
+          consentText: 'Aceito os termos',
+          consentVersion: 1,
+          requiresNamedAttendees: false,
+          participantCountRequired: false,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/public/services/${SERVICE_ID}/intake-schema`)
+        .set('X-Tenant-Slug', 'lavacar-bh');
+
+      expect(res.status).toBe(200);
+      expect(res.body.active.version).toBe(1);
+      expect(res.body).not.toHaveProperty('history');
+      expect(backendHttpService.getForPublic).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/intake-schema/public`,
+        'tenant-uuid',
+      );
+    });
+
+    it('propagates 404 from backend for a missing/cross-tenant service id', async () => {
+      const tenantInfo = { id: 'tenant-uuid', slug: 'lavacar-bh', name: 'Lavacar BH' };
+      backendHttpService.get.mockResolvedValueOnce(tenantInfo);
+      backendHttpService.getForPublic = jest
+        .fn()
+        .mockRejectedValueOnce(new HttpException({ title: 'Not Found', status: 404 }, 404));
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/public/services/00000000-0000-4000-8000-000000009999/intake-schema`)
+        .set('X-Tenant-Slug', 'lavacar-bh');
+
+      expect(res.status).toBe(404);
+    });
+  });
 });

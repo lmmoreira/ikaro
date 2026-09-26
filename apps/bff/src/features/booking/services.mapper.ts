@@ -1,5 +1,6 @@
 import {
   ClassResourceSlotItem,
+  PublicServiceIntakeSchemaResponse,
   ResourceRequirementItem,
   ServiceIntakeSchemaResponse,
   ServiceIntakeSchemaVersion,
@@ -10,6 +11,7 @@ import {
 } from '@ikaro/types';
 import {
   ClassResourceSlotDetail,
+  GetPublicServiceIntakeSchemaResult,
   GetServiceIntakeSchemaResult,
   ResourceRequirementDetail,
   ServiceDetail,
@@ -71,7 +73,7 @@ export function toStaffServiceListResponse(list: ServiceListResponse): StaffServ
   return { items, total: items.length };
 }
 
-function toServiceIntakeSchemaVersion(
+export function toServiceIntakeSchemaVersion(
   version: ServiceIntakeSchemaVersionDetail,
 ): ServiceIntakeSchemaVersion {
   return {
@@ -98,6 +100,15 @@ export function toServiceIntakeSchemaResponse(
     active: result.active ? toServiceIntakeSchemaVersion(result.active) : null,
     history: result.history.map(toServiceIntakeSchemaVersion),
   };
+}
+
+// UC-068 (M23-S02) — the public backend endpoint returns `{ active }` only, no `history` key at
+// all, so this must not go through toServiceIntakeSchemaResponse above (it unconditionally reads
+// `.history`).
+export function toPublicServiceIntakeSchemaResponse(
+  result: GetPublicServiceIntakeSchemaResult,
+): PublicServiceIntakeSchemaResponse {
+  return { active: result.active ? toServiceIntakeSchemaVersion(result.active) : null };
 }
 
 export function toStaffServiceEditViewResponse(

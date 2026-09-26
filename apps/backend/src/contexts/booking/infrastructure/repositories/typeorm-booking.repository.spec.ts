@@ -4,6 +4,7 @@ import { Between, EntityManager, LessThanOrEqual, MoreThanOrEqual, Repository } 
 import {
   BookingEntityBuilder,
   BookingBuilder,
+  BookingAttendeeEntityBuilder,
   BookingLineEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -13,11 +14,13 @@ import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.p
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Money } from '../../../../shared/value-objects/money';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { BookingAttendee } from '../../domain/booking-attendee.entity';
 import {
   BookingConcurrentModificationError,
   BookingNotFoundError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingEntity } from '../entities/booking.entity';
+import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ResourceType } from '../../domain/resource.types';
@@ -27,6 +30,7 @@ describe('TypeOrmBookingRepository', () => {
   let repo: TypeOrmBookingRepository;
   let ormRepo: jest.Mocked<Repository<BookingEntity>>;
   let ormLineRepo: jest.Mocked<Repository<BookingLineEntity>>;
+  let ormAttendeeRepo: jest.Mocked<Repository<BookingAttendeeEntity>>;
   let mockResourceAssignmentQueryBuilder: {
     innerJoin: jest.Mock;
     select: jest.Mock;
@@ -99,6 +103,10 @@ describe('TypeOrmBookingRepository', () => {
           useValue: { find: jest.fn(), save: jest.fn(), delete: jest.fn() },
         },
         {
+          provide: getRepositoryToken(BookingAttendeeEntity),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
+        {
           provide: getRepositoryToken(BookingLineResourceAssignmentEntity),
           useValue: {
             createQueryBuilder: jest.fn().mockReturnValue(mockResourceAssignmentQueryBuilder),
@@ -112,6 +120,7 @@ describe('TypeOrmBookingRepository', () => {
     repo = moduleRef.get(TypeOrmBookingRepository);
     ormRepo = moduleRef.get(getRepositoryToken(BookingEntity));
     ormLineRepo = moduleRef.get(getRepositoryToken(BookingLineEntity));
+    ormAttendeeRepo = moduleRef.get(getRepositoryToken(BookingAttendeeEntity));
   });
 
   afterEach(() => {
@@ -148,8 +157,15 @@ describe('TypeOrmBookingRepository', () => {
         .withDurationMinsAtBooking(60)
         .build();
 
+      const attendeeEntity = new BookingAttendeeEntityBuilder()
+        .withBookingId(bookingId)
+        .withTenantId(tenantId)
+        .withName('Maria Silva')
+        .build();
+
       ormRepo.findOne.mockResolvedValue(bookingEntity);
       ormLineRepo.find.mockResolvedValue([lineEntity]);
+      ormAttendeeRepo.find.mockResolvedValue([attendeeEntity]);
 
       const result = await repo.findById(bookingId, tenantId);
 
@@ -160,6 +176,8 @@ describe('TypeOrmBookingRepository', () => {
       expect(result!.totalPrice.amount.toNumber()).toBe(150);
       expect(result!.lines).toHaveLength(1);
       expect(result!.lines[0].serviceNameAtBooking).toBe('Lavagem Completa');
+      expect(result!.attendees).toHaveLength(1);
+      expect(result!.attendees[0].name).toBe('Maria Silva');
     });
 
     it('returns null for wrong tenant (isolation)', async () => {
@@ -583,6 +601,58 @@ describe('TypeOrmBookingRepository', () => {
       await expect(repo.save(aggregate!)).rejects.toBeInstanceOf(
         BookingConcurrentModificationError,
       );
+    });
+
+    describe('M23-S02 — attendees', () => {
+      it('inserts attendee rows on the initial insert when the booking has named attendees', async () => {
+        const bookingId = '00000000-0000-7000-8000-000000000099';
+        const aggregate = new BookingBuilder()
+          .withId(bookingId)
+          .withTenantId('tenant-1')
+          .withAttendees([
+            BookingAttendee.create(bookingId, 'tenant-1', { name: 'Maria Silva', isMinor: true }),
+          ])
+          .build();
+
+        await repo.save(aggregate);
+
+        expect(mockTx.insert).toHaveBeenCalledWith(
+          BookingAttendeeEntity,
+          expect.arrayContaining([
+            expect.objectContaining({ bookingId, name: 'Maria Silva', isMinor: true }),
+          ]),
+        );
+      });
+
+      it('never inserts attendee rows for a booking with no attendees', async () => {
+        const aggregate = new BookingBuilder().withTenantId('tenant-1').withAttendees([]).build();
+
+        await repo.save(aggregate);
+
+        expect(mockTx.insert).not.toHaveBeenCalledWith(BookingAttendeeEntity, expect.anything());
+      });
+
+      it('never re-inserts attendees on a guarded update (attendees are immutable post-creation)', async () => {
+        const bookingId = '00000000-0000-7000-8000-000000000098';
+        const aggregate = new BookingBuilder()
+          .withId(bookingId)
+          .withTenantId('tenant-1')
+          .withAttendees([BookingAttendee.create(bookingId, 'tenant-1', { name: 'Maria Silva' })])
+          .build();
+
+        await repo.save(aggregate); // initial insert
+        const attendeeInsertCallsAfterFirstSave = mockTx.insert.mock.calls.filter(
+          ([entity]) => entity === BookingAttendeeEntity,
+        ).length;
+
+        await repo.save(aggregate); // guarded update — no insert() call at all on this branch
+        const attendeeInsertCallsAfterSecondSave = mockTx.insert.mock.calls.filter(
+          ([entity]) => entity === BookingAttendeeEntity,
+        ).length;
+
+        expect(attendeeInsertCallsAfterFirstSave).toBe(1);
+        expect(attendeeInsertCallsAfterSecondSave).toBe(1);
+      });
     });
   });
 });

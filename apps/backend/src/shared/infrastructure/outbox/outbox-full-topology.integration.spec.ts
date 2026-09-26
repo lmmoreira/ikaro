@@ -25,6 +25,8 @@ import { ServiceClassResourcePoolEntity } from '../../../contexts/booking/infras
 import { ResourceEntity } from '../../../contexts/booking/infrastructure/entities/resource.entity';
 import { BookingLineResourceAssignmentEntity } from '../../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
+import { ServiceBookingIntakeSchemaEntity } from '../../../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingAttendeeEntity } from '../../../contexts/booking/infrastructure/entities/booking-attendee.entity';
 import { CustomerEntity } from '../../../contexts/customer/infrastructure/entities/customer.entity';
 import { NotificationLogEntity } from '../../../contexts/notification/infrastructure/entities/notification-log.entity';
 import { OutboxEventEntity } from './outbox-event.entity';
@@ -52,6 +54,8 @@ const BOOKING_ENTITIES = [
   ResourceEntity,
   BookingLineResourceAssignmentEntity,
   ResourceOccupancyEntity,
+  ServiceBookingIntakeSchemaEntity,
+  BookingAttendeeEntity,
 ] as const;
 
 // TD24-S02 — the one new test exercising the *production* pipeline shape end-to-end: a real HTTP
