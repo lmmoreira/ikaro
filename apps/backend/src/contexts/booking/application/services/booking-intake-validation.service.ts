@@ -99,8 +99,7 @@ export class BookingIntakeValidationService {
     const invalid: string[] = [];
     for (const question of schema.questions) {
       const value = answers[question.fieldKey];
-      const isMissing =
-        value === undefined || (typeof value === 'string' && value.trim() === '');
+      const isMissing = value === undefined || (typeof value === 'string' && value.trim() === '');
       if (isMissing) {
         if (question.required) invalid.push(question.fieldKey);
         continue;
