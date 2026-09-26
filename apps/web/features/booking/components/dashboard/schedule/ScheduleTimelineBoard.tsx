@@ -94,10 +94,12 @@ function TimelineCompactBoard({
   timeline,
   props,
   t,
+  hideLabelColumn,
 }: {
   readonly timeline: TimelineDayData;
   readonly props: ScheduleTimelineBoardProps;
   readonly t: ReturnType<typeof useTranslations>;
+  readonly hideLabelColumn?: boolean;
 }): React.JSX.Element {
   const timelineHeight = timeline.slotCount * timeline.slotHeight;
   const compactLabelStep = Math.max(1, Math.round(60 / props.slotGranularityMinutes));
@@ -125,7 +127,7 @@ function TimelineCompactBoard({
 
   // TD44 Story 3 — a non-first shared-axis member renders only the grid (already positioned
   // against the caller-supplied shared range) with no label column of its own.
-  if (props.hideLabelColumn) {
+  if (hideLabelColumn) {
     return <div className="space-y-2">{grid}</div>;
   }
 
@@ -159,11 +161,13 @@ function TimelineDesktopBoard({
   slotLabels,
   props,
   t,
+  hideLabelColumn,
 }: {
   readonly timeline: TimelineDayData;
   readonly slotLabels: readonly string[];
   readonly props: ScheduleTimelineBoardProps;
   readonly t: ReturnType<typeof useTranslations>;
+  readonly hideLabelColumn?: boolean;
 }): React.JSX.Element {
   const timelineHeight = timeline.slotCount * timeline.slotHeight;
 
@@ -187,7 +191,7 @@ function TimelineDesktopBoard({
 
   // TD44 Story 3 — a non-first shared-axis member renders only the grid (already positioned
   // against the caller-supplied shared range) with no label column of its own.
-  if (props.hideLabelColumn) {
+  if (hideLabelColumn) {
     return grid;
   }
 
@@ -220,7 +224,7 @@ function TimelineDesktopBoard({
 // data-fetching/state above it.
 export function ScheduleTimelineBoard(props: ScheduleTimelineBoardProps): React.JSX.Element {
   const t = useTranslations('dashboard.schedule');
-  const { timeline, compact, slotLabels } = props;
+  const { timeline, compact, slotLabels, hideLabelColumn } = props;
   const hasHours = !timeline.selectedDayClosed;
 
   if (!hasHours) {
@@ -235,8 +239,23 @@ export function ScheduleTimelineBoard(props: ScheduleTimelineBoardProps): React.
   }
 
   if (compact) {
-    return <TimelineCompactBoard timeline={timeline} props={props} t={t} />;
+    return (
+      <TimelineCompactBoard
+        timeline={timeline}
+        props={props}
+        t={t}
+        hideLabelColumn={hideLabelColumn}
+      />
+    );
   }
 
-  return <TimelineDesktopBoard timeline={timeline} slotLabels={slotLabels} props={props} t={t} />;
+  return (
+    <TimelineDesktopBoard
+      timeline={timeline}
+      slotLabels={slotLabels}
+      props={props}
+      t={t}
+      hideLabelColumn={hideLabelColumn}
+    />
+  );
 }
