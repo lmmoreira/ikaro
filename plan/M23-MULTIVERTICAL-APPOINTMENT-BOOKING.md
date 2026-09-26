@@ -136,7 +136,7 @@ graph TD
 
 ---
 
-### M23-S02 — Variable-duration reservations + versioned booking intake/attendees
+### M23-S02 — Variable-duration reservations + versioned booking intake/attendees ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
