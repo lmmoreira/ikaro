@@ -9,8 +9,6 @@ import type {
 } from '@ikaro/types';
 import {
   buildTimelineDayData,
-  COMPACT_MIN_BLOCK_HEIGHT_PX,
-  DESKTOP_MIN_BLOCK_HEIGHT_PX,
   type TimelineDayData,
 } from '@/features/booking/schedule/schedule-timeline';
 import {
@@ -19,6 +17,14 @@ import {
   buildWeekDayInfo,
   type ScheduleWeekDayInfo,
 } from '@/features/booking/schedule/schedule-page-derived';
+
+// TD44 Story 4 — raised from 0.45. The page now pins its own toolbar (SchedulePage.tsx's sticky
+// wrapper) instead of needing the whole week grid to fit inside one screen height, so Week view
+// no longer needs to compress this aggressively; a
+// higher scale narrows the gap between a short booking's true slot height and the smallest
+// per-block content floor (schedule-timeline-formatting.ts's getBlockMinHeightPx), which is what
+// was making a 30-minute booking visually span multiple real hours of grid.
+const WEEK_VIEW_SLOT_HEIGHT_SCALE = 0.85;
 
 interface ScheduleTimelineDerivedInput {
   readonly weekDates: readonly string[];
@@ -86,7 +92,6 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
         closures: visibleClosures,
         openings: visibleOpenings,
         resourceNameById,
-        minSlotHeightPx: DESKTOP_MIN_BLOCK_HEIGHT_PX,
       }),
     [
       businessHours,
@@ -142,8 +147,7 @@ function buildWeekTimelineCards(
       bookings: visibleBookings,
       closures: visibleClosures,
       openings: visibleOpenings,
-      slotHeightScale: 0.45,
-      minSlotHeightPx: COMPACT_MIN_BLOCK_HEIGHT_PX,
+      slotHeightScale: WEEK_VIEW_SLOT_HEIGHT_SCALE,
       resourceNameById,
       selectedResourceIdSet,
       // Only ever used for a presence check (isBookingVisibleForResourceFilter — "did this

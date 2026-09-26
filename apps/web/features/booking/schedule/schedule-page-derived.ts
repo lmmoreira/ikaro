@@ -75,16 +75,6 @@ export function buildSlotLabels(
   );
 }
 
-export function resolveTimelineTitle(
-  t: (key: 'statusRegularOpen' | 'specialOpeningBadge' | 'statusClosed') => string,
-  selectedOpening: ScheduleOpening | null,
-  selectedDayClosed: boolean,
-): string {
-  if (selectedOpening) return t('specialOpeningBadge');
-  if (selectedDayClosed) return t('statusClosed');
-  return t('statusRegularOpen');
-}
-
 export function countOverlappingBookings(
   visibleBookings: readonly StaffBookingCardResponse[],
   timezone: string,

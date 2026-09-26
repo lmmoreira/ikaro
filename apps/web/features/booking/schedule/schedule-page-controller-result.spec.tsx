@@ -83,7 +83,15 @@ describe('useScheduleLabels', () => {
     expect(result.current.selectedDayLabel).toBe('2026-08-17');
   });
 
-  it('counts only booking-kind events for bookingEventCount', () => {
+  it('builds slotLabels from the selected timeline slot count/start and the given granularity', () => {
+    const core = makeCore({
+      selectedDayTimeline: makeTimeline({ slotCount: 2, timelineStartMinutes: 540 }),
+    });
+    const { result } = renderHook(() => useScheduleLabels(core, 30));
+    expect(result.current.slotLabels).toEqual(['09:00', '09:30']);
+  });
+
+  it('counts only booking-kind events for bookingCount (TD44 Story 4 — feeds the header badge)', () => {
     const core = makeCore({
       selectedDayTimeline: makeTimeline({
         events: [
@@ -94,15 +102,7 @@ describe('useScheduleLabels', () => {
       }),
     });
     const { result } = renderHook(() => useScheduleLabels(core, 30));
-    expect(result.current.bookingEventCount).toBe(2);
-  });
-
-  it('builds slotLabels from the selected timeline slot count/start and the given granularity', () => {
-    const core = makeCore({
-      selectedDayTimeline: makeTimeline({ slotCount: 2, timelineStartMinutes: 540 }),
-    });
-    const { result } = renderHook(() => useScheduleLabels(core, 30));
-    expect(result.current.slotLabels).toEqual(['09:00', '09:30']);
+    expect(result.current.bookingCount).toBe(2);
   });
 });
 
@@ -145,7 +145,7 @@ describe('buildControllerResult', () => {
     const core = makeCore();
     const labels = {
       selectedDayLabel: '17 de agosto',
-      bookingEventCount: 2,
+      bookingCount: 2,
       slotLabels: ['09:00'],
     };
 
@@ -154,40 +154,23 @@ describe('buildControllerResult', () => {
     expect(result.ui).toBe(core.ui);
     expect(result.businessHours).toBe(props.businessHours);
     expect(result.selectedDayLabel).toBe('17 de agosto');
-    expect(result.bookingEventCount).toBe(2);
-    expect(result.hasBookingInSelectedDay).toBe(true);
+    expect(result.bookingCount).toBe(2);
     expect(result.slotLabels).toEqual(['09:00']);
     expect(result.scheduleReturnTo).toBe(
       '/dashboard/schedule?weekStart=2026-08-17&date=2026-08-17',
     );
   });
 
-  it('hasBookingInSelectedDay is false when bookingEventCount is 0', () => {
-    const core = makeCore();
-    const labels = { selectedDayLabel: '17 de agosto', bookingEventCount: 0, slotLabels: [] };
-    const result = buildControllerResult(props, core, labels, t, mutations, statusLabels);
-    expect(result.hasBookingInSelectedDay).toBe(false);
-  });
-
-  it("derives timelineTitle from the selected day's opening/closed state", () => {
-    const core = makeCore({
-      selectedDayTimeline: makeTimeline({ selectedDayClosed: true }),
-    });
-    const labels = { selectedDayLabel: '17 de agosto', bookingEventCount: 0, slotLabels: [] };
-    const result = buildControllerResult(props, core, labels, t, mutations, statusLabels);
-    expect(result.timelineTitle).toBe('statusClosed');
-  });
-
   it('wires the status filter handlers to the core selectedStatusSet', () => {
     const core = makeCore();
-    const labels = { selectedDayLabel: '17 de agosto', bookingEventCount: 0, slotLabels: [] };
+    const labels = { selectedDayLabel: '17 de agosto', bookingCount: 0, slotLabels: [] };
     const result = buildControllerResult(props, core, labels, t, mutations, statusLabels);
     expect(result.statusFilter.selectedStatusSet).toBe(core.selectedStatusSet);
   });
 
   it('wires the resource filter handlers to the core selectedResourceIdSet', () => {
     const core = makeCore({ selectedResourceIdSet: new Set(['res-1']) });
-    const labels = { selectedDayLabel: '17 de agosto', bookingEventCount: 0, slotLabels: [] };
+    const labels = { selectedDayLabel: '17 de agosto', bookingCount: 0, slotLabels: [] };
     const result = buildControllerResult(props, core, labels, t, mutations, statusLabels);
     expect(result.resourceFilter.selectedResourceIdSet).toBe(core.selectedResourceIdSet);
   });

@@ -1460,7 +1460,7 @@
       "bookingsLegend": "Bookings",
       "closuresLegend": "Blocks",
       "openingsLegend": "Special openings",
-      "bookingsOnDay": "{count, plural, one {# booking on this day} other {# bookings on this day}}",
+      "bookingsOnDay": "{count, plural, =0 {No bookings} one {# booking} other {# bookings}}",
       "allDay": "All day",
       "reasonDayOff": "Staff day off",
       "reasonMaintenance": "Maintenance",
@@ -1495,7 +1495,6 @@
       "resourceFilterEmpty": "No resources yet",
       "resourceFilterMaxReached": "Limit of {max} resources reached. Uncheck one to add another.",
       "dayGridFetchError": "Couldn't load the resource columns",
-      "dayGridEmptyColumn": "Nothing scheduled this day",
       "dayGridPlaceholderBooking": "Busy",
       "fetchError": "Couldn't load the schedule",
       "errors": {

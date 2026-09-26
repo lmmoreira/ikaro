@@ -7,11 +7,14 @@ import type {
   StaffBookingCardResponse,
   TenantBusinessHours,
 } from '@ikaro/types';
-import { Badge } from '@/shared/components/ui/badge';
 import { Card } from '@/shared/components/ui/card';
-import { cn } from '@/shared/utils/cn';
 import type { TimelineDayData } from '@/features/booking/schedule/schedule-timeline';
 import type { ScheduleWeekDayInfo } from '@/features/booking/schedule/schedule-page-derived';
+import { getLocalTimeKey, timeToMinutes } from '@/features/booking/schedule/date-utils';
+import {
+  resolveNowMarkerTopPx,
+  useScrollToNowOnce,
+} from '@/features/booking/schedule/schedule-scroll-to-now';
 import { ScheduleResourceColumnsBoard } from './ScheduleResourceColumnsBoard';
 import { ScheduleTimelineBoard } from './ScheduleTimelineBoard';
 import { ScheduleWeekView } from './ScheduleWeekView';
@@ -39,7 +42,6 @@ interface ScheduleMainViewProps {
   readonly businessHours: TenantBusinessHours;
   readonly selectedDayTimeline: TimelineDayData;
   readonly slotLabels: readonly string[];
-  readonly timelineTitle: string;
 }
 
 // Extracted from SchedulePage — picks one of the three main-content views (week grid, bounded
@@ -47,6 +49,17 @@ interface ScheduleMainViewProps {
 // inside JSX (SonarCloud S3358). Every other piece of chrome (header, filters, sheets) stays in
 // SchedulePage itself.
 export function ScheduleMainView(props: ScheduleMainViewProps): React.JSX.Element {
+  // TD44 Story 4 — scroll-to-now only ever applies to the single-timeline mobile view rendered
+  // below; the marker stays unattached (ref never assigned a DOM node) whenever a different branch
+  // renders instead, which keeps this a no-op for those cases without a conditional hook call.
+  const isToday = props.selectedDateKey === props.todayKey;
+  const nowMarkerRef = useScrollToNowOnce(isToday, props.selectedDateKey);
+  const nowMarkerTopPx = resolveNowMarkerTopPx(
+    props.selectedDayTimeline,
+    props.slotGranularityMinutes,
+    timeToMinutes(getLocalTimeKey(new Date(), props.timezone)),
+  );
+
   if (props.isWeekView) {
     return (
       <ScheduleWeekView
@@ -75,6 +88,7 @@ export function ScheduleMainView(props: ScheduleMainViewProps): React.JSX.Elemen
         closures={props.visibleClosures}
         openings={props.visibleOpenings}
         selectedDateKey={props.selectedDateKey}
+        todayKey={props.todayKey}
         businessHours={props.businessHours}
         slotGranularityMinutes={props.slotGranularityMinutes}
         statusLabels={props.statusLabels}
@@ -89,19 +103,6 @@ export function ScheduleMainView(props: ScheduleMainViewProps): React.JSX.Elemen
   return (
     <Card className="overflow-hidden" data-testid="schedule-mobile-view">
       <div className="p-4">
-        <div className="mb-3 flex items-center justify-end gap-3">
-          <Badge
-            className={cn(
-              'border-0',
-              props.selectedDayTimeline.selectedOpening
-                ? 'bg-emerald-100 text-emerald-800'
-                : 'bg-gray-100 text-gray-700',
-            )}
-          >
-            {props.timelineTitle}
-          </Badge>
-        </div>
-
         <ScheduleTimelineBoard
           timeline={props.selectedDayTimeline}
           compact={false}
@@ -112,6 +113,8 @@ export function ScheduleMainView(props: ScheduleMainViewProps): React.JSX.Elemen
           scheduleReturnTo={props.scheduleReturnTo}
           onOpeningClick={props.onOpeningClick}
           onClosureClick={props.onClosureClick}
+          nowMarkerRef={isToday ? nowMarkerRef : undefined}
+          nowMarkerTopPx={isToday ? nowMarkerTopPx : undefined}
         />
       </div>
     </Card>

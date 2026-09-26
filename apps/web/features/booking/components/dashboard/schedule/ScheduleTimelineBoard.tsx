@@ -1,7 +1,7 @@
 'use client';
 
+import type { RefObject } from 'react';
 import { useTranslations } from 'next-intl';
-import { Badge } from '@/shared/components/ui/badge';
 import { Unlock } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { minutesToTime } from '@/features/booking/schedule/date-utils';
@@ -15,19 +15,47 @@ interface ScheduleTimelineBoardProps extends ScheduleTimelineRenderProps {
   readonly timeline: TimelineDayData;
   readonly compact: boolean;
   readonly slotLabels: readonly string[];
+  // TD44 Story 4 — scroll-to-now marker, wired by the caller (ScheduleMainView/
+  // ScheduleResourceColumnsBoard/ScheduleWeekView) only for the board(s) whose viewed date/week
+  // actually includes "now". Omitted entirely (undefined) means no marker renders, same as today.
+  readonly nowMarkerRef?: RefObject<HTMLDivElement | null>;
+  readonly nowMarkerTopPx?: number;
+}
+
+function NowMarker({
+  nowMarkerRef,
+  nowMarkerTopPx,
+}: {
+  readonly nowMarkerRef?: RefObject<HTMLDivElement | null>;
+  readonly nowMarkerTopPx?: number;
+}): React.JSX.Element | null {
+  if (!nowMarkerRef || nowMarkerTopPx === undefined) return null;
+  return (
+    <div
+      ref={nowMarkerRef}
+      data-testid="schedule-now-marker"
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-x-0"
+      style={{ top: `${nowMarkerTopPx}px` }}
+    />
+  );
 }
 
 function TimelineEmptyState({
   compact,
   t,
+  nowMarkerRef,
+  nowMarkerTopPx,
 }: {
   readonly compact: boolean;
   readonly t: ReturnType<typeof useTranslations>;
+  readonly nowMarkerRef?: RefObject<HTMLDivElement | null>;
+  readonly nowMarkerTopPx?: number;
 }): React.JSX.Element {
   return (
     <div
       className={cn(
-        'flex items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center',
+        'relative flex items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center',
         compact ? 'min-h-[10rem]' : 'min-h-[14rem] p-6',
       )}
     >
@@ -47,6 +75,12 @@ function TimelineEmptyState({
           {t('closedDayEmpty')}
         </p>
       </div>
+      {/* TD44 Story 4 — a "today" that's closed still needs its marker mounted so scroll-to-now
+          fires (there's nothing meaningful to scroll to within this small box, but the AC's own
+          wording — "the viewed range includes today" — doesn't carve out a closed exception, and
+          Week view's scroll guard is keyed per date, so a missing mount here silently blocks the
+          scroll for the whole week if today happens to be the tenant's one closed weekday). */}
+      <NowMarker nowMarkerRef={nowMarkerRef} nowMarkerTopPx={nowMarkerTopPx} />
     </div>
   );
 }
@@ -61,7 +95,6 @@ function TimelineCompactBoard({
   readonly t: ReturnType<typeof useTranslations>;
 }): React.JSX.Element {
   const timelineHeight = timeline.slotCount * timeline.slotHeight;
-  const bookingCount = timeline.events.filter((event) => event.kind === 'booking').length;
   const compactLabelStep = Math.max(1, Math.round(60 / props.slotGranularityMinutes));
   const compactLabelIndexes = Array.from({ length: timeline.slotCount }, (_, index) => index)
     .filter((index) => index % compactLabelStep === 0)
@@ -69,24 +102,6 @@ function TimelineCompactBoard({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Badge
-          className={cn(
-            'border-0',
-            timeline.selectedOpening
-              ? 'bg-emerald-100 text-emerald-800'
-              : 'bg-gray-100 text-gray-700',
-          )}
-        >
-          {timeline.selectedOpening ? t('specialOpeningBadge') : t('statusRegularOpen')}
-        </Badge>
-        {bookingCount > 0 ? (
-          <span className="text-[0.625rem] font-medium uppercase tracking-[0.08em] text-gray-500">
-            {t('bookingsOnDay', { count: bookingCount })}
-          </span>
-        ) : null}
-      </div>
-
       <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-0">
         <div className="relative" style={{ height: `${timelineHeight}px` }}>
           {compactLabelIndexes.map((index) => (
@@ -113,6 +128,7 @@ function TimelineCompactBoard({
           ))}
 
           {timeline.events.map((event) => renderTimelineEvent(event, timeline, true, props, t))}
+          <NowMarker nowMarkerRef={props.nowMarkerRef} nowMarkerTopPx={props.nowMarkerTopPx} />
         </div>
       </div>
     </div>
@@ -159,6 +175,7 @@ function TimelineDesktopBoard({
         ))}
 
         {timeline.events.map((event) => renderTimelineEvent(event, timeline, false, props, t))}
+        <NowMarker nowMarkerRef={props.nowMarkerRef} nowMarkerTopPx={props.nowMarkerTopPx} />
       </div>
     </div>
   );
@@ -174,7 +191,14 @@ export function ScheduleTimelineBoard(props: ScheduleTimelineBoardProps): React.
   const hasHours = !timeline.selectedDayClosed;
 
   if (!hasHours) {
-    return <TimelineEmptyState compact={compact} t={t} />;
+    return (
+      <TimelineEmptyState
+        compact={compact}
+        t={t}
+        nowMarkerRef={props.nowMarkerRef}
+        nowMarkerTopPx={props.nowMarkerTopPx}
+      />
+    );
   }
 
   if (compact) {

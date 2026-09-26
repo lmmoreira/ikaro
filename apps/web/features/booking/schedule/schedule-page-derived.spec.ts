@@ -13,7 +13,6 @@ import {
   buildSlotLabels,
   buildWeekDayInfo,
   countOverlappingBookings,
-  resolveTimelineTitle,
   type ScheduleWeekDayInfo,
 } from './schedule-page-derived';
 
@@ -164,35 +163,6 @@ describe('buildSlotLabels', () => {
 
   it('returns an empty array when there are no slots', () => {
     expect(buildSlotLabels(0, 540, 30)).toEqual([]);
-  });
-});
-
-describe('resolveTimelineTitle', () => {
-  const t = (key: 'statusRegularOpen' | 'specialOpeningBadge' | 'statusClosed') =>
-    ({
-      statusRegularOpen: 'Aberto na agenda padrão',
-      specialOpeningBadge: 'Abertura especial',
-      statusClosed: 'Fechado',
-    })[key];
-  const opening: ScheduleOpening = {
-    id: 'opening-1',
-    date: '2026-08-18',
-    startTime: '10:00',
-    endTime: '12:00',
-    notes: null,
-    resourceId: null,
-  };
-
-  it('prioritizes the special-opening title over the closed title', () => {
-    expect(resolveTimelineTitle(t, opening, true)).toBe('Abertura especial');
-  });
-
-  it('falls back to the closed title when there is no special opening', () => {
-    expect(resolveTimelineTitle(t, null, true)).toBe('Fechado');
-  });
-
-  it('falls back to the regular-open title otherwise', () => {
-    expect(resolveTimelineTitle(t, null, false)).toBe('Aberto na agenda padrão');
   });
 });
 

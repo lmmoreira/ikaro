@@ -471,6 +471,20 @@ If a future story adds a *second*, differently-configured Turnstile widget (a re
 
 ---
 
+## SonarCloud's `sonar.tests`/`sonar.test.inclusions` is a separate analysis path from `sonar.sources`/`sonar.exclusions`
+
+**Excluding a directory from `sonar.sources`/`sonar.exclusions` does NOT exclude it from being scanned as a "test" if it still matches `sonar.test.inclusions`.** SonarCloud runs two independent classification passes over the same files: one decides what counts as `sources` (application code, subject to `sonar.exclusions`), the other decides what counts as `tests` (subject to a *different* config key, `sonar.test.inclusions`/`sonar.test.exclusions`). A directory already excluded from the first pass can still be picked up by the second, with its own separate rule set — including test-quality rules like S1607 ("remove this unit test or explain why it is ignored"), which fires on Playwright's own documented `test.skip(condition, reason)` API.
+
+**Confirmed empirically (TD44-S4, PR #516, 2026-09-26):** `apps/web/e2e/**` was already excluded from `sonar.sources`, but a genuine, temporary `test.skip(...)` call added to a spec under that same directory still tripped S1607 — the first thing in this repo's e2e suite to ever hit it, since e2e specs essentially never use `test.skip()`.
+
+**Fix:** add the directory to `sonar.test.exclusions` too, as its own separate config key — don't assume the `sonar.exclusions` entry already covers it:
+
+```properties
+sonar.test.exclusions=apps/web/e2e/**
+```
+
+---
+
 ## CI workflow configuration traps
 
 These affect `.github/workflows/` files, not application code — but cause CI to fail or produce misleading results just as surely.

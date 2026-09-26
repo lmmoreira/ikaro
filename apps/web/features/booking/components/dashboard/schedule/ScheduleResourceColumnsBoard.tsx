@@ -14,6 +14,11 @@ import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useScheduleDayGrid } from '@/features/booking/schedule/useSchedule';
 import { buildSlotLabels } from '@/features/booking/schedule/schedule-page-derived';
 import { buildResourceColumns } from '@/features/booking/schedule/schedule-resource-columns';
+import { getLocalTimeKey, timeToMinutes } from '@/features/booking/schedule/date-utils';
+import {
+  resolveNowMarkerTopPx,
+  useScrollToNowOnce,
+} from '@/features/booking/schedule/schedule-scroll-to-now';
 import type { ScheduleTimelineRenderProps } from './ScheduleTimelineEventRenderer';
 import { ScheduleTimelineBoard } from './ScheduleTimelineBoard';
 
@@ -28,6 +33,7 @@ interface ScheduleResourceColumnsBoardProps extends ScheduleTimelineRenderProps 
   readonly closures: readonly ScheduleClosure[];
   readonly openings: readonly ScheduleOpening[];
   readonly selectedDateKey: string;
+  readonly todayKey: string;
   readonly businessHours: TenantBusinessHours;
 }
 
@@ -59,9 +65,21 @@ export function ScheduleResourceColumnsBoard(
     closures,
     openings,
     selectedDateKey,
+    todayKey,
     businessHours,
     ...timelineProps
   } = props;
+
+  // TD44 Story 4 — scroll-to-now, anchored to only the first rendered column. Each column can have
+  // its own independently-resolved active window (a per-resource exceptional opening), so aligning
+  // every column's "now" position at once isn't possible until TD44 Story 3 (shared hour axis)
+  // ships — anchoring to one column still gets the page scrolled to a reasonable position today.
+  const isToday = selectedDateKey === todayKey;
+  const nowMarkerRef = useScrollToNowOnce(isToday, selectedDateKey);
+  // Reads props.timezone directly (not timelineProps.timezone) — touching the ...rest object
+  // outside the columns useMemo below broke the React Compiler's ability to verify that memo's own
+  // dependency array stays stable.
+  const nowMinutes = timeToMinutes(getLocalTimeKey(new Date(), props.timezone));
 
   const resourceIds = useMemo(() => [...selectedResourceIdSet], [selectedResourceIdSet]);
   const dayGrid = useScheduleDayGrid(selectedDateKey, resourceIds);
@@ -118,28 +136,44 @@ export function ScheduleResourceColumnsBoard(
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-2" data-testid="schedule-resource-columns-board">
-      {columns.map((column) => (
-        <div
-          key={column.resourceId}
-          className="min-w-[16rem] flex-1"
-          data-testid="schedule-resource-column"
-        >
-          <p className="mb-2 truncate text-sm font-semibold text-gray-900">{column.resourceName}</p>
-          {column.timeline.events.length === 0 && !column.timeline.selectedDayClosed ? (
-            <p className="mb-2 text-xs text-gray-400">{t('dayGridEmptyColumn')}</p>
-          ) : null}
-          <ScheduleTimelineBoard
-            timeline={column.timeline}
-            compact={false}
-            slotLabels={buildSlotLabels(
-              column.timeline.slotCount,
-              column.timeline.timelineStartMinutes,
-              timelineProps.slotGranularityMinutes,
-            )}
-            {...timelineProps}
-          />
-        </div>
-      ))}
+      {columns.map((column, index) => {
+        const isFirstColumn = index === 0;
+        return (
+          <div
+            key={column.resourceId}
+            className="min-w-[16rem] flex-1"
+            data-testid="schedule-resource-column"
+          >
+            <p className="mb-2 truncate text-sm font-semibold text-gray-900">
+              {column.resourceName}
+            </p>
+            {/* TD44 Story 4 — the per-column "Nothing scheduled this day" message was removed:
+                the grid itself already shows this (an empty board with no blocks); the selected
+                day's total booking count is shown once, at the page level, in ScheduleDayHeader
+                instead of repeating it per column. */}
+            <ScheduleTimelineBoard
+              timeline={column.timeline}
+              compact={false}
+              slotLabels={buildSlotLabels(
+                column.timeline.slotCount,
+                column.timeline.timelineStartMinutes,
+                timelineProps.slotGranularityMinutes,
+              )}
+              {...timelineProps}
+              nowMarkerRef={isFirstColumn && isToday ? nowMarkerRef : undefined}
+              nowMarkerTopPx={
+                isFirstColumn && isToday
+                  ? resolveNowMarkerTopPx(
+                      column.timeline,
+                      timelineProps.slotGranularityMinutes,
+                      nowMinutes,
+                    )
+                  : undefined
+              }
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
