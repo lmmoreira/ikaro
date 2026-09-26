@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx`, `ScheduleResourceColumnsBoard.tsx` (M22-S06)
 - **Created**: 2026-09-24
 - **Discovered**: Codex round-4 review of PR #511 (M22-S06, manager bounded multi-resource column view)
-- **State**: In progress — Story 0/1/2 ✅ Done (Story 2 shipped as PR #514, 2026-09-25); Story 3 (shared hour axis) drafted 2026-09-25, `/story-discovery` not yet run — deliberately sequenced *after* Story 4 (see Story 4's Dependencies note) since both touch `getSlotHeight`/`buildBlockStyle`; Story 4 (slot/block height decoupling, minimum-granularity content variant, scroll-to-now, redundant-label removal) — `/story-discovery` run 2026-09-25, ✅ READY, implementation starting
+- **State**: In progress — Story 0/1/2 ✅ Done (Story 2 shipped as PR #514, 2026-09-25); Story 4 (slot/block height decoupling, minimum-granularity content variant, scroll-to-now, redundant-label removal) ✅ Done (shipped as PR #516, 2026-09-26); Story 3 (shared hour axis) drafted 2026-09-25, `/story-discovery` not yet run — builds on Story 4's now-settled coordinate system
 - **Related**: M22-S06 (`plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`), M21-S05 (`ResourceFilterMenu`)
 
 ---
@@ -280,7 +280,7 @@ Live testing also surfaced that this wasn't Week-view-specific or Story-2-specif
 
 ---
 
-## Story 4 — Reduce schedule slot/block height, minimum-granularity content variant, scroll-to-now, and remove redundant status/count labels
+## Story 4 — Reduce schedule slot/block height, minimum-granularity content variant, scroll-to-now, and remove redundant status/count labels ✅ Done (PR #516, merged 2026-09-26)
 
 **Agent:** `frontend-ts`
 **Complexity:** L
@@ -330,30 +330,30 @@ Four related pieces of live-testing feedback on the schedule Day/Week views, all
 **New migration / i18n keys / env vars / feature flags:** none — no new keys; existing `statusRegularOpen`/`specialOpeningBadge`/`statusClosed`/`bookingsOnDay` keys stay in both `packages/i18n/locales/pt-BR/web.json` and the `en` counterpart regardless of this story's scope decision (still consumed by at least one board either way, per the description above).
 
 **Acceptance criteria — product:**
-- [ ] A full business day's worth of bookings requires meaningfully less scrolling than today to review, on a standard laptop viewport — concrete target: an 18-slot (9-hour) day renders at ≈864px (18 × 48px/slot), the pre-TD44-S2 effective density.
+- [x] A full business day's worth of bookings requires meaningfully less scrolling than today to review, on a standard laptop viewport — concrete target: an 18-slot (9-hour) day renders at ≈864px (18 × 48px/slot), the pre-TD44-S2 effective density.
 - [x] A booking at the schedule's minimum granularity renders title, subtitle (services), status badge, and its resource-summary line (if assigned) — no time-range line — in every board it can appear in (Day single timeline, Day resource-columns board, Week day-cards).
-- [ ] A booking longer than the minimum granularity keeps all of today's content unchanged, including TD44-S2's resource-summary line when assigned and the time-range line.
-- [ ] Loading Day view (single timeline and resource-columns board) or Week view for a range that includes today auto-scrolls once to bring the current-time position into view, landing with ~1 hour of lookback above "now."
-- [ ] Loading the Day/Week view for a date/week that does not include the current moment is unaffected — no auto-scroll, identical to today's behavior.
-- [ ] The auto-scroll fires once per date/week change, not on every re-render/refetch — a user's own manual scroll during the session is never overridden.
+- [x] A booking longer than the minimum granularity keeps all of today's content unchanged, including TD44-S2's resource-summary line when assigned and the time-range line.
+- [x] Loading Day view (single timeline and resource-columns board) or Week view for a range that includes today auto-scrolls once to bring the current-time position into view, landing with ~1 hour of lookback above "now."
+- [x] Loading the Day/Week view for a date/week that does not include the current moment is unaffected — no auto-scroll, identical to today's behavior.
+- [x] The auto-scroll fires once per date/week change, not on every re-render/refetch — a user's own manual scroll during the session is never overridden.
 - [x] Week view's day-card header (`ScheduleTimelineBoard.tsx`'s compact board) no longer shows the status badge or the "N agendamento(s) neste dia" count — **superseded by Round 2 (live testing, 2026-09-26):** the day-card's own separate header badge (`ScheduleWeekView.tsx`) is unaffected *as an element*, but its own content changed from status text to a booking count (see Round 2 item 8) — confirmed directly with the user as a deliberate design change, not a regression.
 - [x] Day view's equivalent elements are also removed: `ScheduleMainView.tsx`'s status badge no longer renders, with no dead prop-threading left behind — **superseded by Round 2:** `ScheduleDayHeader.tsx`'s booking-count badge was re-added, in a new position (inline next to the date label) and a new shape (always shown, including an explicit "Sem agendamentos" zero case) — confirmed directly with the user as a deliberate design change (see Round 2 item 8), not the removal originally specified here.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `getSlotHeight` no longer accepts/applies a `minHeightPx` floor — returns `Math.round((slotGranularityMinutes / 30) * 48 * scale)` for all inputs
-  - [ ] A new pure helper resolves the per-block content-fit minimum (`DESKTOP_MIN_BLOCK_HEIGHT_PX`/`COMPACT_MIN_BLOCK_HEIGHT_PX`, unchanged values) independent of `getSlotHeight`
-  - [ ] `renderBookingTimelineEvent` renders no time-range element when `totalDurationMins === slotGranularityMinutes`, and renders it when `totalDurationMins > slotGranularityMinutes`
-  - [ ] `renderBookingTimelineEvent` still renders the resource-summary line at minimum granularity when the booking has 1+ assigned non-LOCATION resources (non-regression against TD44-S2)
-  - [ ] The scroll-to-now offset function returns a defined minutes/pixel value (clamped to the active window's start, ~1h lookback) when the viewed date/week includes now, and `null`/no-op when it doesn't
-  - [ ] The scroll-to-now hook calls `scrollIntoView` (mocked/spied — jsdom's implementation is a no-op stub) exactly once per date/week-key change, not on a same-key re-render
+  - [x] `getSlotHeight` no longer accepts/applies a `minHeightPx` floor — returns `Math.round((slotGranularityMinutes / 30) * 48 * scale)` for all inputs
+  - [x] A new pure helper resolves the per-block content-fit minimum (`DESKTOP_MIN_BLOCK_HEIGHT_PX`/`COMPACT_MIN_BLOCK_HEIGHT_PX`, unchanged values) independent of `getSlotHeight` — landed content-aware (`getBlockMinHeightPx(compact, extraLineCount)`, Round 2 item 1), not the flat two-constant form originally sketched here
+  - [x] `renderBookingTimelineEvent` renders no time-range element when `totalDurationMins === slotGranularityMinutes`, and renders it when `totalDurationMins > slotGranularityMinutes`
+  - [x] `renderBookingTimelineEvent` still renders the resource-summary line at minimum granularity when the booking has 1+ assigned non-LOCATION resources (non-regression against TD44-S2) — confirmed via Round 3's revert of the briefly-tried compact-mode suppression
+  - [x] The scroll-to-now offset function returns a defined minutes/pixel value (clamped to the active window's start, ~1h lookback) when the viewed date/week includes now, and `null`/no-op when it doesn't
+  - [x] The scroll-to-now hook calls `scrollIntoView` (mocked/spied — jsdom's implementation is a no-op stub) exactly once per date/week-key change, not on a same-key re-render
   - [x] `ScheduleTimelineBoard`'s compact board no longer renders the status badge or count span (existing DOM/testing-library assertions updated, not just deleted)
   - [x] `ScheduleMainView` no longer renders its status badge; `resolveTimelineTitle`/`timelineTitle` are removed, not just unused — **superseded by Round 2:** `ScheduleDayHeader` was confirmed to keep a `bookingCount` field/badge (re-added, not removed — see Round 2 item 8), a deliberate change from this bullet's original wording, not a regression
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side only
 - E2E: a minimum-granularity booking's block shows no time-range text but still shows its resource-summary line when assigned, in every board including Week view (Round 2 correction — see below), while a longer booking still shows both; Day view (single timeline and resource-columns board) and Week view opened on a range including today end up scrolled near the current-time row with lookback context above it; Day view opened on a future date stays at the top of the active window; Week view's day-card no longer shows the compact board's own duplicate status/count text, and its separate header badge now shows a booking count (Round 2); Day view's single-timeline status badge is gone, and `ScheduleDayHeader` shows an inline booking-count badge (Round 2, re-added)
-- [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+- [x] Coverage ≥80% on changed code
+- [x] `tsc --noEmit` clean, lint clean
 
 **Round 2 — CodeRabbit round-1 findings + live testing on the deployed PR (2026-09-25):**
 
@@ -384,3 +384,10 @@ Files (round 3): `ScheduleTimelineEventRenderer.tsx`/`.spec.tsx` (resource-line 
 2. **The Sunday-skip itself was then checked, not just assumed necessary, and removed.** Ran the backend + BFF locally against the shared dev Postgres and posted a real booking-creation request for a genuinely closed Sunday on `lavacar-beloauto` — it succeeded (HTTP 201): booking creation has no business-hours/closed-day check anywhere in its path (`booking-slot-conflict.service.ts` only checks resource-occupancy conflicts). Combined with Round 2's fix that `TimelineEmptyState` now mounts `NowMarker` regardless of `hasHours`, the skip's original premise no longer held — the test now works on every day of the week, so the `test.skip(...)` call (and the Sunday-specific date math backing it) was removed rather than kept "just in case."
 
 Files (round 4): `sonar-project.properties` (`sonar.test.exclusions`), `apps/web/e2e/schedule.spec.ts` (skip removed).
+
+**Round 5 — two more CI-only failures, both root-caused rather than patched around (2026-09-26):**
+
+1. **`scrollIntoView({ block: 'start' })` was a fragile edge case for Playwright's `toBeInViewport()`.** The marker is a zero-height `<div>`; `'start'` lands its top edge exactly on the viewport boundary, which the CI browser's intersection check intermittently reported as a 0 ratio (not "element not found" — this was a new, distinct failure mode from Round 3's). Fixed by switching to `block: 'center'`, which clears the boundary entirely and also better matches the "show context around now" intent than pinning to the very top.
+2. **The scroll-to-now E2E test's own fixture booking collided with other specs' fixtures on the same tenant.** The test created a real "today, 10:00" booking via a raw, single-shot `createScheduleBooking` call with no retry-on-conflict — but `lavacar-beloauto`'s single degenerate LOCATION resource has no per-time-of-day capacity (documented in `approve-booking.ts`'s `createFreshApprovedBooking`), and other specs (`my-account-bookings.spec.ts`, `my-account-detail-cancel.spec.ts`) already book `daysAhead: 0` ("today") on the same tenant using this codebase's established retry-across-candidate-slots pattern. Rather than adding a matching retry loop, the booking was removed entirely: `nowMarkerTopPx` is derived purely from business hours and wall-clock time, and `NowMarker` mounts unconditionally whenever it's defined — the test never needed a booking to exist at all. Verified locally (isolated test + full `schedule.spec.ts`, 18/18 passing) against the running dev stack before pushing.
+
+Files (round 5): `schedule-scroll-to-now.ts`/`.spec.ts` (`block: 'center'`), `apps/web/e2e/schedule.spec.ts` (booking fixture removed).
