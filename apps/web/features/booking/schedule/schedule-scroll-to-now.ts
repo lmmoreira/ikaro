@@ -66,7 +66,12 @@ export function useScrollToNowOnce(
     }
     scrolledForKeyRef.current = dateKey;
     scrolledNodeRef.current = node;
-    node.scrollIntoView({ block: 'start', behavior: 'auto' });
+    // block: 'center', not 'start' — the marker is a zero-height div; 'start' lands its edge
+    // exactly on the viewport boundary, a fragile geometric case for an intersection check
+    // (observed live: Playwright's toBeInViewport() intermittently reported a 0 ratio for an
+    // element sitting right at that edge). 'center' clears the boundary entirely and also better
+    // matches the "show context around now" intent than pinning it to the very top.
+    node.scrollIntoView({ block: 'center', behavior: 'auto' });
   });
 
   return markerRef;

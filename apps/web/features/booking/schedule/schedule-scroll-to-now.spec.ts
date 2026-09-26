@@ -65,7 +65,7 @@ describe('useScrollToNowOnce', () => {
     rerender({ enabled: true, dateKey: '2026-08-17' });
 
     expect(element.scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(element.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' });
+    expect(element.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'auto' });
   });
 
   it('does not re-fire on a subsequent render with the same dateKey (e.g. a data refetch)', () => {
