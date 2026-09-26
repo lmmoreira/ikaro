@@ -46,16 +46,15 @@ function renderBookingTimelineEvent(
   );
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
-  // A booking at the schedule's minimum granularity drops the time-range line in every board (its
-  // position in the grid already conveys the time now that item 1 restored a readable grid
-  // density). In compact mode specifically (Week view), it also drops the resource-summary line —
-  // Week view's own grid stays meaningfully denser than Day view even after re-tuning its scale, so
-  // a 2-line floor is what actually lets a 30-min block's rendered height approach its true slot
-  // height (see schedule-timeline-formatting.ts's content-aware floor this feeds). Desktop keeps
-  // the resource line unconditionally per the original design — its natural slot height already
-  // absorbs a 3-line floor reasonably.
+  // A booking at the schedule's minimum granularity drops only the time-range line, in every
+  // board — its position in the grid already conveys the time now that item 1 restored a readable
+  // grid density. The resource-summary line stays whenever the booking has an assigned resource,
+  // regardless of duration or board: Week view's own resource-filter feature (TD44 Story 1/2)
+  // depends on this line being visible to show which resource a booking matched, including for a
+  // minimum-granularity booking — the common case, since the default service duration usually
+  // equals the tenant's own slot granularity.
   const isMinimumGranularity = event.booking.totalDurationMins === props.slotGranularityMinutes;
-  const showResourceLine = event.resourceNames.length > 0 && !(compact && isMinimumGranularity);
+  const showResourceLine = event.resourceNames.length > 0;
   const showTimeRangeLine = !isMinimumGranularity;
   const extraLineCount = Number(showResourceLine) + Number(showTimeRangeLine);
   // Content-fit floor, decoupled from the grid's own coordinate unit (TD44 Story 4) — lets this

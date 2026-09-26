@@ -289,7 +289,7 @@ describe('renderTimelineEvent', () => {
     expect(screen.queryByText('09:00–09:30')).not.toBeInTheDocument();
   });
 
-  it('in Week view (compact), drops both the resource-summary and time-range lines at minimum granularity (TD44 Story 4)', () => {
+  it('in Week view (compact), a minimum-granularity booking with a resource drops only the time-range line, keeping the resource-summary line (TD44 Story 4 — Week view resource filtering depends on this staying visible)', () => {
     const event: TimelineEvent = {
       kind: 'booking',
       id: 'booking-1',
@@ -312,13 +312,12 @@ describe('renderTimelineEvent', () => {
     };
 
     renderWithIntl(<Host event={event} props={baseProps()} compact />);
-    expect(screen.queryByTestId('timeline-block-resource-summary')).not.toBeInTheDocument();
+    expect(screen.getByTestId('timeline-block-resource-summary')).toHaveTextContent(
+      'Camila Duarte',
+    );
     expect(screen.queryByText('09:00–09:30')).not.toBeInTheDocument();
-    // The full assigned-resource list still reaches assistive tech via the link's own accessible
-    // name, even though the visible summary line is suppressed in this compact case.
-    expect(screen.getByRole('link', { name: 'João Silva, Camila Duarte' })).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte' });
-    expect(link.style.minHeight).toBe('48px');
+    expect(link.style.minHeight).toBe('72px');
   });
 
   it('in Week view (compact), a longer booking with a resource keeps both footer lines (non-regression)', () => {
