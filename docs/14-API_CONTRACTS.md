@@ -784,10 +784,12 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 - `PATCH /bookings/:id/cancel` → (UC-007, UC-008) Cancel a booking. The BFF dispatches to a different backend route depending on the caller's role: `CUSTOMER` → `cancel-customer` (no body), `MANAGER`/`STAFF` → `cancel-admin` (body: `{ reason?: string }`). Returns `200 { bookingId, status: 'CANCELLED' }`.
 
 ### **Reschedule (UC-008, extended by M23 Cluster 3 UC-069)**
-- `PATCH /bookings/:id/reschedule`
-- **Body (UC-008, staff-only):** `{ "scheduledAt": "ISO8601", "adminNotes": "..." }`
-- **Body (UC-069, customer-initiated, M23 Cluster 3):** `{ "scheduledAt": "ISO8601", "resourceSelections": {...}, "durationMinutes": number }` — `resourceSelections`/`durationMinutes` only relevant for a bundle/leg/variable-duration service; validated and locked atomically before the original resource(s) are released.
-- **Validation:** New window must be free for every required resource. Returns `409 slot-unavailable` if not (UC-069 A1). A bundle/journey revalidates every resource/leg as one atomic change (UC-069 A2).
+- `PATCH /bookings/:id/reschedule` → Same customer/staff role-dispatch pattern as `PATCH /bookings/:id/cancel` above: the BFF dispatches to a different backend route depending on the caller's role: `CUSTOMER` → `reschedule-customer`, `MANAGER`/`STAFF` → `reschedule-admin`.
+- **Body (`reschedule-admin`, staff-initiated, UC-008 + UC-069 A3 override):** `{ "scheduledAt": "ISO8601", "adminNotes": "...", "resourceSelections": {...}, "durationMinutes": number }` — `resourceSelections`/`durationMinutes` optional, same shape/semantics as the customer body below; never subject to the reschedule-window eligibility check (A3).
+- **Body (`reschedule-customer`, M23 Cluster 3):** `{ "scheduledAt": "ISO8601", "resourceSelections": {...}, "durationMinutes": number }` — `resourceSelections`/`durationMinutes` only relevant for a bundle/leg/variable-duration service; validated and locked atomically before the original resource(s) are released. `resourceSelections`, when present, overrides the default replay of the booking's existing `CUSTOMER_CHOICE` picks (same precedence rule as `POST /bookings`, `docs/27-BUSINESS_LOGIC_REFERENCE.md`); omitted entries fall back to the existing pick. Subject to the reschedule-window eligibility check below.
+- **Validation:**
+  - New window must be free for every required resource. Returns `409 slot-unavailable` if not (UC-069 A1). A bundle/journey revalidates every resource/leg as one atomic change (UC-069 A2).
+  - `reschedule-customer` only: `422 reschedule-window-expired` if the booking is no longer within its effective `rescheduleWindowHoursOverride` (`Service.rescheduleWindowHoursOverride ?? tenant cancellationWindowHours default`, per `docs/02-DOMAIN_MODEL.md`).
 - **Response, M23 Cluster 3 addition:** if the reschedule changes the price (e.g. a variable-duration service), a `booking_quote_revisions` row is recorded and the response includes `{ "quoteRevision": { "revisionNo": number, "amount": {...} } }`.
 - **Event:** Publishes `BookingRescheduled` (extended scope, see `docs/03-DOMAIN_EVENTS.md`) → Notification sends customer email.
 

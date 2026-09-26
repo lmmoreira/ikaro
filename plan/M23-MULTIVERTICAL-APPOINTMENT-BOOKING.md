@@ -208,47 +208,77 @@ Two independently-triggerable, additive extensions of `POST /bookings`, bundled 
 ### M23-S03 — Reschedule extension: resource/bundle/leg-aware, quote revisions
 
 **Agent:** `backend-ts` + `bff-ts`
-**Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-069, `docs/14-API_CONTRACTS.md` § Reschedule (extended), `docs/13-DATABASE_SCHEMA.md` § `booking_quote_revisions`
+**Complexity:** M/L (raised from M during story-discovery, 2026-09-26 — see decisions below)
+**Docs to load:** `docs/04-USE_CASES.md` UC-069, `docs/14-API_CONTRACTS.md` § Reschedule (extended), § Cancel (UC-007/UC-008, for the role-dispatch precedent), `docs/13-DATABASE_SCHEMA.md` § `booking_quote_revisions`, `docs/03-DOMAIN_EVENTS.md` § BookingRescheduled/BookingCancelled, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § selectionMode resolution algorithm
 **Dependencies:** M21-S01, M22, M23-S01 (reuses its resource-resolution helpers — `resource-requirement-resolution.helpers.ts`'s `resolveRequirementResources()`, orchestrated via `resource-occupancy.helpers.ts` — to resolve the replacement resource(s)/window, doesn't duplicate resolution logic)
-**Pattern:** plain composition — extends the existing `RescheduleBookingUseCase`; no new pattern.
+**Pattern:** customer/admin actor split, mirroring `PATCH /bookings/:id/cancel`'s existing `cancel-customer`/`cancel-admin` BFF-role-dispatch precedent — **not** "plain composition" as originally scoped. Story-discovery (2026-09-26) found the existing `RescheduleBookingUseCase` is staff-only today (hardcoded `staffId`, `StaffOrManagerRoleGuard`), with no customer path at all; UC-069's actor is "Customer, or audited staff acting for the customer," the same actor shape Cancel already solved. Reuse that shape rather than inventing a new one.
 
-**Description:**
-Extend `RescheduleBookingUseCase` (`apps/backend/src/contexts/booking/application/use-cases/reschedule-booking.use-case.ts`) to accept the customer-initiated body shape (`resourceSelections`, `durationMinutes`) alongside the existing staff-only shape, lock the replacement resource(s)/span **before** releasing the original (never leaves a customer holding neither), re-run S01's resolver for the new window, and record a `booking_quote_revisions` row when the price changes (variable-duration reschedule). A bundle/leg reschedule re-validates the whole chain atomically (UC-069 A2); a staff-initiated override records reason+actor but never bypasses capacity/verification/exclusivity (UC-069 A3).
+**Design decisions locked in during discovery (2026-09-26):**
+- **Actor split:** new `RescheduleBookingAsCustomerUseCase` (+ dto + route `reschedule-customer`) for the customer path; the existing `RescheduleBookingUseCase` becomes the staff/admin path, exposed at `reschedule-admin` (renamed route, same class). BFF's single public `PATCH /bookings/:id/reschedule` dispatches by JWT role, exactly like `cancel`/`cancel-customer`/`cancel-admin`.
+- **Lock-then-release ordering fix:** `resource-occupancy-assignment.helpers.ts`'s `moveBookingLinesOccupancy()` currently does release-then-assign — the opposite of UC-069 A1's requirement, and a real latent race (a losing concurrent booking after `release()` but before the new `assign()` leaves the customer holding nothing). **Fix the shared helper itself** (reorder to lock/assign-then-release) — this also closes the identical latent race in `ApproveBookingUseCase`'s scheduledAt-override path, which calls the same helper. Both use cases' specs need a race-ordering test, not just the new customer path.
+- **Reschedule-window eligibility, implemented now:** add `Booking.isEligibleForReschedule(rescheduleWindowHours: number)` (mirrors the existing `isEligibleForCancellation()`), a new `RescheduleWindowExpiredError` (`BOOKING_RESCHEDULE_WINDOW_EXPIRED` in `packages/types/src/error-codes.ts`, mapped to `422` alongside `CancellationWindowExpiredError` in `booking-error.mapper.ts`), and both locale files. The effective window resolves `service.rescheduleWindowHoursOverride ?? tenant cancellationWindowHours default` from the `serviceMap` `RescheduleBookingUseCase` already loads — not the flat tenant-only value the existing Cancel flow uses (a known, separate, out-of-scope gap in Cancel — not fixed here). **Customer path only** — the admin path never runs this check (A3, mirrors the existing cancellation-window staff override).
+- **Full UC-069 scope, not time-only:** `durationMinutes` (customer body) re-quotes via M23-S02's `BookingQuoteService`, updating line durations/`totalDurationMins`/price before the `booking_quote_revisions` row is written. `resourceSelections` (customer body), when present, overrides the default `deriveResourceSelectionsFromAssignments()` replay for the matching `CUSTOMER_CHOICE` requirement — same `(serviceId, legIndex, resourceType)`-keyed precedence `POST /bookings` already uses (`docs/27-BUSINESS_LOGIC_REFERENCE.md`); an entry with no match is unused, never an error (same safety property that section documents). `AUTO_ANY`/`AUTO_FUNGIBLE_POOL` requirements always ignore any submitted entry and re-derive fresh, unchanged from today.
+- **`BookingRescheduledData` gains `isBusiness: boolean`**, mirroring `BookingCancelledData`'s existing `cancelledBy`/`isBusiness` shape (`docs/03-DOMAIN_EVENTS.md`, already updated) — `rescheduledBy` now holds either actor's id, no longer always a staff id.
+- **`docs/27-BUSINESS_LOGIC_REFERENCE.md`'s § selectionMode resolution algorithm** already documents the approve/reschedule replay mechanic (written ahead of this story, during M23-S01) — update its reschedule-related bullets once implemented to reflect the lock-then-release fix and the resourceSelections-override addition; don't leave it describing only the pre-S03 behavior.
 
-**Backend use case steps:**
-1. Resolve the replacement resource(s)/window via S01's resolution helpers (`resource-requirement-resolution.helpers.ts`, orchestrated via `resource-occupancy.helpers.ts`; reuse, don't duplicate).
-2. Lock replacement inside the same transaction that releases the original `resource_occupancy` row(s) — lock-then-release ordering, not release-then-lock, so a losing race never leaves the customer with nothing (UC-069 A1: on failure, original remains fully intact).
-3. If price changed (variable-duration or leg composition changed): insert a `booking_quote_revisions` row (`revision_no` = next for this `booking_id`), include it in the response.
-4. Publish `BookingRescheduled` with the extended scope already documented in `docs/03-DOMAIN_EVENTS.md`.
+**Backend use case steps (customer path, `RescheduleBookingAsCustomerUseCase`):**
+1. Load booking + ownership check (`booking.customerId !== customerId` → `BookingForbiddenError`, mirrors `CancelBookingAsCustomerUseCase`).
+2. Check `booking.isEligibleForReschedule(effectiveRescheduleWindowHours)` → `422 RescheduleWindowExpiredError` if not.
+3. If `durationMinutes` present: re-quote via `BookingQuoteService`, update line durations/price.
+4. Resolve the replacement resource(s)/window via S01's resolution helpers, merging any body `resourceSelections` over the default replay (see decisions above).
+5. Inside `txManager.run()`: lock replacement resource(s) via `assertSlotFree()` + assign, **then** release the original `resource_occupancy` row(s) — lock-then-release ordering (UC-069 A1).
+6. If price changed: insert a `booking_quote_revisions` row (`revision_no` = next for this `booking_id`), include it in the response.
+7. `booking.reschedule(customerId, newScheduledAt, correlationId, undefined, isBusiness: false)`; publish `BookingRescheduled`.
 
-**Backend HTTP surface:** existing `PATCH /bookings/:id/reschedule` — body gains `resourceSelections`/`durationMinutes` for the customer-initiated case.
+**Backend use case steps (admin path, existing `RescheduleBookingUseCase`, renamed route only):** same resource-resolution/lock-then-release/quote-revision steps as above, minus the eligibility check (A3), actor is `staffId`, `isBusiness: true`, `adminNotes` optional.
 
-**BFF endpoint spec:** extend `apps/bff/src/features/booking/bookings.controller.ts`'s reschedule route + `bookings.schemas.ts` for the new optional fields + response shape (`quoteRevision`).
+A bundle/leg reschedule re-validates the whole chain atomically on both paths (UC-069 A2) — this already works today via the existing `assertSlotFree()`/`resolveBookingLinesResourceCandidates()` wiring, no new logic needed beyond the lock-then-release reorder.
+
+**Backend HTTP surface:** existing `PATCH /bookings/:id/reschedule` route splits into `PATCH /bookings/:id/reschedule-customer` (new) and `PATCH /bookings/:id/reschedule-admin` (renamed from `:id/reschedule`) on `booking-completion.controller.ts`, mirroring `:id/cancel-customer`/`:id/cancel-admin` on the same controller.
+
+**BFF endpoint spec:** `apps/bff/src/features/booking/bookings.controller.ts`'s single `PATCH /bookings/:id/reschedule` route dispatches to `reschedule-customer`/`reschedule-admin` by JWT role (mirrors its existing cancel dispatch); `bookings.schemas.ts` gains the customer body schema (`resourceSelections`/`durationMinutes`/`scheduledAt`) alongside the existing admin one, plus the `quoteRevision` response field.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking.use-case.ts` (+ `.spec.ts`) (modify)
-- `apps/backend/src/contexts/booking/application/dtos/reschedule-booking.dto.ts` (modify)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-completion.controller.ts` (+ specs) (modify — hosts the real `:id/reschedule` route per its own header comment, not a `bookings.controller.ts`)
+- `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking-as-customer.use-case.ts` (+ `.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/application/dtos/reschedule-booking-as-customer.dto.ts` (new)
+- `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking.use-case.ts` (+ `.spec.ts`) (modify — admin path: lock-then-release, resourceSelections/durationMinutes support, `isBusiness: true`)
+- `apps/backend/src/contexts/booking/application/dtos/reschedule-booking.dto.ts` (modify — gains optional `resourceSelections`/`durationMinutes`)
+- `apps/backend/src/contexts/booking/application/use-cases/resource-occupancy-assignment.helpers.ts` (+ `.spec.ts`) (modify — `moveBookingLinesOccupancy()` lock-then-release reorder)
+- `apps/backend/src/contexts/booking/application/use-cases/approve-booking.use-case.spec.ts` (modify — new race-ordering test for the shared helper fix)
+- `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ `.spec.ts`) (modify — `isEligibleForReschedule()`, duration/price update on reschedule, `isBusiness` param)
+- `apps/backend/src/contexts/booking/domain/events/booking-rescheduled.event.ts` (modify — `isBusiness: boolean`)
+- `apps/backend/src/contexts/booking/domain/errors/booking-lifecycle.error.ts` (+ `.spec.ts`) (modify — new `RescheduleWindowExpiredError`)
+- `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (modify — map `RescheduleWindowExpiredError` to `422`)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-completion.controller.ts` (+ specs) (modify — `:id/reschedule-customer` new route, `:id/reschedule` renamed to `:id/reschedule-admin`)
 - `apps/backend/src/contexts/booking/infrastructure/entities/booking-quote-revision.entity.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-booking-quote-revision.repository.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/ports/booking-quote-revision-repository.port.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-CreateBookingQuoteRevisions.ts` (new — per `docs/13-DATABASE_SCHEMA.md`'s source-exclusive CHECK; `class_session_booking_id` FK stays unreachable until M24)
-- `apps/bff/src/features/booking/bookings.controller.ts` (+ specs), `bookings.schemas.ts` (modify)
-- `apps/backend/http/booking/bookings.http` (modify)
+- `apps/backend/src/test/infrastructure/integration-global-setup.ts` (modify — register `BookingQuoteRevisionEntity`)
+- `apps/backend/src/test/builders/booking/` — new `booking-quote-revision.builder.ts` (+ entity builder), following existing per-aggregate builder conventions
+- `packages/types/src/error-codes.ts` (modify — `RESCHEDULE_WINDOW_EXPIRED: 'BOOKING_RESCHEDULE_WINDOW_EXPIRED'`)
+- `packages/i18n/locales/{pt-BR,en}/errors.json` (modify — new error code entry, both locales, same commit)
+- `apps/bff/src/features/booking/bookings.controller.ts` (+ specs), `bookings.schemas.ts` (modify — role dispatch, new customer schema, `quoteRevision` response field)
+- `apps/backend/http/booking/bookings.http` (modify — customer + admin reschedule examples, including the new `422 reschedule-window-expired` case)
+- `docs/27-BUSINESS_LOGIC_REFERENCE.md` § selectionMode resolution algorithm (modify — reflect lock-then-release fix + resourceSelections-override, per decisions above)
 
 **Acceptance criteria — product:**
 - [ ] Customer rescheduling a resource-scoped/bundle/leg/variable-duration booking sees the recomputed quote before confirming.
 - [ ] A failed reschedule (replacement unavailable) leaves the original booking fully intact — customer never loses their slot.
-- [ ] Staff override reschedule records actor+reason without bypassing any capacity/exclusivity check.
+- [ ] A customer reschedule request outside the effective reschedule window is rejected with a clear error; the original booking is untouched.
+- [ ] Staff override reschedule records actor+reason without bypassing any capacity/exclusivity check, and is never subject to the reschedule-window check.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] Reschedule rejects with `409` when replacement is unavailable, original booking state unchanged
+  - [ ] Customer reschedule rejects with `422 reschedule-window-expired` when outside `service.rescheduleWindowHoursOverride ?? tenant default`; admin reschedule never runs this check
   - [ ] `booking_quote_revisions.revision_no` increments correctly per booking
+  - [ ] A body-supplied `resourceSelections` entry overrides the replayed pick for its matching `CUSTOMER_CHOICE` requirement; an unmatched entry is ignored, not an error
+  - [ ] `durationMinutes` on a variable-duration reschedule re-quotes via `BookingQuoteService` and updates line durations/`totalDurationMins`
+  - [ ] `BookingForbiddenError` when a customer reschedules a booking they don't own
 - Integration:
   - [ ] Reschedule of a bundle/leg booking is atomic — a mid-chain conflict rolls back the whole attempt
-  - [ ] Lock-then-release ordering verified: a losing concurrent reschedule never leaves the original resource unlocked
+  - [ ] Lock-then-release ordering verified for **both** `RescheduleBookingAsCustomerUseCase`/`RescheduleBookingUseCase` and `ApproveBookingUseCase`'s scheduledAt-override path (shared helper fix) — a losing concurrent reschedule/approval-override never leaves the original resource unlocked
 - Tenant isolation: n/a beyond existing booking tenant scoping
 - E2E: none — covered by S11/S12
 - [ ] Coverage ≥80% on changed code

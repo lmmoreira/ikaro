@@ -1132,18 +1132,18 @@ Returns:
 ### **UC-069: Customer Reschedules an Appointment or Reservation**
 
 - **Actor:** Customer, or audited staff acting for the customer
-- **Endpoint:** `PATCH /bookings/:id/reschedule` (existing UC-008 endpoint, extended — see `docs/14-API_CONTRACTS.md`)
-- **Preconditions:** Booking is eligible under its snapshotted per-service reschedule policy (`rescheduleWindowHoursOverride`, UC-055).
+- **Endpoint:** `PATCH /bookings/:id/reschedule` (existing UC-008 endpoint, extended — see `docs/14-API_CONTRACTS.md`). Same customer/staff role-dispatch pattern as UC-007/UC-008's `PATCH /bookings/:id/cancel`: the BFF forwards to the backend's `reschedule-customer` route for a `CUSTOMER`-role JWT, `reschedule-admin` for `STAFF`/`MANAGER` — two backend use cases, one public path.
+- **Preconditions:** Booking is eligible under its snapshotted-effective per-service reschedule policy (`rescheduleWindowHoursOverride ?? tenant default`, UC-055) — customer path only; a staff override (A3) bypasses this check by design, the same way staff already bypasses the cancellation window.
 - **Trigger:** Customer chooses "Reagendar" on an eligible future appointment/reservation.
 - **Main Flow:**
-  1. System validates and locks the replacement resource/span before releasing the original one.
-  2. System recalculates and displays the new quote.
+  1. System validates and locks the replacement resource/span **before** releasing the original one (lock-then-release ordering — a losing race must never leave the booking holding neither).
+  2. System recalculates and displays the new quote — a body-supplied `resourceSelections` entry overrides the default replay of the booking's existing `CUSTOMER_CHOICE` picks (same precedence as `POST /bookings`); a body-supplied `durationMinutes` re-quotes via the same duration/pricing engine as UC-067.
   3. System records an append-only `booking_quote_revisions` row and a link to the prior arrangement.
   4. System notifies the customer after commit (`BookingRescheduled`, extended scope — see `docs/03-DOMAIN_EVENTS.md`).
 - **Alternative Flows:**
   - **A1: Replacement is no longer available** → Original remains intact; customer selects another option.
   - **A2: Bundle/journey** → Every resource/leg revalidated as one atomic change; no partial move possible.
-  - **A3: Staff policy override** → Staff records reason and actor, but never bypasses capacity, verification, or resource exclusivity.
+  - **A3: Staff policy override** → Staff records reason and actor, but never bypasses capacity, verification, or resource exclusivity, and never runs the reschedule-window eligibility check (staff acts outside that customer-facing guardrail, same as the existing cancellation-window override).
 - **Postconditions:** Customer never loses the original slot merely because a replacement submit races.
 - **Events Triggered:** `BookingRescheduled`.
 

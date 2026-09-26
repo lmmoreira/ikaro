@@ -258,7 +258,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     contactName:         string
     newSlot:           { startTime: ISO8601, endTime: ISO8601 }   // new [scheduledAt, scheduledAt + totalDurationMins)
     previousSlot:      { startTime: ISO8601, endTime: ISO8601 }   // old slot (for the email)
-    rescheduledBy:     string    // staff id
+    rescheduledBy:     string    // staff id (admin path) or customer id (self-service path, M23 Cluster 3)
+    isBusiness:        boolean   // M23 Cluster 3 — true for a staff/manager-initiated reschedule, false for customer self-service; same convention as BookingCancelledData.isBusiness
     adminNotes:        string | null
     lineSummary: [
       {
@@ -276,7 +277,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 > Loyalty Context does NOT consume this event — loyalty is unaffected by rescheduling.
 
-> **Extended by M23 Cluster 3 (UC-069):** a customer-initiated reschedule (not just admin, UC-044) now goes through the same event — the trigger widens to include the customer's own "Reagendar" action, resource/bundle/leg re-validation is atomic before the original resource is released, and a `booking_quote_revisions` row is recorded when the reschedule changes the price (e.g. a variable-duration service). No new event type was introduced — this is a scope extension of the existing envelope, not a new candidate event.
+> **Extended by M23 Cluster 3 (UC-069):** a customer-initiated reschedule (not just admin, UC-044) now goes through the same event — the trigger widens to include the customer's own "Reagendar" action, resource/bundle/leg re-validation is atomic before the original resource is released (lock-then-release ordering — the replacement is locked before the original occupancy is released, so a losing race never leaves the customer with neither), and a `booking_quote_revisions` row is recorded when the reschedule changes the price (e.g. a variable-duration service). No new event type was introduced — this is a scope extension of the existing envelope, not a new candidate event. **Actor split (story-discovery, M23-S03, 2026-09-26):** mirrors `BookingCancelled`'s existing `cancelledBy`/`isBusiness` shape — `RescheduleBookingAsCustomerUseCase` (new) handles the customer path, the existing staff/admin use case handles the other; the BFF's single `PATCH /bookings/:id/reschedule` route dispatches to the backend's `reschedule-customer`/`reschedule-admin` routes by JWT role, exactly like `PATCH /bookings/:id/cancel` already does for `cancel-customer`/`cancel-admin`.
 
 ---
 
