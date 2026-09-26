@@ -64,6 +64,46 @@ export class BookingLegUnavailableError extends BookingDomainError {
   }
 }
 
+// UC-067 — a CUSTOMER_SELECTED service booked with no durationMinutes (no fallback to
+// Service.durationMinutes, locked at M23-S02 story-discovery) or one outside the service's
+// configured min/max/increment rules.
+export class BookingDurationOutOfRangeError extends BookingDomainError {
+  constructor(detail: string) {
+    super(detail, BookingErrorCode.DURATION_OUT_OF_RANGE, 'durationMinutes');
+    this.name = 'BookingDurationOutOfRangeError';
+  }
+}
+
+// UC-068 A3 — a required intake question or the consent checkbox was left unanswered. Follows
+// CompleteBookingLinesIncompleteError's precedent of joining every missing item into one message
+// rather than a per-field `field` pointer, since more than one can be missing at once. Also
+// reused (with a single-entry array) for an `intakeSchemaVersion` that doesn't match any
+// version ever published for the service — an adversarial-only edge case with no dedicated
+// error code of its own (M23-S02 story-discovery).
+export class BookingIntakeAnswerMissingError extends BookingDomainError {
+  constructor(missingFieldKeys: string[]) {
+    super(
+      `Missing required intake answer(s): ${missingFieldKeys.join(', ')}`,
+      BookingErrorCode.INTAKE_ANSWER_MISSING,
+    );
+    this.name = 'BookingIntakeAnswerMissingError';
+  }
+}
+
+// UC-067 A4 / UC-068 A4 — a request's basket (serviceIds) names more than one service that is
+// durationPolicy=CUSTOMER_SELECTED and/or intake-bearing. Locked at M23-S02 story-discovery:
+// arbitrary customer-built carts combining multiple variable-duration/intake services are out of
+// scope; multi-service bookings remain business-configured bundles/journeys.
+export class BookingInvalidMultipleVariableServicesError extends BookingDomainError {
+  constructor() {
+    super(
+      'A booking request may include at most one variable-duration or intake-bearing service',
+      BookingErrorCode.INVALID_MULTIPLE_VARIABLE_SERVICES,
+    );
+    this.name = 'BookingInvalidMultipleVariableServicesError';
+  }
+}
+
 export class BookingConcurrentModificationError extends BookingDomainError {
   constructor() {
     super(

@@ -171,6 +171,12 @@ export interface ServiceIntakeSchemaResponse {
   history: ServiceIntakeSchemaVersion[];
 }
 
+// UC-068 step 1 (M23-S02) — the customer/guest-facing GET .../intake-schema/public response:
+// active version only, never history (a customer has no reason to see prior form versions).
+export interface PublicServiceIntakeSchemaResponse {
+  active: ServiceIntakeSchemaVersion | null;
+}
+
 // GET /services/:id/edit-view — the Serviços edit page's composite read (M22-S04): the service plus
 // its intake schema in one BFF response, so `apps/web` never fans out and merges two endpoints
 // itself (docs/24-BFF_ARCHITECTURE.md § composite views belong in the BFF).

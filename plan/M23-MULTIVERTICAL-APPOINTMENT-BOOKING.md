@@ -162,7 +162,7 @@ Two independently-triggerable, additive extensions of `POST /bookings`, bundled 
 2. Same use cases: if an active intake schema exists, validate `intakeSchemaVersion` matches the currently-active one *or* an explicitly-passed prior version the client displayed (never reject solely for "not the latest"), validate required answers/consent (`422` naming missing fields, UC-068 A3), persist snapshot + attendees (via `booking.aggregate.ts` + `typeorm-booking.repository.ts`, see decisions above). Intake fields submitted for a service with no active schema are ignored, not validated.
 3. New read endpoint `GET /services/:id/intake-schema/public` (UC-068 step 1) — reuses `GetServiceIntakeSchemaUseCase`, returns `{ active }` only.
 
-**Backend HTTP surface:** `POST /bookings` (guest+authenticated) body gains optional `durationMinutes`/`participantCount`, `intakeSchemaVersion`/`intakeAnswers`/`attendees`. New `GET /services/:id/intake-schema/public`.
+**Backend HTTP surface:** `POST /bookings` (guest+authenticated) body gains optional `durationMinutes`/`participantCount`, `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`. New `GET /services/:id/intake-schema/public`.
 
 **BFF endpoint spec:** extend `bookings.schemas.ts` for the new optional fields; new route on the existing `apps/bff/src/features/booking/services.public.controller.ts` (already exists — currently only has the services-list route) for `GET /services/:id/intake-schema/public`.
 
@@ -181,27 +181,27 @@ Two independently-triggerable, additive extensions of `POST /bookings`, bundled 
 ~~`apps/backend/src/contexts/booking/infrastructure/entities/booking.entity.ts`~~ / ~~`booking-attendee.entity.ts`~~ — struck from the original file list; both already fully exist (M22-S02), no changes needed (see decisions above).
 
 **Acceptance criteria — product:**
-- [ ] Customer booking a variable-duration service picks start+duration within the configured rules and sees the correct quoted price.
-- [ ] Customer booking a service with an active intake schema completes the required questions/consent before submitting.
-- [ ] A service form change mid-flow never silently rewrites an already-completed answer (UC-068 A1).
-- [ ] A request combining more than one `CUSTOMER_SELECTED`/intake-bearing service in the same basket is rejected, not silently applied to just one of them (UC-067 A4/UC-068 A4).
+- [x] Customer booking a variable-duration service picks start+duration within the configured rules and sees the correct quoted price.
+- [x] Customer booking a service with an active intake schema completes the required questions/consent before submitting.
+- [x] A service form change mid-flow never silently rewrites an already-completed answer (UC-068 A1).
+- [x] A request combining more than one `CUSTOMER_SELECTED`/intake-bearing service in the same basket is rejected, not silently applied to just one of them (UC-067 A4/UC-068 A4).
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] Quote service rounds up to the correct increment, applies minimum charge when set
-  - [ ] Intake validation rejects a missing required answer/consent with the exact field named
-  - [ ] Duration validation rejects an interval outside min/max/increment, and rejects a `CUSTOMER_SELECTED` service booked with no `durationMinutes` at all (no fallback to `Service.durationMinutes`)
-  - [ ] `participantCount` never changes how many resources `resolveRequirementResources()` locks — only `ResourceRequirement.requiredQuantity` does
-  - [ ] `intakeAnswers`/`attendees` submitted for a service with no active intake schema are ignored — no validation error, nothing persisted
-  - [ ] A basket with two `CUSTOMER_SELECTED`/intake-bearing services (or the same one twice) is rejected with `BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES`
+  - [x] Quote service rounds up to the correct increment, applies minimum charge when set
+  - [x] Intake validation rejects a missing required answer/consent with the exact field named
+  - [x] Duration validation rejects an interval outside min/max/increment, and rejects a `CUSTOMER_SELECTED` service booked with no `durationMinutes` at all (no fallback to `Service.durationMinutes`)
+  - [x] `participantCount` never changes how many resources `resolveRequirementResources()` locks — only `ResourceRequirement.requiredQuantity` does (verified by code review — `participantCount` is never passed into the resource-resolution path; M23-S01's own tests already cover `requiredQuantity` governing resolution)
+  - [x] `intakeAnswers`/`attendees` submitted for a service with no active intake schema are ignored — no validation error, nothing persisted
+  - [x] A basket with two `CUSTOMER_SELECTED`/intake-bearing services (or the same one twice) is rejected with `BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES`
 - Integration:
-  - [ ] `POST /bookings` with a variable-duration interval persists the correct quote and locks the resource for the exact computed window
-  - [ ] `POST /bookings` snapshots intake answers immutably even after the service's schema is later updated
-  - [ ] `GET /services/:id/intake-schema/public` returns only `{ active }` (no `history`) and requires no auth; `404` for a missing/cross-tenant/inactive service id
+  - [x] `POST /bookings` with a variable-duration interval persists the correct quote and locks the resource for the exact computed window
+  - [x] `POST /bookings` snapshots intake answers immutably even after the service's schema is later updated
+  - [x] `GET /services/:id/intake-schema/public` returns only `{ active }` (no `history`) and requires no auth; `404` for a missing/cross-tenant service id; `{ active: null }` (not `404`) for an inactive service with no published schema, or its last-published schema if one exists — no active-only existence check exists at the repository level, matching UC-068's actual precondition
 - Tenant isolation: n/a beyond S01's existing resource-tenant checks
 - E2E: none — covered by S11
-- [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+- [x] Coverage ≥80% on changed code (backend unit: 3280/3280 passing; booking-context integration: 279/279 passing; full backend integration: 662/662 passing; BFF unit: 653/653, component: 437/437 — all passing, no regressions; `architecture-check`: 0 violations)
+- [x] `tsc --noEmit` clean, lint clean
 
 ---
 

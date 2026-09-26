@@ -30,35 +30,29 @@ import {
   BookingNotFoundError,
 } from '../../domain/errors/booking-domain.error';
 import { Booking } from '../../domain/booking.aggregate';
+import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
-import { toDomain, toEntity, toLineEntity, toUpdateSet } from './typeorm-booking.mapper';
+import { toAttendeeEntity, toDomain, toEntity, toUpdateSet } from './typeorm-booking.mapper';
 import {
   groupResourceAssignmentsByBookingId,
   ResourceAssignmentRow,
 } from './typeorm-booking-resource-assignments.helpers';
+import { syncBookingLines } from './typeorm-booking-line-sync.helpers';
 
 const EMPTY_RESOURCE_ASSIGNMENTS: ReadonlyMap<string, readonly BookingResourceAssignmentSummary[]> =
   new Map();
 
 @Injectable()
 export class TypeOrmBookingRepository implements IBookingRepository {
-  private static readonly PERSISTED_LINE_FIELDS: (keyof BookingLineEntity)[] = [
-    'serviceId',
-    'serviceNameAtBooking',
-    'priceAtBookingAmount',
-    'durationMinsAtBooking',
-    'pointsValueAtBooking',
-    'requiresPickupAddressAtBooking',
-    'actualPriceChargedAmount',
-  ];
-
   constructor(
     @InjectRepository(BookingEntity)
     private readonly repo: Repository<BookingEntity>,
     @InjectRepository(BookingLineEntity)
     private readonly lineRepo: Repository<BookingLineEntity>,
+    @InjectRepository(BookingAttendeeEntity)
+    private readonly attendeeRepo: Repository<BookingAttendeeEntity>,
     @InjectRepository(BookingLineResourceAssignmentEntity)
     private readonly resourceAssignmentRepo: Repository<BookingLineResourceAssignmentEntity>,
     @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
@@ -69,8 +63,9 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     if (!entity) return null;
     const lineEntities = await this.lineRepo.find({ where: { bookingId: id, tenantId } });
+    const attendeeEntities = await this.attendeeRepo.find({ where: { bookingId: id, tenantId } });
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
-    return toDomain(entity, lineEntities, currency);
+    return toDomain(entity, lineEntities, attendeeEntities, currency);
   }
 
   async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
@@ -79,8 +74,11 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     if (!entities.length) return [];
 
     const linesByBookingId = await this.findLinesByBookingId(entities, tenantId);
+    const attendeesByBookingId = await this.findAttendeesByBookingId(entities, tenantId);
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
-    return entities.map((e) => toDomain(e, linesByBookingId.get(e.id) ?? [], currency));
+    return entities.map((e) =>
+      toDomain(e, linesByBookingId.get(e.id) ?? [], attendeesByBookingId.get(e.id) ?? [], currency),
+    );
   }
 
   async findAllByTenantPaginated(
@@ -99,13 +97,21 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     }
 
     const linesByBookingId = await this.findLinesByBookingId(entities, tenantId);
+    const attendeesByBookingId = await this.findAttendeesByBookingId(entities, tenantId);
     const resourceAssignmentsByBookingId = await this.findResourceAssignmentsByBookingId(
       entities,
       tenantId,
     );
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return {
-      items: entities.map((e) => toDomain(e, linesByBookingId.get(e.id) ?? [], currency)),
+      items: entities.map((e) =>
+        toDomain(
+          e,
+          linesByBookingId.get(e.id) ?? [],
+          attendeesByBookingId.get(e.id) ?? [],
+          currency,
+        ),
+      ),
       total,
       resourceAssignmentsByBookingId,
     };
@@ -149,6 +155,24 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       linesByBookingId.set(line.bookingId, list);
     }
     return linesByBookingId;
+  }
+
+  private async findAttendeesByBookingId(
+    entities: BookingEntity[],
+    tenantId: string,
+  ): Promise<Map<string, BookingAttendeeEntity[]>> {
+    const bookingIds = entities.map((e) => e.id);
+    const allAttendees = await this.attendeeRepo.find({
+      where: bookingIds.map((bookingId) => ({ bookingId, tenantId })),
+    });
+
+    const attendeesByBookingId = new Map<string, BookingAttendeeEntity[]>();
+    for (const attendee of allAttendees) {
+      const list = attendeesByBookingId.get(attendee.bookingId) ?? [];
+      list.push(attendee);
+      attendeesByBookingId.set(attendee.bookingId, list);
+    }
+    return attendeesByBookingId;
   }
 
   // One batched query for the whole page (mirrors findLinesByBookingId's own shape) — never one
@@ -215,6 +239,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       // as Record<string, unknown> (intakeAnswers, M22-S02), even though the runtime value is a
       // plain BookingEntity.
       await manager.insert(BookingEntity, bookingEntity as QueryDeepPartialEntity<BookingEntity>);
+      await this.insertAttendeesIfAny(manager, booking);
     } else {
       const currentVersion = booking.version;
       const result = await manager
@@ -239,48 +264,20 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     }
 
     if (booking.linesModified) {
-      await this.syncBookingLines(manager, booking);
+      await syncBookingLines(manager, booking);
     }
 
     await drainDomainEvents(booking, this.outboxPublisher);
     booking.markPersisted(nextVersion);
   }
 
-  private async syncBookingLines(manager: EntityManager, booking: Booking): Promise<void> {
-    const currentLineEntities = await manager.find(BookingLineEntity, {
-      where: { bookingId: booking.id, tenantId: booking.tenantId },
-    });
-    const currentByLineId = new Map(currentLineEntities.map((line) => [line.lineId, line]));
-
-    const nextLineEntities = booking.lines.map((line) =>
-      toLineEntity(line, booking.id, booking.tenantId),
+  // Attendees are immutable once a booking exists (UC-068 — no edit flow), unlike lines (synced
+  // above on every save) — insert-once, on the initial INSERT branch only, never re-synced.
+  private async insertAttendeesIfAny(manager: EntityManager, booking: Booking): Promise<void> {
+    if (!booking.attendees.length) return;
+    const attendeeEntities = booking.attendees.map((a) =>
+      toAttendeeEntity(a, booking.id, booking.tenantId),
     );
-    const nextLineIds = new Set(nextLineEntities.map((line) => line.lineId));
-
-    const lineIdsToDelete = currentLineEntities
-      .filter((line) => !nextLineIds.has(line.lineId))
-      .map((line) => line.lineId);
-    const lineEntitiesToSave = nextLineEntities.filter((line) => {
-      const current = currentByLineId.get(line.lineId);
-      return !current || !this.sameLinePersistenceState(current, line);
-    });
-
-    if (lineIdsToDelete.length) {
-      await manager.delete(BookingLineEntity, {
-        bookingId: booking.id,
-        tenantId: booking.tenantId,
-        lineId: In(lineIdsToDelete),
-      });
-    }
-
-    if (lineEntitiesToSave.length) {
-      await manager.save(BookingLineEntity, lineEntitiesToSave);
-    }
-  }
-
-  private sameLinePersistenceState(current: BookingLineEntity, next: BookingLineEntity): boolean {
-    return TypeOrmBookingRepository.PERSISTED_LINE_FIELDS.every(
-      (field) => current[field] === next[field],
-    );
+    await manager.insert(BookingAttendeeEntity, attendeeEntities);
   }
 }

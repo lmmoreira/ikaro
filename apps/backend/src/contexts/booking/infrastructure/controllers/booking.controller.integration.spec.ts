@@ -501,6 +501,146 @@ describe('BookingController (integration)', () => {
     });
   });
 
+  describe('POST /bookings — variable duration + intake (M23-S02)', () => {
+    let variableDurationServiceId: string;
+    let intakeServiceId: string;
+
+    async function createService(name: string): Promise<string> {
+      const { body } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          name,
+          description: 'Descrição',
+          priceAmount: 100,
+          durationMinutes: 30,
+          loyaltyPointsValue: 5,
+          requiresPickupAddress: false,
+        })
+        .expect(201);
+      return body.id as string;
+    }
+
+    beforeAll(async () => {
+      variableDurationServiceId = await createService('Sala Coworking');
+      await request(app.getHttpServer())
+        .patch(`/services/${variableDurationServiceId}/booking-policy`)
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 60,
+          pricePerIncrementAmount: 50,
+        })
+        .expect(200);
+
+      intakeServiceId = await createService('Sala com Formulário');
+      await request(app.getHttpServer())
+        .post(`/services/${intakeServiceId}/intake-schema`)
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          questions: [
+            { fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true },
+          ],
+          consentText: 'Aceito os termos',
+        })
+        .expect(201);
+    });
+
+    it('persists the customer-selected duration and computed quote, and locks the exact window', async () => {
+      const requestScheduledAt = `${futureDate(30)}T10:00:00.000Z`;
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: requestScheduledAt,
+          serviceIds: [variableDurationServiceId],
+          durationMinutes: 90,
+        })
+        .expect(201);
+
+      expect(body.lines[0].durationMinsAtBooking).toBe(90);
+      // 90 minutes / 60-minute pricing increment -> rounds up to 2 increments * 50 = 100
+      expect(body.lines[0].priceAtBooking.amount).toBe(100);
+      expect(body.totalDurationMins).toBe(90);
+    });
+
+    it('422s when durationMinutes is omitted for a CUSTOMER_SELECTED service', async () => {
+      await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(31)}T10:00:00.000Z`,
+          serviceIds: [variableDurationServiceId],
+        })
+        .expect(422);
+    });
+
+    it('snapshots intake answers immutably even after the service schema is later updated', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(32)}T10:00:00.000Z`,
+          serviceIds: [intakeServiceId],
+          intakeAnswers: { vehiclePlate: 'ABC1D23' },
+          consentAccepted: true,
+        })
+        .expect(201);
+
+      // Republish a new version — the already-submitted booking's snapshot must stay on v1.
+      await request(app.getHttpServer())
+        .post(`/services/${intakeServiceId}/intake-schema`)
+        .set(actorHeaders(tenantAId, ACTOR_ID))
+        .send({
+          questions: [
+            { fieldKey: 'differentField', label: 'Outro', type: 'FREE_TEXT', required: true },
+          ],
+          consentText: 'v2',
+        })
+        .expect(201);
+
+      const savedBooking = await ds
+        .getRepository(BookingEntity)
+        .findOneByOrFail({ id: created.bookingId as string });
+      expect(savedBooking.intakeSchemaVersion).toBe(1);
+      expect(savedBooking.intakeAnswers).toEqual({ vehiclePlate: 'ABC1D23' });
+    });
+
+    it('422s when a required intake answer is missing', async () => {
+      await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(33)}T10:00:00.000Z`,
+          serviceIds: [intakeServiceId],
+          intakeAnswers: {},
+          consentAccepted: true,
+        })
+        .expect(422);
+    });
+
+    it('422s when the basket includes two variable services', async () => {
+      await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(34)}T10:00:00.000Z`,
+          serviceIds: [variableDurationServiceId, intakeServiceId],
+          durationMinutes: 60,
+        })
+        .expect(422);
+    });
+  });
+
   describe('PATCH /bookings/:id/cancel-customer', () => {
     let cancelCustomerId: string;
 

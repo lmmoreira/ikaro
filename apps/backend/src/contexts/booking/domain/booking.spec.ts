@@ -147,6 +147,39 @@ describe('Booking.requestBooking()', () => {
     expect(booking.id).toEqual(expect.any(String));
     expect(booking.id).not.toBe('');
   });
+
+  it('defaults participantCount/intake/attendees to null/empty when not provided (M23-S02)', () => {
+    const booking = request({});
+    expect(booking.participantCount).toBeNull();
+    expect(booking.intake).toBeNull();
+    expect(booking.attendees).toEqual([]);
+  });
+
+  it('stores participantCount, the intake snapshot, and named attendees when provided (UC-067/068)', () => {
+    const consentAcceptedAt = new Date();
+    const booking = request({
+      participantCount: 3,
+      intake: {
+        intakeSchemaVersion: 2,
+        intakeAnswers: { vehiclePlate: 'ABC1D23' },
+        consentAcceptedAt,
+        consentVersion: 2,
+      },
+      attendeeInputs: [{ name: 'Maria Silva', isMinor: true }],
+    });
+
+    expect(booking.participantCount).toBe(3);
+    expect(booking.intake).toEqual({
+      intakeSchemaVersion: 2,
+      intakeAnswers: { vehiclePlate: 'ABC1D23' },
+      consentAcceptedAt,
+      consentVersion: 2,
+    });
+    expect(booking.attendees).toHaveLength(1);
+    expect(booking.attendees[0].name).toBe('Maria Silva');
+    expect(booking.attendees[0].isMinor).toBe(true);
+    expect(booking.attendees[0].customerId).toBeNull();
+  });
 });
 
 describe('Booking.approve()', () => {

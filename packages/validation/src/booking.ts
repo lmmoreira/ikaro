@@ -122,6 +122,19 @@ export const ResourceSelectionSchema = z.object({
   resourceId: z.uuid(),
 });
 
+// M23-S02 (UC-067/068) — shared by the backend DTOs and the BFF's identical bookings.schemas.ts
+// shape (same direct-reuse pattern as ResourceSelectionSchema above). At most one service in a
+// request's basket may be CUSTOMER_SELECTED/intake-bearing (enforced at the use-case level, not
+// here — it depends on which Service each field's owning line resolves to).
+// intakeAnswers keys are ServiceIntakeQuestion.fieldKey; values are free text or a yes/no answer,
+// matching ServiceIntakeQuestionType ('FREE_TEXT' | 'BOOLEAN').
+export const BookingIntakeAnswersSchema = z.record(z.string(), z.union([z.string(), z.boolean()]));
+
+export const BookingAttendeeInputSchema = z.object({
+  name: z.string().min(1).max(255),
+  isMinor: z.boolean().optional(),
+});
+
 export const ClassResourceSlotSchema = z.object({
   type: ResourceTypeSchema,
   // .min(1) — unlike ResourceRequirement's nullable resourcePoolIds (null = unrestricted, a

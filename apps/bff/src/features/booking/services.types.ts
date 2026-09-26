@@ -110,3 +110,11 @@ export interface GetServiceIntakeSchemaResult {
   active: ServiceIntakeSchemaVersionDetail | null;
   history: ServiceIntakeSchemaVersionDetail[];
 }
+
+// UC-068 step 1 (M23-S02) — the public backend endpoint's own response shape, `active` only, no
+// `history` key at all (never Pick<GetServiceIntakeSchemaResult, 'active'> — that would still
+// type-check a raw HTTP response that's missing `history` entirely, which is exactly the bug
+// toPublicServiceIntakeSchemaResponse's own comment in services.mapper.ts exists to avoid).
+export interface GetPublicServiceIntakeSchemaResult {
+  active: ServiceIntakeSchemaVersionDetail | null;
+}

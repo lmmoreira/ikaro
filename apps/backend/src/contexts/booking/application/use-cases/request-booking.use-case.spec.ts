@@ -1,23 +1,30 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { InMemoryServiceIntakeSchemaRepository } from '../../../../test/repositories/booking/in-memory-service-intake-schema.repository';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceType } from '../../domain/resource.types';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookingQuoteService } from '../services/booking-quote.service';
+import { BookingIntakeValidationService } from '../services/booking-intake-validation.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ServiceBookingIntakeSchema } from '../../domain/service-booking-intake-schema';
 import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { AddressErrorCode } from '@ikaro/types';
 import {
   BookingAddressValidationError,
+  BookingDurationOutOfRangeError,
+  BookingIntakeAnswerMissingError,
+  BookingInvalidMultipleVariableServicesError,
   BookingPhotoNotUploadedError,
   BookingServiceConcurrentModificationError,
   BookingServiceSessionNotBookableError,
@@ -35,6 +42,7 @@ describe('RequestBookingUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
+  let intakeSchemaRepo: InMemoryServiceIntakeSchemaRepository;
   let bookingRepo: InMemoryBookingRepository;
   let eventBus: InMemoryEventBus;
   let storageService: InMemoryStorageService;
@@ -45,6 +53,7 @@ describe('RequestBookingUseCase', () => {
     serviceRepo = new InMemoryServiceRepository();
     resourceRepo = new InMemoryResourceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    intakeSchemaRepo = new InMemoryServiceIntakeSchemaRepository();
     eventBus = new InMemoryEventBus();
     bookingRepo = new InMemoryBookingRepository(eventBus);
     storageService = new InMemoryStorageService();
@@ -53,9 +62,12 @@ describe('RequestBookingUseCase', () => {
       serviceRepo,
       resourceRepo,
       occupancyRepo,
+      intakeSchemaRepo,
       new AvailabilityService(),
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
+      new BookingQuoteService(),
+      new BookingIntakeValidationService(intakeSchemaRepo),
       bookingRepo,
       txManager,
     );
@@ -329,6 +341,132 @@ describe('RequestBookingUseCase', () => {
       tenantId: TENANT_A,
       bookingId: result.bookingId,
       bookingType: 'GUEST',
+    });
+  });
+
+  describe('M23-S02 — variable duration + intake', () => {
+    async function saveVariableDurationService(): Promise<string> {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 60,
+          pricePerIncrementAmount: 50,
+          minimumChargeAmount: null,
+        })
+        .build();
+      await serviceRepo.save(service);
+      return service.id;
+    }
+
+    async function saveIntakeBearingService(): Promise<string> {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(service);
+      const schema = ServiceBookingIntakeSchema.publish({
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        previousVersion: 0,
+        questions: [
+          { fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true },
+        ],
+        consentText: 'Aceito os termos',
+        requiresNamedAttendees: false,
+        participantCountRequired: false,
+      });
+      await intakeSchemaRepo.publish(schema);
+      return service.id;
+    }
+
+    it('persists the customer-selected duration and computed quote on the line', async () => {
+      const variableServiceId = await saveVariableDurationService();
+
+      const result = await useCase.execute({
+        ...baseInput(),
+        serviceIds: [variableServiceId],
+        durationMinutes: 90,
+      });
+
+      expect(result.lines[0].durationMinsAtBooking).toBe(90);
+      // 90 minutes / 60-minute pricing increment -> rounds up to 2 increments * 50 = 100
+      expect(result.lines[0].priceAtBooking.amount).toBe(100);
+    });
+
+    it('throws BookingDurationOutOfRangeError when durationMinutes is omitted for a CUSTOMER_SELECTED service', async () => {
+      const variableServiceId = await saveVariableDurationService();
+
+      await expect(
+        useCase.execute({ ...baseInput(), serviceIds: [variableServiceId] }),
+      ).rejects.toBeInstanceOf(BookingDurationOutOfRangeError);
+    });
+
+    it('snapshots intake answers, consent, and version on the booking', async () => {
+      const intakeServiceId = await saveIntakeBearingService();
+
+      const result = await useCase.execute({
+        ...baseInput(),
+        serviceIds: [intakeServiceId],
+        intakeAnswers: { vehiclePlate: 'ABC1D23' },
+        consentAccepted: true,
+      });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.intake).toEqual({
+        intakeSchemaVersion: 1,
+        intakeAnswers: { vehiclePlate: 'ABC1D23' },
+        consentAcceptedAt: expect.any(Date),
+        consentVersion: 1,
+      });
+    });
+
+    it('throws BookingIntakeAnswerMissingError when a required intake answer is missing', async () => {
+      const intakeServiceId = await saveIntakeBearingService();
+
+      await expect(
+        useCase.execute({
+          ...baseInput(),
+          serviceIds: [intakeServiceId],
+          intakeAnswers: {},
+          consentAccepted: true,
+        }),
+      ).rejects.toBeInstanceOf(BookingIntakeAnswerMissingError);
+    });
+
+    it('ignores intakeAnswers/attendees submitted for a service with no active intake schema', async () => {
+      const result = await useCase.execute({
+        ...baseInput(),
+        intakeAnswers: { anything: 'x' },
+        consentAccepted: true,
+      });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.intake).toBeNull();
+    });
+
+    it('throws BookingInvalidMultipleVariableServicesError when the basket has two variable services', async () => {
+      const variableServiceId = await saveVariableDurationService();
+      const intakeServiceId = await saveIntakeBearingService();
+
+      await expect(
+        useCase.execute({
+          ...baseInput(),
+          serviceIds: [variableServiceId, intakeServiceId],
+          durationMinutes: 60,
+        }),
+      ).rejects.toBeInstanceOf(BookingInvalidMultipleVariableServicesError);
+    });
+
+    it('stores participantCount independently of ResourceRequirement.requiredQuantity', async () => {
+      const result = await useCase.execute({
+        ...baseInput(),
+        participantCount: 4,
+      });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.participantCount).toBe(4);
     });
   });
 });

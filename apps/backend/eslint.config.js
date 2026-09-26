@@ -117,6 +117,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/platform/infrastructure/migrations/1748500000004-CreateLeadFormSubmissionQuestionRefs.ts',
   'src/contexts/platform/infrastructure/migrations/1748500000005-AddVersionToLeadFormConfigs.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts',
+  'src/contexts/booking/infrastructure/repositories/typeorm-booking-line-sync.helpers.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-resource.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.write-queries.ts',

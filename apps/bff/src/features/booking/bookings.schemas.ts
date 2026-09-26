@@ -5,7 +5,13 @@ import {
   GenericErrorCode,
   PhoneErrorCode,
 } from '@ikaro/types';
-import { AddressShapeSchema, isValidPhoneNumber, ResourceSelectionSchema } from '@ikaro/validation';
+import {
+  AddressShapeSchema,
+  BookingAttendeeInputSchema,
+  BookingIntakeAnswersSchema,
+  isValidPhoneNumber,
+  ResourceSelectionSchema,
+} from '@ikaro/validation';
 
 // Split out of bookings.controller.ts to keep it under the file-length cap — request/query Zod
 // schemas and their inferred body types, re-exported from bookings.controller.ts so existing
@@ -33,6 +39,13 @@ export const RequestBookingBodySchema = z.object({
   beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
   // CUSTOMER_CHOICE picks (M23-S01, UC-061/064/065) — mirrors the backend's identical field.
   resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
+  // M23-S02 (UC-067/UC-068) — mirrors the backend's identical fields.
+  durationMinutes: z.number().int().positive().optional(),
+  participantCount: z.number().int().positive().optional(),
+  intakeSchemaVersion: z.number().int().positive().optional(),
+  intakeAnswers: BookingIntakeAnswersSchema.optional(),
+  consentAccepted: z.boolean().optional(),
+  attendees: z.array(BookingAttendeeInputSchema).max(50).optional(),
 });
 
 export const AuthenticatedBookingBodySchema = z.object({
@@ -42,6 +55,12 @@ export const AuthenticatedBookingBodySchema = z.object({
   notes: z.string().trim().min(1).max(1000).optional(),
   beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
   resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
+  durationMinutes: z.number().int().positive().optional(),
+  participantCount: z.number().int().positive().optional(),
+  intakeSchemaVersion: z.number().int().positive().optional(),
+  intakeAnswers: BookingIntakeAnswersSchema.optional(),
+  consentAccepted: z.boolean().optional(),
+  attendees: z.array(BookingAttendeeInputSchema).max(50).optional(),
 });
 
 export const RejectBookingBodySchema = z.object({

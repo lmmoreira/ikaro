@@ -489,8 +489,8 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```json
   { "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." } }
   ```
-  - `200` on success — `active: null` if no version has ever been published
-  - `404` if the service doesn't exist, belongs to another tenant, or is inactive
+  - `200` on success — `active: null` if no version has ever been published (including for an inactive service — `IServiceRepository` has no lightweight active-only existence check, and an inactive service can't be booked regardless via the existing `invalid-services-inactive` guard on `POST /bookings`, so this read intentionally doesn't add one)
+  - `404` if the service doesn't exist or belongs to another tenant
   - BFF: fronted by the existing `apps/bff/src/features/booking/services.public.controller.ts` (already exists — only had the services-list route before this story)
 
 - `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:
@@ -649,6 +649,7 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
     "participantCount":      2,
     "intakeSchemaVersion":   3,
     "intakeAnswers":         { "vehiclePlate": "ABC1D23" },
+    "consentAccepted":       true,
     "attendees": [
       { "name": "Maria Silva", "isMinor": false }
     ]
@@ -659,7 +660,7 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   - `beforeServicePhotoUrls` optional, defaults to `[]`.
   - `resourceSelections` optional (M23-S01, UC-061/064/065) — one entry per `CUSTOMER_CHOICE` resource requirement the customer picked, keyed by `(serviceId, legIndex, resourceType)`. `legIndex` is `null`/omitted for a flat (non-legged) requirement, set for a legged service's per-leg choice. Ignored for `AUTO_ANY`/`AUTO_FUNGIBLE_POOL`/`NONE` requirements — a service with no `resourceRequirements` (the pre-M22 default) needs no entries at all. **When `serviceIds` contains the same service more than once** (§ above, "duplicates are allowed"), submit that service's `resourceSelections` entries in the same relative order as its occurrences in `serviceIds` — the backend disambiguates duplicate-service lines by matching each occurrence to the next unconsumed entry for that `(serviceId, legIndex, resourceType)` key, not by any other identifier (booking line IDs don't exist yet at request time).
   - `durationMinutes`/`participantCount` (M23-S02, UC-067) — **required** when the request's basket includes a service with `durationPolicy = CUSTOMER_SELECTED`; ignored otherwise. `participantCount` is a capacity/attendee-count input only — it never overrides `ResourceRequirement.requiredQuantity`, which stays the service's static configured value.
-  - `intakeSchemaVersion`/`intakeAnswers`/`attendees` (M23-S02, UC-068) — required when the basket includes a service with an active `service_booking_intake_schema`; `intakeSchemaVersion` must be the currently-active version or an explicitly-displayed prior one (never rejected solely for "not the latest"). Submitted for a service with no active schema → silently ignored, not an error. `attendees` populated only when that schema's `requiresNamedAttendees = true`.
+  - `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees` (M23-S02, UC-068) — required when the basket includes a service with an active `service_booking_intake_schema`; `intakeSchemaVersion` must be the currently-active version or an explicitly-displayed prior one (never rejected solely for "not the latest"). `consentAccepted` must be `true` — `false`/omitted is `422 intake-answer-missing` naming `consentAccepted` (UC-068 A3). Submitted for a service with no active schema → silently ignored, not an error. `attendees` populated only when that schema's `requiresNamedAttendees = true`.
   - **At most one service in `serviceIds` may be `CUSTOMER_SELECTED` and/or intake-bearing per request** — a basket combining two such services (or the same one twice) is rejected with `422 invalid-multiple-variable-services` (UC-067 A4/UC-068 A4). A customer-built cart mixing multiple variable-duration/intake services in one submission is out of scope; multi-service bookings remain business-configured bundles/journeys.
 
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
@@ -677,8 +678,8 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   - `422 service-resource-type-unavailable` (M23-S01) — a `resourceSelections` entry names a resource that's inactive, the wrong type, outside the service's configured pool, or belongs to another tenant.
   - `409 bundle-partially-unavailable` (M23-S01, UC-064 A2) — a bundle requirement (`resourceRequirements.length >= 2` on one service) had a real submit-time conflict on one of its resources; the whole booking fails atomically.
   - `409 leg-unavailable` (M23-S01, UC-065 A1) — a legged service's chain had a real submit-time conflict on one leg's resource; the whole chain fails atomically.
-  - `422 booking-duration-out-of-range` (M23-S02, UC-067) — `durationMinutes` missing (for a `CUSTOMER_SELECTED` service), or outside the service's min/max/increment rules.
-  - `422 booking-intake-answer-missing` (M23-S02, UC-068 A3) — a required intake question or the consent checkbox was left unanswered; the response names the missing field(s).
+  - `422 duration-out-of-range` (M23-S02, UC-067) — `durationMinutes` missing (for a `CUSTOMER_SELECTED` service), or outside the service's min/max/increment rules.
+  - `422 intake-answer-missing` (M23-S02, UC-068 A3) — a required intake question or the consent checkbox was left unanswered; the response names the missing field(s).
   - `422 invalid-multiple-variable-services` (M23-S02, UC-067 A4/UC-068 A4) — more than one `CUSTOMER_SELECTED`/intake-bearing service in the same basket.
 
 #### **Authenticated Customer Booking (UC-002) — `POST /bookings/authenticated`**

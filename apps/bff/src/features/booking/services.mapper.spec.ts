@@ -1,5 +1,10 @@
-import { GetServiceIntakeSchemaResult, ServiceDetail } from './services.types';
 import {
+  GetPublicServiceIntakeSchemaResult,
+  GetServiceIntakeSchemaResult,
+  ServiceDetail,
+} from './services.types';
+import {
+  toPublicServiceIntakeSchemaResponse,
   toServiceIntakeSchemaResponse,
   toStaffServiceEditViewResponse,
   toStaffServiceListResponse,
@@ -195,6 +200,32 @@ describe('toServiceIntakeSchemaResponse()', () => {
     } as unknown as GetServiceIntakeSchemaResult;
 
     expect(toServiceIntakeSchemaResponse(withExtra).active).not.toHaveProperty('internalOnly');
+  });
+});
+
+describe('toPublicServiceIntakeSchemaResponse() (M23-S02, UC-068)', () => {
+  const version = (n: number) => ({
+    id: `schema-${n}`,
+    version: n,
+    questions: [
+      { fieldKey: 'allergy', label: 'Alergia?', type: 'BOOLEAN' as const, required: true },
+    ],
+    consentText: `v${n}`,
+    consentVersion: n,
+    requiresNamedAttendees: false,
+    participantCountRequired: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+
+  it('maps the active version only, with no history key at all', () => {
+    const result: GetPublicServiceIntakeSchemaResult = { active: version(1) };
+
+    expect(toPublicServiceIntakeSchemaResponse(result)).toEqual({ active: version(1) });
+    expect(toPublicServiceIntakeSchemaResponse(result)).not.toHaveProperty('history');
+  });
+
+  it('keeps active null for a service that never published', () => {
+    expect(toPublicServiceIntakeSchemaResponse({ active: null })).toEqual({ active: null });
   });
 });
 
