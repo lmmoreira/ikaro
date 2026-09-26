@@ -103,10 +103,19 @@ describe('ScheduleTimelineBoard', () => {
     expect(screen.getByText('João Silva')).toBeInTheDocument();
   });
 
-  it('suppresses the compact label column when hideLabelColumn is true, still rendering the grid (TD44 Story 3)', () => {
+  it('hides the compact label column only at the lg breakpoint (keeps it mounted for the stacked mobile layout, TD44 Story 3)', () => {
     renderWithIntl(<ScheduleTimelineBoard {...baseProps(OPEN_TIMELINE, true)} hideLabelColumn />);
-    expect(screen.queryByTestId('schedule-timeline-label-column')).not.toBeInTheDocument();
+    // Below `lg`, ScheduleWeekView's day-cards stack vertically — this card must still show its
+    // own labels there, so the element stays mounted with a responsive `lg:hidden` class rather
+    // than being removed from the DOM outright (jsdom doesn't evaluate the media query itself).
+    const labelColumn = screen.getByTestId('schedule-timeline-label-column');
+    expect(labelColumn).toHaveClass('lg:hidden');
     expect(screen.getByText('João Silva')).toBeInTheDocument();
+  });
+
+  it('never applies lg:hidden to the compact label column when hideLabelColumn is omitted (non-regression, TD44 Story 3)', () => {
+    renderWithIntl(<ScheduleTimelineBoard {...baseProps(OPEN_TIMELINE, true)} />);
+    expect(screen.getByTestId('schedule-timeline-label-column')).not.toHaveClass('lg:hidden');
   });
 
   it('renders the label column by default when hideLabelColumn is omitted (non-regression, TD44 Story 3)', () => {

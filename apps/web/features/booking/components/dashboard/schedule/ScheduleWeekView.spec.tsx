@@ -151,7 +151,12 @@ describe('ScheduleWeekView', () => {
   });
 
   describe('shared hour axis (TD44 Story 3)', () => {
-    it('renders one shared hour-label column for two day-cards on the same window, not one per card', () => {
+    // Every label column stays mounted regardless of sharing (so the stacked mobile layout below
+    // `lg` always has readable labels) — only the lg:hidden class marks a non-first shared member
+    // as suppressed at the side-by-side desktop breakpoint. jsdom doesn't evaluate media queries,
+    // so DOM presence alone can't distinguish shared-and-hidden from opted-out-and-visible; the
+    // class is the only observable signal here.
+    it('marks only the second of two day-cards on the same window as lg:hidden, keeping the first visible', () => {
       renderWithIntl(
         <ScheduleWeekView
           weekDayInfo={WEEK_DAY_INFO}
@@ -168,10 +173,12 @@ describe('ScheduleWeekView', () => {
         />,
       );
 
-      expect(screen.getAllByTestId('schedule-timeline-label-column')).toHaveLength(1);
+      const [first, second] = screen.getAllByTestId('schedule-timeline-label-column');
+      expect(first).not.toHaveClass('lg:hidden');
+      expect(second).toHaveClass('lg:hidden');
     });
 
-    it('keeps an independent hour-label column for a day-card overridden by an exceptional opening', () => {
+    it('never marks a day-card overridden by an exceptional opening as lg:hidden — it keeps its own independent ruler at every breakpoint', () => {
       renderWithIntl(
         <ScheduleWeekView
           weekDayInfo={WEEK_DAY_INFO}
@@ -195,9 +202,11 @@ describe('ScheduleWeekView', () => {
         />,
       );
 
-      // Both cards render their own ruler: the first is the (single-member) shared group, the
-      // second opted out via isOverriddenByOpening.
-      expect(screen.getAllByTestId('schedule-timeline-label-column')).toHaveLength(2);
+      // Both cards render their own visible ruler: the first is the (single-member) shared group,
+      // the second opted out via isOverriddenByOpening — neither is lg:hidden.
+      const [first, second] = screen.getAllByTestId('schedule-timeline-label-column');
+      expect(first).not.toHaveClass('lg:hidden');
+      expect(second).not.toHaveClass('lg:hidden');
     });
   });
 });

@@ -125,18 +125,22 @@ function TimelineCompactBoard({
     </div>
   );
 
-  // TD44 Story 3 — a non-first shared-axis member renders only the grid (already positioned
-  // against the caller-supplied shared range) with no label column of its own.
-  if (hideLabelColumn) {
-    return <div className="space-y-2">{grid}</div>;
-  }
-
+  // TD44 Story 3 — a non-first shared-axis member's label column is suppressed only at the `lg`
+  // breakpoint and up, where ScheduleWeekView's day-cards actually sit side by side (its own
+  // `grid lg:grid-cols-7` wrapper). Below `lg` those cards stack vertically instead — each one is
+  // its own full-width row with no adjacent card to read a shared ruler off, so every card must
+  // keep its own labels there regardless of hideLabelColumn.
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-0">
+      <div
+        className={cn(
+          'grid grid-cols-[3rem_minmax(0,1fr)] gap-0',
+          hideLabelColumn && 'lg:grid-cols-[minmax(0,1fr)]',
+        )}
+      >
         <div
           data-testid="schedule-timeline-label-column"
-          className="relative"
+          className={cn('relative', hideLabelColumn && 'lg:hidden')}
           style={{ height: `${timelineHeight}px` }}
         >
           {compactLabelIndexes.map((index) => (
