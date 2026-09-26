@@ -617,14 +617,15 @@ test.describe('schedule page coverage', () => {
     // UTC's calendar date is already a day ahead of São Paulo's) — CI hit exactly this window and
     // the fixture booking landed on a date the app itself doesn't consider "today," making the
     // marker assertions below meaningless. Compute "today" the same way the app does instead.
+    //
+    // No skip needed even if today lands on the tenant's closed weekday (Sunday): verified live
+    // against a running backend+BFF that booking creation has no business-hours/closed-day check
+    // at all (a POST for a closed Sunday returns 201, not a conflict), and the marker itself mounts
+    // in the closed-day empty state too (ScheduleTimelineBoard's TimelineEmptyState renders
+    // NowMarker regardless of hasHours) — so the assertions below hold on every day of the week.
     const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Sao_Paulo',
     }).format(new Date());
-    const tenantToday = new Date(`${tenantTodayKey}T12:00:00`);
-    test.skip(
-      tenantToday.getDay() === 0,
-      "today is the tenant's closed weekday (Sunday) in America/Sao_Paulo",
-    );
 
     await loginAsScheduleStaff(page);
 
