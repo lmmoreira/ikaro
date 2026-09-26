@@ -159,6 +159,7 @@ export function ScheduleResourceColumnsBoard(
                 column.timeline.timelineStartMinutes,
                 timelineProps.slotGranularityMinutes,
               )}
+              hideLabelColumn={!column.rendersOwnLabelColumn}
               {...timelineProps}
               nowMarkerRef={isFirstColumn && isToday ? nowMarkerRef : undefined}
               nowMarkerTopPx={

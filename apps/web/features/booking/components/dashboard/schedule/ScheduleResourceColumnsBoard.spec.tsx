@@ -147,4 +147,52 @@ describe('ScheduleResourceColumnsBoard', () => {
     renderWithIntl(<ScheduleResourceColumnsBoard {...baseProps()} />);
     expect(screen.queryByTestId('schedule-now-marker')).not.toBeInTheDocument();
   });
+
+  it('renders one shared hour-label column for two checked resources on regular hours, not one per column (TD44 Story 3)', () => {
+    useScheduleDayGridMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        date: '2026-08-17',
+        columns: [
+          { resourceId: 'res-camila', name: 'Camila Duarte', type: 'STAFF', blocks: [] },
+          { resourceId: 'res-bruno', name: 'Bruno Alves', type: 'STAFF', blocks: [] },
+        ],
+      },
+    });
+    renderWithIntl(<ScheduleResourceColumnsBoard {...baseProps()} />);
+    expect(screen.getAllByTestId('schedule-timeline-label-column')).toHaveLength(1);
+  });
+
+  it('keeps an independent hour-label column for a resource with an exceptional opening (TD44 Story 3)', () => {
+    useScheduleDayGridMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        date: '2026-08-17',
+        columns: [
+          { resourceId: 'res-camila', name: 'Camila Duarte', type: 'STAFF', blocks: [] },
+          { resourceId: 'res-bruno', name: 'Bruno Alves', type: 'STAFF', blocks: [] },
+        ],
+      },
+    });
+    renderWithIntl(
+      <ScheduleResourceColumnsBoard
+        {...baseProps()}
+        openings={[
+          {
+            id: 'opening-1',
+            date: '2026-08-17',
+            startTime: '02:00',
+            endTime: '04:00',
+            notes: null,
+            resourceId: 'res-camila',
+          },
+        ]}
+      />,
+    );
+    // Camila (exceptional opening) keeps her own ruler; Bruno (regular hours, alone in the shared
+    // group) still renders his own — two independent columns, neither suppressed.
+    expect(screen.getAllByTestId('schedule-timeline-label-column')).toHaveLength(2);
+  });
 });

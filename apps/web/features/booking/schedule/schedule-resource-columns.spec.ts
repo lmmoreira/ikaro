@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   DayGridColumn,
   ScheduleClosure,
+  ScheduleOpening,
   StaffBookingCardResponse,
   TenantBusinessHours,
 } from '@ikaro/types';
@@ -56,6 +57,18 @@ function makeDayGridColumn(overrides: Partial<DayGridColumn> = {}): DayGridColum
     name: 'Camila Duarte',
     type: 'STAFF',
     blocks: [],
+    ...overrides,
+  };
+}
+
+function makeOpening(overrides: Partial<ScheduleOpening> = {}): ScheduleOpening {
+  return {
+    id: 'opening-1',
+    date: '2026-08-17',
+    startTime: '02:00',
+    endTime: '04:00',
+    notes: null,
+    resourceId: null,
     ...overrides,
   };
 }
@@ -335,5 +348,78 @@ describe('buildResourceColumns', () => {
     // 30-min granularity at the default scale (1) -> 48px; the content-fit floor
     // (DESKTOP_MIN_BLOCK_HEIGHT_PX) is applied per block now, not fed into this grid unit.
     expect(columns[0].timeline.slotHeight).toBe(48);
+  });
+
+  describe('shared hour axis (TD44 Story 3)', () => {
+    it('gives two checked resources on the same regular hours an identical shared window, with only the first rendering its own label column', () => {
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedResourceIds: new Set(['res-camila', 'res-bruno']),
+        resourceNameById: new Map([
+          ['res-camila', 'Camila Duarte'],
+          ['res-bruno', 'Bruno Alves'],
+        ]),
+        dayGridColumns: [],
+        bookings: [],
+        closures: [],
+        openings: [],
+      });
+
+      // Alphabetical order: Bruno Alves, Camila Duarte.
+      expect(columns.map((c) => c.resourceName)).toEqual(['Bruno Alves', 'Camila Duarte']);
+      expect(columns[0].timeline.timelineStartMinutes).toBe(540);
+      expect(columns[0].timeline.timelineEndMinutes).toBe(1080);
+      expect(columns[1].timeline.timelineStartMinutes).toBe(540);
+      expect(columns[1].timeline.timelineEndMinutes).toBe(1080);
+      expect(columns[0].rendersOwnLabelColumn).toBe(true);
+      expect(columns[1].rendersOwnLabelColumn).toBe(false);
+    });
+
+    it('keeps a resource with an exceptional opening on its own independent window, opted out of the shared axis', () => {
+      // Camila has a wildly-outside-normal-hours exceptional opening (2am-4am); Bruno stays on
+      // regular hours (09:00-18:00, from makeBusinessHours()).
+      const camilaOpening = makeOpening({ resourceId: 'res-camila' });
+
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedResourceIds: new Set(['res-camila', 'res-bruno']),
+        resourceNameById: new Map([
+          ['res-camila', 'Camila Duarte'],
+          ['res-bruno', 'Bruno Alves'],
+        ]),
+        dayGridColumns: [],
+        bookings: [],
+        closures: [],
+        openings: [camilaOpening],
+      });
+
+      const camilaColumn = columns.find((c) => c.resourceId === 'res-camila')!;
+      const brunoColumn = columns.find((c) => c.resourceId === 'res-bruno')!;
+
+      // Camila's own 2am-4am window must not stretch Bruno's shared range, and vice versa.
+      expect(camilaColumn.timeline.timelineStartMinutes).toBe(120);
+      expect(camilaColumn.timeline.timelineEndMinutes).toBe(240);
+      expect(camilaColumn.rendersOwnLabelColumn).toBe(true);
+
+      expect(brunoColumn.timeline.timelineStartMinutes).toBe(540);
+      expect(brunoColumn.timeline.timelineEndMinutes).toBe(1080);
+      expect(brunoColumn.rendersOwnLabelColumn).toBe(true);
+    });
+
+    it('collapses to the single column look for exactly one checked resource (non-regression)', () => {
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedResourceIds: new Set(['res-camila']),
+        resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
+        dayGridColumns: [],
+        bookings: [],
+        closures: [],
+        openings: [],
+      });
+
+      expect(columns[0].rendersOwnLabelColumn).toBe(true);
+      expect(columns[0].timeline.timelineStartMinutes).toBe(540);
+      expect(columns[0].timeline.timelineEndMinutes).toBe(1080);
+    });
   });
 });

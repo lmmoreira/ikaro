@@ -38,6 +38,7 @@ const CLOSED_TIMELINE: TimelineDayData = {
   slotCount: 0,
   slotHeight: 48,
   events: [],
+  isOverriddenByOpening: false,
 };
 
 const OPEN_TIMELINE: TimelineDayData = {
@@ -70,6 +71,7 @@ const OPEN_TIMELINE: TimelineDayData = {
       } as never,
     },
   ],
+  isOverriddenByOpening: false,
 };
 
 describe('ScheduleTimelineBoard', () => {
@@ -93,6 +95,23 @@ describe('ScheduleTimelineBoard', () => {
     expect(screen.getByText('09:00')).toBeInTheDocument();
     expect(screen.getByText('09:30')).toBeInTheDocument();
     expect(screen.getByText('João Silva')).toBeInTheDocument();
+  });
+
+  it('suppresses the desktop label column when hideLabelColumn is true, still rendering the grid (TD44 Story 3)', () => {
+    renderWithIntl(<ScheduleTimelineBoard {...baseProps(OPEN_TIMELINE, false)} hideLabelColumn />);
+    expect(screen.queryByTestId('schedule-timeline-label-column')).not.toBeInTheDocument();
+    expect(screen.getByText('João Silva')).toBeInTheDocument();
+  });
+
+  it('suppresses the compact label column when hideLabelColumn is true, still rendering the grid (TD44 Story 3)', () => {
+    renderWithIntl(<ScheduleTimelineBoard {...baseProps(OPEN_TIMELINE, true)} hideLabelColumn />);
+    expect(screen.queryByTestId('schedule-timeline-label-column')).not.toBeInTheDocument();
+    expect(screen.getByText('João Silva')).toBeInTheDocument();
+  });
+
+  it('renders the label column by default when hideLabelColumn is omitted (non-regression, TD44 Story 3)', () => {
+    renderWithIntl(<ScheduleTimelineBoard {...baseProps(OPEN_TIMELINE, false)} />);
+    expect(screen.getByTestId('schedule-timeline-label-column')).toBeInTheDocument();
   });
 
   it('renders no scroll-to-now marker when nowMarkerRef/nowMarkerTopPx are omitted (TD44 Story 4)', () => {

@@ -16,6 +16,11 @@ export interface ActiveTimelineHours {
   readonly selectedDayClosures: ScheduleClosure[];
   readonly activeStartTime: string;
   readonly activeEndTime: string;
+  // TD44 Story 3 — true when the active window was picked from an exceptional opening
+  // (tenant-wide or resource-scoped), false when it fell back to regular business hours. This is
+  // the opt-out signal resolveSharedTimelineWindow (schedule-shared-timeline-window.ts) uses to
+  // exclude an exceptionally-opened member from the shared hour-axis union entirely.
+  readonly isOverriddenByOpening: boolean;
 }
 
 // The tenant-wide opening (resourceId null) — a resource-scoped opening for a date always
@@ -39,9 +44,17 @@ function resolveActiveWindow(
   tenantWideOpening: ScheduleOpening | null,
   dayOpenings: readonly ScheduleOpening[],
   regularHours: TenantDayHours | null,
-): { readonly start: string; readonly end: string } | null {
+): {
+  readonly start: string;
+  readonly end: string;
+  readonly isOverriddenByOpening: boolean;
+} | null {
   if (tenantWideOpening) {
-    return { start: tenantWideOpening.startTime, end: tenantWideOpening.endTime };
+    return {
+      start: tenantWideOpening.startTime,
+      end: tenantWideOpening.endTime,
+      isOverriddenByOpening: true,
+    };
   }
   const [firstOpening, ...restOpenings] = dayOpenings;
   if (firstOpening) {
@@ -54,9 +67,12 @@ function resolveActiveWindow(
         (latest, opening) => (opening.endTime > latest ? opening.endTime : latest),
         firstOpening.endTime,
       ),
+      isOverriddenByOpening: true,
     };
   }
-  if (regularHours) return { start: regularHours.open, end: regularHours.close };
+  if (regularHours) {
+    return { start: regularHours.open, end: regularHours.close, isOverriddenByOpening: false };
+  }
   return null;
 }
 
@@ -81,6 +97,7 @@ export function resolveActiveTimelineHours(
     selectedDayClosures,
     activeStartTime: window.start,
     activeEndTime: window.end,
+    isOverriddenByOpening: window.isOverriddenByOpening,
   };
 }
 

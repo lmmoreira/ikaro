@@ -27,6 +27,7 @@ function buildEmptyTimeline(): TimelineDayData {
     slotCount: 0,
     slotHeight: 20,
     events: [],
+    isOverriddenByOpening: false,
   };
 }
 
@@ -34,7 +35,7 @@ function buildEmptyTimeline(): TimelineDayData {
 // ScheduleTimelineBoard only renders a grid (and therefore only ever mounts the marker) for a day
 // that actually has hours; buildEmptyTimeline()'s selectedDayClosed: true renders the empty state
 // instead.
-function buildOpenTimeline(): TimelineDayData {
+function buildOpenTimeline(overrides: Partial<TimelineDayData> = {}): TimelineDayData {
   return {
     selectedOpening: null,
     selectedDayHours: { open: '08:00', close: '18:00' },
@@ -44,6 +45,8 @@ function buildOpenTimeline(): TimelineDayData {
     slotCount: 20,
     slotHeight: 20,
     events: [],
+    isOverriddenByOpening: false,
+    ...overrides,
   };
 }
 
@@ -145,5 +148,56 @@ describe('ScheduleWeekView', () => {
     );
 
     expect(screen.queryByTestId('schedule-now-marker')).not.toBeInTheDocument();
+  });
+
+  describe('shared hour axis (TD44 Story 3)', () => {
+    it('renders one shared hour-label column for two day-cards on the same window, not one per card', () => {
+      renderWithIntl(
+        <ScheduleWeekView
+          weekDayInfo={WEEK_DAY_INFO}
+          weekTimelineCards={[buildOpenTimeline(), buildOpenTimeline()]}
+          selectedDateKey="2026-08-17"
+          todayKey="2026-08-17"
+          onSelectDate={vi.fn()}
+          slotGranularityMinutes={30}
+          statusLabels={STATUS_LABELS}
+          timezone="America/Sao_Paulo"
+          scheduleReturnTo="/dashboard/schedule"
+          onOpeningClick={vi.fn()}
+          onClosureClick={vi.fn()}
+        />,
+      );
+
+      expect(screen.getAllByTestId('schedule-timeline-label-column')).toHaveLength(1);
+    });
+
+    it('keeps an independent hour-label column for a day-card overridden by an exceptional opening', () => {
+      renderWithIntl(
+        <ScheduleWeekView
+          weekDayInfo={WEEK_DAY_INFO}
+          weekTimelineCards={[
+            buildOpenTimeline(),
+            buildOpenTimeline({
+              isOverriddenByOpening: true,
+              timelineStartMinutes: 120,
+              timelineEndMinutes: 240,
+            }),
+          ]}
+          selectedDateKey="2026-08-17"
+          todayKey="2026-08-17"
+          onSelectDate={vi.fn()}
+          slotGranularityMinutes={30}
+          statusLabels={STATUS_LABELS}
+          timezone="America/Sao_Paulo"
+          scheduleReturnTo="/dashboard/schedule"
+          onOpeningClick={vi.fn()}
+          onClosureClick={vi.fn()}
+        />,
+      );
+
+      // Both cards render their own ruler: the first is the (single-member) shared group, the
+      // second opted out via isOverriddenByOpening.
+      expect(screen.getAllByTestId('schedule-timeline-label-column')).toHaveLength(2);
+    });
   });
 });

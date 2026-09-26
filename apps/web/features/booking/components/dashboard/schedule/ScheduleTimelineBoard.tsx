@@ -20,6 +20,11 @@ interface ScheduleTimelineBoardProps extends ScheduleTimelineRenderProps {
   // actually includes "now". Omitted entirely (undefined) means no marker renders, same as today.
   readonly nowMarkerRef?: RefObject<HTMLDivElement | null>;
   readonly nowMarkerTopPx?: number;
+  // TD44 Story 3 — true when this board is a non-first member of a shared hour-axis group: its
+  // grid/events already render against the caller-supplied shared range (baked into `timeline`
+  // itself, not a separate prop), so its own hour-label column would just repeat the first
+  // member's. Omitted/false renders the label column exactly as before this story.
+  readonly hideLabelColumn?: boolean;
 }
 
 function NowMarker({
@@ -100,10 +105,38 @@ function TimelineCompactBoard({
     .filter((index) => index % compactLabelStep === 0)
     .filter((index, position, indexes) => indexes.indexOf(index) === position);
 
+  const grid = (
+    <div
+      className="relative rounded-2xl border border-gray-200 bg-gray-50"
+      style={{ height: `${timelineHeight}px` }}
+    >
+      {Array.from({ length: timeline.slotCount }, (_, index) => (
+        <div
+          key={`compact-line-${timeline.timelineStartMinutes}-${index}`}
+          className="absolute inset-x-0 border-t border-gray-200"
+          style={{ top: `${index * timeline.slotHeight}px` }}
+        />
+      ))}
+
+      {timeline.events.map((event) => renderTimelineEvent(event, timeline, true, props, t))}
+      <NowMarker nowMarkerRef={props.nowMarkerRef} nowMarkerTopPx={props.nowMarkerTopPx} />
+    </div>
+  );
+
+  // TD44 Story 3 — a non-first shared-axis member renders only the grid (already positioned
+  // against the caller-supplied shared range) with no label column of its own.
+  if (props.hideLabelColumn) {
+    return <div className="space-y-2">{grid}</div>;
+  }
+
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-0">
-        <div className="relative" style={{ height: `${timelineHeight}px` }}>
+        <div
+          data-testid="schedule-timeline-label-column"
+          className="relative"
+          style={{ height: `${timelineHeight}px` }}
+        >
           {compactLabelIndexes.map((index) => (
             <div
               key={`compact-label-${timeline.timelineStartMinutes}-${index}`}
@@ -115,21 +148,7 @@ function TimelineCompactBoard({
           ))}
         </div>
 
-        <div
-          className="relative rounded-2xl border border-gray-200 bg-gray-50"
-          style={{ height: `${timelineHeight}px` }}
-        >
-          {Array.from({ length: timeline.slotCount }, (_, index) => (
-            <div
-              key={`compact-line-${timeline.timelineStartMinutes}-${index}`}
-              className="absolute inset-x-0 border-t border-gray-200"
-              style={{ top: `${index * timeline.slotHeight}px` }}
-            />
-          ))}
-
-          {timeline.events.map((event) => renderTimelineEvent(event, timeline, true, props, t))}
-          <NowMarker nowMarkerRef={props.nowMarkerRef} nowMarkerTopPx={props.nowMarkerTopPx} />
-        </div>
+        {grid}
       </div>
     </div>
   );
@@ -148,9 +167,37 @@ function TimelineDesktopBoard({
 }): React.JSX.Element {
   const timelineHeight = timeline.slotCount * timeline.slotHeight;
 
+  const grid = (
+    <div
+      className="relative rounded-2xl border border-gray-200 bg-gray-50"
+      style={{ height: `${timelineHeight}px` }}
+    >
+      {Array.from({ length: timeline.slotCount }, (_, index) => (
+        <div
+          key={`line-${timeline.timelineStartMinutes}-${index}`}
+          className="absolute inset-x-0 border-t border-gray-200"
+          style={{ top: `${index * timeline.slotHeight}px` }}
+        />
+      ))}
+
+      {timeline.events.map((event) => renderTimelineEvent(event, timeline, false, props, t))}
+      <NowMarker nowMarkerRef={props.nowMarkerRef} nowMarkerTopPx={props.nowMarkerTopPx} />
+    </div>
+  );
+
+  // TD44 Story 3 — a non-first shared-axis member renders only the grid (already positioned
+  // against the caller-supplied shared range) with no label column of its own.
+  if (props.hideLabelColumn) {
+    return grid;
+  }
+
   return (
     <div className="grid grid-cols-[4.75rem_minmax(0,1fr)] gap-0">
-      <div className="relative" style={{ height: `${timelineHeight}px` }}>
+      <div
+        data-testid="schedule-timeline-label-column"
+        className="relative"
+        style={{ height: `${timelineHeight}px` }}
+      >
         {slotLabels.map((label, index) => (
           <div
             key={`${label}-${index}`}
@@ -162,21 +209,7 @@ function TimelineDesktopBoard({
         ))}
       </div>
 
-      <div
-        className="relative rounded-2xl border border-gray-200 bg-gray-50"
-        style={{ height: `${timelineHeight}px` }}
-      >
-        {Array.from({ length: timeline.slotCount }, (_, index) => (
-          <div
-            key={`line-${timeline.timelineStartMinutes}-${index}`}
-            className="absolute inset-x-0 border-t border-gray-200"
-            style={{ top: `${index * timeline.slotHeight}px` }}
-          />
-        ))}
-
-        {timeline.events.map((event) => renderTimelineEvent(event, timeline, false, props, t))}
-        <NowMarker nowMarkerRef={props.nowMarkerRef} nowMarkerTopPx={props.nowMarkerTopPx} />
-      </div>
+      {grid}
     </div>
   );
 }

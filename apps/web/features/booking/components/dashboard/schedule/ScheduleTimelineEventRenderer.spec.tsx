@@ -29,6 +29,7 @@ const TIMELINE: TimelineDayData = {
   slotCount: 2,
   slotHeight: 48,
   events: [],
+  isOverriddenByOpening: false,
 };
 
 function baseProps(
