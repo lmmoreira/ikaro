@@ -18,7 +18,7 @@ export class RecurringBookingScheduleEntityBuilder {
     startTime: '10:00',
     durationMinutes: 120,
   };
-  private startsOn = '2026-09-01';
+  private readonly startsOn = '2026-09-01';
   private endsOn: string | null = null;
   private status: RecurringBookingScheduleStatus = 'ACTIVE';
   private assignmentPolicy: RecurringBookingScheduleAssignmentPolicy = 'FIXED_ASSIGNMENT';

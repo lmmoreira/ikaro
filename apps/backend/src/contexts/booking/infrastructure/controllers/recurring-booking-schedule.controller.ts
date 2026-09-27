@@ -34,7 +34,10 @@ import {
   EndRecurringBookingScheduleUseCase,
   EndRecurringBookingScheduleUseCaseResult,
 } from '../../application/use-cases/end-recurring-booking-schedule.use-case';
-import { ListRecurringBookingSchedulesUseCase } from '../../application/use-cases/list-recurring-booking-schedules.use-case';
+import {
+  ListRecurringBookingSchedulesUseCase,
+  ListRecurringBookingSchedulesUseCaseResult,
+} from '../../application/use-cases/list-recurring-booking-schedules.use-case';
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('recurring-booking-schedules')
@@ -50,7 +53,7 @@ export class RecurringBookingScheduleController {
   ) {}
 
   @Get()
-  list() {
+  list(): Promise<ListRecurringBookingSchedulesUseCaseResult> {
     const { tenantId, actorId, actorRole } = this.ctx;
     const isStaffOrManager = actorRole === 'STAFF' || actorRole === 'MANAGER';
     return this.listSchedules
