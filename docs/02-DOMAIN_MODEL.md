@@ -299,6 +299,7 @@ Service {
   minBookingAdvanceHoursOverride:  int | null                                -- null inherits tenant `minBookingAdvanceHours`
   maxBookingAdvanceDaysOverride:   int | null                                -- null inherits tenant `maxBookingAdvanceDays`
   recurrenceEligible:              Boolean                                  -- default false; gates CAND-45 (Cluster 3)
+  recurringHorizonDays:            int | null                                -- null inherits platform default (90 days); shared by the M23-S04 creation-time conflict check and the M23-S05 generation job
   availabilityAlertEligible:       Boolean                                  -- default false; gates CAND-46 (Cluster 3)
 
   -- APPOINTMENT only — variable-duration reservation (UC-055 step 4, §6b of the discovery doc).
@@ -646,7 +647,7 @@ RecurringBookingSchedule {
   tenantId:                 TenantId
   customerId:               CustomerId              -- guest bookings are never eligible
   serviceId:                ServiceId
-  recurrence:               RecurrenceRule           -- e.g. { frequency: WEEKLY, daysOfWeek: [TUE], startTime: "10:00", durationMinutes: 120 }
+  recurrence:               RecurrenceRule           -- WEEKLY-only for MVP: { frequency: 'WEEKLY', daysOfWeek: Weekday[], startTime: 'HH:mm', durationMinutes: int } — one shared time-of-day across every listed weekday, no per-day override, no other frequency value (locked in during M23-S04 story-discovery, 2026-09-27)
   startsOn / endsOn:        Date / Date | null       -- open-ended when endsOn is null
   status:                   'PENDING_APPROVAL' | 'ACTIVE' | 'PAUSED' | 'CANCELLED'
   assignmentPolicy:         'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE'
@@ -664,13 +665,15 @@ RecurringBookingSchedule {
 - Branches on the service's effective approval mode at creation (UC-070): `AUTO_CONFIRM` → created `ACTIVE` directly, generation begins immediately. `MANUAL_APPROVAL` → created `PENDING_APPROVAL` with a snapshotted `approvalHoldExpiresAt`; **no occurrences generate until staff resolves it** (UC-071) — this closes a create-then-cancel loophole that would otherwise let a customer bypass a `MANUAL_APPROVAL` service's review gate by requesting a recurring schedule instead of a one-off booking.
 - Once `ACTIVE`, every occurrence it materializes auto-confirms as `APPROVED` regardless of the service's `defaultApprovalMode` — the standing schedule itself was already vetted once, at the point it became `ACTIVE`; re-running a hold-and-review cycle on every generated occurrence would contradict the entire point of a standing commitment. A genuinely one-off booking of the same service is unaffected — `defaultApprovalMode` still governs it normally.
 - At most `MAX_ACTIVE_SCHEDULES_PER_RESOURCE = 50` active `FIXED_ASSIGNMENT` schedules per resource; at most `MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE = 50` active `RESOLVE_PER_OCCURRENCE` schedules per service — app-enforced, generous conservative placeholders, revisable after load testing.
-- A future pattern conflict at creation blocks the whole request — no partial schedule ever exists (evaluated via the same advisory-lock protocol `docs/13-DATABASE_SCHEMA.md`'s `resource_occupancy` section describes for not-yet-materialized patterns).
+- A future pattern conflict at creation blocks the whole request — no partial schedule ever exists (evaluated via the same advisory-lock protocol `docs/13-DATABASE_SCHEMA.md`'s `resource_occupancy` section describes for not-yet-materialized patterns). `FIXED_ASSIGNMENT` locks on every entry of `resourceIds`, in canonical order; `RESOLVE_PER_OCCURRENCE` locks on `serviceId` instead, since no resource id is known before per-occurrence resolution — either lock also covers the cap check above atomically in the same critical section.
+- Eligible only for a flat, single-resource-requirement service (`bookingModel = APPOINTMENT`, no `legs`, no multi-resource bundle) — bundle/multi-leg recurrence is out of scope until a future story.
+- Both the creation-time conflict check and the rolling-horizon generation job (Cluster 3, M23-S05) share one horizon — `Service.bookingPolicy.recurringHorizonDays` (null inherits a 90-day platform default) — and one window-enumeration function, so nothing checked conflict-free at creation can diverge from what generation later materializes.
 - Generated bookings link back via a nullable `recurringScheduleId` on `Booking`, with a unique `(tenantId, recurringScheduleId, occurrenceStart)` generation key — same idempotency shape `ClassSessionBooking.seriesId` uses for the session family (Cluster 4).
 
 **Key Methods:**
 - `RecurringBookingSchedule.request(customerId, serviceId, recurrence, assignmentPolicy, ...)` — resource-conflict-checks, then branches to `ACTIVE` or `PENDING_APPROVAL` per the service's effective approval mode.
 - `approve(staffId)` / `reject(staffId, reason)` (UC-071)
-- `skipOccurrence(occurrenceStart, actor, reason?)` / `rescheduleOccurrence(occurrenceStart, replacementBookingId, actor)` (UC-045 A2) — only once `ACTIVE`; a `PENDING_APPROVAL` request is withdrawn outright instead, since no standing commitment exists yet.
+- `skipOccurrence(occurrenceStart, actor, reason?)` / `rescheduleOccurrence(occurrenceStart, replacementBookingId, actor)` (UC-070 A2) — only once `ACTIVE`; a `PENDING_APPROVAL` request is withdrawn outright instead, since no standing commitment exists yet.
 - `pause()` / `end()`
 
 ---

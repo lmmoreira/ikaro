@@ -540,7 +540,7 @@ Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
 **Docs to load:** `docs/04-USE_CASES.md` UC-070 (create/manage side only — approval is S05), `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule` (+2 children), `docs/13-DATABASE_SCHEMA.md` § `recurring_booking_schedules`/assignments/exceptions, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, `docs/03-DOMAIN_EVENTS.md` § `RecurringBookingSchedule{Created,ApprovalRequested,Paused,Ended}`
-**Dependencies:** M23-S01 (reuses `ResourceResolutionService` for `RESOLVE_PER_OCCURRENCE`'s conflict-checking)
+**Dependencies:** M23-S01 (reuses `resolveBookingLinesResourceCandidates()` (`resource-occupancy.helpers.ts`) + `BookingSlotConflictService.assertSlotFree()` for `RESOLVE_PER_OCCURRENCE`'s per-occurrence conflict-checking — corrected during story-discovery, 2026-09-27: the story previously named a `ResourceResolutionService` class that was never actually built; S01 shipped these functions instead)
 **Pattern:** Repository + Adapter, matching every other Booking-context aggregate.
 
 **Description:**
@@ -550,6 +550,10 @@ Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment
 - Guest bookings never eligible — customer-only, or staff on the customer's behalf (`createdByStaffId`).
 - A future pattern conflict at creation blocks the whole request, atomically, before either status branch (A1) — resource-conflict-checked the same way S01's resolver checks a one-off booking, just against the recurrence pattern's implied windows.
 - At most 50 active `FIXED_ASSIGNMENT` schedules per resource / 50 active `RESOLVE_PER_OCCURRENCE` schedules per service (A4) — app-enforced.
+- **Recurrence shape is WEEKLY-only for MVP** (locked in during story-discovery, 2026-09-27): `recurrence = { frequency: 'WEEKLY', daysOfWeek: Weekday[], startTime: 'HH:mm', durationMinutes: int }` — one shared time-of-day across every listed weekday, no per-day override, no other frequency value. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`.
+- **Eligible only for a flat, single-resource-requirement service** (`bookingModel = APPOINTMENT`, no `legs`, no multi-resource bundle) — a bundle/multi-leg service is rejected at request time. Bundle/leg recurrence is out of scope for this story.
+- **Shared horizon with S05:** both the creation-time conflict check (this story) and the rolling-horizon generation job (S05) use `Service.bookingPolicy.recurringHorizonDays` (new nullable field, null inherits a 90-day platform default `DEFAULT_RECURRING_HORIZON_DAYS`) and the exact same window-enumeration function — new `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` (domain-layer pure function, zero framework deps). S04 builds this file; S05 imports it unchanged. Writing the enumeration twice risks the two stories silently disagreeing on what "conflict-free" means.
+- **Locking:** `FIXED_ASSIGNMENT` acquires `pg_advisory_xact_lock` on every entry of `resourceIds`, in canonical order, per `docs/13-DATABASE_SCHEMA.md`'s existing not-yet-materialized-pattern protocol. `RESOLVE_PER_OCCURRENCE` acquires it on `serviceId` instead, since no resource id is known before per-occurrence resolution. Either lock covers both the `MAX_ACTIVE_*` cap check and the future-pattern conflict check atomically in one critical section.
 
 **Backend use case steps:**
 1. **`RequestRecurringBookingScheduleUseCase`** (UC-070 steps 1–2): resource-conflict-checks the pattern (`FIXED_ASSIGNMENT` via `resourceIds`, `RESOLVE_PER_OCCURRENCE` via S01's resolver against the recurrence's implied windows), branches on the service's effective approval mode — `AUTO_CONFIRM` → `ACTIVE` directly (generation deferred to S05); `MANUAL_APPROVAL` → `PENDING_APPROVAL` with snapshotted `approvalHoldExpiresAt`, publishes `RecurringBookingScheduleApprovalRequested`.
@@ -562,14 +566,17 @@ Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/recurring-booking-schedule.aggregate.ts` (+ `.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` (+ `.spec.ts`) (new — shared WEEKLY-pattern window-enumeration function; also imported by M23-S05's generation job)
 - `apps/backend/src/contexts/booking/domain/errors/recurring-booking-schedule-*.error.ts` (new)
 - `apps/backend/src/contexts/booking/application/ports/recurring-booking-schedule-repository.port.ts` (new)
 - `apps/backend/src/contexts/booking/application/use-cases/{request,skip-or-reschedule-occurrence,pause,end}-recurring-booking-schedule.use-case.ts` (+ specs) (new)
+- `apps/backend/src/contexts/booking/domain/service.types.ts` (modify — add `recurringHorizonDays: number | null` to `ServiceBookingPolicyProps`)
+- `apps/backend/src/contexts/booking/infrastructure/entities/service.entity.ts` (modify — `recurring_horizon_days` column)
 - `apps/backend/src/contexts/booking/infrastructure/entities/recurring-booking-schedule.entity.ts` (+ resource-assignment, exception child entities) (new)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-recurring-booking-schedule.repository.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ specs) (new)
 - `apps/backend/src/contexts/booking/infrastructure/entities/booking.entity.ts` (modify — `recurringScheduleId` column, per `docs/13-DATABASE_SCHEMA.md`)
-- `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-CreateRecurringBookingSchedules.ts` (new)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-CreateRecurringBookingSchedules.ts` (new — creates the 3 new tables, adds `bookings.recurring_schedule_id`, and adds `services.recurring_horizon_days`)
 - `packages/types/src/error-codes.ts` + both `errors.json` (modify — `BOOKING_RECURRING_SCHEDULE_CONFLICT`, `BOOKING_RECURRING_SCHEDULE_CAP_REACHED`, `BOOKING_RECURRING_SCHEDULE_NOT_ACTIVE`)
 - `apps/bff/src/features/booking/recurring-booking-schedules.controller.ts` (+ `.schemas.ts`, `.types.ts`, specs) (new)
 - `apps/backend/http/booking/recurring-booking-schedules.http` (new)
@@ -583,10 +590,13 @@ Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment
 - Unit:
   - [ ] Request rejects a conflicting future pattern before either status branch commits
   - [ ] Request rejects past the 50-per-resource/service cap
+  - [ ] Request rejects a bundle/multi-leg service (recurrence is single-resource-only for this story)
   - [ ] Skip/reschedule/pause/end reject on a non-`ACTIVE` schedule where applicable
+  - [ ] `recurrence-rule.helpers.spec.ts`: weekly pattern across multiple `daysOfWeek`, horizon boundary (`recurringHorizonDays` null vs. set), `endsOn` interaction with the horizon
 - Integration:
   - [ ] `POST /recurring-booking-schedules` on an `AUTO_CONFIRM` service persists `ACTIVE` with zero occurrences (documented — S05 generates them)
   - [ ] `POST /recurring-booking-schedules` on a `MANUAL_APPROVAL` service persists `PENDING_APPROVAL`, no `resource_occupancy` rows written
+  - [ ] Two concurrent `RESOLVE_PER_OCCURRENCE` requests for the same service, both under the 50 cap individually, serialize correctly via the `serviceId` advisory lock — only one over-cap request is rejected, not both accepted
 - Tenant isolation:
   - [ ] Schedule CRUD never crosses tenant/customer boundary
 - E2E: none — covered by S12

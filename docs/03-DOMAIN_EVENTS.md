@@ -373,13 +373,13 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:** Notification Context → customer email.
 
 #### **RecurringBookingSchedulePaused**
-- **Trigger:** UC-045 A2 (customer pauses).
+- **Trigger:** UC-070 A2 (customer pauses).
 - **State change:** `status → PAUSED`; no further occurrences generated until resumed.
 - **Data:** `{ recurringScheduleId, customerId, serviceId }`
 - **Consumers:** None in MVP.
 
 #### **RecurringBookingScheduleEnded**
-- **Trigger:** UC-045 A2 (customer ends entirely).
+- **Trigger:** UC-070 A2 (customer ends entirely).
 - **State change:** `status → CANCELLED`; future materialized occurrences cancelled, releasing their `resource_occupancy` rows.
 - **Data:** `{ recurringScheduleId, customerId, serviceId, cancelledBookingIds: string[] }`
 - **Consumers:** Notification Context → customer email.
