@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx`, `ScheduleResourceColumnsBoard.tsx` (M22-S06)
 - **Created**: 2026-09-24
 - **Discovered**: Codex round-4 review of PR #511 (M22-S06, manager bounded multi-resource column view)
-- **State**: In progress — Story 0/1/2/4 ✅ Done (Story 2 shipped as PR #514, 2026-09-25; Story 4 shipped as PR #516, 2026-09-26); Story 3 (shared hour axis) ✅ Done (shipped as PR #518, 2026-09-27)
+- **State**: In progress — Story 0/1/2/3/4 ✅ Done (Story 2 shipped as PR #514, 2026-09-25; Story 4 shipped as PR #516, 2026-09-26; Story 3 shipped as PR #518, 2026-09-27); Story 5 (restore time-range line at minimum granularity + slot-height bump) drafted 2026-09-27, `/story-discovery` not yet run
 - **Related**: M22-S06 (`plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`), M21-S05 (`ResourceFilterMenu`)
 
 ---
@@ -396,3 +396,49 @@ Files (round 4): `sonar-project.properties` (`sonar.test.exclusions`), `apps/web
 2. **The scroll-to-now E2E test's own fixture booking collided with other specs' fixtures on the same tenant.** The test created a real "today, 10:00" booking via a raw, single-shot `createScheduleBooking` call with no retry-on-conflict — but `lavacar-beloauto`'s single degenerate LOCATION resource has no per-time-of-day capacity (documented in `approve-booking.ts`'s `createFreshApprovedBooking`), and other specs (`my-account-bookings.spec.ts`, `my-account-detail-cancel.spec.ts`) already book `daysAhead: 0` ("today") on the same tenant using this codebase's established retry-across-candidate-slots pattern. Rather than adding a matching retry loop, the booking was removed entirely: `nowMarkerTopPx` is derived purely from business hours and wall-clock time, and `NowMarker` mounts unconditionally whenever it's defined — the test never needed a booking to exist at all. Verified locally (isolated test + full `schedule.spec.ts`, 18/18 passing) against the running dev stack before pushing.
 
 Files (round 5): `schedule-scroll-to-now.ts`/`.spec.ts` (`block: 'center'`), `apps/web/e2e/schedule.spec.ts` (booking fixture removed).
+
+---
+
+## Story 5 — Always show the time-range line at minimum granularity; increase base slot height so a booking's rendered height stays visually honest about its duration
+
+**Agent:** `frontend-ts`
+**Complexity:** M
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/08-TESTING_STRATEGY.md`
+**Dependencies:** TD44-S4 (done — this story reopens the exact `showTimeRangeLine`/`getSlotHeight` decisions S4 made and documents as intentional)
+**Pattern:** plain composition — no named pattern applies (a boolean-logic revert plus a tuned constant, not a new mechanism)
+
+**Discovered:** User conversation following TD44-S3's merge (2026-09-27) — live product feedback reconsidering one of TD44-S4's own deliberate trade-offs, now that S4's other changes (scroll-to-now, decoupled per-block `minHeight`) make a modestly taller calendar comfortable to navigate.
+
+**Description:**
+**Current behavior (confirmed live in code, `ScheduleTimelineEventRenderer.tsx:56-59`):** `isMinimumGranularity = event.booking.totalDurationMins === props.slotGranularityMinutes`; `showTimeRangeLine = !isMinimumGranularity`. A booking whose duration equals the tenant's own slot granularity (the common case — the default seeded service duration usually equals it) renders its resource-summary line (if assigned) but never its time-range text ("09:00–09:30"). This was TD44-S4's own deliberate choice, made because the grid was too tall at the time and every extra content line pushed the per-block `minHeight` floor higher.
+
+**Change 1 — always show the time-range line, regardless of duration.** Remove `isMinimumGranularity` and `showTimeRangeLine` from `renderBookingTimelineEvent` entirely; the time-range `<div data-testid="timeline-block-time-range">` block always renders. `extraLineCount` becomes `Number(showResourceLine) + 1` (previously `Number(showResourceLine) + Number(showTimeRangeLine)`), which is exactly what a longer-than-minimum-granularity booking with a resource already computes today — no new code path, just removing the special case for the minimum-granularity one.
+
+**Change 2 — increase the base grid slot height so this doesn't visually lie about duration.** Showing 2 lines (resource + time) on a minimum-granularity block raises its content floor to the existing worst-case ceiling (`DESKTOP_MIN_BLOCK_HEIGHT_PX = 108` / `COMPACT_MIN_BLOCK_HEIGHT_PX = 96`, both unchanged). At today's `getSlotHeight` base (48px per 30 min, `schedule-timeline-formatting.ts:35-37`), a 30-min booking's true duration-height (48px) is less than half its content floor (108px) — it would render at 2.25× its real duration, and identically to a 60-min booking needing the same 2 lines (96px true height, only a mild 108/96 ≈ 1.13× overhang, already shipped and accepted). Fix: raise the `48` multiplier in `getSlotHeight`'s formula (`Math.round((slotGranularityMinutes / 30) * <NEW_VALUE> * scale)`) enough to narrow that gap across every duration, not just the minimum-granularity case — `WEEK_VIEW_SLOT_HEIGHT_SCALE` (0.85, unchanged) applies on top automatically, so Week view scales proportionally with no separate change needed there.
+
+**`<NEW_VALUE>` is deliberately not fixed here — it needs a live look, not arithmetic alone** (user has explicitly granted permission to run the dev server for this). During implementation: keep Change 1 in place, try a small number of candidate base values (e.g. 60/64/72 in place of 48) against the running app, side by side, across Day view (single timeline + resource-columns board) and Week view, and pick whichever reads as visually proportionate without reopening TD44-S4's original problem (an 18-slot business day must stay comfortably navigable with scroll-to-now, not require heavy manual scrolling). Record the chosen value and the reasoning in this story's own text before considering it done — don't leave the "why this number" implicit.
+
+**Known risk, accepted:** this reopens the exact `getSlotHeight`/`buildBlockStyle` positioning-math surface TD44-S3/S4 both flagged as risky and carefully tuned. Mitigated by scroll-to-now (S4) already being in place, and by the change being a single multiplier tweak, not new machinery.
+
+**Files to create/modify:**
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (+ `.spec.tsx`) (modify — remove `isMinimumGranularity`/`showTimeRangeLine`, always render the time-range line)
+- `apps/web/features/booking/schedule/schedule-timeline-formatting.ts` (modify — `getSlotHeight`'s base multiplier)
+- `apps/web/features/booking/schedule/schedule-timeline.spec.ts` (modify — update the 3 hardcoded `getSlotHeight` assertions at lines 42-44 and the `slotHeight: 48` literal at line 109 to the new value)
+- `apps/web/e2e/schedule.spec.ts` (modify — the existing "a minimum-granularity booking shows no time-range text, while a longer one still does (TD44 Story 4)" scenario now asserts the opposite: time-range text present at every duration)
+
+**Acceptance criteria — product:**
+- [ ] A minimum-granularity booking shows both its resource-summary line (if assigned) and its time-range line, in every board (Day single timeline, Day resource-columns board, Week view) — same content shape as any longer-duration booking.
+- [ ] The calendar's overall density increases modestly so a minimum-granularity booking's rendered height no longer looks disproportionate next to a booking twice its duration.
+- [ ] Non-regression: a booking with no assigned resource still renders correctly (time-range line only, no blank/broken layout).
+- [ ] Non-regression: a longer-than-minimum-granularity booking's rendering is otherwise unchanged.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `renderBookingTimelineEvent` always renders the time-range block, regardless of `totalDurationMins` vs. `slotGranularityMinutes`
+  - [ ] `extraLineCount`/`getBlockMinHeightPx` reflect `Number(showResourceLine) + 1` for every booking, not just non-minimum-granularity ones
+  - [ ] `getSlotHeight`'s updated base value covered by updated assertions in `schedule-timeline.spec.ts`
+- Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
+- Tenant isolation: n/a — client-side only
+- E2E: a minimum-granularity booking shows its time-range text in Day view, the Day resource-columns board, and Week view; a longer booking's rendering is unchanged — run against the real dev stack, not inferred from source
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
