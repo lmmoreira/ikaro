@@ -4,8 +4,10 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import {
+  BookingForbiddenError,
   BookingNotFoundError,
   BookingScheduledInPastError,
+  RescheduleWindowExpiredError,
 } from '../../domain/errors/booking-domain.error';
 import { Booking } from '../../domain/booking.aggregate';
 import { RescheduleDurationChange } from '../../domain/booking.types';
@@ -24,36 +26,39 @@ import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repo
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
-import { RescheduleBookingDto } from '../dtos/reschedule-booking.dto';
 import { toResourceSelections } from './booking-request.mapper';
+import { RescheduleBookingAsCustomerDto } from '../dtos/reschedule-booking-as-customer.dto';
 import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
   QuoteRevisionResult,
   recordQuoteRevisionIfPriceChanged,
+  resolveEffectiveRescheduleWindowHours,
   resolveRescheduleCandidates,
   resolveRescheduleDurationChange,
 } from './reschedule-quote.helpers';
 
-export type RescheduleBookingUseCaseInput = RescheduleBookingDto & {
+export type RescheduleBookingAsCustomerUseCaseInput = RescheduleBookingAsCustomerDto & {
   bookingId: string;
   tenantId: string;
-  staffId: string;
+  customerId: string;
   correlationId: string;
   timezone: string;
+  tenantDefaultRescheduleWindowHours: number;
 };
 
-export interface RescheduleBookingUseCaseResult {
+export interface RescheduleBookingAsCustomerUseCaseResult {
   bookingId: string;
   status: string;
   scheduledAt: string;
   quoteRevision?: QuoteRevisionResult;
 }
 
-// UC-069 A3 (staff override) — never runs the reschedule-window eligibility check
-// (RescheduleBookingAsCustomerUseCase's customer path does). Otherwise the same
-// resource-resolution/occupancy-move/quote-revision shape.
+// UC-069 customer path — mirrors CancelBookingAsCustomerUseCase's ownership/eligibility shape,
+// RescheduleBookingUseCase's (admin path) resource-resolution/occupancy-move shape. Kept as its
+// own use case class rather than a branch inside RescheduleBookingUseCase, same customer/admin
+// split CancelBookingAsCustomerUseCase/CancelBookingAsAdminUseCase already established.
 @Injectable()
-export class RescheduleBookingUseCase {
+export class RescheduleBookingAsCustomerUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
@@ -68,22 +73,28 @@ export class RescheduleBookingUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: RescheduleBookingUseCaseInput): Promise<RescheduleBookingUseCaseResult> {
-    const { tenantId } = input;
+  async execute(
+    input: RescheduleBookingAsCustomerUseCaseInput,
+  ): Promise<RescheduleBookingAsCustomerUseCaseResult> {
+    const { tenantId, customerId } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
+    if (booking.customerId !== customerId) throw new BookingForbiddenError();
 
     const newScheduledAt = new Date(input.scheduledAt);
     if (newScheduledAt <= new Date()) throw new BookingScheduledInPastError();
 
     const serviceMap = await this.loadServiceMap(booking, tenantId);
+    this.assertEligible(booking, serviceMap, input.tenantDefaultRescheduleWindowHours);
+
     const durationChange = resolveRescheduleDurationChange(
       booking,
       serviceMap,
       this.quoteService,
       input.durationMinutes,
     );
+
     const quoteRevision = await this.rescheduleUnderLock(
       booking,
       serviceMap,
@@ -110,9 +121,9 @@ export class RescheduleBookingUseCase {
     serviceMap: Map<string, Service>,
     newScheduledAt: Date,
     durationChange: RescheduleDurationChange | undefined,
-    input: RescheduleBookingUseCaseInput,
+    input: RescheduleBookingAsCustomerUseCaseInput,
   ): Promise<QuoteRevisionResult | undefined> {
-    const { tenantId, staffId, correlationId } = input;
+    const { tenantId, customerId, correlationId } = input;
     const previousTotalPrice = booking.totalPrice;
     let quoteRevision: QuoteRevisionResult | undefined;
 
@@ -122,11 +133,11 @@ export class RescheduleBookingUseCase {
       );
 
       booking.reschedule(
-        staffId,
+        customerId,
         newScheduledAt,
         correlationId,
-        true,
-        input.adminNotes,
+        false,
+        undefined,
         durationChange,
       );
       await this.bookingRepo.save(booking);
@@ -136,21 +147,19 @@ export class RescheduleBookingUseCase {
         candidatesByLine,
         tenantId,
         previousTotalPrice,
-        staffId,
+        customerId,
       );
     });
 
     return quoteRevision;
   }
 
-  // Booking is always APPROVED to be reschedulable (Booking.reschedule()'s own guard) — its
-  // existing occupancy row(s) are always COMMITTED, never HOLD.
   private async moveOccupancyAndRecordRevision(
     booking: Booking,
     candidatesByLine: Awaited<ReturnType<typeof resolveRescheduleCandidates>>,
     tenantId: string,
     previousTotalPrice: Booking['totalPrice'],
-    staffId: string,
+    customerId: string,
   ): Promise<QuoteRevisionResult | undefined> {
     await moveBookingLinesOccupancy(
       this.occupancyRepo,
@@ -165,8 +174,8 @@ export class RescheduleBookingUseCase {
       booking.id,
       previousTotalPrice,
       booking.totalPrice,
-      'STAFF',
-      staffId,
+      'CUSTOMER',
+      customerId,
     );
   }
 
@@ -175,7 +184,7 @@ export class RescheduleBookingUseCase {
     serviceMap: Map<string, Service>,
     newScheduledAt: Date,
     durationChange: RescheduleDurationChange | undefined,
-    input: RescheduleBookingUseCaseInput,
+    input: RescheduleBookingAsCustomerUseCaseInput,
   ): Parameters<typeof resolveRescheduleCandidates>[0] {
     return {
       resourceRepo: this.resourceRepo,
@@ -190,6 +199,19 @@ export class RescheduleBookingUseCase {
       overrideSelections: toResourceSelections(input.resourceSelections),
       durationChange,
     };
+  }
+
+  private assertEligible(
+    booking: Booking,
+    serviceMap: Map<string, Service>,
+    tenantDefaultRescheduleWindowHours: number,
+  ): void {
+    const windowHours = resolveEffectiveRescheduleWindowHours(
+      booking,
+      serviceMap,
+      tenantDefaultRescheduleWindowHours,
+    );
+    if (!booking.isEligibleForReschedule(windowHours)) throw new RescheduleWindowExpiredError();
   }
 
   private async loadServiceMap(booking: Booking, tenantId: string): Promise<Map<string, Service>> {

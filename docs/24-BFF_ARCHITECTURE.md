@@ -382,7 +382,7 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `PATCH /bookings/:id/submit-info` | JWT | No | CUSTOMER |
 | `PATCH /bookings/:id/submit-info/guest` | No (guest token in query) | No | — |
 | `GET /bookings/:id/guest` | No (guest token in query) | No | — |
-| `PATCH /bookings/:id/reschedule` | JWT | No | STAFF \| MANAGER |
+| `PATCH /bookings/:id/reschedule` | JWT | No | CUSTOMER \| STAFF \| MANAGER |
 | `PATCH /bookings/:id/complete` | JWT | No | STAFF \| MANAGER |
 | `GET /customers/me` | JWT | No | CUSTOMER |
 | `PATCH /customers/me` | JWT | No | CUSTOMER |

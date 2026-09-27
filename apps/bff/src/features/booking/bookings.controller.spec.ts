@@ -797,100 +797,159 @@ describe('BookingsController', () => {
       scheduledAt: '2026-07-20T14:00:00.000Z',
     };
     const validRescheduleBody = { scheduledAt: '2026-07-20T14:00:00.000Z' };
+    const customerUser = CurrentUserPayloadBuilder.asCustomer().withTenantId(TENANT_ID).build();
+    const managerUser = CurrentUserPayloadBuilder.asManager().withTenantId(TENANT_ID).build();
 
-    it('calls patch /bookings/:id/reschedule with body and returns result', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest.fn().mockResolvedValue(mockRescheduleResponse),
+    describe('CUSTOMER role', () => {
+      it('routes to /reschedule-customer, forwarding only customer-facing fields', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest.fn().mockResolvedValue(mockRescheduleResponse),
+        });
+        const controller = new BookingsController(backendHttp);
+
+        const result = await controller.reschedule(BOOKING_ID, validRescheduleBody, customerUser);
+
+        expect(backendHttp.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID}/reschedule-customer`,
+          {
+            scheduledAt: validRescheduleBody.scheduledAt,
+            resourceSelections: undefined,
+            durationMinutes: undefined,
+          },
+        );
+        expect(result).toBe(mockRescheduleResponse);
       });
-      const controller = new BookingsController(backendHttp);
 
-      const result = await controller.reschedule(BOOKING_ID, validRescheduleBody);
+      it('propagates 422 from backend when the reschedule window has expired', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(
+              new HttpException({ status: 422, detail: 'Reschedule window has expired' }, 422),
+            ),
+        });
+        const controller = new BookingsController(backendHttp);
 
-      expect(backendHttp.patch).toHaveBeenCalledWith(
-        `/bookings/${BOOKING_ID}/reschedule`,
-        validRescheduleBody,
-      );
-      expect(result).toBe(mockRescheduleResponse);
+        const err = await controller
+          .reschedule(BOOKING_ID, validRescheduleBody, customerUser)
+          .catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(422);
+      });
+
+      it('propagates 403 from backend when the caller is not the booking owner', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(new HttpException({ status: 403, detail: 'forbidden' }, 403)),
+        });
+        const controller = new BookingsController(backendHttp);
+
+        const err = await controller
+          .reschedule(BOOKING_ID, validRescheduleBody, customerUser)
+          .catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(403);
+      });
     });
 
-    it('forwards optional adminNotes to backend', async () => {
-      const bodyWithNotes = {
-        scheduledAt: '2026-07-20T14:00:00.000Z',
-        adminNotes: 'Customer request',
-      };
-      const backendHttp = makeBackendHttp({
-        patch: jest.fn().mockResolvedValue(mockRescheduleResponse),
+    describe('MANAGER/STAFF role', () => {
+      it('routes to /reschedule-admin with the full body', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest.fn().mockResolvedValue(mockRescheduleResponse),
+        });
+        const controller = new BookingsController(backendHttp);
+
+        const result = await controller.reschedule(BOOKING_ID, validRescheduleBody, managerUser);
+
+        expect(backendHttp.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID}/reschedule-admin`,
+          validRescheduleBody,
+        );
+        expect(result).toBe(mockRescheduleResponse);
       });
-      const controller = new BookingsController(backendHttp);
 
-      await controller.reschedule(BOOKING_ID, bodyWithNotes);
+      it('forwards optional adminNotes to backend', async () => {
+        const bodyWithNotes = {
+          scheduledAt: '2026-07-20T14:00:00.000Z',
+          adminNotes: 'Customer request',
+        };
+        const backendHttp = makeBackendHttp({
+          patch: jest.fn().mockResolvedValue(mockRescheduleResponse),
+        });
+        const controller = new BookingsController(backendHttp);
 
-      expect(backendHttp.patch).toHaveBeenCalledWith(
-        `/bookings/${BOOKING_ID}/reschedule`,
-        bodyWithNotes,
-      );
-    });
+        await controller.reschedule(BOOKING_ID, bodyWithNotes, managerUser);
 
-    it('propagates 422 from backend when booking is not APPROVED', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest
-          .fn()
-          .mockRejectedValue(new HttpException({ status: 422, detail: 'invalid transition' }, 422)),
+        expect(backendHttp.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID}/reschedule-admin`,
+          bodyWithNotes,
+        );
       });
-      const controller = new BookingsController(backendHttp);
 
-      const err = await controller
-        .reschedule(BOOKING_ID, validRescheduleBody)
-        .catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(422);
-    });
+      it('propagates 422 from backend when booking is not APPROVED', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(
+              new HttpException({ status: 422, detail: 'invalid transition' }, 422),
+            ),
+        });
+        const controller = new BookingsController(backendHttp);
 
-    it('propagates 422 from backend when new slot is in the past', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest
-          .fn()
-          .mockRejectedValue(
-            new HttpException({ status: 422, detail: 'must be in the future' }, 422),
-          ),
+        const err = await controller
+          .reschedule(BOOKING_ID, validRescheduleBody, managerUser)
+          .catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(422);
       });
-      const controller = new BookingsController(backendHttp);
 
-      const err = await controller
-        .reschedule(BOOKING_ID, validRescheduleBody)
-        .catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(422);
-    });
+      it('propagates 422 from backend when new slot is in the past', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(
+              new HttpException({ status: 422, detail: 'must be in the future' }, 422),
+            ),
+        });
+        const controller = new BookingsController(backendHttp);
 
-    it('propagates 409 from backend when slot is unavailable', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest
-          .fn()
-          .mockRejectedValue(new HttpException({ status: 409, detail: 'slot unavailable' }, 409)),
+        const err = await controller
+          .reschedule(BOOKING_ID, validRescheduleBody, managerUser)
+          .catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(422);
       });
-      const controller = new BookingsController(backendHttp);
 
-      const err = await controller
-        .reschedule(BOOKING_ID, validRescheduleBody)
-        .catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(409);
-    });
+      it('propagates 409 from backend when slot is unavailable', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(new HttpException({ status: 409, detail: 'slot unavailable' }, 409)),
+        });
+        const controller = new BookingsController(backendHttp);
 
-    it('propagates 404 from backend when booking is not found', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest
-          .fn()
-          .mockRejectedValue(new HttpException({ status: 404, detail: 'not found' }, 404)),
+        const err = await controller
+          .reschedule(BOOKING_ID, validRescheduleBody, managerUser)
+          .catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(409);
       });
-      const controller = new BookingsController(backendHttp);
 
-      const err = await controller
-        .reschedule('unknown-id', validRescheduleBody)
-        .catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(404);
+      it('propagates 404 from backend when booking is not found', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(new HttpException({ status: 404, detail: 'not found' }, 404)),
+        });
+        const controller = new BookingsController(backendHttp);
+
+        const err = await controller
+          .reschedule('unknown-id', validRescheduleBody, managerUser)
+          .catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(404);
+      });
     });
   });
 

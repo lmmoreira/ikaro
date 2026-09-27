@@ -24,6 +24,7 @@ export class BookingRescheduledEventBuilder {
     endTime: '2026-07-07T11:00:00.000Z',
   };
   private readonly rescheduledBy = 'staffid-0000-4000-8000-000000000001';
+  private isBusiness = true;
   private adminNotes: string | null = null;
 
   withTenantId(tenantId: string): this {
@@ -51,6 +52,11 @@ export class BookingRescheduledEventBuilder {
     return this;
   }
 
+  withIsBusiness(isBusiness: boolean): this {
+    this.isBusiness = isBusiness;
+    return this;
+  }
+
   build(): BookingRescheduled {
     return new BookingRescheduled(this.tenantId, this.correlationId, {
       bookingId: this.bookingId,
@@ -60,6 +66,7 @@ export class BookingRescheduledEventBuilder {
       previousSlot: this.previousSlot,
       newSlot: this.newSlot,
       rescheduledBy: this.rescheduledBy,
+      isBusiness: this.isBusiness,
       adminNotes: this.adminNotes,
       lineSummary: this.lineSummary,
       totalPrice: this.totalPrice,

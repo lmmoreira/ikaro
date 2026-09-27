@@ -1165,16 +1165,6 @@ describe('BookingsController (component)', () => {
       expect(res.status).toBe(401);
     });
 
-    it('returns 403 when JWT role is CUSTOMER', async () => {
-      const token = makeCustomerJwt(jwtService);
-
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(validRescheduleBody);
-      expect(res.status).toBe(403);
-    });
-
     it('returns 400 when scheduledAt is missing', async () => {
       const token = makeManagerJwt(jwtService);
       setupActiveGuardMock(httpService);
@@ -1186,71 +1176,129 @@ describe('BookingsController (component)', () => {
       expect(res.status).toBe(400);
     });
 
-    it('reschedules booking with MANAGER JWT and returns 200', async () => {
-      const token = makeManagerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockResolvedValueOnce(mockRescheduleResponse);
+    describe('CUSTOMER role', () => {
+      it('routes to reschedule-customer and returns 200', async () => {
+        const token = makeCustomerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockResolvedValueOnce(mockRescheduleResponse);
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(validRescheduleBody);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(validRescheduleBody);
 
-      expect(res.status).toBe(200);
-      expect(res.body.bookingId).toBe(BOOKING_ID_RESCHEDULE);
-      expect(res.body.status).toBe('APPROVED');
-      expect(backendHttpService.patch).toHaveBeenCalledWith(
-        `/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`,
-        validRescheduleBody,
-      );
+        expect(res.status).toBe(200);
+        expect(res.body.bookingId).toBe(BOOKING_ID_RESCHEDULE);
+        expect(backendHttpService.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID_RESCHEDULE}/reschedule-customer`,
+          {
+            scheduledAt: validRescheduleBody.scheduledAt,
+            resourceSelections: undefined,
+            durationMinutes: undefined,
+          },
+        );
+      });
+
+      it('propagates 422 from backend when the reschedule window has expired', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeCustomerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 422, detail: 'Reschedule window has expired' }, 422),
+        );
+
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(validRescheduleBody);
+
+        expect(res.status).toBe(422);
+      });
+
+      it('propagates 403 from backend when caller is not the booking owner', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeCustomerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 403, detail: 'forbidden' }, 403),
+        );
+
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(validRescheduleBody);
+
+        expect(res.status).toBe(403);
+      });
     });
 
-    it('propagates 409 from backend when slot is unavailable', async () => {
-      const { HttpException: HE } = await import('@nestjs/common');
-      const token = makeManagerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockRejectedValueOnce(
-        new HE({ status: 409, detail: 'slot unavailable' }, 409),
-      );
+    describe('MANAGER/STAFF role', () => {
+      it('reschedules booking with MANAGER JWT, routes to reschedule-admin, returns 200', async () => {
+        const token = makeManagerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockResolvedValueOnce(mockRescheduleResponse);
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(validRescheduleBody);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(validRescheduleBody);
 
-      expect(res.status).toBe(409);
-    });
+        expect(res.status).toBe(200);
+        expect(res.body.bookingId).toBe(BOOKING_ID_RESCHEDULE);
+        expect(res.body.status).toBe('APPROVED');
+        expect(backendHttpService.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID_RESCHEDULE}/reschedule-admin`,
+          validRescheduleBody,
+        );
+      });
 
-    it('propagates 422 from backend when booking is not APPROVED', async () => {
-      const { HttpException: HE } = await import('@nestjs/common');
-      const token = makeManagerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockRejectedValueOnce(
-        new HE({ status: 422, detail: 'invalid transition' }, 422),
-      );
+      it('propagates 409 from backend when slot is unavailable', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeManagerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 409, detail: 'slot unavailable' }, 409),
+        );
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(validRescheduleBody);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(validRescheduleBody);
 
-      expect(res.status).toBe(422);
-    });
+        expect(res.status).toBe(409);
+      });
 
-    it('propagates 404 from backend when booking is not found', async () => {
-      const { HttpException: HE } = await import('@nestjs/common');
-      const token = makeManagerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockRejectedValueOnce(
-        new HE({ status: 404, detail: 'not found' }, 404),
-      );
+      it('propagates 422 from backend when booking is not APPROVED', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeManagerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 422, detail: 'invalid transition' }, 422),
+        );
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(validRescheduleBody);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(validRescheduleBody);
 
-      expect(res.status).toBe(404);
+        expect(res.status).toBe(422);
+      });
+
+      it('propagates 404 from backend when booking is not found', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeManagerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 404, detail: 'not found' }, 404),
+        );
+
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_RESCHEDULE}/reschedule`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(validRescheduleBody);
+
+        expect(res.status).toBe(404);
+      });
     });
   });
 

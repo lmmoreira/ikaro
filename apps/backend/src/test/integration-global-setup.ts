@@ -22,6 +22,7 @@ import {
 } from '../contexts/booking/infrastructure/entities/service-leg.entity';
 import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
 import { ServiceBookingIntakeSchemaEntity } from '../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
+import { BookingQuoteRevisionEntity } from '../contexts/booking/infrastructure/entities/booking-quote-revision.entity';
 import { BookingAttendeeEntity } from '../contexts/booking/infrastructure/entities/booking-attendee.entity';
 import { BookingLineResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../contexts/booking/infrastructure/entities/resource-occupancy.entity';
@@ -38,6 +39,7 @@ import { CreateResourceOccupancy1748500000012 } from '../contexts/booking/infras
 import { BackfillResourceOccupancy1748500000013 } from '../contexts/booking/infrastructure/migrations/1748500000013-BackfillResourceOccupancy';
 import { DropTenantWideExclusion1748500000014 } from '../contexts/booking/infrastructure/migrations/1748500000014-DropTenantWideExclusion';
 import { AddEndsAtIndexToResourceOccupancy1748500000015 } from '../contexts/booking/infrastructure/migrations/1748500000015-AddEndsAtIndexToResourceOccupancy';
+import { CreateBookingQuoteRevisions1748500000016 } from '../contexts/booking/infrastructure/migrations/1748500000016-CreateBookingQuoteRevisions';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -147,6 +149,7 @@ export default async function globalSetup(): Promise<void> {
       BookingAttendeeEntity,
       BookingLineResourceAssignmentEntity,
       ResourceOccupancyEntity,
+      BookingQuoteRevisionEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
@@ -195,6 +198,7 @@ export default async function globalSetup(): Promise<void> {
       BackfillResourceOccupancy1748500000013,
       DropTenantWideExclusion1748500000014,
       AddEndsAtIndexToResourceOccupancy1748500000015,
+      CreateBookingQuoteRevisions1748500000016,
     ],
     synchronize: false,
     migrationsRun: false,

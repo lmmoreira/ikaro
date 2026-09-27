@@ -31,6 +31,15 @@ export enum BookingStatus {
 
 export type BookingType = 'GUEST' | 'CUSTOMER';
 
+// M23-S03 (UC-069) — a variable-duration reschedule's re-quoted line (BookingQuoteService), passed
+// into Booking.reschedule() so it can update the one affected line + recompute
+// totalDurationMins/totalPrice atomically with the rest of the reschedule.
+export interface RescheduleDurationChange {
+  lineId: string;
+  durationMinutes: number;
+  priceAtBooking: Money;
+}
+
 export interface BookingProps {
   id: string;
   tenantId: string;

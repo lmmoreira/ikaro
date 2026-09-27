@@ -102,6 +102,12 @@ export interface RescheduleBookingResponse {
   bookingId: string;
   status: string;
   scheduledAt: string;
+  // M23 Cluster 3 — present only when the reschedule changed the price (e.g. a variable-duration
+  // service); absent for a same-price time-only reschedule.
+  quoteRevision?: {
+    revisionNo: number;
+    amount: { amount: string; currency: string };
+  };
 }
 
 export interface CompleteBookingResponse {

@@ -510,20 +510,58 @@ describe('Booking.reschedule()', () => {
       .withScheduledAt(originalDate)
       .build();
 
-    booking.reschedule(STAFF_ID, newDate, CORRELATION_ID);
+    booking.reschedule(STAFF_ID, newDate, CORRELATION_ID, true);
 
     expect(booking.status).toBe(BookingStatus.APPROVED);
     expect(booking.scheduledAt).toBe(newDate);
     const events = booking.domainEvents;
     expect(events[0]).toBeInstanceOf(BookingRescheduled);
     expect((events[0] as BookingRescheduled).data.rescheduledBy).toBe(STAFF_ID);
+    expect((events[0] as BookingRescheduled).data.isBusiness).toBe(true);
   });
 
   it('throws when not APPROVED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
-    expect(() => booking.reschedule(STAFF_ID, new Date(), CORRELATION_ID)).toThrow(
+    expect(() => booking.reschedule(STAFF_ID, new Date(), CORRELATION_ID, true)).toThrow(
       InvalidBookingTransitionError,
     );
+  });
+
+  it('emits isBusiness=false and rescheduledBy=customerId for a customer self-service reschedule', () => {
+    const originalDate = new Date(Date.now() + 24 * 3_600_000);
+    const newDate = new Date(Date.now() + 48 * 3_600_000);
+    const booking = new BookingBuilder()
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(originalDate)
+      .build();
+    const customerId = 'cccccccc-0000-4000-8000-000000000001';
+
+    booking.reschedule(customerId, newDate, CORRELATION_ID, false);
+
+    const event = booking.domainEvents[0] as BookingRescheduled;
+    expect(event.data.rescheduledBy).toBe(customerId);
+    expect(event.data.isBusiness).toBe(false);
+  });
+
+  it('applies a duration change: updates the affected line, totalDurationMins, and totalPrice', () => {
+    const booking = new BookingBuilder().withStatus(BookingStatus.APPROVED).build();
+    const line = booking.lines[0];
+    const originalDurationMins = line.durationMinsAtBooking;
+    const newDurationMins = originalDurationMins * 2;
+    const newPrice = line.priceAtBooking.add(line.priceAtBooking);
+
+    booking.reschedule(
+      STAFF_ID,
+      new Date(Date.now() + 48 * 3_600_000),
+      CORRELATION_ID,
+      true,
+      undefined,
+      { lineId: line.lineId, durationMinutes: newDurationMins, priceAtBooking: newPrice },
+    );
+
+    expect(booking.lines[0].durationMinsAtBooking).toBe(newDurationMins);
+    expect(booking.totalPrice.equals(newPrice)).toBe(true);
+    expect(booking.linesModified).toBe(true);
   });
 });
 
@@ -540,6 +578,22 @@ describe('Booking.isEligibleForCancellation()', () => {
       .withScheduledAt(new Date(Date.now() + 24 * 3_600_000))
       .build();
     expect(booking.isEligibleForCancellation(48)).toBe(false);
+  });
+});
+
+describe('Booking.isEligibleForReschedule()', () => {
+  it('returns true when appointment is outside the window', () => {
+    const booking = new BookingBuilder()
+      .withScheduledAt(new Date(Date.now() + 72 * 3_600_000))
+      .build();
+    expect(booking.isEligibleForReschedule(48)).toBe(true);
+  });
+
+  it('returns false when appointment is inside the window', () => {
+    const booking = new BookingBuilder()
+      .withScheduledAt(new Date(Date.now() + 24 * 3_600_000))
+      .build();
+    expect(booking.isEligibleForReschedule(48)).toBe(false);
   });
 });
 

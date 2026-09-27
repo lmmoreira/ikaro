@@ -6,18 +6,23 @@ import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-te
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingQuoteRevisionRepository } from '../../../../test/repositories/booking/in-memory-booking-quote-revision.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingCompletionController } from './booking-completion.controller';
 import { CancelBookingAsCustomerUseCase } from '../../application/use-cases/cancel-booking-as-customer.use-case';
 import { CancelBookingAsAdminUseCase } from '../../application/use-cases/cancel-booking-as-admin.use-case';
 import { RescheduleBookingUseCase } from '../../application/use-cases/reschedule-booking.use-case';
+import { RescheduleBookingAsCustomerUseCase } from '../../application/use-cases/reschedule-booking-as-customer.use-case';
 import { CompleteBookingUseCase } from '../../application/use-cases/complete-booking.use-case';
 import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
+import { BookingQuoteService } from '../../application/services/booking-quote.service';
 import { PhotoExistenceService } from '../../application/services/photo-existence.service';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingLineBuilder } from '../../../../test/builders/booking/booking-line.builder';
 import { Money } from '../../../../shared/value-objects/money';
+
+const CUSTOMER_ID = '40000000-0000-4000-8000-000000000110';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000110';
 const TENANT_B = '10000000-0000-4000-8000-000000000111';
@@ -26,6 +31,7 @@ const CORRELATION_ID = 'corr-booking-ctrl-test';
 
 describe('BookingCompletionController', () => {
   let controller: BookingCompletionController;
+  let customerController: BookingCompletionController;
   let bookingRepo: InMemoryBookingRepository;
   let storageService: InMemoryStorageService;
 
@@ -38,33 +44,61 @@ describe('BookingCompletionController', () => {
       .withActorId(STAFF_ID)
       .withActorRole('MANAGER')
       .build();
+    const customerCtx = new RequestContextBuilder()
+      .withTenantId(TENANT_A)
+      .withCorrelationId(CORRELATION_ID)
+      .withActorId(CUSTOMER_ID)
+      .withActorRole('CUSTOMER')
+      .build();
 
     const fixtures = createAutoBookingResourceFixtures();
     const occupancyRepo = new InMemoryResourceOccupancyRepository();
+    const quoteRevisionRepo = new InMemoryBookingQuoteRevisionRepository();
 
-    controller = new BookingCompletionController(
-      staffCtx,
-      new CancelBookingAsCustomerUseCase(
-        bookingRepo,
-        occupancyRepo,
-        new InMemoryTransactionManager(),
-      ),
-      new CancelBookingAsAdminUseCase(bookingRepo, occupancyRepo, new InMemoryTransactionManager()),
-      new RescheduleBookingUseCase(
-        bookingRepo,
-        fixtures.serviceRepo,
-        fixtures.resourceRepo,
-        occupancyRepo,
-        new AvailabilityService(),
-        new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
-        new InMemoryTransactionManager(),
-      ),
-      new CompleteBookingUseCase(
-        bookingRepo,
-        new InMemoryTransactionManager(),
-        new PhotoExistenceService(storageService),
-      ),
-    );
+    const buildController = (ctx: typeof staffCtx) =>
+      new BookingCompletionController(
+        ctx,
+        new CancelBookingAsCustomerUseCase(
+          bookingRepo,
+          occupancyRepo,
+          new InMemoryTransactionManager(),
+        ),
+        new CancelBookingAsAdminUseCase(
+          bookingRepo,
+          occupancyRepo,
+          new InMemoryTransactionManager(),
+        ),
+        new RescheduleBookingUseCase(
+          bookingRepo,
+          fixtures.serviceRepo,
+          fixtures.resourceRepo,
+          occupancyRepo,
+          quoteRevisionRepo,
+          new AvailabilityService(),
+          new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
+          new BookingQuoteService(),
+          new InMemoryTransactionManager(),
+        ),
+        new RescheduleBookingAsCustomerUseCase(
+          bookingRepo,
+          fixtures.serviceRepo,
+          fixtures.resourceRepo,
+          occupancyRepo,
+          quoteRevisionRepo,
+          new AvailabilityService(),
+          new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
+          new BookingQuoteService(),
+          new InMemoryTransactionManager(),
+        ),
+        new CompleteBookingUseCase(
+          bookingRepo,
+          new InMemoryTransactionManager(),
+          new PhotoExistenceService(storageService),
+        ),
+      );
+
+    controller = buildController(staffCtx);
+    customerController = buildController(customerCtx);
   });
 
   describe('cancelAsAdmin()', () => {
@@ -125,6 +159,95 @@ describe('BookingCompletionController', () => {
       const err = await controller.cancelAsAdmin(booking.id, {}).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('rescheduleAsAdmin()', () => {
+    it('reschedules an APPROVED booking and returns updated scheduledAt', async () => {
+      const futureSlot = new Date(Date.now() + 5 * 24 * 3_600_000);
+      const newSlot = new Date(Date.now() + 6 * 24 * 3_600_000);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(futureSlot)
+        .build();
+      await bookingRepo.save(booking);
+
+      const result = await controller.rescheduleAsAdmin(booking.id, {
+        scheduledAt: newSlot.toISOString(),
+      });
+
+      expect(result.status).toBe(BookingStatus.APPROVED);
+      expect(result.scheduledAt).toBe(newSlot.toISOString());
+    });
+
+    it('maps BookingNotFoundError to 404', async () => {
+      const err = await controller
+        .rescheduleAsAdmin('00000000-0000-4000-8000-000000009999', {
+          scheduledAt: new Date(Date.now() + 5 * 24 * 3_600_000).toISOString(),
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('rescheduleAsCustomer()', () => {
+    it('reschedules the caller-owned APPROVED booking outside the reschedule window', async () => {
+      const futureSlot = new Date(Date.now() + 5 * 24 * 3_600_000);
+      const newSlot = new Date(Date.now() + 6 * 24 * 3_600_000);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(futureSlot)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
+      await bookingRepo.save(booking);
+
+      const result = await customerController.rescheduleAsCustomer(booking.id, {
+        scheduledAt: newSlot.toISOString(),
+      });
+
+      expect(result.status).toBe(BookingStatus.APPROVED);
+      expect(result.scheduledAt).toBe(newSlot.toISOString());
+    });
+
+    it('maps BookingForbiddenError to 403 when the booking belongs to another customer', async () => {
+      const futureSlot = new Date(Date.now() + 5 * 24 * 3_600_000);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(futureSlot)
+        .withCustomerId('50000000-0000-4000-8000-000000000110')
+        .build();
+      await bookingRepo.save(booking);
+
+      const err = await customerController
+        .rescheduleAsCustomer(booking.id, {
+          scheduledAt: new Date(Date.now() + 6 * 24 * 3_600_000).toISOString(),
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
+    });
+
+    it('maps RescheduleWindowExpiredError to 422 when inside the 48h default window', async () => {
+      const nearFuture = new Date(Date.now() + 24 * 3_600_000);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(nearFuture)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
+      await bookingRepo.save(booking);
+
+      const err = await customerController
+        .rescheduleAsCustomer(booking.id, {
+          scheduledAt: new Date(Date.now() + 48 * 3_600_000).toISOString(),
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
     });
   });
 

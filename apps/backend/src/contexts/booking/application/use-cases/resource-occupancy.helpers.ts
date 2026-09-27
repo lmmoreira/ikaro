@@ -156,3 +156,22 @@ export async function deriveResourceSelectionsFromAssignments(
     resourceId: assignment.resourceId,
   }));
 }
+
+// M23-S03 (UC-069) — a customer reschedule's body-supplied resourceSelections overrides the
+// default replay for whichever (serviceId, legIndex, resourceType) key it names; every other key
+// keeps replaying its existing pick. Same precedence POST /bookings gives a fresh submission over
+// nothing to replay — an override entry with no matching CUSTOMER_CHOICE requirement is simply
+// unused later by resolveCandidateIds, never an error here.
+export function mergeResourceSelections(
+  replayed: ResourceSelectionInput[],
+  overrides: ResourceSelectionInput[],
+): ResourceSelectionInput[] {
+  if (!overrides.length) return replayed;
+  const overriddenKeys = new Set(
+    overrides.map((o) => selectionKey(o.serviceId, o.legIndex, o.resourceType)),
+  );
+  const keptReplayed = replayed.filter(
+    (r) => !overriddenKeys.has(selectionKey(r.serviceId, r.legIndex, r.resourceType)),
+  );
+  return [...keptReplayed, ...overrides];
+}
