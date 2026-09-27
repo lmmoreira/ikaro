@@ -14,6 +14,7 @@ import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useScheduleDayGrid } from '@/features/booking/schedule/useSchedule';
 import { buildSlotLabels } from '@/features/booking/schedule/schedule-page-derived';
+import { buildBookingDetailHref } from '@/features/booking/schedule/schedule-timeline';
 import {
   buildResourceColumns,
   type SpilloverOccupancyIndicator,
@@ -67,7 +68,7 @@ function ScheduleColumnSpilloverBanner({
 }): React.JSX.Element {
   return (
     <Link
-      href={`/dashboard/bookings/${indicator.bookingId}?returnTo=${encodeURIComponent(scheduleReturnTo)}`}
+      href={buildBookingDetailHref(indicator.bookingId, scheduleReturnTo)}
       data-testid="schedule-column-spillover-banner"
       className="mb-2 block truncate rounded-md border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-900 hover:bg-orange-100"
     >

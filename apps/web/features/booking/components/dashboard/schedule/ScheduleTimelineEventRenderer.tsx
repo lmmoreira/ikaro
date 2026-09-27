@@ -9,6 +9,7 @@ import { SCHEDULE_BOOKING_TIMELINE_CLASSES } from '@/features/booking/model/book
 import { getLocalTimeKey } from '@/features/booking/schedule/date-utils';
 import {
   buildBlockStyle,
+  buildBookingDetailHref,
   formatEventRange,
   getBlockMinHeightPx,
   getClosureReasonLabel,
@@ -69,9 +70,7 @@ function renderBookingTimelineEvent(
           : SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
       )}
       style={{ ...blockStyle, left: `${laneLeft}%`, width: `${laneWidth}%`, minHeight }}
-      href={`/dashboard/bookings/${event.booking.bookingId}?returnTo=${encodeURIComponent(
-        props.scheduleReturnTo,
-      )}`}
+      href={buildBookingDetailHref(event.booking.bookingId, props.scheduleReturnTo)}
       ariaLabel={
         event.resourceNames.length > 0
           ? `${event.booking.contactName}, ${event.resourceNames.join(', ')}`

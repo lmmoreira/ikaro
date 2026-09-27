@@ -139,3 +139,9 @@ export function buildScheduleReturnTo(weekStartKey: string, selectedDateKey: str
     weekStartKey,
   )}&date=${encodeURIComponent(selectedDateKey)}`;
 }
+
+// Shared by every schedule surface that links to a booking's detail page (the merged timeline's
+// own blocks, TD43's spillover banner) — a single source for this URL shape.
+export function buildBookingDetailHref(bookingId: string, scheduleReturnTo: string): string {
+  return `/dashboard/bookings/${bookingId}?returnTo=${encodeURIComponent(scheduleReturnTo)}`;
+}
