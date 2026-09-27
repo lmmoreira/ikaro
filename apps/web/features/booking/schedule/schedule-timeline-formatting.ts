@@ -15,13 +15,14 @@ import { parseDateKey } from '@/features/booking/schedule/date-utils';
 // Base value raised 48 -> 72 (TD44 Story 5): Story 5 reverted Story 4's minimum-granularity
 // special case (the time-range line now always renders), which raised a minimum-granularity
 // booking's footer back to 1-2 lines every time instead of 0-1. At the pre-Story-5 base (48px per
-// 30-min slot), a minimum-granularity block's content-fit floor (84px with a resource-summary line,
-// 108px with one) visibly overhung its own true slot height, most noticeably in Day view. 72 was
-// picked via a live comparison against the running app (60/64/72 candidates, Day + Week view, TD44
-// Story 5 story-discovery) as the value that most narrows that gap across every duration without
-// reopening TD44-S4's original "grid too tall" problem — an 18-slot (9-hour) business day now
-// renders at 18 * 72 = 1296px, comfortably navigable with scroll-to-now (TD44 Story 4) already in
-// place, and Week view's compact scale (0.85) applies on top automatically.
+// 30-min slot), a minimum-granularity block's content-fit floor (84px with no resource-summary
+// line — just the always-shown time range — or 108px with one) visibly overhung its own true slot
+// height, most noticeably in Day view. 72 was picked via a live comparison against the running app
+// (60/64/72 candidates, Day + Week view, TD44 Story 5 story-discovery) as the value that most
+// narrows that gap across every duration without reopening TD44-S4's original "grid too tall"
+// problem — an 18-slot (9-hour) business day now renders at 18 * 72 = 1296px, comfortably
+// navigable with scroll-to-now (TD44 Story 4) already in place, and Week view's compact scale
+// (0.85) applies on top automatically.
 //
 // The per-block content-fit floor is now content-aware (TD44 Story 4): a single fixed floor per
 // board — even after decoupling it from the grid unit — still forced every block to the *worst
