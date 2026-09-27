@@ -241,9 +241,6 @@ describe('renderTimelineEvent', () => {
         serviceNames: ['Lavagem completa'],
         status: BOOKING_STATUS.APPROVED,
         scheduledAt: '2026-08-18T12:00:00.000Z',
-        // Longer than baseProps' slotGranularityMinutes (30) so the time-range line still renders
-        // (TD44 Story 4 drops it only at exact minimum granularity) — this test is about ordering,
-        // not about the minimum-granularity variant itself.
         totalDurationMins: 60,
       } as never,
     };
@@ -260,7 +257,7 @@ describe('renderTimelineEvent', () => {
     expect(allText.indexOf('Camila Duarte')).toBeLessThan(allText.indexOf('09:00'));
   });
 
-  it('in Day view (desktop), drops only the time-range line at minimum granularity, keeping the resource-summary line (TD44 Story 4)', () => {
+  it('in Day view (desktop), always shows the time-range line at minimum granularity, alongside the resource-summary line (TD44 Story 5 — reverts Story 4)', () => {
     const event: TimelineEvent = {
       kind: 'booking',
       id: 'booking-1',
@@ -287,10 +284,10 @@ describe('renderTimelineEvent', () => {
       'Camila Duarte',
     );
     // scheduledAt 2026-08-18T12:00:00.000Z in America/Sao_Paulo (UTC-3) is 09:00 local.
-    expect(screen.queryByText('09:00–09:30')).not.toBeInTheDocument();
+    expect(screen.getByText('09:00–09:30')).toBeInTheDocument();
   });
 
-  it('in Week view (compact), a minimum-granularity booking with a resource drops only the time-range line, keeping the resource-summary line (TD44 Story 4 — Week view resource filtering depends on this staying visible)', () => {
+  it('in Week view (compact), a minimum-granularity booking with a resource shows both the resource-summary and time-range lines (TD44 Story 5 — reverts Story 4)', () => {
     const event: TimelineEvent = {
       kind: 'booking',
       id: 'booking-1',
@@ -316,9 +313,9 @@ describe('renderTimelineEvent', () => {
     expect(screen.getByTestId('timeline-block-resource-summary')).toHaveTextContent(
       'Camila Duarte',
     );
-    expect(screen.queryByText('09:00–09:30')).not.toBeInTheDocument();
+    expect(screen.getByText('09:00–09:30')).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte' });
-    expect(link.style.minHeight).toBe('72px');
+    expect(link.style.minHeight).toBe('96px');
   });
 
   it('in Week view (compact), a longer booking with a resource keeps both footer lines (non-regression)', () => {
@@ -351,7 +348,7 @@ describe('renderTimelineEvent', () => {
     expect(link.style.minHeight).toBe('96px');
   });
 
-  it('keeps the time-range line for a booking longer than the minimum granularity (TD44 Story 4)', () => {
+  it('keeps the time-range line for a booking longer than the minimum granularity (non-regression)', () => {
     const event: TimelineEvent = {
       kind: 'booking',
       id: 'booking-1',
@@ -375,6 +372,35 @@ describe('renderTimelineEvent', () => {
 
     renderWithIntl(<Host event={event} props={baseProps()} />);
     expect(screen.getByText('09:00–10:00')).toBeInTheDocument();
+  });
+
+  it('shows the time-range line for a minimum-granularity booking with no assigned resource (TD44 Story 5 — no blank/broken layout)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: [],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30, // equals baseProps().slotGranularityMinutes (30)
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    expect(screen.queryByTestId('timeline-block-resource-summary')).not.toBeInTheDocument();
+    expect(screen.getByText('09:00–09:30')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'João Silva' });
+    expect(link.style.minHeight).toBe('84px');
   });
 
   it('applies the content-fit min-height to a block, decoupled from the grid unit (TD44 Story 4) — closures/openings have no footer, so the 0-extra-line floor applies', () => {
@@ -431,7 +457,7 @@ describe('renderTimelineEvent', () => {
     expect(link.style.minHeight).toBe('108px');
   });
 
-  it('applies only the desktop 1-extra-line floor to a minimum-granularity booking with a resource (Day view keeps the resource line, drops only time-range)', () => {
+  it('applies the full desktop 2-extra-line floor to a minimum-granularity booking with a resource (TD44 Story 5 — both lines always render)', () => {
     const event: TimelineEvent = {
       kind: 'booking',
       id: 'booking-1',
@@ -455,8 +481,9 @@ describe('renderTimelineEvent', () => {
 
     renderWithIntl(<Host event={event} props={baseProps()} />);
     const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte' });
-    expect(link.style.minHeight).toBe('84px');
+    expect(link.style.minHeight).toBe('108px');
     expect(screen.getByTestId('timeline-block-resource-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('timeline-block-time-range')).toBeInTheDocument();
   });
 
   it('renders an opening event as a button that calls onOpeningClick', async () => {

@@ -46,17 +46,13 @@ function renderBookingTimelineEvent(
   );
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
-  // A booking at the schedule's minimum granularity drops only the time-range line, in every
-  // board — its position in the grid already conveys the time now that item 1 restored a readable
-  // grid density. The resource-summary line stays whenever the booking has an assigned resource,
-  // regardless of duration or board: Week view's own resource-filter feature (TD44 Story 1/2)
-  // depends on this line being visible to show which resource a booking matched, including for a
-  // minimum-granularity booking — the common case, since the default service duration usually
-  // equals the tenant's own slot granularity.
-  const isMinimumGranularity = event.booking.totalDurationMins === props.slotGranularityMinutes;
+  // The time-range line always renders, regardless of duration (TD44 Story 5 — reverts Story 4's
+  // minimum-granularity special case now that the base slot height keeps a block's rendered height
+  // visually honest about its real duration). The resource-summary line stays whenever the booking
+  // has an assigned resource, unchanged from Story 4: Week view's own resource-filter feature
+  // (TD44 Story 1/2) depends on this line being visible to show which resource a booking matched.
   const showResourceLine = event.resourceNames.length > 0;
-  const showTimeRangeLine = !isMinimumGranularity;
-  const extraLineCount = Number(showResourceLine) + Number(showTimeRangeLine);
+  const extraLineCount = Number(showResourceLine) + 1;
   // Content-fit floor, decoupled from the grid's own coordinate unit (TD44 Story 4) — lets this
   // block render visually taller than its own slot when its content needs it, without affecting
   // slotHeight/top for any other block.
@@ -104,23 +100,21 @@ function renderBookingTimelineEvent(
             resourceNames={showResourceLine ? event.resourceNames : []}
             compact={compact}
           />
-          {showTimeRangeLine ? (
-            <div
-              data-testid="timeline-block-time-range"
-              className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}
-            >
-              {formatEventRange(
-                getLocalTimeKey(new Date(event.booking.scheduledAt), props.timezone),
-                getLocalTimeKey(
-                  new Date(
-                    new Date(event.booking.scheduledAt).getTime() +
-                      event.booking.totalDurationMins * 60_000,
-                  ),
-                  props.timezone,
+          <div
+            data-testid="timeline-block-time-range"
+            className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}
+          >
+            {formatEventRange(
+              getLocalTimeKey(new Date(event.booking.scheduledAt), props.timezone),
+              getLocalTimeKey(
+                new Date(
+                  new Date(event.booking.scheduledAt).getTime() +
+                    event.booking.totalDurationMins * 60_000,
                 ),
-              )}
-            </div>
-          ) : null}
+                props.timezone,
+              ),
+            )}
+          </div>
         </div>
       }
     />

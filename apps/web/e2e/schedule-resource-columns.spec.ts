@@ -172,6 +172,9 @@ test.describe('schedule resource columns board (M22-S06)', () => {
       await expect(bookingLink.getByTestId('timeline-block-resource-summary')).toHaveText(
         resource.name,
       );
+      // This booking's 30-min duration equals the tenant's own slotGranularityMinutes (minimum
+      // granularity) — its time-range line still renders here too (TD44 Story 5).
+      await expect(bookingLink.getByTestId('timeline-block-time-range')).toBeVisible();
 
       await bookingLink.click();
       await expect(page).toHaveURL(new RegExp(`/dashboard/bookings/${booking.bookingId}`));
@@ -444,6 +447,9 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await expect(matchedBlock.getByTestId('timeline-block-resource-summary')).toHaveText(
         resource.name,
       );
+      // Both bookings are 30 min, equal to the tenant's own slotGranularityMinutes (minimum
+      // granularity) — the time-range line still renders in Week view too (TD44 Story 5).
+      await expect(matchedBlock.getByTestId('timeline-block-time-range')).toBeVisible();
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resource.id);

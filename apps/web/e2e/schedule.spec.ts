@@ -569,7 +569,7 @@ test.describe('schedule page coverage', () => {
     }
   });
 
-  test('a minimum-granularity booking shows no time-range text, while a longer one still does (TD44 Story 4)', async ({
+  test('a minimum-granularity booking shows its time-range text, same as a longer one (TD44 Story 5 — reverts Story 4)', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -604,7 +604,7 @@ test.describe('schedule page coverage', () => {
     await expect(minimumBlock).toBeVisible();
     await expect(longerBlock).toBeVisible();
 
-    await expect(minimumBlock.getByTestId('timeline-block-time-range')).toHaveCount(0);
+    await expect(minimumBlock.getByTestId('timeline-block-time-range')).toBeVisible();
     await expect(longerBlock.getByTestId('timeline-block-time-range')).toBeVisible();
   });
 
