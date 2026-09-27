@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx`, `ScheduleResourceColumnsBoard.tsx` (M22-S06)
 - **Created**: 2026-09-24
 - **Discovered**: Codex round-4 review of PR #511 (M22-S06, manager bounded multi-resource column view)
-- **State**: In progress — Story 0/1/2/3/4 ✅ Done (Story 2 shipped as PR #514, 2026-09-25; Story 4 shipped as PR #516, 2026-09-26; Story 3 shipped as PR #518, 2026-09-27); Story 5 (restore time-range line at minimum granularity + slot-height bump) drafted 2026-09-27, `/story-discovery` not yet run
+- **State**: ✅ Done — all stories (0-5) shipped (Story 2 as PR #514, 2026-09-25; Story 4 as PR #516, 2026-09-26; Story 3 as PR #518, 2026-09-27; Story 5 as PR #520, 2026-09-27)
 - **Related**: M22-S06 (`plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`), M21-S05 (`ResourceFilterMenu`)
 
 ---
@@ -399,7 +399,7 @@ Files (round 5): `schedule-scroll-to-now.ts`/`.spec.ts` (`block: 'center'`), `ap
 
 ---
 
-## Story 5 — Always show the time-range line at minimum granularity; increase base slot height so a booking's rendered height stays visually honest about its duration
+## Story 5 — Always show the time-range line at minimum granularity; increase base slot height so a booking's rendered height stays visually honest about its duration ✅ Done (PR #520, merged 2026-09-27)
 
 **Agent:** `frontend-ts`
 **Complexity:** M
