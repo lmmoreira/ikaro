@@ -10,9 +10,19 @@ import { parseDateKey } from '@/features/booking/schedule/date-utils';
 // Story 2 round 2 fed a single conflated `minHeightPx` into getSlotHeight, which raised the *whole
 // grid's* base unit along with each block's own floor, since slotCount * slotHeight is also the
 // board's total scroll height). getSlotHeight below is now purely the grid's pixels-per-slot
-// coordinate unit — no floor argument — restoring the pre-Story-2 density (48px per 30-min slot,
-// the value this formula already produced whenever a slot's duration reached 30+ minutes; the old
-// bare 18px floor never won against it).
+// coordinate unit — no floor argument.
+//
+// Base value raised 48 -> 72 (TD44 Story 5): Story 5 reverted Story 4's minimum-granularity
+// special case (the time-range line now always renders), which raised a minimum-granularity
+// booking's footer back to 1-2 lines every time instead of 0-1. At the pre-Story-5 base (48px per
+// 30-min slot), a minimum-granularity block's content-fit floor (84px with no resource-summary
+// line — just the always-shown time range — or 108px with one) visibly overhung its own true slot
+// height, most noticeably in Day view. 72 was picked via a live comparison against the running app
+// (60/64/72 candidates, Day + Week view, TD44 Story 5 story-discovery) as the value that most
+// narrows that gap across every duration without reopening TD44-S4's original "grid too tall"
+// problem — an 18-slot (9-hour) business day now renders at 18 * 72 = 1296px, comfortably
+// navigable with scroll-to-now (TD44 Story 4) already in place, and Week view's compact scale
+// (0.85) applies on top automatically.
 //
 // The per-block content-fit floor is now content-aware (TD44 Story 4): a single fixed floor per
 // board — even after decoupling it from the grid unit — still forced every block to the *worst
@@ -33,7 +43,7 @@ const COMPACT_BASE_MIN_HEIGHT_PX = 48;
 const CONTENT_LINE_HEIGHT_PX = 24;
 
 export function getSlotHeight(slotGranularityMinutes: number, scale = 1): number {
-  return Math.round((slotGranularityMinutes / 30) * 48 * scale);
+  return Math.round((slotGranularityMinutes / 30) * 72 * scale);
 }
 
 // The per-block content-fit floor (TD44 Story 4) — `extraLineCount` is the number of *optional*

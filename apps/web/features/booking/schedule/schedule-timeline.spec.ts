@@ -38,13 +38,13 @@ function makeBusinessHours(overrides: Partial<TenantBusinessHours> = {}): Tenant
 }
 
 describe('getSlotHeight', () => {
-  it('scales proportionally to slot granularity — pure grid coordinate unit, no content floor (TD44 Story 4)', () => {
-    expect(getSlotHeight(30)).toBe(48);
-    expect(getSlotHeight(60)).toBe(96);
-    expect(getSlotHeight(30, 0.45)).toBe(22);
+  it('scales proportionally to slot granularity — pure grid coordinate unit, no content floor (TD44 Story 4, base raised 48 -> 72 in Story 5)', () => {
+    expect(getSlotHeight(30)).toBe(72);
+    expect(getSlotHeight(60)).toBe(144);
+    expect(getSlotHeight(30, 0.45)).toBe(32);
     // Below TD44 Story 4, this no longer floors at any minimum — the per-block content-fit floor
     // is applied separately, via getBlockMinHeightPx, never fed back into the grid's own unit.
-    expect(getSlotHeight(15, 0.1)).toBe(2);
+    expect(getSlotHeight(15, 0.1)).toBe(4);
   });
 });
 
@@ -106,7 +106,7 @@ describe('buildTimelineEvents', () => {
       timelineStartMinutes: 0,
       timelineEndMinutes: 0,
       slotCount: 0,
-      slotHeight: 48,
+      slotHeight: 72,
       events: [],
       isOverriddenByOpening: false,
     });

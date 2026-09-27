@@ -345,9 +345,10 @@ describe('buildResourceColumns', () => {
       openings: [],
     });
 
-    // 30-min granularity at the default scale (1) -> 48px; the content-fit floor
-    // (DESKTOP_MIN_BLOCK_HEIGHT_PX) is applied per block now, not fed into this grid unit.
-    expect(columns[0].timeline.slotHeight).toBe(48);
+    // 30-min granularity at the default scale (1) -> 72px (TD44 Story 5 — base raised from 48);
+    // the content-fit floor (DESKTOP_MIN_BLOCK_HEIGHT_PX) is applied per block now, not fed into
+    // this grid unit.
+    expect(columns[0].timeline.slotHeight).toBe(72);
   });
 
   describe('shared hour axis (TD44 Story 3)', () => {

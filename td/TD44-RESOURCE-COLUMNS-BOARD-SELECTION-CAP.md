@@ -418,6 +418,8 @@ Files (round 5): `schedule-scroll-to-now.ts`/`.spec.ts` (`block: 'center'`), `ap
 
 **`<NEW_VALUE>` is deliberately not fixed here — it needs a live look, not arithmetic alone** (user has explicitly granted permission to run the dev server for this). During implementation: keep Change 1 in place, try a small number of candidate base values (e.g. 60/64/72 in place of 48) against the running app, side by side, across Day view (single timeline + resource-columns board) and Week view, and pick whichever reads as visually proportionate without reopening TD44-S4's original problem (an 18-slot business day must stay comfortably navigable with scroll-to-now, not require heavy manual scrolling). Record the chosen value and the reasoning in this story's own text before considering it done — don't leave the "why this number" implicit.
 
+**Chosen value: 72 (implementation, 2026-09-27).** Compared 60/64/72 live against the running dev stack (backend/BFF already running from the main checkout; only `apps/web` run fresh from this worktree), in both Day view (single timeline) and Week view, with a minimum-granularity booking (no resource) and a bundled-resource minimum-granularity booking present. At 48 (old), the minimum-granularity block visibly overhung its own slot into the next one; at 72 the overhang is minor and the block reads as proportionate to its neighbors in both views. 72 was picked over 60/64 as the best balance: it most narrows the gap between a block's content-fit floor and its true duration-height, while keeping the total day height (18 × 72 = 1296px for a 9-hour day) comfortably navigable with scroll-to-now (TD44 Story 4) already in place — not materially harder to scan than the 60/64 candidates, but visibly better-proportioned. Week view's compact scale (0.85, unchanged) applies on top automatically and also looked clean at this value with no clipping.
+
 **Known risk, accepted:** this reopens the exact `getSlotHeight`/`buildBlockStyle` positioning-math surface TD44-S3/S4 both flagged as risky and carefully tuned. Mitigated by scroll-to-now (S4) already being in place, and by the change being a single multiplier tweak, not new machinery.
 
 **Resolved via `/story-discovery` (2026-09-27):**
@@ -433,18 +435,18 @@ Files (round 5): `schedule-scroll-to-now.ts`/`.spec.ts` (`block: 'center'`), `ap
 - `plan/journey/staff/prototypes/horarios/dev-notes.md` (modify — factual sync of the "Minimum-granularity content variant" bullet, TD44 addition section)
 
 **Acceptance criteria — product:**
-- [ ] A minimum-granularity booking shows both its resource-summary line (if assigned) and its time-range line, in every board (Day single timeline, Day resource-columns board, Week view) — same content shape as any longer-duration booking.
-- [ ] The calendar's overall density increases modestly so a minimum-granularity booking's rendered height no longer looks disproportionate next to a booking twice its duration.
-- [ ] Non-regression: a booking with no assigned resource still renders correctly (time-range line only, no blank/broken layout).
-- [ ] Non-regression: a longer-than-minimum-granularity booking's rendering is otherwise unchanged.
+- [x] A minimum-granularity booking shows both its resource-summary line (if assigned) and its time-range line, in every board (Day single timeline, Day resource-columns board, Week view) — same content shape as any longer-duration booking.
+- [x] The calendar's overall density increases modestly so a minimum-granularity booking's rendered height no longer looks disproportionate next to a booking twice its duration.
+- [x] Non-regression: a booking with no assigned resource still renders correctly (time-range line only, no blank/broken layout).
+- [x] Non-regression: a longer-than-minimum-granularity booking's rendering is otherwise unchanged.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `renderBookingTimelineEvent` always renders the time-range block, regardless of `totalDurationMins` vs. `slotGranularityMinutes`
-  - [ ] `extraLineCount`/`getBlockMinHeightPx` reflect `Number(showResourceLine) + 1` for every booking, not just non-minimum-granularity ones
-  - [ ] `getSlotHeight`'s updated base value covered by updated assertions in `schedule-timeline.spec.ts`
+  - [x] `renderBookingTimelineEvent` always renders the time-range block, regardless of `totalDurationMins` vs. `slotGranularityMinutes`
+  - [x] `extraLineCount`/`getBlockMinHeightPx` reflect `Number(showResourceLine) + 1` for every booking, not just non-minimum-granularity ones
+  - [x] `getSlotHeight`'s updated base value covered by updated assertions in `schedule-timeline.spec.ts`
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — client-side only
-- E2E: a minimum-granularity booking shows its time-range text in Day view, the Day resource-columns board, and Week view; a longer booking's rendering is unchanged — run against the real dev stack, not inferred from source
-- [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+- E2E: a minimum-granularity booking shows its time-range text in Day view, the Day resource-columns board, and Week view; a longer booking's rendering is unchanged — run against the real dev stack, not inferred from source (verified: `schedule.spec.ts`'s Day-view scenario, plus two `schedule-resource-columns.spec.ts` scenarios covering the resource-columns board and Week view)
+- [x] Coverage ≥80% on changed code
+- [x] `tsc --noEmit` clean, lint clean

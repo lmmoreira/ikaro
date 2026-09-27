@@ -198,14 +198,14 @@ describe('useScheduleTimelineDerived', () => {
     // schedule-timeline-formatting.spec.ts's getBlockMinHeightPx coverage, plus
     // ScheduleTimelineEventRenderer.spec.tsx's own min-height assertion). This block now only
     // covers the plain grid unit these two boards pass through buildTimelineDayData.
-    it('gives Day view (selectedDayTimeline) the plain 48px/30-min-slot unit (scale 1)', () => {
+    it('gives Day view (selectedDayTimeline) the plain 72px/30-min-slot unit (scale 1, TD44 Story 5 — base raised from 48)', () => {
       const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
-      expect(result.current.selectedDayTimeline.slotHeight).toBe(48);
+      expect(result.current.selectedDayTimeline.slotHeight).toBe(72);
     });
 
-    it('gives Week view (weekTimelineCards) the plain scaled-down unit (scale 0.85, TD44 Story 4 live-testing correction — raised from 0.45)', () => {
+    it('gives Week view (weekTimelineCards) the plain scaled-down unit (scale 0.85, TD44 Story 4 live-testing correction — raised from 0.45; base raised 48 -> 72 in Story 5)', () => {
       const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
-      expect(result.current.weekTimelineCards[0].slotHeight).toBe(41);
+      expect(result.current.weekTimelineCards[0].slotHeight).toBe(61);
     });
   });
 
