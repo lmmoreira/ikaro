@@ -52,7 +52,10 @@ describe('RecurringBookingScheduleController', () => {
     const tx = new InMemoryTransactionManager();
     const tenantLock = new InMemoryTenantLock();
 
-    const resource = new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build();
+    const resource = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.ROOM)
+      .build();
     await resourceRepo.save(resource);
     resourceId = resource.id;
 
@@ -147,12 +150,22 @@ describe('RecurringBookingScheduleController', () => {
         tenantId: TENANT_ID,
         customerId: CUSTOMER_ID,
         serviceId,
-        recurrence: { frequency: 'WEEKLY', daysOfWeek: ['tuesday'], startTime: '10:00', durationMinutes: 60 },
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 60,
+        },
         startsOn: STARTS_ON,
         endsOn: null,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceAssignments: [
-          { resourceId, resourceType: ResourceType.ROOM, requirementId: null, requiredQuantityPosition: null },
+          {
+            resourceId,
+            resourceType: ResourceType.ROOM,
+            requirementId: null,
+            requiredQuantityPosition: null,
+          },
         ],
         status: 'ACTIVE',
         approvalHoldExpiresAt: null,
@@ -163,12 +176,22 @@ describe('RecurringBookingScheduleController', () => {
         tenantId: TENANT_ID,
         customerId: '00000000-0000-7000-8000-000000000077',
         serviceId,
-        recurrence: { frequency: 'WEEKLY', daysOfWeek: ['tuesday'], startTime: '10:00', durationMinutes: 60 },
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 60,
+        },
         startsOn: STARTS_ON,
         endsOn: null,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceAssignments: [
-          { resourceId, resourceType: ResourceType.ROOM, requirementId: null, requiredQuantityPosition: null },
+          {
+            resourceId,
+            resourceType: ResourceType.ROOM,
+            requirementId: null,
+            requiredQuantityPosition: null,
+          },
         ],
         status: 'ACTIVE',
         approvalHoldExpiresAt: null,
@@ -189,7 +212,12 @@ describe('RecurringBookingScheduleController', () => {
     it('pauses then rejects a second pause with 409', async () => {
       const created = await controller.request({
         serviceId,
-        recurrence: { frequency: 'WEEKLY', daysOfWeek: ['tuesday'], startTime: '10:00', durationMinutes: 60 },
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 60,
+        },
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: STARTS_ON,
@@ -206,7 +234,12 @@ describe('RecurringBookingScheduleController', () => {
     it('ends an ACTIVE schedule', async () => {
       const created = await controller.request({
         serviceId,
-        recurrence: { frequency: 'WEEKLY', daysOfWeek: ['tuesday'], startTime: '10:00', durationMinutes: 60 },
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 60,
+        },
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: STARTS_ON,
@@ -221,7 +254,12 @@ describe('RecurringBookingScheduleController', () => {
     it('records a SKIPPED exception on an ACTIVE schedule', async () => {
       const created = await controller.request({
         serviceId,
-        recurrence: { frequency: 'WEEKLY', daysOfWeek: ['tuesday'], startTime: '10:00', durationMinutes: 60 },
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 60,
+        },
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: STARTS_ON,

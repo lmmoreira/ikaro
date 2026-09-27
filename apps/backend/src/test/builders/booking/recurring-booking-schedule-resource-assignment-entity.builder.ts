@@ -6,9 +6,9 @@ export class RecurringBookingScheduleResourceAssignmentEntityBuilder {
   private tenantId = '00000000-0000-7000-8000-000000000001';
   private recurringScheduleId = uuidv7();
   private resourceId = uuidv7();
-  private requirementId: string | null = null;
+  private readonly requirementId: string | null = null;
   private resourceType: ResourceType = ResourceType.ROOM;
-  private requiredQuantityPosition: number | null = null;
+  private readonly requiredQuantityPosition: number | null = null;
   private readonly assignedAt = new Date();
 
   withTenantId(tenantId: string): this {

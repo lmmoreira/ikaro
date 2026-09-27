@@ -1,15 +1,8 @@
 import { z } from 'zod';
+import { RecurrenceRuleSchema } from '@ikaro/validation';
 
-// WEEKLY-only for MVP (M23-S04 story-discovery, 2026-09-27) — docs/02-DOMAIN_MODEL.md §
-// RecurringBookingSchedule.
-export const RecurrenceRuleSchema = z.object({
-  frequency: z.literal('WEEKLY'),
-  daysOfWeek: z
-    .array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']))
-    .min(1),
-  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm'),
-  durationMinutes: z.number().int().positive(),
-});
+// Re-exported so existing imports of this symbol from this file keep working unchanged.
+export { RecurrenceRuleSchema };
 
 export const RequestRecurringBookingScheduleSchema = z
   .object({

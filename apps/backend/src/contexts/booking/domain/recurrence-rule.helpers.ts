@@ -1,4 +1,8 @@
-import { localDateTimeToUTCIso, WeekDayName } from '../../../shared/utils/calendar-date';
+import {
+  getUtcWeekDayName,
+  localDateTimeToUTCIso,
+  WeekDayName,
+} from '../../../shared/utils/calendar-date';
 
 // WEEKLY-only for MVP (locked in during M23-S04 story-discovery, 2026-09-27) — one shared
 // time-of-day across every listed weekday, no per-day override, no other frequency value.
@@ -24,24 +28,10 @@ export interface RecurrenceOccurrence {
 }
 
 // A calendar date string's day-of-week is invariant to timezone (Sept 27, 2026 is a Sunday
-// everywhere) — only the corresponding UTC instant shifts. So a plain UTC-anchored Date.UTC()
-// parse is safe here for weekday lookup, even though startsOn/endsOn/horizonEnd are tenant-local
-// calendar dates; only the actual occurrence instant (below) needs a real timezone conversion.
-const WEEKDAY_NAMES: WeekDayName[] = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-];
-
-function weekdayOf(date: string): WeekDayName {
-  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
-  return WEEKDAY_NAMES[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
-}
-
+// everywhere) — only the corresponding UTC instant shifts. So calendar-date.ts's UTC-anchored
+// getUtcWeekDayName() is safe here for weekday lookup, even though startsOn/endsOn/horizonEnd are
+// tenant-local calendar dates; only the actual occurrence instant (below) needs a real timezone
+// conversion.
 function addDaysToLocalDate(date: string, days: number): string {
   const [year, month, day] = date.split('-').map(Number) as [number, number, number];
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
@@ -75,7 +65,7 @@ export function enumerateRecurrenceOccurrences(
   const occurrences: RecurrenceOccurrence[] = [];
   let cursor = startsOn;
   while (cursor <= effectiveEnd) {
-    if (recurrence.daysOfWeek.includes(weekdayOf(cursor))) {
+    if (recurrence.daysOfWeek.includes(getUtcWeekDayName(cursor))) {
       occurrences.push({
         occurrenceStart: new Date(localDateTimeToUTCIso(cursor, recurrence.startTime, timezone)),
         occurrenceStartLocalDate: cursor,

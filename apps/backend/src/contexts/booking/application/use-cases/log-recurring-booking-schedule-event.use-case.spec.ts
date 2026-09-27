@@ -55,7 +55,9 @@ describe('LogRecurringBookingScheduleEventUseCase', () => {
     await useCase.execute(
       baseInput({ eventId: 'e1', eventName: 'RecurringBookingScheduleApprovalRequested' }),
     );
-    await useCase.execute(baseInput({ eventId: 'e2', eventName: 'RecurringBookingSchedulePaused' }));
+    await useCase.execute(
+      baseInput({ eventId: 'e2', eventName: 'RecurringBookingSchedulePaused' }),
+    );
     await useCase.execute(baseInput({ eventId: 'e3', eventName: 'RecurringBookingScheduleEnded' }));
 
     expect(logSpy).toHaveBeenNthCalledWith(
@@ -63,8 +65,16 @@ describe('LogRecurringBookingScheduleEventUseCase', () => {
       'RecurringBookingScheduleApprovalRequested received',
       expect.anything(),
     );
-    expect(logSpy).toHaveBeenNthCalledWith(2, 'RecurringBookingSchedulePaused received', expect.anything());
-    expect(logSpy).toHaveBeenNthCalledWith(3, 'RecurringBookingScheduleEnded received', expect.anything());
+    expect(logSpy).toHaveBeenNthCalledWith(
+      2,
+      'RecurringBookingSchedulePaused received',
+      expect.anything(),
+    );
+    expect(logSpy).toHaveBeenNthCalledWith(
+      3,
+      'RecurringBookingScheduleEnded received',
+      expect.anything(),
+    );
   });
 
   it('is idempotent: a redelivered eventId is not logged a second time', async () => {

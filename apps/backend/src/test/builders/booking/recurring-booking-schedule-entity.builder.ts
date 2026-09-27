@@ -12,21 +12,21 @@ export class RecurringBookingScheduleEntityBuilder {
   private tenantId = '00000000-0000-7000-8000-000000000001';
   private customerId = uuidv7();
   private serviceId = uuidv7();
-  private recurrence: RecurrenceRule = {
+  private readonly recurrence: RecurrenceRule = {
     frequency: 'WEEKLY',
     daysOfWeek: ['tuesday'],
     startTime: '10:00',
     durationMinutes: 120,
   };
   private readonly startsOn = '2026-09-01';
-  private endsOn: string | null = null;
+  private readonly endsOn: string | null = null;
   private status: RecurringBookingScheduleStatus = 'ACTIVE';
   private assignmentPolicy: RecurringBookingScheduleAssignmentPolicy = 'FIXED_ASSIGNMENT';
   private approvalHoldExpiresAt: Date | null = null;
-  private approvedByStaffId: string | null = null;
-  private approvedAt: Date | null = null;
-  private cancellationReason: RecurringBookingScheduleCancellationReason | null = null;
-  private createdByStaffId: string | null = null;
+  private readonly approvedByStaffId: string | null = null;
+  private readonly approvedAt: Date | null = null;
+  private readonly cancellationReason: RecurringBookingScheduleCancellationReason | null = null;
+  private readonly createdByStaffId: string | null = null;
   private readonly createdAt = new Date();
   private readonly updatedAt = new Date();
 

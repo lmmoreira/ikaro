@@ -1,16 +1,10 @@
 import { z } from 'zod';
+import { RecurrenceRuleSchema } from '@ikaro/validation';
 
-// Mirrors apps/backend's RecurrenceRuleSchema — WEEKLY-only for MVP (M23-S04 story-discovery,
-// 2026-09-27). BFF maintains its own copy per docs/24-BFF_ARCHITECTURE.md — the backend is the
-// authoritative validator.
-export const RecurrenceRuleSchema = z.object({
-  frequency: z.literal('WEEKLY'),
-  daysOfWeek: z
-    .array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']))
-    .min(1),
-  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm'),
-  durationMinutes: z.number().int().positive(),
-});
+// Re-exported so existing imports of this symbol from this file keep working unchanged — the
+// backend DTO and this BFF schema need it identically (bad-smell-audit BFF-5), so it lives once
+// in packages/validation/src/booking.ts instead of two hand-written copies.
+export { RecurrenceRuleSchema };
 
 export const RequestRecurringBookingScheduleBodySchema = z.object({
   serviceId: z.uuid(),

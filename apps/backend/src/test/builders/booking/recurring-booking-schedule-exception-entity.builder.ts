@@ -12,9 +12,9 @@ export class RecurringBookingScheduleExceptionEntityBuilder {
   private occurrenceStart = new Date();
   private kind: RecurringBookingScheduleExceptionKind = 'SKIPPED';
   private replacementBookingId: string | null = null;
-  private actorType: RecurringBookingScheduleActorType = 'CUSTOMER';
-  private actorId: string | null = uuidv7();
-  private reason: string | null = null;
+  private readonly actorType: RecurringBookingScheduleActorType = 'CUSTOMER';
+  private readonly actorId: string | null = uuidv7();
+  private readonly reason: string | null = null;
   private readonly createdAt = new Date();
 
   withId(id: string): this {

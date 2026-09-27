@@ -246,3 +246,16 @@ export const ScheduleClosuresRangeQuerySchema = z.object({
   to: z.iso.date({ error: 'to must be a valid YYYY-MM-DD calendar date' }),
   resourceId: z.uuid().optional(),
 });
+
+// M23-S04 — the backend DTO and the BFF schema need this identically, with no per-app deviation
+// (bad-smell-audit BFF-5), so it lives here once instead of as two hand-written copies. WEEKLY-only
+// for MVP (locked in during M23-S04 story-discovery) — docs/02-DOMAIN_MODEL.md §
+// RecurringBookingSchedule.
+export const RecurrenceRuleSchema = z.object({
+  frequency: z.literal('WEEKLY'),
+  daysOfWeek: z
+    .array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']))
+    .min(1),
+  startTime: timeOfDayField(),
+  durationMinutes: z.number().int().positive(),
+});

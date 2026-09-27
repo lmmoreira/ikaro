@@ -5,8 +5,8 @@ export class RecurringBookingSchedulePausedEventBuilder {
   private tenantId = '00000000-0000-7000-8000-000000000001';
   private correlationId = 'corr-1';
   private recurringScheduleId = uuidv7();
-  private customerId = uuidv7();
-  private serviceId = uuidv7();
+  private readonly customerId = uuidv7();
+  private readonly serviceId = uuidv7();
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
