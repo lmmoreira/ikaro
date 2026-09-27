@@ -2,16 +2,20 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
-import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
+import {
+  RecurringBookingScheduleForbiddenError,
+  RecurringBookingScheduleNotFoundError,
+} from '../../domain/errors/recurring-booking-schedule.error';
 import { ResourceType } from '../../domain/resource.types';
 import { PauseRecurringBookingScheduleUseCase } from './pause-recurring-booking-schedule.use-case';
 
 const TENANT = '10000000-0000-4000-8000-000000000301';
+const OTHER_TENANT = '10000000-0000-4000-8000-000000000399';
 const CORRELATION_ID = 'corr-pause-test';
 
-function activeSchedule(): RecurringBookingSchedule {
+function activeSchedule(tenantId = TENANT): RecurringBookingSchedule {
   const schedule = RecurringBookingSchedule.request({
-    tenantId: TENANT,
+    tenantId,
     customerId: 'customer-1',
     serviceId: 'service-1',
     recurrence: {
@@ -62,6 +66,8 @@ describe('PauseRecurringBookingScheduleUseCase', () => {
       scheduleId: schedule.id,
       tenantId: TENANT,
       correlationId: CORRELATION_ID,
+      actorType: 'CUSTOMER',
+      actorId: 'customer-1',
     });
 
     expect(result.status).toBe('PAUSED');
@@ -72,7 +78,58 @@ describe('PauseRecurringBookingScheduleUseCase', () => {
 
   it('throws when the schedule does not exist', async () => {
     await expect(
-      useCase.execute({ scheduleId: 'missing', tenantId: TENANT, correlationId: CORRELATION_ID }),
+      useCase.execute({
+        scheduleId: 'missing',
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        actorType: 'CUSTOMER',
+        actorId: 'customer-1',
+      }),
     ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+  });
+
+  it('throws NotFound for a schedule that belongs to a different tenant', async () => {
+    const schedule = activeSchedule(OTHER_TENANT);
+    scheduleRepo.seed(schedule);
+
+    await expect(
+      useCase.execute({
+        scheduleId: schedule.id,
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        actorType: 'CUSTOMER',
+        actorId: 'customer-1',
+      }),
+    ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+  });
+
+  it('rejects a CUSTOMER actor pausing a schedule that belongs to another customer', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+
+    await expect(
+      useCase.execute({
+        scheduleId: schedule.id,
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        actorType: 'CUSTOMER',
+        actorId: 'someone-else',
+      }),
+    ).rejects.toThrow(RecurringBookingScheduleForbiddenError);
+  });
+
+  it('allows a STAFF actor to pause any schedule in the tenant', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+
+    const result = await useCase.execute({
+      scheduleId: schedule.id,
+      tenantId: TENANT,
+      correlationId: CORRELATION_ID,
+      actorType: 'STAFF',
+      actorId: 'staff-1',
+    });
+
+    expect(result.status).toBe('PAUSED');
   });
 });

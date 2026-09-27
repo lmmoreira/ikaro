@@ -40,6 +40,19 @@ export class InMemoryRecurringBookingScheduleRepository implements IRecurringBoo
     ).length;
   }
 
+  async findActiveByResource(
+    tenantId: string,
+    resourceId: string,
+  ): Promise<RecurringBookingSchedule[]> {
+    return Array.from(this.store.values()).filter(
+      (s) =>
+        s.tenantId === tenantId &&
+        s.status === 'ACTIVE' &&
+        s.assignmentPolicy === 'FIXED_ASSIGNMENT' &&
+        s.resourceAssignments.some((a) => a.resourceId === resourceId),
+    );
+  }
+
   async countActiveResolvePerOccurrenceByService(
     tenantId: string,
     serviceId: string,

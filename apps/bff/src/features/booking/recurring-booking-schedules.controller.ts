@@ -10,6 +10,7 @@ import {
   SkipOrRescheduleOccurrenceResponse,
 } from './recurring-booking-schedules.types';
 import {
+  OccurrenceStartParamSchema,
   RequestRecurringBookingScheduleBody,
   RequestRecurringBookingScheduleBodySchema,
   SkipOrRescheduleOccurrenceBody,
@@ -48,12 +49,13 @@ export class RecurringBookingSchedulesController {
   @Patch(':id/occurrences/:occurrenceStart')
   skipOrReschedule(
     @Param('id', CanonicalParseUUIDPipe) id: string,
-    @Param('occurrenceStart') occurrenceStart: string,
+    @Param('occurrenceStart', new ZodValidationPipe(OccurrenceStartParamSchema))
+    occurrenceStart: string,
     @Body(new ZodValidationPipe(SkipOrRescheduleOccurrenceBodySchema))
     body: SkipOrRescheduleOccurrenceBody,
   ): Promise<SkipOrRescheduleOccurrenceResponse> {
     return this.backendHttp.patch<SkipOrRescheduleOccurrenceResponse>(
-      `/recurring-booking-schedules/${id}/occurrences/${occurrenceStart}`,
+      `/recurring-booking-schedules/${id}/occurrences/${encodeURIComponent(occurrenceStart)}`,
       body,
     );
   }

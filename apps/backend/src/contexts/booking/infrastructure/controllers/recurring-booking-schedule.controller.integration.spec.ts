@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 import {
+  RecurringBookingScheduleEntityBuilder,
   ResourceEntityBuilder,
   ServiceEntityBuilder,
   ServiceResourceRequirementEntityBuilder,
@@ -77,6 +78,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
   async function seedService(
     defaultApprovalMode: 'AUTO_CONFIRM' | 'MANUAL_APPROVAL',
+    selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' = 'CUSTOMER_CHOICE',
   ): Promise<string> {
     const service = new ServiceEntityBuilder()
       .withTenantId(tenantId)
@@ -89,7 +91,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       .withTenantId(tenantId)
       .withServiceId(saved.id)
       .withResourceType(ResourceType.ROOM)
-      .withSelectionMode('CUSTOMER_CHOICE')
+      .withSelectionMode(selectionMode)
       .build();
     await ds.getRepository(ServiceResourceRequirementEntity).save(requirement);
     return saved.id;
@@ -151,13 +153,71 @@ describe('RecurringBookingScheduleController (integration)', () => {
   });
 
   it('never crosses tenant/customer boundary on GET', async () => {
+    const otherCustomerId = '20000000-0000-4000-8000-000000000602';
+    const otherCustomer = new CustomerEntityBuilder()
+      .withTenantId(tenantId)
+      .withId(otherCustomerId)
+      .withGoogleOAuthId('google-sub-recurring-other-customer')
+      .withEmail('other@recurring.test')
+      .withName('Outro Cliente')
+      .withPhone('+5531988888888')
+      .build();
+    await ds.getRepository(CustomerEntity).save(otherCustomer);
+    const otherScheduleServiceId = await seedService('AUTO_CONFIRM');
+    const otherSchedule = new RecurringBookingScheduleEntityBuilder()
+      .withTenantId(tenantId)
+      .withCustomerId(otherCustomerId)
+      .withServiceId(otherScheduleServiceId)
+      .build();
+    await ds.getRepository(RecurringBookingScheduleEntity).save(otherSchedule);
+
     const { body } = await request(app.getHttpServer())
       .get('/recurring-booking-schedules')
       .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
       .expect(200);
 
+    expect(body.items.length).toBeGreaterThan(0);
     expect(
       body.items.every((item: { customerId: string }) => item.customerId === CUSTOMER_ID),
     ).toBe(true);
+  });
+
+  it('two concurrent RESOLVE_PER_OCCURRENCE requests near the per-service cap serialize correctly — only the over-cap one is rejected', async () => {
+    const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY');
+    const nearCapEntities = Array.from({ length: 49 }, () =>
+      new RecurringBookingScheduleEntityBuilder()
+        .withTenantId(tenantId)
+        .withServiceId(serviceId)
+        .withAssignmentPolicy('RESOLVE_PER_OCCURRENCE')
+        .withStatus('ACTIVE')
+        .build(),
+    );
+    await ds.getRepository(RecurringBookingScheduleEntity).save(nearCapEntities);
+
+    const requestBody = {
+      serviceId,
+      recurrence: {
+        frequency: 'WEEKLY',
+        daysOfWeek: ['thursday'],
+        startTime: '09:00',
+        durationMinutes: 30,
+      },
+      assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+      startsOn: nextWeekday(4),
+    };
+
+    const [first, second] = await Promise.all([
+      request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send(requestBody),
+      request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send(requestBody),
+    ]);
+
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
+    expect(statuses).toEqual([201, 409]);
   });
 });

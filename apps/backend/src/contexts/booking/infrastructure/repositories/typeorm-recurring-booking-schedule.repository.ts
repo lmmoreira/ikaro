@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -84,6 +84,35 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
       .getCount();
   }
 
+  async findActiveByResource(
+    tenantId: string,
+    resourceId: string,
+  ): Promise<RecurringBookingSchedule[]> {
+    const assignments = await this.assignmentRepo
+      .createQueryBuilder('a')
+      .innerJoin(
+        RecurringBookingScheduleEntity,
+        's',
+        's.id = a.recurringScheduleId AND s.tenantId = a.tenantId',
+      )
+      .where('a.tenantId = :tenantId', { tenantId })
+      .andWhere('a.resourceId = :resourceId', { resourceId })
+      .andWhere('s.status = :status', { status: 'ACTIVE' })
+      .andWhere('s.assignmentPolicy = :policy', { policy: 'FIXED_ASSIGNMENT' })
+      .select('a.recurringScheduleId', 'recurringScheduleId')
+      .getRawMany<{ recurringScheduleId: string }>();
+    if (!assignments.length) return [];
+
+    const ids = [...new Set(assignments.map((a) => a.recurringScheduleId))];
+    const entities = await this.repo.find({ where: ids.map((id) => ({ id, tenantId })) });
+    const allAssignments = await this.assignmentRepo.find({
+      where: ids.map((recurringScheduleId) => ({ tenantId, recurringScheduleId })),
+    });
+    const assignmentsByScheduleId = groupBy(allAssignments, (a) => a.recurringScheduleId);
+
+    return entities.map((e) => toDomain(e, assignmentsByScheduleId.get(e.id) ?? [], []));
+  }
+
   async countActiveResolvePerOccurrenceByService(
     tenantId: string,
     serviceId: string,
@@ -101,30 +130,39 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
   async save(schedule: RecurringBookingSchedule): Promise<void> {
     const manager = getActiveEntityManager();
     if (manager) {
-      await this.persist(schedule);
+      await this.persist(manager, schedule);
     } else {
-      await runInNewTransaction(this.repo.manager, () => this.persist(schedule));
+      // Self-managed transaction (no ambient txManager.run() from the caller): runInNewTransaction
+      // is the same sequence TypeOrmTransactionManager.run() uses — the ambient context must
+      // point at this tx too, or drainDomainEvents' outbox write (inside persist) would have no
+      // active manager to join and would run outside this transaction entirely (mirrors
+      // typeorm-booking.repository.ts's save() precedent).
+      await runInNewTransaction(this.repo.manager, (tx) => this.persist(tx, schedule));
     }
   }
 
-  private async persist(schedule: RecurringBookingSchedule): Promise<void> {
+  private async persist(manager: EntityManager, schedule: RecurringBookingSchedule): Promise<void> {
+    const scheduleRepo = manager.getRepository(RecurringBookingScheduleEntity);
+    const assignmentRepo = manager.getRepository(RecurringBookingScheduleResourceAssignmentEntity);
+    const exceptionRepo = manager.getRepository(RecurringBookingScheduleExceptionEntity);
+
     const entity = toEntity(schedule);
-    const existing = await this.repo.findOne({
+    const existing = await scheduleRepo.findOne({
       where: { id: schedule.id, tenantId: schedule.tenantId },
       select: { id: true },
     });
 
     if (!existing) {
-      await this.repo.insert(entity);
+      await scheduleRepo.insert(entity);
       const assignmentEntities = toResourceAssignmentEntities(schedule);
-      if (assignmentEntities.length) await this.assignmentRepo.insert(assignmentEntities);
+      if (assignmentEntities.length) await assignmentRepo.insert(assignmentEntities);
     } else {
-      await this.repo.update({ id: schedule.id, tenantId: schedule.tenantId }, entity);
+      await scheduleRepo.update({ id: schedule.id, tenantId: schedule.tenantId }, entity);
     }
 
     const pendingExceptions = schedule.pendingNewExceptions;
     if (pendingExceptions.length) {
-      await this.exceptionRepo.insert(toExceptionEntities(schedule, pendingExceptions));
+      await exceptionRepo.insert(toExceptionEntities(schedule, pendingExceptions));
     }
 
     await drainDomainEvents(schedule, this.outboxPublisher);

@@ -5,10 +5,11 @@ import { ResourceType } from '../../domain/resource.types';
 import { ListRecurringBookingSchedulesUseCase } from './list-recurring-booking-schedules.use-case';
 
 const TENANT = '10000000-0000-4000-8000-000000000401';
+const OTHER_TENANT = '10000000-0000-4000-8000-000000000499';
 
-function schedule(customerId: string): RecurringBookingSchedule {
+function schedule(customerId: string, tenantId = TENANT): RecurringBookingSchedule {
   return RecurringBookingSchedule.request({
-    tenantId: TENANT,
+    tenantId,
     customerId,
     serviceId: 'service-1',
     recurrence: {
@@ -75,5 +76,15 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
       assignmentPolicy: 'FIXED_ASSIGNMENT',
       approvalHoldExpiresAt: null,
     });
+  });
+
+  it('never returns a schedule that belongs to a different tenant', async () => {
+    repo.seed(schedule('customer-a'));
+    repo.seed(schedule('customer-a', OTHER_TENANT));
+
+    const result = await useCase.execute({ tenantId: TENANT });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items.every((item) => item.customerId === 'customer-a')).toBe(true);
   });
 });

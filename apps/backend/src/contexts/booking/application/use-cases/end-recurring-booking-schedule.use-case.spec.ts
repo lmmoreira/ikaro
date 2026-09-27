@@ -5,18 +5,22 @@ import { InMemoryBookingRepository } from '../../../../test/repositories/booking
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
-import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
+import {
+  RecurringBookingScheduleForbiddenError,
+  RecurringBookingScheduleNotFoundError,
+} from '../../domain/errors/recurring-booking-schedule.error';
 import { ResourceType } from '../../domain/resource.types';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { EndRecurringBookingScheduleUseCase } from './end-recurring-booking-schedule.use-case';
 
 const TENANT = '10000000-0000-4000-8000-000000000302';
+const OTHER_TENANT = '10000000-0000-4000-8000-000000000398';
 const CORRELATION_ID = 'corr-end-test';
 
-function activeSchedule(): RecurringBookingSchedule {
+function activeSchedule(tenantId = TENANT): RecurringBookingSchedule {
   const schedule = RecurringBookingSchedule.request({
-    tenantId: TENANT,
+    tenantId,
     customerId: 'customer-1',
     serviceId: 'service-1',
     recurrence: {
@@ -73,6 +77,7 @@ describe('EndRecurringBookingScheduleUseCase', () => {
       scheduleId: schedule.id,
       tenantId: TENANT,
       correlationId: CORRELATION_ID,
+      actorType: 'CUSTOMER',
       actorId: 'customer-1',
       isBusiness: false,
     });
@@ -99,6 +104,7 @@ describe('EndRecurringBookingScheduleUseCase', () => {
       scheduleId: schedule.id,
       tenantId: TENANT,
       correlationId: CORRELATION_ID,
+      actorType: 'CUSTOMER',
       actorId: 'customer-1',
       isBusiness: false,
     });
@@ -114,9 +120,42 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         scheduleId: 'missing',
         tenantId: TENANT,
         correlationId: CORRELATION_ID,
+        actorType: 'CUSTOMER',
         actorId: 'customer-1',
         isBusiness: false,
       }),
     ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+  });
+
+  it('throws NotFound for a schedule that belongs to a different tenant', async () => {
+    const schedule = activeSchedule(OTHER_TENANT);
+    scheduleRepo.seed(schedule);
+
+    await expect(
+      useCase.execute({
+        scheduleId: schedule.id,
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        actorType: 'CUSTOMER',
+        actorId: 'customer-1',
+        isBusiness: false,
+      }),
+    ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+  });
+
+  it('rejects a CUSTOMER actor ending a schedule that belongs to another customer', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+
+    await expect(
+      useCase.execute({
+        scheduleId: schedule.id,
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        actorType: 'CUSTOMER',
+        actorId: 'someone-else',
+        isBusiness: false,
+      }),
+    ).rejects.toThrow(RecurringBookingScheduleForbiddenError);
   });
 });

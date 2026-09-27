@@ -13,6 +13,7 @@ import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
 import {
+  OccurrenceStartParamSchema,
   RequestRecurringBookingScheduleDto,
   RequestRecurringBookingScheduleSchema,
   SkipOrRescheduleOccurrenceDto,
@@ -93,7 +94,8 @@ export class RecurringBookingScheduleController {
   @HttpCode(HttpStatus.OK)
   skipOrReschedule(
     @Param('id', CanonicalParseUUIDPipe) id: string,
-    @Param('occurrenceStart') occurrenceStart: string,
+    @Param('occurrenceStart', new ZodValidationPipe(OccurrenceStartParamSchema))
+    occurrenceStart: string,
     @Body(new ZodValidationPipe(SkipOrRescheduleOccurrenceSchema))
     body: SkipOrRescheduleOccurrenceDto,
   ): Promise<SkipOrRescheduleOccurrenceUseCaseResult> {
@@ -118,9 +120,15 @@ export class RecurringBookingScheduleController {
   pause(
     @Param('id', CanonicalParseUUIDPipe) id: string,
   ): Promise<PauseRecurringBookingScheduleUseCaseResult> {
-    const { tenantId, correlationId } = this.ctx;
+    const { tenantId, correlationId, actorType, actorId } = this.ctx;
     return this.pauseSchedule
-      .execute({ scheduleId: id, tenantId, correlationId })
+      .execute({
+        scheduleId: id,
+        tenantId,
+        correlationId,
+        actorType: actorType!,
+        actorId: actorId!,
+      })
       .catch(mapBookingError);
   }
 
@@ -135,6 +143,7 @@ export class RecurringBookingScheduleController {
         scheduleId: id,
         tenantId,
         correlationId,
+        actorType: actorType!,
         actorId: actorId!,
         isBusiness: actorType === 'STAFF',
       })

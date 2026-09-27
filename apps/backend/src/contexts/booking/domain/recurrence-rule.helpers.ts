@@ -3,6 +3,7 @@ import {
   localDateTimeToUTCIso,
   WeekDayName,
 } from '../../../shared/utils/calendar-date';
+import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 
 // WEEKLY-only for MVP (locked in during M23-S04 story-discovery, 2026-09-27) — one shared
 // time-of-day across every listed weekday, no per-day override, no other frequency value.
@@ -74,4 +75,35 @@ export function enumerateRecurrenceOccurrences(
     cursor = addDaysToLocalDate(cursor, 1);
   }
   return occurrences;
+}
+
+export interface RecurrenceOverlapCandidate {
+  recurrence: RecurrenceRule;
+  startsOn: string;
+  endsOn: string | null;
+}
+
+// Two WEEKLY recurring patterns conflict when they share at least one day-of-week, their daily
+// time windows overlap, and their own active date ranges overlap — independent of whether either
+// pattern has ever materialized a real Booking. An ACTIVE schedule has zero materialized
+// occurrences until M23-S05's generation job runs (docs/13-DATABASE_SCHEMA.md's
+// not-yet-materialized-pattern protocol), so resource_occupancy alone can never catch two
+// recurring schedules colliding on the same resource pre-S05 — this direct pattern comparison is
+// the only mechanism that can.
+export function schedulesOverlap(
+  a: RecurrenceOverlapCandidate,
+  b: RecurrenceOverlapCandidate,
+): boolean {
+  const sharesDay = a.recurrence.daysOfWeek.some((day) => b.recurrence.daysOfWeek.includes(day));
+  if (!sharesDay) return false;
+
+  const aStart = TimeOfDay.create(a.recurrence.startTime).toMinutes();
+  const aEnd = aStart + a.recurrence.durationMinutes;
+  const bStart = TimeOfDay.create(b.recurrence.startTime).toMinutes();
+  const bEnd = bStart + b.recurrence.durationMinutes;
+  if (aStart >= bEnd || bStart >= aEnd) return false;
+
+  const aEndsOn = a.endsOn ?? '9999-12-31';
+  const bEndsOn = b.endsOn ?? '9999-12-31';
+  return a.startsOn <= bEndsOn && b.startsOn <= aEndsOn;
 }

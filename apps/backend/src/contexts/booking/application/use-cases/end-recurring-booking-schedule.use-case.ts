@@ -4,6 +4,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
+import { RecurringBookingScheduleActorType } from '../../domain/recurring-booking-schedule.aggregate';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import {
   IRecurringBookingScheduleRepository,
@@ -14,11 +15,13 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
+import { assertScheduleOwnership } from './recurring-booking-schedule-ownership.helpers';
 
 export interface EndRecurringBookingScheduleUseCaseInput {
   scheduleId: string;
   tenantId: string;
   correlationId: string;
+  actorType: RecurringBookingScheduleActorType;
   actorId: string;
   isBusiness: boolean;
 }
@@ -48,6 +51,7 @@ export class EndRecurringBookingScheduleUseCase {
   ): Promise<EndRecurringBookingScheduleUseCaseResult> {
     const schedule = await this.scheduleRepo.findById(input.scheduleId, input.tenantId);
     if (!schedule) throw new RecurringBookingScheduleNotFoundError(input.scheduleId);
+    assertScheduleOwnership(schedule, input.actorType, input.actorId);
 
     const cancelledBookingIds = await this.txManager.run(async () => {
       const futureBookings = await this.bookingRepo.findFutureActiveByRecurringSchedule(

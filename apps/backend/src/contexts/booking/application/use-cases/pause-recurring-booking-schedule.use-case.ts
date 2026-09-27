@@ -4,15 +4,19 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
+import { RecurringBookingScheduleActorType } from '../../domain/recurring-booking-schedule.aggregate';
 import {
   IRecurringBookingScheduleRepository,
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
+import { assertScheduleOwnership } from './recurring-booking-schedule-ownership.helpers';
 
 export interface PauseRecurringBookingScheduleUseCaseInput {
   scheduleId: string;
   tenantId: string;
   correlationId: string;
+  actorType: RecurringBookingScheduleActorType;
+  actorId: string;
 }
 
 export interface PauseRecurringBookingScheduleUseCaseResult {
@@ -33,6 +37,7 @@ export class PauseRecurringBookingScheduleUseCase {
   ): Promise<PauseRecurringBookingScheduleUseCaseResult> {
     const schedule = await this.scheduleRepo.findById(input.scheduleId, input.tenantId);
     if (!schedule) throw new RecurringBookingScheduleNotFoundError(input.scheduleId);
+    assertScheduleOwnership(schedule, input.actorType, input.actorId);
 
     schedule.pause(input.correlationId);
 

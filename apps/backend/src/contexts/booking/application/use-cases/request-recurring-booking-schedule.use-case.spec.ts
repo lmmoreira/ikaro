@@ -19,6 +19,7 @@ import {
   RecurringBookingScheduleConflictError,
   RecurringBookingScheduleIneligibleServiceError,
 } from '../../domain/errors/recurring-booking-schedule.error';
+import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { RequestRecurringBookingScheduleUseCase } from './request-recurring-booking-schedule.use-case';
 
@@ -369,5 +370,140 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
 
     const saved = await scheduleRepo.findById(result.id, TENANT);
     expect(saved?.resourceAssignments).toEqual([]);
+  });
+
+  it('rejects a serviceId that belongs to a different tenant', async () => {
+    const otherTenantServiceId = await seedService();
+    // seedService() always writes under TENANT — reuse the id but call execute() with a
+    // different tenantId to simulate a cross-tenant lookup miss.
+    await expect(
+      useCase.execute({
+        tenantId: '10000000-0000-4000-8000-000000000999',
+        correlationId: CORRELATION_ID,
+        timezone: TIMEZONE,
+        serviceId: otherTenantServiceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 120,
+        },
+        startsOn: STARTS_ON,
+        endsOn: null,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        actorType: 'CUSTOMER',
+        actorId: CUSTOMER_ID,
+      }),
+    ).rejects.toThrow(BookingServiceNotInTenantError);
+  });
+
+  it('rejects a FIXED_ASSIGNMENT request overlapping another active schedule on the same resource', async () => {
+    const serviceId = await seedService();
+    scheduleRepo.seed(
+      RecurringBookingSchedule.request({
+        tenantId: TENANT,
+        customerId: 'other-customer',
+        serviceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 120,
+        },
+        startsOn: STARTS_ON,
+        endsOn: null,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceAssignments: [
+          {
+            resourceId,
+            resourceType: ResourceType.ROOM,
+            requirementId: null,
+            requiredQuantityPosition: null,
+          },
+        ],
+        status: 'ACTIVE',
+        approvalHoldExpiresAt: null,
+        createdByStaffId: null,
+        correlationId: CORRELATION_ID,
+      }),
+    );
+
+    // No resource_occupancy exists for the seeded schedule above (it has zero materialized
+    // occurrences, same as any ACTIVE schedule pre-M23-S05) — only the direct schedule-to-schedule
+    // comparison can catch this overlap.
+    await expect(
+      useCase.execute({
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        timezone: TIMEZONE,
+        serviceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:30',
+          durationMinutes: 60,
+        },
+        startsOn: STARTS_ON,
+        endsOn: null,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        actorType: 'CUSTOMER',
+        actorId: CUSTOMER_ID,
+      }),
+    ).rejects.toThrow(RecurringBookingScheduleConflictError);
+  });
+
+  it('allows a FIXED_ASSIGNMENT request on the same resource when the time windows do not overlap', async () => {
+    const serviceId = await seedService();
+    scheduleRepo.seed(
+      RecurringBookingSchedule.request({
+        tenantId: TENANT,
+        customerId: 'other-customer',
+        serviceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '08:00',
+          durationMinutes: 60,
+        },
+        startsOn: STARTS_ON,
+        endsOn: null,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceAssignments: [
+          {
+            resourceId,
+            resourceType: ResourceType.ROOM,
+            requirementId: null,
+            requiredQuantityPosition: null,
+          },
+        ],
+        status: 'ACTIVE',
+        approvalHoldExpiresAt: null,
+        createdByStaffId: null,
+        correlationId: CORRELATION_ID,
+      }),
+    );
+
+    const result = await useCase.execute({
+      tenantId: TENANT,
+      correlationId: CORRELATION_ID,
+      timezone: TIMEZONE,
+      serviceId,
+      recurrence: {
+        frequency: 'WEEKLY',
+        daysOfWeek: ['tuesday'],
+        startTime: '10:00',
+        durationMinutes: 60,
+      },
+      startsOn: STARTS_ON,
+      endsOn: null,
+      assignmentPolicy: 'FIXED_ASSIGNMENT',
+      resourceIds: [resourceId],
+      actorType: 'CUSTOMER',
+      actorId: CUSTOMER_ID,
+    });
+
+    expect(result.status).toBe('ACTIVE');
   });
 });

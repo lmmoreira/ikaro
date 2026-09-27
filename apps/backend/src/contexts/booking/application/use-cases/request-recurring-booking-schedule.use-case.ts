@@ -7,7 +7,10 @@ import {
   BookingCustomerNotFoundError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
-import { RecurringBookingScheduleCapReachedError } from '../../domain/errors/recurring-booking-schedule.error';
+import {
+  RecurringBookingScheduleCapReachedError,
+  RecurringBookingScheduleConflictError,
+} from '../../domain/errors/recurring-booking-schedule.error';
 import {
   RecurringBookingSchedule,
   RequestRecurringBookingScheduleResourceAssignmentInput,
@@ -17,6 +20,7 @@ import {
   enumerateRecurrenceOccurrences,
   RecurrenceRule,
   resolveHorizonEndDate,
+  schedulesOverlap,
 } from '../../domain/recurrence-rule.helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
@@ -108,6 +112,7 @@ export class RequestRecurringBookingScheduleUseCase {
     const schedule = await this.txManager.run(async () => {
       await this.lockForCapCheck(input);
       await this.assertUnderCap(input);
+      await this.assertNoActiveScheduleOverlap(input);
       await this.checkPatternConflict(input, prepared);
       const built = this.buildSchedule(input, customerId, prepared);
       await this.scheduleRepo.save(built);
@@ -176,6 +181,30 @@ export class RequestRecurringBookingScheduleUseCase {
         occurrences: prepared.occurrences,
       },
     );
+  }
+
+  // FIXED_ASSIGNMENT only — an ACTIVE schedule has zero materialized bookings until M23-S05's
+  // generation job runs, so assertPatternConflictFree()'s resource_occupancy check can never
+  // catch two recurring schedules colliding on the same resource pre-S05 (docs/13-DATABASE_SCHEMA.md's
+  // not-yet-materialized-pattern protocol). RESOLVE_PER_OCCURRENCE has no fixed resource to compare
+  // against upfront — its own per-occurrence resolution at generation time is the conflict check
+  // for that branch, same as a one-off AUTO_ANY/AUTO_FUNGIBLE_POOL booking.
+  private async assertNoActiveScheduleOverlap(
+    input: RequestRecurringBookingScheduleUseCaseInput,
+  ): Promise<void> {
+    if (input.assignmentPolicy !== 'FIXED_ASSIGNMENT') return;
+
+    for (const resourceId of input.resourceIds) {
+      const existing = await this.scheduleRepo.findActiveByResource(input.tenantId, resourceId);
+      const candidate = {
+        recurrence: input.recurrence,
+        startsOn: input.startsOn,
+        endsOn: input.endsOn,
+      };
+      if (existing.some((schedule) => schedulesOverlap(candidate, schedule))) {
+        throw new RecurringBookingScheduleConflictError();
+      }
+    }
   }
 
   private buildSchedule(

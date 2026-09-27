@@ -78,6 +78,30 @@
     ]
   },
   {
+    "event": "RecurringBookingScheduleApprovalRequested",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "RecurringBookingScheduleCreated",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "RecurringBookingScheduleEnded",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "RecurringBookingSchedulePaused",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "ServicePointsEarned",
     "consumers": [
       "notification"

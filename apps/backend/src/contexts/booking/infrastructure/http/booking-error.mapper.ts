@@ -76,6 +76,7 @@ import {
   RecurringBookingScheduleNotActiveError,
   RecurringBookingScheduleIneligibleServiceError,
   RecurringBookingScheduleExceptionAlreadyExistsError,
+  RecurringBookingScheduleForbiddenError,
 } from '../../domain/errors/booking-domain.error';
 
 type BookingDomainErrorCtor = new (...args: never[]) => BookingDomainError;
@@ -84,7 +85,7 @@ type BookingDomainErrorCtor = new (...args: never[]) => BookingDomainError;
 // (mirrors the original if-chain's order). Kept as a data table rather than a long if-chain so
 // mapBookingError() itself stays under docs/CODE_STANDARDS.md's function-length limit.
 const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
-  [[BookingForbiddenError], HttpStatus.FORBIDDEN],
+  [[BookingForbiddenError, RecurringBookingScheduleForbiddenError], HttpStatus.FORBIDDEN],
   [
     [
       BookingInfoMessageTooShortError,

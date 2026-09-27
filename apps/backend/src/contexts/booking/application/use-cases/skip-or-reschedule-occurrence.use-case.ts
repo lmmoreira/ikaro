@@ -3,7 +3,10 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
+import {
+  BookingForbiddenError,
+  BookingNotFoundError,
+} from '../../domain/errors/booking-domain.error';
 import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
 import {
   RecurringBookingSchedule,
@@ -19,6 +22,7 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
+import { assertScheduleOwnership } from './recurring-booking-schedule-ownership.helpers';
 
 export interface SkipOrRescheduleOccurrenceUseCaseInput {
   scheduleId: string;
@@ -57,6 +61,7 @@ export class SkipOrRescheduleOccurrenceUseCase {
   ): Promise<SkipOrRescheduleOccurrenceUseCaseResult> {
     const schedule = await this.scheduleRepo.findById(input.scheduleId, input.tenantId);
     if (!schedule) throw new RecurringBookingScheduleNotFoundError(input.scheduleId);
+    assertScheduleOwnership(schedule, input.actorType, input.actorId);
 
     await this.applyException(schedule, input);
 
@@ -112,6 +117,11 @@ export class SkipOrRescheduleOccurrenceUseCase {
       input.tenantId,
     );
     if (!replacement) throw new BookingNotFoundError(input.replacementBookingId!);
+    // A replacement must belong to the same customer as the schedule it's attaching to — the
+    // repository lookup above is only tenant-scoped, which isn't a strong enough boundary for
+    // this business invariant (a same-tenant customer's own booking is otherwise a valid-looking
+    // but wrong replacement target).
+    if (replacement.customerId !== schedule.customerId) throw new BookingForbiddenError();
     schedule.rescheduleOccurrence(
       input.occurrenceStart,
       input.replacementBookingId!,

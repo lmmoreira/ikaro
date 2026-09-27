@@ -73,3 +73,13 @@ export class RecurringBookingScheduleExceptionAlreadyExistsError extends Booking
     this.name = 'RecurringBookingScheduleExceptionAlreadyExistsError';
   }
 }
+
+export class RecurringBookingScheduleForbiddenError extends BookingDomainError {
+  constructor() {
+    super(
+      'You are not allowed to perform this action on this recurring schedule',
+      BookingErrorCode.RECURRING_SCHEDULE_FORBIDDEN,
+    );
+    this.name = 'RecurringBookingScheduleForbiddenError';
+  }
+}

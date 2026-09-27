@@ -17,6 +17,14 @@ export interface IRecurringBookingScheduleRepository {
   // transaction as the ITenantLockPort.lockResources() acquisition that precedes it (via
   // BookingSlotConflictService.assertSlotFree()) so the count-then-insert sequence is race-safe.
   countActiveByResource(tenantId: string, resourceId: string): Promise<number>;
+  // Every currently-ACTIVE FIXED_ASSIGNMENT schedule referencing this resourceId — used for the
+  // future-pattern-conflict check against *other* not-yet-materialized recurring schedules
+  // (docs/13-DATABASE_SCHEMA.md's not-yet-materialized-pattern protocol): an ACTIVE schedule has
+  // zero materialized Booking/resource_occupancy rows until M23-S05's generation job runs, so
+  // resource_occupancy alone can never catch two overlapping recurring patterns — this direct
+  // schedule-to-schedule comparison is the only mechanism that can, pre-S05. Same locking
+  // requirement as countActiveByResource above.
+  findActiveByResource(tenantId: string, resourceId: string): Promise<RecurringBookingSchedule[]>;
   // Counts every currently-ACTIVE RESOLVE_PER_OCCURRENCE schedule for this service — used for the
   // MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE cap check. Must be called from inside
   // the same transaction as the ITenantLockPort.lockService() acquisition that precedes it.

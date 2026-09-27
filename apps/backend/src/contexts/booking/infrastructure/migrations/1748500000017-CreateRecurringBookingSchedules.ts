@@ -78,8 +78,11 @@ export class CreateRecurringBookingSchedules1748500000017 implements MigrationIn
           FOREIGN KEY ("tenant_id", "recurring_schedule_id")
           REFERENCES "booking"."recurring_booking_schedules" ("tenant_id", "id"),
         CONSTRAINT "FK_booking_rbs_resource_assignments_resource"
-          FOREIGN KEY ("tenant_id", "resource_id")
-          REFERENCES "booking"."resources" ("tenant_id", "id")
+          FOREIGN KEY ("tenant_id", "resource_id", "resource_type")
+          REFERENCES "booking"."resources" ("tenant_id", "id", "type"),
+        CONSTRAINT "FK_booking_rbs_resource_assignments_requirement"
+          FOREIGN KEY ("tenant_id", "requirement_id")
+          REFERENCES "booking"."service_resource_requirements" ("tenant_id", "id")
       )
     `);
 
@@ -99,6 +102,9 @@ export class CreateRecurringBookingSchedules1748500000017 implements MigrationIn
         CONSTRAINT "FK_booking_rbs_exceptions_schedule"
           FOREIGN KEY ("tenant_id", "recurring_schedule_id")
           REFERENCES "booking"."recurring_booking_schedules" ("tenant_id", "id"),
+        CONSTRAINT "FK_booking_rbs_exceptions_replacement_booking"
+          FOREIGN KEY ("tenant_id", "replacement_booking_id")
+          REFERENCES "booking"."bookings" ("tenant_id", "id"),
         CONSTRAINT "CHK_booking_rbs_exceptions_kind" CHECK ("kind" IN ('SKIPPED', 'RESCHEDULED')),
         CONSTRAINT "CHK_booking_rbs_exceptions_replacement" CHECK (
           ("kind" = 'RESCHEDULED') = ("replacement_booking_id" IS NOT NULL)
@@ -114,6 +120,12 @@ export class CreateRecurringBookingSchedules1748500000017 implements MigrationIn
     await queryRunner.query(`
       ALTER TABLE "booking"."bookings"
         ADD COLUMN IF NOT EXISTS "recurring_schedule_id" UUID
+    `);
+    await queryRunner.query(`
+      ALTER TABLE "booking"."bookings"
+        ADD CONSTRAINT "FK_booking_bookings_recurring_schedule"
+          FOREIGN KEY ("tenant_id", "recurring_schedule_id")
+          REFERENCES "booking"."recurring_booking_schedules" ("tenant_id", "id")
     `);
     await queryRunner.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS "UQ_booking_bookings_recurring_schedule_occurrence"
@@ -133,6 +145,9 @@ export class CreateRecurringBookingSchedules1748500000017 implements MigrationIn
     `);
     await queryRunner.query(`
       DROP INDEX IF EXISTS "booking"."UQ_booking_bookings_recurring_schedule_occurrence"
+    `);
+    await queryRunner.query(`
+      ALTER TABLE "booking"."bookings" DROP CONSTRAINT IF EXISTS "FK_booking_bookings_recurring_schedule"
     `);
     await queryRunner.query(`
       ALTER TABLE "booking"."bookings" DROP COLUMN IF EXISTS "recurring_schedule_id"

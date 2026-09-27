@@ -58,7 +58,7 @@ describe('RecurringBookingSchedulesController', () => {
     });
 
     expect(backendHttp.patch).toHaveBeenCalledWith(
-      `/recurring-booking-schedules/${mockSchedule.id}/occurrences/2026-09-08T13:00:00.000Z`,
+      `/recurring-booking-schedules/${mockSchedule.id}/occurrences/2026-09-08T13%3A00%3A00.000Z`,
       { action: 'SKIP' },
     );
     expect(result.kind).toBe('SKIPPED');

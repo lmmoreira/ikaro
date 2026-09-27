@@ -5,20 +5,28 @@ import { InMemoryBookingRepository } from '../../../../test/repositories/booking
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
-import { RecurringBookingScheduleExceptionAlreadyExistsError } from '../../domain/errors/recurring-booking-schedule.error';
-import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
+import {
+  RecurringBookingScheduleExceptionAlreadyExistsError,
+  RecurringBookingScheduleForbiddenError,
+  RecurringBookingScheduleNotFoundError,
+} from '../../domain/errors/recurring-booking-schedule.error';
+import {
+  BookingForbiddenError,
+  BookingNotFoundError,
+} from '../../domain/errors/booking-domain.error';
 import { ResourceType } from '../../domain/resource.types';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { SkipOrRescheduleOccurrenceUseCase } from './skip-or-reschedule-occurrence.use-case';
 
 const TENANT = '10000000-0000-4000-8000-000000000303';
+const OTHER_TENANT = '10000000-0000-4000-8000-000000000397';
 const CORRELATION_ID = 'corr-skip-test';
 const OCCURRENCE_START = new Date(`${futureDate(7)}T13:00:00.000Z`);
 
-function activeSchedule(): RecurringBookingSchedule {
+function activeSchedule(tenantId = TENANT): RecurringBookingSchedule {
   const schedule = RecurringBookingSchedule.request({
-    tenantId: TENANT,
+    tenantId,
     customerId: 'customer-1',
     serviceId: 'service-1',
     recurrence: {
@@ -114,7 +122,10 @@ describe('SkipOrRescheduleOccurrenceUseCase', () => {
   it('records a RESCHEDULED exception with a valid replacementBookingId', async () => {
     const schedule = activeSchedule();
     scheduleRepo.seed(schedule);
-    const replacement = new BookingBuilder().withTenantId(TENANT).build();
+    const replacement = new BookingBuilder()
+      .withTenantId(TENANT)
+      .withCustomerId('customer-1')
+      .build();
     await bookingRepo.save(replacement);
 
     const result = await useCase.execute({
@@ -175,5 +186,62 @@ describe('SkipOrRescheduleOccurrenceUseCase', () => {
         actorId: 'customer-1',
       }),
     ).rejects.toThrow(RecurringBookingScheduleExceptionAlreadyExistsError);
+  });
+
+  it('throws NotFound for a schedule that belongs to a different tenant', async () => {
+    const schedule = activeSchedule(OTHER_TENANT);
+    scheduleRepo.seed(schedule);
+
+    await expect(
+      useCase.execute({
+        scheduleId: schedule.id,
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        occurrenceStart: OCCURRENCE_START,
+        action: 'SKIP',
+        actorType: 'CUSTOMER',
+        actorId: 'customer-1',
+      }),
+    ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+  });
+
+  it("rejects a CUSTOMER actor skipping an occurrence on another customer's schedule", async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+
+    await expect(
+      useCase.execute({
+        scheduleId: schedule.id,
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        occurrenceStart: OCCURRENCE_START,
+        action: 'SKIP',
+        actorType: 'CUSTOMER',
+        actorId: 'someone-else',
+      }),
+    ).rejects.toThrow(RecurringBookingScheduleForbiddenError);
+  });
+
+  it('rejects a replacementBookingId that belongs to a different customer', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+    const replacement = new BookingBuilder()
+      .withTenantId(TENANT)
+      .withCustomerId('someone-else')
+      .build();
+    await bookingRepo.save(replacement);
+
+    await expect(
+      useCase.execute({
+        scheduleId: schedule.id,
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        occurrenceStart: OCCURRENCE_START,
+        action: 'RESCHEDULE',
+        replacementBookingId: replacement.id,
+        actorType: 'CUSTOMER',
+        actorId: 'customer-1',
+      }),
+    ).rejects.toThrow(BookingForbiddenError);
   });
 });

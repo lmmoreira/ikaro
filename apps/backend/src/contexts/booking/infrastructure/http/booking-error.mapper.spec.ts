@@ -53,6 +53,7 @@ import {
   RecurringBookingScheduleNotActiveError,
   RecurringBookingScheduleIneligibleServiceError,
   RecurringBookingScheduleExceptionAlreadyExistsError,
+  RecurringBookingScheduleForbiddenError,
 } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from './booking-error.mapper';
 
@@ -380,6 +381,14 @@ describe('mapBookingError', () => {
       new RecurringBookingScheduleExceptionAlreadyExistsError('2026-09-01T13:00:00.000Z'),
     );
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps RecurringBookingScheduleForbiddenError to 403', () => {
+    const err = call(new RecurringBookingScheduleForbiddenError());
+    expect(err.getStatus()).toBe(HttpStatus.FORBIDDEN);
+    expect(err.getResponse()).toMatchObject({
+      code: BookingErrorCode.RECURRING_SCHEDULE_FORBIDDEN,
+    });
   });
 
   it('rethrows plain Error unchanged', () => {
