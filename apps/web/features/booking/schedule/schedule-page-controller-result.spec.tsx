@@ -44,6 +44,7 @@ function makeTimeline(overrides: Partial<TimelineDayData> = {}): TimelineDayData
     slotCount: 2,
     slotHeight: 48,
     events: [],
+    isOverriddenByOpening: false,
     ...overrides,
   };
 }

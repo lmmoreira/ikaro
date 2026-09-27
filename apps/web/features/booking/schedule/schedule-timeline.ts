@@ -6,23 +6,16 @@ import type {
   TenantBusinessHours,
 } from '@ikaro/types';
 import { getDayHoursForDate, timeToMinutes } from '@/features/booking/schedule/date-utils';
+import type { TimelineEvent } from '@/features/booking/schedule/schedule-timeline-events';
 import {
-  assignLanes,
-  buildBookingTimelineEvent,
-  buildClosureTimelineEvent,
-  getBookingDateKey,
-  type TimelineEvent,
-} from '@/features/booking/schedule/schedule-timeline-events';
-import {
-  buildOpeningTimelineEvents,
   findTenantWideOpening,
   resolveActiveTimelineHours,
   type ActiveTimelineHours,
 } from '@/features/booking/schedule/schedule-timeline-window';
-import { isBookingVisibleForResourceFilter } from '@/features/booking/schedule/schedule-week-resource-bookings';
+import { buildAllTimelineEvents } from '@/features/booking/schedule/schedule-timeline-event-list';
 import {
-  getEventMinutes,
   getSlotHeight,
+  resolveSlotCount,
 } from '@/features/booking/schedule/schedule-timeline-formatting';
 
 export type {
@@ -39,6 +32,7 @@ export {
   getSlotHeight,
   getEventMinutes,
   getBlockMinHeightPx,
+  buildBlockStyle,
   buildWeekShift,
   toLocalDate,
   formatEventRange,
@@ -58,6 +52,11 @@ export interface TimelineDayData {
   readonly slotCount: number;
   readonly slotHeight: number;
   readonly events: TimelineEvent[];
+  // TD44 Story 3 — propagated from ActiveTimelineHours (schedule-timeline-window.ts). true when
+  // this window was resolved from an exceptional opening rather than regular business hours — the
+  // opt-out signal resolveSharedTimelineWindow (schedule-shared-timeline-window.ts) reads directly
+  // off this type, since it's the one every board component actually consumes.
+  readonly isOverriddenByOpening: boolean;
 }
 
 export interface TimelineLayoutInput {
@@ -85,105 +84,7 @@ export interface TimelineLayoutInput {
 
 const EMPTY_SELECTED_RESOURCE_IDS: ReadonlySet<string> = new Set();
 const EMPTY_BOOKING_RESOURCE_NAMES_BY_ID: ReadonlyMap<string, readonly string[]> = new Map();
-
-interface FilteredBookingEventsInput {
-  readonly bookings: readonly StaffBookingCardResponse[];
-  readonly timezone: string;
-  readonly selectedDateKey: string;
-  readonly selectedDayClosures: readonly ScheduleClosure[];
-  readonly activeStartTime: string;
-  readonly activeEndTime: string;
-  readonly selectedResourceIdSet: ReadonlySet<string>;
-  readonly bookingResourceNamesById: ReadonlyMap<string, readonly string[]>;
-}
-
-// Extracted from buildAllTimelineEvents below purely to stay under the 40-line function cap once
-// TD44 Story 1's resource-filter/badge params landed there — same booking-building logic, no
-// behavior change. Takes a single input object (SonarCloud S107 — max 7 positional params) rather
-// than 8 individual arguments.
-function buildFilteredBookingEvents(input: FilteredBookingEventsInput) {
-  const {
-    bookings,
-    timezone,
-    selectedDateKey,
-    selectedDayClosures,
-    activeStartTime,
-    activeEndTime,
-    selectedResourceIdSet,
-    bookingResourceNamesById,
-  } = input;
-
-  return assignLanes(
-    bookings
-      .filter((booking) => getBookingDateKey(booking, timezone) === selectedDateKey)
-      .filter((booking) =>
-        isBookingVisibleForResourceFilter(
-          booking.bookingId,
-          selectedResourceIdSet,
-          bookingResourceNamesById,
-        ),
-      )
-      .map((booking) =>
-        buildBookingTimelineEvent(
-          booking,
-          timezone,
-          selectedDayClosures,
-          activeStartTime,
-          activeEndTime,
-        ),
-      ),
-  );
-}
-
-function buildAllTimelineEvents(
-  selectedDateKey: string,
-  timezone: string,
-  bookings: readonly StaffBookingCardResponse[],
-  active: ActiveTimelineHours,
-  resourceNameById: ReadonlyMap<string, string>,
-  selectedResourceIdSet: ReadonlySet<string>,
-  bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
-): TimelineEvent[] {
-  const { dayOpenings, selectedDayClosures, activeStartTime, activeEndTime } = active;
-
-  const bookingEvents = buildFilteredBookingEvents({
-    bookings,
-    timezone,
-    selectedDateKey,
-    selectedDayClosures,
-    activeStartTime,
-    activeEndTime,
-    selectedResourceIdSet,
-    bookingResourceNamesById,
-  });
-
-  // Lane-split same-kind closures that overlap in time (e.g. two different resources each
-  // blocked over the same window) — mirrors bookings' own overlap handling above.
-  const closureEvents = assignLanes(
-    selectedDayClosures.map((closure) =>
-      buildClosureTimelineEvent(closure, activeStartTime, activeEndTime, resourceNameById),
-    ),
-  );
-
-  const openingEvents = buildOpeningTimelineEvents(dayOpenings, resourceNameById);
-
-  return [...closureEvents, ...openingEvents, ...bookingEvents].sort(
-    (left, right) => left.startMinutes - right.startMinutes || right.endMinutes - left.endMinutes,
-  );
-}
-
 const EMPTY_RESOURCE_NAME_BY_ID: ReadonlyMap<string, string> = new Map();
-
-function resolveSlotCount(
-  timelineStartMinutes: number,
-  timelineEndMinutes: number,
-  slotGranularityMinutes: number,
-): number {
-  return Math.max(
-    1,
-    Math.ceil((timelineEndMinutes - timelineStartMinutes) / slotGranularityMinutes),
-  );
-}
 
 interface TimelineWindow {
   readonly timelineStartMinutes: number;
@@ -191,6 +92,63 @@ interface TimelineWindow {
   readonly slotCount: number;
   readonly slotHeight: number;
   readonly events: TimelineEvent[];
+  readonly isOverriddenByOpening: boolean;
+}
+
+interface TimelineWindowFromActiveInput {
+  readonly active: ActiveTimelineHours;
+  readonly selectedDateKey: string;
+  readonly timezone: string;
+  readonly bookings: readonly StaffBookingCardResponse[];
+  readonly slotGranularityMinutes: number;
+  readonly slotHeight: number;
+  readonly resourceNameById: ReadonlyMap<string, string>;
+  readonly selectedResourceIdSet: ReadonlySet<string>;
+  readonly bookingResourceNamesById: ReadonlyMap<string, readonly string[]>;
+}
+
+// Extracted from buildTimelineEvents below purely to stay under the 40-line function cap once
+// TD44 Story 3's isOverriddenByOpening propagation landed there — same window-resolution logic,
+// no behavior change. Takes a single input object (SonarCloud S107 — max 7 positional params)
+// rather than 9 individual arguments.
+function buildTimelineWindowFromActive(input: TimelineWindowFromActiveInput): TimelineWindow {
+  const {
+    active,
+    selectedDateKey,
+    timezone,
+    bookings,
+    slotGranularityMinutes,
+    slotHeight,
+    resourceNameById,
+    selectedResourceIdSet,
+    bookingResourceNamesById,
+  } = input;
+
+  const timelineStartMinutes = timeToMinutes(active.activeStartTime);
+  const timelineEndMinutes = timeToMinutes(active.activeEndTime);
+  const slotCount = resolveSlotCount(
+    timelineStartMinutes,
+    timelineEndMinutes,
+    slotGranularityMinutes,
+  );
+  const events = buildAllTimelineEvents(
+    selectedDateKey,
+    timezone,
+    bookings,
+    active,
+    resourceNameById,
+    selectedResourceIdSet,
+    bookingResourceNamesById,
+  );
+
+  return {
+    timelineStartMinutes,
+    timelineEndMinutes,
+    slotCount,
+    slotHeight,
+    events,
+    isOverriddenByOpening: active.isOverriddenByOpening,
+  };
 }
 
 export function buildTimelineEvents({
@@ -210,27 +168,27 @@ export function buildTimelineEvents({
   const slotHeight = getSlotHeight(slotGranularityMinutes, slotHeightScale);
 
   if (!active) {
-    return { timelineStartMinutes: 0, timelineEndMinutes: 0, slotCount: 0, slotHeight, events: [] };
+    return {
+      timelineStartMinutes: 0,
+      timelineEndMinutes: 0,
+      slotCount: 0,
+      slotHeight,
+      events: [],
+      isOverriddenByOpening: false,
+    };
   }
 
-  const timelineStartMinutes = timeToMinutes(active.activeStartTime);
-  const timelineEndMinutes = timeToMinutes(active.activeEndTime);
-  const slotCount = resolveSlotCount(
-    timelineStartMinutes,
-    timelineEndMinutes,
-    slotGranularityMinutes,
-  );
-  const events = buildAllTimelineEvents(
+  return buildTimelineWindowFromActive({
+    active,
     selectedDateKey,
     timezone,
     bookings,
-    active,
+    slotGranularityMinutes,
+    slotHeight,
     resourceNameById,
     selectedResourceIdSet,
     bookingResourceNamesById,
-  );
-
-  return { timelineStartMinutes, timelineEndMinutes, slotCount, slotHeight, events };
+  });
 }
 
 export function buildTimelineDayData(layout: TimelineLayoutInput): TimelineDayData {
@@ -253,28 +211,6 @@ export function buildTimelineDayData(layout: TimelineLayoutInput): TimelineDayDa
     slotCount: timeline.slotCount,
     slotHeight: timeline.slotHeight,
     events: timeline.events,
-  };
-}
-
-export function buildBlockStyle(
-  startMinutes: number,
-  endMinutes: number,
-  timelineStartMinutes: number,
-  timelineEndMinutes: number,
-  slotGranularityMinutes: number,
-  slotHeight: number,
-): { top: string; height: string } {
-  const clampedStart = Math.max(startMinutes, timelineStartMinutes);
-  const clampedEnd = Math.min(
-    timelineEndMinutes,
-    Math.max(clampedStart + slotGranularityMinutes, endMinutes),
-  );
-  const top = ((clampedStart - timelineStartMinutes) / slotGranularityMinutes) * slotHeight;
-  const height =
-    getEventMinutes(clampedStart, clampedEnd, slotGranularityMinutes) / slotGranularityMinutes;
-
-  return {
-    top: `${top}px`,
-    height: `${height * slotHeight}px`,
+    isOverriddenByOpening: timeline.isOverriddenByOpening,
   };
 }

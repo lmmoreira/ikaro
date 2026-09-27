@@ -17,6 +17,10 @@ import {
   buildWeekDayInfo,
   type ScheduleWeekDayInfo,
 } from '@/features/booking/schedule/schedule-page-derived';
+import {
+  applySharedTimelineWindow,
+  resolveSharedTimelineWindow,
+} from '@/features/booking/schedule/schedule-shared-timeline-window';
 
 // TD44 Story 4 — raised from 0.45. The page now pins its own toolbar (SchedulePage.tsx's sticky
 // wrapper) instead of needing the whole week grid to fit inside one screen height, so Week view
@@ -120,6 +124,29 @@ interface WeekTimelineCardsSharedInput {
   readonly selectedResourceIdSet: ReadonlySet<string>;
 }
 
+// TD44 Story 3 — resolve the shared hour axis across the week's 7 day-cards' regular-hours
+// windows, then reposition each shared member's grid against it. A day-card overridden by an
+// exceptional opening (or closed) opts out entirely and keeps its own independently-resolved
+// timeline, unchanged. ScheduleWeekView re-derives sharedMemberIndexes from this same array to
+// decide which card renders the one shared label column. Extracted from buildWeekTimelineCards
+// below purely to stay under the 40-line function cap once this story's step landed there.
+function applySharedWindowToWeekCards(
+  cards: readonly TimelineDayData[],
+  slotGranularityMinutes: number,
+): TimelineDayData[] {
+  const sharedWindow = resolveSharedTimelineWindow(cards);
+  return cards.map((card, index) =>
+    sharedWindow.sharedMemberIndexes.has(index)
+      ? applySharedTimelineWindow(
+          card,
+          sharedWindow.sharedStartMinutes,
+          sharedWindow.sharedEndMinutes,
+          slotGranularityMinutes,
+        )
+      : card,
+  );
+}
+
 // Bundles the shared fields into one object (SonarCloud S107 — max 7 positional params) rather
 // than 10 individual arguments.
 function buildWeekTimelineCards(
@@ -138,7 +165,7 @@ function buildWeekTimelineCards(
     selectedResourceIdSet,
   } = shared;
 
-  return weekDayInfo.map((day) =>
+  const cards = weekDayInfo.map((day) =>
     buildTimelineDayData({
       selectedDateKey: day.dateKey,
       timezone,
@@ -156,6 +183,8 @@ function buildWeekTimelineCards(
       bookingResourceNamesById: bookingResourceIdsById,
     }),
   );
+
+  return applySharedWindowToWeekCards(cards, slotGranularityMinutes);
 }
 
 // Reads fields directly off `input` (rather than destructuring first) so each field's own member

@@ -3,10 +3,12 @@ import { loginAsStaff, uniqueTestEmail } from '@/e2e/helpers/auth';
 import {
   createScheduleBooking,
   createScheduleClosureAt,
+  createScheduleOpeningAt,
   createUniqueScheduleClosure,
   loginAsScheduleStaff,
   nextOpenDateKey,
   removeScheduleClosure,
+  removeScheduleOpening,
   scheduleRoute,
   uniqueLabel,
 } from '@/e2e/helpers/schedule';
@@ -270,6 +272,79 @@ test.describe('schedule resource columns board (M22-S06)', () => {
       await expect(seventhCheckbox).toBeChecked();
     } finally {
       await Promise.all(resources.map((resource) => deactivateResource(page, resource.id)));
+    }
+  });
+
+  test('two resources on regular hours share one hour ruler; a resource with an exceptional opening keeps its own (TD44 Story 3)', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const resourceA = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Shared Axis A'),
+    });
+    const resourceB = await createResource(page, {
+      type: 'EQUIPMENT',
+      name: uniqueLabel('E2E Shared Axis B'),
+    });
+    // Marked closed every day of its own working-hours schedule so a resource-scoped opening can
+    // be created for it on the same tenant-open date used for A/B below — OpenScheduleUseCase
+    // rejects creating an opening on a date the resource is already effectively open
+    // (DayAlreadyOpenInSettingsError), and this resource's own schedule (not the tenant's) governs
+    // that check once workingHours is set.
+    const resourceC = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Shared Axis C'),
+      workingHours: {
+        monday: null,
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null,
+        saturday: null,
+        sunday: null,
+      },
+    });
+
+    try {
+      const dateKey = nextOpenDateKey(160);
+      // A narrow window that fits inside the tenant's own hours on any non-Sunday day (seeded as
+      // at least 08:00-14:00 every day the tenant is open) — a resource-scoped opening on a date
+      // the tenant itself is already open must fit within the tenant's own window
+      // (OpenScheduleUseCase.assertWithinTenantWindow).
+      const opening = await createScheduleOpeningAt(page, dateKey, {
+        startTime: '09:00',
+        endTime: '10:00',
+        resourceId: resourceC.id,
+      });
+
+      try {
+        await page.goto(scheduleRoute(dateKey));
+        await switchToDayView(page);
+
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resourceA.name }).check();
+        await page.getByRole('checkbox', { name: resourceB.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        // A and B: both on regular hours, nothing overriding either — one shared ruler.
+        await expect(page.getByTestId('schedule-timeline-label-column')).toHaveCount(1);
+
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resourceC.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        // C has an exceptional opening for this date — opts out of the shared axis and keeps its
+        // own independent ruler, so the total goes from 1 (shared) to 2 (shared + C's own).
+        await expect(page.getByTestId('schedule-timeline-label-column')).toHaveCount(2);
+      } finally {
+        await removeScheduleOpening(page, opening.id);
+      }
+    } finally {
+      await deactivateResource(page, resourceA.id);
+      await deactivateResource(page, resourceB.id);
+      await deactivateResource(page, resourceC.id);
     }
   });
 });

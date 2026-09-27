@@ -116,6 +116,32 @@ describe('resolveActiveTimelineHours', () => {
     expect(result?.activeStartTime).toBe('09:00');
     expect(result?.activeEndTime).toBe('13:00');
   });
+
+  it('sets isOverriddenByOpening: true when driven by a tenant-wide opening (TD44 Story 3)', () => {
+    const tenantWide = makeOpening({ id: 'tenant', date: '2026-08-18', resourceId: null });
+    const result = resolveActiveTimelineHours('2026-08-18', makeBusinessHours(), [], [tenantWide]);
+    expect(result?.isOverriddenByOpening).toBe(true);
+  });
+
+  it('sets isOverriddenByOpening: true when driven by a resource-scoped opening with no tenant-wide sibling (TD44 Story 3)', () => {
+    const resourceScoped = makeOpening({
+      id: 'resource',
+      date: '2026-08-18',
+      resourceId: 'res-1',
+    });
+    const result = resolveActiveTimelineHours(
+      '2026-08-18',
+      makeBusinessHours(),
+      [],
+      [resourceScoped],
+    );
+    expect(result?.isOverriddenByOpening).toBe(true);
+  });
+
+  it('sets isOverriddenByOpening: false when driven by regular business hours (TD44 Story 3)', () => {
+    const result = resolveActiveTimelineHours('2026-08-17', makeBusinessHours(), [], []);
+    expect(result?.isOverriddenByOpening).toBe(false);
+  });
 });
 
 describe('buildOpeningTimelineEvents', () => {
