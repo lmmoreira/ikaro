@@ -2119,6 +2119,47 @@ describe('BookingController (integration)', () => {
 
       expect(body.status).toBe(404);
     });
+
+    it('serializes concurrent reschedules targeting the same slot so exactly one succeeds, the loser keeps its original scheduledAt', async () => {
+      const conflictTarget = `${futureDate(78)}T11:00:00.000Z`;
+      const firstId = await createApprovedCustomerBooking(`${futureDate(79)}T09:00:00.000Z`);
+      const secondId = await createApprovedCustomerBooking(`${futureDate(80)}T09:00:00.000Z`);
+
+      const [firstReschedule, secondReschedule] = await Promise.all([
+        request(app.getHttpServer())
+          .patch(`/bookings/${firstId}/reschedule-customer`)
+          .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
+          .send({ scheduledAt: conflictTarget }),
+        request(app.getHttpServer())
+          .patch(`/bookings/${secondId}/reschedule-customer`)
+          .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
+          .send({ scheduledAt: conflictTarget }),
+      ]);
+
+      const statuses = [firstReschedule.status, secondReschedule.status].sort((a, b) => a - b);
+      expect(statuses).toEqual([200, 409]);
+
+      // Proves the release-then-assign-in-one-transaction ordering is safe under a genuine
+      // concurrent race (not just the sequential pre-existing-conflict case already covered
+      // above): the loser's transaction rolled back entirely, so its original scheduledAt was
+      // never actually released.
+      const loserId = firstReschedule.status === 409 ? firstId : secondId;
+      const loserOriginalScheduledAt =
+        firstReschedule.status === 409
+          ? `${futureDate(79)}T09:00:00.000Z`
+          : `${futureDate(80)}T09:00:00.000Z`;
+      const loserRow = await ds
+        .getRepository(BookingEntity)
+        .findOne({ where: { id: loserId, tenantId: tenantAId } });
+      expect(loserRow!.scheduledAt.toISOString()).toBe(
+        new Date(loserOriginalScheduledAt).toISOString(),
+      );
+
+      const approvedAtTarget = await ds.getRepository(BookingEntity).find({
+        where: { tenantId: tenantAId, status: 'APPROVED', scheduledAt: new Date(conflictTarget) },
+      });
+      expect(approvedAtTarget).toHaveLength(1);
+    });
   });
 
   describe('PATCH /bookings/:id/complete', () => {

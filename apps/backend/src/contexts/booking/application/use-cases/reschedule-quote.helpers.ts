@@ -162,7 +162,7 @@ function rescheduleLineInputs(
     lineId: line.lineId,
     serviceId: line.serviceId,
     durationMinsAtBooking:
-      durationChange && line.lineId === durationChange.lineId
+      durationChange?.lineId === line.lineId
         ? durationChange.durationMinutes
         : line.durationMinsAtBooking,
   }));

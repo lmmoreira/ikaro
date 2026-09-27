@@ -929,6 +929,11 @@ X-Correlation-ID: test-corr-reschedule-customer-001
 ###
 
 # ERROR — outside the effective reschedule window → 422 reschedule-window-expired
+# Requires approvedBookingId's CURRENT scheduledAt to be within the effective window
+# (Service.rescheduleWindowHoursOverride ?? tenant cancellationWindowHours default, 48h by
+# default) — the eligibility check depends on the booking's existing scheduledAt, not the new
+# one requested below. Reseed or adjust approvedBookingId's scheduledAt to satisfy this before
+# expecting 422 here.
 PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule-customer
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
@@ -947,7 +952,7 @@ X-Correlation-ID: test-corr-reschedule-customer-002
 PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule-customer
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
-X-Actor-ID: {{customerId}}
+X-Actor-ID: 00000000-0000-4000-8000-000000009999
 X-Actor-Type: CUSTOMER
 X-Actor-Role: CUSTOMER
 X-Correlation-ID: test-corr-reschedule-customer-003
