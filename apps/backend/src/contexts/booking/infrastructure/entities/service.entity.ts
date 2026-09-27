@@ -73,6 +73,9 @@ export class ServiceEntity {
   @Column({ name: 'recurrence_eligible', type: 'boolean', default: false })
   recurrenceEligible!: boolean;
 
+  @Column({ name: 'recurring_horizon_days', type: 'int', nullable: true })
+  recurringHorizonDays!: number | null;
+
   @Column({ name: 'availability_alert_eligible', type: 'boolean', default: false })
   availabilityAlertEligible!: boolean;
 

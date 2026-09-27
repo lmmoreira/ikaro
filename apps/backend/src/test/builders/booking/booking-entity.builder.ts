@@ -41,6 +41,7 @@ export class BookingEntityBuilder {
   private readonly createdAt = new Date();
   private readonly updatedAt = new Date();
   private version = 1;
+  private recurringScheduleId: string | null = null;
 
   withId(id: string): this {
     this.id = id;
@@ -100,6 +101,11 @@ export class BookingEntityBuilder {
     return this;
   }
 
+  withRecurringScheduleId(recurringScheduleId: string | null): this {
+    this.recurringScheduleId = recurringScheduleId;
+    return this;
+  }
+
   build(): BookingEntity {
     const entity = new BookingEntity();
     entity.id = this.id;
@@ -141,6 +147,7 @@ export class BookingEntityBuilder {
     entity.createdAt = this.createdAt;
     entity.updatedAt = this.updatedAt;
     entity.version = this.version;
+    entity.recurringScheduleId = this.recurringScheduleId;
     return entity;
   }
 }

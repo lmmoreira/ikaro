@@ -10,6 +10,19 @@ export interface ResourceAssignmentRow {
   resourceName: string;
 }
 
+// Generic grouping shared by findLinesByBookingId/findAttendeesByBookingId
+// (typeorm-booking.repository.ts) — both batch-load a child table for a page of bookings and need
+// the exact same "group flat rows by their own bookingId" shape.
+export function groupByBookingId<T extends { bookingId: string }>(items: T[]): Map<string, T[]> {
+  const byBookingId = new Map<string, T[]>();
+  for (const item of items) {
+    const list = byBookingId.get(item.bookingId) ?? [];
+    list.push(item);
+    byBookingId.set(item.bookingId, list);
+  }
+  return byBookingId;
+}
+
 // Deduplicated by resourceId per booking — a resource assigned across 2+ lines/legs of the same
 // booking is listed once, not once per line.
 export function groupResourceAssignmentsByBookingId(

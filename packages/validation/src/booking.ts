@@ -192,6 +192,7 @@ export const UpdateServiceBookingPolicySchema = z
     minBookingAdvanceHoursOverride: z.number().int().min(0).max(8760).nullable().optional(),
     maxBookingAdvanceDaysOverride: z.number().int().min(1).max(365).nullable().optional(),
     recurrenceEligible: z.boolean().optional(),
+    recurringHorizonDays: z.number().int().positive().max(365).nullable().optional(),
     availabilityAlertEligible: z.boolean().optional(),
     durationPolicy: ServiceDurationPolicySchema.optional(),
     durationMinMinutes: z.number().int().positive().nullable().optional(),

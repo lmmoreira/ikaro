@@ -31,6 +31,36 @@ export class InMemoryBookingRepository implements IBookingRepository {
     return booking ?? null;
   }
 
+  async findByRecurringScheduleAndOccurrence(
+    tenantId: string,
+    recurringScheduleId: string,
+    occurrenceStart: Date,
+  ): Promise<Booking | null> {
+    return (
+      Array.from(this.store.values()).find(
+        (b) =>
+          b.tenantId === tenantId &&
+          b.recurringScheduleId === recurringScheduleId &&
+          b.scheduledAt.getTime() === occurrenceStart.getTime(),
+      ) ?? null
+    );
+  }
+
+  async findFutureActiveByRecurringSchedule(
+    tenantId: string,
+    recurringScheduleId: string,
+    after: Date,
+  ): Promise<Booking[]> {
+    const nonTerminal: string[] = ['PENDING', 'INFO_REQUESTED', 'APPROVED'];
+    return Array.from(this.store.values()).filter(
+      (b) =>
+        b.tenantId === tenantId &&
+        b.recurringScheduleId === recurringScheduleId &&
+        b.scheduledAt.getTime() >= after.getTime() &&
+        nonTerminal.includes(b.status),
+    );
+  }
+
   async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
     let results = Array.from(this.store.values()).filter((b) => b.tenantId === tenantId);
     if (filters.status?.length) results = results.filter((b) => filters.status!.includes(b.status));

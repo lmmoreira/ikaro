@@ -70,6 +70,7 @@ export class UpdateServiceBookingPolicyUseCase {
   ): ServiceBookingPolicyProps {
     return {
       ...this.resolveApprovalAndWindows(current, input),
+      ...this.resolveRecurrenceFlags(current, input),
       ...this.resolveDurationAndPricing(current, input),
     };
   }
@@ -86,8 +87,6 @@ export class UpdateServiceBookingPolicyUseCase {
     | 'rescheduleWindowHoursOverride'
     | 'minBookingAdvanceHoursOverride'
     | 'maxBookingAdvanceDaysOverride'
-    | 'recurrenceEligible'
-    | 'availabilityAlertEligible'
   > {
     return {
       defaultApprovalMode: resolveNullable(input.defaultApprovalMode, current.defaultApprovalMode),
@@ -108,7 +107,24 @@ export class UpdateServiceBookingPolicyUseCase {
         input.maxBookingAdvanceDaysOverride,
         current.maxBookingAdvanceDaysOverride,
       ),
+    };
+  }
+
+  // Split out of resolvePolicy() to stay under docs/CODE_STANDARDS.md's function-length limit —
+  // M23-S04 added recurringHorizonDays alongside the pre-existing recurrence/availability flags.
+  private resolveRecurrenceFlags(
+    current: ServiceBookingPolicyProps,
+    input: UpdateServiceBookingPolicyDto,
+  ): Pick<
+    ServiceBookingPolicyProps,
+    'recurrenceEligible' | 'recurringHorizonDays' | 'availabilityAlertEligible'
+  > {
+    return {
       recurrenceEligible: input.recurrenceEligible ?? current.recurrenceEligible,
+      recurringHorizonDays: resolveNullable(
+        input.recurringHorizonDays,
+        current.recurringHorizonDays,
+      ),
       availabilityAlertEligible:
         input.availabilityAlertEligible ?? current.availabilityAlertEligible,
     };

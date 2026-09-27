@@ -22,6 +22,7 @@ export function toBookingPolicy(entity: ServiceEntity): ServiceBookingPolicyProp
     minBookingAdvanceHoursOverride: entity.minBookingAdvanceHoursOverride,
     maxBookingAdvanceDaysOverride: entity.maxBookingAdvanceDaysOverride,
     recurrenceEligible: entity.recurrenceEligible,
+    recurringHorizonDays: entity.recurringHorizonDays,
     availabilityAlertEligible: entity.availabilityAlertEligible,
     durationPolicy: entity.durationPolicy,
     durationMinMinutes: entity.durationMinMinutes,
@@ -42,6 +43,7 @@ export function applyBookingPolicy(entity: ServiceEntity, policy: ServiceBooking
   entity.minBookingAdvanceHoursOverride = policy.minBookingAdvanceHoursOverride;
   entity.maxBookingAdvanceDaysOverride = policy.maxBookingAdvanceDaysOverride;
   entity.recurrenceEligible = policy.recurrenceEligible;
+  entity.recurringHorizonDays = policy.recurringHorizonDays;
   entity.availabilityAlertEligible = policy.availabilityAlertEligible;
   entity.durationPolicy = policy.durationPolicy;
   entity.durationMinMinutes = policy.durationMinMinutes;

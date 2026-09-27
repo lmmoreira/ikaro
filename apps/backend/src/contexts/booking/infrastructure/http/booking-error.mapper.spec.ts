@@ -47,6 +47,12 @@ import {
   ServiceDeactivatedError,
   ServiceLegInvalidError,
   ServiceNotFoundError,
+  RecurringBookingScheduleNotFoundError,
+  RecurringBookingScheduleConflictError,
+  RecurringBookingScheduleCapReachedError,
+  RecurringBookingScheduleNotActiveError,
+  RecurringBookingScheduleIneligibleServiceError,
+  RecurringBookingScheduleExceptionAlreadyExistsError,
 } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from './booking-error.mapper';
 
@@ -339,6 +345,41 @@ describe('mapBookingError', () => {
     const err = call(new TimeOfDayValidationError('bad time', TimeOfDayErrorCode.FORMAT_INVALID));
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({ code: TimeOfDayErrorCode.FORMAT_INVALID });
+  });
+
+  it('maps RecurringBookingScheduleNotFoundError to 404', () => {
+    const err = call(new RecurringBookingScheduleNotFoundError('sched-id'));
+    expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(err.getResponse()).toMatchObject({
+      code: BookingErrorCode.RECURRING_SCHEDULE_NOT_FOUND,
+    });
+  });
+
+  it('maps RecurringBookingScheduleConflictError to 409', () => {
+    const err = call(new RecurringBookingScheduleConflictError());
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps RecurringBookingScheduleCapReachedError to 409', () => {
+    const err = call(new RecurringBookingScheduleCapReachedError('resource'));
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps RecurringBookingScheduleNotActiveError to 409', () => {
+    const err = call(new RecurringBookingScheduleNotActiveError('sched-id'));
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps RecurringBookingScheduleIneligibleServiceError to 422', () => {
+    const err = call(new RecurringBookingScheduleIneligibleServiceError('not-appointment'));
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps RecurringBookingScheduleExceptionAlreadyExistsError to 409', () => {
+    const err = call(
+      new RecurringBookingScheduleExceptionAlreadyExistsError('2026-09-01T13:00:00.000Z'),
+    );
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
   });
 
   it('rethrows plain Error unchanged', () => {

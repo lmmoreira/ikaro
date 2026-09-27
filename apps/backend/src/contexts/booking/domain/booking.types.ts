@@ -85,6 +85,9 @@ export interface BookingProps {
   participantCount: number | null;
   intake: BookingIntakeSnapshot | null;
   attendees: BookingAttendee[];
+  // Set only by M23-S05's rolling-horizon generation job — always null for a one-off booking
+  // (requestBooking() never sets it). docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule.
+  recurringScheduleId: string | null;
 }
 
 export interface RequestBookingInput {

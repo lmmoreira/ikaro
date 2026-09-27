@@ -12,4 +12,8 @@ export class InMemoryTenantLock implements ITenantLockPort {
   async lockResources(_tenantId: string, _resourceIds: string[]): Promise<void> {
     return undefined;
   }
+
+  async lockService(_tenantId: string, _serviceId: string): Promise<void> {
+    return undefined;
+  }
 }

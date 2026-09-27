@@ -56,6 +56,7 @@ export class BookingBuilder {
   private participantCount: number | null = null;
   private intake: BookingIntakeSnapshot | null = null;
   private attendees: BookingAttendee[] = [];
+  private recurringScheduleId: string | null = null;
 
   static forStatus(
     tenantId: string,
@@ -206,6 +207,11 @@ export class BookingBuilder {
     return this;
   }
 
+  withRecurringScheduleId(recurringScheduleId: string | null): this {
+    this.recurringScheduleId = recurringScheduleId;
+    return this;
+  }
+
   build(): Booking {
     const props: BookingProps = {
       id: this.id,
@@ -248,6 +254,7 @@ export class BookingBuilder {
       participantCount: this.participantCount,
       intake: this.intake,
       attendees: this.attendees,
+      recurringScheduleId: this.recurringScheduleId,
     };
     return Booking.reconstitute(props, this.linesModified);
   }

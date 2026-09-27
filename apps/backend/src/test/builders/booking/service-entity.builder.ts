@@ -28,6 +28,7 @@ export class ServiceEntityBuilder {
   private minBookingAdvanceHoursOverride: number | null = null;
   private maxBookingAdvanceDaysOverride: number | null = null;
   private recurrenceEligible = false;
+  private recurringHorizonDays: number | null = null;
   private availabilityAlertEligible = false;
   private durationPolicy: ServiceDurationPolicy = 'FIXED';
   private durationMinMinutes: number | null = null;
@@ -113,6 +114,11 @@ export class ServiceEntityBuilder {
     return this;
   }
 
+  withRecurringHorizonDays(recurringHorizonDays: number | null): this {
+    this.recurringHorizonDays = recurringHorizonDays;
+    return this;
+  }
+
   withAvailabilityAlertEligible(availabilityAlertEligible: boolean): this {
     this.availabilityAlertEligible = availabilityAlertEligible;
     return this;
@@ -195,6 +201,7 @@ export class ServiceEntityBuilder {
     e.minBookingAdvanceHoursOverride = this.minBookingAdvanceHoursOverride;
     e.maxBookingAdvanceDaysOverride = this.maxBookingAdvanceDaysOverride;
     e.recurrenceEligible = this.recurrenceEligible;
+    e.recurringHorizonDays = this.recurringHorizonDays;
     e.availabilityAlertEligible = this.availabilityAlertEligible;
     e.durationPolicy = this.durationPolicy;
     e.durationMinMinutes = this.durationMinMinutes;

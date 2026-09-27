@@ -10,6 +10,9 @@ export { ServiceLegResourceRequirementPoolEntityBuilder } from './service-leg-re
 export { ServiceClassResourcePoolEntityBuilder } from './service-class-resource-pool-entity.builder';
 export { ServiceBookingIntakeSchemaEntityBuilder } from './service-booking-intake-schema-entity.builder';
 export { BookingQuoteRevisionEntityBuilder } from './booking-quote-revision-entity.builder';
+export { RecurringBookingScheduleEntityBuilder } from './recurring-booking-schedule-entity.builder';
+export { RecurringBookingScheduleResourceAssignmentEntityBuilder } from './recurring-booking-schedule-resource-assignment-entity.builder';
+export { RecurringBookingScheduleExceptionEntityBuilder } from './recurring-booking-schedule-exception-entity.builder';
 export { BookingAttendeeEntityBuilder } from './booking-attendee-entity.builder';
 export { ScheduleClosureBuilder } from './schedule-closure.builder';
 export { ScheduleClosureEntityBuilder } from './schedule-closure-entity.builder';
