@@ -53,6 +53,47 @@ export function getEventMinutes(
   return Math.max(slotMinutes, endMinutes - startMinutes);
 }
 
+// Moved from schedule-timeline.ts (TD44 Story 3) to stay under that file's 250-line cap.
+// Re-exported for schedule-shared-timeline-window.ts — applySharedTimelineWindow needs to
+// recompute a shared-group member's slotCount against the union range, using the exact same
+// formula the grid itself is built from.
+export function resolveSlotCount(
+  timelineStartMinutes: number,
+  timelineEndMinutes: number,
+  slotGranularityMinutes: number,
+): number {
+  return Math.max(
+    1,
+    Math.ceil((timelineEndMinutes - timelineStartMinutes) / slotGranularityMinutes),
+  );
+}
+
+// Moved from schedule-timeline.ts (TD44 Story 3) to stay under that file's 250-line cap once this
+// story's shared-window plumbing landed there — pure coordinate math, no dependency on
+// TimelineEvent/domain types, fits this file's existing purpose exactly.
+export function buildBlockStyle(
+  startMinutes: number,
+  endMinutes: number,
+  timelineStartMinutes: number,
+  timelineEndMinutes: number,
+  slotGranularityMinutes: number,
+  slotHeight: number,
+): { top: string; height: string } {
+  const clampedStart = Math.max(startMinutes, timelineStartMinutes);
+  const clampedEnd = Math.min(
+    timelineEndMinutes,
+    Math.max(clampedStart + slotGranularityMinutes, endMinutes),
+  );
+  const top = ((clampedStart - timelineStartMinutes) / slotGranularityMinutes) * slotHeight;
+  const height =
+    getEventMinutes(clampedStart, clampedEnd, slotGranularityMinutes) / slotGranularityMinutes;
+
+  return {
+    top: `${top}px`,
+    height: `${height * slotHeight}px`,
+  };
+}
+
 export function buildWeekShift(weekStartKey: string, deltaDays: number): string {
   const next = new Date(parseDateKey(weekStartKey));
   next.setUTCDate(next.getUTCDate() + deltaDays);

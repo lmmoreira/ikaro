@@ -12,6 +12,10 @@ import {
   resolveNowMarkerTopPx,
   useScrollToNowOnce,
 } from '@/features/booking/schedule/schedule-scroll-to-now';
+import {
+  rendersOwnLabelColumn,
+  resolveSharedTimelineWindow,
+} from '@/features/booking/schedule/schedule-shared-timeline-window';
 import { ScheduleTimelineBoard } from './ScheduleTimelineBoard';
 
 interface ScheduleWeekViewProps {
@@ -91,6 +95,11 @@ export function ScheduleWeekView({
   const weekIncludesToday = weekDayInfo.some((day) => day.dateKey === todayKey);
   const nowMarkerRef = useScrollToNowOnce(weekIncludesToday, weekKey);
   const nowMinutes = timeToMinutes(getLocalTimeKey(new Date(), timezone));
+  // TD44 Story 3 — weekTimelineCards already carries the shared window baked into each shared
+  // member's own start/end/slotCount (schedule-page-timeline-derived.ts); isOverriddenByOpening/
+  // selectedDayClosed survive that override untouched, so re-deriving sharedMemberIndexes here is
+  // just recovering which indexes are in the group, purely to decide who renders the label column.
+  const sharedWindow = resolveSharedTimelineWindow(weekTimelineCards);
 
   return (
     <div className="space-y-3" data-testid="schedule-week-view">
@@ -149,6 +158,7 @@ export function ScheduleWeekView({
                   compact
                   slotGranularityMinutes={slotGranularityMinutes}
                   slotLabels={[]}
+                  hideLabelColumn={!rendersOwnLabelColumn(index, sharedWindow.sharedMemberIndexes)}
                   statusLabels={statusLabels}
                   timezone={timezone}
                   scheduleReturnTo={scheduleReturnTo}

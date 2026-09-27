@@ -10,11 +10,20 @@ import {
   buildTimelineDayData,
   type TimelineDayData,
 } from '@/features/booking/schedule/schedule-timeline';
+import {
+  applySharedTimelineWindow,
+  rendersOwnLabelColumn,
+  resolveSharedTimelineWindow,
+} from '@/features/booking/schedule/schedule-shared-timeline-window';
 
 export interface ScheduleResourceColumn {
   readonly resourceId: string;
   readonly resourceName: string;
   readonly timeline: TimelineDayData;
+  // TD44 Story 3 — true when this column should render its own hour-label column (either it opted
+  // out of the shared axis — an exceptional opening — or it's the first member of the shared
+  // group). false means a sibling column already renders the shared label column for this group.
+  readonly rendersOwnLabelColumn: boolean;
 }
 
 interface BuildResourceColumnsInput {
@@ -102,6 +111,33 @@ function scopeToResource<T extends { readonly resourceId: string | null }>(
   return items.filter((item) => item.resourceId === resourceId || item.resourceId === null);
 }
 
+type UnwindowedColumn = Omit<ScheduleResourceColumn, 'rendersOwnLabelColumn'>;
+
+// TD44 Story 3 — resolve the shared hour axis across every checked resource's regular-hours
+// window, then reposition each shared member's grid against it. A column overridden by an
+// exceptional opening (or closed) opts out entirely and keeps its own independently-resolved
+// timeline, unchanged. Extracted from buildResourceColumns below purely to stay under the
+// 40-line function cap once this story's shared-window step landed there.
+function applySharedWindowToColumns(
+  columns: readonly UnwindowedColumn[],
+  slotGranularityMinutes: number,
+): ScheduleResourceColumn[] {
+  const sharedWindow = resolveSharedTimelineWindow(columns.map((column) => column.timeline));
+
+  return columns.map((column, index) => ({
+    ...column,
+    timeline: sharedWindow.sharedMemberIndexes.has(index)
+      ? applySharedTimelineWindow(
+          column.timeline,
+          sharedWindow.sharedStartMinutes,
+          sharedWindow.sharedEndMinutes,
+          slotGranularityMinutes,
+        )
+      : column.timeline,
+    rendersOwnLabelColumn: rendersOwnLabelColumn(index, sharedWindow.sharedMemberIndexes),
+  }));
+}
+
 // Turns the day-grid response (a resourceId -> booking-id lookup only) plus the page's
 // already-fetched bookings/closures/openings into one TimelineDayData per checked resource,
 // feeding the exact same buildTimelineDayData the single merged timeline already uses — no new
@@ -115,7 +151,7 @@ export function buildResourceColumns(input: BuildResourceColumnsInput): Schedule
     input.dayGridColumns.map((column) => [column.resourceId, column]),
   );
 
-  return [...input.selectedResourceIds]
+  const columns: UnwindowedColumn[] = [...input.selectedResourceIds]
     .map((resourceId) => ({
       resourceId,
       resourceName: input.resourceNameById.get(resourceId) ?? resourceId,
@@ -141,4 +177,6 @@ export function buildResourceColumns(input: BuildResourceColumnsInput): Schedule
 
       return { resourceId, resourceName, timeline };
     });
+
+  return applySharedWindowToColumns(columns, input.slotGranularityMinutes);
 }

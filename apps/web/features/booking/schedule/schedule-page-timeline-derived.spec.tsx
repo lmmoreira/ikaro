@@ -2,7 +2,7 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { BOOKING_STATUS } from '@ikaro/types';
-import type { StaffBookingCardResponse, TenantBusinessHours } from '@ikaro/types';
+import type { ScheduleOpening, StaffBookingCardResponse, TenantBusinessHours } from '@ikaro/types';
 import { useScheduleTimelineDerived } from './schedule-page-timeline-derived';
 
 function makeBusinessHours(): TenantBusinessHours {
@@ -206,6 +206,73 @@ describe('useScheduleTimelineDerived', () => {
     it('gives Week view (weekTimelineCards) the plain scaled-down unit (scale 0.85, TD44 Story 4 live-testing correction — raised from 0.45)', () => {
       const { result } = renderHook(() => useScheduleTimelineDerived(baseInput()));
       expect(result.current.weekTimelineCards[0].slotHeight).toBe(41);
+    });
+  });
+
+  describe('shared hour axis across week day-cards (TD44 Story 3)', () => {
+    function makeMultiDayBusinessHours(): TenantBusinessHours {
+      const dayHours = { open: '09:00', close: '18:00' };
+      return {
+        timezone: 'America/Sao_Paulo',
+        monday: dayHours,
+        tuesday: dayHours,
+        wednesday: dayHours,
+        thursday: null,
+        friday: null,
+        saturday: null,
+        sunday: null,
+      };
+    }
+
+    function makeOpening(overrides: Partial<ScheduleOpening> = {}): ScheduleOpening {
+      return {
+        id: 'opening-1',
+        date: '2026-08-18',
+        startTime: '02:00',
+        endTime: '04:00',
+        notes: null,
+        resourceId: null,
+        ...overrides,
+      };
+    }
+
+    it('gives every regular-hours day-card in a normal week the same shared window', () => {
+      const { result } = renderHook(() =>
+        useScheduleTimelineDerived(
+          baseInput({
+            weekDates: ['2026-08-17', '2026-08-18'], // Monday, Tuesday — both open
+            businessHours: makeMultiDayBusinessHours(),
+          }),
+        ),
+      );
+
+      const [monday, tuesday] = result.current.weekTimelineCards;
+      expect(monday.timelineStartMinutes).toBe(540);
+      expect(monday.timelineEndMinutes).toBe(1080);
+      expect(tuesday.timelineStartMinutes).toBe(540);
+      expect(tuesday.timelineEndMinutes).toBe(1080);
+    });
+
+    it('keeps a day with an exceptional opening on its own independent window, not stretching the shared range', () => {
+      const opening = makeOpening({ date: '2026-08-18' }); // Tuesday, 02:00-04:00
+
+      const { result } = renderHook(() =>
+        useScheduleTimelineDerived(
+          baseInput({
+            weekDates: ['2026-08-17', '2026-08-18'], // Monday (regular), Tuesday (exceptional)
+            businessHours: makeMultiDayBusinessHours(),
+            visibleOpenings: [opening],
+          }),
+        ),
+      );
+
+      const [monday, tuesday] = result.current.weekTimelineCards;
+      // Monday's shared window must not stretch to cover Tuesday's 2am opening.
+      expect(monday.timelineStartMinutes).toBe(540);
+      expect(monday.timelineEndMinutes).toBe(1080);
+      expect(tuesday.timelineStartMinutes).toBe(120);
+      expect(tuesday.timelineEndMinutes).toBe(240);
+      expect(tuesday.isOverriddenByOpening).toBe(true);
     });
   });
 });

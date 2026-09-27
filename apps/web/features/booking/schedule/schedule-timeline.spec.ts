@@ -108,6 +108,7 @@ describe('buildTimelineEvents', () => {
       slotCount: 0,
       slotHeight: 48,
       events: [],
+      isOverriddenByOpening: false,
     });
   });
 
@@ -455,6 +456,39 @@ describe('buildTimelineDayData', () => {
     });
     expect(data.selectedDayClosed).toBe(false);
     expect(data.selectedDayHours).toEqual({ open: '09:00', close: '18:00' });
+  });
+
+  it('propagates isOverriddenByOpening from the resolved active window (TD44 Story 3)', () => {
+    const opening: ScheduleOpening = {
+      id: 'opening-1',
+      date: '2026-08-18', // a Tuesday, closed in makeBusinessHours()
+      startTime: '10:00',
+      endTime: '14:00',
+      notes: null,
+      resourceId: null,
+    };
+
+    const overridden = buildTimelineDayData({
+      selectedDateKey: '2026-08-18',
+      timezone: 'America/Sao_Paulo',
+      slotGranularityMinutes: 30,
+      businessHours: makeBusinessHours(),
+      bookings: [],
+      closures: [],
+      openings: [opening],
+    });
+    expect(overridden.isOverriddenByOpening).toBe(true);
+
+    const regular = buildTimelineDayData({
+      selectedDateKey: '2026-08-17', // a Monday, open in makeBusinessHours()
+      timezone: 'America/Sao_Paulo',
+      slotGranularityMinutes: 30,
+      businessHours: makeBusinessHours(),
+      bookings: [],
+      closures: [],
+      openings: [],
+    });
+    expect(regular.isOverriddenByOpening).toBe(false);
   });
 });
 
