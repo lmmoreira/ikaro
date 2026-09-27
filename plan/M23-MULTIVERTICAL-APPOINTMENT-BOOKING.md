@@ -205,7 +205,7 @@ Two independently-triggerable, additive extensions of `POST /bookings`, bundled 
 
 ---
 
-### M23-S03 — Reschedule extension: resource/bundle/leg-aware, quote revisions
+### M23-S03 — Reschedule extension: resource/bundle/leg-aware, quote revisions ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M/L (raised from M during story-discovery, 2026-09-26 — see decisions below)
