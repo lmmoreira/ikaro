@@ -420,11 +420,17 @@ Files (round 5): `schedule-scroll-to-now.ts`/`.spec.ts` (`block: 'center'`), `ap
 
 **Known risk, accepted:** this reopens the exact `getSlotHeight`/`buildBlockStyle` positioning-math surface TD44-S3/S4 both flagged as risky and carefully tuned. Mitigated by scroll-to-now (S4) already being in place, and by the change being a single multiplier tweak, not new machinery.
 
+**Resolved via `/story-discovery` (2026-09-27):**
+- **Journey-doc sync (stale-reference sweep):** `plan/journey/staff/horarios.md:164` and `plan/journey/staff/prototypes/horarios/dev-notes.md:297` both currently describe TD44-S4's "drops only its time-range line" behavior — the exact thing this story reverses. Both get updated in the same commit as the code change (factual sync of an already-existing journey entry — per CLAUDE.md §15 this needs only the normal doc-gate yes, not a `/docs-audit` baseline). Added to the files list below.
+- **Local verification gate:** the user confirmed permission for this implementation session to run the dev server and Playwright E2E against it for Change 2's live slot-height comparison and the E2E acceptance criteria below — reconfirmed here rather than relying solely on the note under Change 2 from when this story was drafted.
+
 **Files to create/modify:**
 - `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (+ `.spec.tsx`) (modify — remove `isMinimumGranularity`/`showTimeRangeLine`, always render the time-range line)
 - `apps/web/features/booking/schedule/schedule-timeline-formatting.ts` (modify — `getSlotHeight`'s base multiplier)
 - `apps/web/features/booking/schedule/schedule-timeline.spec.ts` (modify — update the 3 hardcoded `getSlotHeight` assertions at lines 42-44 and the `slotHeight: 48` literal at line 109 to the new value)
 - `apps/web/e2e/schedule.spec.ts` (modify — the existing "a minimum-granularity booking shows no time-range text, while a longer one still does (TD44 Story 4)" scenario now asserts the opposite: time-range text present at every duration)
+- `plan/journey/staff/horarios.md` (modify — factual sync of the Story 4 bullet, TD44 addition section)
+- `plan/journey/staff/prototypes/horarios/dev-notes.md` (modify — factual sync of the "Minimum-granularity content variant" bullet, TD44 addition section)
 
 **Acceptance criteria — product:**
 - [ ] A minimum-granularity booking shows both its resource-summary line (if assigned) and its time-range line, in every board (Day single timeline, Day resource-columns board, Week view) — same content shape as any longer-duration booking.
