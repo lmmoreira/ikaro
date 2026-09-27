@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx`, `ScheduleResourceColumnsBoard.tsx` (M22-S06)
 - **Created**: 2026-09-24
 - **Discovered**: Codex round-4 review of PR #511 (M22-S06, manager bounded multi-resource column view)
-- **State**: In progress — Story 0/1/2 ✅ Done (Story 2 shipped as PR #514, 2026-09-25); Story 4 (slot/block height decoupling, minimum-granularity content variant, scroll-to-now, redundant-label removal) ✅ Done (shipped as PR #516, 2026-09-26); Story 3 (shared hour axis) `/story-discovery` READY (2026-09-26) — builds on Story 4's now-settled coordinate system, ready for implementation
+- **State**: In progress — Story 0/1/2/4 ✅ Done (Story 2 shipped as PR #514, 2026-09-25; Story 4 shipped as PR #516, 2026-09-26); Story 3 (shared hour axis) ✅ Done (shipped as PR #518, 2026-09-27)
 - **Related**: M22-S06 (`plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`), M21-S05 (`ResourceFilterMenu`)
 
 ---
@@ -223,7 +223,7 @@ Live testing also surfaced that this wasn't Week-view-specific or Story-2-specif
 
 ---
 
-## Story 3 — Shared hour axis across resource columns and week day-cards, opt-out for exceptional openings
+## Story 3 — Shared hour axis across resource columns and week day-cards, opt-out for exceptional openings ✅ Done (PR #518, merged 2026-09-27)
 
 **Agent:** `frontend-ts`
 **Complexity:** L
