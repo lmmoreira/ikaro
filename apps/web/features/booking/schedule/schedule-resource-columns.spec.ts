@@ -423,4 +423,82 @@ describe('buildResourceColumns', () => {
       expect(columns[0].timeline.timelineEndMinutes).toBe(1080);
     });
   });
+
+  describe('spillover occupancy (TD43)', () => {
+    // Booking's own service is 2026-08-17 23:50 local (America/Sao_Paulo, UTC-3) for 10 minutes,
+    // but a 30-minute buffer/turnover pushes the day-grid block's own endsAt to 2026-08-18 00:30
+    // local — the resource is genuinely occupied on the *next* calendar day, even though the
+    // booking's own scheduledAt/getBookingDateKey still resolves to 2026-08-17.
+    const spilloverBooking = makeBooking({
+      bookingId: 'booking-spillover',
+      scheduledAt: '2026-08-18T02:50:00.000Z', // 2026-08-17T23:50 local
+    });
+    const spilloverBlock = {
+      startsAt: '2026-08-18T02:50:00.000Z',
+      endsAt: '2026-08-18T03:30:00.000Z', // 2026-08-18T00:30 local
+      kind: 'BOOKING' as const,
+      refId: 'booking-spillover',
+    };
+
+    it("routes a booking whose own day differs from the column's day into spilloverOccupancy, not the grid", () => {
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedDateKey: '2026-08-18',
+        selectedResourceIds: new Set(['res-camila']),
+        resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
+        dayGridColumns: [makeDayGridColumn({ resourceId: 'res-camila', blocks: [spilloverBlock] })],
+        bookings: [spilloverBooking],
+        closures: [],
+        openings: [],
+      });
+
+      expect(columns[0].spilloverOccupancy).toEqual([
+        { bookingId: 'booking-spillover', contactName: 'João Silva', endsAtLocalTime: '00:30' },
+      ]);
+      expect(columns[0].timeline.events.filter((e) => e.kind === 'booking')).toHaveLength(0);
+    });
+
+    it('produces no spillover entry when the matched booking is filtered out by status', () => {
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedDateKey: '2026-08-18',
+        selectedStatusSet: new Set([BOOKING_STATUS.PENDING]), // spilloverBooking is APPROVED
+        selectedResourceIds: new Set(['res-camila']),
+        resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
+        dayGridColumns: [makeDayGridColumn({ resourceId: 'res-camila', blocks: [spilloverBlock] })],
+        bookings: [spilloverBooking],
+        closures: [],
+        openings: [],
+      });
+
+      expect(columns[0].spilloverOccupancy).toEqual([]);
+    });
+
+    it('leaves a same-day matched booking unaffected — spilloverOccupancy stays empty (non-regression)', () => {
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedResourceIds: new Set(['res-camila']),
+        resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
+        dayGridColumns: [
+          makeDayGridColumn({
+            resourceId: 'res-camila',
+            blocks: [
+              {
+                startsAt: '2026-08-17T12:00:00.000Z',
+                endsAt: '2026-08-17T12:30:00.000Z',
+                kind: 'BOOKING',
+                refId: 'booking-1',
+              },
+            ],
+          }),
+        ],
+        bookings: [makeBooking()],
+        closures: [],
+        openings: [],
+      });
+
+      expect(columns[0].spilloverOccupancy).toEqual([]);
+      expect(columns[0].timeline.events.filter((e) => e.kind === 'booking')).toHaveLength(1);
+    });
+  });
 });

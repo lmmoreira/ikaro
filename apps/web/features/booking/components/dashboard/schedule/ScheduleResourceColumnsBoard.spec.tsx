@@ -195,4 +195,74 @@ describe('ScheduleResourceColumnsBoard', () => {
     // group) still renders his own — two independent columns, neither suppressed.
     expect(screen.getAllByTestId('schedule-timeline-label-column')).toHaveLength(2);
   });
+
+  it('renders a fixed spillover banner for a booking whose buffer pushed occupancy into this day, linking to the real booking (TD43)', () => {
+    useScheduleDayGridMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        date: '2026-08-17',
+        columns: [
+          {
+            resourceId: 'res-camila',
+            name: 'Camila Duarte',
+            type: 'STAFF',
+            blocks: [
+              {
+                startsAt: '2026-08-17T02:50:00.000Z', // 2026-08-16T23:50 local
+                endsAt: '2026-08-17T03:30:00.000Z', // 2026-08-17T00:30 local
+                kind: 'BOOKING',
+                refId: 'booking-spillover',
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    renderWithIntl(
+      <ScheduleResourceColumnsBoard
+        {...baseProps()}
+        selectedResourceIdSet={new Set(['res-camila'])}
+        bookings={[
+          {
+            bookingId: 'booking-spillover',
+            status: BOOKING_STATUS.APPROVED,
+            scheduledAt: '2026-08-17T02:50:00.000Z', // 2026-08-16 local — the booking's own day
+            contactName: 'João Silva',
+            serviceNames: ['Corte'],
+            totalPrice: { amount: 100, currency: 'BRL' },
+            totalDurationMins: 10,
+            isCustomer: false,
+            assignedResources: [],
+          },
+        ]}
+      />,
+    );
+
+    const banner = screen.getByTestId('schedule-column-spillover-banner');
+    expect(banner).toHaveTextContent('Ocupado até 00:30 — João Silva');
+    expect(banner).toHaveAttribute(
+      'href',
+      expect.stringContaining('/dashboard/bookings/booking-spillover'),
+    );
+  });
+
+  it('renders no spillover banner for a same-day booking (non-regression)', () => {
+    useScheduleDayGridMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        date: '2026-08-17',
+        columns: [{ resourceId: 'res-camila', name: 'Camila Duarte', type: 'STAFF', blocks: [] }],
+      },
+    });
+    renderWithIntl(
+      <ScheduleResourceColumnsBoard
+        {...baseProps()}
+        selectedResourceIdSet={new Set(['res-camila'])}
+      />,
+    );
+    expect(screen.queryByTestId('schedule-column-spillover-banner')).not.toBeInTheDocument();
+  });
 });
