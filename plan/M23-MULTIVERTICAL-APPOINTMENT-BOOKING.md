@@ -535,7 +535,7 @@ Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → 
 
 ---
 
-### M23-S04 — `RecurringBookingSchedule` aggregate — create/skip/reschedule/pause/end, backend + BFF
+### M23-S04 — `RecurringBookingSchedule` aggregate — create/skip/reschedule/pause/end, backend + BFF ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
