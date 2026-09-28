@@ -54,6 +54,8 @@ graph TD
   S0[Story 0: backend accepts tenant-local date keys] --> S1[Story 1: BFF passes date keys + queue page uses tenant-local today]
 ```
 
+**When the user-visible bug is actually fixed:** only when **Story 1 is deployed**. Story 0 makes the backend correct for a date-key caller, but no live caller sends date keys until Story 1 switches the BFF over — until then the schedule and the bookings queue behave exactly as they do today. Story 0's acceptance criteria are therefore verified at the API/integration level; the end-to-end schedule and queue behaviour is verified in Story 1.
+
 ---
 
 ### Story 0 — Backend list-bookings accepts tenant-local date keys
@@ -90,7 +92,7 @@ Open for `/story-discovery` (small): where exactly the helper lives and whether 
 - `docs/14-API_CONTRACTS.md` (modify)
 
 **Acceptance criteria — product:**
-- [ ] A booking at any local time on a day (including after 21:00 for a UTC-3 tenant) is returned when listing that local day or a local range containing it, and not returned for the adjacent day.
+- [ ] At the API level, a `GET /bookings` request with date-key `from`/`to` returns a booking at any local time on a day (including after 21:00 for a UTC-3 tenant) when listing that local day or a local range containing it, and does not return it for the adjacent day. (No live caller sends date keys until Story 1 deploys, so the schedule/queue are unchanged by this story alone.)
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -120,8 +122,8 @@ Open for `/story-discovery` (small): where exactly the helper lives and whether 
 Stop converting date keys to UTC instants in the BFF, and make the bookings queue derive its dates in the tenant's timezone.
 
 1. `buildBookingListParams` (`bookings-list-query.util.ts`) forwards `date` as `from = to = date` and `from`/`to` unchanged, as date keys, with no `T…Z` suffix. It still maps `page` to `offset`.
-2. `apps/web/app/dashboard/bookings/page.tsx` derives `today` with `toISODateInTimezone(new Date(), timezone)` — the page already loads tenant settings (`fetchTenantSettings`), so no new fetch — and derives `tomorrow` and `windowEnd` by date-key arithmetic (`parseDateKey`/`addDays` from the schedule `date-utils`) instead of `addDays(now, …)` + `toISODate`.
-3. Audit `BookingQueuePage.tsx`'s own client-side date arithmetic (`new Date(today + 'T00:00:00')`, `toISODate(windowStart)`) for the same UTC/local mixing, and fix what the tenant-local `today` exposes. Scope this to the queue page only.
+2. `apps/web/app/dashboard/bookings/page.tsx` derives `today` with `toISODateInTimezone(new Date(), timezone)` — the page already loads tenant settings (`fetchTenantSettings`), so no new fetch — and derives `tomorrow` and `windowEnd` by date-key arithmetic (`parseDateKey`/`addDays` from the schedule `date-utils`) instead of `addDays(now, …)` + `toISODate`. Extract this derivation into a small pure helper (input: `now`, tenant timezone, window days; output: `today`/`tomorrow`/`windowEnd` date keys) so the page stays thin (CLAUDE.md §7 Testing) **and** the "today" logic is unit-testable with a fixed clock — see the test plan below.
+3. **Fix** `BookingQueuePage.tsx`'s client-side date arithmetic — this is in scope, not an optional audit. It mixes browser-local and UTC: `new Date(today + 'T00:00:00')` (lines 45 and 58) is a browser-local midnight, while `toISODate(windowStart)` / `toISODate(windowEnd)` (lines 52–53) read it back as a UTC date. For a browser whose offset differs from the tenant's (or from UTC) the window keys can shift by a day. Replace the `Date`-object round-trips with date-key arithmetic (`parseDateKey`/`addDays` on keys) so the queue never converts a tenant-local key through the browser's or UTC's clock. (From code reading — confirm the exact failing browser/tenant offset combination while writing the spec; scope stays the queue page only.)
 4. Update the `.http` request blocks and the BFF list-query util's own spec accordingly (the util currently has none — add one).
 
 **Why one PR for both layers:** shipping the BFF change alone would give the queue a UTC-date `today` interpreted as a local day (wrong for the evening window); shipping the web change alone would give it a local `today` still converted as UTC. Either order leaves a wrong window between the two merges, so they land together.
@@ -132,22 +134,24 @@ Stop converting date keys to UTC instants in the BFF, and make the bookings queu
 **Files to create/modify:**
 - `apps/bff/src/features/booking/bookings-list-query.util.ts` (modify) + `bookings-list-query.util.spec.ts` (create)
 - `apps/bff/src/features/booking/bookings.controller.component.spec.ts` (modify — assert the outgoing `from`/`to` are date keys)
-- `apps/web/app/dashboard/bookings/page.tsx` (modify — thin page)
-- `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (modify, if the audit finds mixing) + `BookingQueuePage.spec.tsx` (modify)
+- `apps/web/app/dashboard/bookings/page.tsx` (modify — thin page, calls the helper below)
+- The queue-window date helper (create — pure function + `.spec.ts`; home to confirm in `/story-discovery`: `apps/web/features/booking/utils/` vs `apps/web/shared/lib/formatting/date-utils.ts`)
+- `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (modify — replace the browser-local/UTC `Date` round-trips) + `BookingQueuePage.spec.tsx` (modify)
 - `apps/bff/http/bookings/*.http` (modify — the folder is `apps/bff/http/bookings/`)
 
 **Acceptance criteria — product:**
 - [ ] For a UTC-3 tenant at 22:00 local, the bookings queue's "today" is still the current local day and lists the evening's approved bookings; nothing from the previous local evening appears in it.
-- [ ] The schedule's Sunday-late-evening booking appears in its own local week (verified end to end once Story 0 is deployed).
+- [ ] The schedule's Sunday-late-evening booking appears in its own local week. This is fixed only once **both** Story 0 and this story are deployed (Story 0 alone changes nothing a caller sees) — verify against the deployed pair, not Story 0 in isolation.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `bookings-list-query.util.spec.ts`: `date` → `from = to = date`; `from`/`to` pass through unsuffixed; `page`/`limit` → `offset`/`limit`; no `T…Z` suffix on any output
-  - [ ] `BookingQueuePage.spec.tsx`: `today`/`tomorrow`/window boundaries derive from the passed tenant-local `today`, including across a month boundary
+  - [ ] Queue-window helper spec, **with a fixed clock** (Vitest fake timers or an injected `now`): tenant `America/Sao_Paulo` at `2026-08-16T01:30:00.000Z` (= 22:30 local on 2026-08-15) yields `today = 2026-08-15`, not `2026-08-16`; `tomorrow`/`windowEnd` follow from `today`; a UTC+ tenant zone near local midnight yields its own local date; the window crosses a month boundary correctly. This is the regression test for the queue's own "today" defect (the half of this TD proven by code reading only) — it needs no browser, server clock or E2E, because the derivation is a pure function.
+  - [ ] `BookingQueuePage.spec.tsx`: `today`/`tomorrow`/window boundaries derive from the passed tenant-local `today` by date-key arithmetic, including across a month boundary, and are unchanged when the test runs under a non-UTC `TZ` (assert with two different `TZ` values, so a browser-local/UTC round-trip regression fails)
 - Integration: n/a for web; BFF covered by the component test below
 - Tenant isolation: n/a — no tenant data handled client-side; the BFF forwards the tenant context unchanged
 - E2E:
-  - [ ] none — a late-evening booking needs a controlled clock and timezone; covered by the unit and component tests
+  - [ ] none — `today` is computed in a Server Component (`page.tsx`), so a Playwright browser clock does not control it; the derivation is instead covered by the fixed-clock unit spec above and the end-to-end range behaviour by Story 0's real-Postgres integration test
 - BFF component:
   - [ ] `bookings.controller.component.spec.ts`: `GET /v1/bookings?date=2026-08-16` calls the backend with `from=2026-08-16&to=2026-08-16`
 - [ ] Coverage ≥80% on changed code
@@ -160,4 +164,4 @@ Stop converting date keys to UTC instants in the BFF, and make the bookings queu
 - **4q (pattern and test plan):** pattern stated per story; every tier has a named scenario, and the integration case is the proven reproduction (seed values included).
 - **Expand/contract:** Story 0 accepts both forms, so no rolling-deploy window breaks. A later story could drop the instant form once nothing sends it; left out deliberately — nothing depends on removing it.
 - **Ripple:** the two reminder jobs already behave correctly and are untouched. Other `listBookings` callers (`useBookings`, `BookingPhotoPicker`) send neither `date` nor `from`/`to`, so they are unaffected.
-- **Open for `/story-discovery`:** the inclusive-helper's exact home and name (Story 0), and how far the queue-page audit reaches (Story 1).
+- **Open for `/story-discovery`:** the inclusive-helper's exact home and name (Story 0), and the queue-window helper's home (Story 1). The queue-page date-arithmetic fix itself is decided as in scope; only its exact failing browser/tenant offset combination is left to confirm while writing the spec.
