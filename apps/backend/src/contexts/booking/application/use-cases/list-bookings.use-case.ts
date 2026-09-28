@@ -6,12 +6,25 @@ import {
 } from '../ports/booking-repository.port';
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
+import { localDateEndUTC, localDateStartUTC } from '../../../../shared/utils/calendar-date';
 
 export type ListBookingsUseCaseInput = ListBookingsDto & {
   tenantId: string;
   customerId?: string;
   cancellationWindowHours: number;
+  timezone: string;
 };
+
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function toInstantBound(
+  value: string | undefined,
+  timezone: string,
+  localDateBound: (date: string, timezone: string) => Date,
+): Date | undefined {
+  if (!value) return undefined;
+  return DATE_KEY_PATTERN.test(value) ? localDateBound(value, timezone) : new Date(value);
+}
 
 export interface BookingLineSummary {
   lineId: string;
@@ -58,8 +71,8 @@ export class ListBookingsUseCase {
       await this.bookingRepo.findAllByTenantPaginated(tenantId, {
         status: input.status,
         customerId,
-        scheduledAfter: input.from ? new Date(input.from) : undefined,
-        scheduledBefore: input.to ? new Date(input.to) : undefined,
+        scheduledAfter: toInstantBound(input.from, input.timezone, localDateStartUTC),
+        scheduledBefore: toInstantBound(input.to, input.timezone, localDateEndUTC),
         limit: input.limit,
         offset: input.offset,
       });

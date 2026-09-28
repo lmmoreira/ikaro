@@ -131,3 +131,21 @@ export function localDateRangeBoundsUTC(
       .toJSDate(),
   };
 }
+
+/**
+ * The first instant of the YYYY-MM-DD local day in the given IANA timezone, as a UTC Date. The
+ * single-bound counterpart of localDateRangeBoundsUTC() for a caller whose `from` and `to` are
+ * independently optional.
+ */
+export function localDateStartUTC(date: string, timezone: string): Date {
+  return DateTime.fromISO(date, { zone: timezone }).startOf('day').toUTC().toJSDate();
+}
+
+/**
+ * The last millisecond of the YYYY-MM-DD local day in the given IANA timezone, as a UTC Date —
+ * an *inclusive* end, for a filter that compares with `<=`. localDateRangeBoundsUTC()'s end is
+ * the exclusive start of the following day and is not a drop-in for such a filter.
+ */
+export function localDateEndUTC(date: string, timezone: string): Date {
+  return DateTime.fromISO(date, { zone: timezone }).endOf('day').toUTC().toJSDate();
+}

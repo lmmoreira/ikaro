@@ -45,6 +45,96 @@ X-Correlation-ID: test-corr-list-002
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list by tenant-local date range (YYYY-MM-DD date keys)
+# from = first instant of that local day, to = last millisecond of that local day, both in the
+# tenant's businessHours.timezone — a booking at 22:00 local on the last day is included.
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?from=2026-08-10&to=2026-08-16&limit=25&offset=0
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-004
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — a single tenant-local day (from = to)
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?status=APPROVED&from=2026-08-16&to=2026-08-16
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-005
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EDGE CASE — open-ended range: a date-key from alone (no to)
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?from=2026-08-17
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-006
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EDGE CASE — ISO instants are still accepted and used exactly as given (no timezone applied);
+# a date key and an instant may be mixed, each bound is interpreted on its own
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?from=2026-08-10T00:00:00.000Z&to=2026-08-16T23:59:59.999Z
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-007
+
+###
+
+GET {{baseUrl}}/bookings?from=2026-08-10&to=2026-08-16T23:59:59.999Z
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-008
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — 400: from is not a real calendar date (2026-02-30)
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?from=2026-02-30
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-009
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — 400: to is neither a date key nor an ISO instant
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?to=yesterday
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-010
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — customer lists own bookings
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -3,6 +3,8 @@ import {
   addMonthsUTC,
   endOfDayUTC,
   getUtcWeekDayName,
+  localDateEndUTC,
+  localDateStartUTC,
   localDateTimeToUTCIso,
   localDayBoundsUTC,
   startOfDayUTC,
@@ -165,5 +167,54 @@ describe('localDayBoundsUTC', () => {
     const { start, end } = localDayBoundsUTC(new Date('2026-06-01T12:00:00.000Z'), 'UTC');
     expect(start.toISOString()).toBe('2026-06-01T00:00:00.000Z');
     expect(end.toISOString()).toBe('2026-06-01T23:59:59.999Z');
+  });
+});
+
+describe('localDateStartUTC / localDateEndUTC', () => {
+  it.each([
+    [
+      'UTC-3 (America/Sao_Paulo)',
+      '2026-08-16',
+      'America/Sao_Paulo',
+      '2026-08-16T03:00:00.000Z',
+      '2026-08-17T02:59:59.999Z',
+    ],
+    [
+      'UTC+12 (Pacific/Auckland)',
+      '2026-08-16',
+      'Pacific/Auckland',
+      '2026-08-15T12:00:00.000Z',
+      '2026-08-16T11:59:59.999Z',
+    ],
+    [
+      'a month boundary',
+      '2026-08-31',
+      'America/Sao_Paulo',
+      '2026-08-31T03:00:00.000Z',
+      '2026-09-01T02:59:59.999Z',
+    ],
+    [
+      'the UTC timezone itself',
+      '2026-06-01',
+      'UTC',
+      '2026-06-01T00:00:00.000Z',
+      '2026-06-01T23:59:59.999Z',
+    ],
+    [
+      'a spring-forward DST day (America/New_York)',
+      '2026-03-08',
+      'America/New_York',
+      '2026-03-08T05:00:00.000Z',
+      '2026-03-09T03:59:59.999Z',
+    ],
+  ])('%s: %s in %s spans %s to %s', (_label, date, timezone, expectedStart, expectedEnd) => {
+    expect(localDateStartUTC(date, timezone).toISOString()).toBe(expectedStart);
+    expect(localDateEndUTC(date, timezone).toISOString()).toBe(expectedEnd);
+  });
+
+  it('ends exactly one millisecond before the next local day starts', () => {
+    const end = localDateEndUTC('2026-08-31', 'America/Sao_Paulo');
+    const nextStart = localDateStartUTC('2026-09-01', 'America/Sao_Paulo');
+    expect(end.getTime() + 1).toBe(nextStart.getTime());
   });
 });
