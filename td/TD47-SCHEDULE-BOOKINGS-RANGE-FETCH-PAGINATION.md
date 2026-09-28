@@ -7,7 +7,7 @@
 - **Created**: 2026-09-28
 - **Discovered**: CodeRabbit round 1 on PR #528 (TD46), Major finding on `page.tsx:43`, verified against the code the same day
 - **State**: Open — not yet started; `/story-discovery` not yet run
-- **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — widened this same fetch by one day and explicitly accepted the cap as out of its scope; TD48 (`td/TD48-BOOKING-LIST-DATE-RANGE-TENANT-TIMEZONE.md`) — independent defect on the same fetch (UTC-day range instead of tenant timezone)
+- **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — widened this same fetch by one day and explicitly accepted the cap as out of its scope; TD48 (`docs/archive/td/TD48-BOOKING-LIST-DATE-RANGE-TENANT-TIMEZONE.md`) — independent defect on the same fetch (UTC-day range instead of tenant timezone), ✅ Done (PR #529, PR #530)
 
 ---
 
@@ -29,7 +29,7 @@ This limitation pre-dates TD46. TD46 (PR #528) made the exposure marginally larg
 - The BFF's real paging parameter is **`page`** (1-based; `bookings-list-query.util.ts:14` derives `offset = (page - 1) * limit`). The web `BookingListFilters` (in both `booking.ts` and `booking.server.ts`) declares **`offset`** instead, which the BFF list schema does not define and would strip; nothing in the web app sends it today. So the web layer currently has no way to request a second page at all.
 
 ### Related — tracked separately
-The same fetch's date range is also built in UTC instead of the tenant's timezone, which drops late-evening bookings from their own week. That is a different defect from the row cap and is tracked, with a proven reproduction, in `td/TD48-BOOKING-LIST-DATE-RANGE-TENANT-TIMEZONE.md`. Fixing pagination here does not change it.
+The same fetch's date range is also built in UTC instead of the tenant's timezone, which drops late-evening bookings from their own week. That is a different defect from the row cap and was tracked, with a proven reproduction, in `docs/archive/td/TD48-BOOKING-LIST-DATE-RANGE-TENANT-TIMEZONE.md` (✅ Done). Fixing pagination here does not change it.
 
 ---
 
