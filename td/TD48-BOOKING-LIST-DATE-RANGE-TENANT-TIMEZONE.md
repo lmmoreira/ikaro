@@ -110,7 +110,7 @@ Make `GET /bookings` interpret a date-key `from`/`to` in the tenant's timezone.
 
 ---
 
-### Story 1 — BFF passes date keys and the bookings queue uses the tenant's local "today"
+### Story 1 — BFF passes date keys and the bookings queue uses the tenant's local "today" ✅ Done
 
 **Agent:** bff-ts + frontend-ts (one deliberate two-layer PR — see the note below)
 **Complexity:** M
@@ -148,6 +148,7 @@ Stop converting date keys to UTC instants in the BFF, and make the bookings queu
 - [ ] For a UTC-3 tenant at 22:00 local, the bookings queue's "today" is still the current local day and lists the evening's approved bookings; nothing from the previous local evening appears in it.
 - [ ] In the queue, a booking at 22:00 local (UTC-3) gets its `WeekNav` activity dot on its own local day, and selecting that day's chip keeps it in the "Próximos dias" list.
 - [ ] The schedule's Sunday-late-evening booking appears in its own local week. This is fixed only once **both** Story 0 and this story are deployed (Story 0 alone changes nothing a caller sees) — verify against the deployed pair, not Story 0 in isolation.
+  - ⚠️ Verified via unit/integration tests only (fixed-clock `booking-queue-window.spec.ts`, `BookingQueuePage.spec.tsx`'s TZ/dot/chip suite, Story 0's real-Postgres integration test) — by the story's own design there is no automated E2E for this (the Server Component's `today` is outside Playwright's clock control). The deployed-pair schedule behavior itself needs a live check by the user, 2026-09-28.
 
 **Acceptance criteria — technical:**
 - Unit:
