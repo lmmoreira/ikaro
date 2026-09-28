@@ -3,9 +3,15 @@ import { BackendHttpModule } from '../../shared/http/backend-http.module';
 import { BookingsController } from './bookings.controller';
 import { BookingsGuestController } from './bookings-guest.controller';
 import { BookingsAttachmentsController } from './bookings-attachments.controller';
+import { RecurringBookingSchedulesController } from './recurring-booking-schedules.controller';
 
 @Module({
   imports: [BackendHttpModule],
-  controllers: [BookingsController, BookingsGuestController, BookingsAttachmentsController],
+  controllers: [
+    BookingsController,
+    BookingsGuestController,
+    BookingsAttachmentsController,
+    RecurringBookingSchedulesController,
+  ],
 })
 export class BookingsModule {}

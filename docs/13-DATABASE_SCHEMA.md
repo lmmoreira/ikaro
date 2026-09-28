@@ -667,6 +667,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | cancellation_reason | VARCHAR(30) | NULLABLE — CHECK IN ('CUSTOMER_CANCELLED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED') when `status = 'CANCELLED'` |
 | created_by_staff_id | UUID | NULLABLE — no FK, cross-context; set when staff creates it for the customer |
 | created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
+| version | INTEGER | NOT NULL DEFAULT 1 — optimistic concurrency; every save() version-checks and increments it (mirrors `bookings.version`) |
 | **UNIQUE** | (tenant_id, id) | Composite FK target for the two child tables below |
 | **CHECK** | `(status = 'PENDING_APPROVAL') = (approval_hold_expires_at IS NOT NULL)` | |
 | **INDEX** | (tenant_id, customer_id, status) | |
@@ -703,7 +704,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | **UNIQUE** | (tenant_id, recurring_schedule_id, occurrence_start) | |
 | **CHECK** | `(kind = 'RESCHEDULED') = (replacement_booking_id IS NOT NULL)` | |
 
-Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings`, unique `(tenant_id, recurring_schedule_id, occurrence_start)`.
+Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings` — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules`, unique `(tenant_id, recurring_schedule_id, occurrence_start)`.
 
 ### `booking.availability_alerts` / `booking.availability_alert_notification_attempts` (M23 Cluster 3)
 

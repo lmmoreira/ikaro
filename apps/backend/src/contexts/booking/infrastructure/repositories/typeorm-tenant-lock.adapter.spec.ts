@@ -84,4 +84,23 @@ describe('TypeOrmTenantLockAdapter', () => {
       'Tenant lock requires an active transaction',
     );
   });
+
+  it('uses a 64-bit advisory transaction lock per tenant/service, namespaced', async () => {
+    const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
+
+    await runWithEntityManager(manager, () => adapter.lockService('tenant-1', 'service-1'));
+
+    expect(manager.query).toHaveBeenCalledWith(
+      `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text, 0::bigint)
+       )`,
+      ['service:tenant-1:service-1'],
+    );
+  });
+
+  it('throws when lockService is called outside a transaction', async () => {
+    await expect(adapter.lockService('tenant-1', 'service-1')).rejects.toThrow(
+      'Tenant lock requires an active transaction',
+    );
+  });
 });

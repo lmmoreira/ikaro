@@ -1,0 +1,214 @@
+# Booking — Recurring Private Reservation Schedules (M23-S04, UC-070)
+# TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
+# Customer manages their own schedules; STAFF|MANAGER may create on a customer's behalf and see
+# every schedule for the tenant (approval queue). Approve/reject (UC-071) ships in M23-S05.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl    = {{backendUrl}}
+@scheduleId = {{requestSchedule.response.body.id}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — customer requests a recurring schedule (UC-070 step 1–2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Request a FIXED_ASSIGNMENT recurring schedule (customer-chosen resource)
+# @name requestSchedule
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-06"
+}
+
+###
+
+### Request a RESOLVE_PER_OCCURRENCE recurring schedule (system re-resolves each occurrence)
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{poolServiceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["monday", "wednesday"],
+    "startTime": "08:00",
+    "durationMinutes": 60
+  },
+  "assignmentPolicy": "RESOLVE_PER_OCCURRENCE",
+  "startsOn": "2026-10-05"
+}
+
+###
+
+### Staff creates a recurring schedule on the customer's behalf
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "customerId": "{{customerId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["thursday"],
+    "startTime": "14:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-08"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# List (customer sees own, STAFF|MANAGER sees all)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Customer lists their own recurring schedules
+GET {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+
+###
+
+### Manager lists every recurring schedule for the tenant
+GET {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Skip / reschedule a single occurrence (UC-070 A2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Skip one occurrence without disturbing the standing schedule
+PATCH {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/occurrences/2026-10-13T13:00:00.000Z
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "action": "SKIP",
+  "reason": "Viajando"
+}
+
+###
+
+### Reschedule one occurrence to an already-created replacement booking
+PATCH {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/occurrences/2026-10-13T13:00:00.000Z
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "action": "RESCHEDULE",
+  "replacementBookingId": "{{replacementBookingId}}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pause / end (UC-070 A2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Pause the schedule — no further occurrences until resumed (no resume in this story)
+POST {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/pause
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+
+###
+
+### End the schedule entirely — cancels every future materialized occurrence
+POST {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/end
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 409 — future pattern conflict (A1)
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-06"
+}
+
+###
+
+### 422 — service not enabled for recurring reservations
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{nonRecurringServiceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 60
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-06"
+}

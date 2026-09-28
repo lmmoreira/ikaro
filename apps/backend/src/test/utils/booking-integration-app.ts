@@ -35,6 +35,9 @@ import { BookingAttendeeEntity } from '../../contexts/booking/infrastructure/ent
 import { BookingLineResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { BookingQuoteRevisionEntity } from '../../contexts/booking/infrastructure/entities/booking-quote-revision.entity';
+import { RecurringBookingScheduleEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule.entity';
+import { RecurringBookingScheduleResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
+import { RecurringBookingScheduleExceptionEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule-exception.entity';
 import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
@@ -94,6 +97,9 @@ export async function createBookingIntegrationApp(
           BookingLineResourceAssignmentEntity,
           ResourceOccupancyEntity,
           BookingQuoteRevisionEntity,
+          RecurringBookingScheduleEntity,
+          RecurringBookingScheduleResourceAssignmentEntity,
+          RecurringBookingScheduleExceptionEntity,
           StaffEntity,
           InboxRecordEntity,
         ],

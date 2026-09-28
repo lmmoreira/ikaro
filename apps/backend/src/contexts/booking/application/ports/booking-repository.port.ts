@@ -35,6 +35,22 @@ export interface BookingPaginatedResult {
 
 export interface IBookingRepository {
   findById(id: string, tenantId: string): Promise<Booking | null>;
+  // The Booking materialized for one recurring-schedule occurrence, if generation (M23-S05) has
+  // already run for it — null before then, which SkipOrRescheduleOccurrenceUseCase (M23-S04)
+  // treats as "nothing to cancel yet, just record the exception."
+  findByRecurringScheduleAndOccurrence(
+    tenantId: string,
+    recurringScheduleId: string,
+    occurrenceStart: Date,
+  ): Promise<Booking | null>;
+  // Every future, still-active (non-terminal) occurrence materialized by a schedule — used by
+  // EndRecurringBookingScheduleUseCase (M23-S04) to cancel them and release their resource_
+  // occupancy rows. Empty before M23-S05's generation job exists.
+  findFutureActiveByRecurringSchedule(
+    tenantId: string,
+    recurringScheduleId: string,
+    after: Date,
+  ): Promise<Booking[]>;
   findAllByTenant(tenantId: string, filters?: BookingFilters): Promise<Booking[]>;
   findAllByTenantPaginated(
     tenantId: string,

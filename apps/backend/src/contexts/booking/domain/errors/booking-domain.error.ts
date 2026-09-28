@@ -41,3 +41,4 @@ export * from './booking-service-policy.error';
 export * from './booking-discount.error';
 export * from './booking-lifecycle.error';
 export * from './resource.error';
+export * from './recurring-booking-schedule.error';

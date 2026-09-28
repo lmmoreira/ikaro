@@ -22,4 +22,13 @@ export interface ITenantLockPort {
   // constraint on resource_occupancy remains the authoritative backstop regardless (M22-S03,
   // docs/ENGINEERING_RULES_BACKEND.md § Choosing a race-condition primitive).
   lockResources(tenantId: string, resourceIds: string[]): Promise<void>;
+
+  // Acquires a transaction-scoped advisory lock scoped to (tenantId, serviceId). Same contract as
+  // lockTenantStaff — must be called from inside an active ITransactionManager.run() block,
+  // released automatically on commit/rollback. Used by RESOLVE_PER_OCCURRENCE recurring-schedule
+  // requests (M23-S04), which have no concrete resourceId to lock at request time (per-occurrence
+  // resolution happens fresh at generation, M23-S05) — serializes the
+  // MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE cap check against a concurrent request
+  // for the same service. Brand-new key, free to namespace.
+  lockService(tenantId: string, serviceId: string): Promise<void>;
 }

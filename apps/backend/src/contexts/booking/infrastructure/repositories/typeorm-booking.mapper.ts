@@ -98,6 +98,7 @@ function toDomainProps(
     participantCount: entity.participantCount,
     intake: toDomainIntake(entity),
     attendees,
+    recurringScheduleId: entity.recurringScheduleId,
     ...toDomainLifecycleProps(entity),
   };
 }
@@ -183,6 +184,7 @@ function assignCoreFields(entity: BookingEntity, booking: Booking): void {
   entity.intakeAnswers = booking.intake?.intakeAnswers ?? null;
   entity.consentAcceptedAt = booking.intake?.consentAcceptedAt ?? null;
   entity.consentVersion = booking.intake?.consentVersion ?? null;
+  entity.recurringScheduleId = booking.recurringScheduleId;
 }
 
 function assignPriceFields(entity: BookingEntity, booking: Booking): void {

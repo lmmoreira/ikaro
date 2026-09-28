@@ -174,6 +174,9 @@ export class Booking extends AggregateRoot {
   get attendees(): BookingAttendee[] {
     return [...this.props.attendees];
   }
+  get recurringScheduleId(): string | null {
+    return this.props.recurringScheduleId;
+  }
 
   static requestBooking(input: RequestBookingInput): Booking {
     const {
@@ -250,6 +253,7 @@ export class Booking extends AggregateRoot {
       participantCount: input.participantCount ?? null,
       intake: input.intake ?? null,
       attendees,
+      recurringScheduleId: null,
       discountAmount: null,
       lines,
       beforeServicePhotoUrls: [...(input.beforeServicePhotoUrls ?? [])],

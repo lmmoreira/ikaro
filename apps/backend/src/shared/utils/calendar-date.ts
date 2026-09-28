@@ -33,6 +33,17 @@ export function getUtcWeekDayName(date: string): WeekDayName {
 }
 
 /**
+ * Adds `days` calendar days to a YYYY-MM-DD date string, returning a YYYY-MM-DD string — UTC
+ * parsing (same as getUtcWeekDayName) so a caller iterating calendar dates never picks up a
+ * local-timezone day shift. Use for calendar-date arithmetic (e.g. walking a recurrence pattern
+ * day by day), not for a UTC instant — see addMonthsUTC for the Date-based equivalent.
+ */
+export function addDaysUTC(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+/**
  * Converts a YYYY-MM-DD date + HH:MM time expressed in the given IANA timezone
  * to an ISO-8601 UTC string (e.g. "2026-06-01T12:00:00.000Z").
  * Use this when storing a locally-expressed slot start/end in the database.

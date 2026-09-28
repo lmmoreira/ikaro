@@ -29,13 +29,14 @@ import {
   BookingConcurrentModificationError,
   BookingNotFoundError,
 } from '../../domain/errors/booking-domain.error';
-import { Booking } from '../../domain/booking.aggregate';
+import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { toAttendeeEntity, toDomain, toEntity, toUpdateSet } from './typeorm-booking.mapper';
 import {
+  groupByBookingId,
   groupResourceAssignmentsByBookingId,
   ResourceAssignmentRow,
 } from './typeorm-booking-resource-assignments.helpers';
@@ -61,24 +62,63 @@ export class TypeOrmBookingRepository implements IBookingRepository {
 
   async findById(id: string, tenantId: string): Promise<Booking | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
-    if (!entity) return null;
-    const lineEntities = await this.lineRepo.find({ where: { bookingId: id, tenantId } });
-    const attendeeEntities = await this.attendeeRepo.find({ where: { bookingId: id, tenantId } });
+    return entity ? this.hydrateOne(entity, tenantId) : null;
+  }
+
+  async findByRecurringScheduleAndOccurrence(
+    tenantId: string,
+    recurringScheduleId: string,
+    occurrenceStart: Date,
+  ): Promise<Booking | null> {
+    const entity = await this.repo.findOne({
+      where: { tenantId, recurringScheduleId, scheduledAt: occurrenceStart },
+    });
+    return entity ? this.hydrateOne(entity, tenantId) : null;
+  }
+
+  async findFutureActiveByRecurringSchedule(
+    tenantId: string,
+    recurringScheduleId: string,
+    after: Date,
+  ): Promise<Booking[]> {
+    const entities = await this.repo.find({
+      where: {
+        tenantId,
+        recurringScheduleId,
+        scheduledAt: MoreThanOrEqual(after),
+        status: In([BookingStatus.PENDING, BookingStatus.INFO_REQUESTED, BookingStatus.APPROVED]),
+      },
+    });
+    return entities.length ? this.hydrateMany(entities, tenantId) : [];
+  }
+
+  // Shared by findById/findByRecurringScheduleAndOccurrence — both load exactly one booking's
+  // full lines/attendees/currency, only the lookup query itself differs.
+  private async hydrateOne(entity: BookingEntity, tenantId: string): Promise<Booking> {
+    const lineEntities = await this.lineRepo.find({ where: { bookingId: entity.id, tenantId } });
+    const attendeeEntities = await this.attendeeRepo.find({
+      where: { bookingId: entity.id, tenantId },
+    });
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return toDomain(entity, lineEntities, attendeeEntities, currency);
   }
 
-  async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
-    const where = this.buildWhere(tenantId, filters);
-    const entities = await this.repo.find({ where, order: { scheduledAt: 'ASC' } });
-    if (!entities.length) return [];
-
+  // Shared by findAllByTenant/findFutureActiveByRecurringSchedule/findAllByTenantPaginated — all
+  // three batch-load lines/attendees/currency for a page of bookings, only the source query and
+  // (for the paginated variant) resourceAssignments differ.
+  private async hydrateMany(entities: BookingEntity[], tenantId: string): Promise<Booking[]> {
     const linesByBookingId = await this.findLinesByBookingId(entities, tenantId);
     const attendeesByBookingId = await this.findAttendeesByBookingId(entities, tenantId);
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return entities.map((e) =>
       toDomain(e, linesByBookingId.get(e.id) ?? [], attendeesByBookingId.get(e.id) ?? [], currency),
     );
+  }
+
+  async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
+    const where = this.buildWhere(tenantId, filters);
+    const entities = await this.repo.find({ where, order: { scheduledAt: 'ASC' } });
+    return entities.length ? this.hydrateMany(entities, tenantId) : [];
   }
 
   async findAllByTenantPaginated(
@@ -96,25 +136,12 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       return { items: [], total, resourceAssignmentsByBookingId: EMPTY_RESOURCE_ASSIGNMENTS };
     }
 
-    const linesByBookingId = await this.findLinesByBookingId(entities, tenantId);
-    const attendeesByBookingId = await this.findAttendeesByBookingId(entities, tenantId);
+    const items = await this.hydrateMany(entities, tenantId);
     const resourceAssignmentsByBookingId = await this.findResourceAssignmentsByBookingId(
       entities,
       tenantId,
     );
-    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
-    return {
-      items: entities.map((e) =>
-        toDomain(
-          e,
-          linesByBookingId.get(e.id) ?? [],
-          attendeesByBookingId.get(e.id) ?? [],
-          currency,
-        ),
-      ),
-      total,
-      resourceAssignmentsByBookingId,
-    };
+    return { items, total, resourceAssignmentsByBookingId };
   }
 
   async existsByServiceId(serviceId: string, tenantId: string): Promise<boolean> {
@@ -147,14 +174,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     const allLines = await this.lineRepo.find({
       where: bookingIds.map((bookingId) => ({ bookingId, tenantId })),
     });
-
-    const linesByBookingId = new Map<string, BookingLineEntity[]>();
-    for (const line of allLines) {
-      const list = linesByBookingId.get(line.bookingId) ?? [];
-      list.push(line);
-      linesByBookingId.set(line.bookingId, list);
-    }
-    return linesByBookingId;
+    return groupByBookingId(allLines);
   }
 
   private async findAttendeesByBookingId(
@@ -165,14 +185,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     const allAttendees = await this.attendeeRepo.find({
       where: bookingIds.map((bookingId) => ({ bookingId, tenantId })),
     });
-
-    const attendeesByBookingId = new Map<string, BookingAttendeeEntity[]>();
-    for (const attendee of allAttendees) {
-      const list = attendeesByBookingId.get(attendee.bookingId) ?? [];
-      list.push(attendee);
-      attendeesByBookingId.set(attendee.bookingId, list);
-    }
-    return attendeesByBookingId;
+    return groupByBookingId(allAttendees);
   }
 
   // One batched query for the whole page (mirrors findLinesByBookingId's own shape) — never one

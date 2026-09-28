@@ -545,6 +545,7 @@ describe('ServiceController (integration)', () => {
         minBookingAdvanceHoursOverride: 2,
         maxBookingAdvanceDaysOverride: 30,
         recurrenceEligible: true,
+        recurringHorizonDays: null,
         availabilityAlertEligible: true,
         durationPolicy: 'CUSTOMER_SELECTED',
         durationMinMinutes: 30,

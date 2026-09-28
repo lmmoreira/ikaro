@@ -1,4 +1,5 @@
 import {
+  addDaysUTC,
   addMonthsUTC,
   endOfDayUTC,
   getUtcWeekDayName,
@@ -100,6 +101,24 @@ describe('utcDateToLocalDate', () => {
 
   it('returns a YYYY-MM-DD string', () => {
     expect(utcDateToLocalDate(new Date('2026-06-01T12:00:00Z'), TZ)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('addDaysUTC', () => {
+  it('adds days within the same month', () => {
+    expect(addDaysUTC('2026-06-01', 5)).toBe('2026-06-06');
+  });
+
+  it('rolls over into the next month', () => {
+    expect(addDaysUTC('2026-06-28', 5)).toBe('2026-07-03');
+  });
+
+  it('rolls over the year boundary', () => {
+    expect(addDaysUTC('2026-12-30', 3)).toBe('2027-01-02');
+  });
+
+  it('supports negative days', () => {
+    expect(addDaysUTC('2026-06-01', -1)).toBe('2026-05-31');
   });
 });
 

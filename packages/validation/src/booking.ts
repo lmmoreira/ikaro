@@ -192,6 +192,7 @@ export const UpdateServiceBookingPolicySchema = z
     minBookingAdvanceHoursOverride: z.number().int().min(0).max(8760).nullable().optional(),
     maxBookingAdvanceDaysOverride: z.number().int().min(1).max(365).nullable().optional(),
     recurrenceEligible: z.boolean().optional(),
+    recurringHorizonDays: z.number().int().positive().max(365).nullable().optional(),
     availabilityAlertEligible: z.boolean().optional(),
     durationPolicy: ServiceDurationPolicySchema.optional(),
     durationMinMinutes: z.number().int().positive().nullable().optional(),
@@ -245,3 +246,60 @@ export const ScheduleClosuresRangeQuerySchema = z.object({
   to: z.iso.date({ error: 'to must be a valid YYYY-MM-DD calendar date' }),
   resourceId: z.uuid().optional(),
 });
+
+// M23-S04 — the backend DTO and the BFF schema need this identically, with no per-app deviation
+// (bad-smell-audit BFF-5), so it lives here once instead of as two hand-written copies. WEEKLY-only
+// for MVP (locked in during M23-S04 story-discovery) — docs/02-DOMAIN_MODEL.md §
+// RecurringBookingSchedule.
+export const RecurrenceRuleSchema = z.object({
+  frequency: z.literal('WEEKLY'),
+  daysOfWeek: z
+    .array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']))
+    .min(1),
+  startTime: timeOfDayField(),
+  durationMinutes: z.number().int().positive(),
+});
+
+// M23-S04 — the backend DTO and the BFF schema previously hand-wrote two independent copies of
+// this request body; the backend's copy carried a `.refine()` requiring exactly one resourceId
+// for FIXED_ASSIGNMENT that the BFF's copy silently lacked, letting an invalid request reach the
+// backend instead of being rejected consistently at the BFF boundary (bad-smell-audit finding,
+// same direct-reuse pattern as RecurrenceRuleSchema above).
+export const RequestRecurringBookingScheduleBodySchema = z
+  .object({
+    serviceId: z.uuid(),
+    recurrence: RecurrenceRuleSchema,
+    assignmentPolicy: z.enum(['FIXED_ASSIGNMENT', 'RESOLVE_PER_OCCURRENCE']),
+    // Exactly one resource — recurring schedules are single-resource-only for this story
+    // (bundle/multi-leg recurrence is out of scope). Required iff assignmentPolicy =
+    // FIXED_ASSIGNMENT; ignored otherwise.
+    resourceIds: z.array(z.uuid()).length(1).optional(),
+    startsOn: z.iso.date(),
+    endsOn: z.iso.date().nullable().optional(),
+    // Present only when STAFF|MANAGER creates on a customer's behalf — CUSTOMER callers always
+    // act on their own customerId (taken from the JWT, never this field).
+    customerId: z.uuid().optional(),
+  })
+  .refine(
+    (body) => body.assignmentPolicy !== 'FIXED_ASSIGNMENT' || body.resourceIds?.length === 1,
+    {
+      message: 'resourceIds is required (exactly one) when assignmentPolicy is FIXED_ASSIGNMENT',
+      path: ['resourceIds'],
+    },
+  );
+
+export const SkipOrRescheduleOccurrenceBodySchema = z
+  .object({
+    action: z.enum(['SKIP', 'RESCHEDULE']),
+    replacementBookingId: z.uuid().optional(),
+    reason: z.string().max(255).optional(),
+  })
+  .refine((body) => body.action !== 'RESCHEDULE' || !!body.replacementBookingId, {
+    message: 'replacementBookingId is required when action is RESCHEDULE',
+    path: ['replacementBookingId'],
+  });
+
+// The :occurrenceStart route param must be a full ISO datetime — a malformed value would
+// otherwise reach `new Date(occurrenceStart)` unchecked (backend) or an un-encoded URL segment
+// (BFF proxy) instead of being rejected as a 400 at the boundary.
+export const OccurrenceStartParamSchema = z.iso.datetime();

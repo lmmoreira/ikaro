@@ -6,6 +6,12 @@ import { AddressProps } from '../../../../shared/value-objects/address';
 @Index(['tenantId', 'status'])
 @Index(['tenantId', 'customerId'])
 @Index(['tenantId', 'scheduledAt'])
+// occurrence_start (docs/13-DATABASE_SCHEMA.md's own wording) is this same booking's own
+// scheduledAt — no separate column: a generated occurrence's Booking row *is* the occurrence.
+@Index(['tenantId', 'recurringScheduleId', 'scheduledAt'], {
+  unique: true,
+  where: '"recurring_schedule_id" IS NOT NULL',
+})
 export class BookingEntity {
   @PrimaryColumn({ type: 'uuid' })
   id!: string;
@@ -150,6 +156,15 @@ export class BookingEntity {
 
   @Column({ name: 'consent_version', type: 'int', nullable: true })
   consentVersion!: number | null;
+
+  // Set when this Booking was materialized by an active RecurringBookingSchedule's rolling-
+  // horizon generation job (M23-S05) — null for an ordinary one-off booking. No FK: cross-context
+  // pattern would be same-context here, but the referenced table doesn't exist until this same
+  // migration creates it in the same transaction, so a literal FK constraint is added by the
+  // migration's own DDL instead of declared here (matches recurring_schedule_id's own
+  // docs/13-DATABASE_SCHEMA.md § booking.recurring_booking_schedules note).
+  @Column({ name: 'recurring_schedule_id', type: 'uuid', nullable: true })
+  recurringScheduleId!: string | null;
 
   @VersionColumn({ name: 'version', default: 1 })
   version!: number;
