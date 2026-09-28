@@ -58,7 +58,7 @@ graph TD
 
 ---
 
-### Story 0 — Backend list-bookings accepts tenant-local date keys
+### Story 0 — Backend list-bookings accepts tenant-local date keys ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** M
