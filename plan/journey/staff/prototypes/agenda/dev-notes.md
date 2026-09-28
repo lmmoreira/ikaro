@@ -116,7 +116,7 @@ Wire these via `apps/web/lib/api/bookings-staff.ts`. All calls require `Authoriz
 
 ### Queue list (M125-S02)
 
-Three calls, one per urgency section (resolved 2026-06-16 — see `agenda.md` "Queue scope"). All use the same `StaffBookingListResponse` shape; only the query params differ.
+Three calls, one per urgency section (resolved 2026-06-16 — see `agenda.md` "Queue scope"). All use the same `StaffBookingListResponse` shape; only the query params differ. Every `YYYY-MM-DD` value below is a **tenant-local** calendar day (TD48) — the backend converts it with the tenant's `businessHours.timezone`, so "today" is the tenant's today, never the UTC date.
 
 ```
 # "Precisa de ação" — no date filter, ALL pending/info-requested regardless of day
