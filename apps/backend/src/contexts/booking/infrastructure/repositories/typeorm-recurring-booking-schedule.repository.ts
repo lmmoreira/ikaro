@@ -44,6 +44,11 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
     return toDomain(entity, assignments, exceptions);
   }
 
+  // ListRecurringBookingSchedulesUseCase is this method's only caller and maps root scalar
+  // fields only (list-recurring-booking-schedules.use-case.ts) — resourceAssignments/exceptions
+  // are never read from the returned aggregates, so hydrating them here would be 2 extra queries
+  // and an unbounded result set per schedule for nothing. findById() remains the place a caller
+  // needing the full aggregate (mutation use cases) reads from.
   async findAllByTenant(
     tenantId: string,
     filters: RecurringBookingScheduleListFilters,
@@ -52,23 +57,7 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
       where: { tenantId, ...(filters.customerId ? { customerId: filters.customerId } : {}) },
       order: { createdAt: 'DESC' },
     });
-    if (!entities.length) return [];
-
-    const ids = entities.map((e) => e.id);
-    const [assignments, exceptions] = await Promise.all([
-      this.assignmentRepo.find({
-        where: ids.map((recurringScheduleId) => ({ tenantId, recurringScheduleId })),
-      }),
-      this.exceptionRepo.find({
-        where: ids.map((recurringScheduleId) => ({ tenantId, recurringScheduleId })),
-      }),
-    ]);
-    const assignmentsByScheduleId = groupBy(assignments, (a) => a.recurringScheduleId);
-    const exceptionsByScheduleId = groupBy(exceptions, (e) => e.recurringScheduleId);
-
-    return entities.map((e) =>
-      toDomain(e, assignmentsByScheduleId.get(e.id) ?? [], exceptionsByScheduleId.get(e.id) ?? []),
-    );
+    return entities.map((e) => toDomain(e, [], []));
   }
 
   async countActiveByResource(tenantId: string, resourceId: string): Promise<number> {
