@@ -103,14 +103,19 @@ export class RequestRecurringBookingScheduleUseCase {
     input: RequestRecurringBookingScheduleUseCaseInput,
   ): Promise<RequestRecurringBookingScheduleUseCaseResult> {
     const customerId = await this.resolveCustomerId(input);
-    const prepared = await this.prepareRequest(input);
 
     // The save() call below must stay textually inside this callback — architecture-check's
     // transactional-save detector requires save() to be lexically nested in the
     // ITransactionManager.run() callback, not merely reachable through a helper method
     // (docs/ENGINEERING_RULES_BACKEND.md § architecture-check's transactional-save detector).
+    // prepareRequest() (service eligibility + approval-policy resolution) also lives inside this
+    // callback and reads the service via findByIdForUpdate() — a concurrent
+    // UpdateServiceBookingPolicyUseCase/UpdateServiceResourceRequirementsUseCase write acquires
+    // the same row lock, so this request either waits and sees the committed update or the other
+    // write waits for this transaction, never a stale eligibility/policy read.
     const schedule = await this.txManager.run(async () => {
       await this.lockForCapCheck(input);
+      const prepared = await this.prepareRequest(input);
       await this.assertUnderCap(input);
       await this.assertNoActiveScheduleOverlap(input);
       await this.checkPatternConflict(input, prepared);
@@ -128,10 +133,12 @@ export class RequestRecurringBookingScheduleUseCase {
 
   // Everything derivable from the service/policy alone, independent of who the customer is —
   // split out purely to keep execute() under docs/CODE_STANDARDS.md's function-length limit.
+  // Must be called from inside the same transaction as lockForCapCheck() — findByIdForUpdate()
+  // requires an active transaction and is what closes the stale-eligibility race described above.
   private async prepareRequest(
     input: RequestRecurringBookingScheduleUseCaseInput,
   ): Promise<PreparedRecurringBookingScheduleRequest> {
-    const service = await this.serviceRepo.findById(input.serviceId, input.tenantId);
+    const service = await this.serviceRepo.findByIdForUpdate(input.serviceId, input.tenantId);
     if (!service) throw new BookingServiceNotInTenantError(input.serviceId);
     assertServiceEligible(service, input.assignmentPolicy);
 

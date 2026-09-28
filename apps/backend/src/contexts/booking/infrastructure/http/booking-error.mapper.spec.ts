@@ -54,6 +54,7 @@ import {
   RecurringBookingScheduleIneligibleServiceError,
   RecurringBookingScheduleExceptionAlreadyExistsError,
   RecurringBookingScheduleForbiddenError,
+  RecurringBookingScheduleInvalidDateRangeError,
 } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from './booking-error.mapper';
 
@@ -388,6 +389,14 @@ describe('mapBookingError', () => {
     expect(err.getStatus()).toBe(HttpStatus.FORBIDDEN);
     expect(err.getResponse()).toMatchObject({
       code: BookingErrorCode.RECURRING_SCHEDULE_FORBIDDEN,
+    });
+  });
+
+  it('maps RecurringBookingScheduleInvalidDateRangeError to 422', () => {
+    const err = call(new RecurringBookingScheduleInvalidDateRangeError());
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(err.getResponse()).toMatchObject({
+      code: BookingErrorCode.RECURRING_SCHEDULE_INVALID_DATE_RANGE,
     });
   });
 

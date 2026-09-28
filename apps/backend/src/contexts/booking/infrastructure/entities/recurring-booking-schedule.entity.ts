@@ -1,4 +1,4 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryColumn, VersionColumn } from 'typeorm';
 import { RecurrenceRule } from '../../domain/recurrence-rule.helpers';
 import {
   RecurringBookingScheduleAssignmentPolicy,
@@ -60,4 +60,7 @@ export class RecurringBookingScheduleEntity {
 
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
+
+  @VersionColumn({ name: 'version', default: 1 })
+  version!: number;
 }

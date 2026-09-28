@@ -1,3 +1,4 @@
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { RecurrenceRule } from '../../domain/recurrence-rule.helpers';
 import {
@@ -36,6 +37,7 @@ export function toDomain(
     createdByStaffId: entity.createdByStaffId,
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
+    version: entity.version,
   });
 }
 
@@ -84,7 +86,25 @@ export function toEntity(schedule: RecurringBookingSchedule): RecurringBookingSc
   entity.createdByStaffId = schedule.createdByStaffId;
   entity.createdAt = schedule.createdAt;
   entity.updatedAt = schedule.updatedAt;
+  // Left unset (undefined) for a brand-new schedule so the DB default (1) applies on INSERT —
+  // set only once the schedule has actually been persisted (mirrors typeorm-booking.mapper.ts's
+  // own toEntity() precedent for the same optimistic-concurrency shape).
+  if (schedule.version !== undefined) entity.version = schedule.version;
   return entity;
+}
+
+// Fields safe to overwrite on an UPDATE — excludes id/tenantId (immutable identity) and
+// createdAt/version (version is bumped via its own raw SQL literal below), matching
+// typeorm-booking.mapper.ts's toUpdateSet() precedent exactly.
+export function toUpdateSet(
+  entity: RecurringBookingScheduleEntity,
+): QueryDeepPartialEntity<RecurringBookingScheduleEntity> {
+  const updatable = Object.fromEntries(
+    Object.entries(entity).filter(
+      ([key]) => !['id', 'tenantId', 'createdAt', 'version'].includes(key),
+    ),
+  ) as QueryDeepPartialEntity<RecurringBookingScheduleEntity>;
+  return { ...updatable, version: () => '"version" + 1' };
 }
 
 export function toResourceAssignmentEntities(

@@ -3,13 +3,13 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 import {
   RecurringBookingScheduleExceptionAlreadyExistsError,
+  RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleNotActiveError,
 } from './errors/recurring-booking-schedule.error';
-import { RecurringBookingScheduleCreated } from './events/recurring-booking-schedule-created.event';
-import { RecurringBookingScheduleApprovalRequested } from './events/recurring-booking-schedule-approval-requested.event';
 import { RecurringBookingSchedulePaused } from './events/recurring-booking-schedule-paused.event';
 import { RecurringBookingScheduleEnded } from './events/recurring-booking-schedule-ended.event';
 import { RecurrenceRule } from './recurrence-rule.helpers';
+import { buildRequestedEvent } from './recurring-booking-schedule-request-event.helpers';
 import {
   RecurringBookingScheduleActorType,
   RecurringBookingScheduleAssignmentPolicy,
@@ -109,8 +109,20 @@ export class RecurringBookingSchedule extends AggregateRoot {
   get updatedAt(): Date {
     return this.props.updatedAt;
   }
+  get version(): number | undefined {
+    return this.props.version;
+  }
+
+  // Called by the repository after a successful insert/update — mirrors Booking.markPersisted()'s
+  // own optimistic-concurrency precedent (docs/ENGINEERING_RULES_BACKEND.md).
+  markPersisted(version: number): void {
+    this.props.version = version;
+  }
 
   static request(options: RequestRecurringBookingScheduleOptions): RecurringBookingSchedule {
+    if (options.endsOn !== null && options.endsOn < options.startsOn) {
+      throw new RecurringBookingScheduleInvalidDateRangeError();
+    }
     const id = uuidv7();
     const now = new Date();
     const resourceAssignments = options.resourceAssignments.map((a) => ({
@@ -142,40 +154,9 @@ export class RecurringBookingSchedule extends AggregateRoot {
       updatedAt: now,
     });
 
-    schedule.addDomainEvent(
-      RecurringBookingSchedule.buildRequestedEvent(options, id, resourceAssignments),
-    );
+    schedule.addDomainEvent(buildRequestedEvent(options, id, resourceAssignments));
 
     return schedule;
-  }
-
-  private static buildRequestedEvent(
-    options: RequestRecurringBookingScheduleOptions,
-    id: string,
-    resourceAssignments: RecurringBookingScheduleResourceAssignmentProps[],
-  ): RecurringBookingScheduleCreated | RecurringBookingScheduleApprovalRequested {
-    const resourceIds = resourceAssignments.map((a) => a.resourceId);
-    if (options.status === 'ACTIVE') {
-      return new RecurringBookingScheduleCreated(options.tenantId, options.correlationId, {
-        recurringScheduleId: id,
-        customerId: options.customerId,
-        serviceId: options.serviceId,
-        resourceIds,
-        assignmentPolicy: options.assignmentPolicy,
-        recurrence: options.recurrence,
-        startsOn: options.startsOn,
-      });
-    }
-    return new RecurringBookingScheduleApprovalRequested(options.tenantId, options.correlationId, {
-      recurringScheduleId: id,
-      customerId: options.customerId,
-      serviceId: options.serviceId,
-      resourceIds,
-      assignmentPolicy: options.assignmentPolicy,
-      recurrence: options.recurrence,
-      startsOn: options.startsOn,
-      approvalHoldExpiresAt: options.approvalHoldExpiresAt!.toISOString(),
-    });
   }
 
   static reconstitute(props: RecurringBookingScheduleProps): RecurringBookingSchedule {

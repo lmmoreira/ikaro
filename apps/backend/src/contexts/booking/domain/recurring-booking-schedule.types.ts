@@ -62,6 +62,9 @@ export interface RecurringBookingScheduleProps {
   createdByStaffId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  // undefined = not yet persisted (mirrors booking.types.ts's own BookingProps.version
+  // convention) — set by the repository via markPersisted() after a successful insert/update.
+  version?: number;
 }
 
 export interface RequestRecurringBookingScheduleResourceAssignmentInput {

@@ -51,13 +51,13 @@ export class InMemoryBookingRepository implements IBookingRepository {
     recurringScheduleId: string,
     after: Date,
   ): Promise<Booking[]> {
-    const nonTerminal: string[] = ['PENDING', 'INFO_REQUESTED', 'APPROVED'];
+    const nonTerminal = new Set(['PENDING', 'INFO_REQUESTED', 'APPROVED']);
     return Array.from(this.store.values()).filter(
       (b) =>
         b.tenantId === tenantId &&
         b.recurringScheduleId === recurringScheduleId &&
         b.scheduledAt.getTime() >= after.getTime() &&
-        nonTerminal.includes(b.status),
+        nonTerminal.has(b.status),
     );
   }
 

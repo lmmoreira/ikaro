@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -18,6 +19,7 @@ import {
   toEntity,
   toExceptionEntities,
   toResourceAssignmentEntities,
+  toUpdateSet,
 } from './typeorm-recurring-booking-schedule.mapper';
 
 @Injectable()
@@ -147,17 +149,30 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
     const exceptionRepo = manager.getRepository(RecurringBookingScheduleExceptionEntity);
 
     const entity = toEntity(schedule);
-    const existing = await scheduleRepo.findOne({
-      where: { id: schedule.id, tenantId: schedule.tenantId },
-      select: { id: true },
-    });
+    // version === undefined means this aggregate was never loaded from (or written to) the DB —
+    // a brand-new schedule. Anything else means it was read back via findById/findAllByTenant/
+    // findActiveByResource and must be optimistically version-checked on write (mirrors
+    // typeorm-booking.repository.ts's own persistBooking() precedent).
+    const nextVersion = schedule.version === undefined ? 1 : schedule.version + 1;
 
-    if (!existing) {
+    if (schedule.version === undefined) {
       await scheduleRepo.insert(entity);
       const assignmentEntities = toResourceAssignmentEntities(schedule);
       if (assignmentEntities.length) await assignmentRepo.insert(assignmentEntities);
     } else {
-      await scheduleRepo.update({ id: schedule.id, tenantId: schedule.tenantId }, entity);
+      const currentVersion = schedule.version;
+      const result = await scheduleRepo
+        .createQueryBuilder()
+        .update(RecurringBookingScheduleEntity)
+        .set(toUpdateSet(entity))
+        .where('id = :id', { id: schedule.id })
+        .andWhere('tenant_id = :tenantId', { tenantId: schedule.tenantId })
+        .andWhere('version = :version', { version: currentVersion })
+        .execute();
+
+      if (result.affected !== 1) {
+        throw new BookingConcurrentModificationError();
+      }
     }
 
     const pendingExceptions = schedule.pendingNewExceptions;
@@ -166,6 +181,7 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
     }
 
     await drainDomainEvents(schedule, this.outboxPublisher);
+    schedule.markPersisted(nextVersion);
   }
 }
 

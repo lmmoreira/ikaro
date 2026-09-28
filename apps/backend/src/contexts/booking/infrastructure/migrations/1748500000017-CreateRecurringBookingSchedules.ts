@@ -24,6 +24,7 @@ export class CreateRecurringBookingSchedules1748500000017 implements MigrationIn
         "created_by_staff_id"       UUID,
         "created_at"                TIMESTAMPTZ   NOT NULL DEFAULT now(),
         "updated_at"                TIMESTAMPTZ   NOT NULL DEFAULT now(),
+        "version"                   INTEGER       NOT NULL DEFAULT 1,
         CONSTRAINT "PK_booking_recurring_booking_schedules" PRIMARY KEY ("id"),
         CONSTRAINT "UQ_booking_recurring_booking_schedules_tenant_id" UNIQUE ("tenant_id", "id"),
         CONSTRAINT "FK_booking_rbs_service"

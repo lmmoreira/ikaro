@@ -31,6 +31,7 @@
   "BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE": "This service is not enabled for recurring reservations.",
   "BOOKING_RECURRING_SCHEDULE_EXCEPTION_ALREADY_EXISTS": "This occurrence was already skipped or rescheduled.",
   "BOOKING_RECURRING_SCHEDULE_FORBIDDEN": "You're not allowed to perform this action on this recurring schedule.",
+  "BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE": "The end date must not be before the start date.",
   "BOOKING_CONCURRENT_MODIFICATION": "This booking was changed by another request. Reload it and try again.",
   "BOOKING_SERVICE_NOT_ACTIVE": "This service is not currently active.",
   "BOOKING_SERVICE_NOT_IN_TENANT": "This service does not belong to the selected business.",

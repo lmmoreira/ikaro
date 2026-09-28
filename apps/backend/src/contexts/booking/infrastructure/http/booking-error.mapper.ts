@@ -77,6 +77,7 @@ import {
   RecurringBookingScheduleIneligibleServiceError,
   RecurringBookingScheduleExceptionAlreadyExistsError,
   RecurringBookingScheduleForbiddenError,
+  RecurringBookingScheduleInvalidDateRangeError,
 } from '../../domain/errors/booking-domain.error';
 
 type BookingDomainErrorCtor = new (...args: never[]) => BookingDomainError;
@@ -185,6 +186,7 @@ const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
       ServiceDurationPolicyRequiresPricingError,
       ServiceBookingPolicyInvalidError,
       RecurringBookingScheduleIneligibleServiceError,
+      RecurringBookingScheduleInvalidDateRangeError,
     ],
     HttpStatus.UNPROCESSABLE_ENTITY,
   ],

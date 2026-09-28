@@ -83,3 +83,13 @@ export class RecurringBookingScheduleForbiddenError extends BookingDomainError {
     this.name = 'RecurringBookingScheduleForbiddenError';
   }
 }
+
+export class RecurringBookingScheduleInvalidDateRangeError extends BookingDomainError {
+  constructor() {
+    super(
+      'endsOn must not be before startsOn',
+      BookingErrorCode.RECURRING_SCHEDULE_INVALID_DATE_RANGE,
+    );
+    this.name = 'RecurringBookingScheduleInvalidDateRangeError';
+  }
+}

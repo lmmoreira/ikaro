@@ -526,6 +526,9 @@
         "ServiceBookingIntakeSchemaEntity",
         "BookingAttendeeEntity",
         "ResourceEntity",
+        "RecurringBookingScheduleEntity",
+        "RecurringBookingScheduleResourceAssignmentEntity",
+        "RecurringBookingScheduleExceptionEntity",
         "ScheduleClosureEntity",
         "ScheduleOpeningEntity",
         "BookingEntity",
@@ -547,7 +550,7 @@
         "BookingLineResourceAssignmentEntity",
         "ResourceOccupancyEntity"
       ],
-      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so the resource-occupancy repository's own integration spec can round-trip the exclusivity-lock tables."
+      "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so the resource-occupancy repository's own integration spec can round-trip the exclusivity-lock tables. RecurringBookingScheduleEntity and its 2 child entities (M23-S04) were added so TypeOrmRecurringBookingScheduleRepository's own repository-level integration spec can round-trip the optimistic-concurrency version column."
     },
     {
       "file": "apps/backend/src/test/utils/booking-integration-app.ts",

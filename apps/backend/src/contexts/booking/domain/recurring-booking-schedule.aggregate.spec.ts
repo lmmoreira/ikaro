@@ -1,5 +1,6 @@
 import {
   RecurringBookingScheduleExceptionAlreadyExistsError,
+  RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleNotActiveError,
 } from './errors/recurring-booking-schedule.error';
 import { RecurringBookingScheduleCreated } from './events/recurring-booking-schedule-created.event';
@@ -87,6 +88,21 @@ describe('RecurringBookingSchedule.request', () => {
       requestOptions({ assignmentPolicy: 'RESOLVE_PER_OCCURRENCE', resourceAssignments: [] }),
     );
     expect(schedule.resourceAssignments).toEqual([]);
+  });
+
+  it('rejects endsOn before startsOn', () => {
+    expect(() =>
+      RecurringBookingSchedule.request(
+        requestOptions({ startsOn: '2026-09-10', endsOn: '2026-09-01' }),
+      ),
+    ).toThrow(RecurringBookingScheduleInvalidDateRangeError);
+  });
+
+  it('allows endsOn equal to startsOn', () => {
+    const schedule = RecurringBookingSchedule.request(
+      requestOptions({ startsOn: '2026-09-01', endsOn: '2026-09-01' }),
+    );
+    expect(schedule.endsOn).toBe('2026-09-01');
   });
 });
 
