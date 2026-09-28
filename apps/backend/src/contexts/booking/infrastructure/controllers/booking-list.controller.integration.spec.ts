@@ -124,9 +124,12 @@ describe('GET /bookings date-key range (integration)', () => {
   });
 
   it('returns 400 for a date key that is not a real calendar date', async () => {
-    await request(app.getHttpServer())
+    const { body } = await request(app.getHttpServer())
       .get('/bookings?from=2026-02-30')
       .set(actorHeaders(saoPauloTenantId, STAFF_ID, 'MANAGER'))
       .expect(400);
+
+    expect(body.status).toBe(400);
+    expect((body.violations as { field: string }[]).map((v) => v.field)).toContain('from');
   });
 });
