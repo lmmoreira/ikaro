@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/schedule/schedule-resource-columns.ts`, `schedule-page-query-data.ts` (`useWeekBookings` fetch range), `date-utils.ts`, `app/dashboard/schedule/page.tsx` (server prefetch of the same range)
 - **Created**: 2026-09-28
 - **Discovered**: CodeRabbit review of PR #522 (TD43 Story 0, columns-board spillover-indicator fix)
-- **State**: Open — `/story-discovery` done 2026-09-28 (design locked in Story 0 below); not yet implemented
+- **State**: ✅ Done — shipped 2026-09-28 (PR #528). Bookings-range row-cap follow-up tracked in TD47.
 - **Numbering**: created as TD45 and renumbered to TD46 during discovery — an unrelated TD45 (`TD45-RECURRING-SCHEDULE-SCALE-HARDENING.md`, from PR #521) already held that number, making `td/TD45-*.md` ambiguous
 - **Related**: TD43 (`docs/archive/td/TD43-COLUMNS-BOARD-DAY-GRID-INTERVAL-FIDELITY.md`) — this TD's fix builds directly on TD43's spillover-bucket mechanism; PR #522
 
@@ -18,7 +18,7 @@
 
 ---
 
-## Story 0 — Make a week-boundary-spanning booking visible to the columns board's spillover detection
+## Story 0 — Make a week-boundary-spanning booking visible to the columns board's spillover detection ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
