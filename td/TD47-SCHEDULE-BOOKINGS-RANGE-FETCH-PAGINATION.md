@@ -7,7 +7,7 @@
 - **Created**: 2026-09-28
 - **Discovered**: CodeRabbit round 1 on PR #528 (TD46), Major finding on `page.tsx:43`, verified against the code the same day
 - **State**: Open — not yet started; `/story-discovery` not yet run
-- **Related**: TD46 (`td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — widened this same fetch by one day and explicitly accepted the cap as out of its scope
+- **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — widened this same fetch by one day and explicitly accepted the cap as out of its scope
 
 ---
 
