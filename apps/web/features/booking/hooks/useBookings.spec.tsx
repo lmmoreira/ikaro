@@ -87,6 +87,25 @@ describe('useActionNeededBookings', () => {
     expect(calledUrl).toContain('status=PENDING%2CINFO_REQUESTED');
     expect(calledUrl).toContain('from=2026-06-26');
     expect(calledUrl).toContain('to=2026-07-09');
+    expect(calledUrl).toContain('page=1');
+    expect(calledUrl).toContain('limit=100');
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches every page when the window holds more than one page', async () => {
+    const page1 = { items: [{ bookingId: 'b-1' }], total: 150, page: 1, limit: 100 };
+    const page2 = { items: [{ bookingId: 'b-2' }], total: 150, page: 2, limit: 100 };
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => page1 })
+      .mockResolvedValueOnce({ ok: true, json: async () => page2 });
+    vi.stubGlobal('fetch', mockFetch);
+    const { result } = renderHook(() => useActionNeededBookings('2026-06-26', '2026-07-09'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.current.data?.items).toHaveLength(2);
     vi.unstubAllGlobals();
   });
 });
@@ -106,6 +125,23 @@ describe('useTodayBookings', () => {
     const calledUrl: string = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('status=APPROVED');
     expect(calledUrl).toContain('date=2026-06-26');
+    expect(calledUrl).toContain('page=1');
+    expect(calledUrl).toContain('limit=100');
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches every page when the day holds more than one page', async () => {
+    const page1 = { items: [{ bookingId: 'b-1' }], total: 150, page: 1, limit: 100 };
+    const page2 = { items: [{ bookingId: 'b-2' }], total: 150, page: 2, limit: 100 };
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => page1 })
+      .mockResolvedValueOnce({ ok: true, json: async () => page2 });
+    vi.stubGlobal('fetch', mockFetch);
+    const { result } = renderHook(() => useTodayBookings('2026-06-26'), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.current.data?.items).toHaveLength(2);
     vi.unstubAllGlobals();
   });
 });
@@ -131,6 +167,25 @@ describe('useUpcomingBookings', () => {
     expect(calledUrl).toContain('status=APPROVED');
     expect(calledUrl).toContain('from=2026-06-27');
     expect(calledUrl).toContain('to=2026-07-09');
+    expect(calledUrl).toContain('page=1');
+    expect(calledUrl).toContain('limit=100');
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches every page when the window holds more than one page', async () => {
+    const page1 = { items: [{ bookingId: 'b-1' }], total: 150, page: 1, limit: 100 };
+    const page2 = { items: [{ bookingId: 'b-2' }], total: 150, page: 2, limit: 100 };
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => page1 })
+      .mockResolvedValueOnce({ ok: true, json: async () => page2 });
+    vi.stubGlobal('fetch', mockFetch);
+    const { result } = renderHook(() => useUpcomingBookings('2026-06-27', '2026-07-09'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.current.data?.items).toHaveLength(2);
     vi.unstubAllGlobals();
   });
 });

@@ -8,6 +8,7 @@ import type {
   StaffBookingListResponse,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
+import { listAllPages } from '@/features/booking/api/list-all-pages';
 
 export interface BookingListFilters {
   readonly status?: string;
@@ -15,7 +16,7 @@ export interface BookingListFilters {
   readonly from?: string;
   readonly to?: string;
   readonly limit?: number;
-  readonly offset?: number;
+  readonly page?: number;
 }
 
 export interface CancelBookingRequest {
@@ -77,6 +78,14 @@ export async function listBookings(
 ): Promise<StaffBookingListResponse> {
   const res = await bffClient.get<StaffBookingListResponse>('/bookings', { params: filters });
   return res.data;
+}
+
+// Fetches every page of a range/window query instead of just the first, so a range holding more
+// bookings than the BFF's per-page cap never silently loses its last-sorted rows.
+export async function listAllBookings(
+  filters?: Omit<BookingListFilters, 'limit' | 'page'>,
+): Promise<StaffBookingListResponse> {
+  return listAllPages((page) => listBookings({ ...filters, page, limit: 100 }));
 }
 
 export async function getBooking(id: string): Promise<StaffBookingDetailResponse> {

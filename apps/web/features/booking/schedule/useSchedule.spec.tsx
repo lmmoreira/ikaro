@@ -17,7 +17,7 @@ import {
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
 
 const bookingApi = vi.hoisted(() => ({
-  listBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 25 }),
+  listAllBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 25 }),
 }));
 
 const scheduleApi = vi.hoisted(() => ({
@@ -245,11 +245,10 @@ describe('useWeekBookings', () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.items).toHaveLength(0);
-    expect(bookingApi.listBookings).toHaveBeenCalledWith({
+    expect(bookingApi.listAllBookings).toHaveBeenCalledWith({
       status: SCHEDULE_BOOKING_STATUS_ALL,
       from: '2026-07-01',
       to: '2026-07-31',
-      limit: 100,
     });
   });
 
@@ -260,11 +259,11 @@ describe('useWeekBookings', () => {
       initialProps: { from: '2026-07-01', to: '2026-07-07' },
     });
 
-    await waitFor(() => expect(bookingApi.listBookings).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(bookingApi.listAllBookings).toHaveBeenCalledTimes(1));
 
     rerender({ from: '2026-07-08', to: '2026-07-14' });
 
-    await waitFor(() => expect(bookingApi.listBookings).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(bookingApi.listAllBookings).toHaveBeenCalledTimes(2));
   });
 });
 

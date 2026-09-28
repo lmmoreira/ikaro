@@ -314,7 +314,7 @@ describe('TypeOrmBookingRepository', () => {
       await repo.findAllByTenantPaginated(tenantId, { limit: 10, offset: 20 });
 
       expect(ormRepo.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 10, skip: 20, order: { scheduledAt: 'ASC' } }),
+        expect.objectContaining({ take: 10, skip: 20, order: { scheduledAt: 'ASC', id: 'ASC' } }),
       );
     });
 

@@ -7,6 +7,7 @@ import {
   completeBooking,
   createAuthenticatedBooking,
   getBooking,
+  listAllBookings,
   listBookings,
   rejectBooking,
   requestMoreInfo,
@@ -37,6 +38,50 @@ describe('listBookings', () => {
     mock.onGet('/bookings').reply(200, { items: [], total: 0, page: 1, limit: 10 });
     await listBookings({ status: 'PENDING', limit: 10 });
     expect(mock.history['get']?.[0]?.params).toMatchObject({ status: 'PENDING', limit: 10 });
+  });
+});
+
+describe('listAllBookings', () => {
+  it('sends page (not offset) with the other filters unchanged on every request', async () => {
+    mock
+      .onGet('/bookings')
+      .replyOnce(200, {
+        items: [{ bookingId: 'b-1', status: 'APPROVED' }],
+        total: 150,
+        page: 1,
+        limit: 100,
+      })
+      .onGet('/bookings')
+      .replyOnce(200, {
+        items: [{ bookingId: 'b-2', status: 'APPROVED' }],
+        total: 150,
+        page: 2,
+        limit: 100,
+      });
+
+    const result = await listAllBookings({
+      status: 'APPROVED',
+      from: '2026-07-01',
+      to: '2026-07-31',
+    });
+
+    expect(mock.history['get']).toHaveLength(2);
+    expect(mock.history['get']?.[0]?.params).toMatchObject({
+      status: 'APPROVED',
+      from: '2026-07-01',
+      to: '2026-07-31',
+      page: 1,
+      limit: 100,
+    });
+    expect(mock.history['get']?.[0]?.params).not.toHaveProperty('offset');
+    expect(mock.history['get']?.[1]?.params).toMatchObject({
+      status: 'APPROVED',
+      from: '2026-07-01',
+      to: '2026-07-31',
+      page: 2,
+      limit: 100,
+    });
+    expect(result.items).toHaveLength(2);
   });
 });
 
