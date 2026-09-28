@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/schedule/schedule-resource-columns.ts`, `schedule-timeline.ts` (booking-date filter), consumed by `ScheduleResourceColumnsBoard.tsx` (M22-S06)
 - **Created**: 2026-09-24
 - **Discovered**: Codex round-4 review of PR #511 (M22-S06, manager bounded multi-resource column view)
-- **State**: Ready — `/story-discovery` completed 2026-09-27, design locked in Story 0 below; not yet implemented
+- **State**: ✅ Done — shipped 2026-09-28 (PR #522). Week-boundary follow-up tracked in TD45.
 - **Related**: M22-S06 (`plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`), M22-S05 (day-grid endpoint)
 
 ---
