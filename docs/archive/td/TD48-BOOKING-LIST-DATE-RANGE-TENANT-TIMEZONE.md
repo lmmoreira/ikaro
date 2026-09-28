@@ -8,7 +8,7 @@
 - **Discovered**: while verifying TD46 (PR #528) — first noted in TD47, then proven with a throwaway integration test the same day
 - **Decision status**: Two stories in dependency order (Story 0 → Story 1); the approach below was decided in this session. `/story-discovery` ran for Story 0 on 2026-09-28 (timezone now forwarded by the controller from `RequestContext`, not injected into the use case — see Story 0); it ran for Story 1 on 2026-09-28 (queue's dot/chip UTC slice folded in, `WeekNav` approach A, page throws on a settings failure — see Story 1)
 - **State**: ✅ Done — shipped 2026-09-28 (Story 0: PR #529, Story 1: PR #530). `WeekNav`'s own UTC/local `Date` mix, scoped out of Story 1, remains open as a follow-up story.
-- **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — its one-day-earlier fetch stays correct, but its scenario is narrower for UTC-3 tenants because of this bug; TD47 (`td/TD47-SCHEDULE-BOOKINGS-RANGE-FETCH-PAGINATION.md`) — independent row-cap defect on the same fetch; PR #417 (M20-S02) — the earlier fix of this same bug class on the availability path
+- **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — its one-day-earlier fetch stays correct, but its scenario is narrower for UTC-3 tenants because of this bug; TD47 (`docs/archive/td/TD47-SCHEDULE-BOOKINGS-RANGE-FETCH-PAGINATION.md`, PR #531) — independent row-cap defect on the same fetch, ✅ Done; PR #417 (M20-S02) — the earlier fix of this same bug class on the availability path
 
 ---
 
