@@ -3,6 +3,7 @@ import type { TenantBusinessHours } from '@ikaro/types';
 import {
   getDayHoursForDate,
   getLocalTimeKey,
+  getWeekBookingsFetchStartKey,
   getWeekDates,
   getWeekEndKey,
   getWeekStartKey,
@@ -38,6 +39,13 @@ describe('schedule date utils', () => {
       '2026-07-11',
       '2026-07-12',
     ]);
+  });
+
+  it('starts the week bookings fetch on the day before the week start, across month/year/leap boundaries', () => {
+    expect(getWeekBookingsFetchStartKey('2026-07-06')).toBe('2026-07-05');
+    expect(getWeekBookingsFetchStartKey('2026-03-01')).toBe('2026-02-28');
+    expect(getWeekBookingsFetchStartKey('2028-03-01')).toBe('2028-02-29');
+    expect(getWeekBookingsFetchStartKey('2026-01-01')).toBe('2025-12-31');
   });
 
   it('maps a date to the matching business-hours day', () => {

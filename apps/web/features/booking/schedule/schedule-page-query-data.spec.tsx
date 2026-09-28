@@ -60,10 +60,37 @@ describe('useScheduleQueryData', () => {
       [],
     );
     expect(scheduleHooks.useWeekBookings).toHaveBeenCalledWith(
-      '2026-08-17',
+      '2026-08-16',
       '2026-08-23',
       emptyBookings(),
     );
+  });
+
+  it("starts the bookings fetch one day before the week so the previous week's last-day booking is included, while closures/openings keep the week range", () => {
+    renderHook(() =>
+      useScheduleQueryData(
+        '2026-08-24',
+        '2026-08-17',
+        emptyClosures(),
+        emptyOpenings(),
+        emptyBookings(),
+        [],
+        true,
+      ),
+    );
+
+    expect(scheduleHooks.useWeekBookings.mock.calls[0].slice(0, 2)).toEqual([
+      '2026-08-23',
+      '2026-08-30',
+    ]);
+    expect(scheduleHooks.useScheduleClosures.mock.calls[0].slice(0, 2)).toEqual([
+      '2026-08-24',
+      '2026-08-30',
+    ]);
+    expect(scheduleHooks.useScheduleOpenings.mock.calls[0].slice(0, 2)).toEqual([
+      '2026-08-24',
+      '2026-08-30',
+    ]);
   });
 
   it('passes the server-fetched initial data as a placeholder only for the initial week', () => {
@@ -92,7 +119,7 @@ describe('useScheduleQueryData', () => {
       [],
     );
     expect(scheduleHooks.useWeekBookings).toHaveBeenCalledWith(
-      '2026-08-24',
+      '2026-08-23',
       '2026-08-30',
       undefined,
     );
@@ -139,7 +166,7 @@ describe('useScheduleQueryData', () => {
     );
 
     expect(scheduleHooks.useWeekBookings).toHaveBeenCalledWith(
-      '2026-08-17',
+      '2026-08-16',
       '2026-08-23',
       emptyBookings(),
     );
