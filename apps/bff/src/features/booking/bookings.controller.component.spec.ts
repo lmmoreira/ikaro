@@ -257,7 +257,7 @@ describe('BookingsController (component)', () => {
       expect(res.body.limit).toBe(20);
     });
 
-    it('passes date boundaries to backend when date param is given', async () => {
+    it('forwards date as a from = to date key to the backend, with no UTC time suffix', async () => {
       const token = makeManagerJwt(jwtService);
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce({
@@ -271,14 +271,11 @@ describe('BookingsController (component)', () => {
 
       expect(backendHttpService.get).toHaveBeenCalledWith(
         '/bookings',
-        expect.objectContaining({
-          from: '2026-06-16T00:00:00.000Z',
-          to: '2026-06-16T23:59:59.999Z',
-        }),
+        expect.objectContaining({ from: '2026-06-16', to: '2026-06-16' }),
       );
     });
 
-    it('passes from boundary to backend when from param is given', async () => {
+    it('forwards from as a date key to the backend when from param is given', async () => {
       const token = makeManagerJwt(jwtService);
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce({
@@ -292,7 +289,25 @@ describe('BookingsController (component)', () => {
 
       expect(backendHttpService.get).toHaveBeenCalledWith(
         '/bookings',
-        expect.objectContaining({ from: '2026-06-17T00:00:00.000Z' }),
+        expect.objectContaining({ from: '2026-06-17' }),
+      );
+    });
+
+    it('forwards a from/to range as date keys to the backend', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        items: [],
+        pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
+      });
+
+      await request(app.getHttpServer())
+        .get('/v1/bookings?status=APPROVED&from=2026-06-17&to=2026-06-23')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        '/bookings',
+        expect.objectContaining({ from: '2026-06-17', to: '2026-06-23' }),
       );
     });
 

@@ -46,6 +46,9 @@ Content-Type: application/json
 # Queue groupings: "Precisa de ação" = no date filter (all pending/info-requested);
 #                  "Hoje"           = status=APPROVED&date=<today>;
 #                  "Próximos dias"  = status=APPROVED&from=<tomorrow>
+# `date`, `from` and `to` are tenant-local YYYY-MM-DD date keys (TD48). The BFF forwards them
+# unchanged (`date` as from = to = date); the backend converts each with the tenant's
+# businessHours.timezone — `to` is inclusive of that whole local day.
 # ─────────────────────────────────────────────────────────────────────────────
 
 ###
