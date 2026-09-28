@@ -839,3 +839,46 @@ Add a "Solicitações recorrentes" tab/filter to the existing Agenda queue surfa
   - [ ] Playwright: staff approves a real seeded pending schedule, sees it become active
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S16 — Surface recurringHorizonDays in the Service booking-policy dashboard panel
+
+**Agent:** frontend-ts + bff-ts
+**Complexity:** S
+**Docs to load:** docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md, docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Booking Services (booking-policy)
+**Dependencies:** M23-S04 (adds `Service.bookingPolicy.recurringHorizonDays` on the backend/BFF)
+**Pattern:** plain composition — extends the existing `ServiceBookingPolicyPanel`/`PolicyWhoHowCard` form; no new pattern.
+
+**Discovered:** 2026-09-28, while wrapping up M23-S04 (PR #521) — the field was added to the backend/BFF request-validation schema and domain layer, but no story in this milestone ever surfaced it in the dashboard, and the two TypeScript response-type declarations (`@ikaro/types` and the BFF's own internal type) were never updated to match.
+
+**Description:**
+`Service.bookingPolicy.recurringHorizonDays` (nullable, null inherits the 90-day platform default `DEFAULT_RECURRING_HORIZON_DAYS`) was added by M23-S04 to the backend domain/validation layer only. The BFF already forwards it transparently at runtime (`services.mapper.ts`'s `bookingPolicy: service.bookingPolicy` passthrough, and the shared `UpdateServiceBookingPolicySchema` already validates it on write) — but both `ServiceBookingPolicyItem` (`packages/types/src/service.dto.ts`) and `ServiceBookingPolicyDetail` (`apps/bff/src/features/booking/services.types.ts`) are missing the field, so TypeScript doesn't know it exists, and the dashboard's "Políticas de reserva" tab has no control to set or view it. Without this, a tenant has no way to override the 90-day default — the field is permanently `null` in practice.
+
+Add `recurringHorizonDays: number | null` to both type declarations (no runtime/mapper logic change needed — the value already round-trips). Add a nullable number input to `PolicyWhoHowCard`, directly below the `recurrenceEligible` checkbox (it only makes sense once recurrence is enabled) — reuse the existing local `toNumberInput`/`parseNullableNumber` helpers already in the same file for `maxBookingAdvanceDaysOverride`'s identical nullable-number shape. Client-side bound: 1–365, matching the backend's own `z.number().int().positive().max(365)` — out-of-range submission surfaces via the panel's existing `resolveErrorMessageFromApiError` path (`handleSave`'s catch block), no new error-handling plumbing.
+
+**BFF endpoint spec:** reuses the existing `PATCH /v1/services/:id/booking-policy` endpoint unchanged — no new route, no BFF controller/schema logic change, only the `ServiceBookingPolicyDetail` type declaration gains the field.
+
+**Files to create/modify:**
+- `packages/types/src/service.dto.ts` (modify — add `recurringHorizonDays: number | null` to `ServiceBookingPolicyItem`)
+- `apps/bff/src/features/booking/services.types.ts` (modify — add the same field to `ServiceBookingPolicyDetail`)
+- `apps/web/features/booking/components/dashboard/services/PolicyConfirmationAndWindowCards.tsx` (modify — `PolicyWhoHowCard` gains the number input)
+- `apps/web/features/booking/components/dashboard/services/PolicyConfirmationAndWindowCards.spec.tsx` (modify — new field's render/edit coverage)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `dashboard.servicesPage.politicasHorizonLabel` + a help-text key explaining "null inherits the platform default," verified against the file's real current `politicas*` key shape at implementation time)
+- `docs/14-API_CONTRACTS.md` (modify — note `recurringHorizonDays` is now dashboard-editable, if not already implied by the existing booking-policy contract entry)
+
+**Acceptance criteria — product:**
+- [ ] A manager can view and set (or clear back to inherited-default) the recurring-schedule horizon for a service from the "Políticas de reserva" tab, without needing direct API access.
+- [ ] Leaving the field blank keeps the existing inherit-the-90-day-default behavior — no forced value.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `PolicyWhoHowCard` renders the current `recurringHorizonDays` value (or blank when `null`)
+  - [ ] Editing the field calls `onPatch({ recurringHorizonDays })` with the parsed nullable number, mirroring `maxBookingAdvanceDaysOverride`'s existing test shape
+  - [ ] Submitting a value outside 1–365 surfaces the mapped error message from a mocked 422 response (existing `resolveErrorMessageFromApiError` path)
+- Integration: none — the BFF response is a plain passthrough with no new logic to integration-test; the backend's own round-trip is already covered by M23-S04's `update-service-booking-policy.use-case.spec.ts`/`service.controller.integration.spec.ts`
+- Tenant isolation: n/a — client-side; server-side isolation already covered by M23-S04's existing tests
+- E2E:
+  - [ ] Playwright: manager sets a recurring horizon on a real seeded service, reloads, and sees it persisted
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
