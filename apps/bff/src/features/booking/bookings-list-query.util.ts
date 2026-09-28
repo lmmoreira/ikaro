@@ -14,12 +14,14 @@ export function buildBookingListParams(query: BookingListQuery): Record<string, 
     offset: (query.page - 1) * query.limit,
   };
 
+  // Date keys are forwarded as-is: the backend interprets them as tenant-local calendar days
+  // (it owns the tenant's timezone), so the BFF must never attach a UTC time-of-day to them.
   if (query.date) {
-    params.from = `${query.date}T00:00:00.000Z`;
-    params.to = `${query.date}T23:59:59.999Z`;
+    params.from = query.date;
+    params.to = query.date;
   } else if (query.from) {
-    params.from = `${query.from}T00:00:00.000Z`;
-    if (query.to) params.to = `${query.to}T23:59:59.999Z`;
+    params.from = query.from;
+    if (query.to) params.to = query.to;
   }
 
   return params;

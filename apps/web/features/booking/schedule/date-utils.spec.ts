@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TenantBusinessHours } from '@ikaro/types';
 import {
+  addDaysToDateKey,
   getDayHoursForDate,
   getLocalTimeKey,
   getWeekBookingsFetchStartKey,
@@ -25,6 +26,31 @@ const businessHours: TenantBusinessHours = {
   saturday: null,
   sunday: null,
 };
+
+describe('addDaysToDateKey', () => {
+  it('adds days within a month', () => {
+    expect(addDaysToDateKey('2026-08-10', 6)).toBe('2026-08-16');
+  });
+
+  it('rolls over a month boundary in both directions', () => {
+    expect(addDaysToDateKey('2026-06-28', 5)).toBe('2026-07-03');
+    expect(addDaysToDateKey('2026-07-03', -5)).toBe('2026-06-28');
+  });
+
+  it('rolls over a year boundary in both directions', () => {
+    expect(addDaysToDateKey('2026-12-30', 3)).toBe('2027-01-02');
+    expect(addDaysToDateKey('2027-01-02', -3)).toBe('2026-12-30');
+  });
+
+  it('returns the same key for zero days', () => {
+    expect(addDaysToDateKey('2026-02-28', 0)).toBe('2026-02-28');
+  });
+
+  it('crosses a leap-day and a non-leap February correctly', () => {
+    expect(addDaysToDateKey('2028-02-28', 1)).toBe('2028-02-29');
+    expect(addDaysToDateKey('2026-02-28', 1)).toBe('2026-03-01');
+  });
+});
 
 describe('schedule date utils', () => {
   it('resolves the week start and end for a date', () => {

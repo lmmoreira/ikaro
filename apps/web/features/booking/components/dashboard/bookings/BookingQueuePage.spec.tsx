@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { BookingQueuePage } from './BookingQueuePage';
 import { ApiError } from '@/shared/lib/api/errors';
+import { FormattingContext } from '@/shared/lib/formatting/formatting-context';
 
 const mockUseActionNeeded = vi.fn();
 const mockUseToday = vi.fn();
@@ -58,6 +59,15 @@ vi.mock('@/features/booking/hooks/useBookingMutations', () => ({
   }),
 }));
 
+// WeekNav renders its Date props in browser-local time, so the mock reads them back with the local
+// getters: a local-midnight Date built by toLocalDate(key) must come back as exactly `key`,
+// whatever the runner's TZ.
+function localDateKey(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 vi.mock('@/shells/dashboard/components/WeekNav', () => ({
   WeekNav: ({
     windowStart,
@@ -65,17 +75,20 @@ vi.mock('@/shells/dashboard/components/WeekNav', () => ({
     onNext,
     selectedDate,
     onSelectDate,
+    activeDates,
   }: {
     windowStart: Date;
     onPrev: () => void;
     onNext: () => void;
     selectedDate?: string | null;
     onSelectDate?: (dateKey: string) => void;
+    activeDates?: ReadonlySet<string>;
   }) => (
     <div
       data-testid="week-nav"
-      data-window-start={windowStart.toISOString()}
+      data-window-start={localDateKey(windowStart)}
       data-selected-date={selectedDate ?? ''}
+      data-active-dates={[...(activeDates ?? [])].sort().join(',')}
     >
       <button type="button" onClick={onPrev} aria-label="Período anterior" />
       <button type="button" onClick={onNext} aria-label="Próximo período" />
@@ -314,19 +327,161 @@ describe('BookingQueuePage — WeekNav', () => {
     expect(screen.getByTestId('week-nav')).toBeInTheDocument();
   });
 
-  it('updates windowStart when onPrev is clicked', async () => {
+  it('starts the window on the tenant-local today it was given', () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
-    const before = screen.getByTestId('week-nav').dataset.windowStart;
-    await userEvent.click(screen.getByRole('button', { name: 'Período anterior' }));
-    const after = screen.getByTestId('week-nav').dataset.windowStart;
-    expect(after).not.toBe(before);
+    expect(screen.getByTestId('week-nav')).toHaveAttribute('data-window-start', '2026-06-26');
   });
 
-  it('updates windowStart when onNext is clicked', async () => {
+  it('moves the window back by a whole window when onPrev is clicked', async () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
-    const before = screen.getByTestId('week-nav').dataset.windowStart;
+    await userEvent.click(screen.getByRole('button', { name: 'Período anterior' }));
+    expect(screen.getByTestId('week-nav')).toHaveAttribute('data-window-start', '2026-06-12');
+  });
+
+  it('moves the window forward by a whole window across a month boundary when onNext is clicked', async () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
     await userEvent.click(screen.getByRole('button', { name: 'Próximo período' }));
-    const after = screen.getByTestId('week-nav').dataset.windowStart;
-    expect(after).not.toBe(before);
+    expect(screen.getByTestId('week-nav')).toHaveAttribute('data-window-start', '2026-07-10');
+  });
+
+  it('hides the today section and starts upcoming at the window start once today leaves the window', async () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Próximo período' }));
+
+    expect(screen.queryByText('Hoje — confirmados')).not.toBeInTheDocument();
+    expect(mockUseUpcoming).toHaveBeenLastCalledWith('2026-07-10', '2026-07-23', undefined, true);
+  });
+
+  it('keeps upcoming hidden and disabled when tomorrow falls past the window end', () => {
+    render(
+      <BookingQueuePage today="2026-06-26" tomorrow="2026-06-27" welcomeStaffScreenDays={1} />,
+    );
+
+    expect(screen.queryByText('Próximos dias — confirmados')).not.toBeInTheDocument();
+    expect(mockUseUpcoming).toHaveBeenLastCalledWith('2026-06-27', '2026-06-26', undefined, false);
+  });
+});
+
+// The window keys the queue sends to the server must not depend on the browser's timezone.
+// The old code built a browser-local midnight and read it back as a UTC date, which moved the
+// keys a day back for a browser at a positive UTC offset (Auckland, UTC+12 in June).
+describe('BookingQueuePage — window keys are independent of the runner timezone', () => {
+  const originalTZ = process.env.TZ;
+
+  afterEach(() => {
+    if (originalTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTZ;
+  });
+
+  it.each([
+    { tz: 'Pacific/Auckland', juneOffsetMinutes: -720 },
+    { tz: 'America/Sao_Paulo', juneOffsetMinutes: 180 },
+    { tz: 'UTC', juneOffsetMinutes: 0 },
+  ])('sends the same tenant-local keys under TZ=$tz', async ({ tz, juneOffsetMinutes }) => {
+    process.env.TZ = tz;
+    // Guard against a vacuous pass: the TZ switch must really have taken effect.
+    expect(new Date('2026-06-26T00:00:00').getTimezoneOffset()).toBe(juneOffsetMinutes);
+
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    expect(mockUseActionNeeded).toHaveBeenLastCalledWith('2026-06-26', '2026-07-09', undefined);
+    expect(mockUseUpcoming).toHaveBeenLastCalledWith('2026-06-27', '2026-07-09', undefined, true);
+    expect(screen.getByTestId('week-nav')).toHaveAttribute('data-window-start', '2026-06-26');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Próximo período' }));
+
+    expect(mockUseActionNeeded).toHaveBeenLastCalledWith('2026-07-10', '2026-07-23', undefined);
+    expect(screen.getByTestId('week-nav')).toHaveAttribute('data-window-start', '2026-07-10');
+  });
+});
+
+describe('BookingQueuePage — bookings are bucketed by the tenant-local day', () => {
+  function makeBooking(bookingId: string, name: string, scheduledAt: string) {
+    return {
+      bookingId,
+      status: 'APPROVED' as const,
+      scheduledAt,
+      contactName: name,
+      serviceNames: ['Lavagem'],
+      totalPrice: { amount: 100, currency: 'BRL' },
+      totalDurationMins: 60,
+      isCustomer: true,
+      assignedResources: [],
+    };
+  }
+
+  function renderInTimezone(timezone: string) {
+    return render(
+      <FormattingContext.Provider
+        value={{
+          locale: 'pt-BR',
+          currency: 'BRL',
+          timezone,
+          dateFormat: 'DD/MM/YYYY',
+          timeFormat: '24h',
+        }}
+      >
+        <BookingQueuePage {...DEFAULT_PROPS} />
+      </FormattingContext.Provider>,
+    );
+  }
+
+  it('puts a 22:00-local booking (next UTC day) on its own local day for a UTC-3 tenant', () => {
+    mockUseUpcoming.mockReturnValue({
+      data: {
+        items: [
+          // 2026-06-28T01:00Z is Saturday 2026-06-27 22:00 in São Paulo.
+          makeBooking('b-late', 'Tarde', '2026-06-28T01:00:00.000Z'),
+          makeBooking('b-noon', 'Meio-dia', '2026-06-28T15:00:00.000Z'),
+        ],
+        total: 2,
+        page: 1,
+        limit: 25,
+      },
+    });
+
+    renderInTimezone('America/Sao_Paulo');
+
+    expect(screen.getByTestId('week-nav')).toHaveAttribute(
+      'data-active-dates',
+      '2026-06-27,2026-06-28',
+    );
+  });
+
+  it('keeps the 22:00-local booking under its local day chip and out of the next one', async () => {
+    mockUseUpcoming.mockReturnValue({
+      data: {
+        items: [
+          makeBooking('b-late', 'Tarde', '2026-06-28T01:00:00.000Z'),
+          makeBooking('b-noon', 'Meio-dia', '2026-06-28T15:00:00.000Z'),
+        ],
+        total: 2,
+        page: 1,
+        limit: 25,
+      },
+    });
+
+    renderInTimezone('America/Sao_Paulo');
+    // The WeekNav mock's chip selects 2026-06-27.
+    await userEvent.click(screen.getByRole('button', { name: '27' }));
+
+    expect(screen.getByText('Tarde')).toBeInTheDocument();
+    expect(screen.queryByText('Meio-dia')).not.toBeInTheDocument();
+  });
+
+  it('puts an early-morning-local booking (previous UTC day) on its own local day for a UTC+ tenant', () => {
+    mockUseUpcoming.mockReturnValue({
+      data: {
+        // 2026-06-26T13:00Z is Saturday 2026-06-27 01:00 in Auckland (UTC+12).
+        items: [makeBooking('b-early', 'Cedo', '2026-06-26T13:00:00.000Z')],
+        total: 1,
+        page: 1,
+        limit: 25,
+      },
+    });
+
+    renderInTimezone('Pacific/Auckland');
+
+    expect(screen.getByTestId('week-nav')).toHaveAttribute('data-active-dates', '2026-06-27');
   });
 });

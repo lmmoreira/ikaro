@@ -557,7 +557,7 @@ describe('BookingsController', () => {
       expect(result.items).toHaveLength(1);
     });
 
-    it('converts date to from/to datetime boundaries', async () => {
+    it('forwards date as a from = to date key, with no UTC time suffix', async () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue({
           items: [],
@@ -575,12 +575,12 @@ describe('BookingsController', () => {
         status: 'APPROVED',
         limit: 20,
         offset: 0,
-        from: '2026-06-16T00:00:00.000Z',
-        to: '2026-06-16T23:59:59.999Z',
+        from: '2026-06-16',
+        to: '2026-06-16',
       });
     });
 
-    it('converts from date to from datetime and omits to', async () => {
+    it('forwards from as a date key and omits to', async () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue({
           items: [],
@@ -598,7 +598,7 @@ describe('BookingsController', () => {
         status: 'APPROVED',
         limit: 20,
         offset: 0,
-        from: '2026-06-17T00:00:00.000Z',
+        from: '2026-06-17',
       });
     });
 

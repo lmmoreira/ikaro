@@ -26,6 +26,13 @@ export function isValidDateKey(dateKey: string): boolean {
   return DATE_KEY_SCHEMA.safeParse(dateKey).success;
 }
 
+// Pure calendar arithmetic on a YYYY-MM-DD key (UTC-anchored via parseDateKey, so the runner's or
+// the browser's timezone never shifts the result). Use it instead of round-tripping a tenant-local
+// key through a `Date` built from the browser's clock.
+export function addDaysToDateKey(dateKey: string, days: number): string {
+  return toISODate(addDays(parseDateKey(dateKey), days));
+}
+
 export function getWeekStartKey(dateKey: string): string {
   const date = parseDateKey(dateKey);
   const offset = (date.getUTCDay() + 6) % 7;
