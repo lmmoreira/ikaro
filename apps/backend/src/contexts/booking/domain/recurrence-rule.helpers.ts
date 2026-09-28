@@ -1,4 +1,5 @@
 import {
+  addDaysUTC,
   getUtcWeekDayName,
   localDateTimeToUTCIso,
   WeekDayName,
@@ -30,20 +31,16 @@ export interface RecurrenceOccurrence {
 
 // A calendar date string's day-of-week is invariant to timezone (Sept 27, 2026 is a Sunday
 // everywhere) — only the corresponding UTC instant shifts. So calendar-date.ts's UTC-anchored
-// getUtcWeekDayName() is safe here for weekday lookup, even though startsOn/endsOn/horizonEnd are
-// tenant-local calendar dates; only the actual occurrence instant (below) needs a real timezone
-// conversion.
-function addDaysToLocalDate(date: string, days: number): string {
-  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
-  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
-}
+// getUtcWeekDayName()/addDaysUTC() are safe here for weekday lookup and date-stepping, even
+// though startsOn/endsOn/horizonEnd are tenant-local calendar dates; only the actual occurrence
+// instant (below) needs a real timezone conversion.
 
 // Adds `horizonDays` calendar days to `startsOn` — the creation-time conflict-check horizon
 // (M23-S04) and the rolling-horizon generation job's own horizon (M23-S05) must both be computed
 // this same way, from the same Service.bookingPolicy.recurringHorizonDays value, or a schedule
 // checked conflict-free at creation could still collide with what generation later materializes.
 export function resolveHorizonEndDate(startsOn: string, horizonDays: number): string {
-  return addDaysToLocalDate(startsOn, horizonDays);
+  return addDaysUTC(startsOn, horizonDays);
 }
 
 // Enumerates every occurrence start implied by `recurrence` within [startsOn, horizonEnd],
@@ -72,7 +69,7 @@ export function enumerateRecurrenceOccurrences(
         occurrenceStartLocalDate: cursor,
       });
     }
-    cursor = addDaysToLocalDate(cursor, 1);
+    cursor = addDaysUTC(cursor, 1);
   }
   return occurrences;
 }
