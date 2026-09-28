@@ -7,7 +7,7 @@
 - **Created**: 2026-09-28
 - **Discovered**: CodeRabbit round 1 on PR #528 (TD46), Major finding on `page.tsx:43`, verified against the code the same day
 - **State**: Open — not yet started; `/story-discovery` not yet run
-- **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — widened this same fetch by one day and explicitly accepted the cap as out of its scope
+- **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — widened this same fetch by one day and explicitly accepted the cap as out of its scope; TD48 (`td/TD48-BOOKING-LIST-DATE-RANGE-TENANT-TIMEZONE.md`) — independent defect on the same fetch (UTC-day range instead of tenant timezone)
 
 ---
 
@@ -28,8 +28,8 @@ This limitation pre-dates TD46. TD46 (PR #528) made the exposure marginally larg
 - The web-facing list response is `{ items, total, page, limit }` (`packages/types/src/booking.dto.ts:93-98`) — it has **no** `hasMore`. The backend computes `pagination.hasMore`, but the BFF mapper (`bookings.mapper.ts:57-77`) reshapes it to `total/page/limit`. A "fetch until done" loop therefore has to test `page * limit >= total`, not a `hasMore` flag.
 - The BFF's real paging parameter is **`page`** (1-based; `bookings-list-query.util.ts:14` derives `offset = (page - 1) * limit`). The web `BookingListFilters` (in both `booking.ts` and `booking.server.ts`) declares **`offset`** instead, which the BFF list schema does not define and would strip; nothing in the web app sends it today. So the web layer currently has no way to request a second page at all.
 
-### Related observation — out of this TD's scope, not fixed here
-`buildBookingListParams` (`apps/bff/src/features/booking/bookings-list-query.util.ts:17-24`) turns a date key into UTC-day bounds (`${from}T00:00:00.000Z` … `${to}T23:59:59.999Z`), and the backend applies them verbatim (`new Date(input.from)` / `new Date(input.to)` in `list-bookings.use-case.ts:61-62`). The displayed week is defined in the **tenant's** timezone, so for a tenant behind UTC (e.g. `America/Sao_Paulo`, UTC-3) a booking late on the week's last local evening (after 21:00) has a UTC instant on the *next* UTC day and falls outside that week's fetch. This also narrows TD46's real-world reach for such tenants: a Sunday-late booking is already inside the next week's UTC range. Worth its own investigation (`/create-td`) — it is a different defect from pagination, and fixing pagination does not change it.
+### Related — tracked separately
+The same fetch's date range is also built in UTC instead of the tenant's timezone, which drops late-evening bookings from their own week. That is a different defect from the row cap and is tracked, with a proven reproduction, in `td/TD48-BOOKING-LIST-DATE-RANGE-TENANT-TIMEZONE.md`. Fixing pagination here does not change it.
 
 ---
 
