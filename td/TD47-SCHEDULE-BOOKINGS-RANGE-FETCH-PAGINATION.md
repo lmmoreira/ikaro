@@ -6,7 +6,7 @@
 - **Context**: `apps/web/features/booking/api/`, `apps/web/features/booking/schedule/useSchedule.ts`, `apps/web/features/booking/hooks/useBookings.ts`, `apps/web/app/dashboard/schedule/page.tsx`
 - **Created**: 2026-09-28
 - **Discovered**: CodeRabbit round 1 on PR #528 (TD46), Major finding on `page.tsx:43`, verified against the code the same day; scope expanded to the Bookings Queue's own range/window hooks during `/story-discovery` the same day, after finding they share the identical unpaginated-fetch shape with an even tighter default cap (20, not 100)
-- **State**: Open — not yet started; `/story-discovery` not yet run
+- **State**: ✅ Done — shipped 2026-09-28 (PR #531)
 - **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — widened the Schedule fetch by one day and explicitly accepted the cap as out of its scope; TD48 (`docs/archive/td/TD48-BOOKING-LIST-DATE-RANGE-TENANT-TIMEZONE.md`) — independent defect on the same Schedule fetch (UTC-day range instead of tenant timezone), ✅ Done (PR #529, PR #530)
 
 ---
@@ -51,7 +51,7 @@ One pure paging loop (`listAllPages`), reused by three thin transport wrappers �
 
 ---
 
-### Story 0 — Fetch every page of range/window-fetched booking queries (Schedule + Bookings Queue)
+### Story 0 — Fetch every page of range/window-fetched booking queries (Schedule + Bookings Queue) ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
