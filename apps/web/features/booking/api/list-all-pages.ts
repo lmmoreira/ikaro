@@ -2,10 +2,12 @@ import type { StaffBookingListResponse } from '@ikaro/types';
 
 type BookingCard = StaffBookingListResponse['items'][number];
 
-// Safety valve against a runaway loop (a corrupted `total`, or a genuinely pathological range) —
-// 50 pages at the 100-per-page limit this helper's callers all use is 5,000 bookings, well past
-// what any real tenant's displayed range/window holds today. Hitting it stops the loop instead of
-// fetching indefinitely; the caller gets whatever was fetched so far rather than nothing.
+// Circuit breaker against a runaway loop (a corrupted `total`, or a genuinely pathological range)
+// — 50 pages at the 100-per-page limit this helper's callers all use is 5,000 bookings, well past
+// what any real tenant's displayed range/window holds today. Hitting it throws rather than
+// returning a truncated result: silently handing back fewer items than `total` claims is exactly
+// the defect this helper exists to eliminate, so a page count this far outside normal bounds must
+// surface as a visible failure, not a quietly incomplete "success".
 const MAX_PAGES = 50;
 
 // Sequential, not parallel: a range almost always needs one or two pages, so the extra code to
@@ -23,7 +25,12 @@ export async function listAllPages(
   let page = first.page;
   let lastBatchSize = first.items.length;
 
-  while (page * first.limit < first.total && lastBatchSize > 0 && page < MAX_PAGES) {
+  while (page * first.limit < first.total && lastBatchSize > 0) {
+    if (page >= MAX_PAGES) {
+      throw new Error(
+        `listAllPages: exceeded ${MAX_PAGES} pages (total=${first.total}, limit=${first.limit}) — refusing to return a silently truncated result`,
+      );
+    }
     page += 1;
     const next = await fetchPage(page);
     lastBatchSize = next.items.length;

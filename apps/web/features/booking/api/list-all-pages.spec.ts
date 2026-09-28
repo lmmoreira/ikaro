@@ -85,7 +85,7 @@ describe('listAllPages', () => {
     expect(result.items).toHaveLength(20);
   });
 
-  it('stops after 50 pages even when total says more remain', async () => {
+  it('throws instead of silently returning a truncated result past 50 pages', async () => {
     const fetchPage = vi.fn().mockImplementation((pageNumber: number) =>
       Promise.resolve(
         page(
@@ -97,9 +97,7 @@ describe('listAllPages', () => {
       ),
     );
 
-    const result = await listAllPages(fetchPage);
-
+    await expect(listAllPages(fetchPage)).rejects.toThrow(/exceeded 50 pages/);
     expect(fetchPage).toHaveBeenCalledTimes(50);
-    expect(result.items).toHaveLength(5000);
   });
 });
