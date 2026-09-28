@@ -6,7 +6,7 @@
 - **Context**: `apps/backend` (booking context, `GET /bookings`), `apps/bff` (booking feature), `apps/web` (`app/dashboard/bookings`)
 - **Created**: 2026-09-28
 - **Discovered**: while verifying TD46 (PR #528) — first noted in TD47, then proven with a throwaway integration test the same day
-- **Decision status**: Two stories in dependency order (Story 0 → Story 1); the approach below was decided in this session, `/story-discovery` has not run for either story
+- **Decision status**: Two stories in dependency order (Story 0 → Story 1); the approach below was decided in this session. `/story-discovery` ran for Story 0 on 2026-09-28 (timezone now forwarded by the controller from `RequestContext`, not injected into the use case — see Story 0); it has not run for Story 1
 - **Related**: TD46 (`docs/archive/td/TD46-COLUMNS-BOARD-WEEK-BOUNDARY-BOOKING-FETCH-GAP.md`, PR #528) — its one-day-earlier fetch stays correct, but its scenario is narrower for UTC-3 tenants because of this bug; TD47 (`td/TD47-SCHEDULE-BOOKINGS-RANGE-FETCH-PAGINATION.md`) — independent row-cap defect on the same fetch; PR #417 (M20-S02) — the earlier fix of this same bug class on the availability path
 
 ---
@@ -35,13 +35,13 @@ Effect on the schedule: B does not appear in the Day view, Week view, or columns
 - The sibling endpoints (`GET /schedule/closures`, `/schedule/openings`, availability summary) already take `from=YYYY-MM-DD&to=YYYY-MM-DD` date keys and convert in the backend (`docs/14-API_CONTRACTS.md`).
 
 ### Premise notes (verified against the code, 2026-09-28)
-- The BFF has **no** access to the tenant's timezone (no reference in `apps/bff/src`), so converting there would need a new tenant-settings read on every list request. The backend already injects `TENANT_SETTINGS_PORT` elsewhere in this context (`typeorm-booking.repository.ts:59`).
+- The BFF has **no** access to the tenant's timezone (no reference in `apps/bff/src`), so converting there would need a new tenant-settings read on every list request. The backend already has it for free: `RequestInterceptor` eager-loads the tenant's settings into `RequestContext.settings` on every request, and controllers forward `settings.*` fields to use cases as explicit input (`docs/ENGINEERING_RULES_SHARED.md` § RequestContext — use cases must not inject `RequestContext` or re-fetch settings). `BookingController.create()` already passes `timezone: settings.businessHours.timezone` this way. (Only the two booking *repositories* inject `TENANT_SETTINGS_PORT` — infrastructure, not a use-case precedent.)
 - The backend list DTO takes `from`/`to` as `z.iso.datetime()` instants (`list-bookings.dto.ts`); the BFF list controller is its only caller, and `buildBookingListParams` has a single caller.
 - The shared repository filter is **inclusive** at both ends and has three callers (list use case + the two reminder jobs). `localDateRangeBoundsUTC` returns an **exclusive** end (next local midnight), so it is not a drop-in for this path.
 
 ---
 
-## Chosen approach (decided in this session, 2026-09-28 — `/story-discovery` has not run)
+## Chosen approach (decided in this session, 2026-09-28 — refined by Story 0's `/story-discovery`, same day)
 
 Convert in the **backend**, where the tenant's timezone is already available, and pass **date keys** from the BFF, matching the sibling endpoints. Compute the inclusive local-day bounds the way the reminder jobs already do (`startOf('day')` / `endOf('day')` in the tenant zone), so the shared repository filter's inclusive semantics stay untouched.
 
@@ -62,7 +62,7 @@ graph TD
 
 **Agent:** backend-ts
 **Complexity:** M
-**Docs to load:** `docs/ENGINEERING_RULES_BACKEND.md`, `docs/14-API_CONTRACTS.md` (`GET /bookings` query params), `docs/08-TESTING_STRATEGY.md`, `docs/06-TENANT_ISOLATION_STRATEGY.md`
+**Docs to load:** `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_SHARED.md` (§ RequestContext), `docs/14-API_CONTRACTS.md` (`GET /bookings` query params), `docs/08-TESTING_STRATEGY.md`, `docs/06-TENANT_ISOLATION_STRATEGY.md`
 **Dependencies:** none
 **Pattern:** plain composition — reuse the tenant-local day-bounds computation the reminder jobs already use; no new named pattern
 
@@ -73,21 +73,20 @@ graph TD
 Make `GET /bookings` interpret a date-key `from`/`to` in the tenant's timezone.
 
 1. Extend `ListBookingsSchema` (`list-bookings.dto.ts`) so `from` and `to` each accept either a `YYYY-MM-DD` date key (`z.iso.date()`, calendar-validated per TD42) **or** the existing `z.iso.datetime()` instant. Instants keep today's exact behavior, so an old BFF keeps working during a rolling deploy.
-2. Inject `TENANT_SETTINGS_PORT` into `ListBookingsUseCase` and read the tenant's timezone (`businessHours.timezone`, the same source `availability-summary.helpers.ts` uses). Read it only when a date key is present.
-3. A date-key `from` becomes the start of that local day, and a date-key `to` becomes the **end** of that local day (inclusive), both as UTC instants — computed like the reminder jobs (`DateTime.fromISO(key, { zone }).startOf('day'|…endOf('day')).toUTC().toJSDate()`). Add a small helper next to `localDateRangeBoundsUTC` in `calendar-date.ts` for the inclusive form, rather than a fourth inline copy.
-4. The repository filter and its other two callers (the reminder jobs) are **not** changed.
-5. Update `docs/14-API_CONTRACTS.md`'s `GET /bookings` entry to state that `from`/`to` accept date keys (tenant-local) or instants, and add the matching request blocks to `apps/backend/http/booking/bookings.http`.
-
-Open for `/story-discovery` (small): where exactly the helper lives and whether the reminder jobs adopt it in this story (recommended: no, leave them untouched — scope).
+2. `BookingController.list` (`booking.controller.ts`) adds `timezone: settings.businessHours.timezone` to the use-case input — it already destructures `settings` from `RequestContext` there for `cancellationWindowHours`, and `create()` already forwards `timezone` the same way. `ListBookingsUseCaseInput` gains `timezone: string`. **No `TENANT_SETTINGS_PORT` injection into the use case** (`docs/ENGINEERING_RULES_SHARED.md` § RequestContext) — the settings are already loaded once per request, so there is also no "read only when a date key is present" branch.
+3. Add two single-bound helpers next to `localDateRangeBoundsUTC` in `calendar-date.ts`: `localDateStartUTC(key, timezone)` (start of that local day) and `localDateEndUTC(key, timezone)` (the **last millisecond** of that local day, inclusive), both returning UTC `Date`s and computed like the reminder jobs (`DateTime.fromISO(key, { zone }).startOf('day'|endOf('day')).toUTC().toJSDate()`). Two single-bound helpers, not a range helper, because `from` and `to` are independently optional (the BFF already sends `from` without `to`) and `localDateRangeBoundsUTC` needs both and returns an exclusive end.
+4. `from` and `to` are each interpreted **independently**: a date key becomes its local day bound (step 3), an instant passes through unchanged (`new Date(value)`, exactly as today). Mixed forms (`from` a date key, `to` an instant, or the reverse) and `to` alone are therefore allowed. `from` later than `to` stays as today — no validation, an empty result. The repository filter and its other two callers (the reminder jobs) are **not** changed, and the reminder jobs do not adopt the new helpers in this story (scope).
+5. Correct `docs/14-API_CONTRACTS.md:766`'s `GET /bookings` bullet: it currently lists the BFF's params (`date`, `page`) on the backend route. State the backend's real params (`status`, `from`, `to`, `limit`, `offset`) and that `from`/`to` accept a `YYYY-MM-DD` date key (interpreted in the tenant's timezone) or an ISO instant. The BFF-side `date`/`page` mapping note moves to Story 1's scope. Add the matching request blocks to `apps/backend/http/booking/bookings.http`.
 
 **Backend HTTP surface:** reuses `GET /bookings` — the query schema is extended, no new route.
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/application/dtos/list-bookings.dto.ts` (modify) + `list-bookings.dto.spec.ts` (create)
-- `apps/backend/src/contexts/booking/application/use-cases/list-bookings.use-case.ts` (modify) + `list-bookings.use-case.spec.ts` (modify)
-- `apps/backend/src/shared/utils/calendar-date.ts` (modify — inclusive tenant-local day-bounds helper) + `calendar-date.spec.ts` (modify)
-- `apps/backend/src/contexts/booking/application/use-cases/list-bookings.use-case.integration.spec.ts` (create — placement to confirm against the neighbouring `*.integration.spec.ts` convention)
+- `apps/backend/src/contexts/booking/application/use-cases/list-bookings.use-case.ts` (modify — `timezone` input + date-key handling) + `list-bookings.use-case.spec.ts` (modify)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.ts` (modify — forward `settings.businessHours.timezone`) + `booking.controller.spec.ts` (modify)
+- `apps/backend/src/shared/utils/calendar-date.ts` (modify — `localDateStartUTC` / `localDateEndUTC`) + `calendar-date.spec.ts` (modify)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-list.controller.integration.spec.ts` (create — new file, not appended to the 2,360-line `booking.controller.integration.spec.ts`; goes through HTTP so the real `RequestInterceptor` supplies the tenant's timezone)
 - `apps/backend/http/booking/bookings.http` (modify)
 - `docs/14-API_CONTRACTS.md` (modify)
 
@@ -97,13 +96,14 @@ Open for `/story-discovery` (small): where exactly the helper lives and whether 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `list-bookings.dto.spec.ts`: `from`/`to` accept a valid date key and a valid instant; reject `2026-02-30` and free text
-  - [ ] `list-bookings.use-case.spec.ts`: a date-key range for a `America/Sao_Paulo` tenant reaches the repository as the local start of `from` and the local end of `to`, both as UTC instants; an instant input is passed through unchanged; the settings port is not read when only instants are given
-  - [ ] `calendar-date.spec.ts`: the inclusive helper returns the local day's last millisecond, across a month boundary and for a UTC+ zone
-- Integration:
-  - [ ] Real Postgres: tenant `America/Sao_Paulo`, bookings at `2026-08-16T15:00:00.000Z` (Sunday 12:00 local) and `2026-08-17T01:00:00.000Z` (Sunday 22:00 local) — listing `from=2026-08-10&to=2026-08-16` returns **both**, and `from=2026-08-17&to=2026-08-23` returns neither
+  - [ ] `list-bookings.use-case.spec.ts`: with `timezone: 'America/Sao_Paulo'`, a date-key range reaches the repository as the local start of `from` and the local end of `to`, both as UTC instants; an instant input is passed through unchanged and the `timezone` input is ignored for it; a date-key `from` with an instant `to` (and the reverse) and a `to` alone each convert only the date-key side; `from` later than `to` is passed through unvalidated
+  - [ ] `booking.controller.spec.ts`: `list()` forwards `settings.businessHours.timezone` from `RequestContext` to the use case
+  - [ ] `calendar-date.spec.ts`: `localDateStartUTC` returns the local day's first instant and `localDateEndUTC` its last millisecond, across a month boundary and for both a UTC- (`America/Sao_Paulo`) and a UTC+ (`Pacific/Auckland`) zone
+- Integration (`booking-list.controller.integration.spec.ts`, real Postgres, through HTTP):
+  - [ ] Tenant `America/Sao_Paulo`, bookings at `2026-08-16T15:00:00.000Z` (Sunday 12:00 local) and `2026-08-17T01:00:00.000Z` (Sunday 22:00 local) — `GET /bookings?from=2026-08-10&to=2026-08-16` returns **both**, and `from=2026-08-17&to=2026-08-23` returns neither
   - [ ] The same request with instants (`…T00:00:00.000Z`/`…T23:59:59.999Z`) behaves exactly as before (non-regression for an old BFF)
 - Tenant isolation:
-  - [ ] Tenant A's booking inside the range is not returned to a Tenant B caller, and the timezone used is Tenant B's own
+  - [ ] Tenant A (`America/Sao_Paulo`) has a booking inside the range; a Tenant B caller does not receive it. Tenant B is provisioned through `POST /internal/tenants` with a UTC+ `timezone` (e.g. `Pacific/Auckland`), and a date-key request from Tenant B is converted with Tenant B's own zone (seed a Tenant B booking whose instant falls on a different UTC day than its `Pacific/Auckland` local day, and assert it is returned for its local day — proving B's zone, not A's or UTC, was applied)
 - E2E: none — covered by the integration test; the surface is a query filter
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
@@ -125,6 +125,7 @@ Stop converting date keys to UTC instants in the BFF, and make the bookings queu
 2. `apps/web/app/dashboard/bookings/page.tsx` derives `today` with `toISODateInTimezone(new Date(), timezone)` — the page already loads tenant settings (`fetchTenantSettings`), so no new fetch — and derives `tomorrow` and `windowEnd` by date-key arithmetic (`parseDateKey`/`addDays` from the schedule `date-utils`) instead of `addDays(now, …)` + `toISODate`. Extract this derivation into a small pure helper (input: `now`, tenant timezone, window days; output: `today`/`tomorrow`/`windowEnd` date keys) so the page stays thin (CLAUDE.md §7 Testing) **and** the "today" logic is unit-testable with a fixed clock — see the test plan below.
 3. **Fix** `BookingQueuePage.tsx`'s client-side date arithmetic — this is in scope, not an optional audit. It mixes browser-local and UTC: `new Date(today + 'T00:00:00')` (lines 45 and 58) is a browser-local midnight, while `toISODate(windowStart)` / `toISODate(windowEnd)` (lines 52–53) read it back as a UTC date. For a browser whose offset differs from the tenant's (or from UTC) the window keys can shift by a day. Replace the `Date`-object round-trips with date-key arithmetic (`parseDateKey`/`addDays` on keys) so the queue never converts a tenant-local key through the browser's or UTC's clock. (From code reading — confirm the exact failing browser/tenant offset combination while writing the spec; scope stays the queue page only.)
 4. Update the `.http` request blocks and the BFF list-query util's own spec accordingly (the util currently has none — add one).
+5. In `docs/14-API_CONTRACTS.md`'s BFF note for `GET /v1/bookings` (near line 769), document the BFF-side mapping that Story 0 removed from the backend route's bullet: the BFF accepts `date`, `from`, `to` (date keys) and `page`, and forwards `date` as `from = to = date` and `page` as `offset`, all as tenant-local date keys.
 
 **Why one PR for both layers:** shipping the BFF change alone would give the queue a UTC-date `today` interpreted as a local day (wrong for the evening window); shipping the web change alone would give it a local `today` still converted as UTC. Either order leaves a wrong window between the two merges, so they land together.
 
@@ -138,6 +139,7 @@ Stop converting date keys to UTC instants in the BFF, and make the bookings queu
 - The queue-window date helper (create — pure function + `.spec.ts`; home to confirm in `/story-discovery`: `apps/web/features/booking/utils/` vs `apps/web/shared/lib/formatting/date-utils.ts`)
 - `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (modify — replace the browser-local/UTC `Date` round-trips) + `BookingQueuePage.spec.tsx` (modify)
 - `apps/bff/http/bookings/*.http` (modify — the folder is `apps/bff/http/bookings/`)
+- `docs/14-API_CONTRACTS.md` (modify — the `GET /v1/bookings` BFF note; the backend route bullet is Story 0's)
 
 **Acceptance criteria — product:**
 - [ ] For a UTC-3 tenant at 22:00 local, the bookings queue's "today" is still the current local day and lists the evening's approved bookings; nothing from the previous local evening appears in it.
@@ -164,4 +166,5 @@ Stop converting date keys to UTC instants in the BFF, and make the bookings queu
 - **4q (pattern and test plan):** pattern stated per story; every tier has a named scenario, and the integration case is the proven reproduction (seed values included).
 - **Expand/contract:** Story 0 accepts both forms, so no rolling-deploy window breaks. A later story could drop the instant form once nothing sends it; left out deliberately — nothing depends on removing it.
 - **Ripple:** the two reminder jobs already behave correctly and are untouched. Other `listBookings` callers (`useBookings`, `BookingPhotoPicker`) send neither `date` nor `from`/`to`, so they are unaffected.
-- **Open for `/story-discovery`:** the inclusive-helper's exact home and name (Story 0), and the queue-window helper's home (Story 1). The queue-page date-arithmetic fix itself is decided as in scope; only its exact failing browser/tenant offset combination is left to confirm while writing the spec.
+- **Resolved by Story 0's `/story-discovery` (2026-09-28):** the helpers are `localDateStartUTC`/`localDateEndUTC` in `calendar-date.ts`; the timezone comes from the controller via `RequestContext`; from/to are interpreted independently; the integration test is a new controller-level spec.
+- **Open for Story 1's `/story-discovery`:** the queue-window helper's home. The queue-page date-arithmetic fix itself is decided as in scope; only its exact failing browser/tenant offset combination is left to confirm while writing the spec.
