@@ -22,7 +22,7 @@ import {
   type CreateClosureRequest,
   type CreateOpeningRequest,
 } from '@/features/booking/api/schedule';
-import { listBookings } from '@/features/booking/api/booking';
+import { listAllBookings } from '@/features/booking/api/booking';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
 import { useTenant } from '@/providers/tenant-provider';
 
@@ -146,7 +146,7 @@ export function useWeekBookings(from: string, to: string, initialData?: StaffBoo
   const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['bookings', tenantId, 'week', from, to],
-    queryFn: () => listBookings({ status: SCHEDULE_BOOKING_STATUS_ALL, from, to, limit: 100 }),
+    queryFn: () => listAllBookings({ status: SCHEDULE_BOOKING_STATUS_ALL, from, to }),
     enabled: Boolean(from && to),
     initialData,
   });

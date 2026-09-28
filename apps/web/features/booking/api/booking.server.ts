@@ -2,6 +2,7 @@ import 'server-only';
 import type { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 import { assertOk, FetchError } from '@/shared/lib/api/errors';
+import { listAllPages } from '@/features/booking/api/list-all-pages';
 
 export interface BookingListFilters {
   readonly status?: string;
@@ -9,7 +10,7 @@ export interface BookingListFilters {
   readonly from?: string;
   readonly to?: string;
   readonly limit?: number;
-  readonly offset?: number;
+  readonly page?: number;
 }
 
 export async function listBookings(
@@ -27,6 +28,15 @@ export async function listBookings(
   const res = await bffServerFetch(token, `/bookings${querySuffix}`);
   if (!res.ok) throw new Error(`Failed to fetch bookings (${res.status})`);
   return res.json() as Promise<StaffBookingListResponse>;
+}
+
+// Fetches every page of a range/window query instead of just the first, so a range holding more
+// bookings than the BFF's per-page cap never silently loses its last-sorted rows.
+export async function listAllBookings(
+  token: string,
+  filters?: Omit<BookingListFilters, 'limit' | 'page'>,
+): Promise<StaffBookingListResponse> {
+  return listAllPages((page) => listBookings(token, { ...filters, page, limit: 100 }));
 }
 
 export class BookingDetailFetchError extends FetchError {

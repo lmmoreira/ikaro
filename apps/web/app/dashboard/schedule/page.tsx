@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { listBookings } from '@/features/booking/api/booking.server';
+import { listAllBookings } from '@/features/booking/api/booking.server';
 import {
   fetchScheduleClosures,
   fetchScheduleOpenings,
@@ -38,11 +38,10 @@ export default async function ScheduleRoute({
   const [initialClosures, initialOpenings, initialBookings] = await Promise.all([
     fetchScheduleClosures(token, weekStartKey, weekEndKey),
     fetchScheduleOpenings(token, weekStartKey, weekEndKey),
-    listBookings(token, {
+    listAllBookings(token, {
       status: SCHEDULE_BOOKING_STATUS_ALL,
       from: getWeekBookingsFetchStartKey(weekStartKey),
       to: weekEndKey,
-      limit: 100,
     }),
   ]);
 
