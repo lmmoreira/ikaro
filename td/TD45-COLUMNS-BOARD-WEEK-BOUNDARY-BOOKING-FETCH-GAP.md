@@ -7,7 +7,7 @@
 - **Created**: 2026-09-28
 - **Discovered**: CodeRabbit review of PR #522 (TD43 Story 0, columns-board spillover-indicator fix)
 - **State**: Open — not yet started; `/story-discovery` not yet run
-- **Related**: TD43 (`td/TD43-COLUMNS-BOARD-DAY-GRID-INTERVAL-FIDELITY.md`) — this TD's fix builds directly on TD43's spillover-bucket mechanism; PR #522
+- **Related**: TD43 (`docs/archive/td/TD43-COLUMNS-BOARD-DAY-GRID-INTERVAL-FIDELITY.md`) — this TD's fix builds directly on TD43's spillover-bucket mechanism; PR #522
 
 ---
 
