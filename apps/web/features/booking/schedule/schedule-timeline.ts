@@ -39,6 +39,7 @@ export {
   getClosureReasonLabel,
   normalizeScheduleStatuses,
   buildScheduleReturnTo,
+  buildBookingDetailHref,
   DESKTOP_MIN_BLOCK_HEIGHT_PX,
   COMPACT_MIN_BLOCK_HEIGHT_PX,
 } from '@/features/booking/schedule/schedule-timeline-formatting';

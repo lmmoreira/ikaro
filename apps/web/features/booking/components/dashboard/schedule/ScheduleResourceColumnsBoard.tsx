@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type {
   BookingStatus,
@@ -13,7 +14,11 @@ import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useScheduleDayGrid } from '@/features/booking/schedule/useSchedule';
 import { buildSlotLabels } from '@/features/booking/schedule/schedule-page-derived';
-import { buildResourceColumns } from '@/features/booking/schedule/schedule-resource-columns';
+import { buildBookingDetailHref } from '@/features/booking/schedule/schedule-timeline';
+import {
+  buildResourceColumns,
+  type SpilloverOccupancyIndicator,
+} from '@/features/booking/schedule/schedule-resource-columns';
 import { getLocalTimeKey, timeToMinutes } from '@/features/booking/schedule/date-utils';
 import {
   resolveNowMarkerTopPx,
@@ -45,6 +50,33 @@ function ColumnsFeedback({ children }: { readonly children: React.ReactNode }): 
     <div className="flex min-h-[14rem] items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 text-center text-sm text-gray-500">
       {children}
     </div>
+  );
+}
+
+// TD43 — a fixed, non-positioned banner for a booking whose buffer/turnover pushed its real
+// occupancy into this day while the booking itself belongs to the previous day's column (see
+// SpilloverOccupancyIndicator's own note in schedule-resource-columns.ts for why this isn't a
+// timeline block). Links to the same real booking a normal block would.
+function ScheduleColumnSpilloverBanner({
+  indicator,
+  scheduleReturnTo,
+  t,
+}: {
+  readonly indicator: SpilloverOccupancyIndicator;
+  readonly scheduleReturnTo: string;
+  readonly t: ReturnType<typeof useTranslations>;
+}): React.JSX.Element {
+  return (
+    <Link
+      href={buildBookingDetailHref(indicator.bookingId, scheduleReturnTo)}
+      data-testid="schedule-column-spillover-banner"
+      className="mb-2 block truncate rounded-md border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-900 hover:bg-orange-100"
+    >
+      {t('dayGridSpilloverOccupancy', {
+        time: indicator.endsAtLocalTime,
+        name: indicator.contactName,
+      })}
+    </Link>
   );
 }
 
@@ -147,6 +179,14 @@ export function ScheduleResourceColumnsBoard(
             <p className="mb-2 truncate text-sm font-semibold text-gray-900">
               {column.resourceName}
             </p>
+            {column.spilloverOccupancy.map((indicator) => (
+              <ScheduleColumnSpilloverBanner
+                key={indicator.bookingId}
+                indicator={indicator}
+                scheduleReturnTo={timelineProps.scheduleReturnTo}
+                t={t}
+              />
+            ))}
             {/* TD44 Story 4 — the per-column "Nothing scheduled this day" message was removed:
                 the grid itself already shows this (an empty board with no blocks); the selected
                 day's total booking count is shown once, at the page level, in ScheduleDayHeader

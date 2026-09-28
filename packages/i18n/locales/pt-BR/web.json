@@ -1496,6 +1496,7 @@
       "resourceFilterMaxReached": "Limite de {max} recursos atingido. Desmarque um para adicionar outro.",
       "dayGridFetchError": "Não foi possível carregar as colunas dos recursos",
       "dayGridPlaceholderBooking": "Ocupado",
+      "dayGridSpilloverOccupancy": "Ocupado até {time} — {name}",
       "fetchError": "Não foi possível carregar a agenda",
       "errors": {
         "requiredDate": "Informe a data.",

@@ -1496,6 +1496,7 @@
       "resourceFilterMaxReached": "Limit of {max} resources reached. Uncheck one to add another.",
       "dayGridFetchError": "Couldn't load the resource columns",
       "dayGridPlaceholderBooking": "Busy",
+      "dayGridSpilloverOccupancy": "Occupied until {time} — {name}",
       "fetchError": "Couldn't load the schedule",
       "errors": {
         "requiredDate": "Enter the date.",

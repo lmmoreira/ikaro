@@ -8,13 +8,26 @@ import type {
 } from '@ikaro/types';
 import {
   buildTimelineDayData,
+  getBookingDateKey,
   type TimelineDayData,
 } from '@/features/booking/schedule/schedule-timeline';
+import { getLocalTimeKey } from '@/features/booking/schedule/date-utils';
 import {
   applySharedTimelineWindow,
   rendersOwnLabelColumn,
   resolveSharedTimelineWindow,
 } from '@/features/booking/schedule/schedule-shared-timeline-window';
+
+// TD43 — a day-grid BOOKING block whose own interval (startsAt/endsAt, buffer/turnover-inclusive)
+// crosses midnight while the matched booking's own scheduledAt stays on the previous day. The
+// grid's vertical range is business-hours-bound (schedule-timeline-window.ts), so repositioning
+// the block itself would render it off-grid for any tenant not open at midnight — this is
+// rendered as a fixed, non-positioned indicator instead of a timeline block.
+export interface SpilloverOccupancyIndicator {
+  readonly bookingId: string;
+  readonly contactName: string;
+  readonly endsAtLocalTime: string; // "HH:MM" in tenant timezone, from the block's own endsAt
+}
 
 export interface ScheduleResourceColumn {
   readonly resourceId: string;
@@ -24,6 +37,7 @@ export interface ScheduleResourceColumn {
   // out of the shared axis — an exceptional opening — or it's the first member of the shared
   // group). false means a sibling column already renders the shared label column for this group.
   readonly rendersOwnLabelColumn: boolean;
+  readonly spilloverOccupancy: readonly SpilloverOccupancyIndicator[];
 }
 
 interface BuildResourceColumnsInput {
@@ -71,6 +85,11 @@ function buildPlaceholderBooking(
   };
 }
 
+interface ResolvedResourceBlocks {
+  readonly bookings: StaffBookingCardResponse[];
+  readonly spillover: SpilloverOccupancyIndicator[];
+}
+
 // Day-grid is used purely as a resourceId -> booking-id lookup here — CLASS_SESSION blocks are
 // unreachable before M24 (nothing generates class_sessions rows yet) and are ignored, not handled.
 //
@@ -81,24 +100,45 @@ function buildPlaceholderBooking(
 // unchecked be excluded outright, instead of falling through to the placeholder fallback and
 // showing a hidden booking as a fake "Ocupado" block. The placeholder itself is reserved for a
 // refId with no match at all — a genuine data gap, not a filtered-out one.
+//
+// TD43 — a matched booking whose own day (getBookingDateKey, from scheduledAt) differs from this
+// column's selectedDateKey is a spillover: day-grid correctly reports the resource occupied here
+// (its buffer/turnover pushed the raw interval past midnight), but the booking itself belongs to
+// the previous day's column. Routed to the spillover bucket instead of the timeline's own bookings
+// list — see SpilloverOccupancyIndicator's own note for why it isn't rendered as a positioned
+// block. Only applies to a real match; an unmatched refId still falls through to the placeholder
+// path unchanged (a separate, pre-existing "shouldn't normally happen" case, out of this fix's
+// scope).
 function resolveResourceBookings(
   dayGridColumn: DayGridColumn | undefined,
   bookingById: ReadonlyMap<string, StaffBookingCardResponse>,
   selectedStatusSet: ReadonlySet<BookingStatus>,
   placeholderLabel: string,
-): StaffBookingCardResponse[] {
-  if (!dayGridColumn) return [];
-  const resolved: StaffBookingCardResponse[] = [];
+  selectedDateKey: string,
+  timezone: string,
+): ResolvedResourceBlocks {
+  if (!dayGridColumn) return { bookings: [], spillover: [] };
+  const bookings: StaffBookingCardResponse[] = [];
+  const spillover: SpilloverOccupancyIndicator[] = [];
   for (const block of dayGridColumn.blocks) {
     if (block.kind !== 'BOOKING') continue;
     const match = bookingById.get(block.refId);
     if (match) {
-      if (selectedStatusSet.has(match.status)) resolved.push(match);
+      if (!selectedStatusSet.has(match.status)) continue;
+      if (getBookingDateKey(match, timezone) === selectedDateKey) {
+        bookings.push(match);
+      } else {
+        spillover.push({
+          bookingId: match.bookingId,
+          contactName: match.contactName,
+          endsAtLocalTime: getLocalTimeKey(new Date(block.endsAt), timezone),
+        });
+      }
       continue;
     }
-    resolved.push(buildPlaceholderBooking(block, placeholderLabel));
+    bookings.push(buildPlaceholderBooking(block, placeholderLabel));
   }
-  return resolved;
+  return { bookings, spillover };
 }
 
 // A resource's own closures/openings, plus every tenant-wide one (resourceId === null) — a
@@ -158,11 +198,13 @@ export function buildResourceColumns(input: BuildResourceColumnsInput): Schedule
     }))
     .sort((a, b) => a.resourceName.localeCompare(b.resourceName))
     .map(({ resourceId, resourceName }) => {
-      const resourceBookings = resolveResourceBookings(
+      const { bookings: resourceBookings, spillover } = resolveResourceBookings(
         dayGridColumnByResourceId.get(resourceId),
         bookingById,
         input.selectedStatusSet,
         input.placeholderBookingLabel,
+        input.selectedDateKey,
+        input.timezone,
       );
 
       const timeline = buildTimelineDayData({
@@ -175,7 +217,7 @@ export function buildResourceColumns(input: BuildResourceColumnsInput): Schedule
         openings: scopeToResource(input.openings, resourceId),
       });
 
-      return { resourceId, resourceName, timeline };
+      return { resourceId, resourceName, timeline, spilloverOccupancy: spillover };
     });
 
   return applySharedWindowToColumns(columns, input.slotGranularityMinutes);
