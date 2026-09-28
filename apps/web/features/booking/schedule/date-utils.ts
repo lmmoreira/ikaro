@@ -36,6 +36,13 @@ export function getWeekEndKey(dateKey: string): string {
   return toISODate(addDays(parseDateKey(dateKey), 6));
 }
 
+// A booking scheduled on the previous week's last day can still occupy a resource on this week's
+// first day (buffer/turnover past midnight), and the columns board needs that booking to name it.
+// Both the client query and the server prefetch must use this same start so they cover one range.
+export function getWeekBookingsFetchStartKey(weekStartKey: string): string {
+  return toISODate(addDays(parseDateKey(weekStartKey), -1));
+}
+
 export function getWeekDates(weekStartKey: string): string[] {
   const weekStart = parseDateKey(weekStartKey);
   return Array.from({ length: 7 }, (_, index) => toISODate(addDays(weekStart, index)));

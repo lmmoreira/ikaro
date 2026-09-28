@@ -8,6 +8,7 @@ import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.ser
 import { SchedulePage } from '@/features/booking/components/dashboard/schedule/SchedulePage';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
 import {
+  getWeekBookingsFetchStartKey,
   getWeekEndKey,
   getWeekStartKey,
   isValidDateKey,
@@ -39,7 +40,7 @@ export default async function ScheduleRoute({
     fetchScheduleOpenings(token, weekStartKey, weekEndKey),
     listBookings(token, {
       status: SCHEDULE_BOOKING_STATUS_ALL,
-      from: weekStartKey,
+      from: getWeekBookingsFetchStartKey(weekStartKey),
       to: weekEndKey,
       limit: 100,
     }),

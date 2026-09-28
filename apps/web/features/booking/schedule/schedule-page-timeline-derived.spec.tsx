@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { BOOKING_STATUS } from '@ikaro/types';
 import type { ScheduleOpening, StaffBookingCardResponse, TenantBusinessHours } from '@ikaro/types';
 import { useScheduleTimelineDerived } from './schedule-page-timeline-derived';
+import type { TimelineEvent } from './schedule-timeline-events';
 
 function makeBusinessHours(): TenantBusinessHours {
   return {
@@ -71,6 +72,27 @@ describe('useScheduleTimelineDerived', () => {
       useScheduleTimelineDerived(baseInput({ visibleBookings: [booking] })),
     );
     expect(result.current.activeDates).toEqual(new Set(['2026-08-17']));
+  });
+
+  it('ignores a booking dated before the displayed week in every day timeline (the bookings fetch starts one day early)', () => {
+    const beforeWeek = makeBooking({
+      bookingId: 'booking-before-week',
+      scheduledAt: '2026-08-16T12:00:00.000Z',
+    });
+    const inWeek = makeBooking({ bookingId: 'booking-in-week' });
+    const { result } = renderHook(() =>
+      useScheduleTimelineDerived(baseInput({ visibleBookings: [beforeWeek, inWeek] })),
+    );
+
+    const bookingIds = (events: readonly TimelineEvent[]) =>
+      events.flatMap((event) => (event.kind === 'booking' ? [event.booking.bookingId] : []));
+    expect(bookingIds(result.current.selectedDayTimeline.events)).toEqual(['booking-in-week']);
+    expect(bookingIds(result.current.weekTimelineCards[0].events)).toEqual(['booking-in-week']);
+    expect(bookingIds(result.current.weekTimelineCards[1].events)).toEqual([]);
+    expect(result.current.weekDayInfo.map((day) => day.dateKey)).toEqual([
+      '2026-08-17',
+      '2026-08-18',
+    ]);
   });
 
   it('builds selectedDayTimeline for the selected date and one weekTimelineCards entry per week date', () => {

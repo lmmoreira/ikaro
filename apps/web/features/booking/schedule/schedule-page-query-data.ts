@@ -7,7 +7,11 @@ import type {
   ScheduleOpeningListResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
-import { getWeekDates, getWeekEndKey } from '@/features/booking/schedule/date-utils';
+import {
+  getWeekBookingsFetchStartKey,
+  getWeekDates,
+  getWeekEndKey,
+} from '@/features/booking/schedule/date-utils';
 import {
   useScheduleClosures,
   useScheduleOpenings,
@@ -121,7 +125,7 @@ function useScopedFetches(input: ScopedFetchesInput) {
     resourceIds,
   );
   const { data: bookings = initialBookings } = useWeekBookings(
-    weekStartKey,
+    getWeekBookingsFetchStartKey(weekStartKey),
     weekEndKey,
     isInitialWeek ? initialBookings : undefined,
   );

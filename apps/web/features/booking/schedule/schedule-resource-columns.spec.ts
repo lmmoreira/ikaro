@@ -500,5 +500,42 @@ describe('buildResourceColumns', () => {
       expect(columns[0].spilloverOccupancy).toEqual([]);
       expect(columns[0].timeline.events.filter((e) => e.kind === 'booking')).toHaveLength(1);
     });
+
+    it("names a booking from the previous week's last day when its occupancy spills onto the week's first day", () => {
+      // 2026-08-16 is a Sunday (the last day of the previous week); 2026-08-17 is the next Monday.
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedDateKey: '2026-08-17',
+        selectedResourceIds: new Set(['res-camila']),
+        resourceNameById: new Map([['res-camila', 'Camila Duarte']]),
+        dayGridColumns: [
+          makeDayGridColumn({
+            resourceId: 'res-camila',
+            blocks: [
+              {
+                startsAt: '2026-08-17T02:50:00.000Z', // 2026-08-16T23:50 local
+                endsAt: '2026-08-17T03:30:00.000Z', // 2026-08-17T00:30 local
+                kind: 'BOOKING',
+                refId: 'booking-sunday',
+              },
+            ],
+          }),
+        ],
+        bookings: [
+          makeBooking({
+            bookingId: 'booking-sunday',
+            scheduledAt: '2026-08-17T02:50:00.000Z',
+            contactName: 'Maria Souza',
+          }),
+        ],
+        closures: [],
+        openings: [],
+      });
+
+      expect(columns[0].spilloverOccupancy).toEqual([
+        { bookingId: 'booking-sunday', contactName: 'Maria Souza', endsAtLocalTime: '00:30' },
+      ]);
+      expect(columns[0].timeline.events.filter((e) => e.kind === 'booking')).toHaveLength(0);
+    });
   });
 });
