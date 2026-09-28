@@ -313,6 +313,32 @@ describe('BookingController', () => {
       expect(result.items).toHaveLength(0);
       expect(result.pagination.total).toBe(0);
     });
+
+    it("interprets a date-key range in the tenant's timezone from RequestContext", async () => {
+      // 2026-08-17T01:00:00Z is Sunday 22:00 in America/Sao_Paulo (the default tenant zone) — still
+      // local 2026-08-16, though already 2026-08-17 in UTC.
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(new Date('2026-08-17T01:00:00.000Z'))
+        .build();
+      await bookingRepo.save(booking);
+
+      const sunday = await controller.list({
+        from: '2026-08-16',
+        to: '2026-08-16',
+        limit: 25,
+        offset: 0,
+      });
+      const monday = await controller.list({
+        from: '2026-08-17',
+        to: '2026-08-17',
+        limit: 25,
+        offset: 0,
+      });
+
+      expect(sunday.items.map((i) => i.id)).toEqual([booking.id]);
+      expect(monday.items).toHaveLength(0);
+    });
   });
 
   describe('getOne()', () => {

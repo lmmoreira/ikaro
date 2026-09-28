@@ -52,6 +52,7 @@ export class BookingController {
         tenantId,
         customerId: actorType === 'CUSTOMER' ? actorId : undefined,
         cancellationWindowHours: settings.booking.cancellationWindowHours,
+        timezone: settings.businessHours.timezone,
       })
       .catch(mapBookingError);
   }

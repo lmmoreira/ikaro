@@ -8,7 +8,10 @@ const TENANT_A = '10000000-0000-4000-8000-000000000120';
 const TENANT_B = '10000000-0000-4000-8000-000000000121';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000120';
 
-const defaultDto = { limit: 25, offset: 0, cancellationWindowHours: 48 };
+const SAO_PAULO = 'America/Sao_Paulo';
+const AUCKLAND = 'Pacific/Auckland';
+
+const defaultDto = { limit: 25, offset: 0, cancellationWindowHours: 48, timezone: SAO_PAULO };
 
 describe('ListBookingsUseCase', () => {
   let repo: InMemoryBookingRepository;
@@ -210,6 +213,104 @@ describe('ListBookingsUseCase', () => {
         },
         { resourceId: 'res-sala-1', resourceType: ResourceType.ROOM, resourceName: 'Sala 1' },
       ]);
+    });
+  });
+
+  describe('from/to range', () => {
+    // America/Sao_Paulo is UTC-3 year-round, so local Sunday 2026-08-16 runs from
+    // 2026-08-16T03:00:00.000Z through 2026-08-17T02:59:59.999Z.
+    const SCHEDULED = {
+      sundayNoon: '2026-08-16T15:00:00.000Z',
+      sundayLastMs: '2026-08-17T02:59:59.999Z',
+      sundayNight: '2026-08-17T01:00:00.000Z',
+      mondayFirstMs: '2026-08-17T03:00:00.000Z',
+    } as const;
+    type Slot = keyof typeof SCHEDULED;
+
+    const saveAt = async (scheduledAt: string): Promise<string> => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(new Date(scheduledAt))
+        .build();
+      await repo.save(booking);
+      return booking.id;
+    };
+
+    let idBySlot: Record<Slot, string>;
+
+    beforeEach(async () => {
+      idBySlot = {
+        sundayNoon: await saveAt(SCHEDULED.sundayNoon),
+        sundayLastMs: await saveAt(SCHEDULED.sundayLastMs),
+        sundayNight: await saveAt(SCHEDULED.sundayNight),
+        mondayFirstMs: await saveAt(SCHEDULED.mondayFirstMs),
+      };
+    });
+
+    const listIds = async (range: { from?: string; to?: string }, timezone = SAO_PAULO) => {
+      const result = await useCase.execute({
+        ...defaultDto,
+        ...range,
+        timezone,
+        tenantId: TENANT_A,
+      });
+      return result.items.map((i) => i.id).sort((a, b) => a.localeCompare(b));
+    };
+    const idsOf = (...slots: Slot[]) =>
+      slots.map((s) => idBySlot[s]).sort((a, b) => a.localeCompare(b));
+
+    it.each<[string, { from?: string; to?: string }, Slot[]]>([
+      [
+        'a date-key week includes the evening bookings on its last local day',
+        { from: '2026-08-10', to: '2026-08-16' },
+        ['sundayNoon', 'sundayNight', 'sundayLastMs'],
+      ],
+      [
+        'the next date-key week starts at the local midnight, not the UTC one',
+        { from: '2026-08-17', to: '2026-08-23' },
+        ['mondayFirstMs'],
+      ],
+      [
+        'instants are passed through unchanged and never shifted by the timezone',
+        { from: '2026-08-10T00:00:00.000Z', to: '2026-08-16T23:59:59.999Z' },
+        ['sundayNoon'],
+      ],
+      [
+        'a date-key from with an instant to converts only the date-key side',
+        { from: '2026-08-16', to: '2026-08-17T01:00:00.000Z' },
+        ['sundayNoon', 'sundayNight'],
+      ],
+      [
+        'an instant from with a date-key to converts only the date-key side',
+        { from: '2026-08-16T15:00:00.000Z', to: '2026-08-16' },
+        ['sundayNoon', 'sundayNight', 'sundayLastMs'],
+      ],
+      [
+        'a date-key from alone is open-ended from the local start of that day',
+        { from: '2026-08-17' },
+        ['mondayFirstMs'],
+      ],
+      [
+        'a date-key to alone is bounded by the local end of that day',
+        { to: '2026-08-16' },
+        ['sundayNoon', 'sundayNight', 'sundayLastMs'],
+      ],
+      [
+        'a from later than to is not validated and matches nothing',
+        { from: '2026-08-20', to: '2026-08-10' },
+        [],
+      ],
+    ])('%s', async (_name, range, expectedSlots) => {
+      expect(await listIds(range)).toEqual(idsOf(...expectedSlots));
+    });
+
+    it('converts a date key with the timezone it is given, for a UTC+ zone', async () => {
+      // 2026-08-16T00:00 in Pacific/Auckland (UTC+12 in August) is 2026-08-15T12:00:00.000Z.
+      const aucklandBookingId = await saveAt('2026-08-15T12:30:00.000Z');
+      const range = { from: '2026-08-16', to: '2026-08-16' };
+
+      expect(await listIds(range, AUCKLAND)).toContain(aucklandBookingId);
+      expect(await listIds(range, SAO_PAULO)).not.toContain(aucklandBookingId);
     });
   });
 
