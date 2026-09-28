@@ -154,6 +154,35 @@ M22-S03 (PR #483, merged 2026-09-17) executed the documented expand → backfill
 
 ---
 
+## Booking — Recurring Reservations (M23-S04)
+
+### Why this exists
+
+`RecurringBookingSchedule` (UC-070) creates a standing WEEKLY-only pattern (MVP scope, locked in during story-discovery) — one shared time-of-day across a set of weekdays, no per-day override, no other frequency value. This story covers request/skip/reschedule/pause/end only; it does **not** materialize any `Booking` rows. `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` is a domain-layer, zero-framework-deps pure-function module shared unchanged by both this story's creation-time conflict check and M23-S05's rolling-horizon generation worker — the two stories import the exact same `enumerateRecurrenceOccurrences()`/`resolveHorizonEndDate()` functions so they can never silently disagree about what "conflict-free" or "in horizon" means.
+
+### Horizon resolution and occurrence enumeration
+
+`resolveHorizonEndDate(startsOn, horizonDays)` adds `horizonDays` calendar days to `startsOn` (via `shared/utils/calendar-date.ts`'s `addDaysUTC` — UTC-string arithmetic, safe for calendar dates since a date string's weekday is timezone-invariant). `horizonDays` is `Service.bookingPolicy.recurringHorizonDays` (nullable; `null` inherits the 90-day platform default `DEFAULT_RECURRING_HORIZON_DAYS`), capped at 365 by the shared Zod schema.
+
+`enumerateRecurrenceOccurrences(recurrence, startsOn, endsOn, horizonEnd, timezone)` walks every calendar date from `startsOn` to `min(endsOn, horizonEnd)` inclusive, keeping the ones matching `recurrence.daysOfWeek` (via `getUtcWeekDayName`), and converts each matching local date + `recurrence.startTime` to a UTC instant via `localDateTimeToUTCIso`. Returns both the UTC instant and the tenant-local calendar date string (the latter is the natural key for `recurring_booking_schedule_exceptions.occurrence_start` and M23-S05's generation idempotency check).
+
+### Two-layer creation-time conflict check
+
+A future pattern conflict blocks the whole request atomically, before either the `ACTIVE` or `PENDING_APPROVAL` status branch commits (UC-070 A1) — no partial schedule ever exists. Two independent layers are both required, because they catch different failure shapes:
+
+1. **`assertPatternConflictFree()`** (`recurring-booking-schedule-request.helpers.ts`) — for every enumerated occurrence, reuses M23-S01's own one-off-booking resolver (`resolveBookingLinesResourceCandidates()` + `BookingSlotConflictService.assertSlotFree()`) against `resource_occupancy`. This is the *only* layer that can ever see an already-materialized `Booking` row (a one-off booking, or — once M23-S05 ships — a materialized recurring occurrence).
+2. **`assertNoActiveScheduleOverlap()`** (`RequestRecurringBookingScheduleUseCase`, FIXED_ASSIGNMENT only) — directly compares the new pattern's `daysOfWeek`/time-window/date-range against every other currently-`ACTIVE` schedule already assigned to the same resource (`schedulesOverlap()` in `recurrence-rule.helpers.ts`). This layer exists because an `ACTIVE` schedule has **zero** materialized occurrences until M23-S05's generation worker runs (documented limitation of sequencing S04 before S05) — layer 1 alone can never catch two recurring patterns colliding on the same resource before S05 exists, since neither side has any `resource_occupancy` rows yet. `RESOLVE_PER_OCCURRENCE` has no fixed resource to compare against upfront, so it skips this layer — its own per-occurrence resource resolution at generation time is the equivalent safeguard, same as a one-off `AUTO_ANY`/`AUTO_FUNGIBLE_POOL` booking.
+
+### Cap + locking protocol
+
+`FIXED_ASSIGNMENT` acquires `pg_advisory_xact_lock` via `ITenantLockPort.lockResources()` on every entry of the caller-chosen `resourceIds`, in canonical order; `RESOLVE_PER_OCCURRENCE` locks on `serviceId` instead (`lockService()`), since no resource id is known before per-occurrence resolution. Either lock, acquired first inside the same transaction, atomically covers three things in one critical section: the `MAX_ACTIVE_SCHEDULES_PER_RESOURCE`/`MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE` cap check (both 50, app-enforced), the layer-2 active-schedule overlap check above, and — inside `prepareRequest()` — a `findByIdForUpdate()` re-read of the `Service` row itself, so a concurrent `UpdateServiceBookingPolicyUseCase`/resource-requirements write can never be based on a stale eligibility/approval-policy read (both use cases lock the same `Service` row).
+
+### Optimistic concurrency on mutation
+
+`RecurringBookingScheduleEntity.version` (`@VersionColumn`, default 1) protects `pause()`/`end()`/`skipOccurrence()`/`rescheduleOccurrence()` — each loads the schedule outside any transaction, mutates in memory, then saves inside one. `TypeOrmRecurringBookingScheduleRepository.persist()`'s update path is a version-checked `UPDATE ... WHERE version = :version`, incrementing via a raw SQL literal (`version: () => '"version" + 1'`); a mismatch throws `BookingConcurrentModificationError` (409, the same generic error `Booking`'s own optimistic-concurrency path uses). This exactly mirrors `TypeOrmBookingRepository`'s own `persistBooking()` shape — a brand-new aggregate (`version === undefined`) inserts and lets the DB default apply; every subsequent save re-checks and re-increments.
+
+---
+
 ## Other bounded contexts
 
 Not yet written. Add a section here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.
