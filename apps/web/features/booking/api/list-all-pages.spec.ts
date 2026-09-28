@@ -84,4 +84,22 @@ describe('listAllPages', () => {
     expect(fetchPage).toHaveBeenCalledTimes(2);
     expect(result.items).toHaveLength(20);
   });
+
+  it('stops after 50 pages even when total says more remain', async () => {
+    const fetchPage = vi.fn().mockImplementation((pageNumber: number) =>
+      Promise.resolve(
+        page(
+          Array.from({ length: 100 }, (_, i) => makeItem(`b-${pageNumber}-${i}`)),
+          100_000,
+          pageNumber,
+          100,
+        ),
+      ),
+    );
+
+    const result = await listAllPages(fetchPage);
+
+    expect(fetchPage).toHaveBeenCalledTimes(50);
+    expect(result.items).toHaveLength(5000);
+  });
 });

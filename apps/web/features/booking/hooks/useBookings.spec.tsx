@@ -129,6 +129,21 @@ describe('useTodayBookings', () => {
     expect(calledUrl).toContain('limit=100');
     vi.unstubAllGlobals();
   });
+
+  it('fetches every page when the day holds more than one page', async () => {
+    const page1 = { items: [{ bookingId: 'b-1' }], total: 150, page: 1, limit: 100 };
+    const page2 = { items: [{ bookingId: 'b-2' }], total: 150, page: 2, limit: 100 };
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => page1 })
+      .mockResolvedValueOnce({ ok: true, json: async () => page2 });
+    vi.stubGlobal('fetch', mockFetch);
+    const { result } = renderHook(() => useTodayBookings('2026-06-26'), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.current.data?.items).toHaveLength(2);
+    vi.unstubAllGlobals();
+  });
 });
 
 describe('useUpcomingBookings', () => {
@@ -154,6 +169,23 @@ describe('useUpcomingBookings', () => {
     expect(calledUrl).toContain('to=2026-07-09');
     expect(calledUrl).toContain('page=1');
     expect(calledUrl).toContain('limit=100');
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches every page when the window holds more than one page', async () => {
+    const page1 = { items: [{ bookingId: 'b-1' }], total: 150, page: 1, limit: 100 };
+    const page2 = { items: [{ bookingId: 'b-2' }], total: 150, page: 2, limit: 100 };
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => page1 })
+      .mockResolvedValueOnce({ ok: true, json: async () => page2 });
+    vi.stubGlobal('fetch', mockFetch);
+    const { result } = renderHook(() => useUpcomingBookings('2026-06-27', '2026-07-09'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.current.data?.items).toHaveLength(2);
     vi.unstubAllGlobals();
   });
 });

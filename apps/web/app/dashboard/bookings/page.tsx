@@ -1,6 +1,6 @@
 import { BookingQueuePage } from '@/features/booking/components/dashboard/bookings/BookingQueuePage';
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { listBookings } from '@/features/booking/api/booking.server';
+import { listAllBookings } from '@/features/booking/api/booking.server';
 import { resolveBookingQueueWindow } from '@/features/booking/model/booking-queue-window';
 import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
 import { resolveWelcomeStaffScreenDays } from '@/features/platform/model/tenant-settings';
@@ -20,9 +20,9 @@ export default async function BookingsPage(): Promise<React.JSX.Element> {
   });
 
   const [actionNeeded, todayBookings, upcoming] = await Promise.all([
-    listBookings(token, { status: 'PENDING,INFO_REQUESTED', from: today, to: windowEnd }),
-    listBookings(token, { status: 'APPROVED', date: today }),
-    listBookings(token, { status: 'APPROVED', from: tomorrow, to: windowEnd }),
+    listAllBookings(token, { status: 'PENDING,INFO_REQUESTED', from: today, to: windowEnd }),
+    listAllBookings(token, { status: 'APPROVED', date: today }),
+    listAllBookings(token, { status: 'APPROVED', from: tomorrow, to: windowEnd }),
   ]);
 
   return (

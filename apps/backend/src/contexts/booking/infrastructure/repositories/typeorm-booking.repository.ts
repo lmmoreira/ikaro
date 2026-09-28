@@ -126,9 +126,13 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     filters: BookingListFilters,
   ): Promise<BookingPaginatedResult> {
     const where = this.buildWhere(tenantId, filters);
+    // `id` is a tie-breaker, not just `scheduledAt`: Postgres has no defined order among rows with
+    // equal ORDER BY keys, so two bookings sharing a scheduledAt could otherwise land on either
+    // side of a page boundary non-deterministically between two sequential offset-paginated
+    // requests, silently skipping a row that a stable sort would have kept in view.
     const [entities, total] = await this.repo.findAndCount({
       where,
-      order: { scheduledAt: 'ASC' },
+      order: { scheduledAt: 'ASC', id: 'ASC' },
       take: filters.limit,
       skip: filters.offset,
     });
