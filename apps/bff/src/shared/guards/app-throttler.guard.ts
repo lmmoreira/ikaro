@@ -28,7 +28,11 @@ import { AppLogger } from '../observability/app-logger';
 //   app's standard Problem Detail envelope.
 @Injectable()
 export class AppThrottlerGuard extends ThrottlerGuard {
-  private readonly logger = new AppLogger(AppThrottlerGuard.name);
+  // Named appLogger, not logger: @nestjs/throttler@6.7.1 added its own `protected logger: Logger`
+  // field to ThrottlerGuard (used only for a one-time onModuleInit() misconfiguration warning,
+  // never on the request path) — overriding it would require AppLogger to fake the concrete
+  // NestJS Logger class's internal shape for no behavioral benefit.
+  private readonly appLogger = new AppLogger(AppThrottlerGuard.name);
 
   constructor(
     @InjectThrottlerOptions() options: ThrottlerModuleOptions,
@@ -52,7 +56,7 @@ export class AppThrottlerGuard extends ThrottlerGuard {
     // (packages/observability) already filters DEBUG out in production (LOG_LEVEL=INFO there
     // vs. DEBUG in staging), so no env check is needed here — cheap enough to keep for any
     // future re-verification if the gateway's forwarding behavior ever changes again.
-    this.logger.debug(
+    this.appLogger.debug(
       `client-ip-verify: x-real-client-ip="${req.headers['x-real-client-ip']}" resolved="${clientIp}"`,
     );
     return clientIp;

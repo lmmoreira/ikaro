@@ -63,7 +63,7 @@ describe('AppThrottlerGuard', () => {
 
     it('debug-logs the X-Real-Client-Ip header and resolved IP', async () => {
       guard = makeGuard('staging');
-      const logger = (guard as unknown as { logger: { debug: jest.Mock } }).logger;
+      const logger = (guard as unknown as { appLogger: { debug: jest.Mock } }).appLogger;
       const debugSpy = jest.spyOn(logger, 'debug');
       await (guard as unknown as { getTracker: (req: unknown) => Promise<string> }).getTracker({
         headers: { 'x-real-client-ip': '203.0.113.99' },
@@ -76,7 +76,7 @@ describe('AppThrottlerGuard', () => {
 
     it('still calls debug() unconditionally in production (AppLogger/LOG_LEVEL filters it, not this guard)', async () => {
       guard = makeGuard('production');
-      const logger = (guard as unknown as { logger: { debug: jest.Mock } }).logger;
+      const logger = (guard as unknown as { appLogger: { debug: jest.Mock } }).appLogger;
       const debugSpy = jest.spyOn(logger, 'debug');
       await (guard as unknown as { getTracker: (req: unknown) => Promise<string> }).getTracker({
         headers: { 'x-real-client-ip': '203.0.113.10' },
