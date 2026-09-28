@@ -7,6 +7,7 @@ import {
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
 import { localDateEndUTC, localDateStartUTC } from '../../../../shared/utils/calendar-date';
+import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 
 export type ListBookingsUseCaseInput = ListBookingsDto & {
   tenantId: string;
@@ -15,15 +16,13 @@ export type ListBookingsUseCaseInput = ListBookingsDto & {
   timezone: string;
 };
 
-const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
 function toInstantBound(
   value: string | undefined,
   timezone: string,
   localDateBound: (date: string, timezone: string) => Date,
 ): Date | undefined {
   if (!value) return undefined;
-  return DATE_KEY_PATTERN.test(value) ? localDateBound(value, timezone) : new Date(value);
+  return CalendarDate.isValid(value) ? localDateBound(value, timezone) : new Date(value);
 }
 
 export interface BookingLineSummary {
