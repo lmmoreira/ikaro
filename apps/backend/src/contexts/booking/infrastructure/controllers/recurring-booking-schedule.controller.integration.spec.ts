@@ -11,8 +11,10 @@ import {
   ResourceOccupancyEntityBuilder,
   ServiceEntityBuilder,
   ServiceResourceRequirementEntityBuilder,
+  ServiceResourceRequirementPoolEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
@@ -22,7 +24,10 @@ import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ServiceEntity } from '../entities/service.entity';
-import { ServiceResourceRequirementEntity } from '../entities/service-resource-requirement.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../entities/service-resource-requirement.entity';
 import { ResourceEntity } from '../entities/resource.entity';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
@@ -79,6 +84,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
     await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(BookingLineEntity).delete({ tenantId });
     await ds.getRepository(BookingEntity).delete({ tenantId });
+    await ds.getRepository(ServiceResourceRequirementPoolEntity).delete({ tenantId });
     await ds.getRepository(ServiceResourceRequirementEntity).delete({ tenantId });
     await ds.getRepository(ResourceEntity).delete({ tenantId });
     await ds.getRepository(ServiceEntity).delete({ tenantId });
@@ -88,22 +94,41 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
   async function seedService(
     defaultApprovalMode: 'AUTO_CONFIRM' | 'MANUAL_APPROVAL',
-    selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' = 'CUSTOMER_CHOICE',
+    selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL' = 'CUSTOMER_CHOICE',
+    options: {
+      resourceType?: ResourceType;
+      poolResourceIds?: string[];
+      bufferAfterMinutes?: number;
+    } = {},
   ): Promise<string> {
     const service = new ServiceEntityBuilder()
       .withTenantId(tenantId)
       .withName('Sala Aurora — reserva')
       .withRecurrenceEligible(true)
       .withDefaultApprovalMode(defaultApprovalMode)
+      .withBufferAfterMinutes(options.bufferAfterMinutes ?? 60)
       .build();
     const saved = await ds.getRepository(ServiceEntity).save(service);
     const requirement = new ServiceResourceRequirementEntityBuilder()
       .withTenantId(tenantId)
       .withServiceId(saved.id)
-      .withResourceType(ResourceType.ROOM)
+      .withResourceType(options.resourceType ?? ResourceType.ROOM)
       .withSelectionMode(selectionMode)
       .build();
     await ds.getRepository(ServiceResourceRequirementEntity).save(requirement);
+    if (options.poolResourceIds?.length) {
+      await ds
+        .getRepository(ServiceResourceRequirementPoolEntity)
+        .save(
+          options.poolResourceIds.map((poolResourceId) =>
+            new ServiceResourceRequirementPoolEntityBuilder()
+              .withTenantId(tenantId)
+              .withRequirementId(requirement.id)
+              .withResourceId(poolResourceId)
+              .build(),
+          ),
+        );
+    }
     return saved.id;
   }
 
@@ -232,7 +257,13 @@ describe('RecurringBookingScheduleController (integration)', () => {
   });
   // Real composite FKs require a genuinely persisted service + booking + line + assignment before
   // a resource_occupancy row can reference one.
-  async function seedOccupancy(occupiedResourceId: string, startsAt: Date): Promise<void> {
+  async function seedOccupancy(
+    occupiedResourceId: string,
+    startsAt: Date,
+    options: { lockState?: 'COMMITTED' | 'HOLD' | 'REQUESTED'; resourceType?: ResourceType } = {},
+  ): Promise<void> {
+    const lockState = options.lockState ?? 'COMMITTED';
+    const resourceType = options.resourceType ?? ResourceType.ROOM;
     const service = new ServiceEntityBuilder().withTenantId(tenantId).build();
     await ds.getRepository(ServiceEntity).save(service);
     const booking = new BookingEntityBuilder().withTenantId(tenantId).build();
@@ -247,15 +278,16 @@ describe('RecurringBookingScheduleController (integration)', () => {
       .withTenantId(tenantId)
       .withBookingLineId(line.lineId)
       .withResourceId(occupiedResourceId)
-      .withResourceType(ResourceType.ROOM)
+      .withResourceType(resourceType)
       .build();
     await ds.getRepository(BookingLineResourceAssignmentEntity).save(assignment);
     const occupancy = new ResourceOccupancyEntityBuilder()
       .withTenantId(tenantId)
       .withResourceId(occupiedResourceId)
-      .withResourceType(ResourceType.ROOM)
+      .withResourceType(resourceType)
       .withBookingLineResourceAssignmentId(assignment.id)
-      .withLockState('COMMITTED')
+      .withLockState(lockState)
+      .withHoldExpiresAt(lockState === 'HOLD' ? new Date(Date.now() + 30 * 60_000) : null)
       .withStartsAt(startsAt)
       .withEndsAt(new Date(startsAt.getTime() + 60 * 60_000))
       .build();
@@ -269,10 +301,14 @@ describe('RecurringBookingScheduleController (integration)', () => {
     return new Date(`${addDays(nextWeekday(5), index * 7)}T18:00:00.000Z`);
   }
 
-  function postFridayPattern(body: {
+  function postFridayPattern({
+    daysOfWeek = ['friday'],
+    ...body
+  }: {
     serviceId: string;
     assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
     resourceIds?: string[];
+    daysOfWeek?: string[];
   }) {
     return request(app.getHttpServer())
       .post('/recurring-booking-schedules')
@@ -281,7 +317,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         ...body,
         recurrence: {
           frequency: 'WEEKLY',
-          daysOfWeek: ['friday'],
+          daysOfWeek,
           startTime: '15:00',
           durationMinutes: 60,
         },
@@ -365,6 +401,280 @@ describe('RecurringBookingScheduleController (integration)', () => {
           .getRepository(RecurringBookingScheduleEntity)
           .count({ where: { tenantId, serviceId } }),
       ).toBe(1);
+    });
+  });
+  describe('resource kinds, states and edge cases', () => {
+    const EVERY_DAY = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+
+    afterEach(async () => {
+      await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+    });
+
+    async function saveResource(
+      type: ResourceType,
+      options: { isActive?: boolean; turnoverMinutes?: number } = {},
+    ): Promise<string> {
+      const resource = new ResourceEntityBuilder()
+        .withTenantId(tenantId)
+        .withType(type)
+        .withName(`Recurso ${uuidv7()}`)
+        .withRefId(type === ResourceType.STAFF ? uuidv7() : null)
+        .withIsActive(options.isActive ?? true)
+        .withTurnoverMinutes(options.turnoverMinutes ?? 0)
+        .build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      return resource.id;
+    }
+
+    async function occupyEveryActive(type: ResourceType, startsAt: Date): Promise<void> {
+      const resources = await ds
+        .getRepository(ResourceEntity)
+        .find({ where: { tenantId, type, isActive: true } });
+      for (const resource of resources) {
+        await seedOccupancy(resource.id, startsAt, { resourceType: type });
+      }
+    }
+
+    async function scheduleCount(serviceId: string): Promise<number> {
+      return ds
+        .getRepository(RecurringBookingScheduleEntity)
+        .count({ where: { tenantId, serviceId } });
+    }
+
+    it.each([ResourceType.STAFF, ResourceType.EQUIPMENT])(
+      'FIXED_ASSIGNMENT with a %s resource: 409 when a later occurrence overlaps, 201 with a free resource',
+      async (type) => {
+        const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+          resourceType: type,
+        });
+        const busy = await saveResource(type);
+        await seedOccupancy(busy, fridayOccurrence(3), { resourceType: type });
+
+        await postFridayPattern({
+          serviceId,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [busy],
+        }).expect(409);
+        expect(await scheduleCount(serviceId)).toBe(0);
+
+        const free = await saveResource(type);
+        const { body } = await postFridayPattern({
+          serviceId,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [free],
+        }).expect(201);
+
+        expect(body.status).toBe('ACTIVE');
+        expect(await scheduleCount(serviceId)).toBe(1);
+      },
+    );
+
+    it('AUTO_FUNGIBLE_POOL over EQUIPMENT: 409 when the whole pool is busy on one occurrence, 201 once it is free', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_FUNGIBLE_POOL', {
+        resourceType: ResourceType.EQUIPMENT,
+      });
+      await saveResource(ResourceType.EQUIPMENT);
+      await saveResource(ResourceType.EQUIPMENT);
+      await occupyEveryActive(ResourceType.EQUIPMENT, fridayOccurrence(2));
+
+      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
+        409,
+      );
+      expect(await scheduleCount(serviceId)).toBe(0);
+
+      await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+      const { body } = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+      }).expect(201);
+
+      expect(body.status).toBe('ACTIVE');
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it('AUTO_ANY over STAFF: an inactive staff resource is never counted as free', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY', {
+        resourceType: ResourceType.STAFF,
+      });
+      await saveResource(ResourceType.STAFF);
+      await saveResource(ResourceType.STAFF, { isActive: false });
+      await occupyEveryActive(ResourceType.STAFF, fridayOccurrence(1));
+
+      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
+        409,
+      );
+
+      expect(await scheduleCount(serviceId)).toBe(0);
+    });
+
+    it('AUTO_ANY with a pool: only pool members count, even when another room is free', async () => {
+      const poolA = await saveResource(ResourceType.ROOM);
+      const poolB = await saveResource(ResourceType.ROOM);
+      await saveResource(ResourceType.ROOM);
+      const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY', {
+        poolResourceIds: [poolA, poolB],
+      });
+      await seedOccupancy(poolA, fridayOccurrence(2));
+      await seedOccupancy(poolB, fridayOccurrence(2));
+
+      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
+        409,
+      );
+      expect(await scheduleCount(serviceId)).toBe(0);
+
+      await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId, resourceId: poolB });
+      const { body } = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+      }).expect(201);
+
+      expect(body.status).toBe('ACTIVE');
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it('FIXED_ASSIGNMENT with a deactivated resource is rejected as unavailable (422), not as a conflict', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        resourceType: ResourceType.STAFF,
+      });
+      const inactive = await saveResource(ResourceType.STAFF, { isActive: false });
+
+      await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [inactive],
+      }).expect(422);
+
+      expect(await scheduleCount(serviceId)).toBe(0);
+    });
+
+    it('a HOLD occupancy row blocks the occurrence, a REQUESTED row does not', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        resourceType: ResourceType.EQUIPMENT,
+      });
+      const equipment = await saveResource(ResourceType.EQUIPMENT);
+      await seedOccupancy(equipment, fridayOccurrence(2), {
+        resourceType: ResourceType.EQUIPMENT,
+        lockState: 'HOLD',
+      });
+
+      await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [equipment],
+      }).expect(409);
+
+      await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+      await seedOccupancy(equipment, fridayOccurrence(2), {
+        resourceType: ResourceType.EQUIPMENT,
+        lockState: 'REQUESTED',
+      });
+      const { body } = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [equipment],
+      }).expect(201);
+
+      expect(body.status).toBe('ACTIVE');
+    });
+
+    it("extends each occurrence by the resource's own turnover gap", async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        resourceType: ResourceType.EQUIPMENT,
+        bufferAfterMinutes: 0,
+      });
+      const withTurnover = await saveResource(ResourceType.EQUIPMENT, { turnoverMinutes: 30 });
+      const withoutTurnover = await saveResource(ResourceType.EQUIPMENT);
+      const fifteenMinutesAfterEnd = new Date(fridayOccurrence(1).getTime() + 75 * 60_000);
+      await seedOccupancy(withTurnover, fifteenMinutesAfterEnd, {
+        resourceType: ResourceType.EQUIPMENT,
+      });
+      await seedOccupancy(withoutTurnover, fifteenMinutesAfterEnd, {
+        resourceType: ResourceType.EQUIPMENT,
+      });
+
+      const blocked = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [withTurnover],
+      });
+      const accepted = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [withoutTurnover],
+      });
+
+      expect(blocked.status).toBe(409);
+      expect(accepted.status).toBe(201);
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it('a 90-day daily pattern: 409 when only the 60th day overlaps, 201 otherwise', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        resourceType: ResourceType.EQUIPMENT,
+      });
+      const busy = await saveResource(ResourceType.EQUIPMENT);
+      const sixtiethDay = new Date(`${addDays(nextWeekday(5), 59)}T18:00:00.000Z`);
+      await seedOccupancy(busy, sixtiethDay, { resourceType: ResourceType.EQUIPMENT });
+
+      await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [busy],
+        daysOfWeek: EVERY_DAY,
+      }).expect(409);
+      expect(await scheduleCount(serviceId)).toBe(0);
+
+      const free = await saveResource(ResourceType.EQUIPMENT);
+      await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [free],
+        daysOfWeek: EVERY_DAY,
+      }).expect(201);
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it('two concurrent identical FIXED_ASSIGNMENT requests on one resource serialize: exactly one is created', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        resourceType: ResourceType.EQUIPMENT,
+      });
+      const equipment = await saveResource(ResourceType.EQUIPMENT);
+      const body = {
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT' as const,
+        resourceIds: [equipment],
+      };
+
+      const [first, second] = await Promise.all([postFridayPattern(body), postFridayPattern(body)]);
+
+      expect([first.status, second.status].sort((a, b) => a - b)).toEqual([201, 409]);
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it('concurrent AUTO_ANY requests over the same resources all succeed without deadlocking', async () => {
+      await saveResource(ResourceType.EQUIPMENT);
+      await saveResource(ResourceType.EQUIPMENT);
+      const serviceIds = await Promise.all(
+        Array.from({ length: 4 }, () =>
+          seedService('AUTO_CONFIRM', 'AUTO_ANY', { resourceType: ResourceType.EQUIPMENT }),
+        ),
+      );
+
+      const responses = await Promise.all(
+        serviceIds.map((serviceId) =>
+          postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }),
+        ),
+      );
+
+      expect(responses.map((response) => response.status)).toEqual([201, 201, 201, 201]);
     });
   });
 });
