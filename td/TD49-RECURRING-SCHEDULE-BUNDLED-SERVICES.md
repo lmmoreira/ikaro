@@ -21,7 +21,7 @@ The groundwork for lifting the limit already exists: `recurring_booking_schedule
 
 ## Sequencing note — why this waits for the whole of M23
 
-This TD is scheduled after M23 completes, by decision. The cost of that ordering is a rework: M23-S05 will ship its approval and rolling-horizon generation worker for single-resource schedules, and Story 1 below then extends it. To keep that rework small, M23-S05's discovery should keep each occurrence's resolution going through `resolveBookingLinesResourceCandidates()` with `resourceSelections` derived from the stored assignment rows — the same shape a bundle needs — instead of hard-wiring "one resource id per schedule".
+This TD is scheduled after M23 completes, by decision. The cost of that ordering is a rework: M23-S05 will ship its approval and one-shot occurrence materialization step for single-resource schedules (there is no rolling generation — a schedule has a fixed, validated term), and Story 1 below then extends it. To keep that rework small, M23-S05's discovery should keep each occurrence's resolution going through `resolveBookingLinesResourceCandidates()` with `resourceSelections` derived from the stored assignment rows — the same shape a bundle needs — instead of hard-wiring "one resource id per schedule".
 
 ## Chosen approach (decided in the drafting session, 2026-09-29 — story-discovery has not yet run)
 
@@ -97,19 +97,19 @@ Let a flat multi-requirement service be requested as a recurring schedule, rejec
 **Agent:** backend-ts
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-070 (step 2, A2, A3), UC-071 and UC-073, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Two-layer creation-time conflict check, `docs/ENGINEERING_RULES_BACKEND.md` § Transactions
-**Dependencies:** Story 0; every M23 story ✅ Done (in particular M23-S05's generation worker, which this story extends)
-**Pattern:** plain composition — the generation worker and the skip / reschedule / end use cases call the same one-off bundle resolver (`resolveBookingLinesResourceCandidates()`) with `resourceSelections` built from the stored assignment rows; no new named pattern.
+**Dependencies:** Story 0; every M23 story ✅ Done (in particular M23-S05's materialization step, which this story extends)
+**Pattern:** plain composition — the materialization step and the skip / reschedule / end use cases call the same one-off bundle resolver (`resolveBookingLinesResourceCandidates()`) with `resourceSelections` built from the stored assignment rows; no new named pattern.
 
 **Description:**
-Make everything that acts on a schedule after creation bundle-aware. M23-S05's rolling-horizon generation worker materializes each occurrence as a normal linked booking; for a bundle it must resolve every requirement, using the schedule's stored fixed picks for `CUSTOMER_CHOICE` requirements and fresh resolution for `AUTO_*` ones, and create the whole occurrence atomically or not at all. If a requirement cannot be satisfied for a future occurrence at generation time (a chosen staff member is no longer available), the occurrence is not partially created — it goes to the UC-073 future-commitment exception queue, exactly as a single-resource occurrence does today. `SkipOrRescheduleOccurrenceUseCase` and `EndRecurringBookingScheduleUseCase` must cancel or replace the whole linked bundle booking and release every resource it holds. The exact file paths for the worker and its handlers come from what M23-S05 ships and are confirmed at this story's discovery.
+Make everything that acts on a schedule after creation bundle-aware. M23-S05's materialization step (run at creation for `AUTO_CONFIRM`, at approval otherwise) materializes each occurrence as a normal linked booking; for a bundle it must resolve every requirement, using the schedule's stored fixed picks for `CUSTOMER_CHOICE` requirements and fresh resolution for `AUTO_*` ones, and create the whole occurrence atomically or not at all. If a requirement cannot be satisfied for a future occurrence at generation time (a chosen staff member is no longer available), the occurrence is not partially created — it goes to the UC-073 future-commitment exception queue, exactly as a single-resource occurrence does today. `SkipOrRescheduleOccurrenceUseCase` and `EndRecurringBookingScheduleUseCase` must cancel or replace the whole linked bundle booking and release every resource it holds. The exact file paths for the worker and its handlers come from what M23-S05 ships and are confirmed at this story's discovery.
 
-**Backend use case steps:** generation worker — per due occurrence: resolve all requirements → check every window → assign every resource → create the booking, or raise a UC-073 exception; skip / reschedule / end — operate on the whole bundle booking.
+**Backend use case steps:** materialization step — per occurrence of the term: resolve all requirements → check every window → assign every resource → create the booking, or raise a UC-073 exception; skip / reschedule / end — operate on the whole bundle booking.
 **Backend HTTP surface:** none new — reuses M23-S04's `PATCH /recurring-booking-schedules/:id` (skip / reschedule / pause / end) and M23-S05's approve / reject routes.
 **BFF endpoint spec:** none — no BFF change.
 **New migration / i18n keys / env vars / feature flags:** none.
 
 **Files to create/modify:**
-- The M23-S05 generation worker, approval use case and their handler (paths per what M23-S05 ships — to be confirmed at discovery, not stated from memory)
+- The M23-S05 materialization step, approval use case and their handler (paths per what M23-S05 ships — to be confirmed at discovery, not stated from memory)
 - `apps/backend/src/contexts/booking/application/use-cases/skip-or-reschedule-occurrence.use-case.ts` (+ spec) (modify)
 - `apps/backend/src/contexts/booking/application/use-cases/end-recurring-booking-schedule.use-case.ts` (+ spec) (modify)
 - `apps/backend/src/contexts/booking/application/use-cases/list-recurring-booking-schedules.use-case.ts` (+ spec) (modify — return every assignment with its requirement)

@@ -474,7 +474,7 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 | min_booking_advance_hours_override | INT | NULLABLE — null inherits tenant `minBookingAdvanceHours` |
 | max_booking_advance_days_override | INT | NULLABLE — null inherits tenant `maxBookingAdvanceDays` |
 | recurrence_eligible | BOOLEAN | NOT NULL DEFAULT false |
-| recurring_horizon_days | INT | NULLABLE — null inherits platform default (90); shared by the M23-S04 creation-time conflict check and the M23-S05 generation job (added by M23-S04's migration) |
+| recurring_horizon_days | INT | NULLABLE — null inherits platform default (90); the maximum term of a recurring schedule — `endsOn` may not be later than `startsOn` + this many days (added by M23-S04's migration) |
 | availability_alert_eligible | BOOLEAN | NOT NULL DEFAULT false |
 | duration_policy | VARCHAR(20) | NOT NULL DEFAULT 'FIXED' — CHECK IN ('FIXED', 'CUSTOMER_SELECTED') |
 | duration_min_minutes | INT | NULLABLE CHECK > 0 — set iff `duration_policy = 'CUSTOMER_SELECTED'` |

@@ -999,12 +999,12 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
 
 Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or create on a customer's behalf).
 
-- `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": { "frequency": "WEEKLY", "daysOfWeek": string[], "startTime", "durationMinutes" }, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn"?, "customerId"? }`. `resourceIds` is required, with exactly one entry, when `assignmentPolicy` is `FIXED_ASSIGNMENT`; `customerId` is accepted only from STAFF|MANAGER acting on a customer's behalf.
+- `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": { "frequency": "WEEKLY", "daysOfWeek": string[], "startTime", "durationMinutes" }, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn", "customerId"? }`. `endsOn` is required and may not be later than `startsOn` + the service's maximum term (`Service.bookingPolicy.recurringHorizonDays`, 90-day default). `resourceIds` is required, with exactly one entry, when `assignmentPolicy` is `FIXED_ASSIGNMENT`; `customerId` is accepted only from STAFF|MANAGER acting on a customer's behalf.
   - `201` — `{ "id", "status": "ACTIVE", "approvalHoldExpiresAt": null }` (AUTO_CONFIRM) or `{ "id", "status": "PENDING_APPROVAL", "approvalHoldExpiresAt": "..." }` (MANUAL_APPROVAL)
   - `400` on request-schema validation (e.g. no weekday, a `resourceIds` count other than one for `FIXED_ASSIGNMENT`)
   - `404` when a STAFF|MANAGER caller's `customerId` is missing, unknown in the tenant, or the caller is not an active staff member (A8)
-  - `409` on a future-pattern conflict (A1) or at the `MAX_ACTIVE_*` cap (A4)
-  - `422` when `endsOn` is before `startsOn` (A6) or the service is not eligible for recurrence (A7)
+  - `409` when an occurrence of the term cannot be honored (A1) or at the `MAX_ACTIVE_*` cap (A4). An A1 refusal has code `BOOKING_RECURRING_SCHEDULE_CONFLICT` and carries `conflicts: [{ "occurrenceStart": "<ISO-8601 UTC>", "reason": "OCCUPIED"|"CLOSED"|"OUTSIDE_HOURS" }]` — every affected occurrence, occupancy and hours violations together
+  - `422` when `endsOn` is missing, before `startsOn`, or later than `startsOn` + the maximum term (A6) or the service is not eligible for recurrence (A7)
 - `GET /recurring-booking-schedules?limit=&offset=&status=` → list the caller's own (Customer) or all for the tenant (STAFF|MANAGER, approval queue). Offset-paginated, Pattern A: `{ "items": [...], "pagination": { "limit", "offset", "total", "hasMore" } }`, newest first. `limit` 1–100 (default 25), `offset` ≥ 0 (default 0), optional `status` (`PENDING_APPROVAL`|`ACTIVE`|`PAUSED`|`CANCELLED`; omitted = all statuses). `400` on out-of-range params.
 - `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart` → skip or reschedule one occurrence (UC-070 A2). Body: `{ "action": "SKIP"|"RESCHEDULE", "replacementBookingId"? }`
 - `POST /recurring-booking-schedules/:id/pause` / `POST /recurring-booking-schedules/:id/end`

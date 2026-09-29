@@ -3,7 +3,7 @@
 **Phase:** Local Development
 **Goal:** Let customers and guests actually book against the resource model M21/M22 introduced — chosen-staff, fungible-pool, auto-any, bundled, and multi-leg resolution; variable-duration reservations; versioned intake/attendees — and give the appointment family its three standing-commitment extensions: recurring private reservations, availability alerts, and future-commitment exceptions, plus the no-show terminal state and tenant onboarding bootstrap.
 **Depends on:** M21 (`Resource` aggregate), M22 (`Service.resourceRequirements`/`legs`, the resource-scoped availability engine, `resource_occupancy`)
-**Blocks:** M24 (Classes & Sessions) — reuses this milestone's recurring-schedule generation pattern, `booking_quote_revisions`, and the resource-resolution precedent for the session family's own resource pool.
+**Blocks:** M24 (Classes & Sessions) — reuses this milestone's `booking_quote_revisions` and resource-resolution precedent for the session family's own resource pool. (M23's recurring schedules are fixed-term and materialized once, so there is no generation pattern to reuse — M24 owns its own `ClassSession` rolling worker.)
 **Design rationale:** `docs/discovery/multivertical-booking/multivertical-booking.md` (promoted via `/discovery-to-milestone` on 2026-09-01) — kept as the permanent *why*; this file and the canonical docs it cites (`docs/04-USE_CASES.md` UC-061–077, `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`/`FutureCommitmentException`, `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`) are the source of truth for implementation — nothing below should require opening the discovery doc to understand.
 
 ## Non-Goals
@@ -29,8 +29,8 @@
 | 2 | M23-S15 | Manager onboarding wizard frontend (UC-075) |
 | 3 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
-| 3 | M23-S18 | Recurring-schedule hours-and-closures check (shared with generation) + one conflict payload (UC-070) |
-| 4 | M23-S05 | Recurring-schedule approval + rolling-horizon generation worker (UC-071) |
+| 3 | M23-S18 | Recurring-schedule fixed term (`endsOn` required and capped), hours-and-closures check and one conflict payload (UC-070) |
+| 4 | M23-S05 | Recurring-schedule approval + one-shot occurrence materialization (UC-071) |
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
@@ -50,6 +50,7 @@ graph TD
   S04 --> S17
   S04 --> S18
   S18 --> S05
+  S08 --> S05
   S18 --> S17
   S05 --> S12
   S05 --> S13
@@ -68,6 +69,8 @@ graph TD
 **Wave note (self-dry-run, corrected during `/docs-audit`):** S02 and S03 both call S01's `ResourceResolutionService` in their own description text (S02 for a variable-duration window, S03 for a reschedule's replacement window) — an audit found neither declared that as a `Dependencies:` edge, and both sat in Wave 1 alongside S01 itself. Fixed: both now depend on M23-S01 and sit in **Wave 2**. This cascades: S11 (guest/customer booking flow frontend) depends on S01, S02, **and** S03 — its floor is now `max(S01=1, S02=2, S03=2) + 1` = **Wave 3**, not Wave 2. S12 (Minha Conta extension) needs both S04 (recurring CRUD) and S05 (approval + generation) BFF endpoints, plus S06/S07 (alerts CRUD + matching) — its dependency floor is `max(S04, S05, S06, S07)`'s wave, i.e. Wave 3 (S05) + 1 = **Wave 4**. S13 (staff approval-queue UI) only needs S05, so it's `Wave 3 + 1 = Wave 4` too, not Wave 3 in parallel with S05 itself.
 
 **Update (2026-09-29, M23-S17/S18/S19 added):** M23-S18 now comes **before** S05. S05's generation step is planned to skip hours-conflicted occurrences, but the resolver it reuses checks occupancy only, and occurrences beyond the creation-time horizon can only ever be evaluated at generation — so S05 needs S18's shared hours-and-closures check. S18 depends only on S04 (and TD45-S0), so it sits in **Wave 3**, S05 moves to **Wave 4**, and everything that floors on S05 shifts one wave: S12 and S13 to **Wave 5**, S17 (needs S12 and S18) to **Wave 6**, S19 (needs S17 and S13) to **Wave 7**. S17 also depends on S18 because S18 owns the single conflict payload it renders. S19 is the only one of the three that M23's goal does not need, and none of the three blocks M24.
+
+**Update (2026-09-29, fixed-term recurrence — decided in M23-S18's `/story-discovery`):** a recurring schedule is no longer open-ended and there is no rolling generation. `endsOn` is required and may not be later than `startsOn` + the service's maximum term (`recurringHorizonDays`, 90 days by default); every occurrence of the term is checked at creation (working hours and closures, then occupancy) and materialized as a linked booking once — in the creation transaction for `AUTO_CONFIRM`, at approval for `MANUAL_APPROVAL`. A customer who wants to continue creates a new schedule, so a forgotten schedule cannot hold slots indefinitely. Consequences: M23-S05 loses `GenerateRecurringBookingOccurrencesJob` (approve/reject, the expiry job and one-shot materialization remain); M23-S18 owns the term validation, the hours-and-closures check and the one `409` occurrence payload; M23-S16 relabels the setting as the maximum term; M23-S17 adds an end-date field. The reminder email for an ending schedule is a separate story, not part of this milestone's current scope. Wave placement is unchanged.
 
 **Likely-independent stories (preview — not authoritative):** S06, S08, S09, and S10 share no files with each other or with S01 (four independent new/small aggregates, all Wave 1) — a candidate `/run-batch` group. S02 and S03 touch different methods of the same booking-creation/reschedule use cases (`RequestBookingUseCase`/`RequestAuthenticatedBookingUseCase` for S02, `RescheduleBookingUseCase` for S03) and share no files with each other, but **both now have a real `Dependencies:` edge to S01** — not independent of S01, only of each other. `/run-batch` re-derives this live; this is a courtesy preview.
 
@@ -560,7 +563,7 @@ Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → 
 **Pattern:** Repository + Adapter, matching every other Booking-context aggregate.
 
 **Description:**
-Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment`, `RecurringBookingScheduleException` children) per `docs/02-DOMAIN_MODEL.md`. This story covers request/create (branching `ACTIVE` vs `PENDING_APPROVAL` per the service's effective approval mode), skip/reschedule-one-occurrence, pause, end. It does **not** cover approval decisions or the rolling-horizon generation worker (S05) — an `ACTIVE` schedule created here by an `AUTO_CONFIRM` service has zero materialized occurrences until S05's worker's next run picks it up (documented limitation of sequencing S04 before S05, acceptable since S05 lands in the very next wave).
+Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment`, `RecurringBookingScheduleException` children) per `docs/02-DOMAIN_MODEL.md`. This story covers request/create (branching `ACTIVE` vs `PENDING_APPROVAL` per the service's effective approval mode), skip/reschedule-one-occurrence, pause, end. It does **not** cover approval decisions or the rolling-horizon generation worker (S05) — an `ACTIVE` schedule created here by an `AUTO_CONFIRM` service has zero materialized occurrences until S05's worker's next run picks it up (documented limitation of sequencing S04 before S05, acceptable since S05 lands in the very next wave). **Superseded (2026-09-29, M23-S18 discovery):** open-ended schedules (`endsOn = null`) and the rolling-horizon worker no longer exist in the design — see the fixed-term update in the wave note; M23-S18 makes `endsOn` required and capped, and M23-S05 materializes the whole term once.
 
 **Aggregate invariants (enforced in `RecurringBookingSchedule.request()`, not just the DB):**
 - Guest bookings never eligible — customer-only, or staff on the customer's behalf (`createdByStaffId`).
@@ -568,7 +571,7 @@ Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment
 - At most 50 active `FIXED_ASSIGNMENT` schedules per resource / 50 active `RESOLVE_PER_OCCURRENCE` schedules per service (A4) — app-enforced.
 - **Recurrence shape is WEEKLY-only for MVP** (locked in during story-discovery, 2026-09-27): `recurrence = { frequency: 'WEEKLY', daysOfWeek: Weekday[], startTime: 'HH:mm', durationMinutes: int }` — one shared time-of-day across every listed weekday, no per-day override, no other frequency value. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`.
 - **Eligible only for a flat, single-resource-requirement service** (`bookingModel = APPOINTMENT`, no `legs`, no multi-resource bundle) — a bundle/multi-leg service is rejected at request time. Bundle/leg recurrence is out of scope for this story.
-- **Shared horizon with S05:** both the creation-time conflict check (this story) and the rolling-horizon generation job (S05) use `Service.bookingPolicy.recurringHorizonDays` (new nullable field, null inherits a 90-day platform default `DEFAULT_RECURRING_HORIZON_DAYS`) and the exact same window-enumeration function — new `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` (domain-layer pure function, zero framework deps). S04 builds this file; S05 imports it unchanged. Writing the enumeration twice risks the two stories silently disagreeing on what "conflict-free" means.
+- **Shared horizon with S05:** both the creation-time conflict check (this story) and (until the 2026-09-29 fixed-term decision) the rolling-horizon generation job (S05) used `Service.bookingPolicy.recurringHorizonDays` (new nullable field, null inherits a 90-day platform default `DEFAULT_RECURRING_HORIZON_DAYS`) and the exact same window-enumeration function — new `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` (domain-layer pure function, zero framework deps). S04 builds this file; S05 imports it unchanged. Writing the enumeration twice risks the two stories silently disagreeing on what "conflict-free" means.
 - **Locking:** `FIXED_ASSIGNMENT` acquires `pg_advisory_xact_lock` on every entry of `resourceIds`, in canonical order, per `docs/13-DATABASE_SCHEMA.md`'s existing not-yet-materialized-pattern protocol. `RESOLVE_PER_OCCURRENCE` acquires it on `serviceId` instead, since no resource id is known before per-occurrence resolution. Either lock covers both the `MAX_ACTIVE_*` cap check and the future-pattern conflict check atomically in one critical section.
 
 **Backend use case steps:**
@@ -582,7 +585,7 @@ Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/recurring-booking-schedule.aggregate.ts` (+ `.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` (+ `.spec.ts`) (new — shared WEEKLY-pattern window-enumeration function; also imported by M23-S05's generation job)
+- `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` (+ `.spec.ts`) (new — shared WEEKLY-pattern window-enumeration function; also imported by M23-S05's materialization step)
 - `apps/backend/src/contexts/booking/domain/errors/recurring-booking-schedule-*.error.ts` (new)
 - `apps/backend/src/contexts/booking/application/ports/recurring-booking-schedule-repository.port.ts` (new)
 - `apps/backend/src/contexts/booking/application/use-cases/{request,skip-or-reschedule-occurrence,pause,end}-recurring-booking-schedule.use-case.ts` (+ specs) (new)
@@ -621,21 +624,21 @@ Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment
 
 ---
 
-### M23-S05 — Recurring-schedule approval + rolling-horizon generation worker
+### M23-S05 — Recurring-schedule approval + one-shot occurrence materialization
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` UC-071, UC-070 step 2/A5 (generation + hold-expiry), `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule.approve`/`reject`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules (approve/reject routes)
-**Dependencies:** M23-S04 (`RecurringBookingSchedule` aggregate + create/manage use cases), M23-S18 (the shared working-hours and closures check the generation job uses)
-**Pattern:** the generation worker mirrors M24's own `ClassSession` generation job shape (same idempotent rolling-horizon design, applied one milestone earlier here for the appointment family) — same shape as the existing loyalty-expiry cron for the scheduled-job wiring itself.
+**Docs to load:** `docs/04-USE_CASES.md` UC-071, UC-070 steps 1–4 and A5 (materialization + hold-expiry), `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule.approve`/`reject`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules (approve/reject routes), `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks
+**Dependencies:** M23-S04 (`RecurringBookingSchedule` aggregate + create/manage use cases), M23-S18 (the term validation and the shared working-hours and closures check this story runs again at approval), M23-S08 (the `FutureCommitmentException` aggregate an occurrence that no longer passes at approval is raised into)
+**Pattern:** plain composition — one `MaterializeRecurringScheduleOccurrences` step called by both triggers (the `AUTO_CONFIRM` creation path and approval), with the loyalty-expiry cron shape only for the hold-expiry job's scheduled-job wiring. There is no generation worker: a schedule has a fixed, already-validated term (M23-S18), so its occurrences are created once.
 
 **Description:**
-Two coupled pieces, bundled because the generation algorithm is shared by both triggers (an `AUTO_CONFIRM` schedule needs it immediately; an approved `MANUAL_APPROVAL` schedule needs it starting at approval): the staff approval decision (UC-071) and the rolling-horizon `Booking` generation worker (UC-070 step 2's actual materialization, deferred from S04).
+Two coupled pieces, bundled because the materialization step is shared by both triggers (an `AUTO_CONFIRM` schedule needs it at creation, in the same transaction; a `MANUAL_APPROVAL` schedule needs it at approval): the staff approval decision (UC-071) and the one-shot creation of one linked `Booking` per occurrence of the term (UC-070 step 3, deferred from S04).
 
 **Backend use case steps:**
-1. **`ApproveRecurringBookingScheduleUseCase`** / **`RejectRecurringBookingScheduleUseCase`** (UC-071): validates `status = PENDING_APPROVAL` (A1: already-resolved by a race → shown as resolved, no-op), on approval transitions to `ACTIVE` + sets `approvedByStaffId`/`approvedAt`, on rejection transitions to `CANCELLED` with `cancellationReason = APPROVAL_REJECTED`.
+1. **`ApproveRecurringBookingScheduleUseCase`** / **`RejectRecurringBookingScheduleUseCase`** (UC-071): validates `status = PENDING_APPROVAL` (A1: already-resolved by a race → shown as resolved, no-op). On approval: locks as the request path does, re-runs M23-S18's working-hours-and-closures check and the occupancy check for the whole term (a closure or booking may have appeared while the request waited), transitions to `ACTIVE` + sets `approvedByStaffId`/`approvedAt`, and materializes every occurrence that still passes; an occurrence that no longer passes is **not** created and raises a UC-073 future-commitment exception instead (never a silent skip). On rejection: transitions to `CANCELLED` with `cancellationReason = APPROVAL_REJECTED`.
 2. **`ExpireRecurringBookingScheduleApprovalsJob`** (UC-070 A5, scheduled): finds `PENDING_APPROVAL` past `approvalHoldExpiresAt`, auto-cancels with `cancellationReason = APPROVAL_EXPIRED` — same mechanic as an expired manual-approval appointment hold; A2 in UC-071 means this job wins the race if it runs before a staff decision.
-3. **`GenerateRecurringBookingOccurrencesJob`** (scheduled, every 15 min like UC-081's class-session equivalent): for each `ACTIVE` schedule, computes next occurrence(s) within the horizon (90-day default, service-configurable) not yet materialized, creates a `Booking` per occurrence with `recurringScheduleId` set, idempotency via the `(tenantId, recurringScheduleId, occurrenceStart)` unique key, resolves resources via S01's resolver (`FIXED_ASSIGNMENT` uses the durable assignment, `RESOLVE_PER_OCCURRENCE` re-resolves fresh each time), every generated occurrence auto-confirms `APPROVED` regardless of the service's own `defaultApprovalMode` (the standing schedule was already vetted once). Skips a resource-conflicted occurrence (same failure mode as UC-081 A2/A3), records an operational metric on skip. **Working hours and closures come from M23-S18:** every occurrence is first checked with S18's shared hours-and-closures check — the resolver above checks occupancy only, and occurrences beyond the creation-time horizon can only be evaluated here (a closure may also have been added since creation). What happens to an occurrence that fails it is the behavior M23-S18's discovery locks (skip with a metric, or raise a UC-073 exception), not a silent skip decided here.
+3. **`MaterializeRecurringScheduleOccurrences`** (a shared application step, not a job): for the schedule's term (`enumerateRecurrenceOccurrences()`, the same function the creation checks use), creates a `Booking` per occurrence with `recurringScheduleId` set, in one transaction with the status change; idempotency via the `(tenantId, recurringScheduleId, occurrenceStart)` unique key; resolves resources via S01's resolver (`FIXED_ASSIGNMENT` uses the durable assignment, `RESOLVE_PER_OCCURRENCE` re-resolves each occurrence); every occurrence auto-confirms `APPROVED` regardless of the service's own `defaultApprovalMode` (the schedule was already vetted once). Called from `RequestRecurringBookingScheduleUseCase`'s `AUTO_CONFIRM` branch (a modification to S04's use case) and from the approval use case. Keep each occurrence's resource resolution going through `resolveBookingLinesResourceCandidates()` with `resourceSelections` derived from the stored assignment rows, not hard-wired to one resource id per schedule — `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` extends this later.
 
 **Backend HTTP surface:** `POST /recurring-booking-schedules/:id/approve`, `POST /recurring-booking-schedules/:id/reject`. `STAFF|MANAGER` only.
 
@@ -643,28 +646,31 @@ Two coupled pieces, bundled because the generation algorithm is shared by both t
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/application/use-cases/{approve,reject}-recurring-booking-schedule.use-case.ts` (+ specs) (new)
+- `apps/backend/src/contexts/booking/application/use-cases/materialize-recurring-schedule-occurrences.helpers.ts` (+ spec) (new — the shared step)
+- `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.ts` (+ spec) (modify — the `AUTO_CONFIRM` branch calls the shared step)
 - `apps/backend/src/contexts/booking/application/jobs/expire-recurring-schedule-approvals.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/application/jobs/generate-recurring-booking-occurrences.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ specs) (modify)
 - `apps/bff/src/features/booking/recurring-booking-schedules.controller.ts` (+ specs) (modify)
 
 **Acceptance criteria — product:**
-- [ ] Staff approves a pending recurring schedule; occurrences begin appearing on the calendar within the next generation cycle.
-- [ ] Staff rejects a pending schedule; no occurrences are ever generated.
+- [ ] A recurring schedule on an `AUTO_CONFIRM` service shows every occurrence of its term on the calendar as soon as it is created.
+- [ ] Staff approves a pending recurring schedule; every occurrence of its term appears on the calendar immediately.
+- [ ] Staff rejects a pending schedule; no occurrences are ever created.
 - [ ] An unresolved pending request past its hold deadline auto-cancels, customer notified.
+- [ ] An occurrence that is no longer possible at approval (a closure was added while the request waited) is not created and reaches the manager's exception worklist.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] Approve/reject reject a non-`PENDING_APPROVAL` schedule; race-safe (A1)
-  - [ ] Generation job idempotency: re-running against an already-generated occurrence key is a no-op
-  - [ ] Generated occurrences are always `APPROVED` regardless of the service's `defaultApprovalMode`
+  - [ ] Materialization idempotency: re-running against an already-created occurrence key is a no-op
+  - [ ] Created occurrences are always `APPROVED` regardless of the service's `defaultApprovalMode`
 - Integration:
-  - [ ] Full flow: `PENDING_APPROVAL` → approve → next generation run creates real `Booking` rows with correct `recurringScheduleId`
-  - [ ] A resource-conflicted occurrence is skipped, not created, and doesn't block generating the next one
-  - [ ] An occurrence on a closed day or outside working hours is handled as M23-S18 locked (skipped with a metric, or raised as a UC-073 exception) and doesn't block generating the next one
+  - [ ] Full flow: `PENDING_APPROVAL` → approve → real `Booking` rows for every occurrence with the correct `recurringScheduleId`, in one transaction
+  - [ ] `AUTO_CONFIRM` creation materializes the whole term in the creation transaction; a failure creates nothing
+  - [ ] A closure added between creation and approval: the affected occurrence raises a UC-073 exception, is not created, and the others are
   - [ ] Expiry job auto-cancels a real seeded past-deadline row
 - Tenant isolation:
-  - [ ] Generation/approval never cross tenant boundary
+  - [ ] Materialization/approval never cross tenant boundary
 - E2E: none — covered by S13
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
@@ -859,7 +865,7 @@ Add a "Solicitações recorrentes" tab/filter to the existing Agenda queue surfa
 
 ---
 
-### M23-S16 — Surface recurringHorizonDays in the Service booking-policy dashboard panel
+### M23-S16 — Surface recurringHorizonDays (a recurring schedule's maximum term) in the Service booking-policy dashboard panel
 
 **Agent:** frontend-ts + bff-ts
 **Complexity:** S
@@ -870,6 +876,7 @@ Add a "Solicitações recorrentes" tab/filter to the existing Agenda queue surfa
 **Discovered:** 2026-09-28, while wrapping up M23-S04 (PR #521) — the field was added to the backend/BFF request-validation schema and domain layer, but no story in this milestone ever surfaced it in the dashboard, and the two TypeScript response-type declarations (`@ikaro/types` and the BFF's own internal type) were never updated to match.
 
 **Description:**
+**Meaning (2026-09-29, fixed-term recurrence):** this field is the *maximum term* of a recurring schedule for the service — a customer's `endsOn` may not be later than `startsOn` + this many days (90 by default). It no longer sets a rolling generation window. The label and help text below say so ("Duração máxima de uma reserva recorrente, em dias" / equivalent in `en`), and the help text also explains that null means the 90-day platform default.
 `Service.bookingPolicy.recurringHorizonDays` (nullable, null inherits the 90-day platform default `DEFAULT_RECURRING_HORIZON_DAYS`) was added by M23-S04 to the backend domain/validation layer only. The BFF already forwards it transparently at runtime (`services.mapper.ts`'s `bookingPolicy: service.bookingPolicy` passthrough, and the shared `UpdateServiceBookingPolicySchema` already validates it on write) — but both `ServiceBookingPolicyItem` (`packages/types/src/service.dto.ts`) and `ServiceBookingPolicyDetail` (`apps/bff/src/features/booking/services.types.ts`) are missing the field, so TypeScript doesn't know it exists, and the dashboard's "Políticas de reserva" tab has no control to set or view it. Without this, a tenant has no way to override the 90-day default — the field is permanently `null` in practice.
 
 Add `recurringHorizonDays: number | null` to both type declarations (no runtime/mapper logic change needed — the value already round-trips). Add a nullable number input to `PolicyWhoHowCard`, directly below the `recurrenceEligible` checkbox (it only makes sense once recurrence is enabled) — reuse the existing local `toNumberInput`/`parseNullableNumber` helpers already in the same file for `maxBookingAdvanceDaysOverride`'s identical nullable-number shape. Client-side bound: 1–365, matching the backend's own `z.number().int().positive().max(365)` — out-of-range submission surfaces via the panel's existing `resolveErrorMessageFromApiError` path (`handleSave`'s catch block), no new error-handling plumbing.
@@ -907,7 +914,7 @@ Add `recurringHorizonDays: number | null` to both type declarations (no runtime/
 **Agent:** frontend-ts
 **Complexity:** L
 **Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md (customer-account equivalent), docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
-**Dependencies:** M23-S04 (`POST /recurring-booking-schedules`, already ✅ Done), M23-S12 (the `recurring-schedules` route tree, list page and data hook this story extends), M23-S05 (the success copy describes its generation worker; the `PENDING_APPROVAL` branch resolves through it and M23-S13), M23-S18 (owns the single `409` occurrence-list payload that `06b` and `06d` render, so this story has no backend or BFF work)
+**Dependencies:** M23-S04 (`POST /recurring-booking-schedules`, already ✅ Done), M23-S12 (the `recurring-schedules` route tree, list page and data hook this story extends), M23-S05 (the success copy describes its one-shot materialization; the `PENDING_APPROVAL` branch resolves through it and M23-S13), M23-S18 (owns the single `409` occurrence-list payload that `06b` and `06d` render, so this story has no backend or BFF work)
 **Pattern:** plain composition — a form, a review step and one result component driven by a discriminated-union outcome type (one variant per HTTP outcome), extending S12's my-account components; no new named pattern.
 
 **Discovered:** 2026-09-29, while implementing TD45-S0 (PR #532), by asking whether any customer-side UI creates a recurring schedule. Verified by searching every M23 frontend story, every prototype and the web code: none does. M23-S11 (booking flow) has no recurrence screen, M23-S12 is explicitly "the management surface only", M23-S13 is the staff approval queue, the prototypes `06b`/`06c` showed only the *results* of a creation (no screen collected the pattern), and no web code calls `POST /recurring-booking-schedules`.
@@ -927,16 +934,17 @@ Add the customer-side creation flow for a recurring private reservation: a patte
    | `201` `ACTIVE` | `13c` |
    | `201` `PENDING_APPROVAL` | `06c` (with `approvalHoldExpiresAt`) |
    | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `06b` — lists the conflicting occurrences from the `409` body (M23-S18) |
-   | `409` (working hours / closures — only if M23-S18 locks "reject at creation") | `06d` — the same occurrence list with `CLOSED` / `OUTSIDE_HOURS` reasons |
+   | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` whose list carries `CLOSED` / `OUTSIDE_HOURS` reasons (M23-S18 locked "reject at creation") | `06d` — the same occurrence list with those reasons; occupancy and hours reasons can appear together in one list |
    | `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `13d` |
-   | `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` / `400` | `13e`, state A |
+   | `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` (missing, reversed or over-cap end date) / `400` | `13e`, state A |
    | `422` `BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE` | unreachable by design (the list is filtered) — treated as a generic failure |
    | network / `5xx` | `13e`, state B — the typed pattern is preserved |
-7. **Validation** (only rules the backend really enforces): at least one weekday; `endsOn` not before `startsOn` (equal is allowed — `RecurringBookingScheduleInvalidDateRangeError`); exactly one resource for `FIXED_ASSIGNMENT`. The client applies the same rules and shows the existing `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` message for the date rule.
-8. **Transport and tenant.** A `bffClient` mutation (React Query) inside `features/customer`; `tenantId` only from `useTenant()`; no raw `fetch()`. "Today" (the earliest start date) is computed in the tenant's timezone, never the browser clock.
-9. **Bundled services cannot recur** (single-resource only today), so no multi-resource picker is drawn or built — `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
-10. **Reusable by staff.** M23-S19 (staff creating on a customer's behalf) reuses the service filter, the request-body builder, the validation and the outcome mapper, so keep them as pure functions with no `CustomerShell` or my-account imports; where they live is M23-S19's decision D.
-11. **The occurrence list comes from M23-S18.** `06b` (and `06d`) render the `409` body's list of `{ occurrenceStart, reason }` with `reason` one of `OCCUPIED`, `CLOSED` or `OUTSIDE_HOURS`, a single payload that M23-S18 owns; this story adds no backend or BFF change. Suggesting an alternative resource (shown by the original discovery prototype) is a much larger feature and is not part of this story.
+7. **Fixed term, end date required.** The customer always chooses an end date, up to the service's maximum term (`recurringHorizonDays`, 90 by default — read from the service the form already loads, or a fixed 90 until the service DTO exposes it; decided at this story's `/story-discovery`); the date picker's latest selectable date is `startsOn` + the term, and the review step shows "até dd/mm". The prototype files `13`, `13b` and `13e` gain the end-date field as part of this story's Files (a journey change, done inside this story, not now).
+8. **Validation** (only rules the backend really enforces): at least one weekday; `endsOn` required, not before `startsOn` (equal is allowed) and not later than `startsOn` + the maximum term (`RecurringBookingScheduleInvalidDateRangeError`); exactly one resource for `FIXED_ASSIGNMENT`. The client applies the same rules and shows the existing `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` message for the date rule.
+9. **Transport and tenant.** A `bffClient` mutation (React Query) inside `features/customer`; `tenantId` only from `useTenant()`; no raw `fetch()`. "Today" (the earliest start date) is computed in the tenant's timezone, never the browser clock.
+10. **Bundled services cannot recur** (single-resource only today), so no multi-resource picker is drawn or built — `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
+11. **Reusable by staff.** M23-S19 (staff creating on a customer's behalf) reuses the service filter, the request-body builder, the validation and the outcome mapper, so keep them as pure functions with no `CustomerShell` or my-account imports; where they live is M23-S19's decision D.
+12. **The occurrence list comes from M23-S18.** `06b` (and `06d`) render the `409` body's list of `{ occurrenceStart, reason }` with `reason` one of `OCCUPIED`, `CLOSED` or `OUTSIDE_HOURS`, a single payload that M23-S18 owns; this story adds no backend or BFF change. Suggesting an alternative resource (shown by the original discovery prototype) is a much larger feature and is not part of this story.
 
 **Decisions left for this story's `/story-discovery`** (each was deliberately not settled when the prototype was drawn):
 - **A. Entry point.** Default drawn: a "Reservas recorrentes" link on the Agendamentos page → the list → a create button. Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement in `CustomerShell` (new tab vs. folded into Agendamentos) is S12's open UI decision too.
@@ -971,7 +979,7 @@ Add the customer-side creation flow for a recurring private reservation: a patte
 
 **Acceptance criteria — technical:**
 - Unit (Vitest, jsdom):
-  - [ ] `NewRecurringScheduleForm` offers only eligible services, shows the resource field only for a `CUSTOMER_CHOICE` requirement, requires at least one weekday, blocks an end date before the start date and allows an equal one
+  - [ ] `NewRecurringScheduleForm` offers only eligible services, shows the resource field only for a `CUSTOMER_CHOICE` requirement, requires at least one weekday and an end date, blocks an end date before the start date or later than the maximum term, and allows an equal one
   - [ ] The submit builds the exact `POST` body for both policies — `FIXED_ASSIGNMENT` with exactly one `resourceIds` entry, `RESOLVE_PER_OCCURRENCE` with none
   - [ ] The outcome mapper is table-driven: every status/code in decision 6 lands on its variant, including the unreachable `INELIGIBLE_SERVICE` falling back to the generic failure
   - [ ] `NewRecurringScheduleResult` renders each outcome with its own copy in both locales; `PENDING_APPROVAL` shows the protected-until time from `approvalHoldExpiresAt`
@@ -989,79 +997,85 @@ Add the customer-side creation flow for a recurring private reservation: a patte
 
 ---
 
-### M23-S18 — Recurring-schedule creation checks working hours and closures
+### M23-S18 — Recurring-schedule creation: fixed term, working hours and closures, one conflict payload
 
 **Agent:** backend-ts
-**Complexity:** M
-**Docs to load:** docs/04-USE_CASES.md UC-070 and UC-073, docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/27-BUSINESS_LOGIC_REFERENCE.md § Two-layer creation-time conflict check, docs/21-TENANTS_SETTINGS_SCHEMA.md (`businessHours`), docs/ENGINEERING_RULES_BACKEND.md § Transactions, docs/ENGINEERING_RULES_SHARED.md § Adding a new error — checklist
-**Dependencies:** M23-S04 (✅ Done — the request use case this extends), TD45-S0 (✅ Done, PR #532 — the batched conflict check this story sits next to). M23-S05 depends on **this** story, not the other way round: its generation job uses the shared check below, so S18 lands first.
+**Complexity:** L
+**Docs to load:** docs/04-USE_CASES.md UC-070 and UC-073, docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule, docs/13-DATABASE_SCHEMA.md § `booking.recurring_booking_schedules`, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/27-BUSINESS_LOGIC_REFERENCE.md § Creation-time checks, docs/21-TENANTS_SETTINGS_SCHEMA.md (`businessHours`), docs/ENGINEERING_RULES_BACKEND.md § Transactions and § Migration backfills, docs/ENGINEERING_RULES_SHARED.md § Adding a new error — checklist
+**Dependencies:** M23-S04 (✅ Done — the request use case this extends), TD45-S0 (✅ Done, PR #532 — the batched conflict check this story sits next to). M23-S05 depends on **this** story, not the other way round: it runs the same check again at approval.
 **Pattern:** plain composition — one in-memory pass over the pattern's occurrences that calls the existing `AvailabilityService.isWindowFree()` with occupancy ignored, fed by a fixed number of range queries; no new named pattern.
 
 **Discovered:** 2026-09-29, while implementing TD45-S0 (PR #532), by asking whether the recurring-schedule conflict check considers working hours and closures. It does not.
-**Root cause:** `assertPatternConflictFree()` (`apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts:113`) checks `resource_occupancy` only, and nothing else on the request path references business hours, resource working hours, closures or openings. UC-070's main flow says only "resource-conflict-checks the proposed schedule". Hours and closures are applied by the availability computation, so a customer picking a one-off slot can only choose an open one; a recurring pattern is not picked from offered slots, so nothing constrains it. (The one-off `POST /bookings` path has no server-side hours or closure check either — it relies on the offered slots — and is out of scope here.)
+**Root cause:** `assertPatternConflictFree()` (`apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts`) checks `resource_occupancy` only, and nothing else on the request path references business hours, resource working hours, closures or openings. UC-070's main flow says only "resource-conflict-checks the proposed schedule". Hours and closures are applied by the availability computation, so a customer picking a one-off slot can only choose an open one; a recurring pattern is not picked from offered slots, so nothing constrains it. (The one-off `POST /bookings` path has no server-side hours or closure check either — it relies on the offered slots — and is out of scope here.)
 
 **Description:**
-Make creating a recurring schedule aware of the same rule availability uses, so a pattern that can never be honored is dealt with when it is requested instead of failing quietly later. Today M23-S05's plan skips an hours-conflicted occurrence at generation and only records a metric, so a customer can silently lose occurrences of what UC-070 calls "a standing commitment, not a best-effort reminder"; UC-073 covers only a change made *after* a commitment exists. Two consequences shape this story: the check has to be shared with M23-S05's generation job (S05's plan claims to skip hours-conflicted occurrences, but the resolver it reuses checks occupancy only, and occurrences beyond the creation-time horizon can only be evaluated at generation), and this story owns the shape of the `409` body for every creation-time refusal that concerns specific occurrences, so that M23-S17 renders a single payload.
+Make creating a recurring schedule aware of the same rule availability uses, so a pattern that can never be honored is refused when it is requested instead of failing quietly later. At discovery the design was also made a fixed term: an open-ended schedule keeps generating occurrences nobody validated (and holds slots for customers who stopped using the service and forgot to end it), so `endsOn` becomes required and capped, every occurrence of the term is checked here, and M23-S05 materializes exactly those occurrences once. This story therefore owns three things: the term validation, the hours-and-closures check, and the body of the `409` for every creation-time refusal that concerns specific occurrences, so that M23-S17 renders a single payload.
 
-**Decisions already made (state as fact, do not re-derive):**
-1. **One source of truth.** Reuse `AvailabilityService.isWindowFree(date, businessHours, { resource, closures, opening, resourceOpening }, window, [])` with an empty occupancy list. It already combines business hours, the resource's own working hours, full and partial closures, and tenant-wide and resource-scoped openings. No new hours logic is written, so creation and availability cannot disagree.
-2. **A fixed number of queries.** Load once: `IBookingPlatformPort.getBusinessHoursAndLocale(tenantId)`, and the closures and openings for the pattern's date range through `IScheduleClosureRepository.findByTenantAndDateRange` / `IScheduleOpeningRepository.findByTenantAndDateRange` (tenant-wide and per considered resource), then group by date in memory. The query count does not depend on the number of occurrences — the same principle as TD45-S0.
-3. **The same per-policy rules as the occupancy check**, decided per occurrence: `FIXED_ASSIGNMENT` — the chosen resource must be open; `AUTO_ANY` — at least one eligible resource must be open; `AUTO_FUNGIBLE_POOL` — the first eligible resource must be open. It reuses the resources the conflict check already resolves, in the same pass.
-4. **Timezone.** The check needs each occurrence's tenant-local calendar date, which `enumerateRecurrenceOccurrences()` already returns (`occurrenceStartLocalDate`); `ConflictCheckParams.occurrences` is widened from `{ occurrenceStart }` to carry it. `isWindowFree` converts the window to tenant-local HH:mm with `businessHours.timezone`.
-5. **Read-only, no lock.** The check adds no write and no lock; a closure created after it is UC-073's job. It runs before the occupancy check so a schedule that can never be honored is refused without taking any advisory lock.
-6. **Scope.** Only occurrences inside the horizon at creation (90 days by default) are evaluated at creation; later ones are evaluated when generated, by the same check (decision 7).
-7. **Shared with generation.** The in-memory pass is an exported pure function, callable without the request context, that M23-S05's generation job also runs for every occurrence it materializes — occurrences beyond the creation-time horizon, and closures added since creation, can only be caught there. S05 depends on this story. What S05 does with a failing occurrence is the behavior locked by the decision below.
-8. **One conflict payload.** This story owns the body of the `409` for every creation-time refusal that concerns specific occurrences: a list of `{ occurrenceStart, reason }` where `reason` is `OCCUPIED` (an existing booking or hold), `CLOSED` (a closure or a normally-closed day) or `OUTSIDE_HOURS`. `IResourceOccupancyRepository.findConflictingWindows()` (TD45-S0) already returns the conflicting occupancy windows, so the existing occupancy conflict (`BOOKING_RECURRING_SCHEDULE_CONFLICT`) gains its list here even if no hours violation is ever rejected at creation. M23-S17's `06b` and `06d` render this one payload; the customer-facing screens stay in S17.
+**Decisions already made at `/story-discovery` (2026-09-29 — state as fact, do not re-derive):**
+1. **What happens on a violation: reject the whole request** with a `409` listing each affected occurrence and why, atomic like UC-070 A1. Nothing is created. The prototype `06d-reserva-recorrente-erro-horario.html` draws this.
+2. **Fixed term.** `endsOn` is required and must satisfy `startsOn ≤ endsOn ≤ resolveHorizonEndDate(startsOn, recurringHorizonDays)` (90 days by default, capped at 365 by the shared schema). Enforced in the aggregate (`RecurringBookingScheduleInvalidDateRangeError`, `422` — the same error as a reversed range, now also for a missing or over-cap date), in the request schemas, and at the DB: a migration backfills any `ends_on IS NULL` row to `starts_on` + 90 days and then sets `ends_on NOT NULL` (pre-production, tiny table — verify M17 go-live status per `docs/DEFINITION_OF_DONE.md` before relying on the exception, otherwise keep the backfill and use expand/contract). `docs/13-DATABASE_SCHEMA.md`'s `ends_on` row changes in the same commit. A schedule whose `endsOn` has passed is shown as ended — derived, no status transition and no job.
+3. **One source of truth.** Reuse `AvailabilityService.isWindowFree(date, businessHours, { resource, closures, opening, resourceOpening }, window, [])` with an empty occupancy list. It already combines business hours, the resource's own working hours, full and partial closures, and tenant-wide and resource-scoped openings. No new hours logic is written, so creation and availability cannot disagree.
+4. **The window checked is the occupancy window**, `occurrenceStart → start + durationMinutes + effectiveFlatGapMinutes(service.bufferAfterMinutes, resource.turnoverMinutes)` — `buildOccurrenceWindows()` already computes it per (resource × occurrence). This is what the resource-scoped availability path passes to `isWindowFree()`, so a slot availability would not offer (its buffer or turnover runs past closing time) is refused here too. (Corrected during discovery: a first proposal of duration-only was wrong.)
+5. **A fixed number of queries.** Load once: `IBookingPlatformPort.getBusinessHoursAndLocale(tenantId)`; tenant-wide closures and openings with the existing `findByTenantAndDateRange(tenantId, from, to)` — verified at discovery: with `resourceId` omitted it returns **tenant-wide records only** (`resourceId ?? IsNull()`); and resource-scoped ones with **one new batched method per port**, `findByTenantAndResourcesAndDateRange(tenantId, resourceIds, from, to)` on `IScheduleClosureRepository` and `IScheduleOpeningRepository` (adapters plus their `InMemoryXxx` doubles), so the count stays constant even for `AUTO_ANY`'s whole eligible pool. Then group by tenant-local date in memory.
+6. **The same per-policy rules as the occupancy check**, decided per occurrence: `FIXED_ASSIGNMENT` — the chosen resource must be open; `AUTO_ANY` — at least one eligible resource must be open; `AUTO_FUNGIBLE_POOL` — the first eligible resource must be open. It reuses the resources the conflict check already resolves, in the same pass.
+7. **Timezone.** The check needs each occurrence's tenant-local calendar date, which `enumerateRecurrenceOccurrences()` already returns (`occurrenceStartLocalDate`); `ConflictCheckParams.occurrences` is widened from `{ occurrenceStart }` to carry it. `isWindowFree` converts the window to tenant-local HH:mm with `businessHours.timezone`; a window that crosses local midnight is compared as availability compares it today (accepted, pinned by a test).
+8. **Read-only, no lock, runs first.** The check adds no write and no lock; it runs before the occupancy check so a schedule that can never be honored is refused without taking any advisory lock. A closure created after it is UC-073's job.
+9. **Reused at approval.** The in-memory pass is an exported pure function, callable without the request context. M23-S05 runs it again when staff approves a `MANUAL_APPROVAL` schedule; an occurrence that no longer passes raises a UC-073 exception there instead of being materialized. There is no generation job, so nothing else needs it.
+10. **One conflict payload, one code.** The `409` keeps `BOOKING_RECURRING_SCHEDULE_CONFLICT` (no new code, no i18n change) and gains `conflicts: [{ occurrenceStart, reason }]`, `reason` being `OCCUPIED` (an existing booking or hold, from `IResourceOccupancyRepository.findConflictingWindows()`), `CLOSED` (a closure or a normally-closed day) or `OUTSIDE_HOURS`. Hours and occupancy violations are merged into one list, not truncated. The item type is defined once in `@ikaro/types` (`packages/types/src/errors.dto.ts`), which the web reads. M23-S17's `06b` and `06d` render this one payload.
 
-**Decision left for this story's `/story-discovery` — what happens on a violation (a business decision, not a code question):**
-- **(1) Reject the whole request at creation** with a `409` listing each affected occurrence and why (`CLOSED` / `OUTSIDE_HOURS`), atomic like UC-070 A1. Recommended: creation is already all-or-nothing, and UC-070 calls a recurrence a standing commitment. The prototype `06d-reserva-recorrente-erro-horario.html` draws this option.
-- **(2) Accept, and skip at generation** (what M23-S05 plans today) — the customer silently loses occurrences.
-- **(3) Accept, and raise a UC-073 future-commitment exception at generation** instead of skipping.
-
-Whichever is locked is what M23-S05's generation job does with an occurrence that fails the shared check later (skip with a metric, or raise a UC-073 exception) — rejection is only possible at creation. If (2) or (3) wins, this story shrinks to the shared check plus the occupancy payload, `06d` is discarded, and the `CLOSED` / `OUTSIDE_HOURS` reasons go unused at creation. Also verify at discovery: whether `findByTenantAndDateRange` with `resourceId` omitted returns tenant-wide records only or both scopes, and — if (1) — whether the refusal is a new `BOOKING_RECURRING_SCHEDULE_OUTSIDE_HOURS` `409` or the existing conflict code carrying `CLOSED` / `OUTSIDE_HOURS` reasons.
-
-**Backend use case steps:** `RequestRecurringBookingScheduleUseCase` keeps its order (lock → prepare and eligibility → cap → active-schedule overlap → pattern checks → build → save); the hours-and-closures pass runs first inside the pattern checks, then the occupancy conflict check, which now also returns the conflicting windows.
-**Backend HTTP surface:** reuses `POST /recurring-booking-schedules`; the `409` body gains the occurrence list of decision 8, and the hours refusal follows the decision above.
-**BFF endpoint spec:** none — the BFF stays a thin proxy; verify at discovery that the extended problem-details body passes through unchanged and that a new error code needs no BFF mapping.
-**Prototype references:** `plan/journey/customer/prototypes/minha-conta/06b-reserva-recorrente-erro.html` (the occupancy conflict with its dates), `06d-reserva-recorrente-erro-horario.html` (a proposal, only if option (1) is locked) and `plan/journey/customer/minha-conta.md`. The customer-facing screens themselves belong to M23-S17.
-**New migration / i18n keys / env vars / feature flags:** no migration, env var or feature flag. If option (1): a new error code in `packages/types/src/error-codes.ts` and a translation in **both** `packages/i18n/locales/{pt-BR,en}/errors.json` in the same commit (CI's exhaustiveness test enforces it).
+**Backend use case steps:** `RequestRecurringBookingScheduleUseCase` keeps its order (lock → prepare and eligibility → cap → active-schedule overlap → pattern checks → build → save); the term validation runs with the eligibility checks, before any lock; inside the pattern checks the hours-and-closures pass runs first, then the occupancy conflict check, and both contribute to the one `conflicts` list before the error is thrown.
+**Backend HTTP surface:** reuses `POST /recurring-booking-schedules`; the `409` body gains `conflicts`; the `422` also covers a missing or over-cap `endsOn`.
+**BFF endpoint spec:** none — the BFF stays a thin proxy. Verify that the extended problem-details body passes through `backendHttp` unchanged (add a BFF unit test for it) and that the request schema accepts and requires `endsOn`.
+**Prototype references:** `plan/journey/customer/prototypes/minha-conta/06b-reserva-recorrente-erro.html` (the occupancy conflict with its dates), `06d-reserva-recorrente-erro-horario.html` (now the chosen design) and `plan/journey/customer/minha-conta.md`. The customer-facing screens themselves, including the new end-date field, belong to M23-S17.
+**New migration / i18n keys / env vars / feature flags:** one migration (`ends_on` backfill + `NOT NULL`, with `integration-global-setup.ts` unaffected since no new entity); no new error code and no i18n keys; no env var or feature flag.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-hours.helpers.ts` (+ spec) (new — the exported in-memory pass, shared with M23-S05's generation job; kept out of the existing helpers file to stay under its length limit)
-- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts` (+ `recurring-booking-schedule-request.helpers.spec.ts`) (modify — widen `ConflictCheckParams.occurrences`, call the new pass first, and return the conflicting windows from the occupancy check)
-- `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.ts` (+ spec) (modify — inject the closure and opening repositories, load the range once)
-- `apps/backend/src/contexts/booking/domain/errors/recurring-booking-schedule.error.ts` (modify — the conflict error carries the windows and reasons; a new error class only if option (1))
-- `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (+ `booking-error.mapper.spec.ts`) (modify — expose the occurrence list in the problem-details body; a new mapping only if option (1))
-- `packages/types/src/error-codes.ts` and `packages/i18n/locales/{pt-BR,en}/errors.json` (modify — only if option (1))
-- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.integration.spec.ts` (modify — real closures, openings and business hours)
-- `apps/backend/http/booking/recurring-booking-schedules.http` (modify — the new `409` case)
-- `docs/04-USE_CASES.md` (UC-070 alternative flow), `docs/14-API_CONTRACTS.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md`, `docs/02-DOMAIN_MODEL.md` (modify — the locked behavior)
-- `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/dev-notes.md`, `plan/journey/customer/prototypes/minha-conta/index.html` (modify — record the decision; drop `06d` if option (1) is not chosen)
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-hours.helpers.ts` (+ spec) (new — the exported in-memory pass, reused by M23-S05's approval step; kept out of the existing helpers file to stay under its length limit)
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts` (+ `recurring-booking-schedule-request.helpers.spec.ts`) (modify — widen `ConflictCheckParams.occurrences`, call the new pass first, return the conflicting windows from the occupancy check)
+- `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.ts` (+ spec) (modify — term validation, inject the closure and opening repositories, load the range once)
+- `apps/backend/src/contexts/booking/application/ports/schedule-closure-repository.port.ts`, `schedule-opening-repository.port.ts`, their TypeORM adapters and `InMemoryXxx` doubles (+ specs, integration specs) (modify — the batched `findByTenantAndResourcesAndDateRange`)
+- `apps/backend/src/contexts/booking/domain/recurring-booking-schedule.aggregate.ts`, `recurring-booking-schedule.types.ts` (+ specs) (modify — `endsOn` required and capped)
+- `apps/backend/src/contexts/booking/infrastructure/entities/recurring-booking-schedule.entity.ts`, `.../typeorm-recurring-booking-schedule.mapper.ts` (+ specs), and a new migration under `apps/backend/src/contexts/booking/infrastructure/migrations/` (modify/new — `ends_on NOT NULL`, backfill first); `src/test/builders/booking/` builder default for `endsOn`
+- `apps/backend/src/contexts/booking/domain/errors/recurring-booking-schedule.error.ts` (modify — the conflict error carries the occurrences and reasons)
+- `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (+ `booking-error.mapper.spec.ts`) (modify — expose `conflicts` in the problem-details body)
+- `packages/types/src/errors.dto.ts` (modify — the shared `conflicts` item type); `packages/validation/src/booking.ts` and `apps/bff/src/features/booking/recurring-booking-schedules.types.ts` (+ specs) (modify — `endsOn` required; grep the field in both layers per the schema-duplication rule)
+- `apps/bff/src/features/booking/recurring-booking-schedules.controller.spec.ts` (modify — the `409` body passes through unchanged)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.integration.spec.ts` (modify — real closures, openings, business hours and term validation)
+- `apps/backend/http/booking/recurring-booking-schedules.http` (modify — the new `409` and `422` cases)
+- `docs/13-DATABASE_SCHEMA.md` (the `ends_on` row) and any of `docs/04-USE_CASES.md`, `docs/14-API_CONTRACTS.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md`, `docs/02-DOMAIN_MODEL.md` that drift from the behavior as built (already updated at discovery)
+- `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/dev-notes.md`, `plan/journey/customer/prototypes/minha-conta/index.html` (modify — record the decision; `06d` stays)
 
 **Acceptance criteria — product:**
-- [ ] A recurring schedule whose occurrences fall on a closed day, inside a closure, or outside the resource's or business's hours is handled as decided at discovery (recommended: refused with the affected occurrences and reasons, nothing created).
+- [ ] A recurring schedule must have an end date no later than the service's maximum term after its start; a missing or too-late end date is refused.
+- [ ] A recurring schedule whose occurrences fall on a closed day, inside a closure, or outside the resource's or business's hours is refused with the affected occurrences and reasons, and nothing is created.
 - [ ] A pattern entirely on open days and inside working hours behaves exactly as before.
-- [ ] The rule a customer hits at creation is the same rule that decides whether a slot is offered by availability.
-- [ ] A refusal names every affected occurrence and why — an existing booking or hold, a closure or closed day, or outside working hours — so the customer can fix the pattern.
-- [ ] M23-S05's generation job applies the same rule to the occurrences it creates later.
+- [ ] The rule a customer hits at creation is the same rule that decides whether a slot is offered by availability, including a service's trailing buffer or a resource's turnover.
+- [ ] A refusal names every affected occurrence and why — an existing booking or hold, a closure or closed day, or outside working hours — so the customer can fix the pattern in one round.
+- [ ] M23-S05 applies the same rule again when staff approves a waiting request.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The pass is exported and takes the resources, dates and schedule data as plain input, so the generation job can call it without the request context
+  - [ ] The pass is exported and takes the resources, dates and schedule data as plain input, so the approval step can call it without the request context
   - [ ] Rejects an occurrence on a full-day closure, one overlapped by a partial closure, one outside business hours, and one on a normally-closed weekday with no opening
   - [ ] Accepts a normally-closed day that a tenant-wide or resource-scoped opening makes open; respects a resource whose working hours are narrower than the business's
   - [ ] Per policy: `FIXED_ASSIGNMENT` (the chosen resource), `AUTO_ANY` (one open resource is enough), `AUTO_FUNGIBLE_POOL` (the first eligible resource)
-  - [ ] Loads closures and openings once for the whole range — the query count is the same for 3 and for 90 occurrences (spies on the in-memory repositories)
-  - [ ] Parity: the batched verdicts equal `isWindowFree()` evaluated occurrence by occurrence
+  - [ ] The checked window includes the effective trailing gap: an occurrence whose buffer or turnover ends after closing is refused, one whose gap ends exactly at closing is accepted
+  - [ ] Loads closures and openings a constant number of times for the whole term — the query count is the same for 3 and for 90 occurrences, and for 1 and for 5 considered resources (spies on the in-memory repositories)
+  - [ ] Parity: the batched verdicts equal `isWindowFree()` evaluated occurrence by occurrence, over the same windows
   - [ ] Timezone: an occurrence near local midnight, and a tenant in a timezone with DST, are evaluated on the tenant-local date
-  - [ ] The occupancy conflict error carries every conflicting occurrence with reason `OCCUPIED`; if option (1), the hours error carries `CLOSED` / `OUTSIDE_HOURS` the same way
+  - [ ] Term: `endsOn` missing, before `startsOn`, one day past the cap → `RecurringBookingScheduleInvalidDateRangeError`; `endsOn` equal to `startsOn` and exactly at the cap → accepted; a service with `recurringHorizonDays` set uses it, `null` uses 90
+  - [ ] The conflict error carries every affected occurrence with its reason (`OCCUPIED`, `CLOSED`, `OUTSIDE_HOURS`), hours and occupancy merged into one list ordered by `occurrenceStart`
 - Integration:
   - [ ] Real Postgres: an existing booking on only the 5th occurrence returns `409` whose body lists exactly that occurrence with reason `OCCUPIED`, and nothing is persisted
-  - [ ] Real Postgres: a closure on only the 5th occurrence returns `409` (if option (1)) listing it with reason `CLOSED`, nothing persisted; the same request with the closure on another day returns `201`
+  - [ ] Real Postgres: a closure on only the 5th occurrence returns `409` listing it with reason `CLOSED`, nothing persisted; the same request with the closure on another day returns `201`
   - [ ] A resource-scoped closure affects only requests that use that resource; a tenant-wide closure affects all
-  - [ ] Real tenant business hours narrower than the requested time are refused
+  - [ ] Real tenant business hours narrower than the requested time are refused (`OUTSIDE_HOURS`)
+  - [ ] A request with a closure on one occurrence and a booking on another returns one `409` listing both
+  - [ ] The migration backfills a null `ends_on` row and the column is `NOT NULL` afterwards
 - Tenant isolation:
   - [ ] Another tenant's closures, openings and business hours never affect the request
+- BFF:
+  - [ ] The `409` body's `conflicts` list reaches the client unchanged; the create schema rejects a request without `endsOn`
 - E2E: none — the customer-facing state is covered by M23-S17
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
@@ -1073,7 +1087,7 @@ Whichever is locked is what M23-S05's generation job does with an occurrence tha
 **Agent:** frontend-ts
 **Complexity:** M
 **Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md, docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
-**Dependencies:** M23-S17 (the pattern rules, service filter, request builder and outcome mapping this story reuses), M23-S13 (the Agenda's recurring-requests tab, and the recurring fetcher module), M23-S05 (approval and generation)
+**Dependencies:** M23-S17 (the pattern rules, service filter, request builder and outcome mapping this story reuses), M23-S13 (the Agenda's recurring-requests tab, and the recurring fetcher module), M23-S05 (approval and materialization)
 **Pattern:** plain composition — reuses M23-S17's pure logic (service filter, request-body builder, outcome mapper, validation rules) and adds only a customer step and the dashboard shell; no new named pattern.
 
 **Discovered:** 2026-09-29, while closing the gaps around M23-S17. UC-070 allows staff to create a recurring schedule on a customer's behalf, and `POST /recurring-booking-schedules` already accepts it (`@Roles('CUSTOMER', 'MANAGER', 'STAFF')`, body `customerId`), but no story and no prototype builds a staff-facing UI for it, and the staff dashboard has no create-on-behalf flow of any kind (`apps/web/app/dashboard/bookings/` holds only the queue and the detail page).
@@ -1085,7 +1099,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
 1. **No backend or BFF change is needed for the flow itself.** The controller already allows `STAFF|MANAGER`, and the use case takes `customerId` from the body for a staff actor: it requires an active staff member and an existing customer, otherwise `404` `BOOKING_CUSTOMER_NOT_FOUND` (also returned when `customerId` is missing).
 2. **Customer picker.** The existing `searchCustomers()` in `apps/web/features/customer/api.ts` (`GET /customers?search=&limit=`, `STAFF|MANAGER`), debounced like `LoyaltySearchPage`; with no term it returns the recent customers. A result carries `customerId`, `name`, `email` (and `currentPoints`, not shown). Only customers with an account in the tenant exist in it, and a guest can never have a recurrence.
 3. **Design system.** The dashboard shell (Tailwind + shadcn), never the hotsite's `--ba-*` variables.
-4. **Rules come from M23-S17, not a second copy.** The eligible-service filter (`recurrenceEligible`, `APPOINTMENT`, no `legs`, exactly one requirement), the resource field (only for `CUSTOMER_CHOICE`, exactly one `resourceIds` entry), the read-only duration, the validation (a weekday required, `endsOn` not before `startsOn`) and the outcome mapping are M23-S17's; this story adds the `customerId` to the request and the extra `404` outcome.
+4. **Rules come from M23-S17, not a second copy.** The eligible-service filter (`recurrenceEligible`, `APPOINTMENT`, no `legs`, exactly one requirement), the resource field (only for `CUSTOMER_CHOICE`, exactly one `resourceIds` entry), the read-only duration, the validation (a weekday required, `endsOn` required, not before `startsOn` and not beyond the maximum term) and the outcome mapping are M23-S17's; this story adds the `customerId` to the request and the extra `404` outcome.
 5. **Outcome mapping** (all codes already translated in both `errors.json` files):
    | Outcome | Panel (`09c`) |
    |---|---|
