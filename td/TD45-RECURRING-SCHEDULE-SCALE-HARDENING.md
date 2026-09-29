@@ -68,7 +68,7 @@ Preserved behavior: zero occurrences remain a no-op (return before loading anyth
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-## Story 1 — Paginate GET /recurring-booking-schedules
+## Story 1 — Paginate GET /recurring-booking-schedules ✅ Done
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** S
