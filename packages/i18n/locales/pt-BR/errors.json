@@ -25,7 +25,7 @@
   "BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES": "Só é possível incluir um serviço de duração variável ou com formulário na mesma reserva.",
   "BOOKING_ATTENDEE_NAME_REQUIRED": "O nome do convidado é obrigatório.",
   "BOOKING_RECURRING_SCHEDULE_NOT_FOUND": "Agendamento recorrente não encontrado.",
-  "BOOKING_RECURRING_SCHEDULE_CONFLICT": "Este horário recorrente conflita com um compromisso já existente em uma das datas futuras.",
+  "BOOKING_RECURRING_SCHEDULE_CONFLICT": "Este padrão recorrente não pode ser reservado em uma ou mais das suas datas.",
   "BOOKING_RECURRING_SCHEDULE_CAP_REACHED": "Limite de agendamentos recorrentes ativos atingido para este recurso ou serviço.",
   "BOOKING_RECURRING_SCHEDULE_NOT_ACTIVE": "Esta ação só está disponível para um agendamento recorrente ativo.",
   "BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE": "Este serviço não está habilitado para reservas recorrentes.",

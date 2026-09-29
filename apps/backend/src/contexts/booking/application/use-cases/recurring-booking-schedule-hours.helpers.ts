@@ -31,7 +31,9 @@ export interface HoursScheduleRepos {
 // A fixed number of queries (four) regardless of how many occurrences the term has or how many
 // resources are considered: tenant-wide rows via findByTenantAndDateRange (which returns
 // tenant-wide records only when resourceId is omitted) and resource-scoped rows via one batched
-// call per repository.
+// call per repository. The four reads run one after another, not in a Promise.all: the caller is
+// inside a transaction, where every query shares one connection, and concurrent queries on a
+// single pg client are deprecated.
 export async function loadHoursScheduleData(
   repos: HoursScheduleRepos,
   tenantId: string,
@@ -39,12 +41,20 @@ export async function loadHoursScheduleData(
   from: string,
   to: string,
 ): Promise<HoursScheduleData> {
-  const [tenantClosures, resourceClosures, tenantOpenings, resourceOpenings] = await Promise.all([
-    repos.closureRepo.findByTenantAndDateRange(tenantId, from, to),
-    repos.closureRepo.findByTenantAndResourcesAndDateRange(tenantId, resourceIds, from, to),
-    repos.openingRepo.findByTenantAndDateRange(tenantId, from, to),
-    repos.openingRepo.findByTenantAndResourcesAndDateRange(tenantId, resourceIds, from, to),
-  ]);
+  const tenantClosures = await repos.closureRepo.findByTenantAndDateRange(tenantId, from, to);
+  const resourceClosures = await repos.closureRepo.findByTenantAndResourcesAndDateRange(
+    tenantId,
+    resourceIds,
+    from,
+    to,
+  );
+  const tenantOpenings = await repos.openingRepo.findByTenantAndDateRange(tenantId, from, to);
+  const resourceOpenings = await repos.openingRepo.findByTenantAndResourcesAndDateRange(
+    tenantId,
+    resourceIds,
+    from,
+    to,
+  );
   return {
     closures: [...tenantClosures, ...resourceClosures],
     tenantOpenings,
@@ -105,7 +115,7 @@ export function findHoursConflicts(input: HoursCheckInput): RecurringScheduleOcc
       );
     });
     const open = input.anyOpenResourceSuffices
-      ? verdicts.some((v) => v === 'FREE')
+      ? verdicts.includes('FREE')
       : verdicts.every((v) => v === 'FREE');
     if (open) continue;
     // The first considered resource that refuses names the reason.

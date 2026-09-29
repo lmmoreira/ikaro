@@ -28,8 +28,8 @@ export interface RecurrenceOccurrence {
   // UTC instant the occurrence starts at.
   occurrenceStart: Date;
   // YYYY-MM-DD, the tenant-local calendar date the occurrence falls on — the natural key used by
-  // recurring_booking_schedule_exceptions.occurrence_start and the generation job's idempotency
-  // check (M23-S05).
+  // recurring_booking_schedule_exceptions.occurrence_start and the idempotency check of M23-S05's
+  // one-shot materialization.
   occurrenceStartLocalDate: string;
 }
 

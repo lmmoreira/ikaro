@@ -219,16 +219,20 @@ export class RequestRecurringBookingScheduleUseCase {
   ): Promise<void> {
     if (input.assignmentPolicy !== 'FIXED_ASSIGNMENT') return;
 
-    for (const resourceId of input.resourceIds) {
-      const existing = await this.scheduleRepo.findActiveByResource(input.tenantId, resourceId);
-      const candidate = {
-        recurrence: input.recurrence,
-        startsOn: input.startsOn,
-        endsOn: input.endsOn,
-      };
-      if (existing.some((schedule) => schedulesOverlap(candidate, schedule))) {
-        throw new RecurringBookingScheduleConflictError();
-      }
+    // A FIXED_ASSIGNMENT request names exactly one resource (the request schema enforces it), so
+    // this issues a single query.
+    const existingByResource = await Promise.all(
+      input.resourceIds.map((resourceId) =>
+        this.scheduleRepo.findActiveByResource(input.tenantId, resourceId),
+      ),
+    );
+    const candidate = {
+      recurrence: input.recurrence,
+      startsOn: input.startsOn,
+      endsOn: input.endsOn,
+    };
+    if (existingByResource.flat().some((schedule) => schedulesOverlap(candidate, schedule))) {
+      throw new RecurringBookingScheduleConflictError();
     }
   }
 

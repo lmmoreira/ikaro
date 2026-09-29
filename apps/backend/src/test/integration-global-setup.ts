@@ -274,8 +274,10 @@ async function startGcsEmulator(): Promise<void> {
   // adapter-level integration spec (which constructs GcsSignedUrlAdapter directly, no Nest app)
   // doesn't depend on bootstrap ordering.
   const storage = new Storage({ apiEndpoint, projectId: 'ikaro-local' });
-  for (const bucketName of ['ikaro-local', 'ikaro-local-public']) {
-    const [exists] = await storage.bucket(bucketName).exists();
-    if (!exists) await storage.createBucket(bucketName);
-  }
+  await Promise.all(
+    ['ikaro-local', 'ikaro-local-public'].map(async (bucketName) => {
+      const [exists] = await storage.bucket(bucketName).exists();
+      if (!exists) await storage.createBucket(bucketName);
+    }),
+  );
 }

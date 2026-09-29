@@ -862,16 +862,24 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const otherRoom = await newRoom();
       await closeOn(fridayDate(2), { resourceId: closedRoom });
 
-      await postFridayPattern({
+      const refused = await postFridayPattern({
         serviceId,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [closedRoom],
-      }).expect(409);
-      await postFridayPattern({
+      });
+      const accepted = await postFridayPattern({
         serviceId,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [otherRoom],
-      }).expect(201);
+      });
+
+      expect(refused.status).toBe(409);
+      expect(refused.body.conflicts).toEqual([
+        { occurrenceStart: fridayOccurrence(2).toISOString(), reason: 'CLOSED' },
+      ]);
+      expect(accepted.status).toBe(201);
+      expect(accepted.body.status).toBe('ACTIVE');
+      expect(await scheduleCount(serviceId)).toBe(1);
     });
 
     it('a tenant-wide closure affects every request', async () => {
@@ -879,11 +887,17 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const room = await newRoom();
       await closeOn(fridayDate(1));
 
-      await postFridayPattern({
+      const res = await postFridayPattern({
         serviceId,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [room],
-      }).expect(409);
+      });
+
+      expect(res.status).toBe(409);
+      expect(res.body.conflicts).toEqual([
+        { occurrenceStart: fridayOccurrence(1).toISOString(), reason: 'CLOSED' },
+      ]);
+      expect(await scheduleCount(serviceId)).toBe(0);
     });
 
     it('a partial closure overlapping the occurrence window is CLOSED', async () => {
@@ -930,20 +944,28 @@ describe('RecurringBookingScheduleController (integration)', () => {
         bufferAfterMinutes: 15,
       });
 
-      await postFridayPattern({
+      const refused = await postFridayPattern({
         serviceId: runsPastClosing,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [room],
         startTime: '17:00',
         endsOn: fridayDate(1),
-      }).expect(409);
-      await postFridayPattern({
+      });
+      const accepted = await postFridayPattern({
         serviceId: endsAtClosing,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [room],
         startTime: '17:00',
         endsOn: fridayDate(1),
-      }).expect(201);
+      });
+
+      expect(refused.status).toBe(409);
+      expect(refused.body.conflicts.map((c: { reason: string }) => c.reason)).toEqual([
+        'OUTSIDE_HOURS',
+        'OUTSIDE_HOURS',
+      ]);
+      expect(accepted.status).toBe(201);
+      expect(accepted.body.status).toBe('ACTIVE');
     });
 
     it('an opening makes a normally-closed Sunday acceptable', async () => {
@@ -1010,11 +1032,15 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const room = await newRoom();
       await closeOn(fridayDate(1), { tenantId: OTHER_TENANT_ID });
 
-      await postFridayPattern({
+      const res = await postFridayPattern({
         serviceId,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [room],
-      }).expect(201);
+      });
+
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('ACTIVE');
+      expect(await scheduleCount(serviceId)).toBe(1);
     });
 
     describe('the term', () => {
@@ -1078,19 +1104,25 @@ describe('RecurringBookingScheduleController (integration)', () => {
         const serviceId = await seedService('AUTO_CONFIRM');
         const room = await newRoom();
 
-        await postFridayPattern({
+        const atMaximum = await postFridayPattern({
           serviceId,
           assignmentPolicy: 'FIXED_ASSIGNMENT',
           resourceIds: [room],
           endsOn: addDays(nextWeekday(5), 90),
-        }).expect(201);
+        });
         const otherRoom = await newRoom();
-        await postFridayPattern({
+        const sameDay = await postFridayPattern({
           serviceId,
           assignmentPolicy: 'FIXED_ASSIGNMENT',
           resourceIds: [otherRoom],
           endsOn: nextWeekday(5),
-        }).expect(201);
+        });
+
+        expect(atMaximum.status).toBe(201);
+        expect(atMaximum.body.status).toBe('ACTIVE');
+        expect(sameDay.status).toBe(201);
+        expect(sameDay.body.status).toBe('ACTIVE');
+        expect(await scheduleCount(serviceId)).toBe(2);
       });
     });
 

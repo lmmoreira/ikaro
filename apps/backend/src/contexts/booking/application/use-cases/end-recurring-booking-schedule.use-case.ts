@@ -33,8 +33,8 @@ export interface EndRecurringBookingScheduleUseCaseResult {
 }
 
 // UC-070 A2 (end) — cancels every future, still-active occurrence already materialized by this
-// schedule (M23-S05's generation job) and releases their resource_occupancy rows; empty before
-// that job exists, which is fine — nothing to release yet.
+// schedule (M23-S05's materialization) and releases their resource_occupancy rows; empty before
+// S05 materializes anything, which is fine — nothing to release yet.
 @Injectable()
 export class EndRecurringBookingScheduleUseCase {
   constructor(

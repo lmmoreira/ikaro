@@ -20,11 +20,15 @@ export async function assertUnderCap(
   params: CapCheckParams,
 ): Promise<void> {
   if (params.assignmentPolicy === 'FIXED_ASSIGNMENT') {
-    for (const resourceId of params.resourceIds) {
-      const count = await scheduleRepo.countActiveByResource(params.tenantId, resourceId);
-      if (count >= MAX_ACTIVE_SCHEDULES_PER_RESOURCE) {
-        throw new RecurringBookingScheduleCapReachedError('resource');
-      }
+    // A FIXED_ASSIGNMENT request names exactly one resource (the request schema enforces it), so
+    // this issues a single query.
+    const counts = await Promise.all(
+      params.resourceIds.map((resourceId) =>
+        scheduleRepo.countActiveByResource(params.tenantId, resourceId),
+      ),
+    );
+    if (counts.some((count) => count >= MAX_ACTIVE_SCHEDULES_PER_RESOURCE)) {
+      throw new RecurringBookingScheduleCapReachedError('resource');
     }
     return;
   }

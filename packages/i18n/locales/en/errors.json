@@ -25,7 +25,7 @@
   "BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES": "Only one variable-duration or form-based service can be included per booking.",
   "BOOKING_ATTENDEE_NAME_REQUIRED": "Attendee name is required.",
   "BOOKING_RECURRING_SCHEDULE_NOT_FOUND": "Recurring schedule not found.",
-  "BOOKING_RECURRING_SCHEDULE_CONFLICT": "This recurring time conflicts with an existing commitment on one of the future dates.",
+  "BOOKING_RECURRING_SCHEDULE_CONFLICT": "This recurring pattern can't be booked on one or more of its dates.",
   "BOOKING_RECURRING_SCHEDULE_CAP_REACHED": "Active recurring schedule limit reached for this resource or service.",
   "BOOKING_RECURRING_SCHEDULE_NOT_ACTIVE": "This action is only available for an active recurring schedule.",
   "BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE": "This service is not enabled for recurring reservations.",
