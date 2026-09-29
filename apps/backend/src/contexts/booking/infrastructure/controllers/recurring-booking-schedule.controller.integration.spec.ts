@@ -438,12 +438,16 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const serviceId = await seedService('AUTO_CONFIRM');
       await seedOccupancy(resourceId, fridayOccurrence(4));
 
-      await postFridayPattern({
+      const res = await postFridayPattern({
         serviceId,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
-      }).expect(409);
+      });
 
+      expect(res.status).toBe(409);
+      expect(res.body.conflicts).toEqual([
+        { occurrenceStart: fridayOccurrence(4).toISOString(), reason: 'OCCUPIED' },
+      ]);
       expect(
         await ds
           .getRepository(RecurringBookingScheduleEntity)
@@ -788,6 +792,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       await ds.getRepository(ScheduleClosureEntity).delete({ tenantId });
       await ds.getRepository(ScheduleOpeningEntity).delete({ tenantId });
       await ds.getRepository(ScheduleClosureEntity).delete({ tenantId: OTHER_TENANT_ID });
+      await ds.getRepository(ScheduleOpeningEntity).delete({ tenantId: OTHER_TENANT_ID });
       await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
     });
 
@@ -1041,6 +1046,45 @@ describe('RecurringBookingScheduleController (integration)', () => {
       expect(res.status).toBe(201);
       expect(res.body.status).toBe('ACTIVE');
       expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it("never lets another tenant's opening make a normally-closed Sunday acceptable", async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+      const sunday = nextWeekday(0);
+      await ds
+        .getRepository(ScheduleOpeningEntity)
+        .save(
+          new ScheduleOpeningEntityBuilder()
+            .withTenantId(OTHER_TENANT_ID)
+            .withDate(sunday)
+            .withStartTime('09:00')
+            .withEndTime('14:00')
+            .build(),
+        );
+
+      const res = await request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send({
+          serviceId,
+          recurrence: {
+            frequency: 'WEEKLY',
+            daysOfWeek: ['sunday'],
+            startTime: '10:00',
+            durationMinutes: 60,
+          },
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [room],
+          startsOn: sunday,
+          endsOn: sunday,
+        });
+
+      expect(res.status).toBe(409);
+      expect(res.body.conflicts).toEqual([
+        { occurrenceStart: new Date(`${sunday}T13:00:00.000Z`).toISOString(), reason: 'CLOSED' },
+      ]);
+      expect(await scheduleCount(serviceId)).toBe(0);
     });
 
     describe('the term', () => {

@@ -13,10 +13,14 @@ import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/rep
 import {
   ResourceBuilder,
   ScheduleClosureBuilder,
+  ScheduleOpeningBuilder,
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
 import { addDaysUTC } from '../../../../shared/utils/calendar-date';
-import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import {
+  EMPTY_BUSINESS_HOURS,
+  FULL_WEEK_BUSINESS_HOURS,
+} from '../../../../test/utils/business-hours-fixtures';
 import { futureDate, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -49,6 +53,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
   let customerPort: InMemoryBookingCustomerPort;
   let staffPort: InMemoryBookingStaffPort;
@@ -90,6 +95,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     resourceRepo = new InMemoryResourceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     customerPort = new InMemoryBookingCustomerPort();
     staffPort = new InMemoryBookingStaffPort();
     platformPort = new InMemoryBookingPlatformPort();
@@ -114,7 +120,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       resourceRepo,
       occupancyRepo,
       closureRepo,
-      new InMemoryScheduleOpeningRepository(),
+      openingRepo,
       customerPort,
       staffPort,
       platformPort,
@@ -698,6 +704,26 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           new ScheduleClosureBuilder()
             .withTenantId('10000000-0000-4000-8000-000000000998')
             .withDate(addDaysUTC(STARTS_ON, 14))
+            .build(),
+        );
+
+        await expect(request(serviceId)).resolves.toMatchObject({ status: 'ACTIVE' });
+      });
+
+      it("never lets another tenant's openings or business hours affect the request", async () => {
+        const otherTenantId = '10000000-0000-4000-8000-000000000998';
+        const serviceId = await seedService();
+        // The other tenant is closed every day; the request's own tenant keeps the default hours.
+        platformPort.seedBusinessHoursAndLocale(otherTenantId, {
+          locale: 'pt-BR',
+          businessHours: EMPTY_BUSINESS_HOURS,
+        });
+        await openingRepo.save(
+          new ScheduleOpeningBuilder()
+            .withTenantId(otherTenantId)
+            .withDate(STARTS_ON)
+            .withStartTime('00:00')
+            .withEndTime('23:59')
             .build(),
         );
 
