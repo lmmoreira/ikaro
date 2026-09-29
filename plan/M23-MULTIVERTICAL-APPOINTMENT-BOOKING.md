@@ -1021,7 +1021,7 @@ Add the customer-side creation flow for a recurring private reservation: a patte
 
 ---
 
-### M23-S18 — Recurring-schedule creation: fixed term, working hours and closures, one conflict payload
+### M23-S18 — Recurring-schedule creation: fixed term, working hours and closures, one conflict payload ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** L
