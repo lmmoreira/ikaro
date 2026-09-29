@@ -649,7 +649,7 @@ RecurringBookingSchedule {
   serviceId:                ServiceId
   recurrence:               RecurrenceRule           -- WEEKLY-only for MVP: { frequency: 'WEEKLY', daysOfWeek: Weekday[], startTime: 'HH:mm', durationMinutes: int } — one shared time-of-day across every listed weekday, no per-day override, no other frequency value (locked in during M23-S04 story-discovery, 2026-09-27)
   startsOn / endsOn:        Date / Date              -- both required; endsOn <= startsOn + maximum term (Service.bookingPolicy.recurringHorizonDays, 90-day default); a schedule is never open-ended
-  status:                   'PENDING_APPROVAL' | 'ACTIVE' | 'PAUSED' | 'CANCELLED' | 'ENDED'   -- ENDED: the term is over (set by the M23-S05 job); PAUSED is being removed (fixed-term schedules materialize every occurrence up front, so pausing has no effect)
+  status:                   'PENDING_APPROVAL' | 'ACTIVE' | 'CANCELLED' | 'ENDED'   -- ENDED: the term is over (set by the M23-S05 job). There is no PAUSED: a fixed-term schedule materializes every occurrence up front, so pausing would have no effect (removed by M23-S20)
   assignmentPolicy:         'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE'
   approvalHoldExpiresAt:    DateTime | null          -- required iff status = PENDING_APPROVAL
   approvedByStaffId:        StaffId | null
@@ -675,7 +675,7 @@ RecurringBookingSchedule {
 - `RecurringBookingSchedule.request(customerId, serviceId, recurrence, assignmentPolicy, ...)` — resource-conflict-checks, then branches to `ACTIVE` or `PENDING_APPROVAL` per the service's effective approval mode.
 - `approve(staffId)` / `reject(staffId, reason)` (UC-071)
 - `skipOccurrence(occurrenceStart, actor, reason?)` / `rescheduleOccurrence(occurrenceStart, replacementBookingId, actor)` (UC-070 A2) — only once `ACTIVE`; a `PENDING_APPROVAL` request is withdrawn outright instead, since no standing commitment exists yet.
-- `pause()` / `end()`
+- `end()`
 
 ---
 

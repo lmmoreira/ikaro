@@ -6,7 +6,6 @@ import {
 } from './errors/recurring-booking-schedule.error';
 import { RecurringBookingScheduleCreated } from './events/recurring-booking-schedule-created.event';
 import { RecurringBookingScheduleApprovalRequested } from './events/recurring-booking-schedule-approval-requested.event';
-import { RecurringBookingSchedulePaused } from './events/recurring-booking-schedule-paused.event';
 import { RecurringBookingScheduleEnded } from './events/recurring-booking-schedule-ended.event';
 import {
   RecurringBookingSchedule,
@@ -202,7 +201,7 @@ describe('RecurringBookingSchedule occurrence exceptions', () => {
 
   it('rejects skipOccurrence on a non-ACTIVE schedule', () => {
     const schedule = activeSchedule();
-    schedule.pause(CORRELATION_ID);
+    schedule.end(CORRELATION_ID, []);
 
     expect(() => schedule.skipOccurrence(new Date(), 'CUSTOMER', 'customer-1', null)).toThrow(
       RecurringBookingScheduleNotActiveError,
@@ -211,32 +210,11 @@ describe('RecurringBookingSchedule occurrence exceptions', () => {
 
   it('rejects rescheduleOccurrence on a non-ACTIVE schedule', () => {
     const schedule = activeSchedule();
-    schedule.pause(CORRELATION_ID);
+    schedule.end(CORRELATION_ID, []);
 
     expect(() =>
       schedule.rescheduleOccurrence(new Date(), 'booking-2', 'CUSTOMER', 'customer-1', null),
     ).toThrow(RecurringBookingScheduleNotActiveError);
-  });
-});
-
-describe('RecurringBookingSchedule.pause', () => {
-  it('transitions ACTIVE to PAUSED and fires RecurringBookingSchedulePaused', () => {
-    const schedule = RecurringBookingSchedule.request(requestOptions());
-    schedule.clearDomainEvents();
-
-    schedule.pause(CORRELATION_ID);
-
-    expect(schedule.status).toBe('PAUSED');
-    const events = schedule.domainEvents;
-    expect(events).toHaveLength(1);
-    expect(events[0]).toBeInstanceOf(RecurringBookingSchedulePaused);
-  });
-
-  it('rejects pausing a non-ACTIVE schedule', () => {
-    const schedule = RecurringBookingSchedule.request(requestOptions());
-    schedule.pause(CORRELATION_ID);
-
-    expect(() => schedule.pause(CORRELATION_ID)).toThrow(RecurringBookingScheduleNotActiveError);
   });
 });
 
@@ -258,9 +236,9 @@ describe('RecurringBookingSchedule.end', () => {
     ]);
   });
 
-  it('rejects ending a non-ACTIVE schedule (e.g. already PAUSED)', () => {
+  it('rejects ending a non-ACTIVE schedule (e.g. already ended)', () => {
     const schedule = RecurringBookingSchedule.request(requestOptions());
-    schedule.pause(CORRELATION_ID);
+    schedule.end(CORRELATION_ID, []);
 
     expect(() => schedule.end(CORRELATION_ID, [])).toThrow(RecurringBookingScheduleNotActiveError);
   });

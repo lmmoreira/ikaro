@@ -2,7 +2,6 @@ import {
   RecurringBookingScheduleApprovalRequestedEventBuilder,
   RecurringBookingScheduleCreatedEventBuilder,
   RecurringBookingScheduleEndedEventBuilder,
-  RecurringBookingSchedulePausedEventBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { LogRecurringBookingScheduleEventUseCase } from '../../application/use-cases/log-recurring-booking-schedule-event.use-case';
@@ -40,16 +39,11 @@ describe('RecurringBookingScheduleEventsHandler', () => {
       LogRecurringBookingScheduleEventUseCase.CONSUMER_NAME,
     );
     expect(spy).toHaveBeenCalledWith(
-      'RecurringBookingSchedulePaused',
-      expect.any(Function),
-      LogRecurringBookingScheduleEventUseCase.CONSUMER_NAME,
-    );
-    expect(spy).toHaveBeenCalledWith(
       'RecurringBookingScheduleEnded',
       expect.any(Function),
       LogRecurringBookingScheduleEventUseCase.CONSUMER_NAME,
     );
-    expect(spy).toHaveBeenCalledTimes(4);
+    expect(spy).toHaveBeenCalledTimes(3);
   });
 
   it('calls the log use case exactly once with the correct DTO for RecurringBookingScheduleCreated', async () => {
@@ -80,19 +74,6 @@ describe('RecurringBookingScheduleEventsHandler', () => {
 
     expect(useCase.execute).toHaveBeenCalledWith(
       expect.objectContaining({ eventName: 'RecurringBookingScheduleApprovalRequested' }),
-    );
-  });
-
-  it('handles RecurringBookingSchedulePaused', async () => {
-    const event = new RecurringBookingSchedulePausedEventBuilder()
-      .withTenantId(TENANT_ID)
-      .withCorrelationId(CORRELATION_ID)
-      .build();
-
-    await handler.handle(event);
-
-    expect(useCase.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ eventName: 'RecurringBookingSchedulePaused' }),
     );
   });
 

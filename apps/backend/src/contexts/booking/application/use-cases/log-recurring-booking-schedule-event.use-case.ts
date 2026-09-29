@@ -10,7 +10,7 @@ export interface LogRecurringBookingScheduleEventUseCaseInput {
   correlationId: string;
 }
 
-// Exists solely to give each RecurringBookingSchedule{Created,ApprovalRequested,Paused,Ended}
+// Exists solely to give each RecurringBookingSchedule{Created,ApprovalRequested,Ended}
 // event a real eventBus.subscribe() call site, so packages/infra-scripts/src/pubsub-catalog.ts
 // provisions its Pub/Sub topic — without a real subscriber, the outbox permanently fails to
 // publish once deployed (docs/ANTI_PATTERNS.md § A domain event is drained, LeadFormSubmission

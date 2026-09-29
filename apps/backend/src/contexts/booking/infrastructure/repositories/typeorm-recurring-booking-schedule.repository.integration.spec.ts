@@ -71,7 +71,7 @@ describe('TypeOrmRecurringBookingScheduleRepository (integration)', () => {
     await repo.save(schedule);
     expect(schedule.version).toBe(1);
 
-    schedule.pause(CORRELATION_ID);
+    schedule.end(CORRELATION_ID, []);
     await repo.save(schedule);
     expect(schedule.version).toBe(2);
 
@@ -88,8 +88,8 @@ describe('TypeOrmRecurringBookingScheduleRepository (integration)', () => {
     expect(copyA).not.toBeNull();
     expect(copyB).not.toBeNull();
 
-    copyA!.pause(CORRELATION_ID);
-    copyB!.pause(CORRELATION_ID);
+    copyA!.end(CORRELATION_ID, []);
+    copyB!.end(CORRELATION_ID, []);
 
     await repo.save(copyA!);
 

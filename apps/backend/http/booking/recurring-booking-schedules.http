@@ -156,17 +156,8 @@ Content-Type: application/json
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Pause / end (UC-070 A2)
+# End (UC-070 A2)
 # ─────────────────────────────────────────────────────────────────────────────
-
-###
-
-### Pause the schedule — no further occurrences until resumed (no resume in this story)
-POST {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/pause
-X-Tenant-ID: {{tenantId}}
-X-Actor-ID: {{customerId}}
-X-Actor-Type: CUSTOMER
-X-Actor-Role: CUSTOMER
 
 ###
 

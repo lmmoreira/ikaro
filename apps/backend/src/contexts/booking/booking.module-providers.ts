@@ -68,7 +68,6 @@ import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/gene
 import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
 import { RequestRecurringBookingScheduleUseCase } from './application/use-cases/request-recurring-booking-schedule.use-case';
 import { SkipOrRescheduleOccurrenceUseCase } from './application/use-cases/skip-or-reschedule-occurrence.use-case';
-import { PauseRecurringBookingScheduleUseCase } from './application/use-cases/pause-recurring-booking-schedule.use-case';
 import { EndRecurringBookingScheduleUseCase } from './application/use-cases/end-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from './application/use-cases/list-recurring-booking-schedules.use-case';
 import { LogRecurringBookingScheduleEventUseCase } from './application/use-cases/log-recurring-booking-schedule-event.use-case';
@@ -177,7 +176,6 @@ export const bookingModuleProviders: Provider[] = [
   TenantProvisionedBookingHandler,
   RequestRecurringBookingScheduleUseCase,
   SkipOrRescheduleOccurrenceUseCase,
-  PauseRecurringBookingScheduleUseCase,
   EndRecurringBookingScheduleUseCase,
   ListRecurringBookingSchedulesUseCase,
   LogRecurringBookingScheduleEventUseCase,

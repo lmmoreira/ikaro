@@ -227,7 +227,7 @@ POST /recurring-booking-schedules
 **BFF calls (whole extension):**
 ```
 GET/POST/PATCH  /recurring-booking-schedules[/:id]           -- UC-070
-POST            /recurring-booking-schedules/:id/end          -- UC-070 A2 (the `…/pause` route is being removed by M23-S20)
+POST            /recurring-booking-schedules/:id/end          -- UC-070 A2 (the `…/pause` route was removed by M23-S20)
 POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 ```
 

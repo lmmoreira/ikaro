@@ -16,7 +16,7 @@ export interface RecurringBookingScheduleListItem {
   recurrence: RecurrenceRuleResponse;
   startsOn: string;
   endsOn: string;
-  status: 'PENDING_APPROVAL' | 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+  status: 'PENDING_APPROVAL' | 'ACTIVE' | 'CANCELLED';
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
   approvalHoldExpiresAt: string | null;
 }
@@ -30,11 +30,6 @@ export interface SkipOrRescheduleOccurrenceResponse {
   scheduleId: string;
   occurrenceStart: string;
   kind: 'SKIPPED' | 'RESCHEDULED';
-}
-
-export interface PauseRecurringBookingScheduleResponse {
-  id: string;
-  status: 'PAUSED';
 }
 
 export interface EndRecurringBookingScheduleResponse {

@@ -96,12 +96,6 @@
     ]
   },
   {
-    "event": "RecurringBookingSchedulePaused",
-    "consumers": [
-      "audit-log"
-    ]
-  },
-  {
     "event": "ServicePointsEarned",
     "consumers": [
       "notification"

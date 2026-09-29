@@ -33,10 +33,6 @@ import {
   SkipOrRescheduleOccurrenceUseCaseResult,
 } from '../../application/use-cases/skip-or-reschedule-occurrence.use-case';
 import {
-  PauseRecurringBookingScheduleUseCase,
-  PauseRecurringBookingScheduleUseCaseResult,
-} from '../../application/use-cases/pause-recurring-booking-schedule.use-case';
-import {
   EndRecurringBookingScheduleUseCase,
   EndRecurringBookingScheduleUseCaseResult,
 } from '../../application/use-cases/end-recurring-booking-schedule.use-case';
@@ -54,7 +50,6 @@ export class RecurringBookingScheduleController {
     private readonly requestSchedule: RequestRecurringBookingScheduleUseCase,
     private readonly listSchedules: ListRecurringBookingSchedulesUseCase,
     private readonly skipOrRescheduleOccurrence: SkipOrRescheduleOccurrenceUseCase,
-    private readonly pauseSchedule: PauseRecurringBookingScheduleUseCase,
     private readonly endSchedule: EndRecurringBookingScheduleUseCase,
   ) {}
 
@@ -118,23 +113,6 @@ export class RecurringBookingScheduleController {
         action: body.action,
         replacementBookingId: body.replacementBookingId,
         reason: body.reason,
-        actorType: actorType!,
-        actorId: actorId!,
-      })
-      .catch(mapBookingError);
-  }
-
-  @Post(':id/pause')
-  @HttpCode(HttpStatus.OK)
-  pause(
-    @Param('id', CanonicalParseUUIDPipe) id: string,
-  ): Promise<PauseRecurringBookingScheduleUseCaseResult> {
-    const { tenantId, correlationId, actorType, actorId } = this.ctx;
-    return this.pauseSchedule
-      .execute({
-        scheduleId: id,
-        tenantId,
-        correlationId,
         actorType: actorType!,
         actorId: actorId!,
       })

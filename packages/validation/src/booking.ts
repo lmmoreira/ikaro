@@ -311,7 +311,7 @@ export const OccurrenceStartParamSchema = z.iso.datetime();
 // `status` omitted → every status; the filter only narrows (M23-S13's approval queue passes
 // PENDING_APPROVAL). Same limit bounds as the Booking list (default 25, max 100).
 export const ListRecurringBookingSchedulesQuerySchema = z.object({
-  status: z.enum(['PENDING_APPROVAL', 'ACTIVE', 'PAUSED', 'CANCELLED']).optional(),
+  status: z.enum(['PENDING_APPROVAL', 'ACTIVE', 'CANCELLED']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).default(0),
 });

@@ -15,7 +15,6 @@ export { RecurringBookingScheduleResourceAssignmentEntityBuilder } from './recur
 export { RecurringBookingScheduleExceptionEntityBuilder } from './recurring-booking-schedule-exception-entity.builder';
 export { RecurringBookingScheduleCreatedEventBuilder } from './recurring-booking-schedule-created-event.builder';
 export { RecurringBookingScheduleApprovalRequestedEventBuilder } from './recurring-booking-schedule-approval-requested-event.builder';
-export { RecurringBookingSchedulePausedEventBuilder } from './recurring-booking-schedule-paused-event.builder';
 export { RecurringBookingScheduleEndedEventBuilder } from './recurring-booking-schedule-ended-event.builder';
 export { BookingAttendeeEntityBuilder } from './booking-attendee-entity.builder';
 export { ScheduleClosureBuilder } from './schedule-closure.builder';
