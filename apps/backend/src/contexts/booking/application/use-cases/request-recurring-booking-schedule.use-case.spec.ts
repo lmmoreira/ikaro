@@ -227,7 +227,9 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       }),
     ).rejects.toThrow(RecurringBookingScheduleConflictError);
 
-    expect(await scheduleRepo.findAllByTenant(TENANT, {})).toHaveLength(0);
+    expect(
+      (await scheduleRepo.findAllByTenantPaginated(TENANT, { limit: 100, offset: 0 })).total,
+    ).toBe(0);
   });
 
   it('rejects past the 50-per-resource FIXED_ASSIGNMENT cap', async () => {

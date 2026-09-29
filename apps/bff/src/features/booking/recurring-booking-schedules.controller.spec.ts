@@ -11,14 +11,19 @@ const mockSchedule: RecurringBookingScheduleResponse = {
 describe('RecurringBookingSchedulesController', () => {
   afterEach(() => jest.resetAllMocks());
 
-  it('GET / calls the backend list endpoint', async () => {
-    const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue({ items: [] }) });
+  it('GET / forwards the validated pagination and status params to the backend list endpoint', async () => {
+    const page = {
+      items: [],
+      pagination: { limit: 10, offset: 20, total: 0, hasMore: false },
+    };
+    const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(page) });
     const controller = new RecurringBookingSchedulesController(backendHttp);
+    const query = { limit: 10, offset: 20, status: 'PENDING_APPROVAL' as const };
 
-    const result = await controller.list();
+    const result = await controller.list(query);
 
-    expect(backendHttp.get).toHaveBeenCalledWith('/recurring-booking-schedules');
-    expect(result.items).toEqual([]);
+    expect(backendHttp.get).toHaveBeenCalledWith('/recurring-booking-schedules', query);
+    expect(result).toEqual(page);
   });
 
   it('POST / forwards the body to the backend and returns 201 shape', async () => {

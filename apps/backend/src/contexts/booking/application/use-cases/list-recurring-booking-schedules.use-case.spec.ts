@@ -6,8 +6,13 @@ import { ListRecurringBookingSchedulesUseCase } from './list-recurring-booking-s
 
 const TENANT = '10000000-0000-4000-8000-000000000401';
 const OTHER_TENANT = '10000000-0000-4000-8000-000000000499';
+const PAGE = { limit: 25, offset: 0 };
 
-function schedule(customerId: string, tenantId = TENANT): RecurringBookingSchedule {
+function schedule(
+  customerId: string,
+  tenantId = TENANT,
+  status: 'ACTIVE' | 'PENDING_APPROVAL' = 'ACTIVE',
+): RecurringBookingSchedule {
   return RecurringBookingSchedule.request({
     tenantId,
     customerId,
@@ -29,8 +34,8 @@ function schedule(customerId: string, tenantId = TENANT): RecurringBookingSchedu
         requiredQuantityPosition: null,
       },
     ],
-    status: 'ACTIVE',
-    approvalHoldExpiresAt: null,
+    status,
+    approvalHoldExpiresAt: status === 'PENDING_APPROVAL' ? new Date('2099-01-01T00:00:00Z') : null,
     createdByStaffId: null,
     correlationId: 'corr-1',
   });
@@ -49,7 +54,7 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
     repo.seed(schedule('customer-a'));
     repo.seed(schedule('customer-b'));
 
-    const result = await useCase.execute({ tenantId: TENANT });
+    const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
 
     expect(result.items).toHaveLength(2);
   });
@@ -58,7 +63,7 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
     repo.seed(schedule('customer-a'));
     repo.seed(schedule('customer-b'));
 
-    const result = await useCase.execute({ tenantId: TENANT, customerId: 'customer-a' });
+    const result = await useCase.execute({ tenantId: TENANT, customerId: 'customer-a', ...PAGE });
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0].customerId).toBe('customer-a');
@@ -67,7 +72,7 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
   it('maps each item with the expected shape', async () => {
     repo.seed(schedule('customer-a'));
 
-    const result = await useCase.execute({ tenantId: TENANT });
+    const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
 
     expect(result.items[0]).toMatchObject({
       customerId: 'customer-a',
@@ -82,9 +87,62 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
     repo.seed(schedule('customer-a'));
     repo.seed(schedule('customer-a', OTHER_TENANT));
 
-    const result = await useCase.execute({ tenantId: TENANT });
+    const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
 
     expect(result.items).toHaveLength(1);
     expect(result.items.every((item) => item.customerId === 'customer-a')).toBe(true);
+  });
+
+  it('returns a bounded page and reports total/hasMore', async () => {
+    for (let i = 0; i < 3; i++) repo.seed(schedule(`customer-${i}`));
+
+    const result = await useCase.execute({ tenantId: TENANT, limit: 2, offset: 0 });
+
+    expect(result.items).toHaveLength(2);
+    expect(result.pagination).toEqual({ limit: 2, offset: 0, total: 3, hasMore: true });
+  });
+
+  it('returns the remainder on the second page with hasMore false', async () => {
+    for (let i = 0; i < 3; i++) repo.seed(schedule(`customer-${i}`));
+
+    const first = await useCase.execute({ tenantId: TENANT, limit: 2, offset: 0 });
+    const second = await useCase.execute({ tenantId: TENANT, limit: 2, offset: 2 });
+
+    expect(second.items).toHaveLength(1);
+    expect(second.pagination).toEqual({ limit: 2, offset: 2, total: 3, hasMore: false });
+    const ids = [...first.items, ...second.items].map((i) => i.id);
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it('returns an empty page with total 0 and hasMore false when nothing matches', async () => {
+    const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
+
+    expect(result.items).toEqual([]);
+    expect(result.pagination).toEqual({ limit: 25, offset: 0, total: 0, hasMore: false });
+  });
+
+  it('filters by status and counts only matching rows in total', async () => {
+    repo.seed(schedule('customer-a', TENANT, 'ACTIVE'));
+    repo.seed(schedule('customer-b', TENANT, 'PENDING_APPROVAL'));
+    repo.seed(schedule('customer-c', TENANT, 'PENDING_APPROVAL'));
+
+    const result = await useCase.execute({
+      tenantId: TENANT,
+      status: 'PENDING_APPROVAL',
+      ...PAGE,
+    });
+
+    expect(result.items).toHaveLength(2);
+    expect(result.items.every((item) => item.status === 'PENDING_APPROVAL')).toBe(true);
+    expect(result.pagination.total).toBe(2);
+  });
+
+  it("never counts another tenant's schedules toward total", async () => {
+    repo.seed(schedule('customer-a'));
+    repo.seed(schedule('customer-a', OTHER_TENANT));
+
+    const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
+
+    expect(result.pagination.total).toBe(1);
   });
 });

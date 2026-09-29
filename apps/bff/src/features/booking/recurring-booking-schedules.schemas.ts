@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  ListRecurringBookingSchedulesQuerySchema,
   RequestRecurringBookingScheduleBodySchema,
   SkipOrRescheduleOccurrenceBodySchema,
 } from '@ikaro/validation';
@@ -8,7 +9,15 @@ import {
 // backend DTO and this BFF schema need them identically (bad-smell-audit BFF-5), so they live
 // once in packages/validation/src/booking.ts instead of hand-written copies per app.
 export { RecurrenceRuleSchema, OccurrenceStartParamSchema } from '@ikaro/validation';
-export { RequestRecurringBookingScheduleBodySchema, SkipOrRescheduleOccurrenceBodySchema };
+export {
+  ListRecurringBookingSchedulesQuerySchema,
+  RequestRecurringBookingScheduleBodySchema,
+  SkipOrRescheduleOccurrenceBodySchema,
+};
+
+export type ListRecurringBookingSchedulesQuery = z.infer<
+  typeof ListRecurringBookingSchedulesQuerySchema
+>;
 
 export type RequestRecurringBookingScheduleBody = z.infer<
   typeof RequestRecurringBookingScheduleBodySchema

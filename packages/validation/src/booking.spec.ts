@@ -1,4 +1,8 @@
-import { ScheduleClosuresRangeQuerySchema, ScheduleDayGridQuerySchema } from './booking';
+import {
+  ListRecurringBookingSchedulesQuerySchema,
+  ScheduleClosuresRangeQuerySchema,
+  ScheduleDayGridQuerySchema,
+} from './booking';
 
 describe('ScheduleDayGridQuerySchema', () => {
   it('accepts a real calendar date', () => {
@@ -50,4 +54,27 @@ describe('ScheduleClosuresRangeQuerySchema', () => {
       }).success,
     ).toBe(false);
   });
+});
+
+describe('ListRecurringBookingSchedulesQuerySchema', () => {
+  it('defaults to limit 25, offset 0 and no status filter', () => {
+    expect(ListRecurringBookingSchedulesQuerySchema.parse({})).toEqual({ limit: 25, offset: 0 });
+  });
+
+  it('coerces query-string numbers and accepts a status', () => {
+    expect(
+      ListRecurringBookingSchedulesQuerySchema.parse({
+        limit: '10',
+        offset: '20',
+        status: 'PENDING_APPROVAL',
+      }),
+    ).toEqual({ limit: 10, offset: 20, status: 'PENDING_APPROVAL' });
+  });
+
+  it.each([{ limit: '0' }, { limit: '101' }, { offset: '-1' }, { status: 'NOPE' }])(
+    'rejects out-of-range input %j',
+    (input) => {
+      expect(ListRecurringBookingSchedulesQuerySchema.safeParse(input).success).toBe(false);
+    },
+  );
 });

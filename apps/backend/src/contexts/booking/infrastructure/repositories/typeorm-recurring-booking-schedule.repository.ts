@@ -9,6 +9,7 @@ import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/out
 import {
   IRecurringBookingScheduleRepository,
   RecurringBookingScheduleListFilters,
+  RecurringBookingSchedulePaginatedResult,
 } from '../../application/ports/recurring-booking-schedule-repository.port';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
@@ -49,15 +50,25 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
   // are never read from the returned aggregates, so hydrating them here would be 2 extra queries
   // and an unbounded result set per schedule for nothing. findById() remains the place a caller
   // needing the full aggregate (mutation use cases) reads from.
-  async findAllByTenant(
+  async findAllByTenantPaginated(
     tenantId: string,
     filters: RecurringBookingScheduleListFilters,
-  ): Promise<RecurringBookingSchedule[]> {
-    const entities = await this.repo.find({
-      where: { tenantId, ...(filters.customerId ? { customerId: filters.customerId } : {}) },
-      order: { createdAt: 'DESC' },
+  ): Promise<RecurringBookingSchedulePaginatedResult> {
+    // `id` is a tie-breaker, not just `createdAt`: Postgres has no defined order among rows with
+    // equal ORDER BY keys, so two schedules sharing a createdAt could otherwise land on either
+    // side of a page boundary non-deterministically between two sequential offset-paginated
+    // requests, silently skipping or duplicating a row.
+    const [entities, total] = await this.repo.findAndCount({
+      where: {
+        tenantId,
+        ...(filters.customerId ? { customerId: filters.customerId } : {}),
+        ...(filters.status ? { status: filters.status } : {}),
+      },
+      order: { createdAt: 'DESC', id: 'DESC' },
+      take: filters.limit,
+      skip: filters.offset,
     });
-    return entities.map((e) => toDomain(e, [], []));
+    return { items: entities.map((e) => toDomain(e, [], [])), total };
   }
 
   async countActiveByResource(tenantId: string, resourceId: string): Promise<number> {
@@ -139,8 +150,9 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
 
     const entity = toEntity(schedule);
     // version === undefined means this aggregate was never loaded from (or written to) the DB —
-    // a brand-new schedule. Anything else means it was read back via findById/findAllByTenant/
-    // findActiveByResource and must be optimistically version-checked on write (mirrors
+    // a brand-new schedule. Anything else means it was read back via findById/
+    // findAllByTenantPaginated/findActiveByResource and must be optimistically version-checked
+    // on write (mirrors
     // typeorm-booking.repository.ts's own persistBooking() precedent).
     const nextVersion = schedule.version === undefined ? 1 : schedule.version + 1;
 
