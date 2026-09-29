@@ -18,7 +18,7 @@
 
 Neither is a correctness defect — 671+674 backend tests pass on PR #521, and the PR is otherwise merge-ready. Both are scale ceilings worth closing before the M23-S05 generation worker and heavier production usage compound the same shapes elsewhere.
 
-## Story 0 — Batch the recurring-schedule creation-time conflict check into O(1) queries per pattern
+## Story 0 — Batch the recurring-schedule creation-time conflict check into O(1) queries per pattern ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** M

@@ -315,11 +315,18 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const serviceId = await seedService('AUTO_CONFIRM');
       await seedOccupancy(resourceId, new Date(fridayOccurrence(4).getTime() + 3 * 60 * 60_000));
 
-      await postFridayPattern({
+      const { body } = await postFridayPattern({
         serviceId,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
       }).expect(201);
+
+      expect(body.status).toBe('ACTIVE');
+      expect(
+        await ds
+          .getRepository(RecurringBookingScheduleEntity)
+          .count({ where: { tenantId, serviceId } }),
+      ).toBe(1);
     });
 
     it('AUTO_ANY: rejects with 409 when every eligible resource is busy on one occurrence', async () => {
@@ -347,9 +354,17 @@ describe('RecurringBookingScheduleController (integration)', () => {
       await ds.getRepository(ResourceEntity).save(spare);
       await seedOccupancy(resourceId, fridayOccurrence(2));
 
-      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
-        201,
-      );
+      const { body } = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+      }).expect(201);
+
+      expect(body.status).toBe('ACTIVE');
+      expect(
+        await ds
+          .getRepository(RecurringBookingScheduleEntity)
+          .count({ where: { tenantId, serviceId } }),
+      ).toBe(1);
     });
   });
 });
