@@ -207,7 +207,7 @@ flowchart TD
     Envio -->|"201 ACTIVE"| Sucesso["❓ GAP: mesma rota, sucesso<br/>(13c-nova-recorrencia-sucesso)"]
     Envio -->|"201 PENDING_APPROVAL"| Analise["❓ GAP: mesma rota, em análise<br/>(06c-recorrente-em-analise)"]
     Envio -->|"409 conflito de ocupação"| Conflito["❓ GAP: mesma rota, erro<br/>(06b-reserva-recorrente-erro)"]
-    Envio -->|"409 fora do horário / dia fechado<br/>(proposta M23-S18)"| ConflitoHorario["❓ GAP: mesma rota, erro<br/>(06d-reserva-recorrente-erro-horario)"]
+    Envio -->|"409 fora do horário / dia fechado<br/>(decidido em M23-S18: recusa na criação)"| ConflitoHorario["❓ GAP: mesma rota, erro<br/>(06d-reserva-recorrente-erro-horario)"]
     Envio -->|"409 limite de recorrências ativas"| Limite["❓ GAP: mesma rota, erro<br/>(13d-nova-recorrencia-limite)"]
     Envio -->|"erro rede/5xx"| ErroForm
 
@@ -224,15 +224,18 @@ flowchart TD
 POST  /recurring-booking-schedules        -- create (UC-070) → 201 { id, status, approvalHoldExpiresAt } | 409 | 422
 GET   /recurring-booking-schedules        -- list (own schedules; CUSTOMER sees only theirs)
 PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart   -- skip / reschedule one occurrence
-POST  /recurring-booking-schedules/:id/pause|end
+POST  /recurring-booking-schedules/:id/end       -- end early (a `…/pause` route still exists and is being removed — no Pause action is drawn)
 ```
 
 **Open questions / gaps:**
-- [x] Stories exist: `M23-S12` (list + manage + alerts), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload — backend, and it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). Each still begins with `/story-discovery`.
+- [x] Stories exist: `M23-S12` (list + manage + alerts), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload — backend, and it lands before `M23-S05`; `06d` is now the chosen UI for it, built in `M23-S17`). Each still begins with `/story-discovery`.
 - [ ] **Entry point (default drawn here):** a "Reservas recorrentes" link on the Agendamentos page leading to `14`, with the create button on that list. Alternatives to recheck: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is the same open UI decision as before.
 - [x] **Conflict screen content:** `06b` shows the conflicting occurrences, which the API does not return yet (the `409` carries only a generic message). `M23-S18` owns the fix — one payload, `{ occurrenceStart, reason }` with `reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS` — and `M23-S17` only renders it. Suggesting an alternative resource, which the original discovery prototype showed, is a much bigger feature and is **not** drawn here.
 - [ ] **Duration:** drawn as read-only, defined by the service. A `durationPolicy = CUSTOMER_SELECTED` service would need the variable-duration control (see `guest/prototypes/book-a-service/12-reserva-por-tempo.html`) — not drawn.
 - [ ] **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype; it is a dashboard surface, not part of this customer journey. Left open.
-- [ ] **Hours and closures (`06d`):** whether creation rejects occurrences outside hours or on closed days, or accepts and skips them at generation, is a business decision owned by `M23-S18`'s discovery, and it also decides what `M23-S05`'s generation job does with a failing occurrence. `06d` draws the reject-at-creation option only so the choice can be judged visually; `M23-S17` builds it only if that option is locked.
+- [x] **Hours and closures (`06d`) — decided 2026-09-29 in `M23-S18`'s discovery:** creation rejects the whole request with a `409` listing every affected occurrence and why (`OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`, merged into one list). Because occupancy and hours reasons arrive in one payload, `06b` and `06d` should become **one** screen with a reason label per row — a prototype pass to do before `M23-S17`.
+- [ ] **Fixed term — decided 2026-09-29 (recorded here because the prototypes below predate it):** a recurring schedule always has an end date, chosen by the customer up to the service's maximum term (90 days by default); every occurrence is checked at creation and created once (immediately, or on staff approval). There is no rolling generation and no open-ended schedule, so these prototype screens are out of date and need a pass: `13`/`13b` (an end-date field with a "máx. N dias" hint; "sem data final" copy removed), `13c` ("geradas… até 90 dias à frente" and "pode levar alguns minutos" no longer true — the whole term appears immediately), `13e` (states for a missing and an over-cap end date), `06`/`06b`/`06d` (the "geradas até 90 dias" copy), and `14`/`14b` (each row's term "até dd/mm", and an "Encerrada" badge for `ENDED`).
+- [ ] **Pause is removed:** with every occurrence already a booking, pausing has no effect and nothing can resume it; the planned pause-removal story (M23-S20, not yet created) deletes the endpoint and this journey's Pause sheet in `06`. Skipping one occurrence and ending the schedule stay.
+- [ ] **Renewal:** a customer who wants to continue after the term creates a new schedule; a reminder email and a "Renovar" entry point are a separate, not-yet-created story.
 - [ ] **Bundled services** (more than one resource requirement) cannot recur today; the pattern builder therefore never shows a multi-resource picker. Tracked in `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
 - [ ] `06`'s production route was proposed as `/my-account/recurring-reservations/[id]`; this journey now uses `/my-account/recurring-schedules/[id]`, matching `M23-S12`'s planned route. A creation has no id, so `06b`/`06c` are states of the `new` route, not of `[id]`.

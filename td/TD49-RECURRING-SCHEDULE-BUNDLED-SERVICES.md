@@ -26,7 +26,7 @@ This TD is scheduled after M23 completes, by decision. The cost of that ordering
 ## Chosen approach (decided in the drafting session, 2026-09-29 — story-discovery has not yet run)
 
 Decided:
-- **All-or-nothing at creation.** A bundled schedule is accepted only if every requirement is satisfiable in every occurrence of the horizon; if any requirement is not (a required resource is busy), the whole request is rejected with the existing `409` conflict. No partial acceptance of some requirements or some occurrences — the same atomic rule UC-070 A1 already applies to single-resource schedules and a one-off bundle booking applies via `assertSlotFree`.
+- **All-or-nothing at creation.** A bundled schedule is accepted only if every requirement is satisfiable in every occurrence of the term; if any requirement is not (a required resource is busy), the whole request is rejected with the existing `409` conflict. No partial acceptance of some requirements or some occurrences — the same atomic rule UC-070 A1 already applies to single-resource schedules and a one-off bundle booking applies via `assertSlotFree`.
 - **Flat services only.** A multi-requirement service without `legs`. Legged (sequential itinerary) recurrence stays out of scope — a separate problem with its own windowing.
 - **Extend, don't fork, the batched conflict check** introduced by TD45-S0: per requirement, decide which resources matter (chosen pick for `CUSTOMER_CHOICE`; any-free-one for `AUTO_ANY`; the first eligible one for `AUTO_FUNGIBLE_POOL`), union their windows into the same single overlap query, lock the union once, and reject an occurrence when any requirement is unsatisfied.
 - **Reuse the one-off bundle resolver for generation** (`resolveBookingLinesResourceCandidates()` already resolves multi-requirement services) rather than a recurrence-specific resolver.
@@ -73,7 +73,7 @@ Let a flat multi-requirement service be requested as a recurring schedule, rejec
 
 **Acceptance criteria — product:**
 - [ ] A customer (or staff on their behalf) can request a recurring schedule for a service that needs, for example, a staff member and a room.
-- [ ] The request is rejected with a `409` and nothing is persisted if any required resource is busy in any occurrence of the horizon.
+- [ ] The request is rejected with a `409` and nothing is persisted if any required resource is busy in any occurrence of the term.
 - [ ] A service with legs is still rejected as ineligible, with a message that says only legged services are excluded.
 
 **Acceptance criteria — technical:**

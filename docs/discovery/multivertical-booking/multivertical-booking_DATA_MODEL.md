@@ -103,8 +103,8 @@ Private appointment/reservation recurrence is distinct from `recurring_enrollmen
 | customer_id | UUID | NOT NULL — no FK, cross-context; guest bookings are never eligible (domain doc §6b) |
 | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
 | recurrence | JSONB | NOT NULL — e.g. `{ "frequency": "WEEKLY", "daysOfWeek": ["TUE"], "startTime": "10:00", "durationMinutes": 120 }` |
-| starts_on / ends_on | DATE | NOT NULL / NULLABLE — open-ended when `ends_on` is null |
-| status | VARCHAR(20) | NOT NULL — CHECK IN (`PENDING_APPROVAL`, `ACTIVE`, `PAUSED`, `CANCELLED`); no fixed default — set by application logic to `ACTIVE` (service `AUTO_CONFIRM`) or `PENDING_APPROVAL` (service `MANUAL_APPROVAL`) at creation. **Added `PENDING_APPROVAL` 2026-08-28, see §6 item 42.** |
+| starts_on / ends_on | DATE | NOT NULL / NULLABLE — open-ended when `ends_on` is null. **Superseded 2026-09-29:** `ends_on` becomes required (`NOT NULL`) and capped at `starts_on` + the service's maximum term; a private recurring schedule is fixed-term (`docs/13-DATABASE_SCHEMA.md` carries the live shape once M23-S18 ships). |
+| status | VARCHAR(20) | NOT NULL — CHECK IN (`PENDING_APPROVAL`, `ACTIVE`, `PAUSED`, `CANCELLED`) — **2026-09-29: `ENDED` is added and `PAUSED` is being removed**; no fixed default — set by application logic to `ACTIVE` (service `AUTO_CONFIRM`) or `PENDING_APPROVAL` (service `MANUAL_APPROVAL`) at creation. **Added `PENDING_APPROVAL` 2026-08-28, see §6 item 42.** |
 | assignment_policy | VARCHAR(30) | NOT NULL — CHECK IN (`FIXED_ASSIGNMENT`, `RESOLVE_PER_OCCURRENCE`) |
 | approval_hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `status = 'PENDING_APPROVAL'`; same hold-expiry mechanic as `resource_occupancy.hold_expires_at`. Added 2026-08-28, §6 item 42. |
 | approved_by_staff_id / approved_at | UUID / TIMESTAMPTZ | NULLABLE — no FK, cross-context; set when `CAND-45b` resolves a `PENDING_APPROVAL` request. Added 2026-08-28. |

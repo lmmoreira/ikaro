@@ -356,14 +356,14 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 #### **RecurringBookingScheduleCreated**
 - **Trigger:** UC-070 confirms a recurring pattern on an `AUTO_CONFIRM` service, or UC-071 approves a `PENDING_APPROVAL` request on a `MANUAL_APPROVAL` service.
-- **State change:** `RecurringBookingSchedule.status → ACTIVE`; generation begins.
-- **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds: string[], assignmentPolicy, recurrence, startsOn }`
+- **State change:** `RecurringBookingSchedule.status → ACTIVE`; every occurrence of the term is materialized as a linked booking in the same transaction (there is no rolling generation).
+- **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds: string[], assignmentPolicy, recurrence, startsOn, endsOn }`
 - **Consumers:** Notification Context → confirmation email.
 
 #### **RecurringBookingScheduleApprovalRequested**
 - **Trigger:** UC-070 confirms a recurring pattern on a `MANUAL_APPROVAL` service.
-- **State change:** `RecurringBookingSchedule` created `PENDING_APPROVAL`, `approvalHoldExpiresAt` set. No occurrences generated.
-- **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds, assignmentPolicy, recurrence, startsOn, approvalHoldExpiresAt }`
+- **State change:** `RecurringBookingSchedule` created `PENDING_APPROVAL`, `approvalHoldExpiresAt` set. No occurrences are materialized until staff approve (UC-071).
+- **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds, assignmentPolicy, recurrence, startsOn, endsOn, approvalHoldExpiresAt }`
 - **Consumers:** Notification Context → alerts staff, same role `BookingRequested` plays for a manual-approval appointment.
 
 #### **RecurringBookingScheduleRejected**
@@ -383,6 +383,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **State change:** `status → CANCELLED`; future materialized occurrences cancelled, releasing their `resource_occupancy` rows.
 - **Data:** `{ recurringScheduleId, customerId, serviceId, cancelledBookingIds: string[] }`
 - **Consumers:** Notification Context → customer email.
+- **Not emitted for a natural end:** when a schedule's term is over, the M23-S05 job moves it `ACTIVE → ENDED` without an event — nothing was cancelled and no consumer needs one (an event with no consumer must not ship).
 
 #### **AvailabilityAlertCreated**
 - **Trigger:** UC-072.

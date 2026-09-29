@@ -933,6 +933,8 @@ CAND-XX: [Name]
 
 - **Actor:** Authenticated customer, or Staff acting on their behalf.
 - **Preconditions:** Service enables recurrence; guest bookings are not eligible.
+> **Superseded 2026-09-29 (this UC's private-appointment recurrence only):** the schedule is fixed-term — a required end date capped at the service's maximum term (90 days by default), every occurrence checked at creation (working hours and closures, then occupancy) and created once, no rolling horizon, no Pause, `ENDED` when the term is over. Canonical text: `docs/04-USE_CASES.md` UC-070/071. The flow below is kept as the original *why*.
+
 - **Trigger:** Customer or staff confirms a supported weekly/private recurrence pattern.
 - **Main Flow:** System resource-conflict-checks the proposed schedule (A1 below) with `FIXED_ASSIGNMENT` when customer/staff selected a resource, or `RESOLVE_PER_OCCURRENCE` for an eligible automatic/fungible service. **Branches on the service's effective approval mode (updated 2026-08-28, `multivertical-booking_DATA_MODEL.md` §6 item 42 — see that item for why):**
   - `AUTO_CONFIRM`: `RecurringBookingSchedule` is created `ACTIVE` directly. It blocks the future recurrence pattern and materializes normal linked bookings through the service's rolling horizon (90-day default) immediately.

@@ -1152,7 +1152,7 @@ Returns:
 ### **UC-070: Customer (or Staff) Manages a Recurring Private Reservation Schedule**
 
 - **Actor:** Authenticated customer, or Staff acting on their behalf
-- **Endpoint:** `POST /recurring-booking-schedules`, `PATCH /recurring-booking-schedules/:id` (skip/reschedule occurrence, pause, end)
+- **Endpoint:** `POST /recurring-booking-schedules`, `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart` (skip/reschedule one occurrence), `POST /recurring-booking-schedules/:id/end` (`POST …/pause` still exists and is being removed — see `docs/14-API_CONTRACTS.md`)
 - **Preconditions:** Service enables recurrence (`recurrenceEligible`, UC-055) and is a flat, single-resource-requirement `APPOINTMENT` service (no `legs`, no multi-resource bundle — see `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`); guest bookings are not eligible.
 - **Trigger:** Customer or staff confirms a supported weekly/private recurrence pattern with an explicit end date.
 - **Main Flow:**
@@ -1169,7 +1169,7 @@ Returns:
   - **A6: `endsOn` is missing, before `startsOn`, or later than `startsOn` + the maximum term** → `422 Unprocessable Entity`; no schedule is created. An `endsOn` equal to `startsOn` is allowed.
   - **A7: The service is not eligible for recurrence** (not an `APPOINTMENT`, recurrence not enabled, has `legs` or more than one resource requirement, or the requested `assignmentPolicy` does not match the requirement's selection mode) → `422 Unprocessable Entity`; no schedule is created.
   - **A8: STAFF creates on a customer's behalf without a valid `customerId`** (missing, unknown in this tenant, or the actor is not an active staff member) → `404 Not Found` (`BOOKING_CUSTOMER_NOT_FOUND`); no schedule is created.
-- **Postconditions:** Recurrence is a fixed-term commitment, not a best-effort reminder, once `ACTIVE`; it ends by itself at `endsOn` (derived — no status transition), and every occurrence it holds was checked when it was created. A `PENDING_APPROVAL` request is not yet a commitment and blocks no one else's booking beyond the resource-conflict check already performed at request time.
+- **Postconditions:** Recurrence is a fixed-term commitment, not a best-effort reminder, once `ACTIVE`; once `endsOn` has passed a scheduled job moves it to `ENDED` (no event, nothing to cancel), and every occurrence it holds was checked when it was created. A `PENDING_APPROVAL` request is not yet a commitment and blocks no one else's booking beyond the resource-conflict check already performed at request time.
 - **Events Triggered:** `RecurringBookingScheduleCreated` (`AUTO_CONFIRM`) or `RecurringBookingScheduleApprovalRequested` (`MANUAL_APPROVAL`) at creation; `RecurringBookingSchedulePaused`/`Ended`; ordinary booking events for each materialized occurrence.
 
 ---
