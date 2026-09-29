@@ -32,23 +32,33 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     candidates: ResourceOccupancyWindow[],
     excludeBookingLineIds?: string[],
   ): Promise<string[]> {
-    const conflicting = new Set<string>();
-    for (const candidate of candidates) {
-      // Mirrors the production GIST exclusion constraint's own WHERE clause and
-      // typeorm-resource-occupancy.repository.ts's findConflictingResourceIds SQL — REQUESTED
-      // rows are never conflicts, only HOLD/COMMITTED are.
-      const hasOverlap = this.store.some(
+    const conflicting = await this.findConflictingWindows(
+      tenantId,
+      candidates,
+      excludeBookingLineIds,
+    );
+    return [...new Set(conflicting.map((window) => window.resourceId))];
+  }
+
+  async findConflictingWindows(
+    tenantId: string,
+    windows: ResourceOccupancyWindow[],
+    excludeBookingLineIds?: string[],
+  ): Promise<ResourceOccupancyWindow[]> {
+    // Mirrors the production GIST exclusion constraint's own WHERE clause and
+    // typeorm-resource-occupancy.repository.ts's findConflictingWindows SQL — REQUESTED rows are
+    // never conflicts, only HOLD/COMMITTED are.
+    return windows.filter((window) =>
+      this.store.some(
         (row) =>
           row.tenantId === tenantId &&
-          row.resourceId === candidate.resourceId &&
+          row.resourceId === window.resourceId &&
           row.lockState !== 'REQUESTED' &&
           !(excludeBookingLineIds ?? []).includes(row.bookingLineId) &&
-          candidate.startsAt < row.endsAt &&
-          row.startsAt < candidate.endsAt,
-      );
-      if (hasOverlap) conflicting.add(candidate.resourceId);
-    }
-    return [...conflicting];
+          window.startsAt < row.endsAt &&
+          row.startsAt < window.endsAt,
+      ),
+    );
   }
 
   async assign(

@@ -38,7 +38,6 @@ import {
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
-import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { resolveApprovalMode } from './service-result.mapper';
 import {
   assertPatternConflictFree,
@@ -96,7 +95,6 @@ export class RequestRecurringBookingScheduleUseCase {
     @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly availabilityService: AvailabilityService,
-    private readonly slotConflictService: BookingSlotConflictService,
   ) {}
 
   async execute(
@@ -175,11 +173,10 @@ export class RequestRecurringBookingScheduleUseCase {
         resourceRepo: this.resourceRepo,
         availabilityService: this.availabilityService,
         occupancyRepo: this.occupancyRepo,
-        slotConflictService: this.slotConflictService,
+        tenantLock: this.tenantLock,
       },
       {
         tenantId: input.tenantId,
-        serviceId: input.serviceId,
         timezone: input.timezone,
         assignmentPolicy: input.assignmentPolicy,
         resourceIds: input.resourceIds,
@@ -250,7 +247,7 @@ export class RequestRecurringBookingScheduleUseCase {
     return customerId;
   }
 
-  // FIXED_ASSIGNMENT is locked by assertPatternConflictFree()'s own assertSlotFree() call
+  // FIXED_ASSIGNMENT is locked by assertPatternConflictFree()'s own lockResources() call
   // (ITenantLockPort.lockResources(), acquired on the caller-chosen resourceIds); RESOLVE_PER_
   // OCCURRENCE has no fixed resource to lock upfront, so it locks on serviceId instead — either
   // lock also protects the cap check below atomically in the same transaction.

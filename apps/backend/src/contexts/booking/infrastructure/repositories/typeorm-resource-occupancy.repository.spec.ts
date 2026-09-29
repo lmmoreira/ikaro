@@ -53,7 +53,7 @@ describe('TypeOrmResourceOccupancyRepository', () => {
         endsAt: new Date('2026-06-01T15:00:00.000Z'),
       });
       const manager = {
-        query: jest.fn().mockResolvedValue([{ resource_id: 'res-overlap' }]),
+        query: jest.fn().mockResolvedValue([{ position: '1' }]),
       } as unknown as EntityManager;
 
       const result = await runWithEntityManager(manager, () =>
@@ -84,6 +84,70 @@ describe('TypeOrmResourceOccupancyRepository', () => {
         [candidate.startsAt],
         [candidate.endsAt],
         [BOOKING_LINE_ID],
+      ]);
+    });
+
+    it('collapses several conflicting windows of one resource into a single resource id', async () => {
+      const first = buildCandidate({ resourceId: 'res-busy' });
+      const second = buildCandidate({
+        resourceId: 'res-busy',
+        startsAt: new Date('2026-06-08T10:00:00.000Z'),
+        endsAt: new Date('2026-06-08T11:00:00.000Z'),
+      });
+      const manager = {
+        query: jest.fn().mockResolvedValue([{ position: '1' }, { position: '2' }]),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(manager, () =>
+        repo.findConflictingResourceIds(TENANT_ID, [first, second]),
+      );
+
+      expect(result).toEqual(['res-busy']);
+    });
+  });
+
+  describe('findConflictingWindows', () => {
+    it('returns [] without querying when windows is empty', async () => {
+      const result = await repo.findConflictingWindows(TENANT_ID, []);
+      expect(result).toEqual([]);
+    });
+
+    it('throws when called outside an active transaction', async () => {
+      await expect(repo.findConflictingWindows(TENANT_ID, [buildCandidate()])).rejects.toThrow(
+        'IResourceOccupancyRepository methods require an active transaction',
+      );
+    });
+
+    it('maps each reported 1-based position back to the input window that conflicted, in one query', async () => {
+      const windows = [
+        buildCandidate({ resourceId: 'res-a' }),
+        buildCandidate({
+          resourceId: 'res-a',
+          startsAt: new Date('2026-06-08T10:00:00.000Z'),
+          endsAt: new Date('2026-06-08T11:00:00.000Z'),
+        }),
+        buildCandidate({
+          resourceId: 'res-a',
+          startsAt: new Date('2026-06-15T10:00:00.000Z'),
+          endsAt: new Date('2026-06-15T11:00:00.000Z'),
+        }),
+      ];
+      const manager = {
+        query: jest.fn().mockResolvedValue([{ position: '2' }, { position: '3' }]),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(manager, () =>
+        repo.findConflictingWindows(TENANT_ID, windows),
+      );
+
+      expect(result).toEqual([windows[1], windows[2]]);
+      expect(manager.query).toHaveBeenCalledTimes(1);
+      expect(manager.query).toHaveBeenCalledWith(expect.any(String), [
+        TENANT_ID,
+        ['res-a', 'res-a', 'res-a'],
+        windows.map((w) => w.startsAt),
+        windows.map((w) => w.endsAt),
+        null,
       ]);
     });
   });

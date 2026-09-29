@@ -3,8 +3,12 @@ import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 import {
+  BookingEntityBuilder,
+  BookingLineEntityBuilder,
+  BookingLineResourceAssignmentEntityBuilder,
   RecurringBookingScheduleEntityBuilder,
   ResourceEntityBuilder,
+  ResourceOccupancyEntityBuilder,
   ServiceEntityBuilder,
   ServiceResourceRequirementEntityBuilder,
 } from '../../../../test/builders/booking/index';
@@ -14,6 +18,9 @@ import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
+import { BookingEntity } from '../entities/booking.entity';
+import { BookingLineEntity } from '../entities/booking-line.entity';
+import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { ServiceResourceRequirementEntity } from '../entities/service-resource-requirement.entity';
 import { ResourceEntity } from '../entities/resource.entity';
@@ -69,6 +76,9 @@ describe('RecurringBookingScheduleController (integration)', () => {
     await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });
     await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+    await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
+    await ds.getRepository(BookingLineEntity).delete({ tenantId });
+    await ds.getRepository(BookingEntity).delete({ tenantId });
     await ds.getRepository(ServiceResourceRequirementEntity).delete({ tenantId });
     await ds.getRepository(ResourceEntity).delete({ tenantId });
     await ds.getRepository(ServiceEntity).delete({ tenantId });
@@ -219,5 +229,128 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
     const statuses = [first.status, second.status].sort((a, b) => a - b);
     expect(statuses).toEqual([201, 409]);
+  });
+  // Real composite FKs require a genuinely persisted service + booking + line + assignment before
+  // a resource_occupancy row can reference one.
+  async function seedOccupancy(occupiedResourceId: string, startsAt: Date): Promise<void> {
+    const service = new ServiceEntityBuilder().withTenantId(tenantId).build();
+    await ds.getRepository(ServiceEntity).save(service);
+    const booking = new BookingEntityBuilder().withTenantId(tenantId).build();
+    await ds.getRepository(BookingEntity).save(booking);
+    const line = new BookingLineEntityBuilder()
+      .withTenantId(tenantId)
+      .withBookingId(booking.id)
+      .withServiceId(service.id)
+      .build();
+    await ds.getRepository(BookingLineEntity).save(line);
+    const assignment = new BookingLineResourceAssignmentEntityBuilder()
+      .withTenantId(tenantId)
+      .withBookingLineId(line.lineId)
+      .withResourceId(occupiedResourceId)
+      .withResourceType(ResourceType.ROOM)
+      .build();
+    await ds.getRepository(BookingLineResourceAssignmentEntity).save(assignment);
+    const occupancy = new ResourceOccupancyEntityBuilder()
+      .withTenantId(tenantId)
+      .withResourceId(occupiedResourceId)
+      .withResourceType(ResourceType.ROOM)
+      .withBookingLineResourceAssignmentId(assignment.id)
+      .withLockState('COMMITTED')
+      .withStartsAt(startsAt)
+      .withEndsAt(new Date(startsAt.getTime() + 60 * 60_000))
+      .build();
+    await ds.getRepository(ResourceOccupancyEntity).save(occupancy);
+  }
+
+  // Fridays at 15:00 local (UTC-3, no DST) — a weekday/time no other test in this file books on the
+  // shared resource, so a 409 here can only come from the seeded occupancy row, never from an
+  // active-schedule overlap with an earlier test. Index 0 is the first Friday from today.
+  function fridayOccurrence(index: number): Date {
+    const first = new Date(`${nextWeekday(5)}T18:00:00.000Z`);
+    return new Date(first.getTime() + index * 7 * 24 * 60 * 60_000);
+  }
+
+  function postFridayPattern(body: {
+    serviceId: string;
+    assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
+    resourceIds?: string[];
+  }) {
+    return request(app.getHttpServer())
+      .post('/recurring-booking-schedules')
+      .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+      .send({
+        ...body,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['friday'],
+          startTime: '15:00',
+          durationMinutes: 60,
+        },
+        startsOn: nextWeekday(5),
+      });
+  }
+
+  describe('creation-time conflict check across the whole pattern', () => {
+    afterEach(async () => {
+      await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+    });
+
+    it('FIXED_ASSIGNMENT: rejects with 409 and persists nothing when only the 5th occurrence overlaps existing occupancy', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      await seedOccupancy(resourceId, fridayOccurrence(4));
+
+      await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+      }).expect(409);
+
+      expect(
+        await ds
+          .getRepository(RecurringBookingScheduleEntity)
+          .count({ where: { tenantId, serviceId } }),
+      ).toBe(0);
+    });
+
+    it('FIXED_ASSIGNMENT: creates the schedule when the resource is only busy outside every occurrence', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      await seedOccupancy(resourceId, new Date(fridayOccurrence(4).getTime() + 3 * 60 * 60_000));
+
+      await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+      }).expect(201);
+    });
+
+    it('AUTO_ANY: rejects with 409 when every eligible resource is busy on one occurrence', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY');
+      await seedOccupancy(resourceId, fridayOccurrence(2));
+
+      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
+        409,
+      );
+
+      expect(
+        await ds
+          .getRepository(RecurringBookingScheduleEntity)
+          .count({ where: { tenantId, serviceId } }),
+      ).toBe(0);
+    });
+
+    it('AUTO_ANY: creates the schedule while another eligible resource is free on the busy occurrence', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY');
+      const spare = new ResourceEntityBuilder()
+        .withTenantId(tenantId)
+        .withType(ResourceType.ROOM)
+        .withName('Sala Boreal')
+        .build();
+      await ds.getRepository(ResourceEntity).save(spare);
+      await seedOccupancy(resourceId, fridayOccurrence(2));
+
+      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
+        201,
+      );
+    });
   });
 });

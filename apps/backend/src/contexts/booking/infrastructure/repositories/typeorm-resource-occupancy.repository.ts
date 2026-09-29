@@ -16,7 +16,7 @@ import {
 } from './typeorm-resource-occupancy.write-queries';
 
 interface ConflictRow {
-  resource_id: string;
+  position: string;
 }
 
 interface WorkloadCountRow {
@@ -33,26 +33,41 @@ interface AssignmentByLineRow {
 
 @Injectable()
 export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRepository {
-  // Window-overlap is evaluated in SQL (tstzrange &&, same operator the GIST exclusion
-  // constraint itself uses) rather than fetched-then-filtered-in-JS — each candidate can have a
-  // different window, so the candidate list is unnested into a value set first and joined per
-  // (resource_id, window) pair, letting Postgres use the GIST index instead of a full scan of
-  // every retained HOLD/COMMITTED row for the resource.
   async findConflictingResourceIds(
     tenantId: string,
     candidates: ResourceOccupancyWindow[],
     excludeBookingLineIds?: string[],
   ): Promise<string[]> {
-    if (candidates.length === 0) return [];
+    const conflicting = await this.findConflictingWindows(
+      tenantId,
+      candidates,
+      excludeBookingLineIds,
+    );
+    return [...new Set(conflicting.map((window) => window.resourceId))];
+  }
+
+  // Window-overlap is evaluated in SQL (tstzrange &&, same operator the GIST exclusion
+  // constraint itself uses) rather than fetched-then-filtered-in-JS — each window can differ, so
+  // the list is unnested into a value set first and joined per (resource_id, window) pair,
+  // letting Postgres use the GIST index instead of a full scan of every retained HOLD/COMMITTED
+  // row for the resource. WITH ORDINALITY carries each input window's position through the join,
+  // so a conflict maps back to exactly the window that caused it even when several windows share
+  // a resource.
+  async findConflictingWindows(
+    tenantId: string,
+    windows: ResourceOccupancyWindow[],
+    excludeBookingLineIds?: string[],
+  ): Promise<ResourceOccupancyWindow[]> {
+    if (windows.length === 0) return [];
     const manager = this.requireActiveManager();
 
     const rows: ConflictRow[] = await manager.query(
       `
       WITH candidates AS (
         SELECT * FROM unnest($2::uuid[], $3::timestamptz[], $4::timestamptz[])
-          AS c(resource_id, starts_at, ends_at)
+          WITH ORDINALITY AS c(resource_id, starts_at, ends_at, position)
       )
-      SELECT DISTINCT c.resource_id
+      SELECT DISTINCT c.position
       FROM candidates c
       JOIN booking.resource_occupancy ro
         ON ro.tenant_id = $1
@@ -66,17 +81,18 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
         OR bla.booking_line_id IS NULL
         OR NOT (bla.booking_line_id = ANY($5::uuid[]))
       )
+      ORDER BY c.position
       `,
       [
         tenantId,
-        candidates.map((c) => c.resourceId),
-        candidates.map((c) => c.startsAt),
-        candidates.map((c) => c.endsAt),
+        windows.map((w) => w.resourceId),
+        windows.map((w) => w.startsAt),
+        windows.map((w) => w.endsAt),
         excludeBookingLineIds ?? null,
       ],
     );
 
-    return rows.map((row) => row.resource_id);
+    return rows.map((row) => windows[Number(row.position) - 1]);
   }
 
   async assign(

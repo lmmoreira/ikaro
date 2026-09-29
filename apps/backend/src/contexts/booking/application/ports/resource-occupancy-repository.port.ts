@@ -49,6 +49,17 @@ export interface IResourceOccupancyRepository {
     excludeBookingLineIds?: string[],
   ): Promise<string[]>;
 
+  // Same overlap check as findConflictingResourceIds, but reports which of the given windows
+  // conflict instead of collapsing to distinct resource ids — for a caller checking many windows
+  // of the same resource(s) in one query (a recurring pattern's occurrences) that must tell which
+  // occurrence collided. Returns a subset of `windows`, in input order. Same active-transaction
+  // and excludeBookingLineIds contract.
+  findConflictingWindows(
+    tenantId: string,
+    windows: ResourceOccupancyWindow[],
+    excludeBookingLineIds?: string[],
+  ): Promise<ResourceOccupancyWindow[]>;
+
   // Inserts one resource_occupancy row per candidate, inside the caller's active transaction —
   // each row's booking_line_resource_assignments row is upserted (reused when the same
   // (line, resource, leg, quantity) tuple already exists, e.g. a reschedule that re-resolves to
