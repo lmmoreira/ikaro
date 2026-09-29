@@ -194,7 +194,7 @@ POST /recurring-booking-schedules
 |---|---|---|
 | daysOfWeek | at least one weekday (`RecurrenceRuleSchema`, `.min(1)`) | "Escolha pelo menos um dia da semana." |
 | resourceIds | exactly one when `FIXED_ASSIGNMENT` (schema `.length(1)` + refine) | not drawn — the resource list preselects one |
-| endsOn | **required**, not before `startsOn` (equal is allowed) and not later than `startsOn` + the service's maximum term (`RecurringBookingScheduleInvalidDateRangeError` → `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE`) | before start: "A data de término não pode ser anterior à data de início." · missing: "Escolha a data em que a recorrência termina." · over the cap: "A data final passa do limite de 90 dias (até dd/mm). Escolha uma data anterior — depois você pode renovar." (`13e` states A1/A2/A3) |
+| endsOn | **required**, not before `startsOn` (equal is allowed) and not later than `startsOn` + the service's maximum term (before start → `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE`; over the cap → `422` `BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED` with `params { maxTermDays, latestEndsOn }`; missing → `400` request validation) | before start: "A data de término não pode ser anterior à data de início." · missing: "Escolha a data em que a recorrência termina." · over the cap: "A data final passa do limite de 90 dias (até dd/mm). Escolha uma data anterior — depois você pode renovar." (`13e` states A1/A2/A3) |
 | durationMinutes | positive integer — read-only, defined by the service | — |
 
 **States:** idle → reviewing (`13b`) → submitting → created (`13c`) | pending approval (`06c`) | conflict (`06b`) | hours / closed-day / occupied list (`06d`, same component as `06b`) | cap reached (`13d`) | failure (`13e`).
@@ -207,7 +207,7 @@ POST /recurring-booking-schedules
 | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `06b` |
 | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` whose `conflicts` carry `CLOSED` / `OUTSIDE_HOURS` reasons (M23-S18 rejects at creation) | `06d` — same component as `06b`; occupancy and hours reasons can appear together in one list |
 | `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `13d` |
-| `400` / `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` (missing, reversed or over-cap end date) | `13e`, state A (A1 / A2 / A3) |
+| `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` (A1) · `400` request validation for a missing end date (A2) · `422` `BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED` (A3) | `13e`, state A (A1 / A2 / A3) |
 | `422` `BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE` | should be unreachable (the service list is filtered); treat as generic failure |
 | network / `5xx` | `13e`, state B — the typed pattern is preserved |
 

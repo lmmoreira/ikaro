@@ -102,7 +102,8 @@
       Estado A — validação: pelo menos 1 dia da semana (RecurrenceRuleSchema, 400) e data final válida:
         endsOn é obrigatório, não anterior a startsOn e não posterior a startsOn + prazo máximo do serviço
         (RecurringBookingScheduleInvalidDateRangeError → 422 BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE; data final igual à inicial é permitida).
-        A1 = data final anterior ao início · A2 = data final ausente · A3 = data final além do prazo máximo (90 dias por padrão). O cliente aplica as mesmas regras antes de enviar.
+        A1 = data final anterior ao início (422 BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE) · A2 = data final ausente (400 de validação do schema; o cliente bloqueia antes de enviar) ·
+        A3 = data final além do prazo máximo, 90 dias por padrão (422 BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED, com params { maxTermDays, latestEndsOn }). O cliente aplica as mesmas regras antes de enviar.
       Estado B — falha de envio (rede/5xx): nada foi criado; o padrão digitado é preservado e o botão repete o envio.
   -->
 
