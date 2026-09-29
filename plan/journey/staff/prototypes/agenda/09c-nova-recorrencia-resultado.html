@@ -42,7 +42,7 @@
         #criada        201 ACTIVE
         #aguardando    201 PENDING_APPROVAL — HOJE uma recorrência criada pela equipe para um serviço com aprovação manual também
                        fica pendente (a equipe aprovaria o próprio pedido); pular a aprovação é uma decisão de M23-S19
-        #conflito      409 BOOKING_RECURRING_SCHEDULE_CONFLICT (as datas listadas dependem da mesma decisão de contrato de M23-S17)
+        #conflito      409 BOOKING_RECURRING_SCHEDULE_CONFLICT (a lista de ocorrências vem do payload do 409 que M23-S18 define)
         #limite        409 BOOKING_RECURRING_SCHEDULE_CAP_REACHED
         #cliente       404 BOOKING_CUSTOMER_NOT_FOUND (customerId ausente, desconhecido, ou autor não é equipe ativa)
         #falha         erro de rede / 5xx — o padrão digitado é preservado

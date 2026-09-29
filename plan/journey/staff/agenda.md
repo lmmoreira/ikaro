@@ -174,5 +174,5 @@ flowchart TD
 - [ ] **Approval on a staff-created schedule.** Today a schedule created by staff for a service that requires manual approval still lands in `PENDING_APPROVAL`, so staff would approve their own request. Should staff creation skip approval? (`09c #aguardando` draws today's behavior.)
 - [ ] **The customer is not notified.** No notification is sent when a recurring schedule is created or decided — the backend handler writes an audit log only, and no story lists notification work for these events. `09b` therefore never promises an e-mail. The schedule does appear in the customer's own list (`M23-S12`).
 - [ ] **Route.** Proposed `/dashboard/bookings/recurring/new`; a brand-new dashboard section would also need registering in the sidebar, the proxy role list, the bottom nav and the topbar titles.
-- [ ] **The `06b`-style conflict dates** in `09c #conflito` depend on the same API decision as the customer flow (`M23-S17`).
+- [x] **The conflict list** in `09c #conflito` is the `409` occurrence-list payload that `M23-S18` owns (reasons `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`); no backend work in `M23-S19`.
 - [ ] Variable-duration services and bundled services are out of scope here, as in the customer flow (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` tracks bundles).

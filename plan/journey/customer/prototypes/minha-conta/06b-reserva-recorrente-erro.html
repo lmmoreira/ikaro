@@ -100,9 +100,10 @@
     UC cobertos: UC-070 A1 — padrão futuro conflita, criação bloqueada por inteiro
     DATA:
       POST /recurring-booking-schedules → 409 (BOOKING_RECURRING_SCHEDULE_CONFLICT)
-      ATENÇÃO: a lista de ocorrências em conflito abaixo NÃO é devolvida pela API hoje (o 409 traz só uma mensagem genérica).
-        Fornecê-la é barato (IResourceOccupancyRepository.findConflictingWindows já retorna as janelas em conflito) mas é mudança de contrato
-        a decidir em M23-S17. A sugestão de outro recurso disponível, que o protótipo original de discovery mostrava, foi removida:
+      ATENÇÃO: a lista de ocorrências em conflito abaixo AINDA NÃO é devolvida pela API (o 409 traz só uma mensagem genérica).
+        M23-S18 é dono da correção — um único payload [{ occurrenceStart, reason: OCCUPIED | CLOSED | OUTSIDE_HOURS }], barato porque
+        IResourceOccupancyRepository.findConflictingWindows já retorna as janelas em conflito — e M23-S17 só o renderiza.
+        A sugestão de outro recurso disponível, que o protótipo original de discovery mostrava, foi removida:
         a API não tem como calculá-la e seria uma funcionalidade à parte.
   -->
 

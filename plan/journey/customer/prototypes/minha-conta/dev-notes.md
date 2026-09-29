@@ -135,7 +135,7 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ### Overview
 
-Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (creation-time hours and closures, backend; `06d` is only its proposed UI). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
+Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload, backend — it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
 
 ### File map (❓ none exist yet)
 
@@ -164,7 +164,7 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a re
 | `13c-nova-recorrencia-sucesso.html` | Created — `ACTIVE` | same, success state | M23-S17 |
 | `06c-recorrente-em-analise.html` | Created — `PENDING_APPROVAL` | same, pending state | M23-S17 |
 | `06b-reserva-recorrente-erro.html` | `409` conflict, with the conflicting dates | same, error state | M23-S17 |
-| `06d-reserva-recorrente-erro-horario.html` | `409` outside hours / closed day (**proposal**) | same, error state | M23-S18 |
+| `06d-reserva-recorrente-erro-horario.html` | `409` outside hours / closed day (**proposal**) | same, error state | M23-S17 (only if M23-S18 rejects at creation) |
 | `13d-nova-recorrencia-limite.html` | `409` active-schedule cap reached | same, error state | M23-S17 |
 | `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
 | `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, pause, end | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
@@ -214,7 +214,7 @@ POST /recurring-booking-schedules
 
 ### Known limitations of this prototype (gap variants, not silently dropped)
 
-- ⚠ **`06b` promises data the API does not return.** It lists the conflicting dates; the `409` carries only a generic message. Supplying them is cheap (`IResourceOccupancyRepository.findConflictingWindows` already returns the conflicting windows) but it is a contract change to decide in `M23-S17`. The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
+- ⚠ **`06b` shows data the API does not return yet.** It lists the conflicting occurrences; today the `409` carries only a generic message. `M23-S18` owns the fix — one payload, a list of `{ occurrenceStart, reason }` with `reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`, cheap because `IResourceOccupancyRepository.findConflictingWindows` already returns the conflicting windows — and `M23-S17` only renders it (falling back to the generic message when the body has no list). The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
 - ⚠ **`06b`'s original dates were inconsistent** ("a cada quatro semanas" between dates two weeks apart, on days that were not Tuesdays); corrected to 26 ago and 23 set.
 - ⚠ **Duration is read-only.** A `durationPolicy = CUSTOMER_SELECTED` service needs the variable-duration control (`guest/prototypes/book-a-service/12-reserva-por-tempo.html`), not drawn.
 - ⚠ **`06d` is a proposal.** The API validates neither working hours nor closures at creation today; `M23-S05`'s plan skips hours-conflicted occurrences at generation instead.
