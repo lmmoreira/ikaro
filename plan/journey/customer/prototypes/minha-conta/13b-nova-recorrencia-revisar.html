@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserva recorrente — Conflito — Vitta Studio</title>
+  <title>Revisar recorrência — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     details summary { list-style: none; }
@@ -95,15 +95,14 @@
 <body>
 
   <!--
-    COMPONENT: NewRecurringScheduleConflictError
-    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; estado de erro)
-    UC cobertos: UC-070 A1 — padrão futuro conflita, criação bloqueada por inteiro
+    COMPONENT: NewRecurringScheduleReview
+    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; passo 2 da mesma rota)
+    UC cobertos: UC-070 (main flow + A1/A4)
     DATA:
-      POST /recurring-booking-schedules → 409 (BOOKING_RECURRING_SCHEDULE_CONFLICT)
-      ATENÇÃO: a lista de ocorrências em conflito abaixo NÃO é devolvida pela API hoje (o 409 traz só uma mensagem genérica).
-        Fornecê-la é barato (IResourceOccupancyRepository.findConflictingWindows já retorna as janelas em conflito) mas é mudança de contrato
-        a decidir em M23-S17. A sugestão de outro recurso disponível, que o protótipo original de discovery mostrava, foi removida:
-        a API não tem como calculá-la e seria uma funcionalidade à parte.
+      POST /recurring-booking-schedules  (dispara ao confirmar; o padrão vem do passo 1)
+        201 ACTIVE → 13c · 201 PENDING_APPROVAL → 06c · 409 conflito → 06b · 409 fora do horário (proposta M23-S18) → 06d
+        409 limite → 13d · erro rede/5xx → 13e
+      O bloco "Simular resultado" abaixo existe só no protótipo, para navegar pelos desfechos.
   -->
 
   <!-- Prototype banner -->
@@ -167,29 +166,38 @@
     <main class="main-content">
       <div class="dashboard-body">
 
-        <p class="step-label">Sala Aurora · nova reserva recorrente</p>
-        <h1 class="page-title" style="font-size:1.5rem;">Toda terça, 10:00–12:00</h1>
-        <p style="opacity:.7;">Este horário viraria um compromisso recorrente, com reservas geradas até 90 dias à frente.</p>
+        <a class="back-link" href="13-nova-recorrencia.html">← Alterar padrão</a>
+        <h1 class="page-title" style="margin-bottom:.25rem;">Revisar recorrência</h1>
+        <p class="step-label">Passo 2 de 2 · Revisar</p>
 
-        <div class="card notice-error">
-          <h2 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar esta recorrência</h2>
-          <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — a criação é bloqueada por inteiro; nenhuma reserva parcial foi feita.</p>
-        </div>
-
-        <div class="card" style="margin-top:1rem">
-          <strong>Ocorrências em conflito</strong>
-          <div class="row"><strong>26 de agosto · 10:00–12:00</strong><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva de terça.</p></div>
-          <div class="row"><strong>23 de setembro · 10:00–12:00</strong><p class="meta">Mesmo conflito — o padrão semanal repete o choque a cada quatro semanas.</p></div>
+        <div class="card" style="margin-top:1rem;">
+          <div class="summary-row"><span>Serviço</span><span>Sala Aurora</span></div>
+          <div class="summary-row"><span>Recurso</span><span>Sala Aurora</span></div>
+          <div class="summary-row"><span>Padrão</span><span>Toda terça</span></div>
+          <div class="summary-row"><span>Horário</span><span>10:00–12:00 (2 horas)</span></div>
+          <div class="summary-row"><span>Período</span><span>A partir de 19 ago, sem data final</span></div>
+          <div class="summary-row"><span>Preço</span><span>R$ 100,00 por reserva</span></div>
         </div>
 
         <div class="notice">
-          <strong>O que fazer agora</strong>
-          <p class="meta">Escolha outro dia ou horário para a recorrência, ou tente outro recurso.</p>
+          <strong>Antes de confirmar</strong>
+          <p class="meta">Verificamos todas as ocorrências dos próximos 90 dias. Se alguma não estiver disponível, nada é criado — nem uma reserva parcial.</p>
+          <p class="meta">Se o serviço exigir aprovação, a recorrência passa por uma única análise para toda a série.</p>
         </div>
 
         <div class="nav-buttons">
-          <a class="btn-secondary" href="14-recorrentes-lista.html">Cancelar</a>
-          <a class="btn-primary" href="13-nova-recorrencia.html" style="text-decoration:none;">Alterar padrão</a>
+          <a class="btn-secondary" href="13-nova-recorrencia.html">Voltar</a>
+          <a class="btn-primary" href="13c-nova-recorrencia-sucesso.html" style="text-decoration:none;">Confirmar recorrência</a>
+        </div>
+
+        <div class="proto-only">
+          <strong>Simular resultado (só no protótipo):</strong><br>
+          <a href="13c-nova-recorrencia-sucesso.html">Ativa</a>
+          <a href="06c-recorrente-em-analise.html">Em análise</a>
+          <a href="06b-reserva-recorrente-erro.html">Conflito</a>
+          <a href="06d-reserva-recorrente-erro-horario.html">Fora do horário</a>
+          <a href="13d-nova-recorrencia-limite.html">Limite</a>
+          <a href="13e-nova-recorrencia-erro.html">Falha</a>
         </div>
 
       </div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserva recorrente — Conflito — Vitta Studio</title>
+  <title>Recorrência criada — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     details summary { list-style: none; }
@@ -95,15 +95,12 @@
 <body>
 
   <!--
-    COMPONENT: NewRecurringScheduleConflictError
-    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; estado de erro)
-    UC cobertos: UC-070 A1 — padrão futuro conflita, criação bloqueada por inteiro
+    COMPONENT: NewRecurringScheduleSuccess
+    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; estado de sucesso)
+    UC cobertos: UC-070 (branch AUTO_CONFIRM → ACTIVE)
     DATA:
-      POST /recurring-booking-schedules → 409 (BOOKING_RECURRING_SCHEDULE_CONFLICT)
-      ATENÇÃO: a lista de ocorrências em conflito abaixo NÃO é devolvida pela API hoje (o 409 traz só uma mensagem genérica).
-        Fornecê-la é barato (IResourceOccupancyRepository.findConflictingWindows já retorna as janelas em conflito) mas é mudança de contrato
-        a decidir em M23-S17. A sugestão de outro recurso disponível, que o protótipo original de discovery mostrava, foi removida:
-        a API não tem como calculá-la e seria uma funcionalidade à parte.
+      Resposta 201: { id, status: "ACTIVE", approvalHoldExpiresAt: null }
+      Uma recorrência ACTIVE nasce sem reservas geradas; o job de geração (M23-S05) as cria em seguida.
   -->
 
   <!-- Prototype banner -->
@@ -167,29 +164,15 @@
     <main class="main-content">
       <div class="dashboard-body">
 
-        <p class="step-label">Sala Aurora · nova reserva recorrente</p>
-        <h1 class="page-title" style="font-size:1.5rem;">Toda terça, 10:00–12:00</h1>
-        <p style="opacity:.7;">Este horário viraria um compromisso recorrente, com reservas geradas até 90 dias à frente.</p>
-
-        <div class="card notice-error">
-          <h2 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar esta recorrência</h2>
-          <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — a criação é bloqueada por inteiro; nenhuma reserva parcial foi feita.</p>
-        </div>
-
-        <div class="card" style="margin-top:1rem">
-          <strong>Ocorrências em conflito</strong>
-          <div class="row"><strong>26 de agosto · 10:00–12:00</strong><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva de terça.</p></div>
-          <div class="row"><strong>23 de setembro · 10:00–12:00</strong><p class="meta">Mesmo conflito — o padrão semanal repete o choque a cada quatro semanas.</p></div>
-        </div>
-
-        <div class="notice">
-          <strong>O que fazer agora</strong>
-          <p class="meta">Escolha outro dia ou horário para a recorrência, ou tente outro recurso.</p>
+        <div class="card notice-ok" style="margin-top:.5rem;">
+          <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
+          <h1 class="page-title" style="font-size:1.25rem;">Recorrência criada</h1>
+          <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">As reservas são geradas automaticamente, sempre até 90 dias à frente. A primeira pode levar alguns minutos para aparecer em Agendamentos.</p>
         </div>
 
         <div class="nav-buttons">
-          <a class="btn-secondary" href="14-recorrentes-lista.html">Cancelar</a>
-          <a class="btn-primary" href="13-nova-recorrencia.html" style="text-decoration:none;">Alterar padrão</a>
+          <a class="btn-secondary" href="14-recorrentes-lista.html">Voltar à lista</a>
+          <a class="btn-primary" href="06-reserva-recorrente.html" style="text-decoration:none;">Ver reserva recorrente</a>
         </div>
 
       </div>

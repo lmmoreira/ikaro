@@ -129,27 +129,99 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ---
 
-## ❓ GAP — M21 Cluster 3 extension (UC-070, UC-072, UC-076, not yet built)
+## ❓ GAP — M23 Cluster 3 extension (UC-070 create + manage, UC-072, UC-076, not yet built)
 
 > Everything above is shipped. Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
 
-**New prototype screens (relocated from the discovery folder):**
+### Overview
 
-| File | Screen | Production route (proposed) | Story |
+Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (creation-time hours and closures, backend; `06d` is only its proposed UI). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
+
+### File map (❓ none exist yet)
+
+| File | Status | Story |
+|---|---|---|
+| `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ❓ Gap | M23-S17 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/features/customer/components/my-account/RecurringScheduleOccurrenceActions.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result) | ❓ Gap | M23-S17 |
+| `apps/web/features/customer/hooks/useRecurringSchedules.ts` / `useCreateRecurringSchedule.ts` | ❓ Gap | M23-S12 / S17 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `myAccount.recurringSchedules.*` | ❓ Gap | M23-S12 / S17 |
+
+> Supersedes the earlier draft names (`features/booking/components/account/RecurringPrivateReservationManager.tsx`, route `/my-account/recurring-reservations/[id]`): `M23-S12` already chose `recurring-schedules` and `features/customer/components/my-account/` after checking the real precedent, and that story's own verification note applies here too — re-check at implementation time.
+
+### Prototype screens
+
+| File | Screen | Route | Story |
 |---|---|---|---|
-| `06-reserva-recorrente.html` | Manage a standing recurring reservation | `/{slug}/my-account/recurring-reservations/[id]` | ❓ Gap |
-| `06b-reserva-recorrente-erro.html` | Future-pattern conflict at creation | same route | ❓ Gap |
-| `06c-recorrente-em-analise.html` | Recurring request pending manual approval | same route | ❓ Gap |
-| `07-availability-alert.html` | Create/manage an availability alert | `/{slug}/my-account/alerts` | ❓ Gap |
+| `14-recorrentes-lista.html` | List: ativas / em análise / pausadas | `/{slug}/my-account/recurring-schedules` | M23-S12 (S17 adds the create button) |
+| `14b-recorrentes-lista-vazia.html` | List, empty state + create button | same | M23-S12 / S17 |
+| `13-nova-recorrencia.html` | Pattern: service, resource, weekdays, start time, period | `/{slug}/my-account/recurring-schedules/new` | M23-S17 |
+| `13b-nova-recorrencia-revisar.html` | Review and confirm (step 2, same route) | same | M23-S17 |
+| `13c-nova-recorrencia-sucesso.html` | Created — `ACTIVE` | same, success state | M23-S17 |
+| `06c-recorrente-em-analise.html` | Created — `PENDING_APPROVAL` | same, pending state | M23-S17 |
+| `06b-reserva-recorrente-erro.html` | `409` conflict, with the conflicting dates | same, error state | M23-S17 |
+| `06d-reserva-recorrente-erro-horario.html` | `409` outside hours / closed day (**proposal**) | same, error state | M23-S18 |
+| `13d-nova-recorrencia-limite.html` | `409` active-schedule cap reached | same, error state | M23-S17 |
+| `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
+| `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, pause, end | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
+| `07-availability-alert.html` | Create/manage an availability alert | `/{slug}/my-account/alerts` | M23-S12 |
 
-**File map (❓ none exist yet):**
+### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
 
-| File | Status |
+**File:** `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (GAP)
+
+**BFF call:**
+```
+POST /recurring-booking-schedules
+  Body: { serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
+          assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE",
+          resourceIds?: [uuid]   // exactly one when FIXED_ASSIGNMENT
+          startsOn: "YYYY-MM-DD", endsOn?: "YYYY-MM-DD" | null }
+  Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt: string | null }
+```
+
+**Which services the form offers:** there is **no server-side filter** for recurrence. The BFF service type exposes `recurrenceEligible`, `bookingModel`, `resourceRequirements` and `legs`, so the client would filter on `recurrenceEligible`, `bookingModel = APPOINTMENT`, no `legs` and exactly one requirement — replicating `assertServiceEligible`. `M23-S17` should decide whether to expose an eligibility indicator from the API instead of duplicating the rule in the client.
+
+**Resource field:** shown only when the service's requirement is `CUSTOMER_CHOICE` (→ `FIXED_ASSIGNMENT`, one resource). For `AUTO_ANY` / `AUTO_FUNGIBLE_POOL` it is omitted and the policy is `RESOLVE_PER_OCCURRENCE`.
+
+**Validation** (the rules the backend actually enforces):
+| Field | Rule | Error message |
+|---|---|---|
+| daysOfWeek | at least one weekday (`RecurrenceRuleSchema`, `.min(1)`) | "Escolha pelo menos um dia da semana." |
+| resourceIds | exactly one when `FIXED_ASSIGNMENT` (schema `.length(1)` + refine) | not drawn — the resource list preselects one |
+| endsOn | not before `startsOn`; equal is allowed (`RecurringBookingScheduleInvalidDateRangeError` → `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE`) | "A data de término não pode ser anterior à data de início." |
+| durationMinutes | positive integer — read-only, defined by the service | — |
+
+**States:** idle → reviewing (`13b`) → submitting → created (`13c`) | pending approval (`06c`) | conflict (`06b`) | outside hours (`06d`, proposal) | cap reached (`13d`) | failure (`13e`).
+
+**Outcome → screen:**
+| Outcome | Screen |
 |---|---|
-| `apps/web/features/booking/components/account/RecurringPrivateReservationManager.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/account/AvailabilityAlertForm.tsx` | ❓ Gap |
+| `201` `ACTIVE` | `13c` |
+| `201` `PENDING_APPROVAL` | `06c` |
+| `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `06b` |
+| `409` (hours / closures) | `06d` — only if `M23-S18` decides to reject at creation |
+| `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `13d` |
+| `400` / `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` | `13e`, state A |
+| `422` `BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE` | should be unreachable (the service list is filtered); treat as generic failure |
+| network / `5xx` | `13e`, state B — the typed pattern is preserved |
 
-**BFF calls:**
+**Mobile notes:** the shell provides the bottom nav; the form is a single column, weekday chips wrap.
+
+### Known limitations of this prototype (gap variants, not silently dropped)
+
+- ⚠ **`06b` promises data the API does not return.** It lists the conflicting dates; the `409` carries only a generic message. Supplying them is cheap (`IResourceOccupancyRepository.findConflictingWindows` already returns the conflicting windows) but it is a contract change to decide in `M23-S17`. The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
+- ⚠ **`06b`'s original dates were inconsistent** ("a cada quatro semanas" between dates two weeks apart, on days that were not Tuesdays); corrected to 26 ago and 23 set.
+- ⚠ **Duration is read-only.** A `durationPolicy = CUSTOMER_SELECTED` service needs the variable-duration control (`guest/prototypes/book-a-service/12-reserva-por-tempo.html`), not drawn.
+- ⚠ **`06d` is a proposal.** The API validates neither working hours nor closures at creation today; `M23-S05`'s plan skips hours-conflicted occurrences at generation instead.
+- ⚠ **A bundled service cannot recur**, so the form never shows a multi-resource picker. Tracked in `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
+- ⚠ **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype.
+
+**BFF calls (whole extension):**
 ```
 GET/POST/PATCH  /recurring-booking-schedules[/:id]           -- UC-070
 POST            /recurring-booking-schedules/:id/pause|end    -- UC-070 A2
@@ -157,12 +229,13 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 ```
 
 **Open questions / gaps:**
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
-- [ ] Nav placement (new top-level tab vs. folded into existing Agendamentos) is a UI decision for the implementing story.
+- [x] Stories exist: `M23-S12`, `M23-S17`, `M23-S18` — each still begins with `/story-discovery`.
+- [ ] **Entry point** (default drawn): a "Reservas recorrentes" link on the Agendamentos page → `14`, with the create button on the list. Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is still a UI decision for the implementing story.
+- [ ] Every "known limitation" above.
 
 ---
 
-## ❓ GAP — M21 Cluster 4 extension (UC-089–095, UC-102, not yet built)
+## ❓ GAP — M24 Cluster 4 extension (UC-089–095, UC-102, not yet built)
 
 > Relocated from `docs/discovery/multivertical-booking/prototype/customer-minhasturmas-*.html` and `customer-08*.html` — already implementation-grade (route tables, BFF contracts) per `docs/discovery/multivertical-booking/prototype/minha-conta-turmas-journey.md`, which this section carries forward. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`/`RecurringEnrollment`, `docs/14-API_CONTRACTS.md` § Classes & Sessions.
 
@@ -189,5 +262,5 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 **Important — read model reconciliation (carried forward from the discovery's own note, still unresolved):** the original prototype's `EnrollmentSession` interface is superseded — canonically, a recurring occurrence is its own `ClassSessionBooking` row (`seriesId` set, own `status`), and attendance lives on `ClassSessionAttendee.attendance`. "Pulou" is derived at display time (`status=CANCELLED AND seriesId!=null`), never a stored enum value. The implementing story must remove any obsolete interface rather than reconcile it.
 
 **Open questions / gaps:**
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Stories for this extension live in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`; each still begins with `/story-discovery`.
 - [ ] Reposição (UC-102) has no implementation-grade prototype screen — the discovery-stage `customer-04d-reagendada.html` was never promoted to this rigor; design fresh from `10-pular-sessao.html`'s existing "reagendar" link, not copy that screen as-is.

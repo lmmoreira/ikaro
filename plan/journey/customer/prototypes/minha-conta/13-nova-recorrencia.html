@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserva recorrente — Conflito — Vitta Studio</title>
+  <title>Nova reserva recorrente — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     details summary { list-style: none; }
@@ -95,15 +95,21 @@
 <body>
 
   <!--
-    COMPONENT: NewRecurringScheduleConflictError
-    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; estado de erro)
-    UC cobertos: UC-070 A1 — padrão futuro conflita, criação bloqueada por inteiro
+    COMPONENT: NewRecurringScheduleForm
+    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17)
+    UC cobertos: UC-070
     DATA:
-      POST /recurring-booking-schedules → 409 (BOOKING_RECURRING_SCHEDULE_CONFLICT)
-      ATENÇÃO: a lista de ocorrências em conflito abaixo NÃO é devolvida pela API hoje (o 409 traz só uma mensagem genérica).
-        Fornecê-la é barato (IResourceOccupancyRepository.findConflictingWindows já retorna as janelas em conflito) mas é mudança de contrato
-        a decidir em M23-S17. A sugestão de outro recurso disponível, que o protótipo original de discovery mostrava, foi removida:
-        a API não tem como calculá-la e seria uma funcionalidade à parte.
+      Lista de serviços: endpoint já existente do BFF (booking/services). NÃO há filtro no servidor por recorrência — o cliente filtra por
+        recurrenceEligible = true, bookingModel = APPOINTMENT, sem legs e com exatamente 1 resourceRequirement, replicando assertServiceEligible.
+        Ponto aberto para M23-S17: expor um indicador de elegibilidade na API para não duplicar a regra no cliente.
+      POST /recurring-booking-schedules
+        Body: { serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
+                assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid] (exatamente 1 se FIXED), startsOn, endsOn? }
+        Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
+        Erros: 400 validação · 409 conflito / limite de 50 ativas · 422 serviço inelegível
+      O campo "Recurso" só aparece quando o serviço exige escolha do cliente (CUSTOMER_CHOICE → FIXED_ASSIGNMENT);
+      para AUTO_ANY / AUTO_FUNGIBLE_POOL ele é omitido e a política é RESOLVE_PER_OCCURRENCE.
+      Duração: somente leitura (definida pelo serviço). Serviços de duração variável não estão desenhados.
   -->
 
   <!-- Prototype banner -->
@@ -167,29 +173,70 @@
     <main class="main-content">
       <div class="dashboard-body">
 
-        <p class="step-label">Sala Aurora · nova reserva recorrente</p>
-        <h1 class="page-title" style="font-size:1.5rem;">Toda terça, 10:00–12:00</h1>
-        <p style="opacity:.7;">Este horário viraria um compromisso recorrente, com reservas geradas até 90 dias à frente.</p>
+        <a class="back-link" href="14-recorrentes-lista.html">← Reservas recorrentes</a>
+        <h1 class="page-title" style="margin-bottom:.25rem;">Nova reserva recorrente</h1>
+        <p class="step-label">Passo 1 de 2 · Padrão</p>
 
-        <div class="card notice-error">
-          <h2 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar esta recorrência</h2>
-          <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — a criação é bloqueada por inteiro; nenhuma reserva parcial foi feita.</p>
-        </div>
+        <div class="card" style="margin-top:1rem;">
+          <div class="field">
+            <label class="form-label" for="service">Serviço</label>
+            <select class="form-input" id="service">
+              <option>Sala Aurora — 2 horas · R$ 100,00</option>
+              <option>Sala de reunião — 1 hora · R$ 60,00 (requer aprovação)</option>
+            </select>
+            <p class="field-hint">Só aparecem serviços que permitem reserva recorrente.</p>
+          </div>
 
-        <div class="card" style="margin-top:1rem">
-          <strong>Ocorrências em conflito</strong>
-          <div class="row"><strong>26 de agosto · 10:00–12:00</strong><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva de terça.</p></div>
-          <div class="row"><strong>23 de setembro · 10:00–12:00</strong><p class="meta">Mesmo conflito — o padrão semanal repete o choque a cada quatro semanas.</p></div>
+          <div class="field">
+            <span class="form-label">Recurso</span>
+            <label class="choice on"><input type="radio" name="resource" checked> Sala Aurora</label>
+            <label class="choice"><input type="radio" name="resource"> Sala Horizonte</label>
+            <p class="field-hint">Este é o recurso que ficará reservado toda semana.</p>
+          </div>
+
+          <div class="field">
+            <span class="form-label">Dias da semana</span>
+            <div class="chips">
+              <label class="chip"><input type="checkbox"> Seg</label>
+              <label class="chip on"><input type="checkbox" checked> Ter</label>
+              <label class="chip"><input type="checkbox"> Qua</label>
+              <label class="chip"><input type="checkbox"> Qui</label>
+              <label class="chip"><input type="checkbox"> Sex</label>
+              <label class="chip"><input type="checkbox"> Sáb</label>
+              <label class="chip"><input type="checkbox"> Dom</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="form-label" for="start-time">Horário de início</label>
+            <input class="form-input" id="start-time" type="time" value="10:00">
+          </div>
+
+          <div class="field">
+            <span class="form-label">Duração</span>
+            <div class="readonly-value">2 horas — definida pelo serviço</div>
+          </div>
+
+          <div class="field">
+            <label class="form-label" for="starts-on">Começa em</label>
+            <input class="form-input" id="starts-on" type="date" value="2025-08-19">
+          </div>
+
+          <div class="field" style="margin-bottom:0;">
+            <label class="form-label" for="ends-on">Termina em <span style="opacity:.5;font-weight:400;">(opcional)</span></label>
+            <input class="form-input" id="ends-on" type="date">
+            <p class="field-hint">Sem data final, as reservas continuam sendo geradas, sempre até 90 dias à frente.</p>
+          </div>
         </div>
 
         <div class="notice">
-          <strong>O que fazer agora</strong>
-          <p class="meta">Escolha outro dia ou horário para a recorrência, ou tente outro recurso.</p>
+          <strong>Como funciona</strong>
+          <p class="meta">As reservas são geradas automaticamente até 90 dias à frente. Você pode pular, reagendar, pausar ou encerrar a recorrência quando quiser.</p>
         </div>
 
         <div class="nav-buttons">
           <a class="btn-secondary" href="14-recorrentes-lista.html">Cancelar</a>
-          <a class="btn-primary" href="13-nova-recorrencia.html" style="text-decoration:none;">Alterar padrão</a>
+          <a class="btn-primary" href="13b-nova-recorrencia-revisar.html" style="text-decoration:none;">Revisar</a>
         </div>
 
       </div>

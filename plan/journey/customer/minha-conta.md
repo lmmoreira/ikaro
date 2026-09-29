@@ -2,8 +2,8 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
-**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-070, UC-076 (❓ Gap — M23 Cluster 3, recurring private reservation management + availability alerts) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
-**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3/4 extensions not yet built, see the ❓ GAP sections in `dev-notes.md`.
+**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-070, UC-076 (❓ Gap — M23 Cluster 3, recurring private reservation creation and management + availability alerts) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
+**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 and M24 Cluster 4 extensions not yet built, see the ❓ GAP sections in `dev-notes.md`.
 
 ## Flow
 
@@ -113,10 +113,18 @@ Folder: `customer/prototypes/minha-conta/`
 | `04-fidelidade.html` | Minha Fidelidade — saldo + tabs ganhos/resgates | UC-016 | M13-S29 | ✅ Criado |
 | `04b-fidelidade-empty.html` | Fidelidade — estado vazio (0 pontos) | UC-016 | M13-S29 | ✅ Criado |
 | `05-trocar-empresa.html` | Trocar empresa — seleção de tenant (UC-023 trigger) | UC-023 | M13-S30 | ✅ Criado |
-| `06-reserva-recorrente.html` | Gerenciar reserva recorrente (skip/reagendar/pausar/encerrar) | UC-070 | — | ❓ Gap (M23 Cluster 3) |
-| `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro | UC-070 A1 | — | ❓ Gap (M23 Cluster 3) |
-| `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | — | ❓ Gap (M23 Cluster 3) |
-| `07-availability-alert.html` | Criar/gerenciar aviso de disponibilidade | UC-072, UC-076 | — | ❓ Gap (M23 Cluster 3) |
+| `06-reserva-recorrente.html` | Gerenciar reserva recorrente (skip/reagendar/pausar/encerrar) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (proposta, depende da decisão de M23-S18) | UC-070 A1 | M23-S18 | ❓ Gap (M23 Cluster 3) |
+| `07-availability-alert.html` | Criar/gerenciar aviso de disponibilidade | UC-072, UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `13-nova-recorrencia.html` | Nova reserva recorrente — padrão (serviço, recurso, dias, horário, período) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `13d-nova-recorrencia-limite.html` | Erro — limite de recorrências ativas (409 A4) | UC-070 A4 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `13e-nova-recorrencia-erro.html` | Erro — validação do padrão e falha de envio | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ❓ Gap (M23 Cluster 3) |
+| `14b-recorrentes-lista-vazia.html` | Minhas reservas recorrentes — estado vazio | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ❓ Gap (M23 Cluster 3) |
 | `08-turmas-lista.html` | Minhas Turmas — lista de matrículas | UC-089/091/094/095 | — | ❓ Gap (M24 Cluster 4) |
 | `09-turma-detail.html` | Detalhe da matrícula (turma fixa) | UC-094 | — | ❓ Gap (M24 Cluster 4) |
 | `09b-turma-detail-waitlist.html` | Detalhe — status `WAITLISTED`/`PROMOTION_PENDING` | UC-090/091 | — | ❓ Gap (M24 Cluster 4) |
@@ -171,7 +179,7 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 ```
 
 **Open questions / gaps:**
-- [ ] No story exists yet — needs `/story-discovery` once the M24 milestone file is drafted.
+- [ ] Stories for this extension live in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`; each still begins with `/story-discovery`.
 - [x] **Waitlist promotion:** explicit `PROMOTION_PENDING` offer with accept/decline/expiry — resolved, see `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`.
 - [x] **Skip-session minimum-notice window:** dedicated `classSkipWindowHours`, separate from `classCancellationWindowHours` — resolved, UC-094 A3, `docs/21-TENANTS_SETTINGS_SCHEMA.md`.
 - [ ] Reposição (UC-102) needs its own prototype pass beyond `10-pular-sessao.html`'s existing "reagendar" link — the discovery's own `customer-04d-reagendada.html` screen was discovery-stage only, not relocated at implementation-grade rigor; the implementing story should design this properly rather than treating that screen as a shortcut.
@@ -180,7 +188,51 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
 
-> Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation manager (UC-070) and an availability-alerts manager (UC-072/076). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+> Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation area (UC-070 — **creating** a schedule and **managing** it) and an availability-alerts manager (UC-072/076). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+>
+> The creation flow (`13`–`13e`, `14`, `14b`, and the re-shelled `06b`/`06c`, plus the proposed `06d`) was added on 2026-09-29 as a deliberately simple first pass, all inside the same account shell `08-turmas-lista.html` uses (Vitta Studio tenant, Agendamentos tab active). Before that, only the post-creation screens existed — nothing collected the pattern itself. Every choice below is a default to be rechecked at story discovery.
 
-- [ ] No story exists yet — needs `/story-discovery` once the M23 milestone file is drafted.
-- [ ] Exact nav placement (a new top-level tab vs. folded into the existing Agendamentos list) is a UI decision for the implementing story — mirrors the same open question `plan/journey/staff/prototypes/multivertical-booking` extensions left for their own nav placement.
+```mermaid
+flowchart TD
+    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
+
+    Agendamentos["/{slug}/my-account<br/>Agendamentos (real, shipped)"] -->|"Link 'Reservas recorrentes'"| Lista["❓ GAP: /{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
+    Lista -->|"'+ Nova reserva recorrente'"| Padrao["❓ GAP: .../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
+    Lista -->|"Clica em uma reserva"| Gerenciar["❓ GAP: .../recurring-schedules/[id]<br/>Gerenciar (06-reserva-recorrente)"]
+
+    Padrao -->|"'Revisar'"| Revisar["❓ GAP: mesma rota, passo 2<br/>Revisar (13b-nova-recorrencia-revisar)"]
+    Padrao -->|"validação 400"| ErroForm["❓ GAP: mesma rota, erro<br/>(13e-nova-recorrencia-erro)"]
+    Revisar -->|"'Confirmar recorrência'"| Envio(("POST /recurring-booking-schedules"))
+
+    Envio -->|"201 ACTIVE"| Sucesso["❓ GAP: mesma rota, sucesso<br/>(13c-nova-recorrencia-sucesso)"]
+    Envio -->|"201 PENDING_APPROVAL"| Analise["❓ GAP: mesma rota, em análise<br/>(06c-recorrente-em-analise)"]
+    Envio -->|"409 conflito de ocupação"| Conflito["❓ GAP: mesma rota, erro<br/>(06b-reserva-recorrente-erro)"]
+    Envio -->|"409 fora do horário / dia fechado<br/>(proposta M23-S18)"| ConflitoHorario["❓ GAP: mesma rota, erro<br/>(06d-reserva-recorrente-erro-horario)"]
+    Envio -->|"409 limite de recorrências ativas"| Limite["❓ GAP: mesma rota, erro<br/>(13d-nova-recorrencia-limite)"]
+    Envio -->|"erro rede/5xx"| ErroForm
+
+    Sucesso --> Gerenciar
+    Analise --> Lista
+    Conflito -->|"'Alterar padrão'"| Padrao
+    ConflitoHorario -->|"'Alterar padrão'"| Padrao
+    Limite --> Lista
+    ErroForm -->|"'Tentar novamente'"| Padrao
+```
+
+**BFF calls (existing endpoints — see `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules):**
+```
+POST  /recurring-booking-schedules        -- create (UC-070) → 201 { id, status, approvalHoldExpiresAt } | 409 | 422
+GET   /recurring-booking-schedules        -- list (own schedules; CUSTOMER sees only theirs)
+PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart   -- skip / reschedule one occurrence
+POST  /recurring-booking-schedules/:id/pause|end
+```
+
+**Open questions / gaps:**
+- [x] Stories exist: `M23-S12` (list + manage + alerts), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (creation-time hours and closures — backend, `06d` is only its proposed UI). Each still begins with `/story-discovery`.
+- [ ] **Entry point (default drawn here):** a "Reservas recorrentes" link on the Agendamentos page leading to `14`, with the create button on that list. Alternatives to recheck: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is the same open UI decision as before.
+- [ ] **Conflict screen content:** `06b` shows the conflicting dates, which the current API does not return (`409` carries only a generic message). Supplying the dates is cheap now (`IResourceOccupancyRepository.findConflictingWindows` already returns the conflicting windows); suggesting an alternative resource, which the original discovery prototype showed, is a much bigger feature and is **not** drawn here.
+- [ ] **Duration:** drawn as read-only, defined by the service. A `durationPolicy = CUSTOMER_SELECTED` service would need the variable-duration control (see `guest/prototypes/book-a-service/12-reserva-por-tempo.html`) — not drawn.
+- [ ] **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype; it is a dashboard surface, not part of this customer journey. Left open.
+- [ ] **Hours and closures (`06d`):** whether creation rejects occurrences outside hours or on closed days, or accepts and skips them at generation, is a business decision owned by `M23-S18`'s discovery. `06d` draws the reject-at-creation option only so the choice can be judged visually.
+- [ ] **Bundled services** (more than one resource requirement) cannot recur today; the pattern builder therefore never shows a multi-resource picker. Tracked in `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
+- [ ] `06`'s production route was proposed as `/my-account/recurring-reservations/[id]`; this journey now uses `/my-account/recurring-schedules/[id]`, matching `M23-S12`'s planned route. A creation has no id, so `06b`/`06c` are states of the `new` route, not of `[id]`.

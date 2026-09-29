@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserva recorrente — Conflito — Vitta Studio</title>
+  <title>Reservas recorrentes — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     details summary { list-style: none; }
@@ -95,15 +95,12 @@
 <body>
 
   <!--
-    COMPONENT: NewRecurringScheduleConflictError
-    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; estado de erro)
-    UC cobertos: UC-070 A1 — padrão futuro conflita, criação bloqueada por inteiro
+    COMPONENT: RecurringScheduleList
+    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/page.tsx  (GAP — M23-S12; o botão de criar é adicionado por M23-S17)
+    UC cobertos: UC-070
     DATA:
-      POST /recurring-booking-schedules → 409 (BOOKING_RECURRING_SCHEDULE_CONFLICT)
-      ATENÇÃO: a lista de ocorrências em conflito abaixo NÃO é devolvida pela API hoje (o 409 traz só uma mensagem genérica).
-        Fornecê-la é barato (IResourceOccupancyRepository.findConflictingWindows já retorna as janelas em conflito) mas é mudança de contrato
-        a decidir em M23-S17. A sugestão de outro recurso disponível, que o protótipo original de discovery mostrava, foi removida:
-        a API não tem como calculá-la e seria uma funcionalidade à parte.
+      GET /recurring-booking-schedules  → schedules do customer autenticado
+        Response: { items: [{ id, status: ACTIVE|PENDING_APPROVAL|PAUSED|ENDED, recurrence, serviceName, resourceName, nextOccurrenceStart }] }
   -->
 
   <!-- Prototype banner -->
@@ -167,30 +164,59 @@
     <main class="main-content">
       <div class="dashboard-body">
 
-        <p class="step-label">Sala Aurora · nova reserva recorrente</p>
-        <h1 class="page-title" style="font-size:1.5rem;">Toda terça, 10:00–12:00</h1>
-        <p style="opacity:.7;">Este horário viraria um compromisso recorrente, com reservas geradas até 90 dias à frente.</p>
-
-        <div class="card notice-error">
-          <h2 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar esta recorrência</h2>
-          <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — a criação é bloqueada por inteiro; nenhuma reserva parcial foi feita.</p>
+        <a class="back-link" href="01-minha-conta.html">← Agendamentos</a>
+        <div class="page-head">
+          <h1 class="page-title">Reservas recorrentes</h1>
+          <a href="13-nova-recorrencia.html" class="btn-primary" style="text-decoration:none;">+ Nova reserva recorrente</a>
         </div>
 
-        <div class="card" style="margin-top:1rem">
-          <strong>Ocorrências em conflito</strong>
-          <div class="row"><strong>26 de agosto · 10:00–12:00</strong><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva de terça.</p></div>
-          <div class="row"><strong>23 de setembro · 10:00–12:00</strong><p class="meta">Mesmo conflito — o padrão semanal repete o choque a cada quatro semanas.</p></div>
-        </div>
+        <p class="section-label">Ativas <span style="opacity:.5;">(1)</span></p>
+        <a href="06-reserva-recorrente.html" class="rec-card">
+          <div class="rec-card-header">
+            <div class="rec-accent" style="background:#059669;"></div>
+            <div class="rec-body">
+              <div><span class="rec-name">Sala Aurora</span><span class="badge badge-ativa">Ativa</span></div>
+              <div class="rec-meta">Toda terça · 10:00–12:00</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+          <div class="rec-footer">
+            <span class="rec-footer-label">Próxima reserva</span>
+            <span class="rec-footer-value">Ter, 19 ago · 10:00</span>
+          </div>
+        </a>
 
-        <div class="notice">
-          <strong>O que fazer agora</strong>
-          <p class="meta">Escolha outro dia ou horário para a recorrência, ou tente outro recurso.</p>
-        </div>
+        <p class="section-label" style="margin-top:1.5rem;">Em análise <span style="opacity:.5;">(1)</span></p>
+        <a href="06c-recorrente-em-analise.html" class="rec-card">
+          <div class="rec-card-header">
+            <div class="rec-accent" style="background:#d97706;"></div>
+            <div class="rec-body">
+              <div><span class="rec-name">Sala de reunião</span><span class="badge badge-analise">Em análise</span></div>
+              <div class="rec-meta">Toda quinta · 14:00–15:00</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+          <div class="rec-footer">
+            <span class="rec-footer-label" style="opacity:.6;">Ainda não geramos nenhuma reserva · horário protegido até 09:30</span>
+          </div>
+        </a>
 
-        <div class="nav-buttons">
-          <a class="btn-secondary" href="14-recorrentes-lista.html">Cancelar</a>
-          <a class="btn-primary" href="13-nova-recorrencia.html" style="text-decoration:none;">Alterar padrão</a>
-        </div>
+        <p class="section-label" style="margin-top:1.5rem;">Pausadas <span style="opacity:.5;">(1)</span></p>
+        <a href="06-reserva-recorrente.html" class="rec-card">
+          <div class="rec-card-header">
+            <div class="rec-accent" style="background:#94a3b8;"></div>
+            <div class="rec-body">
+              <div><span class="rec-name">Sala Horizonte</span><span class="badge badge-pausada">Pausada</span></div>
+              <div class="rec-meta">Toda sexta · 16:00–18:00</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+          <div class="rec-footer">
+            <span class="rec-footer-label" style="opacity:.6;">Novas reservas não estão sendo geradas</span>
+          </div>
+        </a>
+
+        <p style="font-size:.8125rem;opacity:.55;margin-top:1.25rem;">As reservas geradas por uma recorrência também aparecem em Agendamentos.</p>
 
       </div>
     </main>

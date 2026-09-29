@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserva recorrente — Conflito — Vitta Studio</title>
+  <title>Reserva recorrente — fora do horário — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     details summary { list-style: none; }
@@ -95,15 +95,13 @@
 <body>
 
   <!--
-    COMPONENT: NewRecurringScheduleConflictError
-    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; estado de erro)
-    UC cobertos: UC-070 A1 — padrão futuro conflita, criação bloqueada por inteiro
+    COMPONENT: NewRecurringScheduleHoursError
+    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S18, PROPOSTA)
+    UC cobertos: UC-070 A1 (variante: horário e fechamentos)
     DATA:
-      POST /recurring-booking-schedules → 409 (BOOKING_RECURRING_SCHEDULE_CONFLICT)
-      ATENÇÃO: a lista de ocorrências em conflito abaixo NÃO é devolvida pela API hoje (o 409 traz só uma mensagem genérica).
-        Fornecê-la é barato (IResourceOccupancyRepository.findConflictingWindows já retorna as janelas em conflito) mas é mudança de contrato
-        a decidir em M23-S17. A sugestão de outro recurso disponível, que o protótipo original de discovery mostrava, foi removida:
-        a API não tem como calculá-la e seria uma funcionalidade à parte.
+      PROPOSTA: só existe se M23-S18 decidir REJEITAR na criação as ocorrências fora do horário de funcionamento ou em dia fechado.
+      Alternativas que M23-S18 avalia: aceitar e pular na geração (M23-S05 hoje planeja isso), ou gerar uma exceção UC-073 na geração.
+      Se a decisão for outra, este protótipo é descartado. A API hoje NÃO valida horário nem fechamentos na criação.
   -->
 
   <!-- Prototype banner -->
@@ -167,24 +165,25 @@
     <main class="main-content">
       <div class="dashboard-body">
 
+        <span class="tag-proposal">Proposta — depende da decisão de M23-S18</span>
         <p class="step-label">Sala Aurora · nova reserva recorrente</p>
         <h1 class="page-title" style="font-size:1.5rem;">Toda terça, 10:00–12:00</h1>
         <p style="opacity:.7;">Este horário viraria um compromisso recorrente, com reservas geradas até 90 dias à frente.</p>
 
         <div class="card notice-error">
           <h2 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar esta recorrência</h2>
-          <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — a criação é bloqueada por inteiro; nenhuma reserva parcial foi feita.</p>
+          <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Algumas ocorrências caem fora do funcionamento da Sala Aurora — a criação é bloqueada por inteiro; nenhuma reserva parcial foi feita.</p>
         </div>
 
         <div class="card" style="margin-top:1rem">
-          <strong>Ocorrências em conflito</strong>
-          <div class="row"><strong>26 de agosto · 10:00–12:00</strong><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva de terça.</p></div>
-          <div class="row"><strong>23 de setembro · 10:00–12:00</strong><p class="meta">Mesmo conflito — o padrão semanal repete o choque a cada quatro semanas.</p></div>
+          <strong>Ocorrências afetadas</strong>
+          <div class="row"><strong>16 de setembro · 10:00–12:00</strong><p class="meta">A Sala Aurora estará fechada neste dia (manutenção).</p></div>
+          <div class="row"><strong>07 de outubro · 10:00–12:00</strong><p class="meta">Este horário fica fora do funcionamento da Sala Aurora nesta data (abre às 12:00).</p></div>
         </div>
 
         <div class="notice">
           <strong>O que fazer agora</strong>
-          <p class="meta">Escolha outro dia ou horário para a recorrência, ou tente outro recurso.</p>
+          <p class="meta">Escolha outro dia ou horário, ou ajuste o período para não incluir as datas afetadas.</p>
         </div>
 
         <div class="nav-buttons">
