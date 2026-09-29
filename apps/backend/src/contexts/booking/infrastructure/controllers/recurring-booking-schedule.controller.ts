@@ -89,7 +89,7 @@ export class RecurringBookingScheduleController {
         serviceId: body.serviceId,
         recurrence: body.recurrence,
         startsOn: body.startsOn,
-        endsOn: body.endsOn ?? null,
+        endsOn: body.endsOn,
         assignmentPolicy: body.assignmentPolicy,
         resourceIds: body.resourceIds ?? [],
         actorType: actorType!,

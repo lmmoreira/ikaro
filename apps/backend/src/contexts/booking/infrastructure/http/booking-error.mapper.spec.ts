@@ -55,6 +55,7 @@ import {
   RecurringBookingScheduleExceptionAlreadyExistsError,
   RecurringBookingScheduleForbiddenError,
   RecurringBookingScheduleInvalidDateRangeError,
+  RecurringBookingScheduleTermExceededError,
 } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from './booking-error.mapper';
 
@@ -398,6 +399,41 @@ describe('mapBookingError', () => {
     expect(err.getResponse()).toMatchObject({
       code: BookingErrorCode.RECURRING_SCHEDULE_INVALID_DATE_RANGE,
     });
+  });
+
+  it('maps RecurringBookingScheduleTermExceededError to 422 with the limit in params', () => {
+    const err = call(new RecurringBookingScheduleTermExceededError(90, '2026-11-30'));
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(err.getResponse()).toMatchObject({
+      status: 422,
+      code: BookingErrorCode.RECURRING_SCHEDULE_TERM_EXCEEDED,
+      field: 'endsOn',
+      params: { maxTermDays: 90, latestEndsOn: '2026-11-30' },
+    });
+  });
+
+  it('maps a RecurringBookingScheduleConflictError with occurrences to 409 carrying conflicts', () => {
+    const err = call(
+      new RecurringBookingScheduleConflictError([
+        { occurrenceStart: new Date('2026-09-08T13:00:00.000Z'), reason: 'CLOSED' },
+        { occurrenceStart: new Date('2026-09-22T13:00:00.000Z'), reason: 'OCCUPIED' },
+      ]),
+    );
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({
+      status: 409,
+      code: BookingErrorCode.RECURRING_SCHEDULE_CONFLICT,
+      conflicts: [
+        { occurrenceStart: '2026-09-08T13:00:00.000Z', reason: 'CLOSED' },
+        { occurrenceStart: '2026-09-22T13:00:00.000Z', reason: 'OCCUPIED' },
+      ],
+    });
+  });
+
+  it('omits conflicts from a RecurringBookingScheduleConflictError with no occurrences', () => {
+    const err = call(new RecurringBookingScheduleConflictError());
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).not.toHaveProperty('conflicts');
   });
 
   it('rethrows plain Error unchanged', () => {

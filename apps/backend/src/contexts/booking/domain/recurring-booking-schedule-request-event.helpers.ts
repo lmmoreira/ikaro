@@ -23,6 +23,7 @@ export function buildRequestedEvent(
       assignmentPolicy: options.assignmentPolicy,
       recurrence: options.recurrence,
       startsOn: options.startsOn,
+      endsOn: options.endsOn,
     });
   }
   return new RecurringBookingScheduleApprovalRequested(options.tenantId, options.correlationId, {
@@ -33,6 +34,7 @@ export function buildRequestedEvent(
     assignmentPolicy: options.assignmentPolicy,
     recurrence: options.recurrence,
     startsOn: options.startsOn,
+    endsOn: options.endsOn,
     approvalHoldExpiresAt: options.approvalHoldExpiresAt!.toISOString(),
   });
 }

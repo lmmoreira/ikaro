@@ -9,6 +9,7 @@ interface RecurringBookingScheduleApprovalRequestedData extends Record<string, u
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
   recurrence: RecurrenceRule;
   startsOn: string;
+  endsOn: string;
   approvalHoldExpiresAt: string;
 }
 

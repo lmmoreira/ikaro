@@ -1,7 +1,13 @@
 import {
+  RecurringBookingScheduleInvalidDateRangeError,
+  RecurringBookingScheduleTermExceededError,
+} from './errors/recurring-booking-schedule.error';
+import {
+  assertValidTerm,
   enumerateRecurrenceOccurrences,
   RecurrenceRule,
   resolveHorizonEndDate,
+  schedulesOverlap,
 } from './recurrence-rule.helpers';
 
 const TZ = 'America/Sao_Paulo';
@@ -26,13 +32,48 @@ describe('resolveHorizonEndDate', () => {
   });
 });
 
+describe('assertValidTerm', () => {
+  it('accepts an endsOn equal to startsOn', () => {
+    expect(() => assertValidTerm('2026-09-01', '2026-09-01', 90)).not.toThrow();
+  });
+
+  it('accepts an endsOn exactly at the maximum term', () => {
+    expect(() => assertValidTerm('2026-09-01', '2026-11-30', 90)).not.toThrow();
+  });
+
+  it('rejects a reversed range as an invalid date range', () => {
+    expect(() => assertValidTerm('2026-09-10', '2026-09-01', 90)).toThrow(
+      RecurringBookingScheduleInvalidDateRangeError,
+    );
+  });
+
+  it('rejects one day past the maximum term and reports the limit', () => {
+    expect.assertions(2);
+    try {
+      assertValidTerm('2026-09-01', '2026-12-01', 90);
+    } catch (err) {
+      expect(err).toBeInstanceOf(RecurringBookingScheduleTermExceededError);
+      expect((err as RecurringBookingScheduleTermExceededError).params).toEqual({
+        maxTermDays: 90,
+        latestEndsOn: '2026-11-30',
+      });
+    }
+  });
+
+  it('reports a reversed range before a term overrun', () => {
+    // A range that is both reversed and (numerically) past the cap can only be reversed.
+    expect(() => assertValidTerm('2026-09-10', '2026-09-01', 0)).toThrow(
+      RecurringBookingScheduleInvalidDateRangeError,
+    );
+  });
+});
+
 describe('enumerateRecurrenceOccurrences', () => {
-  it('returns one occurrence per matching weekday within the horizon', () => {
-    // 2026-09-01 is a Tuesday; horizon covers 3 full weeks.
+  it('returns one occurrence per matching weekday within the term', () => {
+    // 2026-09-01 is a Tuesday; the term covers 3 full weeks.
     const occurrences = enumerateRecurrenceOccurrences(
       weeklyRule(),
       '2026-09-01',
-      null,
       '2026-09-21',
       TZ,
     );
@@ -48,7 +89,6 @@ describe('enumerateRecurrenceOccurrences', () => {
     const occurrences = enumerateRecurrenceOccurrences(
       weeklyRule({ daysOfWeek: ['tuesday', 'thursday'] }),
       '2026-09-01',
-      null,
       '2026-09-10',
       TZ,
     );
@@ -61,26 +101,10 @@ describe('enumerateRecurrenceOccurrences', () => {
     ]);
   });
 
-  it('clips to endsOn when it falls before the horizon end', () => {
+  it('includes an occurrence on endsOn itself', () => {
     const occurrences = enumerateRecurrenceOccurrences(
       weeklyRule(),
       '2026-09-01',
-      '2026-09-08',
-      '2026-09-21',
-      TZ,
-    );
-
-    expect(occurrences.map((o) => o.occurrenceStartLocalDate)).toEqual([
-      '2026-09-01',
-      '2026-09-08',
-    ]);
-  });
-
-  it('ignores endsOn when it falls after the horizon end', () => {
-    const occurrences = enumerateRecurrenceOccurrences(
-      weeklyRule(),
-      '2026-09-01',
-      '2027-01-01',
       '2026-09-08',
       TZ,
     );
@@ -91,12 +115,11 @@ describe('enumerateRecurrenceOccurrences', () => {
     ]);
   });
 
-  it('returns an empty array when the effective end is before startsOn', () => {
+  it('returns an empty array when endsOn is before startsOn', () => {
     const occurrences = enumerateRecurrenceOccurrences(
       weeklyRule(),
       '2026-09-10',
       '2026-09-01',
-      '2026-09-21',
       TZ,
     );
 
@@ -107,12 +130,59 @@ describe('enumerateRecurrenceOccurrences', () => {
     const occurrences = enumerateRecurrenceOccurrences(
       weeklyRule(),
       '2026-09-01',
-      null,
       '2026-09-01',
       TZ,
     );
 
     expect(occurrences).toHaveLength(1);
     expect(occurrences[0].occurrenceStart.toISOString()).toBe('2026-09-01T13:00:00.000Z');
+  });
+
+  it('enumerates a full 90-day term without an upper limit of its own', () => {
+    const occurrences = enumerateRecurrenceOccurrences(
+      weeklyRule(),
+      '2026-09-01',
+      '2026-11-30',
+      TZ,
+    );
+
+    // 2026-09-01 (Tue) … 2026-11-24 (Tue): 13 weekly occurrences.
+    expect(occurrences).toHaveLength(13);
+    expect(occurrences.at(-1)?.occurrenceStartLocalDate).toBe('2026-11-24');
+  });
+});
+
+describe('schedulesOverlap', () => {
+  const base = { recurrence: weeklyRule(), startsOn: '2026-09-01', endsOn: '2026-11-24' };
+
+  it('overlaps when day, daily window and date range all intersect', () => {
+    expect(schedulesOverlap(base, { ...base, startsOn: '2026-10-01', endsOn: '2026-12-01' })).toBe(
+      true,
+    );
+  });
+
+  it('treats a shared boundary date as overlapping (both ranges are inclusive)', () => {
+    expect(schedulesOverlap(base, { ...base, startsOn: '2026-11-24', endsOn: '2027-01-01' })).toBe(
+      true,
+    );
+  });
+
+  it('does not overlap when the date ranges are disjoint', () => {
+    expect(schedulesOverlap(base, { ...base, startsOn: '2026-11-25', endsOn: '2027-01-01' })).toBe(
+      false,
+    );
+  });
+
+  it('does not overlap when no weekday is shared', () => {
+    expect(
+      schedulesOverlap(base, { ...base, recurrence: weeklyRule({ daysOfWeek: ['wednesday'] }) }),
+    ).toBe(false);
+  });
+
+  it('does not overlap when the daily windows only touch', () => {
+    // 10:00-12:00 vs 12:00-14:00 — half-open intervals.
+    expect(
+      schedulesOverlap(base, { ...base, recurrence: weeklyRule({ startTime: '12:00' }) }),
+    ).toBe(false);
   });
 });

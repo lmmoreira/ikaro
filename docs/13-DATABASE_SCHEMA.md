@@ -659,7 +659,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | customer_id | UUID | NOT NULL — no FK, cross-context; guest bookings are never eligible |
 | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
 | recurrence | JSONB | NOT NULL |
-| starts_on / ends_on | DATE | NOT NULL / NULLABLE |
+| starts_on / ends_on | DATE | NOT NULL / NOT NULL — a schedule is a fixed term, never open-ended (`ends_on` made NOT NULL by M23-S18's migration `1748500000018`; the upper bound, `starts_on` + the service's maximum term, is enforced by the aggregate, not the database) |
 | status | VARCHAR(20) | NOT NULL — CHECK IN ('PENDING_APPROVAL', 'ACTIVE', 'PAUSED', 'CANCELLED') |
 | assignment_policy | VARCHAR(30) | NOT NULL — CHECK IN ('FIXED_ASSIGNMENT', 'RESOLVE_PER_OCCURRENCE') |
 | approval_hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `status = 'PENDING_APPROVAL'` |

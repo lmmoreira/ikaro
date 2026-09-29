@@ -24,7 +24,8 @@ function schedule(
       durationMinutes: 60,
     },
     startsOn: '2026-09-01',
-    endsOn: null,
+    endsOn: '2026-11-24',
+    maxTermDays: 90,
     assignmentPolicy: 'FIXED_ASSIGNMENT',
     resourceAssignments: [
       {

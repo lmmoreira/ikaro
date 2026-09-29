@@ -3,6 +3,9 @@ import { ScheduleClosure } from '../../../contexts/booking/domain/schedule-closu
 
 export class InMemoryScheduleClosureRepository implements IScheduleClosureRepository {
   private store: ScheduleClosure[] = [];
+  // Lets a spec assert a check's query count does not grow with occurrences or resources.
+  rangeQueryCount = 0;
+  resourcesRangeQueryCount = 0;
 
   async findByTenantAndDateRange(
     tenantId: string,
@@ -10,6 +13,7 @@ export class InMemoryScheduleClosureRepository implements IScheduleClosureReposi
     to: string,
     resourceId?: string,
   ): Promise<ScheduleClosure[]> {
+    this.rangeQueryCount += 1;
     return this.store
       .filter(
         (c) =>
@@ -17,6 +21,29 @@ export class InMemoryScheduleClosureRepository implements IScheduleClosureReposi
           c.date.value >= from &&
           c.date.value <= to &&
           c.resourceId === (resourceId ?? null),
+      )
+      .sort(
+        (a, b) =>
+          a.date.value.localeCompare(b.date.value) ||
+          (a.startTime?.value ?? '').localeCompare(b.startTime?.value ?? ''),
+      );
+  }
+
+  async findByTenantAndResourcesAndDateRange(
+    tenantId: string,
+    resourceIds: string[],
+    from: string,
+    to: string,
+  ): Promise<ScheduleClosure[]> {
+    this.resourcesRangeQueryCount += 1;
+    return this.store
+      .filter(
+        (c) =>
+          c.tenantId === tenantId &&
+          c.date.value >= from &&
+          c.date.value <= to &&
+          c.resourceId !== null &&
+          resourceIds.includes(c.resourceId),
       )
       .sort(
         (a, b) =>

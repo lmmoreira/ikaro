@@ -1,4 +1,4 @@
-import { BookingErrorCode } from '@ikaro/types/protocol/errors';
+import { BookingErrorCode, RecurringScheduleConflictReason } from '@ikaro/types/protocol/errors';
 import { BookingDomainError } from './booking-domain-error.base';
 
 export class RecurringBookingScheduleNotFoundError extends BookingDomainError {
@@ -11,13 +11,26 @@ export class RecurringBookingScheduleNotFoundError extends BookingDomainError {
   }
 }
 
+// One occurrence of a recurring pattern that cannot be honored (UC-070 A1). The reason union is
+// the wire type from @ikaro/types (one definition); only the instant is a Date here — the HTTP
+// mapper serializes it.
+export interface RecurringScheduleOccurrenceConflict {
+  occurrenceStart: Date;
+  reason: RecurringScheduleConflictReason;
+}
+
 export class RecurringBookingScheduleConflictError extends BookingDomainError {
-  constructor() {
+  // Empty for a refusal that is not about specific occurrences (the active-schedule overlap
+  // check); non-empty for the creation-time hours/occupancy checks, ordered by occurrenceStart.
+  readonly conflicts: RecurringScheduleOccurrenceConflict[];
+
+  constructor(conflicts: RecurringScheduleOccurrenceConflict[] = []) {
     super(
       'The recurring pattern conflicts with an existing commitment on one of its future occurrences',
       BookingErrorCode.RECURRING_SCHEDULE_CONFLICT,
     );
     this.name = 'RecurringBookingScheduleConflictError';
+    this.conflicts = conflicts;
   }
 }
 
@@ -91,5 +104,21 @@ export class RecurringBookingScheduleInvalidDateRangeError extends BookingDomain
       BookingErrorCode.RECURRING_SCHEDULE_INVALID_DATE_RANGE,
     );
     this.name = 'RecurringBookingScheduleInvalidDateRangeError';
+  }
+}
+
+export class RecurringBookingScheduleTermExceededError extends BookingDomainError {
+  // Interpolated by the client into the translated message (errors.json uses {maxTermDays});
+  // latestEndsOn stays available to the UI for formatting.
+  readonly params: { maxTermDays: number; latestEndsOn: string };
+
+  constructor(maxTermDays: number, latestEndsOn: string) {
+    super(
+      `endsOn must not be later than ${latestEndsOn} (${maxTermDays} days after startsOn)`,
+      BookingErrorCode.RECURRING_SCHEDULE_TERM_EXCEEDED,
+      'endsOn',
+    );
+    this.name = 'RecurringBookingScheduleTermExceededError';
+    this.params = { maxTermDays, latestEndsOn };
   }
 }

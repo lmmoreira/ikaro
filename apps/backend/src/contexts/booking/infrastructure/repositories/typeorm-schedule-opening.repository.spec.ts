@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { IsNull, Not, QueryFailedError, Repository } from 'typeorm';
+import { Between, In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { ScheduleOpeningEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
@@ -150,6 +150,47 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       ormRepo.find.mockResolvedValue([]);
       const result = await repo.findByTenantAndDateRange(TENANT_ID, '2026-11-01', '2026-11-30');
       expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('findByTenantAndResourcesAndDateRange', () => {
+    it('queries only resource-scoped openings of the given resources, in one call', async () => {
+      const entity = new ScheduleOpeningEntityBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceId(RESOURCE_ID)
+        .withDate('2026-12-25')
+        .build();
+      ormRepo.find.mockResolvedValue([entity]);
+
+      const result = await repo.findByTenantAndResourcesAndDateRange(
+        TENANT_ID,
+        [RESOURCE_ID],
+        '2026-12-01',
+        '2026-12-31',
+      );
+
+      expect(ormRepo.find).toHaveBeenCalledTimes(1);
+      expect(ormRepo.find).toHaveBeenCalledWith({
+        where: {
+          tenantId: TENANT_ID,
+          date: Between('2026-12-01', '2026-12-31'),
+          resourceId: In([RESOURCE_ID]),
+        },
+        order: { date: 'ASC' },
+      });
+      expect(result).toHaveLength(1);
+    });
+
+    it('returns an empty list without querying when no resource is given', async () => {
+      const result = await repo.findByTenantAndResourcesAndDateRange(
+        TENANT_ID,
+        [],
+        '2026-12-01',
+        '2026-12-31',
+      );
+
+      expect(result).toEqual([]);
+      expect(ormRepo.find).not.toHaveBeenCalled();
     });
   });
 

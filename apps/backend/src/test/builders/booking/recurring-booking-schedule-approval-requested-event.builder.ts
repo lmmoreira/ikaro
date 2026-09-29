@@ -18,6 +18,7 @@ export class RecurringBookingScheduleApprovalRequestedEventBuilder {
     durationMinutes: 120,
   };
   private readonly startsOn = '2026-09-01';
+  private readonly endsOn = '2026-11-24';
   private readonly approvalHoldExpiresAt = '2026-09-02T00:00:00.000Z';
 
   withTenantId(tenantId: string): this {
@@ -44,6 +45,7 @@ export class RecurringBookingScheduleApprovalRequestedEventBuilder {
       assignmentPolicy: this.assignmentPolicy,
       recurrence: this.recurrence,
       startsOn: this.startsOn,
+      endsOn: this.endsOn,
       approvalHoldExpiresAt: this.approvalHoldExpiresAt,
     });
   }

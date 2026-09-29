@@ -7,11 +7,14 @@ import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-mem
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { addDaysUTC } from '../../../../shared/utils/calendar-date';
 import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -27,6 +30,7 @@ import { RecurringBookingScheduleController } from './recurring-booking-schedule
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const CUSTOMER_ID = '00000000-0000-7000-8000-000000000002';
 const STARTS_ON = nextWeekday(2);
+const ENDS_ON = addDaysUTC(STARTS_ON, 28);
 
 describe('RecurringBookingScheduleController', () => {
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
@@ -89,6 +93,8 @@ describe('RecurringBookingScheduleController', () => {
         scheduleRepo,
         resourceRepo,
         occupancyRepo,
+        new InMemoryScheduleClosureRepository(),
+        new InMemoryScheduleOpeningRepository(),
         customerPort,
         staffPort,
         platformPort,
@@ -116,6 +122,7 @@ describe('RecurringBookingScheduleController', () => {
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
       });
 
       expect(result.status).toBe('ACTIVE');
@@ -134,6 +141,7 @@ describe('RecurringBookingScheduleController', () => {
           assignmentPolicy: 'FIXED_ASSIGNMENT',
           resourceIds: [resourceId],
           startsOn: STARTS_ON,
+          endsOn: ENDS_ON,
         })
         .catch((e: unknown) => e);
 
@@ -155,7 +163,8 @@ describe('RecurringBookingScheduleController', () => {
           durationMinutes: 60,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
+        maxTermDays: 90,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceAssignments: [
           {
@@ -181,7 +190,8 @@ describe('RecurringBookingScheduleController', () => {
           durationMinutes: 60,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
+        maxTermDays: 90,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceAssignments: [
           {
@@ -219,6 +229,7 @@ describe('RecurringBookingScheduleController', () => {
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
       });
 
       const paused = await controller.pause(created.id);
@@ -241,6 +252,7 @@ describe('RecurringBookingScheduleController', () => {
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
       });
 
       const ended = await controller.end(created.id);
@@ -261,6 +273,7 @@ describe('RecurringBookingScheduleController', () => {
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
       });
 
       const occurrenceStart = `${STARTS_ON}T13:00:00.000Z`;

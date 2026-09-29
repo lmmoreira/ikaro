@@ -50,7 +50,7 @@ export interface RecurringBookingScheduleProps {
   serviceId: string;
   recurrence: RecurringBookingScheduleRecurrenceProps;
   startsOn: string;
-  endsOn: string | null;
+  endsOn: string;
   status: RecurringBookingScheduleStatus;
   assignmentPolicy: RecurringBookingScheduleAssignmentPolicy;
   resourceAssignments: RecurringBookingScheduleResourceAssignmentProps[];
@@ -80,7 +80,10 @@ export interface RequestRecurringBookingScheduleOptions {
   serviceId: string;
   recurrence: RecurrenceRule;
   startsOn: string;
-  endsOn: string | null;
+  endsOn: string;
+  // The service's maximum term in days (Service.bookingPolicy.recurringHorizonDays, or the
+  // platform default) — resolved by the use case, enforced here as the aggregate invariant.
+  maxTermDays: number;
   assignmentPolicy: RecurringBookingScheduleAssignmentPolicy;
   resourceAssignments: RequestRecurringBookingScheduleResourceAssignmentInput[];
   // Pre-resolved by the use case (UpdateServiceBookingPolicyUseCase's resolveApprovalMode

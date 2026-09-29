@@ -3,6 +3,9 @@ import { ScheduleOpening } from '../../../contexts/booking/domain/schedule-openi
 
 export class InMemoryScheduleOpeningRepository implements IScheduleOpeningRepository {
   private store: ScheduleOpening[] = [];
+  // Lets a spec assert a check's query count does not grow with occurrences or resources.
+  rangeQueryCount = 0;
+  resourcesRangeQueryCount = 0;
 
   async findByTenantAndDate(
     tenantId: string,
@@ -23,6 +26,7 @@ export class InMemoryScheduleOpeningRepository implements IScheduleOpeningReposi
     to: string,
     resourceId?: string,
   ): Promise<ScheduleOpening[]> {
+    this.rangeQueryCount += 1;
     return this.store
       .filter(
         (o) =>
@@ -30,6 +34,25 @@ export class InMemoryScheduleOpeningRepository implements IScheduleOpeningReposi
           o.date.value >= from &&
           o.date.value <= to &&
           o.resourceId === (resourceId ?? null),
+      )
+      .sort((a, b) => a.date.value.localeCompare(b.date.value));
+  }
+
+  async findByTenantAndResourcesAndDateRange(
+    tenantId: string,
+    resourceIds: string[],
+    from: string,
+    to: string,
+  ): Promise<ScheduleOpening[]> {
+    this.resourcesRangeQueryCount += 1;
+    return this.store
+      .filter(
+        (o) =>
+          o.tenantId === tenantId &&
+          o.date.value >= from &&
+          o.date.value <= to &&
+          o.resourceId !== null &&
+          resourceIds.includes(o.resourceId),
       )
       .sort((a, b) => a.date.value.localeCompare(b.date.value));
   }

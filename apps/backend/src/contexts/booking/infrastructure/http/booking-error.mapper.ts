@@ -3,6 +3,7 @@ import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
 import { ProblemDetail } from '@ikaro/types/protocol/errors';
+import { mapRecurringScheduleProblem } from './recurring-schedule-problem.mapper';
 import {
   AvailabilityDateInPastError,
   AvailabilityRangeInvalidError,
@@ -78,6 +79,7 @@ import {
   RecurringBookingScheduleExceptionAlreadyExistsError,
   RecurringBookingScheduleForbiddenError,
   RecurringBookingScheduleInvalidDateRangeError,
+  RecurringBookingScheduleTermExceededError,
 } from '../../domain/errors/booking-domain.error';
 
 type BookingDomainErrorCtor = new (...args: never[]) => BookingDomainError;
@@ -187,6 +189,7 @@ const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
       ServiceBookingPolicyInvalidError,
       RecurringBookingScheduleIneligibleServiceError,
       RecurringBookingScheduleInvalidDateRangeError,
+      RecurringBookingScheduleTermExceededError,
     ],
     HttpStatus.UNPROCESSABLE_ENTITY,
   ],
@@ -215,6 +218,7 @@ function throwAddressValidationProblem(err: BookingAddressValidationError): neve
 
 export function mapBookingError(err: unknown): never {
   if (err instanceof BookingAddressValidationError) throwAddressValidationProblem(err);
+  mapRecurringScheduleProblem(err);
   mapSharedAddressError(err);
   mapSharedVoError(err);
 

@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { Between, In, IsNull, Repository } from 'typeorm';
 import { ScheduleClosureEntityBuilder } from '../../../../test/builders/booking/index';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
@@ -175,6 +175,48 @@ describe('TypeOrmScheduleClosureRepository', () => {
           where: expect.objectContaining({ resourceId: RESOURCE_ID }),
         }),
       );
+    });
+  });
+
+  describe('findByTenantAndResourcesAndDateRange', () => {
+    it('queries only resource-scoped closures of the given resources, in one call', async () => {
+      const entity = new ScheduleClosureEntityBuilder()
+        .withTenantId(TENANT_ID)
+        .withResourceId(RESOURCE_ID)
+        .withDate('2026-12-25')
+        .build();
+      ormRepo.find.mockResolvedValue([entity]);
+
+      const result = await repo.findByTenantAndResourcesAndDateRange(
+        TENANT_ID,
+        [RESOURCE_ID, STAFF_ID],
+        '2026-12-01',
+        '2026-12-31',
+      );
+
+      expect(ormRepo.find).toHaveBeenCalledTimes(1);
+      expect(ormRepo.find).toHaveBeenCalledWith({
+        where: {
+          tenantId: TENANT_ID,
+          date: Between('2026-12-01', '2026-12-31'),
+          resourceId: In([RESOURCE_ID, STAFF_ID]),
+        },
+        order: { date: 'ASC', startTime: 'ASC' },
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].resourceId).toBe(RESOURCE_ID);
+    });
+
+    it('returns an empty list without querying when no resource is given', async () => {
+      const result = await repo.findByTenantAndResourcesAndDateRange(
+        TENANT_ID,
+        [],
+        '2026-12-01',
+        '2026-12-31',
+      );
+
+      expect(result).toEqual([]);
+      expect(ormRepo.find).not.toHaveBeenCalled();
     });
   });
 

@@ -2,6 +2,8 @@
 # TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
 # Customer manages their own schedules; STAFF|MANAGER may create on a customer's behalf and see
 # every schedule for the tenant (approval queue). Approve/reject (UC-071) ships in M23-S05.
+# A schedule is a fixed term: "endsOn" is required and may not be later than "startsOn" + the
+# service's maximum term (Service.bookingPolicy.recurringHorizonDays, 90 days by default) — M23-S18.
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -36,7 +38,8 @@ Content-Type: application/json
   },
   "assignmentPolicy": "FIXED_ASSIGNMENT",
   "resourceIds": ["{{resourceId}}"],
-  "startsOn": "2026-10-06"
+  "startsOn": "2026-10-06",
+  "endsOn": "2026-12-29"
 }
 
 ###
@@ -58,7 +61,8 @@ Content-Type: application/json
     "durationMinutes": 60
   },
   "assignmentPolicy": "RESOLVE_PER_OCCURRENCE",
-  "startsOn": "2026-10-05"
+  "startsOn": "2026-10-05",
+  "endsOn": "2026-12-28"
 }
 
 ###
@@ -82,7 +86,8 @@ Content-Type: application/json
   },
   "assignmentPolicy": "FIXED_ASSIGNMENT",
   "resourceIds": ["{{resourceId}}"],
-  "startsOn": "2026-10-08"
+  "startsOn": "2026-10-08",
+  "endsOn": "2026-12-31"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -178,7 +183,10 @@ X-Actor-Role: CUSTOMER
 
 ###
 
-### 409 — future pattern conflict (A1)
+### 409 — an occurrence of the term cannot be honored (A1). The body lists EVERY affected one:
+# "conflicts": [{ "occurrenceStart": "<ISO-8601 UTC>", "reason": "OCCUPIED" | "CLOSED" | "OUTSIDE_HOURS" }]
+# OCCUPIED = an existing booking or hold; CLOSED = a closure or a normally-closed day;
+# OUTSIDE_HOURS = outside the business's or the resource's working hours. Nothing is created.
 POST {{baseUrl}}/recurring-booking-schedules
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{customerId}}
@@ -193,6 +201,127 @@ Content-Type: application/json
     "daysOfWeek": ["tuesday"],
     "startTime": "10:00",
     "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-06",
+  "endsOn": "2026-12-29"
+}
+
+###
+
+### 409 — the pattern falls outside working hours (reason OUTSIDE_HOURS on every occurrence)
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "06:00",
+    "durationMinutes": 60
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-06",
+  "endsOn": "2026-12-29"
+}
+
+###
+
+### 409 — the pattern lands on a normally-closed day (a default tenant is closed on Sundays), reason CLOSED
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["sunday"],
+    "startTime": "10:00",
+    "durationMinutes": 60
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-11",
+  "endsOn": "2026-12-27"
+}
+
+###
+
+### 422 — endsOn is later than startsOn + the service's maximum term
+# BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED, params: { "maxTermDays": 90, "latestEndsOn": "2027-01-04" }
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 60
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-06",
+  "endsOn": "2027-01-05"
+}
+
+###
+
+### 422 — endsOn is before startsOn (BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE)
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 60
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-06",
+  "endsOn": "2026-09-29"
+}
+
+###
+
+### 400 — endsOn is missing (a schedule is never open-ended; request validation)
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 60
   },
   "assignmentPolicy": "FIXED_ASSIGNMENT",
   "resourceIds": ["{{resourceId}}"],
@@ -219,5 +348,6 @@ Content-Type: application/json
   },
   "assignmentPolicy": "FIXED_ASSIGNMENT",
   "resourceIds": ["{{resourceId}}"],
-  "startsOn": "2026-10-06"
+  "startsOn": "2026-10-06",
+  "endsOn": "2026-12-29"
 }

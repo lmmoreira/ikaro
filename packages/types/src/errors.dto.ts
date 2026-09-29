@@ -14,6 +14,20 @@ export interface ProblemDetail {
   [key: string]: unknown;
 }
 
+// One occurrence of a recurring schedule that cannot be honored at creation (UC-070 A1), returned
+// as `conflicts` on the BOOKING_RECURRING_SCHEDULE_CONFLICT 409. OCCUPIED — an existing booking
+// or hold; CLOSED — a closure or a normally-closed day; OUTSIDE_HOURS — outside working hours.
+export type RecurringScheduleConflictReason = 'OCCUPIED' | 'CLOSED' | 'OUTSIDE_HOURS';
+
+export interface RecurringScheduleConflict {
+  occurrenceStart: string; // ISO-8601 UTC
+  reason: RecurringScheduleConflictReason;
+}
+
+export interface RecurringScheduleConflictProblemDetail extends ProblemDetail {
+  conflicts?: RecurringScheduleConflict[];
+}
+
 export interface ValidationViolation {
   field: string;
   code: string;

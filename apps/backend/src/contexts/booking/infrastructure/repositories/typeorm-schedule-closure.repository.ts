@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, IsNull, Repository } from 'typeorm';
+import { Between, In, IsNull, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
@@ -23,6 +23,20 @@ export class TypeOrmScheduleClosureRepository implements IScheduleClosureReposit
   ): Promise<ScheduleClosure[]> {
     const entities = await this.repo.find({
       where: { tenantId, date: Between(from, to), resourceId: resourceId ?? IsNull() },
+      order: { date: 'ASC', startTime: 'ASC' },
+    });
+    return entities.map((e) => this.toDomain(e));
+  }
+
+  async findByTenantAndResourcesAndDateRange(
+    tenantId: string,
+    resourceIds: string[],
+    from: string,
+    to: string,
+  ): Promise<ScheduleClosure[]> {
+    if (resourceIds.length === 0) return [];
+    const entities = await this.repo.find({
+      where: { tenantId, date: Between(from, to), resourceId: In(resourceIds) },
       order: { date: 'ASC', startTime: 'ASC' },
     });
     return entities.map((e) => this.toDomain(e));

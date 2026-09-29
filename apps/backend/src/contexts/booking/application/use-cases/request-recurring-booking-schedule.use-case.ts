@@ -7,19 +7,17 @@ import {
   BookingCustomerNotFoundError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
-import {
-  RecurringBookingScheduleCapReachedError,
-  RecurringBookingScheduleConflictError,
-} from '../../domain/errors/recurring-booking-schedule.error';
+import { RecurringBookingScheduleConflictError } from '../../domain/errors/recurring-booking-schedule.error';
 import {
   RecurringBookingSchedule,
   RequestRecurringBookingScheduleResourceAssignmentInput,
 } from '../../domain/recurring-booking-schedule.aggregate';
 import {
+  assertValidTerm,
   DEFAULT_RECURRING_HORIZON_DAYS,
   enumerateRecurrenceOccurrences,
+  RecurrenceOccurrence,
   RecurrenceRule,
-  resolveHorizonEndDate,
   schedulesOverlap,
 } from '../../domain/recurrence-rule.helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
@@ -36,9 +34,18 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import {
+  IScheduleClosureRepository,
+  SCHEDULE_CLOSURE_REPOSITORY,
+} from '../ports/schedule-closure-repository.port';
+import {
+  IScheduleOpeningRepository,
+  SCHEDULE_OPENING_REPOSITORY,
+} from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { resolveApprovalMode } from './service-result.mapper';
+import { assertUnderCap } from './recurring-booking-schedule-cap.helpers';
 import {
   assertPatternConflictFree,
   assertServiceEligible,
@@ -46,13 +53,12 @@ import {
   resolveApprovalStatus,
 } from './recurring-booking-schedule-request.helpers';
 
-// App-enforced caps (docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule), not DB constraints.
-const MAX_ACTIVE_SCHEDULES_PER_RESOURCE = 50;
-const MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE = 50;
-
 interface PreparedRecurringBookingScheduleRequest {
   service: Service;
-  occurrences: { occurrenceStart: Date }[];
+  // The service's maximum term in days — validated against endsOn in prepareRequest() and passed
+  // on to the aggregate, which enforces the same invariant.
+  maxTermDays: number;
+  occurrences: RecurrenceOccurrence[];
   resourceAssignments: RequestRecurringBookingScheduleResourceAssignmentInput[];
   status: 'ACTIVE' | 'PENDING_APPROVAL';
   approvalHoldExpiresAt: Date | null;
@@ -65,7 +71,7 @@ export interface RequestRecurringBookingScheduleUseCaseInput {
   serviceId: string;
   recurrence: RecurrenceRule;
   startsOn: string;
-  endsOn: string | null;
+  endsOn: string;
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
   resourceIds: string[];
   actorType: 'CUSTOMER' | 'STAFF';
@@ -89,6 +95,8 @@ export class RequestRecurringBookingScheduleUseCase {
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
+    @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
+    @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
     @Inject(BOOKING_CUSTOMER_PORT) private readonly customerPort: IBookingCustomerPort,
     @Inject(BOOKING_STAFF_PORT) private readonly staffPort: IBookingStaffPort,
     @Inject(BOOKING_PLATFORM_PORT) private readonly bookingPlatform: IBookingPlatformPort,
@@ -114,7 +122,7 @@ export class RequestRecurringBookingScheduleUseCase {
     const schedule = await this.txManager.run(async () => {
       await this.lockForCapCheck(input);
       const prepared = await this.prepareRequest(input);
-      await this.assertUnderCap(input);
+      await assertUnderCap(this.scheduleRepo, input);
       await this.assertNoActiveScheduleOverlap(input);
       await this.checkPatternConflict(input, prepared);
       const built = this.buildSchedule(input, customerId, prepared);
@@ -144,15 +152,14 @@ export class RequestRecurringBookingScheduleUseCase {
     const policy = resolveApprovalMode(service.bookingPolicy, autoApproveEnabled);
     const { status, approvalHoldExpiresAt } = resolveApprovalStatus(policy);
 
-    const horizonEnd = resolveHorizonEndDate(
-      input.startsOn,
-      policy.recurringHorizonDays ?? DEFAULT_RECURRING_HORIZON_DAYS,
-    );
+    // The term is validated before it is enumerated, so a far-future endsOn is refused without
+    // any per-occurrence work (M23-S18: a schedule is a fixed term, never open-ended).
+    const maxTermDays = policy.recurringHorizonDays ?? DEFAULT_RECURRING_HORIZON_DAYS;
+    assertValidTerm(input.startsOn, input.endsOn, maxTermDays);
     const occurrences = enumerateRecurrenceOccurrences(
       input.recurrence,
       input.startsOn,
       input.endsOn,
-      horizonEnd,
       input.timezone,
     );
     const resourceAssignments = buildResourceAssignments(
@@ -161,38 +168,52 @@ export class RequestRecurringBookingScheduleUseCase {
       input.resourceIds,
     );
 
-    return { service, occurrences, resourceAssignments, status, approvalHoldExpiresAt };
+    return {
+      service,
+      maxTermDays,
+      occurrences,
+      resourceAssignments,
+      status,
+      approvalHoldExpiresAt,
+    };
   }
 
   private async checkPatternConflict(
     input: RequestRecurringBookingScheduleUseCaseInput,
     prepared: PreparedRecurringBookingScheduleRequest,
   ): Promise<void> {
+    const { businessHours } = await this.bookingPlatform.getBusinessHoursAndLocale(input.tenantId);
     await assertPatternConflictFree(
       {
         resourceRepo: this.resourceRepo,
         availabilityService: this.availabilityService,
         occupancyRepo: this.occupancyRepo,
+        closureRepo: this.closureRepo,
+        openingRepo: this.openingRepo,
         tenantLock: this.tenantLock,
       },
       {
         tenantId: input.tenantId,
         timezone: input.timezone,
+        businessHours,
         assignmentPolicy: input.assignmentPolicy,
         resourceIds: input.resourceIds,
         recurrence: input.recurrence,
         service: prepared.service,
+        startsOn: input.startsOn,
+        endsOn: input.endsOn,
         occurrences: prepared.occurrences,
       },
     );
   }
 
-  // FIXED_ASSIGNMENT only — an ACTIVE schedule has zero materialized bookings until M23-S05's
-  // generation job runs, so assertPatternConflictFree()'s resource_occupancy check can never
-  // catch two recurring schedules colliding on the same resource pre-S05 (docs/13-DATABASE_SCHEMA.md's
-  // not-yet-materialized-pattern protocol). RESOLVE_PER_OCCURRENCE has no fixed resource to compare
-  // against upfront — its own per-occurrence resolution at generation time is the conflict check
-  // for that branch, same as a one-off AUTO_ANY/AUTO_FUNGIBLE_POOL booking.
+  // FIXED_ASSIGNMENT only — an ACTIVE schedule has zero materialized bookings until M23-S05
+  // materializes its term, so assertPatternConflictFree()'s resource_occupancy check can never
+  // catch two recurring schedules colliding on the same resource before then
+  // (docs/13-DATABASE_SCHEMA.md's not-yet-materialized-pattern protocol). RESOLVE_PER_OCCURRENCE
+  // has no fixed resource to compare against upfront — its own per-occurrence resolution at
+  // materialization is the conflict check for that branch, same as a one-off
+  // AUTO_ANY/AUTO_FUNGIBLE_POOL booking.
   private async assertNoActiveScheduleOverlap(
     input: RequestRecurringBookingScheduleUseCaseInput,
   ): Promise<void> {
@@ -223,6 +244,7 @@ export class RequestRecurringBookingScheduleUseCase {
       recurrence: input.recurrence,
       startsOn: input.startsOn,
       endsOn: input.endsOn,
+      maxTermDays: prepared.maxTermDays,
       assignmentPolicy: input.assignmentPolicy,
       resourceAssignments: prepared.resourceAssignments,
       status: prepared.status,
@@ -256,25 +278,6 @@ export class RequestRecurringBookingScheduleUseCase {
       await this.tenantLock.lockResources(input.tenantId, input.resourceIds);
     } else {
       await this.tenantLock.lockService(input.tenantId, input.serviceId);
-    }
-  }
-
-  private async assertUnderCap(input: RequestRecurringBookingScheduleUseCaseInput): Promise<void> {
-    if (input.assignmentPolicy === 'FIXED_ASSIGNMENT') {
-      for (const resourceId of input.resourceIds) {
-        const count = await this.scheduleRepo.countActiveByResource(input.tenantId, resourceId);
-        if (count >= MAX_ACTIVE_SCHEDULES_PER_RESOURCE) {
-          throw new RecurringBookingScheduleCapReachedError('resource');
-        }
-      }
-    } else {
-      const count = await this.scheduleRepo.countActiveResolvePerOccurrenceByService(
-        input.tenantId,
-        input.serviceId,
-      );
-      if (count >= MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE) {
-        throw new RecurringBookingScheduleCapReachedError('service');
-      }
     }
   }
 }
