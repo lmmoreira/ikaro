@@ -79,14 +79,16 @@ describe('RemoveRecurringBookingSchedulePausedStatus1748500000019 (integration)'
 
   afterAll(async () => {
     try {
-      // Leave the shared datasource in its migrated state whatever a failed test did.
-      await ds.query(
-        `UPDATE "booking"."recurring_booking_schedules" SET "status" = 'CANCELLED', "cancellation_reason" = 'CUSTOMER_CANCELLED' WHERE "status" = 'PAUSED' AND "tenant_id" = ANY($1)`,
-        [TENANT_IDS],
-      );
-      await cleanupFixtures();
+      // up() is idempotent (backfill, then drop and re-add the constraint), so re-running it
+      // restores the migrated schema whatever point a failed test stopped at after run('down') —
+      // the shared datasource must never leak the PAUSED-accepting constraint into other suites.
+      await run('up');
     } finally {
-      await ds.destroy();
+      try {
+        await cleanupFixtures();
+      } finally {
+        await ds.destroy();
+      }
     }
   });
 

@@ -24,7 +24,7 @@ describe('RecurringBookingScheduleEventsHandler', () => {
     );
   });
 
-  it('subscribes to all 4 event types with the audit-log consumer name on init', () => {
+  it('subscribes to all 3 event types with the audit-log consumer name on init', () => {
     const spy = jest.spyOn(eventBus, 'subscribe');
     handler.onModuleInit();
 

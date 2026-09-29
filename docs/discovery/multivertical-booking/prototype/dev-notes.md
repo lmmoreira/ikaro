@@ -65,7 +65,7 @@ alternative state, never a primary entry point.
 | `ManualApprovalHoldState` | public-13 | booking response includes `holdExpiresAt`; status read/poll or email deep link |
 | `AvailabilityAlertForm` | public-12-availability-alert | authenticated `POST /availability-alerts`; unauthenticated visitors are routed to login/account creation |
 | `WaitlistOfferDecision` | customer-08 | `POST /class-session-bookings/{id}/waitlist-offer/accept|decline` |
-| `RecurringPrivateReservationManager` | customer-09 | `POST/PATCH /recurring-booking-schedules`, occurrence skip/reschedule/pause/end actions |
+| `RecurringPrivateReservationManager` | customer-09 | `POST/PATCH /recurring-booking-schedules`, occurrence skip/reschedule/end actions (Pause removed 2026-09-29, M23-S20) |
 | `CommitmentExceptionWorklist` | manager-12 | `GET /scheduling-exceptions`; explicit keep/reassign/reschedule/cancel commands |
 | `GroupAttendeeEditor` | customer-10 | `PATCH /class-session-bookings/{id}/attendees`; released seats trigger waitlist offer |
 | `ServiceBookingPolicyForm` | manager-13 | `PATCH /services/{id}/booking-policy` |
