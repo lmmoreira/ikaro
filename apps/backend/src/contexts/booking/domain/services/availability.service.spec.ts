@@ -742,4 +742,112 @@ describe('AvailabilityService', () => {
       expect(svc.isWindowFree(monday, DEFAULT_HOURS, scoped, window(15, 30), [])).toBe(true);
     });
   });
+
+  // M23-S18 — the hours-and-closures half of isWindowFree(), with the reason a window is refused,
+  // so a recurring schedule's creation-time check can name CLOSED vs OUTSIDE_HOURS while applying
+  // literally the rule availability applies.
+  describe('windowHoursVerdict', () => {
+    const window = (date: string, localStartHour: number, minutes: number) => {
+      const start = new Date(utcIso(date, localStartHour));
+      return { start, end: new Date(start.getTime() + minutes * 60_000) };
+    };
+    const tenantWide = (
+      closures: ReturnType<typeof ScheduleClosureBuilder.prototype.build>[] = [],
+    ) => ({ resource: null, closures, opening: null, resourceOpening: null });
+
+    it('is FREE inside business hours', () => {
+      expect(
+        svc.windowHoursVerdict(monday, DEFAULT_HOURS, tenantWide(), window(monday, 10, 30)),
+      ).toBe('FREE');
+    });
+
+    it('is OUTSIDE_HOURS before opening and after closing', () => {
+      expect(
+        svc.windowHoursVerdict(monday, DEFAULT_HOURS, tenantWide(), window(monday, 8, 30)),
+      ).toBe('OUTSIDE_HOURS');
+      expect(
+        svc.windowHoursVerdict(monday, DEFAULT_HOURS, tenantWide(), window(monday, 17, 90)),
+      ).toBe('OUTSIDE_HOURS');
+    });
+
+    it('is FREE for a window that ends exactly at closing', () => {
+      expect(
+        svc.windowHoursVerdict(monday, DEFAULT_HOURS, tenantWide(), window(monday, 17, 60)),
+      ).toBe('FREE');
+    });
+
+    it('is CLOSED on a normally-closed weekday with no opening', () => {
+      expect(
+        svc.windowHoursVerdict(sunday, DEFAULT_HOURS, tenantWide(), window(sunday, 10, 30)),
+      ).toBe('CLOSED');
+    });
+
+    it('is CLOSED on a full-day closure', () => {
+      const closure = new ScheduleClosureBuilder().withDate(monday).build();
+      expect(
+        svc.windowHoursVerdict(
+          monday,
+          DEFAULT_HOURS,
+          tenantWide([closure]),
+          window(monday, 10, 30),
+        ),
+      ).toBe('CLOSED');
+    });
+
+    it('is CLOSED when a partial closure overlaps, FREE when the window is clear of it', () => {
+      const closure = new ScheduleClosureBuilder()
+        .withDate(monday)
+        .withStartTime('10:00')
+        .withEndTime('11:00')
+        .build();
+      expect(
+        svc.windowHoursVerdict(
+          monday,
+          DEFAULT_HOURS,
+          tenantWide([closure]),
+          window(monday, 10, 30),
+        ),
+      ).toBe('CLOSED');
+      expect(
+        svc.windowHoursVerdict(
+          monday,
+          DEFAULT_HOURS,
+          tenantWide([closure]),
+          window(monday, 11, 30),
+        ),
+      ).toBe('FREE');
+    });
+
+    it('is FREE on a normally-closed day that a tenant-wide opening makes open', () => {
+      const opening = new ScheduleOpeningBuilder()
+        .withDate(sunday)
+        .withStartTime('10:00')
+        .withEndTime('14:00')
+        .build();
+      const context = { resource: null, closures: [], opening, resourceOpening: null };
+      expect(svc.windowHoursVerdict(sunday, DEFAULT_HOURS, context, window(sunday, 10, 60))).toBe(
+        'FREE',
+      );
+    });
+
+    it('agrees with isWindowFree() (empty occupancy) for every window checked', () => {
+      const fullDay = new ScheduleClosureBuilder().withDate(monday).build();
+      const partial = new ScheduleClosureBuilder()
+        .withDate(monday)
+        .withStartTime('12:00')
+        .withEndTime('13:00')
+        .build();
+      const contexts = [tenantWide(), tenantWide([fullDay]), tenantWide([partial])];
+      for (const context of contexts) {
+        for (const date of [monday, sunday]) {
+          for (let hour = 6; hour <= 20; hour++) {
+            const w = window(date, hour, 45);
+            expect(svc.windowHoursVerdict(date, DEFAULT_HOURS, context, w) === 'FREE').toBe(
+              svc.isWindowFree(date, DEFAULT_HOURS, context, w, []),
+            );
+          }
+        }
+      }
+    });
+  });
 });

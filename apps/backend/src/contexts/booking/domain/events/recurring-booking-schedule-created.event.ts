@@ -9,6 +9,7 @@ interface RecurringBookingScheduleCreatedData extends Record<string, unknown> {
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
   recurrence: RecurrenceRule;
   startsOn: string;
+  endsOn: string;
 }
 
 // docs/03-DOMAIN_EVENTS.md § RecurringBookingScheduleCreated — fired by RecurringBookingSchedule

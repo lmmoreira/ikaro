@@ -1,6 +1,15 @@
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { addDaysUTC } from '../../../../shared/utils/calendar-date';
+import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
-import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
+import {
+  ResourceBuilder,
+  ScheduleClosureBuilder,
+  ScheduleOpeningBuilder,
+  ServiceBuilder,
+} from '../../../../test/builders/booking/index';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import {
@@ -31,6 +40,19 @@ const TIMEZONE = 'America/Sao_Paulo';
 const DURATION_MINUTES = 60;
 const WEEK_MS = 7 * 24 * 60 * 60_000;
 const FIRST_OCCURRENCE = new Date('2031-03-04T13:00:00.000Z');
+const FIRST_OCCURRENCE_LOCAL_DATE = '2031-03-04'; // a Tuesday; 13:00Z is 10:00 in America/Sao_Paulo
+
+// Mon-Sat 09:00-18:00 tenant-local; occurrences are Tuesdays 10:00-11:00, so they sit inside it.
+const BUSINESS_HOURS: BusinessHours = {
+  timezone: TIMEZONE,
+  monday: { open: '09:00', close: '18:00' },
+  tuesday: { open: '09:00', close: '18:00' },
+  wednesday: { open: '09:00', close: '18:00' },
+  thursday: { open: '09:00', close: '18:00' },
+  friday: { open: '09:00', close: '18:00' },
+  saturday: { open: '09:00', close: '17:00' },
+  sunday: null,
+};
 
 type SelectionMode = Extract<
   ResourceRequirementSelectionMode,
@@ -41,20 +63,30 @@ function occurrenceStart(index: number): Date {
   return new Date(FIRST_OCCURRENCE.getTime() + index * WEEK_MS);
 }
 
+function occurrenceLocalDate(index: number): string {
+  return addDaysUTC(FIRST_OCCURRENCE_LOCAL_DATE, index * 7);
+}
+
 describe('assertPatternConflictFree', () => {
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
+  let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
   let tenantLock: InMemoryTenantLock;
   let deps: ConflictCheckDeps;
 
   beforeEach(() => {
     resourceRepo = new InMemoryResourceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     tenantLock = new InMemoryTenantLock();
     deps = {
       resourceRepo,
       availabilityService: new AvailabilityService(),
       occupancyRepo,
+      closureRepo,
+      openingRepo,
       tenantLock,
     };
   });
@@ -106,6 +138,7 @@ describe('assertPatternConflictFree', () => {
     return {
       tenantId: TENANT,
       timezone: TIMEZONE,
+      businessHours: BUSINESS_HOURS,
       assignmentPolicy: resourceIds.length > 0 ? 'FIXED_ASSIGNMENT' : 'RESOLVE_PER_OCCURRENCE',
       resourceIds,
       recurrence: {
@@ -115,8 +148,11 @@ describe('assertPatternConflictFree', () => {
         durationMinutes: DURATION_MINUTES,
       },
       service,
+      startsOn: FIRST_OCCURRENCE_LOCAL_DATE,
+      endsOn: occurrenceLocalDate(Math.max(occurrenceCount - 1, 0)),
       occurrences: Array.from({ length: occurrenceCount }, (_, i) => ({
         occurrenceStart: occurrenceStart(i),
+        occurrenceStartLocalDate: occurrenceLocalDate(i),
       })),
     };
   }
@@ -294,6 +330,8 @@ describe('assertPatternConflictFree', () => {
         assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 0, [room.id])),
       ).resolves.toBeUndefined();
 
+      expect(closureRepo.rangeQueryCount).toBe(0);
+      expect(openingRepo.rangeQueryCount).toBe(0);
       expect(lockSpy).not.toHaveBeenCalled();
       expect(windowsSpy).not.toHaveBeenCalled();
       expect(findByIdSpy).not.toHaveBeenCalled();
@@ -633,5 +671,352 @@ describe('assertPatternConflictFree', () => {
         expect(await batchedAccepts(params)).toBe(await perOccurrenceAccepts(service, params));
       },
     );
+  });
+
+  // M23-S18 — working hours and closures: the same rule availability applies, checked for every
+  // occurrence of the term, with hours and occupancy refusals merged into one list.
+  describe('working hours, closures and the merged conflict list', () => {
+    async function conflictsOf(params: ConflictCheckParams) {
+      try {
+        await assertPatternConflictFree(deps, params);
+      } catch (error) {
+        if (error instanceof RecurringBookingScheduleConflictError) return error.conflicts;
+        throw error;
+      }
+      return [];
+    }
+
+    async function closeFullDay(index: number, resource?: Resource): Promise<void> {
+      const builder = new ScheduleClosureBuilder()
+        .withTenantId(TENANT)
+        .withDate(occurrenceLocalDate(index));
+      await closureRepo.save((resource ? builder.withResourceId(resource.id) : builder).build());
+    }
+
+    function withHours(params: ConflictCheckParams, tuesday: BusinessHours['tuesday']) {
+      return { ...params, businessHours: { ...BUSINESS_HOURS, tuesday } };
+    }
+
+    it('lists a tenant-wide closure on only the 5th occurrence as CLOSED', async () => {
+      const [room] = await seedResources(1);
+      await closeFullDay(4);
+
+      const conflicts = await conflictsOf(
+        buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id]),
+      );
+
+      expect(conflicts).toEqual([{ occurrenceStart: occurrenceStart(4), reason: 'CLOSED' }]);
+    });
+
+    it('accepts the same pattern when the closure falls on a day with no occurrence', async () => {
+      const [room] = await seedResources(1);
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT)
+          .withDate(addDaysUTC(occurrenceLocalDate(4), 1))
+          .build(),
+      );
+
+      await expect(
+        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
+      ).resolves.toBeUndefined();
+    });
+
+    it('lists a partial closure that overlaps the occurrence window as CLOSED', async () => {
+      const [room] = await seedResources(1);
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT)
+          .withDate(occurrenceLocalDate(1))
+          .withStartTime('10:30')
+          .withEndTime('12:00')
+          .build(),
+      );
+
+      const conflicts = await conflictsOf(
+        buildParams(buildService('CUSTOMER_CHOICE'), 3, [room.id]),
+      );
+
+      expect(conflicts).toEqual([{ occurrenceStart: occurrenceStart(1), reason: 'CLOSED' }]);
+    });
+
+    it('lists every occurrence as OUTSIDE_HOURS when the business opens after the requested time', async () => {
+      const [room] = await seedResources(1);
+      const params = withHours(buildParams(buildService('CUSTOMER_CHOICE'), 3, [room.id]), {
+        open: '12:00',
+        close: '18:00',
+      });
+
+      const conflicts = await conflictsOf(params);
+
+      expect(conflicts.map((c) => c.reason)).toEqual([
+        'OUTSIDE_HOURS',
+        'OUTSIDE_HOURS',
+        'OUTSIDE_HOURS',
+      ]);
+    });
+
+    it('lists a normally-closed weekday as CLOSED, and accepts it once an opening makes it open', async () => {
+      const [room] = await seedResources(1);
+      const params = withHours(buildParams(buildService('CUSTOMER_CHOICE'), 2, [room.id]), null);
+
+      expect((await conflictsOf(params)).map((c) => c.reason)).toEqual(['CLOSED', 'CLOSED']);
+
+      for (const index of [0, 1]) {
+        await openingRepo.save(
+          new ScheduleOpeningBuilder()
+            .withTenantId(TENANT)
+            .withDate(occurrenceLocalDate(index))
+            .withStartTime('09:00')
+            .withEndTime('18:00')
+            .build(),
+        );
+      }
+      expect(await conflictsOf(params)).toEqual([]);
+    });
+
+    it("respects a resource's own working hours when narrower than the business's", async () => {
+      const [room] = await seedResources(1);
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT)
+        .withType(ResourceType.ROOM)
+        .withName('Sala vespertina')
+        .withTenantBusinessHours(BUSINESS_HOURS)
+        .withWorkingHours({
+          ...BUSINESS_HOURS,
+          tuesday: { open: '14:00', close: '18:00' },
+        })
+        .build();
+      await resourceRepo.save(resource);
+
+      expect(
+        await conflictsOf(buildParams(buildService('CUSTOMER_CHOICE'), 2, [resource.id])),
+      ).toHaveLength(2);
+      expect(
+        await conflictsOf(buildParams(buildService('CUSTOMER_CHOICE'), 2, [room.id])),
+      ).toHaveLength(0);
+    });
+
+    it('a resource-scoped closure affects only requests that use that resource', async () => {
+      const [roomA, roomB] = await seedResources(2);
+      await closeFullDay(1, roomA);
+      const service = buildService('CUSTOMER_CHOICE');
+
+      expect(await conflictsOf(buildParams(service, 3, [roomA.id]))).toEqual([
+        { occurrenceStart: occurrenceStart(1), reason: 'CLOSED' },
+      ]);
+      expect(await conflictsOf(buildParams(service, 3, [roomB.id]))).toEqual([]);
+    });
+
+    it('a tenant-wide closure affects every request', async () => {
+      const [roomA, roomB] = await seedResources(2);
+      await closeFullDay(1);
+      const service = buildService('CUSTOMER_CHOICE');
+
+      expect(await conflictsOf(buildParams(service, 3, [roomA.id]))).toHaveLength(1);
+      expect(await conflictsOf(buildParams(service, 3, [roomB.id]))).toHaveLength(1);
+    });
+
+    it("never lets another tenant's closures affect the request", async () => {
+      const [room] = await seedResources(1);
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(OTHER_TENANT)
+          .withDate(occurrenceLocalDate(1))
+          .build(),
+      );
+
+      expect(await conflictsOf(buildParams(buildService('CUSTOMER_CHOICE'), 3, [room.id]))).toEqual(
+        [],
+      );
+    });
+
+    it('merges an hours refusal and an occupancy refusal into one list ordered by occurrenceStart', async () => {
+      const [room] = await seedResources(1);
+      await closeFullDay(4);
+      occupy(room, occurrenceStart(2));
+
+      const conflicts = await conflictsOf(
+        buildParams(buildService('CUSTOMER_CHOICE'), 6, [room.id]),
+      );
+
+      expect(conflicts).toEqual([
+        { occurrenceStart: occurrenceStart(2), reason: 'OCCUPIED' },
+        { occurrenceStart: occurrenceStart(4), reason: 'CLOSED' },
+      ]);
+    });
+
+    it('reports one entry per occurrence, with the hours reason winning over occupancy', async () => {
+      const [room] = await seedResources(1);
+      await closeFullDay(2);
+      occupy(room, occurrenceStart(2));
+
+      const conflicts = await conflictsOf(
+        buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id]),
+      );
+
+      expect(conflicts).toEqual([{ occurrenceStart: occurrenceStart(2), reason: 'CLOSED' }]);
+    });
+
+    describe('per assignment policy', () => {
+      it('AUTO_ANY accepts an occurrence while one eligible resource is open', async () => {
+        const [roomA] = await seedResources(2);
+        await closeFullDay(1, roomA);
+
+        expect(await conflictsOf(buildParams(buildService('AUTO_ANY'), 3))).toEqual([]);
+      });
+
+      it('AUTO_ANY refuses an occurrence when every eligible resource is closed', async () => {
+        const rooms = await seedResources(2);
+        for (const room of rooms) await closeFullDay(1, room);
+
+        expect(await conflictsOf(buildParams(buildService('AUTO_ANY'), 3))).toEqual([
+          { occurrenceStart: occurrenceStart(1), reason: 'CLOSED' },
+        ]);
+      });
+
+      it('AUTO_FUNGIBLE_POOL considers only the first eligible resource', async () => {
+        await seedResources(2);
+        const [first, second] = await resourceRepo.findByTenant(TENANT, {
+          type: ResourceType.ROOM,
+          isActive: true,
+        });
+        await closeFullDay(1, second);
+        expect(await conflictsOf(buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3))).toEqual([]);
+
+        await closeFullDay(1, first);
+        expect(await conflictsOf(buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3))).toHaveLength(
+          1,
+        );
+      });
+    });
+
+    describe('the trailing gap', () => {
+      // Occurrences run 10:00-11:00; the business closes at 11:00 on Tuesdays.
+      const closesAtEleven = { open: '09:00', close: '11:00' };
+
+      it('accepts an occurrence whose trailing gap ends exactly at closing', async () => {
+        const [room] = await seedResources(1, 0);
+        const params = withHours(
+          buildParams(buildService('CUSTOMER_CHOICE', 0), 2, [room.id]),
+          closesAtEleven,
+        );
+
+        expect(await conflictsOf(params)).toEqual([]);
+      });
+
+      it('refuses an occurrence whose service buffer runs past closing', async () => {
+        const [room] = await seedResources(1, 0);
+        const params = withHours(
+          buildParams(buildService('CUSTOMER_CHOICE', 15), 2, [room.id]),
+          closesAtEleven,
+        );
+
+        expect((await conflictsOf(params)).map((c) => c.reason)).toEqual([
+          'OUTSIDE_HOURS',
+          'OUTSIDE_HOURS',
+        ]);
+      });
+
+      it("refuses an occurrence whose resource's turnover runs past closing", async () => {
+        const [room] = await seedResources(1, 20);
+        const params = withHours(
+          buildParams(buildService('CUSTOMER_CHOICE', null), 2, [room.id]),
+          closesAtEleven,
+        );
+
+        expect(await conflictsOf(params)).toHaveLength(2);
+      });
+    });
+
+    describe('timezone', () => {
+      it('evaluates an occurrence on its tenant-local date, not the UTC date', async () => {
+        const [room] = await seedResources(1);
+        // 22:00 in Sao Paulo is 01:00 UTC on the NEXT calendar day. The closure is on the
+        // tenant-local date, so it must still catch the occurrence.
+        const start = new Date('2031-03-05T01:00:00.000Z');
+        const params: ConflictCheckParams = {
+          ...buildParams(buildService('CUSTOMER_CHOICE'), 1, [room.id]),
+          businessHours: { ...BUSINESS_HOURS, tuesday: { open: '09:00', close: '23:59' } },
+          occurrences: [{ occurrenceStart: start, occurrenceStartLocalDate: '2031-03-04' }],
+        };
+        await closeFullDay(0);
+
+        expect(await conflictsOf(params)).toEqual([{ occurrenceStart: start, reason: 'CLOSED' }]);
+      });
+    });
+
+    describe('a constant number of queries', () => {
+      const expectedCounts = {
+        closureRange: 1,
+        closureResources: 1,
+        openingRange: 1,
+        openingResources: 1,
+      };
+
+      function queryCounts() {
+        return {
+          closureRange: closureRepo.rangeQueryCount,
+          closureResources: closureRepo.resourcesRangeQueryCount,
+          openingRange: openingRepo.rangeQueryCount,
+          openingResources: openingRepo.resourcesRangeQueryCount,
+        };
+      }
+
+      it.each([3, 90])('loads closures and openings once each for %i occurrences', async (n) => {
+        await seedResources(1);
+        await assertPatternConflictFree(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), n));
+
+        expect(queryCounts()).toEqual(expectedCounts);
+      });
+
+      it.each([1, 5])('loads them once each for %i considered resources', async (n) => {
+        await seedResources(n);
+        await assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 20));
+
+        expect(queryCounts()).toEqual(expectedCounts);
+      });
+    });
+
+    // The batched verdicts must equal AvailabilityService.isWindowFree() evaluated one occurrence
+    // at a time over the same windows — creation and availability apply one rule.
+    describe('parity with isWindowFree()', () => {
+      it('agrees occurrence by occurrence over closures and partial closures', async () => {
+        const [room] = await seedResources(1, 10);
+        const fullDay = new ScheduleClosureBuilder()
+          .withTenantId(TENANT)
+          .withDate(occurrenceLocalDate(1))
+          .build();
+        const partial = new ScheduleClosureBuilder()
+          .withTenantId(TENANT)
+          .withDate(occurrenceLocalDate(3))
+          .withStartTime('10:30')
+          .withEndTime('11:30')
+          .build();
+        await closureRepo.save(fullDay);
+        await closureRepo.save(partial);
+        const params = buildParams(buildService('CUSTOMER_CHOICE', 15), 6, [room.id]);
+        const availability = new AvailabilityService();
+        const gap = availability.effectiveFlatGapMinutes(15, room.turnoverMinutes);
+
+        const expectedRefused = params.occurrences
+          .filter(({ occurrenceStart: start, occurrenceStartLocalDate: date }) => {
+            const closures = [fullDay, partial].filter((c) => c.date.value === date);
+            return !availability.isWindowFree(
+              date,
+              BUSINESS_HOURS,
+              { resource: room, closures, opening: null, resourceOpening: null },
+              { start, end: new Date(start.getTime() + (DURATION_MINUTES + gap) * 60_000) },
+              [],
+            );
+          })
+          .map(({ occurrenceStart: start }) => start);
+
+        const conflicts = await conflictsOf(params);
+
+        expect(conflicts.map((c) => c.occurrenceStart)).toEqual(expectedRefused);
+        expect(expectedRefused).toHaveLength(2);
+      });
+    });
   });
 });

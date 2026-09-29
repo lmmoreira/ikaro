@@ -3,12 +3,11 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 import {
   RecurringBookingScheduleExceptionAlreadyExistsError,
-  RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleNotActiveError,
 } from './errors/recurring-booking-schedule.error';
 import { RecurringBookingSchedulePaused } from './events/recurring-booking-schedule-paused.event';
 import { RecurringBookingScheduleEnded } from './events/recurring-booking-schedule-ended.event';
-import { RecurrenceRule } from './recurrence-rule.helpers';
+import { assertValidTerm, RecurrenceRule } from './recurrence-rule.helpers';
 import { buildRequestedEvent } from './recurring-booking-schedule-request-event.helpers';
 import {
   RecurringBookingScheduleActorType,
@@ -73,7 +72,7 @@ export class RecurringBookingSchedule extends AggregateRoot {
   get startsOn(): string {
     return this.props.startsOn;
   }
-  get endsOn(): string | null {
+  get endsOn(): string {
     return this.props.endsOn;
   }
   get status(): RecurringBookingScheduleStatus {
@@ -120,9 +119,7 @@ export class RecurringBookingSchedule extends AggregateRoot {
   }
 
   static request(options: RequestRecurringBookingScheduleOptions): RecurringBookingSchedule {
-    if (options.endsOn !== null && options.endsOn < options.startsOn) {
-      throw new RecurringBookingScheduleInvalidDateRangeError();
-    }
+    assertValidTerm(options.startsOn, options.endsOn, options.maxTermDays);
     const id = uuidv7();
     const now = new Date();
     const resourceAssignments = options.resourceAssignments.map((a) => ({

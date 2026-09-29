@@ -15,7 +15,7 @@ export interface RecurringBookingScheduleListItem {
   serviceId: string;
   recurrence: RecurrenceRuleResponse;
   startsOn: string;
-  endsOn: string | null;
+  endsOn: string;
   status: 'PENDING_APPROVAL' | 'ACTIVE' | 'PAUSED' | 'CANCELLED';
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
   approvalHoldExpiresAt: string | null;

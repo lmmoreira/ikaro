@@ -31,8 +31,8 @@ export class RecurringBookingScheduleEntity {
   @Column({ name: 'starts_on', type: 'date' })
   startsOn!: string;
 
-  @Column({ name: 'ends_on', type: 'date', nullable: true })
-  endsOn!: string | null;
+  @Column({ name: 'ends_on', type: 'date' })
+  endsOn!: string;
 
   @Column({ type: 'varchar', length: 20 })
   status!: RecurringBookingScheduleStatus;

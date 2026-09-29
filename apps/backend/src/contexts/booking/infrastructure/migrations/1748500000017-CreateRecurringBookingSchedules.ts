@@ -2,7 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 // M23 Cluster 3 (UC-070) — docs/13-DATABASE_SCHEMA.md § booking.recurring_booking_schedules /
 // assignments / exceptions. Also adds bookings.recurring_schedule_id (nullable — set only once
-// M23-S05's generation job exists) and services.recurring_horizon_days (nullable — null inherits
+// M23-S05 materializes a schedule's occurrences) and services.recurring_horizon_days (nullable — null inherits
 // the 90-day platform default, DEFAULT_RECURRING_HORIZON_DAYS).
 export class CreateRecurringBookingSchedules1748500000017 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

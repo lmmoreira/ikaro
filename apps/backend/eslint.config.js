@@ -116,6 +116,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/booking/infrastructure/migrations/1748500000015-AddEndsAtIndexToResourceOccupancy.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000016-CreateBookingQuoteRevisions.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000017-CreateRecurringBookingSchedules.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000018-RequireRecurringBookingScheduleEndsOn.ts',
   'src/contexts/platform/infrastructure/migrations/1748500000004-CreateLeadFormSubmissionQuestionRefs.ts',
   'src/contexts/platform/infrastructure/migrations/1748500000005-AddVersionToLeadFormConfigs.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts',

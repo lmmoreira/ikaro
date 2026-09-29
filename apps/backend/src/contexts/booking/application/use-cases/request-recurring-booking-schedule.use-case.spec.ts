@@ -6,9 +6,17 @@ import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
-import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
+import {
+  ResourceBuilder,
+  ScheduleClosureBuilder,
+  ServiceBuilder,
+} from '../../../../test/builders/booking/index';
+import { addDaysUTC } from '../../../../shared/utils/calendar-date';
+import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { futureDate, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -18,6 +26,8 @@ import {
   RecurringBookingScheduleCapReachedError,
   RecurringBookingScheduleConflictError,
   RecurringBookingScheduleIneligibleServiceError,
+  RecurringBookingScheduleInvalidDateRangeError,
+  RecurringBookingScheduleTermExceededError,
 } from '../../domain/errors/recurring-booking-schedule.error';
 import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
 import { RequestRecurringBookingScheduleUseCase } from './request-recurring-booking-schedule.use-case';
@@ -31,11 +41,14 @@ const TIMEZONE = 'America/Sao_Paulo';
 // Every fixture recurs every Tuesday, starting on the next real Tuesday from "today" — never a
 // hardcoded calendar date (docs/ENGINEERING_RULES_TESTING.md § Shared test-builder date defaults).
 const STARTS_ON = nextWeekday(2);
+// A four-week term — well inside the 90-day default maximum.
+const ENDS_ON = addDaysUTC(STARTS_ON, 28);
 
 describe('RequestRecurringBookingScheduleUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
+  let closureRepo: InMemoryScheduleClosureRepository;
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
   let customerPort: InMemoryBookingCustomerPort;
   let staffPort: InMemoryBookingStaffPort;
@@ -50,6 +63,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       bookingModel?: 'APPOINTMENT' | 'SESSION';
       resourceRequirements?: ResourceRequirement[];
       defaultApprovalMode?: 'AUTO_CONFIRM' | 'MANUAL_APPROVAL';
+      recurringHorizonDays?: number | null;
     } = {},
   ): Promise<string> {
     const service = new ServiceBuilder()
@@ -64,6 +78,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       .withBookingPolicy({
         recurrenceEligible: overrides.recurrenceEligible ?? true,
         defaultApprovalMode: overrides.defaultApprovalMode ?? 'AUTO_CONFIRM',
+        recurringHorizonDays: overrides.recurringHorizonDays ?? null,
       })
       .build();
     await serviceRepo.save(service);
@@ -74,6 +89,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     serviceRepo = new InMemoryServiceRepository();
     resourceRepo = new InMemoryResourceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    closureRepo = new InMemoryScheduleClosureRepository();
     customerPort = new InMemoryBookingCustomerPort();
     staffPort = new InMemoryBookingStaffPort();
     platformPort = new InMemoryBookingPlatformPort();
@@ -97,6 +113,8 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       scheduleRepo,
       resourceRepo,
       occupancyRepo,
+      closureRepo,
+      new InMemoryScheduleOpeningRepository(),
       customerPort,
       staffPort,
       platformPort,
@@ -121,7 +139,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         durationMinutes: 120,
       },
       startsOn: STARTS_ON,
-      endsOn: null,
+      endsOn: ENDS_ON,
       assignmentPolicy: 'FIXED_ASSIGNMENT',
       resourceIds: [resourceId],
       actorType: 'CUSTOMER',
@@ -151,7 +169,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         durationMinutes: 120,
       },
       startsOn: STARTS_ON,
-      endsOn: null,
+      endsOn: ENDS_ON,
       assignmentPolicy: 'FIXED_ASSIGNMENT',
       resourceIds: [resourceId],
       actorType: 'CUSTOMER',
@@ -178,7 +196,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         durationMinutes: 120,
       },
       startsOn: STARTS_ON,
-      endsOn: null,
+      endsOn: ENDS_ON,
       assignmentPolicy: 'FIXED_ASSIGNMENT',
       resourceIds: [resourceId],
       actorType: 'STAFF',
@@ -219,7 +237,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           durationMinutes: 120,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         actorType: 'CUSTOMER',
@@ -247,7 +265,8 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
             durationMinutes: 60,
           },
           startsOn: futureDate(200 + i),
-          endsOn: null,
+          endsOn: futureDate(210 + i),
+          maxTermDays: 90,
           assignmentPolicy: 'FIXED_ASSIGNMENT',
           resourceAssignments: [
             {
@@ -278,7 +297,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           durationMinutes: 120,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         actorType: 'CUSTOMER',
@@ -303,7 +322,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           durationMinutes: 120,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         actorType: 'CUSTOMER',
@@ -333,7 +352,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           durationMinutes: 120,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         actorType: 'CUSTOMER',
@@ -361,7 +380,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         durationMinutes: 120,
       },
       startsOn: STARTS_ON,
-      endsOn: null,
+      endsOn: ENDS_ON,
       assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       resourceIds: [],
       actorType: 'CUSTOMER',
@@ -389,7 +408,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           durationMinutes: 120,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         actorType: 'CUSTOMER',
@@ -412,7 +431,8 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           durationMinutes: 120,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
+        maxTermDays: 90,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceAssignments: [
           {
@@ -445,7 +465,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           durationMinutes: 60,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         actorType: 'CUSTOMER',
@@ -468,7 +488,8 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           durationMinutes: 60,
         },
         startsOn: STARTS_ON,
-        endsOn: null,
+        endsOn: ENDS_ON,
+        maxTermDays: 90,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceAssignments: [
           {
@@ -497,7 +518,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         durationMinutes: 60,
       },
       startsOn: STARTS_ON,
-      endsOn: null,
+      endsOn: ENDS_ON,
       assignmentPolicy: 'FIXED_ASSIGNMENT',
       resourceIds: [resourceId],
       actorType: 'CUSTOMER',
@@ -505,5 +526,195 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     });
 
     expect(result.status).toBe('ACTIVE');
+  });
+
+  // M23-S18 — a schedule is a fixed term, and every occurrence of it is checked at creation.
+  describe('fixed term and creation-time hours and closures', () => {
+    function request(serviceId: string, overrides: Record<string, unknown> = {}) {
+      return useCase.execute({
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        timezone: TIMEZONE,
+        serviceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 120,
+        },
+        startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        actorType: 'CUSTOMER',
+        actorId: CUSTOMER_ID,
+        ...overrides,
+      });
+    }
+
+    async function scheduleCount(): Promise<number> {
+      return (await scheduleRepo.findAllByTenantPaginated(TENANT, { limit: 100, offset: 0 })).total;
+    }
+
+    // 10:00 local (UTC-3) on the tenant-local date.
+    const occurrenceAt = (date: string) => new Date(`${date}T13:00:00.000Z`);
+
+    describe('the term', () => {
+      it('rejects an endsOn before startsOn and creates nothing', async () => {
+        const serviceId = await seedService();
+
+        await expect(request(serviceId, { startsOn: ENDS_ON, endsOn: STARTS_ON })).rejects.toThrow(
+          RecurringBookingScheduleInvalidDateRangeError,
+        );
+        expect(await scheduleCount()).toBe(0);
+      });
+
+      it('rejects an endsOn one day past the default 90-day maximum term and names the limit', async () => {
+        const serviceId = await seedService();
+
+        await expect(
+          request(serviceId, { endsOn: addDaysUTC(STARTS_ON, 91) }),
+        ).rejects.toMatchObject({
+          name: 'RecurringBookingScheduleTermExceededError',
+          params: { maxTermDays: 90, latestEndsOn: addDaysUTC(STARTS_ON, 90) },
+        });
+        expect(await scheduleCount()).toBe(0);
+      });
+
+      it('accepts an endsOn exactly at the maximum term', async () => {
+        const serviceId = await seedService();
+
+        const result = await request(serviceId, { endsOn: addDaysUTC(STARTS_ON, 90) });
+
+        expect(result.status).toBe('ACTIVE');
+      });
+
+      it('accepts an endsOn equal to startsOn', async () => {
+        const serviceId = await seedService();
+
+        const result = await request(serviceId, { endsOn: STARTS_ON });
+
+        expect(result.status).toBe('ACTIVE');
+      });
+
+      it("uses the service's own recurringHorizonDays as the maximum term", async () => {
+        const serviceId = await seedService({ recurringHorizonDays: 28 });
+
+        await expect(
+          request(serviceId, { endsOn: addDaysUTC(STARTS_ON, 29) }),
+        ).rejects.toBeInstanceOf(RecurringBookingScheduleTermExceededError);
+        await expect(
+          request(serviceId, { endsOn: addDaysUTC(STARTS_ON, 28) }),
+        ).resolves.toMatchObject({ status: 'ACTIVE' });
+      });
+
+      it('carries endsOn in the published event payload', async () => {
+        const serviceId = await seedService();
+
+        await request(serviceId);
+
+        expect(eventBus.published[0].data).toMatchObject({ endsOn: ENDS_ON });
+      });
+    });
+
+    describe('hours, closures and occupancy', () => {
+      it('rejects the whole request when a closure falls on one occurrence, listing it as CLOSED', async () => {
+        const serviceId = await seedService();
+        const closedDate = addDaysUTC(STARTS_ON, 14);
+        await closureRepo.save(
+          new ScheduleClosureBuilder().withTenantId(TENANT).withDate(closedDate).build(),
+        );
+
+        await expect(request(serviceId)).rejects.toMatchObject({
+          name: 'RecurringBookingScheduleConflictError',
+          conflicts: [{ occurrenceStart: occurrenceAt(closedDate), reason: 'CLOSED' }],
+        });
+        expect(await scheduleCount()).toBe(0);
+        expect(eventBus.published).toHaveLength(0);
+      });
+
+      it('accepts the same request when the closure is on a day with no occurrence', async () => {
+        const serviceId = await seedService();
+        await closureRepo.save(
+          new ScheduleClosureBuilder()
+            .withTenantId(TENANT)
+            .withDate(addDaysUTC(STARTS_ON, 15))
+            .build(),
+        );
+
+        await expect(request(serviceId)).resolves.toMatchObject({ status: 'ACTIVE' });
+      });
+
+      it('rejects with OUTSIDE_HOURS when the tenant hours are narrower than the requested time', async () => {
+        const serviceId = await seedService();
+        platformPort.seedBusinessHoursAndLocale(TENANT, {
+          locale: 'pt-BR',
+          businessHours: {
+            ...FULL_WEEK_BUSINESS_HOURS,
+            tuesday: { open: '13:00', close: '18:00' },
+          },
+        });
+
+        const error = await request(serviceId).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+        const { conflicts } = error as RecurringBookingScheduleConflictError;
+        expect(conflicts).toHaveLength(5); // Tuesdays at +0, +7, +14, +21 and +28 days
+        expect(new Set(conflicts.map((c) => c.reason))).toEqual(new Set(['OUTSIDE_HOURS']));
+      });
+
+      it('lists a closure and an existing booking together in one refusal', async () => {
+        const serviceId = await seedService();
+        const closedDate = addDaysUTC(STARTS_ON, 7);
+        const bookedDate = addDaysUTC(STARTS_ON, 21);
+        await closureRepo.save(
+          new ScheduleClosureBuilder().withTenantId(TENANT).withDate(closedDate).build(),
+        );
+        const bookedStart = occurrenceAt(bookedDate);
+        occupancyRepo.seed(TENANT, 'other-line', {
+          resourceId,
+          resourceType: ResourceType.ROOM,
+          resourceName: 'Sala Aurora',
+          legIndex: null,
+          quantityPosition: null,
+          selectionMode: 'CUSTOMER_CHOICE',
+          isBundleMember: false,
+          startsAt: bookedStart,
+          endsAt: new Date(bookedStart.getTime() + 60 * 60_000),
+        });
+
+        await expect(request(serviceId)).rejects.toMatchObject({
+          conflicts: [
+            { occurrenceStart: occurrenceAt(closedDate), reason: 'CLOSED' },
+            { occurrenceStart: bookedStart, reason: 'OCCUPIED' },
+          ],
+        });
+        expect(await scheduleCount()).toBe(0);
+      });
+
+      it("never lets another tenant's closure affect the request", async () => {
+        const serviceId = await seedService();
+        await closureRepo.save(
+          new ScheduleClosureBuilder()
+            .withTenantId('10000000-0000-4000-8000-000000000998')
+            .withDate(addDaysUTC(STARTS_ON, 14))
+            .build(),
+        );
+
+        await expect(request(serviceId)).resolves.toMatchObject({ status: 'ACTIVE' });
+      });
+
+      it('refuses a MANUAL_APPROVAL request on a closure too, creating nothing', async () => {
+        const serviceId = await seedService({ defaultApprovalMode: 'MANUAL_APPROVAL' });
+        await closureRepo.save(
+          new ScheduleClosureBuilder().withTenantId(TENANT).withDate(STARTS_ON).build(),
+        );
+
+        await expect(request(serviceId)).rejects.toBeInstanceOf(
+          RecurringBookingScheduleConflictError,
+        );
+        expect(await scheduleCount()).toBe(0);
+      });
+    });
   });
 });

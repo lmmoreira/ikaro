@@ -1,10 +1,12 @@
 import { BookingServiceResourceTypeUnavailableError } from '../../domain/errors/booking-domain.error';
+import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import {
   RecurringBookingScheduleConflictError,
   RecurringBookingScheduleIneligibleServiceError,
+  RecurringScheduleOccurrenceConflict,
 } from '../../domain/errors/recurring-booking-schedule.error';
 import { RequestRecurringBookingScheduleResourceAssignmentInput } from '../../domain/recurring-booking-schedule.aggregate';
-import { RecurrenceRule } from '../../domain/recurrence-rule.helpers';
+import { RecurrenceOccurrence, RecurrenceRule } from '../../domain/recurrence-rule.helpers';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { AvailabilityService } from '../../domain/services/availability.service';
@@ -15,7 +17,13 @@ import {
   ResourceOccupancyWindow,
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
+import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
+import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import { ITenantLockPort } from '../ports/tenant-lock.port';
+import {
+  findHoursConflicts,
+  loadHoursScheduleData,
+} from './recurring-booking-schedule-hours.helpers';
 import {
   resolveEligibleResources,
   resolveRequirementResources,
@@ -91,25 +99,32 @@ export interface ConflictCheckDeps {
   resourceRepo: IResourceRepository;
   availabilityService: AvailabilityService;
   occupancyRepo: IResourceOccupancyRepository;
+  closureRepo: IScheduleClosureRepository;
+  openingRepo: IScheduleOpeningRepository;
   tenantLock: ITenantLockPort;
 }
 
 export interface ConflictCheckParams {
   tenantId: string;
   timezone: string;
+  businessHours: BusinessHours;
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
   resourceIds: string[];
   recurrence: RecurrenceRule;
   service: Service;
-  occurrences: { occurrenceStart: Date }[];
+  startsOn: string;
+  endsOn: string;
+  occurrences: RecurrenceOccurrence[];
 }
 
-// Resource-conflict-checks every implied occurrence within the horizon, atomically, before either
-// status branch commits (UC-070 A1), in a number of queries independent of the occurrence count:
-// resolve the resources once, lock them once, then check every (resource x occurrence) window with
-// a single overlap query and decide per occurrence in memory. Accepts and rejects exactly what
-// resolving and checking each occurrence on its own (resolveBookingLinesResourceCandidates +
-// assertSlotFree) would.
+// Checks every occurrence of the term, atomically, before either status branch commits (UC-070
+// A1), in a number of queries independent of the occurrence count: resolve the resources once,
+// lock them once, then (1) working hours and closures — the same rule availability applies — and
+// (2) resource occupancy via a single overlap query, deciding per occurrence in memory. Both
+// always run, and every affected occurrence is reported with its reason in one refusal, so the
+// customer can fix the pattern in one round. Accepts and rejects exactly what resolving and
+// checking each occurrence on its own (resolveBookingLinesResourceCandidates + assertSlotFree
+// + isWindowFree) would.
 export async function assertPatternConflictFree(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
@@ -121,12 +136,73 @@ export async function assertPatternConflictFree(
     params.tenantId,
     resources.map((resource) => resource.id),
   );
+  const anyFreeResourceSuffices = requirement.selectionMode === 'AUTO_ANY';
+  const hoursConflicts = await findHoursRefusals(deps, params, resources, anyFreeResourceSuffices);
+  const occupiedConflicts = await findOccupiedRefusals(
+    deps,
+    params,
+    resources,
+    anyFreeResourceSuffices,
+  );
+  const conflicts = mergeConflicts(hoursConflicts, occupiedConflicts);
+  if (conflicts.length > 0) throw new RecurringBookingScheduleConflictError(conflicts);
+}
+
+async function findHoursRefusals(
+  deps: ConflictCheckDeps,
+  params: ConflictCheckParams,
+  resources: Resource[],
+  anyOpenResourceSuffices: boolean,
+): Promise<RecurringScheduleOccurrenceConflict[]> {
+  const schedule = await loadHoursScheduleData(
+    deps,
+    params.tenantId,
+    resources.map((resource) => resource.id),
+    params.startsOn,
+    params.endsOn,
+  );
+  return findHoursConflicts({
+    availabilityService: deps.availabilityService,
+    businessHours: params.businessHours,
+    schedule,
+    resources,
+    anyOpenResourceSuffices,
+    occurrences: params.occurrences,
+    durationMinutes: params.recurrence.durationMinutes,
+    bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
+  });
+}
+
+async function findOccupiedRefusals(
+  deps: ConflictCheckDeps,
+  params: ConflictCheckParams,
+  resources: Resource[],
+  anyFreeResourceSuffices: boolean,
+): Promise<RecurringScheduleOccurrenceConflict[]> {
   const windows = buildOccurrenceWindows(deps.availabilityService, params, resources);
   const conflicting = await deps.occupancyRepo.findConflictingWindows(params.tenantId, windows);
-  const anyFreeResourceSuffices = requirement.selectionMode === 'AUTO_ANY';
-  if (hasBlockedOccurrence(conflicting, params.occurrences, resources, anyFreeResourceSuffices)) {
-    throw new RecurringBookingScheduleConflictError();
+  return blockedOccurrenceStarts(
+    conflicting,
+    params.occurrences,
+    resources,
+    anyFreeResourceSuffices,
+  ).map((occurrenceStart) => ({ occurrenceStart, reason: 'OCCUPIED' as const }));
+}
+
+// One entry per occurrence, ordered by occurrenceStart; when an occurrence is refused for hours
+// AND occupancy, the hours reason wins (a closed or out-of-hours slot can never be honored, no
+// matter who else holds it).
+function mergeConflicts(
+  hoursConflicts: RecurringScheduleOccurrenceConflict[],
+  occupiedConflicts: RecurringScheduleOccurrenceConflict[],
+): RecurringScheduleOccurrenceConflict[] {
+  const byStart = new Map<number, RecurringScheduleOccurrenceConflict>();
+  for (const conflict of [...occupiedConflicts, ...hoursConflicts]) {
+    byStart.set(conflict.occurrenceStart.getTime(), conflict);
   }
+  return [...byStart.values()].sort(
+    (a, b) => a.occurrenceStart.getTime() - b.occurrenceStart.getTime(),
+  );
 }
 
 // The resources whose availability decides an occurrence. FIXED_ASSIGNMENT: the caller's pick,
@@ -189,20 +265,22 @@ function buildOccurrenceWindows(
 // An occurrence is blocked when a resource it needs is busy: a single conflicting window suffices,
 // except when one free resource is enough — then only when every considered resource is busy in
 // that occurrence.
-function hasBlockedOccurrence(
+function blockedOccurrenceStarts(
   conflicting: ResourceOccupancyWindow[],
   occurrences: { occurrenceStart: Date }[],
   resources: Resource[],
   anyFreeResourceSuffices: boolean,
-): boolean {
+): Date[] {
   const busyByStart = new Map<number, Set<string>>();
   for (const { resourceId, startsAt } of conflicting) {
     const key = startsAt.getTime();
     busyByStart.set(key, (busyByStart.get(key) ?? new Set<string>()).add(resourceId));
   }
-  return occurrences.some(({ occurrenceStart }) => {
-    const busy = busyByStart.get(occurrenceStart.getTime());
-    if (!busy) return false;
-    return anyFreeResourceSuffices ? resources.every((resource) => busy.has(resource.id)) : true;
-  });
+  return occurrences
+    .filter(({ occurrenceStart }) => {
+      const busy = busyByStart.get(occurrenceStart.getTime());
+      if (!busy) return false;
+      return anyFreeResourceSuffices ? resources.every((resource) => busy.has(resource.id)) : true;
+    })
+    .map(({ occurrenceStart }) => occurrenceStart);
 }

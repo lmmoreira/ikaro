@@ -62,6 +62,8 @@ export type WindowScheduleContext = Pick<
   'resource' | 'closures' | 'opening' | 'resourceOpening'
 >;
 
+export type WindowHoursVerdict = 'FREE' | 'CLOSED' | 'OUTSIDE_HOURS';
+
 export class AvailabilityService {
   calculate(input: AvailabilityInput): AvailableSlot[] {
     const {
@@ -251,6 +253,40 @@ export class AvailabilityService {
     return Math.max(bufferAfterMinutes, turnoverMinutes);
   }
 
+  // The hours-and-closures half of isWindowFree(), with the reason a window is refused: CLOSED —
+  // the whole day is closed (a full-day closure, or a normally-closed weekday with no opening) or
+  // a partial closure overlaps the window; OUTSIDE_HOURS — the day is open but the window starts
+  // before opening or ends after closing. isWindowFree() delegates here, so creation-time checks
+  // (M23-S18's recurring schedules) and availability apply literally one rule.
+  windowHoursVerdict(
+    date: string,
+    businessHours: BusinessHours,
+    scheduleContext: WindowScheduleContext,
+    window: { start: Date; end: Date },
+  ): WindowHoursVerdict {
+    const effectiveHours = this.resolveEffectiveHours(
+      date,
+      businessHours,
+      scheduleContext.resource,
+      scheduleContext.closures,
+      scheduleContext.opening,
+      scheduleContext.resourceOpening,
+    );
+    if (!effectiveHours) return 'CLOSED';
+
+    const startHHMM = utcDateToLocalHHMM(window.start, businessHours.timezone);
+    const endHHMM = utcDateToLocalHHMM(window.end, businessHours.timezone);
+    if (startHHMM < effectiveHours.open || endHHMM > effectiveHours.close) return 'OUTSIDE_HOURS';
+    if (
+      effectiveHours.partialClosures.some((c) =>
+        this.overlaps(startHHMM, endHHMM, c.startTime!.value, c.endTime!.value),
+      )
+    ) {
+      return 'CLOSED';
+    }
+    return 'FREE';
+  }
+
   // Free/busy check for one [start, end) window against a resource's (or tenant's) hours/
   // closures/occupancy — used per line/leg/candidate instead of calculate()'s own slot loop.
   isWindowFree(
@@ -260,27 +296,9 @@ export class AvailabilityService {
     window: { start: Date; end: Date },
     existingOccupancy: ResourceOccupiedSlot[],
   ): boolean {
-    const effectiveHours = this.resolveEffectiveHours(
-      date,
-      businessHours,
-      scheduleContext.resource,
-      scheduleContext.closures,
-      scheduleContext.opening,
-      scheduleContext.resourceOpening,
-    );
-    if (!effectiveHours) return false;
-
-    const startHHMM = utcDateToLocalHHMM(window.start, businessHours.timezone);
-    const endHHMM = utcDateToLocalHHMM(window.end, businessHours.timezone);
-    if (startHHMM < effectiveHours.open || endHHMM > effectiveHours.close) return false;
-    if (
-      effectiveHours.partialClosures.some((c) =>
-        this.overlaps(startHHMM, endHHMM, c.startTime!.value, c.endTime!.value),
-      )
-    ) {
+    if (this.windowHoursVerdict(date, businessHours, scheduleContext, window) !== 'FREE') {
       return false;
     }
-
     return !existingOccupancy.some((o) => window.start < o.endsAt && o.startsAt < window.end);
   }
 

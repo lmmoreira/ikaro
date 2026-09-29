@@ -3,7 +3,7 @@
 **Status:** Live — reflects the shipped `code`-driven pattern
 **Audience:** Frontend developers, API consumers, AI agents
 **Standard:** RFC 9457 Problem Details for HTTP APIs
-**Last Updated:** 2026-07-20
+**Last Updated:** 2026-09-29
 
 ---
 
@@ -60,6 +60,7 @@ This document is the error-response *reference*. The canonical code catalog is `
 | `field` | string (optional) | Which request field is at fault — single-cause errors only, routing use, never message selection |
 | `params` | object (optional) | Interpolation values for the resolved message template (e.g. `{ hours: 48 }`) |
 | `violations` | array (optional) | Batch validation failures — `{ field, code, params? }[]`. Mutually exclusive with top-level `code`/`field` |
+| `conflicts` | array (optional) | Extension member of the `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` only (M23-S18, UC-070 A1) — every occurrence of a recurring pattern that cannot be honored, `{ occurrenceStart: ISO-8601 UTC, reason: 'OCCUPIED' \| 'CLOSED' \| 'OUTSIDE_HOURS' }[]`, ordered by `occurrenceStart`. Absent when the refusal is not about specific occurrences. Typed once in `@ikaro/types` (`RecurringScheduleConflict`) |
 | `detail` | string | Backend-internal/debug text — never rendered to a user |
 | `correlationId` | UUID | Trace ID for debugging |
 

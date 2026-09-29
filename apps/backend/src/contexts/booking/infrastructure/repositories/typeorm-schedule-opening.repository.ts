@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
+import { Between, In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
@@ -41,6 +41,20 @@ export class TypeOrmScheduleOpeningRepository implements IScheduleOpeningReposit
   ): Promise<ScheduleOpening[]> {
     const entities = await this.repo.find({
       where: { tenantId, date: Between(from, to), resourceId: resourceId ?? IsNull() },
+      order: { date: 'ASC' },
+    });
+    return entities.map((e) => this.toDomain(e));
+  }
+
+  async findByTenantAndResourcesAndDateRange(
+    tenantId: string,
+    resourceIds: string[],
+    from: string,
+    to: string,
+  ): Promise<ScheduleOpening[]> {
+    if (resourceIds.length === 0) return [];
+    const entities = await this.repo.find({
+      where: { tenantId, date: Between(from, to), resourceId: In(resourceIds) },
       order: { date: 'ASC' },
     });
     return entities.map((e) => this.toDomain(e));

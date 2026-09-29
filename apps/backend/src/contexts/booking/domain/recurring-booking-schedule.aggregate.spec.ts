@@ -2,6 +2,7 @@ import {
   RecurringBookingScheduleExceptionAlreadyExistsError,
   RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleNotActiveError,
+  RecurringBookingScheduleTermExceededError,
 } from './errors/recurring-booking-schedule.error';
 import { RecurringBookingScheduleCreated } from './events/recurring-booking-schedule-created.event';
 import { RecurringBookingScheduleApprovalRequested } from './events/recurring-booking-schedule-approval-requested.event';
@@ -30,7 +31,8 @@ function requestOptions(
       durationMinutes: 120,
     },
     startsOn: '2026-09-01',
-    endsOn: null,
+    endsOn: '2026-11-24',
+    maxTermDays: 90,
     assignmentPolicy: 'FIXED_ASSIGNMENT',
     resourceAssignments: [
       {
@@ -103,6 +105,52 @@ describe('RecurringBookingSchedule.request', () => {
       requestOptions({ startsOn: '2026-09-01', endsOn: '2026-09-01' }),
     );
     expect(schedule.endsOn).toBe('2026-09-01');
+  });
+
+  it('allows endsOn exactly at the maximum term', () => {
+    const schedule = RecurringBookingSchedule.request(
+      requestOptions({ startsOn: '2026-09-01', endsOn: '2026-11-30', maxTermDays: 90 }),
+    );
+    expect(schedule.endsOn).toBe('2026-11-30');
+  });
+
+  it('rejects endsOn one day past the maximum term and names the limit', () => {
+    expect.assertions(3);
+    try {
+      RecurringBookingSchedule.request(
+        requestOptions({ startsOn: '2026-09-01', endsOn: '2026-12-01', maxTermDays: 90 }),
+      );
+    } catch (err) {
+      expect(err).toBeInstanceOf(RecurringBookingScheduleTermExceededError);
+      expect((err as RecurringBookingScheduleTermExceededError).params).toEqual({
+        maxTermDays: 90,
+        latestEndsOn: '2026-11-30',
+      });
+      expect((err as RecurringBookingScheduleTermExceededError).code).toBe(
+        'BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED',
+      );
+    }
+  });
+
+  it('uses the given maximum term, not a fixed 90 days', () => {
+    expect(() =>
+      RecurringBookingSchedule.request(
+        requestOptions({ startsOn: '2026-09-01', endsOn: '2026-09-15', maxTermDays: 7 }),
+      ),
+    ).toThrow(RecurringBookingScheduleTermExceededError);
+  });
+
+  it('carries endsOn in the Created and ApprovalRequested event payloads', () => {
+    const active = RecurringBookingSchedule.request(requestOptions());
+    expect(active.domainEvents[0].data.endsOn).toBe('2026-11-24');
+
+    const pending = RecurringBookingSchedule.request(
+      requestOptions({
+        status: 'PENDING_APPROVAL',
+        approvalHoldExpiresAt: new Date('2026-09-02T00:00:00.000Z'),
+      }),
+    );
+    expect(pending.domainEvents[0].data.endsOn).toBe('2026-11-24');
   });
 });
 

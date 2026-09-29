@@ -275,7 +275,9 @@ export const RequestRecurringBookingScheduleBodySchema = z
     // FIXED_ASSIGNMENT; ignored otherwise.
     resourceIds: z.array(z.uuid()).length(1).optional(),
     startsOn: z.iso.date(),
-    endsOn: z.iso.date().nullable().optional(),
+    // Required: a schedule is a fixed term, never open-ended. The upper bound (the service's
+    // maximum term) depends on the service, so the aggregate enforces it, not this schema.
+    endsOn: z.iso.date(),
     // Present only when STAFF|MANAGER creates on a customer's behalf — CUSTOMER callers always
     // act on their own customerId (taken from the JWT, never this field).
     customerId: z.uuid().optional(),

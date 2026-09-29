@@ -234,6 +234,37 @@ describe('BackendHttpService', () => {
       await expect(service.get('/missing')).rejects.toMatchObject({ status: 404 });
     });
 
+    it('forwards extension members of a backend problem-details body unchanged (recurring-schedule conflicts list)', async () => {
+      const { service, http } = makeService({ tenantId: 'tenant-1' });
+      const body = {
+        type: 'about:blank',
+        title: 'Conflict',
+        status: 409,
+        code: 'BOOKING_RECURRING_SCHEDULE_CONFLICT',
+        detail: 'The recurring pattern conflicts with an existing commitment',
+        conflicts: [
+          { occurrenceStart: '2026-10-06T13:00:00.000Z', reason: 'CLOSED' },
+          { occurrenceStart: '2026-10-20T13:00:00.000Z', reason: 'OCCUPIED' },
+          { occurrenceStart: '2026-10-27T13:00:00.000Z', reason: 'OUTSIDE_HOURS' },
+        ],
+      };
+      http.post.mockReturnValue(
+        throwError(
+          () =>
+            new AxiosError('Conflict', '409', undefined, undefined, {
+              status: 409,
+              data: body,
+            } as AxiosResponse),
+        ),
+      );
+
+      const error = await service.post('/recurring-booking-schedules', {}).catch((e) => e);
+
+      expect(error).toBeInstanceOf(HttpException);
+      expect((error as HttpException).getStatus()).toBe(409);
+      expect((error as HttpException).getResponse()).toEqual(body);
+    });
+
     it('maps Axios network errors without a backend response to 503 upstream unavailable', async () => {
       const { service, http } = makeService({ tenantId: 'tenant-1' });
       const networkError = new AxiosError('ECONNREFUSED');

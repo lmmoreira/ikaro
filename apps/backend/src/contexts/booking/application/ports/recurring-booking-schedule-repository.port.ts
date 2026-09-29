@@ -29,7 +29,7 @@ export interface IRecurringBookingScheduleRepository {
   // Every currently-ACTIVE FIXED_ASSIGNMENT schedule referencing this resourceId — used for the
   // future-pattern-conflict check against *other* not-yet-materialized recurring schedules
   // (docs/13-DATABASE_SCHEMA.md's not-yet-materialized-pattern protocol): an ACTIVE schedule has
-  // zero materialized Booking/resource_occupancy rows until M23-S05's generation job runs, so
+  // zero materialized Booking/resource_occupancy rows until M23-S05 materializes its term, so
   // resource_occupancy alone can never catch two overlapping recurring patterns — this direct
   // schedule-to-schedule comparison is the only mechanism that can, pre-S05. Same locking
   // requirement as countActiveByResource above.

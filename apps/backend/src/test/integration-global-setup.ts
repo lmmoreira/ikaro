@@ -44,6 +44,7 @@ import { DropTenantWideExclusion1748500000014 } from '../contexts/booking/infras
 import { AddEndsAtIndexToResourceOccupancy1748500000015 } from '../contexts/booking/infrastructure/migrations/1748500000015-AddEndsAtIndexToResourceOccupancy';
 import { CreateBookingQuoteRevisions1748500000016 } from '../contexts/booking/infrastructure/migrations/1748500000016-CreateBookingQuoteRevisions';
 import { CreateRecurringBookingSchedules1748500000017 } from '../contexts/booking/infrastructure/migrations/1748500000017-CreateRecurringBookingSchedules';
+import { RequireRecurringBookingScheduleEndsOn1748500000018 } from '../contexts/booking/infrastructure/migrations/1748500000018-RequireRecurringBookingScheduleEndsOn';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -207,6 +208,7 @@ export default async function globalSetup(): Promise<void> {
       AddEndsAtIndexToResourceOccupancy1748500000015,
       CreateBookingQuoteRevisions1748500000016,
       CreateRecurringBookingSchedules1748500000017,
+      RequireRecurringBookingScheduleEndsOn1748500000018,
     ],
     synchronize: false,
     migrationsRun: false,
@@ -272,8 +274,10 @@ async function startGcsEmulator(): Promise<void> {
   // adapter-level integration spec (which constructs GcsSignedUrlAdapter directly, no Nest app)
   // doesn't depend on bootstrap ordering.
   const storage = new Storage({ apiEndpoint, projectId: 'ikaro-local' });
-  for (const bucketName of ['ikaro-local', 'ikaro-local-public']) {
-    const [exists] = await storage.bucket(bucketName).exists();
-    if (!exists) await storage.createBucket(bucketName);
-  }
+  await Promise.all(
+    ['ikaro-local', 'ikaro-local-public'].map(async (bucketName) => {
+      const [exists] = await storage.bucket(bucketName).exists();
+      if (!exists) await storage.createBucket(bucketName);
+    }),
+  );
 }

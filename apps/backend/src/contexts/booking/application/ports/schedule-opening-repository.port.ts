@@ -14,6 +14,13 @@ export interface IScheduleOpeningRepository {
     to: string,
     resourceId?: string,
   ): Promise<ScheduleOpening[]>;
+  /** Resource-scoped openings for several resources in one query (never tenant-wide ones). */
+  findByTenantAndResourcesAndDateRange(
+    tenantId: string,
+    resourceIds: string[],
+    from: string,
+    to: string,
+  ): Promise<ScheduleOpening[]>;
   findById(id: string, tenantId: string): Promise<ScheduleOpening | null>;
   /** True if at least one resource-scoped opening exists for (tenantId, date), regardless of
    * which resource — used to block deleting the tenant-wide opening they depend on

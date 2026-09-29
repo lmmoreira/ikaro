@@ -157,8 +157,8 @@ export class BookingEntity {
   @Column({ name: 'consent_version', type: 'int', nullable: true })
   consentVersion!: number | null;
 
-  // Set when this Booking was materialized by an active RecurringBookingSchedule's rolling-
-  // horizon generation job (M23-S05) — null for an ordinary one-off booking. No FK: cross-context
+  // Set when this Booking was materialized from a RecurringBookingSchedule's term (M23-S05) —
+  // null for an ordinary one-off booking. No FK: cross-context
   // pattern would be same-context here, but the referenced table doesn't exist until this same
   // migration creates it in the same transaction, so a literal FK constraint is added by the
   // migration's own DDL instead of declared here (matches recurring_schedule_id's own

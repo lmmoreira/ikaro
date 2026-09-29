@@ -9,6 +9,8 @@ import {
   RecurringBookingScheduleEntityBuilder,
   ResourceEntityBuilder,
   ResourceOccupancyEntityBuilder,
+  ScheduleClosureEntityBuilder,
+  ScheduleOpeningEntityBuilder,
   ServiceEntityBuilder,
   ServiceResourceRequirementEntityBuilder,
   ServiceResourceRequirementPoolEntityBuilder,
@@ -32,6 +34,8 @@ import { ResourceEntity } from '../entities/resource.entity';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
+import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
+import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { ResourceType } from '../../domain/resource.types';
 
 const TEST_KEY = 'recur-integ-test-key-booking-xxx'; // 36 chars
@@ -80,6 +84,8 @@ describe('RecurringBookingScheduleController (integration)', () => {
   afterAll(async () => {
     await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });
+    await ds.getRepository(ScheduleClosureEntity).delete({ tenantId });
+    await ds.getRepository(ScheduleOpeningEntity).delete({ tenantId });
     await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
     await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(BookingLineEntity).delete({ tenantId });
@@ -149,6 +155,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: nextWeekday(2),
+        endsOn: addDays(nextWeekday(2), 28),
       })
       .expect(201);
 
@@ -176,6 +183,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         startsOn: nextWeekday(3),
+        endsOn: addDays(nextWeekday(3), 28),
       })
       .expect(201);
 
@@ -329,6 +337,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       },
       assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       startsOn: nextWeekday(4),
+      endsOn: addDays(nextWeekday(4), 28),
     };
 
     const [first, second] = await Promise.all([
@@ -393,12 +402,16 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
   function postFridayPattern({
     daysOfWeek = ['friday'],
+    endsOn = addDays(nextWeekday(5), 49),
+    startTime = '15:00',
     ...body
   }: {
     serviceId: string;
     assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
     resourceIds?: string[];
     daysOfWeek?: string[];
+    endsOn?: string;
+    startTime?: string;
   }) {
     return request(app.getHttpServer())
       .post('/recurring-booking-schedules')
@@ -408,10 +421,11 @@ describe('RecurringBookingScheduleController (integration)', () => {
         recurrence: {
           frequency: 'WEEKLY',
           daysOfWeek,
-          startTime: '15:00',
+          startTime,
           durationMinutes: 60,
         },
         startsOn: nextWeekday(5),
+        endsOn,
       });
   }
 
@@ -494,15 +508,9 @@ describe('RecurringBookingScheduleController (integration)', () => {
     });
   });
   describe('resource kinds, states and edge cases', () => {
-    const EVERY_DAY = [
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-      'sunday',
-    ];
+    // A freshly provisioned tenant is open Monday to Saturday (Sunday closed) — since M23-S18 a
+    // pattern on a closed day is refused, so the long-term scenario uses only the open days.
+    const OPEN_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
     afterEach(async () => {
       await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
@@ -706,7 +714,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       expect(await scheduleCount(serviceId)).toBe(1);
     });
 
-    it('a 90-day daily pattern: 409 when only the 60th day overlaps, 201 otherwise', async () => {
+    it('a 90-day term of every open day: 409 when only the 60th day overlaps, 201 otherwise', async () => {
       const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
         resourceType: ResourceType.EQUIPMENT,
       });
@@ -718,7 +726,8 @@ describe('RecurringBookingScheduleController (integration)', () => {
         serviceId,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [busy],
-        daysOfWeek: EVERY_DAY,
+        daysOfWeek: OPEN_DAYS,
+        endsOn: addDays(nextWeekday(5), 90),
       }).expect(409);
       expect(await scheduleCount(serviceId)).toBe(0);
 
@@ -727,7 +736,8 @@ describe('RecurringBookingScheduleController (integration)', () => {
         serviceId,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [free],
-        daysOfWeek: EVERY_DAY,
+        daysOfWeek: OPEN_DAYS,
+        endsOn: addDays(nextWeekday(5), 90),
       }).expect(201);
       expect(await scheduleCount(serviceId)).toBe(1);
     });
@@ -765,6 +775,368 @@ describe('RecurringBookingScheduleController (integration)', () => {
       );
 
       expect(responses.map((response) => response.status)).toEqual([201, 201, 201, 201]);
+    });
+  });
+
+  // M23-S18 — the fixed term, and working hours and closures checked for every occurrence, against
+  // real Postgres. Each test builds its own room so it never overlaps another test's active
+  // schedule on a shared resource.
+  describe('fixed term, working hours and closures', () => {
+    const OTHER_TENANT_ID = '10000000-0000-4000-8000-000000000998';
+
+    afterEach(async () => {
+      await ds.getRepository(ScheduleClosureEntity).delete({ tenantId });
+      await ds.getRepository(ScheduleOpeningEntity).delete({ tenantId });
+      await ds.getRepository(ScheduleClosureEntity).delete({ tenantId: OTHER_TENANT_ID });
+      await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+    });
+
+    async function newRoom(): Promise<string> {
+      const room = new ResourceEntityBuilder()
+        .withTenantId(tenantId)
+        .withType(ResourceType.ROOM)
+        .withName(`Sala ${uuidv7()}`)
+        .build();
+      await ds.getRepository(ResourceEntity).save(room);
+      return room.id;
+    }
+
+    async function scheduleCount(serviceId: string): Promise<number> {
+      return ds
+        .getRepository(RecurringBookingScheduleEntity)
+        .count({ where: { tenantId, serviceId } });
+    }
+
+    async function closeOn(
+      date: string,
+      options: { resourceId?: string; tenantId?: string; from?: string; to?: string } = {},
+    ): Promise<void> {
+      await ds.getRepository(ScheduleClosureEntity).save(
+        new ScheduleClosureEntityBuilder()
+          .withTenantId(options.tenantId ?? tenantId)
+          .withResourceId(options.resourceId ?? null)
+          .withDate(date)
+          .withStartTime(options.from ?? null)
+          .withEndTime(options.to ?? null)
+          .build(),
+      );
+    }
+
+    // The nth Friday occurrence's date (index 0 is the first Friday from today).
+    const fridayDate = (index: number) => addDays(nextWeekday(5), index * 7);
+
+    it('rejects with 409 listing a closure on only the 5th occurrence as CLOSED, and persists nothing', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+      await closeOn(fridayDate(4));
+
+      const { body } = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+      }).expect(409);
+
+      expect(body.code).toBe('BOOKING_RECURRING_SCHEDULE_CONFLICT');
+      expect(body.conflicts).toEqual([
+        { occurrenceStart: fridayOccurrence(4).toISOString(), reason: 'CLOSED' },
+      ]);
+      expect(await scheduleCount(serviceId)).toBe(0);
+    });
+
+    it('creates the schedule when the same closure falls on a day with no occurrence', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+      await closeOn(addDays(fridayDate(4), 1));
+
+      await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+      }).expect(201);
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it('a resource-scoped closure affects only requests that use that resource', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const closedRoom = await newRoom();
+      const otherRoom = await newRoom();
+      await closeOn(fridayDate(2), { resourceId: closedRoom });
+
+      const refused = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [closedRoom],
+      });
+      const accepted = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [otherRoom],
+      });
+
+      expect(refused.status).toBe(409);
+      expect(refused.body.conflicts).toEqual([
+        { occurrenceStart: fridayOccurrence(2).toISOString(), reason: 'CLOSED' },
+      ]);
+      expect(accepted.status).toBe(201);
+      expect(accepted.body.status).toBe('ACTIVE');
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it('a tenant-wide closure affects every request', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+      await closeOn(fridayDate(1));
+
+      const res = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+      });
+
+      expect(res.status).toBe(409);
+      expect(res.body.conflicts).toEqual([
+        { occurrenceStart: fridayOccurrence(1).toISOString(), reason: 'CLOSED' },
+      ]);
+      expect(await scheduleCount(serviceId)).toBe(0);
+    });
+
+    it('a partial closure overlapping the occurrence window is CLOSED', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+      await closeOn(fridayDate(3), { from: '15:30', to: '16:30' });
+
+      const { body } = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+      }).expect(409);
+
+      expect(body.conflicts).toEqual([
+        { occurrenceStart: fridayOccurrence(3).toISOString(), reason: 'CLOSED' },
+      ]);
+    });
+
+    it('a time before the tenant opens is refused as OUTSIDE_HOURS for every occurrence', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+
+      const { body } = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+        startTime: '07:00',
+        endsOn: fridayDate(2),
+      }).expect(409);
+
+      expect(body.conflicts).toHaveLength(3);
+      expect(body.conflicts.every((c: { reason: string }) => c.reason === 'OUTSIDE_HOURS')).toBe(
+        true,
+      );
+    });
+
+    it('a trailing buffer that runs past closing is refused, one that ends exactly at closing is accepted', async () => {
+      const room = await newRoom();
+      // Friday closes 18:00; the occurrence runs 17:00-18:00.
+      const endsAtClosing = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        bufferAfterMinutes: 0,
+      });
+      const runsPastClosing = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        bufferAfterMinutes: 15,
+      });
+
+      const refused = await postFridayPattern({
+        serviceId: runsPastClosing,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+        startTime: '17:00',
+        endsOn: fridayDate(1),
+      });
+      const accepted = await postFridayPattern({
+        serviceId: endsAtClosing,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+        startTime: '17:00',
+        endsOn: fridayDate(1),
+      });
+
+      expect(refused.status).toBe(409);
+      expect(refused.body.conflicts.map((c: { reason: string }) => c.reason)).toEqual([
+        'OUTSIDE_HOURS',
+        'OUTSIDE_HOURS',
+      ]);
+      expect(accepted.status).toBe(201);
+      expect(accepted.body.status).toBe('ACTIVE');
+    });
+
+    it('an opening makes a normally-closed Sunday acceptable', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+      const sunday = addDays(nextWeekday(0), 0);
+      const send = () =>
+        request(app.getHttpServer())
+          .post('/recurring-booking-schedules')
+          .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+          .send({
+            serviceId,
+            recurrence: {
+              frequency: 'WEEKLY',
+              daysOfWeek: ['sunday'],
+              startTime: '10:00',
+              durationMinutes: 60,
+            },
+            assignmentPolicy: 'FIXED_ASSIGNMENT',
+            resourceIds: [room],
+            startsOn: sunday,
+            endsOn: sunday,
+          });
+
+      const closed = await send().expect(409);
+      expect(closed.body.conflicts).toEqual([
+        { occurrenceStart: new Date(`${sunday}T13:00:00.000Z`).toISOString(), reason: 'CLOSED' },
+      ]);
+
+      await ds
+        .getRepository(ScheduleOpeningEntity)
+        .save(
+          new ScheduleOpeningEntityBuilder()
+            .withTenantId(tenantId)
+            .withDate(sunday)
+            .withStartTime('09:00')
+            .withEndTime('14:00')
+            .build(),
+        );
+      await send().expect(201);
+    });
+
+    it('lists a closure and an existing booking together in one 409', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+      await closeOn(fridayDate(1));
+      await seedOccupancy(room, fridayOccurrence(3));
+
+      const { body } = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+      }).expect(409);
+
+      expect(body.conflicts).toEqual([
+        { occurrenceStart: fridayOccurrence(1).toISOString(), reason: 'CLOSED' },
+        { occurrenceStart: fridayOccurrence(3).toISOString(), reason: 'OCCUPIED' },
+      ]);
+      expect(await scheduleCount(serviceId)).toBe(0);
+    });
+
+    it("never lets another tenant's closures affect the request", async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const room = await newRoom();
+      await closeOn(fridayDate(1), { tenantId: OTHER_TENANT_ID });
+
+      const res = await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [room],
+      });
+
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('ACTIVE');
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    describe('the term', () => {
+      it('rejects a missing endsOn with 400', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM');
+        const room = await newRoom();
+
+        await request(app.getHttpServer())
+          .post('/recurring-booking-schedules')
+          .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+          .send({
+            serviceId,
+            recurrence: {
+              frequency: 'WEEKLY',
+              daysOfWeek: ['friday'],
+              startTime: '15:00',
+              durationMinutes: 60,
+            },
+            assignmentPolicy: 'FIXED_ASSIGNMENT',
+            resourceIds: [room],
+            startsOn: nextWeekday(5),
+          })
+          .expect(400);
+        expect(await scheduleCount(serviceId)).toBe(0);
+      });
+
+      it('rejects a reversed range with 422 BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM');
+        const room = await newRoom();
+
+        const { body } = await postFridayPattern({
+          serviceId,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [room],
+          endsOn: addDays(nextWeekday(5), -7),
+        }).expect(422);
+
+        expect(body.code).toBe('BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE');
+      });
+
+      it('rejects one day past the 90-day default with 422 BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED and the limit', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM');
+        const room = await newRoom();
+
+        const { body } = await postFridayPattern({
+          serviceId,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [room],
+          endsOn: addDays(nextWeekday(5), 91),
+        }).expect(422);
+
+        expect(body.code).toBe('BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED');
+        expect(body.params).toEqual({
+          maxTermDays: 90,
+          latestEndsOn: addDays(nextWeekday(5), 90),
+        });
+        expect(await scheduleCount(serviceId)).toBe(0);
+      });
+
+      it('accepts an endsOn exactly at the maximum term, and one equal to startsOn', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM');
+        const room = await newRoom();
+
+        const atMaximum = await postFridayPattern({
+          serviceId,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [room],
+          endsOn: addDays(nextWeekday(5), 90),
+        });
+        const otherRoom = await newRoom();
+        const sameDay = await postFridayPattern({
+          serviceId,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [otherRoom],
+          endsOn: nextWeekday(5),
+        });
+
+        expect(atMaximum.status).toBe(201);
+        expect(atMaximum.body.status).toBe('ACTIVE');
+        expect(sameDay.status).toBe(201);
+        expect(sameDay.body.status).toBe('ACTIVE');
+        expect(await scheduleCount(serviceId)).toBe(2);
+      });
+    });
+
+    it('the ends_on column is NOT NULL: a row without an end date is rejected by the database', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const entity = new RecurringBookingScheduleEntityBuilder()
+        .withTenantId(tenantId)
+        .withServiceId(serviceId)
+        .build();
+      (entity as { endsOn: string | null }).endsOn = null;
+
+      await expect(ds.getRepository(RecurringBookingScheduleEntity).save(entity)).rejects.toThrow(
+        /ends_on/,
+      );
     });
   });
 });

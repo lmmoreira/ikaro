@@ -18,6 +18,7 @@ export class RecurringBookingScheduleCreatedEventBuilder {
     durationMinutes: 120,
   };
   private readonly startsOn = '2026-09-01';
+  private readonly endsOn = '2026-11-24';
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -43,6 +44,7 @@ export class RecurringBookingScheduleCreatedEventBuilder {
       assignmentPolicy: this.assignmentPolicy,
       recurrence: this.recurrence,
       startsOn: this.startsOn,
+      endsOn: this.endsOn,
     });
   }
 }

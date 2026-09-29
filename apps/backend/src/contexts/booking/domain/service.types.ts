@@ -26,9 +26,8 @@ export interface ServiceBookingPolicyProps {
   minBookingAdvanceHoursOverride: number | null;
   maxBookingAdvanceDaysOverride: number | null;
   recurrenceEligible: boolean;
-  // null inherits the DEFAULT_RECURRING_HORIZON_DAYS platform default (90 days) — shared by
-  // M23-S04's creation-time conflict check and M23-S05's generation job (both import the same
-  // recurrence-rule.helpers.ts enumeration).
+  // The maximum term of a recurring schedule, in days: endsOn may not be later than startsOn +
+  // this (M23-S18). null inherits the DEFAULT_RECURRING_HORIZON_DAYS platform default (90 days).
   recurringHorizonDays: number | null;
   availabilityAlertEligible: boolean;
   durationPolicy: ServiceDurationPolicy;

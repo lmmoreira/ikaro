@@ -19,7 +19,7 @@ export interface RecurringBookingScheduleListItem {
   serviceId: string;
   recurrence: RecurringBookingSchedule['recurrence'];
   startsOn: string;
-  endsOn: string | null;
+  endsOn: string;
   status: RecurringBookingSchedule['status'];
   assignmentPolicy: RecurringBookingSchedule['assignmentPolicy'];
   approvalHoldExpiresAt: string | null;
