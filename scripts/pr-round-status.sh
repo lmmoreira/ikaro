@@ -181,8 +181,14 @@ while true; do
     # per-invocation variance, not a lasting format change. A `.*` between /pr-review and Codex
     # tolerates the connector (hyphen, em dash, backticks) and an optional emoji prefix without
     # needing to enumerate each variant by hand.
+    # The preamble line can also be missing entirely: PR #535 (2026-09-29) got a Codex report that
+    # started straight at "## PR Review" with no "Automated review via /pr-review" line, so the
+    # preamble match alone never fired and this script waited forever with CI, Sonar and Codex all
+    # finished. Every report carries a "**Reviewed by:** Codex" line in its body, so that is
+    # accepted as an alternative marker.
     CODEX_URL=$(printf '%s' "$COMMENTS_JSON" | jq -r --arg since "$SINCE" '
-      [.comments[] | select(.createdAt >= $since) | select(.body | test("Automated review via `?/pr-review`?.*Codex"))]
+      [.comments[] | select(.createdAt >= $since)
+       | select(.body | test("Automated review via `?/pr-review`?.*Codex") or test("\\*\\*Reviewed by:\\*\\* Codex"))]
       | sort_by(.createdAt) | last | .url // empty')
   fi
 

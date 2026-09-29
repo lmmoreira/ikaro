@@ -61,7 +61,7 @@ exit 0
       ...env,
     },
     encoding: 'utf8',
-    timeout: 20000,
+    timeout: opts.timeout || 20000,
   });
   const polls = Number(fs.readFileSync(path.join(dir, 'count'), 'utf8'));
   fs.rmSync(dir, { recursive: true, force: true });
@@ -141,4 +141,54 @@ test('detects a Codex review comment even when its preamble wording drifts — P
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, /Codex review: https:\/\/example\.test\/codex-comment/);
+});
+
+// PR #535 regression, 2026-09-29: a Codex report that starts straight at "## PR Review", with no
+// "Automated review via /pr-review" line at all, was never detected, so the script waited forever
+// with CI, SonarCloud and Codex all finished.
+test('detects a Codex review comment that has no /pr-review preamble line — PR #535 regression', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+  const since = '2026-01-01T00:00:00Z';
+
+  const result = run(
+    [done],
+    {},
+    {
+      extraArgs: ['--wait-codex', '--since', since],
+      comments: [
+        {
+          createdAt: '2026-01-01T00:05:00Z',
+          url: 'https://example.test/codex-no-preamble',
+          body: '## PR Review — #535 — M23-S18\n\n**Reviewed by:** Codex, 4-agent review\n',
+        },
+      ],
+    },
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Codex review: https:\/\/example\.test\/codex-no-preamble/);
+});
+
+test('does not treat a review signed by someone else as the Codex review', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+  const since = '2026-01-01T00:00:00Z';
+
+  // No Codex report exists, so the script must keep waiting; the short timeout ends the run.
+  const result = run(
+    [done],
+    {},
+    {
+      extraArgs: ['--wait-codex', '--since', since],
+      timeout: 3000,
+      comments: [
+        {
+          createdAt: '2026-01-01T00:05:00Z',
+          body: '## PR Review — #535 — M23-S18\n\n**Reviewed by:** a human teammate\n',
+        },
+      ],
+    },
+  );
+
+  assert.equal(result.error && result.error.code, 'ETIMEDOUT');
+  assert.doesNotMatch(result.stdout || '', /Codex review:/);
 });

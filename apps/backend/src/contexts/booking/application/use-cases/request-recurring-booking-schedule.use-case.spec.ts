@@ -13,10 +13,14 @@ import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/rep
 import {
   ResourceBuilder,
   ScheduleClosureBuilder,
+  ScheduleOpeningBuilder,
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
 import { addDaysUTC } from '../../../../shared/utils/calendar-date';
-import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import {
+  EMPTY_BUSINESS_HOURS,
+  FULL_WEEK_BUSINESS_HOURS,
+} from '../../../../test/utils/business-hours-fixtures';
 import { futureDate, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -49,6 +53,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
   let customerPort: InMemoryBookingCustomerPort;
   let staffPort: InMemoryBookingStaffPort;
@@ -90,6 +95,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     resourceRepo = new InMemoryResourceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     customerPort = new InMemoryBookingCustomerPort();
     staffPort = new InMemoryBookingStaffPort();
     platformPort = new InMemoryBookingPlatformPort();
@@ -114,7 +120,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       resourceRepo,
       occupancyRepo,
       closureRepo,
-      new InMemoryScheduleOpeningRepository(),
+      openingRepo,
       customerPort,
       staffPort,
       platformPort,
@@ -702,6 +708,38 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         );
 
         await expect(request(serviceId)).resolves.toMatchObject({ status: 'ACTIVE' });
+      });
+
+      it("never lets another tenant's openings or business hours affect the request", async () => {
+        const otherTenantId = '10000000-0000-4000-8000-000000000998';
+        const serviceId = await seedService();
+        // The fixture discriminates in both directions: the request's own tenant is closed every
+        // day, the other tenant is open every weekday and also has an all-day opening on the first
+        // date. If either the other tenant's hours or its opening leaked into the check, an
+        // occurrence would be accepted and fewer than five would be refused.
+        platformPort.seedBusinessHoursAndLocale(TENANT, {
+          locale: 'pt-BR',
+          businessHours: EMPTY_BUSINESS_HOURS,
+        });
+        platformPort.seedBusinessHoursAndLocale(otherTenantId, {
+          locale: 'pt-BR',
+          businessHours: FULL_WEEK_BUSINESS_HOURS,
+        });
+        await openingRepo.save(
+          new ScheduleOpeningBuilder()
+            .withTenantId(otherTenantId)
+            .withDate(STARTS_ON)
+            .withStartTime('00:00')
+            .withEndTime('23:59')
+            .build(),
+        );
+
+        const error = await request(serviceId).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+        const { conflicts } = error as RecurringBookingScheduleConflictError;
+        expect(conflicts).toHaveLength(5); // Tuesdays at +0, +7, +14, +21 and +28 days
+        expect(conflicts.every((c) => c.reason === 'CLOSED')).toBe(true);
       });
 
       it('refuses a MANUAL_APPROVAL request on a closure too, creating nothing', async () => {

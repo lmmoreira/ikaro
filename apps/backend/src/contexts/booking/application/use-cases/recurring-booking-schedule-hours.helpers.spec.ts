@@ -172,6 +172,122 @@ describe('findHoursConflicts', () => {
   });
 });
 
+describe('findHoursConflicts — resource-scoped openings', () => {
+  // A resource with no working hours on Tuesdays, inside a tenant that is open on Tuesdays.
+  const closedTuesdays = new ResourceBuilder()
+    .withTenantId(TENANT)
+    .withWorkingHours({ ...BUSINESS_HOURS, tuesday: null })
+    .build();
+  const otherRoom = new ResourceBuilder().withTenantId(TENANT).build();
+
+  function check(overrides: Partial<HoursCheckInput>) {
+    return findHoursConflicts({
+      availabilityService: new AvailabilityService(),
+      businessHours: BUSINESS_HOURS,
+      schedule: { closures: [], tenantOpenings: [], resourceOpenings: [] },
+      resources: [closedTuesdays],
+      anyOpenResourceSuffices: false,
+      occurrences: [OCCURRENCES[0]],
+      durationMinutes: 60,
+      bufferAfterMinutes: 0,
+      ...overrides,
+    });
+  }
+
+  const openingFor = (resourceId: string) =>
+    new ScheduleOpeningBuilder()
+      .withTenantId(TENANT)
+      .withResourceId(resourceId)
+      .withDate('2031-03-04')
+      .withStartTime('09:00')
+      .withEndTime('14:00')
+      .build();
+
+  it('a day the resource does not work is CLOSED without an opening', () => {
+    expect(check({})).toEqual([
+      { occurrenceStart: OCCURRENCES[0].occurrenceStart, reason: 'CLOSED' },
+    ]);
+  });
+
+  it("a resource-scoped opening makes that resource's closed day open", () => {
+    const schedule = {
+      closures: [],
+      tenantOpenings: [],
+      resourceOpenings: [openingFor(closedTuesdays.id)],
+    };
+
+    expect(check({ schedule })).toEqual([]);
+  });
+
+  it("another resource's opening does not open this resource's day", () => {
+    const schedule = {
+      closures: [],
+      tenantOpenings: [],
+      resourceOpenings: [openingFor(otherRoom.id)],
+    };
+
+    expect(check({ schedule })).toHaveLength(1);
+  });
+
+  it('an opening never bypasses a tenant-wide closure (the tenant window is the outer bound)', () => {
+    const tenantClosure = new ScheduleClosureBuilder()
+      .withTenantId(TENANT)
+      .withDate('2031-03-04')
+      .build();
+    const schedule = {
+      closures: [tenantClosure],
+      tenantOpenings: [],
+      resourceOpenings: [openingFor(closedTuesdays.id)],
+    };
+
+    expect(check({ schedule })).toEqual([
+      { occurrenceStart: OCCURRENCES[0].occurrenceStart, reason: 'CLOSED' },
+    ]);
+  });
+});
+
+describe('findHoursConflicts — a tenant in a timezone with DST', () => {
+  const newYork: BusinessHours = {
+    timezone: 'America/New_York',
+    monday: { open: '09:00', close: '18:00' },
+    tuesday: { open: '09:00', close: '18:00' },
+    wednesday: { open: '09:00', close: '18:00' },
+    thursday: { open: '09:00', close: '18:00' },
+    friday: { open: '09:00', close: '18:00' },
+    saturday: { open: '09:00', close: '18:00' },
+    sunday: null,
+  };
+  const room = new ResourceBuilder().withTenantId(TENANT).build();
+
+  // US daylight time began on Sunday 2031-03-09. The same 13:30Z is 08:30 local on Saturday the
+  // 8th (EST, UTC-5) but 09:30 local on Monday the 10th (EDT, UTC-4).
+  const beforeDst: RecurrenceOccurrence = {
+    occurrenceStart: new Date('2031-03-08T13:30:00.000Z'),
+    occurrenceStartLocalDate: '2031-03-08',
+  };
+  const afterDst: RecurrenceOccurrence = {
+    occurrenceStart: new Date('2031-03-10T13:30:00.000Z'),
+    occurrenceStartLocalDate: '2031-03-10',
+  };
+
+  it('evaluates each occurrence at its own local time, either side of the clock change', () => {
+    const conflicts = findHoursConflicts({
+      availabilityService: new AvailabilityService(),
+      businessHours: newYork,
+      schedule: { closures: [], tenantOpenings: [], resourceOpenings: [] },
+      resources: [room],
+      anyOpenResourceSuffices: false,
+      occurrences: [beforeDst, afterDst],
+      durationMinutes: 60,
+      bufferAfterMinutes: 0,
+    });
+
+    expect(conflicts).toEqual([
+      { occurrenceStart: beforeDst.occurrenceStart, reason: 'OUTSIDE_HOURS' },
+    ]);
+  });
+});
+
 describe('loadHoursScheduleData', () => {
   it('loads tenant-wide and resource-scoped rows in four queries, scoped to the tenant', async () => {
     const closureRepo = new InMemoryScheduleClosureRepository();
