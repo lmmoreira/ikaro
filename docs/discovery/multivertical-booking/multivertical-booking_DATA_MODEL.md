@@ -104,7 +104,7 @@ Private appointment/reservation recurrence is distinct from `recurring_enrollmen
 | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
 | recurrence | JSONB | NOT NULL — e.g. `{ "frequency": "WEEKLY", "daysOfWeek": ["TUE"], "startTime": "10:00", "durationMinutes": 120 }` |
 | starts_on / ends_on | DATE | NOT NULL / NULLABLE — open-ended when `ends_on` is null. **Superseded 2026-09-29:** `ends_on` becomes required (`NOT NULL`) and capped at `starts_on` + the service's maximum term; a private recurring schedule is fixed-term (`docs/13-DATABASE_SCHEMA.md` carries the live shape once M23-S18 ships). |
-| status | VARCHAR(20) | NOT NULL — CHECK IN (`PENDING_APPROVAL`, `ACTIVE`, `PAUSED`, `CANCELLED`) — **2026-09-29: `ENDED` is added and `PAUSED` is being removed**; no fixed default — set by application logic to `ACTIVE` (service `AUTO_CONFIRM`) or `PENDING_APPROVAL` (service `MANUAL_APPROVAL`) at creation. **Added `PENDING_APPROVAL` 2026-08-28, see §6 item 42.** |
+| status | VARCHAR(20) | NOT NULL — CHECK IN (`PENDING_APPROVAL`, `ACTIVE`, `PAUSED`, `CANCELLED`) — **2026-09-29: `ENDED` is added and `PAUSED` was removed (M23-S20, migration `1748500000019`)**; no fixed default — set by application logic to `ACTIVE` (service `AUTO_CONFIRM`) or `PENDING_APPROVAL` (service `MANUAL_APPROVAL`) at creation. **Added `PENDING_APPROVAL` 2026-08-28, see §6 item 42.** |
 | assignment_policy | VARCHAR(30) | NOT NULL — CHECK IN (`FIXED_ASSIGNMENT`, `RESOLVE_PER_OCCURRENCE`) |
 | approval_hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `status = 'PENDING_APPROVAL'`; same hold-expiry mechanic as `resource_occupancy.hold_expires_at`. Added 2026-08-28, §6 item 42. |
 | approved_by_staff_id / approved_at | UUID / TIMESTAMPTZ | NULLABLE — no FK, cross-context; set when `CAND-45b` resolves a `PENDING_APPROVAL` request. Added 2026-08-28. |
@@ -1033,6 +1033,7 @@ The notes below record issues found in earlier drafts. They are retained for des
   ```
 
 #### **RecurringBookingSchedulePaused**
+> **Removed 2026-09-29 (M23-S20)** — private recurring schedules are fixed-term, so there is nothing to pause; the event, its topic and the `PAUSED` status no longer exist.
 - **Trigger:** `CAND-45` A2 (customer pauses the schedule)
 - **State change:** `RecurringBookingSchedule.status → PAUSED`; no further occurrences generated until resumed
 - **Data:**

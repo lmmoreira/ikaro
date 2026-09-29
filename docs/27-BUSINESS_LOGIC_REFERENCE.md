@@ -158,7 +158,7 @@ M22-S03 (PR #483, merged 2026-09-17) executed the documented expand → backfill
 
 ### Why this exists
 
-`RecurringBookingSchedule` (UC-070) creates a fixed-term WEEKLY-only pattern (MVP scope, locked in during story-discovery) — one shared time-of-day across a set of weekdays, no per-day override, no other frequency value. This story covers request/skip/reschedule/pause/end only; it does **not** materialize any `Booking` rows — M23-S05 materializes every occurrence of the term once, at creation (`AUTO_CONFIRM`) or approval (`MANUAL_APPROVAL`); there is no rolling generation. `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` is a domain-layer, zero-framework-deps pure-function module shared unchanged by the creation-time checks and by M23-S05's materialization — both import the exact same `enumerateRecurrenceOccurrences()` function so they can never silently disagree about what "conflict-free" or "in the term" means.
+`RecurringBookingSchedule` (UC-070) creates a fixed-term WEEKLY-only pattern (MVP scope, locked in during story-discovery) — one shared time-of-day across a set of weekdays, no per-day override, no other frequency value. This story covers request/skip/reschedule/end only; it does **not** materialize any `Booking` rows — M23-S05 materializes every occurrence of the term once, at creation (`AUTO_CONFIRM`) or approval (`MANUAL_APPROVAL`); there is no rolling generation. `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` is a domain-layer, zero-framework-deps pure-function module shared unchanged by the creation-time checks and by M23-S05's materialization — both import the exact same `enumerateRecurrenceOccurrences()` function so they can never silently disagree about what "conflict-free" or "in the term" means.
 
 ### Term validation and occurrence enumeration
 
@@ -183,7 +183,7 @@ Then two independent layers, both required, because they catch different failure
 
 ### Optimistic concurrency on mutation
 
-`RecurringBookingScheduleEntity.version` (`@VersionColumn`, default 1) protects `pause()`/`end()`/`skipOccurrence()`/`rescheduleOccurrence()` — each loads the schedule outside any transaction, mutates in memory, then saves inside one. `TypeOrmRecurringBookingScheduleRepository.persist()`'s update path is a version-checked `UPDATE ... WHERE version = :version`, incrementing via a raw SQL literal (`version: () => '"version" + 1'`); a mismatch throws `BookingConcurrentModificationError` (409, the same generic error `Booking`'s own optimistic-concurrency path uses). This exactly mirrors `TypeOrmBookingRepository`'s own `persistBooking()` shape — a brand-new aggregate (`version === undefined`) inserts and lets the DB default apply; every subsequent save re-checks and re-increments.
+`RecurringBookingScheduleEntity.version` (`@VersionColumn`, default 1) protects `end()`/`skipOccurrence()`/`rescheduleOccurrence()` — each loads the schedule outside any transaction, mutates in memory, then saves inside one. `TypeOrmRecurringBookingScheduleRepository.persist()`'s update path is a version-checked `UPDATE ... WHERE version = :version`, incrementing via a raw SQL literal (`version: () => '"version" + 1'`); a mismatch throws `BookingConcurrentModificationError` (409, the same generic error `Booking`'s own optimistic-concurrency path uses). This exactly mirrors `TypeOrmBookingRepository`'s own `persistBooking()` shape — a brand-new aggregate (`version === undefined`) inserts and lets the DB default apply; every subsequent save re-checks and re-increments.
 
 ---
 

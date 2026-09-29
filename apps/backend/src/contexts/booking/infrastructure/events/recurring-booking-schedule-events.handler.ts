@@ -3,17 +3,15 @@ import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 import { RecurringBookingScheduleCreated } from '../../domain/events/recurring-booking-schedule-created.event';
 import { RecurringBookingScheduleApprovalRequested } from '../../domain/events/recurring-booking-schedule-approval-requested.event';
-import { RecurringBookingSchedulePaused } from '../../domain/events/recurring-booking-schedule-paused.event';
 import { RecurringBookingScheduleEnded } from '../../domain/events/recurring-booking-schedule-ended.event';
 import { LogRecurringBookingScheduleEventUseCase } from '../../application/use-cases/log-recurring-booking-schedule-event.use-case';
 
 type AnyRecurringBookingScheduleEvent =
   | RecurringBookingScheduleCreated
   | RecurringBookingScheduleApprovalRequested
-  | RecurringBookingSchedulePaused
   | RecurringBookingScheduleEnded;
 
-// One handler covering all 4 M23-S04 event types — each is a thin audit-log-only consumer for now
+// One handler covering all 3 M23-S04 event types — each is a thin audit-log-only consumer for now
 // (docs/ANTI_PATTERNS.md § A domain event is drained), sharing the same use case since none of
 // them has a real business consumer yet.
 @Injectable()
@@ -33,11 +31,6 @@ export class RecurringBookingScheduleEventsHandler implements OnModuleInit {
     );
     this.eventBus.subscribe<RecurringBookingScheduleApprovalRequested>(
       RecurringBookingScheduleApprovalRequested.name,
-      (event) => this.handle(event),
-      LogRecurringBookingScheduleEventUseCase.CONSUMER_NAME,
-    );
-    this.eventBus.subscribe<RecurringBookingSchedulePaused>(
-      RecurringBookingSchedulePaused.name,
       (event) => this.handle(event),
       LogRecurringBookingScheduleEventUseCase.CONSUMER_NAME,
     );

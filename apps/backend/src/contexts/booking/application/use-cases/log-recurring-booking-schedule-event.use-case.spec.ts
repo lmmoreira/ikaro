@@ -47,7 +47,7 @@ describe('LogRecurringBookingScheduleEventUseCase', () => {
     ).resolves.toBe(true);
   });
 
-  it('logs each of the 4 event names distinctly', async () => {
+  it('logs each of the 3 event names distinctly', async () => {
     const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
     logSpy.mockClear();
     const { useCase } = makeUseCase();
@@ -55,10 +55,7 @@ describe('LogRecurringBookingScheduleEventUseCase', () => {
     await useCase.execute(
       baseInput({ eventId: 'e1', eventName: 'RecurringBookingScheduleApprovalRequested' }),
     );
-    await useCase.execute(
-      baseInput({ eventId: 'e2', eventName: 'RecurringBookingSchedulePaused' }),
-    );
-    await useCase.execute(baseInput({ eventId: 'e3', eventName: 'RecurringBookingScheduleEnded' }));
+    await useCase.execute(baseInput({ eventId: 'e2', eventName: 'RecurringBookingScheduleEnded' }));
 
     expect(logSpy).toHaveBeenNthCalledWith(
       1,
@@ -67,11 +64,6 @@ describe('LogRecurringBookingScheduleEventUseCase', () => {
     );
     expect(logSpy).toHaveBeenNthCalledWith(
       2,
-      'RecurringBookingSchedulePaused received',
-      expect.anything(),
-    );
-    expect(logSpy).toHaveBeenNthCalledWith(
-      3,
       'RecurringBookingScheduleEnded received',
       expect.anything(),
     );

@@ -23,7 +23,6 @@ import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedul
 import { RequestRecurringBookingScheduleUseCase } from '../../application/use-cases/request-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from '../../application/use-cases/list-recurring-booking-schedules.use-case';
 import { SkipOrRescheduleOccurrenceUseCase } from '../../application/use-cases/skip-or-reschedule-occurrence.use-case';
-import { PauseRecurringBookingScheduleUseCase } from '../../application/use-cases/pause-recurring-booking-schedule.use-case';
 import { EndRecurringBookingScheduleUseCase } from '../../application/use-cases/end-recurring-booking-schedule.use-case';
 import { RecurringBookingScheduleController } from './recurring-booking-schedule.controller';
 
@@ -104,7 +103,6 @@ describe('RecurringBookingScheduleController', () => {
       ),
       new ListRecurringBookingSchedulesUseCase(scheduleRepo),
       new SkipOrRescheduleOccurrenceUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
-      new PauseRecurringBookingScheduleUseCase(scheduleRepo, tx),
       new EndRecurringBookingScheduleUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
     );
   });
@@ -216,30 +214,7 @@ describe('RecurringBookingScheduleController', () => {
     });
   });
 
-  describe('pause()/end()', () => {
-    it('pauses then rejects a second pause with 409', async () => {
-      const created = await controller.request({
-        serviceId,
-        recurrence: {
-          frequency: 'WEEKLY',
-          daysOfWeek: ['tuesday'],
-          startTime: '10:00',
-          durationMinutes: 60,
-        },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
-        startsOn: STARTS_ON,
-        endsOn: ENDS_ON,
-      });
-
-      const paused = await controller.pause(created.id);
-      expect(paused.status).toBe('PAUSED');
-
-      const err = await controller.pause(created.id).catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(409);
-    });
-
+  describe('end()', () => {
     it('ends an ACTIVE schedule', async () => {
       const created = await controller.request({
         serviceId,

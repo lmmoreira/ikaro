@@ -70,19 +70,10 @@ describe('RecurringBookingSchedulesController', () => {
     expect(result.kind).toBe('SKIPPED');
   });
 
-  it('POST /:id/pause forwards to the backend', async () => {
-    const backendHttp = makeBackendHttp({
-      post: jest.fn().mockResolvedValue({ id: mockSchedule.id, status: 'PAUSED' }),
-    });
-    const controller = new RecurringBookingSchedulesController(backendHttp);
+  it('exposes no pause route', () => {
+    const controller = new RecurringBookingSchedulesController(makeBackendHttp({}));
 
-    const result = await controller.pause(mockSchedule.id);
-
-    expect(backendHttp.post).toHaveBeenCalledWith(
-      `/recurring-booking-schedules/${mockSchedule.id}/pause`,
-      {},
-    );
-    expect(result.status).toBe('PAUSED');
+    expect('pause' in controller).toBe(false);
   });
 
   it('POST /:id/end forwards to the backend', async () => {

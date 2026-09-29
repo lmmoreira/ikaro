@@ -33,6 +33,7 @@ import {
 import { ResourceEntity } from '../entities/resource.entity';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
+import { RecurringBookingScheduleExceptionEntity } from '../entities/recurring-booking-schedule-exception.entity';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
@@ -82,6 +83,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
   });
 
   afterAll(async () => {
+    await ds.getRepository(RecurringBookingScheduleExceptionEntity).delete({ tenantId });
     await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });
     await ds.getRepository(ScheduleClosureEntity).delete({ tenantId });
@@ -223,6 +225,65 @@ describe('RecurringBookingScheduleController (integration)', () => {
     expect(
       body.items.every((item: { customerId: string }) => item.customerId === CUSTOMER_ID),
     ).toBe(true);
+  });
+
+  // M23-S20 — Pause is retired: the route is gone (Nest's own 404), while skip and end keep
+  // working on the same ACTIVE schedule.
+  describe('Pause is retired', () => {
+    // Each caller passes its own start time: the tests share one resource, and a second schedule
+    // on the same slot would (correctly) be refused as OCCUPIED.
+    async function createActiveSchedule(
+      startTime: string,
+    ): Promise<{ id: string; startsOn: string }> {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const startsOn = nextWeekday(2);
+      const { body } = await request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send({
+          serviceId,
+          recurrence: {
+            frequency: 'WEEKLY',
+            daysOfWeek: ['tuesday'],
+            startTime,
+            durationMinutes: 60,
+          },
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [resourceId],
+          startsOn,
+          endsOn: addDays(startsOn, 28),
+        })
+        .expect(201);
+      return { id: body.id as string, startsOn };
+    }
+
+    it('POST /recurring-booking-schedules/:id/pause returns 404 and leaves the schedule ACTIVE', async () => {
+      const { id } = await createActiveSchedule('13:00');
+
+      await request(app.getHttpServer())
+        .post(`/recurring-booking-schedules/${id}/pause`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(404);
+
+      const entity = await ds.getRepository(RecurringBookingScheduleEntity).findOneByOrFail({ id });
+      expect(entity.status).toBe('ACTIVE');
+    });
+
+    it('still skips an occurrence and ends an ACTIVE schedule', async () => {
+      const { id, startsOn } = await createActiveSchedule('16:00');
+
+      await request(app.getHttpServer())
+        .patch(`/recurring-booking-schedules/${id}/occurrences/${startsOn}T13:00:00.000Z`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send({ action: 'SKIP' })
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .post(`/recurring-booking-schedules/${id}/end`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+      expect(body.status).toBe('CANCELLED');
+    });
   });
 
   describe('GET pagination', () => {

@@ -23,7 +23,7 @@
 | 1 | M23-S10 | Tenant onboarding bootstrap from preset — Presets A/B/C/G (UC-075) |
 | 2 | M23-S02 | Variable-duration reservations + versioned intake/attendees (UC-067, UC-068) |
 | 2 | M23-S03 | Reschedule extension — resource/bundle/leg-aware, quote revisions (UC-069) |
-| 2 | M23-S04 | `RecurringBookingSchedule` aggregate — create/skip/reschedule/pause/end, backend + BFF (UC-070, minus approval/generation) |
+| 2 | M23-S04 | `RecurringBookingSchedule` aggregate — create/skip/reschedule/end, backend + BFF (UC-070, minus approval/generation; Pause shipped here and was removed by M23-S20) |
 | 2 | M23-S07 | Availability-alert matching worker (UC-072 step 3) |
 | 2 | M23-S14 | Manager "Exceções de Agenda" worklist frontend (UC-073/077) |
 | 2 | M23-S15 | Manager onboarding wizard frontend (UC-075) |
@@ -565,6 +565,8 @@ Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → 
 ---
 
 ### M23-S04 — `RecurringBookingSchedule` aggregate — create/skip/reschedule/pause/end, backend + BFF ✅ Done
+
+> **Historical text — Pause was removed by M23-S20 (✅ shipped with it).** Every mention of pause below (`PauseRecurringBookingScheduleUseCase`, `POST …/pause`, the `PAUSED` status, `RecurringBookingSchedulePaused`) describes what this story originally shipped; none of it exists any more. Do not re-introduce it.
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
@@ -1259,7 +1261,7 @@ Retire the Pause capability end to end so the state machine, the API and the doc
 - E2E: none — no web code calls the route
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
-- [ ] Live check (touches Pub/Sub, per CLAUDE.md §9): the outcome of a real `terraform plan -refresh-only` (staging and prod) confirming the Paused topic and subscription are destroyed and nothing else changes, recorded in the PR
+- [ ] Live check (touches Pub/Sub, per CLAUDE.md §9): the outcome of a real `terraform plan` (staging and prod — it refreshes live state; a `-refresh-only` plan only reconciles state and can never show a destroy, so it cannot answer this question) confirming exactly the Paused topic, its DLQ topic and its two subscriptions are destroyed and nothing else changes, recorded in the PR. Also `gcloud pubsub topics get-iam-policy` on the Paused topic, to confirm no Foundation grant exists to be orphaned
 - [ ] Devops PR sequence: 1 PR (`infra-app-mix-ok`), per `infra/terraform/README.md`'s playbook — removal only, no new topic or secret
 
 ---

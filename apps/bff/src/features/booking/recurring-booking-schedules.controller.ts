@@ -14,7 +14,6 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
   EndRecurringBookingScheduleResponse,
-  PauseRecurringBookingScheduleResponse,
   RecurringBookingScheduleListResponse,
   RecurringBookingScheduleResponse,
   SkipOrRescheduleOccurrenceResponse,
@@ -73,17 +72,6 @@ export class RecurringBookingSchedulesController {
     return this.backendHttp.patch<SkipOrRescheduleOccurrenceResponse>(
       `/recurring-booking-schedules/${id}/occurrences/${encodeURIComponent(occurrenceStart)}`,
       body,
-    );
-  }
-
-  @Post(':id/pause')
-  @HttpCode(HttpStatus.OK)
-  pause(
-    @Param('id', CanonicalParseUUIDPipe) id: string,
-  ): Promise<PauseRecurringBookingScheduleResponse> {
-    return this.backendHttp.post<PauseRecurringBookingScheduleResponse>(
-      `/recurring-booking-schedules/${id}/pause`,
-      {},
     );
   }
 

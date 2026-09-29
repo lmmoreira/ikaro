@@ -150,7 +150,7 @@ Notification Context subscribes:
 - `BookingCancelled` → consumed by Notification
 - `BookingRescheduled` → consumed by Notification
 - Cron-emitted reminder events: `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` → all consumed by Notification
-- `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Paused`/`Ended` (M23 Cluster 3) → consumed by Notification
+- `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended` (M23 Cluster 3) → consumed by Notification
 - `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; rest have no consumers in MVP
 - `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → `Raised`/`Resolved` consumed by Notification
 - `TenantSchedulingBootstrapped` (M23 Cluster 3) → no consumers in MVP

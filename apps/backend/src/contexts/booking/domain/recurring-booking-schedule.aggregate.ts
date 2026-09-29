@@ -5,7 +5,6 @@ import {
   RecurringBookingScheduleExceptionAlreadyExistsError,
   RecurringBookingScheduleNotActiveError,
 } from './errors/recurring-booking-schedule.error';
-import { RecurringBookingSchedulePaused } from './events/recurring-booking-schedule-paused.event';
 import { RecurringBookingScheduleEnded } from './events/recurring-booking-schedule-ended.event';
 import { assertValidTerm, RecurrenceRule } from './recurrence-rule.helpers';
 import { buildRequestedEvent } from './recurring-booking-schedule-request-event.helpers';
@@ -161,9 +160,7 @@ export class RecurringBookingSchedule extends AggregateRoot {
   }
 
   // UC-070 A2 — only once ACTIVE; a PENDING_APPROVAL request is withdrawn outright instead
-  // (no aggregate method for that — the use case simply doesn't offer it), and a PAUSED schedule
-  // has no path back to ACTIVE in this story (no resume use case is in scope — locked in during
-  // M23-S04 story-discovery).
+  // (no aggregate method for that — the use case simply doesn't offer it).
   private assertActive(): void {
     if (this.props.status !== 'ACTIVE') {
       throw new RecurringBookingScheduleNotActiveError(this.props.id);
@@ -222,19 +219,6 @@ export class RecurringBookingSchedule extends AggregateRoot {
       reason,
       createdAt: new Date(),
     });
-  }
-
-  pause(correlationId: string): void {
-    this.assertActive();
-    this.props.status = 'PAUSED';
-    this.props.updatedAt = new Date();
-    this.addDomainEvent(
-      new RecurringBookingSchedulePaused(this.props.tenantId, correlationId, {
-        recurringScheduleId: this.props.id,
-        customerId: this.props.customerId,
-        serviceId: this.props.serviceId,
-      }),
-    );
   }
 
   // cancelledBookingIds is supplied by the use case — it's the one that knows which materialized
