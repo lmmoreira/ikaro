@@ -30,10 +30,13 @@
 | 3 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
 | 3 | M23-S18 | Recurring-schedule fixed term (`endsOn` required and capped), hours-and-closures check and one conflict payload (UC-070) |
+| 3 | M23-S20 | Remove recurring-schedule Pause (shipped pause endpoint, event and `PAUSED` status) — lands before S05 and S12 |
 | 4 | M23-S05 | Recurring-schedule approval + one-shot occurrence materialization (UC-071) |
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
+| 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
+| 7 | M23-S22 | Customer renews an ending recurring schedule — "Renovar" pre-filled form (UC-070) |
 | 7 | M23-S19 | Staff creates a recurring private reservation on a customer's behalf (UC-070) |
 
 ```mermaid
@@ -50,6 +53,13 @@ graph TD
   S04 --> S17
   S04 --> S18
   S18 --> S05
+  S04 --> S20
+  S20 --> S12
+  S05 --> S21
+  S18 --> S21
+  S21 --> S22
+  S17 --> S22
+  S12 --> S22
   S08 --> S05
   S18 --> S17
   S05 --> S12
@@ -70,7 +80,7 @@ graph TD
 
 **Update (2026-09-29, M23-S17/S18/S19 added):** M23-S18 now comes **before** S05. S05's generation step is planned to skip hours-conflicted occurrences, but the resolver it reuses checks occupancy only, and occurrences beyond the creation-time horizon can only ever be evaluated at generation — so S05 needs S18's shared hours-and-closures check. S18 depends only on S04 (and TD45-S0), so it sits in **Wave 3**, S05 moves to **Wave 4**, and everything that floors on S05 shifts one wave: S12 and S13 to **Wave 5**, S17 (needs S12 and S18) to **Wave 6**, S19 (needs S17 and S13) to **Wave 7**. S17 also depends on S18 because S18 owns the single conflict payload it renders. S19 is the only one of the three that M23's goal does not need, and none of the three blocks M24.
 
-**Update (2026-09-29, fixed-term recurrence — decided in M23-S18's `/story-discovery`):** a recurring schedule is no longer open-ended and there is no rolling generation. `endsOn` is required and may not be later than `startsOn` + the service's maximum term (`recurringHorizonDays`, 90 days by default); every occurrence of the term is checked at creation (working hours and closures, then occupancy) and materialized as a linked booking once — in the creation transaction for `AUTO_CONFIRM`, at approval for `MANUAL_APPROVAL`. A customer who wants to continue creates a new schedule, so a forgotten schedule cannot hold slots indefinitely. Consequences: M23-S05 loses `GenerateRecurringBookingOccurrencesJob` (approve/reject, the expiry job and one-shot materialization remain); M23-S18 owns the term validation, the hours-and-closures check and the one `409` occurrence payload; M23-S16 relabels the setting as the maximum term; M23-S17 adds an end-date field. Two consequences found by the follow-up `/docs-audit` (2026-09-29): a schedule whose term is over is moved to a new `ENDED` status by a second step of M23-S05's approval-expiry job (so the `status = 'ACTIVE'` cap, overlap and list queries never count an expired schedule), and Pause is removed (with every occurrence already a booking it has no effect and nothing can resume it) by a pause-removal story planned as M23-S20 — not yet created via `/create-story` — which must land before M23-S12. The reminder email for an ending schedule is likewise a separate story, not yet created. Wave placement is unchanged apart from S20, which sits before S12.
+**Update (2026-09-29, fixed-term recurrence — decided in M23-S18's `/story-discovery`):** a recurring schedule is no longer open-ended and there is no rolling generation. `endsOn` is required and may not be later than `startsOn` + the service's maximum term (`recurringHorizonDays`, 90 days by default); every occurrence of the term is checked at creation (working hours and closures, then occupancy) and materialized as a linked booking once — in the creation transaction for `AUTO_CONFIRM`, at approval for `MANUAL_APPROVAL`. A customer who wants to continue creates a new schedule, so a forgotten schedule cannot hold slots indefinitely. Consequences: M23-S05 loses `GenerateRecurringBookingOccurrencesJob` (approve/reject, the expiry job and one-shot materialization remain); M23-S18 owns the term validation, the hours-and-closures check and the one `409` occurrence payload; M23-S16 relabels the setting as the maximum term; M23-S17 adds an end-date field. Two consequences found by the follow-up `/docs-audit` (2026-09-29): a schedule whose term is over is moved to a new `ENDED` status by a second step of M23-S05's approval-expiry job (so the `status = 'ACTIVE'` cap, overlap and list queries never count an expired schedule), and Pause is removed (with every occurrence already a booking it has no effect and nothing can resume it) by **M23-S20** (Wave 3, before S05 and S12). The renewal path is **M23-S21** (the reminder email, Wave 5) and **M23-S22** (the "Renovar" pre-filled form, Wave 7, which needs a journey/prototype pass first). Wave placement of the existing stories is unchanged.
 
 **Likely-independent stories (preview — not authoritative):** S06, S08, S09, and S10 share no files with each other or with S01 (four independent new/small aggregates, all Wave 1) — a candidate `/run-batch` group. S02 and S03 touch different methods of the same booking-creation/reschedule use cases (`RequestBookingUseCase`/`RequestAuthenticatedBookingUseCase` for S02, `RescheduleBookingUseCase` for S03) and share no files with each other, but **both now have a real `Dependencies:` edge to S01** — not independent of S01, only of each other. `/run-batch` re-derives this live; this is a courtesy preview.
 
@@ -637,7 +647,7 @@ Two coupled pieces, bundled because the materialization step is shared by both t
 
 **Backend use case steps:**
 1. **`ApproveRecurringBookingScheduleUseCase`** / **`RejectRecurringBookingScheduleUseCase`** (UC-071): validates `status = PENDING_APPROVAL` (A1: already-resolved by a race → shown as resolved, no-op). On approval: locks as the request path does, re-runs M23-S18's working-hours-and-closures check and the occupancy check for the whole term (a closure or booking may have appeared while the request waited), transitions to `ACTIVE` + sets `approvedByStaffId`/`approvedAt`, and materializes every occurrence that still passes; an occurrence that no longer passes is **not** created and raises a UC-073 future-commitment exception instead (never a silent skip). On rejection: transitions to `CANCELLED` with `cancellationReason = APPROVAL_REJECTED`.
-2. **`ExpireRecurringBookingScheduleApprovalsJob`** (UC-070 A5, scheduled): finds `PENDING_APPROVAL` past `approvalHoldExpiresAt`, auto-cancels with `cancellationReason = APPROVAL_EXPIRED` — same mechanic as an expired manual-approval appointment hold; A2 in UC-071 means this job wins the race if it runs before a staff decision. **Second step of the same job — ending finished schedules:** moves every `ACTIVE` schedule whose `endsOn` is before today's date in the schedule's own tenant timezone to the new `ENDED` status, so the caps, the overlap check and the list filter (`status = 'ACTIVE'`) never count an expired schedule. No event is raised and no booking is touched. Both steps share one scheduled trigger, so this story creates one Cloud Scheduler entry, not two — consult `infra/terraform/README.md`'s "New-resource PR-sequencing playbook" at discovery for the required PR sequence. The `ENDED` status needs its migration (status column/check), the aggregate and entity status type, the `@ikaro/types` union and its web mirrors; `docs/13-DATABASE_SCHEMA.md`'s `status` row changes in the same commit.
+2. **`ExpireRecurringBookingScheduleApprovalsJob`** (UC-070 A5, scheduled): finds `PENDING_APPROVAL` past `approvalHoldExpiresAt`, auto-cancels with `cancellationReason = APPROVAL_EXPIRED` — same mechanic as an expired manual-approval appointment hold; A2 in UC-071 means this job wins the race if it runs before a staff decision. **Second step of the same job — ending finished schedules:** moves every `ACTIVE` schedule whose `endsOn` is before today's date in the schedule's own tenant timezone to the new `ENDED` status, so the caps, the overlap check and the list filter (`status = 'ACTIVE'`) never count an expired schedule. No event is raised and no booking is touched. Both steps run from one trigger handler registered on an existing cron topic — `CRON_REMINDERS_TRIGGER` (`ikaro-cron-reminders`, every 30 minutes, the one `BookingReminderTriggerHandler` and `AdminScheduleReminderTriggerHandler` already use) — so this story needs no new Cloud Scheduler entry, topic or Terraform, unless discovery finds that a 30-minute granularity is too coarse for the approval hold deadline; a dedicated cron topic would then trigger `infra/terraform/README.md`'s "New-resource PR-sequencing playbook" (`modules/scheduler` is hand-authored, so the entry must be added there). The `ENDED` status needs its migration (status column/check), the aggregate and entity status type, the `@ikaro/types` union and its web mirrors; `docs/13-DATABASE_SCHEMA.md`'s `status` row changes in the same commit.
 3. **`MaterializeRecurringScheduleOccurrences`** (a shared application step, not a job): for the schedule's term (`enumerateRecurrenceOccurrences()`, the same function the creation checks use), creates a `Booking` per occurrence with `recurringScheduleId` set, in one transaction with the status change; idempotency via the `(tenantId, recurringScheduleId, occurrenceStart)` unique key; resolves resources via S01's resolver (`FIXED_ASSIGNMENT` uses the durable assignment, `RESOLVE_PER_OCCURRENCE` re-resolves each occurrence); every occurrence auto-confirms `APPROVED` regardless of the service's own `defaultApprovalMode` (the schedule was already vetted once). Called from `RequestRecurringBookingScheduleUseCase`'s `AUTO_CONFIRM` branch (a modification to S04's use case) and from the approval use case. Keep each occurrence's resource resolution going through `resolveBookingLinesResourceCandidates()` with `resourceSelections` derived from the stored assignment rows, not hard-wired to one resource id per schedule — `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` extends this later.
 
 **Backend HTTP surface:** `POST /recurring-booking-schedules/:id/approve`, `POST /recurring-booking-schedules/:id/reject`. `STAFF|MANAGER` only.
@@ -648,7 +658,9 @@ Two coupled pieces, bundled because the materialization step is shared by both t
 - `apps/backend/src/contexts/booking/application/use-cases/{approve,reject}-recurring-booking-schedule.use-case.ts` (+ specs) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/materialize-recurring-schedule-occurrences.helpers.ts` (+ spec) (new — the shared step)
 - `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.ts` (+ spec) (modify — the `AUTO_CONFIRM` branch calls the shared step)
-- `apps/backend/src/contexts/booking/application/jobs/expire-recurring-schedule-approvals.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/application/jobs/expire-recurring-schedule-approvals.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new — approval expiry plus the `ENDED` step)
+- `apps/backend/src/contexts/booking/infrastructure/events/expire-recurring-schedule-approvals-trigger.handler.ts` (+ spec) (new — registers on `CRON_REMINDERS_TRIGGER`, same shape as `booking-reminder-trigger.handler.ts`)
+- a migration adding `ENDED` to `CHK_booking_rbs_status`, `apps/backend/src/contexts/booking/domain/recurring-booking-schedule.types.ts` (`RecurringBookingScheduleStatus`) and the aggregate (modify)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ specs) (modify)
 - `apps/bff/src/features/booking/recurring-booking-schedules.controller.ts` (+ specs) (modify)
 
@@ -800,7 +812,7 @@ Build the preset-selection + minimum-answer wizard from the relocated prototype,
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite-account equivalent), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, § Availability Alerts
-**Dependencies:** M23-S04, M23-S05 (recurring schedules BFF and the `ENDED` status), M23-S06, M23-S07 (alerts BFF), and the pause-removal story (planned as M23-S20, not yet created via `/create-story` — pause no longer means anything once every occurrence of a fixed term exists as a booking, so this story draws no Pause action)
+**Dependencies:** M23-S04, M23-S05 (recurring schedules BFF and the `ENDED` status), M23-S06, M23-S07 (alerts BFF), and M23-S20 (pause removal — pause no longer means anything once every occurrence of a fixed term exists as a booking, so this story draws no Pause action)
 **Pattern:** plain composition — extends the existing, shipped "Minha Conta" pages. **Verification note (real-precedent check, not `CLAUDE.md` §11's stated aspirational rule):** the existing Customer-facing booking components (`BookingsList.tsx`, `CancelAction.tsx`, etc.) live under `apps/web/features/customer/components/my-account/`, not `apps/web/features/booking/`, despite §11's stated actor-scoped-view convention — verify at implementation time whether that's still the live precedent or has since been migrated (per TD31 Story 11's stated intent) before picking a location for these new components; match whichever is actually true at implementation time, don't assume the doc over the code.
 **Prototype references:** `plan/journey/customer/minha-conta.md` (M23 Cluster 3 extension section) + `plan/journey/customer/prototypes/minha-conta/06-reserva-recorrente.html`, `14-recorrentes-lista.html`, `14b-recorrentes-lista-vazia.html`, `07-availability-alert.html`, `dev-notes.md` (the creation-flow screens `13*`, `06b` and `06c` belong to M23-S17)
 
@@ -1163,5 +1175,196 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
   - [ ] Playwright, route `/dashboard/bookings/recurring/new`: staff finds a seeded customer, creates a recurring schedule for a real seeded auto-confirm service, and sees the created state; the same customer then sees it in their own list
   - [ ] Playwright, same route: a pattern that collides with seeded occupancy shows the conflict state with nothing created, and "Alterar padrão" returns to the pattern with everything preserved
   - [ ] Playwright, same route: a manual-approval service shows the waiting-for-approval state, and its link opens M23-S13's recurring-requests tab with the request in it
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S20 — Remove recurring-schedule Pause
+
+**Agent:** backend-ts + bff-ts
+**Complexity:** M
+**Docs to load:** docs/04-USE_CASES.md UC-070 A2, docs/03-DOMAIN_EVENTS.md § RecurringBookingSchedulePaused, docs/13-DATABASE_SCHEMA.md § `booking.recurring_booking_schedules`, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_BACKEND.md § Migration backfills and § Event Handlers, docs/ANTI_PATTERNS.md (the plain `ALTER TABLE` / `CHECK` constraint row), docs/ENGINEERING_RULES_SHARED.md § Retiring a code (the same "remove every use site first" discipline applies to a retired event), infra/terraform/README.md (how `modules/pubsub` derives topics, at discovery)
+**Dependencies:** M23-S04 (✅ Done — ships `pause()`, the use case, the route and the event this story removes). Lands **before** M23-S05 (both rewrite `CHK_booking_rbs_status`: this story leaves `PENDING_APPROVAL`, `ACTIVE`, `CANCELLED`; S05 then adds `ENDED`) and before M23-S12 (which draws no Pause action). Shares `recurring-booking-schedule.aggregate.ts` and `recurring-booking-schedule.types.ts` with M23-S18, so it is not a `/run-batch` partner of S18.
+**Pattern:** plain composition — pure removal of an existing vertical slice; no named pattern applies.
+
+**Discovered:** 2026-09-29, in the follow-up `/docs-audit` after M23-S18's `/story-discovery` made recurring schedules fixed-term. With every occurrence of the term materialized as a booking up front, Pause has no effect on anything; and it was already one-way — the aggregate's own comment says no resume use case is in scope, so a paused schedule can never return to `ACTIVE`.
+**Root cause:** `RecurringBookingSchedule.pause()` (`apps/backend/src/contexts/booking/domain/recurring-booking-schedule.aggregate.ts:230`) only sets `status = 'PAUSED'` and raises `RecurringBookingSchedulePaused`, whose documented effect ("no further occurrences generated until resumed", `docs/03-DOMAIN_EVENTS.md`) referred to the rolling generation worker that the fixed-term design removed. The only consumer of the event is a logging handler (`recurring-booking-schedule-events.handler.ts`), and no web code calls the route.
+
+**Description:**
+Retire the Pause capability end to end so the state machine, the API and the docs stop advertising something that does nothing: the `POST /recurring-booking-schedules/:id/pause` route (backend and BFF), `PauseRecurringBookingScheduleUseCase`, the aggregate's `pause()`, the `PAUSED` status, the `RecurringBookingSchedulePaused` event with its logging subscription and builder, and every doc line that names them. Skipping one occurrence and ending the schedule stay exactly as they are. A customer who wants to stop a schedule ends it (`end()` cancels the future bookings) and creates a new one when they want to resume.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **Remove, don't redefine.** Pause is not turned into "cancel the remaining occurrences plus a resume"; that would need a resume use case, a re-check on resume and more UI, all for a capability nobody asked for.
+2. **Existing `PAUSED` rows** (none in any real environment — verify per `docs/DEFINITION_OF_DONE.md`'s pre-production rule before relying on that) become `CANCELLED` with `cancellation_reason = 'CUSTOMER_CANCELLED'` in the migration, before the constraint changes.
+3. **The constraint change follows the CHECK-constraint rule:** a new migration (never an edit of `1748500000017-CreateRecurringBookingSchedules.ts`) that backfills, then replaces `CHK_booking_rbs_status` with `NOT VALID` + a separate `VALIDATE CONSTRAINT`.
+4. **The event is retired the safe way:** remove the class, its publish site and its subscription; whether the derived Pub/Sub topic and subscription for `RecurringBookingSchedulePaused` are also deleted in the same PR is decided at discovery from `infra/terraform/README.md` and a real `terraform plan -refresh-only` (CLAUDE.md §9's live-verification gate applies, since this touches Pub/Sub).
+5. **Stale-reference sweep is in scope** (`docs/DEFINITION_OF_DONE.md`): every doc, journey note and `.http` block that names Pause.
+
+**Backend use case steps:** none new — delete `PauseRecurringBookingScheduleUseCase`, `RecurringBookingSchedule.pause()` and the `PAUSED` branch of the status type; `assertActive()` keeps rejecting every non-`ACTIVE` status, so skip/reschedule/end behavior is unchanged.
+**Backend HTTP surface:** removes `POST /recurring-booking-schedules/:id/pause`; a call to it now returns `404`. Nothing else changes.
+**BFF endpoint spec:** removes the matching pause route, its response type and its controller spec case; the rest of `recurring-booking-schedules.controller.ts` is untouched.
+**New migration / i18n keys / env vars / feature flags:** one migration (status backfill + constraint replacement); no i18n keys, env vars or feature flags.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/use-cases/pause-recurring-booking-schedule.use-case.ts` and its `.spec.ts` (delete)
+- `apps/backend/src/contexts/booking/domain/recurring-booking-schedule.aggregate.ts` (+ `.aggregate.spec.ts`) (modify — remove `pause()` and the `RecurringBookingSchedulePaused` import; fix the `assertActive()` comment that mentions PAUSED)
+- `apps/backend/src/contexts/booking/domain/recurring-booking-schedule.types.ts` (modify — `RecurringBookingScheduleStatus` loses `'PAUSED'`)
+- `apps/backend/src/contexts/booking/domain/events/recurring-booking-schedule-paused.event.ts` (delete)
+- `apps/backend/src/test/builders/booking/recurring-booking-schedule-paused-event.builder.ts` (delete) and `apps/backend/src/test/builders/booking/index.ts` (modify — drop the export)
+- `apps/backend/src/contexts/booking/infrastructure/events/recurring-booking-schedule-events.handler.ts` (+ `.handler.spec.ts`) (modify — drop the Paused subscription)
+- `apps/backend/src/contexts/booking/application/use-cases/log-recurring-booking-schedule-event.use-case.ts` (+ spec) (modify — the comment and any Paused branch)
+- `apps/backend/src/contexts/booking/booking.module-providers.ts` (modify — drop the use-case provider and import)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ `.controller.spec.ts`) (modify — remove the route and constructor dependency)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-recurring-booking-schedule.repository.integration.spec.ts` (modify — the PAUSED fixture)
+- a new migration under `apps/backend/src/contexts/booking/infrastructure/migrations/`
+- `apps/backend/http/booking/recurring-booking-schedules.http` (modify — remove the pause request)
+- `apps/bff/src/features/booking/recurring-booking-schedules.controller.ts`, `.types.ts`, `.controller.spec.ts` (modify)
+- `docs/03-DOMAIN_EVENTS.md` (remove the event), `docs/04-USE_CASES.md` (UC-070 A2 and its endpoint line), `docs/05-BOUNDED_CONTEXTS.md` (the event list), `docs/02-DOMAIN_MODEL.md` (status list), `docs/13-DATABASE_SCHEMA.md` (the status row), `docs/14-API_CONTRACTS.md` (the route and the list `status` filter), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (the optimistic-concurrency sentence naming `pause()`) — the stale-reference sweep
+- `plan/journey/customer/prototypes/minha-conta/dev-notes.md` (the two Pause mentions) — a recommendation only per the journey rules, listed so it is not forgotten
+
+**Acceptance criteria — product:**
+- [ ] A customer can skip an occurrence or end a recurring schedule exactly as before; there is no way to pause one.
+- [ ] Any schedule that was paused before this change is shown as cancelled by the customer, not lost or left in a state the system no longer knows.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] The aggregate has no `pause()`; `skipOccurrence`, `rescheduleOccurrence` and `end` still reject a non-`ACTIVE` schedule
+  - [ ] The controller no longer exposes the pause route; the events handler subscribes to no Paused event
+  - [ ] The BFF controller has no pause route
+- Integration:
+  - [ ] Real Postgres: the migration turns a seeded `PAUSED` row into `CANCELLED` / `CUSTOMER_CANCELLED`, and afterwards the status constraint rejects `PAUSED`
+  - [ ] `POST /recurring-booking-schedules/:id/pause` returns `404`; skip and end still succeed on an `ACTIVE` schedule
+- Tenant isolation:
+  - [ ] The migration only ever rewrites each row's own status; the surviving routes' cross-tenant behavior is unchanged and stays covered by M23-S04's existing tests (state which test at discovery)
+- E2E: none — no web code calls the route
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+- [ ] Live check (touches Pub/Sub, per CLAUDE.md §9): the outcome of a real `terraform plan -refresh-only` confirming what happens to the Paused topic and subscription, recorded in the PR
+
+---
+
+### M23-S21 — Renewal reminder email for an ending recurring schedule
+
+**Agent:** backend-ts + bff-ts
+**Complexity:** M
+**Docs to load:** docs/04-USE_CASES.md UC-070, docs/03-DOMAIN_EVENTS.md (Commands section — a scheduled reminder is a Command, not an event), docs/05-BOUNDED_CONTEXTS.md, docs/21-TENANTS_SETTINGS_SCHEMA.md (`notification` category), docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_BACKEND.md § Adding a new notification type and § Event Handlers, docs/ENGINEERING_RULES_INFRA.md (the Cloud Run timer note, since this rides a cron tick), docs/ENGINEERING_RULES_SHARED.md § Adding a new error — checklist (only if a new error is needed)
+**Dependencies:** M23-S05 (`ENDED` status and the trigger-handler wiring on the existing cron topic, which this job reuses), M23-S18 (`endsOn` is required, so every schedule has an end to remind about), M23-S04 (✅ Done — the aggregate, the list read)
+**Pattern:** Command + scheduled scan → notification use case — the same shape as `BookingReminderJob` → `BookingReminderDue` → `SendBookingReminderDueNotificationUseCase` (`docs/03-DOMAIN_EVENTS.md`'s Commands section, TD24-S03). No new pattern.
+
+**Description:**
+A fixed-term recurring schedule ends by itself, and a customer who still wants the slot must create a new one. Without a nudge, customers will lose their slot by forgetting; this story emails the customer shortly before the term ends, with a link that opens M23-S22's pre-filled renewal form. A scheduled job, running from a trigger handler registered on the existing `CRON_REMINDERS_TRIGGER` cron topic (no new Cloud Scheduler entry, topic or Terraform), scans each tenant in that tenant's own local morning window — the same 06:00–06:29 window and per-tenant timezone handling `BookingReminderJob` uses — for `ACTIVE` schedules whose `endsOn` equals the tenant-local today plus the lead time, and outboxes one `RecurringScheduleRenewalDue` Command per schedule. A notification handler turns it into the email. The Command's dedup key is `(tenantId, recurringScheduleId, localDate)`, so an overlapping or retried tick can never mail the customer twice, and no "reminder sent" column is needed. A schedule whose whole term is no longer than the lead time is never reminded (there is no time to act), and a schedule that is not `ACTIVE` (pending, cancelled, ended) never is.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **Only `ACTIVE` schedules with a future end are reminded**, matched by exact local date (`endsOn = localToday + leadDays`), not "within N days" — that is what makes the job idempotent without new state.
+2. **Recipient = the schedule's customer**, resolved through `IBookingCustomerPort` before the outbox transaction opens (reads before `txManager.run()`), exactly as `BookingReminderJob` does. A schedule created by staff on the customer's behalf still reminds the customer.
+3. **A Command, not a domain event** (TD24-S03): the reminder changes no state, so it is not an event; `docs/03-DOMAIN_EVENTS.md` gets a new entry in its Commands section.
+4. **Email only**, in the customer's locale, via the standard notification-template mechanism (`NotificationTemplateKey`, both locale files, a migration seeding the global default rows plus the existing-tenants backfill).
+5. **The email link is a deep link** to `/{slug}/my-account/recurring-schedules/new?renewFrom=<recurringScheduleId>`, built the way the other notification links are built (check the existing reminder use case for the URL helper); M23-S22 owns the page that receives it.
+
+**Decisions left for `/story-discovery` (business decisions, not code questions):**
+- **Lead time and where it lives:** default proposal 7 days, as a `tenants.settings.notification` key (name and bounds to be added to `docs/21-TENANTS_SETTINGS_SCHEMA.md`, e.g. `recurringRenewalReminderDays`, integer 1–30), never hard-coded (`CLAUDE.md` §7: no hardcoded business values). Confirm the number and whether a tenant can turn the reminder off.
+- **One reminder or two** (for example 7 days and 1 day before). One is the proposal.
+- **Suppress the reminder if the customer already created a successor** (another `ACTIVE`/`PENDING_APPROVAL` schedule for the same service that starts on or after this one's `endsOn`)? Proposed: yes, a cheap in-memory check on the same scan.
+- **A by-id read:** verify whether M23-S12 or M23-S05 has already added `GET /recurring-booking-schedules/:id`; if not, this story adds it (own schedule for `CUSTOMER`, any for `STAFF|MANAGER`) because M23-S22's pre-fill needs it.
+
+**Backend use case steps:**
+1. **`RecurringScheduleRenewalReminderJob.run()`** (per tenant, in the tenant's local window): find `ACTIVE` schedules with `endsOn = localToday + leadDays` and `startsOn < endsOn - leadDays`; resolve the customer's email and name through `IBookingCustomerPort`; outbox one `RecurringScheduleRenewalDue` Command each, in one transaction per tenant.
+2. **`SendRecurringScheduleRenewalNotificationUseCase`** (notification context, extends `BaseNotificationUseCase`): localizes the template and dispatches to the customer.
+
+**Backend HTTP surface:** none for the reminder itself; the by-id read above, if it is not already there, is `GET /recurring-booking-schedules/:id`.
+**BFF endpoint spec:** only if the by-id read is added here — `GET /v1/recurring-booking-schedules/:id`, JWT required, `CUSTOMER` (own) or `STAFF|MANAGER`, response the same item shape as the list.
+**New migration / i18n keys / env vars / feature flags:** a migration inserting the global default template rows for the new key and copying them to every existing tenant (the "existing tenants don't automatically get new template rows" gotcha in `docs/ENGINEERING_RULES_BACKEND.md`); `packages/i18n/locales/{pt-BR,en}/notifications.json` entries; the new `tenants.settings.notification` key; no env var, no feature flag.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/jobs/recurring-schedule-renewal-reminder.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/domain/commands/recurring-schedule-renewal-due.command.ts` (+ spec) (new — sibling of `booking-reminder-due.command.ts`)
+- `apps/backend/src/contexts/booking/infrastructure/events/recurring-schedule-renewal-reminder-trigger.handler.ts` (+ spec) (new — registers on `CRON_REMINDERS_TRIGGER`)
+- `apps/backend/src/contexts/booking/application/ports/recurring-booking-schedule-repository.port.ts`, its TypeORM adapter and `InMemoryXxx` double (+ specs, integration spec) (modify — the "active schedules ending on a date" read)
+- `apps/backend/src/contexts/booking/booking.module-providers.ts` (modify — register the job and the trigger handler)
+- `apps/backend/src/contexts/notification/domain/notification-template-key.enum.ts`, `notification-template-key.mapping.ts` (+ `.mapping.spec.ts`) (modify)
+- `apps/backend/src/contexts/notification/application/use-cases/send-recurring-schedule-renewal-notification/send-recurring-schedule-renewal-notification.use-case.ts` (+ spec) (new)
+- `apps/backend/src/contexts/notification/infrastructure/events/recurring-schedule-renewal.handler.ts` (+ spec) (new), and `notification.module.ts` (modify)
+- `apps/backend/src/contexts/notification/infrastructure/migrations/<timestamp>-AddRecurringScheduleRenewalTemplate.ts` (new)
+- `packages/i18n/locales/{pt-BR,en}/notifications.json` (modify)
+- `docs/21-TENANTS_SETTINGS_SCHEMA.md`, `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md` (the notification template rows, if listed there) (modify)
+- only if the by-id read is added here: `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ spec), a use case (+ spec), `apps/bff/src/features/booking/recurring-booking-schedules.controller.ts` (+ spec), `apps/backend/http/booking/recurring-booking-schedules.http` (modify) and a new BFF request file under `apps/bff/http/bookings/` (the BFF has no `.http` for recurring schedules yet — follow that folder's naming), `docs/14-API_CONTRACTS.md`
+
+**Acceptance criteria — product:**
+- [ ] A customer whose recurring schedule ends in the configured number of days receives one email, in their language, that says which reservation ends and when and links to renewing it.
+- [ ] The customer receives at most one such email per schedule, even if the system retries.
+- [ ] A cancelled, ended or still-pending schedule, or one already renewed, never triggers the email.
+- [ ] The lead time is a tenant setting, not a fixed number.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] The job selects exactly the schedules with `endsOn = localToday + leadDays` in each tenant's own timezone, and only `ACTIVE` ones; a schedule whose term is not longer than the lead time is skipped
+  - [ ] Outside the 06:00–06:29 tenant-local window the job does nothing (same as `BookingReminderJob`)
+  - [ ] The Command's dedup key is stable for the same tenant, schedule and local date, and differs on another date
+  - [ ] The notification use case renders both locales and sends to the customer; `NotificationTemplateKey` ↔ mapping parity spec passes
+  - [ ] A customer with no email or a missing profile does not crash the tenant's whole run (logged, skipped)
+- Integration:
+  - [ ] Real Postgres: seeded schedules ending in 6, 7 and 8 days with lead time 7 — only the 7-day one is picked; a seeded `ENDED`/`CANCELLED`/`PENDING_APPROVAL` one is not
+  - [ ] End to end through the outbox: a run creates one notification log row; a second run on the same day creates none
+  - [ ] The migration seeds the template for the global default and for a tenant that existed before it
+- Tenant isolation:
+  - [ ] Tenant A's schedules never produce a Command or an email under tenant B's run, and each tenant's own lead-time setting is used
+- E2E: none — server-side email; the link's landing page is covered by M23-S22
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S22 — Customer renews an ending recurring schedule ("Renovar")
+
+**Agent:** frontend-ts
+**Complexity:** M
+**Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md (customer-account equivalent), docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
+**Dependencies:** M23-S17 (the creation route, form, validation and outcome mapping this story pre-fills), M23-S12 (the recurring-schedules list this story adds the button to), M23-S21 (the email deep link and the by-id read), M23-S05 (the `ENDED` status the list shows)
+**Pattern:** plain composition — a pure pre-fill mapper feeding S17's existing form, plus one button; no new pattern.
+
+**Description:**
+Because a recurring schedule is fixed-term, a customer who wants to continue creates a new one. This story removes the retyping: a "Renovar" action on the recurring-schedules list (on an ended schedule, and on an active one whose term is about to end), and the reminder email's deep link `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>`, both open M23-S17's creation form pre-filled from the schedule being renewed — the same service, weekdays, time and, for a fixed-resource schedule, the same resource; the new start date defaults to the day after the old `endsOn` (or today if that is past), and the end date is left for the customer to choose within the service's maximum term. Nothing is created until the customer confirms through S17's normal review step, so every check S18 makes still applies to the renewal exactly as to any new schedule.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **No new route.** It is S17's `new` route with an optional `renewFrom` query parameter; the pre-fill is a pure function of the old schedule, kept free of `CustomerShell` imports like S17's other helpers.
+2. **The customer's own schedules only.** An unknown id, another customer's id or a schedule whose service is no longer eligible falls back to the blank form with a one-line notice — never an error page, never data from a schedule the caller does not own.
+3. **Renewal is a new schedule**, not an extension: the old one stays as history, `ENDED`.
+4. **Design system:** `CustomerShell` (Tailwind + shadcn), never `--ba-*`; all copy through `useTranslations()` with keys in both locale files.
+5. **The by-id read comes from M23-S21** (or an earlier story if one already added it); this story adds no backend or BFF work.
+
+**Decisions left for `/story-discovery`:**
+- **When the list shows "Renovar" on an `ACTIVE` schedule** (proposal: only when its term ends within the tenant's reminder lead time, so the button appears when the email would have been sent).
+- **Prototype:** there is none yet for the button, the pre-filled banner ("Renovando sua reserva de …") or the fallback notice; per CLAUDE.md §15 the journey `.md` and a prototype pass must precede this story's discovery.
+
+**Prototype references:** none yet — to be created in the journey pass (`plan/journey/customer/minha-conta.md`, `prototypes/minha-conta/` — `14` list, `13` form) before `/story-discovery M23-S22`.
+**New migration / i18n keys / env vars / feature flags:** i18n keys in `packages/i18n/locales/{pt-BR,en}/web.json` for the button, the banner and the notice; no migration, env var or feature flag.
+
+**Files to create/modify:** (paths to be confirmed against what M23-S12 and M23-S17 actually ship — verify each at discovery, do not assume)
+- `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` (+ spec) (modify — the "Renovar" action)
+- the creation form and route from M23-S17 (modify — read `renewFrom`, apply the pre-fill, show the banner and the fallback notice) (+ specs)
+- `apps/web/features/customer/utils/` or `hooks/` — a new pure pre-fill mapper (+ spec) and `useRecurringSchedule(id)` (+ spec) if a by-id hook does not exist
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify)
+- the Playwright spec and helpers under `apps/web/e2e/` for the customer recurring flow (modify/new)
+
+**Acceptance criteria — product:**
+- [ ] A customer sees "Renovar" on an ended recurring schedule and on one that is about to end, and it opens the creation form already filled with that schedule's service, days, time and (for a fixed resource) resource.
+- [ ] The renewal starts the day after the old one ends and the customer picks the end date; nothing is booked until they confirm.
+- [ ] The email link behaves the same way; for an unknown or someone else's id the customer just gets the normal blank form with a short notice.
+- [ ] A renewal that cannot be honored (a closure, an occupied slot) is refused with the same conflict list as any new schedule.
+
+**Acceptance criteria — technical:**
+- Unit (Vitest, jsdom/node):
+  - [ ] The pre-fill mapper returns the expected form state for a fixed-resource and for an automatic-resource schedule; the start date is the day after `endsOn`, or today when that is in the past
+  - [ ] The form applies the pre-fill from `renewFrom`, shows the banner, and falls back to blank plus the notice for a not-found or ineligible schedule
+  - [ ] The list shows "Renovar" for `ENDED` and for an `ACTIVE` schedule inside the visibility rule, and not for `PENDING_APPROVAL` or `CANCELLED`
+  - [ ] Both locales render every new string
+- Integration: n/a — web stories have no integration tier
+- Tenant isolation: n/a — client-side; the hook takes `tenantId` only from `useTenant()` and the read is tenant- and owner-scoped server-side (M23-S21)
+- E2E:
+  - [ ] Playwright, route `/{slug}/my-account/recurring-schedules`: a seeded `ENDED` schedule shows "Renovar"; clicking it opens the pre-filled form
+  - [ ] Playwright, route `/{slug}/my-account/recurring-schedules/new?renewFrom=<seeded id>`: the form is pre-filled, the customer picks an end date, confirms, and sees the created state
+  - [ ] Playwright, same route with an unknown id: blank form and the notice
+  - [ ] Playwright, same route: a renewal colliding with seeded occupancy shows the conflict list with nothing created
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
