@@ -24,26 +24,46 @@ Neither is a correctness defect — 671+674 backend tests pass on PR #521, and t
 **Complexity:** M
 **Docs to load:** `docs/ENGINEERING_RULES_BACKEND.md` § Transactions, `docs/02-DOMAIN_MODEL.md` § RecurringBookingSchedule
 **Dependencies:** none
-**Pattern:** plain composition — replaces a per-occurrence loop with a batched query; no new named pattern
+**Pattern:** plain composition — load the eligible resources once, run one overlap query, decide per occurrence in memory; no new named pattern
 
-**Description:** `assertPatternConflictFree()` in `recurring-booking-schedule-request.helpers.ts` currently calls `assertOccurrenceFree()` once per enumerated occurrence (up to ~90 at the default 90-day horizon), each doing its own `resolveBookingLinesResourceCandidates()` + `BookingSlotConflictService.assertSlotFree()` round-trip. For `FIXED_ASSIGNMENT` (a fixed, caller-chosen resource), replace this with a single query checking `resource_occupancy` overlap against all occurrence windows at once (e.g. one query with an `OR`'d set of time ranges, or a GiST range-overlap check keyed by the resource, matching the exclusion-constraint style already used elsewhere per `docs/13-DATABASE_SCHEMA.md`). `RESOLVE_PER_OCCURRENCE` has no fixed resource to batch against upfront (per-occurrence resolution is inherent to that policy) — leave its loop as-is unless discovery finds a safe batching shape for it too. Story-discovery must confirm the batched query produces identical accept/reject results to the current per-occurrence loop for every existing unit/integration test scenario before this ships.
+**Description:** `assertPatternConflictFree()` in `recurring-booking-schedule-request.helpers.ts` currently calls `assertOccurrenceFree()` once per enumerated occurrence (up to ~90 at the default 90-day horizon), each doing its own `resolveBookingLinesResourceCandidates()` (resource load) + `BookingSlotConflictService.assertSlotFree()` (advisory lock + overlap query) — roughly 3 × N DB calls for `FIXED_ASSIGNMENT` and 4–5 × N for `RESOLVE_PER_OCCURRENCE`. Replace the loop, for **all three** selection modes, with a fixed number of calls independent of N (locked in story-discovery, 2026-09-29; the original "leave `RESOLVE_PER_OCCURRENCE` as-is" default was rejected — this check is on the core booking path and must stay fast for every policy):
+
+1. **Load the eligible resources once.** `FIXED_ASSIGNMENT`: the caller-chosen resource(s), validated with the same rules `resolveRequirementResources` applies today (active, matching type, inside `resourcePoolIds`). `AUTO_ANY`/`AUTO_FUNGIBLE_POOL`: the tenant's active resources of the requirement's type, pool-restricted — export `resolveEligibleResources` from `resource-requirement-resolution.helpers.ts` rather than duplicating it.
+2. **Build one window per (resource × occurrence).** `startsAt = occurrenceStart`, `endsAt = occurrenceStart + durationMinutes + effectiveFlatGapMinutes(service.bufferAfterMinutes ?? 0, resource.turnoverMinutes)` — the same per-resource gap math the current single-line path uses.
+3. **Lock the whole eligible set once** via `ITenantLockPort.lockResources()` (the adapter already sorts and dedupes ids, so overlapping sets can't deadlock). The lock is `pg_advisory_xact_lock`, held until the transaction ends — a few milliseconds, since no network I/O runs inside `txManager.run()`. Today only each occurrence's chosen resource is locked; locking the full eligible set for `AUTO_*` is a deliberate small widening that preserves today's serialization against concurrent one-off bookings.
+4. **Run one overlap query** through a new `IResourceOccupancyRepository.findConflictingWindows(tenantId, windows, excludeBookingLineIds?)` that returns the conflicting input `(resourceId, startsAt, endsAt)` pairs. Same SQL as `findConflictingResourceIds` (`unnest` + `tstzrange &&`, `lock_state IN ('HOLD','COMMITTED')`, `tenant_id = $1`) with the window columns selected instead of `DISTINCT resource_id`. Existing `findConflictingResourceIds` is unchanged.
+5. **Decide per occurrence in memory:** `FIXED_ASSIGNMENT` — reject on any conflicting window for the chosen resource; `AUTO_ANY` — reject an occurrence only if **every** eligible resource conflicts in its window (the workload sort never affects accept/reject, so it is dropped); `AUTO_FUNGIBLE_POOL` — the first eligible resource must be free, exactly as `resolveRequirementResources` behaves today (it picks `eligible[0]` with no free-filter — existing behavior, preserved, out of scope to change here). Any rejection throws `RecurringBookingScheduleConflictError`.
+
+Preserved behavior: zero occurrences remain a no-op (return before loading anything); resolution errors (inactive/wrong-type/missing resource) surface as today; `assertNoActiveScheduleOverlap`, the cap check and `lockForCapCheck` in `request-recurring-booking-schedule.use-case.ts` are untouched. Because step 5 re-implements a small "is any eligible resource free" rule outside the shared resolution helper, a **parity test** is mandatory: it runs the batched check and the old per-occurrence loop (`resolveBookingLinesResourceCandidates` + `assertSlotFree`) over the same seeded occupancy and asserts identical accept/reject — this is what guards against the two drifting apart.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts` (modify — `assertPatternConflictFree`/`assertOccurrenceFree`)
-- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.spec.ts` (modify/new — batched-query unit coverage)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.integration.spec.ts` (modify — a scenario with a multi-occurrence pattern conflicting on only one of its occurrences, proving the batched check still finds it)
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts` (modify — rewrite `assertPatternConflictFree`, remove `assertOccurrenceFree`)
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.spec.ts` (**new** — does not exist today)
+- `apps/backend/src/contexts/booking/application/use-cases/resource-requirement-resolution.helpers.ts` (modify — export `resolveEligibleResources`)
+- `apps/backend/src/contexts/booking/application/ports/resource-occupancy-repository.port.ts` (modify — add `findConflictingWindows`)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.ts` (modify — implement it)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.integration.spec.ts` (modify — `findConflictingWindows` scenarios)
+- `apps/backend/src/test/repositories/booking/in-memory-resource-occupancy.repository.ts` (modify — implement it in the test double, same REQUESTED-exclusion semantics)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.integration.spec.ts` (modify — real-DB conflict scenarios)
 
 **Acceptance criteria — product:**
-- [ ] Creating a recurring schedule with a long horizon/daily pattern is not noticeably slower than creating one with a single weekly occurrence.
+- [ ] Creating a recurring schedule issues a fixed number of DB calls for the conflict check regardless of how many occurrences the pattern implies (long horizon / daily pattern is not slower than a single weekly occurrence), for `FIXED_ASSIGNMENT`, `AUTO_ANY` and `AUTO_FUNGIBLE_POOL`.
 
 **Acceptance criteria — technical:**
-- Unit:
-  - [ ] Batched conflict query rejects when any one of N occurrences overlaps existing occupancy
-  - [ ] Batched conflict query accepts when no occurrence overlaps
+- Unit (new `recurring-booking-schedule-request.helpers.spec.ts`, using `jest.spyOn` on the `InMemoryResourceOccupancyRepository`/`InMemoryTenantLock` doubles — never a `jest.fn()` port stub):
+  - [ ] `FIXED_ASSIGNMENT` conflicting on only the 5th of N occurrences is rejected, with exactly one `lockResources` call and one `findConflictingWindows` call
+  - [ ] `FIXED_ASSIGNMENT` with no conflict is accepted, with one call each
+  - [ ] `AUTO_ANY` is accepted when at least one eligible resource is free in every occurrence window, and rejected when every eligible resource is busy in one occurrence
+  - [ ] `AUTO_FUNGIBLE_POOL` is rejected when the first eligible resource is busy, even if another is free (parity with today)
+  - [ ] Zero occurrences make no repository or lock calls
+  - [ ] Per-resource turnover gap is applied to each resource's own window
+  - [ ] Parity: batched result equals the old per-occurrence loop for the same seeded occupancy across all three modes
 - Integration:
-  - [ ] A multi-occurrence FIXED_ASSIGNMENT request conflicting on only its 5th occurrence is rejected in one round-trip, not five
+  - [ ] `findConflictingWindows` returns exactly the conflicting `(resourceId, window)` pairs, ignores REQUESTED rows and honors `excludeBookingLineIds` (`typeorm-resource-occupancy.repository.integration.spec.ts`)
+  - [ ] `POST /recurring-booking-schedules` (FIXED_ASSIGNMENT) with a real `resource_occupancy` row on only the 5th weekly occurrence returns 409 and persists no schedule; the same request without the row returns 201
+  - [ ] Same 409/201 pair for an `AUTO_ANY` service (all eligible resources busy on one occurrence vs. one free)
 - Tenant isolation:
-  - [ ] Conflict check never compares occupancy across tenants
+  - [ ] Tenant B's occupancy in the same time window never blocks tenant A's request (unit + integration)
 - E2E: none — covered by existing M23-S04 E2E scope (S12)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
