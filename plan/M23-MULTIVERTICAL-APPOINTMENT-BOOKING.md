@@ -1211,7 +1211,9 @@ Retire the Pause capability end to end so the state machine, the API and the doc
 1. **Remove, don't redefine.** Pause is not turned into "cancel the remaining occurrences plus a resume"; that would need a resume use case, a re-check on resume and more UI, all for a capability nobody asked for.
 2. **Existing `PAUSED` rows** (none in any real environment — verify per `docs/DEFINITION_OF_DONE.md`'s pre-production rule before relying on that) become `CANCELLED` with `cancellation_reason = 'CUSTOMER_CANCELLED'` in the migration, before the constraint changes.
 3. **The constraint change follows the CHECK-constraint rule:** a new migration (never an edit of `1748500000017-CreateRecurringBookingSchedules.ts`) that backfills, then replaces `CHK_booking_rbs_status` with `NOT VALID` + a separate `VALIDATE CONSTRAINT`.
-4. **The event is retired the safe way:** remove the class, its publish site and its subscription; whether the derived Pub/Sub topic and subscription for `RecurringBookingSchedulePaused` are also deleted in the same PR is decided at discovery from `infra/terraform/README.md` and a real `terraform plan -refresh-only` (CLAUDE.md §9's live-verification gate applies, since this touches Pub/Sub).
+4. **The event is retired end to end, topic included (decided at discovery, 2026-09-29).** Remove the class, its publish site and its subscription, **and** the `RecurringBookingSchedulePaused` entry in `infra/terraform/pubsub-catalog.json`: the `pubsub-catalog` CI job regenerates that file and fails on any diff, so leaving the entry is not possible. Removing it destroys the derived topic and subscription on the next `envs/*` apply (foundation reads the same catalog and drops the IAM grants first, because `envs/*` deploys are gated behind a foundation apply). Undelivered messages on the topic are accepted as lost (the only consumer is the audit-log logger, and staging and local hold no data). **One PR**, labelled `infra-app-mix-ok` with a PR-body note (the catalog change and the code removal are the same change); no `foundation/**` path is edited, so `no-foundation-plus-other-infra-mix` does not apply. CLAUDE.md §9's live-verification gate applies: run a real `terraform plan -refresh-only` for staging and prod and record the outcome in the PR.
+6. **`down()` restores the old constraint** (including `'PAUSED'`) but does not reverse the row rewrite, which is not recoverable. No staging or local data exists, so the backfill is a safeguard.
+7. **Stale-reference sweep boundary:** fix current docs, `.http`, TD49 and the `plan/journey` notes (one-sentence factual syncs). `docs/discovery/multivertical-booking/*` are historical discovery docs and are left as they are.
 5. **Stale-reference sweep is in scope** (`docs/DEFINITION_OF_DONE.md`): every doc, journey note and `.http` block that names Pause.
 
 **Backend use case steps:** none new — delete `PauseRecurringBookingScheduleUseCase`, `RecurringBookingSchedule.pause()` and the `PAUSED` branch of the status type; `assertActive()` keeps rejecting every non-`ACTIVE` status, so skip/reschedule/end behavior is unchanged.
@@ -1235,7 +1237,10 @@ Retire the Pause capability end to end so the state machine, the API and the doc
 - `apps/bff/src/features/booking/recurring-booking-schedules.controller.ts`, `.types.ts`, `.controller.spec.ts` (modify — the `.types.ts` status union at line 19 loses `'PAUSED'`)
 - `packages/validation/src/booking.ts` (modify — the list query's `status` `z.enum` at line 312 loses `'PAUSED'`; M23-S05 adds `'ENDED'` to the same enum and to the BFF union)
 - `docs/03-DOMAIN_EVENTS.md` (remove the event), `docs/04-USE_CASES.md` (UC-070 A2 and its endpoint line), `docs/05-BOUNDED_CONTEXTS.md` (the event list), `docs/02-DOMAIN_MODEL.md` (status list), `docs/13-DATABASE_SCHEMA.md` (the status row), `docs/14-API_CONTRACTS.md` (the route and the list `status` filter), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (the optimistic-concurrency sentence naming `pause()`) — the stale-reference sweep
-- `plan/journey/customer/prototypes/minha-conta/dev-notes.md` (the two Pause mentions) — a recommendation only per the journey rules, listed so it is not forgotten
+- `infra/terraform/pubsub-catalog.json` (regenerate with `pnpm --filter @ikaro/infra-scripts run pubsub-catalog` — the `RecurringBookingSchedulePaused` entry goes; needs the `infra-app-mix-ok` label)
+- `apps/bff/src/features/booking/recurring-booking-schedules.types.ts` (also drop `PauseRecurringBookingScheduleResponse`, line 35) and `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.integration.spec.ts` (add the pause-route `404` case)
+- the migration is `1748500000019-…` (the latest existing is `…018`)
+- `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`, `plan/journey/customer/use-cases.md`, `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/dev-notes.md` (the two Pause mentions), `plan/journey/staff/prototypes/agenda/dev-notes.md` — the Pause mentions, as one-sentence factual syncs
 
 **Acceptance criteria — product:**
 - [ ] A customer can skip an occurrence or end a recurring schedule exactly as before; there is no way to pause one.
@@ -1250,11 +1255,12 @@ Retire the Pause capability end to end so the state machine, the API and the doc
   - [ ] Real Postgres: the migration turns a seeded `PAUSED` row into `CANCELLED` / `CUSTOMER_CANCELLED`, and afterwards the status constraint rejects `PAUSED`
   - [ ] `POST /recurring-booking-schedules/:id/pause` returns `404`; skip and end still succeed on an `ACTIVE` schedule
 - Tenant isolation:
-  - [ ] The migration only ever rewrites each row's own status; the surviving routes' cross-tenant behavior is unchanged and stays covered by M23-S04's existing tests (state which test at discovery)
+  - [ ] The migration only ever rewrites each row's own status; the surviving routes' cross-tenant behavior is unchanged and stays covered by M23-S04's existing tests: `end-recurring-booking-schedule.use-case.spec.ts` ("throws NotFound for a schedule that belongs to a different tenant") and the controller integration spec's "never crosses tenant/customer boundary on GET"
 - E2E: none — no web code calls the route
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
-- [ ] Live check (touches Pub/Sub, per CLAUDE.md §9): the outcome of a real `terraform plan -refresh-only` confirming what happens to the Paused topic and subscription, recorded in the PR
+- [ ] Live check (touches Pub/Sub, per CLAUDE.md §9): the outcome of a real `terraform plan -refresh-only` (staging and prod) confirming the Paused topic and subscription are destroyed and nothing else changes, recorded in the PR
+- [ ] Devops PR sequence: 1 PR (`infra-app-mix-ok`), per `infra/terraform/README.md`'s playbook — removal only, no new topic or secret
 
 ---
 
