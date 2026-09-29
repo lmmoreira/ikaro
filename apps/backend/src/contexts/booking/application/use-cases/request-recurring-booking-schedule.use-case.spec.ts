@@ -713,10 +713,17 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       it("never lets another tenant's openings or business hours affect the request", async () => {
         const otherTenantId = '10000000-0000-4000-8000-000000000998';
         const serviceId = await seedService();
-        // The other tenant is closed every day; the request's own tenant keeps the default hours.
-        platformPort.seedBusinessHoursAndLocale(otherTenantId, {
+        // The fixture discriminates in both directions: the request's own tenant is closed every
+        // day, the other tenant is open every weekday and also has an all-day opening on the first
+        // date. If either the other tenant's hours or its opening leaked into the check, an
+        // occurrence would be accepted and fewer than five would be refused.
+        platformPort.seedBusinessHoursAndLocale(TENANT, {
           locale: 'pt-BR',
           businessHours: EMPTY_BUSINESS_HOURS,
+        });
+        platformPort.seedBusinessHoursAndLocale(otherTenantId, {
+          locale: 'pt-BR',
+          businessHours: FULL_WEEK_BUSINESS_HOURS,
         });
         await openingRepo.save(
           new ScheduleOpeningBuilder()
@@ -727,7 +734,12 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
             .build(),
         );
 
-        await expect(request(serviceId)).resolves.toMatchObject({ status: 'ACTIVE' });
+        const error = await request(serviceId).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+        const { conflicts } = error as RecurringBookingScheduleConflictError;
+        expect(conflicts).toHaveLength(5); // Tuesdays at +0, +7, +14, +21 and +28 days
+        expect(conflicts.every((c) => c.reason === 'CLOSED')).toBe(true);
       });
 
       it('refuses a MANUAL_APPROVAL request on a closure too, creating nothing', async () => {
