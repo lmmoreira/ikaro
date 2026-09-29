@@ -7,7 +7,7 @@
 - **Created**: 2026-09-29
 - **Discovered**: a question raised while implementing TD45-S0 (PR #532) — "what if a service has a staff and a room?" — traced to M23-S04's explicit single-resource-only scope cut
 - **Decision status**: **Deferred — not to be started until every M23 story is ✅ Done** (S05–S16 were still pending when this was written). Story 0's policy model is deliberately left open and is resolved in its own `/story-discovery`; every story still begins with `/story-discovery`.
-- **Related**: M23-S04 (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`, scope bullet + its "Request rejects a bundle/multi-leg service" acceptance criterion), M23-S05, M23-S12, M23-S13, TD45-S0, UC-070 / UC-071 / UC-073, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Two-layer creation-time conflict check
+- **Related**: M23-S04 (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`, scope bullet + its "Request rejects a bundle/multi-leg service" acceptance criterion), M23-S05, M23-S12, M23-S13, M23-S17, M23-S18, TD45-S0, UC-070 / UC-071 / UC-073, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Two-layer creation-time conflict check
 
 ## Problem
 
@@ -138,15 +138,15 @@ Make everything that acts on a schedule after creation bundle-aware. M23-S05's r
 **Agent:** frontend-ts
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys
-**Dependencies:** Stories 0 and 1; every M23 story ✅ Done (M23-S11's resource picker, M23-S12's Minha Conta screens and M23-S13's approval queue are what this story extends)
+**Dependencies:** Stories 0 and 1; every M23 story ✅ Done (M23-S17's creation flow, M23-S12's Minha Conta screens and M23-S13's approval queue are what this story extends)
 **Pattern:** plain composition — reuses the one-off booking flow's per-requirement resource picker rather than building a second one.
-**Prototype references:** `plan/journey/customer/minha-conta.md` and `plan/journey/customer/prototypes/minha-conta/06-reserva-recorrente.html`, `06b-reserva-recorrente-erro.html`, `06c-recorrente-em-analise.html`, `dev-notes.md` — none of these depicts a bundle, so a prototype extension (via the `plan/journey/` workflow in `CLAUDE.md` §15, starting with `/docs-audit`) is a prerequisite decision at discovery.
+**Prototype references:** `plan/journey/customer/minha-conta.md` and `plan/journey/customer/prototypes/minha-conta/13-nova-recorrencia.html`, `13b-nova-recorrencia-revisar.html`, `06-reserva-recorrente.html`, `06b-reserva-recorrente-erro.html`, `06c-recorrente-em-analise.html`, `14-recorrentes-lista.html`, `dev-notes.md` — none of these depicts a bundle (the pattern builder `13` deliberately shows a single resource field), so a prototype extension (via the `plan/journey/` workflow in `CLAUDE.md` §15, starting with `/docs-audit`) is a prerequisite decision at discovery.
 
 **Description:**
-Give a customer (or staff on their behalf) a way to choose a resource per requirement when creating a recurring schedule for a bundle, show each requirement's resource in the customer's schedule list and the staff approval queue, and surface the all-or-nothing conflict as the existing "conflict" error state. **Verify first, at discovery:** at the time this TD was written, no M23 frontend story appears to build a customer-side form for *creating* a recurring schedule at all (M23-S11 has no recurrence mention, M23-S12 is the management surface only, M23-S13 is the approval queue); if that is still true, the creation flow either belongs in an M23 story or in this one, and the decision is made at discovery, not assumed here.
+Give a customer (or staff on their behalf) a way to choose a resource per requirement when creating a recurring schedule for a bundle, show each requirement's resource in the customer's schedule list and the staff approval queue, and surface the all-or-nothing conflict as the existing "conflict" error state. The creation flow this story extends is M23-S17 (the pattern builder `NewRecurringScheduleForm`, its review step and the outcome screens); when this TD was written no M23 story built it, and M23-S17 was added on 2026-09-29 to close that gap. It draws a single resource field on purpose, so this story turns that into one selection per requirement. M23-S18's hours-and-closures check must be extended to a bundle's requirements at the same time (a closed day or a closed room fails the whole occurrence).
 
 **Files to create/modify:**
-- The recurring-schedule creation UI (path per whichever M23 story ships it, or new here — confirmed at discovery)
+- `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx`, `NewRecurringScheduleReview.tsx` and `NewRecurringScheduleResult.tsx` with their specs (planned by M23-S17; exist once that ships — confirm the shipped paths at discovery)
 - `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` and its spec (planned by M23-S12; exists once that ships — confirm the shipped path at discovery)
 - The M23-S13 approval-queue row component (path per what M23-S13 ships — confirm at discovery)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — both locales, same change)

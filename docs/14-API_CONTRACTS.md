@@ -999,9 +999,11 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
 
 Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or create on a customer's behalf).
 
-- `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": {...}, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn"? }`
-  - `201` — `{ "status": "ACTIVE" }` (AUTO_CONFIRM) or `{ "status": "PENDING_APPROVAL", "approvalHoldExpiresAt": "..." }` (MANUAL_APPROVAL)
+- `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": { "frequency": "WEEKLY", "daysOfWeek": string[], "startTime", "durationMinutes" }, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn"?, "customerId"? }`. `resourceIds` is required, with exactly one entry, when `assignmentPolicy` is `FIXED_ASSIGNMENT`; `customerId` is accepted only from STAFF|MANAGER acting on a customer's behalf.
+  - `201` — `{ "id", "status": "ACTIVE", "approvalHoldExpiresAt": null }` (AUTO_CONFIRM) or `{ "id", "status": "PENDING_APPROVAL", "approvalHoldExpiresAt": "..." }` (MANUAL_APPROVAL)
+  - `400` on request-schema validation (e.g. no weekday, a `resourceIds` count other than one for `FIXED_ASSIGNMENT`)
   - `409` on a future-pattern conflict (A1) or at the `MAX_ACTIVE_*` cap (A4)
+  - `422` when `endsOn` is before `startsOn` (A6) or the service is not eligible for recurrence (A7)
 - `GET /recurring-booking-schedules` → list the caller's own (Customer) or all for the tenant (STAFF|MANAGER, approval queue)
 - `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart` → skip or reschedule one occurrence (UC-070 A2). Body: `{ "action": "SKIP"|"RESCHEDULE", "replacementBookingId"? }`
 - `POST /recurring-booking-schedules/:id/pause` / `POST /recurring-booking-schedules/:id/end`

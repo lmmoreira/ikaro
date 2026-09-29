@@ -1153,7 +1153,7 @@ Returns:
 
 - **Actor:** Authenticated customer, or Staff acting on their behalf
 - **Endpoint:** `POST /recurring-booking-schedules`, `PATCH /recurring-booking-schedules/:id` (skip/reschedule occurrence, pause, end)
-- **Preconditions:** Service enables recurrence (`recurrenceEligible`, UC-055); guest bookings are not eligible.
+- **Preconditions:** Service enables recurrence (`recurrenceEligible`, UC-055) and is a flat, single-resource-requirement `APPOINTMENT` service (no `legs`, no multi-resource bundle — see `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`); guest bookings are not eligible.
 - **Trigger:** Customer or staff confirms a supported weekly/private recurrence pattern.
 - **Main Flow:**
   1. System resource-conflict-checks the proposed schedule with `FIXED_ASSIGNMENT` (customer/staff-selected resource) or `RESOLVE_PER_OCCURRENCE` (eligible automatic/fungible service).
@@ -1165,6 +1165,8 @@ Returns:
   - **A3: A later resource/configuration change makes a commitment invalid** → UC-073 queues a manager exception; the system never silently double-books or moves the customer.
   - **A4: The resource(s) are already at `MAX_ACTIVE_SCHEDULES_PER_RESOURCE`/`MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE` (50 each)** → `409 Conflict`, same messaging as A1.
   - **A5: `PENDING_APPROVAL` request reaches `approvalHoldExpiresAt` with no staff decision** → System auto-cancels it, `cancellationReason = APPROVAL_EXPIRED`, same mechanic as an expired manual-approval appointment hold. Customer is notified and may request again.
+  - **A6: `endsOn` is before `startsOn`** → `422 Unprocessable Entity`; no schedule is created. An `endsOn` equal to `startsOn` is allowed.
+  - **A7: The service is not eligible for recurrence** (not an `APPOINTMENT`, recurrence not enabled, has `legs` or more than one resource requirement, or the requested `assignmentPolicy` does not match the requirement's selection mode) → `422 Unprocessable Entity`; no schedule is created.
 - **Postconditions:** Recurrence is a standing commitment, not a best-effort reminder, once `ACTIVE`. A `PENDING_APPROVAL` request is not yet a commitment and blocks no one else's booking beyond the resource-conflict check already performed at request time.
 - **Events Triggered:** `RecurringBookingScheduleCreated` (`AUTO_CONFIRM`) or `RecurringBookingScheduleApprovalRequested` (`MANUAL_APPROVAL`) at creation; `RecurringBookingSchedulePaused`/`Ended`; ordinary booking events for each materialized occurrence.
 
