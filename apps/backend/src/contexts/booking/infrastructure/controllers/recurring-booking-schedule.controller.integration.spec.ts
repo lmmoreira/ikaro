@@ -14,7 +14,7 @@ import {
 } from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
-import { nextWeekday } from '../../../../test/utils/date-helpers';
+import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
@@ -266,8 +266,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
   // shared resource, so a 409 here can only come from the seeded occupancy row, never from an
   // active-schedule overlap with an earlier test. Index 0 is the first Friday from today.
   function fridayOccurrence(index: number): Date {
-    const first = new Date(`${nextWeekday(5)}T18:00:00.000Z`);
-    return new Date(first.getTime() + index * 7 * 24 * 60 * 60_000);
+    return new Date(`${addDays(nextWeekday(5), index * 7)}T18:00:00.000Z`);
   }
 
   function postFridayPattern(body: {

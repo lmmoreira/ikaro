@@ -186,8 +186,9 @@ function buildOccurrenceWindows(
   );
 }
 
-// An occurrence is blocked when a resource it needs is busy: any conflicting window, or — when any
-// free resource would do — only when every considered resource is busy in that occurrence.
+// An occurrence is blocked when a resource it needs is busy: a single conflicting window suffices,
+// except when one free resource is enough — then only when every considered resource is busy in
+// that occurrence.
 function hasBlockedOccurrence(
   conflicting: ResourceOccupancyWindow[],
   occurrences: { occurrenceStart: Date }[],
