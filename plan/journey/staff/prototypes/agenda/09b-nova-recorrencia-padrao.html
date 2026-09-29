@@ -42,7 +42,7 @@
         recurrenceEligible = true, bookingModel = APPOINTMENT, sem legs e com exatamente 1 resourceRequirement (replica assertServiceEligible).
       POST /recurring-booking-schedules
         Body: { customerId, serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
-                assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid] (exatamente 1 se FIXED), startsOn, endsOn? }
+                assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid] (exatamente 1 se FIXED), startsOn, endsOn }  — endsOn OBRIGATÓRIO, no máximo startsOn + prazo máximo do serviço (90 dias por padrão); todas as reservas do período são verificadas e criadas de uma vez
         customerId é obrigatório quando o autor é STAFF|MANAGER (o backend responde 404 BOOKING_CUSTOMER_NOT_FOUND se faltar ou não existir).
         Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
       Os campos e as regras são os mesmos do fluxo do cliente (customer/prototypes/minha-conta/13-nova-recorrencia.html).
@@ -161,15 +161,15 @@
           </div>
 
           <div class="field" style="margin-bottom:0;">
-            <label class="form-label" for="ends-on">Termina em <span style="opacity:.5;font-weight:400;">(opcional)</span></label>
-            <input class="form-input" id="ends-on" type="date">
-            <p class="field-hint">Sem data final, as reservas continuam sendo geradas, sempre até 90 dias à frente.</p>
+            <label class="form-label" for="ends-on">Termina em</label>
+            <input class="form-input" id="ends-on" type="date" value="2025-11-11" min="2025-08-19" max="2025-11-17" required>
+            <p class="field-hint">Escolha até quando a reserva se repete — no máximo 90 dias, até 17 nov. Depois disso a cliente pode renovar.</p>
           </div>
         </div>
 
         <div class="notice">
           <strong>Como funciona</strong>
-          <p class="meta">Verificamos todas as ocorrências dos próximos 90 dias; se alguma não estiver disponível, nada é criado. A recorrência fica na conta de Ana Costa, que poderá pular, reagendar, pausar ou encerrar.</p>
+          <p class="meta">Verificamos todas as ocorrências do período (horário de funcionamento, fechamentos e outras reservas); se alguma não estiver disponível, nada é criado. A recorrência fica na conta de Ana Costa, que poderá pular, reagendar ou encerrar.</p>
         </div>
 
         <div class="nav-buttons">

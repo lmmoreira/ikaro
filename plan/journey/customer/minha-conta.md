@@ -113,7 +113,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `04-fidelidade.html` | Minha Fidelidade — saldo + tabs ganhos/resgates | UC-016 | M13-S29 | ✅ Criado |
 | `04b-fidelidade-empty.html` | Fidelidade — estado vazio (0 pontos) | UC-016 | M13-S29 | ✅ Criado |
 | `05-trocar-empresa.html` | Trocar empresa — seleção de tenant (UC-023 trigger) | UC-023 | M13-S30 | ✅ Criado |
-| `06-reserva-recorrente.html` | Gerenciar reserva recorrente (skip/reagendar/pausar/encerrar) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `06-reserva-recorrente.html` | Gerenciar reserva recorrente (pular/reagendar/encerrar — sem pausar) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (proposta, depende da decisão de M23-S18) | UC-070 A1 | M23-S17 (só se M23-S18 rejeitar na criação) | ❓ Gap (M23 Cluster 3) |
@@ -122,8 +122,9 @@ Folder: `customer/prototypes/minha-conta/`
 | `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13d-nova-recorrencia-limite.html` | Erro — limite de recorrências ativas (409 A4) | UC-070 A4 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `13f-renovar-recorrencia.html` | Renovar — formulário pré-preenchido (A) e reserva não encontrada (B) | UC-070 | M23-S22 | ❓ Gap (M23 Cluster 3) |
 | `13e-nova-recorrencia-erro.html` | Erro — validação do padrão e falha de envio | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
-| `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ❓ Gap (M23 Cluster 3) |
+| `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status, prazo de cada uma e "Renovar" | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ❓ Gap (M23 Cluster 3) |
 | `14b-recorrentes-lista-vazia.html` | Minhas reservas recorrentes — estado vazio | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ❓ Gap (M23 Cluster 3) |
 | `08-turmas-lista.html` | Minhas Turmas — lista de matrículas | UC-089/091/094/095 | — | ❓ Gap (M24 Cluster 4) |
 | `09-turma-detail.html` | Detalhe da matrícula (turma fixa) | UC-094 | — | ❓ Gap (M24 Cluster 4) |
@@ -198,6 +199,8 @@ flowchart TD
 
     Agendamentos["/{slug}/my-account<br/>Agendamentos (real, shipped)"] -->|"Link 'Reservas recorrentes'"| Lista["❓ GAP: /{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
     Lista -->|"'+ Nova reserva recorrente'"| Padrao["❓ GAP: .../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
+    Lista -->|"'Renovar' (encerrada ou terminando) ou link do e-mail de aviso"| Renovar["❓ GAP: .../recurring-schedules/new?renewFrom=id<br/>Pré-preenchido (13f-renovar-recorrencia)"]
+    Renovar -->|"'Revisar'"| Revisar
     Lista -->|"Clica em uma reserva"| Gerenciar["❓ GAP: .../recurring-schedules/[id]<br/>Gerenciar (06-reserva-recorrente)"]
 
     Padrao -->|"'Revisar'"| Revisar["❓ GAP: mesma rota, passo 2<br/>Revisar (13b-nova-recorrencia-revisar)"]
@@ -234,8 +237,8 @@ POST  /recurring-booking-schedules/:id/end       -- end early (a `…/pause` rou
 - [ ] **Duration:** drawn as read-only, defined by the service. A `durationPolicy = CUSTOMER_SELECTED` service would need the variable-duration control (see `guest/prototypes/book-a-service/12-reserva-por-tempo.html`) — not drawn.
 - [ ] **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype; it is a dashboard surface, not part of this customer journey. Left open.
 - [x] **Hours and closures (`06d`) — decided 2026-09-29 in `M23-S18`'s discovery:** creation rejects the whole request with a `409` listing every affected occurrence and why (`OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`, merged into one list). Because occupancy and hours reasons arrive in one payload, `06b` and `06d` should become **one** screen with a reason label per row — a prototype pass to do before `M23-S17`.
-- [ ] **Fixed term — decided 2026-09-29 (recorded here because the prototypes below predate it):** a recurring schedule always has an end date, chosen by the customer up to the service's maximum term (90 days by default); every occurrence is checked at creation and created once (immediately, or on staff approval). There is no rolling generation and no open-ended schedule, so these prototype screens are out of date and need a pass: `13`/`13b` (an end-date field with a "máx. N dias" hint; "sem data final" copy removed), `13c` ("geradas… até 90 dias à frente" and "pode levar alguns minutos" no longer true — the whole term appears immediately), `13e` (states for a missing and an over-cap end date), `06`/`06b`/`06d` (the "geradas até 90 dias" copy), and `14`/`14b` (each row's term "até dd/mm", and an "Encerrada" badge for `ENDED`).
-- [ ] **Pause is removed:** with every occurrence already a booking, pausing has no effect and nothing can resume it; `M23-S20` deletes the endpoint (the Pause sheet in prototype `06` is removed in the prototype pass). Skipping one occurrence and ending the schedule stay.
+- [x] **Fixed term — decided 2026-09-29; the prototypes were updated in the same-day prototype pass (`13`, `13b`, `13c`, `13e`, `06`, `06b`, `06c`, `06d`, `14`, `14b`, new `13f`):** a recurring schedule always has an end date, chosen by the customer up to the service's maximum term (90 days by default); every occurrence is checked at creation and created once (immediately, or on staff approval). There is no rolling generation and no open-ended schedule, the screens now show: `13`/`13b` (an end-date field with a "máx. N dias" hint; "sem data final" copy removed), `13c` ("geradas… até 90 dias à frente" and "pode levar alguns minutos" no longer true — the whole term appears immediately), `13e` (states for a missing and an over-cap end date), `06`/`06b`/`06d` (the "geradas até 90 dias" copy), and `14`/`14b` (each row's term "até dd/mm", and an "Encerrada" badge for `ENDED`).
+- [x] **Pause is removed (prototype `06` and `14` no longer draw it):** with every occurrence already a booking, pausing has no effect and nothing can resume it; `M23-S20` deletes the endpoint (the Pause sheet in prototype `06` is removed in the prototype pass). Skipping one occurrence and ending the schedule stay.
 - [ ] **Renewal:** a customer who wants to continue after the term creates a new schedule. `M23-S21` sends the reminder email; `M23-S22` adds the "Renovar" button on the list (`14`) and the pre-filled form (`13`, opened by `?renewFrom=<id>`). **Neither has a prototype yet** — the button, the "Renovando sua reserva de …" banner and the not-found notice need a prototype pass before `/story-discovery M23-S22`.
 - [ ] **Bundled services** (more than one resource requirement) cannot recur today; the pattern builder therefore never shows a multi-resource picker. Tracked in `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
 - [ ] `06`'s production route was proposed as `/my-account/recurring-reservations/[id]`; this journey now uses `/my-account/recurring-schedules/[id]`, matching `M23-S12`'s planned route. A creation has no id, so `06b`/`06c` are states of the `new` route, not of `[id]`.

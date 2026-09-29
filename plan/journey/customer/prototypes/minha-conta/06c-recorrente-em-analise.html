@@ -100,7 +100,9 @@
     UC cobertos: UC-070 (branch MANUAL_APPROVAL), UC-071
     DATA:
       Resposta 201: { id, status: "PENDING_APPROVAL", approvalHoldExpiresAt }
-      Nenhuma reserva é gerada até a aprovação (UC-071); se approvalHoldExpiresAt passar, o pedido expira (UC-070 A5).
+      Nenhuma reserva é criada até a aprovação (UC-071); na aprovação todas as reservas do período são criadas de uma vez, depois de repetir a
+        verificação de horário/fechamentos e ocupação (uma ocorrência que deixou de ser possível não é criada e vai para as exceções do gestor).
+        Se approvalHoldExpiresAt passar, o pedido expira (UC-070 A5). O período pedido (startsOn → endsOn) é exibido no resumo.
   -->
 
   <!-- Prototype banner -->
@@ -166,7 +168,7 @@
 
         <p class="step-label">Sala Aurora · nova reserva recorrente</p>
         <h1 class="page-title" style="font-size:1.5rem;">Estamos analisando seu pedido de recorrência</h1>
-        <p style="opacity:.7;">Toda terça, 10:00–12:00. A Sala de reunião exige aprovação manual, então sua recorrência também passa por uma revisão — mas só uma vez para toda a série, não uma vez por semana.</p>
+        <p style="opacity:.7;">Toda terça, 10:00–12:00, de 19 de agosto a 11 de novembro. A Sala de reunião exige aprovação manual, então sua recorrência também passa por uma revisão — mas só uma vez para toda a série, não uma vez por semana.</p>
 
         <div class="card" style="border-color:#fbbf24;background:#fffbeb;margin-top:1rem;">
           <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
@@ -178,7 +180,7 @@
           <strong>O que acontece agora</strong>
           <ol style="padding-left:1.25rem;font-size:.875rem;line-height:1.7">
             <li>O negócio revisa seu pedido — uma decisão única para toda a recorrência, não uma por ocorrência.</li>
-            <li>Se aprovado, a recorrência fica ativa e as próximas reservas semanais são geradas automaticamente, sem nova aprovação a cada semana.</li>
+            <li>Se aprovado, a recorrência fica ativa e todas as reservas do período (19 ago a 11 nov) são criadas de uma vez, sem nova aprovação a cada semana.</li>
             <li>Se não houver resposta até 09:30, o pedido expira e nenhuma reserva é criada — você pode solicitar novamente quando quiser.</li>
           </ol>
         </div>

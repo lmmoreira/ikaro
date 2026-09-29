@@ -100,9 +100,9 @@
     UC cobertos: UC-070 A1 — padrão futuro conflita, criação bloqueada por inteiro
     DATA:
       POST /recurring-booking-schedules → 409 (BOOKING_RECURRING_SCHEDULE_CONFLICT)
-      ATENÇÃO: a lista de ocorrências em conflito abaixo AINDA NÃO é devolvida pela API (o 409 traz só uma mensagem genérica).
-        M23-S18 é dono da correção — um único payload [{ occurrenceStart, reason: OCCUPIED | CLOSED | OUTSIDE_HOURS }], barato porque
-        IResourceOccupancyRepository.findConflictingWindows já retorna as janelas em conflito — e M23-S17 só o renderiza.
+      A lista de ocorrências abaixo é o campo conflicts do 409 (decidido em M23-S18): [{ occurrenceStart, reason: OCCUPIED | CLOSED | OUTSIDE_HOURS }],
+        com violações de ocupação e de horário/fechamento na MESMA lista, sem truncar. M23-S18 entrega o payload; M23-S17 só o renderiza.
+        Este arquivo e 06d são o MESMO componente com dados diferentes: 06b mostra só ocorrências "Já reservado"; 06d mostra uma lista mista.
         A sugestão de outro recurso disponível, que o protótipo original de discovery mostrava, foi removida:
         a API não tem como calculá-la e seria uma funcionalidade à parte.
   -->
@@ -170,7 +170,7 @@
 
         <p class="step-label">Sala Aurora · nova reserva recorrente</p>
         <h1 class="page-title" style="font-size:1.5rem;">Toda terça, 10:00–12:00</h1>
-        <p style="opacity:.7;">Este horário viraria um compromisso recorrente, com reservas geradas até 90 dias à frente.</p>
+        <p style="opacity:.7;">Este horário viraria um compromisso recorrente de 19 de agosto a 11 de novembro (13 reservas).</p>
 
         <div class="card notice-error">
           <h2 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar esta recorrência</h2>
@@ -179,8 +179,8 @@
 
         <div class="card" style="margin-top:1rem">
           <strong>Ocorrências em conflito</strong>
-          <div class="row"><strong>26 de agosto · 10:00–12:00</strong><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva de terça.</p></div>
-          <div class="row"><strong>23 de setembro · 10:00–12:00</strong><p class="meta">Mesmo conflito — o padrão semanal repete o choque a cada quatro semanas.</p></div>
+          <div class="row"><strong>26 de agosto · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Já reservado</span><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva de terça. (<code>reason: OCCUPIED</code>)</p></div>
+          <div class="row"><strong>23 de setembro · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Já reservado</span><p class="meta">Mesmo conflito — o padrão semanal repete o choque a cada quatro semanas. (<code>reason: OCCUPIED</code>)</p></div>
         </div>
 
         <div class="notice">

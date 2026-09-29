@@ -104,9 +104,12 @@
         Ponto aberto para M23-S17: expor um indicador de elegibilidade na API para não duplicar a regra no cliente.
       POST /recurring-booking-schedules
         Body: { serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
-                assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid] (exatamente 1 se FIXED), startsOn, endsOn? }
+                assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid] (exatamente 1 se FIXED), startsOn, endsOn }
+        endsOn é OBRIGATÓRIO e no máximo startsOn + prazo máximo do serviço (Service.bookingPolicy.recurringHorizonDays, 90 dias por padrão).
         Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
-        Erros: 400 validação · 409 conflito / limite de 50 ativas · 422 serviço inelegível
+        Erros: 400 validação · 409 conflito (lista de ocorrências com motivo) / limite de 50 ativas · 422 serviço inelegível ou data final ausente / anterior ao início / além do prazo máximo
+      Prazo fixo (decidido em 2026-09-29): a recorrência sempre tem data final; todas as reservas do período são verificadas e criadas de uma vez
+        (na hora, ou quando a equipe aprovar). Não existe geração contínua nem "pausar". Para continuar depois, o cliente cria uma nova recorrência (ver 13f).
       O campo "Recurso" só aparece quando o serviço exige escolha do cliente (CUSTOMER_CHOICE → FIXED_ASSIGNMENT);
       para AUTO_ANY / AUTO_FUNGIBLE_POOL ele é omitido e a política é RESOLVE_PER_OCCURRENCE.
       Duração: somente leitura (definida pelo serviço). Serviços de duração variável não estão desenhados.
@@ -223,15 +226,15 @@
           </div>
 
           <div class="field" style="margin-bottom:0;">
-            <label class="form-label" for="ends-on">Termina em <span style="opacity:.5;font-weight:400;">(opcional)</span></label>
-            <input class="form-input" id="ends-on" type="date">
-            <p class="field-hint">Sem data final, as reservas continuam sendo geradas, sempre até 90 dias à frente.</p>
+            <label class="form-label" for="ends-on">Termina em</label>
+            <input class="form-input" id="ends-on" type="date" value="2025-11-11" min="2025-08-19" max="2025-11-17" required>
+            <p class="field-hint">Escolha até quando a reserva se repete — no máximo 90 dias, até 17 nov. Depois disso você pode renovar.</p>
           </div>
         </div>
 
         <div class="notice">
           <strong>Como funciona</strong>
-          <p class="meta">As reservas são geradas automaticamente até 90 dias à frente. Você pode pular, reagendar, pausar ou encerrar a recorrência quando quiser.</p>
+          <p class="meta">Todas as reservas do período são verificadas e criadas de uma vez, e o horário fica garantido até a data final. Você pode pular, reagendar ou encerrar a recorrência quando quiser.</p>
         </div>
 
         <div class="nav-buttons">

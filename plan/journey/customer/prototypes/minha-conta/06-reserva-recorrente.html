@@ -97,11 +97,12 @@
   <!--
     COMPONENT: RecurringScheduleDetail
     PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx  (GAP — M23-S12)
-    UC cobertos: UC-070 A2 (pular / reagendar uma ocorrência, pausar, encerrar)
+    UC cobertos: UC-070 A2 (pular / reagendar uma ocorrência, encerrar) — não existe "pausar" (removido em 2026-09-29: com o prazo fixo todas as reservas já existem)
     DATA:
       GET   /recurring-booking-schedules  (lista, filtrada pelo id)
       PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart  Body: { action: "SKIP" | "RESCHEDULE", replacementBookingId? }
-      POST  /recurring-booking-schedules/:id/pause | /end
+      POST  /recurring-booking-schedules/:id/end
+      A recorrência tem prazo fixo (endsOn obrigatório, máx. 90 dias por padrão); "Renovar" abre 13f. Mostrado quando o prazo termina em breve (regra a fechar no /story-discovery de M23-S22).
   -->
 
   <!-- Prototype banner -->
@@ -168,7 +169,7 @@
         <a class="back-link" href="14-recorrentes-lista.html">← Reservas recorrentes</a>
         <p class="step-label">Sala Aurora · reserva recorrente</p>
         <h1 class="page-title" style="font-size:1.5rem;">Toda terça, 10:00–12:00</h1>
-        <p style="opacity:.7;">Este horário é um compromisso recorrente. As próximas reservas são geradas até 90 dias à frente.</p>
+        <p style="opacity:.7;">Este horário é um compromisso recorrente até 11 de novembro — as 13 reservas do período já estão criadas. <a href="13f-renovar-recorrencia.html" style="font-size:.875rem">Renovar</a></p>
 
         <div class="card" style="margin-top:1rem;">
           <div class="row"><strong>19 de agosto · Confirmada</strong><p class="meta">Sala Aurora · 2 horas · R$ 100,00</p><a href="#skip" style="font-size:.875rem">Pular esta ocorrência</a> · <a href="#reschedule" style="font-size:.875rem">Reagendar esta ocorrência</a></div>
@@ -180,8 +181,7 @@
         <section id="reschedule" class="card panel"><h2 style="font-size:1.1rem">Escolha um novo horário</h2><p class="meta">Seu horário atual continua protegido até você confirmar uma alternativa disponível.</p><label for="slot" style="display:block;font-size:.875rem;font-weight:600;margin:1rem 0 .375rem">Horário disponível</label><select id="slot" class="form-input"><option>Qua, 20 ago · 10:00–12:00 · Sala Aurora</option><option>Qui, 21 ago · 14:00–16:00 · Sala Horizonte</option></select><div class="notice"><strong>Preço será recalculado</strong><p class="meta">A mudança só libera o horário original depois que a nova reserva for confirmada.</p></div><div class="nav-buttons"><a class="btn-secondary" href="06-reserva-recorrente.html">Cancelar</a><a class="btn-primary" href="#rescheduled">Confirmar novo horário</a></div></section>
         <section id="rescheduled" class="card panel" style="background:#dcfce7"><strong>Novo horário confirmado</strong><p class="meta">A ocorrência de 19 de agosto foi movida. Sua recorrência semanal não mudou.</p></section>
 
-        <div class="card" style="margin-top:1rem"><h2 style="font-size:1.1rem">Gerenciar recorrência</h2><p class="meta">Pausar impede a geração de novas reservas. Encerrar libera os próximos horários; nenhuma ação apaga seu histórico.</p><div class="nav-buttons"><a class="btn-secondary" href="#pause">Pausar</a><a class="btn-secondary" style="color:#b91c1c" href="#end">Encerrar</a></div></div>
-        <section id="pause" class="notice panel"><strong>Antes de pausar</strong><p class="meta">Reservas já geradas continuam exigindo uma decisão. As próximas ocorrências não serão criadas enquanto a recorrência estiver pausada.</p></section>
+        <div class="card" style="margin-top:1rem"><h2 style="font-size:1.1rem">Gerenciar recorrência</h2><p class="meta">Encerrar libera os próximos horários; nenhuma ação apaga seu histórico. Para parar só uma semana, use "Pular esta ocorrência".</p><div class="nav-buttons"><a class="btn-secondary" style="color:#b91c1c" href="#end">Encerrar</a></div></div>
         <section id="end" class="notice panel"><strong>Antes de encerrar</strong><p class="meta">Reservas futuras serão canceladas e liberarão os recursos. O histórico permanece disponível.</p></section>
 
       </div>

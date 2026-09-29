@@ -99,8 +99,10 @@
     PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; estados de erro)
     UC cobertos: UC-070
     DATA:
-      Estado A — validação: pelo menos 1 dia da semana (RecurrenceRuleSchema, 400) e endsOn não anterior a startsOn
+      Estado A — validação: pelo menos 1 dia da semana (RecurrenceRuleSchema, 400) e data final válida:
+        endsOn é obrigatório, não anterior a startsOn e não posterior a startsOn + prazo máximo do serviço
         (RecurringBookingScheduleInvalidDateRangeError → 422 BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE; data final igual à inicial é permitida).
+        A1 = data final anterior ao início · A2 = data final ausente · A3 = data final além do prazo máximo (90 dias por padrão). O cliente aplica as mesmas regras antes de enviar.
       Estado B — falha de envio (rede/5xx): nada foi criado; o padrão digitado é preservado e o botão repete o envio.
   -->
 
@@ -192,6 +194,24 @@
             <label class="form-label" for="ends-on">Termina em</label>
             <input class="form-input invalid" id="ends-on" type="date" value="2025-08-12">
             <p class="field-error">A data de término não pode ser anterior à data de início.</p>
+          </div>
+        </div>
+
+        <p class="section-label" style="margin-top:1.75rem;">Estado A2 — data final ausente</p>
+        <div class="card">
+          <div class="field" style="margin-bottom:0;">
+            <label class="form-label" for="ends-on-missing">Termina em</label>
+            <input class="form-input invalid" id="ends-on-missing" type="date" max="2025-11-17" required>
+            <p class="field-error">Escolha a data em que a recorrência termina.</p>
+          </div>
+        </div>
+
+        <p class="section-label" style="margin-top:1.75rem;">Estado A3 — data final além do prazo máximo</p>
+        <div class="card">
+          <div class="field" style="margin-bottom:0;">
+            <label class="form-label" for="ends-on-over">Termina em</label>
+            <input class="form-input invalid" id="ends-on-over" type="date" value="2025-12-30" max="2025-11-17">
+            <p class="field-error">A data final passa do limite de 90 dias (até 17 nov). Escolha uma data anterior — depois você pode renovar.</p>
           </div>
         </div>
 

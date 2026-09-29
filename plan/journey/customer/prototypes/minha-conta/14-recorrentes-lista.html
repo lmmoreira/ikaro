@@ -51,7 +51,8 @@
     .badge { display: inline-flex; align-items: center; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.1875rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; }
     .badge-ativa   { background: #f0fdf4; color: #15803d; }
     .badge-analise { background: #fef3c7; color: #92400e; }
-    .badge-pausada { background: #f1f5f9; color: #475569; }
+    .badge-encerrada { background: #f1f5f9; color: #475569; }
+    .rec-renew { display: block; text-align: right; font-size: 0.8125rem; font-weight: 600; margin: -0.25rem 0.25rem 0.75rem; }
 
     .empty-state { text-align: center; padding: 3rem 1rem; color: var(--ba-text); }
     .empty-state p { font-size: 0.9375rem; margin: 0.5rem 0 1.25rem; opacity: 0.55; }
@@ -100,7 +101,10 @@
     UC cobertos: UC-070
     DATA:
       GET /recurring-booking-schedules  → schedules do customer autenticado
-        Response: { items: [{ id, status: ACTIVE|PENDING_APPROVAL|PAUSED|ENDED, recurrence, serviceName, resourceName, nextOccurrenceStart }] }
+        Response: { items: [{ id, status: ACTIVE|PENDING_APPROVAL|CANCELLED|ENDED, recurrence, startsOn, endsOn, serviceName, resourceName, nextOccurrenceStart }] }
+      Não existe "Pausada" (removido em 2026-09-29). "Encerrada" = status ENDED, definido por um job quando endsOn passa.
+      Cada linha mostra o prazo (startsOn → endsOn). "Renovar" abre 13f pré-preenchido; aparece em Encerradas e em Ativas cujo prazo termina em breve
+        (regra exata a fechar no /story-discovery de M23-S22 — o desenho usa a janela do aviso por e-mail de M23-S21).
   -->
 
   <!-- Prototype banner -->
@@ -170,13 +174,13 @@
           <a href="13-nova-recorrencia.html" class="btn-primary" style="text-decoration:none;">+ Nova reserva recorrente</a>
         </div>
 
-        <p class="section-label">Ativas <span style="opacity:.5;">(1)</span></p>
+        <p class="section-label">Ativas <span style="opacity:.5;">(2)</span></p>
         <a href="06-reserva-recorrente.html" class="rec-card">
           <div class="rec-card-header">
             <div class="rec-accent" style="background:#059669;"></div>
             <div class="rec-body">
               <div><span class="rec-name">Sala Aurora</span><span class="badge badge-ativa">Ativa</span></div>
-              <div class="rec-meta">Toda terça · 10:00–12:00</div>
+              <div class="rec-meta">Toda terça · 10:00–12:00 · até 11 nov</div>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </div>
@@ -185,6 +189,21 @@
             <span class="rec-footer-value">Ter, 19 ago · 10:00</span>
           </div>
         </a>
+        <a href="06-reserva-recorrente.html" class="rec-card">
+          <div class="rec-card-header">
+            <div class="rec-accent" style="background:#059669;"></div>
+            <div class="rec-body">
+              <div><span class="rec-name">Sala Horizonte</span><span class="badge badge-ativa">Ativa</span></div>
+              <div class="rec-meta">Toda sexta · 16:00–18:00 · até 29 ago · termina em 7 dias</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+          <div class="rec-footer">
+            <span class="rec-footer-label">Próxima reserva</span>
+            <span class="rec-footer-value">Sex, 22 ago · 16:00</span>
+          </div>
+        </a>
+        <a class="rec-renew" href="13f-renovar-recorrencia.html">Renovar</a>
 
         <p class="section-label" style="margin-top:1.5rem;">Em análise <span style="opacity:.5;">(1)</span></p>
         <a href="06c-recorrente-em-analise.html" class="rec-card">
@@ -192,31 +211,32 @@
             <div class="rec-accent" style="background:#d97706;"></div>
             <div class="rec-body">
               <div><span class="rec-name">Sala de reunião</span><span class="badge badge-analise">Em análise</span></div>
-              <div class="rec-meta">Toda quinta · 14:00–15:00</div>
+              <div class="rec-meta">Toda quinta · 14:00–15:00 · 21 ago → 13 nov</div>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </div>
           <div class="rec-footer">
-            <span class="rec-footer-label" style="opacity:.6;">Ainda não geramos nenhuma reserva · horário protegido até 09:30</span>
+            <span class="rec-footer-label" style="opacity:.6;">Ainda não criamos nenhuma reserva · horário protegido até 09:30</span>
           </div>
         </a>
 
-        <p class="section-label" style="margin-top:1.5rem;">Pausadas <span style="opacity:.5;">(1)</span></p>
+        <p class="section-label" style="margin-top:1.5rem;">Encerradas <span style="opacity:.5;">(1)</span></p>
         <a href="06-reserva-recorrente.html" class="rec-card">
           <div class="rec-card-header">
             <div class="rec-accent" style="background:#94a3b8;"></div>
             <div class="rec-body">
-              <div><span class="rec-name">Sala Horizonte</span><span class="badge badge-pausada">Pausada</span></div>
-              <div class="rec-meta">Toda sexta · 16:00–18:00</div>
+              <div><span class="rec-name">Sala Aurora</span><span class="badge badge-encerrada">Encerrada</span></div>
+              <div class="rec-meta">Toda segunda · 09:00–10:00 · 02 jun → 25 ago</div>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </div>
           <div class="rec-footer">
-            <span class="rec-footer-label" style="opacity:.6;">Novas reservas não estão sendo geradas</span>
+            <span class="rec-footer-label" style="opacity:.6;">Período concluído em 25 ago</span>
           </div>
         </a>
+        <a class="rec-renew" href="13f-renovar-recorrencia.html">Renovar</a>
 
-        <p style="font-size:.8125rem;opacity:.55;margin-top:1.25rem;">As reservas geradas por uma recorrência também aparecem em Agendamentos.</p>
+        <p style="font-size:.8125rem;opacity:.55;margin-top:1.25rem;">As reservas de uma recorrência também aparecem em Agendamentos.</p>
 
       </div>
     </main>

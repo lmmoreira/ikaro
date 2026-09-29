@@ -443,10 +443,10 @@ Added 2026-09-29 as a deliberately small first pass in the same staff dashboard 
 ```
 POST /recurring-booking-schedules
   Body: { customerId, serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
-          assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid], startsOn, endsOn? }
+          assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid], startsOn, endsOn }
   Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
 ```
-`customerId` is required for a staff actor: the backend returns `404` `BOOKING_CUSTOMER_NOT_FOUND` when it is missing, unknown, or the actor is not an active staff member.
+`endsOn` is **required** and at most `startsOn` + the service's maximum term (`recurringHorizonDays`, 90 days by default) — a `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` otherwise. The schedule is fixed-term: every occurrence of the term is checked and created once (immediately, or when staff approve in `08`); there is no rolling generation and no Pause. `customerId` is required for a staff actor: the backend returns `404` `BOOKING_CUSTOMER_NOT_FOUND` when it is missing, unknown, or the actor is not an active staff member.
 
 **Outcome → panel (`09c`):**
 | Outcome | Panel |
@@ -463,7 +463,8 @@ All the `BOOKING_RECURRING_SCHEDULE_*` and `BOOKING_CUSTOMER_NOT_FOUND` codes ar
 **Known limitations of this prototype (gap variants, not silently dropped):**
 - ⚠ **Approval on a staff-created schedule.** `createdByStaffId` is only stored; the status still comes from the service's approval policy, so a staff-created schedule for a manual-approval service lands in `PENDING_APPROVAL` and staff would approve their own request. `#aguardando` draws today's behavior; whether staff creation should skip approval is a decision for `M23-S19`.
 - ⚠ **The customer is not notified.** Nothing sends a notification when a recurring schedule is created or decided — the backend event handler writes an audit log only — so no screen promises an e-mail. (The customer prototype `06c` does say "Enviaremos a decisão por e-mail"; that promise has no implementation behind it yet.)
-- ⚠ **The conflict list in `#conflito`** is the `409` occurrence-list payload that `M23-S18` owns (`{ occurrenceStart, reason }`, reasons `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`); the `409` returns no list until that story ships.
+- ⚠ **The conflict list in `#conflito`** is the `conflicts` field of the `409` that `M23-S18` owns (`[{ occurrenceStart, reason }]`, reasons `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`, occupancy and hours merged into one list); the `409` returns no list until that story ships. The panel draws a mixed list ("Já reservado" and "Fechado").
+- ⚠ **Fixed term (2026-09-29):** `09b` has a required end-date field capped at the service's maximum term, `09c #criada` says all the term's reservations exist at once, and `08` shows the requested term and says approving creates every occurrence at once (after the checks re-run; an occurrence that no longer passes goes to the exception worklist instead of being created).
 - ⚠ **Entry point and route.** The "+ Nova recorrência" button in the Agenda header is a default; `M23-S13` puts recurring requests in a tab inside the Agenda page, so there is no queue route of its own. A brand-new dashboard section would also need registering in the sidebar, the proxy role list, the bottom nav and the topbar titles.
 - ⚠ **Out of scope, as in the customer flow:** variable-duration services and bundled services (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`).
 - ⚠ **`08`'s sidebar and bottom-nav links** pointed at the wrong prototypes (and one missing file) when it was relocated from discovery; corrected on 2026-09-29.

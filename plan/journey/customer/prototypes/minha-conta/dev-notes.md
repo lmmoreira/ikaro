@@ -157,17 +157,18 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a re
 
 | File | Screen | Route | Story |
 |---|---|---|---|
-| `14-recorrentes-lista.html` | List: ativas / em análise / pausadas | `/{slug}/my-account/recurring-schedules` | M23-S12 (S17 adds the create button) |
+| `14-recorrentes-lista.html` | List: ativas / em análise / encerradas, each with its term ("até dd/mm") and "Renovar" | `/{slug}/my-account/recurring-schedules` | M23-S12 (S17 adds the create button) |
 | `14b-recorrentes-lista-vazia.html` | List, empty state + create button | same | M23-S12 / S17 |
 | `13-nova-recorrencia.html` | Pattern: service, resource, weekdays, start time, period | `/{slug}/my-account/recurring-schedules/new` | M23-S17 |
 | `13b-nova-recorrencia-revisar.html` | Review and confirm (step 2, same route) | same | M23-S17 |
 | `13c-nova-recorrencia-sucesso.html` | Created — `ACTIVE` | same, success state | M23-S17 |
 | `06c-recorrente-em-analise.html` | Created — `PENDING_APPROVAL` | same, pending state | M23-S17 |
 | `06b-reserva-recorrente-erro.html` | `409` conflict, with the conflicting dates | same, error state | M23-S17 |
-| `06d-reserva-recorrente-erro-horario.html` | `409` outside hours / closed day (**proposal**) | same, error state | M23-S17 (only if M23-S18 rejects at creation) |
+| `06d-reserva-recorrente-erro-horario.html` | `409` conflict, mixed list (closed day, outside hours, already booked) — same component as `06b`, different data | same, error state | M23-S17 (payload from M23-S18) |
+| `13f-renovar-recorrencia.html` | Renewal: the form pre-filled from an ended/ending schedule (state A) and the not-found fallback (state B) | `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>` | M23-S22 |
 | `13d-nova-recorrencia-limite.html` | `409` active-schedule cap reached | same, error state | M23-S17 |
 | `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
-| `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, pause, end | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
+| `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, end (no Pause) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
 | `07-availability-alert.html` | Create/manage an availability alert | `/{slug}/my-account/alerts` | M23-S12 |
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
@@ -180,7 +181,7 @@ POST /recurring-booking-schedules
   Body: { serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
           assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE",
           resourceIds?: [uuid]   // exactly one when FIXED_ASSIGNMENT
-          startsOn: "YYYY-MM-DD", endsOn?: "YYYY-MM-DD" | null }
+          startsOn: "YYYY-MM-DD", endsOn: "YYYY-MM-DD" }   // endsOn REQUIRED, <= startsOn + the service's maximum term (recurringHorizonDays, 90 days by default)
   Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt: string | null }
 ```
 
@@ -193,10 +194,10 @@ POST /recurring-booking-schedules
 |---|---|---|
 | daysOfWeek | at least one weekday (`RecurrenceRuleSchema`, `.min(1)`) | "Escolha pelo menos um dia da semana." |
 | resourceIds | exactly one when `FIXED_ASSIGNMENT` (schema `.length(1)` + refine) | not drawn — the resource list preselects one |
-| endsOn | not before `startsOn`; equal is allowed (`RecurringBookingScheduleInvalidDateRangeError` → `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE`) | "A data de término não pode ser anterior à data de início." |
+| endsOn | **required**, not before `startsOn` (equal is allowed) and not later than `startsOn` + the service's maximum term (`RecurringBookingScheduleInvalidDateRangeError` → `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE`) | before start: "A data de término não pode ser anterior à data de início." · missing: "Escolha a data em que a recorrência termina." · over the cap: "A data final passa do limite de 90 dias (até dd/mm). Escolha uma data anterior — depois você pode renovar." (`13e` states A1/A2/A3) |
 | durationMinutes | positive integer — read-only, defined by the service | — |
 
-**States:** idle → reviewing (`13b`) → submitting → created (`13c`) | pending approval (`06c`) | conflict (`06b`) | outside hours (`06d`, proposal) | cap reached (`13d`) | failure (`13e`).
+**States:** idle → reviewing (`13b`) → submitting → created (`13c`) | pending approval (`06c`) | conflict (`06b`) | hours / closed-day / occupied list (`06d`, same component as `06b`) | cap reached (`13d`) | failure (`13e`).
 
 **Outcome → screen:**
 | Outcome | Screen |
@@ -204,9 +205,9 @@ POST /recurring-booking-schedules
 | `201` `ACTIVE` | `13c` |
 | `201` `PENDING_APPROVAL` | `06c` |
 | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `06b` |
-| `409` (hours / closures) | `06d` — only if `M23-S18` decides to reject at creation |
+| `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` whose `conflicts` carry `CLOSED` / `OUTSIDE_HOURS` reasons (M23-S18 rejects at creation) | `06d` — same component as `06b`; occupancy and hours reasons can appear together in one list |
 | `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `13d` |
-| `400` / `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` | `13e`, state A |
+| `400` / `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` (missing, reversed or over-cap end date) | `13e`, state A (A1 / A2 / A3) |
 | `422` `BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE` | should be unreachable (the service list is filtered); treat as generic failure |
 | network / `5xx` | `13e`, state B — the typed pattern is preserved |
 
@@ -217,19 +218,21 @@ POST /recurring-booking-schedules
 - ⚠ **`06b` shows data the API does not return yet.** It lists the conflicting occurrences; today the `409` carries only a generic message. `M23-S18` owns the fix — one payload, a list of `{ occurrenceStart, reason }` with `reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`, cheap because `IResourceOccupancyRepository.findConflictingWindows` already returns the conflicting windows — and `M23-S17` only renders it (falling back to the generic message when the body has no list). The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
 - ⚠ **`06b`'s original dates were inconsistent** ("a cada quatro semanas" between dates two weeks apart, on days that were not Tuesdays); corrected to 26 ago and 23 set.
 - ⚠ **Duration is read-only.** A `durationPolicy = CUSTOMER_SELECTED` service needs the variable-duration control (`guest/prototypes/book-a-service/12-reserva-por-tempo.html`), not drawn.
-- ⚠ **`06d` is a proposal.** The API validates neither working hours nor closures at creation today; `M23-S05`'s plan skips hours-conflicted occurrences at generation instead.
+- ⚠ **`06d` shows data the API does not return yet.** Working hours and closures are validated at creation only once `M23-S18` ships (decided 2026-09-29: reject the whole request with the occurrence list); until then the `409` carries no list.
+- ⚠ **Fixed term (2026-09-29).** The whole term is created at once (immediately, or when staff approve), the end date is required and capped, and there is no Pause, no rolling generation and no open-ended schedule. `13`/`13b`/`13c`/`13e`/`06`/`14` were updated for it. A finished schedule shows as "Encerrada" (`ENDED`, set by a job in `M23-S05`).
+- ⚠ **Renewal (`13f`) has no story-level rule for when "Renovar" appears on an active schedule** — drawn for the window of the reminder e-mail (`M23-S21`); to be fixed in `M23-S22`'s `/story-discovery`. The by-id read that `13f` needs is not built yet (`M23-S21`).
 - ⚠ **A bundled service cannot recur**, so the form never shows a multi-resource picker. Tracked in `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
 - ⚠ **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype.
 
 **BFF calls (whole extension):**
 ```
 GET/POST/PATCH  /recurring-booking-schedules[/:id]           -- UC-070
-POST            /recurring-booking-schedules/:id/pause|end    -- UC-070 A2
+POST            /recurring-booking-schedules/:id/end          -- UC-070 A2 (the `…/pause` route is being removed by M23-S20)
 POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 ```
 
 **Open questions / gaps:**
-- [x] Stories exist: `M23-S12`, `M23-S17`, `M23-S18` — each still begins with `/story-discovery`.
+- [x] Stories exist: `M23-S12`, `M23-S17`, `M23-S18`, `M23-S20` (remove Pause), `M23-S21` (renewal reminder e-mail), `M23-S22` ("Renovar", `13f`) — each still begins with `/story-discovery`.
 - [ ] **Entry point** (default drawn): a "Reservas recorrentes" link on the Agendamentos page → `14`, with the create button on the list. Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is still a UI decision for the implementing story.
 - [ ] Every "known limitation" above.
 
