@@ -1,4 +1,5 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
+import { futureDate } from '../../utils/date-helpers';
 import { RecurringBookingScheduleEntity } from '../../../contexts/booking/infrastructure/entities/recurring-booking-schedule.entity';
 import {
   RecurringBookingScheduleAssignmentPolicy,
@@ -21,10 +22,8 @@ export class RecurringBookingScheduleEntityBuilder {
   // Relative to "today" (docs/ENGINEERING_RULES_TESTING.md § Shared test-builder date defaults):
   // a hardcoded term would silently become an already-ended schedule once its date passes. The
   // 12-week default term sits inside the 90-day maximum term.
-  private readonly startsOn = new Date().toISOString().slice(0, 10);
-  private readonly endsOn: string = new Date(Date.now() + 84 * 24 * 60 * 60_000)
-    .toISOString()
-    .slice(0, 10);
+  private readonly startsOn = futureDate(0);
+  private readonly endsOn: string = futureDate(84);
   private status: RecurringBookingScheduleStatus = 'ACTIVE';
   private assignmentPolicy: RecurringBookingScheduleAssignmentPolicy = 'FIXED_ASSIGNMENT';
   private approvalHoldExpiresAt: Date | null = null;
