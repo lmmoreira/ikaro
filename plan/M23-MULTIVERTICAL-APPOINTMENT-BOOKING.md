@@ -796,7 +796,7 @@ Build the preset-selection + minimum-answer wizard from the relocated prototype,
 **Prototype references:** `plan/journey/customer/minha-conta.md` (M23 Cluster 3 extension section) + `plan/journey/customer/prototypes/minha-conta/06-reserva-recorrente.html`, `14-recorrentes-lista.html`, `14b-recorrentes-lista-vazia.html`, `07-availability-alert.html`, `dev-notes.md` (the creation-flow screens `13*`, `06b` and `06c` belong to M23-S17)
 
 **Description:**
-Add "Meus agendamentos recorrentes" (list/skip/reschedule-occurrence/pause/end a `RecurringBookingSchedule`, with a distinct "em análise" state for `PENDING_APPROVAL`) and "Meus avisos" (list/edit/cancel an `AvailabilityAlert`) to the customer account area, per the relocated prototype. The alert-creation entry point itself (UC-072 A1's unauthenticated-redirect-preserving-criteria behavior) is part of S11's booking-flow "no availability" state, not this story — this story is the **management** surface only. Creating a recurring schedule is M23-S17's scope; S17 adds the create button and the empty-state CTA to this story's list page (screens `14`/`14b`), so it depends on this story.
+Add "Meus agendamentos recorrentes" (list/skip/reschedule-occurrence/pause/end a `RecurringBookingSchedule`, with a distinct "em análise" state for `PENDING_APPROVAL`) and "Meus avisos" (list/edit/cancel an `AvailabilityAlert`) to the customer account area, per the relocated prototype. The alert-creation entry point itself (UC-072 A1's unauthenticated-redirect-preserving-criteria behavior) is part of S11's booking-flow "no availability" state, not this story — this story is the **management** surface only. Creating a recurring schedule is M23-S17's scope; S17 adds the create button and the empty-state CTA to this story's list page (screens `14`/`14b`), so it depends on this story. Consumes the paginated `GET /recurring-booking-schedules` (TD45 Story 1): `{ items, pagination }`, default page size 25.
 
 **Files to create/modify:**
 - `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` (new)
@@ -836,7 +836,7 @@ Add "Meus agendamentos recorrentes" (list/skip/reschedule-occurrence/pause/end a
 **Prototype references:** `plan/journey/staff/agenda.md` (M23 Cluster 3 extension section) + `plan/journey/staff/prototypes/agenda/08-recurring-schedule-approval.html`, `dev-notes.md`
 
 **Description:**
-Add a "Solicitações recorrentes" tab/filter to the existing Agenda queue surfacing `PENDING_APPROVAL` recurring schedules, with approve/reject actions, per the relocated prototype.
+Add a "Solicitações recorrentes" tab/filter to the existing Agenda queue surfacing `PENDING_APPROVAL` recurring schedules, with approve/reject actions, per the relocated prototype. Fetches pending requests with `GET /recurring-booking-schedules?status=PENDING_APPROVAL` (TD45 Story 1) rather than filtering client-side, and pages through `pagination.hasMore`.
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` (+ spec) (new)

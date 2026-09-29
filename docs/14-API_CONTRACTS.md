@@ -32,7 +32,7 @@ All endpoints are served by the **BFF** (`apps/bff/`) — the frontend never cal
 
 #### **Pattern A — Offset-based, `items` key, no `nextOffset`**
 
-Used by `GET /bookings` (`BookingListResponse`, `apps/bff/src/features/booking/bookings.types.ts`).
+Used by `GET /bookings` (`BookingListResponse`, `apps/bff/src/features/booking/bookings.types.ts`) and `GET /recurring-booking-schedules` (`RecurringBookingScheduleListResponse`, `apps/bff/src/features/booking/recurring-booking-schedules.types.ts`).
 
 ```
 GET /bookings?status=APPROVED&limit=10&offset=0
@@ -1005,7 +1005,7 @@ Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or cr
   - `404` when a STAFF|MANAGER caller's `customerId` is missing, unknown in the tenant, or the caller is not an active staff member (A8)
   - `409` on a future-pattern conflict (A1) or at the `MAX_ACTIVE_*` cap (A4)
   - `422` when `endsOn` is before `startsOn` (A6) or the service is not eligible for recurrence (A7)
-- `GET /recurring-booking-schedules` → list the caller's own (Customer) or all for the tenant (STAFF|MANAGER, approval queue)
+- `GET /recurring-booking-schedules?limit=&offset=&status=` → list the caller's own (Customer) or all for the tenant (STAFF|MANAGER, approval queue). Offset-paginated, Pattern A: `{ "items": [...], "pagination": { "limit", "offset", "total", "hasMore" } }`, newest first. `limit` 1–100 (default 25), `offset` ≥ 0 (default 0), optional `status` (`PENDING_APPROVAL`|`ACTIVE`|`PAUSED`|`CANCELLED`; omitted = all statuses). `400` on out-of-range params.
 - `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart` → skip or reschedule one occurrence (UC-070 A2). Body: `{ "action": "SKIP"|"RESCHEDULE", "replacementBookingId"? }`
 - `POST /recurring-booking-schedules/:id/pause` / `POST /recurring-booking-schedules/:id/end`
 - `POST /recurring-booking-schedules/:id/approve` / `POST /recurring-booking-schedules/:id/reject` → UC-071. STAFF|MANAGER only.

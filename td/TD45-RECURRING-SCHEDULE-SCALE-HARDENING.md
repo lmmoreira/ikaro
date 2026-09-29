@@ -6,7 +6,7 @@
 - **Context**: apps/backend — booking context (`RecurringBookingSchedule`, M23-S04)
 - **Created**: 2026-09-28
 - **Discovered**: Codex round-3 `/pr-review` of PR #521 (M23-S04), both findings declined for that PR as out-of-scope (not correctness bugs; no pagination was ever part of the documented API contract) and tracked here instead
-- **Decision status**: Ready for discovery and implementation in the order below; individual stories still begin with `/story-discovery`
+- **Decision status**: Story 0 shipped (PR #532). Story 1 discovered 2026-09-29 and ready for implementation.
 - **Related**: M23-S04 (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`), `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules
 
 ## Problem
@@ -72,31 +72,56 @@ Preserved behavior: zero occurrences remain a no-op (return before loading anyth
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** S
-**Docs to load:** `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer
+**Docs to load:** `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, § Pagination Strategy (Pattern A), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer
 **Dependencies:** none (independent of Story 0)
-**Pattern:** plain composition — mirrors `findAllByTenantPaginated`'s existing precedent on `IBookingRepository`/`TypeOrmBookingRepository`
+**Pattern:** plain composition — mirrors `IBookingRepository.findAllByTenantPaginated` / `ListBookingsUseCase` exactly; no new pattern
 
-**Description:** Add `limit`/`offset` (or cursor, matching whichever style `findAllByTenantPaginated` already established for Booking) query params to `GET /recurring-booking-schedules`, threaded through `ListRecurringBookingSchedulesUseCase` and a new `findAllByTenantPaginated()` on `IRecurringBookingScheduleRepository`/`TypeOrmRecurringBookingScheduleRepository`, mirroring the existing `IBookingRepository.findAllByTenantPaginated` shape exactly rather than inventing a new pagination convention. Update `docs/14-API_CONTRACTS.md`'s documented contract for this endpoint to state the new params and default page size. BFF passes the params through unchanged (thin proxy, per the existing `RecurringBookingSchedulesController` comment).
+**Description:** Add offset pagination and an optional `status` filter to `GET /recurring-booking-schedules`, following the Booking list precedent (locked in story-discovery, 2026-09-29):
+
+1. **Query params** (backend Zod DTO `list-recurring-booking-schedules.dto.ts`, mirroring `list-bookings.dto.ts`): `limit` (int, 1–100, default 25), `offset` (int ≥ 0, default 0), `status` (optional, single `RecurringBookingSchedule` status: `PENDING_APPROVAL|ACTIVE|PAUSED|CANCELLED`). Omitting `status` returns every status — the filter narrows, it never changes what the unfiltered list means. M23-S13's approval queue passes `status=PENDING_APPROVAL`.
+2. **Response** (Pattern A, additive): `{ items, pagination: { limit, offset, total, hasMore } }`. `items` keeps its shape and position.
+3. **Behavior change, stated explicitly:** an unparameterized request now returns the first 25 rows (newest first) plus `pagination.total`/`hasMore`, instead of every row. No production caller exists yet (no `apps/web` code calls this endpoint), so nothing breaks; M23-S12/S13 consume the paginated shape from day one.
+4. **Repository:** replace the unbounded `findAllByTenant` on `IRecurringBookingScheduleRepository` with `findAllByTenantPaginated(tenantId, filters: { customerId?, status?, limit, offset }): Promise<{ items, total }>`, using `findAndCount` ordered `createdAt DESC, id DESC` (the `id` tie-breaker keeps rows from skipping or duplicating across page boundaries, per the Booking precedent). The one spec helper still calling `findAllByTenant` (`request-recurring-booking-schedule.use-case.spec.ts`) moves to the paginated method, so no unbounded read remains on the port. Child rows stay unhydrated, as today.
+5. **BFF:** `limit`/`offset`/`status` validated by a BFF Zod query schema with the same bounds, then forwarded to the backend; the response type gains `pagination`. Still a thin proxy — actor scoping stays backend-side.
+
+**Backend HTTP surface:** extends `GET /recurring-booking-schedules` (customer sees own via `actorId`; STAFF|MANAGER see all). No new endpoint.
+
+**BFF endpoint spec:** `GET /recurring-booking-schedules?limit=&offset=&status=` → `Roles('CUSTOMER','MANAGER','STAFF')`, response as above.
+
+**New migration / i18n keys / env vars / feature flags:** none. (`(tenant_id, status, approval_hold_expires_at)` and `(tenant_id, customer_id, status)` already cover the filtered reads.)
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/ports/recurring-booking-schedule-repository.port.ts` (modify — add `findAllByTenantPaginated`)
+- `apps/backend/src/contexts/booking/application/dtos/list-recurring-booking-schedules.dto.ts` (**new**)
+- `apps/backend/src/contexts/booking/application/ports/recurring-booking-schedule-repository.port.ts` (modify — replace `findAllByTenant`, extend filters)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-recurring-booking-schedule.repository.ts` (modify)
+- `apps/backend/src/test/repositories/booking/in-memory-recurring-booking-schedule.repository.ts` (modify — same order/paging semantics)
 - `apps/backend/src/contexts/booking/application/use-cases/list-recurring-booking-schedules.use-case.ts` (+ spec) (modify)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ spec) (modify — query param parsing)
-- `apps/bff/src/features/booking/recurring-booking-schedules.controller.ts` (+ schemas, spec) (modify)
-- `docs/14-API_CONTRACTS.md` (modify — document the new params)
+- `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.spec.ts` (modify — spec helper off `findAllByTenant`)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ spec) (modify — query parsing)
+- `apps/backend/http/booking/recurring-booking-schedules.http` (modify — paginated/filtered GET examples)
+- `apps/bff/src/features/booking/recurring-booking-schedules.controller.ts` (+ spec) (modify)
+- `apps/bff/src/features/booking/recurring-booking-schedules.schemas.ts` (modify — query schema)
+- `apps/bff/src/features/booking/recurring-booking-schedules.types.ts` (modify — `pagination`)
+- `docs/14-API_CONTRACTS.md` (modify — new params, defaults, response)
 
 **Acceptance criteria — product:**
-- [ ] STAFF/MANAGER's approval-queue view and a customer's own schedule list both page correctly once schedule counts exceed one page.
+- [ ] `GET /recurring-booking-schedules` returns a bounded, newest-first page with `pagination.total`/`hasMore`, so a client can walk every schedule for the tenant (or for one customer) page by page.
+- [ ] `status=PENDING_APPROVAL` returns only pending schedules, paginated; omitting `status` returns every status.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `ListRecurringBookingSchedulesUseCase` passes limit/offset through and returns a bounded page
-  - [ ] Omitted params default to the existing (unpaginated-looking but actually page-1) behavior — no breaking change for existing callers
+  - [ ] `ListRecurringBookingSchedulesUseCase` passes `limit`/`offset`/`status`/`customerId` through and computes `hasMore`
+  - [ ] Omitted params resolve to `limit=25, offset=0`, no status filter
+  - [ ] Empty result returns `items: []`, `total: 0`, `hasMore: false`
+  - [ ] DTO rejects `limit` 0/101 and negative `offset` (backend) and the same in the BFF query schema
+  - [ ] In-memory double orders `createdAt DESC, id DESC` and pages identically to the TypeORM adapter
 - Integration:
-  - [ ] Seeding N+1 schedules and requesting page size N returns exactly N, with a second page returning the remainder
+  - [ ] Repository: N+1 seeded rows, page size N → N rows, second page → remainder, `total` = N+1
+  - [ ] Repository: rows sharing one `createdAt` never skip or duplicate across a page boundary
+  - [ ] Repository: `status` filter returns only matching rows and `total` counts only them
+  - [ ] Controller (real DB): a CUSTOMER pages only their own schedules; STAFF pages all; `limit=101` → 400
 - Tenant isolation:
-  - [ ] Pagination never leaks another tenant's rows into a page
-- E2E: none — covered by existing M23-S04 E2E scope (S12)
+  - [ ] Tenant B's schedules never appear in tenant A's page and never count toward `total` (unit + integration)
+- E2E: none — no UI consumes this yet; M23-S12/S13 own the UI E2E
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
