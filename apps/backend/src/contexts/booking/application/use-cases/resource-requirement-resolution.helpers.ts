@@ -147,7 +147,7 @@ function resolveCustomerChoiceCandidateIds(
 // configuration), and returning it unfiltered let a since-deactivated pool member reach the
 // workload sort, win the tie-break over a genuinely eligible one, and then fail the whole
 // requirement at the final lookupResource() check even though an active, free member existed.
-async function resolveEligibleResources(
+export async function resolveEligibleResources(
   requirement: ResourceRequirement,
   ctx: ResolutionContext,
 ): Promise<Resource[]> {

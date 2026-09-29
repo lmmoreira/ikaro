@@ -20,7 +20,6 @@ import {
   RecurringBookingScheduleIneligibleServiceError,
 } from '../../domain/errors/recurring-booking-schedule.error';
 import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
-import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { RequestRecurringBookingScheduleUseCase } from './request-recurring-booking-schedule.use-case';
 
 const TENANT = '10000000-0000-4000-8000-000000000300';
@@ -104,7 +103,6 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       new InMemoryTenantLock(),
       new InMemoryTransactionManager(),
       new AvailabilityService(),
-      new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
     );
   });
 

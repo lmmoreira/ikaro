@@ -1,25 +1,26 @@
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import {
-  BookingBundlePartiallyUnavailableError,
-  BookingLegUnavailableError,
-  BookingSlotUnavailableError,
-} from '../../domain/errors/booking-domain.error';
+import { BookingServiceResourceTypeUnavailableError } from '../../domain/errors/booking-domain.error';
 import {
   RecurringBookingScheduleConflictError,
   RecurringBookingScheduleIneligibleServiceError,
 } from '../../domain/errors/recurring-booking-schedule.error';
 import { RequestRecurringBookingScheduleResourceAssignmentInput } from '../../domain/recurring-booking-schedule.aggregate';
 import { RecurrenceRule } from '../../domain/recurrence-rule.helpers';
+import { Resource } from '../../domain/resource.aggregate';
+import { ResourceRequirement } from '../../domain/resource-requirement';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceBookingPolicyProps } from '../../domain/service.types';
-import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
-import { IResourceRepository } from '../ports/resource-repository.port';
-import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import {
-  resolveBookingLinesResourceCandidates,
-  ResourceSelectionInput,
-} from './resource-occupancy.helpers';
+  IResourceOccupancyRepository,
+  ResourceOccupancyWindow,
+} from '../ports/resource-occupancy-repository.port';
+import { IResourceRepository } from '../ports/resource-repository.port';
+import { ITenantLockPort } from '../ports/tenant-lock.port';
+import {
+  resolveEligibleResources,
+  resolveRequirementResources,
+} from './resource-requirement-resolution.helpers';
+import { ResolutionContext } from './resource-resolution-context.helpers';
 
 // Platform default hold when Service.bookingPolicy.manualHoldMinutes is null — matches
 // booking-request.helpers.ts's own DEFAULT_MANUAL_HOLD_MINUTES (docs/02-DOMAIN_MODEL.md); kept as
@@ -90,12 +91,11 @@ export interface ConflictCheckDeps {
   resourceRepo: IResourceRepository;
   availabilityService: AvailabilityService;
   occupancyRepo: IResourceOccupancyRepository;
-  slotConflictService: BookingSlotConflictService;
+  tenantLock: ITenantLockPort;
 }
 
 export interface ConflictCheckParams {
   tenantId: string;
-  serviceId: string;
   timezone: string;
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
   resourceIds: string[];
@@ -105,64 +105,104 @@ export interface ConflictCheckParams {
 }
 
 // Resource-conflict-checks every implied occurrence within the horizon, atomically, before either
-// status branch commits (UC-070 A1) — reuses M23-S01's exact per-occurrence resolution
-// (resolveBookingLinesResourceCandidates) and conflict check (assertSlotFree), the same building
-// blocks a one-off booking uses, just replayed once per occurrence with a synthetic line.
+// status branch commits (UC-070 A1), in a number of queries independent of the occurrence count:
+// resolve the resources once, lock them once, then check every (resource x occurrence) window with
+// a single overlap query and decide per occurrence in memory. Accepts and rejects exactly what
+// resolving and checking each occurrence on its own (resolveBookingLinesResourceCandidates +
+// assertSlotFree) would.
 export async function assertPatternConflictFree(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
 ): Promise<void> {
+  if (params.occurrences.length === 0) return;
   const requirement = params.service.resourceRequirements[0];
-  const resourceSelections: ResourceSelectionInput[] =
-    params.assignmentPolicy === 'FIXED_ASSIGNMENT'
-      ? params.resourceIds.map((resourceId) => ({
-          serviceId: params.serviceId,
-          legIndex: null,
-          resourceType: requirement.type,
-          resourceId,
-        }))
-      : [];
-
-  try {
-    for (const occurrence of params.occurrences) {
-      await assertOccurrenceFree(deps, params, occurrence.occurrenceStart, resourceSelections);
-    }
-  } catch (err) {
-    if (
-      err instanceof BookingSlotUnavailableError ||
-      err instanceof BookingLegUnavailableError ||
-      err instanceof BookingBundlePartiallyUnavailableError
-    ) {
-      throw new RecurringBookingScheduleConflictError();
-    }
-    throw err;
+  const resources = await resolveConsideredResources(deps, params, requirement);
+  await deps.tenantLock.lockResources(
+    params.tenantId,
+    resources.map((resource) => resource.id),
+  );
+  const windows = buildOccurrenceWindows(deps.availabilityService, params, resources);
+  const conflicting = await deps.occupancyRepo.findConflictingWindows(params.tenantId, windows);
+  const anyFreeResourceSuffices = requirement.selectionMode === 'AUTO_ANY';
+  if (hasBlockedOccurrence(conflicting, params.occurrences, resources, anyFreeResourceSuffices)) {
+    throw new RecurringBookingScheduleConflictError();
   }
 }
 
-async function assertOccurrenceFree(
+// The resources whose availability decides an occurrence. FIXED_ASSIGNMENT: the caller's pick,
+// validated by the same rules a one-off booking applies. AUTO_ANY: every eligible resource, since
+// any free one satisfies the occurrence. AUTO_FUNGIBLE_POOL: only the first eligible one, because
+// resolveRequirementResources assigns that one without looking at availability.
+async function resolveConsideredResources(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
-  occurrenceStart: Date,
-  resourceSelections: ResourceSelectionInput[],
-): Promise<void> {
-  const lineId = uuidv7();
-  const resolved = await resolveBookingLinesResourceCandidates({
+  requirement: ResourceRequirement,
+): Promise<Resource[]> {
+  const ctx: ResolutionContext = {
     resourceRepo: deps.resourceRepo,
     availabilityService: deps.availabilityService,
     occupancyRepo: deps.occupancyRepo,
     tenantId: params.tenantId,
-    scheduledAt: occurrenceStart,
     timezone: params.timezone,
-    lines: [
-      {
-        lineId,
-        serviceId: params.serviceId,
-        durationMinsAtBooking: params.recurrence.durationMinutes,
-      },
-    ],
-    serviceMap: new Map([[params.serviceId, params.service]]),
-    resourceSelections,
+    resourceCache: new Map(),
+    activeResourcesByType: new Map(),
+    excludeBookingLineIds: [],
+  };
+  if (params.assignmentPolicy === 'FIXED_ASSIGNMENT') {
+    return resolveRequirementResources(
+      requirement,
+      ctx,
+      params.resourceIds,
+      params.occurrences[0].occurrenceStart,
+      null,
+    );
+  }
+  const eligible = await resolveEligibleResources(requirement, ctx);
+  if (eligible.length === 0) {
+    throw new BookingServiceResourceTypeUnavailableError(requirement.type);
+  }
+  return requirement.selectionMode === 'AUTO_ANY' ? eligible : eligible.slice(0, 1);
+}
+
+function buildOccurrenceWindows(
+  availabilityService: AvailabilityService,
+  params: ConflictCheckParams,
+  resources: Resource[],
+): ResourceOccupancyWindow[] {
+  const durationMs = params.recurrence.durationMinutes * 60_000;
+  const bufferAfterMinutes = params.service.bufferAfterMinutes ?? 0;
+  return params.occurrences.flatMap(({ occurrenceStart }) =>
+    resources.map((resource) => {
+      const gapMinutes = availabilityService.effectiveFlatGapMinutes(
+        bufferAfterMinutes,
+        resource.turnoverMinutes,
+      );
+      return {
+        resourceId: resource.id,
+        startsAt: occurrenceStart,
+        endsAt: new Date(occurrenceStart.getTime() + durationMs + gapMinutes * 60_000),
+      };
+    }),
+  );
+}
+
+// An occurrence is blocked when a resource it needs is busy: a single conflicting window suffices,
+// except when one free resource is enough — then only when every considered resource is busy in
+// that occurrence.
+function hasBlockedOccurrence(
+  conflicting: ResourceOccupancyWindow[],
+  occurrences: { occurrenceStart: Date }[],
+  resources: Resource[],
+  anyFreeResourceSuffices: boolean,
+): boolean {
+  const busyByStart = new Map<number, Set<string>>();
+  for (const { resourceId, startsAt } of conflicting) {
+    const key = startsAt.getTime();
+    busyByStart.set(key, (busyByStart.get(key) ?? new Set<string>()).add(resourceId));
+  }
+  return occurrences.some(({ occurrenceStart }) => {
+    const busy = busyByStart.get(occurrenceStart.getTime());
+    if (!busy) return false;
+    return anyFreeResourceSuffices ? resources.every((resource) => busy.has(resource.id)) : true;
   });
-  const { candidates } = resolved.get(lineId)!;
-  await deps.slotConflictService.assertSlotFree(params.tenantId, candidates);
 }

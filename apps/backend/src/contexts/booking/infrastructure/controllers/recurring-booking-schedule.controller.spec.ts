@@ -17,7 +17,6 @@ import { AvailabilityService } from '../../domain/services/availability.service'
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
-import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
 import { RequestRecurringBookingScheduleUseCase } from '../../application/use-cases/request-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from '../../application/use-cases/list-recurring-booking-schedules.use-case';
 import { SkipOrRescheduleOccurrenceUseCase } from '../../application/use-cases/skip-or-reschedule-occurrence.use-case';
@@ -96,7 +95,6 @@ describe('RecurringBookingScheduleController', () => {
         tenantLock,
         tx,
         new AvailabilityService(),
-        new BookingSlotConflictService(occupancyRepo, tenantLock),
       ),
       new ListRecurringBookingSchedulesUseCase(scheduleRepo),
       new SkipOrRescheduleOccurrenceUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),

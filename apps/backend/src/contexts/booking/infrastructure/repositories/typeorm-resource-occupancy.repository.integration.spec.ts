@@ -582,6 +582,99 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
     });
   });
 
+  describe('findConflictingWindows (batched recurring-pattern check)', () => {
+    function window(resourceId: string, day: number, startHour = 10, endHour = 11) {
+      return {
+        resourceId,
+        startsAt: new Date(Date.UTC(2026, 5, day, startHour)),
+        endsAt: new Date(Date.UTC(2026, 5, day, endHour)),
+      };
+    }
+
+    it('returns exactly the input windows that overlap, in input order, from one query', async () => {
+      const lineId = await seedBookingLine(TENANT_A);
+      const busy = window(resourceA, 15);
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineId,
+          [candidate(resourceA, busy.startsAt, busy.endsAt)],
+          'COMMITTED',
+          null,
+        ),
+      );
+      const windows = [
+        window(resourceA, 8),
+        busy,
+        window(resourceA2, 15),
+        window(resourceA, 22),
+        window(resourceA, 15, 10, 12),
+      ];
+
+      const conflicting = await txManager.run(() => repo.findConflictingWindows(TENANT_A, windows));
+
+      expect(conflicting).toEqual([windows[1], windows[4]]);
+    });
+
+    it('ignores REQUESTED rows and touching windows, and honors excludeBookingLineIds', async () => {
+      const requestedLine = await seedBookingLine(TENANT_A);
+      const committedLine = await seedBookingLine(TENANT_A);
+      const requested = window(resourceA, 16);
+      const committed = window(resourceA, 17);
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          requestedLine,
+          [candidate(resourceA, requested.startsAt, requested.endsAt)],
+          'REQUESTED',
+          null,
+        ),
+      );
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          committedLine,
+          [candidate(resourceA, committed.startsAt, committed.endsAt)],
+          'COMMITTED',
+          null,
+        ),
+      );
+      const touching = window(resourceA, 17, 11, 12);
+
+      const withoutExclusion = await txManager.run(() =>
+        repo.findConflictingWindows(TENANT_A, [requested, committed, touching]),
+      );
+      const withExclusion = await txManager.run(() =>
+        repo.findConflictingWindows(TENANT_A, [requested, committed, touching], [committedLine]),
+      );
+
+      expect(withoutExclusion).toEqual([committed]);
+      expect(withExclusion).toEqual([]);
+    });
+
+    it("never reports another tenant's occupancy as a conflict", async () => {
+      const lineId = await seedBookingLine(TENANT_A);
+      const busy = window(resourceA, 18);
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineId,
+          [candidate(resourceA, busy.startsAt, busy.endsAt)],
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      const conflicting = await txManager.run(() => repo.findConflictingWindows(TENANT_B, [busy]));
+
+      expect(conflicting).toEqual([]);
+    });
+
+    it('returns [] for an empty window list without querying', async () => {
+      await expect(repo.findConflictingWindows(TENANT_A, [])).resolves.toEqual([]);
+    });
+  });
+
   describe('findAssignmentsByBookingLines (approval/reschedule replay, M23-S01)', () => {
     it('returns every assignment row for the given booking lines, scoped by tenant', async () => {
       const lineId = await seedBookingLine(TENANT_A);
