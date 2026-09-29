@@ -23,6 +23,7 @@ export interface RecurringBookingScheduleListItem {
 
 export interface RecurringBookingScheduleListResponse {
   items: RecurringBookingScheduleListItem[];
+  pagination: { limit: number; offset: number; total: number; hasMore: boolean };
 }
 
 export interface SkipOrRescheduleOccurrenceResponse {

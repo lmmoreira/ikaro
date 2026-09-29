@@ -217,6 +217,96 @@ describe('RecurringBookingScheduleController (integration)', () => {
     ).toBe(true);
   });
 
+  describe('GET pagination', () => {
+    const STAFF_ID = '20000000-0000-4000-8000-000000000699';
+
+    async function walk(
+      headers: Record<string, string>,
+      query: string,
+    ): Promise<{ ids: string[]; total: number }> {
+      const ids: string[] = [];
+      let total = 0;
+      for (let offset = 0; ; offset += 2) {
+        const { body } = await request(app.getHttpServer())
+          .get(`/recurring-booking-schedules?limit=2&offset=${offset}${query}`)
+          .set(headers)
+          .expect(200);
+        ids.push(...body.items.map((i: { id: string }) => i.id));
+        total = body.pagination.total;
+        if (!body.pagination.hasMore) return { ids, total };
+      }
+    }
+
+    beforeAll(async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const entities = [
+        ...Array.from({ length: 3 }, () =>
+          new RecurringBookingScheduleEntityBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withServiceId(serviceId)
+            .withStatus('ACTIVE')
+            .build(),
+        ),
+        new RecurringBookingScheduleEntityBuilder()
+          .withTenantId(tenantId)
+          .withCustomerId(CUSTOMER_ID)
+          .withServiceId(serviceId)
+          .withStatus('PENDING_APPROVAL')
+          .withApprovalHoldExpiresAt(new Date('2099-01-01T00:00:00Z'))
+          .build(),
+      ];
+      await ds.getRepository(RecurringBookingScheduleEntity).save(entities);
+    });
+
+    it("pages a CUSTOMER's own schedules without gaps or duplicates", async () => {
+      const { ids, total } = await walk(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'), '');
+
+      expect(total).toBeGreaterThanOrEqual(4);
+      expect(ids).toHaveLength(total);
+      expect(new Set(ids).size).toBe(total);
+    });
+
+    it('lets STAFF page every schedule for the tenant, more than the customer sees', async () => {
+      const staff = await walk(actorHeaders(tenantId, STAFF_ID, 'STAFF'), '');
+      const customer = await walk(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'), '');
+
+      expect(staff.ids).toHaveLength(staff.total);
+      expect(new Set(staff.ids).size).toBe(staff.total);
+      expect(staff.total).toBeGreaterThanOrEqual(customer.total);
+    });
+
+    it('status=PENDING_APPROVAL returns only pending schedules; omitting it returns every status', async () => {
+      const headers = actorHeaders(tenantId, STAFF_ID, 'STAFF');
+
+      const { body: pending } = await request(app.getHttpServer())
+        .get('/recurring-booking-schedules?status=PENDING_APPROVAL&limit=100')
+        .set(headers)
+        .expect(200);
+      const { body: all } = await request(app.getHttpServer())
+        .get('/recurring-booking-schedules?limit=100')
+        .set(headers)
+        .expect(200);
+
+      expect(pending.items.length).toBeGreaterThan(0);
+      expect(pending.items.every((i: { status: string }) => i.status === 'PENDING_APPROVAL')).toBe(
+        true,
+      );
+      expect(all.items.some((i: { status: string }) => i.status === 'ACTIVE')).toBe(true);
+      expect(all.pagination.total).toBeGreaterThan(pending.pagination.total);
+    });
+
+    it.each(['limit=101', 'limit=0', 'offset=-1', 'status=NOPE'])(
+      'rejects out-of-range query %s with 400',
+      async (query) => {
+        await request(app.getHttpServer())
+          .get(`/recurring-booking-schedules?${query}`)
+          .set(actorHeaders(tenantId, STAFF_ID, 'STAFF'))
+          .expect(400);
+      },
+    );
+  });
+
   it('two concurrent RESOLVE_PER_OCCURRENCE requests near the per-service cap serialize correctly — only the over-cap one is rejected', async () => {
     const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY');
     const nearCapEntities = Array.from({ length: 49 }, () =>

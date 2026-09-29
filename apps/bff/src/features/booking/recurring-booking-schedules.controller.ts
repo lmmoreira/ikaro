@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -10,6 +20,8 @@ import {
   SkipOrRescheduleOccurrenceResponse,
 } from './recurring-booking-schedules.types';
 import {
+  ListRecurringBookingSchedulesQuery,
+  ListRecurringBookingSchedulesQuerySchema,
   OccurrenceStartParamSchema,
   RequestRecurringBookingScheduleBody,
   RequestRecurringBookingScheduleBodySchema,
@@ -28,9 +40,13 @@ export class RecurringBookingSchedulesController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
   @Get()
-  list(): Promise<RecurringBookingScheduleListResponse> {
+  list(
+    @Query(new ZodValidationPipe(ListRecurringBookingSchedulesQuerySchema))
+    query: ListRecurringBookingSchedulesQuery,
+  ): Promise<RecurringBookingScheduleListResponse> {
     return this.backendHttp.get<RecurringBookingScheduleListResponse>(
       '/recurring-booking-schedules',
+      query,
     );
   }
 

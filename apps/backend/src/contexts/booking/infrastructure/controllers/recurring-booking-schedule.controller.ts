@@ -7,11 +7,16 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
+import {
+  ListRecurringBookingSchedulesDto,
+  ListRecurringBookingSchedulesSchema,
+} from '../../application/dtos/list-recurring-booking-schedules.dto';
 import {
   OccurrenceStartParamSchema,
   RequestRecurringBookingScheduleDto,
@@ -54,11 +59,15 @@ export class RecurringBookingScheduleController {
   ) {}
 
   @Get()
-  list(): Promise<ListRecurringBookingSchedulesUseCaseResult> {
+  list(
+    @Query(new ZodValidationPipe(ListRecurringBookingSchedulesSchema))
+    query: ListRecurringBookingSchedulesDto,
+  ): Promise<ListRecurringBookingSchedulesUseCaseResult> {
     const { tenantId, actorId, actorRole } = this.ctx;
     const isStaffOrManager = actorRole === 'STAFF' || actorRole === 'MANAGER';
     return this.listSchedules
       .execute({
+        ...query,
         tenantId,
         customerId: isStaffOrManager ? undefined : actorId,
       })

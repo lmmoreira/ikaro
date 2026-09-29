@@ -1,16 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
+import { ListRecurringBookingSchedulesDto } from '../dtos/list-recurring-booking-schedules.dto';
 import {
   IRecurringBookingScheduleRepository,
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
 
-export interface ListRecurringBookingSchedulesUseCaseInput {
+export type ListRecurringBookingSchedulesUseCaseInput = ListRecurringBookingSchedulesDto & {
   tenantId: string;
   // undefined → all schedules for the tenant (STAFF|MANAGER, approval queue); set → only that
   // customer's own schedules.
   customerId?: string;
-}
+};
 
 export interface RecurringBookingScheduleListItem {
   id: string;
@@ -26,6 +27,7 @@ export interface RecurringBookingScheduleListItem {
 
 export interface ListRecurringBookingSchedulesUseCaseResult {
   items: RecurringBookingScheduleListItem[];
+  pagination: { limit: number; offset: number; total: number; hasMore: boolean };
 }
 
 @Injectable()
@@ -38,11 +40,14 @@ export class ListRecurringBookingSchedulesUseCase {
   async execute(
     input: ListRecurringBookingSchedulesUseCaseInput,
   ): Promise<ListRecurringBookingSchedulesUseCaseResult> {
-    const schedules = await this.scheduleRepo.findAllByTenant(input.tenantId, {
+    const { items, total } = await this.scheduleRepo.findAllByTenantPaginated(input.tenantId, {
       customerId: input.customerId,
+      status: input.status,
+      limit: input.limit,
+      offset: input.offset,
     });
     return {
-      items: schedules.map((s) => ({
+      items: items.map((s) => ({
         id: s.id,
         customerId: s.customerId,
         serviceId: s.serviceId,
@@ -53,6 +58,12 @@ export class ListRecurringBookingSchedulesUseCase {
         assignmentPolicy: s.assignmentPolicy,
         approvalHoldExpiresAt: s.approvalHoldExpiresAt?.toISOString() ?? null,
       })),
+      pagination: {
+        limit: input.limit,
+        offset: input.offset,
+        total,
+        hasMore: input.offset + input.limit < total,
+      },
     };
   }
 }

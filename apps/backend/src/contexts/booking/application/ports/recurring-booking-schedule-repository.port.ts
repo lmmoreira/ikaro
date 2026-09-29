@@ -1,17 +1,26 @@
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
+import { RecurringBookingScheduleStatus } from '../../domain/recurring-booking-schedule.types';
 
 export const RECURRING_BOOKING_SCHEDULE_REPOSITORY = Symbol('IRecurringBookingScheduleRepository');
 
 export interface RecurringBookingScheduleListFilters {
   customerId?: string;
+  status?: RecurringBookingScheduleStatus;
+  limit: number;
+  offset: number;
+}
+
+export interface RecurringBookingSchedulePaginatedResult {
+  items: RecurringBookingSchedule[];
+  total: number;
 }
 
 export interface IRecurringBookingScheduleRepository {
   findById(id: string, tenantId: string): Promise<RecurringBookingSchedule | null>;
-  findAllByTenant(
+  findAllByTenantPaginated(
     tenantId: string,
     filters: RecurringBookingScheduleListFilters,
-  ): Promise<RecurringBookingSchedule[]>;
+  ): Promise<RecurringBookingSchedulePaginatedResult>;
   // Counts every currently-ACTIVE FIXED_ASSIGNMENT schedule referencing this resourceId — used
   // for the MAX_ACTIVE_SCHEDULES_PER_RESOURCE cap check. Must be called from inside the same
   // transaction as the ITenantLockPort.lockResources() acquisition that precedes it (via

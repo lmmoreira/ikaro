@@ -199,7 +199,7 @@ describe('RecurringBookingScheduleController', () => {
       scheduleRepo.seed(own);
       scheduleRepo.seed(other);
 
-      const result = await controller.list();
+      const result = await controller.list({ limit: 25, offset: 0 });
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].customerId).toBe(CUSTOMER_ID);

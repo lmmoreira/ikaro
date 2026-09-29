@@ -100,8 +100,17 @@ X-Actor-Role: CUSTOMER
 
 ###
 
-### Manager lists every recurring schedule for the tenant
+### Manager lists every recurring schedule for the tenant (first page of 25, newest first)
 GET {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### Manager pages through the approval queue (status filter + limit/offset; limit 1-100)
+GET {{baseUrl}}/recurring-booking-schedules?status=PENDING_APPROVAL&limit=10&offset=0
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
 X-Actor-Type: STAFF

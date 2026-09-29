@@ -3,6 +3,7 @@ import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   IRecurringBookingScheduleRepository,
   RecurringBookingScheduleListFilters,
+  RecurringBookingSchedulePaginatedResult,
 } from '../../../contexts/booking/application/ports/recurring-booking-schedule-repository.port';
 import { RecurringBookingSchedule } from '../../../contexts/booking/domain/recurring-booking-schedule.aggregate';
 
@@ -21,13 +22,19 @@ export class InMemoryRecurringBookingScheduleRepository implements IRecurringBoo
     return schedule;
   }
 
-  async findAllByTenant(
+  async findAllByTenantPaginated(
     tenantId: string,
     filters: RecurringBookingScheduleListFilters,
-  ): Promise<RecurringBookingSchedule[]> {
+  ): Promise<RecurringBookingSchedulePaginatedResult> {
     let results = Array.from(this.store.values()).filter((s) => s.tenantId === tenantId);
     if (filters.customerId) results = results.filter((s) => s.customerId === filters.customerId);
-    return results;
+    if (filters.status) results = results.filter((s) => s.status === filters.status);
+    // Same order as the TypeORM adapter: createdAt DESC, id DESC as the tie-breaker.
+    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+    return {
+      items: results.slice(filters.offset, filters.offset + filters.limit),
+      total: results.length,
+    };
   }
 
   async countActiveByResource(tenantId: string, resourceId: string): Promise<number> {
