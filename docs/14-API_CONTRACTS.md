@@ -1002,6 +1002,7 @@ Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or cr
 - `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": { "frequency": "WEEKLY", "daysOfWeek": string[], "startTime", "durationMinutes" }, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn"?, "customerId"? }`. `resourceIds` is required, with exactly one entry, when `assignmentPolicy` is `FIXED_ASSIGNMENT`; `customerId` is accepted only from STAFF|MANAGER acting on a customer's behalf.
   - `201` — `{ "id", "status": "ACTIVE", "approvalHoldExpiresAt": null }` (AUTO_CONFIRM) or `{ "id", "status": "PENDING_APPROVAL", "approvalHoldExpiresAt": "..." }` (MANUAL_APPROVAL)
   - `400` on request-schema validation (e.g. no weekday, a `resourceIds` count other than one for `FIXED_ASSIGNMENT`)
+  - `404` when a STAFF|MANAGER caller's `customerId` is missing, unknown in the tenant, or the caller is not an active staff member (A8)
   - `409` on a future-pattern conflict (A1) or at the `MAX_ACTIVE_*` cap (A4)
   - `422` when `endsOn` is before `startsOn` (A6) or the service is not eligible for recurrence (A7)
 - `GET /recurring-booking-schedules` → list the caller's own (Customer) or all for the tenant (STAFF|MANAGER, approval queue)

@@ -396,7 +396,7 @@ export interface CompleteBookingResponse {
 
 ---
 
-## ❓ GAP — M21 Cluster 3 extension (UC-071, UC-074, not yet built)
+## ❓ GAP — M23 Cluster 3 extension (UC-070 staff variant, UC-071, UC-074, not yet built)
 
 > Everything above this line is shipped. Everything below is new, unimplemented scope. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
 
@@ -406,17 +406,64 @@ export interface CompleteBookingResponse {
 
 | File | Status |
 |---|---|
-| `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` | ❓ Gap |
-| `03-booking-detail-approved.html`'s no-show action | ❓ Gap — extend existing `BookingDetailApproved` component, no new screen |
+| `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` | ❓ Gap — M23-S13 |
+| `03-booking-detail-approved.html`'s no-show action | ❓ Gap — extend existing `BookingDetailApproved` component, no new screen (M23-S09) |
+| `apps/web/app/dashboard/bookings/recurring/new/page.tsx` | ❓ Gap — M23-S19 (route proposed; see the route question below) |
+| `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleCustomerStep.tsx`, `NewRecurringScheduleForStaff.tsx`, `NewRecurringScheduleForStaffResult.tsx` | ❓ Gap — M23-S19 (the Agenda page's real folder is `dashboard/bookings/`, next to `BookingQueuePage.tsx`; `M23-S13`'s plan cites an `agenda/` folder that does not exist) |
 
 **BFF calls:**
 ```
 GET  /recurring-booking-schedules?status=PENDING_APPROVAL   -- UC-071 queue
 POST /recurring-booking-schedules/:id/approve|reject          -- UC-071
+GET  /customers?search=&limit=                                 -- UC-070 staff variant: customer picker (STAFF|MANAGER; existing endpoint)
+POST /recurring-booking-schedules   (body carries customerId)  -- UC-070 staff variant
 POST /bookings/:id/no-show                                    -- UC-074
 POST /bookings/:id/no-show/correct                             -- UC-074 A3
 ```
 
 **Open questions / gaps:**
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
-- [ ] Whether the recurring-schedule approval queue is a separate list or folds into `00-agenda.html`'s existing queue is a UI decision for the implementing story.
+- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show, UC-074), `M23-S19` (staff creating on a customer's behalf) — each still begins with `/story-discovery`.
+- [ ] Whether the recurring-schedule approval queue is a separate list or folds into `00-agenda.html`'s existing queue is a UI decision for `M23-S13` (its plan says a tab inside the Agenda page).
+
+### Staff creating a recurring schedule on a customer's behalf — `09`, `09b`, `09c` (M23-S19)
+
+Added 2026-09-29 as a deliberately small first pass in the same staff dashboard shell as `08`; every choice is a default to recheck at `M23-S19`'s story-discovery. The flow diagram is in `../../agenda.md`. UC-070 allows staff to create on a customer's behalf and `POST /recurring-booking-schedules` already accepts it (`@Roles('CUSTOMER','MANAGER','STAFF')`, body `customerId`), so this is a frontend story.
+
+| File | Screen | Route (proposed) |
+|---|---|---|
+| `09-nova-recorrencia-cliente.html` | Step 1 — pick the customer | `/dashboard/bookings/recurring/new` |
+| `09b-nova-recorrencia-padrao.html` | Step 2 — the pattern, for the chosen customer | same route, step 2 |
+| `09c-nova-recorrencia-resultado.html` | Outcomes (one panel each) | same route, result states |
+
+**Customer picker (`NewRecurringScheduleCustomerStep`):** reuses the existing staff customer search — `GET /customers?search=&limit=` (`STAFF|MANAGER`), debounced like `LoyaltySearchPage`, through the existing `searchCustomers()` fetcher in `@/features/customer/api`. With no term it returns the recent customers. Each result carries `customerId`, `name`, `email` (and `currentPoints`, which is not shown). Only customers with an account in the tenant exist in the search, and a guest can never have a recurrence.
+
+**Pattern form (`NewRecurringScheduleForStaff`):** the same fields and rules as the customer flow (`customer/prototypes/minha-conta/13-nova-recorrencia.html`, which owns the service filter, the resource field, the duration rule and the validation table) plus the chosen customer's chip with "Trocar cliente". The service list has no server-side recurrence filter, so the client filters on `recurrenceEligible`, `APPOINTMENT`, no `legs` and exactly one requirement, replicating `assertServiceEligible`.
+
+**BFF call:**
+```
+POST /recurring-booking-schedules
+  Body: { customerId, serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
+          assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid], startsOn, endsOn? }
+  Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
+```
+`customerId` is required for a staff actor: the backend returns `404` `BOOKING_CUSTOMER_NOT_FOUND` when it is missing, unknown, or the actor is not an active staff member.
+
+**Outcome → panel (`09c`):**
+| Outcome | Panel |
+|---|---|
+| `201` `ACTIVE` | `#criada` |
+| `201` `PENDING_APPROVAL` | `#aguardando` |
+| `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `#conflito` |
+| `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `#limite` |
+| `404` `BOOKING_CUSTOMER_NOT_FOUND` | `#cliente` |
+| network / `5xx` | `#falha` — the typed pattern is preserved |
+
+All the `BOOKING_RECURRING_SCHEDULE_*` and `BOOKING_CUSTOMER_NOT_FOUND` codes are already translated in both `errors.json` files.
+
+**Known limitations of this prototype (gap variants, not silently dropped):**
+- ⚠ **Approval on a staff-created schedule.** `createdByStaffId` is only stored; the status still comes from the service's approval policy, so a staff-created schedule for a manual-approval service lands in `PENDING_APPROVAL` and staff would approve their own request. `#aguardando` draws today's behavior; whether staff creation should skip approval is a decision for `M23-S19`.
+- ⚠ **The customer is not notified.** Nothing sends a notification when a recurring schedule is created or decided — the backend event handler writes an audit log only — so no screen promises an e-mail. (The customer prototype `06c` does say "Enviaremos a decisão por e-mail"; that promise has no implementation behind it yet.)
+- ⚠ **The conflict dates in `#conflito`** depend on the same API decision as the customer flow (`M23-S17`): the `409` returns no dates today.
+- ⚠ **Entry point and route.** The "+ Nova recorrência" button in the Agenda header is a default; `M23-S13` puts recurring requests in a tab inside the Agenda page, so there is no queue route of its own. A brand-new dashboard section would also need registering in the sidebar, the proxy role list, the bottom nav and the topbar titles.
+- ⚠ **Out of scope, as in the customer flow:** variable-duration services and bundled services (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`).
+- ⚠ **`08`'s sidebar and bottom-nav links** pointed at the wrong prototypes (and one missing file) when it was relocated from discovery; corrected on 2026-09-29.

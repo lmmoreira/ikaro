@@ -34,6 +34,7 @@
 | 4 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 4 | M23-S18 | Recurring-schedule creation checks working hours and closures (UC-070) |
 | 5 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
+| 6 | M23-S19 | Staff creates a recurring private reservation on a customer's behalf (UC-070) |
 
 ```mermaid
 graph TD
@@ -53,6 +54,9 @@ graph TD
   S05 --> S17
   S05 --> S18
   S12 --> S17
+  S05 --> S19
+  S13 --> S19
+  S17 --> S19
   S06 --> S07
   S06 --> S12
   S07 --> S12
@@ -926,6 +930,7 @@ Add the customer-side creation flow for a recurring private reservation: a patte
 7. **Validation** (only rules the backend really enforces): at least one weekday; `endsOn` not before `startsOn` (equal is allowed — `RecurringBookingScheduleInvalidDateRangeError`); exactly one resource for `FIXED_ASSIGNMENT`. The client applies the same rules and shows the existing `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` message for the date rule.
 8. **Transport and tenant.** A `bffClient` mutation (React Query) inside `features/customer`; `tenantId` only from `useTenant()`; no raw `fetch()`. "Today" (the earliest start date) is computed in the tenant's timezone, never the browser clock.
 9. **Bundled services cannot recur** (single-resource only today), so no multi-resource picker is drawn or built — `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
+10. **Reusable by staff.** M23-S19 (staff creating on a customer's behalf) reuses the service filter, the request-body builder, the validation and the outcome mapper, so keep them as pure functions with no `CustomerShell` or my-account imports; where they live is M23-S19's decision D.
 
 **Decisions left for this story's `/story-discovery`** (each was deliberately not settled when the prototype was drawn):
 - **A. Entry point.** Default drawn: a "Reservas recorrentes" link on the Agendamentos page → the list → a create button. Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement in `CustomerShell` (new tab vs. folded into Agendamentos) is S12's open UI decision too.
@@ -1046,5 +1051,87 @@ Whichever is locked must be mirrored in M23-S05's generation step. If (2) or (3)
 - Tenant isolation:
   - [ ] Another tenant's closures, openings and business hours never affect the request
 - E2E: none — the customer-facing state is covered by M23-S17
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S19 — Staff creates a recurring private reservation on a customer's behalf
+
+**Agent:** frontend-ts
+**Complexity:** M
+**Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md, docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
+**Dependencies:** M23-S17 (the pattern rules, service filter, request builder and outcome mapping this story reuses), M23-S13 (the Agenda's recurring-requests tab, and the recurring fetcher module), M23-S05 (approval and generation)
+**Pattern:** plain composition — reuses M23-S17's pure logic (service filter, request-body builder, outcome mapper, validation rules) and adds only a customer step and the dashboard shell; no new named pattern.
+
+**Discovered:** 2026-09-29, while closing the gaps around M23-S17. UC-070 allows staff to create a recurring schedule on a customer's behalf, and `POST /recurring-booking-schedules` already accepts it (`@Roles('CUSTOMER', 'MANAGER', 'STAFF')`, body `customerId`), but no story and no prototype builds a staff-facing UI for it, and the staff dashboard has no create-on-behalf flow of any kind (`apps/web/app/dashboard/bookings/` holds only the queue and the detail page).
+
+**Description:**
+Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservation for a customer from the dashboard: pick the customer, choose the pattern, create it, and see the outcome. The screens were prototyped on 2026-09-29 as a deliberately small first pass in the staff dashboard shell (`plan/journey/staff/prototypes/agenda/` `09`, `09b`, `09c`); the journey (`plan/journey/staff/agenda.md`) carries the flow diagram and `dev-notes.md` the contract.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **No backend or BFF change is needed for the flow itself.** The controller already allows `STAFF|MANAGER`, and the use case takes `customerId` from the body for a staff actor: it requires an active staff member and an existing customer, otherwise `404` `BOOKING_CUSTOMER_NOT_FOUND` (also returned when `customerId` is missing).
+2. **Customer picker.** The existing `searchCustomers()` in `apps/web/features/customer/api.ts` (`GET /customers?search=&limit=`, `STAFF|MANAGER`), debounced like `LoyaltySearchPage`; with no term it returns the recent customers. A result carries `customerId`, `name`, `email` (and `currentPoints`, not shown). Only customers with an account in the tenant exist in it, and a guest can never have a recurrence.
+3. **Design system.** The dashboard shell (Tailwind + shadcn), never the hotsite's `--ba-*` variables.
+4. **Rules come from M23-S17, not a second copy.** The eligible-service filter (`recurrenceEligible`, `APPOINTMENT`, no `legs`, exactly one requirement), the resource field (only for `CUSTOMER_CHOICE`, exactly one `resourceIds` entry), the read-only duration, the validation (a weekday required, `endsOn` not before `startsOn`) and the outcome mapping are M23-S17's; this story adds the `customerId` to the request and the extra `404` outcome.
+5. **Outcome mapping** (all codes already translated in both `errors.json` files):
+   | Outcome | Panel (`09c`) |
+   |---|---|
+   | `201` `ACTIVE` | `#criada` |
+   | `201` `PENDING_APPROVAL` | `#aguardando` — links to M23-S13's recurring-requests tab |
+   | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `#conflito` |
+   | `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `#limite` |
+   | `404` `BOOKING_CUSTOMER_NOT_FOUND` | `#cliente` — back to the customer step |
+   | network / `5xx` | `#falha` — the typed pattern is preserved |
+6. **Transport and tenant.** A `bffClient` mutation inside `features/booking`; `tenantId` only from `useTenant()`; no raw `fetch()`.
+7. **Ownership.** The created schedule belongs to the chosen customer, so it appears in that customer's own recurring-reservations list (M23-S12) and they can manage it.
+8. **Out of scope:** variable-duration services and bundled services (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`), as in the customer flow.
+
+**Decisions left for this story's `/story-discovery`:**
+- **A. Approval on a staff-created schedule (a business rule).** Today `createdByStaffId` is only stored: the status still comes from the service's approval policy, so a staff-created schedule for a manual-approval service lands in `PENDING_APPROVAL` and staff would approve their own request. `09c #aguardando` draws that behavior. If staff creation should skip approval, this story gains a small backend change (the request use case and aggregate, plus `docs/02` and `docs/04`); if not, no backend work.
+- **B. Customer notification.** Nothing notifies a customer when a recurring schedule is created or decided — the backend event handler writes an audit log only, and no M23 story lists the notification work. A schedule created for a customer is therefore silent to them. Decide whether that is acceptable, or whether a notification is added here or in its own story (`docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type).
+- **C. Entry point and route.** Default drawn: a "+ Nova recorrência" button in the Agenda header, route `/dashboard/bookings/recurring/new` (a static segment next to `[id]`). M23-S13 puts recurring requests in a tab inside the Agenda page, so there is no queue route of its own; alternatives are a button inside that tab or an entry under a customer. A new dashboard route must be registered wherever its siblings are: the Topbar title resolver `apps/web/shells/dashboard/model/topbar-route.ts`, `BottomNav.tsx`'s hide-on-drilldown matcher, and — only for a brand-new section — `Sidebar.tsx` and the `MANAGER_ONLY_ROUTES` list in `apps/web/proxy.ts`. Two traps, both verified in code: `matchBookingDetailRoute()` (`shells/dashboard/model/booking-route.ts`, used by the Topbar and by `BottomNav`) reads `/dashboard/bookings/<one segment>` as a booking id, so the route must keep two segments after `/dashboard/bookings/` (as `recurring/new` does) — a single-segment route such as `/dashboard/bookings/recurring` would be treated as booking `recurring`; and `PAGE_TITLE_KEYS` matches by prefix in order, so a title entry for the new route has to come before the `/dashboard/bookings` entry or the page shows the generic Bookings title.
+- **D. Where the shared pure logic lives.** M23-S17 places its components in `features/customer/components/my-account/`; the shared logic (decision 4) should live once, in the owning domain slice (`apps/web/features/booking/model/`, per `CLAUDE.md` §11) and be imported by both stories. Confirm at discovery, and move it there if S17 shipped it elsewhere.
+- **E. Conflict dates.** `#conflito` lists the conflicting dates only if M23-S17's discovery makes the `409` return them; otherwise it shows the translated generic message.
+
+**Backend use case steps:** none — reuses M23-S04's `RequestRecurringBookingScheduleUseCase`. Conditional on decision A only.
+**Backend HTTP surface:** reuses `POST /recurring-booking-schedules` and `GET /customers`, unchanged.
+**BFF endpoint spec:** none — both routes exist; the BFF stays a thin proxy.
+**Prototype references:** `plan/journey/staff/agenda.md` (M23 Cluster 3 extension) + `plan/journey/staff/prototypes/agenda/09-nova-recorrencia-cliente.html`, `09b-nova-recorrencia-padrao.html`, `09c-nova-recorrencia-resultado.html`, `08-recurring-schedule-approval.html`, `dev-notes.md`
+**New migration / i18n keys / env vars / feature flags:** no migration, env var or feature flag. i18n keys: a new group in both `packages/i18n/locales/{pt-BR,en}/web.json` under the dashboard's existing bookings namespace (the button, the two steps, the customer step's states, the per-outcome result copy), verified against the file's real shape at implementation time. No new error-code translations: every code above is already present in both `errors.json` files.
+
+**Files to create/modify:**
+- `apps/web/app/dashboard/bookings/recurring/new/page.tsx` (new — route per decision C)
+- `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleCustomerStep.tsx` (+ spec) (new)
+- `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleForStaff.tsx` (+ spec) (new)
+- `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleForStaffResult.tsx` (+ spec) (new)
+- `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (+ spec) (modify — the "+ Nova recorrência" button; the real Agenda component today, not the `agenda/` folder M23-S13's plan names)
+- `apps/web/shells/dashboard/model/topbar-route.ts` (+ spec) and `apps/web/shells/dashboard/components/BottomNav.tsx` (+ spec) (modify — title and hide-on-drilldown for the new route); `Sidebar.tsx` and `apps/web/proxy.ts` only if decision C picks a new section
+- The mutation hook and its fetcher, beside M23-S13's recurring fetcher module (paths per what M23-S13 and M23-S17 ship — confirm at discovery, not stated from memory)
+- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify — same change)
+- `apps/web/e2e/dashboard-recurring-schedule-create.spec.ts` (new — the name follows the folder's dashboard specs, confirm at discovery; reusable flow helpers under `apps/web/e2e/helpers/booking/`)
+- `plan/journey/staff/agenda.md`, `plan/journey/staff/prototypes/agenda/dev-notes.md`, `plan/journey/staff/prototypes/agenda/index.html` (modify — flip the `09*` `❓ GAP` status in the same commit)
+- Only if decision A skips approval: `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.ts` (+ spec) and `apps/backend/src/contexts/booking/domain/recurring-booking-schedule.aggregate.ts` (+ spec) (modify), and `docs/02-DOMAIN_MODEL.md`, `docs/04-USE_CASES.md`
+
+**Acceptance criteria — product:**
+- [ ] Staff can create a recurring reservation for a customer from the dashboard: find the customer, choose the pattern, create it.
+- [ ] Each outcome (created, waiting for approval, conflict, limit reached, customer not found, failure) is shown with its own message; on any failure nothing is created and the pattern staff typed is kept.
+- [ ] The created schedule belongs to the chosen customer and shows up in that customer's own recurring-reservations list.
+
+**Acceptance criteria — technical:**
+- Unit (Vitest, jsdom):
+  - [ ] The customer step searches with a debounce, shows the recent customers for an empty term, and offers the no-results and search-error states; nothing can proceed without a chosen customer
+  - [ ] Choosing a customer carries its `customerId` into the request, and "Trocar cliente" returns to the step with the search kept
+  - [ ] The submit sends the exact `POST` body including `customerId` for both policies (`FIXED_ASSIGNMENT` with exactly one `resourceIds` entry, `RESOLVE_PER_OCCURRENCE` with none)
+  - [ ] The outcome mapper lands every status/code in decision 5 on its panel, including the `404` customer-not-found
+  - [ ] `NewRecurringScheduleForStaffResult` renders each of the six outcomes with its own copy in both locales
+  - [ ] `BookingQueuePage` renders the create button for both `STAFF` and `MANAGER`, and the Topbar resolves a title for the new route
+- Integration: n/a — web stories have no integration tier; the backend `POST` and `GET /customers` are covered by M23-S04 and the customer context
+- Tenant isolation: n/a — client-side; the hook takes `tenantId` only from `useTenant()` and the search goes through the existing tenant-scoped endpoint
+- E2E:
+  - [ ] Playwright, route `/dashboard/bookings`: the "+ Nova recorrência" button opens the customer step
+  - [ ] Playwright, route `/dashboard/bookings/recurring/new`: staff finds a seeded customer, creates a recurring schedule for a real seeded auto-confirm service, and sees the created state; the same customer then sees it in their own list
+  - [ ] Playwright, same route: a pattern that collides with seeded occupancy shows the conflict state with nothing created, and "Alterar padrão" returns to the pattern with everything preserved
+  - [ ] Playwright, same route: a manual-approval service shows the waiting-for-approval state, and its link opens M23-S13's recurring-requests tab with the request in it
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean

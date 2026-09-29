@@ -2,7 +2,7 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Review the daily booking queue, action each request — approve, reject, or request more information — and manage an approved booking through to completion, cancellation, or reschedule  
-**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-071, UC-074 (❓ Gap — M23 Cluster 3, recurring-schedule approval + appointment no-show)  
+**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating on a customer's behalf), UC-071, UC-074 (❓ Gap — M23 Cluster 3, recurring-schedule creation on behalf + approval + appointment no-show)  
 **Status:** Draft
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
@@ -131,8 +131,10 @@ Folder: `staff/prototypes/agenda/`
 | `05-reschedule.html` | Reschedule flow | UC-008 Alt A1 | — | ✅ Criado |
 | `05b-reschedule-conflict.html` | Reschedule Alt A2 — new slot became unavailable on confirm | UC-008 Alt A2 | — | ✅ Criado |
 | `05c-reschedule-success.html` | Reschedule confirmed inline state | UC-008 Alt A1 | — | ✅ Criado |
-
-| `08-recurring-schedule-approval.html` | Approve/reject a `RecurringBookingSchedule` request | UC-071 | — | ❓ Gap (M23 Cluster 3) |
+| `08-recurring-schedule-approval.html` | Approve/reject a `RecurringBookingSchedule` request | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
+| `09-nova-recorrencia-cliente.html` | Nova recorrência em nome de um cliente — escolher o cliente (busca, recentes, sem resultado, erro de busca) | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
+| `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recurso, dias, horário, período) para o cliente escolhido | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
+| `09c-nova-recorrencia-resultado.html` | Desfechos: criada, aguardando aprovação, conflito, limite, falha, cliente não encontrado | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
 
@@ -140,5 +142,37 @@ Folder: `staff/prototypes/agenda/`
 
 > Promoted from `docs/discovery/multivertical-booking/`. UC-071's approval queue mirrors this journey's existing manual-approval-appointment queue shape. UC-074 (no-show) extends `03-booking-detail-approved.html`'s existing Cancel/Complete/Reschedule action set with a new "Marcar não comparecimento" action — no new screen needed, same page. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 
-- [ ] No story exists yet — needs `/story-discovery` once the M23 milestone file is drafted.
-- [ ] Whether the recurring-schedule approval queue is a separate list or folds into the existing booking queue (`00-agenda.html`) is a UI decision for the implementing story.
+> **Staff creating a recurring schedule on a customer's behalf** (UC-070 allows it, and `POST /recurring-booking-schedules` already accepts a `customerId` from `STAFF|MANAGER`) was added on 2026-09-29 as a deliberately small first pass (`09`, `09b`, `09c`), in the same staff dashboard shell as `08`. Every choice is a default to recheck at `M23-S19`'s story-discovery.
+
+```mermaid
+flowchart TD
+    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
+
+    Agenda["/dashboard/bookings<br/>Agenda (real, shipped)"] -->|"'+ Nova recorrência' (cabeçalho)"| Cliente["❓ GAP: escolher cliente<br/>(09-nova-recorrencia-cliente)"]
+    Cliente -->|"busca e seleciona"| Padrao["❓ GAP: padrão para o cliente<br/>(09b-nova-recorrencia-padrao)"]
+    Padrao -->|"'Trocar cliente'"| Cliente
+    Padrao -->|"'Criar recorrência'"| Envio(("POST /recurring-booking-schedules<br/>com customerId"))
+
+    Envio -->|"201 ACTIVE"| Criada["❓ GAP: mesma rota, resultado<br/>(09c #criada)"]
+    Envio -->|"201 PENDING_APPROVAL"| Aguardando["❓ GAP: mesma rota, resultado<br/>(09c #aguardando)"]
+    Envio -->|"409 conflito"| Conflito["❓ GAP: (09c #conflito)"]
+    Envio -->|"409 limite de recorrências ativas"| Limite["❓ GAP: (09c #limite)"]
+    Envio -->|"404 cliente não encontrado"| ClienteNaoEncontrado["❓ GAP: (09c #cliente)"]
+    Envio -->|"erro rede/5xx"| Falha["❓ GAP: (09c #falha)"]
+
+    Aguardando -->|"'Abrir solicitações recorrentes'"| Aprovar["❓ GAP: 08-recurring-schedule-approval"]
+    Conflito -->|"'Alterar padrão'"| Padrao
+    Limite -->|"'Alterar padrão'"| Padrao
+    ClienteNaoEncontrado -->|"'Escolher outro cliente'"| Cliente
+    Falha -->|"'Tentar novamente'"| Padrao
+```
+
+**Open questions / gaps:**
+- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show, UC-074) and `M23-S19` (staff creating on a customer's behalf). Each still begins with `/story-discovery`.
+- [ ] **Entry point (default drawn):** a "+ Nova recorrência" button in the Agenda header. `M23-S13` adds recurring requests as a tab inside the existing Agenda page, so there is no queue route of its own to hang a create button on. Alternatives: a button inside that tab, or an entry under a customer.
+- [ ] Whether the recurring-schedule approval queue is a separate list or folds into the existing booking queue (`00-agenda.html`) is a UI decision for `M23-S13`.
+- [ ] **Approval on a staff-created schedule.** Today a schedule created by staff for a service that requires manual approval still lands in `PENDING_APPROVAL`, so staff would approve their own request. Should staff creation skip approval? (`09c #aguardando` draws today's behavior.)
+- [ ] **The customer is not notified.** No notification is sent when a recurring schedule is created or decided — the backend handler writes an audit log only, and no story lists notification work for these events. `09b` therefore never promises an e-mail. The schedule does appear in the customer's own list (`M23-S12`).
+- [ ] **Route.** Proposed `/dashboard/bookings/recurring/new`; a brand-new dashboard section would also need registering in the sidebar, the proxy role list, the bottom nav and the topbar titles.
+- [ ] **The `06b`-style conflict dates** in `09c #conflito` depend on the same API decision as the customer flow (`M23-S17`).
+- [ ] Variable-duration services and bundled services are out of scope here, as in the customer flow (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` tracks bundles).
