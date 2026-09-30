@@ -4,8 +4,8 @@ export class FutureCommitmentExceptionRaisedEventBuilder {
   private tenantId = '00000000-0000-7000-8000-000000000001';
   private correlationId = 'corr-fce-raised-1';
   private exceptionId = '11111111-0001-7000-8000-000000000001';
-  private sourceId = '22222222-0001-7000-8000-000000000001';
-  private affectedId = '33333333-0001-7000-8000-000000000001';
+  private readonly sourceId = '22222222-0001-7000-8000-000000000001';
+  private readonly affectedId = '33333333-0001-7000-8000-000000000001';
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
