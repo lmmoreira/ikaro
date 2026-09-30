@@ -6,6 +6,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
@@ -36,7 +37,7 @@ export class ExpireRecurringBookingScheduleApprovalsJob {
 
   async run(now: Date = new Date()): Promise<ExpireRecurringScheduleApprovalsJobResult> {
     const tenants = await this.tenantPort.findAllActive();
-    const perTenant = await Promise.all(tenants.map((tenant) => this.processTenant(tenant, now)));
+    const perTenant = await mapSequentially(tenants, (tenant) => this.processTenant(tenant, now));
     return {
       expired: perTenant.reduce((sum, result) => sum + result.expired, 0),
       ended: perTenant.reduce((sum, result) => sum + result.ended, 0),
@@ -56,14 +57,15 @@ export class ExpireRecurringBookingScheduleApprovalsJob {
     return { expired, ended };
   }
 
-  // The count of schedules actually changed. Each one changes in its own transaction (its own
-  // connection), so they are independent and run side by side.
+  // The count of schedules actually changed. Each one changes in its own transaction, one after
+  // another: run side by side they would each hold a pooled connection, and a backlog across
+  // tenants could exhaust the pool (shared/utils/sequential.ts).
   private async applyAll(
     schedules: RecurringBookingSchedule[],
     change: (schedule: RecurringBookingSchedule) => void,
   ): Promise<number> {
-    const outcomes = await Promise.all(
-      schedules.map((schedule) => this.applyOne(schedule, change)),
+    const outcomes = await mapSequentially(schedules, (schedule) =>
+      this.applyOne(schedule, change),
     );
     return outcomes.filter(Boolean).length;
   }

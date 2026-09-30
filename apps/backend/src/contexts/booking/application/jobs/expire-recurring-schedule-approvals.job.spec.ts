@@ -155,6 +155,34 @@ describe('ExpireRecurringBookingScheduleApprovalsJob', () => {
     });
   });
 
+  describe('concurrency', () => {
+    it('changes one schedule at a time across every tenant, never holding two transactions at once', async () => {
+      for (const tenantId of [TENANT_A, TENANT_B]) {
+        for (const minute of [10, 20, 30]) {
+          seed(tenantId, {
+            status: 'PENDING_APPROVAL',
+            holdExpiresAt: new Date(Date.UTC(2026, 9, 10, 1, minute)),
+          });
+        }
+      }
+      let running = 0;
+      let peak = 0;
+      const realSave = scheduleRepo.save.bind(scheduleRepo);
+      jest.spyOn(scheduleRepo, 'save').mockImplementation(async (schedule) => {
+        running++;
+        peak = Math.max(peak, running);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        await realSave(schedule);
+        running--;
+      });
+
+      const result = await job.run(NOW);
+
+      expect(result.expired).toBe(6);
+      expect(peak).toBe(1);
+    });
+  });
+
   describe('failures', () => {
     it('keeps going when one schedule fails and does not count it', async () => {
       const first = seed(TENANT_A, {
