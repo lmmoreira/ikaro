@@ -20,11 +20,11 @@ export interface RecurringScheduleOccurrenceConflict {
 }
 
 export class RecurringBookingScheduleConflictError extends BookingDomainError {
-  // Empty for a refusal that is not about specific occurrences (the active-schedule overlap
-  // check); non-empty for the creation-time hours/occupancy checks, ordered by occurrenceStart.
+  // The affected occurrences of the creation-time and approval-time hours/occupancy checks,
+  // ordered by occurrenceStart.
   readonly conflicts: RecurringScheduleOccurrenceConflict[];
 
-  constructor(conflicts: RecurringScheduleOccurrenceConflict[] = []) {
+  constructor(conflicts: RecurringScheduleOccurrenceConflict[]) {
     super(
       'The recurring pattern conflicts with an existing commitment on one of its future occurrences',
       BookingErrorCode.RECURRING_SCHEDULE_CONFLICT,
@@ -53,6 +53,16 @@ export class RecurringBookingScheduleNotActiveError extends BookingDomainError {
       BookingErrorCode.RECURRING_SCHEDULE_NOT_ACTIVE,
     );
     this.name = 'RecurringBookingScheduleNotActiveError';
+  }
+}
+
+export class RecurringBookingScheduleNotPendingApprovalError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `Recurring booking schedule is not awaiting approval: ${id}`,
+      BookingErrorCode.RECURRING_SCHEDULE_NOT_PENDING_APPROVAL,
+    );
+    this.name = 'RecurringBookingScheduleNotPendingApprovalError';
   }
 }
 

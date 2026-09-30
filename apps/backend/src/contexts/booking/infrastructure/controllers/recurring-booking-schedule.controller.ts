@@ -24,6 +24,15 @@ import {
   RequestRecurringBookingScheduleUseCase,
   RequestRecurringBookingScheduleUseCaseResult,
 } from '../../application/use-cases/request-recurring-booking-schedule.use-case';
+import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
+import {
+  ApproveRecurringBookingScheduleUseCase,
+  ApproveRecurringBookingScheduleUseCaseResult,
+} from '../../application/use-cases/approve-recurring-booking-schedule.use-case';
+import {
+  RejectRecurringBookingScheduleUseCase,
+  RejectRecurringBookingScheduleUseCaseResult,
+} from '../../application/use-cases/reject-recurring-booking-schedule.use-case';
 import {
   EndRecurringBookingScheduleUseCase,
   EndRecurringBookingScheduleUseCaseResult,
@@ -42,6 +51,8 @@ export class RecurringBookingScheduleController {
     private readonly requestSchedule: RequestRecurringBookingScheduleUseCase,
     private readonly listSchedules: ListRecurringBookingSchedulesUseCase,
     private readonly endSchedule: EndRecurringBookingScheduleUseCase,
+    private readonly approveSchedule: ApproveRecurringBookingScheduleUseCase,
+    private readonly rejectSchedule: RejectRecurringBookingScheduleUseCase,
   ) {}
 
   @Get()
@@ -100,6 +111,36 @@ export class RecurringBookingScheduleController {
         actorId: actorId!,
         isBusiness: actorType === 'STAFF',
       })
+      .catch(mapBookingError);
+  }
+
+  @Post(':id/approve')
+  @UseGuards(StaffOrManagerRoleGuard)
+  @HttpCode(HttpStatus.OK)
+  approve(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<ApproveRecurringBookingScheduleUseCaseResult> {
+    const { tenantId, correlationId, actorId, settings } = this.ctx;
+    return this.approveSchedule
+      .execute({
+        scheduleId: id,
+        tenantId,
+        correlationId,
+        timezone: settings.businessHours.timezone,
+        actorId: actorId!,
+      })
+      .catch(mapBookingError);
+  }
+
+  @Post(':id/reject')
+  @UseGuards(StaffOrManagerRoleGuard)
+  @HttpCode(HttpStatus.OK)
+  reject(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<RejectRecurringBookingScheduleUseCaseResult> {
+    const { tenantId, correlationId } = this.ctx;
+    return this.rejectSchedule
+      .execute({ scheduleId: id, tenantId, correlationId })
       .catch(mapBookingError);
   }
 }

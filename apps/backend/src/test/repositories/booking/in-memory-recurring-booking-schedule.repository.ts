@@ -47,19 +47,6 @@ export class InMemoryRecurringBookingScheduleRepository implements IRecurringBoo
     ).length;
   }
 
-  async findActiveByResource(
-    tenantId: string,
-    resourceId: string,
-  ): Promise<RecurringBookingSchedule[]> {
-    return Array.from(this.store.values()).filter(
-      (s) =>
-        s.tenantId === tenantId &&
-        s.status === 'ACTIVE' &&
-        s.assignmentPolicy === 'FIXED_ASSIGNMENT' &&
-        s.resourceAssignments.some((a) => a.resourceId === resourceId),
-    );
-  }
-
   async countActiveResolvePerOccurrenceByService(
     tenantId: string,
     serviceId: string,
@@ -71,6 +58,28 @@ export class InMemoryRecurringBookingScheduleRepository implements IRecurringBoo
         s.status === 'ACTIVE' &&
         s.assignmentPolicy === 'RESOLVE_PER_OCCURRENCE',
     ).length;
+  }
+
+  async findPendingApprovalExpired(
+    tenantId: string,
+    now: Date,
+  ): Promise<RecurringBookingSchedule[]> {
+    return Array.from(this.store.values()).filter(
+      (s) =>
+        s.tenantId === tenantId &&
+        s.status === 'PENDING_APPROVAL' &&
+        s.approvalHoldExpiresAt !== null &&
+        s.approvalHoldExpiresAt <= now,
+    );
+  }
+
+  async findActiveEndedBefore(
+    tenantId: string,
+    localToday: string,
+  ): Promise<RecurringBookingSchedule[]> {
+    return Array.from(this.store.values()).filter(
+      (s) => s.tenantId === tenantId && s.status === 'ACTIVE' && s.endsOn < localToday,
+    );
   }
 
   async save(schedule: RecurringBookingSchedule): Promise<void> {

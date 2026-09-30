@@ -138,7 +138,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
     return saved.id;
   }
 
-  it('POST /recurring-booking-schedules persists ACTIVE with zero occurrences for AUTO_CONFIRM', async () => {
+  it('POST /recurring-booking-schedules persists ACTIVE and materializes every occurrence for AUTO_CONFIRM', async () => {
     const serviceId = await seedService('AUTO_CONFIRM');
 
     const { body } = await request(app.getHttpServer())
@@ -160,10 +160,15 @@ describe('RecurringBookingScheduleController (integration)', () => {
       .expect(201);
 
     expect(body.status).toBe('ACTIVE');
+    const bookings = await ds
+      .getRepository(BookingEntity)
+      .find({ where: { tenantId, recurringScheduleId: body.id as string } });
+    expect(bookings).toHaveLength(5); // five Tuesdays, both ends of the four-week term included
+    expect(bookings.every((b) => b.status === 'APPROVED')).toBe(true);
     const occupancyCount = await ds
       .getRepository(ResourceOccupancyEntity)
-      .count({ where: { tenantId } });
-    expect(occupancyCount).toBe(0);
+      .count({ where: { tenantId, lockState: 'COMMITTED' } });
+    expect(occupancyCount).toBeGreaterThanOrEqual(5);
   });
 
   it('POST /recurring-booking-schedules persists PENDING_APPROVAL for MANUAL_APPROVAL, no resource_occupancy rows', async () => {
@@ -189,10 +194,10 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
     expect(body.status).toBe('PENDING_APPROVAL');
     expect(body.approvalHoldExpiresAt).toBeDefined();
-    const occupancyCount = await ds
-      .getRepository(ResourceOccupancyEntity)
-      .count({ where: { tenantId } });
-    expect(occupancyCount).toBe(0);
+    const bookingCount = await ds
+      .getRepository(BookingEntity)
+      .count({ where: { tenantId, recurringScheduleId: body.id as string } });
+    expect(bookingCount).toBe(0);
   });
 
   it('never crosses tenant/customer boundary on GET', async () => {
@@ -454,7 +459,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
   // Fridays at 15:00 local (UTC-3, no DST) — a weekday/time no other test in this file books on the
   // shared resource, so a 409 here can only come from the seeded occupancy row, never from an
-  // active-schedule overlap with an earlier test. Index 0 is the first Friday from today.
+  // occurrence another test materialized. Index 0 is the first Friday from today.
   function fridayOccurrence(index: number): Date {
     return new Date(`${addDays(nextWeekday(5), index * 7)}T18:00:00.000Z`);
   }

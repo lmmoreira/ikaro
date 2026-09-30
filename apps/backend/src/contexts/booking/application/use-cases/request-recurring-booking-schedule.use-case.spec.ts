@@ -4,6 +4,7 @@ import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-te
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
@@ -33,7 +34,10 @@ import {
   RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleTermExceededError,
 } from '../../domain/errors/recurring-booking-schedule.error';
-import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
+import {
+  BookingServiceNotInTenantError,
+  CustomerPhoneNotSetError,
+} from '../../domain/errors/booking-domain.error';
 import { RequestRecurringBookingScheduleUseCase } from './request-recurring-booking-schedule.use-case';
 
 const TENANT = '10000000-0000-4000-8000-000000000300';
@@ -55,6 +59,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
   let closureRepo: InMemoryScheduleClosureRepository;
   let openingRepo: InMemoryScheduleOpeningRepository;
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
+  let bookingRepo: InMemoryBookingRepository;
   let customerPort: InMemoryBookingCustomerPort;
   let staffPort: InMemoryBookingStaffPort;
   let platformPort: InMemoryBookingPlatformPort;
@@ -101,6 +106,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     platformPort = new InMemoryBookingPlatformPort();
     eventBus = new InMemoryEventBus();
     scheduleRepo = new InMemoryRecurringBookingScheduleRepository(eventBus);
+    bookingRepo = new InMemoryBookingRepository();
 
     const resource = new ResourceBuilder().withTenantId(TENANT).withType(ResourceType.ROOM).build();
     await resourceRepo.save(resource);
@@ -118,6 +124,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       serviceRepo,
       scheduleRepo,
       resourceRepo,
+      bookingRepo,
       occupancyRepo,
       closureRepo,
       openingRepo,
@@ -423,115 +430,94 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     ).rejects.toThrow(BookingServiceNotInTenantError);
   });
 
-  it('rejects a FIXED_ASSIGNMENT request overlapping another active schedule on the same resource', async () => {
-    const serviceId = await seedService();
-    scheduleRepo.seed(
-      RecurringBookingSchedule.request({
-        tenantId: TENANT,
-        customerId: 'other-customer',
-        serviceId,
-        recurrence: {
-          frequency: 'WEEKLY',
-          daysOfWeek: ['tuesday'],
-          startTime: '10:00',
-          durationMinutes: 120,
-        },
-        startsOn: STARTS_ON,
-        endsOn: ENDS_ON,
-        maxTermDays: 90,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceAssignments: [
-          {
-            resourceId,
-            resourceType: ResourceType.ROOM,
-            requirementId: null,
-            requiredQuantityPosition: null,
-          },
-        ],
-        status: 'ACTIVE',
-        approvalHoldExpiresAt: null,
-        createdByStaffId: null,
-        correlationId: CORRELATION_ID,
-      }),
-    );
-
-    // No resource_occupancy exists for the seeded schedule above (it has zero materialized
-    // occurrences, same as any ACTIVE schedule pre-M23-S05) — only the direct schedule-to-schedule
-    // comparison can catch this overlap.
-    await expect(
-      useCase.execute({
+  // M23-S05: every occurrence of the term is materialized, so a second recurring pattern on the
+  // same resource collides with real occupancy rows and is reported in the one conflicts list.
+  describe('materialization', () => {
+    function requestOn(
+      serviceId: string,
+      startTime: string,
+      durationMinutes: number,
+      overrides: Record<string, unknown> = {},
+    ) {
+      return useCase.execute({
         tenantId: TENANT,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId,
-        recurrence: {
-          frequency: 'WEEKLY',
-          daysOfWeek: ['tuesday'],
-          startTime: '10:30',
-          durationMinutes: 60,
-        },
+        recurrence: { frequency: 'WEEKLY', daysOfWeek: ['tuesday'], startTime, durationMinutes },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
         assignmentPolicy: 'FIXED_ASSIGNMENT',
         resourceIds: [resourceId],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
-      }),
-    ).rejects.toThrow(RecurringBookingScheduleConflictError);
-  });
+        ...overrides,
+      });
+    }
 
-  it('allows a FIXED_ASSIGNMENT request on the same resource when the time windows do not overlap', async () => {
-    const serviceId = await seedService();
-    scheduleRepo.seed(
-      RecurringBookingSchedule.request({
-        tenantId: TENANT,
-        customerId: 'other-customer',
-        serviceId,
-        recurrence: {
-          frequency: 'WEEKLY',
-          daysOfWeek: ['tuesday'],
-          startTime: '08:00',
-          durationMinutes: 60,
-        },
-        startsOn: STARTS_ON,
-        endsOn: ENDS_ON,
-        maxTermDays: 90,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceAssignments: [
-          {
-            resourceId,
-            resourceType: ResourceType.ROOM,
-            requirementId: null,
-            requiredQuantityPosition: null,
-          },
-        ],
-        status: 'ACTIVE',
-        approvalHoldExpiresAt: null,
-        createdByStaffId: null,
-        correlationId: CORRELATION_ID,
-      }),
-    );
+    it('an AUTO_CONFIRM schedule materializes one APPROVED linked booking per occurrence', async () => {
+      const serviceId = await seedService();
 
-    const result = await useCase.execute({
-      tenantId: TENANT,
-      correlationId: CORRELATION_ID,
-      timezone: TIMEZONE,
-      serviceId,
-      recurrence: {
-        frequency: 'WEEKLY',
-        daysOfWeek: ['tuesday'],
-        startTime: '10:00',
-        durationMinutes: 60,
-      },
-      startsOn: STARTS_ON,
-      endsOn: ENDS_ON,
-      assignmentPolicy: 'FIXED_ASSIGNMENT',
-      resourceIds: [resourceId],
-      actorType: 'CUSTOMER',
-      actorId: CUSTOMER_ID,
+      const result = await requestOn(serviceId, '10:00', 120);
+
+      const bookings = await bookingRepo.findAllByTenant(TENANT);
+      expect(bookings).toHaveLength(5); // four weeks inclusive of both ends
+      expect(bookings.every((b) => b.status === 'APPROVED')).toBe(true);
+      expect(bookings.every((b) => b.recurringScheduleId === result.id)).toBe(true);
+      expect(bookings.every((b) => b.approvedBy === null)).toBe(true);
+      expect(bookings.every((b) => b.customerId === CUSTOMER_ID)).toBe(true);
+      expect(bookings.every((b) => b.lines[0].durationMinsAtBooking === 120)).toBe(true);
     });
 
-    expect(result.status).toBe('ACTIVE');
+    it('raises no booking events for the materialized occurrences', async () => {
+      const serviceId = await seedService();
+
+      await requestOn(serviceId, '10:00', 120);
+
+      expect(eventBus.published.map((e) => e.eventName)).toEqual([
+        'RecurringBookingScheduleCreated',
+      ]);
+    });
+
+    it('a MANUAL_APPROVAL schedule materializes nothing until it is approved', async () => {
+      const serviceId = await seedService({ defaultApprovalMode: 'MANUAL_APPROVAL' });
+
+      await requestOn(serviceId, '10:00', 120);
+
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    });
+
+    it('a second pattern overlapping the first is refused with OCCUPIED occurrences', async () => {
+      const serviceId = await seedService();
+      await requestOn(serviceId, '10:00', 120);
+
+      await expect(requestOn(serviceId, '10:30', 60)).rejects.toMatchObject({
+        conflicts: expect.arrayContaining([expect.objectContaining({ reason: 'OCCUPIED' })]),
+      });
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(5);
+    });
+
+    it('a second pattern on the same resource at a non-overlapping time is accepted', async () => {
+      const serviceId = await seedService();
+      await requestOn(serviceId, '09:00', 60);
+
+      const result = await requestOn(serviceId, '11:00', 60);
+
+      expect(result.status).toBe('ACTIVE');
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(10);
+    });
+
+    it('creates nothing, schedule included, when the customer has no phone', async () => {
+      const serviceId = await seedService();
+      customerPort.setProfile(CUSTOMER_ID, {
+        email: 'ana@example.com',
+        name: 'Ana Souza',
+        phone: null,
+        defaultAddress: null,
+      });
+
+      await expect(requestOn(serviceId, '10:00', 120)).rejects.toThrow(CustomerPhoneNotSetError);
+    });
   });
 
   // M23-S18 — a schedule is a fixed term, and every occurrence of it is checked at creation.

@@ -20,6 +20,7 @@ export { FutureCommitmentExceptionDismissedEventBuilder } from './future-commitm
 export { RecurringBookingScheduleCreatedEventBuilder } from './recurring-booking-schedule-created-event.builder';
 export { RecurringBookingScheduleApprovalRequestedEventBuilder } from './recurring-booking-schedule-approval-requested-event.builder';
 export { RecurringBookingScheduleEndedEventBuilder } from './recurring-booking-schedule-ended-event.builder';
+export { RecurringBookingScheduleRejectedEventBuilder } from './recurring-booking-schedule-rejected-event.builder';
 export { BookingAttendeeEntityBuilder } from './booking-attendee-entity.builder';
 export { ScheduleClosureBuilder } from './schedule-closure.builder';
 export { ScheduleClosureEntityBuilder } from './schedule-closure-entity.builder';

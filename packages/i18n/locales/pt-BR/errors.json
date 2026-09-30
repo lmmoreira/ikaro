@@ -28,6 +28,7 @@
   "BOOKING_RECURRING_SCHEDULE_CONFLICT": "Este padrão recorrente não pode ser reservado em uma ou mais das suas datas.",
   "BOOKING_RECURRING_SCHEDULE_CAP_REACHED": "Limite de agendamentos recorrentes ativos atingido para este recurso ou serviço.",
   "BOOKING_RECURRING_SCHEDULE_NOT_ACTIVE": "Esta ação só está disponível para um agendamento recorrente ativo.",
+  "BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL": "Esta solicitação recorrente já foi resolvida ou o prazo de aprovação terminou.",
   "BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE": "Este serviço não está habilitado para reservas recorrentes.",
   "BOOKING_RECURRING_SCHEDULE_FORBIDDEN": "Você não tem permissão para realizar esta ação neste agendamento recorrente.",
   "BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE": "A data de término não pode ser anterior à data de início.",

@@ -79,4 +79,49 @@ describe('RecurringBookingSchedulesController', () => {
     );
     expect(result.status).toBe('CANCELLED');
   });
+
+  it('POST /:id/approve forwards to the backend with an empty body', async () => {
+    const backendHttp = makeBackendHttp({
+      post: jest
+        .fn()
+        .mockResolvedValue({ id: mockSchedule.id, status: 'ACTIVE', occurrenceCount: 5 }),
+    });
+    const controller = new RecurringBookingSchedulesController(backendHttp);
+
+    const result = await controller.approve(mockSchedule.id);
+
+    expect(backendHttp.post).toHaveBeenCalledWith(
+      `/recurring-booking-schedules/${mockSchedule.id}/approve`,
+      {},
+    );
+    expect(result).toEqual({ id: mockSchedule.id, status: 'ACTIVE', occurrenceCount: 5 });
+  });
+
+  it('POST /:id/reject forwards to the backend with an empty body', async () => {
+    const backendHttp = makeBackendHttp({
+      post: jest.fn().mockResolvedValue({ id: mockSchedule.id, status: 'CANCELLED' }),
+    });
+    const controller = new RecurringBookingSchedulesController(backendHttp);
+
+    const result = await controller.reject(mockSchedule.id);
+
+    expect(backendHttp.post).toHaveBeenCalledWith(
+      `/recurring-booking-schedules/${mockSchedule.id}/reject`,
+      {},
+    );
+    expect(result.status).toBe('CANCELLED');
+  });
+
+  it('restricts approve and reject to STAFF and MANAGER, overriding the class-level roles', () => {
+    const roles = (handler: unknown) => Reflect.getMetadata('roles', handler as object);
+
+    expect(roles(RecurringBookingSchedulesController.prototype.approve)).toEqual([
+      'MANAGER',
+      'STAFF',
+    ]);
+    expect(roles(RecurringBookingSchedulesController.prototype.reject)).toEqual([
+      'MANAGER',
+      'STAFF',
+    ]);
+  });
 });

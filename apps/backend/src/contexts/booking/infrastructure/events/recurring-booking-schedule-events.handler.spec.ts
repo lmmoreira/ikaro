@@ -2,6 +2,7 @@ import {
   RecurringBookingScheduleApprovalRequestedEventBuilder,
   RecurringBookingScheduleCreatedEventBuilder,
   RecurringBookingScheduleEndedEventBuilder,
+  RecurringBookingScheduleRejectedEventBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { LogRecurringBookingScheduleEventUseCase } from '../../application/use-cases/log-recurring-booking-schedule-event.use-case';
@@ -24,7 +25,7 @@ describe('RecurringBookingScheduleEventsHandler', () => {
     );
   });
 
-  it('subscribes to all 3 event types with the audit-log consumer name on init', () => {
+  it('subscribes to all 4 event types with the audit-log consumer name on init', () => {
     const spy = jest.spyOn(eventBus, 'subscribe');
     handler.onModuleInit();
 
@@ -43,7 +44,12 @@ describe('RecurringBookingScheduleEventsHandler', () => {
       expect.any(Function),
       LogRecurringBookingScheduleEventUseCase.CONSUMER_NAME,
     );
-    expect(spy).toHaveBeenCalledTimes(3);
+    expect(spy).toHaveBeenCalledWith(
+      'RecurringBookingScheduleRejected',
+      expect.any(Function),
+      LogRecurringBookingScheduleEventUseCase.CONSUMER_NAME,
+    );
+    expect(spy).toHaveBeenCalledTimes(4);
   });
 
   it('calls the log use case exactly once with the correct DTO for RecurringBookingScheduleCreated', async () => {
@@ -74,6 +80,19 @@ describe('RecurringBookingScheduleEventsHandler', () => {
 
     expect(useCase.execute).toHaveBeenCalledWith(
       expect.objectContaining({ eventName: 'RecurringBookingScheduleApprovalRequested' }),
+    );
+  });
+
+  it('handles RecurringBookingScheduleRejected', async () => {
+    const event = new RecurringBookingScheduleRejectedEventBuilder()
+      .withTenantId(TENANT_ID)
+      .withCorrelationId(CORRELATION_ID)
+      .build();
+
+    await handler.handle(event);
+
+    expect(useCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'RecurringBookingScheduleRejected' }),
     );
   });
 

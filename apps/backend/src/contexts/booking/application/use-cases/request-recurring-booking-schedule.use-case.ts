@@ -7,7 +7,6 @@ import {
   BookingCustomerNotFoundError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
-import { RecurringBookingScheduleConflictError } from '../../domain/errors/recurring-booking-schedule.error';
 import {
   RecurringBookingSchedule,
   RequestRecurringBookingScheduleResourceAssignmentInput,
@@ -18,11 +17,11 @@ import {
   enumerateRecurrenceOccurrences,
   RecurrenceOccurrence,
   RecurrenceRule,
-  schedulesOverlap,
 } from '../../domain/recurrence-rule.helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
+import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
 import {
@@ -44,6 +43,7 @@ import {
 } from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
+import { materializeRecurringScheduleOccurrences } from './materialize-recurring-schedule-occurrences.helpers';
 import { resolveApprovalMode } from './service-result.mapper';
 import { assertUnderCap } from './recurring-booking-schedule-cap.helpers';
 import {
@@ -93,6 +93,7 @@ export class RequestRecurringBookingScheduleUseCase {
     @Inject(RECURRING_BOOKING_SCHEDULE_REPOSITORY)
     private readonly scheduleRepo: IRecurringBookingScheduleRepository,
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
+    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
     @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
@@ -123,10 +124,12 @@ export class RequestRecurringBookingScheduleUseCase {
       await this.lockForCapCheck(input);
       const prepared = await this.prepareRequest(input);
       await assertUnderCap(this.scheduleRepo, input);
-      await this.assertNoActiveScheduleOverlap(input);
       await this.checkPatternConflict(input, prepared);
       const built = this.buildSchedule(input, customerId, prepared);
       await this.scheduleRepo.save(built);
+      // An AUTO_CONFIRM schedule is ACTIVE from the start, so its whole term becomes bookings in
+      // this same transaction (UC-070 step 3); a PENDING_APPROVAL one waits for UC-071.
+      if (built.status === 'ACTIVE') await this.materialize(built, prepared, input);
       return built;
     });
 
@@ -207,33 +210,27 @@ export class RequestRecurringBookingScheduleUseCase {
     );
   }
 
-  // FIXED_ASSIGNMENT only — an ACTIVE schedule has zero materialized bookings until M23-S05
-  // materializes its term, so assertPatternConflictFree()'s resource_occupancy check can never
-  // catch two recurring schedules colliding on the same resource before then
-  // (docs/13-DATABASE_SCHEMA.md's not-yet-materialized-pattern protocol). RESOLVE_PER_OCCURRENCE
-  // has no fixed resource to compare against upfront — its own per-occurrence resolution at
-  // materialization is the conflict check for that branch, same as a one-off
-  // AUTO_ANY/AUTO_FUNGIBLE_POOL booking.
-  private async assertNoActiveScheduleOverlap(
+  private async materialize(
+    schedule: RecurringBookingSchedule,
+    prepared: PreparedRecurringBookingScheduleRequest,
     input: RequestRecurringBookingScheduleUseCaseInput,
   ): Promise<void> {
-    if (input.assignmentPolicy !== 'FIXED_ASSIGNMENT') return;
-
-    // A FIXED_ASSIGNMENT request names exactly one resource (the request schema enforces it), so
-    // this issues a single query.
-    const existingByResource = await Promise.all(
-      input.resourceIds.map((resourceId) =>
-        this.scheduleRepo.findActiveByResource(input.tenantId, resourceId),
-      ),
+    await materializeRecurringScheduleOccurrences(
+      {
+        bookingRepo: this.bookingRepo,
+        customerPort: this.customerPort,
+        resourceRepo: this.resourceRepo,
+        occupancyRepo: this.occupancyRepo,
+        availabilityService: this.availabilityService,
+      },
+      {
+        schedule,
+        service: prepared.service,
+        occurrences: prepared.occurrences,
+        timezone: input.timezone,
+        approvedByStaffId: null,
+      },
     );
-    const candidate = {
-      recurrence: input.recurrence,
-      startsOn: input.startsOn,
-      endsOn: input.endsOn,
-    };
-    if (existingByResource.flat().some((schedule) => schedulesOverlap(candidate, schedule))) {
-      throw new RecurringBookingScheduleConflictError();
-    }
   }
 
   private buildSchedule(

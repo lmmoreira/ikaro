@@ -110,7 +110,7 @@ APPROVED       → COMPLETED | CANCELLED | NO_SHOW   -- NO_SHOW added by M23 Clu
 COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal)
 ```
 
-A booking materialized from a recurring schedule (M23-S05) is created directly in `APPROVED`, skipping `PENDING` — the schedule was vetted once; from there the transitions above apply unchanged. `NO_SHOW` is **not** in MVP today — it ships with M23 (Multi-Vertical Scheduling, Cluster 3), see `docs/04-USE_CASES.md` UC-074. Until that milestone lands, treat `NO_SHOW` as absent from the live state machine. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
+`NO_SHOW` is **not** in MVP today — it ships with M23 (Multi-Vertical Scheduling, Cluster 3), see `docs/04-USE_CASES.md` UC-074. Until that milestone lands, treat `NO_SHOW` as absent from the live state machine. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
 
 ---
 

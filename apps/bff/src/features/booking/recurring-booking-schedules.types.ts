@@ -16,7 +16,7 @@ export interface RecurringBookingScheduleListItem {
   recurrence: RecurrenceRuleResponse;
   startsOn: string;
   endsOn: string;
-  status: 'PENDING_APPROVAL' | 'ACTIVE' | 'CANCELLED';
+  status: 'PENDING_APPROVAL' | 'ACTIVE' | 'CANCELLED' | 'ENDED';
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
   approvalHoldExpiresAt: string | null;
 }
@@ -24,6 +24,17 @@ export interface RecurringBookingScheduleListItem {
 export interface RecurringBookingScheduleListResponse {
   items: RecurringBookingScheduleListItem[];
   pagination: { limit: number; offset: number; total: number; hasMore: boolean };
+}
+
+export interface ApproveRecurringBookingScheduleResponse {
+  id: string;
+  status: 'ACTIVE';
+  occurrenceCount: number;
+}
+
+export interface RejectRecurringBookingScheduleResponse {
+  id: string;
+  status: 'CANCELLED';
 }
 
 export interface EndRecurringBookingScheduleResponse {

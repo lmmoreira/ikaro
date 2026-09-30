@@ -23,8 +23,10 @@ import { FutureCommitmentExceptionEventsHandler } from './infrastructure/events/
 import { TypeOrmFutureCommitmentExceptionRepository } from './infrastructure/repositories/typeorm-future-commitment-exception.repository';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
+import { ExpireRecurringBookingScheduleApprovalsJob } from './application/jobs/expire-recurring-schedule-approvals.job';
 import { ResourceOccupancyRetentionPurgeJob } from './application/jobs/resource-occupancy-retention-purge.job';
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
+import { ExpireRecurringScheduleApprovalsTriggerHandler } from './infrastructure/events/expire-recurring-schedule-approvals-trigger.handler';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
 import { ResourceOccupancyRetentionPurgeTriggerHandler } from './infrastructure/events/resource-occupancy-retention-purge-trigger.handler';
 import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
@@ -76,6 +78,8 @@ import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/gene
 import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
 import { RequestRecurringBookingScheduleUseCase } from './application/use-cases/request-recurring-booking-schedule.use-case';
 import { EndRecurringBookingScheduleUseCase } from './application/use-cases/end-recurring-booking-schedule.use-case';
+import { ApproveRecurringBookingScheduleUseCase } from './application/use-cases/approve-recurring-booking-schedule.use-case';
+import { RejectRecurringBookingScheduleUseCase } from './application/use-cases/reject-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from './application/use-cases/list-recurring-booking-schedules.use-case';
 import { LogRecurringBookingScheduleEventUseCase } from './application/use-cases/log-recurring-booking-schedule-event.use-case';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
@@ -130,9 +134,11 @@ export const bookingModuleProviders: Provider[] = [
   { provide: BOOKING_STAFF_PORT, useClass: BookingStaffAdapter },
   AvailabilityService,
   BookingReminderJob,
+  ExpireRecurringBookingScheduleApprovalsJob,
   AdminScheduleReminderJob,
   ResourceOccupancyRetentionPurgeJob,
   BookingReminderTriggerHandler,
+  ExpireRecurringScheduleApprovalsTriggerHandler,
   AdminScheduleReminderTriggerHandler,
   ResourceOccupancyRetentionPurgeTriggerHandler,
   BookingSlotConflictService,
@@ -187,6 +193,8 @@ export const bookingModuleProviders: Provider[] = [
   TenantProvisionedBookingHandler,
   RequestRecurringBookingScheduleUseCase,
   EndRecurringBookingScheduleUseCase,
+  ApproveRecurringBookingScheduleUseCase,
+  RejectRecurringBookingScheduleUseCase,
   ListRecurringBookingSchedulesUseCase,
   LogRecurringBookingScheduleEventUseCase,
   RecurringBookingScheduleEventsHandler,

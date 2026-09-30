@@ -7,7 +7,6 @@ import {
   enumerateRecurrenceOccurrences,
   RecurrenceRule,
   resolveHorizonEndDate,
-  schedulesOverlap,
 } from './recurrence-rule.helpers';
 
 const TZ = 'America/Sao_Paulo';
@@ -149,40 +148,5 @@ describe('enumerateRecurrenceOccurrences', () => {
     // 2026-09-01 (Tue) … 2026-11-24 (Tue): 13 weekly occurrences.
     expect(occurrences).toHaveLength(13);
     expect(occurrences.at(-1)?.occurrenceStartLocalDate).toBe('2026-11-24');
-  });
-});
-
-describe('schedulesOverlap', () => {
-  const base = { recurrence: weeklyRule(), startsOn: '2026-09-01', endsOn: '2026-11-24' };
-
-  it('overlaps when day, daily window and date range all intersect', () => {
-    expect(schedulesOverlap(base, { ...base, startsOn: '2026-10-01', endsOn: '2026-12-01' })).toBe(
-      true,
-    );
-  });
-
-  it('treats a shared boundary date as overlapping (both ranges are inclusive)', () => {
-    expect(schedulesOverlap(base, { ...base, startsOn: '2026-11-24', endsOn: '2027-01-01' })).toBe(
-      true,
-    );
-  });
-
-  it('does not overlap when the date ranges are disjoint', () => {
-    expect(schedulesOverlap(base, { ...base, startsOn: '2026-11-25', endsOn: '2027-01-01' })).toBe(
-      false,
-    );
-  });
-
-  it('does not overlap when no weekday is shared', () => {
-    expect(
-      schedulesOverlap(base, { ...base, recurrence: weeklyRule({ daysOfWeek: ['wednesday'] }) }),
-    ).toBe(false);
-  });
-
-  it('does not overlap when the daily windows only touch', () => {
-    // 10:00-12:00 vs 12:00-14:00 — half-open intervals.
-    expect(
-      schedulesOverlap(base, { ...base, recurrence: weeklyRule({ startTime: '12:00' }) }),
-    ).toBe(false);
   });
 });

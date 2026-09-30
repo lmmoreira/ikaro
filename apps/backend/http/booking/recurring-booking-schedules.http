@@ -1,7 +1,7 @@
 # Booking — Recurring Private Reservation Schedules (M23-S04, UC-070)
 # TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
 # Customer manages their own schedules; STAFF|MANAGER may create on a customer's behalf and see
-# every schedule for the tenant (approval queue). Approve/reject (UC-071) ships in M23-S05.
+# every schedule for the tenant (approval queue). Approve/reject (UC-071) are STAFF|MANAGER only.
 # A schedule is a fixed term: "endsOn" is required and may not be later than "startsOn" + the
 # service's maximum term (Service.bookingPolicy.recurringHorizonDays, 90 days by default) — M23-S18.
 #
@@ -314,3 +314,60 @@ Content-Type: application/json
   "startsOn": "2026-10-06",
   "endsOn": "2026-12-29"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# APPROVE / REJECT — staff resolves a PENDING_APPROVAL request (UC-071, M23-S05)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Approve — 200 {id, status: "ACTIVE", occurrenceCount}; every occurrence is materialized APPROVED
+POST {{baseUrl}}/recurring-booking-schedules/{{pendingScheduleId}}/approve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### Reject — 200 {id, status: "CANCELLED"}; nothing was ever materialized
+POST {{baseUrl}}/recurring-booking-schedules/{{pendingScheduleId}}/reject
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### 409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL — already approved, rejected or expired
+POST {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/approve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### 409 BOOKING_RECURRING_SCHEDULE_CONFLICT — a closure or booking appeared while the request waited;
+### the body lists every affected occurrence, nothing is created and the request stays pending
+POST {{baseUrl}}/recurring-booking-schedules/{{pendingScheduleWithClosureId}}/approve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### 404 — unknown schedule
+POST {{baseUrl}}/recurring-booking-schedules/00000000-0000-7000-8000-000000000000/approve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### 403 — a customer cannot approve
+POST {{baseUrl}}/recurring-booking-schedules/{{pendingScheduleId}}/approve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER

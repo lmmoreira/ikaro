@@ -43,7 +43,7 @@ export interface IBookingRepository {
   findByIds(ids: string[], tenantId: string): Promise<Booking[]>;
   // Every future, still-active (non-terminal) occurrence materialized by a schedule — used by
   // EndRecurringBookingScheduleUseCase (M23-S04) to cancel them and release their resource_
-  // occupancy rows. Empty before M23-S05 materializes any occurrence.
+  // occupancy rows.
   findFutureActiveByRecurringSchedule(
     tenantId: string,
     recurringScheduleId: string,
