@@ -84,7 +84,7 @@ planner. A manual `apply=true` dispatch from `main` produces those plans first,
 then applies staging and production serially through their matching protected
 foundation Environments using only the foundation deployer. Planner account
 emails are public identifiers, not credentials; no protected environment is
-requested by a pull-request plan.
+requested by a pull-request plan. **A merged Foundation pull request applies nothing** — the apply jobs run only on the manual `apply=true` dispatch, so a Foundation change (or a catalog-derived grant for a new Pub/Sub topic) is not live until someone dispatches it. See `../README.md`'s new-topic playbook row and its Gotchas.
 
 ### Verifying Foundation state from the normal pipeline
 
