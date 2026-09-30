@@ -660,9 +660,9 @@ A versioned, service-owned definition of booking questions, consent text/version
 | service_id | UUID | NOT NULL — FK (tenant_id, service_id) → `services` |
 | recurrence | JSONB | NOT NULL |
 | starts_on / ends_on | DATE | NOT NULL / NOT NULL — a schedule is a fixed term, never open-ended (`ends_on` made NOT NULL by M23-S18's migration `1748500000018`; the upper bound, `starts_on` + the service's maximum term, is enforced by the aggregate, not the database) |
-| status | VARCHAR(20) | NOT NULL — CHECK IN ('PENDING_APPROVAL', 'ACTIVE', 'CANCELLED') — `PAUSED` removed by migration `1748500000019` (M23-S20); existing `PAUSED` rows became `CANCELLED` / `CUSTOMER_CANCELLED` |
+| status | VARCHAR(20) | NOT NULL — CHECK IN ('PENDING_APPROVAL', 'ACTIVE', 'CANCELLED', 'ENDED') — `PAUSED` removed by migration `1748500000019` (M23-S20); existing `PAUSED` rows became `CANCELLED` / `CUSTOMER_CANCELLED`; `ENDED` (the term is over, set by the M23-S05 job) added by migration `1748500000022` |
 | assignment_policy | VARCHAR(30) | NOT NULL — CHECK IN ('FIXED_ASSIGNMENT', 'RESOLVE_PER_OCCURRENCE') |
-| approval_hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `status = 'PENDING_APPROVAL'` |
+| approval_hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `status = 'PENDING_APPROVAL'`, so approve, reject and expire all clear it |
 | approved_by_staff_id / approved_at | UUID / TIMESTAMPTZ | NULLABLE — no FK, cross-context |
 | cancellation_reason | VARCHAR(30) | NULLABLE — CHECK IN ('CUSTOMER_CANCELLED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED') when `status = 'CANCELLED'` |
 | created_by_staff_id | UUID | NULLABLE — no FK, cross-context; set when staff creates it for the customer |
@@ -690,7 +690,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 
 > `recurring_booking_schedule_exceptions` (a per-occurrence skip/reschedule record) was **dropped by M23-S24** (M23-S08 stopped reading and writing it first, so the previous revision kept working through the deploy): an occurrence is its linked booking, so skipping is that booking's cancel and rescheduling is its reschedule — there is no second record to keep consistent.
 
-Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings` — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules`, unique `(tenant_id, recurring_schedule_id, occurrence_start)`.
+Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings` — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules`, unique `(tenant_id, recurring_schedule_id, scheduled_at)` where `recurring_schedule_id IS NOT NULL` (`UQ_booking_bookings_recurring_schedule_occurrence` — the occurrence's start is the booking's own `scheduled_at`; there is no separate `occurrence_start` column). Every occurrence of a schedule's term is inserted once, `APPROVED`, by M23-S05's materialization (at creation for `AUTO_CONFIRM`, at approval otherwise).
 
 ### `booking.availability_alerts` / `booking.availability_alert_notification_attempts` (M23 Cluster 3)
 
@@ -777,7 +777,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 |---|---|---|
 | recurring_schedule_id | UUID | NULLABLE — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
 | status (existing column) | — | CHECK IN list gains `'NO_SHOW'` — new terminal state, `APPROVED → NO_SHOW` (UC-074); correction transitions handled via an append-only status-transition audit record, same pattern as `class_session_booking_transitions` (Cluster 4) |
-| **UNIQUE** | (tenant_id, recurring_schedule_id, occurrence_start) WHERE recurring_schedule_id IS NOT NULL | Generation idempotency key — requires a denormalized `occurrence_start` column alongside `scheduled_at` for this constraint's own purpose, or reuses `scheduled_at` directly if generation is always exactly-once per `(schedule, occurrence)` |
+| **UNIQUE** | (tenant_id, recurring_schedule_id, scheduled_at) WHERE recurring_schedule_id IS NOT NULL | Materialization idempotency key — reuses `scheduled_at` directly (no separate `occurrence_start` column exists); a schedule's term is materialized exactly once, so a re-run hits this key and is a no-op |
 
 **Migration ordering (expand/contract), M23 Cluster 3:** straightforward expand — every table above is wholly new, and `bookings`' two changes (`recurring_schedule_id`, `NO_SHOW` in the status CHECK) are additive with no existing-row backfill required (no booking is retroactively a no-show). No contract phase needed.
 
