@@ -688,21 +688,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | assigned_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **PK** | (tenant_id, recurring_schedule_id, resource_id) | |
 
-`recurring_booking_schedule_exceptions` — one exception per skipped/rescheduled occurrence:
-
-| Column | Type | Constraints |
-|---|---|---|
-| id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL |
-| recurring_schedule_id | UUID | NOT NULL — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
-| occurrence_start | TIMESTAMPTZ | NOT NULL |
-| kind | VARCHAR(20) | NOT NULL — CHECK IN ('SKIPPED', 'RESCHEDULED') |
-| replacement_booking_id | UUID | NULLABLE — FK (tenant_id, replacement_booking_id) → `bookings`; set iff `kind = 'RESCHEDULED'` |
-| actor_type / actor_id | VARCHAR(20) / UUID | NOT NULL / NULLABLE |
-| reason | VARCHAR(255) | NULLABLE |
-| created_at | TIMESTAMPTZ | DEFAULT now() |
-| **UNIQUE** | (tenant_id, recurring_schedule_id, occurrence_start) | |
-| **CHECK** | `(kind = 'RESCHEDULED') = (replacement_booking_id IS NOT NULL)` | |
+> `recurring_booking_schedule_exceptions` (a per-occurrence skip/reschedule record) was **dropped by M23-S08**: an occurrence is its linked booking, so skipping is that booking's cancel and rescheduling is its reschedule — there is no second record to keep consistent.
 
 Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings` — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules`, unique `(tenant_id, recurring_schedule_id, occurrence_start)`.
 
@@ -758,6 +744,8 @@ Generated ordinary bookings link through nullable `recurring_schedule_id` on `bo
 | resolved_by_staff_id | UUID | NULLABLE |
 | resolved_at | TIMESTAMPTZ | NULLABLE |
 | notification_outcome | VARCHAR(30) | NULLABLE |
+| alternatives | JSONB | NOT NULL DEFAULT '[]' — advisory `{ resourceId, resourceName }[]` computed at raise time, always revalidated at resolve time (M23-S08) |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **INDEX** | (tenant_id, affected_type, affected_id) | |
 | **INDEX** | (tenant_id, owner_staff_id, status) | |
 | **UNIQUE** | (tenant_id, source_type, source_id, affected_type, affected_id) WHERE status = 'OPEN' | A repeat trigger for the same unresolved impact updates the existing open row instead of duplicating it |

@@ -17,15 +17,18 @@ New MANAGER-only worklist for M21 — Multi-Vertical Scheduling, Cluster 3. Noth
 ```
 GET /v1/scheduling-exceptions?status=OPEN
   Header: Authorization: Bearer {jwt}   (MANAGER)
-  Response: { items: FutureCommitmentException[] }
+  Response: { items: [{ id, sourceType, sourceId, affectedType, affectedId, status, alternatives: [{ resourceId, resourceName }],
+                        createdAt, booking: { contactName, scheduledAt, totalDurationMins, serviceNames, status, resourceName } }] }
 
-POST /v1/scheduling-exceptions/:id/resolve
-  Body: { resolutionType: 'KEEP'|'REASSIGN'|'RESCHEDULE'|'CANCEL', reason?: string }
-  Response 200: FutureCommitmentException (status: RESOLVED)
+POST /v1/scheduling-exceptions/resolve            (M23-S08 — bulk-only; a single entry is a list of one)
+  Body: { exceptionIds: string[] (1–100), resolutionType: 'KEEP'|'REASSIGN'|'RESCHEDULE'|'CANCEL', reason?: string,
+          target?: { resourceId } | { mode: 'AUTO' }   (REASSIGN only),
+          scheduledAt?: string                          (RESCHEDULE only — one id, APPROVED booking) }
+  Response 200: { results: [{ exceptionId, outcome: 'RESOLVED' | 'STILL_OPEN', errorCode? }] }
 
-POST /v1/scheduling-exceptions/:id/dismiss
-  Body: { reason: string }
-  Response 200: FutureCommitmentException (status: DISMISSED)
+POST /v1/scheduling-exceptions/dismiss
+  Body: { exceptionIds: string[], reason: string }
+  Response 200: { results: [...] }   (same shape)
 ```
 
 ## Screen: SchedulingExceptionWorklistPage (`/dashboard/scheduling-exceptions`, UC-073/077)
@@ -41,5 +44,6 @@ POST /v1/scheduling-exceptions/:id/dismiss
 
 ## Open questions / gaps
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications).
+- [ ] Prototype pass before `M23-S14`: the screen has no multi-select or bulk action bar, no "any free one" reassign option, and draws reschedule as "Oferecer novos horários" (customer accepts a proposal) where UC-077 implements a direct manager-chosen reschedule — see `../../scheduling-exceptions.md` § Open questions.
 - [ ] Nav placement is a UI decision for the implementing story.

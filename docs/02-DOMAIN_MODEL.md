@@ -638,7 +638,6 @@ Customer-only fixed-term commitment: "every Tuesday 10:00–12:00, Sala Aurora, 
 **Entities within:**
 - `RecurringBookingSchedule` (root)
 - `RecurringBookingScheduleResourceAssignment` (child — durable, mandatory for `FIXED_ASSIGNMENT`)
-- `RecurringBookingScheduleException` (child — one per skipped/rescheduled occurrence)
 
 **Properties:**
 ```
@@ -674,7 +673,7 @@ RecurringBookingSchedule {
 **Key Methods:**
 - `RecurringBookingSchedule.request(customerId, serviceId, recurrence, assignmentPolicy, ...)` — resource-conflict-checks, then branches to `ACTIVE` or `PENDING_APPROVAL` per the service's effective approval mode.
 - `approve(staffId)` / `reject(staffId, reason)` (UC-071)
-- `skipOccurrence(occurrenceStart, actor, reason?)` / `rescheduleOccurrence(occurrenceStart, replacementBookingId, actor)` (UC-070 A2) — only once `ACTIVE`; a `PENDING_APPROVAL` request is withdrawn outright instead, since no standing commitment exists yet.
+- `reassignResource(fromResourceId, toResourceId)` (M23-S08) — swaps a `FIXED_ASSIGNMENT` schedule's assignment after a manager's reassign moved every remaining occurrence off `fromResourceId`; otherwise the assignment stays as the record of what was requested. There is **no schedule-side skip/reschedule record** (removed by M23-S08): an occurrence is its linked `Booking`, so skipping is that booking's ordinary cancel and rescheduling is its ordinary reschedule (UC-070 A2). A `PENDING_APPROVAL` request is withdrawn outright instead, since no standing commitment exists yet.
 - `end()`
 
 ---
@@ -741,17 +740,22 @@ FutureCommitmentException {
   resolvedByStaffId:     StaffId | null
   resolvedAt:            DateTime | null
   notificationOutcome:   String | null
+  alternatives:          { resourceId, resourceName }[]   -- advisory, computed at raise time; always revalidated at resolve time
+  createdAt:             DateTime
 }
 ```
+
+**Raised by (M23-S08):** a resource deactivation — from both `DeactivateResourceUseCase` (UC-047) and the `StaffDeactivated` cascade (UC-048) — raises one entry per future booking (`PENDING`, `INFO_REQUESTED` or `APPROVED`) occupying the resource, `sourceType = RESOURCE_DEACTIVATION`, `affectedType = BOOKING`. A recurring schedule gets no entry of its own: each of its occurrences is a booking. The hours-reduction and closure triggers have no wired caller yet. `ownerStaffId` is `null` for a deactivation-raised entry.
 
 **Invariants:**
 - One idempotent entry per affected commitment — a repeated trigger for the same unresolved impact updates the existing open row rather than duplicating manager work (`UNIQUE (tenantId, sourceType, sourceId, affectedType, affectedId) WHERE status = 'OPEN'`).
 - A commitment is never silently moved or invalidated — this aggregate only ever records impact/alternatives; UC-077 is the sole resolution flow, and even there, the manager makes an explicit choice.
 - No safe alternative existing is a valid terminal state ("no compatible alternative"), not an error — the manager still explicitly keeps, reassigns, reschedules, cancels, or dismisses.
+- `REASSIGN` moves the booking to another resource at the *same window* (time, price and status untouched); `RESCHEDULE` moves it to a manager-chosen new time and needs an `APPROVED` booking. Both are revalidated at commit; if the alternative is gone the entry stays `OPEN`. REASSIGN, CANCEL, KEEP and dismiss can be applied to many entries at once, each in its own transaction (best-effort); RESCHEDULE is one entry at a time.
 
 **Key Methods:**
 - `FutureCommitmentException.raise(sourceType, sourceId, affectedType, affectedId, alternatives)` (UC-073)
-- `resolve(staffId, resolutionType, reason)` / `dismiss(staffId, reason)` (UC-077)
+- `resolve(staffId, resolutionType, reason)` / `dismiss(staffId, reason)` (UC-077) — the booking change itself is applied by the resolving use case in the same transaction, never by this aggregate.
 
 ---
 

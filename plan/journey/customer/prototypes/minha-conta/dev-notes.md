@@ -168,7 +168,7 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a re
 | `13f-renovar-recorrencia.html` | Renewal: the form pre-filled from an ended/ending schedule (state A) and the not-found fallback (state B) | `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>` | M23-S22 |
 | `13d-nova-recorrencia-limite.html` | `409` active-schedule cap reached | same, error state | M23-S17 |
 | `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
-| `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, end (no Pause) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
+| `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, end (no Pause). Since `M23-S08` an occurrence is its linked booking: skip = cancel that booking and reschedule = the ordinary reschedule, both subject to the tenant's cancellation / reschedule windows (the screen needs a window-expired message the prototype does not draw yet) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
 | `07-availability-alert.html` | Create/manage an availability alert | `/{slug}/my-account/alerts` | M23-S12 |
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)

@@ -409,16 +409,16 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:** Notification Context → deduplicated email/in-app message.
 
 #### **FutureCommitmentExceptionRaised**
-- **Trigger:** UC-073 — a resource/hours/template/schedule change affects a future commitment nobody explicitly reviewed per-session (excludes a manager-initiated range cancellation, Cluster 4, whose own step is already the explicit resolution).
+- **Trigger:** UC-073 — a resource/hours/template/schedule change affects a future commitment nobody explicitly reviewed per-session (excludes a manager-initiated range cancellation, Cluster 4, whose own step is already the explicit resolution). Wired as of M23-S08 for resource deactivation only, from UC-047 and the UC-048 staff-deactivation cascade, once per affected booking.
 - **State change:** `future_commitment_exceptions` row created, `status = OPEN`.
 - **Data:** `{ exceptionId, sourceType, sourceId, affectedType, affectedId, ownerStaffId: string | null }`
-- **Consumers:** Notification Context → alerts the owning manager.
+- **Consumers:** M23-S08 ships an audit-log consumer only; the Notification Context alert to the manager is M23-S23 (the domain design's intended consumer).
 
 #### **FutureCommitmentExceptionResolved**
 - **Trigger:** UC-077 (manager keeps, reassigns, reschedules, or cancels).
 - **State change:** `status → RESOLVED`.
 - **Data:** `{ exceptionId, resolutionType, resolvedByStaffId, affectedType, affectedId }`
-- **Consumers:** Notification Context → customer email (the resulting booking/session change's own event carries the customer-facing detail; this one is the manager-side audit trail).
+- **Consumers:** M23-S08 ships an audit-log consumer only. The customer-facing detail comes from the resulting booking event (`BookingCancelled`, `BookingRescheduled`); a reassign has no such event yet — a customer message for it is M23-S23.
 
 #### **FutureCommitmentExceptionDismissed**
 - **Trigger:** UC-077 A2 (manager dismisses a genuinely resolved/non-impacting item).

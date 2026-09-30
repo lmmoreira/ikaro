@@ -226,7 +226,9 @@ flowchart TD
 ```
 POST  /recurring-booking-schedules        -- create (UC-070) → 201 { id, status, approvalHoldExpiresAt } | 409 | 422
 GET   /recurring-booking-schedules        -- list (own schedules; CUSTOMER sees only theirs)
-PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart   -- skip / reschedule one occurrence
+GET   /bookings?recurringScheduleId=<id>  -- a schedule's occurrences are bookings (M23-S08)
+PATCH /bookings/:id/cancel                -- skip one occurrence = cancel its booking (cancellation window applies)
+PATCH /bookings/:id/reschedule            -- reschedule one occurrence (reschedule window applies)
 POST  /recurring-booking-schedules/:id/end       -- end early (the `…/pause` route was removed by `M23-S20`)
 ```
 
