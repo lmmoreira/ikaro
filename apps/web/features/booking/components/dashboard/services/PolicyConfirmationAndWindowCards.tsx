@@ -209,7 +209,12 @@ export function PolicyWhoHowCard({ policy, onPatch }: PolicyCardProps): React.JS
             data-testid="policy-recurring-horizon"
             disabled={!policy.recurrenceEligible}
             aria-invalid={!horizonValid}
-            aria-describedby="policy-recurring-horizon-hint"
+            aria-describedby={
+              horizonValid
+                ? 'policy-recurring-horizon-hint'
+                : 'policy-recurring-horizon-hint policy-recurring-horizon-error'
+            }
+            aria-errormessage={horizonValid ? undefined : 'policy-recurring-horizon-error'}
             value={toNumberInput(policy.recurringHorizonDays)}
             onChange={(event) =>
               onPatch({ recurringHorizonDays: parseNullableNumber(event.target.value) })
@@ -221,6 +226,7 @@ export function PolicyWhoHowCard({ policy, onPatch }: PolicyCardProps): React.JS
           </p>
           {!horizonValid && (
             <p
+              id="policy-recurring-horizon-error"
               role="alert"
               data-testid="policy-recurring-horizon-error"
               className="mt-1 text-xs text-red-600"

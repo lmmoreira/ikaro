@@ -156,10 +156,20 @@ describe('PolicyWhoHowCard', () => {
       expect(screen.getByTestId('policy-recurring-horizon-error')).toHaveTextContent(
         'Informe um número inteiro de 1 a 180 dias.',
       );
-      expect(screen.getByTestId('policy-recurring-horizon')).toHaveAttribute(
-        'aria-invalid',
-        'true',
+      const input = screen.getByTestId('policy-recurring-horizon');
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(input).toHaveAttribute('aria-errormessage', 'policy-recurring-horizon-error');
+      expect(input).toHaveAccessibleDescription(
+        expect.stringContaining('Informe um número inteiro de 1 a 180 dias.'),
       );
+    });
+
+    it('does not reference the error element while the value is valid', () => {
+      renderWithIntl(<PolicyWhoHowCard policy={RECURRING_POLICY} onPatch={vi.fn()} />);
+
+      const input = screen.getByTestId('policy-recurring-horizon');
+      expect(input).not.toHaveAttribute('aria-errormessage');
+      expect(input).toHaveAttribute('aria-describedby', 'policy-recurring-horizon-hint');
     });
   });
 });
