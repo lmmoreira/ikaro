@@ -82,14 +82,15 @@ describe('RecurringBookingScheduleController (integration)', () => {
   });
 
   afterAll(async () => {
-    await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
-    await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });
-    await ds.getRepository(ScheduleClosureEntity).delete({ tenantId });
-    await ds.getRepository(ScheduleOpeningEntity).delete({ tenantId });
+    // Materialized occurrences reference their schedule, so the bookings go first.
     await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
     await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(BookingLineEntity).delete({ tenantId });
     await ds.getRepository(BookingEntity).delete({ tenantId });
+    await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
+    await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });
+    await ds.getRepository(ScheduleClosureEntity).delete({ tenantId });
+    await ds.getRepository(ScheduleOpeningEntity).delete({ tenantId });
     await ds.getRepository(ServiceResourceRequirementPoolEntity).delete({ tenantId });
     await ds.getRepository(ServiceResourceRequirementEntity).delete({ tenantId });
     await ds.getRepository(ResourceEntity).delete({ tenantId });
