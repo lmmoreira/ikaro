@@ -32,6 +32,12 @@ export interface ResourceOccupancyCandidate extends ResourceOccupancyWindow {
   isBundleMember: boolean;
 }
 
+// One booking line and the occupancy candidates it resolved to — the unit assignMany() takes.
+export interface BookingLineOccupancyAssignment {
+  bookingLineId: string;
+  candidates: ResourceOccupancyCandidate[];
+}
+
 // Internal, booking-context-local write-path port for the resource_occupancy/
 // booking_line_resource_assignments pair (docs/13-DATABASE_SCHEMA.md). Distinct from the public,
 // cross-context IBookingAvailabilityPort (read-only, availability computation) — this port is
@@ -75,6 +81,30 @@ export interface IResourceOccupancyRepository {
     lockState: ResourceOccupancyLockState,
     holdExpiresAt: Date | null,
   ): Promise<void>;
+
+  // assign() for many brand-new booking lines at once (a recurring schedule's whole term, M23-S05)
+  // — two statements in total (the assignment rows, then the occupancy rows), however many lines.
+  // Only for lines that have no assignment rows yet, so nothing is upserted: the null-safe unique
+  // index cannot already hold one of these tuples. Same active-transaction contract, and the
+  // same exclusion-constraint backstop as assign(). One statement each, so the row count must stay
+  // inside PostgreSQL's bound-parameter limit: the caller's batch is bounded by a schedule's term
+  // (at most 365 occurrences).
+  assignMany(
+    tenantId: string,
+    assignments: BookingLineOccupancyAssignment[],
+    lockState: ResourceOccupancyLockState,
+    holdExpiresAt: Date | null,
+  ): Promise<void>;
+
+  // Every HOLD/COMMITTED occupancy window of the given resources overlapping [from, to), in one
+  // query — the batch counterpart of countActiveByResource for a caller that needs the per-day
+  // workload of many days at once (M23-S05 planning a recurring term's AUTO_ANY picks).
+  findActiveWindows(
+    tenantId: string,
+    resourceIds: string[],
+    from: Date,
+    to: Date,
+  ): Promise<ResourceOccupancyWindow[]>;
 
   // Deletes every resource_occupancy row belonging to the given booking lines (reject/cancel
   // release, or the "delete" half of a reschedule's move) — never touches

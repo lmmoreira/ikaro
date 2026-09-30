@@ -16,13 +16,12 @@ export class InMemoryRecurringBookingScheduleRepository implements IRecurringBoo
     this.store.set(schedule.id, schedule);
   }
 
-  async findById(id: string, tenantId: string): Promise<RecurringBookingSchedule | null> {
+  findById(id: string, tenantId: string): Promise<RecurringBookingSchedule | null> {
     const schedule = this.store.get(id);
-    if (schedule?.tenantId !== tenantId) return null;
-    return schedule;
+    return Promise.resolve(schedule?.tenantId === tenantId ? schedule : null);
   }
 
-  async findAllByTenantPaginated(
+  findAllByTenantPaginated(
     tenantId: string,
     filters: RecurringBookingScheduleListFilters,
   ): Promise<RecurringBookingSchedulePaginatedResult> {
@@ -31,54 +30,53 @@ export class InMemoryRecurringBookingScheduleRepository implements IRecurringBoo
     if (filters.status) results = results.filter((s) => s.status === filters.status);
     // Same order as the TypeORM adapter: createdAt DESC, id DESC as the tie-breaker.
     results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
-    return {
+    return Promise.resolve({
       items: results.slice(filters.offset, filters.offset + filters.limit),
       total: results.length,
-    };
+    });
   }
 
-  async countActiveByResource(tenantId: string, resourceId: string): Promise<number> {
-    return Array.from(this.store.values()).filter(
-      (s) =>
-        s.tenantId === tenantId &&
-        s.status === 'ACTIVE' &&
-        s.assignmentPolicy === 'FIXED_ASSIGNMENT' &&
-        s.resourceAssignments.some((a) => a.resourceId === resourceId),
-    ).length;
-  }
-
-  async countActiveResolvePerOccurrenceByService(
-    tenantId: string,
-    serviceId: string,
-  ): Promise<number> {
-    return Array.from(this.store.values()).filter(
-      (s) =>
-        s.tenantId === tenantId &&
-        s.serviceId === serviceId &&
-        s.status === 'ACTIVE' &&
-        s.assignmentPolicy === 'RESOLVE_PER_OCCURRENCE',
-    ).length;
-  }
-
-  async findPendingApprovalExpired(
-    tenantId: string,
-    now: Date,
-  ): Promise<RecurringBookingSchedule[]> {
-    return Array.from(this.store.values()).filter(
-      (s) =>
-        s.tenantId === tenantId &&
-        s.status === 'PENDING_APPROVAL' &&
-        s.approvalHoldExpiresAt !== null &&
-        s.approvalHoldExpiresAt <= now,
+  countActiveByResource(tenantId: string, resourceId: string): Promise<number> {
+    return Promise.resolve(
+      Array.from(this.store.values()).filter(
+        (s) =>
+          s.tenantId === tenantId &&
+          s.status === 'ACTIVE' &&
+          s.assignmentPolicy === 'FIXED_ASSIGNMENT' &&
+          s.resourceAssignments.some((a) => a.resourceId === resourceId),
+      ).length,
     );
   }
 
-  async findActiveEndedBefore(
-    tenantId: string,
-    localToday: string,
-  ): Promise<RecurringBookingSchedule[]> {
-    return Array.from(this.store.values()).filter(
-      (s) => s.tenantId === tenantId && s.status === 'ACTIVE' && s.endsOn < localToday,
+  countActiveResolvePerOccurrenceByService(tenantId: string, serviceId: string): Promise<number> {
+    return Promise.resolve(
+      Array.from(this.store.values()).filter(
+        (s) =>
+          s.tenantId === tenantId &&
+          s.serviceId === serviceId &&
+          s.status === 'ACTIVE' &&
+          s.assignmentPolicy === 'RESOLVE_PER_OCCURRENCE',
+      ).length,
+    );
+  }
+
+  findPendingApprovalExpired(tenantId: string, now: Date): Promise<RecurringBookingSchedule[]> {
+    return Promise.resolve(
+      Array.from(this.store.values()).filter(
+        (s) =>
+          s.tenantId === tenantId &&
+          s.status === 'PENDING_APPROVAL' &&
+          s.approvalHoldExpiresAt !== null &&
+          s.approvalHoldExpiresAt <= now,
+      ),
+    );
+  }
+
+  findActiveEndedBefore(tenantId: string, localToday: string): Promise<RecurringBookingSchedule[]> {
+    return Promise.resolve(
+      Array.from(this.store.values()).filter(
+        (s) => s.tenantId === tenantId && s.status === 'ACTIVE' && s.endsOn < localToday,
+      ),
     );
   }
 

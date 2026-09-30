@@ -35,39 +35,57 @@ export class ExpireRecurringBookingScheduleApprovalsJob {
   ) {}
 
   async run(now: Date = new Date()): Promise<ExpireRecurringScheduleApprovalsJobResult> {
-    const result = { expired: 0, ended: 0 };
-    for (const tenant of await this.tenantPort.findAllActive()) {
-      const correlationId = uuidv7();
-      const pending = await this.scheduleRepo.findPendingApprovalExpired(tenant.id, now);
-      result.expired += await this.applyEach(pending, (schedule) => schedule.expire(correlationId));
-      const localToday = utcDateToLocalDate(now, tenant.timezone);
-      const finished = await this.scheduleRepo.findActiveEndedBefore(tenant.id, localToday);
-      result.ended += await this.applyEach(finished, (schedule) => schedule.markEnded());
-    }
-    return result;
+    const tenants = await this.tenantPort.findAllActive();
+    const perTenant = await Promise.all(tenants.map((tenant) => this.processTenant(tenant, now)));
+    return {
+      expired: perTenant.reduce((sum, result) => sum + result.expired, 0),
+      ended: perTenant.reduce((sum, result) => sum + result.ended, 0),
+    };
   }
 
-  // The count of schedules actually changed. A version conflict means a staff decision (or a
-  // parallel run) got there first, which is the outcome the job wanted anyway.
-  private async applyEach(
+  private async processTenant(
+    tenant: { id: string; timezone: string },
+    now: Date,
+  ): Promise<ExpireRecurringScheduleApprovalsJobResult> {
+    const correlationId = uuidv7();
+    const pending = await this.scheduleRepo.findPendingApprovalExpired(tenant.id, now);
+    const expired = await this.applyAll(pending, (schedule) => schedule.expire(correlationId));
+    const localToday = utcDateToLocalDate(now, tenant.timezone);
+    const finished = await this.scheduleRepo.findActiveEndedBefore(tenant.id, localToday);
+    const ended = await this.applyAll(finished, (schedule) => schedule.markEnded());
+    return { expired, ended };
+  }
+
+  // The count of schedules actually changed. Each one changes in its own transaction (its own
+  // connection), so they are independent and run side by side.
+  private async applyAll(
     schedules: RecurringBookingSchedule[],
     change: (schedule: RecurringBookingSchedule) => void,
   ): Promise<number> {
-    let changed = 0;
-    for (const schedule of schedules) {
-      try {
-        change(schedule);
-        await this.txManager.run(() => this.scheduleRepo.save(schedule));
-        changed++;
-      } catch (err) {
-        if (err instanceof BookingConcurrentModificationError) continue;
-        this.logger.error(
-          'Failed to update a recurring schedule — will retry on the next run',
-          err instanceof Error ? err.stack : String(err),
-          { tenantId: schedule.tenantId, recurringScheduleId: schedule.id },
-        );
-      }
+    const outcomes = await Promise.all(
+      schedules.map((schedule) => this.applyOne(schedule, change)),
+    );
+    return outcomes.filter(Boolean).length;
+  }
+
+  // A version conflict means a staff decision (or a parallel run) got there first, which is the
+  // outcome the job wanted anyway; any other failure is logged and retried on the next run.
+  private async applyOne(
+    schedule: RecurringBookingSchedule,
+    change: (schedule: RecurringBookingSchedule) => void,
+  ): Promise<boolean> {
+    try {
+      change(schedule);
+      await this.txManager.run(() => this.scheduleRepo.save(schedule));
+      return true;
+    } catch (err) {
+      if (err instanceof BookingConcurrentModificationError) return false;
+      this.logger.error(
+        'Failed to update a recurring schedule — will retry on the next run',
+        err instanceof Error ? err.stack : String(err),
+        { tenantId: schedule.tenantId, recurringScheduleId: schedule.id },
+      );
+      return false;
     }
-    return changed;
   }
 }

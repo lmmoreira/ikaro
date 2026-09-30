@@ -3,6 +3,7 @@ import {
   BookingLineOccupancyRow,
   ResourceBookingImpact,
   ResourceLineAssignment,
+  ResourceOccupancyWindow,
 } from '../../application/ports/resource-occupancy-repository.port';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
 
@@ -145,5 +146,35 @@ export async function queryAssignmentsByBookingLines(
     resourceId: row.resource_id,
     resourceType: row.resource_type,
     legIndex: row.leg_index,
+  }));
+}
+
+interface ActiveWindowRow {
+  resource_id: string;
+  starts_at: Date;
+  ends_at: Date;
+}
+
+// The HOLD/COMMITTED windows of the given resources overlapping [from, to), one row each — see
+// IResourceOccupancyRepository.findActiveWindows().
+export async function queryActiveWindows(
+  manager: EntityManager,
+  params: { tenantId: string; resourceIds: string[]; from: Date; to: Date },
+): Promise<ResourceOccupancyWindow[]> {
+  const rows: ActiveWindowRow[] = await manager.query(
+    `
+    SELECT ro.resource_id, ro.starts_at, ro.ends_at
+    FROM booking.resource_occupancy ro
+    WHERE ro.tenant_id = $1
+      AND ro.resource_id = ANY($2::uuid[])
+      AND ro.lock_state IN ('HOLD', 'COMMITTED')
+      AND tstzrange(ro.starts_at, ro.ends_at, '[)') && tstzrange($3::timestamptz, $4::timestamptz, '[)')
+    `,
+    [params.tenantId, params.resourceIds, params.from, params.to],
+  );
+  return rows.map((row) => ({
+    resourceId: row.resource_id,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
   }));
 }

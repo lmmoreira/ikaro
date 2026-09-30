@@ -18,6 +18,7 @@ import {
   RecurrenceOccurrence,
   RecurrenceRule,
 } from '../../domain/recurrence-rule.helpers';
+import { Resource } from '../../domain/resource.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
@@ -124,12 +125,12 @@ export class RequestRecurringBookingScheduleUseCase {
       await this.lockForCapCheck(input);
       const prepared = await this.prepareRequest(input);
       await assertUnderCap(this.scheduleRepo, input);
-      await this.checkPatternConflict(input, prepared);
+      const resourcePlan = await this.checkPatternConflict(input, prepared);
       const built = this.buildSchedule(input, customerId, prepared);
       await this.scheduleRepo.save(built);
       // An AUTO_CONFIRM schedule is ACTIVE from the start, so its whole term becomes bookings in
       // this same transaction (UC-070 step 3); a PENDING_APPROVAL one waits for UC-071.
-      if (built.status === 'ACTIVE') await this.materialize(built, prepared, input);
+      if (built.status === 'ACTIVE') await this.materialize(built, prepared, resourcePlan);
       return built;
     });
 
@@ -184,9 +185,9 @@ export class RequestRecurringBookingScheduleUseCase {
   private async checkPatternConflict(
     input: RequestRecurringBookingScheduleUseCaseInput,
     prepared: PreparedRecurringBookingScheduleRequest,
-  ): Promise<void> {
+  ): Promise<Resource[]> {
     const { businessHours } = await this.bookingPlatform.getBusinessHoursAndLocale(input.tenantId);
-    await assertPatternConflictFree(
+    return assertPatternConflictFree(
       {
         resourceRepo: this.resourceRepo,
         availabilityService: this.availabilityService,
@@ -213,13 +214,12 @@ export class RequestRecurringBookingScheduleUseCase {
   private async materialize(
     schedule: RecurringBookingSchedule,
     prepared: PreparedRecurringBookingScheduleRequest,
-    input: RequestRecurringBookingScheduleUseCaseInput,
+    resources: Resource[],
   ): Promise<void> {
     await materializeRecurringScheduleOccurrences(
       {
         bookingRepo: this.bookingRepo,
         customerPort: this.customerPort,
-        resourceRepo: this.resourceRepo,
         occupancyRepo: this.occupancyRepo,
         availabilityService: this.availabilityService,
       },
@@ -227,7 +227,7 @@ export class RequestRecurringBookingScheduleUseCase {
         schedule,
         service: prepared.service,
         occurrences: prepared.occurrences,
-        timezone: input.timezone,
+        resources,
         approvedByStaffId: null,
       },
     );

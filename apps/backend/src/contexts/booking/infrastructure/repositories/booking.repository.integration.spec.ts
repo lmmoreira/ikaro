@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import {
   BookingBuilder,
+  BookingLineInputBuilder,
   RecurringBookingScheduleEntityBuilder,
   ServiceEntityBuilder,
 } from '../../../../test/builders/booking/index';
@@ -10,7 +11,7 @@ import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-m
 import { testAddress } from '../../../../test/utils/address-helpers';
 import { Money } from '../../../../shared/value-objects/money';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
-import { BookingStatus } from '../../domain/booking.aggregate';
+import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { ServiceEntity } from '../entities/service.entity';
@@ -19,6 +20,7 @@ import { BookingEntity } from '../entities/booking.entity';
 import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
+import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
 
 const TENANT_A = '00000000-0000-7000-8000-000000000060';
@@ -31,9 +33,11 @@ describe('TypeOrmBookingRepository (integration)', () => {
   let dataSource: DataSource;
   let repo: TypeOrmBookingRepository;
   let settingsPort: InMemoryTenantSettingsPort;
+  let txManager: TypeOrmTransactionManager;
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
+    txManager = new TypeOrmTransactionManager(dataSource);
     settingsPort = new InMemoryTenantSettingsPort();
     repo = new TypeOrmBookingRepository(
       dataSource.getRepository(BookingEntity),
@@ -370,6 +374,115 @@ describe('TypeOrmBookingRepository (integration)', () => {
       await dataSource
         .getRepository(RecurringBookingScheduleEntity)
         .delete(schedules.map((sc) => sc.id));
+    });
+  });
+
+  describe('insertMany (M23-S05, a recurring term in bulk)', () => {
+    async function seedSchedule(): Promise<string> {
+      const schedule = await dataSource
+        .getRepository(RecurringBookingScheduleEntity)
+        .save(
+          new RecurringBookingScheduleEntityBuilder()
+            .withTenantId(TENANT_A)
+            .withServiceId(SERVICE_ID)
+            .build(),
+        );
+      return schedule.id;
+    }
+
+    function occurrence(recurringScheduleId: string, day: number): Booking {
+      return Booking.materializeRecurringOccurrence({
+        tenantId: TENANT_A,
+        customerId: '00000000-0000-7000-8000-000000000090',
+        contactEmail: 'ana@example.com',
+        contactName: 'Ana Souza',
+        contactPhone: '+5531999999999',
+        scheduledAt: new Date(Date.UTC(2026, 7, day, 13)),
+        lineInputs: [
+          new BookingLineInputBuilder()
+            .withServiceId(SERVICE_ID)
+            .withDurationMinsAtBooking(60)
+            .withPriceAtBooking(Money.from(150, 'BRL'))
+            .build(),
+        ],
+        recurringScheduleId,
+        approvedBy: null,
+      });
+    }
+
+    async function cleanUp(bookings: Booking[], scheduleId: string): Promise<void> {
+      await dataSource
+        .getRepository(BookingLineEntity)
+        .delete(bookings.map((b) => ({ bookingId: b.id, tenantId: TENANT_A })));
+      await dataSource.getRepository(BookingEntity).delete(bookings.map((b) => b.id));
+      await dataSource.getRepository(RecurringBookingScheduleEntity).delete(scheduleId);
+    }
+
+    it('inserts every booking with its lines in one call and reads them back APPROVED', async () => {
+      const scheduleId = await seedSchedule();
+      const bookings = [1, 8, 15].map((day) => occurrence(scheduleId, day));
+
+      await txManager.run(() => repo.insertMany(bookings));
+
+      const page = await repo.findAllByTenantPaginated(TENANT_A, {
+        limit: 25,
+        offset: 0,
+        recurringScheduleId: scheduleId,
+      });
+      expect(page.total).toBe(3);
+      expect(page.items.every((b) => b.status === BookingStatus.APPROVED)).toBe(true);
+      expect(page.items.every((b) => b.lines.length === 1)).toBe(true);
+      expect(page.items[0].lines[0].durationMinsAtBooking).toBe(60);
+      expect(bookings.every((b) => b.version === 1)).toBe(true);
+      await cleanUp(bookings, scheduleId);
+    });
+
+    it('does nothing for an empty batch', async () => {
+      await expect(txManager.run(() => repo.insertMany([]))).resolves.toBeUndefined();
+    });
+
+    it('refuses a booking that was already persisted, or that raises a domain event', async () => {
+      const scheduleId = await seedSchedule();
+      const persisted = occurrence(scheduleId, 1);
+      await txManager.run(() => repo.insertMany([persisted]));
+      const requested = Booking.requestBooking({
+        tenantId: TENANT_A,
+        contactEmail: 'x@example.com',
+        contactName: 'X',
+        contactPhone: '+5531999999999',
+        scheduledAt: new Date(),
+        lineInputs: [new BookingLineInputBuilder().withServiceId(SERVICE_ID).build()],
+        type: 'GUEST',
+        correlationId: 'corr',
+      });
+
+      await expect(txManager.run(() => repo.insertMany([persisted]))).rejects.toThrow(
+        'only takes new bookings',
+      );
+      await expect(txManager.run(() => repo.insertMany([requested]))).rejects.toThrow(
+        'only takes new bookings',
+      );
+      await cleanUp([persisted], scheduleId);
+    });
+
+    it('rejects a second booking for the same schedule and start (the idempotency key)', async () => {
+      const scheduleId = await seedSchedule();
+      const first = occurrence(scheduleId, 1);
+      await txManager.run(() => repo.insertMany([first]));
+
+      await expect(
+        txManager.run(() => repo.insertMany([occurrence(scheduleId, 1)])),
+      ).rejects.toThrow();
+      await cleanUp([first], scheduleId);
+    });
+
+    it('needs an active transaction', async () => {
+      const scheduleId = await seedSchedule();
+
+      await expect(repo.insertMany([occurrence(scheduleId, 1)])).rejects.toThrow(
+        'requires an active transaction',
+      );
+      await dataSource.getRepository(RecurringBookingScheduleEntity).delete(scheduleId);
     });
   });
 });

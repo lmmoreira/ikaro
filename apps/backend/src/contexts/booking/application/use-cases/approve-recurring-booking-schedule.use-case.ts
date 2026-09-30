@@ -11,6 +11,7 @@ import {
 } from '../../domain/recurrence-rule.helpers';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { Resource } from '../../domain/resource.aggregate';
 import { Service } from '../../domain/service.aggregate';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
@@ -95,14 +96,13 @@ export class ApproveRecurringBookingScheduleUseCase {
         schedule.endsOn,
         input.timezone,
       );
-      await this.assertTermStillHonorable(schedule, service, occurrences, input);
+      const resources = await this.assertTermStillHonorable(schedule, service, occurrences, input);
 
       await this.scheduleRepo.save(schedule);
       const bookingIds = await materializeRecurringScheduleOccurrences(
         {
           bookingRepo: this.bookingRepo,
           customerPort: this.customerPort,
-          resourceRepo: this.resourceRepo,
           occupancyRepo: this.occupancyRepo,
           availabilityService: this.availabilityService,
         },
@@ -110,7 +110,7 @@ export class ApproveRecurringBookingScheduleUseCase {
           schedule,
           service,
           occurrences,
-          timezone: input.timezone,
+          resources,
           approvedByStaffId: input.actorId,
         },
       );
@@ -144,9 +144,9 @@ export class ApproveRecurringBookingScheduleUseCase {
     service: Service,
     occurrences: RecurrenceOccurrence[],
     input: ApproveRecurringBookingScheduleUseCaseInput,
-  ): Promise<void> {
+  ): Promise<Resource[]> {
     const { businessHours } = await this.bookingPlatform.getBusinessHoursAndLocale(input.tenantId);
-    await assertPatternConflictFree(
+    return assertPatternConflictFree(
       {
         resourceRepo: this.resourceRepo,
         availabilityService: this.availabilityService,

@@ -55,6 +55,13 @@ export interface IBookingRepository {
     filters: BookingListFilters,
   ): Promise<BookingPaginatedResult>;
   save(booking: Booking): Promise<void>;
+  // Inserts many brand-new bookings (and their lines and attendees) in a fixed number of
+  // statements — a recurring schedule's whole term in one go (M23-S05). Insert only, never an
+  // update, and only for bookings that raise no domain event: a materialized occurrence raises
+  // none, and the bulk path has no per-aggregate outbox drain, so an event would be dropped
+  // silently; a booking that carries one, or that was already persisted, is rejected. Runs inside
+  // the caller's active transaction like save().
+  insertMany(bookings: Booking[]): Promise<void>;
   // Narrow existence check (M22-S01, UC-056 A1) — never fetches full booking rows, just whether
   // any booking line references this service, for the bookingModel-immutability check.
   existsByServiceId(serviceId: string, tenantId: string): Promise<boolean>;

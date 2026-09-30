@@ -12,10 +12,7 @@ import { ResourceRequirement } from '../../domain/resource-requirement';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceBookingPolicyProps } from '../../domain/service.types';
-import {
-  IResourceOccupancyRepository,
-  ResourceOccupancyWindow,
-} from '../ports/resource-occupancy-repository.port';
+import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
@@ -28,6 +25,8 @@ import {
   resolveEligibleResources,
   resolveRequirementResources,
 } from './resource-requirement-resolution.helpers';
+import { findOccupiedRefusals } from './recurring-occurrence-occupancy.helpers';
+import { planOccurrenceResources } from './recurring-occurrence-resource-plan.helpers';
 import { ResolutionContext } from './resource-resolution-context.helpers';
 
 // Platform default hold when Service.bookingPolicy.manualHoldMinutes is null — matches
@@ -124,12 +123,13 @@ export interface ConflictCheckParams {
 // always run, and every affected occurrence is reported with its reason in one refusal, so the
 // customer can fix the pattern in one round. Accepts and rejects exactly what resolving and
 // checking each occurrence on its own (resolveBookingLinesResourceCandidates + assertSlotFree
-// + isWindowFree) would.
+// + isWindowFree) would. Returns the resource each occurrence is assigned to, in occurrence order
+// (the plan the materialization step persists).
 export async function assertPatternConflictFree(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
-): Promise<void> {
-  if (params.occurrences.length === 0) return;
+): Promise<Resource[]> {
+  if (params.occurrences.length === 0) return [];
   const requirement = params.service.resourceRequirements[0];
   const resources = await resolveConsideredResources(deps, params, requirement);
   await deps.tenantLock.lockResources(
@@ -138,14 +138,29 @@ export async function assertPatternConflictFree(
   );
   const anyFreeResourceSuffices = requirement.selectionMode === 'AUTO_ANY';
   const hoursConflicts = await findHoursRefusals(deps, params, resources, anyFreeResourceSuffices);
-  const occupiedConflicts = await findOccupiedRefusals(
-    deps,
-    params,
+  const occupancy = await findOccupiedRefusals({
+    occupancyRepo: deps.occupancyRepo,
+    availabilityService: deps.availabilityService,
+    tenantId: params.tenantId,
+    occurrences: params.occurrences,
+    durationMinutes: params.recurrence.durationMinutes,
+    bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
     resources,
     anyFreeResourceSuffices,
-  );
-  const conflicts = mergeConflicts(hoursConflicts, occupiedConflicts);
+  });
+  const conflicts = mergeConflicts(hoursConflicts, occupancy.refusals);
   if (conflicts.length > 0) throw new RecurringBookingScheduleConflictError(conflicts);
+
+  // The same pass that accepted the term also decides which resource each occurrence gets, so the
+  // materialization that follows resolves nothing (recurring-occurrence-resource-plan.helpers.ts).
+  return planOccurrenceResources(deps.occupancyRepo, {
+    tenantId: params.tenantId,
+    timezone: params.timezone,
+    selectionMode: requirement.selectionMode,
+    resources,
+    occurrences: params.occurrences,
+    conflictingWindows: occupancy.conflictingWindows,
+  });
 }
 
 async function findHoursRefusals(
@@ -171,22 +186,6 @@ async function findHoursRefusals(
     durationMinutes: params.recurrence.durationMinutes,
     bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
   });
-}
-
-async function findOccupiedRefusals(
-  deps: ConflictCheckDeps,
-  params: ConflictCheckParams,
-  resources: Resource[],
-  anyFreeResourceSuffices: boolean,
-): Promise<RecurringScheduleOccurrenceConflict[]> {
-  const windows = buildOccurrenceWindows(deps.availabilityService, params, resources);
-  const conflicting = await deps.occupancyRepo.findConflictingWindows(params.tenantId, windows);
-  return blockedOccurrenceStarts(
-    conflicting,
-    params.occurrences,
-    resources,
-    anyFreeResourceSuffices,
-  ).map((occurrenceStart) => ({ occurrenceStart, reason: 'OCCUPIED' as const }));
 }
 
 // One entry per occurrence, ordered by occurrenceStart; when an occurrence is refused for hours
@@ -238,49 +237,4 @@ async function resolveConsideredResources(
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
   return requirement.selectionMode === 'AUTO_ANY' ? eligible : eligible.slice(0, 1);
-}
-
-function buildOccurrenceWindows(
-  availabilityService: AvailabilityService,
-  params: ConflictCheckParams,
-  resources: Resource[],
-): ResourceOccupancyWindow[] {
-  const durationMs = params.recurrence.durationMinutes * 60_000;
-  const bufferAfterMinutes = params.service.bufferAfterMinutes ?? 0;
-  return params.occurrences.flatMap(({ occurrenceStart }) =>
-    resources.map((resource) => {
-      const gapMinutes = availabilityService.effectiveFlatGapMinutes(
-        bufferAfterMinutes,
-        resource.turnoverMinutes,
-      );
-      return {
-        resourceId: resource.id,
-        startsAt: occurrenceStart,
-        endsAt: new Date(occurrenceStart.getTime() + durationMs + gapMinutes * 60_000),
-      };
-    }),
-  );
-}
-
-// An occurrence is blocked when a resource it needs is busy: a single conflicting window suffices,
-// except when one free resource is enough — then only when every considered resource is busy in
-// that occurrence.
-function blockedOccurrenceStarts(
-  conflicting: ResourceOccupancyWindow[],
-  occurrences: { occurrenceStart: Date }[],
-  resources: Resource[],
-  anyFreeResourceSuffices: boolean,
-): Date[] {
-  const busyByStart = new Map<number, Set<string>>();
-  for (const { resourceId, startsAt } of conflicting) {
-    const key = startsAt.getTime();
-    busyByStart.set(key, (busyByStart.get(key) ?? new Set<string>()).add(resourceId));
-  }
-  return occurrences
-    .filter(({ occurrenceStart }) => {
-      const busy = busyByStart.get(occurrenceStart.getTime());
-      if (!busy) return false;
-      return anyFreeResourceSuffices ? resources.every((resource) => busy.has(resource.id)) : true;
-    })
-    .map(({ occurrenceStart }) => occurrenceStart);
 }

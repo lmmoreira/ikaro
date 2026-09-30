@@ -8,6 +8,7 @@ import {
   ScheduleClosureEntityBuilder,
   ServiceEntityBuilder,
   ServiceResourceRequirementEntityBuilder,
+  ServiceResourceRequirementPoolEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
@@ -25,7 +26,10 @@ import { ResourceEntity } from '../entities/resource.entity';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ServiceEntity } from '../entities/service.entity';
-import { ServiceResourceRequirementEntity } from '../entities/service-resource-requirement.entity';
+import {
+  ServiceResourceRequirementEntity,
+  ServiceResourceRequirementPoolEntity,
+} from '../entities/service-resource-requirement.entity';
 import { ResourceType } from '../../domain/resource.types';
 
 const TEST_KEY = 'recur-approval-integ-key-xxxxxx'; // 32 chars
@@ -93,6 +97,7 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
       await ds.getRepository(BookingEntity).delete({ tenantId: id });
       await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId: id });
       await ds.getRepository(ScheduleClosureEntity).delete({ tenantId: id });
+      await ds.getRepository(ServiceResourceRequirementPoolEntity).delete({ tenantId: id });
       await ds.getRepository(ServiceResourceRequirementEntity).delete({ tenantId: id });
       await ds.getRepository(ResourceEntity).delete({ tenantId: id });
       await ds.getRepository(ServiceEntity).delete({ tenantId: id });
@@ -260,10 +265,12 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
       const fixture = await seedFixture('MANUAL_APPROVAL');
       const { body: pending } = await requestSchedule(fixture).expect(201);
 
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post(`/recurring-booking-schedules/${pending.id}/approve`)
-        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
-        .expect(403);
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'));
+
+      expect(res.status).toBe(403);
+      expect((await scheduleRow(pending.id)).status).toBe('PENDING_APPROVAL');
     });
   });
 
@@ -287,7 +294,10 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
       const { body: pending } = await requestSchedule(fixture).expect(201);
       await decide(pending.id, 'reject').expect(200);
 
-      await decide(pending.id, 'reject').expect(409);
+      const res = await decide(pending.id, 'reject');
+
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL');
     });
   });
 
@@ -341,7 +351,82 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
       const fixture = await seedFixture('AUTO_CONFIRM');
       await requestSchedule(fixture, { startTime: '09:00', durationMinutes: 60 }).expect(201);
 
-      await requestSchedule(fixture, { startTime: '11:00', durationMinutes: 60 }).expect(201);
+      const second = await requestSchedule(fixture, { startTime: '11:00', durationMinutes: 60 });
+
+      expect(second.status).toBe(201);
+      expect(await bookingsOf(second.body.id)).toHaveLength(5);
+    });
+
+    it('puts every occurrence of an AUTO_ANY schedule on the resource that is free', async () => {
+      const taken = await seedFixture('AUTO_CONFIRM');
+      await requestSchedule(taken).expect(201); // holds 10:00 on `taken.resourceId` for the term
+      const spare = await ds
+        .getRepository(ResourceEntity)
+        .save(
+          new ResourceEntityBuilder()
+            .withTenantId(tenantId)
+            .withType(ResourceType.ROOM)
+            .withName('Sala livre')
+            .build(),
+        );
+      const pooled = await ds
+        .getRepository(ServiceEntity)
+        .save(
+          new ServiceEntityBuilder()
+            .withTenantId(tenantId)
+            .withName('Sala — qualquer')
+            .withRecurrenceEligible(true)
+            .withDefaultApprovalMode('AUTO_CONFIRM')
+            .withBufferAfterMinutes(0)
+            .build(),
+        );
+      const requirement = await ds
+        .getRepository(ServiceResourceRequirementEntity)
+        .save(
+          new ServiceResourceRequirementEntityBuilder()
+            .withTenantId(tenantId)
+            .withServiceId(pooled.id)
+            .withResourceType(ResourceType.ROOM)
+            .withSelectionMode('AUTO_ANY')
+            .build(),
+        );
+      // Restricted to the two rooms of this test, so the tie-break cannot land on a room another
+      // test in this file created.
+      await ds
+        .getRepository(ServiceResourceRequirementPoolEntity)
+        .save(
+          [taken.resourceId, spare.id].map((resourceId) =>
+            new ServiceResourceRequirementPoolEntityBuilder()
+              .withTenantId(tenantId)
+              .withRequirementId(requirement.id)
+              .withResourceId(resourceId)
+              .build(),
+          ),
+        );
+
+      const res = await request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send({
+          serviceId: pooled.id,
+          recurrence: {
+            frequency: 'WEEKLY',
+            daysOfWeek: ['tuesday'],
+            startTime: '10:00',
+            durationMinutes: 60,
+          },
+          assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+          startsOn: STARTS_ON,
+          endsOn: ENDS_ON,
+        });
+
+      expect(res.status).toBe(201);
+      const occurrences = await bookingsOf(res.body.id);
+      expect(occurrences).toHaveLength(5);
+      const onSpare = await ds
+        .getRepository(ResourceOccupancyEntity)
+        .count({ where: { tenantId, resourceId: spare.id, lockState: 'COMMITTED' } });
+      expect(onSpare).toBe(5);
     });
 
     it('the unique key refuses a second booking for the same schedule and start', async () => {

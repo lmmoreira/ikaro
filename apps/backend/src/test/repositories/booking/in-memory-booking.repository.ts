@@ -86,6 +86,18 @@ export class InMemoryBookingRepository implements IBookingRepository {
     await drainDomainEvents(booking, this.outboxPublisher);
   }
 
+  insertMany(bookings: Booking[]): Promise<void> {
+    for (const booking of bookings) {
+      if (booking.version !== undefined || booking.domainEvents.length > 0) {
+        throw new Error(
+          'insertMany() only takes new bookings that raise no domain events — use save() instead',
+        );
+      }
+      this.store.set(booking.id, booking);
+    }
+    return Promise.resolve();
+  }
+
   existsByServiceId(serviceId: string, tenantId: string): Promise<boolean> {
     return Promise.resolve(
       Array.from(this.store.values()).some(

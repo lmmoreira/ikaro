@@ -1,8 +1,12 @@
 import { EntityManager } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { ResourceOccupancyCandidate } from '../../application/ports/resource-occupancy-repository.port';
+import {
+  BookingLineOccupancyAssignment,
+  ResourceOccupancyCandidate,
+} from '../../application/ports/resource-occupancy-repository.port';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
+import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 
 // Split out of typeorm-resource-occupancy.repository.ts (docs/CODE_STANDARDS.md's file-length
@@ -164,4 +168,79 @@ export async function insertOccupancyRows(
   for (let i = 0; i < rows.length; i += OCCUPANCY_INSERT_CHUNK_SIZE) {
     await manager.insert(ResourceOccupancyEntity, rows.slice(i, i + OCCUPANCY_INSERT_CHUNK_SIZE));
   }
+}
+
+interface FreshPair {
+  bookingLineId: string;
+  candidate: ResourceOccupancyCandidate;
+  assignmentId: string;
+}
+
+function toFreshAssignmentRow(
+  tenantId: string,
+  pair: FreshPair,
+  now: Date,
+): QueryDeepPartialEntity<BookingLineResourceAssignmentEntity> {
+  return {
+    id: pair.assignmentId,
+    tenantId,
+    bookingLineId: pair.bookingLineId,
+    resourceId: pair.candidate.resourceId,
+    resourceType: pair.candidate.resourceType,
+    legIndex: pair.candidate.legIndex,
+    quantityPosition: pair.candidate.quantityPosition,
+    resourceNameAtAssignment: pair.candidate.resourceName,
+    assignedAt: now,
+  };
+}
+
+function toFreshOccupancyRow(
+  pair: FreshPair,
+  ctx: Omit<OccupancyRowContext, 'assignmentIds'>,
+): QueryDeepPartialEntity<ResourceOccupancyEntity> {
+  return {
+    id: uuidv7(),
+    tenantId: ctx.tenantId,
+    resourceId: pair.candidate.resourceId,
+    resourceType: pair.candidate.resourceType,
+    sourceType: 'BOOKING_LINE' as const,
+    bookingLineResourceAssignmentId: pair.assignmentId,
+    legIndex: pair.candidate.legIndex,
+    classSessionId: null,
+    resourceNameAtAssignment: pair.candidate.resourceName,
+    startsAt: pair.candidate.startsAt,
+    endsAt: pair.candidate.endsAt,
+    lockState: ctx.lockState,
+    holdExpiresAt: ctx.holdExpiresAt,
+    createdAt: ctx.now,
+  };
+}
+
+// assign() for many brand-new lines (M23-S05): every (line, candidate) pair gets a fresh
+// assignment row and the occupancy row that points at it — two multi-row INSERTs, however many
+// lines. Nothing is upserted because a new line has no assignment rows to reuse.
+export async function insertFreshAssignmentsAndOccupancy(
+  manager: EntityManager,
+  params: {
+    tenantId: string;
+    assignments: BookingLineOccupancyAssignment[];
+    lockState: ResourceOccupancyLockState;
+    holdExpiresAt: Date | null;
+  },
+): Promise<void> {
+  const { tenantId, lockState, holdExpiresAt } = params;
+  const now = new Date();
+  const pairs: FreshPair[] = params.assignments.flatMap(({ bookingLineId, candidates }) =>
+    candidates.map((candidate) => ({ bookingLineId, candidate, assignmentId: uuidv7() })),
+  );
+  if (pairs.length === 0) return;
+
+  await manager.insert(
+    BookingLineResourceAssignmentEntity,
+    pairs.map((pair) => toFreshAssignmentRow(tenantId, pair, now)),
+  );
+  await manager.insert(
+    ResourceOccupancyEntity,
+    pairs.map((pair) => toFreshOccupancyRow(pair, { tenantId, lockState, holdExpiresAt, now })),
+  );
 }
