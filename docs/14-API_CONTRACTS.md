@@ -1011,7 +1011,11 @@ Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or cr
 - *(Removed by M23-S08.)* There is no per-occurrence route: an occurrence is its linked booking, so skip is `PATCH /bookings/:id/cancel` and reschedule is `PATCH /bookings/:id/reschedule` (UC-070 A2), subject to the tenant's cancellation and reschedule windows for a customer. List a schedule's occurrences with `GET /bookings?recurringScheduleId=<id>`.
 - `POST /recurring-booking-schedules/:id/end`
 - `POST /recurring-booking-schedules/:id/approve` / `POST /recurring-booking-schedules/:id/reject` → UC-071. STAFF|MANAGER only.
-  - `409` if already resolved (A1) or past `approvalHoldExpiresAt` (A2)
+  - No request body. `200` on success.
+  - `404` unknown schedule in this tenant.
+  - `409` `BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` if already resolved (A1) or past `approvalHoldExpiresAt` (A2)
+  - `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` (approve only, A3) when an occurrence no longer passes the working-hours-and-closures or occupancy check; the body carries the same `conflicts: [{ occurrenceStart, reason }]` list as creation, nothing is created and the schedule stays `PENDING_APPROVAL`
+  - `422` `BOOKING_CUSTOMER_PHONE_NOT_SET` (approve only) when the customer has no phone for the occurrence bookings
 
 ### **Availability Alerts — M23 Cluster 3 (UC-072, UC-076)**
 

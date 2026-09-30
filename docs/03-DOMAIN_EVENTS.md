@@ -358,19 +358,19 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Trigger:** UC-070 confirms a recurring pattern on an `AUTO_CONFIRM` service, or UC-071 approves a `PENDING_APPROVAL` request on a `MANUAL_APPROVAL` service.
 - **State change:** `RecurringBookingSchedule.status → ACTIVE`; every occurrence of the term is materialized as a linked booking in the same transaction (there is no rolling generation).
 - **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds: string[], assignmentPolicy, recurrence, startsOn, endsOn }`
-- **Consumers:** Notification Context → confirmation email.
+- **Consumers:** audit-log only for now; the confirmation email is a separate later story. The materialized occurrence bookings raise no `BookingRequested`/`BookingApproved` of their own (M23-S05), so one schedule never produces one email per occurrence.
 
 #### **RecurringBookingScheduleApprovalRequested**
 - **Trigger:** UC-070 confirms a recurring pattern on a `MANUAL_APPROVAL` service.
 - **State change:** `RecurringBookingSchedule` created `PENDING_APPROVAL`, `approvalHoldExpiresAt` set. No occurrences are materialized until staff approve (UC-071).
 - **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds, assignmentPolicy, recurrence, startsOn, endsOn, approvalHoldExpiresAt }`
-- **Consumers:** Notification Context → alerts staff, same role `BookingRequested` plays for a manual-approval appointment.
+- **Consumers:** audit-log only for now; alerting staff (the role `BookingRequested` plays for a manual-approval appointment) is a separate later story.
 
 #### **RecurringBookingScheduleRejected**
 - **Trigger:** UC-071 (staff rejects) or its hold-expiry worker (unresolved past `approvalHoldExpiresAt`).
 - **State change:** `RecurringBookingSchedule.status → CANCELLED`, `cancellationReason = APPROVAL_REJECTED | APPROVAL_EXPIRED`.
 - **Data:** `{ recurringScheduleId, customerId, serviceId, reason }`
-- **Consumers:** Notification Context → customer email.
+- **Consumers:** audit-log only for now (M23-S05, the same as the other schedule events); the customer email for a rejected or expired request is a separate later story.
 
 #### **RecurringBookingScheduleEnded**
 - **Trigger:** UC-070 A2 (customer ends entirely).
