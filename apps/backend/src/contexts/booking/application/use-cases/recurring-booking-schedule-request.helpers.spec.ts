@@ -708,6 +708,27 @@ describe('assertPatternConflictFree', () => {
       expect(conflicts).toEqual([{ occurrenceStart: occurrenceStart(4), reason: 'CLOSED' }]);
     });
 
+    it('plans an AUTO_ANY occurrence onto the open resource when the other one is closed that day', async () => {
+      const [first, second] = (await seedResources(2)).sort((a, b) => a.id.localeCompare(b.id));
+      // Both are free of bookings and equally loaded, so the id tie-break would pick `first` — but
+      // `first` is closed on the second occurrence, which is still accepted because `second` is open.
+      await closeFullDay(1, first);
+
+      const plan = await assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 3));
+
+      expect(plan.map((resource) => resource.id)).toEqual([first.id, second.id, first.id]);
+    });
+
+    it('plans an AUTO_ANY occurrence around a resource that is busy and one that is closed', async () => {
+      const [a, b, c] = (await seedResources(3)).sort((x, y) => x.id.localeCompare(y.id));
+      occupy(a, occurrenceStart(0));
+      await closeFullDay(0, b);
+
+      const plan = await assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 2));
+
+      expect(plan[0].id).toBe(c.id);
+    });
+
     it('accepts the same pattern when the closure falls on a day with no occurrence', async () => {
       const [room] = await seedResources(1);
       await closureRepo.save(

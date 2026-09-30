@@ -72,6 +72,7 @@ export class RecurringBookingScheduleIneligibleServiceError extends BookingDomai
       | 'recurrence-not-enabled'
       | 'not-appointment'
       | 'legged-or-bundled'
+      | 'requires-pickup-address'
       | 'selection-mode-mismatch',
   ) {
     const messages: Record<typeof reason, string> = {
@@ -79,6 +80,8 @@ export class RecurringBookingScheduleIneligibleServiceError extends BookingDomai
       'not-appointment': 'Recurring schedules only apply to APPOINTMENT services',
       'legged-or-bundled':
         'Recurring schedules only apply to a flat, single-resource-requirement service',
+      'requires-pickup-address':
+        'Recurring schedules do not apply to a service that requires a pickup address',
       'selection-mode-mismatch':
         "The requested assignmentPolicy doesn't match this service's resource requirement",
     };

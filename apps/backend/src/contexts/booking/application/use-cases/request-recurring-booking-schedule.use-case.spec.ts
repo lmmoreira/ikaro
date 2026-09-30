@@ -74,12 +74,14 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       resourceRequirements?: ResourceRequirement[];
       defaultApprovalMode?: 'AUTO_CONFIRM' | 'MANUAL_APPROVAL';
       recurringHorizonDays?: number | null;
+      requiresPickupAddress?: boolean;
     } = {},
   ): Promise<string> {
     const service = new ServiceBuilder()
       .withTenantId(TENANT)
       .withName('Sala Aurora')
       .withBookingModel(overrides.bookingModel ?? 'APPOINTMENT')
+      .withRequiresPickupAddress(overrides.requiresPickupAddress ?? false)
       .withResourceRequirements(
         overrides.resourceRequirements ?? [
           ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
@@ -342,6 +344,32 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         actorId: CUSTOMER_ID,
       }),
     ).rejects.toThrow(RecurringBookingScheduleIneligibleServiceError);
+  });
+
+  it('rejects a service that requires a pickup address, since a recurring request carries none', async () => {
+    const serviceId = await seedService({ requiresPickupAddress: true });
+
+    await expect(
+      useCase.execute({
+        tenantId: TENANT,
+        correlationId: CORRELATION_ID,
+        timezone: TIMEZONE,
+        serviceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 120,
+        },
+        startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        actorType: 'CUSTOMER',
+        actorId: CUSTOMER_ID,
+      }),
+    ).rejects.toThrow(RecurringBookingScheduleIneligibleServiceError);
+    expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
   });
 
   it('rejects a bundle (2+ resourceRequirements) service', async () => {

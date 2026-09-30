@@ -14,8 +14,9 @@ export interface OccurrenceResourcePlanParams {
   // The resources whose availability decided the occurrences (see resolveConsideredResources).
   resources: Resource[];
   occurrences: RecurrenceOccurrence[];
-  // The occurrence windows the occupancy check found busy, straight from that same query.
-  conflictingWindows: ResourceOccupancyWindow[];
+  // The (resource, occurrence) pairs the whole-term check found unusable — busy from the occupancy
+  // query, closed or outside hours from the hours check — so AUTO_ANY never picks one of them.
+  unavailableWindows: ResourceOccupancyWindow[];
 }
 
 const windowKey = (resourceId: string, startsAt: Date): string =>
@@ -25,8 +26,8 @@ const windowKey = (resourceId: string, startsAt: Date): string =>
 // price of at most one extra query however long the term is. It mirrors what resolving each
 // occurrence on its own would pick (resolveRequirementResources): a chosen resource
 // (CUSTOMER_CHOICE) and the first eligible one (AUTO_FUNGIBLE_POOL) are the same for every
-// occurrence; AUTO_ANY takes, per occurrence, the least-loaded resource among those free at that
-// exact window, resourceId as the stable tie-break, where "load" is the HOLD/COMMITTED occupancy on
+// occurrence; AUTO_ANY takes, per occurrence, the least-loaded resource among those open and free
+// at that exact window, resourceId as the stable tie-break, where "load" is the HOLD/COMMITTED occupancy on
 // the tenant-local day of the occurrence.
 //
 // Occurrences fall on different days, so none of them changes another's free set or day load: the
@@ -41,14 +42,16 @@ export async function planOccurrenceResources(
     return occurrences.map(() => resources[0]);
   }
 
-  const busy = new Set(
-    params.conflictingWindows.map((window) => windowKey(window.resourceId, window.startsAt)),
+  const unavailable = new Set(
+    params.unavailableWindows.map((window) => windowKey(window.resourceId, window.startsAt)),
   );
   const dayLoads = await loadDayWindows(occupancyRepo, params);
 
   return occurrences.map(({ occurrenceStart }) => {
-    const free = resources.filter((resource) => !busy.has(windowKey(resource.id, occurrenceStart)));
-    // Falls back to every resource when all look busy, like the one-occurrence resolver: the
+    const free = resources.filter(
+      (resource) => !unavailable.has(windowKey(resource.id, occurrenceStart)),
+    );
+    // Falls back to every resource when none is usable, like the one-occurrence resolver: the
     // occupancy insert (and its exclusion constraint) then reports the real conflict.
     const candidates = free.length > 0 ? free : resources;
     const { start, end } = localDayBoundsUTC(occurrenceStart, params.timezone);

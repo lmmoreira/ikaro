@@ -18,7 +18,8 @@ import { IScheduleClosureRepository } from '../ports/schedule-closure-repository
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import { ITenantLockPort } from '../ports/tenant-lock.port';
 import {
-  findHoursConflicts,
+  evaluateHours,
+  HoursEvaluation,
   loadHoursScheduleData,
 } from './recurring-booking-schedule-hours.helpers';
 import {
@@ -62,6 +63,11 @@ export function assertServiceEligible(
   }
   if (!service.bookingPolicy.recurrenceEligible) {
     throw new RecurringBookingScheduleIneligibleServiceError('recurrence-not-enabled');
+  }
+  // A recurring request carries no pickup address to snapshot onto the occurrences, so a service
+  // that needs one can never be materialized.
+  if (service.requiresPickupAddress) {
+    throw new RecurringBookingScheduleIneligibleServiceError('requires-pickup-address');
   }
   if (service.legs !== null || service.resourceRequirements.length !== 1) {
     throw new RecurringBookingScheduleIneligibleServiceError('legged-or-bundled');
@@ -137,7 +143,7 @@ export async function assertPatternConflictFree(
     resources.map((resource) => resource.id),
   );
   const anyFreeResourceSuffices = requirement.selectionMode === 'AUTO_ANY';
-  const hoursConflicts = await findHoursRefusals(deps, params, resources, anyFreeResourceSuffices);
+  const hours = await findHoursRefusals(deps, params, resources, anyFreeResourceSuffices);
   const occupancy = await findOccupiedRefusals({
     occupancyRepo: deps.occupancyRepo,
     availabilityService: deps.availabilityService,
@@ -148,7 +154,7 @@ export async function assertPatternConflictFree(
     resources,
     anyFreeResourceSuffices,
   });
-  const conflicts = mergeConflicts(hoursConflicts, occupancy.refusals);
+  const conflicts = mergeConflicts(hours.conflicts, occupancy.refusals);
   if (conflicts.length > 0) throw new RecurringBookingScheduleConflictError(conflicts);
 
   // The same pass that accepted the term also decides which resource each occurrence gets, so the
@@ -159,7 +165,8 @@ export async function assertPatternConflictFree(
     selectionMode: requirement.selectionMode,
     resources,
     occurrences: params.occurrences,
-    conflictingWindows: occupancy.conflictingWindows,
+    // Busy, closed or outside hours: none of these (resource, occurrence) pairs may be assigned.
+    unavailableWindows: [...occupancy.conflictingWindows, ...hours.unavailable],
   });
 }
 
@@ -168,7 +175,7 @@ async function findHoursRefusals(
   params: ConflictCheckParams,
   resources: Resource[],
   anyOpenResourceSuffices: boolean,
-): Promise<RecurringScheduleOccurrenceConflict[]> {
+): Promise<HoursEvaluation> {
   const schedule = await loadHoursScheduleData(
     deps,
     params.tenantId,
@@ -176,7 +183,7 @@ async function findHoursRefusals(
     params.startsOn,
     params.endsOn,
   );
-  return findHoursConflicts({
+  return evaluateHours({
     availabilityService: deps.availabilityService,
     businessHours: params.businessHours,
     schedule,

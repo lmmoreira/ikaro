@@ -50,7 +50,7 @@ describe('planOccurrenceResources', () => {
 
   function plan(
     selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL',
-    conflictingWindows: ResourceOccupancyWindow[] = [],
+    unavailableWindows: ResourceOccupancyWindow[] = [],
   ) {
     return planOccurrenceResources(occupancyRepo, {
       tenantId: TENANT,
@@ -58,7 +58,7 @@ describe('planOccurrenceResources', () => {
       selectionMode,
       resources,
       occurrences: OCCURRENCES,
-      conflictingWindows,
+      unavailableWindows,
     });
   }
 

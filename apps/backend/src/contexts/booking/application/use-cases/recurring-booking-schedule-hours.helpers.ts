@@ -5,6 +5,7 @@ import { Resource } from '../../domain/resource.aggregate';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceOccupancyWindow } from '../ports/resource-occupancy-repository.port';
 import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 
@@ -83,36 +84,33 @@ export interface HoursCheckInput {
 // effective trailing gap), which is what availability offers a slot against, so a slot
 // availability would not offer (its buffer or turnover runs past closing) is refused too.
 export function findHoursConflicts(input: HoursCheckInput): RecurringScheduleOccurrenceConflict[] {
-  const closuresByDate = groupByDate(input.schedule.closures);
-  const tenantOpeningByDate = new Map(input.schedule.tenantOpenings.map((o) => [o.date.value, o]));
-  const resourceOpeningByKey = new Map(
-    input.schedule.resourceOpenings.map((o) => [`${o.resourceId}|${o.date.value}`, o]),
-  );
+  return evaluateHours(input).conflicts;
+}
 
+export interface HoursEvaluation {
+  conflicts: RecurringScheduleOccurrenceConflict[];
+  // Every (resource, occurrence) pair that is closed or outside hours — including for an occurrence
+  // that is still accepted because another considered resource is open (AUTO_ANY), so the plan
+  // that picks a resource never picks a closed one.
+  unavailable: ResourceOccupancyWindow[];
+}
+
+// findHoursConflicts() plus the per-resource verdicts it decides from.
+export function evaluateHours(input: HoursCheckInput): HoursEvaluation {
+  const lookup = buildDayLookup(input);
   const conflicts: RecurringScheduleOccurrenceConflict[] = [];
+  const unavailable: ResourceOccupancyWindow[] = [];
   for (const occurrence of input.occurrences) {
-    const date = occurrence.occurrenceStartLocalDate;
-    const dayClosures = closuresByDate.get(date) ?? [];
-    const verdicts = input.resources.map((resource) => {
-      const gapMinutes = input.availabilityService.effectiveFlatGapMinutes(
-        input.bufferAfterMinutes,
-        resource.turnoverMinutes,
-      );
-      const start = occurrence.occurrenceStart;
-      const end = new Date(start.getTime() + (input.durationMinutes + gapMinutes) * 60_000);
-      return input.availabilityService.windowHoursVerdict(
-        date,
-        input.businessHours,
-        {
-          resource,
-          closures: dayClosures.filter(
-            (c) => c.resourceId === null || c.resourceId === resource.id,
-          ),
-          opening: tenantOpeningByDate.get(date) ?? null,
-          resourceOpening: resourceOpeningByKey.get(`${resource.id}|${date}`) ?? null,
-        },
-        { start, end },
-      );
+    const verdicts = input.resources.map((resource) =>
+      resourceVerdict(input, lookup, occurrence, resource),
+    );
+    input.resources.forEach((resource, index) => {
+      if (verdicts[index] === 'FREE') return;
+      unavailable.push({
+        resourceId: resource.id,
+        startsAt: occurrence.occurrenceStart,
+        endsAt: new Date(occurrence.occurrenceStart.getTime() + input.durationMinutes * 60_000),
+      });
     });
     const open = input.anyOpenResourceSuffices
       ? verdicts.includes('FREE')
@@ -122,7 +120,53 @@ export function findHoursConflicts(input: HoursCheckInput): RecurringScheduleOcc
     const reason = verdicts.find((v) => v !== 'FREE') as 'CLOSED' | 'OUTSIDE_HOURS';
     conflicts.push({ occurrenceStart: occurrence.occurrenceStart, reason });
   }
-  return conflicts.sort((a, b) => a.occurrenceStart.getTime() - b.occurrenceStart.getTime());
+  conflicts.sort((a, b) => a.occurrenceStart.getTime() - b.occurrenceStart.getTime());
+  return { conflicts, unavailable };
+}
+
+interface DayLookup {
+  closuresByDate: Map<string, ScheduleClosure[]>;
+  tenantOpeningByDate: Map<string, ScheduleOpening>;
+  resourceOpeningByKey: Map<string, ScheduleOpening>;
+}
+
+function buildDayLookup(input: HoursCheckInput): DayLookup {
+  return {
+    closuresByDate: groupByDate(input.schedule.closures),
+    tenantOpeningByDate: new Map(input.schedule.tenantOpenings.map((o) => [o.date.value, o])),
+    resourceOpeningByKey: new Map(
+      input.schedule.resourceOpenings.map((o) => [`${o.resourceId}|${o.date.value}`, o]),
+    ),
+  };
+}
+
+// One resource's verdict for one occurrence window (start → start + duration + its trailing gap).
+function resourceVerdict(
+  input: HoursCheckInput,
+  lookup: DayLookup,
+  occurrence: RecurrenceOccurrence,
+  resource: Resource,
+): ReturnType<AvailabilityService['windowHoursVerdict']> {
+  const date = occurrence.occurrenceStartLocalDate;
+  const gapMinutes = input.availabilityService.effectiveFlatGapMinutes(
+    input.bufferAfterMinutes,
+    resource.turnoverMinutes,
+  );
+  const start = occurrence.occurrenceStart;
+  const end = new Date(start.getTime() + (input.durationMinutes + gapMinutes) * 60_000);
+  return input.availabilityService.windowHoursVerdict(
+    date,
+    input.businessHours,
+    {
+      resource,
+      closures: (lookup.closuresByDate.get(date) ?? []).filter(
+        (c) => c.resourceId === null || c.resourceId === resource.id,
+      ),
+      opening: lookup.tenantOpeningByDate.get(date) ?? null,
+      resourceOpening: lookup.resourceOpeningByKey.get(`${resource.id}|${date}`) ?? null,
+    },
+    { start, end },
+  );
 }
 
 function groupByDate(closures: ScheduleClosure[]): Map<string, ScheduleClosure[]> {
