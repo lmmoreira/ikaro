@@ -309,3 +309,18 @@ export const ListRecurringBookingSchedulesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).default(0),
 });
+
+// M23-S09 (UC-074) — the no-show request bodies are identical in the backend DTOs and the BFF
+// body schemas (no per-app deviation), so they live here once (bad-smell-audit BFF-5). The mark
+// reason is an optional internal note; the correction accepts COMPLETED only and requires a
+// 10–500 character reason (the audit trail for the correction).
+export const MarkBookingNoShowSchema = z
+  .object({
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .default({});
+
+export const CorrectBookingNoShowSchema = z.object({
+  correctedStatus: z.literal('COMPLETED'),
+  reason: z.string().trim().min(10).max(500),
+});

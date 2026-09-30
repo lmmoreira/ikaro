@@ -3,6 +3,8 @@ import {
   ScheduleClosuresRangeQuerySchema,
   ScheduleDayGridQuerySchema,
   UpdateServiceBookingPolicySchema,
+  MarkBookingNoShowSchema,
+  CorrectBookingNoShowSchema,
 } from './booking';
 
 describe('UpdateServiceBookingPolicySchema — recurringHorizonDays', () => {
@@ -94,4 +96,33 @@ describe('ListRecurringBookingSchedulesQuerySchema', () => {
       expect(ListRecurringBookingSchedulesQuerySchema.safeParse(input).success).toBe(false);
     },
   );
+});
+
+describe('MarkBookingNoShowSchema', () => {
+  it('accepts a missing body and defaults it to an empty object', () => {
+    expect(MarkBookingNoShowSchema.parse(undefined)).toEqual({});
+  });
+
+  it('trims the reason and caps it at 500 characters', () => {
+    expect(MarkBookingNoShowSchema.parse({ reason: '  ok  ' })).toEqual({ reason: 'ok' });
+    expect(MarkBookingNoShowSchema.safeParse({ reason: 'x'.repeat(501) }).success).toBe(false);
+    expect(MarkBookingNoShowSchema.safeParse({ reason: '   ' }).success).toBe(false);
+  });
+});
+
+describe('CorrectBookingNoShowSchema', () => {
+  const ok = { correctedStatus: 'COMPLETED', reason: 'Cliente foi atendido.' };
+
+  it('accepts COMPLETED with a 10–500 character trimmed reason', () => {
+    expect(CorrectBookingNoShowSchema.safeParse(ok).success).toBe(true);
+  });
+
+  it.each([
+    { ...ok, correctedStatus: 'CANCELLED' },
+    { ...ok, reason: '   curto   ' },
+    { ...ok, reason: 'x'.repeat(501) },
+    { correctedStatus: 'COMPLETED' },
+  ])('rejects %j', (input) => {
+    expect(CorrectBookingNoShowSchema.safeParse(input).success).toBe(false);
+  });
 });

@@ -1,5 +1,6 @@
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { ROLES_KEY } from '../../shared/decorators/roles.decorator';
+import { CorrectBookingNoShowSchema, MarkBookingNoShowSchema } from '@ikaro/validation';
 import { CorrectNoShowBodySchema, MarkNoShowBodySchema } from './bookings.schemas';
 import { BookingsNoShowController } from './bookings-no-show.controller';
 
@@ -7,6 +8,11 @@ const BOOKING_ID = '40000000-0000-4000-8000-000000000001';
 
 describe('BookingsNoShowController', () => {
   afterEach(() => jest.resetAllMocks());
+
+  it('validates request bodies with the schemas shared with the backend', () => {
+    expect(MarkNoShowBodySchema).toBe(MarkBookingNoShowSchema);
+    expect(CorrectNoShowBodySchema).toBe(CorrectBookingNoShowSchema);
+  });
 
   describe('markNoShow()', () => {
     it('forwards the optional reason to the backend route', async () => {
@@ -26,12 +32,6 @@ describe('BookingsNoShowController', () => {
       expect(Reflect.getMetadata(ROLES_KEY, BookingsNoShowController.prototype.markNoShow)).toEqual(
         ['MANAGER', 'STAFF'],
       );
-    });
-
-    it('accepts an empty body, trims the reason and caps it at 500 characters', () => {
-      expect(MarkNoShowBodySchema.parse(undefined)).toEqual({});
-      expect(MarkNoShowBodySchema.parse({ reason: '  ok  ' })).toEqual({ reason: 'ok' });
-      expect(MarkNoShowBodySchema.safeParse({ reason: 'x'.repeat(501) }).success).toBe(false);
     });
   });
 
@@ -59,23 +59,6 @@ describe('BookingsNoShowController', () => {
       expect(
         Reflect.getMetadata(ROLES_KEY, BookingsNoShowController.prototype.correctNoShow),
       ).toEqual(['MANAGER']);
-    });
-
-    it('requires COMPLETED and a 10–500 character trimmed reason', () => {
-      const ok = { correctedStatus: 'COMPLETED', reason: 'Cliente foi atendido.' };
-      expect(CorrectNoShowBodySchema.safeParse(ok).success).toBe(true);
-      expect(
-        CorrectNoShowBodySchema.safeParse({ ...ok, correctedStatus: 'CANCELLED' }).success,
-      ).toBe(false);
-      expect(CorrectNoShowBodySchema.safeParse({ ...ok, reason: '   curto   ' }).success).toBe(
-        false,
-      );
-      expect(CorrectNoShowBodySchema.safeParse({ ...ok, reason: 'x'.repeat(501) }).success).toBe(
-        false,
-      );
-      expect(CorrectNoShowBodySchema.safeParse({ correctedStatus: 'COMPLETED' }).success).toBe(
-        false,
-      );
     });
   });
 });

@@ -9,7 +9,9 @@ import {
   AddressShapeSchema,
   BookingAttendeeInputSchema,
   BookingIntakeAnswersSchema,
+  CorrectBookingNoShowSchema,
   isValidPhoneNumber,
+  MarkBookingNoShowSchema,
   ResourceSelectionSchema,
 } from '@ikaro/validation';
 
@@ -110,19 +112,9 @@ export const CompleteBookingBodySchema = z.object({
     .optional(),
 });
 
-// M23-S09 (UC-074) — mirrors the backend's MarkBookingNoShowSchema / CorrectBookingNoShowSchema
-// (two independent copies of the same rule — change both together). The reason of a no-show is an
-// optional internal note; the correction accepts COMPLETED only and requires a 10–500 character reason.
-export const MarkNoShowBodySchema = z
-  .object({
-    reason: z.string().trim().min(1).max(500).optional(),
-  })
-  .default({});
-
-export const CorrectNoShowBodySchema = z.object({
-  correctedStatus: z.literal('COMPLETED'),
-  reason: z.string().trim().min(10).max(500),
-});
+// M23-S09 (UC-074) — the same schemas the backend DTOs use, shared from @ikaro/validation.
+export const MarkNoShowBodySchema = MarkBookingNoShowSchema;
+export const CorrectNoShowBodySchema = CorrectBookingNoShowSchema;
 
 export type MarkNoShowBody = z.infer<typeof MarkNoShowBodySchema>;
 export type CorrectNoShowBody = z.infer<typeof CorrectNoShowBodySchema>;

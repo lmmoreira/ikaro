@@ -1,10 +1,7 @@
 import { z } from 'zod';
+import { MarkBookingNoShowSchema } from '@ikaro/validation';
 
-// UC-074 — the reason is an optional internal note (never shown to the customer).
-export const MarkBookingNoShowSchema = z
-  .object({
-    reason: z.string().trim().min(1).max(500).optional(),
-  })
-  .default({});
+// UC-074 — shared with the BFF body schema (packages/validation/src/booking.ts).
+export { MarkBookingNoShowSchema };
 
 export type MarkBookingNoShowDto = z.infer<typeof MarkBookingNoShowSchema>;
