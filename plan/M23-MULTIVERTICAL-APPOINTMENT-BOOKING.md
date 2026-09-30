@@ -1195,7 +1195,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
 
 ---
 
-### M23-S20 — Remove recurring-schedule Pause
+### M23-S20 — Remove recurring-schedule Pause ✅ Done
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** M
