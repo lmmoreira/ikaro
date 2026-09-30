@@ -377,32 +377,34 @@ describe('SchedulingExceptionController (integration)', () => {
 
   describe('access and validation', () => {
     it('returns 403 for STAFF on every route', async () => {
-      await request(app.getHttpServer())
+      const list = await request(app.getHttpServer())
         .get('/scheduling-exceptions')
-        .set(as(TENANT_A, 'STAFF'))
-        .expect(403);
-      await request(app.getHttpServer())
+        .set(as(TENANT_A, 'STAFF'));
+      const resolved = await request(app.getHttpServer())
         .post('/scheduling-exceptions/resolve')
         .set(as(TENANT_A, 'STAFF'))
-        .send({ exceptionIds: [MANAGER_ID], resolutionType: 'KEEP' })
-        .expect(403);
-      await request(app.getHttpServer())
+        .send({ exceptionIds: [MANAGER_ID], resolutionType: 'KEEP' });
+      const dismissed = await request(app.getHttpServer())
         .post('/scheduling-exceptions/dismiss')
         .set(as(TENANT_A, 'STAFF'))
-        .send({ exceptionIds: [MANAGER_ID], reason: 'x' })
-        .expect(403);
+        .send({ exceptionIds: [MANAGER_ID], reason: 'x' });
+
+      expect([list.status, resolved.status, dismissed.status]).toEqual([403, 403, 403]);
     });
 
     it('returns 400 when REASSIGN has no target', async () => {
-      await resolve({ exceptionIds: [MANAGER_ID], resolutionType: 'REASSIGN' }).expect(400);
+      const res = await resolve({ exceptionIds: [MANAGER_ID], resolutionType: 'REASSIGN' });
+
+      expect(res.status).toBe(400);
     });
 
     it('never exposes the retired per-id routes', async () => {
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post(`/scheduling-exceptions/${MANAGER_ID}/resolve`)
         .set(as())
-        .send({ resolutionType: 'KEEP' })
-        .expect(404);
+        .send({ resolutionType: 'KEEP' });
+
+      expect(res.status).toBe(404);
     });
   });
 

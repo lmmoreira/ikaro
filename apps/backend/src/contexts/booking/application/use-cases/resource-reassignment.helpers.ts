@@ -1,3 +1,4 @@
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { Booking } from '../../domain/booking.aggregate';
 import { FutureCommitmentExceptionReassignTargetInvalidError } from '../../domain/errors/future-commitment-exception.error';
@@ -180,9 +181,9 @@ async function moveAffectedRows(
     const key = `${row.bookingLineId}|${row.lockState}|${row.holdExpiresAt?.getTime() ?? ''}`;
     groups.set(key, [...(groups.get(key) ?? []), row]);
   }
-  for (const group of groups.values()) {
+  await mapSequentially([...groups.values()], (group) => {
     const first = group[0];
-    await occupancyRepo.assign(
+    return occupancyRepo.assign(
       tenantId,
       first.bookingLineId,
       group.map((row) => {
@@ -204,7 +205,7 @@ async function moveAffectedRows(
       first.lockState,
       first.holdExpiresAt,
     );
-  }
+  });
 }
 
 function invalid(reason: string): FutureCommitmentExceptionReassignTargetInvalidError {

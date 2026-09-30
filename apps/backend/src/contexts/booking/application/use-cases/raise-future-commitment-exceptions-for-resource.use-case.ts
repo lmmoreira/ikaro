@@ -20,6 +20,7 @@ import {
   findRequirementForAssignment,
 } from './future-commitment-alternatives.helpers';
 import { raiseFutureCommitmentException } from './future-commitment-exception-raise.helpers';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 
 export interface RaiseFutureCommitmentExceptionsForResourceUseCaseInput {
   tenantId: string;
@@ -83,8 +84,9 @@ export class RaiseFutureCommitmentExceptionsForResourceUseCase {
       bookings,
       impacts,
     );
-    for (const booking of bookings) {
-      await raiseFutureCommitmentException(this.exceptionRepo, {
+    // One after another on the caller's single transaction connection.
+    await mapSequentially(bookings, (booking) =>
+      raiseFutureCommitmentException(this.exceptionRepo, {
         tenantId,
         sourceType: 'RESOURCE_DEACTIVATION',
         sourceId: resourceId,
@@ -92,8 +94,8 @@ export class RaiseFutureCommitmentExceptionsForResourceUseCase {
         affectedId: booking.id,
         alternatives: alternatives.get(booking.id) ?? [],
         correlationId,
-      });
-    }
+      }),
+    );
     return { raisedCount: bookings.length };
   }
 

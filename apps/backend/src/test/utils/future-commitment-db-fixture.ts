@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { uuidv7 } from '../../shared/domain/uuid-v7';
 import {
   BookingEntityBuilder,
@@ -57,15 +57,18 @@ export async function seedService(
       .withSelectionMode('AUTO_ANY')
       .build(),
   );
-  for (const resourceId of options.poolResourceIds ?? []) {
+  const poolResourceIds = options.poolResourceIds ?? [];
+  if (poolResourceIds.length > 0) {
     await ds
       .getRepository(ServiceResourceRequirementPoolEntity)
       .save(
-        new ServiceResourceRequirementPoolEntityBuilder()
-          .withTenantId(tenantId)
-          .withRequirementId(requirement.id)
-          .withResourceId(resourceId)
-          .build(),
+        poolResourceIds.map((resourceId) =>
+          new ServiceResourceRequirementPoolEntityBuilder()
+            .withTenantId(tenantId)
+            .withRequirementId(requirement.id)
+            .withResourceId(resourceId)
+            .build(),
+        ),
       );
   }
   return service;
@@ -179,17 +182,16 @@ export async function cleanupFutureCommitmentTenant(
   ds: DataSource,
   tenantIds: string[],
 ): Promise<void> {
-  for (const tenantId of tenantIds) {
-    await ds.getRepository(FutureCommitmentExceptionEntity).delete({ tenantId });
-    await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
-    await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
-    await ds.getRepository(BookingLineEntity).delete({ tenantId });
-    await ds.getRepository(BookingEntity).delete({ tenantId });
-    await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
-    await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });
-    await ds.getRepository(ServiceResourceRequirementPoolEntity).delete({ tenantId });
-    await ds.getRepository(ServiceResourceRequirementEntity).delete({ tenantId });
-    await ds.getRepository(ServiceEntity).delete({ tenantId });
-    await ds.getRepository(ResourceEntity).delete({ tenantId });
-  }
+  const tenantId = In(tenantIds);
+  await ds.getRepository(FutureCommitmentExceptionEntity).delete({ tenantId });
+  await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+  await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
+  await ds.getRepository(BookingLineEntity).delete({ tenantId });
+  await ds.getRepository(BookingEntity).delete({ tenantId });
+  await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
+  await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });
+  await ds.getRepository(ServiceResourceRequirementPoolEntity).delete({ tenantId });
+  await ds.getRepository(ServiceResourceRequirementEntity).delete({ tenantId });
+  await ds.getRepository(ServiceEntity).delete({ tenantId });
+  await ds.getRepository(ResourceEntity).delete({ tenantId });
 }

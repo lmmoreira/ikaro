@@ -16,22 +16,22 @@ export class InMemoryFutureCommitmentExceptionRepository implements IFutureCommi
     this.store.set(exception.id, exception);
   }
 
-  async findById(id: string, tenantId: string): Promise<FutureCommitmentException | null> {
+  findById(id: string, tenantId: string): Promise<FutureCommitmentException | null> {
     const exception = this.store.get(id);
-    return exception?.tenantId === tenantId ? exception : null;
+    return Promise.resolve(exception?.tenantId === tenantId ? exception : null);
   }
 
   // No real row lock in memory — the unit specs that need concurrency semantics are integration
   // specs against a real database.
-  async findByIdForUpdate(id: string, tenantId: string): Promise<FutureCommitmentException | null> {
+  findByIdForUpdate(id: string, tenantId: string): Promise<FutureCommitmentException | null> {
     return this.findById(id, tenantId);
   }
 
-  async findOpenByImpact(
+  findOpenByImpact(
     tenantId: string,
     impact: FutureCommitmentExceptionImpact,
   ): Promise<FutureCommitmentException | null> {
-    return (
+    return Promise.resolve(
       Array.from(this.store.values()).find(
         (e) =>
           e.tenantId === tenantId &&
@@ -40,17 +40,19 @@ export class InMemoryFutureCommitmentExceptionRepository implements IFutureCommi
           e.sourceId === impact.sourceId &&
           e.affectedType === impact.affectedType &&
           e.affectedId === impact.affectedId,
-      ) ?? null
+      ) ?? null,
     );
   }
 
-  async findByTenant(
+  findByTenant(
     tenantId: string,
     filters: FutureCommitmentExceptionFilters = {},
   ): Promise<FutureCommitmentException[]> {
-    return Array.from(this.store.values())
-      .filter((e) => e.tenantId === tenantId && (!filters.status || e.status === filters.status))
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+    return Promise.resolve(
+      Array.from(this.store.values())
+        .filter((e) => e.tenantId === tenantId && (!filters.status || e.status === filters.status))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1)),
+    );
   }
 
   async save(exception: FutureCommitmentException): Promise<void> {

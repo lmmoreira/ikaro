@@ -110,7 +110,6 @@ Make everything that acts on a schedule after creation bundle-aware. M23-S05's m
 
 **Files to create/modify:**
 - The M23-S05 materialization step, approval use case and their handler (paths per what M23-S05 ships — to be confirmed at discovery, not stated from memory)
-- `apps/backend/src/contexts/booking/application/use-cases/skip-or-reschedule-occurrence.use-case.ts` (+ spec) (modify)
 - `apps/backend/src/contexts/booking/application/use-cases/end-recurring-booking-schedule.use-case.ts` (+ spec) (modify)
 - `apps/backend/src/contexts/booking/application/use-cases/list-recurring-booking-schedules.use-case.ts` (+ spec) (modify — return every assignment with its requirement)
 - `docs/27-BUSINESS_LOGIC_REFERENCE.md`, `docs/04-USE_CASES.md` (modify)

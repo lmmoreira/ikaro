@@ -120,6 +120,22 @@ describe('syncRecurringScheduleAssignments', () => {
     expect(stored.resourceAssignments.map((a) => a.resourceId)).toEqual([source.id]);
   });
 
+  it('leaves the assignment alone when an earlier reassign already put another occurrence on a third resource', async () => {
+    const schedule = fixedSchedule();
+    const third = await world.addResource('Sala 3');
+    const service = await world.addService();
+    // An earlier request moved one occurrence to Sala 3; this one moved the last one off Sala 1.
+    await world.addBooking({ service, resource: third, recurringScheduleId: schedule.id });
+    await world.addBooking({ service, resource: target, recurringScheduleId: schedule.id });
+
+    await sync([
+      { recurringScheduleId: schedule.id, fromResourceId: source.id, toResourceId: target.id },
+    ]);
+
+    const stored = (await scheduleRepo.findById(schedule.id, TENANT_ID))!;
+    expect(stored.resourceAssignments.map((a) => a.resourceId)).toEqual([source.id]);
+  });
+
   it('ignores a schedule that is no longer ACTIVE', async () => {
     const schedule = fixedSchedule();
     schedule.end('corr-sync-1', []);

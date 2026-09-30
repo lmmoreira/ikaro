@@ -46,6 +46,7 @@ import {
 import { rescheduleBookingInTransaction } from './reschedule-booking-in-transaction.helpers';
 import { ReassignTarget, reassignBookingResource } from './resource-reassignment.helpers';
 import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 
 export interface ResolveFutureCommitmentExceptionsUseCaseInput {
   tenantId: string;
@@ -100,12 +101,13 @@ export class ResolveFutureCommitmentExceptionsUseCase {
   async execute(
     input: ResolveFutureCommitmentExceptionsUseCaseInput,
   ): Promise<ResolveFutureCommitmentExceptionsUseCaseResult> {
-    const results: FutureCommitmentExceptionResolutionOutcome[] = [];
     const reassigned: ReassignedOccurrence[] = [];
 
-    for (const exceptionId of input.exceptionIds) {
-      results.push(await this.resolveOne(input, exceptionId, reassigned));
-    }
+    // Strictly one entry at a time: each is its own transaction, and concurrent ones would contend
+    // for the same booking and resource locks (and for pool connections).
+    const results = await mapSequentially(input.exceptionIds, (exceptionId) =>
+      this.resolveOne(input, exceptionId, reassigned),
+    );
 
     if (reassigned.length > 0) {
       await syncRecurringScheduleAssignments(

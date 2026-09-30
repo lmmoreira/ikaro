@@ -1,3 +1,4 @@
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
 import { IBookingRepository } from '../ports/booking-repository.port';
@@ -36,9 +37,9 @@ export async function syncRecurringScheduleAssignments(
     byKey.set(key, [...(byKey.get(key) ?? []), occurrence]);
   }
 
-  for (const group of byKey.values()) {
+  await mapSequentially([...byKey.values()], async (group) => {
     const targets = new Set(group.map((o) => o.toResourceId));
-    if (targets.size !== 1) continue;
+    if (targets.size !== 1) return;
     const { recurringScheduleId, fromResourceId } = group[0];
     try {
       await syncOne(deps, tenantId, recurringScheduleId, fromResourceId, [...targets][0]);
@@ -50,7 +51,7 @@ export async function syncRecurringScheduleAssignments(
         { tenantId, recurringScheduleId },
       );
     }
-  }
+  });
 }
 
 async function syncOne(
@@ -71,7 +72,10 @@ async function syncOne(
     );
     const lineIds = remaining.flatMap((b) => b.lines.map((l) => l.lineId));
     const assignments = await deps.occupancyRepo.findAssignmentsByBookingLines(tenantId, lineIds);
-    if (assignments.some((a) => a.resourceId === fromResourceId)) return;
+    // Every future occurrence must now sit on the new resource — not merely none on the old one: an
+    // earlier reassign (another request) may have left some of them elsewhere, and a single
+    // assignment cannot describe a schedule scattered over several resources.
+    if (assignments.some((a) => a.resourceId !== toResourceId)) return;
 
     schedule.reassignResource(fromResourceId, toResourceId);
     await deps.scheduleRepo.save(schedule);

@@ -67,9 +67,10 @@ export class ListFutureCommitmentExceptionsUseCase {
     const bookings = new Map(
       (await this.bookingRepo.findByIds(bookingIds, tenantId)).map((b) => [b.id, b]),
     );
-    const resourceNames = await this.loadResourceNames(
-      tenantId,
-      exceptions.filter((e) => e.sourceType === 'RESOURCE_DEACTIVATION').map((e) => e.sourceId),
+    // One read of the tenant's resources (deactivated ones included — they are the entries'
+    // sources), not one per distinct source: a tenant has tens of resources, not thousands.
+    const resourceNames = new Map(
+      (await this.resourceRepo.findByTenant(tenantId, {})).map((r) => [r.id, r.name]),
     );
 
     const items = exceptions.map((e) => ({
@@ -85,19 +86,8 @@ export class ListFutureCommitmentExceptionsUseCase {
     }));
     // The manager's deadline for an entry is the booking's own start, so earliest first; an entry
     // whose booking cannot be read sorts last.
-    return { items: items.sort(compareByBookingStart) };
-  }
-
-  private async loadResourceNames(
-    tenantId: string,
-    resourceIds: string[],
-  ): Promise<Map<string, string>> {
-    const names = new Map<string, string>();
-    for (const id of new Set(resourceIds)) {
-      const resource = await this.resourceRepo.findById(id, tenantId);
-      if (resource) names.set(id, resource.name);
-    }
-    return names;
+    items.sort(compareByBookingStart);
+    return { items };
   }
 }
 

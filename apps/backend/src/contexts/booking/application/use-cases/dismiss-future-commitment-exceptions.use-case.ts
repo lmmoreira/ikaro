@@ -10,6 +10,7 @@ import {
   IFutureCommitmentExceptionRepository,
 } from '../ports/future-commitment-exception-repository.port';
 import { FutureCommitmentExceptionResolutionOutcome } from './resolve-future-commitment-exceptions.use-case';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 
 export interface DismissFutureCommitmentExceptionsUseCaseInput {
   tenantId: string;
@@ -37,10 +38,9 @@ export class DismissFutureCommitmentExceptionsUseCase {
   async execute(
     input: DismissFutureCommitmentExceptionsUseCaseInput,
   ): Promise<DismissFutureCommitmentExceptionsUseCaseResult> {
-    const results: FutureCommitmentExceptionResolutionOutcome[] = [];
-    for (const exceptionId of input.exceptionIds) {
-      results.push(await this.dismissOne(input, exceptionId));
-    }
+    const results = await mapSequentially(input.exceptionIds, (exceptionId) =>
+      this.dismissOne(input, exceptionId),
+    );
     return { results };
   }
 
