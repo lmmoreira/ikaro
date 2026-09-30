@@ -34,6 +34,7 @@ export interface ServiceBookingPolicyDetail {
   minBookingAdvanceHoursOverride: number | null;
   maxBookingAdvanceDaysOverride: number | null;
   recurrenceEligible: boolean;
+  recurringHorizonDays: number | null;
   availabilityAlertEligible: boolean;
   durationPolicy: ServiceDurationPolicy;
   durationMinMinutes: number | null;

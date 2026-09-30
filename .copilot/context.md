@@ -110,7 +110,7 @@ APPROVED       → COMPLETED | CANCELLED | NO_SHOW   -- NO_SHOW added by M23 Clu
 COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal)
 ```
 
-`NO_SHOW` is **not** in MVP today — it ships with M23 (Multi-Vertical Scheduling, Cluster 3), see `docs/04-USE_CASES.md` UC-074. Until that milestone lands, treat `NO_SHOW` as absent from the live state machine. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
+Until M23 ships (`docs/04-USE_CASES.md` UC-074), treat `NO_SHOW` as absent from the live state machine. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
 
 ---
 
@@ -310,19 +310,7 @@ feat(<context>): <description> (M0X-SYY)
 
 Co-Authored-By: <your-name> <your-noreply-email>
 ```
-**If you are Claude:**
-```
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-```
-(Claude Code adds this automatically as part of its own commit workflow — this line is a reference, not something you need to remember to type.)
-
-**If you are Codex:** this repo requires the equivalent trailer on every commit you author — it does not happen by default, so add it explicitly:
-```
-feat(<context>): <description> (M0X-SYY)
-
-Co-Authored-By: Codex <noreply@openai.com>
-```
-This is not optional — it's the record of who actually wrote the code, same as Claude's trailer, and matters for attribution/history independent of any tooling. (`/pre-pr` (§17), which dispatches `/pr-review` to the other tool once a PR is open, does *not* need this trailer for that decision — it already knows its own identity without detecting it.)
+Claude Code adds its own trailer automatically. **Codex:** add `Co-Authored-By: Codex <noreply@openai.com>` explicitly on every commit you author — it does not happen by default, it is not optional, and it is the record of who actually wrote the code. (`/pre-pr` does *not* need it to decide which tool reviews the PR — it already knows its own identity.)
 
 **2. Push** — `ci:fast` (lint + type-check + architecture-check + unit tests) runs automatically and blocks if it fails. (`ci:local`, `pnpm ci:local` ~5 min Docker, is optional and only worth running first when touching Dockerfiles, infra, or integration-test paths.)
 

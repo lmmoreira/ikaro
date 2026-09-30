@@ -88,7 +88,7 @@ export interface IResourceOccupancyRepository {
   // index cannot already hold one of these tuples. Same active-transaction contract, and the
   // same exclusion-constraint backstop as assign(). One statement each, so the row count must stay
   // inside PostgreSQL's bound-parameter limit: the caller's batch is bounded by a schedule's term
-  // (at most 365 occurrences).
+  // (at most 180 occurrences).
   assignMany(
     tenantId: string,
     assignments: BookingLineOccupancyAssignment[],

@@ -17,6 +17,7 @@ const mockBookingPolicy = {
   minBookingAdvanceHoursOverride: null,
   maxBookingAdvanceDaysOverride: null,
   recurrenceEligible: false,
+  recurringHorizonDays: null,
   availabilityAlertEligible: false,
   durationPolicy: 'FIXED' as const,
   durationMinMinutes: null,

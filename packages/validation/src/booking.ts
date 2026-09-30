@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { TimeOfDayErrorCode } from '@ikaro/types';
+import {
+  MAX_RECURRING_HORIZON_DAYS,
+  MIN_RECURRING_HORIZON_DAYS,
+  TimeOfDayErrorCode,
+} from '@ikaro/types';
 import { isValidTimeOfDay } from './date';
 
 // M21-S01 — shared by the backend (resource.dto.ts) and BFF (resource.schemas.ts) request
@@ -192,7 +196,13 @@ export const UpdateServiceBookingPolicySchema = z
     minBookingAdvanceHoursOverride: z.number().int().min(0).max(8760).nullable().optional(),
     maxBookingAdvanceDaysOverride: z.number().int().min(1).max(365).nullable().optional(),
     recurrenceEligible: z.boolean().optional(),
-    recurringHorizonDays: z.number().int().positive().max(365).nullable().optional(),
+    recurringHorizonDays: z
+      .number()
+      .int()
+      .min(MIN_RECURRING_HORIZON_DAYS)
+      .max(MAX_RECURRING_HORIZON_DAYS)
+      .nullable()
+      .optional(),
     availabilityAlertEligible: z.boolean().optional(),
     durationPolicy: ServiceDurationPolicySchema.optional(),
     durationMinMinutes: z.number().int().positive().nullable().optional(),

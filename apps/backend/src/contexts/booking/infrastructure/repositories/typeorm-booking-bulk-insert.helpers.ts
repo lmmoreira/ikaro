@@ -11,7 +11,7 @@ import { toAttendeeEntity, toEntity, toLineEntity } from './typeorm-booking.mapp
 // active EntityManager.
 //
 // One statement each for the bookings, their lines and (when any exist) their attendees, however
-// many bookings there are. The batch is bounded by a recurring schedule's term (at most 365
+// many bookings there are. The batch is bounded by a recurring schedule's term (at most 180
 // occurrences), so every statement stays far inside PostgreSQL's bound-parameter limit.
 export async function insertBookingsInBulk(
   manager: EntityManager,
