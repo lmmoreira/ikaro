@@ -943,27 +943,39 @@ Add a "Solicitações recorrentes" tab/filter to the existing Agenda queue surfa
 
 **Agent:** frontend-ts + bff-ts
 **Complexity:** S
-**Docs to load:** docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md, docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Booking Services (booking-policy)
+**Docs to load:** docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md, docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Booking Services (booking-policy), docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys
 **Dependencies:** M23-S04 (adds `Service.bookingPolicy.recurringHorizonDays` on the backend/BFF)
 **Pattern:** plain composition — extends the existing `ServiceBookingPolicyPanel`/`PolicyWhoHowCard` form; no new pattern.
+**Prototype references:** `plan/journey/staff/prototypes/servicos/03-service-edit.html` (Políticas de reserva tab, "Quem e como reserva" card — enabled, value 60), `03d-service-edit-policy-error.html`, `02c-service-create-success.html` and `03c-service-edit-inactive.html` (recurrence off — input disabled, blank); `dev-notes.md` § UpdateServiceBookingPolicySchema (17 fields).
+
+**Decisions (2026-09-30, `/story-discovery M23-S16`) — state as fact, do not re-derive:**
+1. **Ceiling is 180 days, not 365, enforced in `packages/validation`.** Recurrence is weekly on up to 7 days a week and, for `AUTO_CONFIRM`, every occurrence of the term is materialized as a linked booking inside the creation transaction (each with its own working-hours and occupancy check); no occurrence-count cap exists, so the old 365 ceiling allowed ~366 bookings in one request. 180 (2× the 90-day default) bounds that at ~181. The single shared copy of the bound is `packages/validation/src/booking.ts` (`recurringHorizonDays`, currently `.max(365)`): it becomes `.max(180)`, with its spec. Enforcing it only in the input would be a workaround. Assumption confirmed with the user: no stored value above 180 exists (the field was never settable from any UI), so no data migration.
+2. **The input is disabled while `recurrenceEligible` is unchecked** (the stored value is kept, only not editable) — matches the prototype.
+3. **Out-of-range handling: no custom client validation.** The input carries `min=1`, `max=180`, `step=1` as browser hints only; the backend 422 (shown through the panel's existing `resolveErrorMessageFromApiError` path) is the single source of truth.
+4. **Help text is actor-neutral** — the cap applies to every recurring schedule for the service, whether a customer or staff creates it (verified: `request-recurring-booking-schedule.use-case.ts` applies `assertValidTerm` regardless of `actorType`). Copy: label "Duração máxima de uma reserva recorrente (dias)"; hint "Em branco, vale o padrão de 90 dias. Aplica-se também a reservas criadas pela equipe." (+ `en`). Keys: `politicasHorizonLabel`, `politicasHorizonHint`.
+5. **Prototypes and docs were corrected in the same pass** (the 2026-09-17 field-completeness audit had missed this field): `plan/journey/staff/prototypes/servicos/{03,03c,03d,02c}*.html`, `dev-notes.md` (17 fields), `plan/journey/staff/servicos.md`, `docs/14-API_CONTRACTS.md`, `docs/04-USE_CASES.md` UC-055 (step 3 + A3).
 
 **Discovered:** 2026-09-28, while wrapping up M23-S04 (PR #521) — the field was added to the backend/BFF request-validation schema and domain layer, but no story in this milestone ever surfaced it in the dashboard, and the two TypeScript response-type declarations (`@ikaro/types` and the BFF's own internal type) were never updated to match.
 
 **Description:**
-**Meaning (2026-09-29, fixed-term recurrence):** this field is the *maximum term* of a recurring schedule for the service — a customer's `endsOn` may not be later than `startsOn` + this many days (90 by default). It no longer sets a rolling generation window. The label and help text below say so ("Duração máxima de uma reserva recorrente, em dias" / equivalent in `en`), and the help text also explains that null means the 90-day platform default.
+**Meaning (2026-09-29, fixed-term recurrence):** this field is the *maximum term* of a recurring schedule for the service — a schedule's `endsOn` (customer- or staff-created) may not be later than `startsOn` + this many days (90 by default, at most 180). It no longer sets a rolling generation window. The label and help text below say so ("Duração máxima de uma reserva recorrente, em dias" / equivalent in `en`), and the help text also explains that null means the 90-day platform default.
 `Service.bookingPolicy.recurringHorizonDays` (nullable, null inherits the 90-day platform default `DEFAULT_RECURRING_HORIZON_DAYS`) was added by M23-S04 to the backend domain/validation layer only. The BFF already forwards it transparently at runtime (`services.mapper.ts`'s `bookingPolicy: service.bookingPolicy` passthrough, and the shared `UpdateServiceBookingPolicySchema` already validates it on write) — but both `ServiceBookingPolicyItem` (`packages/types/src/service.dto.ts`) and `ServiceBookingPolicyDetail` (`apps/bff/src/features/booking/services.types.ts`) are missing the field, so TypeScript doesn't know it exists, and the dashboard's "Políticas de reserva" tab has no control to set or view it. Without this, a tenant has no way to override the 90-day default — the field is permanently `null` in practice.
 
-Add `recurringHorizonDays: number | null` to both type declarations (no runtime/mapper logic change needed — the value already round-trips). Add a nullable number input to `PolicyWhoHowCard`, directly below the `recurrenceEligible` checkbox (it only makes sense once recurrence is enabled) — reuse the existing local `toNumberInput`/`parseNullableNumber` helpers already in the same file for `maxBookingAdvanceDaysOverride`'s identical nullable-number shape. Client-side bound: 1–365, matching the backend's own `z.number().int().positive().max(365)` — out-of-range submission surfaces via the panel's existing `resolveErrorMessageFromApiError` path (`handleSave`'s catch block), no new error-handling plumbing.
+Add `recurringHorizonDays: number | null` to both type declarations (no runtime/mapper logic change needed — the value already round-trips). Add a nullable number input to `PolicyWhoHowCard`, directly below the `recurrenceEligible` checkbox and disabled while it is unchecked — reuse the existing local `toNumberInput`/`parseNullableNumber` helpers already in the same file for `maxBookingAdvanceDaysOverride`'s identical nullable-number shape. Tighten the shared schema's ceiling from 365 to 180 (Decision 1); out-of-range submission surfaces via the panel's existing `resolveErrorMessageFromApiError` path (`handleSave`'s catch block), no new error-handling plumbing.
 
-**BFF endpoint spec:** reuses the existing `PATCH /v1/services/:id/booking-policy` endpoint unchanged — no new route, no BFF controller/schema logic change, only the `ServiceBookingPolicyDetail` type declaration gains the field.
+**BFF endpoint spec:** reuses the existing `PATCH /v1/services/:id/booking-policy` endpoint unchanged — no new route, no BFF controller logic change. The `ServiceBookingPolicyDetail` type declaration gains the field, and the shared `UpdateServiceBookingPolicySchema` ceiling drops to 180 (both BFF and backend validate through `packages/validation`, so one edit covers both).
 
 **Files to create/modify:**
 - `packages/types/src/service.dto.ts` (modify — add `recurringHorizonDays: number | null` to `ServiceBookingPolicyItem`)
 - `apps/bff/src/features/booking/services.types.ts` (modify — add the same field to `ServiceBookingPolicyDetail`)
 - `apps/web/features/booking/components/dashboard/services/PolicyConfirmationAndWindowCards.tsx` (modify — `PolicyWhoHowCard` gains the number input)
-- `apps/web/features/booking/components/dashboard/services/PolicyConfirmationAndWindowCards.spec.tsx` (modify — new field's render/edit coverage)
-- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `dashboard.servicesPage.politicasHorizonLabel` + a help-text key explaining "null inherits the platform default," verified against the file's real current `politicas*` key shape at implementation time)
-- `docs/14-API_CONTRACTS.md` (modify — note `recurringHorizonDays` is now dashboard-editable, if not already implied by the existing booking-policy contract entry)
+- `apps/web/features/booking/components/dashboard/services/PolicyConfirmationAndWindowCards.spec.tsx` (modify — new field's render/edit/disabled coverage)
+- `apps/web/features/booking/components/dashboard/services/ServiceBookingPolicyPanel.spec.tsx` (modify — the mocked-422 error-message test lives here, because the save path and `handleSave`'s catch block are in the panel, not the card)
+- `packages/validation/src/booking.ts` (modify — `recurringHorizonDays` `.max(365)` → `.max(180)`) and its spec (modify — boundary cases 1, 180 accepted; 0, 181 rejected; `null` accepted)
+- Fixtures typed as `ServiceBookingPolicyItem`/`ServiceBookingPolicyDetail` that must gain `recurringHorizonDays` so `tsc --noEmit` stays clean (modify — web: `ServiceBookingPolicyPanel`, `ServiceListPage`, `ServiceEditPage`, `ServiceEditConfigTabPanels`, `PolicyConfirmationAndWindowCards`, `ServiceDeactivatePage`, `PolicyDurationPricingCard`, `ServiceCard` specs; BFF: `services.mapper.spec.ts`, `services.controller.spec.ts`, `services.controller.component.spec.ts`; grep `availabilityAlertEligible` across `apps/` to catch any other)
+- `apps/web/e2e/services-resource-config.spec.ts` (modify — extend the existing booking-policy test at `changes a booking-policy field, saves, reloads, sees it persisted`)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `dashboard.servicesPage.politicasHorizonLabel` and `politicasHorizonHint` per Decision 4, placed next to the existing `politicas*` keys)
+- Already updated in the 2026-09-30 discovery pass (do not redo): `docs/14-API_CONTRACTS.md`, `docs/04-USE_CASES.md` UC-055, `plan/journey/staff/servicos.md`, `plan/journey/staff/prototypes/servicos/{03,03c,03d,02c}*.html` + `dev-notes.md`
 
 **Acceptance criteria — product:**
 - [ ] A manager can view and set (or clear back to inherited-default) the recurring-schedule horizon for a service from the "Políticas de reserva" tab, without needing direct API access.
@@ -972,12 +984,15 @@ Add `recurringHorizonDays: number | null` to both type declarations (no runtime/
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `PolicyWhoHowCard` renders the current `recurringHorizonDays` value (or blank when `null`)
-  - [ ] Editing the field calls `onPatch({ recurringHorizonDays })` with the parsed nullable number, mirroring `maxBookingAdvanceDaysOverride`'s existing test shape
-  - [ ] Submitting a value outside 1–365 surfaces the mapped error message from a mocked 422 response (existing `resolveErrorMessageFromApiError` path)
-- Integration: none — the BFF response is a plain passthrough with no new logic to integration-test; the backend's own round-trip is already covered by M23-S04's `update-service-booking-policy.use-case.spec.ts`/`service.controller.integration.spec.ts`
+  - [ ] The input is disabled when `recurrenceEligible` is false and enabled when true
+  - [ ] Editing the field calls `onPatch({ recurringHorizonDays })` with the parsed nullable number (and `null` when cleared), mirroring `maxBookingAdvanceDaysOverride`'s existing test shape
+  - [ ] `ServiceBookingPolicyPanel`: a mocked 422 on save for an out-of-range value (e.g. 181) surfaces the mapped error message (existing `resolveErrorMessageFromApiError` path)
+  - [ ] `packages/validation`: `recurringHorizonDays` accepts 1, 180 and `null`; rejects 0, 181 and a non-integer
+- Integration: none — the BFF response is a plain passthrough with no new logic to integration-test; the backend's own round-trip is already covered by M23-S04's `update-service-booking-policy.use-case.spec.ts`/`service.controller.integration.spec.ts`. If that integration spec sends a value above 180, update it to the new ceiling.
 - Tenant isolation: n/a — client-side; server-side isolation already covered by M23-S04's existing tests
 - E2E:
-  - [ ] Playwright: manager sets a recurring horizon on a real seeded service, reloads, and sees it persisted
+  - [ ] Playwright (extending `services-resource-config.spec.ts`): manager enables recurrence on a real seeded service, sets the maximum term to 60, saves, reloads and sees 60 persisted; then clears it, saves, reloads and sees it blank (inherits the default); the input is disabled while recurrence is off
+- [ ] Localization: both locale files carry the two new keys
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

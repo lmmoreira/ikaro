@@ -879,12 +879,13 @@ Returns:
 - **Main Flow:**
   1. Admin sets approval mode (`AUTO_CONFIRM`/`MANUAL_APPROVAL`, inheriting the tenant default when left blank) and, if `MANUAL_APPROVAL`, the hold duration.
   2. Admin sets the cancellation window, minimum notice, and maximum advance (all inheriting tenant defaults when left blank).
-  3. Admin toggles whether the service allows recurring private reservations and availability alerts (Cluster 3).
+  3. Admin toggles whether the service allows recurring private reservations and availability alerts (Cluster 3). When recurrence is on, admin may also set the maximum term of a recurring schedule for this service (`recurringHorizonDays`, 1–180 days; blank inherits the 90-day platform default) — it caps every recurring schedule for the service, whether a customer or staff creates it (UC-070).
   4. If the service has `durationPolicy = CUSTOMER_SELECTED`, admin also sets minimum/maximum/increment duration, the per-increment price, and optional minimum charge.
   5. System saves the policy on `Service`; every subsequent booking snapshots the effective values at submission time.
 - **Alternative Flows:**
   - **A1: Admin reduces the cancellation window or approval hold below a value already relied on by an in-flight booking** → No retroactive effect; only bookings created after the change use the new values.
   - **A2: Admin sets `durationPolicy = CUSTOMER_SELECTED` without a `pricingPolicy`** → `422 Unprocessable` — a variable-duration service must declare how it prices.
+  - **A3: Admin sets `recurringHorizonDays` outside 1–180** → `422 Unprocessable` — the ceiling bounds how many occurrences one schedule can materialize at creation.
 - **Postconditions:** The service has a complete, self-contained booking policy; no field silently falls back to an undocumented default.
 - **Events Triggered:** None.
 

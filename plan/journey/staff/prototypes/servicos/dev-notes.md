@@ -217,10 +217,10 @@ ResourceRequirementSchema:       { type, selectionMode, resourcePoolIds?, requir
      own note, legs mode — omitted there only because none of the Jornada Spa Vitta example's
      legs need more than 1 of any type).
 
-UpdateServiceBookingPolicySchema — ALL 16 independently-submittable fields:
+UpdateServiceBookingPolicySchema — ALL 17 independently-submittable fields:
   defaultApprovalMode, manualHoldMinutes, cancellationWindowHoursOverride,
   rescheduleWindowHoursOverride, minBookingAdvanceHoursOverride, maxBookingAdvanceDaysOverride,
-  recurrenceEligible, availabilityAlertEligible, durationPolicy, durationMinMinutes,
+  recurrenceEligible, recurringHorizonDays, availabilityAlertEligible, durationPolicy, durationMinMinutes,
   durationMaxMinutes, durationIncrementMinutes, pricingPolicy, pricingIncrementMinutes,
   pricePerIncrementAmount, minimumChargeAmount
   -- The prototype originally collapsed durationPolicy+pricingPolicy+their 5 detail fields into
@@ -230,6 +230,16 @@ UpdateServiceBookingPolicySchema — ALL 16 independently-submittable fields:
      a separate "Preço" card (policy select + increment/price/minimum-charge fields shown only
      when Por incremento), and a "Janela de reserva" card for the 2 advance-notice fields —
      see 03-service-edit.html's Políticas de reserva tab.
+  -- recurringHorizonDays (added 2026-09-30, M23-S16 — missed by the 2026-09-17 audit above):
+     the MAXIMUM TERM of a recurring schedule for this service (a schedule's endsOn may not be
+     later than startsOn + this many days). Number input in the "Quem e como reserva" card,
+     directly below the recurrenceEligible checkbox, DISABLED while that checkbox is unchecked
+     (the stored value is kept, just not editable). Integer 1–180; blank = null = inherit the
+     90-day platform default. Applies to every actor (customer and staff-created schedules).
+     The 180 ceiling is enforced in packages/validation (shared by BFF and backend); the input's
+     min/max/step are browser hints only — an out-of-range value surfaces the backend 422 via the
+     panel's existing error path. See 03-service-edit.html (enabled, 60), 03d (enabled, 60),
+     02c/03c (recurrence off → disabled, blank).
 
 PublishServiceIntakeSchemaSchema: { questions[]: {fieldKey, label, type, required}, consentText,
                                      requiresNamedAttendees?, participantCountRequired? }

@@ -499,13 +499,15 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
     "defaultApprovalMode": "MANUAL_APPROVAL", "manualHoldMinutes": 30,
     "cancellationWindowHoursOverride": null, "rescheduleWindowHoursOverride": null,
     "minBookingAdvanceHoursOverride": null, "maxBookingAdvanceDaysOverride": null,
-    "recurrenceEligible": true, "availabilityAlertEligible": true,
+    "recurrenceEligible": true, "recurringHorizonDays": null, "availabilityAlertEligible": true,
     "durationPolicy": "CUSTOMER_SELECTED", "durationMinMinutes": 60, "durationMaxMinutes": 480, "durationIncrementMinutes": 30,
     "pricingPolicy": "PER_TIME_INCREMENT", "pricingIncrementMinutes": 60, "pricePerIncrementAmount": 50.00, "minimumChargeAmount": 100.00
   }
   ```
+  - `recurringHorizonDays`: integer 1–180 or `null` — the maximum term of a recurring schedule for this service; `null` inherits the 90-day platform default (UC-055 step 3)
   - `200` on success
   - `422` if `durationPolicy = CUSTOMER_SELECTED` with no `pricingPolicy` (UC-055 A2)
+  - `422` if `recurringHorizonDays` is outside 1–180 (UC-055 A3)
 
 - `GET /schedule/day-grid?date=` -> Combined multi-resource day grid (UC-057). MANAGER only.
   ```json
