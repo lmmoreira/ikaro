@@ -407,7 +407,7 @@ export interface CompleteBookingResponse {
 | File | Status |
 |---|---|
 | `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` | ❓ Gap — M23-S13 |
-| `03-booking-detail-approved.html`'s no-show action | ❓ Gap — extend existing `BookingDetailApproved` component, no new screen (M23-S09) |
+| `03-booking-detail-approved.html`'s no-show action | ❓ Gap — extend existing `BookingDetailApproved` component, no new screen. **Owner: a future frontend story, not M23-S09** (S09 ships the backend/BFF only) — it must start from a journey update and a prototype (no no-show or correction screen exists in this folder yet) |
 | `apps/web/app/dashboard/bookings/recurring/new/page.tsx` | ❓ Gap — M23-S19 (route proposed; see the route question below) |
 | `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleCustomerStep.tsx`, `NewRecurringScheduleForStaff.tsx`, `NewRecurringScheduleForStaffResult.tsx` | ❓ Gap — M23-S19 (the Agenda page's real folder is `dashboard/bookings/`, next to `BookingQueuePage.tsx`; `M23-S13`'s plan cites an `agenda/` folder that does not exist) |
 
@@ -422,7 +422,7 @@ POST /bookings/:id/no-show/correct                             -- UC-074 A3
 ```
 
 **Open questions / gaps:**
-- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show, UC-074), `M23-S19` (staff creating on a customer's behalf) — each still begins with `/story-discovery`.
+- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are a future frontend story pending a prototype), `M23-S19` (staff creating on a customer's behalf) — each still begins with `/story-discovery`.
 - [ ] Whether the recurring-schedule approval queue is a separate list or folds into `00-agenda.html`'s existing queue is a UI decision for `M23-S13` (its plan says a tab inside the Agenda page).
 
 ### Staff creating a recurring schedule on a customer's behalf — `09`, `09b`, `09c` (M23-S19)

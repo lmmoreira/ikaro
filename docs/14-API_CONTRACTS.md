@@ -796,8 +796,8 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 - **Event:** Publishes `BookingRescheduled` (extended scope, see `docs/03-DOMAIN_EVENTS.md`) → Notification sends customer email.
 
 ### **No-Show (UC-074, M23 Cluster 3)**
-- `POST /bookings/:id/no-show` -> Mark an appointment as a no-show (STAFF|MANAGER). `422` if the scheduled end time hasn't passed; `409` if already terminal.
-- `POST /bookings/:id/no-show/correct` -> Manager correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED"|..., "reason": "..." }`. Loyalty is awarded only if `correctedStatus = COMPLETED`.
+- `POST /bookings/:id/no-show` -> Mark an appointment as a no-show (STAFF|MANAGER). Optional body: `{ "reason"?: string }` (max 500 chars). `404` unknown booking; `409 BOOKING_ALREADY_TERMINAL` if already `COMPLETED`/`CANCELLED`/`REJECTED`/`NO_SHOW`; `422 BOOKING_INVALID_TRANSITION` if still `PENDING`/`INFO_REQUESTED`; `422 BOOKING_NOT_YET_ENDED` if the scheduled end time hasn't passed.
+- `POST /bookings/:id/no-show/correct` -> Manager-only correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED", "reason": "..." }` — `COMPLETED` is the only accepted value and `reason` is required. Each line's actual price defaults to its booked price; loyalty is awarded by the `BookingCompleted` the correction publishes. `404` unknown booking; `422 BOOKING_INVALID_TRANSITION` if the booking is not `NO_SHOW`; `403` for a `STAFF` caller.
 
 ### **Information Workflow (UC-005)**
 See `PATCH /bookings/:id/submit-info` in the Booking Management section above.

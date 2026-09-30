@@ -27,6 +27,8 @@
 | 2 | M23-S07 | Availability-alert matching worker (UC-072 step 3) |
 | 2 | M23-S23 | Notifications for the future-commitment worklist — manager alert on a raised entry, customer message on a reassign (UC-073, UC-077) |
 | 2 | M23-S24 | Drop the retired `recurring_booking_schedule_exceptions` table — the contract step of S08's removal, after S08 is deployed everywhere |
+| 2 | M23-S25 | Customer email on a no-show — `BookingNoShow` → Notification (UC-074 step 3) |
+| 2 | M23-S26 | Append every booking status transition to `booking_status_transitions` (no backfill) |
 | 2 | M23-S14 | Manager "Exceções de Agenda" worklist frontend (UC-073/077) |
 | 2 | M23-S15 | Manager onboarding wizard frontend (UC-075) |
 | 3 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens |
@@ -77,6 +79,9 @@ graph TD
   S07 --> S12
   S08 --> S14
   S10 --> S15
+  S09 --> S25
+  S09 --> S26
+  S05 --> S26
 ```
 
 **Wave note (self-dry-run, corrected during `/docs-audit`):** S02 and S03 both call S01's `ResourceResolutionService` in their own description text (S02 for a variable-duration window, S03 for a reschedule's replacement window) — an audit found neither declared that as a `Dependencies:` edge, and both sat in Wave 1 alongside S01 itself. Fixed: both now depend on M23-S01 and sit in **Wave 2**. This cascades: S11 (guest/customer booking flow frontend) depends on S01, S02, **and** S03 — its floor is now `max(S01=1, S02=2, S03=2) + 1` = **Wave 3**, not Wave 2. S12 (Minha Conta extension) needs both S04 (recurring CRUD) and S05 (approval + generation) BFF endpoints, plus S06/S07 (alerts CRUD + matching) — its dependency floor is `max(S04, S05, S06, S07)`'s wave, i.e. Wave 3 (S05) + 1 = **Wave 4**. S13 (staff approval-queue UI) only needs S05, so it's `Wave 3 + 1 = Wave 4` too, not Wave 3 in parallel with S05 itself.
@@ -519,48 +524,78 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
 ### M23-S09 — Appointment no-show terminal status + correction
 
 **Agent:** `backend-ts` + `bff-ts`
-**Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` UC-074, `docs/02-DOMAIN_MODEL.md` § `Booking` (Cluster 3 modification, `NO_SHOW`), both `BookingStatus` diagram locations (§ Booking Context's modification note **and** the separate "Value Objects Reference" section further down the same file — a past M21 audit found the second one gets missed when only the first is checked), `.copilot/context.md` §5, `docs/13-DATABASE_SCHEMA.md` § `bookings` modified, `docs/03-DOMAIN_EVENTS.md` § `BookingNoShow`
+**Complexity:** M
+**Docs to load:** `docs/04-USE_CASES.md` UC-074, `docs/02-DOMAIN_MODEL.md` § `Booking` (Cluster 3 modification, `NO_SHOW`), both `BookingStatus` diagram locations (§ Booking Context's modification note **and** the separate "Value Objects Reference" section further down the same file — a past M21 audit found the second one gets missed when only the first is checked), `.copilot/context.md` §5, `docs/13-DATABASE_SCHEMA.md` § `booking_status_transitions`, `docs/03-DOMAIN_EVENTS.md` § `BookingNoShow`, `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers, `infra/terraform/README.md` § New-resource PR-sequencing playbook
 **Dependencies:** M21-S01, M22 (milestone-level only — this story doesn't actually need either; listed for consistency with the cluster's stated dependency floor)
-**Pattern:** plain composition — extends the existing `Booking` aggregate's state machine; no new pattern.
+**Pattern:** plain composition — extends the existing `Booking` aggregate's state machine; no new pattern. The audit row is written by the use case inside the same `txManager.run()` as `bookingRepo.save()`, through a new `IBookingStatusTransitionRepository` port (no raw SQL or `Repository<T>` in the use case).
+
+**Decided in `/story-discovery` (2026-09-30) — not left open:**
+1. **Roles.** Marking a no-show is `STAFF|MANAGER`; correcting one is `MANAGER` only (`ManagerRoleGuard`).
+2. **Correction target.** `correctedStatus` accepts **`COMPLETED` only**. The correction runs the aggregate's completion path with every line's actual price defaulting to its `priceAtBooking`, no photos, no admin notes and no points discount, so the resulting `BookingCompleted` payload is valid for the existing Loyalty consumer and loyalty is awarded exactly once, at the correction.
+3. **Mark body.** Optional `reason` (max 500 chars), stored on the audit row and carried in `BookingNoShow.data.reason`.
+4. **Error precedence (mark).** `404` unknown booking → `409 BOOKING_ALREADY_TERMINAL` (`COMPLETED`, `CANCELLED`, `REJECTED`, `NO_SHOW`) → `422 BOOKING_INVALID_TRANSITION` (`PENDING`, `INFO_REQUESTED`) → `422 BOOKING_NOT_YET_ENDED` (`APPROVED` but `scheduledAt + totalDurationMins` still in the future). Correct: `404` unknown booking → `422 BOOKING_INVALID_TRANSITION` when the current status is not `NO_SHOW` (reuses the existing invalid-transition error).
+5. **No database CHECK change on `bookings`.** `bookings.status` is an unconstrained `varchar(30)`; no status CHECK exists in any migration (earlier docs claimed one — corrected in `docs/13`). The only migration is the new audit table.
+6. **Audit table is generic but partially filled.** `booking.booking_status_transitions` has `from_status`/`to_status` so it can hold every transition, but in this story only the no-show and its correction write to it; M23-S26 makes every other transition append to it. Until S26 ships the table is documented as partial.
+7. **No partitioning now.** The primary key is `(tenant_id, id)` with a UUIDv7 `id` and the read index is `(tenant_id, booking_id, occurred_at)`, so the table is partition-ready; real partitioning is a TD to open if the table passes ~100M rows (`docs/13`).
+8. **No occupancy change.** Completing a booking does not release `resource_occupancy` and a no-show only happens after the end time, so this story does not touch occupancy.
+9. **`BookingNoShow` gets an audit-log-only consumer** (`eventBus.subscribe()` in `booking-no-show-events.handler.ts`, same shape as `RecurringBookingScheduleEventsHandler`) so the topic is provisioned (`docs/ANTI_PATTERNS.md` § A domain event is drained). The customer email is **M23-S25**; the audit of every other transition is **M23-S26**; the no-show and correction **UI** is a future frontend story that needs a prototype first (none exists — `dev-notes.md` only has a ❓ Gap line) and is deliberately not in this milestone's story list yet.
 
 **Description:**
-Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → NO_SHOW`), per the already-updated `CLAUDE.md` §5 and both `docs/02-DOMAIN_MODEL.md` `BookingStatus` locations. No loyalty points are awarded for this transition. A manager may correct a mistaken no-show via an append-only audit transition (mirroring `class_session_booking_transitions`' pattern from M24, applied here to `bookings` directly since that table doesn't exist yet at this milestone) — loyalty is awarded only if the corrected resulting status is `COMPLETED`.
+Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → NO_SHOW`), per the already-updated `CLAUDE.md` §5 and both `docs/02-DOMAIN_MODEL.md` `BookingStatus` locations. No loyalty points are awarded for this transition. A manager may correct a mistaken no-show to `COMPLETED` through an append-only audit transition (`booking.booking_status_transitions`, modelled on M24's `class_session_booking_transitions`) — loyalty is awarded only by the `BookingCompleted` the correction emits.
 
 **Backend use case steps:**
-1. **`MarkBookingNoShowUseCase`** (UC-074): validates scheduled end time has passed (`422` A1) and booking isn't already terminal (`409` A2), transitions to `NO_SHOW`, appends an audit transition row, publishes `BookingNoShow`.
-2. **`CorrectBookingNoShowUseCase`** (UC-074 A3): validates current status is `NO_SHOW`, transitions to the corrected status, appends a correction audit transition (actor, reason, timestamp), publishes the resulting event (only `COMPLETED` triggers loyalty).
+1. **`MarkBookingNoShowUseCase`** (UC-074): loads the booking by `(id, tenantId)`, applies decision 4's error precedence, transitions to `NO_SHOW`, and — in one `txManager.run()` — saves the booking and appends an audit row (`APPROVED → NO_SHOW`, actor, reason, `correlationId`); the aggregate's `BookingNoShow` event drains through the outbox.
+2. **`CorrectBookingNoShowUseCase`** (UC-074 A3): requires current status `NO_SHOW`, runs the completion path per decision 2, and in one `txManager.run()` saves the booking and appends a correction audit row (`NO_SHOW → COMPLETED`, actor, reason, timestamp). It publishes `BookingCompleted` (not `BookingNoShow` again); Loyalty's existing `BookingCompletedHandler` awards the points.
 
-**Backend HTTP surface:** new `POST /bookings/:id/no-show` (STAFF|MANAGER), `POST /bookings/:id/no-show/correct` (body: `{ correctedStatus, reason }`).
+**Backend HTTP surface:** `POST /bookings/:id/no-show` (`STAFF|MANAGER`, optional body `{ reason? }`), `POST /bookings/:id/no-show/correct` (`MANAGER`, body `{ correctedStatus: 'COMPLETED', reason }`, `reason` required).
 
-**BFF endpoint spec:** extend `apps/bff/src/features/booking/bookings.controller.ts` with the two new routes + `bookings.schemas.ts`.
+**BFF endpoint spec:** extend `apps/bff/src/features/booking/bookings.controller.ts` with the two routes (`@Roles('STAFF','MANAGER')` and `@Roles('MANAGER')`) + `bookings.schemas.ts`; forward the actor headers.
+
+**New migration / i18n keys / env vars / feature flags:** one migration (the next free timestamp after the highest on `main` at implementation time — M23-S05 takes `…022`) creating `booking.booking_status_transitions`; error-code entries in both `errors.json`; web status label keys in both `web.json` locales (see the minimal web item below); no env vars, no feature flag.
+
+**Infra sequence (`infra/terraform/README.md` § New-resource PR-sequencing playbook, row "A new Pub/Sub topic"):** `BookingNoShow` is a new topic, so after the code PR merges: regenerate `pubsub-catalog.json` (not hand-edited), merge and apply the `envs/*` change, then **apply Foundation** — dispatch `foundation-deploy.yml` with `apply=true` from `main`, review the two plans, approve `staging-foundation` and `production-foundation`, and confirm `gcloud pubsub topics get-iam-policy` on the new topic shows the expected publisher binding in both projects (M23-S04 precedent: skipped, its topics stayed ungranted).
+
+**Shared closed-enum copies — update all together:** `BOOKING_STATUS` in `packages/types/src/enums.ts`; the backend `BookingStatus` enum in `booking.types.ts`; the `list-bookings.dto.ts` whitelist; the BFF `BOOKING_STATUS_RE` in `bookings.schemas.ts`; and the web exhaustive `Record<BookingStatus, …>` maps (`features/booking/model/booking-status.ts`, `features/customer/components/my-account/BookingStatusIcon.tsx` ×3, `features/booking/schedule/schedule-page-controller-result.ts`). Adding the shared member without the web maps breaks `tsc`, so a **minimal web status display** (label, colour, icon, pt-BR + en keys) is part of this story — it renders an existing booking's status and is not a new screen, so it needs no prototype. `tsc --noEmit` on `apps/web` is the completeness check for any other exhaustive consumer.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ `.spec.ts`) (modify — `NO_SHOW` transition, correction method)
+- `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ `.spec.ts`) (modify — `markNoShow()`, the correction method, `NO_SHOW` in `booking.types.ts`'s `BookingStatus`)
+- `apps/backend/src/contexts/booking/domain/events/booking-no-show.event.ts` (new — `{ bookingId, actorId, reason, occurredAt }`)
 - `apps/backend/src/contexts/booking/application/use-cases/mark-booking-no-show.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/application/use-cases/correct-booking-no-show.use-case.ts` (+ `.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/infrastructure/entities/booking-status-transition.entity.ts` (new — audit row, one per no-show/correction transition)
-- `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-AddNoShowToBookings.ts` (new — status CHECK gains `NO_SHOW`, new transitions table)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-completion.controller.ts` (+ specs) (modify — the real file hosting cancel/reschedule/complete outcome endpoints per its own header comment; add the two no-show routes here unless it's already at `docs/CODE_STANDARDS.md`'s file-length limit, in which case split into a new `booking-no-show.controller.ts` — verify at implementation time, don't guess which)
-- `packages/types/src/error-codes.ts` + both `errors.json` (modify — `BOOKING_NOT_YET_ENDED`, `BOOKING_ALREADY_TERMINAL`)
-- `apps/bff/src/features/booking/bookings.controller.ts` (+ specs), `bookings.schemas.ts` (modify)
-- `apps/backend/http/booking/bookings.http` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/log-booking-no-show-event.use-case.ts` (+ `.spec.ts`) and `infrastructure/events/booking-no-show-events.handler.ts` (+ `.spec.ts`) (new — audit-log-only consumer)
+- `apps/backend/src/contexts/booking/application/ports/booking-status-transition-repository.port.ts` (new), `infrastructure/repositories/typeorm-booking-status-transition.repository.ts` (+ spec, + `.integration.spec.ts`) (new), `apps/backend/src/test/repositories/booking/in-memory-booking-status-transition.repository.ts` (new)
+- `apps/backend/src/contexts/booking/infrastructure/entities/booking-status-transition.entity.ts` (new), its test builder in `apps/backend/src/test/builders/booking/` (new, default `id` = `uuidv7()`), and `apps/backend/src/test/integration-global-setup.ts` (modify — register the entity)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/<next-timestamp>-CreateBookingStatusTransitions.ts` (new)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-completion.controller.ts` (+ specs, + `.integration.spec.ts`) (modify — add the two routes unless it's already at `docs/CODE_STANDARDS.md`'s file-length limit, in which case split into a new `booking-no-show.controller.ts` — verify at implementation time, don't guess which), `http/booking-error.mapper.ts` (modify — `BOOKING_ALREADY_TERMINAL` → `409`, `BOOKING_NOT_YET_ENDED` → `422`), `domain/errors/booking-domain.error.ts` (modify — the two typed errors), `booking.module.ts` / `booking.module-providers.ts` (modify — providers)
+- `packages/types/src/enums.ts`, `packages/types/src/error-codes.ts` + both `packages/i18n/locales/{pt-BR,en}/errors.json` (modify — `BOOKING_NOT_YET_ENDED`, `BOOKING_ALREADY_TERMINAL`)
+- `apps/backend/src/contexts/booking/application/dtos/list-bookings.dto.ts` (modify — whitelist)
+- `apps/bff/src/features/booking/bookings.controller.ts` (+ specs), `bookings.schemas.ts` (modify — routes, `BOOKING_STATUS_RE`)
+- `apps/web/features/booking/model/booking-status.ts`, `apps/web/features/customer/components/my-account/BookingStatusIcon.tsx`, `apps/web/features/booking/schedule/schedule-page-controller-result.ts` (+ their specs) and `packages/i18n/locales/{pt-BR,en}/web.json` (modify — minimal `NO_SHOW` status display)
+- `apps/backend/http/booking/bookings.http` and `apps/bff/http/booking/bookings.http` (modify)
+- `infra/terraform/pubsub-catalog.json` (regenerated, not hand-edited)
+- `docs/13-DATABASE_SCHEMA.md`, `docs/03-DOMAIN_EVENTS.md`, `docs/05-BOUNDED_CONTEXTS.md` (modify — already done in discovery; re-check at implementation), `.copilot/context.md` §5 (modify — drop the "not live until M23 ships" wording once merged)
+
+**Out of scope, with owners:** the customer email on `BookingNoShow` → **M23-S25**; appending every other booking status transition to the audit table (no backfill) → **M23-S26**; the "Marcar não comparecimento" button and the correction action on the staff booking detail → a **future frontend story** that must start from a journey update and a prototype under `plan/journey/staff/prototypes/agenda/` (CLAUDE.md §15), not yet created.
 
 **Acceptance criteria — product:**
-- [ ] Staff/manager marks a past-due appointment as no-show; no loyalty points awarded.
-- [ ] Manager corrects a mistaken no-show to `COMPLETED`; loyalty points awarded exactly then, not on the original no-show.
+- [ ] Staff or manager marks a past-due `APPROVED` appointment as no-show (optionally with a reason); no loyalty points are awarded.
+- [ ] Only a manager can correct a no-show to `COMPLETED`; loyalty points are awarded exactly then, not on the original no-show.
+- [ ] Both transitions leave a row in `booking_status_transitions` with from/to status, actor, reason and time.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] Rejects no-show before scheduled end time (`422`)
-  - [ ] Rejects no-show on an already-terminal booking (`409`)
-  - [ ] Correction publishes the resulting event, not `BookingNoShow` again
+  - [ ] Aggregate: `APPROVED → NO_SHOW` succeeds; every other source status is rejected; the correction is accepted only from `NO_SHOW`
+  - [ ] Mark use case: `404` unknown booking; `409 BOOKING_ALREADY_TERMINAL` for each terminal status; `422 BOOKING_INVALID_TRANSITION` for `PENDING`/`INFO_REQUESTED`; `422 BOOKING_NOT_YET_ENDED` before `scheduledAt + totalDurationMins`
+  - [ ] Correct use case publishes `BookingCompleted`, not `BookingNoShow` again, with each line's actual price equal to its `priceAtBooking`
+  - [ ] Controllers: `StaffOrManagerRoleGuard` on mark, `ManagerRoleGuard` on correct (a `STAFF` caller gets `403` on correct); BFF `@Roles` match
 - Integration:
-  - [ ] Correction to `COMPLETED` triggers the existing loyalty-award path end-to-end
-- Tenant isolation: n/a beyond existing booking tenant scoping
-- E2E: none — small state-machine extension, covered by unit/integration
+  - [ ] Correction to `COMPLETED` triggers the existing loyalty-award path end-to-end, and marking a no-show awards nothing
+  - [ ] Transition repository persists and reads back rows scoped by `(tenant_id, booking_id)`
+- Tenant isolation:
+  - [ ] Tenant A's booking with a Tenant B caller → `404` on both routes
+- E2E: none — backend/BFF state-machine extension with no UI in this story, covered by unit/integration
 - [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+- [ ] `tsc --noEmit` clean (backend, BFF and web), lint clean
 
 ---
 
@@ -1605,5 +1640,137 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 - Tenant isolation: none — no tenant data is read or written.
 - E2E: none — no UI.
 - [x] The staging row count was read before the migration merged (0 rows; no production environment exists yet).
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S25 — Customer email on a no-show (`BookingNoShow` → Notification)
+
+**Agent:** `backend-ts`
+**Complexity:** M
+**Docs to load:** `docs/04-USE_CASES.md` UC-074, `docs/03-DOMAIN_EVENTS.md` § `BookingNoShow`, `docs/05-BOUNDED_CONTEXTS.md` (Notification consumers), `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type and § Event Handlers, `docs/ENGINEERING_RULES_INFRA.md`, `infra/terraform/README.md` § New-resource PR-sequencing playbook
+**Dependencies:** M23-S09 (ships the `BookingNoShow` event, its topic and an audit-log-only consumer; this story adds the real Notification consumer and extends the event payload).
+**Pattern:** plain composition — the existing domain event → thin handler → one `BaseNotificationUseCase` subclass shape that `BookingCancelled` already uses (`booking-cancelled.handler.ts` → `SendBookingCancelledNotificationUseCase`). No new pattern.
+
+**Discovered:** 2026-09-30, in M23-S09's `/story-discovery`. UC-074 step 3, `docs/03` and `docs/05` all say the Notification Context emails the customer on `BookingNoShow`, but S09 is backend/BFF state-machine work and deliberately ships only an audit-log consumer to keep it small. No story owned the email.
+
+**Description:**
+When a staff member or manager marks an appointment as a no-show (UC-074), the customer receives an email saying the business recorded that they did not attend, which appointment it was, and how to get in touch if that is a mistake. It goes to the booking's own contact snapshot (`contactEmail` / `contactName`), so it reaches guest bookings too, and delivery is retried independently of the booking's state change (the event is delivered through the transactional outbox).
+
+`BookingNoShow.data` is `{ bookingId, actorId, reason, occurredAt }` today, which has no recipient. This story extends it, additively and without bumping `eventVersion`, with the fields the email needs: `customerId: string | null`, `contactEmail`, `contactName`, `scheduledAt`, `lineSummary` (`serviceNameAtBooking` per line) — the same shape `BookingCancelled` already carries. The event is built inside `Booking.markNoShow()`, where the contact snapshot is in scope; S09's audit-log consumer ignores the extra fields.
+
+A correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not a new `BookingNoShow`, so this story sends nothing on a correction.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **Recipient:** the customer only, through the booking's `contactEmail`. No email to staff or managers.
+2. **Template:** one new key, `BOOKING_NO_SHOW_CUSTOMER = 'booking-no-show-customer'` (`{ eventName: 'BookingNoShow', recipientType: 'customer' }`), following the 7-step checklist in `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type — enum, `notification-template-key.mapping.ts`, both `notifications.json`, a migration that seeds the global default row **and** copies it to every existing tenant, the use case extending `BaseNotificationUseCase` with `localizeTemplates()`, the handler, and `notification.module.ts`.
+3. **The staff member's free-text `reason` is not shown to the customer.** It is an internal note on the audit row; the email uses fixed copy only.
+4. **Devops (playbook, "new Pub/Sub topic" row's mechanics):** the topic already exists from S09; this story adds a new `subscribe()` call site with consumer name `notification`, so `pubsub-catalog.json` is regenerated (not hand-edited) and PR1 needs the `infra-app-mix-ok` label plus a PR-body note. After it merges and its `envs/*` apply runs: dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve `staging-foundation` then `production-foundation`, and confirm the new subscription's IAM bindings with `gcloud pubsub subscriptions get-iam-policy` in both projects (nothing in CI fails if this is skipped).
+
+**Decisions left for `/story-discovery`:**
+- **Audit-log consumer:** S09's audit-log-only consumer exists solely to provision the topic. Once the Notification consumer subscribes it is redundant — keep it (zero cost, one extra subscription) or remove it (a subscription removal has its own Terraform sequencing)?
+- **Email locale:** the tenant's locale or the customer's own (`BookingRescheduled` uses the tenant's today; M23-S21 proposes the customer's)?
+- **Copy:** the exact pt-BR and en wording, including whether to mention the business's contact details.
+
+**Backend use case steps:**
+1. **`Booking.markNoShow()`** (S09, modified): builds `BookingNoShow` with the extended payload.
+2. **`SendBookingNoShowNotificationUseCase`** (notification context, extends `BaseNotificationUseCase`): resolves the locale, fetches the template via `findAllByTriggerEvent`, dispatches to `contactEmail`; idempotent on `eventId` through the base class.
+3. **`BookingNoShowHandler`** (notification context): `subscribe()` with consumer name `notification`, calls exactly that one use case with `event.correlationId`, rethrows on failure.
+
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** a notification-context migration inserting the global default template row and copying it to every existing tenant; `packages/i18n/locales/{pt-BR,en}/notifications.json` entries for `BookingNoShow.customer.{subject,body}`; no env var, no feature flag.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/domain/events/booking-no-show.event.ts` (+ spec) (modify — extended payload) and `apps/backend/src/test/builders/booking/booking-no-show-event.builder.ts` (modify or new, as S09 ships it)
+- `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ spec) (modify — `markNoShow()` fills the new fields)
+- `apps/backend/src/contexts/notification/domain/notification-template-key.enum.ts`, `notification-template-key.mapping.ts` (+ `.mapping.spec.ts`) (modify)
+- `apps/backend/src/contexts/notification/application/use-cases/send-booking-no-show-notification/send-booking-no-show-notification.use-case.ts` (+ spec) (new)
+- `apps/backend/src/contexts/notification/infrastructure/events/booking-no-show.handler.ts` (+ spec) (new); `notification.module.ts` (modify)
+- `apps/backend/src/contexts/notification/infrastructure/migrations/<next-timestamp>-AddBookingNoShowCustomerTemplate.ts` (new)
+- `packages/i18n/locales/{pt-BR,en}/notifications.json` (modify)
+- `infra/terraform/pubsub-catalog.json` (regenerated, not hand-edited)
+- `docs/03-DOMAIN_EVENTS.md`, `docs/05-BOUNDED_CONTEXTS.md` (modify — the payload fields and the consumer)
+
+**Acceptance criteria — product:**
+- [ ] A customer whose appointment is marked a no-show receives one email, in the right language, naming the appointment; a guest booking receives it at its contact email.
+- [ ] Correcting the no-show to `COMPLETED` sends no no-show email.
+- [ ] The staff member's internal reason never appears in the email.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `SendBookingNoShowNotificationUseCase` dispatches the localized template to `contactEmail` (pt-BR and en), and a second delivery of the same `eventId` sends nothing
+  - [ ] `BookingNoShowHandler` calls exactly one use case, passes `correlationId`, and rethrows on failure
+  - [ ] `Booking.markNoShow()` puts `contactEmail`, `contactName`, `scheduledAt` and `lineSummary` in the event; the mapping spec covers the new key
+- Integration:
+  - [ ] A `BookingNoShow` event through the event bus produces one `notification_logs` row for the tenant's resolved template (template migration applied, including the existing-tenant copy)
+- Tenant isolation:
+  - [ ] Tenant A's event never resolves Tenant B's template row or writes a Tenant B log row
+- E2E: none — backend-only, no UI
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S26 — Append every booking status transition to `booking_status_transitions`
+
+**Agent:** `backend-ts`
+**Complexity:** M
+**Docs to load:** `docs/13-DATABASE_SCHEMA.md` § `booking_status_transitions`, `docs/02-DOMAIN_MODEL.md` § `Booking`, `.copilot/context.md` §5, `docs/ENGINEERING_RULES_BACKEND.md` § Transactions and § Event Handlers, `docs/ENGINEERING_RULES_TESTING.md`, `docs/AGENT_PATTERNS.md`
+**Dependencies:** M23-S09 (creates the table, its entity, repository port and builder, and writes the `NO_SHOW` rows). Touches the same `Booking` aggregate and booking use cases as M23-S05, so run it after S05 has merged to avoid file overlap.
+**Pattern:** to be locked at `/story-discovery` between two candidates — **(a)** the aggregate records each transition (`from`, `to`, actor, reason, `correlationId`) beside its domain events and `TypeOrmBookingRepository.save()` persists them in the same DB transaction, so every current and future status-changing path is covered with no per-use-case code; **(b)** each use case appends through `IBookingStatusTransitionRepository` as S09's two do. Recommendation: (a), and fold S09's two direct appends into it so there is one mechanism. (b) needs about nine edits and any new status-changing use case silently forgets it.
+
+**Discovered:** 2026-09-30, in M23-S09's `/story-discovery`. `bookings` keeps only the latest actor and time per transition type (`approved_by`, `completed_by`, …) and the outbox is trickle-deleted after delivery, so today no transition has a history. S09 creates the audit table for the no-show correction; this story makes the rest of the state machine use it.
+
+**Description:**
+Every change of an existing booking's status appends one row to `booking.booking_status_transitions`: `PENDING → APPROVED`, `PENDING|INFO_REQUESTED → REJECTED`, `PENDING → INFO_REQUESTED`, `INFO_REQUESTED → PENDING` (customer or guest responded), `PENDING|INFO_REQUESTED|APPROVED → CANCELLED`, and `APPROVED → COMPLETED`, each with actor, reason where one exists, time and `correlationId`, in the same transaction as the booking's save. S09 already covers `APPROVED → NO_SHOW` and its correction.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **No backfill.** Bookings that changed status before this ships have no rows. `docs/13`'s note that the table is partial is replaced by "complete for every transition from M23-S26 onward".
+2. **Creation is not a transition.** A new booking's initial status, including one created directly as `APPROVED` by M23-S05's materialization, writes no row (`from_status` is `NOT NULL`).
+3. **Reschedule writes a row only if it changes status.** Today's aggregate has no status assignment in a reschedule, so none is expected; confirm at discovery.
+4. **Status-changing paths in scope today:** approve, reject, request-more-info, submit-booking-info, submit-guest-booking-info, complete, cancel-as-customer, cancel-as-admin, the cancel inside `ResolveFutureCommitmentExceptionsUseCase`, and the cancel of future occurrences in `EndRecurringBookingScheduleUseCase`. Re-grep for any new one S05 ships (a system actor such as an expiry job gets `actor_type = 'SYSTEM'`).
+5. **Actor types:** `STAFF`, `MANAGER`, `CUSTOMER`, `GUEST` (no `actor_id`), `SYSTEM`.
+6. **Retention and partitioning:** unchanged — never delete; revisit monthly partitioning as a TD past roughly 100M rows (`docs/13`).
+
+**Decisions left for `/story-discovery`:**
+- The pattern above, (a) or (b).
+- `reason` is `VARCHAR(500)`: confirm the cancel and reject reason limits in their DTOs fit, or widen the column in a migration. Whether a request-more-info message is stored as the reason (it lives on the booking already).
+- Whether the `Booking` test builder and the in-memory repository need a recording seam.
+
+**Backend use case steps:**
+1. Pattern (a): `Booking` records a pending transition in every status-changing method (`approve`, `reject`, `requestMoreInfo`, `submitInformation`, `complete`, `cancel`, plus S09's `markNoShow` and correction) and exposes them for the repository to drain, like domain events.
+2. `TypeOrmBookingRepository.save()` inserts the pending transitions with the booking in the same transaction, then clears them. The `transactional-save` detector needs `save()` textually inside each use case's `txManager.run()`, which is unchanged.
+3. S09's `MarkBookingNoShowUseCase` and `CorrectBookingNoShowUseCase` drop their direct appends in favour of this (pattern (a) only).
+
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** none expected (the table exists); a migration only if the discovery widens `reason`.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ spec), `booking.types.ts` (modify — recorded transition type and the recording in each status-changing method)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts` (+ spec, + `.integration.spec.ts`) (modify — persist the pending transitions in `save()`)
+- `apps/backend/src/test/repositories/booking/in-memory-booking.repository.ts` (modify — mirror the behavior)
+- `apps/backend/src/contexts/booking/application/use-cases/mark-booking-no-show.use-case.ts`, `correct-booking-no-show.use-case.ts` (+ specs) (modify — S09's files, remove the direct append)
+- `apps/backend/src/test/builders/booking/booking.builder.ts` (modify if a seam is needed)
+- `docs/13-DATABASE_SCHEMA.md` (modify — replace the "partial until S26" note), `docs/02-DOMAIN_MODEL.md` (modify — the `Booking` transition record, if the aggregate changes)
+
+**Acceptance criteria — product:**
+- [ ] Every approval, rejection, information request and reply, cancellation and completion of a booking leaves one audit row with from-status, to-status, actor, reason (where given) and time.
+- [ ] Existing booking behavior, responses and events are unchanged.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] Each status-changing aggregate method records exactly one transition with the right from/to and actor; a rejected transition records none
+  - [ ] Creating a booking, including directly as `APPROVED`, records none
+  - [ ] Cancel from each of `PENDING`, `INFO_REQUESTED`, `APPROVED` records the matching from-status
+- Integration:
+  - [ ] Saving a booking after each transition persists exactly one row in the same transaction; a rolled-back save persists none
+  - [ ] A full lifecycle (request → info requested → submitted → approved → completed) yields four ordered rows
+  - [ ] The future-commitment cancel and the recurring-schedule end each write their rows
+- Tenant isolation:
+  - [ ] Rows are written and read scoped by `(tenant_id, booking_id)`; Tenant A's booking never produces a Tenant B row
+- E2E: none — backend-only, no UI
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean

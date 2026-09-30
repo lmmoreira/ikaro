@@ -168,7 +168,7 @@ flowchart TD
 ```
 
 **Open questions / gaps:**
-- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show, UC-074) and `M23-S19` (staff creating on a customer's behalf). Each still begins with `/story-discovery`.
+- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are a future frontend story pending a prototype) and `M23-S19` (staff creating on a customer's behalf). Each still begins with `/story-discovery`.
 - [ ] **Entry point (default drawn):** a "+ Nova recorrência" button in the Agenda header. `M23-S13` adds recurring requests as a tab inside the existing Agenda page, so there is no queue route of its own to hang a create button on. Alternatives: a button inside that tab, or an entry under a customer.
 - [ ] Whether the recurring-schedule approval queue is a separate list or folds into the existing booking queue (`00-agenda.html`) is a UI decision for `M23-S13`.
 - [ ] **Approval on a staff-created schedule.** Today a schedule created by staff for a service that requires manual approval still lands in `PENDING_APPROVAL`, so staff would approve their own request. Should staff creation skip approval? (`09c #aguardando` draws today's behavior.)

@@ -771,15 +771,35 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | **UNIQUE** | (tenant_id, booking_id, revision_no) WHERE booking_id IS NOT NULL | Partial revision sequence per source |
 | **UNIQUE** | (tenant_id, class_session_booking_id, revision_no) WHERE class_session_booking_id IS NOT NULL | |
 
+### `booking.booking_status_transitions` (M23 Cluster 3)
+
+Append-only audit of a booking's status changes — who moved it, from what, to what, why, when. `bookings` itself keeps only the latest actor and time per transition type (`approved_by`, `completed_by`, …), so a no-show followed by a correction would otherwise leave no history. M23-S09 writes the no-show (`APPROVED → NO_SHOW`) and its correction (`NO_SHOW → COMPLETED`); M23-S26 makes every other transition append to it too (no backfill), so until S26 ships the table is **partial**. Same shape as M24's `class_session_booking_transitions`.
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | UUID | NOT NULL — UUIDv7 (time-ordered) |
+| tenant_id | UUID | NOT NULL |
+| booking_id | UUID | NOT NULL — FK (tenant_id, booking_id) → `bookings` |
+| from_status / to_status | VARCHAR(30) | NOT NULL |
+| reason | VARCHAR(500) | NULLABLE |
+| actor_type | VARCHAR(20) | NOT NULL |
+| actor_id | UUID | NULLABLE |
+| occurred_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| correlation_id | UUID | NOT NULL |
+| **PRIMARY KEY** | (tenant_id, id) | Tenant-first; partition-ready |
+| **INDEX** | (tenant_id, booking_id, occurred_at) | Every read is per booking |
+
+**Retention and growth:** the business/audit record — no deletion job, ever. Rows are tiny and every access is a point/range lookup by `(tenant_id, booking_id)`, so the composite index is enough for now; the tenant-first primary key and time-ordered `id` keep the table partition-ready. If it passes roughly 100M rows, open a TD for monthly time-based partitioning (by `occurred_at`) — a decision for then, not now.
+
 ### `booking.bookings` — modified (M23 Cluster 3)
 
 | New column | Type | Constraints |
 |---|---|---|
 | recurring_schedule_id | UUID | NULLABLE — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
-| status (existing column) | — | CHECK IN list gains `'NO_SHOW'` — new terminal state, `APPROVED → NO_SHOW` (UC-074); correction transitions handled via an append-only status-transition audit record, same pattern as `class_session_booking_transitions` (Cluster 4) |
+| status (existing column) | — | **No schema change.** `bookings.status` is an unconstrained `VARCHAR(30)` (no status CHECK exists in any migration), so `'NO_SHOW'` — new terminal state, `APPROVED → NO_SHOW` (UC-074) — needs no constraint change; the correction and the no-show itself are recorded in `booking_status_transitions` below |
 | **UNIQUE** | (tenant_id, recurring_schedule_id, scheduled_at) WHERE recurring_schedule_id IS NOT NULL | Materialization idempotency key — reuses `scheduled_at` directly (no separate `occurrence_start` column exists); a schedule's term is materialized exactly once, so a re-run hits this key and is a no-op |
 
-**Migration ordering (expand/contract), M23 Cluster 3:** straightforward expand — every table above is wholly new, and `bookings`' two changes (`recurring_schedule_id`, `NO_SHOW` in the status CHECK) are additive with no existing-row backfill required (no booking is retroactively a no-show). No contract phase needed.
+**Migration ordering (expand/contract), M23 Cluster 3:** straightforward expand — every table above is wholly new, and `bookings`' one column change (`recurring_schedule_id`) is additive with no existing-row backfill required (no booking is retroactively a no-show). No contract phase needed.
 
 ---
 

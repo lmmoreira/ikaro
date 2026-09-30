@@ -136,7 +136,7 @@ Notification Context subscribes:
 - Trigger workflow changes
 
 **Database:** `booking` schema
-- Tables: bookings, services, schedule_closures, schedule_openings, booking_audit_logs, resources (M21 Cluster 1); service_resource_requirements(_pool), service_legs, service_leg_resource_requirements(_pool), service_class_resource_pool, service_booking_intake_schema, booking_attendees, booking_line_resource_assignments, resource_occupancy (M22 Cluster 2); recurring_booking_schedules(_resource_assignments/_exceptions), availability_alerts(_notification_attempts), future_commitment_exceptions, booking_quote_revisions (M23 Cluster 3); class_schedule_templates(_slots/_exceptions), class_sessions(_resources), class_session_bookings(_attendees/_transitions), class_session_payments, recurring_enrollments, class_access_contracts, guest_class_booking_email_verifications, guest_class_trial_redemptions (M24 Cluster 4)
+- Tables: bookings, services, schedule_closures, schedule_openings, resources (M21 Cluster 1); service_resource_requirements(_pool), service_legs, service_leg_resource_requirements(_pool), service_class_resource_pool, service_booking_intake_schema, booking_attendees, booking_line_resource_assignments, resource_occupancy (M22 Cluster 2); recurring_booking_schedules(_resource_assignments/_exceptions), availability_alerts(_notification_attempts), future_commitment_exceptions, booking_quote_revisions, booking_status_transitions (M23 Cluster 3); class_schedule_templates(_slots/_exceptions), class_sessions(_resources), class_session_bookings(_attendees/_transitions), class_session_payments, recurring_enrollments, class_access_contracts, guest_class_booking_email_verifications, guest_class_trial_redemptions (M24 Cluster 4)
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
 
@@ -154,7 +154,7 @@ Notification Context subscribes:
 - `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; rest have no consumers in MVP
 - `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → `Raised`/`Resolved` consumed by Notification
 - `TenantSchedulingBootstrapped` (M23 Cluster 3) → no consumers in MVP
-- `BookingNoShow` (M23 Cluster 3) → consumed by Notification (customer email); explicitly **not** consumed by Loyalty (no points for a no-show)
+- `BookingNoShow` (M23 Cluster 3) → audit-log-only consumer in M23-S09, Notification (customer email) added by M23-S25; explicitly **not** consumed by Loyalty (no points for a no-show)
 - `ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Waitlisted`/`Cancelled` (M24 Cluster 4) → consumed by Notification
 - `WaitlistPromoted` (M24 Cluster 4) → consumed by Notification
 - `ClassSessionBookingCompleted` (M24 Cluster 4) → consumed by **Loyalty** (inserts a `LoyaltyEntry` via `class_session_booking_id`) and Notification — the SESSION-family counterpart to `BookingCompleted`

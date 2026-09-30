@@ -1231,18 +1231,18 @@ Returns:
 
 ### **UC-074: Staff or Manager Marks an Appointment as No-Show**
 
-- **Actor:** STAFF | MANAGER
-- **Endpoint:** `POST /bookings/:id/no-show`
-- **Preconditions:** The appointment's scheduled end time has passed; the booking is not already terminal.
+- **Actor:** STAFF | MANAGER (marking); MANAGER only (A3 correction)
+- **Endpoint:** `POST /bookings/:id/no-show` (optional `reason`), `POST /bookings/:id/no-show/correct` (A3)
+- **Preconditions:** The appointment is `APPROVED` and its scheduled end time has passed; the booking is not already terminal.
 - **Trigger:** Staff or manager closes the appointment outcome and confirms the customer did not attend.
 - **Main Flow:**
   1. System transitions the appointment to terminal `NO_SHOW` and appends an auditable status transition.
   2. System publishes `BookingNoShow` through the transactional outbox.
-  3. Notification Context sends an email using the booking contact snapshot, retrying delivery independently if needed.
+  3. Notification Context sends an email using the booking contact snapshot, retrying delivery independently if needed. *(Delivered by M23-S25; M23-S09 ships the transition, the audit row and the event with an audit-log-only consumer.)*
 - **Alternative Flows:**
-  - **A1: Appointment has not ended** → `422 Unprocessable`.
-  - **A2: Booking is already terminal** → `409 Conflict` — a manager correction follows the correction flow instead.
-  - **A3: Manager corrects a mistaken no-show** → System appends a correction transition with actor, reason, and timestamp, then emits the appropriate resulting event. Loyalty is awarded only if the resulting state is `COMPLETED`.
+  - **A1: Appointment has not ended** → `422 Unprocessable` (`BOOKING_NOT_YET_ENDED`). A booking still `PENDING`/`INFO_REQUESTED` is also `422` (`BOOKING_INVALID_TRANSITION`).
+  - **A2: Booking is already terminal** → `409 Conflict` (`BOOKING_ALREADY_TERMINAL`) — a manager correction follows the correction flow instead.
+  - **A3: Manager corrects a mistaken no-show** → Manager-only. The only accepted corrected status is `COMPLETED`; System appends a correction transition with actor, reason (required), and timestamp, completes the booking with each line's actual price defaulting to its booked price, and publishes `BookingCompleted` (not `BookingNoShow` again). Loyalty is awarded by that event.
 - **Postconditions:** No loyalty points are awarded for `NO_SHOW`; no completion event is emitted for the no-show outcome. **Changes CLAUDE.md §5's booking state machine** — see that file's own update alongside this promotion.
 - **Events Triggered:** `BookingNoShow`, or the correction/resulting completion event.
 
