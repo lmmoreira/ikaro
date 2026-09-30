@@ -2,7 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
 overrides:
-  '@grpc/grpc-js': '1.14.4'
+  '@grpc/grpc-js': '1.14.5'
   'form-data': '4.0.6'
   # multer@2.2.0 (originally pinned for SNYK-JS-MULTER-17342512) is itself
   # now flagged for 4 HIGH-severity CVEs (SNYK-JS-MULTER-19432021/19432131/

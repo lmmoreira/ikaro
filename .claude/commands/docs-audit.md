@@ -111,7 +111,7 @@ Each bucket's agent runs ONLY if at least one of its docs is in the resolved sco
 - Summary table row matches the detail section's `**Actor:**` line and outcome
 - Every "see UC-XXX"/"superseded by UC-XXX"/"lives in UC-XXX" reference points to a UC that exists, with a status consistent with how it's being referenced (don't cite an active flow as living inside a UC marked SUPERSEDED)
 - `.copilot/context.md` §6 UC index matches the summary table in `docs/04-USE_CASES.md`
-- Any booking-status transition named in a UC is valid per CLAUDE.md §5; no UC references `NO_SHOW`, UC-014, or UC-015 as active
+- Any booking-status transition named in a UC is valid per CLAUDE.md §5; `NO_SHOW` is valid via UC-074 (M23-S09); no UC references UC-014 or UC-015 as active
 
 ### 3b. Cross-doc consistency — for any in-scope doc pair that cross-references (deep- or light-check)
 - e.g. does `CLAUDE.md` §3's Bounded Contexts table match `docs/05-BOUNDED_CONTEXTS.md`? Does §1's project-facts table match `docs/22-TECH_STACK_DECISIONS.md`/`13-DATABASE_SCHEMA.md` where they overlap? Does `20-COST_OPTIMIZATION_STRATEGY.md`'s infra choices (e.g. "Cloud Run/Fargate" as parallel options) still match the project's actual committed decision in CLAUDE.md §1 (GCP-only)?

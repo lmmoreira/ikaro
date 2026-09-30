@@ -26,6 +26,8 @@ export class LogBookingNoShowEventUseCase {
   async execute(input: LogBookingNoShowEventUseCaseInput): Promise<void> {
     const { eventId, eventName, tenantId, bookingId, correlationId } = input;
 
+    // Claim-then-log: a crash between the claim and the log line means the redelivery is skipped
+    // (at-most-once) — acceptable for an audit-log line, same as the sibling audit-log consumers.
     const claimed = await this.inboxRepo.tryClaim(
       eventId,
       LogBookingNoShowEventUseCase.CONSUMER_NAME,

@@ -142,21 +142,24 @@ describe('BookingCompletionController no-show routes (integration)', () => {
     it('returns 403 for a CUSTOMER caller', async () => {
       const booking = await seedBooking('APPROVED', past());
 
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post(`/bookings/${booking.id}/no-show`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'CUSTOMER', uuidv7()))
-        .send({})
-        .expect(403);
+        .send({});
+
+      expect(res.status).toBe(403);
+      expect(await rowsFor(booking.id)).toHaveLength(0);
     });
 
     it("tenant isolation: tenant B cannot mark tenant A's booking (404)", async () => {
       const booking = await seedBooking('APPROVED', past());
 
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post(`/bookings/${booking.id}/no-show`)
         .set(actorHeaders(tenantBId, STAFF_ID, 'MANAGER', uuidv7()))
-        .send({})
-        .expect(404);
+        .send({});
+
+      expect(res.status).toBe(404);
 
       const row = await ds
         .getRepository(BookingEntity)
@@ -234,18 +237,27 @@ describe('BookingCompletionController no-show routes (integration)', () => {
           .set(actorHeaders(tenantAId, MANAGER_ID, 'MANAGER', uuidv7()))
           .send(payload);
 
-      await call({ correctedStatus: 'COMPLETED', reason: 'curto' }).expect(400);
-      await call({ correctedStatus: 'CANCELLED', reason: body.reason }).expect(400);
+      const tooShort = await call({ correctedStatus: 'COMPLETED', reason: 'curto' });
+      const wrongTarget = await call({ correctedStatus: 'CANCELLED', reason: body.reason });
+
+      expect(tooShort.status).toBe(400);
+      expect(wrongTarget.status).toBe(400);
+      expect(await rowsFor(booking.id)).toHaveLength(0);
     });
 
     it("tenant isolation: tenant B cannot correct tenant A's no-show (404)", async () => {
       const booking = await seedBooking('NO_SHOW', past());
 
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post(`/bookings/${booking.id}/no-show/correct`)
         .set(actorHeaders(tenantBId, MANAGER_ID, 'MANAGER', uuidv7()))
-        .send(body)
-        .expect(404);
+        .send(body);
+
+      expect(res.status).toBe(404);
+      const row = await ds
+        .getRepository(BookingEntity)
+        .findOneByOrFail({ id: booking.id, tenantId: tenantAId });
+      expect(row.status).toBe('NO_SHOW');
     });
   });
 });

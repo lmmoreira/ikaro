@@ -24,6 +24,7 @@ import { BookingCompletedHandler } from './booking-completed.handler';
 describe('BookingCompletedHandler — no-show correction (integration, M23-S09)', () => {
   let ds: DataSource;
   let eventBus: InMemoryEventBus;
+  let loyaltyOutbox: InMemoryEventBus;
   let handler: BookingCompletedHandler;
   let entryRepo: TypeOrmLoyaltyEntryRepository;
   let balanceRepo: TypeOrmLoyaltyBalanceRepository;
@@ -33,13 +34,14 @@ describe('BookingCompletedHandler — no-show correction (integration, M23-S09)'
     entryRepo = new TypeOrmLoyaltyEntryRepository(ds.getRepository(LoyaltyEntryEntity));
     balanceRepo = new TypeOrmLoyaltyBalanceRepository(ds.getRepository(LoyaltyBalanceEntity));
     eventBus = new InMemoryEventBus();
+    loyaltyOutbox = new InMemoryEventBus();
     const useCase = new CompleteBookingLoyaltyEffectsUseCase(
       entryRepo,
       balanceRepo,
       new TypeOrmLoyaltyRedemptionRepository(ds.getRepository(LoyaltyRedemptionEntity)),
       new TypeOrmInboxRepository(ds.getRepository(InboxRecordEntity)),
       new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10),
-      new InMemoryEventBus(),
+      loyaltyOutbox,
       new TypeOrmTransactionManager(ds),
     );
     handler = new BookingCompletedHandler(useCase, eventBus);
@@ -69,6 +71,7 @@ describe('BookingCompletedHandler — no-show correction (integration, M23-S09)'
     expect(balance!.currentPoints).toBe(expectedPoints);
     const entries = await entryRepo.findByCustomerPaginated(tenantId, customerId, 1, 20);
     expect(entries.total).toBe(booking.lines.length);
+    expect(loyaltyOutbox.published).toHaveLength(1); // the redelivery emitted no second follow-on event
   });
 
   it('never subscribes to BookingNoShow — a no-show awards nothing', () => {
