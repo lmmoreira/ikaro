@@ -108,7 +108,7 @@ function buildOccurrenceBooking(input: {
     lineInputs: input.lineInputs,
     recurringScheduleId: schedule.id,
     approvedBy: input.params.approvedByStaffId,
-    pickupAddress: contact.defaultAddress ?? undefined,
+    contactAddress: contact.defaultAddress ?? undefined,
   });
 }
 

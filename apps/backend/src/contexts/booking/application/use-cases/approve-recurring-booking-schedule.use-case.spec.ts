@@ -16,6 +16,7 @@ import {
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
 import { addDaysUTC } from '../../../../shared/utils/calendar-date';
+import { testAddress } from '../../../../test/utils/address-helpers';
 import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -164,6 +165,26 @@ describe('ApproveRecurringBookingScheduleUseCase', () => {
     expect(bookings.every((b) => b.status === BookingStatus.APPROVED)).toBe(true);
     expect(bookings.every((b) => b.recurringScheduleId === schedule.id)).toBe(true);
     expect(bookings.every((b) => b.approvedBy === STAFF_ID)).toBe(true);
+  });
+
+  it("snapshots the customer's contact details, with the default address as the contact address", async () => {
+    const address = testAddress();
+    customerPort.setProfile(CUSTOMER_ID, {
+      email: 'ana@example.com',
+      name: 'Ana Souza',
+      phone: '+5531999999999',
+      defaultAddress: address,
+    });
+    const schedule = pendingSchedule();
+
+    await approve(schedule.id);
+
+    const [booking] = await bookingRepo.findAllByTenant(TENANT);
+    expect(booking.contactName).toBe('Ana Souza');
+    expect(booking.contactEmail.address).toBe('ana@example.com');
+    expect(booking.contactPhone.value).toBe('+5531999999999');
+    expect(booking.contactAddress?.street).toBe(address.street);
+    expect(booking.pickupAddress).toBeNull();
   });
 
   it('creates the occurrences APPROVED whatever the service defaultApprovalMode says', async () => {
