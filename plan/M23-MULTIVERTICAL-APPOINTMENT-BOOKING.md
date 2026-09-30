@@ -1518,7 +1518,7 @@ Two notifications, one story because both extend S08's events and both need new 
 
 ---
 
-### M23-S24 — Drop the retired `recurring_booking_schedule_exceptions` table
+### M23-S24 — Drop the retired `recurring_booking_schedule_exceptions` table ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
