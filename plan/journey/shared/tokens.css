@@ -454,6 +454,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
 .status-cancelled { background: #fee2e2; color: #dc2626; }
 .status-rejected  { background: #fee2e2; color: #dc2626; }
 .status-completed { background: #f1f5f9; color: #475569; }
+.status-no-show   { background: #ede9fe; color: #6d28d9; }
 
 /* Filter tabs — horizontally scrollable on mobile */
 .filter-tabs {

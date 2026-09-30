@@ -135,6 +135,16 @@
     <li><a href="09c-nova-recorrencia-resultado.html">Tela 9c — Desfechos: criada, aguardando aprovação, conflito, limite, cliente não encontrado, falha</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-070 · M23-S19</span> <span class="tag" style="background:#fef3c7;color:#92400e;">⚠ aprovação e notificação em aberto — ver dev-notes.md</span></li>
   </ul>
 
+  <p><strong>M23 Cluster 3 — Não comparecimento (UC-074) — ❓ Gap:</strong> a ação "Marcar não compareceu" estende o detalhe de um agendamento aprovado — mesma rota, sem tela nova. Corrigir é somente do gerente.</p>
+  <ul>
+    <li><a href="03-booking-detail-approved.html">Tela 3 — ação "Marcar não compareceu" + bottom sheet (motivo opcional)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-074 · UI futura (M23-S09 entrega só o backend/BFF)</span></li>
+    <li><a href="03c-no-show-not-yet-ended.html">Tela 3c — atendimento ainda não terminou: ação desativada com dica; erro 422 (#rejeitado)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-074 · UI futura (M23-S09 entrega só o backend/BFF)</span></li>
+    <li><a href="03d-no-show-success.html">Tela 3d — sucesso inline (actionState = 'no-show')</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-074 · UI futura (M23-S09 entrega só o backend/BFF)</span></li>
+    <li><a href="03e-no-show-error.html">Tela 3e — erros: 409 já encerrado (#terminal) e falha de rede/5xx (#falha)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-074 · UI futura (M23-S09 entrega só o backend/BFF)</span></li>
+    <li><a href="03f-booking-detail-no-show.html">Tela 3f — detalhe de um não comparecimento: gerente vê "Corrigir para concluído", staff não (#equipe)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-074 · UI futura (M23-S09 entrega só o backend/BFF)</span></li>
+    <li><a href="03g-correct-no-show.html">Tela 3g — correção (somente gerente): motivo obrigatório (10–500), sucesso, falha, 403</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-074 · UI futura (M23-S09 entrega só o backend/BFF)</span> <span class="tag" style="background:#fef3c7;color:#92400e;">⚠ o email ao cliente depende de M23-S25 — ver dev-notes.md</span></li>
+  </ul>
+
   <hr>
 
   <div class="note">
@@ -150,10 +160,13 @@
     ✅ O botão "Usar todos" e o campo de pontos são intuitivos? O desconto aparece de forma legível?<br>
     ✅ Reagendar reusando o calendário de UC-011 é familiar para quem já viu o fluxo de booking?<br>
     ✅ É claro que cancelar/reagendar/concluir só aparecem em um agendamento já Aprovado?<br>
+    ✅ (UC-074) A dica "Disponível após o término do atendimento" explica por que "Marcar não compareceu" está desativado?<br>
+    ✅ (UC-074) Ficou claro que só o gerente corrige um não comparecimento, e que o staff simplesmente não vê o botão?<br>
+    ✅ (UC-074) O motivo obrigatório da correção (mín. 10 chars) e o aviso de pontos concedidos ficam claros?<br>
     <br>
     <strong>UCs cobertos:</strong>
     UC-003 (aprovar) · UC-004 (rejeitar) · UC-005 (pedir info) ·
-    UC-008 (cancelar/reagendar) · UC-009 (marcar concluído)<br>
+    UC-008 (cancelar/reagendar) · UC-009 (marcar concluído) · UC-074 (não comparecimento — ❓ gap)<br>
     <strong>Inicio do protótipo</strong> →
     <a href="../../../shared/entry.html">shared/entry.html</a>
   </div>

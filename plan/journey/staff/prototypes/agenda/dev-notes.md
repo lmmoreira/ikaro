@@ -407,7 +407,7 @@ export interface CompleteBookingResponse {
 | File | Status |
 |---|---|
 | `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` | ❓ Gap — M23-S13 |
-| `03-booking-detail-approved.html`'s no-show action | ❓ Gap — extend existing `BookingDetailApproved` component, no new screen. **Owner: a future frontend story, not M23-S09** (S09 ships the backend/BFF only) — it must start from a journey update and a prototype (no no-show or correction screen exists in this folder yet) |
+| `03-booking-detail-approved.html`'s no-show action (+ `03c`–`03g`) | ❓ Gap — extend existing `BookingDetailPage` / `BookingActionPanel`, no new route. Prototype screens added 2026-09-30 (see "UC-074 — Não comparecimento" below). **Owner: a future frontend story, not M23-S09** (S09 ships the backend/BFF and the minimal `NO_SHOW` status display only) |
 | `apps/web/app/dashboard/bookings/recurring/new/page.tsx` | ❓ Gap — M23-S19 (route proposed; see the route question below) |
 | `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleCustomerStep.tsx`, `NewRecurringScheduleForStaff.tsx`, `NewRecurringScheduleForStaffResult.tsx` | ❓ Gap — M23-S19 (the Agenda page's real folder is `dashboard/bookings/`, next to `BookingQueuePage.tsx`; `M23-S13`'s plan cites an `agenda/` folder that does not exist) |
 
@@ -417,8 +417,8 @@ GET  /recurring-booking-schedules?status=PENDING_APPROVAL   -- UC-071 queue
 POST /recurring-booking-schedules/:id/approve|reject          -- UC-071
 GET  /customers?search=&limit=                                 -- UC-070 staff variant: customer picker (STAFF|MANAGER; existing endpoint)
 POST /recurring-booking-schedules   (body carries customerId)  -- UC-070 staff variant
-POST /bookings/:id/no-show                                    -- UC-074
-POST /bookings/:id/no-show/correct                             -- UC-074 A3
+POST /bookings/:id/no-show                                    -- UC-074   (STAFF|MANAGER; body { reason? } max 500)
+POST /bookings/:id/no-show/correct                             -- UC-074 A3 (MANAGER only; body { correctedStatus: 'COMPLETED', reason } reason required)
 ```
 
 **Open questions / gaps:**
@@ -468,3 +468,52 @@ All the `BOOKING_RECURRING_SCHEDULE_*` and `BOOKING_CUSTOMER_NOT_FOUND` codes ar
 - ⚠ **Entry point and route.** The "+ Nova recorrência" button in the Agenda header is a default; `M23-S13` puts recurring requests in a tab inside the Agenda page, so there is no queue route of its own. A brand-new dashboard section would also need registering in the sidebar, the proxy role list, the bottom nav and the topbar titles.
 - ⚠ **Out of scope, as in the customer flow:** variable-duration services and bundled services (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`).
 - ⚠ **`08`'s sidebar and bottom-nav links** pointed at the wrong prototypes (and one missing file) when it was relocated from discovery; corrected on 2026-09-29.
+
+### UC-074 — Não comparecimento (no-show) and its correction — `03`, `03c`–`03g` (M23-S09 backend/BFF; UI = a future frontend story)
+
+Added 2026-09-30, after the M23-S09 `/story-discovery`. Same route and component as the approved-booking detail (`/dashboard/bookings/:id`, `BookingDetailPage` + `BookingActionPanel`); only new `actionState` values and one new branch of the action panel. The flow diagram is in `../../agenda.md`.
+
+| File | Screen | `actionState` / branch |
+|---|---|---|
+| `03-booking-detail-approved.html` | APPROVED detail + "Marcar não compareceu" + bottom sheet (optional reason) | `idle` → sheet → `no-show` |
+| `03c-no-show-not-yet-ended.html` | Action **disabled** with hint; `#rejeitado` = the 422 banner | `idle` (disabled) · `no-show-not-ended` |
+| `03d-no-show-success.html` | Inline success, badge "Não compareceu" | `no-show` |
+| `03e-no-show-error.html` | `#terminal` 409 · `#falha` network/5xx | `no-show-terminal` · `no-show-error` |
+| `03f-booking-detail-no-show.html` | NO_SHOW detail + status history; `#gerente` shows "Corrigir para concluído", `#equipe` hides it | NO_SHOW branch |
+| `03g-correct-no-show.html` | Correction sheet (required reason) · `#sucesso` · `#falha` · `#permissao` | `correcting` → `corrected` · `correct-error` · `correct-forbidden` |
+
+**Button visibility:**
+| Booking | STAFF | MANAGER |
+|---|---|---|
+| `APPROVED`, end time passed | "Marcar não compareceu" enabled | same |
+| `APPROVED`, end time not passed | "Marcar não compareceu" **disabled** + hint "Disponível após o término do atendimento (HH:mm)" (HH:mm = `scheduledAt + totalDurationMins`, tenant timezone) | same |
+| `NO_SHOW` | no action; the panel says so (the correction button is **hidden**, not disabled) | "Corrigir para concluído" |
+| any other terminal status | no no-show action | same |
+
+**BFF calls:**
+```
+POST /bookings/:id/no-show           body { reason?: string (<= 500) }                 -- STAFF|MANAGER
+POST /bookings/:id/no-show/correct   body { correctedStatus: 'COMPLETED', reason }     -- MANAGER only
+```
+| Outcome | Panel |
+|---|---|
+| no-show `200` | `03d` |
+| `409` `BOOKING_ALREADY_TERMINAL` | `03e #terminal` |
+| `422` `BOOKING_NOT_YET_ENDED` | `03c #rejeitado` |
+| `422` `BOOKING_INVALID_TRANSITION` (still `PENDING`/`INFO_REQUESTED`) | not reachable from the UI — the action only renders on `APPROVED` |
+| network / `5xx` | `03e #falha` |
+| correct `200` | `03g #sucesso` (loyalty points awarded by the resulting `BookingCompleted`) |
+| correct `403` | `03g #permissao` |
+| correct network / `5xx` | `03g #falha` |
+
+**Field constraints:** no-show `reason` optional, max 500, an **internal** note (never shown to the customer, in the email or on `customer/prototypes/minha-conta/02f`). Correction `reason` required, trimmed, 10–500 characters — a proposal (same minimum as Reject) to lock at the UI story's discovery. The correction completes every line at its booked price: no photos, notes or points-discount fields in `03g`.
+
+**Status history (`03d`, `03f`, `03g`):** read from `booking_status_transitions` (created by M23-S09; complete for all transitions once M23-S26 ships). The UI story must decide whether the history is part of `GET /bookings/:id` or a separate read — M23-S09 adds no read endpoint for it.
+
+**`.status-no-show`** (violet) was added to `plan/journey/shared/tokens.css`; the customer list and detail use it too (`customer/prototypes/minha-conta/01`, `02f`).
+
+**Known limitations of this prototype (gap variants, not silently dropped):**
+- ⚠ **The customer email** ("foi avisado por email" in `03`, `03d`) depends on `M23-S25`; drop the sentence if the UI ships first.
+- ⚠ **The history card** in `03d`/`03f`/`03g` assumes a read the backend does not expose yet (see above).
+- ⚠ **Role switch in `03f`** is a hash toggle for the prototype; in production the role comes from the JWT.
+- ⚠ **The `NO_SHOW` web status display** (label, colour, icon in `booking-status.ts`, `BookingStatusIcon.tsx`, `schedule-page-controller-result.ts`) ships with `M23-S09`, not with the UI story.
