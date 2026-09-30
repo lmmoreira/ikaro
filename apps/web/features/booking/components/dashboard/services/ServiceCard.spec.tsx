@@ -45,6 +45,7 @@ function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceRes
       minBookingAdvanceHoursOverride: null,
       maxBookingAdvanceDaysOverride: null,
       recurrenceEligible: false,
+      recurringHorizonDays: null,
       availabilityAlertEligible: false,
       durationPolicy: 'FIXED',
       durationMinMinutes: null,

@@ -885,7 +885,7 @@ Returns:
 - **Alternative Flows:**
   - **A1: Admin reduces the cancellation window or approval hold below a value already relied on by an in-flight booking** → No retroactive effect; only bookings created after the change use the new values.
   - **A2: Admin sets `durationPolicy = CUSTOMER_SELECTED` without a `pricingPolicy`** → `422 Unprocessable` — a variable-duration service must declare how it prices.
-  - **A3: Admin sets `recurringHorizonDays` outside 1–180** → `422 Unprocessable` — the ceiling bounds how many occurrences one schedule can materialize at creation.
+  - **A3: Admin sets `recurringHorizonDays` outside 1–180** → rejected: the dashboard shows an inline range error and blocks the save; a direct API call gets `400` (request validation). The ceiling bounds how many occurrences one schedule can materialize at creation.
 - **Postconditions:** The service has a complete, self-contained booking policy; no field silently falls back to an undocumented default.
 - **Events Triggered:** None.
 

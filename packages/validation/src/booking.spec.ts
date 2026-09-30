@@ -2,7 +2,24 @@ import {
   ListRecurringBookingSchedulesQuerySchema,
   ScheduleClosuresRangeQuerySchema,
   ScheduleDayGridQuerySchema,
+  UpdateServiceBookingPolicySchema,
 } from './booking';
+
+describe('UpdateServiceBookingPolicySchema — recurringHorizonDays', () => {
+  it.each([1, 90, 180, null])('accepts %j', (recurringHorizonDays) => {
+    expect(UpdateServiceBookingPolicySchema.safeParse({ recurringHorizonDays }).success).toBe(true);
+  });
+
+  it('accepts an omitted field', () => {
+    expect(UpdateServiceBookingPolicySchema.safeParse({}).success).toBe(true);
+  });
+
+  it.each([0, -1, 181, 365, 1.5])('rejects %j', (recurringHorizonDays) => {
+    expect(UpdateServiceBookingPolicySchema.safeParse({ recurringHorizonDays }).success).toBe(
+      false,
+    );
+  });
+});
 
 describe('ScheduleDayGridQuerySchema', () => {
   it('accepts a real calendar date', () => {

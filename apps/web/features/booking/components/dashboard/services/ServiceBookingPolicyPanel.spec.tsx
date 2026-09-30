@@ -45,6 +45,7 @@ const BASE_POLICY: ServiceBookingPolicyItem = {
   minBookingAdvanceHoursOverride: null,
   maxBookingAdvanceDaysOverride: null,
   recurrenceEligible: false,
+  recurringHorizonDays: null,
   availabilityAlertEligible: false,
   durationPolicy: 'FIXED',
   durationMinMinutes: null,
@@ -86,7 +87,7 @@ describe('ServiceBookingPolicyPanel', () => {
     expect(screen.getByTestId('policy-duration-detail')).toBeInTheDocument();
   });
 
-  it('submits all 16 UpdateServiceBookingPolicySchema fields on save', async () => {
+  it('submits all 17 UpdateServiceBookingPolicySchema fields on save', async () => {
     const user = userEvent.setup();
     renderWithIntl(
       <PolicyPanelWithAction
@@ -104,6 +105,42 @@ describe('ServiceBookingPolicyPanel', () => {
     });
     const body = mutateAsync.mock.calls[0]![0].body;
     expect(Object.keys(body).sort()).toEqual(Object.keys(BASE_POLICY).sort());
+  });
+
+  it('saves the recurring-schedule maximum term the manager typed', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <PolicyPanelWithAction
+        serviceId="svc-1"
+        initialPolicy={{ ...BASE_POLICY, recurrenceEligible: true }}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId('policy-recurring-horizon'), '45');
+    await user.click(screen.getByTestId('policy-save'));
+
+    expect(mutateAsync.mock.calls[0]![0].body).toMatchObject({ recurringHorizonDays: 45 });
+  });
+
+  it('blocks the save and shows the inline error for an out-of-range maximum term, then recovers', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <PolicyPanelWithAction
+        serviceId="svc-1"
+        initialPolicy={{ ...BASE_POLICY, recurrenceEligible: true }}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId('policy-recurring-horizon'), '181');
+    expect(screen.getByTestId('policy-recurring-horizon-error')).toBeInTheDocument();
+    expect(screen.getByTestId('policy-save')).toBeDisabled();
+
+    await user.clear(screen.getByTestId('policy-recurring-horizon'));
+    await user.type(screen.getByTestId('policy-recurring-horizon'), '180');
+    expect(screen.queryByTestId('policy-recurring-horizon-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('policy-save')).toBeEnabled();
   });
 
   it('surfaces a 422 variable-duration-without-pricing error inline', async () => {

@@ -56,6 +56,14 @@ export type ServiceApprovalMode = 'AUTO_CONFIRM' | 'MANUAL_APPROVAL';
 export type ServiceDurationPolicy = 'FIXED' | 'CUSTOMER_SELECTED';
 export type ServicePricingPolicy = 'FIXED' | 'PER_TIME_INCREMENT';
 
+// Bounds of a recurring schedule's maximum term (ServiceBookingPolicyItem.recurringHorizonDays).
+// 180 = 2x the 90-day platform default: every occurrence of the term is materialized at creation,
+// so the ceiling bounds one request's work. Lives here, not in @ikaro/validation, because the
+// dashboard form must validate against the same numbers and apps/web never consumes
+// @ikaro/validation; the shared request schema imports them from here.
+export const MIN_RECURRING_HORIZON_DAYS = 1;
+export const MAX_RECURRING_HORIZON_DAYS = 180;
+
 export interface ServiceBookingPolicyItem {
   defaultApprovalMode: ServiceApprovalMode | null;
   manualHoldMinutes: number | null;
@@ -64,6 +72,7 @@ export interface ServiceBookingPolicyItem {
   minBookingAdvanceHoursOverride: number | null;
   maxBookingAdvanceDaysOverride: number | null;
   recurrenceEligible: boolean;
+  recurringHorizonDays: number | null;
   availabilityAlertEligible: boolean;
   durationPolicy: ServiceDurationPolicy;
   durationMinMinutes: number | null;
