@@ -29,6 +29,7 @@
 | 2 | M23-S24 | Drop the retired `recurring_booking_schedule_exceptions` table — the contract step of S08's removal, after S08 is deployed everywhere |
 | 2 | M23-S25 | Customer email on a no-show — `BookingNoShow` → Notification (UC-074 step 3) |
 | 2 | M23-S26 | Append every booking status transition to `booking_status_transitions` (no backfill) |
+| 3 | M23-S27 | Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail (UC-074) |
 | 2 | M23-S14 | Manager "Exceções de Agenda" worklist frontend (UC-073/077) |
 | 2 | M23-S15 | Manager onboarding wizard frontend (UC-075) |
 | 3 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens |
@@ -82,6 +83,9 @@ graph TD
   S09 --> S25
   S09 --> S26
   S05 --> S26
+  S09 --> S27
+  S25 --> S27
+  S26 --> S27
 ```
 
 **Wave note (self-dry-run, corrected during `/docs-audit`):** S02 and S03 both call S01's `ResourceResolutionService` in their own description text (S02 for a variable-duration window, S03 for a reschedule's replacement window) — an audit found neither declared that as a `Dependencies:` edge, and both sat in Wave 1 alongside S01 itself. Fixed: both now depend on M23-S01 and sit in **Wave 2**. This cascades: S11 (guest/customer booking flow frontend) depends on S01, S02, **and** S03 — its floor is now `max(S01=1, S02=2, S03=2) + 1` = **Wave 3**, not Wave 2. S12 (Minha Conta extension) needs both S04 (recurring CRUD) and S05 (approval + generation) BFF endpoints, plus S06/S07 (alerts CRUD + matching) — its dependency floor is `max(S04, S05, S06, S07)`'s wave, i.e. Wave 3 (S05) + 1 = **Wave 4**. S13 (staff approval-queue UI) only needs S05, so it's `Wave 3 + 1 = Wave 4` too, not Wave 3 in parallel with S05 itself.
@@ -538,7 +542,7 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
 6. **Audit table is generic but partially filled.** `booking.booking_status_transitions` has `from_status`/`to_status` so it can hold every transition, but in this story only the no-show and its correction write to it; M23-S26 makes every other transition append to it. Until S26 ships the table is documented as partial.
 7. **No partitioning now.** The primary key is `(tenant_id, id)` with a UUIDv7 `id` and the read index is `(tenant_id, booking_id, occurred_at)`, so the table is partition-ready; real partitioning is a TD to open if the table passes ~100M rows (`docs/13`).
 8. **No occupancy change.** Completing a booking does not release `resource_occupancy` and a no-show only happens after the end time, so this story does not touch occupancy.
-9. **`BookingNoShow` gets an audit-log-only consumer** (`eventBus.subscribe()` in `booking-no-show-events.handler.ts`, same shape as `RecurringBookingScheduleEventsHandler`) so the topic is provisioned (`docs/ANTI_PATTERNS.md` § A domain event is drained). The customer email is **M23-S25**; the audit of every other transition is **M23-S26**; the no-show and correction **UI** is a future frontend story that needs a prototype first (none exists — `dev-notes.md` only has a ❓ Gap line) and is deliberately not in this milestone's story list yet.
+9. **`BookingNoShow` gets an audit-log-only consumer** (`eventBus.subscribe()` in `booking-no-show-events.handler.ts`, same shape as `RecurringBookingScheduleEventsHandler`) so the topic is provisioned (`docs/ANTI_PATTERNS.md` § A domain event is drained). The customer email is **M23-S25**; the audit of every other transition is **M23-S26**; the no-show and correction **UI** is **M23-S27** (the prototype screens were added afterwards in PR #542).
 
 **Description:**
 Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → NO_SHOW`), per the already-updated `CLAUDE.md` §5 and both `docs/02-DOMAIN_MODEL.md` `BookingStatus` locations. No loyalty points are awarded for this transition. A manager may correct a mistaken no-show to `COMPLETED` through an append-only audit transition (`booking.booking_status_transitions`, modelled on M24's `class_session_booking_transitions`) — loyalty is awarded only by the `BookingCompleted` the correction emits.
@@ -555,7 +559,7 @@ Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → 
 
 **Infra sequence (`infra/terraform/README.md` § New-resource PR-sequencing playbook, row "A new Pub/Sub topic"):** `BookingNoShow` is a new topic, so after the code PR merges: regenerate `pubsub-catalog.json` (not hand-edited), merge and apply the `envs/*` change, then **apply Foundation** — dispatch `foundation-deploy.yml` with `apply=true` from `main`, review the two plans, approve `staging-foundation` and `production-foundation`, and confirm `gcloud pubsub topics get-iam-policy` on the new topic shows the expected publisher binding in both projects (M23-S04 precedent: skipped, its topics stayed ungranted).
 
-**Shared closed-enum copies — update all together:** `BOOKING_STATUS` in `packages/types/src/enums.ts`; the backend `BookingStatus` enum in `booking.types.ts`; the `list-bookings.dto.ts` whitelist; the BFF `BOOKING_STATUS_RE` in `bookings.schemas.ts`; and the web exhaustive `Record<BookingStatus, …>` maps (`features/booking/model/booking-status.ts`, `features/customer/components/my-account/BookingStatusIcon.tsx` ×3, `features/booking/schedule/schedule-page-controller-result.ts`). Adding the shared member without the web maps breaks `tsc`, so a **minimal web status display** (label, colour, icon, pt-BR + en keys) is part of this story — it renders an existing booking's status and is not a new screen, so it needs no prototype. `tsc --noEmit` on `apps/web` is the completeness check for any other exhaustive consumer.
+**Shared closed-enum copies — update all together:** `BOOKING_STATUS` in `packages/types/src/enums.ts`; the backend `BookingStatus` enum in `booking.types.ts`; the `list-bookings.dto.ts` whitelist; the BFF `BOOKING_STATUS_RE` in `bookings.schemas.ts`; and the web exhaustive `Record<BookingStatus, …>` maps (`features/booking/model/booking-status.ts`, `features/customer/components/my-account/BookingStatusIcon.tsx` ×3, `features/booking/schedule/schedule-page-controller-result.ts`). Adding the shared member without the web maps breaks `tsc`, so a **minimal web status display** (label, colour, icon, pt-BR + en keys) is part of this story — it renders an existing booking's status and is not a new screen, so it needs no prototype. `tsc --noEmit` on `apps/web` is the completeness check for the exhaustive maps only. **Non-exhaustive consumers `tsc` cannot catch** (found in discovery, 2026-09-30 — a `NO_SHOW` booking would silently disappear or render blank without them): `apps/web/features/customer/booking-sections.ts` (`HISTORY_STATUSES` is a plain set — add `NO_SHOW` so the booking appears in the customer's history), `apps/web/features/booking/model/booking-status.ts` (`SCHEDULE_BOOKING_STATUS_DEFAULT` / `_OPTIONS` status lists — add `NO_SHOW` so the schedule still shows and can filter it), `BookingDetailAsideCard.tsx` and `BookingDetailMainBanner.tsx` (status branches — a read-only `NO_SHOW` banner and no action rail, without the new buttons), and the customer `BookingDetailPage.tsx` / `BookingDetailMain.tsx` (a neutral read-only `NO_SHOW` detail, no actions). The buttons, sheets and the history card are the UI story (M23-S27), not this one.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ `.spec.ts`) (modify — `markNoShow()`, the correction method, `NO_SHOW` in `booking.types.ts`'s `BookingStatus`)
@@ -570,17 +574,18 @@ Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → 
 - `packages/types/src/enums.ts`, `packages/types/src/error-codes.ts` + both `packages/i18n/locales/{pt-BR,en}/errors.json` (modify — `BOOKING_NOT_YET_ENDED`, `BOOKING_ALREADY_TERMINAL`)
 - `apps/backend/src/contexts/booking/application/dtos/list-bookings.dto.ts` (modify — whitelist)
 - `apps/bff/src/features/booking/bookings.controller.ts` (+ specs), `bookings.schemas.ts` (modify — routes, `BOOKING_STATUS_RE`)
-- `apps/web/features/booking/model/booking-status.ts`, `apps/web/features/customer/components/my-account/BookingStatusIcon.tsx`, `apps/web/features/booking/schedule/schedule-page-controller-result.ts` (+ their specs) and `packages/i18n/locales/{pt-BR,en}/web.json` (modify — minimal `NO_SHOW` status display)
+- `apps/web/features/booking/model/booking-status.ts`, `apps/web/features/customer/components/my-account/BookingStatusIcon.tsx`, `apps/web/features/booking/schedule/schedule-page-controller-result.ts`, `apps/web/features/customer/booking-sections.ts`, `apps/web/features/booking/components/dashboard/bookings/BookingDetailAsideCard.tsx`, `BookingDetailMainBanner.tsx`, `apps/web/features/customer/components/my-account/BookingDetailPage.tsx`, `BookingDetailMain.tsx` (+ their specs) and `packages/i18n/locales/{pt-BR,en}/web.json` (modify — minimal read-only `NO_SHOW` status display; no new actions)
 - `apps/backend/http/booking/bookings.http` and `apps/bff/http/booking/bookings.http` (modify)
 - `infra/terraform/pubsub-catalog.json` (regenerated, not hand-edited)
 - `docs/13-DATABASE_SCHEMA.md`, `docs/03-DOMAIN_EVENTS.md`, `docs/05-BOUNDED_CONTEXTS.md` (modify — already done in discovery; re-check at implementation), `.copilot/context.md` §5 (modify — drop the "not live until M23 ships" wording once merged)
 
-**Out of scope, with owners:** the customer email on `BookingNoShow` → **M23-S25**; appending every other booking status transition to the audit table (no backfill) → **M23-S26**; the "Marcar não comparecimento" button and the correction action on the staff booking detail → a **future frontend story** that must start from a journey update and a prototype under `plan/journey/staff/prototypes/agenda/` (CLAUDE.md §15), not yet created.
+**Out of scope, with owners:** the customer email on `BookingNoShow` → **M23-S25**; appending every other booking status transition to the audit table (no backfill) → **M23-S26**; the "Marcar não comparecimento" button and the correction action on the staff booking detail → **M23-S27** (the prototype screens `03`–`03g` and the customer `02f` were merged in PR #542).
 
 **Acceptance criteria — product:**
 - [ ] Staff or manager marks a past-due `APPROVED` appointment as no-show (optionally with a reason); no loyalty points are awarded.
 - [ ] Only a manager can correct a no-show to `COMPLETED`; loyalty points are awarded exactly then, not on the original no-show.
 - [ ] Both transitions leave a row in `booking_status_transitions` with from/to status, actor, reason and time.
+- [ ] A booking in `NO_SHOW` appears in the customer's Minha Conta history with a "Não compareceu" badge, opens a read-only detail with no actions, and shows in the staff schedule and booking detail as a read-only "Não compareceu" booking (no buttons yet — M23-S27).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -588,6 +593,7 @@ Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → 
   - [ ] Mark use case: `404` unknown booking; `409 BOOKING_ALREADY_TERMINAL` for each terminal status; `422 BOOKING_INVALID_TRANSITION` for `PENDING`/`INFO_REQUESTED`; `422 BOOKING_NOT_YET_ENDED` before `scheduledAt + totalDurationMins`
   - [ ] Correct use case publishes `BookingCompleted`, not `BookingNoShow` again, with each line's actual price equal to its `priceAtBooking`
   - [ ] Controllers: `StaffOrManagerRoleGuard` on mark, `ManagerRoleGuard` on correct (a `STAFF` caller gets `403` on correct); BFF `@Roles` match
+  - [ ] Web (Vitest): `splitBookingSections` puts a `NO_SHOW` booking in `history`; the status maps/labels/icon render it in both locales; the dashboard aside/banner and the customer detail render the read-only `NO_SHOW` state without actions
 - Integration:
   - [ ] Correction to `COMPLETED` triggers the existing loyalty-award path end-to-end, and marking a no-show awards nothing
   - [ ] Transition repository persists and reads back rows scoped by `(tenant_id, booking_id)`
@@ -1772,5 +1778,88 @@ Every change of an existing booking's status appends one row to `booking.booking
 - Tenant isolation:
   - [ ] Rows are written and read scoped by `(tenant_id, booking_id)`; Tenant A's booking never produces a Tenant B row
 - E2E: none — backend-only, no UI
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S27 — Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail
+
+**Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
+**Complexity:** L
+**Docs to load:** `docs/04-USE_CASES.md` UC-074, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` (no-show routes and `GET /bookings/:id`), `docs/13-DATABASE_SCHEMA.md` § `booking_status_transitions`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure, `plan/journey/staff/prototypes/agenda/dev-notes.md` § UC-074, `plan/journey/customer/minha-conta.md`
+**Dependencies:** M23-S09 (the two routes, the audit table, the `NO_SHOW` status and the minimal read-only status display this story builds on), M23-S25 (the customer email — the copy "foi avisado por email" is only true once it ships), M23-S26 (the audit table is complete for every transition, so the history card is a full record rather than only the no-show rows)
+**Prototype references:** `plan/journey/staff/prototypes/agenda/03-booking-detail-approved.html`, `03c-no-show-not-yet-ended.html`, `03d-no-show-success.html`, `03e-no-show-error.html`, `03f-booking-detail-no-show.html`, `03g-correct-no-show.html` (their `index.html` and `dev-notes.md` § UC-074), and `plan/journey/customer/prototypes/minha-conta/01-minha-conta.html`, `02f-agendamento-nao-compareceu.html` (parent journeys `plan/journey/staff/agenda.md`, `plan/journey/customer/minha-conta.md`). Merged in PR #542.
+**Pattern:** plain composition — a new action on the existing `BookingDetailPage` / `BookingActionPanel` and two sheets built exactly like `AdminCancelBookingSheet.tsx` (the cancel sheet is the precedent for an optional-reason sheet; `RejectBookingSheet.tsx` is the precedent for a required-reason one). No new named pattern.
+
+**Discovered:** 2026-09-30, in M23-S09's `/story-discovery`. S09 is backend/BFF only; `plan/journey/staff/prototypes/agenda/dev-notes.md` had handed the no-show button to it, but no prototype existed, so the UI was split out and the prototype written first (PR #542).
+
+**Description:**
+Give staff and managers the UI for UC-074, on the existing booking detail route `/dashboard/bookings/:id`, and show a no-show to the customer. Everything below is settled by the prototype.
+
+*Staff / manager, approved booking.* A "Marcar não compareceu" secondary action next to Reagendar and Cancelar. Once `scheduledAt + totalDurationMins` has passed it opens a bottom sheet (optional reason, max 500) and posts `POST /bookings/:id/no-show`; before that it is **disabled with the hint** "Disponível após o término do atendimento (HH:mm)" (HH:mm in the tenant timezone). Outcomes: success → the inline "Não compareceu" state, no navigation (`03d`); `409` `BOOKING_ALREADY_TERMINAL` → the "já encerrado" banner with a refetch (`03e #terminal`); `422` `BOOKING_NOT_YET_ENDED` → the inline banner (`03c #rejeitado`); network/`5xx` → the retry banner (`03e #falha`).
+
+*Staff / manager, `NO_SHOW` booking.* A read-only detail (`03f`) with the status history card. A **manager** also sees "Corrigir para concluído", which opens a sheet with a required reason (trimmed, 10–500 characters; the confirm button is disabled until valid) and posts `POST /bookings/:id/no-show/correct` with `{ correctedStatus: 'COMPLETED', reason }`. A **staff** member does not see the button at all (hidden, not disabled). Outcomes: success → inline "Corrigido para concluído" naming the points awarded (`03g #sucesso`); `403` → `03g #permissao`; network/`5xx` → `03g #falha`.
+
+*Customer.* A `NO_SHOW` booking is already listed in Minha Conta's history and opens a read-only detail (S09 shipped the minimal status display); this story replaces that with the prototype's `02f` content — the "Não comparecimento registrado" notice, no points, "se foi um engano, entre em contato com o estabelecimento", no actions. The staff member's internal reason is never shown.
+
+*Status history.* `03d`, `03f` and `03g` show a history card read from `booking_status_transitions`. No endpoint exposes it yet, so this story extends the booking detail read.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **The history is part of the booking detail read.** Backend `GET /bookings/:id` (staff-facing detail use case) gains `statusHistory: [{ fromStatus, toStatus, reason, actorType, actorId, occurredAt }]`, ordered by `occurred_at`, tenant-scoped through a new method on S09's `IBookingStatusTransitionRepository` — no new endpoint, no new cross-context port. The customer-facing detail never includes it.
+2. **Actor names are resolved in the BFF** (BFF orchestration is the preferred cross-context read), falling back to the role label ("Gerente" / "Equipe") when an actor cannot be resolved. The backend returns ids only.
+3. **The role comes from the existing session/JWT**, the same source the other role-gated dashboard controls use; the BFF `@Roles` on the routes (S09) is the real enforcement, the hidden button is presentation only.
+4. **Copy and validation are the prototype's** (pt-BR strings verbatim; the correction reason minimum of 10 characters was a prototype proposal — confirm it at this story's discovery).
+5. **No new route and no new page.** The dashboard-section registries (sidebar, proxy, bottom nav, topbar titles) are untouched; the detail route already exists.
+
+**Decisions left for `/story-discovery`:**
+- The correction reason's minimum length (10 as drawn, or just non-empty).
+- Whether a manager who is also the booking's marker sees any difference (no, as drawn).
+- How `BookingDetailPage`'s `ActionState` union grows (`no-show`, `no-show-error`, `correct-…` as named in `dev-notes.md`) and whether `BookingDetailMainBanner` or a new banner owns them.
+
+**Backend use case steps:**
+1. `GetBookingByIdUseCase` (staff detail) reads the booking's transitions through `IBookingStatusTransitionRepository.findByBooking(tenantId, bookingId)` and returns them as `statusHistory`; the customer read is unchanged.
+
+**Backend HTTP surface:** extends `GET /bookings/:id` (response gains `statusHistory`); no new route.
+**BFF endpoint spec:** `GET /bookings/:id` (existing staff detail) passes `statusHistory` through `bookings.mapper.ts`, resolving `actorName` per decision 2; `@ikaro/types` gains the `BookingStatusHistoryEntry` type and the detail DTO field. The no-show and correct routes already exist (S09).
+**New migration / i18n keys / env vars / feature flags:** no migration; new `web.json` keys in both `pt-BR` and `en` for the action, the two sheets, the banners, the history card and the customer notice; the two error codes already exist (S09); no env var, no feature flag.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/ports/booking-status-transition-repository.port.ts`, `infrastructure/repositories/typeorm-booking-status-transition.repository.ts` (+ specs, + integration spec), `apps/backend/src/test/repositories/booking/in-memory-booking-status-transition.repository.ts` (modify — `findByBooking`)
+- `apps/backend/src/contexts/booking/application/use-cases/get-booking-by-id.use-case.ts` (+ spec), its controller (+ specs) and `apps/backend/http/booking/bookings.http` (modify)
+- `apps/bff/src/features/booking/bookings.mapper.ts`, `bookings.types.ts`, `bookings.controller.ts` (+ specs), `apps/bff/http/booking/bookings.http` (modify); `packages/types/src/booking.dto.ts` (modify)
+- `apps/web/features/booking/api/booking.ts` (+ spec) and `apps/web/features/booking/hooks/useBookingMutations.ts` (+ spec) (modify — `markNoShow`, `correctNoShow`)
+- `apps/web/features/booking/components/dashboard/bookings/NoShowSheet.tsx`, `CorrectNoShowSheet.tsx`, `BookingStatusHistory.tsx` (+ specs) (new)
+- `apps/web/features/booking/components/dashboard/bookings/BookingActionPanel.tsx`, `BookingDetailSheets.tsx`, `BookingDetailMainBanner.tsx`, `BookingDetailAsideCard.tsx`, `BookingDetailPage.tsx` (+ specs) (modify)
+- `apps/web/features/customer/components/my-account/BookingDetailMain.tsx`, `BookingDetailPage.tsx` (+ specs) (modify — the `02f` notice)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify)
+- the Playwright spec and helpers under `apps/web/e2e/` for the staff booking lifecycle (modify/new)
+- `plan/journey/staff/prototypes/agenda/dev-notes.md`, `plan/journey/staff/agenda.md`, `plan/journey/customer/minha-conta.md` (modify — flip the ❓ Gap rows to ✅ Criado)
+
+**Acceptance criteria — product:**
+- [ ] On an approved booking whose end time has passed, staff and managers can mark a no-show (with an optional reason) and see the inline "Não compareceu" state; before the end time the action is disabled with the hint.
+- [ ] A no-show booking shows its status history; a manager can correct it to completed with a required reason and sees the points awarded; a staff member never sees the correction button.
+- [ ] Every failure path (already closed, not yet ended, permission, network) shows its prototype banner and changes nothing.
+- [ ] The customer sees the booking in their history as "Não compareceu" with the `02f` notice, no actions and no internal reason.
+
+**Acceptance criteria — technical:**
+- Unit (Vitest, jsdom/node):
+  - [ ] The action is enabled after the end time and disabled with the computed hint before it; the hint time uses the tenant timezone
+  - [ ] `NoShowSheet` submits with and without a reason and caps it at 500; `CorrectNoShowSheet` keeps confirm disabled until the trimmed reason has 10–500 characters
+  - [ ] Each outcome maps to its banner (`200`, `409`, `422`, `403`, network/`5xx`) and leaves the booking unchanged on failure
+  - [ ] "Corrigir para concluído" renders for a manager and is absent for staff
+  - [ ] `BookingStatusHistory` renders the entries in order with actor names and the role-label fallback
+  - [ ] The customer detail renders the `02f` notice and never the reason; both locales render every new string
+  - Backend/BFF: `statusHistory` is returned ordered and tenant-scoped and is absent from the customer read; the mapper resolves names and falls back to the role label
+- Integration (backend/BFF only):
+  - [ ] `GET /bookings/:id` returns the history rows written by S09/S26 for that booking and none from another booking
+- Tenant isolation:
+  - [ ] Tenant A's booking history is never returned to a Tenant B caller (`404` on the detail read)
+- E2E:
+  - [ ] Playwright, `/dashboard/bookings/:id`: staff marks a seeded ended appointment as a no-show and sees the inline state
+  - [ ] Playwright, same route: a seeded not-yet-ended appointment shows the action disabled with the hint
+  - [ ] Playwright, same route: a manager opens a seeded `NO_SHOW` booking, corrects it with a reason, and sees the points and the updated history
+  - [ ] Playwright, same route: a staff member opens a seeded `NO_SHOW` booking and sees no correction button
+  - [ ] Playwright, `/{slug}/my-account`: the customer sees the no-show in history and opens the read-only detail
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
