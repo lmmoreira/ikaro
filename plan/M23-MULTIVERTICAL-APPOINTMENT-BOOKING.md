@@ -729,7 +729,7 @@ Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment
 
 ---
 
-### M23-S05 — Recurring-schedule approval + one-shot occurrence materialization
+### M23-S05 — Recurring-schedule approval + one-shot occurrence materialization ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
