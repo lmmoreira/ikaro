@@ -8,7 +8,7 @@ Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder �
 | UC-023 | Customer Switches Tenant | Action within customer area post-login | `customer/login.md` |
 | UC-002 | Authenticated Customer Requests Booking | | `book-a-service.md` |
 | UC-005 (A2) | Customer submits requested info | Alt flow only — main flow (admin requests info) lives in `staff/use-cases.md`. Authenticated customer email links to `/dashboard/bookings/:id` (existing stub) — submission form embedded in `BookingDetailPage`. Guest path documented in `guest/submit-info.md`. | `customer/minha-conta.md` (form in booking detail — IA gap) |
-| UC-006 | Customer Views and Manages Bookings | | `customer/minha-conta.md` |
+| UC-006 | Customer Views and Manages Bookings | A booking marked as a no-show (UC-074) appears in Histórico as read-only — prototype `02f` (added 2026-09-30) | `customer/minha-conta.md` |
 | UC-007 | Customer Cancels Booking | | `customer/minha-conta.md` |
 | UC-016 | View Customer Loyalty Metrics (own data) | Admin-viewing-any-customer variant lives in `staff/use-cases.md`; balance summary covered in `minha-conta.md`; full breakdown TBD | `customer/minha-conta.md` |
 | UC-069 | Customer Reschedules an Appointment or Reservation | Promoted 2026-08-31 from `docs/discovery/multivertical-booking/` for `M23` (Cluster 3). Extends the existing `PATCH /bookings/:id/reschedule` endpoint. Draft — not yet shipped, no story assigned. | `customer/book-a-service.md` |

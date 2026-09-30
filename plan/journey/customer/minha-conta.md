@@ -25,7 +25,7 @@ flowchart TD
 
     BookingList --> Upcoming["Próximos<br/>APPROVED · data ≥ hoje"]
     BookingList --> Pending["Pendentes<br/>PENDING · INFO_REQUESTED"]
-    BookingList --> Past["Histórico<br/>COMPLETED · CANCELLED · REJECTED"]
+    BookingList --> Past["Histórico<br/>COMPLETED · CANCELLED · REJECTED · NO_SHOW"]
 
     Upcoming -->|"Clica card"| Detail
     Pending -->|"Clica card"| Detail
@@ -78,7 +78,7 @@ flowchart TD
 |---|---|---|---|
 | **Próximos** | APPROVED | `scheduledAt ≥ today` | Cancel button (if within window) |
 | **Pendentes** | PENDING, INFO_REQUESTED | any | "Cancelar solicitação" always shown |
-| **Histórico** | COMPLETED, CANCELLED, REJECTED | any | Read-only; no action |
+| **Histórico** | COMPLETED, CANCELLED, REJECTED, NO_SHOW (UC-074, M23) | any | Read-only; no action |
 
 Cancel button visibility for **Próximos** (APPROVED): hidden with note when `scheduledAt − now() < tenants.settings.booking.cancellation_window_hours` (UC-006 A2).
 
@@ -106,6 +106,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `02-agendamento-detail.html` | Detalhe do Agendamento (APPROVED/PENDING) | UC-006 step 5 | M13-S28 | ✅ Criado |
 | `02b-agendamento-info-requested.html` | Detalhe — INFO_REQUESTED + form de resposta | UC-005 A2 | M13-S28 | ✅ Criado |
 | `02c-agendamento-historico.html` | Detalhe — COMPLETED (read-only, sem ações) | UC-006 step 5 | M13-S28 | ✅ Criado |
+| `02f-agendamento-nao-compareceu.html` | Detalhe — NO_SHOW (read-only, sem ações; sem motivo interno; orienta a contatar o estabelecimento) | UC-006 step 5 · UC-074 | M23-S09 (status display) · UI futura | ❓ Gap (M23 Cluster 3) |
 | `02d-info-sent.html` | Detalhe — após envio de resposta (booking volta a PENDING) | UC-005 A2 | M13-S28 | ✅ Criado |
 | `02e-submit-error.html` | Detalhe — erro ao enviar resposta (rede/5xx no PATCH submit-info) | UC-005 A2 | M13-S28 | ✅ Criado |
 | `03-cancel-confirm.html` | Sheet de confirmação de cancelamento | UC-007 | M13-S28 | ✅ Criado |

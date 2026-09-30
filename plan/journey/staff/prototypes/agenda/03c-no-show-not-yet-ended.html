@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agendamento — João Silva — BeloAuto</title>
+  <title>Agendamento — Maria Souza — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     /* Hide bottom nav — detail is a drill-down; back arrow replaces tab nav on mobile */
@@ -60,43 +60,30 @@
     details summary { list-style: none; }
     details summary::-webkit-details-marker { display: none; }
 
-  </style>
+  
+    [data-state][hidden] { display: none !important; }
+    </style>
 </head>
 <body>
 
   <!--
-    COMPONENT: BookingDetailPage + BookingActionPanel (APPROVED branch)
-    FILE:       apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx  (EXISTS)
-    PAGE:       apps/web/app/dashboard/bookings/[id]/page.tsx  (EXISTS)
-    ROUTE:      /dashboard/bookings/:id
-    AUTH:       JWT cookie, STAFF or MANAGER role
+    COMPONENT: BookingDetailPage + BookingActionPanel (APPROVED branch, appointment NOT yet ended)
+    FILE:       apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx  (EXISTS — extended by the future UC-074 UI story)
+    ROUTE:      /dashboard/bookings/:id  (same route/component as 03-booking-detail-approved.html — no new screen, only new actionState values)
+    AUTH:       JWT cookie, STAFF or MANAGER role; the correction is MANAGER only
 
-    Booking shown: João Silva — Lavagem Simples — APPROVED — Hoje 10:00
-    This is the SAME route/component as 01-booking-detail.html (PENDING | INFO_REQUESTED) —
-    BookingDetailPage branches its action panel by booking.status. This file documents
-    the APPROVED branch only (UC-008, UC-009).
+    Booking shown: Maria Souza — Lavagem Simples — APPROVED — Hoje 17:00–17:30 (the page is viewed before 17:30).
 
-    ACTIONS (bottom of page on mobile / right panel on desktop):
-      UC-009: Marcar concluído → 04-mark-complete.html       (full screen, not a sheet — per-line price + photos + notes)
-      UC-008 A1: Reagendar     → 05-reschedule.html           (full screen — calendar)
-      UC-008: Cancelar         → inline bottom sheet (this page) → PATCH /bookings/:id/cancel-admin { reason? }
-      UC-074: Marcar não compareceu → inline bottom sheet (this page) → POST /bookings/:id/no-show { reason? }
-              Only enabled once the appointment's end time has passed; before that it is DISABLED with a
-              hint (see 03c-no-show-not-yet-ended.html). STAFF and MANAGER both see it.
-
-    BOTTOM SHEET (mobile) / MODAL (desktop, not in this prototype):
-      • Cancel sheet — textarea, OPTIONAL (backend has no minimum length, unlike Reject's 10-char rule)
-      • No-show sheet — textarea, OPTIONAL (max 500 chars); the customer is told by email (M23-S25)
+    UC-074 precondition: the appointment's scheduled end time has passed. Until then the "Marcar não compareceu"
+    action is rendered DISABLED with the hint "Disponível após o término do atendimento (HH:mm)" — the hint is
+    computed from scheduledAt + totalDurationMins in the tenant timezone. Complete / Reschedule / Cancel stay enabled.
+    Safety net: if a stale page still sends the request, the server answers 422 BOOKING_NOT_YET_ENDED and the
+    inline banner (#rejeitado) is shown; nothing changes.
   -->
 
   <!-- Prototype banner -->
-  <div style="
-    background: #fef3c7; border-bottom: 1px solid #d97706;
-    padding: 0.375rem 1rem; font-size: 0.8125rem;
-    text-align: center; color: #92400e;
-  ">
-    Protótipo — mesma página de 01-booking-detail.html, ramo APPROVED (UC-008 / UC-009).
-    <strong>Ações interativas:</strong> bottom sheets de cancelar e de marcar não compareceu funcionam (UC-074).
+  <div style="background: #fef3c7; border-bottom: 1px solid #d97706; padding: 0.375rem 1rem; font-size: 0.8125rem; text-align: center; color: #92400e;">
+    Protótipo — UC-074, agendamento que ainda não terminou. Estado padrão: ação desativada com dica. <a href="#rejeitado" style="color:#92400e;font-weight:700;">Ver erro 422 do servidor</a> · <a href="#padrao" style="color:#92400e;font-weight:700;">Voltar</a>
   </div>
 
   <!-- TOP BAR -->
@@ -195,15 +182,23 @@
       <div class="dashboard-body">
         <div class="detail-layout">
 
-          <!-- ── LEFT: booking detail ───────────────────────────── -->
           <div class="detail-main">
-
+            <div data-state="rejeitado" style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: var(--ba-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.875rem;">
+              <div style="width: 2.25rem; height: 2.25rem; border-radius: 9999px; background: #dc2626; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.125rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <div style="flex: 1;">
+                <p style="font-weight: 700; font-size: 1rem; color: #dc2626; margin-bottom: 0.375rem;">Ainda não é possível marcar não compareceu</p>
+                <p style="font-size: 0.875rem; color: #dc2626; opacity: 0.85; line-height: 1.5; margin-bottom: 0.5rem;">O atendimento termina às 17:30. Tente novamente depois desse horário.</p>
+                <p style="font-size: 0.8125rem; opacity: 0.65; color: #dc2626; margin-bottom: 0.25rem;">Resposta do servidor: 422 BOOKING_NOT_YET_ENDED — só acontece se o botão for acionado por uma tela desatualizada.</p>
+              </div>
+            </div>
             <p class="detail-section-label" style="margin-top: 0;">Cliente</p>
             <div class="card" style="display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1.25rem;">
-              <div class="list-avatar" style="width: 2.75rem; height: 2.75rem; font-size: 1rem; flex-shrink: 0; background: #2563eb;">JS</div>
+              <div class="list-avatar" style="width: 2.75rem; height: 2.75rem; font-size: 1rem; flex-shrink: 0; background: #2563eb;">MS</div>
               <div style="min-width: 0;">
-                <p style="font-weight: 700; font-size: 1rem; color: var(--ba-text);">João Silva</p>
-                <p style="font-size: 0.8125rem; opacity: 0.6; color: var(--ba-text); margin-top: 0.125rem;">joao@email.com · (11) 98765-4321</p>
+                <p style="font-weight: 700; font-size: 1rem; color: var(--ba-text);">Maria Souza</p>
+                <p style="font-size: 0.8125rem; opacity: 0.6; color: var(--ba-text); margin-top: 0.125rem;">maria@email.com · (11) 91234-5678</p>
                 <p style="font-size: 0.75rem; color: var(--ba-primary); margin-top: 0.25rem;">
                   ★ 240 pontos ativos
                 </p>
@@ -220,7 +215,7 @@
               </svg>
               <div>
                 <p style="font-weight: 600; color: var(--ba-text);">Segunda-feira, 16 de junho de 2026</p>
-                <p style="font-size: 0.875rem; opacity: 0.65; color: var(--ba-text); margin-top: 0.125rem;">10:00 — 10:30 (30 min)</p>
+                <p style="font-size: 0.875rem; opacity: 0.65; color: var(--ba-text); margin-top: 0.125rem;">17:00 — 17:30 (30 min)</p>
               </div>
             </div>
 
@@ -245,59 +240,16 @@
                 </div>
               </div>
             </div>
-
-            <p class="detail-section-label">Fotos do veículo (enviadas pelo cliente)</p>
-            <div class="photo-grid" style="margin-bottom: 1.25rem;">
-              <div class="photo-thumb">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                  <polyline points="21 15 16 10 5 21"/>
-                </svg>
-              </div>
-              <div class="photo-thumb">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                  <polyline points="21 15 16 10 5 21"/>
-                </svg>
-              </div>
-              <div class="photo-thumb" style="border: 1px dashed rgba(17,24,39,0.15);">
-                <span>+foto</span>
-              </div>
-            </div>
-
           </div><!-- /.detail-main -->
 
-          <!-- ── RIGHT: action panel (desktop only) ─────────────── -->
           <div class="detail-aside">
             <div class="card" style="padding: 1.25rem;">
-              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">
-                Ações
-              </p>
-              <!-- UC-009 Marcar concluído -->
-              <a href="04-mark-complete.html" class="btn-primary"
-                 style="display: block; text-align: center; margin-bottom: 0.625rem;">
-                Marcar concluído
-              </a>
-              <!-- UC-008 A1 Reagendar -->
-              <a href="05-reschedule.html" class="btn-secondary"
-                 style="display: block; text-align: center; margin-bottom: 0.625rem;">
-                Reagendar
-              </a>
-              <!-- UC-074 Marcar não compareceu — enabled here because 10:00–10:30 already ended (see 03c for the disabled state) -->
-              <button class="btn-secondary" onclick="openNoShowSheet()"
-                      style="display: block; width: 100%; text-align: center; margin-bottom: 0.625rem;">
-                Marcar não compareceu
-              </button>
-              <!-- UC-008 Cancelar -->
-              <button class="btn-secondary" onclick="openCancelSheet()"
-                      style="display: block; width: 100%; text-align: center;">
-                Cancelar agendamento
-              </button>
-
-              <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 1rem 0;">
-              <p style="font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); line-height: 1.5;">
-                O cliente é notificado por email em qualquer uma destas ações.
-              </p>
+              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Ações</p>
+              <a href="04-mark-complete.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Marcar concluído</a>
+              <a href="05-reschedule.html" class="btn-secondary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Reagendar</a>
+              <button class="btn-secondary" disabled aria-describedby="noshow-hint" style="display: block; width: 100%; text-align: center; opacity: 0.45; cursor: not-allowed;">Marcar não compareceu</button>
+              <p id="noshow-hint" style="font-size: 0.75rem; opacity: 0.65; color: var(--ba-text); margin: 0.375rem 0 0.625rem; line-height: 1.4;">Disponível após o término do atendimento (17:30).</p>
+              <button class="btn-secondary" style="display: block; width: 100%; text-align: center;">Cancelar agendamento</button>
             </div>
           </div>
 
@@ -306,117 +258,26 @@
     </main>
 
   </div><!-- /.dashboard-layout -->
-
-  <!-- ═══ MOBILE ACTION BAR ═══ -->
-  <div class="mobile-action-bar" style="
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: white; border-top: 1px solid var(--ba-secondary);
-    padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0));
-    display: flex; flex-direction: column; gap: 0.625rem;
-    z-index: 20;
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
-  ">
-    <a href="04-mark-complete.html" class="btn-primary" style="text-align: center;">
-      Marcar concluído
-    </a>
+  <div class="mobile-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--ba-secondary); padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0)); display: flex; flex-direction: column; gap: 0.625rem; z-index: 20; box-shadow: 0 -2px 8px rgba(0,0,0,0.06);">
+    <a href="04-mark-complete.html" class="btn-primary" style="text-align: center;">Marcar concluído</a>
     <div style="display: flex; gap: 0.625rem;">
       <a href="05-reschedule.html" class="btn-secondary" style="flex: 1; text-align: center;">Reagendar</a>
-      <button class="btn-secondary" onclick="openCancelSheet()" style="flex: 1;">Cancelar</button>
+      <button class="btn-secondary" style="flex: 1;">Cancelar</button>
     </div>
-    <button class="btn-secondary" onclick="openNoShowSheet()" style="text-align: center;">
-      Marcar não compareceu
-    </button>
-  </div>
-
-  <!-- ═══ CANCEL BOTTOM SHEET (UC-008) ═══ -->
-  <div class="sheet-backdrop" id="cancel-backdrop" onclick="closeCancelSheet()"></div>
-  <div class="bottom-sheet" id="cancel-sheet">
-    <div class="bottom-sheet-handle"></div>
-    <p class="bottom-sheet-label">Cancelar agendamento</p>
-    <div style="padding: 0 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0));">
-      <p style="font-size: 0.875rem; opacity: 0.65; color: var(--ba-text); margin-bottom: 1rem;">
-        João Silva vai receber um email avisando do cancelamento.
-      </p>
-      <label class="form-label" for="cancel-reason">
-        Motivo <span style="opacity: 0.5;">(opcional)</span>
-      </label>
-      <textarea
-        id="cancel-reason"
-        class="form-input"
-        rows="3"
-        placeholder="Ex: Fechamento de emergência, equipe indisponível."
-        style="resize: none; margin-top: 0.25rem;"
-      ></textarea>
-      <!-- Reason is optional — CancelBookingAsAdminBody has no minimum length, unlike Reject's 10-char rule -->
-      <div style="display: flex; gap: 0.75rem; margin-top: 0.875rem;">
-        <button class="btn-secondary" onclick="closeCancelSheet()" style="flex: 1;">Voltar</button>
-        <button class="btn-primary" onclick="submitCancel()" style="flex: 1;">
-          Confirmar cancelamento
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ NO-SHOW BOTTOM SHEET (UC-074) ═══ -->
-  <div class="sheet-backdrop" id="noshow-backdrop" onclick="closeNoShowSheet()"></div>
-  <div class="bottom-sheet" id="noshow-sheet">
-    <div class="bottom-sheet-handle"></div>
-    <p class="bottom-sheet-label">Marcar como não compareceu</p>
-    <div style="padding: 0 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0));">
-      <p style="font-size: 0.875rem; opacity: 0.65; color: var(--ba-text); margin-bottom: 0.5rem;">
-        João Silva vai receber um email avisando que o comparecimento não foi registrado.
-      </p>
-      <p style="font-size: 0.8125rem; opacity: 0.65; color: var(--ba-text); margin-bottom: 1rem;">
-        Nenhum ponto de fidelidade será concedido. Um gerente pode corrigir o registro depois, se foi um engano.
-      </p>
-      <label class="form-label" for="noshow-reason">
-        Motivo <span style="opacity: 0.5;">(opcional)</span>
-      </label>
-      <textarea
-        id="noshow-reason"
-        class="form-input"
-        rows="3"
-        maxlength="500"
-        placeholder="Ex: Cliente não atendeu o telefone."
-        style="resize: none; margin-top: 0.25rem;"
-      ></textarea>
-      <!-- Reason is optional, max 500 chars (POST /bookings/:id/no-show { reason? }). Internal note: never shown to the customer. -->
-      <div style="display: flex; gap: 0.75rem; margin-top: 0.875rem;">
-        <button class="btn-secondary" onclick="closeNoShowSheet()" style="flex: 1;">Voltar</button>
-        <button class="btn-primary" onclick="submitNoShow()" style="flex: 1;">
-          Confirmar não comparecimento
-        </button>
-      </div>
-    </div>
+    <button class="btn-secondary" disabled aria-describedby="noshow-hint-m" style="text-align: center; opacity: 0.45; cursor: not-allowed;">Marcar não compareceu</button>
+    <p id="noshow-hint-m" style="font-size: 0.75rem; opacity: 0.65; color: var(--ba-text); text-align: center;">Disponível após o término do atendimento (17:30).</p>
   </div>
 
   <script>
-    function openNoShowSheet() {
-      document.getElementById('noshow-sheet').classList.add('open');
-      document.getElementById('noshow-backdrop').classList.add('open');
-      document.getElementById('noshow-reason').focus();
+    var DEFAULT_STATE = 'padrao';
+    function applyState() {
+      var h = location.hash.slice(1) || DEFAULT_STATE;
+      document.querySelectorAll('[data-state]').forEach(function (el) {
+        el.hidden = el.getAttribute('data-state').split(' ').indexOf(h) === -1;
+      });
     }
-    function closeNoShowSheet() {
-      document.getElementById('noshow-sheet').classList.remove('open');
-      document.getElementById('noshow-backdrop').classList.remove('open');
-    }
-    function submitNoShow() {
-      /* Prototype: show inline no-show state (in prod: actionState → 'no-show', no navigation) */
-      window.location.href = '03d-no-show-success.html';
-    }
-    function openCancelSheet() {
-      document.getElementById('cancel-sheet').classList.add('open');
-      document.getElementById('cancel-backdrop').classList.add('open');
-      document.getElementById('cancel-reason').focus();
-    }
-    function closeCancelSheet() {
-      document.getElementById('cancel-sheet').classList.remove('open');
-      document.getElementById('cancel-backdrop').classList.remove('open');
-    }
-    function submitCancel() {
-      /* Prototype: show inline cancelled state (in prod: actionState → 'cancelled', no navigation) */
-      window.location.href = '03b-cancel-success.html';
-    }
+    window.addEventListener('hashchange', applyState);
+    applyState();
   </script>
 
 </body>
