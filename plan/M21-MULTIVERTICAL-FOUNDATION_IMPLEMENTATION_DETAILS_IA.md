@@ -35,7 +35,6 @@
 | `BookingStaffAdapter` (narrow Booking→Staff lookup: same-tenant/existing/active) | `apps/backend/src/contexts/booking/infrastructure/cross-context/booking-staff.adapter.ts` |
 | `TypeOrmTenantLockAdapter.lockTenantStaff` | `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-tenant-lock.adapter.ts` |
 | Migrations (4, in order) | `1748500000007-CreateBookingResources.ts`, `1748500000008-BackfillLocationResources.ts`, `<AddResourceIdToScheduleClosuresAndOpenings>.ts` (S03), no new migration in S06 |
-| Backfill migration test (lives outside `migrations/` — Jest's `integration` project ignores that dir) | `apps/backend/src/contexts/booking/infrastructure/backfill-location-resources.integration.spec.ts` |
 
 ### BFF
 

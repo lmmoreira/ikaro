@@ -1548,7 +1548,7 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 - `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` (comment only — drop the stale `recurring_booking_schedule_exceptions.occurrence_start` reference at line 31)
 - `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify — drop the same stale reference from the `enumerateRecurrenceOccurrences` paragraph)
 - `apps/backend/src/test/integration-global-setup.ts` (modify — register the new migration, same as every migration; it lists no entity or DDL for the table after S08)
-- `apps/backend/src/contexts/booking/infrastructure/drop-recurring-booking-schedule-exceptions.integration.spec.ts` (new)
+- The five existing migration integration specs (`backfill-location-resources`, `backfill-resource-occupancy`, `backfill-service-resource-requirements-and-buffer`, `drop-tenant-wide-exclusion`, `remove-recurring-booking-schedule-paused-status`) are deleted, with their references swept from `docs/27`, the M21/M22 `_IMPLEMENTATION_DETAILS_IA.md` files, `plan/M21-MULTIVERTICAL-FOUNDATION.md` and a cross-reference comment in `schedule-day-grid.controller.integration.spec.ts`; `docs/ENGINEERING_RULES_TESTING.md` gains a § Migration specs rule. Decided after discovery (user, 2026-09-30): migrations are not spec'd here, and this story adds no spec of its own.
 - `apps/backend/src/test/test-datasource.ts` (check only — lists no entity or DDL for the table after S08)
 
 **Acceptance criteria — product:**
@@ -1556,9 +1556,8 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 
 **Acceptance criteria — technical:**
 - Unit: none — a migration only.
-- Integration:
-  - [ ] After the migrations run, `booking.recurring_booking_schedule_exceptions` does not exist and the schedule repository's existing integration suite still passes.
-  - [ ] `down()` recreates the table with its columns, FK and CHECK, and `up()` drops it again.
+- Integration: no new spec (a bare `DROP TABLE IF EXISTS` carries no logic of its own).
+  - [ ] The schedule repository's existing integration suite still passes against the migrated schema.
 - Tenant isolation: none — no tenant data is read or written.
 - E2E: none — no UI.
 - [x] The staging row count was read before the migration merged (0 rows; no production environment exists yet).
