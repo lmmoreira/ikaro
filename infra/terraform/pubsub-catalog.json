@@ -120,6 +120,12 @@
     ]
   },
   {
+    "event": "RecurringBookingScheduleRejected",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "ServicePointsEarned",
     "consumers": [
       "notification"
@@ -185,7 +191,8 @@
     "event": "cron-reminders",
     "consumers": [
       "booking-admin-schedule-reminder",
-      "booking-reminder"
+      "booking-reminder",
+      "recurring-schedule-approval-expiry"
     ]
   },
   {

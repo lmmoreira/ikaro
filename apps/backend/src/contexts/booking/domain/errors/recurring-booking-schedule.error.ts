@@ -20,11 +20,11 @@ export interface RecurringScheduleOccurrenceConflict {
 }
 
 export class RecurringBookingScheduleConflictError extends BookingDomainError {
-  // Empty for a refusal that is not about specific occurrences (the active-schedule overlap
-  // check); non-empty for the creation-time hours/occupancy checks, ordered by occurrenceStart.
+  // The affected occurrences of the creation-time and approval-time hours/occupancy checks,
+  // ordered by occurrenceStart.
   readonly conflicts: RecurringScheduleOccurrenceConflict[];
 
-  constructor(conflicts: RecurringScheduleOccurrenceConflict[] = []) {
+  constructor(conflicts: RecurringScheduleOccurrenceConflict[]) {
     super(
       'The recurring pattern conflicts with an existing commitment on one of its future occurrences',
       BookingErrorCode.RECURRING_SCHEDULE_CONFLICT,
@@ -56,12 +56,23 @@ export class RecurringBookingScheduleNotActiveError extends BookingDomainError {
   }
 }
 
+export class RecurringBookingScheduleNotPendingApprovalError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `Recurring booking schedule is not awaiting approval: ${id}`,
+      BookingErrorCode.RECURRING_SCHEDULE_NOT_PENDING_APPROVAL,
+    );
+    this.name = 'RecurringBookingScheduleNotPendingApprovalError';
+  }
+}
+
 export class RecurringBookingScheduleIneligibleServiceError extends BookingDomainError {
   constructor(
     reason:
       | 'recurrence-not-enabled'
       | 'not-appointment'
       | 'legged-or-bundled'
+      | 'requires-pickup-address'
       | 'selection-mode-mismatch',
   ) {
     const messages: Record<typeof reason, string> = {
@@ -69,6 +80,8 @@ export class RecurringBookingScheduleIneligibleServiceError extends BookingDomai
       'not-appointment': 'Recurring schedules only apply to APPOINTMENT services',
       'legged-or-bundled':
         'Recurring schedules only apply to a flat, single-resource-requirement service',
+      'requires-pickup-address':
+        'Recurring schedules do not apply to a service that requires a pickup address',
       'selection-mode-mismatch':
         "The requested assignmentPolicy doesn't match this service's resource requirement",
     };

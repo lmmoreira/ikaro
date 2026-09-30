@@ -3,9 +3,11 @@ import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
+  ApproveRecurringBookingScheduleResponse,
   EndRecurringBookingScheduleResponse,
   RecurringBookingScheduleListResponse,
   RecurringBookingScheduleResponse,
+  RejectRecurringBookingScheduleResponse,
 } from './recurring-booking-schedules.types';
 import {
   ListRecurringBookingSchedulesQuery,
@@ -54,6 +56,30 @@ export class RecurringBookingSchedulesController {
   ): Promise<EndRecurringBookingScheduleResponse> {
     return this.backendHttp.post<EndRecurringBookingScheduleResponse>(
       `/recurring-booking-schedules/${id}/end`,
+      {},
+    );
+  }
+
+  @Post(':id/approve')
+  @Roles('MANAGER', 'STAFF')
+  @HttpCode(HttpStatus.OK)
+  approve(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<ApproveRecurringBookingScheduleResponse> {
+    return this.backendHttp.post<ApproveRecurringBookingScheduleResponse>(
+      `/recurring-booking-schedules/${id}/approve`,
+      {},
+    );
+  }
+
+  @Post(':id/reject')
+  @Roles('MANAGER', 'STAFF')
+  @HttpCode(HttpStatus.OK)
+  reject(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<RejectRecurringBookingScheduleResponse> {
+    return this.backendHttp.post<RejectRecurringBookingScheduleResponse>(
+      `/recurring-booking-schedules/${id}/reject`,
       {},
     );
   }

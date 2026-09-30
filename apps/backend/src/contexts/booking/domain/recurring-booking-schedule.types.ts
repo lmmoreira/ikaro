@@ -5,7 +5,7 @@ import { ResourceType } from './resource.types';
 // Split out of recurring-booking-schedule.aggregate.ts to stay under docs/CODE_STANDARDS.md's
 // file-length limit — pure type/interface declarations, no logic (mirrors service.types.ts's own
 // split precedent).
-export type RecurringBookingScheduleStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'CANCELLED';
+export type RecurringBookingScheduleStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'CANCELLED' | 'ENDED';
 export type RecurringBookingScheduleAssignmentPolicy =
   'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
 export type RecurringBookingScheduleCancellationReason =

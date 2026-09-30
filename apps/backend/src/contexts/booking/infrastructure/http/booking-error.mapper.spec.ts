@@ -51,6 +51,7 @@ import {
   RecurringBookingScheduleConflictError,
   RecurringBookingScheduleCapReachedError,
   RecurringBookingScheduleNotActiveError,
+  RecurringBookingScheduleNotPendingApprovalError,
   RecurringBookingScheduleIneligibleServiceError,
   FutureCommitmentExceptionNotFoundError,
   FutureCommitmentExceptionAlreadyResolvedError,
@@ -361,13 +362,21 @@ describe('mapBookingError', () => {
   });
 
   it('maps RecurringBookingScheduleConflictError to 409', () => {
-    const err = call(new RecurringBookingScheduleConflictError());
+    const err = call(new RecurringBookingScheduleConflictError([]));
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
   });
 
   it('maps RecurringBookingScheduleCapReachedError to 409', () => {
     const err = call(new RecurringBookingScheduleCapReachedError('resource'));
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps RecurringBookingScheduleNotPendingApprovalError to 409', () => {
+    const err = call(new RecurringBookingScheduleNotPendingApprovalError('sched-id'));
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({
+      code: 'BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL',
+    });
   });
 
   it('maps RecurringBookingScheduleNotActiveError to 409', () => {
@@ -448,7 +457,7 @@ describe('mapBookingError', () => {
   });
 
   it('omits conflicts from a RecurringBookingScheduleConflictError with no occurrences', () => {
-    const err = call(new RecurringBookingScheduleConflictError());
+    const err = call(new RecurringBookingScheduleConflictError([]));
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
     expect(err.getResponse()).not.toHaveProperty('conflicts');
   });

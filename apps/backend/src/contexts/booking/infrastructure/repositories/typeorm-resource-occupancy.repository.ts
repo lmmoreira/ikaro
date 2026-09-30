@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
+  BookingLineOccupancyAssignment,
   BookingLineOccupancyRow,
   IResourceOccupancyRepository,
   ResourceBookingImpact,
@@ -12,12 +13,14 @@ import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { rethrowOccupancyInsertError } from './typeorm-resource-occupancy.persistence-errors';
 import {
+  queryActiveWindows,
   queryAssignmentsByBookingLines,
   queryFutureBookingImpactsByResource,
   queryOccupancyByBookingLines,
 } from './typeorm-resource-occupancy.read-queries';
 import {
   buildOccupancyRows,
+  insertFreshAssignmentsAndOccupancy,
   insertOccupancyRows,
   upsertBookingLineResourceAssignments,
 } from './typeorm-resource-occupancy.write-queries';
@@ -125,6 +128,36 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
     } catch (err) {
       rethrowOccupancyInsertError(err);
     }
+  }
+
+  async assignMany(
+    tenantId: string,
+    assignments: BookingLineOccupancyAssignment[],
+    lockState: ResourceOccupancyLockState,
+    holdExpiresAt: Date | null,
+  ): Promise<void> {
+    if (assignments.length === 0) return;
+    const manager = this.requireActiveManager();
+    try {
+      await insertFreshAssignmentsAndOccupancy(manager, {
+        tenantId,
+        assignments,
+        lockState,
+        holdExpiresAt,
+      });
+    } catch (err) {
+      rethrowOccupancyInsertError(err);
+    }
+  }
+
+  async findActiveWindows(
+    tenantId: string,
+    resourceIds: string[],
+    from: Date,
+    to: Date,
+  ): Promise<ResourceOccupancyWindow[]> {
+    if (resourceIds.length === 0) return [];
+    return queryActiveWindows(this.requireActiveManager(), { tenantId, resourceIds, from, to });
   }
 
   // Deletes only the short-lived lock rows — booking_line_resource_assignments is the immutable

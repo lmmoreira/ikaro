@@ -1,4 +1,5 @@
 import {
+  BookingLineOccupancyAssignment,
   BookingLineOccupancyRow,
   IResourceOccupancyRepository,
   ResourceBookingImpact,
@@ -77,6 +78,40 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
       this.store.push({ ...candidate, tenantId, bookingLineId, lockState, holdExpiresAt });
     }
     return Promise.resolve();
+  }
+
+  assignMany(
+    tenantId: string,
+    assignments: BookingLineOccupancyAssignment[],
+    lockState: ResourceOccupancyLockState,
+    holdExpiresAt: Date | null,
+  ): Promise<void> {
+    for (const { bookingLineId, candidates } of assignments) {
+      for (const candidate of candidates) {
+        this.store.push({ ...candidate, tenantId, bookingLineId, lockState, holdExpiresAt });
+      }
+    }
+    return Promise.resolve();
+  }
+
+  findActiveWindows(
+    tenantId: string,
+    resourceIds: string[],
+    from: Date,
+    to: Date,
+  ): Promise<ResourceOccupancyWindow[]> {
+    return Promise.resolve(
+      this.store
+        .filter(
+          (row) =>
+            row.tenantId === tenantId &&
+            row.lockState !== 'REQUESTED' &&
+            resourceIds.includes(row.resourceId) &&
+            row.startsAt < to &&
+            from < row.endsAt,
+        )
+        .map((row) => ({ resourceId: row.resourceId, startsAt: row.startsAt, endsAt: row.endsAt })),
+    );
   }
 
   release(tenantId: string, bookingLineIds: string[]): Promise<void> {

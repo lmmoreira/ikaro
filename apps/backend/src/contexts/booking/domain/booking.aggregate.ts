@@ -31,6 +31,7 @@ import {
   BookingProps,
   BookingStatus,
   BookingType,
+  MaterializeRecurringOccurrenceInput,
   RequestBookingInput,
   RescheduleDurationChange,
 } from './booking.types';
@@ -196,12 +197,7 @@ export class Booking extends AggregateRoot {
     if (requiresPickup && !pickupAddress) throw new PickupAddressRequiredError();
 
     const id = suppliedId ?? uuidv7();
-    const lines = lineInputs.map((input) => BookingLine.create(id, tenantId, input));
-    const totalDurationMins = lines.reduce((sum, l) => sum + l.durationMinsAtBooking, 0);
-    const totalPrice = lines.reduce(
-      (sum, l) => sum.add(l.priceAtBooking),
-      Money.zero(lines[0].priceAtBooking.currency),
-    );
+    const { lines, totalDurationMins, totalPrice } = Booking.buildLines(id, tenantId, lineInputs);
     const attendees = (input.attendeeInputs ?? []).map((attendeeInput) =>
       BookingAttendee.create(id, tenantId, attendeeInput),
     );
@@ -224,6 +220,51 @@ export class Booking extends AggregateRoot {
     );
 
     return booking;
+  }
+
+  // M23-S05: created directly APPROVED (an entry state requestBooking() never produces) and raising
+  // no BookingRequested/BookingApproved — those drive one customer email per booking, so a term of
+  // occurrences would otherwise send one pair per occurrence (docs/02-DOMAIN_MODEL.md § Booking).
+  static materializeRecurringOccurrence(input: MaterializeRecurringOccurrenceInput): Booking {
+    const { tenantId, lineInputs, pickupAddress, recurringScheduleId, approvedBy } = input;
+    if (!lineInputs.length) throw new BookingLineRequiredError();
+    if (lineInputs.some((l) => l.requiresPickupAddressAtBooking) && !pickupAddress) {
+      throw new PickupAddressRequiredError();
+    }
+
+    const id = uuidv7();
+    const { lines, totalDurationMins, totalPrice } = Booking.buildLines(id, tenantId, lineInputs);
+    const props = Booking.buildRequestedProps(
+      id,
+      { ...input, type: 'CUSTOMER', correlationId: '' },
+      lines,
+      [],
+      totalDurationMins,
+      totalPrice,
+    );
+    const booking = new Booking({
+      ...props,
+      status: BookingStatus.APPROVED,
+      approvedAt: new Date(),
+      approvedBy,
+      recurringScheduleId,
+    });
+    booking._linesModified = true;
+    return booking;
+  }
+
+  private static buildLines(
+    bookingId: string,
+    tenantId: string,
+    lineInputs: RequestBookingInput['lineInputs'],
+  ): { lines: BookingLine[]; totalDurationMins: number; totalPrice: Money } {
+    const lines = lineInputs.map((input) => BookingLine.create(bookingId, tenantId, input));
+    const totalDurationMins = lines.reduce((sum, l) => sum + l.durationMinsAtBooking, 0);
+    const totalPrice = lines.reduce(
+      (sum, l) => sum.add(l.priceAtBooking),
+      Money.zero(lines[0].priceAtBooking.currency),
+    );
+    return { lines, totalDurationMins, totalPrice };
   }
 
   private static buildRequestedProps(

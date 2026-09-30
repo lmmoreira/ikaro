@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, LessThan, LessThanOrEqual, Repository } from 'typeorm';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
@@ -81,35 +81,6 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
       .getCount();
   }
 
-  async findActiveByResource(
-    tenantId: string,
-    resourceId: string,
-  ): Promise<RecurringBookingSchedule[]> {
-    const assignments = await this.assignmentRepo
-      .createQueryBuilder('a')
-      .innerJoin(
-        RecurringBookingScheduleEntity,
-        's',
-        's.id = a.recurringScheduleId AND s.tenantId = a.tenantId',
-      )
-      .where('a.tenantId = :tenantId', { tenantId })
-      .andWhere('a.resourceId = :resourceId', { resourceId })
-      .andWhere('s.status = :status', { status: 'ACTIVE' })
-      .andWhere('s.assignmentPolicy = :policy', { policy: 'FIXED_ASSIGNMENT' })
-      .select('a.recurringScheduleId', 'recurringScheduleId')
-      .getRawMany<{ recurringScheduleId: string }>();
-    if (!assignments.length) return [];
-
-    const ids = [...new Set(assignments.map((a) => a.recurringScheduleId))];
-    const entities = await this.repo.find({ where: ids.map((id) => ({ id, tenantId })) });
-    const allAssignments = await this.assignmentRepo.find({
-      where: ids.map((recurringScheduleId) => ({ tenantId, recurringScheduleId })),
-    });
-    const assignmentsByScheduleId = groupBy(allAssignments, (a) => a.recurringScheduleId);
-
-    return entities.map((e) => toDomain(e, assignmentsByScheduleId.get(e.id) ?? []));
-  }
-
   async countActiveResolvePerOccurrenceByService(
     tenantId: string,
     serviceId: string,
@@ -122,6 +93,28 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
         assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       },
     });
+  }
+
+  async findPendingApprovalExpired(
+    tenantId: string,
+    now: Date,
+  ): Promise<RecurringBookingSchedule[]> {
+    const entities = await this.repo.find({
+      where: { tenantId, status: 'PENDING_APPROVAL', approvalHoldExpiresAt: LessThanOrEqual(now) },
+      order: { approvalHoldExpiresAt: 'ASC', id: 'ASC' },
+    });
+    return entities.map((e) => toDomain(e, []));
+  }
+
+  async findActiveEndedBefore(
+    tenantId: string,
+    localToday: string,
+  ): Promise<RecurringBookingSchedule[]> {
+    const entities = await this.repo.find({
+      where: { tenantId, status: 'ACTIVE', endsOn: LessThan(localToday) },
+      order: { endsOn: 'ASC', id: 'ASC' },
+    });
+    return entities.map((e) => toDomain(e, []));
   }
 
   async save(schedule: RecurringBookingSchedule): Promise<void> {
@@ -145,7 +138,8 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
     const entity = toEntity(schedule);
     // version === undefined means this aggregate was never loaded from (or written to) the DB —
     // a brand-new schedule. Anything else means it was read back via findById/
-    // findAllByTenantPaginated/findActiveByResource and must be optimistically version-checked
+    // findAllByTenantPaginated/findPendingApprovalExpired/findActiveEndedBefore and must be
+    // optimistically version-checked
     // on write (mirrors
     // typeorm-booking.repository.ts's own persistBooking() precedent).
     const nextVersion = schedule.version === undefined ? 1 : schedule.version + 1;
@@ -183,15 +177,4 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
     await drainDomainEvents(schedule, this.outboxPublisher);
     schedule.markPersisted(nextVersion);
   }
-}
-
-function groupBy<T, K>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
-  const map = new Map<K, T[]>();
-  for (const item of items) {
-    const key = keyFn(item);
-    const list = map.get(key);
-    if (list) list.push(item);
-    else map.set(key, [item]);
-  }
-  return map;
 }

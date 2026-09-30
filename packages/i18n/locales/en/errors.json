@@ -30,6 +30,7 @@
   "BOOKING_RECURRING_SCHEDULE_CONFLICT": "This recurring pattern can't be booked on one or more of its dates.",
   "BOOKING_RECURRING_SCHEDULE_CAP_REACHED": "Active recurring schedule limit reached for this resource or service.",
   "BOOKING_RECURRING_SCHEDULE_NOT_ACTIVE": "This action is only available for an active recurring schedule.",
+  "BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL": "This recurring request was already resolved or its approval window has ended.",
   "BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE": "This service is not enabled for recurring reservations.",
   "BOOKING_RECURRING_SCHEDULE_FORBIDDEN": "You're not allowed to perform this action on this recurring schedule.",
   "BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE": "The end date must not be before the start date.",

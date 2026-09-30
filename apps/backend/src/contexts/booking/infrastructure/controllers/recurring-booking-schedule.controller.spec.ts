@@ -23,6 +23,8 @@ import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedul
 import { RequestRecurringBookingScheduleUseCase } from '../../application/use-cases/request-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from '../../application/use-cases/list-recurring-booking-schedules.use-case';
 import { EndRecurringBookingScheduleUseCase } from '../../application/use-cases/end-recurring-booking-schedule.use-case';
+import { ApproveRecurringBookingScheduleUseCase } from '../../application/use-cases/approve-recurring-booking-schedule.use-case';
+import { RejectRecurringBookingScheduleUseCase } from '../../application/use-cases/reject-recurring-booking-schedule.use-case';
 import { RecurringBookingScheduleController } from './recurring-booking-schedule.controller';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -37,6 +39,7 @@ describe('RecurringBookingScheduleController', () => {
   let customerPort: InMemoryBookingCustomerPort;
   let bookingRepo: InMemoryBookingRepository;
   let controller: RecurringBookingScheduleController;
+  let pendingServiceId: string;
   let resourceId: string;
   let serviceId: string;
 
@@ -70,6 +73,16 @@ describe('RecurringBookingScheduleController', () => {
     await serviceRepo.save(service);
     serviceId = service.id;
 
+    const manualService = new ServiceBuilder()
+      .withTenantId(TENANT_ID)
+      .withResourceRequirements([
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+      ])
+      .withBookingPolicy({ recurrenceEligible: true, defaultApprovalMode: 'MANUAL_APPROVAL' })
+      .build();
+    await serviceRepo.save(manualService);
+    pendingServiceId = manualService.id;
+
     customerPort.setProfile(CUSTOMER_ID, {
       email: 'ana@example.com',
       name: 'Ana Souza',
@@ -90,6 +103,7 @@ describe('RecurringBookingScheduleController', () => {
         serviceRepo,
         scheduleRepo,
         resourceRepo,
+        bookingRepo,
         occupancyRepo,
         new InMemoryScheduleClosureRepository(),
         new InMemoryScheduleOpeningRepository(),
@@ -102,6 +116,21 @@ describe('RecurringBookingScheduleController', () => {
       ),
       new ListRecurringBookingSchedulesUseCase(scheduleRepo),
       new EndRecurringBookingScheduleUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
+      new ApproveRecurringBookingScheduleUseCase(
+        scheduleRepo,
+        serviceRepo,
+        bookingRepo,
+        customerPort,
+        resourceRepo,
+        occupancyRepo,
+        new InMemoryScheduleClosureRepository(),
+        new InMemoryScheduleOpeningRepository(),
+        platformPort,
+        tenantLock,
+        tx,
+        new AvailabilityService(),
+      ),
+      new RejectRecurringBookingScheduleUseCase(scheduleRepo, tx),
     );
   });
 
@@ -230,6 +259,61 @@ describe('RecurringBookingScheduleController', () => {
 
       const ended = await controller.end(created.id);
       expect(ended.status).toBe('CANCELLED');
+    });
+  });
+
+  describe('approve() and reject()', () => {
+    function requestPending() {
+      return controller.request({
+        serviceId: pendingServiceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 60,
+        },
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
+      });
+    }
+
+    it('approve() activates a pending schedule and materializes its occurrences', async () => {
+      const pending = await requestPending();
+      expect(pending.status).toBe('PENDING_APPROVAL');
+      expect(await bookingRepo.findAllByTenant(TENANT_ID)).toHaveLength(0);
+
+      const result = await controller.approve(pending.id);
+
+      expect(result).toEqual({ id: pending.id, status: 'ACTIVE', occurrenceCount: 5 });
+      expect(await bookingRepo.findAllByTenant(TENANT_ID)).toHaveLength(5);
+    });
+
+    it('reject() cancels a pending schedule and materializes nothing', async () => {
+      const pending = await requestPending();
+
+      const result = await controller.reject(pending.id);
+
+      expect(result).toEqual({ id: pending.id, status: 'CANCELLED' });
+      expect(await bookingRepo.findAllByTenant(TENANT_ID)).toHaveLength(0);
+    });
+
+    it('maps an unknown schedule to 404', async () => {
+      const err = await controller
+        .approve('00000000-0000-7000-8000-000000000099')
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(404);
+    });
+
+    it('maps an already-resolved schedule to 409', async () => {
+      const pending = await requestPending();
+      await controller.reject(pending.id);
+
+      const err = await controller.approve(pending.id).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(409);
     });
   });
 });
