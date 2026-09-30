@@ -413,7 +413,7 @@ Every capacity-releasing event in the Booking context (booking cancelled/rejecte
 
 ---
 
-### M23-S08 — Future-commitment worklist (raise, resolve, bulk reassign) and removal of the occurrence-exception path, backend + BFF
+### M23-S08 — Future-commitment worklist (raise, resolve, bulk reassign) and removal of the occurrence-exception path, backend + BFF ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
