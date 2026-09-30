@@ -96,6 +96,7 @@ Seeds must be data-only. Schema belongs in migrations.
 Grep for:
 - `deepMerge` implemented inline (not imported from `src/shared/utils/deep-merge`)
 - Any function body that re-implements string trimming, digit-stripping, or format conversion that already exists in a shared VO or util
+- Any function body that re-implements calendar-date-string arithmetic (adding/subtracting days, weekday lookup, local↔UTC conversion) instead of using `src/shared/utils/calendar-date.ts` — check *every* date-handling function in a touched file, not just the first one found duplicated (M23-S04 precedent, 2026-09-28: a private `addDaysToLocalDate` helper reimplementing `Date.UTC`-parsing sat a few lines from a *different* duplication in the same file that this exact audit had already caught and fixed earlier the same session — the day-arithmetic one was missed until the user pointed it out directly)
 
 ### BE-7. Builder fields without a `withXxx()` setter must be readonly (S2933)
 
