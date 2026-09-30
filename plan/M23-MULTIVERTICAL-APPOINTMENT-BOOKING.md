@@ -40,6 +40,7 @@
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
+| 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
 | 7 | M23-S22 | Customer renews an ending recurring schedule — "Renovar" pre-filled form (UC-070) |
 | 7 | M23-S19 | Staff creates a recurring private reservation on a customer's behalf (UC-070) |
@@ -69,6 +70,8 @@ graph TD
   S08 --> S23
   S18 --> S17
   S05 --> S12
+  S05 --> S28
+  S28 --> S12
   S05 --> S13
   S05 --> S17
   S12 --> S17
@@ -939,7 +942,7 @@ Build the preset-selection + minimum-answer wizard from the relocated prototype,
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite-account equivalent), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, § Availability Alerts
-**Dependencies:** M23-S04, M23-S05 (recurring schedules BFF and the `ENDED` status), M23-S06, M23-S07 (alerts BFF), M23-S08 (removes the schedule-side occurrence route — occurrences are now bookings — and adds the `GET /bookings?recurringScheduleId=` filter this story lists them with), and M23-S20 (pause removal — pause no longer means anything once every occurrence of a fixed term exists as a booking, so this story draws no Pause action)
+**Dependencies:** M23-S04, M23-S05 (recurring schedules BFF and the `ENDED` status), M23-S06, M23-S07 (alerts BFF), M23-S08 (removes the schedule-side occurrence route — occurrences are now bookings — and adds the `GET /bookings?recurringScheduleId=` filter this story lists them with), M23-S28 (the customer emails for each recurring-schedule outcome, which must exist before customers can see and manage their schedules here), and M23-S20 (pause removal — pause no longer means anything once every occurrence of a fixed term exists as a booking, so this story draws no Pause action)
 **Pattern:** plain composition — extends the existing, shipped "Minha Conta" pages. **Verification note (real-precedent check, not `CLAUDE.md` §11's stated aspirational rule):** the existing Customer-facing booking components (`BookingsList.tsx`, `CancelAction.tsx`, etc.) live under `apps/web/features/customer/components/my-account/`, not `apps/web/features/booking/`, despite §11's stated actor-scoped-view convention — verify at implementation time whether that's still the live precedent or has since been migrated (per TD31 Story 11's stated intent) before picking a location for these new components; match whichever is actually true at implementation time, don't assume the doc over the code.
 **Prototype references:** `plan/journey/customer/minha-conta.md` (M23 Cluster 3 extension section) + `plan/journey/customer/prototypes/minha-conta/06-reserva-recorrente.html`, `14-recorrentes-lista.html`, `14b-recorrentes-lista-vazia.html`, `07-availability-alert.html`, `dev-notes.md` (the creation-flow screens `13*`, `06b` and `06c` belong to M23-S17)
 
@@ -1864,3 +1867,88 @@ Give staff and managers the UI for UC-074, on the existing booking detail route 
   - [ ] Playwright, `/{slug}/my-account`: the customer sees the no-show in history and opens the read-only detail
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S28 — Customer and staff emails for the recurring-schedule lifecycle (`Created`, `ApprovalRequested`, `Rejected`, `Ended` → Notification)
+
+**Agent:** `backend-ts`
+**Complexity:** L
+**Docs to load:** `docs/04-USE_CASES.md` UC-070, UC-071, `docs/03-DOMAIN_EVENTS.md` § `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended`, `docs/05-BOUNDED_CONTEXTS.md` (Notification consumers), `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type and § Event Handlers, `docs/ENGINEERING_RULES_INFRA.md`, `infra/terraform/README.md` § New-resource PR-sequencing playbook
+**Dependencies:** M23-S05 (✅ Done — ships `RecurringBookingScheduleRejected`, emits `RecurringBookingScheduleCreated` on approval as well as at creation, and the expiry job that raises `Rejected` with `APPROVAL_EXPIRED`), M23-S04 (✅ Done — ships the `Created`, `ApprovalRequested` and `Ended` events and their topics). Independent of M23-S21 and M23-S23, which add other notification types. **Must land before M23-S12** (the customer's recurring-schedules page): once customers can see and manage their schedules they must also hear about the outcome of each request.
+**Pattern:** plain composition — the existing domain event → thin handler → one `BaseNotificationUseCase` subclass shape that `BookingCancelled` already uses (`booking-cancelled.handler.ts` → `SendBookingCancelledNotificationUseCase`), once per event. No new pattern.
+
+**Discovered:** 2026-09-30, in M23-S05's `/story-discovery` (decision Q3), confirmed when S05 merged. `docs/03-DOMAIN_EVENTS.md` and `docs/05-BOUNDED_CONTEXTS.md` list the Notification context as the consumer of all four recurring-schedule events, and UC-070 A5 says the customer is notified when a pending request expires, but S04 and S05 deliberately ship only the audit-log consumer (`RecurringBookingScheduleEventsHandler`), which exists to provision the topics. No story owned the emails, so today a customer who requests a recurring schedule is never told whether it was confirmed, rejected or let to expire, and staff are never told a request is waiting.
+
+**Description:**
+Four emails, one story because they share one helper (who the recipient is, the service name, the schedule summary, the tenant's locale) and one devops step (one Foundation apply covers the four new subscriptions).
+
+1. **`RecurringBookingScheduleCreated` → customer confirmation.** Sent when a schedule becomes `ACTIVE`: at creation for an `AUTO_CONFIRM` service and at staff approval for a `MANUAL_APPROVAL` one (the aggregate raises the same event in both cases). Says which service, the weekdays and time, the first and last date, and that every occurrence is already on the calendar.
+2. **`RecurringBookingScheduleApprovalRequested` → staff alert.** Sent when a `MANUAL_APPROVAL` request is waiting, so it does not sit unseen until its hold expires. Recipients are the tenant's managers, the same set the `BookingRequested` admin alert uses.
+3. **`RecurringBookingScheduleRejected` → customer notice**, with different wording for the two reasons the event carries: `APPROVAL_REJECTED` (staff decided no) and `APPROVAL_EXPIRED` (nobody decided in time, so nothing was booked and the customer may request again).
+4. **`RecurringBookingScheduleEnded` → customer notice** that the schedule was ended and its future occurrences cancelled.
+
+None of the four events carries an email address, a name or a service name, and they must not start to: `customerId` and `serviceId` are persisted data, so the events stay thin (`docs/CODE_STANDARDS.md` § Domain events). The Notification context already resolves all of it through its own ports — `INotificationCustomerPort.getCustomerInfo(customerId, tenantId)` (used today by the points notifications, which also receive only a customer id), `INotificationBookingPort.findServicesByIds()`, `INotificationStaffPort.getManagerEmails()` and `INotificationPlatformPort.getTenantInfo()` — so no payload change is needed for items 1 to 3.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **Recipients.** Items 1, 3 and 4 go to the schedule's customer, resolved by `customerId`, including when staff created the schedule on the customer's behalf. Item 2 goes to the tenant's managers. No email to the customer for `ApprovalRequested` (the customer sees the pending state in the UI and the outcome arrives through items 1 or 3).
+2. **Template keys** (each follows the 7-step checklist in `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type — enum, `notification-template-key.mapping.ts`, both `notifications.json`, a migration that seeds the global default rows **and** copies them to every existing tenant, the use case extending `BaseNotificationUseCase` with `localizeTemplates()`, the handler, `notification.module.ts`): `RECURRING_SCHEDULE_CREATED_CUSTOMER`, `RECURRING_SCHEDULE_APPROVAL_REQUESTED_ADMIN`, `RECURRING_SCHEDULE_REJECTED_CUSTOMER`, `RECURRING_SCHEDULE_EXPIRED_CUSTOMER` (the second template for the `Rejected` event) and `RECURRING_SCHEDULE_ENDED_CUSTOMER`.
+3. **No internal detail in any email.** No staff id, no `approvedByStaffId`, no cancelled-booking ids.
+4. **One use case and one handler per event**, each handler calling exactly one use case with `event.correlationId` and rethrowing on failure; idempotent on `eventId` through the base class. Handler class names are unique across the codebase (the Pub/Sub generator keys by bare class name), for example `RecurringScheduleCreatedNotificationHandler`, distinct from the booking context's `RecurringBookingScheduleEventsHandler`.
+5. **The audit-log consumer stays.** Removing a subscription has its own Terraform sequencing and the audit trail is worth the one extra subscription.
+6. **Devops (playbook, "new Pub/Sub topic" row's mechanics):** the four topics already exist and are granted; this story adds four new `subscribe()` call sites with consumer name `notification`, so `pubsub-catalog.json` is regenerated (never hand-edited) and PR1 needs the `infra-app-mix-ok` label plus a PR-body note. After it merges and its `envs/*` apply runs: dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve `staging-foundation` then `production-foundation`, and confirm the new subscriptions' IAM bindings with `gcloud pubsub subscriptions get-iam-policy` in both projects (nothing in CI fails if this is skipped). This story is not done until that check has run.
+
+**Decisions left for `/story-discovery`:**
+- **Expired versus rejected as two templates.** The mapping keys a template by `{eventName, recipientType}`; two templates for the same event need either two distinct `recipientType` labels or one template whose wording is chosen by a variable. Check what `findAllByTriggerEvent` and the persisted `trigger_event` column allow before choosing; two templates is the proposal because the copy differs substantially.
+- **`Ended`: who ended it.** The event has no actor, so the email cannot say "you ended this" versus "the business ended this". Proposal: extend the event additively (no `eventVersion` bump) with `endedBy: 'CUSTOMER' | 'STAFF'`, filled in `RecurringBookingSchedule.end()`'s caller, and send the email in both cases (a confirmation to the customer, a notice when staff did it). Confirm, or drop the email when the customer ended it themselves.
+- **Email locale:** the tenant's locale (what `BookingRequested`/`BookingRescheduled` use today) or the customer's own (M23-S21 proposes the customer's)? Proposal: the tenant's, for consistency with the booking emails.
+- **Schedule summary in `Created`:** service name, weekdays, time and dates only, or also the resource's name? `INotificationBookingPort` resolves services, not resources, so the resource name needs a port extension. Proposal: no resource name in this story.
+- **A customer with no email on file, or a customer that no longer exists:** log and acknowledge (no retry loop) — confirm this is the repository's convention for the points notifications.
+- **Exact pt-BR and en copy** for the five templates.
+
+**Backend use case steps:**
+1. **`SendRecurringScheduleCreatedNotificationUseCase`**: resolves the customer, service name, tenant locale; dispatches the customer template with the schedule summary.
+2. **`SendRecurringScheduleApprovalRequestedNotificationUseCase`**: resolves the managers' emails and the same summary; dispatches the admin template to many.
+3. **`SendRecurringScheduleRejectedNotificationUseCase`**: picks the rejected or the expired template from `event.data.reason`; dispatches to the customer.
+4. **`SendRecurringScheduleEndedNotificationUseCase`**: dispatches the ended template to the customer.
+5. Four thin handlers in the notification context's `infrastructure/events/`, each a `subscribe()` with consumer name `notification`, and the provider registrations in `notification.module.ts`.
+
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** a notification-context migration inserting the five global default template rows and copying them to every existing tenant (the "existing tenants don't automatically get new template rows" gotcha in `docs/ENGINEERING_RULES_BACKEND.md`); `packages/i18n/locales/{pt-BR,en}/notifications.json` entries for `RecurringBookingScheduleCreated.customer`, `RecurringBookingScheduleApprovalRequested.admin`, the two `RecurringBookingScheduleRejected` customer templates and `RecurringBookingScheduleEnded.customer` (`{subject,body}` each); no env var, no feature flag.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/notification/domain/notification-template-key.enum.ts`, `notification-template-key.mapping.ts` (+ `.mapping.spec.ts`) (modify)
+- `apps/backend/src/contexts/notification/application/use-cases/send-recurring-schedule-{created,approval-requested,rejected,ended}-notification/send-recurring-schedule-{created,approval-requested,rejected,ended}-notification.use-case.ts` (+ specs) (new — four; plus one small shared helper beside them if the customer/service/tenant resolution repeats, per `docs/CODE_STANDARDS.md` § no speculative abstraction only if it does)
+- `apps/backend/src/contexts/notification/infrastructure/events/recurring-schedule-{created,approval-requested,rejected,ended}.handler.ts` (+ specs) (new — four), and `notification.module.ts` (modify)
+- `apps/backend/src/contexts/notification/infrastructure/events/recurring-schedule-notifications.handler.integration.spec.ts` (new)
+- `apps/backend/src/contexts/notification/infrastructure/migrations/<next-timestamp>-AddRecurringScheduleTemplates.ts` (new)
+- `packages/i18n/locales/{pt-BR,en}/notifications.json` (modify)
+- `infra/terraform/pubsub-catalog.json` (regenerated, not hand-edited)
+- only if the `Ended` actor is added: `apps/backend/src/contexts/booking/domain/events/recurring-booking-schedule-ended.event.ts` (+ builder), `recurring-booking-schedule.aggregate.ts` (`end()`) and `end-recurring-booking-schedule.use-case.ts` (+ specs) (modify)
+- `docs/03-DOMAIN_EVENTS.md` (modify — the four events' Consumers lines say audit-log only today), `docs/05-BOUNDED_CONTEXTS.md` (modify if its consumer list changes), `docs/13-DATABASE_SCHEMA.md` (the notification template rows, if listed there), `docs/04-USE_CASES.md` (UC-070 A5 and UC-071 Events, if their wording needs to name the email)
+
+**Acceptance criteria — product:**
+- [ ] A customer whose recurring schedule becomes active, at creation or after staff approve it, receives one email, in the right language, naming the service, the weekdays and time, and the first and last date.
+- [ ] Managers receive one email when a `MANUAL_APPROVAL` request is waiting for a decision.
+- [ ] A customer whose request is rejected receives an email saying so; one whose request expired unanswered receives a different email saying nothing was booked and they may request again.
+- [ ] A customer whose schedule is ended receives an email saying it was ended and its future occurrences cancelled.
+- [ ] A schedule created by staff on a customer's behalf notifies the customer, not the staff member.
+- [ ] No email ever shows an internal identifier or the name of the staff member who decided.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] Each of the four use cases dispatches its localized template to the right recipient (pt-BR and en), and a second delivery of the same `eventId` sends nothing
+  - [ ] `SendRecurringScheduleRejectedNotificationUseCase` picks the rejected template for `APPROVAL_REJECTED` and the expired one for `APPROVAL_EXPIRED`
+  - [ ] A missing customer, or one with no email, is logged and skipped without failing the delivery
+  - [ ] Each handler calls exactly one use case, passes `event.correlationId`, and rethrows on failure
+  - [ ] The `NotificationTemplateKey` ↔ mapping parity spec covers the five new keys
+- Integration:
+  - [ ] Each of the four events, published through the event bus, produces exactly one `notification_logs` row for the tenant's resolved template (migration applied, including the existing-tenant copy)
+  - [ ] A `Rejected` event with each reason produces the matching template
+- Tenant isolation:
+  - [ ] An event of Tenant A never resolves Tenant B's customer, service or template, and never produces a log row under Tenant B
+- E2E: none — server-side email
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+- [ ] **Live-verification check (devops step above):** `gcloud pubsub subscriptions get-iam-policy` on each of the four new `notification` subscriptions, in both `ikaro-staging` and `ikaro-prod`, shows the expected binding.
