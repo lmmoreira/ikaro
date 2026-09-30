@@ -1523,7 +1523,7 @@ Two notifications, one story because both extend S08's events and both need new 
 **Agent:** `backend-ts`
 **Complexity:** S
 **Docs to load:** `docs/13-DATABASE_SCHEMA.md` § `recurring_booking_schedule_exceptions` (the note that follows the recurring-schedule tables), `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/DEFINITION_OF_DONE.md` § Migration history — pre-production exception
-**Dependencies:** M23-S08 (must be merged **and deployed to staging and production**: it stops reading and writing the table, and this story drops it — the contract step of an expand/contract removal). Independent of every other M23 story.
+**Dependencies:** M23-S08 (must be merged **and deployed to every environment that exists — today only staging; production has none yet**: it stops reading and writing the table, and this story drops it — the contract step of an expand/contract removal). Independent of every other M23 story.
 **Pattern:** plain composition — no named pattern applies (one migration and a doc edit).
 
 **Description:**
@@ -1531,7 +1531,7 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 
 **Decisions already made (state as fact, do not re-derive):**
 1. **One migration, `DROP TABLE IF EXISTS`**, with a `down()` that recreates the table exactly as `1748500000017-CreateRecurringBookingSchedules.ts` defined it (so a rollback of this migration alone is possible). It takes the next free number at implementation time; no other story's migration is renumbered.
-2. **Data check first, not assumed.** The story's first step is a live read of the row count in staging and production (`SELECT count(*) FROM booking.recurring_booking_schedule_exceptions`). Rows there are skip/reschedule records of occurrences that no longer have any meaning in the design; a non-zero count is reported to the user before the migration merges, never dropped silently. The pre-production exception in `docs/DEFINITION_OF_DONE.md` is **not** relied on: staging has run migration `…017`.
+2. **Data check first, not assumed — resolved at discovery (2026-09-30): there is no production environment yet, and the staging table has 0 rows, so nothing is dropped silently.** The pre-production exception in `docs/DEFINITION_OF_DONE.md` is **not** relied on: staging has run migration `…017`.
 3. **Nothing else changes.** No code outside the migration, `docs/13-DATABASE_SCHEMA.md`, and the registry files that list the table.
 
 **Backend use case steps:** none — no use case changes.
@@ -1545,18 +1545,21 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/infrastructure/migrations/<next free number>-DropRecurringBookingScheduleExceptions.ts` (new)
 - `docs/13-DATABASE_SCHEMA.md` (modify — replace the "no longer read or written after M23-S08" note with "dropped by M23-S24", and remove the table's column list if one is still there)
-- `apps/backend/src/test/integration-global-setup.ts`, `apps/backend/src/test/test-datasource.ts` (modify only if either still lists the table's entity or DDL after S08; S08 removes the entity, so this is a check, not an expected edit)
+- `apps/backend/src/contexts/booking/domain/recurrence-rule.helpers.ts` (comment only — drop the stale `recurring_booking_schedule_exceptions.occurrence_start` reference at line 31)
+- `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify — drop the same stale reference from the `enumerateRecurrenceOccurrences` paragraph)
+- `apps/backend/src/test/integration-global-setup.ts` (modify — register the new migration, same as every migration; it lists no entity or DDL for the table after S08)
+- The five existing migration integration specs (`backfill-location-resources`, `backfill-resource-occupancy`, `backfill-service-resource-requirements-and-buffer`, `drop-tenant-wide-exclusion`, `remove-recurring-booking-schedule-paused-status`) are deleted, with their references swept from `docs/27`, the M21/M22 `_IMPLEMENTATION_DETAILS_IA.md` files, `plan/M21-MULTIVERTICAL-FOUNDATION.md` and a cross-reference comment in `schedule-day-grid.controller.integration.spec.ts`; `docs/ENGINEERING_RULES_TESTING.md` gains a § Migration specs rule. Decided after discovery (user, 2026-09-30): migrations are not spec'd here, and this story adds no spec of its own.
+- `apps/backend/src/test/test-datasource.ts` (check only — lists no entity or DDL for the table after S08)
 
 **Acceptance criteria — product:**
 - [ ] The schedule flows (create, list, end, approve) behave exactly as before; nothing user-visible changes.
 
 **Acceptance criteria — technical:**
 - Unit: none — a migration only.
-- Integration:
-  - [ ] After the migrations run, `booking.recurring_booking_schedule_exceptions` does not exist and the schedule repository's existing integration suite still passes.
-  - [ ] `down()` recreates the table with its columns, FK and CHECK, and `up()` drops it again.
+- Integration: no new spec (a bare `DROP TABLE IF EXISTS` carries no logic of its own).
+  - [ ] The schedule repository's existing integration suite still passes against the migrated schema.
 - Tenant isolation: none — no tenant data is read or written.
 - E2E: none — no UI.
-- [ ] The staging and production row counts were read and reported before the migration merged.
+- [x] The staging row count was read before the migration merged (0 rows; no production environment exists yet).
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean

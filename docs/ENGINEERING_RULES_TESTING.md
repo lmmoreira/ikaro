@@ -96,6 +96,10 @@ Use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain pro
 
 Every new migration class and TypeORM entity must be added to `src/test/integration-global-setup.ts` (and to any context-specific helper like `notification-integration-app.ts`) in the **same commit** as the migration file. Skipping causes silent failures — unit tests pass but integration tests error on the first DB query. This applies to a migration that only adds an index, not just one that creates a table — `pnpm architecture-check`'s `test-harness-registration` detector catches a missing entry either way.
 
+### Migration specs
+
+Do not write an integration spec for a migration. A migration's correctness is exercised by every integration suite running on top of the schema `integration-global-setup.ts` builds from it, and a spec that re-invokes `up()`/`down()` against the shared test datasource mostly tests Postgres while mutating state other suites depend on. Verify a data-moving migration (a backfill, a guard that refuses to proceed) against real data in a real environment before merging, and record the result in the story.
+
 ### Standalone index for a cross-tenant system job
 
 `docs/13-DATABASE_SCHEMA.md`'s Indexing Strategy rule ("every index MUST start with `tenant_id`") has one narrow, explicit exception: a system-triggered job that deletes/scans across **every tenant in one pass, with no `tenant_id` predicate at all** — a daily retention purge (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`), matching `ExpirePointsJob`'s own precedent. A `(tenant_id, X)` composite index can't be seeked by a query that never filters on `tenant_id` — Postgres has to fall back to a full index/table scan regardless of how well `X` alone would narrow the search, which degrades as the table grows.

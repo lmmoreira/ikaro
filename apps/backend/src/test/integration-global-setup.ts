@@ -47,6 +47,7 @@ import { CreateRecurringBookingSchedules1748500000017 } from '../contexts/bookin
 import { RequireRecurringBookingScheduleEndsOn1748500000018 } from '../contexts/booking/infrastructure/migrations/1748500000018-RequireRecurringBookingScheduleEndsOn';
 import { RemoveRecurringBookingSchedulePausedStatus1748500000019 } from '../contexts/booking/infrastructure/migrations/1748500000019-RemoveRecurringBookingSchedulePausedStatus';
 import { CreateFutureCommitmentExceptions1748500000020 } from '../contexts/booking/infrastructure/migrations/1748500000020-CreateFutureCommitmentExceptions';
+import { DropRecurringBookingScheduleExceptions1748500000021 } from '../contexts/booking/infrastructure/migrations/1748500000021-DropRecurringBookingScheduleExceptions';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -213,6 +214,7 @@ export default async function globalSetup(): Promise<void> {
       RequireRecurringBookingScheduleEndsOn1748500000018,
       RemoveRecurringBookingSchedulePausedStatus1748500000019,
       CreateFutureCommitmentExceptions1748500000020,
+      DropRecurringBookingScheduleExceptions1748500000021,
     ],
     synchronize: false,
     migrationsRun: false,

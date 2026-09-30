@@ -27,9 +27,8 @@ export const DEFAULT_RECURRING_HORIZON_DAYS = 90;
 export interface RecurrenceOccurrence {
   // UTC instant the occurrence starts at.
   occurrenceStart: Date;
-  // YYYY-MM-DD, the tenant-local calendar date the occurrence falls on — the natural key used by
-  // recurring_booking_schedule_exceptions.occurrence_start and the idempotency check of M23-S05's
-  // one-shot materialization.
+  // YYYY-MM-DD, the tenant-local calendar date the occurrence falls on — the key for the
+  // working-hours check's per-date lookup.
   occurrenceStartLocalDate: string;
 }
 

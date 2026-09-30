@@ -84,7 +84,6 @@ Shared Zod schemas (`PublishServiceIntakeSchemaSchema`, `ScheduleDayGridQuerySch
 | Double / spec | Path |
 |---|---|
 | `ResourceOccupancyEntityBuilder`, `BookingLineResourceAssignmentEntityBuilder`, `ServiceBookingIntakeSchemaEntityBuilder`, plus new entity builders for legs/requirements/pool | `apps/backend/src/test/builders/booking/` |
-| `backfill-service-resource-requirements-and-buffer.integration.spec.ts` | `apps/backend/src/contexts/booking/infrastructure/` |
 | `apps/web/e2e/services-resource-config.spec.ts` — Recursos/Políticas/Formulário flows, unsaved-changes guard | `apps/web/e2e/` |
 | `apps/web/e2e/services-create.spec.ts` — booking-model picker + redirect | `apps/web/e2e/` |
 | `apps/web/e2e/schedule-resource-columns.spec.ts` — 4 scenarios (isolated columns via closures, real booking via `AUTO_FUNGIBLE_POOL` fixture, uncheck reverts + Week view unaffected, STAFF never sees filter/board) | `apps/web/e2e/` |
