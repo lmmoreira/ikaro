@@ -688,7 +688,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | assigned_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **PK** | (tenant_id, recurring_schedule_id, resource_id) | |
 
-> `recurring_booking_schedule_exceptions` (a per-occurrence skip/reschedule record) is **no longer read or written after M23-S08** (the table stays in place until M23-S24 drops it, so the previous revision keeps working through the deploy): an occurrence is its linked booking, so skipping is that booking's cancel and rescheduling is its reschedule — there is no second record to keep consistent.
+> `recurring_booking_schedule_exceptions` (a per-occurrence skip/reschedule record) was **dropped by M23-S24** (M23-S08 stopped reading and writing it first, so the previous revision kept working through the deploy): an occurrence is its linked booking, so skipping is that booking's cancel and rescheduling is its reschedule — there is no second record to keep consistent.
 
 Generated ordinary bookings link through nullable `recurring_schedule_id` on `bookings` — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules`, unique `(tenant_id, recurring_schedule_id, occurrence_start)`.
 
