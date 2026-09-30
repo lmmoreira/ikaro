@@ -407,7 +407,7 @@ export interface CompleteBookingResponse {
 | File | Status |
 |---|---|
 | `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` | ❓ Gap — M23-S13 |
-| `03-booking-detail-approved.html`'s no-show action (+ `03c`–`03g`) | ❓ Gap — extend existing `BookingDetailPage` / `BookingActionPanel`, no new route. Prototype screens added 2026-09-30 (see "UC-074 — Não comparecimento" below). **Owner: a future frontend story, not M23-S09** (S09 ships the backend/BFF and the minimal `NO_SHOW` status display only) |
+| `03-booking-detail-approved.html`'s no-show action (+ `03c`–`03g`) | ❓ Gap — extend existing `BookingDetailPage` / `BookingActionPanel`, no new route. Prototype screens added 2026-09-30 (see "UC-074 — Não comparecimento" below). **Owner: M23-S27, not M23-S09** (S09 ships the backend/BFF and the minimal `NO_SHOW` status display only) |
 | `apps/web/app/dashboard/bookings/recurring/new/page.tsx` | ❓ Gap — M23-S19 (route proposed; see the route question below) |
 | `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleCustomerStep.tsx`, `NewRecurringScheduleForStaff.tsx`, `NewRecurringScheduleForStaffResult.tsx` | ❓ Gap — M23-S19 (the Agenda page's real folder is `dashboard/bookings/`, next to `BookingQueuePage.tsx`; `M23-S13`'s plan cites an `agenda/` folder that does not exist) |
 
@@ -422,7 +422,7 @@ POST /bookings/:id/no-show/correct                             -- UC-074 A3 (MAN
 ```
 
 **Open questions / gaps:**
-- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are a future frontend story pending a prototype), `M23-S19` (staff creating on a customer's behalf) — each still begins with `/story-discovery`.
+- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are M23-S27), `M23-S19` (staff creating on a customer's behalf) — each still begins with `/story-discovery`.
 - [ ] Whether the recurring-schedule approval queue is a separate list or folds into `00-agenda.html`'s existing queue is a UI decision for `M23-S13` (its plan says a tab inside the Agenda page).
 
 ### Staff creating a recurring schedule on a customer's behalf — `09`, `09b`, `09c` (M23-S19)
@@ -469,7 +469,7 @@ All the `BOOKING_RECURRING_SCHEDULE_*` and `BOOKING_CUSTOMER_NOT_FOUND` codes ar
 - ⚠ **Out of scope, as in the customer flow:** variable-duration services and bundled services (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`).
 - ⚠ **`08`'s sidebar and bottom-nav links** pointed at the wrong prototypes (and one missing file) when it was relocated from discovery; corrected on 2026-09-29.
 
-### UC-074 — Não comparecimento (no-show) and its correction — `03`, `03c`–`03g` (M23-S09 backend/BFF; UI = a future frontend story)
+### UC-074 — Não comparecimento (no-show) and its correction — `03`, `03c`–`03g` (M23-S09 backend/BFF; UI = M23-S27)
 
 Added 2026-09-30, after the M23-S09 `/story-discovery`. Same route and component as the approved-booking detail (`/dashboard/bookings/:id`, `BookingDetailPage` + `BookingActionPanel`); only new `actionState` values and one new branch of the action panel. The flow diagram is in `../../agenda.md`.
 
@@ -506,9 +506,9 @@ POST /bookings/:id/no-show/correct   body { correctedStatus: 'COMPLETED', reason
 | correct `403` | `03g #permissao` |
 | correct network / `5xx` | `03g #falha` |
 
-**Field constraints:** no-show `reason` optional, max 500, an **internal** note (never shown to the customer, in the email or on `customer/prototypes/minha-conta/02f`). Correction `reason` required, trimmed, 10–500 characters — a proposal (same minimum as Reject) to lock at the UI story's discovery. The correction completes every line at its booked price: no photos, notes or points-discount fields in `03g`.
+**Field constraints:** no-show `reason` optional, max 500, an **internal** note (never shown to the customer, in the email or on `customer/prototypes/minha-conta/02f`). Correction `reason` required, trimmed, 10–500 characters — a proposal (same minimum as Reject) to lock at M23-S27's discovery. The correction completes every line at its booked price: no photos, notes or points-discount fields in `03g`.
 
-**Status history (`03d`, `03f`, `03g`):** read from `booking_status_transitions` (created by M23-S09; complete for all transitions once M23-S26 ships). The UI story must decide whether the history is part of `GET /bookings/:id` or a separate read — M23-S09 adds no read endpoint for it.
+**Status history (`03d`, `03f`, `03g`):** read from `booking_status_transitions` (created by M23-S09; complete for all transitions once M23-S26 ships). M23-S27 decides whether the history is part of `GET /bookings/:id` or a separate read — M23-S09 adds no read endpoint for it.
 
 **`.status-no-show`** (violet) was added to `plan/journey/shared/tokens.css`; the customer list and detail use it too (`customer/prototypes/minha-conta/01`, `02f`).
 

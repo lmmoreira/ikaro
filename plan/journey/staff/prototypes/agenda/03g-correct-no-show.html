@@ -68,13 +68,13 @@
 
   <!--
     COMPONENT: BookingDetailPage + correction sheet (UC-074 A3)
-    FILE:       apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx  (EXISTS — extended by the future UC-074 UI story)
+    FILE:       apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx  (EXISTS — extended by M23-S27 (UC-074 UI))
     ROUTE:      /dashboard/bookings/:id  (same route/component as 03-booking-detail-approved.html — no new screen, only new actionState values)
     AUTH:       JWT cookie, STAFF or MANAGER role; the correction is MANAGER only
 
     Flow: 03f (#gerente) → "Corrigir para concluído" → this sheet → POST /bookings/:id/no-show/correct
           body { correctedStatus: 'COMPLETED', reason } — MANAGER only, COMPLETED is the only accepted target.
-    Reason: REQUIRED, trimmed, 10–500 characters (proposed, same minimum as Reject — to be locked at the UI story's discovery);
+    Reason: REQUIRED, trimmed, 10–500 characters (proposed, same minimum as Reject — to be locked at M23-S27's discovery);
     the confirm button stays disabled until it is valid.
     The backend completes the booking with every line's actual price = its booked price (no photos / notes / points discount)
     and publishes BookingCompleted, so Loyalty awards the service points exactly once, here.

@@ -135,12 +135,12 @@ Folder: `staff/prototypes/agenda/`
 | `09-nova-recorrencia-cliente.html` | Nova recorrência em nome de um cliente — escolher o cliente (busca, recentes, sem resultado, erro de busca) | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recurso, dias, horário, período) para o cliente escolhido | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09c-nova-recorrencia-resultado.html` | Desfechos: criada, aguardando aprovação, conflito, limite, falha, cliente não encontrado | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
-| `03-booking-detail-approved.html` — "Marcar não compareceu" (extended) | Nova ação + bottom sheet (motivo opcional) no detalhe de um agendamento aprovado | UC-074 | M23-S09 (backend/BFF) · UI futura | ❓ Gap (M23 Cluster 3) |
-| `03c-no-show-not-yet-ended.html` | Atendimento ainda não terminou: ação desativada com dica; erro 422 `BOOKING_NOT_YET_ENDED` (`#rejeitado`) | UC-074 A1 | UI futura | ❓ Gap (M23 Cluster 3) |
-| `03d-no-show-success.html` | Sucesso inline (`actionState = 'no-show'`), status "Não compareceu" | UC-074 | UI futura | ❓ Gap (M23 Cluster 3) |
-| `03e-no-show-error.html` | Erros: 409 `BOOKING_ALREADY_TERMINAL` (`#terminal`) e falha de rede/5xx (`#falha`) | UC-074 A2 | UI futura | ❓ Gap (M23 Cluster 3) |
-| `03f-booking-detail-no-show.html` | Detalhe de um não comparecimento + histórico; gerente vê "Corrigir para concluído", staff não (`#equipe`) | UC-074 A3 | UI futura | ❓ Gap (M23 Cluster 3) |
-| `03g-correct-no-show.html` | Correção (somente gerente): motivo obrigatório (10–500), sucesso com pontos, falha, 403 | UC-074 A3 | UI futura | ❓ Gap (M23 Cluster 3) |
+| `03-booking-detail-approved.html` — "Marcar não compareceu" (extended) | Nova ação + bottom sheet (motivo opcional) no detalhe de um agendamento aprovado | UC-074 | M23-S09 (backend/BFF) · M23-S27 | ❓ Gap (M23 Cluster 3) |
+| `03c-no-show-not-yet-ended.html` | Atendimento ainda não terminou: ação desativada com dica; erro 422 `BOOKING_NOT_YET_ENDED` (`#rejeitado`) | UC-074 A1 | M23-S27 | ❓ Gap (M23 Cluster 3) |
+| `03d-no-show-success.html` | Sucesso inline (`actionState = 'no-show'`), status "Não compareceu" | UC-074 | M23-S27 | ❓ Gap (M23 Cluster 3) |
+| `03e-no-show-error.html` | Erros: 409 `BOOKING_ALREADY_TERMINAL` (`#terminal`) e falha de rede/5xx (`#falha`) | UC-074 A2 | M23-S27 | ❓ Gap (M23 Cluster 3) |
+| `03f-booking-detail-no-show.html` | Detalhe de um não comparecimento + histórico; gerente vê "Corrigir para concluído", staff não (`#equipe`) | UC-074 A3 | M23-S27 | ❓ Gap (M23 Cluster 3) |
+| `03g-correct-no-show.html` | Correção (somente gerente): motivo obrigatório (10–500), sucesso com pontos, falha, 403 | UC-074 A3 | M23-S27 | ❓ Gap (M23 Cluster 3) |
 
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
 
@@ -196,7 +196,7 @@ flowchart TD
 ```
 
 **Open questions / gaps:**
-- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are a future frontend story pending a prototype) and `M23-S19` (staff creating on a customer's behalf). Each still begins with `/story-discovery`.
+- [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are M23-S27) and `M23-S19` (staff creating on a customer's behalf). Each still begins with `/story-discovery`.
 - [ ] **Entry point (default drawn):** a "+ Nova recorrência" button in the Agenda header. `M23-S13` adds recurring requests as a tab inside the existing Agenda page, so there is no queue route of its own to hang a create button on. Alternatives: a button inside that tab, or an entry under a customer.
 - [ ] Whether the recurring-schedule approval queue is a separate list or folds into the existing booking queue (`00-agenda.html`) is a UI decision for `M23-S13`.
 - [ ] **Approval on a staff-created schedule.** Today a schedule created by staff for a service that requires manual approval still lands in `PENDING_APPROVAL`, so staff would approve their own request. Should staff creation skip approval? (`09c #aguardando` draws today's behavior.)
@@ -206,6 +206,6 @@ flowchart TD
 - [x] **Fixed term — decided 2026-09-29; prototypes `08`, `09b`, `09c` updated in the same-day prototype pass:** a recurring schedule always has an end date, chosen up to the service's maximum term (90 days by default); every occurrence is checked at creation and created once (immediately, or when staff approve). `09b` therefore needs an end-date field with a "máx. N dias" hint and no "sem data final" copy; `09c` needs its "geradas… até 90 dias à frente" success copy replaced (the whole term appears at once) and `#conflito` needs the reason labels; and `08` should show the requested term ("até dd/mm") instead of "sem data de término", with a note that approving creates every occurrence of the term at once (after the checks re-run — an occurrence that no longer passes is not created and goes to the exception worklist).
 - [ ] Variable-duration services and bundled services are out of scope here, as in the customer flow (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` tracks bundles).
 - [x] **No-show: who can do what — decided 2026-09-30 (M23-S09 discovery):** marking is `STAFF|MANAGER`; correcting is `MANAGER` only and its only target is `COMPLETED`. The staff view simply does not render "Corrigir para concluído" (hidden, not disabled); "Marcar não compareceu" before the end time is disabled with the hint "Disponível após o término do atendimento (HH:mm)".
-- [ ] **No-show: correction reason validation.** Drawn as required, trimmed, 10–500 characters (same minimum as Reject) — a proposal to lock at the UI story's `/story-discovery`.
+- [ ] **No-show: correction reason validation.** Drawn as required, trimmed, 10–500 characters (same minimum as Reject) — a proposal to lock at M23-S27's `/story-discovery`.
 - [ ] **No-show: the customer email** ("foi avisado por email" in `03`, `03d`) depends on `M23-S25`; until it ships the UI must drop that sentence. The staff member's reason is internal and never appears in the email or on the customer's screen (`customer/prototypes/minha-conta/02f`).
-- [ ] **No-show: the UI story.** Not created yet — to be appended with `/create-story` citing `03`–`03g` and `customer/minha-conta`'s `02f`. The web status display for `NO_SHOW` (badge/label/icon) ships earlier, inside `M23-S09`, because the shared status type forces it.
+- [x] **No-show: the UI story** is `M23-S27` (dashboard actions and sheets, the status-history read, and the customer `02f` detail), created 2026-09-30; it depends on `M23-S09`, `M23-S25` and `M23-S26`. The read-only `NO_SHOW` status display (badge, history list, read-only details) ships earlier, inside `M23-S09`, because the shared status type forces it.
