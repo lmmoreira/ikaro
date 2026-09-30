@@ -133,6 +133,8 @@ Private appointment/reservation recurrence is distinct from `recurring_enrollmen
 
 Mandatory for `FIXED_ASSIGNMENT`; `RESOLVE_PER_OCCURRENCE` retains the eligible requirement/pool only and resolves distinct resources during each materialization instead of persisting a row here. Customer/staff-selected resources default to fixed; automatic/fungible services may use either policy.
 
+> **Removed by M23-S08 (historical discovery text).** An occurrence is its linked booking, so skip is that booking's cancel and reschedule is its reschedule; the table below and the exception example further down no longer describe the design. The table is dropped by M23-S24.
+
 `recurring_booking_schedule_exceptions`:
 
 | Column | Type | Constraints |

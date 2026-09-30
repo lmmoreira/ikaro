@@ -183,7 +183,47 @@ Then two independent layers, both required, because they catch different failure
 
 ### Optimistic concurrency on mutation
 
-`RecurringBookingScheduleEntity.version` (`@VersionColumn`, default 1) protects `end()`/`skipOccurrence()`/`rescheduleOccurrence()` — each loads the schedule outside any transaction, mutates in memory, then saves inside one. `TypeOrmRecurringBookingScheduleRepository.persist()`'s update path is a version-checked `UPDATE ... WHERE version = :version`, incrementing via a raw SQL literal (`version: () => '"version" + 1'`); a mismatch throws `BookingConcurrentModificationError` (409, the same generic error `Booking`'s own optimistic-concurrency path uses). This exactly mirrors `TypeOrmBookingRepository`'s own `persistBooking()` shape — a brand-new aggregate (`version === undefined`) inserts and lets the DB default apply; every subsequent save re-checks and re-increments.
+`RecurringBookingScheduleEntity.version` (`@VersionColumn`, default 1) protects `end()` and `reassignResource()` (M23-S08 removed `skipOccurrence()`/`rescheduleOccurrence()`: an occurrence is its linked booking) — each loads the schedule outside any transaction, mutates in memory, then saves inside one. `TypeOrmRecurringBookingScheduleRepository.persist()`'s update path is a version-checked `UPDATE ... WHERE version = :version`, incrementing via a raw SQL literal (`version: () => '"version" + 1'`); a mismatch throws `BookingConcurrentModificationError` (409, the same generic error `Booking`'s own optimistic-concurrency path uses). This exactly mirrors `TypeOrmBookingRepository`'s own `persistBooking()` shape — a brand-new aggregate (`version === undefined`) inserts and lets the DB default apply; every subsequent save re-checks and re-increments.
+
+---
+
+## Booking — Future-Commitment Worklist (M23-S08)
+
+### Why this exists
+
+Deactivating a resource (directly, or by deactivating the staff member behind it) can leave future bookings on something that no longer exists. Nothing may move a booking silently, so the system only **records** the impact and a manager decides. The algorithm spans the two deactivation use cases, the occupancy repository, the resolver, and the recurring-schedule aggregate, so it is described once here.
+
+### Raise
+
+```mermaid
+flowchart TD
+  A[DeactivateResourceUseCase or CascadeStaffDeactivationUseCase] --> B[save resource, inside the transaction]
+  B --> C[RaiseFutureCommitmentExceptionsForResourceUseCase: lockResources]
+  C --> D[findFutureBookingImpactsByResource: BOOKING_LINE occupancy, lock state HOLD or COMMITTED, window ends in the future]
+  D --> E[alternatives per booking: active, same type, inside the requirement pool, free at the exact window]
+  E --> F{open entry for the same impact?}
+  F -- yes --> G[update its alternatives]
+  F -- no --> H[create entry, publish Raised]
+```
+
+One entry per affected booking, whatever its status (`PENDING`, `INFO_REQUESTED`, `APPROVED`); a `REQUESTED` lock state is never a real commitment. The `(tenant_id, source_type, source_id, affected_type, affected_id) WHERE status = 'OPEN'` partial unique index is the DB-level guarantee that a repeat trigger updates instead of duplicating. Recurring schedules get no entry of their own: each materialized occurrence is a booking and is covered like any other. A resource with no future bookings raises nothing.
+
+### Resolve (best-effort per booking)
+
+`resolve` takes 1–100 entry ids and one choice. **Each entry runs in its own transaction**, so a booking whose alternative was taken in the meantime stays `OPEN` and is reported (`STILL_OPEN`) while the rest resolve.
+
+| Choice | Effect |
+|---|---|
+| KEEP | Entry resolved, booking unchanged |
+| REASSIGN | Same window, another resource: validated (active, same type, inside the pool, free excluding the booking's own lines) then released and re-assigned; `AUTO` takes the least-loaded free candidate; a bundle's other resources are untouched; no `BookingRescheduled` |
+| RESCHEDULE | One entry only, `APPROVED` booking only; `RescheduleBookingUseCase`'s logic composed in the same transaction |
+| CANCEL | `CancelBookingAsAdminUseCase`'s logic via a shared helper |
+
+After a REASSIGN batch, a `FIXED_ASSIGNMENT` schedule's assignment row is swapped to the new resource only when no future non-terminal linked booking is left on the old one; otherwise it stays as the record of what was requested.
+
+### Known limitation
+
+A booking whose resolver read the resource as active just before its deactivation commits, and which inserts after the raise step ran, is not caught. `lockResources` narrows the window; it does not close it.
 
 ---
 

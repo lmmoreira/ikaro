@@ -100,7 +100,9 @@
     UC cobertos: UC-070 A2 (pular / reagendar uma ocorrência, encerrar) — não existe "pausar" (removido em 2026-09-29: com o prazo fixo todas as reservas já existem)
     DATA:
       GET   /recurring-booking-schedules  (lista, filtrada pelo id)
-      PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart  Body: { action: "SKIP" | "RESCHEDULE", replacementBookingId? }
+      PATCH /bookings/:id/cancel  (pular — a ocorrência é a própria reserva; sujeita à janela de cancelamento)
+      PATCH /bookings/:id/reschedule  (reagendar — o mesmo fluxo de qualquer reserva)
+      GET   /bookings?recurringScheduleId=  (lista as ocorrências da recorrência)
       POST  /recurring-booking-schedules/:id/end
       A recorrência tem prazo fixo (endsOn obrigatório, máx. 90 dias por padrão); "Renovar" abre 13f. Mostrado quando o prazo termina em breve (regra a fechar no /story-discovery de M23-S22).
   -->

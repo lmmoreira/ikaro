@@ -26,6 +26,7 @@
 | 2 | M23-S04 | `RecurringBookingSchedule` aggregate — create/skip/reschedule/end, backend + BFF (UC-070, minus approval/generation; Pause shipped here and was removed by M23-S20) |
 | 2 | M23-S07 | Availability-alert matching worker (UC-072 step 3) |
 | 2 | M23-S23 | Notifications for the future-commitment worklist — manager alert on a raised entry, customer message on a reassign (UC-073, UC-077) |
+| 2 | M23-S24 | Drop the retired `recurring_booking_schedule_exceptions` table — the contract step of S08's removal, after S08 is deployed everywhere |
 | 2 | M23-S14 | Manager "Exceções de Agenda" worklist frontend (UC-073/077) |
 | 2 | M23-S15 | Manager onboarding wizard frontend (UC-075) |
 | 3 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens |
@@ -427,7 +428,7 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
 
 *B. Resolution, one entry or many at once.* The manager resolves an entry with KEEP, REASSIGN, RESCHEDULE or CANCEL, or dismisses it with a reason. **REASSIGN** moves the booking to another resource at the *same window* (the booking's time, price and status are untouched, and no `BookingRescheduled` is emitted); **RESCHEDULE** moves it to a manager-chosen new time, applied immediately (the customer is told by the existing `BookingRescheduled` event) — it needs an `APPROVED` booking (`Booking.reschedule()` refuses any other status) and works on one entry at a time. REASSIGN, CANCEL, KEEP and dismiss accept a list of entries, so the manager can resolve one or many at once. REASSIGN takes either an explicit target resource or `AUTO` (each booking gets the least-loaded free active resource of the same type — the `AUTO_ANY` tie-break). The bulk is **best-effort per booking**: each booking is its own transaction, an alternative that became unavailable leaves its entry `OPEN` and is reported back (UC-077 A1), and the rest are still resolved. **Not in this story:** any message to the customer for a reassign, and the manager alert on `Raised` — both are M23-S23.
 
-*C. One way to change an occurrence.* An occurrence is its linked booking. The S04 occurrence path — `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart`, `SkipOrRescheduleOccurrenceUseCase`, the aggregate's `skipOccurrence`/`rescheduleOccurrence`, and the `RecurringBookingScheduleException` child and its table — is **removed**: it existed because occurrences were once generated lazily, and since M23-S18 fixed the term and M23-S05 materializes every occurrence, a schedule-side exception record is a second source of truth for something the booking already says. Skipping is the ordinary cancel and rescheduling is `RescheduleBookingUseCase`. Two consequences, both deliberate: (1) a customer skipping an occurrence is now subject to the tenant's cancellation window like any one-off booking (S04's skip had no window check); staff have no window. (2) `GET /bookings` gains a `recurringScheduleId` filter so a schedule's occurrence bookings can be listed (M23-S12 uses it; a staff list item already carries `assignedResources`, the customer item does not — see S12). A `FIXED_ASSIGNMENT` schedule keeps its assignment row as the record of what was requested; it is swapped to the new resource only when a REASSIGN leaves no future active occurrence on the old one.
+*C. One way to change an occurrence.* An occurrence is its linked booking. The S04 occurrence path — `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart`, `SkipOrRescheduleOccurrenceUseCase`, the aggregate's `skipOccurrence`/`rescheduleOccurrence`, and the `RecurringBookingScheduleException` child and its entity — is **removed** (the table itself stays until M23-S24 drops it, see step 8): it existed because occurrences were once generated lazily, and since M23-S18 fixed the term and M23-S05 materializes every occurrence, a schedule-side exception record is a second source of truth for something the booking already says. Skipping is the ordinary cancel and rescheduling is `RescheduleBookingUseCase`. Two consequences, both deliberate: (1) a customer skipping an occurrence is now subject to the tenant's cancellation window like any one-off booking (S04's skip had no window check); staff have no window. (2) `GET /bookings` gains a `recurringScheduleId` filter so a schedule's occurrence bookings can be listed (M23-S12 uses it; a staff list item already carries `assignedResources`, the customer item does not — see S12). A `FIXED_ASSIGNMENT` schedule keeps its assignment row as the record of what was requested; it is swapped to the new resource only when a REASSIGN leaves no future active occurrence on the old one.
 
 **Backend use case steps:**
 1. **`RaiseFutureCommitmentExceptionUseCase`** (UC-073): idempotent — `findOpenByImpact(tenantId, sourceType, sourceId, affectedType, affectedId)` first; update the open row's alternatives (A1) or create one, publish `FutureCommitmentExceptionRaised`. `sourceType` and `affectedType` are closed value sets defined once (`RESOURCE_DEACTIVATION` / `BOOKING` today), so M23-S05 and later stories raise with the same set instead of inventing strings.
@@ -441,7 +442,7 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
 5. **Targeted move** (a helper beside `moveBookingLinesOccupancy`): for the booking lines whose assignment is on the source resource, validate the target — active, same type, inside the requirement's pool, free at the exact window excluding the booking's own lines (`lockResources`, then `findConflictingWindows`) — then release and re-assign occupancy at the same window on the target. Lines on other resources of a bundle are untouched. `AUTO` picks the least-loaded free candidate (`countActiveByResource`); no free candidate is a `STILL_OPEN` outcome, not an error.
 6. **`RecurringBookingSchedule.reassignResource(from, to)`** (dirty flag on the wholesale-replaced assignments child): after a REASSIGN batch, called for each `FIXED_ASSIGNMENT` schedule whose bookings moved, and only when no future non-terminal linked booking is left on `from`. It stays as-is otherwise, since the schedule's assignment is only the record of what was requested.
 7. **`DismissFutureCommitmentExceptionsUseCase`**: `exceptionIds[]`, `reason` required → `DISMISSED`, publish `FutureCommitmentExceptionDismissed`; same per-item best-effort shape.
-8. **Removal (part C):** delete the occurrence use case, aggregate methods, exception entity/builder/mapper branches and the route in backend and BFF; drop the `recurring_booking_schedule_exceptions` table in its own migration; delete `RecurringBookingScheduleExceptionAlreadyExistsError` and its code `BOOKING_RECURRING_SCHEDULE_EXCEPTION_ALREADY_EXISTS` (types + both `errors.json`); add the `recurringScheduleId` filter to `GET /bookings` (backend port/adapter/schema, BFF schema).
+8. **Removal (part C):** delete the occurrence use case, aggregate methods, exception entity/builder/mapper branches and the route in backend and BFF; stop reading or writing the `recurring_booking_schedule_exceptions` table but **leave it in place** — the migration runs in a separate job before the deploy, so the previous revision still loads that child table for a while, and a one-step drop would break it; the drop ships in M23-S24 once this story is deployed everywhere; delete `RecurringBookingScheduleExceptionAlreadyExistsError` and its code `BOOKING_RECURRING_SCHEDULE_EXCEPTION_ALREADY_EXISTS` (types + both `errors.json`); add the `recurringScheduleId` filter to `GET /bookings` (backend port/adapter/schema, BFF schema).
 
 **Backend HTTP surface:** new `scheduling-exception.controller.ts`, `@Controller('scheduling-exceptions')`, `@UseGuards(ManagerRoleGuard)` (same as `resource.controller.ts`): `GET /scheduling-exceptions?status=OPEN`, `POST /scheduling-exceptions/resolve`, `POST /scheduling-exceptions/dismiss`. The documented per-id routes (`POST /:id/resolve`, `POST /:id/dismiss`) are replaced by these bulk-only routes — a single entry is a list of one, and nothing consumes the old contract yet. `GET /bookings` gains `?recurringScheduleId=`. **Removed:** `PATCH /recurring-booking-schedules/:id/occurrences/:occurrenceStart`.
 
@@ -450,7 +451,7 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
 **Events:** `FutureCommitmentExceptionRaised`, `Resolved`, `Dismissed`, each drained through the outbox with one audit-log consumer (`FutureCommitmentExceptionEventsHandler` + `LogFutureCommitmentExceptionEventUseCase`, the same shape as `RecurringBookingScheduleEventsHandler`); Notification consumers are M23-S23.
 
 **New migration / i18n keys / env vars / feature flags:**
-- Migrations: `…020-CreateFutureCommitmentExceptions` (the documented table plus `alternatives JSONB NOT NULL DEFAULT '[]'` and `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, neither in `docs/13` today); `…021-DropRecurringBookingScheduleExceptions`. `integration-global-setup.ts`, `test-datasource.ts` and the entity builders are updated in the same commit.
+- Migrations: `…020-CreateFutureCommitmentExceptions` (the documented table plus `alternatives JSONB NOT NULL DEFAULT '[]'` and `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, neither in `docs/13` today). (The drop of `recurring_booking_schedule_exceptions` is M23-S24, not this story.) `integration-global-setup.ts`, `test-datasource.ts` and the entity builders are updated in the same commit.
 - Error codes (`packages/types/src/error-codes.ts` + both `errors.json`): add `BOOKING_EXCEPTION_NOT_FOUND`, `BOOKING_EXCEPTION_ALREADY_RESOLVED`, `BOOKING_EXCEPTION_REASSIGN_TARGET_INVALID`; remove `BOOKING_RECURRING_SCHEDULE_EXCEPTION_ALREADY_EXISTS`.
 - Env vars / feature flags: none.
 - **Devops (`infra/terraform/README.md` playbook, "new Pub/Sub topic" row):** the three events each get an audit consumer, so their topics are new — **1 PR + 1 Foundation apply**. PR1 (`infra-app-mix-ok` label + a PR-body note): the handler's `subscribe()` call sites, `pubsub-catalog.json` regenerated (`pnpm --filter @ikaro/infra-scripts run pubsub-catalog`). After PR1 merges and its `envs/*` apply runs: **apply Foundation** — dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve the `staging-foundation` and `production-foundation` Environments, then confirm `gcloud pubsub topics get-iam-policy` on each new topic shows the expected publisher binding in both projects (no code, no PR; nothing in CI fails if this is skipped).
@@ -470,7 +471,7 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-future-commitment-exception.repository.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new); `src/test/repositories/booking/in-memory-future-commitment-exception.repository.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/scheduling-exception.controller.ts` (+ specs, `.integration.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/events/future-commitment-exception-events.handler.ts` (+ spec) (new)
-- `apps/backend/src/contexts/booking/infrastructure/migrations/1748500000020-CreateFutureCommitmentExceptions.ts`, `1748500000021-DropRecurringBookingScheduleExceptions.ts` (new)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/1748500000020-CreateFutureCommitmentExceptions.ts` (new)
 - `apps/backend/src/contexts/booking/domain/recurring-booking-schedule.aggregate.ts`, `recurring-booking-schedule.types.ts` (+ specs) (modify — remove the exception child and `skipOccurrence`/`rescheduleOccurrence`, add `reassignResource`)
 - `apps/backend/src/contexts/booking/application/ports/recurring-booking-schedule-repository.port.ts`, `infrastructure/repositories/typeorm-recurring-booking-schedule.repository.ts`, `typeorm-recurring-booking-schedule.mapper.ts`, `src/test/repositories/booking/in-memory-recurring-booking-schedule.repository.ts` (+ specs) (modify)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ specs) (modify — remove the route); `application/dtos/request-recurring-booking-schedule.dto.ts` (modify — drop the re-exports)
@@ -482,6 +483,7 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
 - `apps/bff/src/features/booking/scheduling-exceptions.controller.ts`, `.schemas.ts`, `.types.ts`, `.mapper.ts` (+ specs) (new); `bookings.module.ts` (modify); `recurring-booking-schedules.controller.ts`, `.schemas.ts`, `.types.ts` (+ specs) (modify — remove the route); `bookings.schemas.ts` (modify — the new list filter)
 - `apps/backend/http/booking/scheduling-exceptions.http`, `apps/bff/http/bookings/scheduling-exceptions.http` (new); `apps/backend/http/booking/recurring-booking-schedules.http` (modify — remove the route)
 - `infra/terraform/pubsub-catalog.json` (regenerated)
+- **Stale-reference sweep (docs only):** `docs/27-BUSINESS_LOGIC_REFERENCE.md` (fix the `skipOccurrence()`/`rescheduleOccurrence()` mention in § Optimistic concurrency on mutation, and add a "Booking — Future-Commitment Worklist" section: raise, alternatives, best-effort bulk, the `reassignResource` rule); `plan/journey/customer/prototypes/minha-conta/06-reserva-recorrente.html`, `06e-pular-fora-do-prazo.html`, `06f-reagendar-fora-do-prazo.html` (replace the removed `PATCH …/occurrences/:occurrenceStart` line with skip = `PATCH /bookings/:id/cancel`, reschedule = the booking reschedule route, occurrences listed via `GET /bookings?recurringScheduleId=`); `docs/discovery/multivertical-booking/multivertical-booking_DATA_MODEL.md` (mark the exceptions table as removed).
 
 **Acceptance criteria — product:**
 - [ ] Deactivating a resource — or the staff member behind it — with future bookings creates one worklist entry per affected booking, visible to the manager.
@@ -498,11 +500,15 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
   - [ ] Targeted move: rejects an inactive, wrong-type, out-of-pool or occupied target; `AUTO` picks the least-loaded free one; a bundle's other resources are untouched
   - [ ] `reassignResource` swaps the assignment only when no future active occurrence is left on the old resource
   - [ ] Both triggers (`DeactivateResourceUseCase`, `CascadeStaffDeactivationUseCase`) call the shared raise step
+  - [ ] Deactivating a resource with no future bookings raises nothing and succeeds
 - Integration:
   - [ ] Both triggers create real worklist rows end to end
   - [ ] A bulk reassign of N real bookings keeps their times and changes the resource; one seeded conflict stays `OPEN` and the others are resolved
   - [ ] CANCEL and RESCHEDULE resolutions release / move the real occupancy rows
-  - [ ] The migration drops the exception table, and nothing references the removed route, use case or error code
+  - [ ] A bundle booking with only one of its resources deactivated raises an entry, and the other resource's line is untouched
+  - [ ] A repeated raise updates the open row and never duplicates it, checked against the real partial unique index
+  - [ ] `AUTO` reassign picks the least-loaded free resource among real rows
+  - [ ] Nothing in code references the removed route, use case, error code or exception entity; the `recurring_booking_schedule_exceptions` table is left in place for M23-S24
   - [ ] `GET /bookings?recurringScheduleId=` returns only that schedule's bookings
 - Tenant isolation:
   - [ ] Worklist queries and actions never cross tenant boundaries (Tenant A entry, Tenant B caller → 404)
@@ -1510,3 +1516,48 @@ Two notifications, one story because both extend S08's events and both need new 
 - [ ] `tsc --noEmit` clean, lint clean
 
 **Self-dry-run findings:** no blockers. One deviation from the request as first phrased ("a manager alert on `FutureCommitmentExceptionRaised`"): alerting per entry would spam managers, so the alert hangs on a new per-deactivation summary event published by S08's raise step (decided above, with the rejected alternative recorded). The reassign email's resource-name disclosure follows the existing UC-062/063 rule; the tenant-locale vs customer-locale question and the dead-link risk before S14 are left for discovery as business decisions.
+
+---
+
+### M23-S24 — Drop the retired `recurring_booking_schedule_exceptions` table
+
+**Agent:** `backend-ts`
+**Complexity:** S
+**Docs to load:** `docs/13-DATABASE_SCHEMA.md` § `recurring_booking_schedule_exceptions` (the note that follows the recurring-schedule tables), `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/DEFINITION_OF_DONE.md` § Migration history — pre-production exception
+**Dependencies:** M23-S08 (must be merged **and deployed to staging and production**: it stops reading and writing the table, and this story drops it — the contract step of an expand/contract removal). Independent of every other M23 story.
+**Pattern:** plain composition — no named pattern applies (one migration and a doc edit).
+
+**Description:**
+M23-S08 removed the schedule-side occurrence-exception path (the use case, the aggregate's `skipOccurrence`/`rescheduleOccurrence`, the `RecurringBookingScheduleException` child and its entity) but deliberately left the `recurring_booking_schedule_exceptions` table in place. Migrations run in a separate CI job before the deploy, so for a while the previous revision is still running and still loads that table when it reads a schedule; a one-step drop in S08 would have broken it. Once S08 is live everywhere nothing reads or writes the table, so this story removes it. It is the last step of the removal, not new behavior.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **One migration, `DROP TABLE IF EXISTS`**, with a `down()` that recreates the table exactly as `1748500000017-CreateRecurringBookingSchedules.ts` defined it (so a rollback of this migration alone is possible). It takes the next free number at implementation time; no other story's migration is renumbered.
+2. **Data check first, not assumed.** The story's first step is a live read of the row count in staging and production (`SELECT count(*) FROM booking.recurring_booking_schedule_exceptions`). Rows there are skip/reschedule records of occurrences that no longer have any meaning in the design; a non-zero count is reported to the user before the migration merges, never dropped silently. The pre-production exception in `docs/DEFINITION_OF_DONE.md` is **not** relied on: staging has run migration `…017`.
+3. **Nothing else changes.** No code outside the migration, `docs/13-DATABASE_SCHEMA.md`, and the registry files that list the table.
+
+**Backend use case steps:** none — no use case changes.
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+
+**New migration / i18n keys / env vars / feature flags:**
+- Migration: `<next free number>-DropRecurringBookingScheduleExceptions` (`DROP TABLE IF EXISTS`, `down()` recreates it).
+- i18n keys, env vars, feature flags: none.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/infrastructure/migrations/<next free number>-DropRecurringBookingScheduleExceptions.ts` (new)
+- `docs/13-DATABASE_SCHEMA.md` (modify — replace the "no longer read or written after M23-S08" note with "dropped by M23-S24", and remove the table's column list if one is still there)
+- `apps/backend/src/test/integration-global-setup.ts`, `apps/backend/src/test/test-datasource.ts` (modify only if either still lists the table's entity or DDL after S08; S08 removes the entity, so this is a check, not an expected edit)
+
+**Acceptance criteria — product:**
+- [ ] The schedule flows (create, list, end, approve) behave exactly as before; nothing user-visible changes.
+
+**Acceptance criteria — technical:**
+- Unit: none — a migration only.
+- Integration:
+  - [ ] After the migrations run, `booking.recurring_booking_schedule_exceptions` does not exist and the schedule repository's existing integration suite still passes.
+  - [ ] `down()` recreates the table with its columns, FK and CHECK, and `up()` drops it again.
+- Tenant isolation: none — no tenant data is read or written.
+- E2E: none — no UI.
+- [ ] The staging and production row counts were read and reported before the migration merged.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
