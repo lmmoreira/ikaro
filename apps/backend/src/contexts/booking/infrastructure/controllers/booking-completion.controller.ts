@@ -1,4 +1,13 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -37,11 +46,28 @@ import {
   CompleteBookingUseCase,
   CompleteBookingUseCaseResult,
 } from '../../application/use-cases/complete-booking.use-case';
+import {
+  MarkBookingNoShowDto,
+  MarkBookingNoShowSchema,
+} from '../../application/dtos/mark-booking-no-show.dto';
+import {
+  CorrectBookingNoShowDto,
+  CorrectBookingNoShowSchema,
+} from '../../application/dtos/correct-booking-no-show.dto';
+import {
+  MarkBookingNoShowUseCase,
+  MarkBookingNoShowUseCaseResult,
+} from '../../application/use-cases/mark-booking-no-show.use-case';
+import {
+  CorrectBookingNoShowUseCase,
+  CorrectBookingNoShowUseCaseResult,
+} from '../../application/use-cases/correct-booking-no-show.use-case';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
+import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
 
 // Split from booking-lifecycle.controller.ts — same 'bookings' route prefix — to satisfy
-// docs/CODE_STANDARDS.md's file-length limit. Cancel/reschedule/complete endpoints live here.
+// docs/CODE_STANDARDS.md's file-length limit. Cancel/reschedule/complete/no-show endpoints live here.
 @Controller('bookings')
 export class BookingCompletionController {
   constructor(
@@ -51,6 +77,8 @@ export class BookingCompletionController {
     private readonly rescheduleBooking: RescheduleBookingUseCase,
     private readonly rescheduleBookingAsCustomer: RescheduleBookingAsCustomerUseCase,
     private readonly completeBooking: CompleteBookingUseCase,
+    private readonly markBookingNoShow: MarkBookingNoShowUseCase,
+    private readonly correctBookingNoShow: CorrectBookingNoShowUseCase,
   ) {}
 
   @Patch(':id/cancel-customer')
@@ -149,6 +177,48 @@ export class BookingCompletionController {
         correlationId,
         currency: settings.localization.currency,
         pointsPerCurrencyUnit: settings.loyalty.pointsPerCurrencyUnit,
+      })
+      .catch(mapBookingError);
+  }
+
+  // UC-074 — staff or manager records that the customer did not attend (after the scheduled end).
+  @Post(':id/no-show')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  markNoShow(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(MarkBookingNoShowSchema)) body: MarkBookingNoShowDto,
+  ): Promise<MarkBookingNoShowUseCaseResult> {
+    const { tenantId, actorId: staffId, actorRole, correlationId } = this.ctx;
+    return this.markBookingNoShow
+      .execute({
+        bookingId: id,
+        reason: body.reason,
+        tenantId,
+        staffId: staffId!,
+        actorRole: actorRole === 'MANAGER' ? 'MANAGER' : 'STAFF',
+        correlationId,
+      })
+      .catch(mapBookingError);
+  }
+
+  // UC-074 A3 — manager-only correction of a mistaken no-show; COMPLETED is the only target.
+  @Post(':id/no-show/correct')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ManagerRoleGuard)
+  correctNoShow(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CorrectBookingNoShowSchema)) body: CorrectBookingNoShowDto,
+  ): Promise<CorrectBookingNoShowUseCaseResult> {
+    const { tenantId, actorId: staffId, correlationId } = this.ctx;
+    return this.correctBookingNoShow
+      .execute({
+        bookingId: id,
+        correctedStatus: body.correctedStatus,
+        reason: body.reason,
+        tenantId,
+        staffId: staffId!,
+        correlationId,
       })
       .catch(mapBookingError);
   }

@@ -10,6 +10,8 @@ export { ServiceLegResourceRequirementPoolEntityBuilder } from './service-leg-re
 export { ServiceClassResourcePoolEntityBuilder } from './service-class-resource-pool-entity.builder';
 export { ServiceBookingIntakeSchemaEntityBuilder } from './service-booking-intake-schema-entity.builder';
 export { BookingQuoteRevisionEntityBuilder } from './booking-quote-revision-entity.builder';
+export { BookingNoShowEventBuilder } from './booking-no-show-event.builder';
+export { BookingStatusTransitionEntityBuilder } from './booking-status-transition-entity.builder';
 export { RecurringBookingScheduleEntityBuilder } from './recurring-booking-schedule-entity.builder';
 export { RecurringBookingScheduleResourceAssignmentEntityBuilder } from './recurring-booking-schedule-resource-assignment-entity.builder';
 export { FutureCommitmentExceptionBuilder } from './future-commitment-exception.builder';

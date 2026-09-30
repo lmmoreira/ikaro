@@ -23,6 +23,7 @@ import {
 import { ServiceClassResourcePoolEntity } from '../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
 import { ServiceBookingIntakeSchemaEntity } from '../contexts/booking/infrastructure/entities/service-booking-intake-schema.entity';
 import { BookingQuoteRevisionEntity } from '../contexts/booking/infrastructure/entities/booking-quote-revision.entity';
+import { BookingStatusTransitionEntity } from '../contexts/booking/infrastructure/entities/booking-status-transition.entity';
 import { RecurringBookingScheduleEntity } from '../contexts/booking/infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
 import { FutureCommitmentExceptionEntity } from '../contexts/booking/infrastructure/entities/future-commitment-exception.entity';
@@ -48,6 +49,7 @@ import { RequireRecurringBookingScheduleEndsOn1748500000018 } from '../contexts/
 import { RemoveRecurringBookingSchedulePausedStatus1748500000019 } from '../contexts/booking/infrastructure/migrations/1748500000019-RemoveRecurringBookingSchedulePausedStatus';
 import { CreateFutureCommitmentExceptions1748500000020 } from '../contexts/booking/infrastructure/migrations/1748500000020-CreateFutureCommitmentExceptions';
 import { DropRecurringBookingScheduleExceptions1748500000021 } from '../contexts/booking/infrastructure/migrations/1748500000021-DropRecurringBookingScheduleExceptions';
+import { CreateBookingStatusTransitions1748500000023 } from '../contexts/booking/infrastructure/migrations/1748500000023-CreateBookingStatusTransitions';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -158,6 +160,7 @@ export default async function globalSetup(): Promise<void> {
       BookingLineResourceAssignmentEntity,
       ResourceOccupancyEntity,
       BookingQuoteRevisionEntity,
+      BookingStatusTransitionEntity,
       RecurringBookingScheduleEntity,
       RecurringBookingScheduleResourceAssignmentEntity,
       FutureCommitmentExceptionEntity,
@@ -215,6 +218,7 @@ export default async function globalSetup(): Promise<void> {
       RemoveRecurringBookingSchedulePausedStatus1748500000019,
       CreateFutureCommitmentExceptions1748500000020,
       DropRecurringBookingScheduleExceptions1748500000021,
+      CreateBookingStatusTransitions1748500000023,
     ],
     synchronize: false,
     migrationsRun: false,

@@ -110,6 +110,22 @@ export const CompleteBookingBodySchema = z.object({
     .optional(),
 });
 
+// M23-S09 (UC-074) — mirrors the backend's MarkBookingNoShowSchema / CorrectBookingNoShowSchema
+// (two independent copies of the same rule — change both together). The reason of a no-show is an
+// optional internal note; the correction accepts COMPLETED only and requires a 10–500 character reason.
+export const MarkNoShowBodySchema = z
+  .object({
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .default({});
+
+export const CorrectNoShowBodySchema = z.object({
+  correctedStatus: z.literal('COMPLETED'),
+  reason: z.string().trim().min(10).max(500),
+});
+
+export type MarkNoShowBody = z.infer<typeof MarkNoShowBodySchema>;
+export type CorrectNoShowBody = z.infer<typeof CorrectNoShowBodySchema>;
 export type CancelAsAdminBody = z.infer<typeof CancelAsAdminBodySchema>;
 export type RescheduleBookingBody = z.infer<typeof RescheduleBookingBodySchema>;
 export type ApproveBookingBody = ApproveBookingRequest;
@@ -131,7 +147,7 @@ export const SubmitGuestBookingInfoBodySchema = z.object({
 
 // Matches one or more comma-separated BookingStatus values, e.g. "PENDING" or "PENDING,INFO_REQUESTED"
 const BOOKING_STATUS_RE =
-  /^(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED)(,(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED))*$/;
+  /^(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED|NO_SHOW)(,(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED|NO_SHOW))*$/;
 
 export const StaffListBookingsQuerySchema = z
   .object({

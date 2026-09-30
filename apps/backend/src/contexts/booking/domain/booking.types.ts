@@ -27,6 +27,7 @@ export enum BookingStatus {
   COMPLETED = 'COMPLETED',
   REJECTED = 'REJECTED',
   CANCELLED = 'CANCELLED',
+  NO_SHOW = 'NO_SHOW',
 }
 
 export type BookingType = 'GUEST' | 'CUSTOMER';

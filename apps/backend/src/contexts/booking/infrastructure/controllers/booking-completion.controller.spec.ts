@@ -7,6 +7,7 @@ import { InMemoryStorageService } from '../../../../test/infrastructure/in-memor
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingQuoteRevisionRepository } from '../../../../test/repositories/booking/in-memory-booking-quote-revision.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingCompletionController } from './booking-completion.controller';
@@ -15,6 +16,10 @@ import { CancelBookingAsAdminUseCase } from '../../application/use-cases/cancel-
 import { RescheduleBookingUseCase } from '../../application/use-cases/reschedule-booking.use-case';
 import { RescheduleBookingAsCustomerUseCase } from '../../application/use-cases/reschedule-booking-as-customer.use-case';
 import { CompleteBookingUseCase } from '../../application/use-cases/complete-booking.use-case';
+import { MarkBookingNoShowUseCase } from '../../application/use-cases/mark-booking-no-show.use-case';
+import { CorrectBookingNoShowUseCase } from '../../application/use-cases/correct-booking-no-show.use-case';
+import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
+import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
 import { BookingQuoteService } from '../../application/services/booking-quote.service';
 import { PhotoExistenceService } from '../../application/services/photo-existence.service';
@@ -33,6 +38,7 @@ describe('BookingCompletionController', () => {
   let controller: BookingCompletionController;
   let customerController: BookingCompletionController;
   let bookingRepo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let storageService: InMemoryStorageService;
 
   beforeEach(() => {
@@ -54,6 +60,7 @@ describe('BookingCompletionController', () => {
     const fixtures = createAutoBookingResourceFixtures();
     const occupancyRepo = new InMemoryResourceOccupancyRepository();
     const quoteRevisionRepo = new InMemoryBookingQuoteRevisionRepository();
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
 
     const buildController = (ctx: typeof staffCtx) =>
       new BookingCompletionController(
@@ -94,6 +101,12 @@ describe('BookingCompletionController', () => {
           bookingRepo,
           new InMemoryTransactionManager(),
           new PhotoExistenceService(storageService),
+        ),
+        new MarkBookingNoShowUseCase(bookingRepo, transitionRepo, new InMemoryTransactionManager()),
+        new CorrectBookingNoShowUseCase(
+          bookingRepo,
+          transitionRepo,
+          new InMemoryTransactionManager(),
         ),
       );
 
@@ -355,6 +368,129 @@ describe('BookingCompletionController', () => {
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+  });
+
+  describe('markNoShow()', () => {
+    const endedApproved = (tenantId = TENANT_A) =>
+      new BookingBuilder()
+        .withTenantId(tenantId)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(Date.now() - 2 * 3_600_000))
+        .withTotalDurationMins(30);
+
+    it('marks an ended APPROVED booking as NO_SHOW and records the audit row as MANAGER', async () => {
+      const booking = endedApproved().build();
+      await bookingRepo.save(booking);
+
+      const result = await controller.markNoShow(booking.id, { reason: 'Não atendeu o telefone' });
+
+      expect(result).toEqual({ bookingId: booking.id, status: BookingStatus.NO_SHOW });
+      expect(transitionRepo.all()[0]).toMatchObject({
+        actorType: 'MANAGER',
+        reason: 'Não atendeu o telefone',
+      });
+    });
+
+    it('maps BookingNotFoundError to 404', async () => {
+      const err = await controller
+        .markNoShow('00000000-0000-4000-8000-000000009999', {})
+        .catch((e: unknown) => e);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('tenant isolation: a booking from tenantB returns 404', async () => {
+      const booking = endedApproved(TENANT_B).build();
+      await bookingRepo.save(booking);
+
+      const err = await controller.markNoShow(booking.id, {}).catch((e: unknown) => e);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('maps an already-terminal booking to 409', async () => {
+      const booking = endedApproved().withStatus(BookingStatus.COMPLETED).build();
+      await bookingRepo.save(booking);
+
+      const err = await controller.markNoShow(booking.id, {}).catch((e: unknown) => e);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
+    });
+
+    it('maps an appointment that has not ended to 422', async () => {
+      const booking = endedApproved()
+        .withScheduledAt(new Date(Date.now() + 3_600_000))
+        .build();
+      await bookingRepo.save(booking);
+
+      const err = await controller.markNoShow(booking.id, {}).catch((e: unknown) => e);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+
+    it('maps a PENDING booking to 422', async () => {
+      const booking = endedApproved().withStatus(BookingStatus.PENDING).build();
+      await bookingRepo.save(booking);
+
+      const err = await controller.markNoShow(booking.id, {}).catch((e: unknown) => e);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+
+    it('is guarded for STAFF or MANAGER', () => {
+      const guards = Reflect.getMetadata(
+        '__guards__',
+        BookingCompletionController.prototype.markNoShow,
+      );
+      expect(guards).toContain(StaffOrManagerRoleGuard);
+    });
+  });
+
+  describe('correctNoShow()', () => {
+    const body = { correctedStatus: 'COMPLETED' as const, reason: 'Cliente foi atendido.' };
+
+    it('completes a NO_SHOW booking and records the correction row', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.NO_SHOW)
+        .build();
+      await bookingRepo.save(booking);
+
+      const result = await controller.correctNoShow(booking.id, body);
+
+      expect(result.status).toBe(BookingStatus.COMPLETED);
+      expect(transitionRepo.all()[0]).toMatchObject({
+        fromStatus: BookingStatus.NO_SHOW,
+        toStatus: BookingStatus.COMPLETED,
+        reason: body.reason,
+      });
+    });
+
+    it('maps a booking that is not NO_SHOW to 422', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .build();
+      await bookingRepo.save(booking);
+
+      const err = await controller.correctNoShow(booking.id, body).catch((e: unknown) => e);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+
+    it('tenant isolation: a no-show from tenantB returns 404', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_B)
+        .withStatus(BookingStatus.NO_SHOW)
+        .build();
+      await bookingRepo.save(booking);
+
+      const err = await controller.correctNoShow(booking.id, body).catch((e: unknown) => e);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('is guarded for MANAGER only', () => {
+      const guards = Reflect.getMetadata(
+        '__guards__',
+        BookingCompletionController.prototype.correctNoShow,
+      );
+      expect(guards).toContain(ManagerRoleGuard);
+      expect(guards).not.toContain(StaffOrManagerRoleGuard);
     });
   });
 });

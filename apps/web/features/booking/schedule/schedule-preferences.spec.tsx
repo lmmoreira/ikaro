@@ -50,6 +50,7 @@ describe('schedule preferences', () => {
       BOOKING_STATUS.REJECTED,
       BOOKING_STATUS.CANCELLED,
       BOOKING_STATUS.COMPLETED,
+      BOOKING_STATUS.NO_SHOW,
     ]);
 
     store.setSelectedStatuses([
@@ -75,6 +76,7 @@ describe('schedule preferences', () => {
       BOOKING_STATUS.REJECTED,
       BOOKING_STATUS.CANCELLED,
       BOOKING_STATUS.COMPLETED,
+      BOOKING_STATUS.NO_SHOW,
     ]);
   });
 

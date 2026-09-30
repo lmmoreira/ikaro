@@ -119,7 +119,11 @@ export function BookingDetailAsideCard({
     return <BackToAgendaActionsCard backHref={backHref} />;
   }
 
-  if (booking.status === BOOKING_STATUS.REJECTED || booking.status === BOOKING_STATUS.CANCELLED) {
+  if (
+    booking.status === BOOKING_STATUS.REJECTED ||
+    booking.status === BOOKING_STATUS.CANCELLED ||
+    booking.status === BOOKING_STATUS.NO_SHOW
+  ) {
     return null;
   }
 

@@ -8,9 +8,11 @@ import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text
 import { BookingAttendee } from './booking-attendee.entity';
 import { BookingLine } from './booking-line.entity';
 import {
+  BookingAlreadyTerminalError,
   BookingDiscountExceedsTotalError,
   BookingInfoMessageTooShortError,
   BookingLineRequiredError,
+  BookingNotYetEndedError,
   BookingRejectionReasonTooShortError,
   InvalidBookingTransitionError,
   PickupAddressRequiredError,
@@ -20,6 +22,7 @@ import { BookingCancelled } from './events/booking-cancelled.event';
 import { BookingCompleted } from './events/booking-completed.event';
 import { BookingInfoRequested } from './events/booking-info-requested.event';
 import { BookingInfoSubmitted } from './events/booking-info-submitted.event';
+import { BookingNoShow } from './events/booking-no-show.event';
 import { BookingRequested } from './events/booking-requested.event';
 import { BookingRescheduled } from './events/booking-rescheduled.event';
 import { BookingRejected } from './events/booking-rejected.event';
@@ -478,7 +481,73 @@ export class Booking extends AggregateRoot {
     if (this.props.status !== BookingStatus.APPROVED) {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.COMPLETED);
     }
+    this.applyCompletion(
+      staffId,
+      lineActualPrices,
+      afterPhotos,
+      correlationId,
+      adminNotes,
+      discountByPoints,
+    );
+  }
 
+  // UC-074 A3 — a manager corrects a mistaken no-show. The booking is completed at its booked
+  // prices (no photos, notes or points discount), so the resulting BookingCompleted carries a valid
+  // payload for Loyalty, which awards the service points exactly once, here.
+  correctNoShow(staffId: string, correlationId: string): void {
+    if (this.props.status !== BookingStatus.NO_SHOW) {
+      throw new InvalidBookingTransitionError(this.props.status, BookingStatus.COMPLETED);
+    }
+    this.applyCompletion(staffId, new Map(), [], correlationId);
+  }
+
+  // UC-074 — terminal status reachable only from APPROVED, and only after the appointment's
+  // scheduled end (scheduledAt + totalDurationMins). Precedence: already-terminal (409) first, then
+  // not-APPROVED (422), then not-yet-ended (422). No loyalty event; BookingCompleted is only
+  // published by a later manager correction.
+  markNoShow(
+    staffId: string,
+    correlationId: string,
+    reason?: string,
+    now: Date = new Date(),
+  ): void {
+    if (Booking.TERMINAL_STATUSES.includes(this.props.status)) {
+      throw new BookingAlreadyTerminalError(this.props.status);
+    }
+    if (this.props.status !== BookingStatus.APPROVED) {
+      throw new InvalidBookingTransitionError(this.props.status, BookingStatus.NO_SHOW);
+    }
+    const endsAt = new Date(
+      this.props.scheduledAt.getTime() + this.props.totalDurationMins * 60_000,
+    );
+    if (now.getTime() < endsAt.getTime()) throw new BookingNotYetEndedError(endsAt);
+
+    this.props.status = BookingStatus.NO_SHOW;
+    this.addDomainEvent(
+      new BookingNoShow(this.props.tenantId, correlationId, {
+        bookingId: this.props.id,
+        actorId: staffId,
+        reason: normalizeOptionalText(reason),
+        occurredAt: now.toISOString(),
+      }),
+    );
+  }
+
+  private static readonly TERMINAL_STATUSES: readonly BookingStatus[] = [
+    BookingStatus.COMPLETED,
+    BookingStatus.REJECTED,
+    BookingStatus.CANCELLED,
+    BookingStatus.NO_SHOW,
+  ];
+
+  private applyCompletion(
+    staffId: string,
+    lineActualPrices: Map<string, Money>,
+    afterPhotos: string[],
+    correlationId: string,
+    adminNotes?: string,
+    discountByPoints?: { pointsUsed: number; amountDeducted: number },
+  ): void {
     const { totalActualPrice, discountAmount } = this.applyActualPrices(
       lineActualPrices,
       discountByPoints,

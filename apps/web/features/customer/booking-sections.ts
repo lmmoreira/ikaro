@@ -10,6 +10,7 @@ const HISTORY_STATUSES: ReadonlySet<string> = new Set([
   BOOKING_STATUS.COMPLETED,
   BOOKING_STATUS.CANCELLED,
   BOOKING_STATUS.REJECTED,
+  BOOKING_STATUS.NO_SHOW,
 ]);
 
 function startOfDay(date: Date): Date {

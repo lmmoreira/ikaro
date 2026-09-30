@@ -6,7 +6,8 @@ type BookingStatusTranslationKey =
   | 'statusApproved'
   | 'statusRejected'
   | 'statusCancelled'
-  | 'statusCompleted';
+  | 'statusCompleted'
+  | 'statusNoShow';
 
 type TranslateFn = (key: BookingStatusTranslationKey) => string;
 
@@ -17,6 +18,7 @@ export const BOOKING_STATUS_CLASSES: Record<BookingStatus, string> = {
   [BOOKING_STATUS.REJECTED]: 'bg-red-100 text-red-800',
   [BOOKING_STATUS.CANCELLED]: 'bg-gray-100 text-gray-600',
   [BOOKING_STATUS.COMPLETED]: 'bg-slate-100 text-slate-600',
+  [BOOKING_STATUS.NO_SHOW]: 'bg-violet-100 text-violet-800',
 };
 
 export const SCHEDULE_BOOKING_TIMELINE_CLASSES: Record<BookingStatus, string> = {
@@ -26,6 +28,7 @@ export const SCHEDULE_BOOKING_TIMELINE_CLASSES: Record<BookingStatus, string> = 
   [BOOKING_STATUS.REJECTED]: 'bg-red-50 text-red-950',
   [BOOKING_STATUS.CANCELLED]: 'bg-gray-100 text-gray-700',
   [BOOKING_STATUS.COMPLETED]: 'bg-slate-100 text-slate-700',
+  [BOOKING_STATUS.NO_SHOW]: 'bg-violet-50 text-violet-950',
 };
 
 export const SCHEDULE_BOOKING_STATUS_DEFAULT: readonly BookingStatus[] = [
@@ -34,6 +37,7 @@ export const SCHEDULE_BOOKING_STATUS_DEFAULT: readonly BookingStatus[] = [
   BOOKING_STATUS.REJECTED,
   BOOKING_STATUS.CANCELLED,
   BOOKING_STATUS.COMPLETED,
+  BOOKING_STATUS.NO_SHOW,
 ];
 
 export const SCHEDULE_BOOKING_STATUS_OPTIONS: readonly BookingStatus[] = [
@@ -52,5 +56,6 @@ export function buildBookingStatusLabels(t: TranslateFn): Record<BookingStatus, 
     [BOOKING_STATUS.REJECTED]: t('statusRejected'),
     [BOOKING_STATUS.CANCELLED]: t('statusCancelled'),
     [BOOKING_STATUS.COMPLETED]: t('statusCompleted'),
+    [BOOKING_STATUS.NO_SHOW]: t('statusNoShow'),
   };
 }

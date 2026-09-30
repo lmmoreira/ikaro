@@ -17,6 +17,8 @@
   "BOOKING_LINE_REQUIRED": "O agendamento deve conter ao menos um serviço.",
   "BOOKING_PICKUP_ADDRESS_REQUIRED": "O endereço de coleta é obrigatório para o serviço selecionado.",
   "BOOKING_INVALID_TRANSITION": "Não é possível alterar o status do agendamento para o status solicitado.",
+  "BOOKING_ALREADY_TERMINAL": "Este agendamento já foi encerrado e não pode mais ser alterado desta forma.",
+  "BOOKING_NOT_YET_ENDED": "Este atendimento ainda não terminou, por isso não pode ser marcado como não comparecimento.",
   "BOOKING_SLOT_UNAVAILABLE": "O horário solicitado não está mais disponível.",
   "BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE": "Parte deste agendamento não está mais disponível.",
   "BOOKING_LEG_UNAVAILABLE": "Uma das etapas deste agendamento não está mais disponível.",

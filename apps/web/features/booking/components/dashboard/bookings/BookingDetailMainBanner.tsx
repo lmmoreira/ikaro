@@ -181,5 +181,26 @@ export function BookingDetailMainBanner({
     );
   }
 
+  if (booking.status === BOOKING_STATUS.NO_SHOW) {
+    return (
+      <Card className="border-violet-200 bg-violet-50/80">
+        <CardContent className="flex items-start gap-3 p-4">
+          <BookingStatusBannerIcon variant="info" />
+          <div className="min-w-0 flex-1">
+            <p
+              data-testid="booking-no-show-title"
+              className="text-sm font-bold uppercase tracking-[0.07em] text-violet-700"
+            >
+              {t('noShowTitle')}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-violet-700/90">
+              {t('noShowBody', { name: booking.contactName })}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return null;
 }

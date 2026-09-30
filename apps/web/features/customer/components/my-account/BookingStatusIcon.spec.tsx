@@ -35,4 +35,10 @@ describe('BookingStatusIcon', () => {
     expect(rejected.container.querySelector('.bg-red-50')).toBeInTheDocument();
     expect(rejected.container.querySelector('.text-red-600')).toBeInTheDocument();
   });
+
+  it('renders a violet square for NO_SHOW', () => {
+    const { container } = render(<BookingStatusIcon status="NO_SHOW" />);
+    expect(container.querySelector('.bg-violet-50')).toBeInTheDocument();
+    expect(container.querySelector('.text-violet-600')).toBeInTheDocument();
+  });
 });
