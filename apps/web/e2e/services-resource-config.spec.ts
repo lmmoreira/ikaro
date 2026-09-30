@@ -123,6 +123,42 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('policy-recurrence-eligible')).toBeChecked();
   });
 
+  // M23-S16 — the recurring-schedule maximum term (Service.bookingPolicy.recurringHorizonDays).
+  test('sets the recurring maximum term, rejects an out-of-range one, then clears it back to the default', async ({
+    page,
+  }) => {
+    const service = await seedService(page);
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+
+    const horizon = page.getByTestId('policy-recurring-horizon');
+    await expect(horizon).toBeDisabled();
+    await page.getByTestId('policy-recurrence-eligible').click();
+    await expect(horizon).toBeEnabled();
+
+    await horizon.fill('181');
+    await expect(page.getByTestId('policy-recurring-horizon-error')).toBeVisible();
+    await expect(page.getByTestId('service-desktop-tab-action')).toBeDisabled();
+
+    await horizon.fill('60');
+    await expect(page.getByTestId('policy-recurring-horizon-error')).toBeHidden();
+    await page.getByTestId('service-desktop-tab-action').click();
+    await expect(page.getByTestId('policy-saved')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await expect(page.getByTestId('policy-recurring-horizon')).toHaveValue('60');
+
+    await page.getByTestId('policy-recurring-horizon').fill('');
+    await page.getByTestId('service-desktop-tab-action').click();
+    await expect(page.getByTestId('policy-saved')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await expect(page.getByTestId('policy-recurring-horizon')).toHaveValue('');
+  });
+
   test('sets a variable-duration per-increment policy, then switches back to FIXED and saves again', async ({
     page,
   }) => {

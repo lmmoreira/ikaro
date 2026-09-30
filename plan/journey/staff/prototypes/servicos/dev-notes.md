@@ -236,10 +236,14 @@ UpdateServiceBookingPolicySchema — ALL 17 independently-submittable fields:
      directly below the recurrenceEligible checkbox, DISABLED while that checkbox is unchecked
      (the stored value is kept, just not editable). Integer 1–180; blank = null = inherit the
      90-day platform default. Applies to every actor (customer and staff-created schedules).
-     The 180 ceiling is enforced in packages/validation (shared by BFF and backend); the input's
-     min/max/step are browser hints only — an out-of-range value surfaces the backend 422 via the
-     panel's existing error path. See 03-service-edit.html (enabled, 60), 03d (enabled, 60),
-     02c/03c (recurrence off → disabled, blank).
+     The 180 ceiling is enforced in packages/validation (shared by BFF and backend; the bounds are
+     MIN/MAX_RECURRING_HORIZON_DAYS in @ikaro/types). The dashboard also validates INLINE: a
+     non-integer or a value outside 1–180 shows "Informe um número inteiro de 1 a 180 dias." under
+     the input and disables the tab's Salvar action until fixed — the BFF's schema rejection is a
+     400 with violations[] and no error `code`, which the panel could only show as the generic
+     "Algo deu errado". The error state is not drawn as its own prototype screen (red text under
+     the field, same pattern as the other inline field errors). See 03-service-edit.html
+     (enabled, 60), 03d (enabled, 60), 02c/03c (recurrence off → disabled, blank).
 
 PublishServiceIntakeSchemaSchema: { questions[]: {fieldKey, label, type, required}, consentText,
                                      requiresNamedAttendees?, participantCountRequired? }

@@ -8,6 +8,7 @@ import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
 import { PolicyDurationPricingCard } from './PolicyDurationPricingCard';
+import { isValidRecurringHorizonDays } from './recurring-horizon';
 import {
   PolicyConfirmationCard,
   PolicyBookingWindowCard,
@@ -63,7 +64,7 @@ export function ServiceBookingPolicyPanel({
 
   useRegisterTabAction(onActionChange, {
     label: t('politicasSaveButton'),
-    disabled: updatePolicy.isPending,
+    disabled: updatePolicy.isPending || !isValidRecurringHorizonDays(policy.recurringHorizonDays),
     pending: updatePolicy.isPending,
     onSubmit: handleSave,
   });

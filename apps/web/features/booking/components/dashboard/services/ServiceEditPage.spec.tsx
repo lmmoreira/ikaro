@@ -70,6 +70,7 @@ const service: StaffServiceResponse = {
     minBookingAdvanceHoursOverride: null,
     maxBookingAdvanceDaysOverride: null,
     recurrenceEligible: false,
+    recurringHorizonDays: null,
     availabilityAlertEligible: false,
     durationPolicy: 'FIXED',
     durationMinMinutes: null,
