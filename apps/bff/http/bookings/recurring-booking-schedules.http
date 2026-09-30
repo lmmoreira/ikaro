@@ -1,0 +1,46 @@
+# BFF — Recurring schedule approval (M23-S05, UC-071)
+# STAFF|MANAGER only. A pass-through to the backend routes of the same name; every decision
+# (hold window, re-check of the whole term, materialization) is made backend-side.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#   5. pnpm --filter @ikaro/bff run dev
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@staffToken = {{staffLogin.response.body.accessToken}}
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "staff@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+
+### Pending requests — the approval queue
+GET {{bffUrl}}/v1/recurring-booking-schedules?status=PENDING_APPROVAL
+Authorization: Bearer {{staffToken}}
+
+###
+
+### Approve — 200 {id, status: "ACTIVE", occurrenceCount}
+POST {{bffUrl}}/v1/recurring-booking-schedules/{{pendingScheduleId}}/approve
+Authorization: Bearer {{staffToken}}
+
+###
+
+### Reject — 200 {id, status: "CANCELLED"}
+POST {{bffUrl}}/v1/recurring-booking-schedules/{{pendingScheduleId}}/reject
+Authorization: Bearer {{staffToken}}
+
+###
+
+### 409 — already resolved or past its hold (BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL)
+POST {{bffUrl}}/v1/recurring-booking-schedules/{{resolvedScheduleId}}/approve
+Authorization: Bearer {{staffToken}}

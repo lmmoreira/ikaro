@@ -633,3 +633,75 @@ describe('Booking domain events — event envelope fields', () => {
     expect(event.eventVersion).toBe(1);
   });
 });
+
+describe('Booking.materializeRecurringOccurrence()', () => {
+  const SCHEDULE_ID = '00000000-0000-7000-8000-000000000010';
+  const CUSTOMER_ID = '00000000-0000-7000-8000-000000000011';
+
+  function materialize(
+    overrides: Partial<Parameters<typeof Booking.materializeRecurringOccurrence>[0]> = {},
+  ): Booking {
+    return Booking.materializeRecurringOccurrence({
+      tenantId: TENANT_ID,
+      customerId: CUSTOMER_ID,
+      contactEmail: 'ana@test.com',
+      contactName: 'Ana Souza',
+      contactPhone: '+5531999999999',
+      scheduledAt: new Date(Date.now() + 86_400_000),
+      lineInputs: [lineInput().withDurationMinsAtBooking(120).build()],
+      recurringScheduleId: SCHEDULE_ID,
+      approvedBy: null,
+      ...overrides,
+    });
+  }
+
+  it('creates the booking directly APPROVED, linked to its schedule, for the customer', () => {
+    const booking = materialize();
+
+    expect(booking.status).toBe(BookingStatus.APPROVED);
+    expect(booking.recurringScheduleId).toBe(SCHEDULE_ID);
+    expect(booking.customerId).toBe(CUSTOMER_ID);
+    expect(booking.type).toBe('CUSTOMER');
+    expect(booking.totalDurationMins).toBe(120);
+    expect(booking.linesModified).toBe(true);
+    expect(booking.approvedAt).toBeInstanceOf(Date);
+  });
+
+  it('records the approving staff member, or null when the schedule auto-confirmed', () => {
+    expect(materialize({ approvedBy: STAFF_ID }).approvedBy).toBe(STAFF_ID);
+    expect(materialize({ approvedBy: null }).approvedBy).toBeNull();
+  });
+
+  it('raises no BookingRequested and no BookingApproved', () => {
+    expect(materialize().domainEvents).toHaveLength(0);
+  });
+
+  it('computes the totals across its lines', () => {
+    const booking = materialize({
+      lineInputs: [
+        lineInput().withPriceAtBooking(Money.from(80, 'BRL')).withDurationMinsAtBooking(20).build(),
+        lineInput().withPriceAtBooking(Money.from(50, 'BRL')).withDurationMinsAtBooking(15).build(),
+      ],
+    });
+
+    expect(booking.totalDurationMins).toBe(35);
+    expect(booking.totalPrice.amount.toFixed(2)).toBe('130.00');
+  });
+
+  it('requires at least one line', () => {
+    expect(() => materialize({ lineInputs: [] })).toThrow(BookingLineRequiredError);
+  });
+
+  it('requires a pickup address when a line demands one, and accepts it when given', () => {
+    const lineInputs = [lineInput().withRequiresPickupAddressAtBooking(true).build()];
+
+    expect(() => materialize({ lineInputs })).toThrow(PickupAddressRequiredError);
+    expect(materialize({ lineInputs, pickupAddress: pickupAddr }).pickupAddress).not.toBeNull();
+  });
+
+  it('is already APPROVED, so approve() refuses it', () => {
+    expect(() => materialize().approve(STAFF_ID, CORRELATION_ID)).toThrow(
+      InvalidBookingTransitionError,
+    );
+  });
+});

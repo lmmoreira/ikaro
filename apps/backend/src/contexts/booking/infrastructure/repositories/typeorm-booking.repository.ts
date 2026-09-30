@@ -41,6 +41,7 @@ import {
   ResourceAssignmentRow,
 } from './typeorm-booking-resource-assignments.helpers';
 import { syncBookingLines } from './typeorm-booking-line-sync.helpers';
+import { insertBookingsInBulk } from './typeorm-booking-bulk-insert.helpers';
 
 const EMPTY_RESOURCE_ASSIGNMENTS: ReadonlyMap<string, readonly BookingResourceAssignmentSummary[]> =
   new Map();
@@ -234,6 +235,12 @@ export class TypeOrmBookingRepository implements IBookingRepository {
         this.persistBooking(tx, booking, bookingEntity),
       );
     }
+  }
+
+  async insertMany(bookings: Booking[]): Promise<void> {
+    const manager = getActiveEntityManager();
+    if (!manager) throw new Error('insertMany() requires an active transaction');
+    await insertBookingsInBulk(manager, bookings);
   }
 
   private async persistBooking(

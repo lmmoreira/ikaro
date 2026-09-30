@@ -1,8 +1,13 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
-import { RecurringBookingScheduleNotActiveError } from './errors/recurring-booking-schedule.error';
+import {
+  RecurringBookingScheduleNotActiveError,
+  RecurringBookingScheduleNotPendingApprovalError,
+} from './errors/recurring-booking-schedule.error';
+import { RecurringBookingScheduleCreated } from './events/recurring-booking-schedule-created.event';
 import { RecurringBookingScheduleEnded } from './events/recurring-booking-schedule-ended.event';
+import { RecurringBookingScheduleRejected } from './events/recurring-booking-schedule-rejected.event';
 import { assertValidTerm, RecurrenceRule } from './recurrence-rule.helpers';
 import { buildRequestedEvent } from './recurring-booking-schedule-request-event.helpers';
 import {
@@ -147,6 +152,76 @@ export class RecurringBookingSchedule extends AggregateRoot {
 
   static reconstitute(props: RecurringBookingScheduleProps): RecurringBookingSchedule {
     return new RecurringBookingSchedule(props, false);
+  }
+
+  // UC-071 approve: only a request still inside its hold window can be approved — the expiry job
+  // runs on a coarse schedule, so a request past its deadline is refused here even before the job
+  // has cancelled it (UC-071 A2).
+  approve(staffId: string, correlationId: string, now: Date = new Date()): void {
+    this.assertPendingApproval();
+    if (this.props.approvalHoldExpiresAt && this.props.approvalHoldExpiresAt <= now) {
+      throw new RecurringBookingScheduleNotPendingApprovalError(this.props.id);
+    }
+    this.props.status = 'ACTIVE';
+    this.props.approvedByStaffId = staffId;
+    this.props.approvedAt = now;
+    this.props.approvalHoldExpiresAt = null;
+    this.props.updatedAt = now;
+    this.addDomainEvent(
+      new RecurringBookingScheduleCreated(this.props.tenantId, correlationId, {
+        recurringScheduleId: this.props.id,
+        customerId: this.props.customerId,
+        serviceId: this.props.serviceId,
+        resourceIds: this.props.resourceAssignments.map((a) => a.resourceId),
+        assignmentPolicy: this.props.assignmentPolicy,
+        recurrence: this.recurrence,
+        startsOn: this.props.startsOn,
+        endsOn: this.props.endsOn,
+      }),
+    );
+  }
+
+  // UC-071 reject: no free-text reason — the column only holds the cancellationReason enum.
+  reject(correlationId: string): void {
+    this.cancelPending('APPROVAL_REJECTED', correlationId);
+  }
+
+  // UC-070 A5: the expiry job cancels a request that reached its hold deadline undecided.
+  expire(correlationId: string): void {
+    this.cancelPending('APPROVAL_EXPIRED', correlationId);
+  }
+
+  // The term is over: nothing was cancelled and no consumer needs an event, so none is raised
+  // (docs/03-DOMAIN_EVENTS.md § RecurringBookingScheduleEnded).
+  markEnded(): void {
+    this.assertActive();
+    this.props.status = 'ENDED';
+    this.props.updatedAt = new Date();
+  }
+
+  private assertPendingApproval(): void {
+    if (this.props.status !== 'PENDING_APPROVAL') {
+      throw new RecurringBookingScheduleNotPendingApprovalError(this.props.id);
+    }
+  }
+
+  private cancelPending(
+    reason: 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED',
+    correlationId: string,
+  ): void {
+    this.assertPendingApproval();
+    this.props.status = 'CANCELLED';
+    this.props.cancellationReason = reason;
+    this.props.approvalHoldExpiresAt = null;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(
+      new RecurringBookingScheduleRejected(this.props.tenantId, correlationId, {
+        recurringScheduleId: this.props.id,
+        customerId: this.props.customerId,
+        serviceId: this.props.serviceId,
+        reason,
+      }),
+    );
   }
 
   // UC-070 A2 — only once ACTIVE; a PENDING_APPROVAL request is withdrawn outright instead

@@ -223,7 +223,7 @@ describe('assertPatternConflictFree', () => {
 
       await expect(
         assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual(expect.any(Array));
 
       expect(lockSpy).toHaveBeenCalledTimes(1);
       expect(windowsSpy).toHaveBeenCalledTimes(1);
@@ -261,7 +261,7 @@ describe('assertPatternConflictFree', () => {
 
       await expect(
         assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 4)),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual(expect.any(Array));
     });
 
     it('rejects an occurrence where every eligible resource is busy', async () => {
@@ -315,7 +315,7 @@ describe('assertPatternConflictFree', () => {
 
       await expect(
         assertPatternConflictFree(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3)),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual(expect.any(Array));
     });
   });
 
@@ -328,7 +328,7 @@ describe('assertPatternConflictFree', () => {
 
       await expect(
         assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 0, [room.id])),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual([]);
 
       expect(closureRepo.rangeQueryCount).toBe(0);
       expect(openingRepo.rangeQueryCount).toBe(0);
@@ -373,7 +373,7 @@ describe('assertPatternConflictFree', () => {
           deps,
           buildParams(buildService('CUSTOMER_CHOICE', 10), 3, [room.id]),
         ),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual(expect.any(Array));
     });
 
     it("never treats another tenant's occupancy as a conflict", async () => {
@@ -382,7 +382,7 @@ describe('assertPatternConflictFree', () => {
 
       await expect(
         assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id])),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual(expect.any(Array));
     });
   });
 
@@ -409,7 +409,7 @@ describe('assertPatternConflictFree', () => {
             deps,
             buildParams(buildService('CUSTOMER_CHOICE', null, { type }), 4, [resource.id]),
           ),
-        ).resolves.toBeUndefined();
+        ).resolves.toEqual(expect.any(Array));
       });
 
       it('AUTO_ANY rejects only when every resource of the type is busy', async () => {
@@ -417,9 +417,9 @@ describe('assertPatternConflictFree', () => {
         const service = buildService('AUTO_ANY', null, { type });
         occupy(resources[0], occurrenceStart(1));
 
-        await expect(
-          assertPatternConflictFree(deps, buildParams(service, 3)),
-        ).resolves.toBeUndefined();
+        await expect(assertPatternConflictFree(deps, buildParams(service, 3))).resolves.toEqual(
+          expect.any(Array),
+        );
 
         occupy(resources[1], occurrenceStart(1));
 
@@ -455,9 +455,9 @@ describe('assertPatternConflictFree', () => {
       });
       occupy(inPoolA, occurrenceStart(2));
 
-      await expect(
-        assertPatternConflictFree(deps, buildParams(service, 4)),
-      ).resolves.toBeUndefined();
+      await expect(assertPatternConflictFree(deps, buildParams(service, 4))).resolves.toEqual(
+        expect.any(Array),
+      );
     });
 
     it('AUTO_FUNGIBLE_POOL checks only the first eligible pool member', async () => {
@@ -527,7 +527,7 @@ describe('assertPatternConflictFree', () => {
 
       await expect(
         assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id])),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual(expect.any(Array));
     });
   });
 
@@ -708,6 +708,27 @@ describe('assertPatternConflictFree', () => {
       expect(conflicts).toEqual([{ occurrenceStart: occurrenceStart(4), reason: 'CLOSED' }]);
     });
 
+    it('plans an AUTO_ANY occurrence onto the open resource when the other one is closed that day', async () => {
+      const [first, second] = (await seedResources(2)).sort((a, b) => a.id.localeCompare(b.id));
+      // Both are free of bookings and equally loaded, so the id tie-break would pick `first` — but
+      // `first` is closed on the second occurrence, which is still accepted because `second` is open.
+      await closeFullDay(1, first);
+
+      const plan = await assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 3));
+
+      expect(plan.map((resource) => resource.id)).toEqual([first.id, second.id, first.id]);
+    });
+
+    it('plans an AUTO_ANY occurrence around a resource that is busy and one that is closed', async () => {
+      const [a, b, c] = (await seedResources(3)).sort((x, y) => x.id.localeCompare(y.id));
+      occupy(a, occurrenceStart(0));
+      await closeFullDay(0, b);
+
+      const plan = await assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 2));
+
+      expect(plan[0].id).toBe(c.id);
+    });
+
     it('accepts the same pattern when the closure falls on a day with no occurrence', async () => {
       const [room] = await seedResources(1);
       await closureRepo.save(
@@ -719,7 +740,7 @@ describe('assertPatternConflictFree', () => {
 
       await expect(
         assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual(expect.any(Array));
     });
 
     it('lists a partial closure that overlaps the occurrence window as CLOSED', async () => {

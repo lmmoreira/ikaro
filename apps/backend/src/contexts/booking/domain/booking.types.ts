@@ -90,6 +90,23 @@ export interface BookingProps {
   recurringScheduleId: string | null;
 }
 
+// M23-S05 (UC-070/071) — one occurrence of a recurring schedule, created directly APPROVED. The
+// schedule was vetted once when it became ACTIVE, so there is no per-occurrence review.
+export interface MaterializeRecurringOccurrenceInput {
+  tenantId: string;
+  customerId: string;
+  contactEmail: string;
+  contactName: string;
+  contactPhone: string;
+  scheduledAt: Date;
+  lineInputs: BookingLineInput[];
+  recurringScheduleId: string;
+  // The staff member who approved the schedule; null when the schedule auto-confirmed.
+  approvedBy: string | null;
+  contactAddress?: Address;
+  pickupAddress?: Address;
+}
+
 export interface RequestBookingInput {
   /**
    * Pre-generated booking ID — pass this when the caller needs to know the ID before the

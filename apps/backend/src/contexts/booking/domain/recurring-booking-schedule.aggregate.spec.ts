@@ -1,11 +1,13 @@
 import {
   RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleNotActiveError,
+  RecurringBookingScheduleNotPendingApprovalError,
   RecurringBookingScheduleTermExceededError,
 } from './errors/recurring-booking-schedule.error';
 import { RecurringBookingScheduleCreated } from './events/recurring-booking-schedule-created.event';
 import { RecurringBookingScheduleApprovalRequested } from './events/recurring-booking-schedule-approval-requested.event';
 import { RecurringBookingScheduleEnded } from './events/recurring-booking-schedule-ended.event';
+import { RecurringBookingScheduleRejected } from './events/recurring-booking-schedule-rejected.event';
 import {
   RecurringBookingSchedule,
   RequestRecurringBookingScheduleOptions,
@@ -280,5 +282,106 @@ describe('RecurringBookingSchedule.end', () => {
     schedule.end(CORRELATION_ID, []);
 
     expect(() => schedule.end(CORRELATION_ID, [])).toThrow(RecurringBookingScheduleNotActiveError);
+  });
+});
+
+function pendingSchedule(holdExpiresAt = new Date('2999-01-01T00:00:00.000Z')) {
+  const schedule = RecurringBookingSchedule.request(
+    requestOptions({ status: 'PENDING_APPROVAL', approvalHoldExpiresAt: holdExpiresAt }),
+  );
+  schedule.clearDomainEvents();
+  return schedule;
+}
+
+describe('RecurringBookingSchedule.approve', () => {
+  it('activates a pending request, records the approver, clears the hold and fires Created', () => {
+    const schedule = pendingSchedule();
+    const now = new Date('2026-09-01T12:00:00.000Z');
+
+    schedule.approve('staff-1', CORRELATION_ID, now);
+
+    expect(schedule.status).toBe('ACTIVE');
+    expect(schedule.approvedByStaffId).toBe('staff-1');
+    expect(schedule.approvedAt).toEqual(now);
+    expect(schedule.approvalHoldExpiresAt).toBeNull();
+    const events = schedule.domainEvents;
+    expect(events).toHaveLength(1);
+    expect(events[0]).toBeInstanceOf(RecurringBookingScheduleCreated);
+    expect(events[0].data.resourceIds).toEqual(['res-1']);
+  });
+
+  it.each(['ACTIVE', 'CANCELLED', 'ENDED'] as const)('refuses a %s schedule', (status) => {
+    const schedule = RecurringBookingSchedule.request(requestOptions());
+    if (status === 'CANCELLED') schedule.end(CORRELATION_ID, []);
+    if (status === 'ENDED') schedule.markEnded();
+
+    expect(() => schedule.approve('staff-1', CORRELATION_ID)).toThrow(
+      RecurringBookingScheduleNotPendingApprovalError,
+    );
+  });
+
+  it('refuses a request whose hold has passed even though the expiry job has not run yet', () => {
+    const schedule = pendingSchedule(new Date('2026-09-01T00:00:00.000Z'));
+
+    expect(() =>
+      schedule.approve('staff-1', CORRELATION_ID, new Date('2026-09-01T00:00:00.000Z')),
+    ).toThrow(RecurringBookingScheduleNotPendingApprovalError);
+    expect(schedule.status).toBe('PENDING_APPROVAL');
+  });
+});
+
+describe('RecurringBookingSchedule.reject and expire', () => {
+  it('reject cancels with APPROVAL_REJECTED, clears the hold and fires Rejected', () => {
+    const schedule = pendingSchedule();
+
+    schedule.reject(CORRELATION_ID);
+
+    expect(schedule.status).toBe('CANCELLED');
+    expect(schedule.cancellationReason).toBe('APPROVAL_REJECTED');
+    expect(schedule.approvalHoldExpiresAt).toBeNull();
+    const events = schedule.domainEvents;
+    expect(events).toHaveLength(1);
+    expect(events[0]).toBeInstanceOf(RecurringBookingScheduleRejected);
+    expect((events[0] as RecurringBookingScheduleRejected).data.reason).toBe('APPROVAL_REJECTED');
+  });
+
+  it('expire cancels with APPROVAL_EXPIRED and fires Rejected carrying that reason', () => {
+    const schedule = pendingSchedule();
+
+    schedule.expire(CORRELATION_ID);
+
+    expect(schedule.status).toBe('CANCELLED');
+    expect(schedule.cancellationReason).toBe('APPROVAL_EXPIRED');
+    expect(schedule.approvalHoldExpiresAt).toBeNull();
+    expect((schedule.domainEvents[0] as RecurringBookingScheduleRejected).data.reason).toBe(
+      'APPROVAL_EXPIRED',
+    );
+  });
+
+  it('refuse a schedule that is not pending', () => {
+    const schedule = RecurringBookingSchedule.request(requestOptions());
+
+    expect(() => schedule.reject(CORRELATION_ID)).toThrow(
+      RecurringBookingScheduleNotPendingApprovalError,
+    );
+    expect(() => schedule.expire(CORRELATION_ID)).toThrow(
+      RecurringBookingScheduleNotPendingApprovalError,
+    );
+  });
+});
+
+describe('RecurringBookingSchedule.markEnded', () => {
+  it('moves an ACTIVE schedule to ENDED without raising an event', () => {
+    const schedule = RecurringBookingSchedule.request(requestOptions());
+    schedule.clearDomainEvents();
+
+    schedule.markEnded();
+
+    expect(schedule.status).toBe('ENDED');
+    expect(schedule.domainEvents).toHaveLength(0);
+  });
+
+  it('refuses a schedule that is not ACTIVE', () => {
+    expect(() => pendingSchedule().markEnded()).toThrow(RecurringBookingScheduleNotActiveError);
   });
 });

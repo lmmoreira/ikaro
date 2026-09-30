@@ -938,4 +938,167 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
       });
     });
   });
+
+  describe('assignMany and findActiveWindows (a recurring term in bulk)', () => {
+    const day = (n: number, hour: number) => new Date(Date.UTC(2026, 6, n, hour));
+
+    it('assigns a whole batch of new lines in one call, one assignment and occupancy row each', async () => {
+      const lines = [
+        await seedBookingLine(TENANT_A),
+        await seedBookingLine(TENANT_A),
+        await seedBookingLine(TENANT_A),
+      ];
+
+      await txManager.run(() =>
+        repo.assignMany(
+          TENANT_A,
+          lines.map((bookingLineId, index) => ({
+            bookingLineId,
+            candidates: [candidate(resourceA, day(index + 1, 10), day(index + 1, 11))],
+          })),
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      const assignments = await dataSource
+        .getRepository(BookingLineResourceAssignmentEntity)
+        .find({ where: { tenantId: TENANT_A } });
+      const occupancy = await dataSource
+        .getRepository(ResourceOccupancyEntity)
+        .find({ where: { tenantId: TENANT_A } });
+      expect(assignments.map((a) => a.bookingLineId).sort()).toEqual([...lines].sort());
+      expect(occupancy).toHaveLength(3);
+      expect(occupancy.every((o) => o.lockState === 'COMMITTED' && o.holdExpiresAt === null)).toBe(
+        true,
+      );
+      const assignmentIds = new Set(assignments.map((a) => a.id));
+      expect(occupancy.every((o) => assignmentIds.has(o.bookingLineResourceAssignmentId!))).toBe(
+        true,
+      );
+    });
+
+    it('does nothing for an empty batch', async () => {
+      await txManager.run(() => repo.assignMany(TENANT_A, [], 'COMMITTED', null));
+
+      expect(
+        await dataSource
+          .getRepository(ResourceOccupancyEntity)
+          .count({ where: { tenantId: TENANT_A } }),
+      ).toBe(0);
+    });
+
+    it('fails the whole batch with BookingSlotUnavailableError when one window is taken', async () => {
+      const taken = await seedBookingLine(TENANT_A);
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          taken,
+          [candidate(resourceA, day(2, 10), day(2, 11))],
+          'COMMITTED',
+          null,
+        ),
+      );
+      const first = await seedBookingLine(TENANT_A);
+      const second = await seedBookingLine(TENANT_A);
+
+      await expect(
+        txManager.run(() =>
+          repo.assignMany(
+            TENANT_A,
+            [
+              { bookingLineId: first, candidates: [candidate(resourceA, day(1, 10), day(1, 11))] },
+              { bookingLineId: second, candidates: [candidate(resourceA, day(2, 10), day(2, 11))] },
+            ],
+            'COMMITTED',
+            null,
+          ),
+        ),
+      ).rejects.toBeInstanceOf(BookingSlotUnavailableError);
+      expect(
+        await dataSource
+          .getRepository(ResourceOccupancyEntity)
+          .count({ where: { tenantId: TENANT_A } }),
+      ).toBe(1);
+    });
+
+    it('findActiveWindows returns only HOLD and COMMITTED windows of the given resources inside the range', async () => {
+      const lines = [
+        await seedBookingLine(TENANT_A),
+        await seedBookingLine(TENANT_A),
+        await seedBookingLine(TENANT_A),
+        await seedBookingLine(TENANT_A),
+      ];
+      await txManager.run(async () => {
+        await repo.assign(
+          TENANT_A,
+          lines[0],
+          [candidate(resourceA, day(1, 10), day(1, 11))],
+          'COMMITTED',
+          null,
+        );
+        await repo.assign(
+          TENANT_A,
+          lines[1],
+          [candidate(resourceA, day(2, 10), day(2, 11))],
+          'HOLD',
+          day(30, 0),
+        );
+        await repo.assign(
+          TENANT_A,
+          lines[2],
+          [candidate(resourceA, day(3, 10), day(3, 11))],
+          'REQUESTED',
+          null,
+        );
+        await repo.assign(
+          TENANT_A,
+          lines[3],
+          [candidate(resourceA, day(20, 10), day(20, 11))],
+          'COMMITTED',
+          null,
+        );
+      });
+
+      const windows = await txManager.run(() =>
+        repo.findActiveWindows(TENANT_A, [resourceA], day(1, 0), day(10, 0)),
+      );
+
+      expect(windows.map((w) => w.startsAt.getTime()).sort()).toEqual([
+        day(1, 10).getTime(),
+        day(2, 10).getTime(),
+      ]);
+      expect(windows.every((w) => w.resourceId === resourceA)).toBe(true);
+    });
+
+    it('findActiveWindows never returns another tenant or another resource, and handles no resources', async () => {
+      const mine = await seedBookingLine(TENANT_A);
+      const foreign = await seedBookingLine(TENANT_B);
+      await txManager.run(async () => {
+        await repo.assign(
+          TENANT_A,
+          mine,
+          [candidate(resourceA2, day(1, 10), day(1, 11), { resourceType: ResourceType.EQUIPMENT })],
+          'COMMITTED',
+          null,
+        );
+        await repo.assign(
+          TENANT_B,
+          foreign,
+          [candidate(resourceB, day(1, 10), day(1, 11))],
+          'COMMITTED',
+          null,
+        );
+      });
+
+      const windows = await txManager.run(() =>
+        repo.findActiveWindows(TENANT_A, [resourceA, resourceB], day(1, 0), day(2, 0)),
+      );
+
+      expect(windows).toEqual([]);
+      await expect(
+        txManager.run(() => repo.findActiveWindows(TENANT_A, [], day(1, 0), day(2, 0))),
+      ).resolves.toEqual([]);
+    });
+  });
 });
