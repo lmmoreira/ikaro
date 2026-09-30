@@ -1523,7 +1523,7 @@ Two notifications, one story because both extend S08's events and both need new 
 **Agent:** `backend-ts`
 **Complexity:** S
 **Docs to load:** `docs/13-DATABASE_SCHEMA.md` § `recurring_booking_schedule_exceptions` (the note that follows the recurring-schedule tables), `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/DEFINITION_OF_DONE.md` § Migration history — pre-production exception
-**Dependencies:** M23-S08 (must be merged **and deployed to staging and production**: it stops reading and writing the table, and this story drops it — the contract step of an expand/contract removal). Independent of every other M23 story.
+**Dependencies:** M23-S08 (must be merged **and deployed to every environment that exists — today only staging; production has none yet**: it stops reading and writing the table, and this story drops it — the contract step of an expand/contract removal). Independent of every other M23 story.
 **Pattern:** plain composition — no named pattern applies (one migration and a doc edit).
 
 **Description:**
@@ -1531,7 +1531,7 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 
 **Decisions already made (state as fact, do not re-derive):**
 1. **One migration, `DROP TABLE IF EXISTS`**, with a `down()` that recreates the table exactly as `1748500000017-CreateRecurringBookingSchedules.ts` defined it (so a rollback of this migration alone is possible). It takes the next free number at implementation time; no other story's migration is renumbered.
-2. **Data check first, not assumed — resolved at discovery (2026-09-30): there is no production environment yet, and the staging table has 0 rows, so nothing is dropped silently.** The story's first step is a live read of the row count in staging and production (`SELECT count(*) FROM booking.recurring_booking_schedule_exceptions`). Rows there are skip/reschedule records of occurrences that no longer have any meaning in the design; a non-zero count is reported to the user before the migration merges, never dropped silently. The pre-production exception in `docs/DEFINITION_OF_DONE.md` is **not** relied on: staging has run migration `…017`.
+2. **Data check first, not assumed — resolved at discovery (2026-09-30): there is no production environment yet, and the staging table has 0 rows, so nothing is dropped silently.** The pre-production exception in `docs/DEFINITION_OF_DONE.md` is **not** relied on: staging has run migration `…017`.
 3. **Nothing else changes.** No code outside the migration, `docs/13-DATABASE_SCHEMA.md`, and the registry files that list the table.
 
 **Backend use case steps:** none — no use case changes.
