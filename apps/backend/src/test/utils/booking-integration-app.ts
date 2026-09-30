@@ -37,7 +37,7 @@ import { ResourceOccupancyEntity } from '../../contexts/booking/infrastructure/e
 import { BookingQuoteRevisionEntity } from '../../contexts/booking/infrastructure/entities/booking-quote-revision.entity';
 import { RecurringBookingScheduleEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
-import { RecurringBookingScheduleExceptionEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule-exception.entity';
+import { FutureCommitmentExceptionEntity } from '../../contexts/booking/infrastructure/entities/future-commitment-exception.entity';
 import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
@@ -99,7 +99,7 @@ export async function createBookingIntegrationApp(
           BookingQuoteRevisionEntity,
           RecurringBookingScheduleEntity,
           RecurringBookingScheduleResourceAssignmentEntity,
-          RecurringBookingScheduleExceptionEntity,
+          FutureCommitmentExceptionEntity,
           StaffEntity,
           InboxRecordEntity,
         ],

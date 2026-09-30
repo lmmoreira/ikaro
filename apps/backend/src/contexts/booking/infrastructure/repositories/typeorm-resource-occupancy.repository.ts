@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
+  BookingLineOccupancyRow,
   IResourceOccupancyRepository,
+  ResourceBookingImpact,
   ResourceLineAssignment,
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
@@ -9,6 +11,11 @@ import {
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { rethrowOccupancyInsertError } from './typeorm-resource-occupancy.persistence-errors';
+import {
+  queryAssignmentsByBookingLines,
+  queryFutureBookingImpactsByResource,
+  queryOccupancyByBookingLines,
+} from './typeorm-resource-occupancy.read-queries';
 import {
   buildOccupancyRows,
   insertOccupancyRows,
@@ -22,13 +29,6 @@ interface ConflictRow {
 interface WorkloadCountRow {
   resource_id: string;
   count: string;
-}
-
-interface AssignmentByLineRow {
-  booking_line_id: string;
-  resource_id: string;
-  resource_type: ResourceLineAssignment['resourceType'];
-  leg_index: number | null;
 }
 
 @Injectable()
@@ -199,42 +199,36 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
     return new Map(rows.map((row) => [row.resource_id, Number(row.count)]));
   }
 
-  // Approval/reschedule re-resolution replay (M23-S01 story-discovery) — reads the LIVE
-  // resource_occupancy projection (joined to booking_line_resource_assignments for
-  // resourceType/legIndex), not the booking_line_resource_assignments audit table directly. That
-  // table is append-only and never deletes a superseded row on reassignment, so a booking
-  // rescheduled to a different resource more than once would otherwise return stale,
-  // no-longer-occupying resource ids alongside the current one. Ordered primarily by each row's
-  // own booking_line_id's position within the caller-supplied bookingLineIds array — the same
-  // order resolveBookingLinesResourceCandidates() re-iterates lines in — so two lines booking the
-  // same duplicated service (docs/14-API_CONTRACTS.md) group their own assignments together, in
-  // resolution order, rather than interleaving arbitrarily (Postgres gives no defined secondary
-  // order among rows tied on quantity_position alone, which is NULL for every single-unit
-  // requirement — the common case). quantity_position is still the secondary tiebreaker within one
-  // line's own multi-unit requirement, preserving its original positional assignment.
+  // Approval/reschedule re-resolution replay (M23-S01) — see typeorm-resource-occupancy.read-queries.ts.
   async findAssignmentsByBookingLines(
     tenantId: string,
     bookingLineIds: string[],
   ): Promise<ResourceLineAssignment[]> {
     if (bookingLineIds.length === 0) return [];
-    const manager = this.requireActiveManager();
-    const rows: AssignmentByLineRow[] = await manager.query(
-      `
-      SELECT bla.booking_line_id, ro.resource_id, ro.resource_type, ro.leg_index
-      FROM booking.resource_occupancy ro
-      JOIN booking.booking_line_resource_assignments bla
-        ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
-      WHERE ro.tenant_id = $1 AND bla.booking_line_id = ANY($2::uuid[])
-      ORDER BY array_position($2::uuid[], bla.booking_line_id), bla.quantity_position ASC NULLS FIRST
-      `,
-      [tenantId, bookingLineIds],
+    return queryAssignmentsByBookingLines(this.requireActiveManager(), tenantId, bookingLineIds);
+  }
+
+  // M23-S08 (UC-073) — see typeorm-resource-occupancy.read-queries.ts.
+  async findFutureBookingImpactsByResource(
+    tenantId: string,
+    resourceId: string,
+    after: Date,
+  ): Promise<ResourceBookingImpact[]> {
+    return queryFutureBookingImpactsByResource(
+      this.requireActiveManager(),
+      tenantId,
+      resourceId,
+      after,
     );
-    return rows.map((row) => ({
-      bookingLineId: row.booking_line_id,
-      resourceId: row.resource_id,
-      resourceType: row.resource_type,
-      legIndex: row.leg_index,
-    }));
+  }
+
+  // M23-S08 (UC-077) — see typeorm-resource-occupancy.read-queries.ts.
+  async findOccupancyByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<BookingLineOccupancyRow[]> {
+    if (bookingLineIds.length === 0) return [];
+    return queryOccupancyByBookingLines(this.requireActiveManager(), tenantId, bookingLineIds);
   }
 
   private requireActiveManager() {

@@ -77,16 +77,6 @@ export class RecurringBookingScheduleIneligibleServiceError extends BookingDomai
   }
 }
 
-export class RecurringBookingScheduleExceptionAlreadyExistsError extends BookingDomainError {
-  constructor(occurrenceStart: string) {
-    super(
-      `This occurrence was already skipped or rescheduled: ${occurrenceStart}`,
-      BookingErrorCode.RECURRING_SCHEDULE_EXCEPTION_ALREADY_EXISTS,
-    );
-    this.name = 'RecurringBookingScheduleExceptionAlreadyExistsError';
-  }
-}
-
 export class RecurringBookingScheduleForbiddenError extends BookingDomainError {
   constructor() {
     super(

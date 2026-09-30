@@ -45,6 +45,30 @@ X-Correlation-ID: test-corr-list-002
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — one recurring schedule's occurrence bookings (M23-S08)
+# An occurrence is its linked booking, so the schedule's occurrences are listed here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?recurringScheduleId={{recurringScheduleId}}&limit=25&offset=0
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-recurring-001
+
+###
+
+# ERROR — recurringScheduleId is not a UUID → 400
+GET {{baseUrl}}/bookings?recurringScheduleId=not-a-uuid
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-recurring-002
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — list by tenant-local date range (YYYY-MM-DD date keys)
 # from = first instant of that local day, to = last millisecond of that local day, both in the
 # tenant's businessHours.timezone — a booking at 22:00 local on the last day is included.

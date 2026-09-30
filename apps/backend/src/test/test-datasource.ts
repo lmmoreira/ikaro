@@ -22,7 +22,7 @@ import { BookingLineResourceAssignmentEntity } from '../contexts/booking/infrast
 import { ResourceOccupancyEntity } from '../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { RecurringBookingScheduleEntity } from '../contexts/booking/infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
-import { RecurringBookingScheduleExceptionEntity } from '../contexts/booking/infrastructure/entities/recurring-booking-schedule-exception.entity';
+import { FutureCommitmentExceptionEntity } from '../contexts/booking/infrastructure/entities/future-commitment-exception.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
@@ -75,7 +75,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       ResourceOccupancyEntity,
       RecurringBookingScheduleEntity,
       RecurringBookingScheduleResourceAssignmentEntity,
-      RecurringBookingScheduleExceptionEntity,
+      FutureCommitmentExceptionEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
       BookingEntity,

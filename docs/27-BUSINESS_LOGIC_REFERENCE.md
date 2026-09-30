@@ -216,10 +216,10 @@ One entry per affected booking, whatever its status (`PENDING`, `INFO_REQUESTED`
 |---|---|
 | KEEP | Entry resolved, booking unchanged |
 | REASSIGN | Same window, another resource: validated (active, same type, inside the pool, free excluding the booking's own lines) then released and re-assigned; `AUTO` takes the least-loaded free candidate; a bundle's other resources are untouched; no `BookingRescheduled` |
-| RESCHEDULE | One entry only, `APPROVED` booking only; `RescheduleBookingUseCase`'s logic composed in the same transaction |
-| CANCEL | `CancelBookingAsAdminUseCase`'s logic via a shared helper |
+| RESCHEDULE | One entry only, `APPROVED` booking only; `RescheduleBookingUseCase`'s logic (`rescheduleBookingInTransaction`) composed in the same transaction, the resource re-resolved fresh at the new time. A `CUSTOMER_CHOICE` booking whose chosen resource is the deactivated one cannot re-resolve and stays `OPEN` — REASSIGN or CANCEL it instead |
+| CANCEL | The same staff cancellation `CancelBookingAsAdminUseCase` performs (`Booking.cancel` as staff, then `releaseBookingOccupancy`), in the entry's own transaction |
 
-After a REASSIGN batch, a `FIXED_ASSIGNMENT` schedule's assignment row is swapped to the new resource only when no future non-terminal linked booking is left on the old one; otherwise it stays as the record of what was requested.
+After a REASSIGN batch, a `FIXED_ASSIGNMENT` schedule's assignment row is swapped to the new resource only when no future non-terminal linked booking is left on the old one **and** every moved occurrence landed on the same new resource (an `AUTO` batch can scatter them); otherwise it stays as the record of what was requested. This step is best-effort and runs after the reassigns have committed — a failure is logged, never turned into a failed resolve.
 
 ### Known limitation
 

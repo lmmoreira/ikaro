@@ -3,17 +3,14 @@ import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { RecurrenceRule } from '../../domain/recurrence-rule.helpers';
 import {
   RecurringBookingSchedule,
-  RecurringBookingScheduleExceptionProps,
   RecurringBookingScheduleResourceAssignmentProps,
 } from '../../domain/recurring-booking-schedule.aggregate';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
-import { RecurringBookingScheduleExceptionEntity } from '../entities/recurring-booking-schedule-exception.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
 
 export function toDomain(
   entity: RecurringBookingScheduleEntity,
   assignmentEntities: RecurringBookingScheduleResourceAssignmentEntity[],
-  exceptionEntities: RecurringBookingScheduleExceptionEntity[],
 ): RecurringBookingSchedule {
   return RecurringBookingSchedule.reconstitute({
     id: entity.id,
@@ -29,7 +26,6 @@ export function toDomain(
     status: entity.status,
     assignmentPolicy: entity.assignmentPolicy,
     resourceAssignments: assignmentEntities.map(toResourceAssignmentProps),
-    exceptions: exceptionEntities.map(toExceptionProps),
     approvalHoldExpiresAt: entity.approvalHoldExpiresAt,
     approvedByStaffId: entity.approvedByStaffId,
     approvedAt: entity.approvedAt,
@@ -50,21 +46,6 @@ function toResourceAssignmentProps(
     requirementId: entity.requirementId,
     requiredQuantityPosition: entity.requiredQuantityPosition,
     assignedAt: entity.assignedAt,
-  };
-}
-
-function toExceptionProps(
-  entity: RecurringBookingScheduleExceptionEntity,
-): RecurringBookingScheduleExceptionProps {
-  return {
-    id: entity.id,
-    occurrenceStart: entity.occurrenceStart,
-    kind: entity.kind,
-    replacementBookingId: entity.replacementBookingId,
-    actorType: entity.actorType,
-    actorId: entity.actorId,
-    reason: entity.reason,
-    createdAt: entity.createdAt,
   };
 }
 
@@ -119,26 +100,6 @@ export function toResourceAssignmentEntities(
     entity.requirementId = a.requirementId;
     entity.requiredQuantityPosition = a.requiredQuantityPosition;
     entity.assignedAt = a.assignedAt;
-    return entity;
-  });
-}
-
-export function toExceptionEntities(
-  schedule: RecurringBookingSchedule,
-  exceptions: RecurringBookingScheduleExceptionProps[],
-): RecurringBookingScheduleExceptionEntity[] {
-  return exceptions.map((e) => {
-    const entity = new RecurringBookingScheduleExceptionEntity();
-    entity.id = e.id;
-    entity.tenantId = schedule.tenantId;
-    entity.recurringScheduleId = schedule.id;
-    entity.occurrenceStart = e.occurrenceStart;
-    entity.kind = e.kind;
-    entity.replacementBookingId = e.replacementBookingId;
-    entity.actorType = e.actorType;
-    entity.actorId = e.actorId;
-    entity.reason = e.reason;
-    entity.createdAt = e.createdAt;
     return entity;
   });
 }

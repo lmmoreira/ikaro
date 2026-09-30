@@ -11,6 +11,15 @@ describe('buildBookingListParams', () => {
     });
   });
 
+  it('forwards recurringScheduleId when given and omits it otherwise', () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+
+    expect(buildBookingListParams({ ...base, recurringScheduleId: id })).toMatchObject({
+      recurringScheduleId: id,
+    });
+    expect(buildBookingListParams(base)).not.toHaveProperty('recurringScheduleId');
+  });
+
   it('sends no from/to when no date filter is given', () => {
     const params = buildBookingListParams(base);
 

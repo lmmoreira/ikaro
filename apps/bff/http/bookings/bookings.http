@@ -89,6 +89,12 @@ Authorization: Bearer {{customerToken}}
 
 ###
 
+### An occurrence of a recurring schedule is its linked booking — list one schedule's occurrences (M23-S08)
+GET {{bffUrl}}/v1/bookings?recurringScheduleId={{recurringScheduleId}}&status=PENDING,INFO_REQUESTED,APPROVED
+Authorization: Bearer {{managerToken}}
+
+###
+
 ### ERROR — no JWT → 401
 GET {{bffUrl}}/v1/bookings
 
@@ -96,6 +102,12 @@ GET {{bffUrl}}/v1/bookings
 
 ### ERROR — invalid status value → 400
 GET {{bffUrl}}/v1/bookings?status=INVALID
+
+###
+
+### ERROR — recurringScheduleId is not a UUID → 400
+GET {{bffUrl}}/v1/bookings?recurringScheduleId=not-a-uuid
+Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /v1/bookings/:id — booking detail

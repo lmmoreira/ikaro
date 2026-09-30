@@ -12,7 +12,11 @@ export { ServiceBookingIntakeSchemaEntityBuilder } from './service-booking-intak
 export { BookingQuoteRevisionEntityBuilder } from './booking-quote-revision-entity.builder';
 export { RecurringBookingScheduleEntityBuilder } from './recurring-booking-schedule-entity.builder';
 export { RecurringBookingScheduleResourceAssignmentEntityBuilder } from './recurring-booking-schedule-resource-assignment-entity.builder';
-export { RecurringBookingScheduleExceptionEntityBuilder } from './recurring-booking-schedule-exception-entity.builder';
+export { FutureCommitmentExceptionBuilder } from './future-commitment-exception.builder';
+export { FutureCommitmentExceptionEntityBuilder } from './future-commitment-exception-entity.builder';
+export { FutureCommitmentExceptionRaisedEventBuilder } from './future-commitment-exception-raised-event.builder';
+export { FutureCommitmentExceptionResolvedEventBuilder } from './future-commitment-exception-resolved-event.builder';
+export { FutureCommitmentExceptionDismissedEventBuilder } from './future-commitment-exception-dismissed-event.builder';
 export { RecurringBookingScheduleCreatedEventBuilder } from './recurring-booking-schedule-created-event.builder';
 export { RecurringBookingScheduleApprovalRequestedEventBuilder } from './recurring-booking-schedule-approval-requested-event.builder';
 export { RecurringBookingScheduleEndedEventBuilder } from './recurring-booking-schedule-ended-event.builder';

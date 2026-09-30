@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -16,16 +6,12 @@ import {
   EndRecurringBookingScheduleResponse,
   RecurringBookingScheduleListResponse,
   RecurringBookingScheduleResponse,
-  SkipOrRescheduleOccurrenceResponse,
 } from './recurring-booking-schedules.types';
 import {
   ListRecurringBookingSchedulesQuery,
   ListRecurringBookingSchedulesQuerySchema,
-  OccurrenceStartParamSchema,
   RequestRecurringBookingScheduleBody,
   RequestRecurringBookingScheduleBodySchema,
-  SkipOrRescheduleOccurrenceBody,
-  SkipOrRescheduleOccurrenceBodySchema,
 } from './recurring-booking-schedules.schemas';
 
 export * from './recurring-booking-schedules.schemas';
@@ -57,20 +43,6 @@ export class RecurringBookingSchedulesController {
   ): Promise<RecurringBookingScheduleResponse> {
     return this.backendHttp.post<RecurringBookingScheduleResponse>(
       '/recurring-booking-schedules',
-      body,
-    );
-  }
-
-  @Patch(':id/occurrences/:occurrenceStart')
-  skipOrReschedule(
-    @Param('id', CanonicalParseUUIDPipe) id: string,
-    @Param('occurrenceStart', new ZodValidationPipe(OccurrenceStartParamSchema))
-    occurrenceStart: string,
-    @Body(new ZodValidationPipe(SkipOrRescheduleOccurrenceBodySchema))
-    body: SkipOrRescheduleOccurrenceBody,
-  ): Promise<SkipOrRescheduleOccurrenceResponse> {
-    return this.backendHttp.patch<SkipOrRescheduleOccurrenceResponse>(
-      `/recurring-booking-schedules/${id}/occurrences/${encodeURIComponent(occurrenceStart)}`,
       body,
     );
   }

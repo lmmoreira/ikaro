@@ -1,5 +1,4 @@
 import {
-  RecurringBookingScheduleExceptionAlreadyExistsError,
   RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleNotActiveError,
   RecurringBookingScheduleTermExceededError,
@@ -12,6 +11,7 @@ import {
   RequestRecurringBookingScheduleOptions,
 } from './recurring-booking-schedule.aggregate';
 import { ResourceType } from './resource.types';
+import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 
 const TENANT_ID = 'tenant-1';
 const CORRELATION_ID = 'corr-1';
@@ -153,68 +153,107 @@ describe('RecurringBookingSchedule.request', () => {
   });
 });
 
-describe('RecurringBookingSchedule occurrence exceptions', () => {
-  function activeSchedule(): RecurringBookingSchedule {
-    return RecurringBookingSchedule.request(requestOptions());
+describe('RecurringBookingSchedule.reassignResource', () => {
+  function activeSchedule(
+    overrides: Partial<RequestRecurringBookingScheduleOptions> = {},
+  ): RecurringBookingSchedule {
+    return RecurringBookingSchedule.request(requestOptions(overrides));
   }
 
-  it('records a SKIPPED exception on an ACTIVE schedule', () => {
-    const schedule = activeSchedule();
-    const occurrenceStart = new Date('2026-09-08T13:00:00.000Z');
+  // A schedule rebuilt from persistence — the state every mutation use case works on.
+  function persisted(schedule: RecurringBookingSchedule): RecurringBookingSchedule {
+    return RecurringBookingSchedule.reconstitute({
+      id: schedule.id,
+      tenantId: schedule.tenantId,
+      customerId: schedule.customerId,
+      serviceId: schedule.serviceId,
+      recurrence: {
+        ...schedule.recurrence,
+        startTime: TimeOfDay.create(schedule.recurrence.startTime),
+      },
+      startsOn: schedule.startsOn,
+      endsOn: schedule.endsOn,
+      status: schedule.status,
+      assignmentPolicy: schedule.assignmentPolicy,
+      resourceAssignments: schedule.resourceAssignments,
+      approvalHoldExpiresAt: schedule.approvalHoldExpiresAt,
+      approvedByStaffId: schedule.approvedByStaffId,
+      approvedAt: schedule.approvedAt,
+      cancellationReason: schedule.cancellationReason,
+      createdByStaffId: schedule.createdByStaffId,
+      createdAt: schedule.createdAt,
+      updatedAt: schedule.updatedAt,
+      version: 1,
+    });
+  }
 
-    schedule.skipOccurrence(occurrenceStart, 'CUSTOMER', 'customer-1', 'travelling');
+  it('swaps the assignment to the new resource, keeping its requirement and type', () => {
+    const schedule = persisted(activeSchedule());
 
-    expect(schedule.exceptions).toHaveLength(1);
-    expect(schedule.exceptions[0]).toMatchObject({
-      occurrenceStart,
-      kind: 'SKIPPED',
-      replacementBookingId: null,
-      actorType: 'CUSTOMER',
-      actorId: 'customer-1',
-      reason: 'travelling',
+    schedule.reassignResource('res-1', 'res-2');
+
+    expect(schedule.resourceAssignments).toHaveLength(1);
+    expect(schedule.resourceAssignments[0]).toMatchObject({
+      resourceId: 'res-2',
+      resourceType: ResourceType.ROOM,
+      requirementId: 'req-1',
     });
   });
 
-  it('records a RESCHEDULED exception with a replacementBookingId', () => {
-    const schedule = activeSchedule();
-    const occurrenceStart = new Date('2026-09-08T13:00:00.000Z');
+  it('flags the assignments dirty only once they change', () => {
+    const schedule = persisted(activeSchedule());
+    expect(schedule.resourceAssignmentsModified).toBe(false);
 
-    schedule.rescheduleOccurrence(occurrenceStart, 'booking-2', 'STAFF', 'staff-1', null);
+    schedule.reassignResource('res-1', 'res-2');
 
-    expect(schedule.exceptions[0]).toMatchObject({
-      kind: 'RESCHEDULED',
-      replacementBookingId: 'booking-2',
-      actorType: 'STAFF',
-      actorId: 'staff-1',
-    });
+    expect(schedule.resourceAssignmentsModified).toBe(true);
   });
 
-  it('rejects a duplicate exception for the same occurrenceStart', () => {
-    const schedule = activeSchedule();
-    const occurrenceStart = new Date('2026-09-08T13:00:00.000Z');
-    schedule.skipOccurrence(occurrenceStart, 'CUSTOMER', 'customer-1', null);
+  it('is a no-op when the schedule was not assigned to the old resource', () => {
+    const schedule = persisted(activeSchedule());
 
-    expect(() =>
-      schedule.rescheduleOccurrence(occurrenceStart, 'booking-2', 'CUSTOMER', 'customer-1', null),
-    ).toThrow(RecurringBookingScheduleExceptionAlreadyExistsError);
+    schedule.reassignResource('res-9', 'res-2');
+
+    expect(schedule.resourceAssignments[0].resourceId).toBe('res-1');
+    expect(schedule.resourceAssignmentsModified).toBe(false);
   });
 
-  it('rejects skipOccurrence on a non-ACTIVE schedule', () => {
+  it('drops the old row when the new resource is already assigned (multi-unit requirement)', () => {
+    const schedule = persisted(
+      activeSchedule({
+        resourceAssignments: [
+          {
+            resourceId: 'res-1',
+            resourceType: ResourceType.ROOM,
+            requirementId: 'req-1',
+            requiredQuantityPosition: 1,
+          },
+          {
+            resourceId: 'res-2',
+            resourceType: ResourceType.ROOM,
+            requirementId: 'req-1',
+            requiredQuantityPosition: 2,
+          },
+        ],
+      }),
+    );
+
+    schedule.reassignResource('res-1', 'res-2');
+
+    expect(schedule.resourceAssignments.map((a) => a.resourceId)).toEqual(['res-2']);
+  });
+
+  it('a freshly requested schedule reports its assignments as modified so the first save inserts them', () => {
+    expect(activeSchedule().resourceAssignmentsModified).toBe(true);
+  });
+
+  it('rejects a non-ACTIVE schedule', () => {
     const schedule = activeSchedule();
     schedule.end(CORRELATION_ID, []);
 
-    expect(() => schedule.skipOccurrence(new Date(), 'CUSTOMER', 'customer-1', null)).toThrow(
+    expect(() => schedule.reassignResource('res-1', 'res-2')).toThrow(
       RecurringBookingScheduleNotActiveError,
     );
-  });
-
-  it('rejects rescheduleOccurrence on a non-ACTIVE schedule', () => {
-    const schedule = activeSchedule();
-    schedule.end(CORRELATION_ID, []);
-
-    expect(() =>
-      schedule.rescheduleOccurrence(new Date(), 'booking-2', 'CUSTOMER', 'customer-1', null),
-    ).toThrow(RecurringBookingScheduleNotActiveError);
   });
 });
 

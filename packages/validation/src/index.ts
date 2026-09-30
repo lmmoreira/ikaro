@@ -8,5 +8,6 @@ export * from './hotsite';
 export * from './lead-form-submission';
 export * from './phone';
 export * from './required-with-code';
+export * from './scheduling-exception';
 export * from './tenant-settings';
 export * from './uuid-v7';

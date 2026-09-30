@@ -22,6 +22,8 @@ export const ListBookingsSchema = z.object({
     .transform((val) => val.split(',').map((s) => s.trim()))
     .pipe(z.array(BookingStatusEnum).min(1))
     .optional(),
+  // The occurrence bookings of one recurring schedule (M23-S08: an occurrence is its linked booking).
+  recurringScheduleId: z.uuid().optional(),
   from: DateKeyOrInstantSchema.optional(),
   to: DateKeyOrInstantSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),

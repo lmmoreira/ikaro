@@ -730,4 +730,212 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
       expect(assignments).toEqual([]);
     });
   });
+
+  describe('worklist reads (M23-S08)', () => {
+    async function seedBookingWithLine(
+      tenantId: string,
+    ): Promise<{ bookingId: string; lineId: string }> {
+      const service = new ServiceEntityBuilder().withTenantId(tenantId).build();
+      await dataSource.getRepository(ServiceEntity).save(service);
+      const booking = new BookingEntityBuilder().withTenantId(tenantId).build();
+      await dataSource.getRepository(BookingEntity).save(booking);
+      const line = new BookingLineEntityBuilder()
+        .withTenantId(tenantId)
+        .withBookingId(booking.id)
+        .withServiceId(service.id)
+        .build();
+      await dataSource.getRepository(BookingLineEntity).save(line);
+      return { bookingId: booking.id, lineId: line.lineId };
+    }
+
+    const at = (hours: number) => new Date(Date.UTC(2030, 0, 1, hours));
+
+    describe('findFutureBookingImpactsByResource', () => {
+      it('returns the live rows on the resource that end after the cut-off, with the owning booking', async () => {
+        const past = await seedBookingWithLine(TENANT_A);
+        const future = await seedBookingWithLine(TENANT_A);
+        const requested = await seedBookingWithLine(TENANT_A);
+        await txManager.run(async () => {
+          await repo.assign(
+            TENANT_A,
+            past.lineId,
+            [candidate(resourceA, at(8), at(9))],
+            'COMMITTED',
+            null,
+          );
+          await repo.assign(
+            TENANT_A,
+            future.lineId,
+            [candidate(resourceA, at(12), at(13))],
+            'COMMITTED',
+            null,
+          );
+          await repo.assign(
+            TENANT_A,
+            requested.lineId,
+            [candidate(resourceA, at(15), at(16))],
+            'REQUESTED',
+            null,
+          );
+        });
+
+        const impacts = await txManager.run(() =>
+          repo.findFutureBookingImpactsByResource(TENANT_A, resourceA, at(10)),
+        );
+
+        expect(impacts).toEqual([
+          {
+            bookingId: future.bookingId,
+            bookingLineId: future.lineId,
+            resourceType: ResourceType.LOCATION,
+            legIndex: null,
+            startsAt: at(12),
+            endsAt: at(13),
+          },
+        ]);
+      });
+
+      it('includes a HOLD row and orders by start time', async () => {
+        const later = await seedBookingWithLine(TENANT_A);
+        const sooner = await seedBookingWithLine(TENANT_A);
+        await txManager.run(async () => {
+          await repo.assign(
+            TENANT_A,
+            later.lineId,
+            [candidate(resourceA, at(14), at(15))],
+            'COMMITTED',
+            null,
+          );
+          await repo.assign(
+            TENANT_A,
+            sooner.lineId,
+            [candidate(resourceA, at(11), at(12))],
+            'HOLD',
+            new Date(Date.now() + 3_600_000),
+          );
+        });
+
+        const impacts = await txManager.run(() =>
+          repo.findFutureBookingImpactsByResource(TENANT_A, resourceA, at(0)),
+        );
+
+        expect(impacts.map((i) => i.bookingId)).toEqual([sooner.bookingId, later.bookingId]);
+      });
+
+      it("never returns another resource's or another tenant's rows", async () => {
+        const mine = await seedBookingWithLine(TENANT_A);
+        const other = await seedBookingWithLine(TENANT_A);
+        const foreign = await seedBookingWithLine(TENANT_B);
+        await txManager.run(async () => {
+          await repo.assign(
+            TENANT_A,
+            mine.lineId,
+            [candidate(resourceA, at(12), at(13))],
+            'COMMITTED',
+            null,
+          );
+          await repo.assign(
+            TENANT_A,
+            other.lineId,
+            [candidate(resourceA2, at(12), at(13), { resourceType: ResourceType.EQUIPMENT })],
+            'COMMITTED',
+            null,
+          );
+          await repo.assign(
+            TENANT_B,
+            foreign.lineId,
+            [candidate(resourceB, at(12), at(13))],
+            'COMMITTED',
+            null,
+          );
+        });
+
+        const impacts = await txManager.run(() =>
+          repo.findFutureBookingImpactsByResource(TENANT_A, resourceA, at(0)),
+        );
+
+        expect(impacts.map((i) => i.bookingId)).toEqual([mine.bookingId]);
+        await expect(
+          txManager.run(() => repo.findFutureBookingImpactsByResource(TENANT_B, resourceA, at(0))),
+        ).resolves.toEqual([]);
+      });
+    });
+
+    describe('findOccupancyByBookingLines', () => {
+      it('returns each live row with everything needed to recreate it elsewhere', async () => {
+        const { lineId } = await seedBookingWithLine(TENANT_A);
+        await txManager.run(() =>
+          repo.assign(
+            TENANT_A,
+            lineId,
+            [
+              candidate(resourceA, at(12), at(13), { resourceName: 'Unidade' }),
+              candidate(resourceA2, at(12), at(13), {
+                resourceType: ResourceType.EQUIPMENT,
+                resourceName: 'Projetor',
+                quantityPosition: 1,
+              }),
+            ],
+            'COMMITTED',
+            null,
+          ),
+        );
+
+        const rows = await txManager.run(() =>
+          repo.findOccupancyByBookingLines(TENANT_A, [lineId]),
+        );
+
+        expect(rows).toHaveLength(2);
+        expect(rows.find((r) => r.resourceId === resourceA)).toEqual({
+          bookingLineId: lineId,
+          resourceId: resourceA,
+          resourceType: ResourceType.LOCATION,
+          resourceName: 'Unidade',
+          legIndex: null,
+          quantityPosition: null,
+          startsAt: at(12),
+          endsAt: at(13),
+          lockState: 'COMMITTED',
+          holdExpiresAt: null,
+        });
+        expect(rows.find((r) => r.resourceId === resourceA2)).toMatchObject({
+          resourceName: 'Projetor',
+          quantityPosition: 1,
+        });
+      });
+
+      it('keeps a HOLD row’s expiry, scopes by tenant, and is empty for no lines', async () => {
+        const mine = await seedBookingWithLine(TENANT_A);
+        const foreign = await seedBookingWithLine(TENANT_B);
+        const expiresAt = new Date(Date.now() + 3_600_000);
+        await txManager.run(async () => {
+          await repo.assign(
+            TENANT_A,
+            mine.lineId,
+            [candidate(resourceA, at(12), at(13))],
+            'HOLD',
+            expiresAt,
+          );
+          await repo.assign(
+            TENANT_B,
+            foreign.lineId,
+            [candidate(resourceB, at(12), at(13))],
+            'COMMITTED',
+            null,
+          );
+        });
+
+        const rows = await txManager.run(() =>
+          repo.findOccupancyByBookingLines(TENANT_A, [mine.lineId, foreign.lineId]),
+        );
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0].lockState).toBe('HOLD');
+        expect(rows[0].holdExpiresAt?.getTime()).toBe(expiresAt.getTime());
+        await expect(
+          txManager.run(() => repo.findOccupancyByBookingLines(TENANT_A, [])),
+        ).resolves.toEqual([]);
+      });
+    });
+  });
 });

@@ -1,0 +1,153 @@
+# BFF — Future-commitment worklist (M23-S08, UC-073, UC-077)
+# MANAGER-only. A pass-through to the backend's bulk routes: a single entry is a list of one, and
+# the actions are best-effort per entry (a 200 whose `results` reports each entry's outcome).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#   5. pnpm --filter @ikaro/bff run dev
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "staff@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /v1/scheduling-exceptions — the worklist
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Open entries, earliest booking first
+GET {{bffUrl}}/v1/scheduling-exceptions?status=OPEN
+Authorization: Bearer {{managerToken}}
+
+###
+
+### ERROR — unknown status → 400
+GET {{bffUrl}}/v1/scheduling-exceptions?status=DONE
+Authorization: Bearer {{managerToken}}
+
+###
+
+### ERROR — STAFF → 403
+GET {{bffUrl}}/v1/scheduling-exceptions
+Authorization: Bearer {{staffToken}}
+
+###
+
+### ERROR — no JWT → 401
+GET {{bffUrl}}/v1/scheduling-exceptions
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /v1/scheduling-exceptions/resolve
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### REASSIGN many entries to the least-loaded free resource of their type
+POST {{bffUrl}}/v1/scheduling-exceptions/resolve
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}", "{{secondExceptionId}}"],
+  "resolutionType": "REASSIGN",
+  "target": { "mode": "AUTO" }
+}
+
+###
+
+### REASSIGN to a chosen resource
+POST {{bffUrl}}/v1/scheduling-exceptions/resolve
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "REASSIGN",
+  "target": { "resourceId": "{{targetResourceId}}" }
+}
+
+###
+
+### CANCEL
+POST {{bffUrl}}/v1/scheduling-exceptions/resolve
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "CANCEL",
+  "reason": "The room is closed"
+}
+
+###
+
+### RESCHEDULE — exactly one entry and a scheduledAt
+POST {{bffUrl}}/v1/scheduling-exceptions/resolve
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "RESCHEDULE",
+  "scheduledAt": "2026-10-20T13:00:00.000Z"
+}
+
+###
+
+### ERROR — REASSIGN without a target → 400
+POST {{bffUrl}}/v1/scheduling-exceptions/resolve
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "exceptionIds": ["{{exceptionId}}"], "resolutionType": "REASSIGN" }
+
+###
+
+### ERROR — STAFF → 403
+POST {{bffUrl}}/v1/scheduling-exceptions/resolve
+Authorization: Bearer {{staffToken}}
+Content-Type: application/json
+
+{ "exceptionIds": ["{{exceptionId}}"], "resolutionType": "KEEP" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /v1/scheduling-exceptions/dismiss
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Dismiss entries that need no action
+POST {{bffUrl}}/v1/scheduling-exceptions/dismiss
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "exceptionIds": ["{{exceptionId}}"], "reason": "Already handled by phone" }
+
+###
+
+### ERROR — missing reason → 400
+POST {{bffUrl}}/v1/scheduling-exceptions/dismiss
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "exceptionIds": ["{{exceptionId}}"] }

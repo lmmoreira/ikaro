@@ -1,5 +1,7 @@
 import {
+  BookingLineOccupancyRow,
   IResourceOccupancyRepository,
+  ResourceBookingImpact,
   ResourceLineAssignment,
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
@@ -15,6 +17,7 @@ interface StoredOccupancy extends ResourceOccupancyCandidate {
 
 export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRepository {
   private store: StoredOccupancy[] = [];
+  private readonly bookingIdByLineId = new Map<string, string>();
 
   // Test-only helper — lets a spec seed an existing occupancy row without going through assign().
   seed(tenantId: string, bookingLineId: string, candidate: ResourceOccupancyCandidate): void {
@@ -107,6 +110,62 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
       counts.set(row.resourceId, (counts.get(row.resourceId) ?? 0) + 1);
     }
     return counts;
+  }
+
+  // Test-only helper — this double has no booking_lines table, so a spec that reads impacts by
+  // booking states which booking owns which line explicitly.
+  registerBookingLine(bookingLineId: string, bookingId: string): void {
+    this.bookingIdByLineId.set(bookingLineId, bookingId);
+  }
+
+  async findFutureBookingImpactsByResource(
+    tenantId: string,
+    resourceId: string,
+    after: Date,
+  ): Promise<ResourceBookingImpact[]> {
+    return this.store
+      .filter(
+        (row) =>
+          row.tenantId === tenantId &&
+          row.resourceId === resourceId &&
+          row.lockState !== 'REQUESTED' &&
+          row.endsAt > after &&
+          this.bookingIdByLineId.has(row.bookingLineId),
+      )
+      .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+      .map((row) => ({
+        bookingId: this.bookingIdByLineId.get(row.bookingLineId)!,
+        bookingLineId: row.bookingLineId,
+        resourceType: row.resourceType,
+        legIndex: row.legIndex,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+      }));
+  }
+
+  async findOccupancyByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<BookingLineOccupancyRow[]> {
+    return this.store
+      .filter((row) => row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId))
+      .sort(
+        (a, b) =>
+          bookingLineIds.indexOf(a.bookingLineId) - bookingLineIds.indexOf(b.bookingLineId) ||
+          a.startsAt.getTime() - b.startsAt.getTime(),
+      )
+      .map((row) => ({
+        bookingLineId: row.bookingLineId,
+        resourceId: row.resourceId,
+        resourceType: row.resourceType,
+        resourceName: row.resourceName,
+        legIndex: row.legIndex,
+        quantityPosition: row.quantityPosition,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        lockState: row.lockState,
+        holdExpiresAt: row.holdExpiresAt,
+      }));
   }
 
   // Mirrors the real repository's ORDER BY quantity_position — this store only ever holds live

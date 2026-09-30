@@ -4,6 +4,7 @@ import { BookingsController } from './bookings.controller';
 import { BookingsGuestController } from './bookings-guest.controller';
 import { BookingsAttachmentsController } from './bookings-attachments.controller';
 import { RecurringBookingSchedulesController } from './recurring-booking-schedules.controller';
+import { SchedulingExceptionsController } from './scheduling-exceptions.controller';
 
 @Module({
   imports: [BackendHttpModule],
@@ -12,6 +13,7 @@ import { RecurringBookingSchedulesController } from './recurring-booking-schedul
     BookingsGuestController,
     BookingsAttachmentsController,
     RecurringBookingSchedulesController,
+    SchedulingExceptionsController,
   ],
 })
 export class BookingsModule {}

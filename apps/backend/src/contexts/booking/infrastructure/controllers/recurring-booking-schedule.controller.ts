@@ -5,7 +5,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  Patch,
   Post,
   Query,
   UseGuards,
@@ -18,20 +17,13 @@ import {
   ListRecurringBookingSchedulesSchema,
 } from '../../application/dtos/list-recurring-booking-schedules.dto';
 import {
-  OccurrenceStartParamSchema,
   RequestRecurringBookingScheduleDto,
   RequestRecurringBookingScheduleSchema,
-  SkipOrRescheduleOccurrenceDto,
-  SkipOrRescheduleOccurrenceSchema,
 } from '../../application/dtos/request-recurring-booking-schedule.dto';
 import {
   RequestRecurringBookingScheduleUseCase,
   RequestRecurringBookingScheduleUseCaseResult,
 } from '../../application/use-cases/request-recurring-booking-schedule.use-case';
-import {
-  SkipOrRescheduleOccurrenceUseCase,
-  SkipOrRescheduleOccurrenceUseCaseResult,
-} from '../../application/use-cases/skip-or-reschedule-occurrence.use-case';
 import {
   EndRecurringBookingScheduleUseCase,
   EndRecurringBookingScheduleUseCaseResult,
@@ -49,7 +41,6 @@ export class RecurringBookingScheduleController {
     private readonly ctx: RequestContext,
     private readonly requestSchedule: RequestRecurringBookingScheduleUseCase,
     private readonly listSchedules: ListRecurringBookingSchedulesUseCase,
-    private readonly skipOrRescheduleOccurrence: SkipOrRescheduleOccurrenceUseCase,
     private readonly endSchedule: EndRecurringBookingScheduleUseCase,
   ) {}
 
@@ -90,31 +81,6 @@ export class RecurringBookingScheduleController {
         actorType: actorType!,
         actorId: actorId!,
         bodyCustomerId: body.customerId,
-      })
-      .catch(mapBookingError);
-  }
-
-  @Patch(':id/occurrences/:occurrenceStart')
-  @HttpCode(HttpStatus.OK)
-  skipOrReschedule(
-    @Param('id', CanonicalParseUUIDPipe) id: string,
-    @Param('occurrenceStart', new ZodValidationPipe(OccurrenceStartParamSchema))
-    occurrenceStart: string,
-    @Body(new ZodValidationPipe(SkipOrRescheduleOccurrenceSchema))
-    body: SkipOrRescheduleOccurrenceDto,
-  ): Promise<SkipOrRescheduleOccurrenceUseCaseResult> {
-    const { tenantId, correlationId, actorType, actorId } = this.ctx;
-    return this.skipOrRescheduleOccurrence
-      .execute({
-        scheduleId: id,
-        tenantId,
-        correlationId,
-        occurrenceStart: new Date(occurrenceStart),
-        action: body.action,
-        replacementBookingId: body.replacementBookingId,
-        reason: body.reason,
-        actorType: actorType!,
-        actorId: actorId!,
       })
       .catch(mapBookingError);
   }

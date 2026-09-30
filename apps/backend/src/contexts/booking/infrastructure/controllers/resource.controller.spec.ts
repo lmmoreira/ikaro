@@ -5,6 +5,7 @@ import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-te
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { FutureCommitmentFixture } from '../../../../test/utils/future-commitment-fixture';
 import { CreateResourceUseCase } from '../../application/use-cases/create-resource.use-case';
 import { GetResourceByIdUseCase } from '../../application/use-cases/get-resource-by-id.use-case';
 import { UpdateResourceUseCase } from '../../application/use-cases/update-resource.use-case';
@@ -23,7 +24,8 @@ describe('ResourceController', () => {
   let controller: ResourceController;
 
   beforeEach(() => {
-    repo = new InMemoryResourceRepository();
+    const world = new FutureCommitmentFixture();
+    repo = world.resourceRepo;
     staffPort = new InMemoryBookingStaffPort();
     const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).build();
     const tx = new InMemoryTransactionManager();
@@ -34,7 +36,7 @@ describe('ResourceController', () => {
       new CreateResourceUseCase(repo, staffWrapValidation, tx, tenantLock),
       new GetResourceByIdUseCase(repo),
       new UpdateResourceUseCase(repo, staffWrapValidation, tx, tenantLock),
-      new DeactivateResourceUseCase(repo, tx),
+      new DeactivateResourceUseCase(repo, tx, world.raise),
       new ReactivateResourceUseCase(repo, staffPort, tx, tenantLock),
       new ListResourcesUseCase(repo),
     );

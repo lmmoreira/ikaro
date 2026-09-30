@@ -31,18 +31,10 @@ export class InMemoryBookingRepository implements IBookingRepository {
     return booking ?? null;
   }
 
-  async findByRecurringScheduleAndOccurrence(
-    tenantId: string,
-    recurringScheduleId: string,
-    occurrenceStart: Date,
-  ): Promise<Booking | null> {
-    return (
-      Array.from(this.store.values()).find(
-        (b) =>
-          b.tenantId === tenantId &&
-          b.recurringScheduleId === recurringScheduleId &&
-          b.scheduledAt.getTime() === occurrenceStart.getTime(),
-      ) ?? null
+  async findByIds(ids: string[], tenantId: string): Promise<Booking[]> {
+    const wanted = new Set(ids);
+    return Array.from(this.store.values()).filter(
+      (b) => b.tenantId === tenantId && wanted.has(b.id),
     );
   }
 
@@ -65,6 +57,9 @@ export class InMemoryBookingRepository implements IBookingRepository {
     let results = Array.from(this.store.values()).filter((b) => b.tenantId === tenantId);
     if (filters.status?.length) results = results.filter((b) => filters.status!.includes(b.status));
     if (filters.customerId) results = results.filter((b) => b.customerId === filters.customerId);
+    if (filters.recurringScheduleId) {
+      results = results.filter((b) => b.recurringScheduleId === filters.recurringScheduleId);
+    }
     if (filters.scheduledAfter)
       results = results.filter((b) => b.scheduledAt >= filters.scheduledAfter!);
     if (filters.scheduledBefore)

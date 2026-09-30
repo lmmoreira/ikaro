@@ -13,12 +13,10 @@ import {
 } from '../../application/ports/recurring-booking-schedule-repository.port';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
-import { RecurringBookingScheduleExceptionEntity } from '../entities/recurring-booking-schedule-exception.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
 import {
   toDomain,
   toEntity,
-  toExceptionEntities,
   toResourceAssignmentEntities,
   toUpdateSet,
 } from './typeorm-recurring-booking-schedule.mapper';
@@ -30,25 +28,22 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
     private readonly repo: Repository<RecurringBookingScheduleEntity>,
     @InjectRepository(RecurringBookingScheduleResourceAssignmentEntity)
     private readonly assignmentRepo: Repository<RecurringBookingScheduleResourceAssignmentEntity>,
-    @InjectRepository(RecurringBookingScheduleExceptionEntity)
-    private readonly exceptionRepo: Repository<RecurringBookingScheduleExceptionEntity>,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
   ) {}
 
   async findById(id: string, tenantId: string): Promise<RecurringBookingSchedule | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     if (!entity) return null;
-    const [assignments, exceptions] = await Promise.all([
-      this.assignmentRepo.find({ where: { recurringScheduleId: id, tenantId } }),
-      this.exceptionRepo.find({ where: { recurringScheduleId: id, tenantId } }),
-    ]);
-    return toDomain(entity, assignments, exceptions);
+    const assignments = await this.assignmentRepo.find({
+      where: { recurringScheduleId: id, tenantId },
+    });
+    return toDomain(entity, assignments);
   }
 
   // ListRecurringBookingSchedulesUseCase is this method's only caller and maps root scalar
-  // fields only (list-recurring-booking-schedules.use-case.ts) — resourceAssignments/exceptions
-  // are never read from the returned aggregates, so hydrating them here would be 2 extra queries
-  // and an unbounded result set per schedule for nothing. findById() remains the place a caller
+  // fields only (list-recurring-booking-schedules.use-case.ts) — resourceAssignments are never
+  // read from the returned aggregates, so hydrating them here would be an extra query and an
+  // unbounded result set per schedule for nothing. findById() remains the place a caller
   // needing the full aggregate (mutation use cases) reads from.
   async findAllByTenantPaginated(
     tenantId: string,
@@ -68,7 +63,7 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
       take: filters.limit,
       skip: filters.offset,
     });
-    return { items: entities.map((e) => toDomain(e, [], [])), total };
+    return { items: entities.map((e) => toDomain(e, [])), total };
   }
 
   async countActiveByResource(tenantId: string, resourceId: string): Promise<number> {
@@ -112,7 +107,7 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
     });
     const assignmentsByScheduleId = groupBy(allAssignments, (a) => a.recurringScheduleId);
 
-    return entities.map((e) => toDomain(e, assignmentsByScheduleId.get(e.id) ?? [], []));
+    return entities.map((e) => toDomain(e, assignmentsByScheduleId.get(e.id) ?? []));
   }
 
   async countActiveResolvePerOccurrenceByService(
@@ -146,7 +141,6 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
   private async persist(manager: EntityManager, schedule: RecurringBookingSchedule): Promise<void> {
     const scheduleRepo = manager.getRepository(RecurringBookingScheduleEntity);
     const assignmentRepo = manager.getRepository(RecurringBookingScheduleResourceAssignmentEntity);
-    const exceptionRepo = manager.getRepository(RecurringBookingScheduleExceptionEntity);
 
     const entity = toEntity(schedule);
     // version === undefined means this aggregate was never loaded from (or written to) the DB —
@@ -174,11 +168,16 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
       if (result.affected !== 1) {
         throw new BookingConcurrentModificationError();
       }
-    }
 
-    const pendingExceptions = schedule.pendingNewExceptions;
-    if (pendingExceptions.length) {
-      await exceptionRepo.insert(toExceptionEntities(schedule, pendingExceptions));
+      // Wholesale-replaced child collection: only resynced when reassignResource() touched it.
+      if (schedule.resourceAssignmentsModified) {
+        await assignmentRepo.delete({
+          tenantId: schedule.tenantId,
+          recurringScheduleId: schedule.id,
+        });
+        const assignmentEntities = toResourceAssignmentEntities(schedule);
+        if (assignmentEntities.length) await assignmentRepo.insert(assignmentEntities);
+      }
     }
 
     await drainDomainEvents(schedule, this.outboxPublisher);

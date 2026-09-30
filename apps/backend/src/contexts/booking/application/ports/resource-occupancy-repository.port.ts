@@ -123,6 +123,48 @@ export interface IResourceOccupancyRepository {
     tenantId: string,
     bookingLineIds: string[],
   ): Promise<ResourceLineAssignment[]>;
+
+  // M23-S08 (UC-073) — every live occupancy row (BOOKING_LINE source, HOLD or COMMITTED — a
+  // REQUESTED row was never a real commitment) on this resource whose window ends after `after`,
+  // with the owning booking and line resolved. Which bookings still count (a terminal booking's
+  // rows are normally released already) is the caller's decision, made against the bookings it
+  // loads anyway. Same active-transaction contract as the other methods on this port.
+  findFutureBookingImpactsByResource(
+    tenantId: string,
+    resourceId: string,
+    after: Date,
+  ): Promise<ResourceBookingImpact[]>;
+
+  // M23-S08 (UC-077) — the live occupancy rows of the given booking lines with everything needed
+  // to re-create them elsewhere at the exact same window (a targeted REASSIGN moves a row to
+  // another resource without touching its time). Same live-projection source as
+  // findAssignmentsByBookingLines, never the append-only audit table.
+  findOccupancyByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<BookingLineOccupancyRow[]>;
+}
+
+export interface BookingLineOccupancyRow {
+  bookingLineId: string;
+  resourceId: string;
+  resourceType: ResourceType;
+  resourceName: string;
+  legIndex: number | null;
+  quantityPosition: number | null;
+  startsAt: Date;
+  endsAt: Date;
+  lockState: ResourceOccupancyLockState;
+  holdExpiresAt: Date | null;
+}
+
+export interface ResourceBookingImpact {
+  bookingId: string;
+  bookingLineId: string;
+  resourceType: ResourceType;
+  legIndex: number | null;
+  startsAt: Date;
+  endsAt: Date;
 }
 
 export interface ResourceLineAssignment {

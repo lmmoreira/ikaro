@@ -1,49 +1,40 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
-import {
-  RecurringBookingScheduleExceptionAlreadyExistsError,
-  RecurringBookingScheduleNotActiveError,
-} from './errors/recurring-booking-schedule.error';
+import { RecurringBookingScheduleNotActiveError } from './errors/recurring-booking-schedule.error';
 import { RecurringBookingScheduleEnded } from './events/recurring-booking-schedule-ended.event';
 import { assertValidTerm, RecurrenceRule } from './recurrence-rule.helpers';
 import { buildRequestedEvent } from './recurring-booking-schedule-request-event.helpers';
 import {
-  RecurringBookingScheduleActorType,
   RecurringBookingScheduleAssignmentPolicy,
   RecurringBookingScheduleCancellationReason,
-  RecurringBookingScheduleExceptionProps,
   RecurringBookingScheduleProps,
   RecurringBookingScheduleResourceAssignmentProps,
   RecurringBookingScheduleStatus,
   RequestRecurringBookingScheduleOptions,
 } from './recurring-booking-schedule.types';
 
-// RecurringBookingScheduleStatus/AssignmentPolicy/CancellationReason/ExceptionKind/ActorType and
-// every *Props/*Options interface moved to recurring-booking-schedule.types.ts to keep this file
-// under the file-length cap — re-exported so existing imports of these symbols keep working.
+// RecurringBookingScheduleStatus/AssignmentPolicy/CancellationReason/ActorType and every
+// *Props/*Options interface moved to recurring-booking-schedule.types.ts to keep this file under
+// the file-length cap — re-exported so existing imports of these symbols keep working.
 export * from './recurring-booking-schedule.types';
 
 export class RecurringBookingSchedule extends AggregateRoot {
   private readonly props: RecurringBookingScheduleProps;
-  // Exceptions are append-only and immutable once created — the repository only ever needs to
-  // INSERT a newly-added one, never touch an existing row. Tracked separately from props.exceptions
-  // (which mirrors full DB state) so save() doesn't need to diff the whole array to find what's new
-  // (mirrors Booking's own _linesModified dirty-flag precedent, docs/ENGINEERING_RULES_BACKEND.md
-  // § A repository that wholesale-replaces a child collection).
-  private readonly newExceptions: RecurringBookingScheduleExceptionProps[] = [];
+  // The resource assignments are a wholesale-replaced child collection: true after request() (the
+  // first save must insert them) and after reassignResource(), false after reconstitute(), so a
+  // save that never touched them skips the delete+reinsert (docs/ENGINEERING_RULES_BACKEND.md § A
+  // wholesale-replaced child collection needs a dirty flag on the aggregate).
+  private assignmentsDirty: boolean;
 
-  private constructor(props: RecurringBookingScheduleProps) {
+  private constructor(props: RecurringBookingScheduleProps, assignmentsDirty: boolean) {
     super();
-    this.props = {
-      ...props,
-      resourceAssignments: [...props.resourceAssignments],
-      exceptions: [...props.exceptions],
-    };
+    this.props = { ...props, resourceAssignments: [...props.resourceAssignments] };
+    this.assignmentsDirty = assignmentsDirty;
   }
 
-  get pendingNewExceptions(): RecurringBookingScheduleExceptionProps[] {
-    return [...this.newExceptions];
+  get resourceAssignmentsModified(): boolean {
+    return this.assignmentsDirty;
   }
 
   get id(): string {
@@ -82,9 +73,6 @@ export class RecurringBookingSchedule extends AggregateRoot {
   }
   get resourceAssignments(): RecurringBookingScheduleResourceAssignmentProps[] {
     return [...this.props.resourceAssignments];
-  }
-  get exceptions(): RecurringBookingScheduleExceptionProps[] {
-    return [...this.props.exceptions];
   }
   get approvalHoldExpiresAt(): Date | null {
     return this.props.approvalHoldExpiresAt;
@@ -126,29 +114,31 @@ export class RecurringBookingSchedule extends AggregateRoot {
       assignedAt: now,
     }));
 
-    const schedule = new RecurringBookingSchedule({
-      id,
-      tenantId: options.tenantId,
-      customerId: options.customerId,
-      serviceId: options.serviceId,
-      recurrence: {
-        ...options.recurrence,
-        startTime: TimeOfDay.create(options.recurrence.startTime),
+    const schedule = new RecurringBookingSchedule(
+      {
+        id,
+        tenantId: options.tenantId,
+        customerId: options.customerId,
+        serviceId: options.serviceId,
+        recurrence: {
+          ...options.recurrence,
+          startTime: TimeOfDay.create(options.recurrence.startTime),
+        },
+        startsOn: options.startsOn,
+        endsOn: options.endsOn,
+        status: options.status,
+        assignmentPolicy: options.assignmentPolicy,
+        resourceAssignments,
+        approvalHoldExpiresAt: options.approvalHoldExpiresAt,
+        approvedByStaffId: null,
+        approvedAt: null,
+        cancellationReason: null,
+        createdByStaffId: options.createdByStaffId,
+        createdAt: now,
+        updatedAt: now,
       },
-      startsOn: options.startsOn,
-      endsOn: options.endsOn,
-      status: options.status,
-      assignmentPolicy: options.assignmentPolicy,
-      resourceAssignments,
-      exceptions: [],
-      approvalHoldExpiresAt: options.approvalHoldExpiresAt,
-      approvedByStaffId: null,
-      approvedAt: null,
-      cancellationReason: null,
-      createdByStaffId: options.createdByStaffId,
-      createdAt: now,
-      updatedAt: now,
-    });
+      true,
+    );
 
     schedule.addDomainEvent(buildRequestedEvent(options, id, resourceAssignments));
 
@@ -156,7 +146,7 @@ export class RecurringBookingSchedule extends AggregateRoot {
   }
 
   static reconstitute(props: RecurringBookingScheduleProps): RecurringBookingSchedule {
-    return new RecurringBookingSchedule(props);
+    return new RecurringBookingSchedule(props, false);
   }
 
   // UC-070 A2 — only once ACTIVE; a PENDING_APPROVAL request is withdrawn outright instead
@@ -167,58 +157,22 @@ export class RecurringBookingSchedule extends AggregateRoot {
     }
   }
 
-  private assertNoExistingException(occurrenceStart: Date): void {
-    const iso = occurrenceStart.toISOString();
-    if (this.props.exceptions.some((e) => e.occurrenceStart.toISOString() === iso)) {
-      throw new RecurringBookingScheduleExceptionAlreadyExistsError(iso);
-    }
-  }
-
-  private addException(exception: RecurringBookingScheduleExceptionProps): void {
-    this.props.exceptions.push(exception);
-    this.newExceptions.push(exception);
+  // M23-S08 (UC-077): a manager's REASSIGN moved this schedule's occurrences off `fromResourceId`.
+  // The assignment row is only the record of what was requested, so it follows the occurrences
+  // only once the use case has confirmed none is left on the old resource. A no-op when the
+  // schedule was not assigned to `fromResourceId`; when `toResourceId` is already assigned (a
+  // multi-unit requirement) the old row is simply dropped so the (schedule, resource) key holds.
+  reassignResource(fromResourceId: string, toResourceId: string): void {
+    this.assertActive();
+    const from = this.props.resourceAssignments.find((a) => a.resourceId === fromResourceId);
+    if (!from) return;
+    const remaining = this.props.resourceAssignments.filter((a) => a.resourceId !== fromResourceId);
+    const alreadyAssigned = remaining.some((a) => a.resourceId === toResourceId);
+    this.props.resourceAssignments = alreadyAssigned
+      ? remaining
+      : [...remaining, { ...from, resourceId: toResourceId, assignedAt: new Date() }];
+    this.assignmentsDirty = true;
     this.props.updatedAt = new Date();
-  }
-
-  skipOccurrence(
-    occurrenceStart: Date,
-    actorType: RecurringBookingScheduleActorType,
-    actorId: string | null,
-    reason: string | null,
-  ): void {
-    this.assertActive();
-    this.assertNoExistingException(occurrenceStart);
-    this.addException({
-      id: uuidv7(),
-      occurrenceStart,
-      kind: 'SKIPPED',
-      replacementBookingId: null,
-      actorType,
-      actorId,
-      reason,
-      createdAt: new Date(),
-    });
-  }
-
-  rescheduleOccurrence(
-    occurrenceStart: Date,
-    replacementBookingId: string,
-    actorType: RecurringBookingScheduleActorType,
-    actorId: string | null,
-    reason: string | null,
-  ): void {
-    this.assertActive();
-    this.assertNoExistingException(occurrenceStart);
-    this.addException({
-      id: uuidv7(),
-      occurrenceStart,
-      kind: 'RESCHEDULED',
-      replacementBookingId,
-      actorType,
-      actorId,
-      reason,
-      createdAt: new Date(),
-    });
   }
 
   // cancelledBookingIds is supplied by the use case — it's the one that knows which materialized

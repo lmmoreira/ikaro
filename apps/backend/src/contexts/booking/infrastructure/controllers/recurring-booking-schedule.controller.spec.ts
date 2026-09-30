@@ -22,7 +22,6 @@ import { ResourceType } from '../../domain/resource.types';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { RequestRecurringBookingScheduleUseCase } from '../../application/use-cases/request-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from '../../application/use-cases/list-recurring-booking-schedules.use-case';
-import { SkipOrRescheduleOccurrenceUseCase } from '../../application/use-cases/skip-or-reschedule-occurrence.use-case';
 import { EndRecurringBookingScheduleUseCase } from '../../application/use-cases/end-recurring-booking-schedule.use-case';
 import { RecurringBookingScheduleController } from './recurring-booking-schedule.controller';
 
@@ -102,7 +101,6 @@ describe('RecurringBookingScheduleController', () => {
         new AvailabilityService(),
       ),
       new ListRecurringBookingSchedulesUseCase(scheduleRepo),
-      new SkipOrRescheduleOccurrenceUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
       new EndRecurringBookingScheduleUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
     );
   });
@@ -232,42 +230,6 @@ describe('RecurringBookingScheduleController', () => {
 
       const ended = await controller.end(created.id);
       expect(ended.status).toBe('CANCELLED');
-    });
-  });
-
-  describe('skipOrReschedule()', () => {
-    it('records a SKIPPED exception on an ACTIVE schedule', async () => {
-      const created = await controller.request({
-        serviceId,
-        recurrence: {
-          frequency: 'WEEKLY',
-          daysOfWeek: ['tuesday'],
-          startTime: '10:00',
-          durationMinutes: 60,
-        },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
-        startsOn: STARTS_ON,
-        endsOn: ENDS_ON,
-      });
-
-      const occurrenceStart = `${STARTS_ON}T13:00:00.000Z`;
-      const result = await controller.skipOrReschedule(created.id, occurrenceStart, {
-        action: 'SKIP',
-      });
-
-      expect(result.kind).toBe('SKIPPED');
-    });
-
-    it('maps RecurringBookingScheduleNotFoundError to 404', async () => {
-      const err = await controller
-        .skipOrReschedule('00000000-0000-7000-8000-000000000099', `${STARTS_ON}T13:00:00.000Z`, {
-          action: 'SKIP',
-        })
-        .catch((e: unknown) => e);
-
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(404);
     });
   });
 });

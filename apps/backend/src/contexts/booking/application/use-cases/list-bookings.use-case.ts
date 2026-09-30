@@ -70,6 +70,7 @@ export class ListBookingsUseCase {
       await this.bookingRepo.findAllByTenantPaginated(tenantId, {
         status: input.status,
         customerId,
+        recurringScheduleId: input.recurringScheduleId,
         scheduledAfter: toInstantBound(input.from, input.timezone, localDateStartUTC),
         scheduledBefore: toInstantBound(input.to, input.timezone, localDateEndUTC),
         limit: input.limit,
