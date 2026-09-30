@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import {
   RecurringBookingScheduleEntityBuilder,
+  ResourceEntityBuilder,
   ServiceEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -10,7 +11,8 @@ import { BookingConcurrentModificationError } from '../../domain/errors/booking-
 import { ServiceEntity } from '../entities/service.entity';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
-import { RecurringBookingScheduleExceptionEntity } from '../entities/recurring-booking-schedule-exception.entity';
+import { ResourceEntity } from '../entities/resource.entity';
+import { ResourceType } from '../../domain/resource.types';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { TypeOrmRecurringBookingScheduleRepository } from './typeorm-recurring-booking-schedule.repository';
 
@@ -51,7 +53,6 @@ describe('TypeOrmRecurringBookingScheduleRepository (integration)', () => {
     repo = new TypeOrmRecurringBookingScheduleRepository(
       dataSource.getRepository(RecurringBookingScheduleEntity),
       dataSource.getRepository(RecurringBookingScheduleResourceAssignmentEntity),
-      dataSource.getRepository(RecurringBookingScheduleExceptionEntity),
       new InMemoryEventBus(),
     );
 
@@ -94,6 +95,85 @@ describe('TypeOrmRecurringBookingScheduleRepository (integration)', () => {
     await repo.save(copyA!);
 
     await expect(repo.save(copyB!)).rejects.toBeInstanceOf(BookingConcurrentModificationError);
+  });
+
+  describe('resource assignments (M23-S08 reassignResource)', () => {
+    async function seedResources(): Promise<{ first: ResourceEntity; second: ResourceEntity }> {
+      const resources = dataSource.getRepository(ResourceEntity);
+      const first = await resources.save(
+        new ResourceEntityBuilder()
+          .withTenantId(TENANT_ID)
+          .withType(ResourceType.ROOM)
+          .withName('Sala 1')
+          .build(),
+      );
+      const second = await resources.save(
+        new ResourceEntityBuilder()
+          .withTenantId(TENANT_ID)
+          .withType(ResourceType.ROOM)
+          .withName('Sala 2')
+          .build(),
+      );
+      return { first, second };
+    }
+
+    function fixedSchedule(resourceId: string): RecurringBookingSchedule {
+      return RecurringBookingSchedule.request({
+        tenantId: TENANT_ID,
+        customerId: CUSTOMER_ID,
+        serviceId: SERVICE_ID,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 60,
+        },
+        startsOn: '2026-09-01',
+        endsOn: '2026-11-24',
+        maxTermDays: 90,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceAssignments: [
+          {
+            resourceId,
+            resourceType: ResourceType.ROOM,
+            requirementId: null,
+            requiredQuantityPosition: null,
+          },
+        ],
+        status: 'ACTIVE',
+        approvalHoldExpiresAt: null,
+        createdByStaffId: null,
+        correlationId: CORRELATION_ID,
+      });
+    }
+
+    it('persists a swapped assignment and bumps the version', async () => {
+      const { first, second } = await seedResources();
+      const schedule = fixedSchedule(first.id);
+      await repo.save(schedule);
+
+      const loaded = (await repo.findById(schedule.id, TENANT_ID))!;
+      loaded.reassignResource(first.id, second.id);
+      await repo.save(loaded);
+
+      const reloaded = (await repo.findById(schedule.id, TENANT_ID))!;
+      expect(reloaded.resourceAssignments.map((a) => a.resourceId)).toEqual([second.id]);
+      expect(reloaded.version).toBe(2);
+    });
+
+    it('keeps the assignments untouched when a save never modified them', async () => {
+      const { first } = await seedResources();
+      const schedule = fixedSchedule(first.id);
+      await repo.save(schedule);
+
+      const loaded = (await repo.findById(schedule.id, TENANT_ID))!;
+      expect(loaded.resourceAssignmentsModified).toBe(false);
+      loaded.end(CORRELATION_ID, []);
+      await repo.save(loaded);
+
+      const reloaded = (await repo.findById(schedule.id, TENANT_ID))!;
+      expect(reloaded.resourceAssignments.map((a) => a.resourceId)).toEqual([first.id]);
+    });
   });
 
   describe('findAllByTenantPaginated', () => {

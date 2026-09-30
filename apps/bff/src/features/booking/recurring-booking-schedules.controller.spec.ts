@@ -49,25 +49,10 @@ describe('RecurringBookingSchedulesController', () => {
     expect(result).toEqual(mockSchedule);
   });
 
-  it('PATCH /:id/occurrences/:occurrenceStart forwards SKIP/RESCHEDULE actions', async () => {
-    const backendHttp = makeBackendHttp({
-      patch: jest.fn().mockResolvedValue({
-        scheduleId: mockSchedule.id,
-        occurrenceStart: '2026-09-08T13:00:00.000Z',
-        kind: 'SKIPPED',
-      }),
-    });
-    const controller = new RecurringBookingSchedulesController(backendHttp);
+  it('exposes no per-occurrence route (an occurrence is its linked booking)', () => {
+    const controller = new RecurringBookingSchedulesController(makeBackendHttp({}));
 
-    const result = await controller.skipOrReschedule(mockSchedule.id, '2026-09-08T13:00:00.000Z', {
-      action: 'SKIP',
-    });
-
-    expect(backendHttp.patch).toHaveBeenCalledWith(
-      `/recurring-booking-schedules/${mockSchedule.id}/occurrences/2026-09-08T13%3A00%3A00.000Z`,
-      { action: 'SKIP' },
-    );
-    expect(result.kind).toBe('SKIPPED');
+    expect('skipOrReschedule' in controller).toBe(false);
   });
 
   it('exposes no pause route', () => {

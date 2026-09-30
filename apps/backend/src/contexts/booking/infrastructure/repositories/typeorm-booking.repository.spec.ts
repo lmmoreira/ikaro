@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Between, EntityManager, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, EntityManager, In, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   BookingEntityBuilder,
   BookingBuilder,
@@ -192,6 +192,50 @@ describe('TypeOrmBookingRepository', () => {
     });
   });
 
+  describe('findByIds (M23-S08)', () => {
+    const tenantId = '00000000-0000-7000-8000-000000000001';
+
+    it('returns an empty list without querying when no ids are given', async () => {
+      const result = await repo.findByIds([], tenantId);
+
+      expect(result).toEqual([]);
+      expect(ormRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('loads the bookings of the tenant that match the ids, with their lines', async () => {
+      const first = new BookingEntityBuilder()
+        .withId('00000000-0000-7000-8000-000000000021')
+        .withTenantId(tenantId)
+        .build();
+      const second = new BookingEntityBuilder()
+        .withId('00000000-0000-7000-8000-000000000022')
+        .withTenantId(tenantId)
+        .build();
+      ormRepo.find.mockResolvedValue([first, second]);
+      ormLineRepo.find.mockResolvedValue([
+        new BookingLineEntityBuilder().withBookingId(first.id).withTenantId(tenantId).build(),
+        new BookingLineEntityBuilder().withBookingId(second.id).withTenantId(tenantId).build(),
+      ]);
+
+      const result = await repo.findByIds([first.id, second.id], tenantId);
+
+      expect(ormRepo.find).toHaveBeenCalledWith({
+        where: { tenantId, id: In([first.id, second.id]) },
+      });
+      expect(result.map((b) => b.id).sort()).toEqual([first.id, second.id].sort());
+      expect(result.every((b) => b.lines.length === 1)).toBe(true);
+    });
+
+    it('returns an empty list when none of the ids exist in the tenant', async () => {
+      ormRepo.find.mockResolvedValue([]);
+
+      await expect(
+        repo.findByIds(['00000000-0000-7000-8000-000000000099'], tenantId),
+      ).resolves.toEqual([]);
+      expect(ormLineRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findAllByTenant', () => {
     it('returns empty array when no bookings found', async () => {
       ormRepo.find.mockResolvedValue([]);
@@ -330,6 +374,22 @@ describe('TypeOrmBookingRepository', () => {
       expect(ormRepo.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ status: BookingStatus.APPROVED }),
+        }),
+      );
+    });
+
+    it('applies the recurringScheduleId filter (M23-S08)', async () => {
+      ormRepo.findAndCount.mockResolvedValue([[], 0]);
+
+      await repo.findAllByTenantPaginated(tenantId, {
+        limit: 25,
+        offset: 0,
+        recurringScheduleId: 'schedule-1',
+      });
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ tenantId, recurringScheduleId: 'schedule-1' }),
         }),
       );
     });

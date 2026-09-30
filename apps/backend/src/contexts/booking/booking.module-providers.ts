@@ -13,6 +13,14 @@ import { SERVICE_REPOSITORY } from './application/ports/service-repository.port'
 import { SERVICE_INTAKE_SCHEMA_REPOSITORY } from './application/ports/service-intake-schema-repository.port';
 import { BOOKING_QUOTE_REVISION_REPOSITORY } from './application/ports/booking-quote-revision-repository.port';
 import { RECURRING_BOOKING_SCHEDULE_REPOSITORY } from './application/ports/recurring-booking-schedule-repository.port';
+import { FUTURE_COMMITMENT_EXCEPTION_REPOSITORY } from './application/ports/future-commitment-exception-repository.port';
+import { RaiseFutureCommitmentExceptionsForResourceUseCase } from './application/use-cases/raise-future-commitment-exceptions-for-resource.use-case';
+import { ListFutureCommitmentExceptionsUseCase } from './application/use-cases/list-future-commitment-exceptions.use-case';
+import { ResolveFutureCommitmentExceptionsUseCase } from './application/use-cases/resolve-future-commitment-exceptions.use-case';
+import { DismissFutureCommitmentExceptionsUseCase } from './application/use-cases/dismiss-future-commitment-exceptions.use-case';
+import { LogFutureCommitmentExceptionEventUseCase } from './application/use-cases/log-future-commitment-exception-event.use-case';
+import { FutureCommitmentExceptionEventsHandler } from './infrastructure/events/future-commitment-exception-events.handler';
+import { TypeOrmFutureCommitmentExceptionRepository } from './infrastructure/repositories/typeorm-future-commitment-exception.repository';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { ResourceOccupancyRetentionPurgeJob } from './application/jobs/resource-occupancy-retention-purge.job';
@@ -67,7 +75,6 @@ import { CompleteBookingUseCase } from './application/use-cases/complete-booking
 import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/generate-attachment-signed-url.use-case';
 import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
 import { RequestRecurringBookingScheduleUseCase } from './application/use-cases/request-recurring-booking-schedule.use-case';
-import { SkipOrRescheduleOccurrenceUseCase } from './application/use-cases/skip-or-reschedule-occurrence.use-case';
 import { EndRecurringBookingScheduleUseCase } from './application/use-cases/end-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from './application/use-cases/list-recurring-booking-schedules.use-case';
 import { LogRecurringBookingScheduleEventUseCase } from './application/use-cases/log-recurring-booking-schedule-event.use-case';
@@ -106,6 +113,10 @@ export const bookingModuleProviders: Provider[] = [
   {
     provide: RECURRING_BOOKING_SCHEDULE_REPOSITORY,
     useClass: TypeOrmRecurringBookingScheduleRepository,
+  },
+  {
+    provide: FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+    useClass: TypeOrmFutureCommitmentExceptionRepository,
   },
   { provide: SCHEDULE_CLOSURE_REPOSITORY, useClass: TypeOrmScheduleClosureRepository },
   { provide: SCHEDULE_OPENING_REPOSITORY, useClass: TypeOrmScheduleOpeningRepository },
@@ -175,9 +186,14 @@ export const bookingModuleProviders: Provider[] = [
   CreateTenantLocationResourceUseCase,
   TenantProvisionedBookingHandler,
   RequestRecurringBookingScheduleUseCase,
-  SkipOrRescheduleOccurrenceUseCase,
   EndRecurringBookingScheduleUseCase,
   ListRecurringBookingSchedulesUseCase,
   LogRecurringBookingScheduleEventUseCase,
   RecurringBookingScheduleEventsHandler,
+  RaiseFutureCommitmentExceptionsForResourceUseCase,
+  ListFutureCommitmentExceptionsUseCase,
+  ResolveFutureCommitmentExceptionsUseCase,
+  DismissFutureCommitmentExceptionsUseCase,
+  LogFutureCommitmentExceptionEventUseCase,
+  FutureCommitmentExceptionEventsHandler,
 ];

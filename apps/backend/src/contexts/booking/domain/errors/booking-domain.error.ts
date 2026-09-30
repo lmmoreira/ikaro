@@ -42,3 +42,4 @@ export * from './booking-discount.error';
 export * from './booking-lifecycle.error';
 export * from './resource.error';
 export * from './recurring-booking-schedule.error';
+export * from './future-commitment-exception.error';

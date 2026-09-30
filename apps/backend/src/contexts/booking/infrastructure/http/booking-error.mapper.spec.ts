@@ -52,7 +52,9 @@ import {
   RecurringBookingScheduleCapReachedError,
   RecurringBookingScheduleNotActiveError,
   RecurringBookingScheduleIneligibleServiceError,
-  RecurringBookingScheduleExceptionAlreadyExistsError,
+  FutureCommitmentExceptionNotFoundError,
+  FutureCommitmentExceptionAlreadyResolvedError,
+  FutureCommitmentExceptionReassignTargetInvalidError,
   RecurringBookingScheduleForbiddenError,
   RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleTermExceededError,
@@ -378,11 +380,26 @@ describe('mapBookingError', () => {
     expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
-  it('maps RecurringBookingScheduleExceptionAlreadyExistsError to 409', () => {
+  it('maps FutureCommitmentExceptionNotFoundError to 404', () => {
+    const err = call(new FutureCommitmentExceptionNotFoundError('exception-1'));
+    expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(err.getResponse()).toMatchObject({ code: BookingErrorCode.EXCEPTION_NOT_FOUND });
+  });
+
+  it('maps FutureCommitmentExceptionAlreadyResolvedError to 409', () => {
+    const err = call(new FutureCommitmentExceptionAlreadyResolvedError('exception-1'));
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({ code: BookingErrorCode.EXCEPTION_ALREADY_RESOLVED });
+  });
+
+  it('maps FutureCommitmentExceptionReassignTargetInvalidError to 409', () => {
     const err = call(
-      new RecurringBookingScheduleExceptionAlreadyExistsError('2026-09-01T13:00:00.000Z'),
+      new FutureCommitmentExceptionReassignTargetInvalidError('the resource is busy'),
     );
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({
+      code: BookingErrorCode.EXCEPTION_REASSIGN_TARGET_INVALID,
+    });
   });
 
   it('maps RecurringBookingScheduleForbiddenError to 403', () => {

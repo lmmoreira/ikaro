@@ -29,7 +29,7 @@ import { ServiceBookingIntakeSchemaEntity } from './infrastructure/entities/serv
 import { BookingQuoteRevisionEntity } from './infrastructure/entities/booking-quote-revision.entity';
 import { RecurringBookingScheduleEntity } from './infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from './infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
-import { RecurringBookingScheduleExceptionEntity } from './infrastructure/entities/recurring-booking-schedule-exception.entity';
+import { FutureCommitmentExceptionEntity } from './infrastructure/entities/future-commitment-exception.entity';
 import { BookingAttendeeEntity } from './infrastructure/entities/booking-attendee.entity';
 import { ResourceEntity } from './infrastructure/entities/resource.entity';
 import { BookingLineResourceAssignmentEntity } from './infrastructure/entities/booking-line-resource-assignment.entity';
@@ -40,6 +40,7 @@ import { BookingCompletionController } from './infrastructure/controllers/bookin
 import { CronBookingController } from './infrastructure/controllers/cron-booking.controller';
 import { ResourceController } from './infrastructure/controllers/resource.controller';
 import { RecurringBookingScheduleController } from './infrastructure/controllers/recurring-booking-schedule.controller';
+import { SchedulingExceptionController } from './infrastructure/controllers/scheduling-exception.controller';
 import { ScheduleAvailabilityController } from './infrastructure/controllers/schedule-availability.controller';
 import { ScheduleAvailabilitySummaryController } from './infrastructure/controllers/schedule-availability-summary.controller';
 import { ScheduleDayGridController } from './infrastructure/controllers/schedule-day-grid.controller';
@@ -71,7 +72,7 @@ import { bookingModuleProviders } from './booking.module-providers';
       BookingQuoteRevisionEntity,
       RecurringBookingScheduleEntity,
       RecurringBookingScheduleResourceAssignmentEntity,
-      RecurringBookingScheduleExceptionEntity,
+      FutureCommitmentExceptionEntity,
     ]),
     EventBusModule,
     RequestModule,
@@ -96,6 +97,7 @@ import { bookingModuleProviders } from './booking.module-providers';
     ResourceController,
     CronBookingController,
     RecurringBookingScheduleController,
+    SchedulingExceptionController,
   ],
   providers: bookingModuleProviders,
   exports: [GetBookingByIdUseCase, GetServicesUseCase],

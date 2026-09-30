@@ -137,6 +137,7 @@ export const StaffListBookingsQuerySchema = z
   .object({
     status: z.string().regex(BOOKING_STATUS_RE).optional().default('PENDING,INFO_REQUESTED'),
     date: z.iso.date().optional(),
+    recurringScheduleId: z.uuid().optional(),
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),
     page: z.coerce.number().int().min(1).default(1),

@@ -122,38 +122,10 @@ X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Skip / reschedule a single occurrence (UC-070 A2)
+# One occurrence (UC-070 A2) — there is no per-occurrence route: an occurrence is its linked
+# booking, so skipping is the ordinary cancel and rescheduling is the ordinary reschedule.
+# List a schedule's occurrence bookings with GET /bookings?recurringScheduleId= (bookings.http).
 # ─────────────────────────────────────────────────────────────────────────────
-
-###
-
-### Skip one occurrence without disturbing the standing schedule
-PATCH {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/occurrences/2026-10-13T13:00:00.000Z
-X-Tenant-ID: {{tenantId}}
-X-Actor-ID: {{customerId}}
-X-Actor-Type: CUSTOMER
-X-Actor-Role: CUSTOMER
-Content-Type: application/json
-
-{
-  "action": "SKIP",
-  "reason": "Viajando"
-}
-
-###
-
-### Reschedule one occurrence to an already-created replacement booking
-PATCH {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/occurrences/2026-10-13T13:00:00.000Z
-X-Tenant-ID: {{tenantId}}
-X-Actor-ID: {{customerId}}
-X-Actor-Type: CUSTOMER
-X-Actor-Role: CUSTOMER
-Content-Type: application/json
-
-{
-  "action": "RESCHEDULE",
-  "replacementBookingId": "{{replacementBookingId}}"
-}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # End (UC-070 A2)

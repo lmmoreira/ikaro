@@ -33,7 +33,6 @@ import {
 import { ResourceEntity } from '../entities/resource.entity';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
-import { RecurringBookingScheduleExceptionEntity } from '../entities/recurring-booking-schedule-exception.entity';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
@@ -83,7 +82,6 @@ describe('RecurringBookingScheduleController (integration)', () => {
   });
 
   afterAll(async () => {
-    await ds.getRepository(RecurringBookingScheduleExceptionEntity).delete({ tenantId });
     await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });
     await ds.getRepository(ScheduleClosureEntity).delete({ tenantId });
@@ -269,14 +267,14 @@ describe('RecurringBookingScheduleController (integration)', () => {
       expect(entity.status).toBe('ACTIVE');
     });
 
-    it('still skips an occurrence and ends an ACTIVE schedule', async () => {
+    it('has no per-occurrence route any more (an occurrence is its linked booking) and still ends an ACTIVE schedule', async () => {
       const { id, startsOn } = await createActiveSchedule('16:00');
 
       await request(app.getHttpServer())
         .patch(`/recurring-booking-schedules/${id}/occurrences/${startsOn}T13:00:00.000Z`)
         .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
         .send({ action: 'SKIP' })
-        .expect(200);
+        .expect(404);
 
       const { body } = await request(app.getHttpServer())
         .post(`/recurring-booking-schedules/${id}/end`)

@@ -314,6 +314,72 @@ describe('ListBookingsUseCase', () => {
     });
   });
 
+  describe('recurringScheduleId filter (M23-S08)', () => {
+    const SCHEDULE_ID = '30000000-0000-4000-8000-000000000120';
+
+    it("returns only that schedule's occurrence bookings", async () => {
+      const occurrence = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withRecurringScheduleId(SCHEDULE_ID)
+        .build();
+      await repo.save(occurrence);
+      await repo.save(
+        new BookingBuilder()
+          .withTenantId(TENANT_A)
+          .withRecurringScheduleId('30000000-0000-4000-8000-000000000999')
+          .build(),
+      );
+      await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
+
+      const result = await useCase.execute({
+        ...defaultDto,
+        tenantId: TENANT_A,
+        recurringScheduleId: SCHEDULE_ID,
+      });
+
+      expect(result.items.map((i) => i.id)).toEqual([occurrence.id]);
+    });
+
+    it('stays scoped to the tenant', async () => {
+      await repo.save(
+        new BookingBuilder().withTenantId(TENANT_A).withRecurringScheduleId(SCHEDULE_ID).build(),
+      );
+
+      const result = await useCase.execute({
+        ...defaultDto,
+        tenantId: TENANT_B,
+        recurringScheduleId: SCHEDULE_ID,
+      });
+
+      expect(result.items).toHaveLength(0);
+    });
+
+    it("combines with the customer scope so a customer only lists their own schedule's bookings", async () => {
+      const own = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withRecurringScheduleId(SCHEDULE_ID)
+        .build();
+      await repo.save(own);
+      await repo.save(
+        new BookingBuilder()
+          .withTenantId(TENANT_A)
+          .withCustomerId('20000000-0000-4000-8000-000000000999')
+          .withRecurringScheduleId(SCHEDULE_ID)
+          .build(),
+      );
+
+      const result = await useCase.execute({
+        ...defaultDto,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        recurringScheduleId: SCHEDULE_ID,
+      });
+
+      expect(result.items.map((i) => i.id)).toEqual([own.id]);
+    });
+  });
+
   describe('CUSTOMER role', () => {
     it('returns only own bookings when customerId is passed', async () => {
       const ownBooking = new BookingBuilder()

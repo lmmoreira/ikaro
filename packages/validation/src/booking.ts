@@ -290,22 +290,6 @@ export const RequestRecurringBookingScheduleBodySchema = z
     },
   );
 
-export const SkipOrRescheduleOccurrenceBodySchema = z
-  .object({
-    action: z.enum(['SKIP', 'RESCHEDULE']),
-    replacementBookingId: z.uuid().optional(),
-    reason: z.string().max(255).optional(),
-  })
-  .refine((body) => body.action !== 'RESCHEDULE' || !!body.replacementBookingId, {
-    message: 'replacementBookingId is required when action is RESCHEDULE',
-    path: ['replacementBookingId'],
-  });
-
-// The :occurrenceStart route param must be a full ISO datetime — a malformed value would
-// otherwise reach `new Date(occurrenceStart)` unchecked (backend) or an un-encoded URL segment
-// (BFF proxy) instead of being rejected as a 400 at the boundary.
-export const OccurrenceStartParamSchema = z.iso.datetime();
-
 // TD45 Story 1 — the backend DTO and the BFF query schema take the identical params (limit/offset
 // pass straight through), so it lives here once (bad-smell-audit BFF-5) rather than as two copies.
 // `status` omitted → every status; the filter only narrows (M23-S13's approval queue passes

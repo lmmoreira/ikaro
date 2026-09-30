@@ -76,10 +76,12 @@ import {
   RecurringBookingScheduleCapReachedError,
   RecurringBookingScheduleNotActiveError,
   RecurringBookingScheduleIneligibleServiceError,
-  RecurringBookingScheduleExceptionAlreadyExistsError,
   RecurringBookingScheduleForbiddenError,
   RecurringBookingScheduleInvalidDateRangeError,
   RecurringBookingScheduleTermExceededError,
+  FutureCommitmentExceptionNotFoundError,
+  FutureCommitmentExceptionAlreadyResolvedError,
+  FutureCommitmentExceptionReassignTargetInvalidError,
 } from '../../domain/errors/booking-domain.error';
 
 type BookingDomainErrorCtor = new (...args: never[]) => BookingDomainError;
@@ -108,6 +110,7 @@ const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
       ResourceNotFoundError,
       ResourceStaffNotFoundError,
       RecurringBookingScheduleNotFoundError,
+      FutureCommitmentExceptionNotFoundError,
     ],
     HttpStatus.NOT_FOUND,
   ],
@@ -136,7 +139,8 @@ const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
       RecurringBookingScheduleConflictError,
       RecurringBookingScheduleCapReachedError,
       RecurringBookingScheduleNotActiveError,
-      RecurringBookingScheduleExceptionAlreadyExistsError,
+      FutureCommitmentExceptionAlreadyResolvedError,
+      FutureCommitmentExceptionReassignTargetInvalidError,
     ],
     HttpStatus.CONFLICT,
   ],

@@ -98,8 +98,8 @@ export class ResourceController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deactivate(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<void> {
-    const { tenantId } = this.ctx;
-    return this.deactivateResource.execute({ id, tenantId }).catch(mapBookingError);
+    const { tenantId, correlationId } = this.ctx;
+    return this.deactivateResource.execute({ id, tenantId, correlationId }).catch(mapBookingError);
   }
 
   @Post(':id/reactivate')

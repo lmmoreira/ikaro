@@ -3,6 +3,7 @@ import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memo
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
+import { FutureCommitmentFixture } from '../../../../test/utils/future-commitment-fixture';
 import { ResourceType } from '../../domain/resource.types';
 import { CascadeStaffDeactivationUseCase } from './cascade-staff-deactivation.use-case';
 
@@ -13,13 +14,15 @@ const EVENT_ID = '00000000-0000-7000-8000-000000000003';
 const CORRELATION_ID = '00000000-0000-7000-8000-000000000004';
 
 describe('CascadeStaffDeactivationUseCase', () => {
+  let world: FutureCommitmentFixture;
   let repo: InMemoryResourceRepository;
   let inboxRepo: InMemoryInboxRepository;
   let tenantLock: InMemoryTenantLock;
   let useCase: CascadeStaffDeactivationUseCase;
 
   beforeEach(() => {
-    repo = new InMemoryResourceRepository();
+    world = new FutureCommitmentFixture();
+    repo = world.resourceRepo;
     inboxRepo = new InMemoryInboxRepository();
     tenantLock = new InMemoryTenantLock();
     useCase = new CascadeStaffDeactivationUseCase(
@@ -27,7 +30,53 @@ describe('CascadeStaffDeactivationUseCase', () => {
       inboxRepo,
       new InMemoryTransactionManager(),
       tenantLock,
+      world.raise,
     );
+  });
+
+  it('raises one worklist entry per future booking on the deactivated staff resource', async () => {
+    const resource = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.STAFF)
+      .withRefId(STAFF_ID)
+      .build();
+    await repo.save(resource);
+    const service = await world.addService(ResourceType.STAFF);
+    const booking = await world.addBooking({ service, resource });
+
+    await useCase.execute({
+      tenantId: TENANT_ID,
+      staffId: STAFF_ID,
+      eventId: EVENT_ID,
+      correlationId: CORRELATION_ID,
+    });
+
+    const entries = await world.exceptionRepo.findByTenant(TENANT_ID, { status: 'OPEN' });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].affectedId).toBe(booking.id);
+    expect(entries[0].sourceId).toBe(resource.id);
+  });
+
+  it('does not raise again when the same event is redelivered', async () => {
+    const resource = new ResourceBuilder()
+      .withTenantId(TENANT_ID)
+      .withType(ResourceType.STAFF)
+      .withRefId(STAFF_ID)
+      .build();
+    await repo.save(resource);
+    const service = await world.addService(ResourceType.STAFF);
+    await world.addBooking({ service, resource });
+    const input = {
+      tenantId: TENANT_ID,
+      staffId: STAFF_ID,
+      eventId: EVENT_ID,
+      correlationId: CORRELATION_ID,
+    };
+
+    await useCase.execute(input);
+    await useCase.execute(input);
+
+    expect(await world.exceptionRepo.findByTenant(TENANT_ID)).toHaveLength(1);
   });
 
   it('deactivates the Resource wrapping the deactivated staff member', async () => {

@@ -5,7 +5,6 @@ import { RecurringBookingScheduleEntityBuilder } from '../../../../test/builders
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
-import { RecurringBookingScheduleExceptionEntity } from '../entities/recurring-booking-schedule-exception.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
 import { TypeOrmRecurringBookingScheduleRepository } from './typeorm-recurring-booking-schedule.repository';
 
@@ -26,10 +25,6 @@ describe('TypeOrmRecurringBookingScheduleRepository', () => {
         },
         {
           provide: getRepositoryToken(RecurringBookingScheduleResourceAssignmentEntity),
-          useValue: { find: jest.fn() },
-        },
-        {
-          provide: getRepositoryToken(RecurringBookingScheduleExceptionEntity),
           useValue: { find: jest.fn() },
         },
         { provide: OUTBOX_PUBLISHER, useValue: new InMemoryEventBus() },

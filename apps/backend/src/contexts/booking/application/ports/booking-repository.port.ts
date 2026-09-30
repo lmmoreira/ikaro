@@ -6,6 +6,9 @@ export const BOOKING_REPOSITORY = Symbol('IBookingRepository');
 export interface BookingFilters {
   status?: BookingStatus[];
   customerId?: string;
+  // The occurrence bookings one recurring schedule materialized (M23-S08 — an occurrence is its
+  // linked booking).
+  recurringScheduleId?: string;
   scheduledAfter?: Date;
   scheduledBefore?: Date;
 }
@@ -35,14 +38,9 @@ export interface BookingPaginatedResult {
 
 export interface IBookingRepository {
   findById(id: string, tenantId: string): Promise<Booking | null>;
-  // The Booking materialized for one recurring-schedule occurrence, if generation (M23-S05) has
-  // already run for it — null before then, which SkipOrRescheduleOccurrenceUseCase (M23-S04)
-  // treats as "nothing to cancel yet, just record the exception."
-  findByRecurringScheduleAndOccurrence(
-    tenantId: string,
-    recurringScheduleId: string,
-    occurrenceStart: Date,
-  ): Promise<Booking | null>;
+  // Batched load of full bookings by id (M23-S08's worklist read); ids that do not exist in the
+  // tenant are simply absent from the result.
+  findByIds(ids: string[], tenantId: string): Promise<Booking[]>;
   // Every future, still-active (non-terminal) occurrence materialized by a schedule — used by
   // EndRecurringBookingScheduleUseCase (M23-S04) to cancel them and release their resource_
   // occupancy rows. Empty before M23-S05 materializes any occurrence.

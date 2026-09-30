@@ -5,6 +5,7 @@ export interface BookingListQuery {
   date?: string;
   from?: string;
   to?: string;
+  recurringScheduleId?: string;
 }
 
 export function buildBookingListParams(query: BookingListQuery): Record<string, unknown> {
@@ -13,6 +14,7 @@ export function buildBookingListParams(query: BookingListQuery): Record<string, 
     limit: query.limit,
     offset: (query.page - 1) * query.limit,
   };
+  if (query.recurringScheduleId) params.recurringScheduleId = query.recurringScheduleId;
 
   // Date keys are forwarded as-is: the backend interprets them as tenant-local calendar days
   // (it owns the tenant's timezone), so the BFF must never attach a UTC time-of-day to them.

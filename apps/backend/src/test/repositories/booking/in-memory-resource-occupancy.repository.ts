@@ -1,5 +1,7 @@
 import {
+  BookingLineOccupancyRow,
   IResourceOccupancyRepository,
+  ResourceBookingImpact,
   ResourceLineAssignment,
   ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
@@ -15,6 +17,7 @@ interface StoredOccupancy extends ResourceOccupancyCandidate {
 
 export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRepository {
   private store: StoredOccupancy[] = [];
+  private readonly bookingIdByLineId = new Map<string, string>();
 
   // Test-only helper — lets a spec seed an existing occupancy row without going through assign().
   seed(tenantId: string, bookingLineId: string, candidate: ResourceOccupancyCandidate): void {
@@ -40,7 +43,7 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     return [...new Set(conflicting.map((window) => window.resourceId))];
   }
 
-  async findConflictingWindows(
+  findConflictingWindows(
     tenantId: string,
     windows: ResourceOccupancyWindow[],
     excludeBookingLineIds?: string[],
@@ -48,20 +51,22 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     // Mirrors the production GIST exclusion constraint's own WHERE clause and
     // typeorm-resource-occupancy.repository.ts's findConflictingWindows SQL — REQUESTED rows are
     // never conflicts, only HOLD/COMMITTED are.
-    return windows.filter((window) =>
-      this.store.some(
-        (row) =>
-          row.tenantId === tenantId &&
-          row.resourceId === window.resourceId &&
-          row.lockState !== 'REQUESTED' &&
-          !(excludeBookingLineIds ?? []).includes(row.bookingLineId) &&
-          window.startsAt < row.endsAt &&
-          row.startsAt < window.endsAt,
+    return Promise.resolve(
+      windows.filter((window) =>
+        this.store.some(
+          (row) =>
+            row.tenantId === tenantId &&
+            row.resourceId === window.resourceId &&
+            row.lockState !== 'REQUESTED' &&
+            !(excludeBookingLineIds ?? []).includes(row.bookingLineId) &&
+            window.startsAt < row.endsAt &&
+            row.startsAt < window.endsAt,
+        ),
       ),
     );
   }
 
-  async assign(
+  assign(
     tenantId: string,
     bookingLineId: string,
     candidates: ResourceOccupancyCandidate[],
@@ -71,22 +76,24 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     for (const candidate of candidates) {
       this.store.push({ ...candidate, tenantId, bookingLineId, lockState, holdExpiresAt });
     }
+    return Promise.resolve();
   }
 
-  async release(tenantId: string, bookingLineIds: string[]): Promise<void> {
+  release(tenantId: string, bookingLineIds: string[]): Promise<void> {
     this.store = this.store.filter(
       (row) => !(row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId)),
     );
+    return Promise.resolve();
   }
 
   // TD40 Story 2 — deliberately cross-tenant, no tenantId filter, matching the port's contract.
-  async deleteOlderThan(cutoff: Date): Promise<number> {
+  deleteOlderThan(cutoff: Date): Promise<number> {
     const before = this.store.length;
     this.store = this.store.filter((row) => row.endsAt >= cutoff);
-    return before - this.store.length;
+    return Promise.resolve(before - this.store.length);
   }
 
-  async countActiveByResource(
+  countActiveByResource(
     tenantId: string,
     resourceIds: string[],
     from: Date,
@@ -106,13 +113,71 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
       }
       counts.set(row.resourceId, (counts.get(row.resourceId) ?? 0) + 1);
     }
-    return counts;
+    return Promise.resolve(counts);
+  }
+
+  // Test-only helper — this double has no booking_lines table, so a spec that reads impacts by
+  // booking states which booking owns which line explicitly.
+  registerBookingLine(bookingLineId: string, bookingId: string): void {
+    this.bookingIdByLineId.set(bookingLineId, bookingId);
+  }
+
+  findFutureBookingImpactsByResource(
+    tenantId: string,
+    resourceId: string,
+    after: Date,
+  ): Promise<ResourceBookingImpact[]> {
+    const impacts = this.store
+      .filter(
+        (row) =>
+          row.tenantId === tenantId &&
+          row.resourceId === resourceId &&
+          row.lockState !== 'REQUESTED' &&
+          row.endsAt > after &&
+          this.bookingIdByLineId.has(row.bookingLineId),
+      )
+      .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+      .map((row) => ({
+        bookingId: this.bookingIdByLineId.get(row.bookingLineId)!,
+        bookingLineId: row.bookingLineId,
+        resourceType: row.resourceType,
+        legIndex: row.legIndex,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+      }));
+    return Promise.resolve(impacts);
+  }
+
+  findOccupancyByBookingLines(
+    tenantId: string,
+    bookingLineIds: string[],
+  ): Promise<BookingLineOccupancyRow[]> {
+    const rows = this.store
+      .filter((row) => row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId))
+      .sort(
+        (a, b) =>
+          bookingLineIds.indexOf(a.bookingLineId) - bookingLineIds.indexOf(b.bookingLineId) ||
+          a.startsAt.getTime() - b.startsAt.getTime(),
+      )
+      .map((row) => ({
+        bookingLineId: row.bookingLineId,
+        resourceId: row.resourceId,
+        resourceType: row.resourceType,
+        resourceName: row.resourceName,
+        legIndex: row.legIndex,
+        quantityPosition: row.quantityPosition,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        lockState: row.lockState,
+        holdExpiresAt: row.holdExpiresAt,
+      }));
+    return Promise.resolve(rows);
   }
 
   // Mirrors the real repository's ORDER BY quantity_position — this store only ever holds live
   // occupancy (release() removes rows outright, same effect as the real query's JOIN to the live
   // resource_occupancy projection), so no separate staleness filter is needed here.
-  async findAssignmentsByBookingLines(
+  findAssignmentsByBookingLines(
     tenantId: string,
     bookingLineIds: string[],
   ): Promise<ResourceLineAssignment[]> {
@@ -120,7 +185,7 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     // position within the caller-supplied bookingLineIds array, quantityPosition as the secondary
     // tiebreaker — see that adapter's own doc comment for why (two lines booking the same
     // duplicated service must group their own assignments together, in resolution order).
-    return this.store
+    const assignments = this.store
       .filter((row) => row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId))
       .sort((a, b) => {
         const linePositionDiff =
@@ -135,5 +200,6 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
         resourceType: row.resourceType,
         legIndex: row.legIndex,
       }));
+    return Promise.resolve(assignments);
   }
 }

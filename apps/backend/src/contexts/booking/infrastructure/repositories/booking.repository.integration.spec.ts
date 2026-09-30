@@ -1,6 +1,10 @@
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
-import { BookingBuilder, ServiceEntityBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingBuilder,
+  RecurringBookingScheduleEntityBuilder,
+  ServiceEntityBuilder,
+} from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { testAddress } from '../../../../test/utils/address-helpers';
@@ -10,6 +14,7 @@ import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { ServiceEntity } from '../entities/service.entity';
+import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
@@ -288,5 +293,83 @@ describe('TypeOrmBookingRepository (integration)', () => {
     await repo.save(copyA!);
 
     await expect(repo.save(copyB!)).rejects.toBeInstanceOf(BookingConcurrentModificationError);
+  });
+
+  describe('findByIds (M23-S08)', () => {
+    it('loads exactly the requested bookings of the tenant, with their lines', async () => {
+      const tenantId = '00000000-0000-7000-8000-000000000066';
+      const first = new BookingBuilder().withTenantId(tenantId).withLines([]).build();
+      const second = new BookingBuilder().withTenantId(tenantId).withLines([]).build();
+      const notRequested = new BookingBuilder().withTenantId(tenantId).withLines([]).build();
+      await repo.save(first);
+      await repo.save(second);
+      await repo.save(notRequested);
+
+      const results = await repo.findByIds([first.id, second.id], tenantId);
+
+      expect(results.map((b) => b.id).sort()).toEqual([first.id, second.id].sort());
+    });
+
+    it('never returns a booking of another tenant, and returns nothing for no ids', async () => {
+      const tenantId = '00000000-0000-7000-8000-000000000067';
+      const other = new BookingBuilder()
+        .withTenantId('00000000-0000-7000-8000-000000000068')
+        .withLines([])
+        .build();
+      await repo.save(other);
+
+      expect(await repo.findByIds([other.id], tenantId)).toEqual([]);
+      expect(await repo.findByIds([], tenantId)).toEqual([]);
+    });
+  });
+
+  describe('recurringScheduleId list filter (M23-S08)', () => {
+    it("lists only that schedule's occurrence bookings", async () => {
+      const tenantId = TENANT_A;
+      const schedules = await dataSource
+        .getRepository(RecurringBookingScheduleEntity)
+        .save([
+          new RecurringBookingScheduleEntityBuilder()
+            .withTenantId(tenantId)
+            .withServiceId(SERVICE_ID)
+            .build(),
+          new RecurringBookingScheduleEntityBuilder()
+            .withTenantId(tenantId)
+            .withServiceId(SERVICE_ID)
+            .build(),
+        ]);
+      const occurrence = new BookingBuilder()
+        .withTenantId(tenantId)
+        .withRecurringScheduleId(schedules[0].id)
+        .withLines([])
+        .build();
+      const siblingSchedule = new BookingBuilder()
+        .withTenantId(tenantId)
+        .withRecurringScheduleId(schedules[1].id)
+        .withLines([])
+        .build();
+      const oneOff = new BookingBuilder().withTenantId(tenantId).withLines([]).build();
+      await repo.save(occurrence);
+      await repo.save(siblingSchedule);
+      await repo.save(oneOff);
+
+      const page = await repo.findAllByTenantPaginated(tenantId, {
+        limit: 25,
+        offset: 0,
+        recurringScheduleId: schedules[0].id,
+      });
+
+      expect(page.items.map((b) => b.id)).toEqual([occurrence.id]);
+      expect(page.total).toBe(1);
+
+      // The bookings reference the schedules by FK, so they go first — this spec shares a fixed
+      // tenant with the others and must not leave rows behind.
+      await dataSource
+        .getRepository(BookingEntity)
+        .delete([occurrence.id, siblingSchedule.id, oneOff.id]);
+      await dataSource
+        .getRepository(RecurringBookingScheduleEntity)
+        .delete(schedules.map((sc) => sc.id));
+    });
   });
 });

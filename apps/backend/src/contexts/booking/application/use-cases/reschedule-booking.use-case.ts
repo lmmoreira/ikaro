@@ -26,13 +26,8 @@ import { BookingQuoteService } from '../services/booking-quote.service';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { RescheduleBookingDto } from '../dtos/reschedule-booking.dto';
 import { toResourceSelections } from './booking-request.mapper';
-import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
-import {
-  QuoteRevisionResult,
-  recordQuoteRevisionIfPriceChanged,
-  resolveRescheduleCandidates,
-  resolveRescheduleDurationChange,
-} from './reschedule-quote.helpers';
+import { rescheduleBookingInTransaction } from './reschedule-booking-in-transaction.helpers';
+import { QuoteRevisionResult, resolveRescheduleDurationChange } from './reschedule-quote.helpers';
 
 export type RescheduleBookingUseCaseInput = RescheduleBookingDto & {
   bookingId: string;
@@ -100,11 +95,6 @@ export class RescheduleBookingUseCase {
     };
   }
 
-  // save() stays textually inline in the txManager.run() callback below — architecture-check's
-  // transactional-save detector does AST-nesting analysis, not call-graph analysis, so a save()
-  // moved into a separately-named private method (even one only ever called from inside this
-  // callback) is flagged as if it ran outside the transaction (docs/ENGINEERING_RULES_BACKEND.md
-  // § architecture-check's transactional-save detector).
   private async rescheduleUnderLock(
     booking: Booking,
     serviceMap: Map<string, Service>,
@@ -112,84 +102,30 @@ export class RescheduleBookingUseCase {
     durationChange: RescheduleDurationChange | undefined,
     input: RescheduleBookingUseCaseInput,
   ): Promise<QuoteRevisionResult | undefined> {
-    const { tenantId, staffId, correlationId } = input;
-    const previousTotalPrice = booking.totalPrice;
-    let quoteRevision: QuoteRevisionResult | undefined;
-
-    await this.txManager.run(async () => {
-      const candidatesByLine = await resolveRescheduleCandidates(
-        this.buildCandidatesParams(booking, serviceMap, newScheduledAt, durationChange, input),
-      );
-
-      booking.reschedule(
-        staffId,
-        newScheduledAt,
-        correlationId,
-        true,
-        input.adminNotes,
-        durationChange,
-      );
-      await this.bookingRepo.save(booking);
-
-      quoteRevision = await this.moveOccupancyAndRecordRevision(
-        booking,
-        candidatesByLine,
-        tenantId,
-        previousTotalPrice,
-        staffId,
-      );
-    });
-
-    return quoteRevision;
-  }
-
-  // Booking is always APPROVED to be reschedulable (Booking.reschedule()'s own guard) — its
-  // existing occupancy row(s) are always COMMITTED, never HOLD.
-  private async moveOccupancyAndRecordRevision(
-    booking: Booking,
-    candidatesByLine: Awaited<ReturnType<typeof resolveRescheduleCandidates>>,
-    tenantId: string,
-    previousTotalPrice: Booking['totalPrice'],
-    staffId: string,
-  ): Promise<QuoteRevisionResult | undefined> {
-    await moveBookingLinesOccupancy(
-      this.occupancyRepo,
-      candidatesByLine,
-      tenantId,
-      'COMMITTED',
-      null,
+    return this.txManager.run(() =>
+      rescheduleBookingInTransaction(
+        {
+          bookingRepo: this.bookingRepo,
+          resourceRepo: this.resourceRepo,
+          occupancyRepo: this.occupancyRepo,
+          quoteRevisionRepo: this.quoteRevisionRepo,
+          availabilityService: this.availabilityService,
+          slotConflictService: this.slotConflictService,
+        },
+        {
+          booking,
+          serviceMap,
+          newScheduledAt,
+          durationChange,
+          overrideSelections: toResourceSelections(input.resourceSelections),
+          adminNotes: input.adminNotes,
+          tenantId: input.tenantId,
+          staffId: input.staffId,
+          correlationId: input.correlationId,
+          timezone: input.timezone,
+        },
+      ),
     );
-    return recordQuoteRevisionIfPriceChanged(
-      this.quoteRevisionRepo,
-      tenantId,
-      booking.id,
-      previousTotalPrice,
-      booking.totalPrice,
-      'STAFF',
-      staffId,
-    );
-  }
-
-  private buildCandidatesParams(
-    booking: Booking,
-    serviceMap: Map<string, Service>,
-    newScheduledAt: Date,
-    durationChange: RescheduleDurationChange | undefined,
-    input: RescheduleBookingUseCaseInput,
-  ): Parameters<typeof resolveRescheduleCandidates>[0] {
-    return {
-      resourceRepo: this.resourceRepo,
-      availabilityService: this.availabilityService,
-      occupancyRepo: this.occupancyRepo,
-      slotConflictService: this.slotConflictService,
-      booking,
-      serviceMap,
-      tenantId: input.tenantId,
-      newScheduledAt,
-      timezone: input.timezone,
-      overrideSelections: toResourceSelections(input.resourceSelections),
-      durationChange,
-    };
   }
 
   private async loadServiceMap(booking: Booking, tenantId: string): Promise<Map<string, Service>> {

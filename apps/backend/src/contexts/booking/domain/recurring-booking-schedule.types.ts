@@ -10,7 +10,6 @@ export type RecurringBookingScheduleAssignmentPolicy =
   'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
 export type RecurringBookingScheduleCancellationReason =
   'CUSTOMER_CANCELLED' | 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED';
-export type RecurringBookingScheduleExceptionKind = 'SKIPPED' | 'RESCHEDULED';
 export type RecurringBookingScheduleActorType = 'CUSTOMER' | 'STAFF';
 
 export interface RecurringBookingScheduleResourceAssignmentProps {
@@ -19,17 +18,6 @@ export interface RecurringBookingScheduleResourceAssignmentProps {
   requirementId: string | null;
   requiredQuantityPosition: number | null;
   assignedAt: Date;
-}
-
-export interface RecurringBookingScheduleExceptionProps {
-  id: string;
-  occurrenceStart: Date;
-  kind: RecurringBookingScheduleExceptionKind;
-  replacementBookingId: string | null;
-  actorType: RecurringBookingScheduleActorType;
-  actorId: string | null;
-  reason: string | null;
-  createdAt: Date;
 }
 
 // Internal, in-aggregate shape of the recurrence pattern — startTime is a validated TimeOfDay
@@ -54,7 +42,6 @@ export interface RecurringBookingScheduleProps {
   status: RecurringBookingScheduleStatus;
   assignmentPolicy: RecurringBookingScheduleAssignmentPolicy;
   resourceAssignments: RecurringBookingScheduleResourceAssignmentProps[];
-  exceptions: RecurringBookingScheduleExceptionProps[];
   approvalHoldExpiresAt: Date | null;
   approvedByStaffId: string | null;
   approvedAt: Date | null;

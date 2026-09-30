@@ -1,0 +1,248 @@
+# Booking — Future-commitment worklist (M23-S08, UC-073, UC-077)
+# TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
+# MANAGER-only on every route. Bulk-only: a single entry is a list of one, and the actions are
+# best-effort per entry — a 200 whose `results` says which entries were resolved and which stayed
+# OPEN (with the reason as `errorCode`).
+#
+# Entries are created by deactivating a resource that has future bookings (DELETE /resources/:id in
+# resources.http) or by deactivating the staff member behind one.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@exceptionId = {{exceptionId}}
+@targetId    = {{targetResourceId}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — the worklist (UC-073)
+# Each item carries the affected booking's summary and the advisory alternatives.
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### The open worklist, earliest booking first
+GET {{baseUrl}}/scheduling-exceptions?status=OPEN
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### Every entry, whatever its status
+GET {{baseUrl}}/scheduling-exceptions
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — resolve one or many entries (UC-077)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### KEEP — the booking stays as it is
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "KEEP",
+  "reason": "The customer will use another room"
+}
+
+###
+
+### REASSIGN to a chosen resource — same window, time and price untouched
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "REASSIGN",
+  "target": { "resourceId": "{{targetId}}" }
+}
+
+###
+
+### REASSIGN many at once, each booking to the least-loaded free resource of its type (AUTO)
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}", "{{secondExceptionId}}"],
+  "resolutionType": "REASSIGN",
+  "target": { "mode": "AUTO" }
+}
+
+###
+
+### CANCEL — cancels the booking as staff and releases its resource
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "CANCEL",
+  "reason": "The room is closed"
+}
+
+###
+
+### RESCHEDULE — one entry, an APPROVED booking, applied immediately
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "RESCHEDULE",
+  "scheduledAt": "2026-10-20T13:00:00.000Z"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — dismiss (UC-077 A2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Dismiss entries that need no action
+POST {{baseUrl}}/scheduling-exceptions/dismiss
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "reason": "Already handled by phone"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 200 with a per-entry failure — an unknown id is BOOKING_EXCEPTION_NOT_FOUND, an entry that is
+# already closed is BOOKING_EXCEPTION_ALREADY_RESOLVED, and a target that is busy, inactive, of
+# another type or outside the requirement's pool is BOOKING_EXCEPTION_REASSIGN_TARGET_INVALID.
+# In every case the entry stays OPEN and the rest of the batch is still resolved.
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["00000000-0000-7000-8000-00000000dead", "{{exceptionId}}"],
+  "resolutionType": "KEEP"
+}
+
+###
+
+### 400 — REASSIGN needs a target
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "REASSIGN"
+}
+
+###
+
+### 400 — RESCHEDULE takes exactly one entry
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}", "{{secondExceptionId}}"],
+  "resolutionType": "RESCHEDULE",
+  "scheduledAt": "2026-10-20T13:00:00.000Z"
+}
+
+###
+
+### 400 — an empty list of ids (also refused: more than 100, or duplicates)
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": [],
+  "resolutionType": "KEEP"
+}
+
+###
+
+### 400 — dismissing needs a reason
+POST {{baseUrl}}/scheduling-exceptions/dismiss
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"]
+}
+
+###
+
+### 403 — STAFF (non-manager) cannot use the worklist
+GET {{baseUrl}}/scheduling-exceptions
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### 404 — the retired per-id routes no longer exist
+POST {{baseUrl}}/scheduling-exceptions/{{exceptionId}}/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "resolutionType": "KEEP" }

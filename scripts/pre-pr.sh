@@ -160,7 +160,11 @@ while IFS= read -r f; do
   ctx_path=$(echo "$f" | grep -oE 'apps/backend/src/contexts/[^/]+' | head -1 || true)
   [ -z "$ctx_path" ] && continue
   mod=$(find "$ctx_path" -name "*.module.ts" 2>/dev/null | head -1 || true)
-  if [ -n "$mod" ] && ! grep -q "$cls" "$mod" 2>/dev/null; then
+  # A module may keep its providers array in a sibling <name>.module-providers.ts (booking does, to
+  # stay under the file-length cap) — registration there counts.
+  providers_file="${mod%.module.ts}.module-providers.ts"
+  if [ -n "$mod" ] && ! grep -q "$cls" "$mod" 2>/dev/null \
+    && ! { [ -f "$providers_file" ] && grep -q "$cls" "$providers_file" 2>/dev/null; }; then
     printf "%s not registered in %s\n" "$cls" "$mod" >> "$TMP"
   fi
 done <<< "$ts_new_prod"

@@ -26,12 +26,6 @@ export interface RecurringBookingScheduleListResponse {
   pagination: { limit: number; offset: number; total: number; hasMore: boolean };
 }
 
-export interface SkipOrRescheduleOccurrenceResponse {
-  scheduleId: string;
-  occurrenceStart: string;
-  kind: 'SKIPPED' | 'RESCHEDULED';
-}
-
 export interface EndRecurringBookingScheduleResponse {
   id: string;
   status: 'CANCELLED';

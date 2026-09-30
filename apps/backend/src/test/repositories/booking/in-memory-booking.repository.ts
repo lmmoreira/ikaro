@@ -25,51 +25,47 @@ export class InMemoryBookingRepository implements IBookingRepository {
     this.resourceAssignmentsByBookingId.set(bookingId, assignments);
   }
 
-  async findById(id: string, tenantId: string): Promise<Booking | null> {
+  findById(id: string, tenantId: string): Promise<Booking | null> {
     const booking = this.store.get(id);
-    if (booking?.tenantId !== tenantId) return null;
-    return booking ?? null;
+    return Promise.resolve(booking?.tenantId === tenantId ? booking : null);
   }
 
-  async findByRecurringScheduleAndOccurrence(
-    tenantId: string,
-    recurringScheduleId: string,
-    occurrenceStart: Date,
-  ): Promise<Booking | null> {
-    return (
-      Array.from(this.store.values()).find(
-        (b) =>
-          b.tenantId === tenantId &&
-          b.recurringScheduleId === recurringScheduleId &&
-          b.scheduledAt.getTime() === occurrenceStart.getTime(),
-      ) ?? null
+  findByIds(ids: string[], tenantId: string): Promise<Booking[]> {
+    const wanted = new Set(ids);
+    return Promise.resolve(
+      Array.from(this.store.values()).filter((b) => b.tenantId === tenantId && wanted.has(b.id)),
     );
   }
 
-  async findFutureActiveByRecurringSchedule(
+  findFutureActiveByRecurringSchedule(
     tenantId: string,
     recurringScheduleId: string,
     after: Date,
   ): Promise<Booking[]> {
     const nonTerminal = new Set(['PENDING', 'INFO_REQUESTED', 'APPROVED']);
-    return Array.from(this.store.values()).filter(
-      (b) =>
-        b.tenantId === tenantId &&
-        b.recurringScheduleId === recurringScheduleId &&
-        b.scheduledAt.getTime() >= after.getTime() &&
-        nonTerminal.has(b.status),
+    return Promise.resolve(
+      Array.from(this.store.values()).filter(
+        (b) =>
+          b.tenantId === tenantId &&
+          b.recurringScheduleId === recurringScheduleId &&
+          b.scheduledAt.getTime() >= after.getTime() &&
+          nonTerminal.has(b.status),
+      ),
     );
   }
 
-  async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
+  findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
     let results = Array.from(this.store.values()).filter((b) => b.tenantId === tenantId);
     if (filters.status?.length) results = results.filter((b) => filters.status!.includes(b.status));
     if (filters.customerId) results = results.filter((b) => b.customerId === filters.customerId);
+    if (filters.recurringScheduleId) {
+      results = results.filter((b) => b.recurringScheduleId === filters.recurringScheduleId);
+    }
     if (filters.scheduledAfter)
       results = results.filter((b) => b.scheduledAt >= filters.scheduledAfter!);
     if (filters.scheduledBefore)
       results = results.filter((b) => b.scheduledAt <= filters.scheduledBefore!);
-    return results;
+    return Promise.resolve(results);
   }
 
   async findAllByTenantPaginated(
@@ -90,10 +86,13 @@ export class InMemoryBookingRepository implements IBookingRepository {
     await drainDomainEvents(booking, this.outboxPublisher);
   }
 
-  async existsByServiceId(serviceId: string, tenantId: string): Promise<boolean> {
-    return Array.from(this.store.values()).some(
-      (booking) =>
-        booking.tenantId === tenantId && booking.lines.some((line) => line.serviceId === serviceId),
+  existsByServiceId(serviceId: string, tenantId: string): Promise<boolean> {
+    return Promise.resolve(
+      Array.from(this.store.values()).some(
+        (booking) =>
+          booking.tenantId === tenantId &&
+          booking.lines.some((line) => line.serviceId === serviceId),
+      ),
     );
   }
 }

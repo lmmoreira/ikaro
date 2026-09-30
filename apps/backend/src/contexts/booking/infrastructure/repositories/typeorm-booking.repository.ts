@@ -65,15 +65,10 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     return entity ? this.hydrateOne(entity, tenantId) : null;
   }
 
-  async findByRecurringScheduleAndOccurrence(
-    tenantId: string,
-    recurringScheduleId: string,
-    occurrenceStart: Date,
-  ): Promise<Booking | null> {
-    const entity = await this.repo.findOne({
-      where: { tenantId, recurringScheduleId, scheduledAt: occurrenceStart },
-    });
-    return entity ? this.hydrateOne(entity, tenantId) : null;
+  async findByIds(ids: string[], tenantId: string): Promise<Booking[]> {
+    if (!ids.length) return [];
+    const entities = await this.repo.find({ where: { tenantId, id: In(ids) } });
+    return entities.length ? this.hydrateMany(entities, tenantId) : [];
   }
 
   async findFutureActiveByRecurringSchedule(
@@ -92,8 +87,6 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     return entities.length ? this.hydrateMany(entities, tenantId) : [];
   }
 
-  // Shared by findById/findByRecurringScheduleAndOccurrence — both load exactly one booking's
-  // full lines/attendees/currency, only the lookup query itself differs.
   private async hydrateOne(entity: BookingEntity, tenantId: string): Promise<Booking> {
     const lineEntities = await this.lineRepo.find({ where: { bookingId: entity.id, tenantId } });
     const attendeeEntities = await this.attendeeRepo.find({
@@ -160,6 +153,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     if (filters.status?.length === 1) where.status = filters.status[0];
     else if (filters.status?.length) where.status = In(filters.status);
     if (filters.customerId) where.customerId = filters.customerId;
+    if (filters.recurringScheduleId) where.recurringScheduleId = filters.recurringScheduleId;
     if (filters.scheduledAfter && filters.scheduledBefore) {
       where.scheduledAt = Between(filters.scheduledAfter, filters.scheduledBefore);
     } else if (filters.scheduledAfter) {

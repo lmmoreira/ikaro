@@ -66,6 +66,24 @@
     ]
   },
   {
+    "event": "FutureCommitmentExceptionDismissed",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "FutureCommitmentExceptionRaised",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "FutureCommitmentExceptionResolved",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "LeadFormSubmissionReceived",
     "consumers": [
       "audit-log"
