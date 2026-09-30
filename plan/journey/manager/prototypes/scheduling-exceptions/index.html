@@ -8,26 +8,53 @@
   <style>
     body { max-width: 640px; margin: 2rem auto; padding: 0 1.5rem; font-family: 'Inter', sans-serif; color: var(--ba-text); }
     h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.125rem; font-weight: 700; margin: 2rem 0 0.5rem; color: var(--ba-text); }
     .subtitle { font-size: 0.875rem; opacity: 0.55; margin-bottom: 2rem; }
-    .screen-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .screen-list { display: flex; flex-direction: column; gap: 0.5rem; padding: 0; list-style: none; }
     .screen-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--ba-secondary); border-radius: var(--ba-radius); text-decoration: none; color: var(--ba-text); font-size: 0.9375rem; }
     .screen-link:hover { background: #dbeafe; }
     .gap-tag { font-size: 0.6875rem; font-weight: 700; background: #fecaca; color: #b91c1c; border-radius: 4px; padding: 0.125rem 0.375rem; margin-left: auto; }
+    .tag { font-size: 0.6875rem; font-weight: 700; border-radius: 4px; padding: 0.125rem 0.375rem; margin-left: auto; }
+    .tag-green { background: #dcfce7; color: #166534; }
+    .tag-red { background: #fecaca; color: #b91c1c; }
+    .checklist { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .checklist li { display: flex; gap: 0.5rem; font-size: 0.875rem; }
+    .checklist li::before { content: "☐"; font-size: 1rem; line-height: 1.2; flex-shrink: 0; }
   </style>
 </head>
 <body>
   <h1>MANAGER — Scheduling Exceptions</h1>
-  <p class="subtitle">UC-073 (raised by system) · UC-077 (manager resolves) — ❓ Gap, M21 Cluster 3, no story assigned yet</p>
+  <p class="subtitle">UC-073 (raised by system) · UC-077 (manager resolves) — ❓ Gap, M23 Cluster 3 · backend + BFF: M23-S08 · this page: M23-S14</p>
 
-  <div class="screen-list">
-    <a href="01-exception-worklist.html" class="screen-link">
-      Compromissos a resolver
-      <span class="gap-tag">UC-073/077</span>
-    </a>
-  </div>
+  <ul class="screen-list">
+    <li><a href="01-exception-worklist.html" class="screen-link">Compromissos a resolver <span class="gap-tag">UC-073/077</span></a></li>
+    <li><a href="01b-selecionados.html" class="screen-link">Passo 1b — Seleção e barra de ações em lote <span class="gap-tag">UC-077</span></a></li>
+    <li><a href="01c-reatribuir.html" class="screen-link">Passo 1c — Reatribuir: escolher destino <span class="gap-tag">UC-077</span></a></li>
+    <li><a href="01e-reagendar.html" class="screen-link">Passo 1e — Reagendar uma reserva confirmada <span class="gap-tag">UC-077</span></a></li>
+    <li><a href="01f-cancelar.html" class="screen-link">Passo 1f — Cancelar reservas <span class="gap-tag">UC-077</span></a></li>
+    <li><a href="01g-dispensar.html" class="screen-link">Passo 1g — Dispensar (motivo obrigatório) <span class="gap-tag">UC-077 A2</span></a></li>
+  </ul>
 
-  <p style="margin-top:2rem;font-size:0.875rem;opacity:0.7;">
-    Dry-run: cada item mostra impacto, alternativa compatível (quando existe) e quatro ações (reatribuir, reagendar, cancelar, manter) mais dismiss — nenhuma decisão é automática.
-  </p>
+  <hr>
+  <h2>Estados alternativos (unhappy paths)</h2>
+  <p>Resultado parcial de uma ação em lote, lista vazia, carregamento e os dois tipos de erro.</p>
+  <ul class="screen-list">
+    <li><a href="01d-resultado-parcial.html" class="screen-link">Passo 1d — Resultado por compromisso (resolvido / continua aberto) <span class="tag tag-red">⚠ novo componente — ver dev-notes.md</span></a></li>
+    <li><a href="01h-vazio.html" class="screen-link">Passo 1h — Nenhum compromisso a resolver <span class="tag tag-red">⚠ sem componente ainda — ver dev-notes.md</span></a></li>
+    <li><a href="01i-carregando.html" class="screen-link">Passo 1i — Carregando <span class="tag tag-red">⚠ sem componente ainda — ver dev-notes.md</span></a></li>
+    <li><a href="01j-erro-carregar.html" class="screen-link">Passo 1j — Erro ao carregar (Tentar novamente) <span class="tag tag-red">⚠ sem componente ainda — ver dev-notes.md</span></a></li>
+    <li><a href="01k-erro-enviar.html" class="screen-link">Passo 1k — Erro ao enviar: nada foi alterado <span class="tag tag-red">⚠ sem componente ainda — ver dev-notes.md</span></a></li>
+  </ul>
+
+  <h2>O que este protótipo valida</h2>
+  <ul class="checklist">
+    <li>O gerente entende que cada linha é uma reserva afetada e que nada muda sem uma decisão dele?</li>
+    <li>Reatribuir (mesmo horário, outro profissional) e Reagendar (novo horário na hora) são claramente diferentes?</li>
+    <li>Reagendar desabilitado em lote e em reserva pendente está claro, ou precisa de mais explicação?</li>
+    <li>A opção "qualquer profissional livre" é suficiente, ou o gerente quer sempre escolher um destino?</li>
+    <li>O resultado parcial (um resolvido, um aberto) mostra o que fazer a seguir sem confusão?</li>
+    <li>"Selecionar todos" por recurso basta, ou o gerente precisa filtrar por horário ("a partir de …")?</li>
+    <li>O estado vazio precisa de um texto que explique quando novos compromissos aparecem?</li>
+  </ul>
 </body>
 </html>

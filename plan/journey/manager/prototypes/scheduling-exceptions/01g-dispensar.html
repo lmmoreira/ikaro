@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compromissos a resolver — Vitta Studio</title>
+  <title>Dispensar — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     .intro{opacity:.7;font-size:.875rem;margin:0 0 1rem}
@@ -46,23 +46,16 @@
   </style>
 </head>
 <body>
-  <!-- Baseline: three open entries from one deactivated resource. Row 3 shows a pending booking (no Reagendar) and the no-compatible-alternative state. M23-S08 decisions: one entry per booking, none per recurring schedule. -->
-  <div class="dashboard-topbar"><a href="../../../staff/prototypes/horarios/08-visao-geral-manager.html" style="color:var(--ba-text);text-decoration:none">← Início</a><h1 class="topbar-page-title">Compromissos a resolver</h1></div>
+  <!-- Dismiss needs a reason (UC-077 A2); keep does not. Both apply to one or many entries. -->
+  <div class="dashboard-topbar"><a href="../../../staff/prototypes/horarios/08-visao-geral-manager.html" style="color:var(--ba-text);text-decoration:none">← Início</a><h1 class="topbar-page-title">Dispensar compromisso</h1></div>
   <main class="dashboard-body" style="max-width:48rem;margin:0 auto">
-    <p class="intro">Mudanças nos recursos nunca movem clientes automaticamente. Cada compromisso precisa de uma decisão sua; você pode decidir vários de uma vez.</p>
-    <div class="group"><h2>Camila ficou indisponível · 3 compromissos</h2><a href="01b-selecionados.html">Selecionar todos</a></div>
-    <article class="item "><input class="chk" type="checkbox"  aria-label="Selecionar"><div class="body">
-      <div class="title">Ter, 19 ago · 10:00 · Corte + Escova<span class="badge b-ok">Confirmada</span></div><p class="meta">Bruna Almeida · Camila · 1 h 30</p>
-      <div class="alt"><strong>Alternativa compatível:</strong> Juliana Prado está livre neste horário.</div>
-      <div class="actions"><a href="01c-reatribuir.html">Reatribuir</a><a href="01e-reagendar.html">Reagendar</a><a class="danger" href="01f-cancelar.html">Cancelar</a><a href="01g-dispensar.html">Manter</a><a href="01g-dispensar.html">Dispensar</a></div></div></article>
-    <article class="item "><input class="chk" type="checkbox"  aria-label="Selecionar"><div class="body">
-      <div class="title">Qui, 21 ago · 14:30 · Coloração<span class="badge b-ok">Confirmada</span></div><p class="meta">Renata Souza · Camila · 2 h</p>
-      <div class="alt"><strong>Alternativa compatível:</strong> Juliana Prado está livre neste horário.</div>
-      <div class="actions"><a href="01c-reatribuir.html">Reatribuir</a><a href="01e-reagendar.html">Reagendar</a><a class="danger" href="01f-cancelar.html">Cancelar</a><a href="01g-dispensar.html">Manter</a><a href="01g-dispensar.html">Dispensar</a></div></div></article>
-    <article class="item "><input class="chk" type="checkbox"  aria-label="Selecionar"><div class="body">
-      <div class="title">Sex, 22 ago · 09:00 · Escova<span class="badge b-wait">Pendente</span></div><p class="meta">Paula Lima · Camila · 45 min</p>
-      <div class="alt none"><strong>Sem alternativa compatível.</strong> Nenhum outro profissional está livre neste horário — você ainda pode manter, reagendar ou cancelar.</div>
-      <div class="actions"><a href="01c-reatribuir.html">Reatribuir</a><span title="Só uma reserva confirmada pode ser reagendada">Reagendar</span><a class="danger" href="01f-cancelar.html">Cancelar</a><a href="01g-dispensar.html">Manter</a><a href="01g-dispensar.html">Dispensar</a></div></div></article>
+    <div class="panel"><h3>Dispensar este compromisso</h3>
+      <p class="note">Use quando o compromisso não precisa mais de ação. A reserva não muda. Para <strong>manter</strong> a reserva como está mesmo assim, use "Manter" (o motivo é opcional).</p>
+      <label for="d" style="font-size:.8125rem">Motivo <span style="color:#b91c1c">*</span></label>
+      <input id="d" class="form-input" placeholder="Ex.: Camila voltou a atender neste dia">
+      <p class="note" style="color:#b91c1c;display:none">Informe o motivo para dispensar.</p>
+      <div class="btn-row"><a class="btn-primary" href="01d-resultado-parcial.html">Dispensar</a><a class="btn-secondary" href="01-exception-worklist.html">Voltar</a></div>
+    </div>
   </main>
 </body>
 </html>

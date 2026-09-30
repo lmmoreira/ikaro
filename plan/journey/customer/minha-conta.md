@@ -114,6 +114,8 @@ Folder: `customer/prototypes/minha-conta/`
 | `04b-fidelidade-empty.html` | Fidelidade — estado vazio (0 pontos) | UC-016 | M13-S29 | ✅ Criado |
 | `05-trocar-empresa.html` | Trocar empresa — seleção de tenant (UC-023 trigger) | UC-023 | M13-S30 | ✅ Criado |
 | `06-reserva-recorrente.html` | Gerenciar reserva recorrente (pular/reagendar/encerrar — sem pausar) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `06e-pular-fora-do-prazo.html` | Erro — pular uma ocorrência fora do prazo de cancelamento (decidido em M23-S08: a ocorrência é uma reserva) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `06f-reagendar-fora-do-prazo.html` | Erro — reagendar uma ocorrência fora do prazo de reagendamento | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (decidido em M23-S18: recusa na criação; a API já devolve a lista) | UC-070 A1 | M23-S17 (constrói a tela) | ❓ Gap (M23 Cluster 3) |

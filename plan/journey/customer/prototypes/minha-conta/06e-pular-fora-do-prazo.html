@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserva recorrente — Vitta Studio</title>
+  <title>Pular ocorrência — Prazo encerrado — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     details summary { list-style: none; }
@@ -166,24 +166,15 @@
     <main class="main-content">
       <div class="dashboard-body">
 
-        <a class="back-link" href="14-recorrentes-lista.html">← Reservas recorrentes</a>
-        <p class="step-label">Sala Aurora · reserva recorrente</p>
-        <h1 class="page-title" style="font-size:1.5rem;">Toda terça, 10:00–12:00</h1>
-        <p style="opacity:.7;">Este horário é um compromisso recorrente até 11 de novembro — as 13 reservas do período já estão criadas. <a href="13f-renovar-recorrencia.html" style="font-size:.875rem">Renovar</a></p>
-
-        <!-- M23-S08: an occurrence is its linked booking. "Pular" = cancel that booking and "Reagendar" = the ordinary reschedule, so the tenant's cancellation / reschedule windows apply (see 06e / 06f). The resource shown on each row below is NOT yet returned for customers (assignedResources is staff-only) — M23-S12 decides whether to add it; until then treat "Sala Aurora" here as illustrative. -->
-        <div class="card" style="margin-top:1rem;">
-          <div class="row"><strong>19 de agosto · Confirmada</strong><p class="meta">Sala Aurora · 2 horas · R$ 100,00</p><a href="#skip" style="font-size:.875rem">Pular esta ocorrência</a> · <a href="#reschedule" style="font-size:.875rem">Reagendar esta ocorrência</a></div>
-          <div class="row"><strong>26 de agosto · Confirmada</strong><p class="meta">Sala Aurora · 2 horas · R$ 100,00</p><a href="#skip" style="font-size:.875rem">Pular esta ocorrência</a> · <a href="#reschedule" style="font-size:.875rem">Reagendar esta ocorrência</a></div>
+        <a class="back-link" href="06-reserva-recorrente.html">← Reserva recorrente</a>
+        <div class="error-box" style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:1rem;margin:1rem 0">
+          <div style="display:flex;align-items:center;gap:.5rem;font-size:1rem;font-weight:800;color:#dc2626;margin-bottom:.625rem"><span>🚫</span> Pular fora do prazo</div>
+          <div style="font-size:.9375rem;color:#7f1d1d;line-height:1.6;margin-bottom:.75rem">Uma ocorrência só pode ser pulada com pelo menos <strong>48 horas de antecedência</strong>.</div>
+          <div style="background:white;border:1px solid #fca5a5;border-radius:6px;padding:.625rem .75rem;font-size:.875rem;color:#991b1b">O prazo para pular esta ocorrência encerrou em:<br><strong>18 de agosto às 10h00</strong></div>
         </div>
-
-        <section id="skip" class="card panel"><h2 style="font-size:1.1rem">Pular 19 de agosto?</h2><p class="meta">A sala será liberada para outras reservas. Sua recorrência continua normalmente na semana seguinte. Você pode pular até 48 horas antes do horário — o mesmo prazo de cancelamento de qualquer reserva.</p><div class="nav-buttons"><a class="btn-secondary" href="06-reserva-recorrente.html">Voltar</a><a class="btn-primary" href="#skip-confirmed">Confirmar pulo</a></div></section>
-        <section id="skip-confirmed" class="card panel" style="background:#dcfce7"><strong>Ocorrência pulada</strong><p class="meta">A reserva de 19 de agosto foi cancelada. Uma vaga liberada pode gerar um aviso ou reserva para outra pessoa.</p></section>
-        <section id="reschedule" class="card panel"><h2 style="font-size:1.1rem">Escolha um novo horário</h2><p class="meta">Seu horário atual continua protegido até você confirmar uma alternativa disponível.</p><label for="slot" style="display:block;font-size:.875rem;font-weight:600;margin:1rem 0 .375rem">Horário disponível</label><select id="slot" class="form-input"><option>Qua, 20 ago · 10:00–12:00 · Sala Aurora</option><option>Qui, 21 ago · 14:00–16:00 · Sala Horizonte</option></select><div class="notice"><strong>Preço será recalculado</strong><p class="meta">A mudança acontece de uma vez: o horário original só é liberado quando o novo horário for confirmado. Vale o mesmo prazo de reagendamento de qualquer reserva.</p></div><div class="nav-buttons"><a class="btn-secondary" href="06-reserva-recorrente.html">Cancelar</a><a class="btn-primary" href="#rescheduled">Confirmar novo horário</a></div></section>
-        <section id="rescheduled" class="card panel" style="background:#dcfce7"><strong>Novo horário confirmado</strong><p class="meta">A ocorrência de 19 de agosto foi movida. Sua recorrência semanal não mudou.</p></section>
-
-        <div class="card" style="margin-top:1rem"><h2 style="font-size:1.1rem">Gerenciar recorrência</h2><p class="meta">Encerrar libera os próximos horários; nenhuma ação apaga seu histórico. Para parar só uma semana, use "Pular esta ocorrência".</p><div class="nav-buttons"><a class="btn-secondary" style="color:#b91c1c" href="#end">Encerrar</a></div></div>
-        <section id="end" class="notice panel"><strong>Antes de encerrar</strong><p class="meta">Reservas futuras serão canceladas e liberarão os recursos. O histórico permanece disponível.</p></section>
+        <div class="card" style="margin-top:1rem"><div class="row"><strong>19 de agosto · Confirmada</strong><p class="meta">2 horas · R$ 100,00</p></div></div>
+        <div class="notice" style="margin-top:1rem"><strong>Precisa pular mesmo assim?</strong><p class="meta">Entre em contato diretamente com o estabelecimento via WhatsApp ou telefone. A equipe pode fazer a alteração manualmente.</p></div>
+        <div class="nav-buttons" style="margin-top:1rem"><a class="btn-primary" href="06-reserva-recorrente.html">Voltar à reserva recorrente</a><a class="btn-secondary" href="https://wa.me/5511999990000" target="_blank" rel="noopener">Contato via WhatsApp</a></div>
 
       </div>
     </main>

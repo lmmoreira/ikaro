@@ -169,6 +169,7 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a re
 | `13d-nova-recorrencia-limite.html` | `409` active-schedule cap reached | same, error state | M23-S17 |
 | `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
 | `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, end (no Pause). Since `M23-S08` an occurrence is its linked booking: skip = cancel that booking and reschedule = the ordinary reschedule, both subject to the tenant's cancellation / reschedule windows (the screen needs a window-expired message the prototype does not draw yet) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
+| `06e-pular-fora-do-prazo.html` / `06f-reagendar-fora-do-prazo.html` | Skip / reschedule refused because the tenant's cancellation / reschedule window has passed (same wording as one-off `03b`; the occurrence is a booking, decided in `M23-S08`) | same, error state | M23-S12 |
 | `07-availability-alert.html` | Create/manage an availability alert | `/{slug}/my-account/alerts` | M23-S12 |
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
@@ -267,3 +268,9 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 **Open questions / gaps:**
 - [ ] Stories for this extension live in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`; each still begins with `/story-discovery`.
 - [ ] Reposição (UC-102) has no implementation-grade prototype screen — the discovery-stage `customer-04d-reagendada.html` was never promoted to this rigor; design fresh from `10-pular-sessao.html`'s existing "reagendar" link, not copy that screen as-is.
+
+### Screen 06 — window and resource notes (added with `M23-S08`, 2026-09-30)
+
+- **The windows apply.** Skipping an occurrence is the ordinary customer cancel of its booking and rescheduling is the ordinary customer reschedule, so a refusal inside the tenant's cancellation / reschedule window is shown as `06e` / `06f`, worded like the one-off `03b` ("… com pelo menos N horas de antecedência", the deadline, and a contact-the-business hint). The "48 horas" in the prototype is the example value; the real number is the tenant's setting.
+- **Occurrences are listed with `GET /bookings?recurringScheduleId=<id>`** and each row's actions call the ordinary booking cancel / reschedule (`PATCH /bookings/:id/cancel`, `PATCH /bookings/:id/reschedule`). There is no per-occurrence route any more.
+- **The resource on each row is unresolved.** `06` draws "Sala Aurora" on every occurrence, but the customer booking list item carries no resource (`assignedResources` is staff-only). `M23-S12`'s discovery decides whether to add it for customers; until then the copy is illustrative. A row must never read the resource from the schedule's own assignment (it only records what was requested).
