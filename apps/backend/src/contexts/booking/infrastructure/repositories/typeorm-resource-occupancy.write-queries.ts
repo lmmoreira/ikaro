@@ -1,12 +1,10 @@
 import { EntityManager } from 'typeorm';
-import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import {
   BookingLineOccupancyAssignment,
   ResourceOccupancyCandidate,
 } from '../../application/ports/resource-occupancy-repository.port';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
-import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 
 // Split out of typeorm-resource-occupancy.repository.ts (docs/CODE_STANDARDS.md's file-length
@@ -133,7 +131,7 @@ function resolveAssignmentId(
 export function buildOccupancyRows(
   candidates: ResourceOccupancyCandidate[],
   ctx: OccupancyRowContext,
-): QueryDeepPartialEntity<ResourceOccupancyEntity>[] {
+): ResourceOccupancyEntity[] {
   return candidates.map((candidate) => ({
     id: uuidv7(),
     tenantId: ctx.tenantId,
@@ -152,23 +150,57 @@ export function buildOccupancyRows(
   }));
 }
 
-// ResourceOccupancyEntity has 14 columns; PostgreSQL's hard 65,535 bound-parameter limit divided
-// by 14 is ~4,681 rows per multi-row INSERT — 1,000 leaves ample margin for future columns.
-const OCCUPANCY_INSERT_CHUNK_SIZE = 1000;
+// Every row of one insert goes in as one array per column, unnested server-side, so the statement
+// binds a fixed 14 parameters however many rows there are — no PostgreSQL bound-parameter limit to
+// chunk around, and one round trip whatever the candidate count (requiredQuantity has no upper
+// bound, and a recurring term inserts one row per occurrence). The same unnest technique the
+// assignment upsert above and the conflict checks use.
+export const INSERT_OCCUPANCY_SQL = `
+  INSERT INTO booking.resource_occupancy
+    (id, tenant_id, resource_id, resource_type, source_type, booking_line_resource_assignment_id,
+     leg_index, class_session_id, resource_name_at_assignment, starts_at, ends_at, lock_state,
+     hold_expires_at, created_at)
+  SELECT * FROM unnest(
+    $1::uuid[], $2::uuid[], $3::uuid[], $4::varchar[], $5::varchar[], $6::uuid[], $7::int[],
+    $8::uuid[], $9::varchar[], $10::timestamptz[], $11::timestamptz[], $12::varchar[],
+    $13::timestamptz[], $14::timestamptz[]
+  )
+`;
 
-// TypeORM's multi-row manager.insert() binds one SQL parameter per cell, not per row — at
-// ResourceOccupancyEntity's 14 columns, PostgreSQL's 65,535 bound-parameter limit is reachable
-// once requiredQuantity (validated only as > 0, no upper bound — resource-requirement.ts) drives
-// a large-enough candidate count. Chunking keeps today's realistic candidate counts at one query
-// (the common case) while staying correct at any size.
 export async function insertOccupancyRows(
   manager: EntityManager,
-  rows: QueryDeepPartialEntity<ResourceOccupancyEntity>[],
+  rows: ResourceOccupancyEntity[],
 ): Promise<void> {
-  for (let i = 0; i < rows.length; i += OCCUPANCY_INSERT_CHUNK_SIZE) {
-    await manager.insert(ResourceOccupancyEntity, rows.slice(i, i + OCCUPANCY_INSERT_CHUNK_SIZE));
-  }
+  if (rows.length === 0) return;
+  await manager.query(INSERT_OCCUPANCY_SQL, [
+    rows.map((row) => row.id),
+    rows.map((row) => row.tenantId),
+    rows.map((row) => row.resourceId),
+    rows.map((row) => row.resourceType),
+    rows.map((row) => row.sourceType),
+    rows.map((row) => row.bookingLineResourceAssignmentId),
+    rows.map((row) => row.legIndex),
+    rows.map((row) => row.classSessionId),
+    rows.map((row) => row.resourceNameAtAssignment),
+    rows.map((row) => row.startsAt),
+    rows.map((row) => row.endsAt),
+    rows.map((row) => row.lockState),
+    rows.map((row) => row.holdExpiresAt),
+    rows.map((row) => row.createdAt),
+  ]);
 }
+
+// The assignment rows of brand-new lines: a plain INSERT, unlike UPSERT_ASSIGNMENTS_SQL above — a
+// new line has no row to conflict with. One array per column, like INSERT_OCCUPANCY_SQL.
+export const INSERT_FRESH_ASSIGNMENTS_SQL = `
+  INSERT INTO booking.booking_line_resource_assignments
+    (id, tenant_id, booking_line_id, resource_id, resource_type, leg_index, quantity_position,
+     resource_name_at_assignment, assigned_at)
+  SELECT u.id, $2, u.booking_line_id, u.resource_id, u.resource_type, u.leg_index,
+         u.quantity_position, u.resource_name, $9
+  FROM unnest($1::uuid[], $3::uuid[], $4::uuid[], $5::varchar[], $6::int[], $7::int[], $8::varchar[])
+    AS u(id, booking_line_id, resource_id, resource_type, leg_index, quantity_position, resource_name)
+`;
 
 interface FreshPair {
   bookingLineId: string;
@@ -176,28 +208,10 @@ interface FreshPair {
   assignmentId: string;
 }
 
-function toFreshAssignmentRow(
-  tenantId: string,
-  pair: FreshPair,
-  now: Date,
-): QueryDeepPartialEntity<BookingLineResourceAssignmentEntity> {
-  return {
-    id: pair.assignmentId,
-    tenantId,
-    bookingLineId: pair.bookingLineId,
-    resourceId: pair.candidate.resourceId,
-    resourceType: pair.candidate.resourceType,
-    legIndex: pair.candidate.legIndex,
-    quantityPosition: pair.candidate.quantityPosition,
-    resourceNameAtAssignment: pair.candidate.resourceName,
-    assignedAt: now,
-  };
-}
-
 function toFreshOccupancyRow(
   pair: FreshPair,
   ctx: Omit<OccupancyRowContext, 'assignmentIds'>,
-): QueryDeepPartialEntity<ResourceOccupancyEntity> {
+): ResourceOccupancyEntity {
   return {
     id: uuidv7(),
     tenantId: ctx.tenantId,
@@ -235,12 +249,19 @@ export async function insertFreshAssignmentsAndOccupancy(
   );
   if (pairs.length === 0) return;
 
-  await manager.insert(
-    BookingLineResourceAssignmentEntity,
-    pairs.map((pair) => toFreshAssignmentRow(tenantId, pair, now)),
-  );
-  await manager.insert(
-    ResourceOccupancyEntity,
+  await manager.query(INSERT_FRESH_ASSIGNMENTS_SQL, [
+    pairs.map((pair) => pair.assignmentId),
+    tenantId,
+    pairs.map((pair) => pair.bookingLineId),
+    pairs.map((pair) => pair.candidate.resourceId),
+    pairs.map((pair) => pair.candidate.resourceType),
+    pairs.map((pair) => pair.candidate.legIndex),
+    pairs.map((pair) => pair.candidate.quantityPosition),
+    pairs.map((pair) => pair.candidate.resourceName),
+    now,
+  ]);
+  await insertOccupancyRows(
+    manager,
     pairs.map((pair) => toFreshOccupancyRow(pair, { tenantId, lockState, holdExpiresAt, now })),
   );
 }

@@ -86,9 +86,8 @@ export interface IResourceOccupancyRepository {
   // — two statements in total (the assignment rows, then the occupancy rows), however many lines.
   // Only for lines that have no assignment rows yet, so nothing is upserted: the null-safe unique
   // index cannot already hold one of these tuples. Same active-transaction contract, and the
-  // same exclusion-constraint backstop as assign(). One statement each, so the row count must stay
-  // inside PostgreSQL's bound-parameter limit: the caller's batch is bounded by a schedule's term
-  // (at most 180 occurrences).
+  // same exclusion-constraint backstop as assign(). Each statement unnests one array per column, so
+  // it binds a fixed number of parameters whatever the batch size.
   assignMany(
     tenantId: string,
     assignments: BookingLineOccupancyAssignment[],
