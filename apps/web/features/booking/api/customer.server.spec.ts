@@ -36,7 +36,7 @@ describe('fetchCustomerBookings', () => {
     await fetchCustomerBookings('token');
     expect(bffServerFetch).toHaveBeenCalledWith(
       'token',
-      '/bookings?status=PENDING%2CINFO_REQUESTED%2CAPPROVED%2CCOMPLETED%2CCANCELLED%2CREJECTED&limit=50',
+      '/bookings?status=PENDING%2CINFO_REQUESTED%2CAPPROVED%2CCOMPLETED%2CCANCELLED%2CREJECTED%2CNO_SHOW&limit=50',
     );
   });
 
