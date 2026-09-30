@@ -967,7 +967,7 @@ Add a "Solicitações recorrentes" tab/filter to the existing Agenda queue surfa
 
 ---
 
-### M23-S16 — Surface recurringHorizonDays (a recurring schedule's maximum term) in the Service booking-policy dashboard panel
+### M23-S16 — Surface recurringHorizonDays (a recurring schedule's maximum term) in the Service booking-policy dashboard panel ✅ Done
 
 **Agent:** frontend-ts + bff-ts
 **Complexity:** S
