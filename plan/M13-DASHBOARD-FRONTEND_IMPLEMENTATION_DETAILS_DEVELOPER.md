@@ -21,7 +21,7 @@
 - **S25–S26** — Staff-side loyalty search/detail pages; a loyalty strip on the completion route (found to be missing entirely for *reopened* completed bookings — a real gap closed post-merge).
 - **S27–S29** — Customer "Minha Conta": home, booking list, booking detail (cancel + info-submit), loyalty page.
 - **S30** — Merged into S14.
-- **S31** — Settings form: grew from the original UC-026 scope to 7 sections including booking-policy fields, loyalty-notification fields, and a whole new Notificações section.
+- **S31** — Settings form: grew from the original UC-026 scope to 7 sections including booking-policy fields, loyalty-notification fields, and a whole new Notificações section (that section — a per-tenant sender email — was later removed in M18-S09, leaving 6).
 - **S32–S34, S43–S44** — Team management: list, invite, deactivate, edit, and — added after a bug was found while manually verifying S34 — reactivate. Staff status (`ACTIVE`/`PENDING`/`DEACTIVATED`) is derived from `googleOAuthId`/`isActive`, never stored directly.
 - **S35–S37** — Hotsite editor: Branding tab, Layout tab (8 module config panels), SEO tab + Preview + Publish/Unpublish. SEO limits tightened to real Google truncation points (60/158 chars) with dedicated value objects.
 - **S38–S41** — Guest booking info-submission: renamed the email link URL, added an optional guest read endpoint, built `SubmitInfoPage`, and — the most load-bearing story in the milestone for *future* work — established the Playwright E2E infrastructure every subsequent spec builds on.

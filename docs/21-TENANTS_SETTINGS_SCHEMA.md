@@ -247,7 +247,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `phone` | string \| null | null | Business phone, digits only (10–11 digits, no country code) — same format as `Customer.phone` |
-| `email` | string \| null | null | Business contact email |
+| `email` | string \| null | null | Business contact email. Also used as the **Reply-To** of every email sent for this tenant (§4), and shown publicly (hotsite `CONTACT` module, chatbot context) — so it must be an address the business is happy to publish and monitor |
 | `address` | object \| null | null | Business address — see sub-fields below |
 | `socialLinks` | object \| null | null | Social/contact links — see sub-fields below |
 

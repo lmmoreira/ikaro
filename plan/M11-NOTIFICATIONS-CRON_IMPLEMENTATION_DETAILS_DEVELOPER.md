@@ -36,8 +36,9 @@ Event arrives at Handler
               dispatcher.dispatch({ tenantId, to, subject, body, channel })
                 └── NotificationDispatcherAdapter routes by channel:
                       EmailDeliveryChannelAdapter.send(message)
-                        resolves "from" address (tenant override or EMAIL_FROM env)
-                        calls IEmailSender.send({ to, from, subject, html: body })
+                        sends From the EMAIL_FROM env address with the tenant name as display name,
+                        Reply-To = the tenant's businessInfo.email (M18-S09 replaced the old per-tenant override)
+                        calls IEmailSender.send({ to, from, fromName, replyTo, subject, html: body })
                           └── MailhogEmailAdapter OR SendGridEmailAdapter
             saveLog() → notification_logs SENT row + processed_events row (in transaction)
         If delivery fails:
