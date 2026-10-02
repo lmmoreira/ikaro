@@ -131,3 +131,14 @@ New files require Vitest unit tests (`*.spec.tsx` alongside each new component) 
 - `requiresPickupAddress: true` → `AddressFields` rendered, pre-filled from `pickupAddress`
 - `requiresPickupAddress: false` → no address fields
 - PhotoUpload present regardless of `requiresPickupAddress`
+
+---
+
+## ❓ GAP — Intake step (M23-S11, UC-068; backend/BFF shipped in M23-S02, frontend not built)
+
+For a service with an active `service_booking_intake_schema`, the authenticated-customer flow gains one step between Review (Step 3) and Confirmation: Services → Calendar → Review → **Intake (`IntakeAnswersStep`)** → Confirm ("Passo N de 5"). Services without a schema skip it and the flow stays 4 steps.
+
+- Prototype: `03b-intake-answers.html` + `03c-intake-answers-error.html` — the same component and behavior as the guest path; full spec (schema-driven rendering, version kept as `intakeSchemaVersion`, no submit on this step, `#b91c1c` error text, `422 intake-answer-missing`) lives in `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § Intake step placement.
+- Customer-specific: the final `POST /bookings/authenticated` on Confirmation carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` (identical shape to the guest endpoint, `docs/14-API_CONTRACTS.md`).
+- File: `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` — one component for both actors, not duplicated.
+

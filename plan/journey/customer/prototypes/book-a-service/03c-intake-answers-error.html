@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Passo 4 — Dados do serviço — Erro — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .field { margin:1rem 0; }
+    .field label { display:block;font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em; }
+    .form-input.error { border-color:#ef4444;background:#fef2f2; }
+    .form-error { font-size:.8125rem;color:#b91c1c;margin-top:.375rem; }
+    .hint { font-size:.8125rem;opacity:.68;margin-top:.35rem; }
+  </style>
+</head>
+<body>
+  <!--
+    Error-state sibling of 03b-intake-answers.html (same step as guest/…/13b-intake-answers-error.html) (UC-068 A3 / alt A1).
+    Primary content: required questions + the consent checkbox left unanswered on "Próximo" ->
+    backend 422 intake-answer-missing names the missing field(s); the client mirrors this inline.
+    Secondary notice: alt A1 — the service form changed while the customer was filling it; submission is
+    validated against the DISPLAYED version, a removed/changed field never silently rewrites completed answers.
+    Error red is #b91c1c (not #dc2626) so it passes WCAG AA on --ba-secondary too (see dev-notes.md § Color contrast).
+    data-testid hooks: intake-error-summary, intake-field-error-<fieldKey>, intake-consent-error
+  -->
+  <header style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem"><strong>Vitta Studio</strong></header>
+  <main class="step-container">
+    <p class="step-indicator">Passo 4 de 5</p>
+    <h1 style="font-size:1.5rem">Dados do serviço</h1>
+    <p style="opacity:.7">Estas perguntas dependem do serviço escolhido. O que você enviar fica registrado com a versão atual do formulário (v<span id="schema-version">2</span>).</p>
+    <form id="intake-form" onsubmit="return false">
+      <div class="field"><label for="q-goal">Qual o objetivo da reserva? <span aria-hidden="true">*</span></label><textarea id="q-goal" class="form-input error" rows="2" required aria-invalid="true" aria-describedby="err-goal"></textarea><p id="err-goal" class="form-error" data-testid="intake-field-error-goal">Este campo é obrigatório.</p></div>
+      <div class="field"><label for="q-access">Necessidades de acesso <span aria-hidden="true">(opcional)</span></label><textarea id="q-access" class="form-input" rows="2" placeholder="Ex.: acesso sem escadas"></textarea></div>
+      <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem;margin:1rem 0"><input id="q-first-time" type="checkbox"> <span>É a primeira vez que utilizo este serviço.</span></label>
+      <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><input id="participants" class="form-input error" type="number" min="1" required style="max-width:8rem" aria-invalid="true" aria-describedby="err-participants"><p id="err-participants" class="form-error" data-testid="intake-field-error-participants">Informe a quantidade de participantes.</p></div>
+      <div class="field"><label for="attendees">Participantes nomeados <span aria-hidden="true">*</span></label><textarea id="attendees" class="form-input" rows="3" placeholder="Ex.: Marina Lopes, João Silva" required></textarea><p class="hint">Um nome por linha.</p></div>
+      <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
+      <p class="form-error" style="margin-left:1.875rem;" data-testid="intake-consent-error">Você precisa aceitar os termos para continuar.</p>
+      <div role="alert" data-testid="intake-error-summary" style="margin-top:1rem;padding:.875rem;background:#fef2f2;border-radius:var(--ba-radius);font-size:.875rem;color:#b91c1c;"><strong>Não foi possível continuar</strong><br>3 campos precisam de atenção — veja os destaques acima.</div>
+      <div class="nav-buttons"><a class="btn-secondary" href="03-review-confirm.html">Voltar</a><button id="next" class="btn-primary" type="submit">Próximo</button></div>
+    </form>
+    <div class="card" style="margin-top:1.5rem;background:#eff6ff;border-color:#bfdbfe;">
+      <strong style="color:#1d4ed8;">Se o formulário mudar enquanto você preenche (UC-068 alt. A1)</strong>
+      <p style="font-size:.875rem;color:#1d4ed8;margin-top:.375rem;">
+        Caso a equipe publique uma nova versão deste formulário antes de você confirmar, sua tentativa
+        de envio é validada contra a versão que está na tela agora — nenhuma resposta já preenchida é
+        reescrita silenciosamente. Se um campo foi removido ou alterado nessa nova versão, pedimos que
+        você revise e reenvie com o formulário atualizado.
+      </p>
+    </div>
+  </main>
+  
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Submit a booking request on a tenant's hotsite as an authenticated customer  
-**UCs covered:** UC-021, UC-002, UC-011  
+**UCs covered:** UC-021, UC-002, UC-011, UC-068 (intake step — ❓ Gap, M23-S11)  
 **Status:** Reviewed
 
 ## Flow
@@ -30,7 +30,9 @@ flowchart TD
     DayClick --> SlotPicker["SlotPicker"]
     SlotPicker --> S3
 
-    S3["/[slug]/booking<br/>Step 3: Review — PersonalInfoStep (reused)<br/>hideContactFields=true, detected via getHotsiteCustomerProfile(slug)"] --> S4
+    S3["/[slug]/booking<br/>Step 3: Review — PersonalInfoStep (reused)<br/>hideContactFields=true, detected via getHotsiteCustomerProfile(slug)"] -->|"service has an active intake schema"| Intake["❓ GAP: Step 4 — IntakeAnswersStep<br/>(03b-intake-answers, M23-S11 / UC-068)"]
+    S3 -->|"no intake schema"| S4
+    Intake -->|"Próximo (no submit)"| S4
 
     S4["/[slug]/booking<br/>Step 4: Confirm & Submit"]
     S4 --> Submit(("Confirmar agendamento"))
@@ -40,7 +42,7 @@ flowchart TD
     SlotOk -- 409 Conflict --> S2Error["❓ GAP: 'Horário indisponível'<br/>→ back to step 2<br/>(no prototype screen here — guest's<br/>02e-slot-conflict.html is the pattern to reuse)"]
 
     class S1,PickupField,S2,DayClick,SlotPicker,S4,Submit,POST,Done,LoginPage,Callback,Hotsite,CTA,S3 existing
-    class S2Error gap
+    class S2Error,Intake gap
 ```
 
 **Note (2026-07-31 docs audit):** this flowchart previously described a generic `/auth/login` + `/api/auth/callback/google` + `/select-tenant` architecture that was never built and has since been superseded — see `customer/login.md`'s 2026-06-24 scope-change note for the canonical, shipped design (tenant-scoped `/{slug}/login`, BFF-only OAuth callback, `/select-tenant` permanently descoped). This file now matches that canonical design instead of duplicating it.
@@ -55,7 +57,8 @@ flowchart TD
 | `/[slug]/booking` Step 1 | `ServiceSelectionStep` (reuse, no changes) | M12-S07 | ✅ Existing |
 | `/[slug]/booking` Step 2 | `AvailabilityCarousel` + `SlotPicker` (reuse) | M12-S07 | ✅ Existing |
 | `/[slug]/booking` Step 3 | `PersonalInfoStep` (reused, `hideContactFields` prop) | M13-S14 | ✅ Existing |
-| `/[slug]/booking` Step 4 | `ConfirmationStep` (reuse, no changes) | M12-S07 | ✅ Existing |
+| `/[slug]/booking` Step 4 (only for intake-bearing services) | `IntakeAnswersStep` (new, shared with the guest path; Confirmation then becomes "Passo 5 de 5") | M23-S11 | ❓ Gap |
+| `/[slug]/booking` final step | `ConfirmationStep` (reuse, no changes) | M12-S07 | ✅ Existing |
 
 ## Open questions / gaps
 

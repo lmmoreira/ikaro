@@ -210,7 +210,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 ---
 
-## ❓ GAP — M21 Cluster 3 extension (UC-061–068, not yet built)
+## ❓ GAP — M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03, frontend = M23-S11, not yet built)
 
 > Everything above this line is shipped (`M12-S07`). Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Lifecycle for the full contract.
 
@@ -226,7 +226,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `10-multi-leg-itinerary.html` / `10b-multi-leg-itinerary-erro.html` | Multi-leg itinerary + race-condition error | UC-065 |
 | `11-appointment-availability.html` | Shared availability step reused by every resource-scoped/bundled/legged flow above | UC-058 (Cluster 2) |
 | `12-reserva-por-tempo.html` / `12b-reserva-por-tempo-erro.html` | Variable-duration reservation + unavailable error | UC-067 |
-| `13-intake-e-confirmacao.html` / `13b-intake-e-confirmacao-erro.html` | Versioned booking intake + missing-field error | UC-068 |
+| `13-intake-answers.html` / `13b-intake-answers-error.html` | Intake step — its own step after Personal Info, before Confirmation (versioned schema questions + consent; no submit) + missing-field error | UC-068 |
 | `14-pending-approval.html` | Manual-approval hold display (30-min countdown example) | Booking policy (UC-055) |
 | `15-login-required.html` | Auth boundary before a waitlist/alert action | UC-072 A1 |
 | `16-service-type-selector.html` | Multi-service-type catalogue entry point | Canonical IA entry, dev-notes.md §"Canonical public information architecture" |
@@ -235,13 +235,13 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 | File | Status |
 |---|---|
-| `apps/web/features/booking/components/guest/StaffPickerStep.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/guest/AutoAssignedStaffSlotPicker.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/guest/FungibleResourceSlotPicker.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/guest/MultiLegItineraryReview.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/guest/VariableDurationReservationStep.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/guest/BookingIntakeStep.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/guest/ManualApprovalHoldState.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/public/ResourcePicker.tsx` (staff/pool/bundle selection) | ❓ Gap |
+| `apps/web/features/booking/components/public/AutoAssignedStaffSlotPicker.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/public/FungibleResourceSlotPicker.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/public/MultiLegItineraryReview.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/public/VariableDurationReservationStep.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/public/ManualApprovalHoldState.tsx` | ❓ Gap |
 
 **BFF calls (new/extended — see `docs/14-API_CONTRACTS.md`):**
 ```
@@ -250,11 +250,23 @@ GET  /schedule/availability?serviceId=&resourceId=         -- extended (UC-058),
 POST /bookings                                              -- extended body: resourceSelections, legSelections,
                                                                 startsAt/durationMinutes (variable-duration),
                                                                 intakeSchemaVersion/intakeAnswers, attendees
-GET  /services/:id/intake-schema                            -- feeds BookingIntakeStep
+GET  /services/:id/intake-schema/public                     -- feeds IntakeAnswersStep (active version only, no auth)
 ```
 
 **Known limitation, found during this promotion:** `16-service-type-selector.html`'s "browse a class" link points at `public-02b-class-agenda.html` (Cluster 4, not yet promoted) — left as a documented gap.
 
 **Open questions / gaps:**
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Story: `M23-S11` (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`) — run `/story-discovery M23-S11` before implementing.
 - [ ] Reconciling `16-service-type-selector.html` with the existing single-service-type `ServiceSelectionStep` (does one replace the other, or does the existing step gain a resource-type branch?) is a UI/routing decision for the implementing story.
+
+### Intake step placement (decided before M23-S11 story-discovery)
+
+Intake is **its own step**, not merged into the final summary: Services → Availability → Personal Info (Step 3) → **Intake (`IntakeAnswersStep`)** → Confirmation (the existing final summary + submit).
+
+- Rendered only when the selected service has an active `service_booking_intake_schema`; otherwise Step 3 goes straight to Confirmation and the flow stays 4 steps. With intake the indicator reads "Passo N de 5" and Confirmation becomes "Passo 5 de 5".
+- Schema-driven, never hardcoded: one control per `questions[]` entry (`FREE_TEXT` -> text input, `BOOLEAN` -> checkbox, `required` flag), "Quantidade de participantes" only when `participantCountRequired`, "Participantes nomeados" only when `requiresNamedAttendees`, consent checkbox (`consentText`) always required.
+- The displayed `version` is kept in form state and submitted as `intakeSchemaVersion`; answers are validated against that version, never silently re-validated against a newer one (UC-068 A1).
+- The step does **not** submit. `POST /bookings` (guest) / `POST /bookings/authenticated` (customer) stays on Confirmation, which carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` in the payload.
+- Error handling: the backend `422 intake-answer-missing` names the missing field(s); `13b-intake-answers-error.html` is the client mirror (inline per-field errors + summary). Error text on `--ba-secondary` must use `#b91c1c`, not `#dc2626` (see § Accessibility / color contrast above).
+- Personal Info stays before it: contact data (name, phone, email, address, photos) is not part of the intake schema.
+- The authenticated customer path reuses the same step before its review-confirm step (see `customer/prototypes/book-a-service/`).

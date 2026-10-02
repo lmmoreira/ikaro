@@ -2,7 +2,7 @@
 
 **Actor(s):** GUEST  
 **Goal:** Submit a booking request on a tenant's public hotsite without authentication  
-**UCs covered:** UC-001, UC-011 (✅ Reviewed) · UC-061, UC-062, UC-063, UC-064, UC-065, UC-066, UC-067, UC-068 (❓ Gap — M23 Cluster 3, resource-scoped/bundle/leg/variable-duration/intake booking extensions)  
+**UCs covered:** UC-001, UC-011 (✅ Reviewed) · UC-061, UC-062, UC-063, UC-064, UC-065, UC-066, UC-067, UC-068 (❓ Gap — M23 Cluster 3 frontend, `M23-S11`; backend/BFF for UC-061–068 shipped in M23-S01–S03)  
 **Status:** Base flow reviewed — M23 Cluster 3 extension not yet built, see the ❓ GAP section in `dev-notes.md`
 
 ## Flow
@@ -72,8 +72,11 @@ flowchart TD
     MultiLeg --> Availability
     VarDuration --> Availability
 
-    Availability --> Intake["❓ GAP: intake + confirmation<br/>(13-intake-e-confirmacao)"]
-    Intake -->|"POST /bookings"| Result{"Approval mode?"}
+    Availability --> S3m["Step 3: Personal Info<br/>(03-personal-info, existing)"]
+    S3m -->|"service has an active intake schema"| Intake["❓ GAP: Step 4 — intake answers + consent<br/>(13-intake-answers)<br/>GET /services/:id/intake-schema/public"]
+    S3m -->|"no intake schema"| Confirm
+    Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation, existing)"]
+    Confirm -->|"POST /bookings"| Result{"Approval mode?"}
     Result -->|"AUTO_CONFIRM"| Done
     Result -->|"MANUAL_APPROVAL"| Pending["❓ GAP: pending-approval hold<br/>(14-pending-approval)"]
 
@@ -83,6 +86,7 @@ flowchart TD
 **Prototype:** `guest/prototypes/book-a-service/05-staff-picker.html` through `16-service-type-selector.html` (relocated from the discovery folder's `public-XX-*.html` screens).
 
 **Open questions:**
-- [ ] No story exists yet — needs `/story-discovery` once the M23 milestone file is drafted.
+- [x] Story exists: `M23-S11` (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`) — run `/story-discovery M23-S11` before implementing.
+- [x] Intake placement decided: its own step after Personal Info (Step 3), before the final Review & Confirm — never merged with the summary (`dev-notes.md` § Intake step placement).
 - [ ] Whether `16-service-type-selector.html` replaces or precedes the existing `ServiceSelectionStep` (Step 1) is a UI/routing decision for the implementing story — this discovery screen was built standalone and never reconciled against the shipped car-wash-only selector.
 - [ ] Pre-existing dangling links found during this promotion, not fixed here: `16-service-type-selector.html`'s "browse sessions" link (`public-02b-class-agenda.html`, Cluster 4) is not yet promoted.

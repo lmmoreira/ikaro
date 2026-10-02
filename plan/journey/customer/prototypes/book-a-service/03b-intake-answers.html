@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Passo 4 — Dados do serviço — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .field { margin:1rem 0; }
+    .field label { display:block;font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em; }
+    .hint { font-size:.8125rem;opacity:.68;margin-top:.35rem; }
+  </style>
+</head>
+<body>
+  <!--
+    COMPONENT: IntakeAnswersStep  (M23-S11 — new, not built yet)
+    FILE:      apps/web/features/booking/components/public/IntakeAnswersStep.tsx
+    POSITION:  its own step AFTER Review (Step 3, PersonalInfoStep with hideContactFields) — authenticated-customer path; same component as the guest path (see guest/prototypes/book-a-service/13-intake-answers.html) — and BEFORE Confirmation (the final summary + submit).
+               Shown ONLY when the selected service has an active service_booking_intake_schema;
+               otherwise Step 3 goes straight to Confirmation. The step total becomes "N de 5" for
+               an intake-bearing service ("Passo 5 de 5" = Confirmation).
+    DATA:      GET /services/:id/intake-schema/public  ->  { active } (no auth, active version only)
+    RENDERING: schema-driven, NOT hardcoded. The fields below are illustrative:
+                 - one input per `questions[]` entry: type FREE_TEXT -> textarea/input, type BOOLEAN -> checkbox,
+                   `required` -> asterisk + validation, `label` -> the visible label
+                 - "Quantidade de participantes" only when `participantCountRequired = true`
+                 - "Participantes nomeados" only when `requiresNamedAttendees = true`
+                 - consent checkbox always, text = `consentText` (always required)
+    STATE:     keeps the displayed `version` in the form state and submits it as `intakeSchemaVersion`;
+               answers are validated against THAT version, never silently re-validated against a newer one.
+    NO SUBMIT: this step only collects and validates locally; the POST /bookings happens on the Confirmation step.
+  -->
+  <header style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem"><strong>Vitta Studio</strong></header>
+  <main class="step-container">
+    <p class="step-indicator">Passo 4 de 5</p>
+    <h1 style="font-size:1.5rem">Dados do serviço</h1>
+    <p style="opacity:.7">Estas perguntas dependem do serviço escolhido. O que você enviar fica registrado com a versão atual do formulário (v<span id="schema-version">2</span>).</p>
+    <form id="intake-form">
+      <div class="field"><label for="q-goal">Qual o objetivo da reserva? <span aria-hidden="true">*</span></label><textarea id="q-goal" class="form-input" rows="2" required></textarea></div>
+      <div class="field"><label for="q-access">Necessidades de acesso <span aria-hidden="true">(opcional)</span></label><textarea id="q-access" class="form-input" rows="2" placeholder="Ex.: acesso sem escadas"></textarea></div>
+      <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem;margin:1rem 0"><input id="q-first-time" type="checkbox"> <span>É a primeira vez que utilizo este serviço.</span></label>
+      <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><input id="participants" class="form-input" type="number" min="1" required style="max-width:8rem"></div>
+      <div class="field"><label for="attendees">Participantes nomeados <span aria-hidden="true">*</span></label><textarea id="attendees" class="form-input" rows="3" placeholder="Ex.: Marina Lopes, João Silva" required></textarea><p class="hint">Um nome por linha.</p></div>
+      <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
+      <div class="nav-buttons"><a class="btn-secondary" href="03-review-confirm.html">Voltar</a><button id="next" class="btn-primary" type="submit" disabled>Próximo</button></div>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById('intake-form');
+    const next = document.getElementById('next');
+    form.addEventListener('input', () => { next.disabled = !form.checkValidity(); });
+    form.addEventListener('submit', event => { event.preventDefault(); window.location.href = '04-confirmation.html'; });
+  </script>
+</body>
+</html>
