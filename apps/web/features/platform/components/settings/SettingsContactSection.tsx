@@ -64,6 +64,7 @@ export function SettingsContactSection({
           value={values.email}
           error={fieldErrors.email}
           placeholder={t('emailPlaceholder')}
+          hint={t('emailHint')}
           onChange={(value) => onFieldChange('email', value)}
         />
       </div>

@@ -1046,6 +1046,7 @@
       "phoneLabel": "Telefone",
       "emailLabel": "E-mail",
       "emailPlaceholder": "contato@suaempresa.com.br",
+      "emailHint": "Também é para onde vão as respostas dos clientes aos e-mails enviados em nome do seu negócio. Este endereço também pode aparecer no seu site e nas respostas do assistente.",
       "addressLegend": "Endereço",
       "addressHint": "Opcional — preencha todos os campos para exibir o endereço no site, ou deixe todos em branco.",
       "addressZipSearching": "Buscando endereço...",

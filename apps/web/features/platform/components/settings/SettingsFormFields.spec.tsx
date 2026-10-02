@@ -56,6 +56,40 @@ describe('TextField', () => {
     expect(screen.queryByText('Dica')).not.toBeInTheDocument();
     expect(screen.getByTestId('field-b-error')).toHaveTextContent('Erro');
   });
+
+  it('associates the visible hint with the input via aria-describedby, and the error takes precedence', () => {
+    const { rerender } = render(
+      <TextField id="field-b" label="Nome" value="" hint="Dica" onChange={vi.fn()} />,
+    );
+    expect(screen.getByText('Dica')).toHaveAttribute('id', 'field-b-hint');
+    expect(screen.getByTestId('field-b')).toHaveAttribute('aria-describedby', 'field-b-hint');
+
+    rerender(
+      <TextField id="field-b" label="Nome" value="" hint="Dica" error="Erro" onChange={vi.fn()} />,
+    );
+    expect(screen.getByTestId('field-b')).toHaveAttribute('aria-describedby', 'field-b-error');
+
+    rerender(<TextField id="field-b" label="Nome" value="" onChange={vi.fn()} />);
+    expect(screen.getByTestId('field-b')).not.toHaveAttribute('aria-describedby');
+  });
+});
+
+describe('SuffixNumberField hint association', () => {
+  it('associates the visible hint with the input via aria-describedby', () => {
+    render(
+      <SuffixNumberField
+        id="field-n"
+        label="Dias"
+        hint="Dica"
+        suffix="dias"
+        value="1"
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Dica')).toHaveAttribute('id', 'field-n-hint');
+    expect(screen.getByTestId('field-n')).toHaveAttribute('aria-describedby', 'field-n-hint');
+  });
 });
 
 describe('TextareaField', () => {
