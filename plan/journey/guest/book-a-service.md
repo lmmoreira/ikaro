@@ -72,10 +72,10 @@ flowchart TD
     MultiLeg --> Availability
     VarDuration --> Availability
 
-    Availability --> S3m["Step 3: Personal Info<br/>(03-personal-info, existing)"]
+    Availability --> S3m["Step 3: Personal Info<br/>(03-personal-info, existing; 03d-personal-info-with-intake = Passo 3 de 5)"]
     S3m -->|"service has an active intake schema"| Intake["❓ GAP: Step 4 — intake answers + consent<br/>(13-intake-answers)<br/>GET /services/:id/intake-schema/public"]
     S3m -->|"no intake schema"| Confirm
-    Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation, existing)"]
+    Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation, existing; 04e-confirmation-with-intake = Passo 5 de 5)"]
     Confirm -->|"POST /bookings"| Result{"Approval mode?"}
     Result -->|"AUTO_CONFIRM"| Done
     Result -->|"MANUAL_APPROVAL"| Pending["❓ GAP: pending-approval hold<br/>(14-pending-approval)"]

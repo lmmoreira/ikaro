@@ -51,6 +51,9 @@ None of these are new routes — each is the same component in a different state
 | `04b-submitting.html` | 4 | `status = 'submitting'` | — | |
 | `04c-submission-error.html` | 4 | `status = 'error'` (non-409) | `confirmation-error` | |
 | `04d-success.html` | 4 | `status = 'success'` | `booking-success` | Terminal state |
+| `03d-personal-info-with-intake.html` | 3 of 5 | Intake-path copy of `03` (service with an intake schema) | — | M23-S11; Próximo → `13` |
+| `13b-intake-answers-error.html` | 4 of 5 | Required answer / consent missing; alt A1 notice | `intake-error-summary` | M23-S11 |
+| `04e-confirmation-with-intake.html` | 5 of 5 | Intake-path copy of `04` | — | M23-S11; Voltar → `13` |
 
 ---
 
@@ -270,3 +273,25 @@ Intake is **its own step**, not merged into the final summary: Services → Avai
 - Error handling: the backend `422 intake-answer-missing` names the missing field(s); `13b-intake-answers-error.html` is the client mirror (inline per-field errors + summary). Error text on `--ba-secondary` must use `#b91c1c`, not `#dc2626` (see § Accessibility / color contrast above).
 - Personal Info stays before it: contact data (name, phone, email, address, photos) is not part of the intake schema.
 - The authenticated customer path reuses the same step before its review-confirm step (see `customer/prototypes/book-a-service/`).
+
+**Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 intake-answer-missing` naming the missing field(s)):**
+
+| Field | Source in the schema | Rule | Error message | `data-testid` |
+|---|---|---|---|---|
+| each question (`fieldKey`) | `questions[]`, `type = FREE_TEXT` | required only when `required = true`; non-empty | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
+| each question (`fieldKey`) | `questions[]`, `type = BOOLEAN` | required only when `required = true`; must be checked | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
+| `participantCount` | shown only if `participantCountRequired` | integer >= 1 | `"Informe a quantidade de participantes."` | `intake-field-error-participants` |
+| `attendees` | shown only if `requiresNamedAttendees` | at least one name | `"Este campo é obrigatório."` | `intake-field-error-attendees` |
+| `consentAccepted` | `consentText` (always shown) | must be `true` | `"Você precisa aceitar os termos para continuar."` | `intake-consent-error` |
+
+Summary banner on any failure: `data-testid="intake-error-summary"`, `role="alert"`. The step holds no async state — it never submits, so there is no loading/success state of its own (the POST and its states stay on Confirmation).
+
+**Two clickable paths in this prototype set (step numbering):**
+
+| Path | Screens | Indicators |
+|---|---|---|
+| Default — service **without** an intake schema (4 steps) | `01` → `02` → `03-personal-info` → `04-confirmation` (→ `04b`/`04c`/`04d`) | Passo 1–4 de 4 |
+| Service **with** an intake schema (5 steps) | `11`/`12`/`12b` → `03d-personal-info-with-intake` → `13-intake-answers` (`13b` error) → `04e-confirmation-with-intake` | Passo 3 de 5 → 4 de 5 → 5 de 5 |
+
+The `04b`/`04c`/`04d` states (submitting / error / success) are shared by both paths; on the 5-step path only the step number differs ("Passo 5 de 5") — they are not duplicated. `03d` and `04e` are exact copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets.
+

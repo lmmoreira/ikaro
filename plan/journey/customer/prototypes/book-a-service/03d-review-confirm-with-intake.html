@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Passo 3 — Revisar pedido (autenticado)</title>
+  <title>Passo 3 de 5 — Revisar pedido (autenticado, serviço com intake)</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
 </head>
 <body>
   <!--
-    DEFAULT 4-step path (service WITHOUT an intake schema). For a service with an intake schema see
-    03d-review-confirm-with-intake.html (Passo 3 de 5 -> 03b-intake-answers.html -> 04e-confirmation-with-intake.html).
+    VARIANT — service WITH an active intake schema (M23-S11): 5-step path. "Próximo" goes to 03b-intake-answers.html,
+    which then goes to 04e-confirmation-with-intake.html. Default 4-step path (no intake schema): 03-review-confirm.html.
   -->
   <!--
     COMPONENT: PersonalInfoStep (reused, EXISTS)
@@ -84,7 +84,7 @@
   </div>
 
   <div class="step-container">
-    <p class="step-indicator">Passo 3 de 4</p>
+    <p class="step-indicator">Passo 3 de 5</p>
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Revisar pedido</h2>
 
     <!--
@@ -163,7 +163,7 @@
 
     <div class="nav-buttons">
       <a class="btn-secondary" href="02-calendar-slot.html">Voltar</a>
-      <a class="btn-primary" href="04-confirmation.html">Próximo</a>
+      <a class="btn-primary" href="03b-intake-answers.html">Próximo</a>
     </div>
   </div>
 </body>

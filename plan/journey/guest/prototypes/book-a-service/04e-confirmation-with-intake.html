@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Passo 4 — Confirmar agendamento</title>
+  <title>Passo 5 de 5 — Confirmar agendamento (serviço com intake)</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
 </head>
 <body>
   <!--
-    DEFAULT 4-step path (service WITHOUT an intake schema). For a service with an intake schema see
-    04e-confirmation-with-intake.html (Passo 5 de 5, Voltar -> 13-intake-answers.html).
+    VARIANT — service WITH an active intake schema (M23-S11): final step is "Passo 5 de 5"; "Voltar" returns to
+    13-intake-answers.html. This step still owns the POST. Default 4-step path: 04-confirmation.html.
+    The submitting/error/success states (04b/04c/04d) are shared and unchanged apart from the step number.
   -->
   <!-- BRAND + AUTH BAR -->
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);
@@ -30,7 +31,7 @@
   </div>
 
   <div class="step-container">
-    <p class="step-indicator">Passo 4 de 4</p>
+    <p class="step-indicator">Passo 5 de 5</p>
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Confirme seu agendamento</h2>
 
     <!-- SERVICES SUMMARY — selected services with price -->
@@ -78,7 +79,7 @@
 
     <div class="nav-buttons">
       <!-- Disabled when status = 'submitting' -->
-      <a class="btn-secondary" href="03-personal-info.html">Voltar</a>
+      <a class="btn-secondary" href="13-intake-answers.html">Voltar</a>
       <!--
         On click: setStatus('submitting') → button text changes to "Enviando..."
         → button disabled until response
@@ -93,7 +94,7 @@
     -->
     <!--
     <div class="nav-buttons">
-      <a class="btn-secondary" href="03-personal-info.html" aria-disabled="true" style="pointer-events: none; opacity: 0.5;">Voltar</a>
+      <a class="btn-secondary" href="13-intake-answers.html" aria-disabled="true" style="pointer-events: none; opacity: 0.5;">Voltar</a>
       <button class="btn-primary" disabled style="opacity: 0.6; cursor: not-allowed;">Enviando...</button>
     </div>
     -->

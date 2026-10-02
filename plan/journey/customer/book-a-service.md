@@ -30,7 +30,7 @@ flowchart TD
     DayClick --> SlotPicker["SlotPicker"]
     SlotPicker --> S3
 
-    S3["/[slug]/booking<br/>Step 3: Review — PersonalInfoStep (reused)<br/>hideContactFields=true, detected via getHotsiteCustomerProfile(slug)"] -->|"service has an active intake schema"| Intake["❓ GAP: Step 4 — IntakeAnswersStep<br/>(03b-intake-answers, M23-S11 / UC-068)"]
+    S3["/[slug]/booking<br/>Step 3: Review — PersonalInfoStep (reused)<br/>hideContactFields=true, detected via getHotsiteCustomerProfile(slug)"] -->|"service has an active intake schema"| Intake["❓ GAP: Step 4 — IntakeAnswersStep<br/>(03b-intake-answers, M23-S11 / UC-068)<br/>Passo 3 de 5 = 03d-review-confirm-with-intake<br/>Passo 5 de 5 = 04e-confirmation-with-intake"]
     S3 -->|"no intake schema"| S4
     Intake -->|"Próximo (no submit)"| S4
 

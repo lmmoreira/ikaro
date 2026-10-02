@@ -142,3 +142,24 @@ For a service with an active `service_booking_intake_schema`, the authenticated-
 - Customer-specific: the final `POST /bookings/authenticated` on Confirmation carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` (identical shape to the guest endpoint, `docs/14-API_CONTRACTS.md`).
 - File: `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` — one component for both actors, not duplicated.
 
+**Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 intake-answer-missing` naming the missing field(s)):**
+
+| Field | Source in the schema | Rule | Error message | `data-testid` |
+|---|---|---|---|---|
+| each question (`fieldKey`) | `questions[]`, `type = FREE_TEXT` | required only when `required = true`; non-empty | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
+| each question (`fieldKey`) | `questions[]`, `type = BOOLEAN` | required only when `required = true`; must be checked | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
+| `participantCount` | shown only if `participantCountRequired` | integer >= 1 | `"Informe a quantidade de participantes."` | `intake-field-error-participants` |
+| `attendees` | shown only if `requiresNamedAttendees` | at least one name | `"Este campo é obrigatório."` | `intake-field-error-attendees` |
+| `consentAccepted` | `consentText` (always shown) | must be `true` | `"Você precisa aceitar os termos para continuar."` | `intake-consent-error` |
+
+Summary banner on any failure: `data-testid="intake-error-summary"`, `role="alert"`. The step holds no async state — it never submits, so there is no loading/success state of its own (the POST and its states stay on Confirmation).
+
+**Two clickable paths in this prototype set (step numbering):**
+
+| Path | Screens | Indicators |
+|---|---|---|
+| Default — service **without** an intake schema (4 steps) | `01` → `02` → `03-review-confirm` → `04-confirmation` (→ `04b`/`04c`/`04d`) | Passo 1–4 de 4 |
+| Service **with** an intake schema (5 steps) | `01` → `02` → `03d-review-confirm-with-intake` → `03b-intake-answers` (`03c` error) → `04e-confirmation-with-intake` | Passo 3 de 5 → 4 de 5 → 5 de 5 |
+
+`04b`/`04c`/`04d` are shared by both paths (only the step number differs on the 5-step path). `03d` and `04e` are copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets.
+

@@ -41,14 +41,14 @@
       <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><input id="participants" class="form-input" type="number" min="1" required style="max-width:8rem"></div>
       <div class="field"><label for="attendees">Participantes nomeados <span aria-hidden="true">*</span></label><textarea id="attendees" class="form-input" rows="3" placeholder="Ex.: Marina Lopes, João Silva" required></textarea><p class="hint">Um nome por linha.</p></div>
       <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
-      <div class="nav-buttons"><a class="btn-secondary" href="03-personal-info.html">Voltar</a><button id="next" class="btn-primary" type="submit" disabled>Próximo</button></div>
+      <div class="nav-buttons"><a class="btn-secondary" href="03d-personal-info-with-intake.html">Voltar</a><button id="next" class="btn-primary" type="submit" disabled>Próximo</button></div>
     </form>
   </main>
   <script>
     const form = document.getElementById('intake-form');
     const next = document.getElementById('next');
     form.addEventListener('input', () => { next.disabled = !form.checkValidity(); });
-    form.addEventListener('submit', event => { event.preventDefault(); window.location.href = '04-confirmation.html'; });
+    form.addEventListener('submit', event => { event.preventDefault(); window.location.href = '04e-confirmation-with-intake.html'; });
   </script>
 </body>
 </html>

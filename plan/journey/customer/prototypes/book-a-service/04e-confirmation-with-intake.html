@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Passo 4 — Confirmar agendamento (autenticado)</title>
+  <title>Passo 5 de 5 — Confirmar agendamento (autenticado, serviço com intake)</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
 </head>
 <body>
   <!--
-    DEFAULT 4-step path (service WITHOUT an intake schema). For a service with an intake schema see
-    04e-confirmation-with-intake.html (Passo 5 de 5, Voltar -> 03b-intake-answers.html).
+    VARIANT — service WITH an active intake schema (M23-S11): final step is "Passo 5 de 5"; "Voltar" returns to
+    03b-intake-answers.html. This step still owns the POST /bookings/authenticated. Default 4-step path: 04-confirmation.html.
   -->
   <!--
     COMPONENT: ConfirmationStep  (EXISTS — reuse unchanged)
@@ -80,7 +80,7 @@
   </div>
 
   <div class="step-container">
-    <p class="step-indicator">Passo 4 de 4</p>
+    <p class="step-indicator">Passo 5 de 5</p>
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Confirme seu agendamento</h2>
 
     <!-- SERVICES SUMMARY -->
@@ -119,7 +119,7 @@
     -->
 
     <div class="nav-buttons">
-      <a class="btn-secondary" href="03-review-confirm.html">Voltar</a>
+      <a class="btn-secondary" href="03b-intake-answers.html">Voltar</a>
       <button class="btn-primary">Confirmar agendamento</button>
     </div>
   </div>
