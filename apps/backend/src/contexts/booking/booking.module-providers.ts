@@ -12,6 +12,7 @@ import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-openin
 import { SERVICE_REPOSITORY } from './application/ports/service-repository.port';
 import { SERVICE_INTAKE_SCHEMA_REPOSITORY } from './application/ports/service-intake-schema-repository.port';
 import { BOOKING_QUOTE_REVISION_REPOSITORY } from './application/ports/booking-quote-revision-repository.port';
+import { BOOKING_STATUS_TRANSITION_REPOSITORY } from './application/ports/booking-status-transition-repository.port';
 import { RECURRING_BOOKING_SCHEDULE_REPOSITORY } from './application/ports/recurring-booking-schedule-repository.port';
 import { FUTURE_COMMITMENT_EXCEPTION_REPOSITORY } from './application/ports/future-commitment-exception-repository.port';
 import { RaiseFutureCommitmentExceptionsForResourceUseCase } from './application/use-cases/raise-future-commitment-exceptions-for-resource.use-case';
@@ -74,6 +75,10 @@ import { CancelBookingAsAdminUseCase } from './application/use-cases/cancel-book
 import { RescheduleBookingUseCase } from './application/use-cases/reschedule-booking.use-case';
 import { RescheduleBookingAsCustomerUseCase } from './application/use-cases/reschedule-booking-as-customer.use-case';
 import { CompleteBookingUseCase } from './application/use-cases/complete-booking.use-case';
+import { MarkBookingNoShowUseCase } from './application/use-cases/mark-booking-no-show.use-case';
+import { CorrectBookingNoShowUseCase } from './application/use-cases/correct-booking-no-show.use-case';
+import { LogBookingNoShowEventUseCase } from './application/use-cases/log-booking-no-show-event.use-case';
+import { BookingNoShowEventsHandler } from './infrastructure/events/booking-no-show-events.handler';
 import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/generate-attachment-signed-url.use-case';
 import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
 import { RequestRecurringBookingScheduleUseCase } from './application/use-cases/request-recurring-booking-schedule.use-case';
@@ -100,6 +105,7 @@ import { CachingServiceRepository } from './infrastructure/repositories/caching-
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
 import { TypeOrmServiceIntakeSchemaRepository } from './infrastructure/repositories/typeorm-service-intake-schema.repository';
 import { TypeOrmBookingQuoteRevisionRepository } from './infrastructure/repositories/typeorm-booking-quote-revision.repository';
+import { TypeOrmBookingStatusTransitionRepository } from './infrastructure/repositories/typeorm-booking-status-transition.repository';
 import { TypeOrmRecurringBookingScheduleRepository } from './infrastructure/repositories/typeorm-recurring-booking-schedule.repository';
 import { AvailabilityService } from './domain/services/availability.service';
 
@@ -113,6 +119,10 @@ export const bookingModuleProviders: Provider[] = [
   {
     provide: BOOKING_QUOTE_REVISION_REPOSITORY,
     useClass: TypeOrmBookingQuoteRevisionRepository,
+  },
+  {
+    provide: BOOKING_STATUS_TRANSITION_REPOSITORY,
+    useClass: TypeOrmBookingStatusTransitionRepository,
   },
   {
     provide: RECURRING_BOOKING_SCHEDULE_REPOSITORY,
@@ -179,6 +189,10 @@ export const bookingModuleProviders: Provider[] = [
   RescheduleBookingUseCase,
   RescheduleBookingAsCustomerUseCase,
   CompleteBookingUseCase,
+  MarkBookingNoShowUseCase,
+  CorrectBookingNoShowUseCase,
+  LogBookingNoShowEventUseCase,
+  BookingNoShowEventsHandler,
   GenerateAttachmentSignedUrlUseCase,
   CreateResourceUseCase,
   GetResourceByIdUseCase,

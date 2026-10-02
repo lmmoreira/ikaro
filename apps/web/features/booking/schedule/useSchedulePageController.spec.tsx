@@ -130,9 +130,9 @@ beforeEach(() => {
 });
 
 describe('useSchedulePageController', () => {
-  it('builds translated status labels for all 6 booking statuses', () => {
+  it('builds translated status labels for all 7 booking statuses', () => {
     const { result } = renderHook(() => useSchedulePageController(baseProps()), { wrapper });
-    expect(Object.keys(result.current.statusLabels)).toHaveLength(6);
+    expect(Object.keys(result.current.statusLabels)).toHaveLength(7);
     expect(result.current.statusLabels[BOOKING_STATUS.APPROVED]).toBeTruthy();
   });
 

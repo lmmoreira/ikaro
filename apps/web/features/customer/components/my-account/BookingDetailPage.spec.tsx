@@ -46,6 +46,8 @@ vi.mock('next-intl', () => ({
         cancelRequestButton: 'Cancelar solicitação',
         responseSentConfirmation: 'Resposta enviada! Nossa equipe vai analisar em breve.',
         completedNote: 'Serviço concluído. Pontos já adicionados.',
+        noShowTitle: 'Não comparecimento registrado',
+        noShowBody: 'O estabelecimento registrou que você não compareceu.',
         newBookingCta: 'Fazer novo agendamento',
         viewPointsCta: 'Ver meus pontos →',
       },
@@ -282,5 +284,25 @@ describe('BookingDetailPage', () => {
 
     expect(screen.queryByRole('link', { name: 'Cancelar agendamento' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Fazer novo agendamento' })).not.toBeInTheDocument();
+  });
+
+  it('shows the read-only no-show notice and no actions for a NO_SHOW booking', () => {
+    render(
+      <BookingDetailPage booking={makeBooking({ status: 'NO_SHOW' })} tenantSlug="beloauto" />,
+    );
+
+    expect(screen.getByTestId('booking-no-show-notice')).toHaveTextContent(
+      'Não comparecimento registrado',
+    );
+    expect(screen.queryByRole('button', { name: /cancelar/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('action-pane-desktop')).not.toBeInTheDocument();
+  });
+
+  it('does not show the no-show notice for other statuses', () => {
+    render(
+      <BookingDetailPage booking={makeBooking({ status: 'COMPLETED' })} tenantSlug="beloauto" />,
+    );
+
+    expect(screen.queryByTestId('booking-no-show-notice')).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,3 @@
-import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Money } from '../../../shared/value-objects/money';
 
@@ -28,16 +27,16 @@ export interface RecordBookingQuoteRevisionInput {
   actorId: string | null;
 }
 
-// M23 Cluster 3 (UC-069) — an independent, append-only aggregate root, own repository, "new
-// revision supersedes nothing, previous rows are never edited" — same pattern as
-// ServiceBookingIntakeSchema (docs/ENGINEERING_RULES_BACKEND.md § A versioned, append-only child
-// concept), not a Booking-owned child collection. Source-exclusive with the (not-yet-reachable)
-// class_session_booking_id column — see docs/13-DATABASE_SCHEMA.md § booking_quote_revisions.
-export class BookingQuoteRevision extends AggregateRoot {
+// M23 Cluster 3 (UC-069) — an immutable, append-only audit record with its own repository, "new
+// revision supersedes nothing, previous rows are never edited". It is deliberately not a
+// Booking-owned child collection (that would load every revision on each Booking read) and not an
+// aggregate root either: it has no behavior, invariants or domain events of its own, so it extends
+// no base class. Source-exclusive with the (not-yet-reachable) class_session_booking_id column —
+// see docs/13-DATABASE_SCHEMA.md § booking_quote_revisions.
+export class BookingQuoteRevision {
   private readonly props: BookingQuoteRevisionProps;
 
   private constructor(props: BookingQuoteRevisionProps) {
-    super();
     this.props = props;
   }
 

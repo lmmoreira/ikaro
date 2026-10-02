@@ -4,8 +4,8 @@ import { bffServerFetch } from '@/shared/lib/api/bff-server';
 import { assertOk, CustomerFetchError } from '@/shared/lib/api/errors';
 
 // GET /v1/bookings defaults to status=PENDING,INFO_REQUESTED and limit=20 — both params
-// must be passed explicitly or APPROVED/COMPLETED/CANCELLED/REJECTED are silently dropped.
-const ALL_BOOKING_STATUSES = 'PENDING,INFO_REQUESTED,APPROVED,COMPLETED,CANCELLED,REJECTED';
+// must be passed explicitly or APPROVED/COMPLETED/CANCELLED/REJECTED/NO_SHOW are silently dropped.
+const ALL_BOOKING_STATUSES = 'PENDING,INFO_REQUESTED,APPROVED,COMPLETED,CANCELLED,REJECTED,NO_SHOW';
 const CUSTOMER_BOOKINGS_LIMIT = 50;
 
 export async function fetchCustomerBookings(token: string): Promise<CustomerBookingListResponse> {

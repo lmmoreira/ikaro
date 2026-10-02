@@ -35,6 +35,7 @@ import { BookingAttendeeEntity } from '../../contexts/booking/infrastructure/ent
 import { BookingLineResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
 import { BookingQuoteRevisionEntity } from '../../contexts/booking/infrastructure/entities/booking-quote-revision.entity';
+import { BookingStatusTransitionEntity } from '../../contexts/booking/infrastructure/entities/booking-status-transition.entity';
 import { RecurringBookingScheduleEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
 import { FutureCommitmentExceptionEntity } from '../../contexts/booking/infrastructure/entities/future-commitment-exception.entity';
@@ -97,6 +98,7 @@ export async function createBookingIntegrationApp(
           BookingLineResourceAssignmentEntity,
           ResourceOccupancyEntity,
           BookingQuoteRevisionEntity,
+          BookingStatusTransitionEntity,
           RecurringBookingScheduleEntity,
           RecurringBookingScheduleResourceAssignmentEntity,
           FutureCommitmentExceptionEntity,

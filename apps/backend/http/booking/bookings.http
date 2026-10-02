@@ -1247,3 +1247,104 @@ X-Correlation-ID: test-corr-complete-004
   ],
   "afterServicePhotoUrls": []
 }
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NO-SHOW (UC-074, M23-S09) — POST /bookings/:id/no-show (STAFF|MANAGER)
+# Needs an APPROVED booking whose scheduled end time has passed; the seed
+# approvedBookingId is scheduled in the future, so either adjust its scheduled_at in the
+# database or create and approve a booking in the past.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# SUCCESS — APPROVED (ended) → NO_SHOW, optional internal reason
+POST {{baseUrl}}/bookings/{{approvedBookingId}}/no-show
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+X-Correlation-ID: test-corr-no-show-001
+
+{
+  "reason": "Cliente não atendeu o telefone."
+}
+
+###
+
+# ERROR — appointment has not ended yet → 422 BOOKING_NOT_YET_ENDED
+POST {{baseUrl}}/bookings/{{approvedBookingId}}/no-show
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+X-Correlation-ID: test-corr-no-show-002
+
+{}
+
+###
+
+# ERROR — already terminal (COMPLETED) → 409 BOOKING_ALREADY_TERMINAL
+POST {{baseUrl}}/bookings/{{completedBookingId}}/no-show
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-no-show-003
+
+{}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NO-SHOW CORRECTION (UC-074 A3) — POST /bookings/:id/no-show/correct (MANAGER only)
+# Completes a NO_SHOW booking at its booked prices; Loyalty awards the points via BookingCompleted.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# SUCCESS — NO_SHOW → COMPLETED (run the success request above first, then use its bookingId)
+POST {{baseUrl}}/bookings/{{approvedBookingId}}/no-show/correct
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-no-show-004
+
+{
+  "correctedStatus": "COMPLETED",
+  "reason": "Cliente chegou atrasado e foi atendido."
+}
+
+###
+
+# ERROR — STAFF may not correct → 403
+POST {{baseUrl}}/bookings/{{approvedBookingId}}/no-show/correct
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+X-Correlation-ID: test-corr-no-show-005
+
+{
+  "correctedStatus": "COMPLETED",
+  "reason": "Cliente chegou atrasado e foi atendido."
+}
+
+###
+
+# ERROR — booking is not NO_SHOW → 422 BOOKING_INVALID_TRANSITION
+POST {{baseUrl}}/bookings/{{completedBookingId}}/no-show/correct
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-no-show-006
+
+{
+  "correctedStatus": "COMPLETED",
+  "reason": "Cliente chegou atrasado e foi atendido."
+}

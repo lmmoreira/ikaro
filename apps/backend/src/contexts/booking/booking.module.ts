@@ -27,6 +27,7 @@ import {
 import { ServiceClassResourcePoolEntity } from './infrastructure/entities/service-class-resource-pool.entity';
 import { ServiceBookingIntakeSchemaEntity } from './infrastructure/entities/service-booking-intake-schema.entity';
 import { BookingQuoteRevisionEntity } from './infrastructure/entities/booking-quote-revision.entity';
+import { BookingStatusTransitionEntity } from './infrastructure/entities/booking-status-transition.entity';
 import { RecurringBookingScheduleEntity } from './infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from './infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
 import { FutureCommitmentExceptionEntity } from './infrastructure/entities/future-commitment-exception.entity';
@@ -70,6 +71,7 @@ import { bookingModuleProviders } from './booking.module-providers';
       BookingLineResourceAssignmentEntity,
       ResourceOccupancyEntity,
       BookingQuoteRevisionEntity,
+      BookingStatusTransitionEntity,
       RecurringBookingScheduleEntity,
       RecurringBookingScheduleResourceAssignmentEntity,
       FutureCommitmentExceptionEntity,
