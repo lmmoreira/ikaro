@@ -110,6 +110,17 @@ export interface RescheduleBookingResponse {
   };
 }
 
+export interface MarkNoShowResponse {
+  bookingId: string;
+  status: string;
+}
+
+export interface CorrectNoShowResponse {
+  bookingId: string;
+  status: string;
+  completedAt: string;
+}
+
 export interface CompleteBookingResponse {
   bookingId: string;
   status: string;

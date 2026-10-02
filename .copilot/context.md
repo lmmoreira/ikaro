@@ -106,11 +106,11 @@ These 5 names (`booking`, `customer`, `staff`, `loyalty`, `platform`) are also t
 ```
 PENDING        → INFO_REQUESTED | APPROVED | REJECTED | CANCELLED
 INFO_REQUESTED → PENDING (customer responded) | APPROVED | REJECTED | CANCELLED
-APPROVED       → COMPLETED | CANCELLED | NO_SHOW   -- NO_SHOW added by M23 Cluster 3 (UC-074); not in MVP until that milestone ships
+APPROVED       → COMPLETED | CANCELLED | NO_SHOW   -- NO_SHOW added by M23 Cluster 3 (UC-074, M23-S09)
 COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal)
 ```
 
-Until M23 ships (`docs/04-USE_CASES.md` UC-074), treat `NO_SHOW` as absent from the live state machine. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
+`NO_SHOW` (`docs/04-USE_CASES.md` UC-074) is reachable only from `APPROVED`, after the appointment's end time; only a manager can correct it, and only to `COMPLETED`. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
 
 ---
 

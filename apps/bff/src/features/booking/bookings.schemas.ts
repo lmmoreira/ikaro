@@ -9,7 +9,9 @@ import {
   AddressShapeSchema,
   BookingAttendeeInputSchema,
   BookingIntakeAnswersSchema,
+  CorrectBookingNoShowSchema,
   isValidPhoneNumber,
+  MarkBookingNoShowSchema,
   ResourceSelectionSchema,
 } from '@ikaro/validation';
 
@@ -110,6 +112,12 @@ export const CompleteBookingBodySchema = z.object({
     .optional(),
 });
 
+// M23-S09 (UC-074) — the same schemas the backend DTOs use, shared from @ikaro/validation.
+export const MarkNoShowBodySchema = MarkBookingNoShowSchema;
+export const CorrectNoShowBodySchema = CorrectBookingNoShowSchema;
+
+export type MarkNoShowBody = z.infer<typeof MarkNoShowBodySchema>;
+export type CorrectNoShowBody = z.infer<typeof CorrectNoShowBodySchema>;
 export type CancelAsAdminBody = z.infer<typeof CancelAsAdminBodySchema>;
 export type RescheduleBookingBody = z.infer<typeof RescheduleBookingBodySchema>;
 export type ApproveBookingBody = ApproveBookingRequest;
@@ -131,7 +139,7 @@ export const SubmitGuestBookingInfoBodySchema = z.object({
 
 // Matches one or more comma-separated BookingStatus values, e.g. "PENDING" or "PENDING,INFO_REQUESTED"
 const BOOKING_STATUS_RE =
-  /^(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED)(,(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED))*$/;
+  /^(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED|NO_SHOW)(,(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED|NO_SHOW))*$/;
 
 export const StaffListBookingsQuerySchema = z
   .object({

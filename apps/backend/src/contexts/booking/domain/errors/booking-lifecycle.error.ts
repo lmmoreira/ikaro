@@ -33,6 +33,27 @@ export class InvalidBookingTransitionError extends BookingDomainError {
   }
 }
 
+// UC-074 A2 — the booking already reached a terminal status (COMPLETED, CANCELLED, REJECTED or
+// NO_SHOW), so a no-show can no longer be recorded. A 409, unlike InvalidBookingTransitionError's
+// 422 for a booking that is simply not in the APPROVED state yet.
+export class BookingAlreadyTerminalError extends BookingDomainError {
+  constructor(status: string) {
+    super(`Booking is already in a terminal status: ${status}`, BookingErrorCode.ALREADY_TERMINAL);
+    this.name = 'BookingAlreadyTerminalError';
+  }
+}
+
+// UC-074 A1 — a no-show can only be recorded after the appointment's scheduled end time.
+export class BookingNotYetEndedError extends BookingDomainError {
+  constructor(endsAt: Date) {
+    super(
+      `The appointment has not ended yet (ends at ${endsAt.toISOString()})`,
+      BookingErrorCode.NOT_YET_ENDED,
+    );
+    this.name = 'BookingNotYetEndedError';
+  }
+}
+
 export class BookingSlotUnavailableError extends BookingDomainError {
   constructor() {
     super('The requested time slot is no longer available', BookingErrorCode.SLOT_UNAVAILABLE);

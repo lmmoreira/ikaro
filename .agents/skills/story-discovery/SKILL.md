@@ -128,7 +128,7 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 
 ### 4c. State machine consistency
 - Every state transition the story triggers is valid per CLAUDE.md §5
-- No criterion references `NO_SHOW` (not in MVP)
+- `NO_SHOW` is a valid terminal state (M23-S09): reachable only from `APPROVED`, after the appointment's end time; only a manager correction to `COMPLETED` leaves it
 - No reference to UC-014 or UC-015 (superseded by UC-021/UC-022)
 
 ### 4d. Event envelope completeness

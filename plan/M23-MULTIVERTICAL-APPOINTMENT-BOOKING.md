@@ -528,7 +528,7 @@ Three coupled parts, bundled because part C removes the S04 occurrence path that
 
 ---
 
-### M23-S09 — Appointment no-show terminal status + correction
+### M23-S09 — Appointment no-show terminal status + correction ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M

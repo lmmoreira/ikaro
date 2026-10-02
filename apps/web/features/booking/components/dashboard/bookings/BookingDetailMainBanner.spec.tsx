@@ -120,4 +120,17 @@ describe('BookingDetailMainBanner', () => {
 
     expect(screen.getByTestId('booking-completed-title')).toBeInTheDocument();
   });
+
+  it('renders the read-only no-show banner for a NO_SHOW booking', () => {
+    renderWithIntl(
+      <BookingDetailMainBanner
+        actionState="idle"
+        booking={makeBooking({ status: 'NO_SHOW' })}
+        approvedRangeLabel=""
+      />,
+    );
+
+    expect(screen.getByTestId('booking-no-show-title')).toBeInTheDocument();
+    expect(screen.getByText(/João Silva/)).toBeInTheDocument();
+  });
 });

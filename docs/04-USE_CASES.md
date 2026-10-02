@@ -310,7 +310,7 @@ UC-XXX: [Use Case Name]
       ```
 
 - **Alternative Flows:**
-  - **A1: No-show** → Admin marks as NO_SHOW instead of COMPLETED (future state, not in MVP).
+  - **A1: No-show** → Staff or manager records the customer as a no-show instead of completing the booking — see UC-074 (`APPROVED → NO_SHOW`, only after the appointment's end time).
   - **A2: Multiple photos** → Staff can add/remove photos before confirming.
   - **A3: Photo upload fails** → System allows completion without photos (optional).
   - **A4: Guest booking** → Booking is marked COMPLETED but no `LoyaltyEntry` is created (no `customerId`). Notification still sends a "thanks" email to the guest with the actual amounts.

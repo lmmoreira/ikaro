@@ -29,6 +29,8 @@ import {
   CreatedByRequiredError,
   CustomerPhoneNotSetError,
   DayAlreadyOpenInSettingsError,
+  BookingAlreadyTerminalError,
+  BookingNotYetEndedError,
   InvalidBookingTransitionError,
   InvalidTimeRangeError,
   OpeningDateInPastError,
@@ -149,6 +151,16 @@ describe('booking domain error subclasses', () => {
       label: 'InvalidBookingTransitionError',
       build: () => new InvalidBookingTransitionError('A', 'B'),
       code: BookingErrorCode.INVALID_TRANSITION,
+    },
+    {
+      label: 'BookingAlreadyTerminalError',
+      build: () => new BookingAlreadyTerminalError('COMPLETED'),
+      code: BookingErrorCode.ALREADY_TERMINAL,
+    },
+    {
+      label: 'BookingNotYetEndedError',
+      build: () => new BookingNotYetEndedError(new Date('2026-06-16T10:30:00Z')),
+      code: BookingErrorCode.NOT_YET_ENDED,
     },
     {
       label: 'BookingSlotUnavailableError',

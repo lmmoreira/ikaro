@@ -69,6 +69,17 @@ describe('splitBookingSections', () => {
     expect(sections.history.map((b) => b.bookingId)).toEqual(['new', 'rej', 'old']);
   });
 
+  it('puts a NO_SHOW booking in history with the other terminal statuses', () => {
+    const items = [
+      makeItem({ bookingId: 'ns', status: 'NO_SHOW', scheduledAt: '2026-06-10T09:00:00.000Z' }),
+      makeItem({ bookingId: 'done', status: 'COMPLETED', scheduledAt: '2026-06-05T09:00:00.000Z' }),
+    ];
+    const sections = splitBookingSections(items, NOW);
+    expect(sections.history.map((b) => b.bookingId)).toEqual(['ns', 'done']);
+    expect(sections.upcoming).toEqual([]);
+    expect(sections.pending).toEqual([]);
+  });
+
   it('sorts upcoming by soonest first', () => {
     const items = [
       makeItem({ bookingId: 'later', status: 'APPROVED', scheduledAt: '2026-06-25T10:00:00.000Z' }),

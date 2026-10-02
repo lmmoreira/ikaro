@@ -36,6 +36,12 @@
     ]
   },
   {
+    "event": "BookingNoShow",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "BookingRejected",
     "consumers": [
       "notification"

@@ -119,6 +119,15 @@ export function BookingDetailPage({
         }
       >
         <div className="flex flex-col gap-4">
+          {status === BOOKING_STATUS.NO_SHOW && (
+            <div
+              data-testid="booking-no-show-notice"
+              className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800"
+            >
+              <p className="font-bold">{t('noShowTitle')}</p>
+              <p className="mt-1 leading-6">{t('noShowBody')}</p>
+            </div>
+          )}
           <BookingDetailMain booking={{ ...booking, status }} />
 
           {infoJustSubmitted && (

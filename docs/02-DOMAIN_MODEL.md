@@ -116,7 +116,7 @@ A single customer visit. A booking groups **one or more `BookingLine` entities**
 
 **Value Objects:**
 - `BookingId`, `BookingLineId` (UUIDs)
-- `BookingStatus` (PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED, NO_SHOW — the last added by M23 Cluster 3, not live until that milestone ships)
+- `BookingStatus` (PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED, NO_SHOW — the last added by M23 Cluster 3 / M23-S09, reachable only from APPROVED)
 - `BookingType` (GUEST, CUSTOMER)
 - `TimeSlot` (date, startTime, endTime)
 - `Money` (price, currency)
@@ -1315,7 +1315,7 @@ NO_SHOW         -> (terminal)
 
 > A booking materialized from a `RecurringBookingSchedule` (M23-S05) is created directly in `APPROVED` — the schedule was vetted once when it became `ACTIVE`, so each occurrence skips the `PENDING` review; from `APPROVED` it follows the same transitions as any other booking.
 >
-> `NO_SHOW` is added by M23 — Multi-Vertical Scheduling, Cluster 3 (UC-074) — not live in the MVP until that milestone ships. See `docs/02-DOMAIN_MODEL.md` § Booking Context's own Cluster 3 modification note and `.copilot/context.md` §5 for the same state machine.
+> `NO_SHOW` is added by M23 — Multi-Vertical Scheduling, Cluster 3 (UC-074, shipped by M23-S09): reachable only from `APPROVED`, terminal, and correctable to `COMPLETED` by a manager only. See `docs/02-DOMAIN_MODEL.md` § Booking Context's own Cluster 3 modification note and `.copilot/context.md` §5 for the same state machine.
 
 ### **BookingType**
 Enum: `GUEST | CUSTOMER`

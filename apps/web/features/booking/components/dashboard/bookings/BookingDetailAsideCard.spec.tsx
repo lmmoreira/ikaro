@@ -127,4 +127,12 @@ describe('BookingDetailAsideCard', () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('renders no action pane for a NO_SHOW booking (never the triage approve/reject actions)', () => {
+    const { container } = renderWithIntl(
+      <BookingDetailAsideCard {...baseProps({ booking: makeBooking({ status: 'NO_SHOW' }) })} />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
 });

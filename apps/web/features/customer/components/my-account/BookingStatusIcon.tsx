@@ -8,6 +8,7 @@ const ICON_BG: Record<BookingStatus, string> = {
   [BOOKING_STATUS.REJECTED]: 'bg-red-50',
   [BOOKING_STATUS.CANCELLED]: 'bg-red-50',
   [BOOKING_STATUS.COMPLETED]: 'bg-green-50',
+  [BOOKING_STATUS.NO_SHOW]: 'bg-violet-50',
 };
 
 const ICON_COLOR: Record<BookingStatus, string> = {
@@ -17,6 +18,7 @@ const ICON_COLOR: Record<BookingStatus, string> = {
   [BOOKING_STATUS.REJECTED]: 'text-red-600',
   [BOOKING_STATUS.CANCELLED]: 'text-red-600',
   [BOOKING_STATUS.COMPLETED]: 'text-green-600',
+  [BOOKING_STATUS.NO_SHOW]: 'text-violet-600',
 };
 
 const ICON_BY_STATUS: Record<BookingStatus, typeof Calendar> = {
@@ -26,6 +28,7 @@ const ICON_BY_STATUS: Record<BookingStatus, typeof Calendar> = {
   [BOOKING_STATUS.REJECTED]: X,
   [BOOKING_STATUS.CANCELLED]: X,
   [BOOKING_STATUS.COMPLETED]: Check,
+  [BOOKING_STATUS.NO_SHOW]: Info,
 };
 
 interface BookingStatusIconProps {

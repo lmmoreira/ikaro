@@ -14,6 +14,7 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   [BOOKING_STATUS.REJECTED]: 'Rejeitado',
   [BOOKING_STATUS.CANCELLED]: 'Cancelado',
   [BOOKING_STATUS.COMPLETED]: 'Concluído',
+  [BOOKING_STATUS.NO_SHOW]: 'Não compareceu',
 };
 
 function baseProps() {

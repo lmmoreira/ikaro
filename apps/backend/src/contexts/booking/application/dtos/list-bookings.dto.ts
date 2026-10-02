@@ -8,6 +8,7 @@ const BookingStatusEnum = z.enum([
   BookingStatus.COMPLETED,
   BookingStatus.REJECTED,
   BookingStatus.CANCELLED,
+  BookingStatus.NO_SHOW,
 ]);
 
 // A YYYY-MM-DD date key is a tenant-local calendar day; an ISO instant is used as given. The

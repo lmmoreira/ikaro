@@ -762,3 +762,53 @@ Authorization: Bearer {{customerToken}}
   ],
   "afterServicePhotoUrls": []
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NO-SHOW (UC-074, M23-S09)
+# POST /v1/bookings/:id/no-show          (STAFF | MANAGER) — APPROVED booking whose end time has passed
+# POST /v1/bookings/:id/no-show/correct  (MANAGER only)    — NO_SHOW → COMPLETED, awards loyalty points
+# The seed approvedBookingId is scheduled in the future: adjust its scheduled_at or use a past booking.
+# ─────────────────────────────────────────────────────────────────────────────
+
+### SUCCESS — mark a no-show (optional internal reason)
+POST {{bffUrl}}/v1/bookings/{{approvedBookingId}}/no-show
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "reason": "Cliente não atendeu o telefone."
+}
+
+### ERROR — already terminal → 409 BOOKING_ALREADY_TERMINAL
+POST {{bffUrl}}/v1/bookings/{{completedBookingId}}/no-show
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{}
+
+### ERROR — customer token → 403
+POST {{bffUrl}}/v1/bookings/{{approvedBookingId}}/no-show
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{}
+
+### SUCCESS — manager corrects the no-show to COMPLETED
+POST {{bffUrl}}/v1/bookings/{{approvedBookingId}}/no-show/correct
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "correctedStatus": "COMPLETED",
+  "reason": "Cliente chegou atrasado e foi atendido."
+}
+
+### ERROR — reason too short → 400
+POST {{bffUrl}}/v1/bookings/{{approvedBookingId}}/no-show/correct
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "correctedStatus": "COMPLETED",
+  "reason": "curto"
+}
