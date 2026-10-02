@@ -58,7 +58,7 @@ flowchart TD
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    S1b["❓ GAP: /[slug]/booking<br/>Step 1b: resource branch<br/>(16-service-type-selector)"] -->|"STAFF, CUSTOMER_CHOICE"| StaffPicker["❓ GAP: staff picker<br/>(05-staff-picker)"]
+    S1b["❓ GAP: /[slug]/booking<br/>Step 1b: resource branch<br/>(existing Step 1 — service cards adapt per type; branch on Próximo)"] -->|"STAFF, CUSTOMER_CHOICE"| StaffPicker["❓ GAP: staff picker<br/>(05-staff-picker)"]
     S1b -->|"STAFF, AUTO_ANY"| AutoStaff["❓ GAP: auto-assigned staff<br/>(06-auto-staff)"]
     S1b -->|"ROOM/EQUIPMENT, AUTO_FUNGIBLE_POOL"| Fungible["❓ GAP: fungible pool<br/>(07-fungible-resource)"]
     S1b -->|"resourceRequirements.length >= 2"| Bundle["❓ GAP: bundle booking<br/>(09-bundle-booking)"]
@@ -80,13 +80,13 @@ flowchart TD
     Result -->|"AUTO_CONFIRM"| Done
     Result -->|"MANUAL_APPROVAL"| Pending["❓ GAP: pending-approval hold<br/>(14-pending-approval)"]
 
-    StaffPicker -->|"no availability"| LoginRequired["❓ GAP: login/alert boundary<br/>(15-login-required)"]
+    StaffPicker -->|"no availability"| LoginRequired["login/alert boundary<br/>(15-login-required — outside M23-S11, availability alerts S12/S17)"]
 ```
 
-**Prototype:** `guest/prototypes/book-a-service/05-staff-picker.html` through `16-service-type-selector.html` (relocated from the discovery folder's `public-XX-*.html` screens).
+**Prototype:** `guest/prototypes/book-a-service/05-staff-picker.html` through `14-pending-approval.html` (`15-login-required.html` is out of M23-S11 — alerts; `16-service-type-selector.html` was removed — Step 1 is the catalogue) (relocated from the discovery folder's `public-XX-*.html` screens).
 
 **Open questions:**
 - [x] Story exists: `M23-S11` (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`) — run `/story-discovery M23-S11` before implementing.
 - [x] Intake placement decided: its own step after Personal Info (Step 3), before the final Review & Confirm — never merged with the summary (`dev-notes.md` § Intake step placement).
-- [ ] Whether `16-service-type-selector.html` replaces or precedes the existing `ServiceSelectionStep` (Step 1) is a UI/routing decision for the implementing story — this discovery screen was built standalone and never reconciled against the shipped car-wash-only selector.
-- [ ] Pre-existing dangling links found during this promotion, not fixed here: `16-service-type-selector.html`'s "browse sessions" link (`public-02b-class-agenda.html`, Cluster 4) is not yet promoted.
+- [x] `16-service-type-selector.html` removed (2026-10-02): the existing Step 1 service list is the catalogue; its cards adapt to the service type and a class (M24) is just another service.
+- [ ] `15-login-required.html` still links to the Cluster 4 class agenda (`public-02b-class-agenda.html`, not yet promoted) — out of M23-S11's scope, carried by M24.

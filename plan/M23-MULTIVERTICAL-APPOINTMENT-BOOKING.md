@@ -25,6 +25,7 @@
 | 2 | M23-S03 | Reschedule extension — resource/bundle/leg-aware, quote revisions (UC-069) |
 | 2 | M23-S04 | `RecurringBookingSchedule` aggregate — create/skip/reschedule/end, backend + BFF (UC-070, minus approval/generation; Pause shipped here and was removed by M23-S20) |
 | 2 | M23-S07 | Availability-alert matching worker (UC-072 step 3) |
+| 2 | M23-S29 | Public booking-flow read APIs for the frontend — resource options, duration quote, hold deadline, public service shape |
 | 2 | M23-S23 | Notifications for the future-commitment worklist — manager alert on a raised entry, customer message on a reassign (UC-073, UC-077) |
 | 2 | M23-S24 | Drop the retired `recurring_booking_schedule_exceptions` table — the contract step of S08's removal, after S08 is deployed everywhere |
 | 2 | M23-S25 | Customer email on a no-show — `BookingNoShow` → Notification (UC-074 step 3) |
@@ -32,7 +33,7 @@
 | 3 | M23-S27 | Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail (UC-074) |
 | 2 | M23-S14 | Manager "Exceções de Agenda" worklist frontend (UC-073/077) |
 | 2 | M23-S15 | Manager onboarding wizard frontend (UC-075) |
-| 3 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens |
+| 3 | M23-S11 | Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake and pending-approval screens (depends on S29) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
 | 3 | M23-S18 | Recurring-schedule fixed term (`endsOn` required and capped), hours-and-closures check and one conflict payload (UC-070) |
 | 3 | M23-S20 | Remove recurring-schedule Pause (shipped pause endpoint, event and `PAUSED` status) — lands before S05 and S12 |
@@ -821,44 +822,70 @@ Two coupled pieces, bundled because the materialization step is shared by both t
 
 ---
 
-### M23-S11 — Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake screens
+### M23-S11 — Guest/customer booking flow frontend — resource picker, bundle/leg, variable-duration, intake and pending-approval screens
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Booking Requests (extended)
-**Dependencies:** M23-S01, M23-S02, M23-S03 (BFF endpoints)
-**Pattern:** plain composition — extends the existing, shipped guest/customer booking flow (`apps/web/features/booking/components/public/`); no new pattern.
-**Prototype references:** `plan/journey/guest/book-a-service.md` (M23 Cluster 3 extension section) + `plan/journey/guest/prototypes/book-a-service/05-staff-picker.html` through `16-service-type-selector.html`, `dev-notes.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Booking Requests (extended) + the endpoints M23-S29 adds, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components, `docs/ENGINEERING_RULES_TESTING.md`
+**Dependencies:** M23-S01, M23-S02, M23-S03 (BFF endpoints), **M23-S29** (public resource options, duration quote, `holdExpiresAt`, whitelisted public service shape, M23 request/response types in `@ikaro/types`)
+**Pattern:** plain composition plus one pure helper — `resolveBookingSteps()` derives the ordered step list from the selected services and their intake schemas; `BookingForm` renders whichever step is current. Extends the shipped guest/customer flow (`apps/web/features/booking/components/public/`); no new architectural pattern.
+**Prototype references:** `plan/journey/guest/book-a-service.md` (M23 Cluster 3 extension section) + `plan/journey/guest/prototypes/book-a-service/` screens `03d`, `04e`, `05` through `14` (incl. `09b`, `10b`, `12b`, `13b`) and `dev-notes.md`; `plan/journey/customer/prototypes/book-a-service/` screens `03b`, `03c`, `03d`, `04e` and `dev-notes.md`. **Not in scope:** `15-login-required.html` (availability-alert boundary — belongs with the alerts stories, M23-S12/S17) and `16-service-type-selector.html` (removed: today's Step 1 service list already is the catalogue; a class is just another service, M24).
 
 **Description:**
-Extend the existing Step 1 ("Select Services") to branch on the selected service's `bookingModel`/`resourceRequirements`/`legs`/`durationPolicy` before reaching the existing Step 2 calendar (`AvailabilityCarousel`/`SlotPicker`), per the already-promoted journey's own flow diagram. New screens per the relocated prototype: staff picker (05), auto-staff confirmation (06), fungible-resource booking (07), staff-scoped calendar (08), bundle booking + error (09/09b), multi-leg itinerary + error (10/10b), appointment-availability variant (11), variable-duration reservation + error (12/12b), intake answers + error (13/13b guest, 03b/03c customer — see below), pending-approval (14), login-required (15), service-type selector (16).
+Extend the existing 4-step guest/customer booking flow (`BookingForm`) to the full multi-vertical model. Work is grouped A–E so discovery/review can order it; every group ships in this story.
 
-**Intake placement (decided before story-discovery):** intake is its own step, **not** merged with the final summary — Services → Availability → Personal Info (Step 3) → `IntakeAnswersStep` → Confirmation (existing `ConfirmationStep`, which still owns the `POST`). It renders only when the service has an active intake schema (`GET /services/:id/intake-schema/public`); otherwise Step 3 goes straight to Confirmation. Questions are rendered from the schema (`FREE_TEXT`/`BOOLEAN`, `participantCountRequired`, `requiresNamedAttendees`, consent), never hardcoded; the displayed version is submitted as `intakeSchemaVersion`. One component serves both the guest path and the authenticated-customer path (before its review-confirm step). Detail: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § Intake step placement and `plan/journey/customer/prototypes/book-a-service/dev-notes.md`.
+- **A — Step engine and intake.** Replace the hard-coded `Step = 1|2|3|4` / `TOTAL_STEPS = 4` with a step list from `resolveBookingSteps()` (new, pure, unit-tested), and a computed "Passo N de M" indicator (existing `booking.stepIndicator` key). When the customer leaves Step 1 the selected services' intake schemas are fetched (`GET /public/services/:id/intake-schema`, one call per selected service, in parallel); a service with an active schema adds `IntakeAnswersStep` between Personal Info (guest) / Review (customer) and Confirmation — for both actors, one component. Fields are rendered from the schema, never hard-coded: `FREE_TEXT` → text input; `BOOLEAN` → checkbox when optional, a Sim/Não pair when `required` ("Não" is a valid answer — the backend only checks the key is present); `participantCount` only when `participantCountRequired`; named attendees (a repeatable `{ name, isMinor }` list) only when `requiresNamedAttendees`, **optional with no UI-enforced minimum** (backend rule); the consent checkbox (`consentText`) always, required. The displayed schema `version` is submitted as `intakeSchemaVersion`. The step never submits — `POST` stays on Confirmation. A basket containing more than one intake-bearing or `CUSTOMER_SELECTED` service gets the backend's `422 invalid-multiple-variable-services` shown inline on Step 1. `422 intake-answer-missing` maps to field-level errors on the intake step (`13b`/`03c`).
+- **B — Service cards and resource selection.** Step 1 cards adapt to the service type from the public service shape (S29): a per-time service shows its rate from the policy ("R$ 50,00 por hora"), not a fixed price; the selection total and `BookingSummaryCard` show "a partir de…" until a duration is chosen. For `CUSTOMER_CHOICE` requirements a `ResourcePicker` (`05`) lists `GET /public/services/:id/resource-options`; `AUTO_ANY` (`06`) and `AUTO_FUNGIBLE_POOL` (`07`) show no picker (the resolved name appears after booking); the chosen resource's own calendar (`08`, UC-066) passes the **existing** `resourceId` param to `GET /schedule/availability(/summary)` — `AvailabilityStep`, `AvailabilityCarousel`, `AvailabilityCalendar` and `SlotPicker` gain the prop. Picks go out as `resourceSelections`.
+- **C — Bundle and multi-leg.** Bundle (`09`/`09b`) and multi-leg itinerary (`10`/`10b`): the legs review shows legs, times, durations and transitions computed from `service.legs` plus the chosen slot, naming a resource only when it is fixed or the customer's own pick (no assignment preview exists); it is the legged service's version of the final summary, not an extra step. `409 bundle-partially-unavailable` / `409 leg-unavailable` render the race-error screens.
+- **D — Variable duration.** `VariableDurationStep` (`12`/`12b`): duration picker bounded by `durationMin/Max/Increment`, "Total estimado" from `GET /public/services/:id/quote`; `422 duration-out-of-range` and `409 slot-unavailable` render `12b`. Sent as `durationMinutes`.
+- **E — Pending approval.** `ConfirmationStep`'s success view becomes status-aware: a `PENDING` booking shows `PendingApprovalView` (`14`) with the hold deadline from the response's `holdExpiresAt`; an approved one keeps today's success view.
+
+**Open items carried into `/story-discovery M23-S11`** (deliberately not decided here): (1) multi-leg with a `CUSTOMER_CHOICE` leg has no screen — a per-leg picker is needed; (2) a fungible pool with `requiredQuantity > 1` — how it is explained; (3) `CUSTOMER_CHOICE` on non-STAFF types (room/equipment) — the `ResourcePicker` is generic but only the staff version is prototyped; (4) availability when two requirements are both `CUSTOMER_CHOICE` (one `resourceId` param); (5) whether S11 should be split by group; (6) `AUTO_CONFIRM` bookings and `holdExpiresAt` (S29 discovery).
+
+**Backend/BFF:** none — all endpoints and types come from M23-S01–S03 and M23-S29. `apps/web` consumes `@ikaro/types` only (never `@ikaro/validation`).
 
 **Files to create/modify:**
-- `apps/web/features/booking/components/public/ServiceSelectionStep.tsx` (+ spec) (modify — branch per `bookingModel`/`resourceRequirements`)
-- `apps/web/features/booking/components/public/ResourcePicker.tsx` (+ spec) (new — staff/pool/bundle selection; unrelated to S05's dashboard-side `ResourceFilterMenu`/`ResourceSelectField` despite the similar area — this is a public hotsite booking-flow component, hotsite-styled per `--ba-*` tokens, not dashboard Tailwind)
+- `apps/web/features/booking/model/booking-steps.ts` (+ spec) (new — `resolveBookingSteps()`: pure, node env)
+- `apps/web/features/booking/components/public/BookingForm.tsx` (+ spec) (modify — step list from the helper; extract state into `hooks/` before it grows past the 200-line function limit)
+- `apps/web/features/booking/hooks/useBookingSubmission.ts` (+ spec) (modify — payload gains `resourceSelections`/`durationMinutes`/`participantCount`/`intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`; error routing for the new `422`/`409` codes)
+- `apps/web/features/booking/components/public/ServiceSelectionStep.tsx`, `BookingSummaryCard.tsx` (+ specs) (modify — type-aware price/duration display, inline `invalid-multiple-variable-services` error)
+- `apps/web/features/booking/components/public/ResourcePicker.tsx` (+ spec) (new — hotsite-styled with `--ba-*` tokens, not dashboard Tailwind; unrelated to S05's dashboard `ResourceFilterMenu`/`ResourceSelectField`)
 - `apps/web/features/booking/components/public/LegItineraryStep.tsx` (+ spec) (new)
 - `apps/web/features/booking/components/public/VariableDurationStep.tsx` (+ spec) (new)
-- `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (+ spec) (new — a step between Personal Info and Confirmation, shared by the guest and authenticated-customer paths)
-- `apps/web/features/booking/components/public/PendingApprovalView.tsx` (+ spec) (new)
-- `apps/web/features/booking/api/bookings.ts` (modify — pass through `resourceId`/`durationMinutes`/`intakeAnswers`; verify exact current file name/location at implementation time)
-- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — new hotsite booking-flow copy keys, exact namespace verified against the file's real current hotsite-booking section at implementation time)
+- `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (+ spec) (new — shared by guest and customer; split attendee list and field renderers into sibling files each with a `.spec.tsx` up front)
+- `apps/web/features/booking/components/public/PendingApprovalView.tsx` (+ spec) (new); `ConfirmationStep.tsx` (+ spec) (modify — status-aware success)
+- `apps/web/features/booking/components/public/AvailabilityStep.tsx`, `AvailabilityCarousel.tsx`, `AvailabilityCalendar.tsx`, `SlotPicker.tsx` (+ specs) (modify — `resourceId` prop)
+- `apps/web/features/platform/hotsite/api/schedule.ts` (modify — `resourceId` param on `fetchAvailabilitySummary`/`fetchAvailability`)
+- `apps/web/features/booking/api/public.ts` (+ spec) (modify — `fetchPublicIntakeSchema`, `fetchServiceResourceOptions`, `fetchServiceQuote`; consolidate the duplicate `AuthenticatedBookingRequest` with `api/booking.ts` onto the `@ikaro/types` one)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — new keys under the existing `booking` namespace: `intake.*`, `resourcePicker.*`, `duration.*`, `legs.*`, `pending.*`, plus the new error-code copy; exact key names fixed at implementation, both locales in the same commit)
+- `apps/web/e2e/helpers/services/` and `apps/web/e2e/helpers/booking-form/` (modify/new — seeding helpers for resource requirements, legs, a `CUSTOMER_SELECTED` service, an intake schema and STAFF resources; none exist today) and the new Playwright specs listed below
+- `plan/journey/guest/book-a-service.md`, `plan/journey/customer/book-a-service.md`, both `dev-notes.md` (modify — flip every shipped screen's `❓ GAP` to ✅ in the same commit)
 
 **Acceptance criteria — product:**
-- [ ] Guest/customer booking a `CUSTOMER_CHOICE`/pool/auto-any/bundle/leg service completes the correct branch of the flow end-to-end.
-- [ ] Variable-duration and intake-schema services show their respective extra steps only when the service actually requires them.
-- [ ] Every new screen paints `--ba-background`/`--ba-text` per the hotsite full-page-component invariant (`docs/ENGINEERING_RULES_FRONTEND.md`).
+- [ ] A guest/customer booking a chosen-staff, auto-any, pool, bundle or leg service completes the correct branch of the flow end-to-end, and the step indicator reads the right "N de M" for that path.
+- [ ] A service with an active intake schema adds the intake step (guest and customer); one without it keeps today's 4 steps. Required answers and consent are enforced with field-level errors.
+- [ ] A per-time service shows its rate on the card and a server-quoted "Total estimado" once a duration is chosen; no other service shows a quote.
+- [ ] A manually-approved booking shows the pending view with the hold deadline; an auto-confirmed one shows today's success view.
+- [ ] Every error screen in scope (`09b`, `10b`, `12b`, `13b`/`03c`, plus the existing slot-conflict screen) is reachable from its real backend error and matches the prototype copy verbatim.
+- [ ] A basket mixing two intake-bearing/variable services shows the backend's rejection inline instead of failing silently.
+- [ ] Every new screen paints `--ba-background`/`--ba-text` per the hotsite full-page-component invariant (`docs/ENGINEERING_RULES_FRONTEND.md`), and fixed-colour error text uses `#b91c1c` (not `#dc2626`) on `--ba-secondary`.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] Each new step component renders and submits correctly in isolation (jsdom + Testing Library)
-  - [ ] `ServiceSelectionStep` branches to the correct next step per service configuration fixture
+  - [ ] `resolveBookingSteps()` returns the right ordered list and total per fixture (no-intake, intake, resource-pick, leg, variable-duration, manual-approval)
+  - [ ] `IntakeAnswersStep`: renders each question type, required boolean as Sim/Não, conditional participant count/attendees, consent gate; submits the displayed `version`
+  - [ ] `ResourcePicker`, `LegItineraryStep`, `VariableDurationStep`, `PendingApprovalView` render and submit in isolation (jsdom + Testing Library); `ConfirmationStep` picks the view by status
+  - [ ] `ServiceSelectionStep`/`BookingSummaryCard` show the per-time rate/"a partir de" and the inline multi-variable error; availability components forward `resourceId`
+  - [ ] `useBookingSubmission` builds the extended payload for the guest and authenticated paths and routes each new error code to the right step
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — hotsite already tenant-scoped by slug
-- E2E:
-  - [ ] Playwright: full booking through each resolution mode (chosen-staff, pool, auto-any, bundle, leg) against the real BFF/backend
-  - [ ] Playwright: variable-duration and intake flows end-to-end
+- E2E (Playwright, real BFF/backend, seeded via the new helpers):
+  - [ ] guest books a chosen-staff service; guest books auto-any; guest books a pool resource
+  - [ ] guest books a bundle (staff choice + automatic room) and a multi-leg journey
+  - [ ] guest books a variable-duration reservation with the quoted total
+  - [ ] guest completes an intake-schema service (required answer, consent); the authenticated customer does the same after `completeCustomerProfile` (the layout's `InformationCompletionPrompt` otherwise intercepts an incomplete profile)
+  - [ ] manual-approval booking shows the pending view with a deadline
+  - [ ] seeded conflicts produce the bundle, leg and variable-duration race-error screens
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -1954,3 +1981,77 @@ None of the four events carries an email address, a name or a service name, and 
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 - [ ] **Live-verification check (devops step above):** `gcloud pubsub subscriptions get-iam-policy` on each of the four new `notification` subscriptions, in both `ikaro-staging` and `ikaro-prod`, shows the expected binding.
+
+---
+
+### M23-S29 — Public booking-flow read APIs for the guest/customer frontend — resource options, duration quote, hold deadline, public service shape
+
+**Agent:** `backend-ts` + `bff-ts`
+**Complexity:** L
+**Docs to load:** `docs/14-API_CONTRACTS.md` (§ Services, § Booking Requests, § Schedule Availability), `docs/24-BFF_ARCHITECTURE.md` (§ mapper convention), `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/04-USE_CASES.md` (UC-061–068), `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_SHARED.md`, `docs/CODE_STANDARDS.md`
+**Dependencies:** M23-S01, M23-S02
+**Pattern:** plain composition — two new read use cases over existing repositories and the existing pure `BookingQuoteService`, plus a whitelisting BFF mapper (the existing `services.mapper.ts` convention); no new pattern.
+
+**Description:**
+M23-S11 (the guest/customer booking-flow frontend) cannot be built against what the BFF exposes today. Verified against the code (2026-10-02): (1) no public endpoint lists the staff/resources a customer may pick — `GET /resources` is `ManagerRoleGuard`-only on the backend and MANAGER-only in the BFF; (2) the duration quote (`BookingQuoteService.quote()`, pure and stateless) runs only inside booking creation, so the variable-duration screen cannot show its "Total estimado"; (3) the booking-create response carries no approval-hold deadline — `resolveHoldExpiresAt()` computes it and stores it on the `resource_occupancy` HOLD rows, but never returns it, so the pending-approval screen has nothing to count down to; (4) `HotsiteServiceResponse` omits `bookingModel`/`resourceRequirements`/`legs`/`bookingPolicy`, although `GET /public/services` already returns the full backend `ServiceUseCaseResult` untyped — including pricing/approval policy and internal overrides — to unauthenticated callers. This story adds the read contracts S11 needs and nothing else. **UC-066 (a staff member's own calendar) needs no new endpoint** — it reuses `GET /schedule/availability(/summary)?resourceId=`, shipped in M22-S03; S11 only wires the existing param.
+
+Pre-decided:
+- **Resource options** — only `CUSTOMER_CHOICE` requirements are returned; flat requirements carry `legIndex: null`, each leg's requirements carry its `legIndex`. Options are the tenant's *active* resources of that `type`, restricted to `resourcePoolIds` when non-null, ordered by name. Only `{ resourceId, name }` is exposed — never `refId`, hours, or the linked staff record.
+- **Quote** — wraps `BookingQuoteService.quote()` unchanged; a `FIXED` service passes through its own duration/price.
+- **Hold deadline** — the same `Date` already computed for the HOLD rows is returned, not recomputed.
+- **Public service shape** — the BFF maps a **whitelisted** subset (no spread of the backend object): `bookingModel`; `resourceRequirements` (`type`, `selectionMode`, `requiredQuantity` — **not** `resourcePoolIds`); `legs`; and from `bookingPolicy` only `durationPolicy`, `durationMinMinutes`, `durationMaxMinutes`, `durationIncrementMinutes`, `pricingPolicy`, `pricingIncrementMinutes`, `pricePerIncrementAmount`, `minimumChargeAmount`, `defaultApprovalMode`. Overrides, recurrence/alert fields, `classResourceSlots` and `bufferAfterMinutes` stay server-side. This closes the over-exposure.
+- **No `hasIntakeSchema` flag** on the service list — S11 fetches the existing `GET /public/services/:id/intake-schema` for the selected services when the customer leaves Step 1 (avoids a list-wide intake lookup and a staff-shared result change).
+- **Out of scope:** per-leg/bundle assignment preview, availability across several simultaneously-chosen resources, availability alerts, classes (M24).
+
+**Backend use case steps:**
+1. **`ListServiceResourceOptionsUseCase`** — load the service by `(id, tenantId)` (not found, other tenant, or inactive → `ServiceNotFoundError`); for the service's flat requirements and each leg's requirements, keep `selectionMode = CUSTOMER_CHOICE`; per requirement load `IResourceRepository.findByTenant(tenantId, { type, isActive: true })`, filter by `resourcePoolIds` when set; return `{ requirements: [...] }`.
+2. **`QuoteServiceDurationUseCase`** — load the service (same not-found rule), call `BookingQuoteService.quote(service, durationMinutes)`; `BookingDurationOutOfRangeError` propagates to the existing mapper.
+3. Booking create: the request use cases return `holdExpiresAt` (ISO-8601 UTC) alongside the existing `BookingRequestResult` fields.
+
+**Backend HTTP surface:** `GET /services/:id/resource-options` and `GET /services/:id/quote?durationMinutes=` on `service.controller.ts` — no guard (tenant from the request context, same as `GET /services/:id/intake-schema/public`); `POST /bookings` and `POST /bookings/authenticated` responses gain `holdExpiresAt`.
+
+**BFF endpoint spec:**
+- `GET /public/services/:id/resource-options` → `200 { requirements: [{ serviceId, legIndex: number | null, resourceType, selectionMode: 'CUSTOMER_CHOICE', requiredQuantity, options: [{ resourceId, name }] }] }`; `404 service-not-found`. `@Public`, `X-Tenant-Slug`.
+- `GET /public/services/:id/quote?durationMinutes=` → `200 { durationMinutes, price: { amount, currency } }`; `404 service-not-found`; `422 duration-out-of-range`. `@Public`.
+- `GET /public/services` → same route, response now the whitelisted `HotsiteServiceResponse` (extended).
+- `POST /bookings`, `POST /bookings/authenticated` → `BookingResponse` gains `holdExpiresAt: string | null`.
+
+**Prototype references:** none — backend/BFF; the consuming screens are in `M23-S11`.
+
+**New migration / i18n keys / env vars / feature flags:** none. No new error codes (reuses `service-not-found`, `duration-out-of-range`).
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/use-cases/list-service-resource-options.use-case.ts` (+ spec) (new — `ListServiceResourceOptionsUseCaseInput`/`ListServiceResourceOptionsUseCaseResult`)
+- `apps/backend/src/contexts/booking/application/use-cases/quote-service-duration.use-case.ts` (+ spec) (new — `QuoteServiceDurationUseCaseInput`/`QuoteServiceDurationUseCaseResult`)
+- `apps/backend/src/contexts/booking/application/dtos/quote-service-duration.dto.ts` (new — `QuoteServiceDurationSchema`/`QuoteServiceDurationDto`)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/service.controller.ts` (+ spec, `.integration.spec.ts`) (modify — two new routes)
+- `apps/backend/src/contexts/booking/booking.module-providers.ts` (modify — register the two use cases; verify exact registration style at implementation time)
+- `apps/backend/src/contexts/booking/application/use-cases/booking-request.types.ts` / `booking-request.mapper.ts` / `booking-request.helpers.ts`, `request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts` (+ specs) (modify — return `holdExpiresAt`)
+- `apps/bff/src/features/booking/services.public.controller.ts` (+ spec) (modify — two new routes; the list route maps through the whitelist)
+- `apps/bff/src/features/booking/services.mapper.ts` (+ spec) (modify — `toPublicServiceResponse`, resource-options and quote mappers)
+- `apps/bff/src/features/booking/services.types.ts` (modify) and `services.schemas.ts` (modify — quote query schema)
+- `apps/bff/src/features/booking/bookings.mapper.ts`, `bookings.types.ts` (+ specs) (modify — `holdExpiresAt`)
+- `packages/types/src/hotsite.ts`, `service.dto.ts`, `booking.dto.ts` (modify — extend `HotsiteServiceResponse`; add `ServiceResourceOptionsResponse`, `ServiceQuoteResponse`, `ResourceSelectionItem`, `BookingAttendeeInput`, `BookingIntakeAnswers`; extend `CreateBookingRequest`/`AuthenticatedBookingRequest` with the M23 request fields; add `holdExpiresAt` to `BookingResponse`)
+- `apps/backend/http/booking/services.http`, `apps/bff/http/services/services.http`, `apps/bff/http/bookings/bookings.http` (modify — request blocks for every new/changed route, happy path + 4xx)
+- `docs/14-API_CONTRACTS.md` (modify — the two endpoints, `holdExpiresAt`, the public service shape)
+- `docs/24-BFF_ARCHITECTURE.md` (modify only if the whitelist mapper changes a documented convention)
+
+**Acceptance criteria — product:**
+- [ ] An unauthenticated caller can list the active staff/resources eligible for a service's `CUSTOMER_CHOICE` requirement(s), per leg when the service has legs, and sees nothing but id and name.
+- [ ] A caller can obtain the price of a chosen duration for a per-time service before booking, identical to what booking creation would persist.
+- [ ] A booking request response includes the hold deadline; the same deadline governs the HOLD rows.
+- [ ] The public service list exposes only the fields the booking flow needs — no recurrence/override/internal policy fields, no resource pool ids.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `ListServiceResourceOptionsUseCase`: only `CUSTOMER_CHOICE` requirements returned; pool restriction honoured; inactive resources excluded; legged service returns per-`legIndex` entries; unknown/inactive service → `ServiceNotFoundError`
+  - [ ] `QuoteServiceDurationUseCase`: per-increment price with minimum-charge floor; `FIXED` service passes through; out-of-range/off-increment → `BookingDurationOutOfRangeError`
+  - [ ] Booking-request use cases return `holdExpiresAt` equal to the value passed to the occupancy HOLD rows
+  - [ ] BFF `toPublicServiceResponse` spec asserts the whitelist (a policy override, `recurrenceEligible`, `resourcePoolIds`, `classResourceSlots` are absent)
+- Integration:
+  - [ ] `GET /services/:id/resource-options` and `/quote` against a real DB: happy path, 404, 422
+- Tenant isolation:
+  - [ ] Tenant A's service id + Tenant B's slug → `404` on both new routes; resource options never include another tenant's resources
+- E2E: none — `M23-S11`'s Playwright flows exercise these endpoints through the real BFF
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean

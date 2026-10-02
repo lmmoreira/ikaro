@@ -231,8 +231,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `12-reserva-por-tempo.html` / `12b-reserva-por-tempo-erro.html` | Variable-duration reservation + unavailable error | UC-067 |
 | `13-intake-answers.html` / `13b-intake-answers-error.html` | Intake step — its own step after Personal Info, before Confirmation (versioned schema questions + consent; no submit) + missing-field error | UC-068 |
 | `14-pending-approval.html` | Manual-approval hold display (30-min countdown example) | Booking policy (UC-055) |
-| `15-login-required.html` | Auth boundary before a waitlist/alert action | UC-072 A1 |
-| `16-service-type-selector.html` | Multi-service-type catalogue entry point | Canonical IA entry, dev-notes.md §"Canonical public information architecture" |
+| `15-login-required.html` | Auth boundary before a waitlist/alert action — **out of M23-S11's scope** (belongs with the availability-alert stories, M23-S12/S17) | UC-072 A1 |
 
 **File map (❓ none exist yet):**
 
@@ -256,11 +255,11 @@ POST /bookings                                              -- extended body: re
 GET  /services/:id/intake-schema/public                     -- feeds IntakeAnswersStep (active version only, no auth)
 ```
 
-**Known limitation, found during this promotion:** `16-service-type-selector.html`'s "browse a class" link points at `public-02b-class-agenda.html` (Cluster 4, not yet promoted) — left as a documented gap.
+**Removed (2026-10-02):** `16-service-type-selector.html` — today's Step 1 service list already is the catalogue and a class is just another service (M24), so no separate selector is built. Step 1's cards adapt to the service type instead (e.g. "por hora" for a per-time service). `15-login-required.html` still links to the Cluster 4 class agenda (`public-02b-class-agenda.html`, not yet promoted) — left as a documented gap, out of M23-S11's scope.
 
 **Open questions / gaps:**
-- [ ] Story: `M23-S11` (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`) — run `/story-discovery M23-S11` before implementing.
-- [ ] Reconciling `16-service-type-selector.html` with the existing single-service-type `ServiceSelectionStep` (does one replace the other, or does the existing step gain a resource-type branch?) is a UI/routing decision for the implementing story.
+- [ ] Story: `M23-S11` (depends on `M23-S29`, the backend/BFF prerequisites) (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`) — run `/story-discovery M23-S11` before implementing.
+- [x] `16-service-type-selector.html` removed — the existing `ServiceSelectionStep` gains type-aware cards and a resource-type branch instead of being replaced.
 
 ### Intake step placement (decided before M23-S11 story-discovery)
 
