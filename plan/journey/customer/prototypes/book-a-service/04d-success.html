@@ -14,6 +14,10 @@
     COMPONENT:  ConfirmationStep  apps/web/features/booking/components/public/ConfirmationStep.tsx  (EXISTS)
     SUCCESS:    "Solicitação enviada! Aguarde a confirmação por email."
                 (data-testid="booking-success")
+    DETAILS BOX (M23-S11, same BookingSubmittedDetails component as the guest path — see
+    ../../../guest/prototypes/book-a-service/04d-success.html and 04f-success-details-resources.html for the
+    resource and leg-timeline variants): services, date/time (tenant timezone), totals, and resource names only
+    when applicable. No hold deadline, countdown or alert button.
     PRIMARY CTA links to the Agendamentos list (not the Início overview) — "go see what I
     just booked" intent.
   -->
@@ -77,15 +81,13 @@
       </div>
     </div>
 
-    <ul style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem; list-style: none; padding: 0;">
-      <li style="display: flex; justify-content: space-between; font-size: 0.875rem; color: var(--ba-text);">
-        <span>Lavagem Simples</span>
-        <span>R$ 60,00</span>
-      </li>
-    </ul>
-
-    <p style="font-weight: 600; color: var(--ba-text); margin-bottom: 0.5rem;">Total: R$ 60,00 — 30 min</p>
-    <p style="color: var(--ba-text); margin-bottom: 1.5rem;">Quarta-feira, 18 de junho às 10:00</p>
+    <div class="card" data-testid="booking-submitted-details" style="margin-bottom:1.5rem;font-size:.875rem;color:var(--ba-text);">
+      <p style="font-weight:600;margin-bottom:.5rem;">Detalhes da sua solicitação</p>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Lavagem Simples</span><span style="text-align:right;">R$ 60,00 · 30 min</span></div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Data e horário</span><span style="text-align:right;">qua, 18 de junho de 2026 · 10:00</span></div>
+      <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:.5rem 0;">
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;"><strong>Total</strong></span><span style="text-align:right;"><strong>R$ 60,00 · 30 min</strong></span></div>
+    </div>
 
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
       <a href="../minha-conta/01-minha-conta.html" class="btn-primary">

@@ -15,34 +15,15 @@
 <body>
 
   <!--
-    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype. Added on
-    review (2026-07-29) to close the CAND-18/CAND-31 gap — the bundle scenario had zero
-    prototype coverage despite being explicitly scoped in full detail.
-    See ../multivertical-booking.md (§5 Bundles) and
-    ../multivertical-booking_USECASES.md (CAND-18, CAND-31).
-
-    "Massagem Relaxante" has resourceRequirements = [
-      { type: STAFF, selectionMode: CUSTOMER_CHOICE,  resourcePoolIds: [Renata, Maria] },
-      { type: ROOM,  selectionMode: AUTO_ANY,          resourcePoolIds: [Sala de Terapia, Sala de Relaxamento] }
-    ] — BOTH types must be free for the same window (CAND-18).
-
-    Updated on further review: resourcePoolIds (discovery §5) had no UI in manager-02 and
-    this screen presented Renata as a fixed given, contradicting its own CUSTOMER_CHOICE
-    setting. Now shows a real 2-therapist choice, matching manager-02's fixed config.
-
-    The 13:30 slot below is deliberately shown blocked, NOT because Renata is busy with
-    THIS service, but because she's mid-leg on a DIFFERENT service — the massage leg of
-    "Jornada Spa" (13:30–14:20, see public-05-multi-leg-itinerary.html). This is CAND-31:
-    a resource's exclusivity holds across service boundaries, not just within one
-    service's own bookings. Fixed on further review to use a time that actually overlaps
-    Jornada Spa's massage leg, and to attribute the block to Renata specifically (not the
-    room — Sala's 2-member fungible pool means the room alone can never be the blocker).
-
-    This is the optional resource-choice step only. It deliberately does NOT also show
-    dates and slots. After the customer chooses a therapist, the shared appointment
-    availability step (public-14) calculates the intersection across the therapist,
-    an eligible room, and the hot-stone kit. This preserves the established wizard:
-    service → optional resource choice → calendar/slot → details → confirmation.
+    COMPONENT: ResourcePicker  apps/web/features/booking/components/public/ResourcePicker.tsx  (NEW, M23-S11)
+    SCENARIO:  bundle — "Massagem Relaxante" has resourceRequirements = [
+                 { type: STAFF, selectionMode: CUSTOMER_CHOICE, resourcePoolIds: [Renata, Maria] },
+                 { type: ROOM,  selectionMode: AUTO_ANY }
+               ] — both must be free for the same window.
+    SHOWN:     only the CUSTOMER_CHOICE requirement gets a picker (GET /public/services/:id/resource-options,
+               names only). The automatic room is never named before booking (no assignment preview).
+    NEXT:      the availability step calls availability with the pick as resourceSelections (M23-S29), which
+               intersects the chosen staff, an eligible room and the rest of the bundle (the engine derives the room).
   -->
 
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);
@@ -68,16 +49,9 @@
       Escolha a terapeuta
     </h2>
     <p style="font-size: 0.875rem; opacity: 0.7; margin-bottom: 1.25rem;">
-      Sala: atribuída automaticamente entre Sala de Terapia e Sala de Relaxamento
+      Sala: atribuída automaticamente
     </p>
 
-    <!--
-      Fixed on review: this screen previously named Renata as a fixed given, contradicting
-      manager-02's own CUSTOMER_CHOICE setting for the Profissional slot in this bundle.
-      Now that manager-02 restricts the eligible pool to Renata + Maria (not "anyone"),
-      the customer actually gets a choice between the two — same staff-card pattern as
-      public-01-staff-picker.html, reused here for a bundle instead of a flat service.
-    -->
     <ul style="display: flex; flex-direction: column; gap: 0.75rem; list-style: none; padding: 0; margin-bottom: 1.5rem;">
       <li>
         <label class="card selected staff-card">
@@ -85,7 +59,6 @@
           <div class="staff-avatar" style="background:#db2777;">RS</div>
           <div style="flex:1;">
             <p class="staff-name">Renata Souza</p>
-            <p class="staff-meta">Massagem terapêutica e relaxante</p>
           </div>
         </label>
       </li>
@@ -95,7 +68,6 @@
           <div class="staff-avatar" style="background:#c026d3;">MS</div>
           <div style="flex:1;">
             <p class="staff-name">Maria Santos</p>
-            <p class="staff-meta">Massagem relaxante e drenagem</p>
           </div>
         </label>
       </li>

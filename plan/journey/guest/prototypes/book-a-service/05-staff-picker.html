@@ -17,35 +17,24 @@
       font-weight: 700; font-size: 1rem;
     }
     .staff-name { font-weight: 600; color: var(--ba-text); }
-    .staff-meta { font-size: 0.8125rem; opacity: 0.65; margin-top: 0.125rem; }
     .any-icon { background: #6b7280; }
   </style>
 </head>
 <body>
 
   <!--
-    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype.
-    See ../multivertical-booking.md (§5 Appointment-Style Deep Dive)
-    and ../multivertical-booking_USECASES.md (CAND-16).
-    UX-review update (2026-08-21): the "any available" card once shown here — a hybrid
-    that put CAND-17b (system-assigned) inside this CUSTOMER_CHOICE picker as a radio
-    option, contradicting CAND-17b's own "no picker shown at all" flow — is gone from
-    this screen; only the two named CUSTOMER_CHOICE cards remain below, matching
-    "Corte + Escova"'s actual resourceRequirements. CAND-17b now lives on its own,
-    correctly picker-less, at public-07-auto-staff.html.
-
-    Represents taxonomy model #2 (per-staff exclusive, customer-chosen) — Vitta Studio's
-    "Corte + Escova" service has resourceRequirements = [{ type: STAFF, selectionMode:
-    CUSTOMER_CHOICE }].
-
-    This is a NEW step inserted into today's guest booking flow, between
-    "01-service-selection" and "02-calendar-slot" (see guest/prototypes/book-a-service/).
-    Today's flow has no such step — the whole tenant is the only resource.
-
-    COMPONENT (GAP): StaffPickerStep
-    FILE: apps/web/components/booking/StaffPickerStep.tsx
-    BFF CALL (GAP): GET /resources?type=STAFF&serviceId=svc_corte_escova
-      Response: { resourceId, name, subtitle, hasAvailabilityToday }[]
+    COMPONENT: ResourcePicker  apps/web/features/booking/components/public/ResourcePicker.tsx  (NEW, M23-S11)
+    SHOWN WHEN: the selected service has a CUSTOMER_CHOICE requirement (e.g. Corte + Escova:
+                resourceRequirements = [{ type: STAFF, selectionMode: CUSTOMER_CHOICE }]).
+    POSITION:   a step between "01-service-selection" and the availability step; the indicator is computed
+                ("Passo 2 de 5" here: services, picker, availability, personal info, confirmation — one more with intake).
+    BFF CALL:   GET /public/services/:id/resource-options  (M23-S29, public)
+                Response: { requirements: [{ serviceId, legIndex, resourceType, selectionMode, requiredQuantity,
+                options: [{ resourceId, name }] }] } — NAME ONLY (no bio/subtitle/avatar data exists); active resources only.
+    OUTPUT:     the pick goes to availability and to POST /bookings as resourceSelections.
+                Availability then uses M23-S29's resourceSelections param (the staff's own slots for the full service) —
+                the explicit resourceId param is NOT used by this flow.
+    AUTO_ANY / AUTO_FUNGIBLE_POOL services show no picker (06 / 07).
   -->
 
   <!-- BRAND + AUTH BAR -->
@@ -77,14 +66,13 @@
 
     <ul style="display: flex; flex-direction: column; gap: 0.75rem; list-style: none; padding: 0;">
 
-      <!-- Named staff, selected — CAND-16 -->
+      <!-- CUSTOMER_CHOICE options: name only (initials avatar derived from the name) -->
       <li>
         <label class="card selected staff-card">
           <input type="radio" name="staff" checked style="width:1.125rem;height:1.125rem;">
           <div class="staff-avatar">CD</div>
           <div style="flex:1;">
             <p class="staff-name">Camila Duarte</p>
-            <p class="staff-meta">Coloração e cortes modernos</p>
           </div>
         </label>
       </li>
@@ -95,7 +83,6 @@
           <div class="staff-avatar" style="background:#7c3aed;">BA</div>
           <div style="flex:1;">
             <p class="staff-name">Bruno Alves</p>
-            <p class="staff-meta">Especialista em cortes masculinos</p>
           </div>
         </label>
       </li>
@@ -105,10 +92,8 @@
     <div class="nav-buttons">
       <button class="btn-secondary" onclick="window.history.back()">Voltar</button>
       <!--
-        Reuses the EXISTING SlotPicker/AvailabilityCarousel components from
-        guest/prototypes/book-a-service/02-calendar-slot.html, now called with
-        resourceId=<chosen staff>. Same component, narrower query — nothing new
-        needed on the calendar screen itself.
+        Reuses the EXISTING SlotPicker/AvailabilityCarousel components, now called with the pick as
+        resourceSelections (M23-S29). Same component, narrower query.
       -->
       <a class="btn-primary" href="02-calendar-slot.html">Próximo</a>
     </div>

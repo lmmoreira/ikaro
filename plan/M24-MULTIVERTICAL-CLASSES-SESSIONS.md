@@ -37,6 +37,7 @@
 | 8 | M24-S17 | Customer "Reservar Aula" frontend (browse + book) |
 | 8 | M24-S18 | Customer "Minha Conta" class extension frontend |
 | 8 | M24-S19 | Guest "Book-a-Class" frontend |
+| 9 | M24-S20 | Class entry point on the booking page — `SESSION` services link to the class agenda |
 
 ```mermaid
 graph TD
@@ -932,6 +933,46 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 - Unit: [ ] auto-hides guest booking CTA when `guestAccessEnabled=false`
 - E2E: [ ] Playwright: guest verifies email and books a solo trial seat end to end
 - [ ] Coverage ≥80%, `tsc --noEmit`/lint clean
+
+---
+
+### M24-S20 — Class entry point on the booking page — SESSION services link to the class agenda
+
+**Agent:** `frontend-ts`
+**Complexity:** S
+**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components
+**Dependencies:** M24-S17, M24-S19 (the class-agenda routes this story links to), M23-S11 (the Step 1 service list this story extends), M23-S29 (the public service list exposes `bookingModel`)
+**Pattern:** plain composition — one extra card variant in the existing `ServiceSelectionStep`; no new pattern.
+**Prototype references:** `plan/journey/guest/book-a-service/` is unchanged by this story; the destination screens are `plan/journey/guest/prototypes/book-a-class/01-class-agenda.html` and `plan/journey/customer/prototypes/reservar-aula/`. This story needs one new prototype variant of the booking-page Step 1 showing a class card (drafted at its own `/story-discovery`, per `plan/journey/README.md`).
+
+**Description:**
+`POST /bookings` rejects any service whose `bookingModel` is not `APPOINTMENT` (`request-booking.use-case.ts:153`), so the appointment flow's Step 1 (M23-S11) lists only `APPOINTMENT` services — a `SESSION` (class) service must never be selectable there. Without this story a tenant that offers classes has no way to reach them from the booking page: the class agenda routes (`/[slug]/aulas`, M24-S17 for customers; `/[slug]/aulas/agenda`, M24-S19 for guests) exist but nothing links to them. This story adds the entry point: the Step 1 list shows each `SESSION` service as a non-selectable "Ver turmas" card, below the appointment services, that routes to the class agenda for that service (`serviceId` retained). It replaces the type-selector screen (16) that was removed from M23 — a class is just another service in the same list, rendered differently by `bookingModel`.
+
+**Open items carried into `/story-discovery M24-S20`:** (1) one link or two — the customer (`/aulas`) and guest (`/aulas/agenda`) routes differ, so the card either detects authentication (as `BookingForm` already does with `getHotsiteCustomerProfile`) or the two routes are unified; (2) whether the `BOOKING_CTA` hotsite module should route straight to the agenda when the tenant has only `SESSION` services; (3) whether a basket mixing an appointment service and a class is simply impossible (the class card is not selectable) or needs an explanation; (4) `guestAccessEnabled = false` services — hidden from guests, shown to customers only.
+
+**Backend/BFF:** none — `bookingModel` and `guestAccessEnabled` come from the public service list M23-S29 whitelists (add `guestAccessEnabled` to that whitelist if M24-S03 exposes it there — verify at discovery).
+
+**Files to create/modify:**
+- `apps/web/features/booking/components/public/ServiceSelectionStep.tsx` (+ `.spec.tsx`) (modify — render `SESSION` services as link cards, keep them out of the selectable basket and out of the total)
+- `apps/web/features/booking/components/public/ClassServiceLinkCard.tsx` (+ `.spec.tsx`) (new — hotsite-styled with `--ba-*` tokens)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — new keys under the existing `booking` namespace, both locales in the same commit)
+- `plan/journey/guest/book-a-service.md`, `plan/journey/customer/book-a-service.md` and both `dev-notes.md` (modify — the class-card variant; a new `01`-series prototype screen for it)
+
+**Acceptance criteria — product:**
+- [ ] A tenant offering both appointment and class services sees both in the booking page's Step 1; selecting an appointment service starts the booking flow, a class card links to the class agenda instead and cannot be added to the basket.
+- [ ] A tenant with no `SESSION` services sees Step 1 exactly as M23-S11 leaves it.
+- [ ] The card never appears for a service the visitor may not book (`guestAccessEnabled = false` for a guest, per M24-S19).
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `ServiceSelectionStep` renders a `SESSION` service as a link card and excludes it from the selected set, the total and the "Próximo" enablement
+  - [ ] `ClassServiceLinkCard` renders its route per the guest/customer decision and respects `guestAccessEnabled`
+- Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
+- Tenant isolation: n/a — hotsite already tenant-scoped by slug
+- E2E:
+  - [ ] Playwright: a visitor on the booking page follows a class card to the class agenda
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
 
 ---
 

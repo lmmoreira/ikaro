@@ -1027,7 +1027,7 @@ Returns:
   1. Customer goes directly to the calendar/slot picker — no staff-selection step (unlike UC-061).
   2. Availability is the union across every active `STAFF` resource offering this service.
   3. Customer picks a slot and submits; system assigns whichever eligible staff member is free.
-  4. Confirmation reveals the assigned staff member's name (unlike UC-062, where no identity is shown).
+  4. The booking-submitted view (the details box under "Solicitação enviada!", M23-S11) reveals the assigned staff member's name (unlike UC-062, where no identity is shown).
 - **Alternative Flows:**
   - **A1: More than one staff member is free for the chosen slot** → System selects the one with the least already-locked workload on that tenant-local day; `resourceId` is the stable tie-breaker.
 - **Postconditions:** Booking exists with a resolved resource assignment the customer did not choose.
@@ -1062,7 +1062,7 @@ Returns:
 - **Main Flow:**
   1. Customer picks `CUSTOMER_CHOICE` resources per leg where applicable.
   2. Calendar shows start times where the **entire chained itinerary** fits — every leg's resource(s) free at that leg's computed sub-window, honoring transition gaps.
-  3. Customer books; confirmation shows the full itinerary (per-leg time + resource(s)).
+  3. Customer books; the booking-submitted view (the details box under "Solicitação enviada!", M23-S11) shows the full itinerary (per-leg time + resource(s)).
 - **Alternative Flows:**
   - **A1: A middle leg's resource(s) become unavailable between page load and submit** → System re-validates the whole chain atomically at submit time; `409 Conflict` — "one part of this journey is no longer available."
 - **Postconditions:** One `BookingLine` with a full leg-assignment snapshot.
@@ -1073,29 +1073,30 @@ Returns:
 ### **UC-066: Customer Views a Specific Staff Member's Own Calendar**
 
 - **Actor:** Customer or Guest
-- **Endpoint:** `GET /v1/schedule/availability?...&resourceId=` (existing UC-011 endpoint, `resourceId` query param — already shipped by M22-S03; see `docs/14-API_CONTRACTS.md`)
+- **Endpoint:** `GET /v1/schedule/availability?...` with the chosen staff member passed as a `resourceSelections` entry for the service's `CUSTOMER_CHOICE` requirement (M23-S29 — requirement-aware availability, `docs/14-API_CONTRACTS.md`). The explicit `resourceId` param (M22-S03) stays a single-resource schedule view that ignores the service's other requirements; the guest/customer flow does not use it.
 - **Preconditions:** Tenant has `STAFF`-type resources with `CUSTOMER_CHOICE` on at least one service.
-- **Trigger:** Customer browses a staff directory before booking.
+- **Trigger:** Customer picks a staff member in UC-061's picker.
 - **Main Flow:**
-  1. Customer picks a staff member from a directory/profile view.
-  2. System shows that resource's availability across every service they're eligible for.
-  3. Customer proceeds into UC-061 once a slot/service is chosen.
+  1. Customer picks a staff member in the picker (UC-061 step 1).
+  2. System shows availability for that staff member's slots of the selected service.
+  3. Customer proceeds into UC-061 once a slot is chosen.
 - **Alternative Flows:**
-  - **A1: Staff member is inactive** → Not shown in the directory.
+  - **A1: Staff member is inactive** → Not offered in the picker.
 - **Postconditions:** None (read-only browse).
 - **Events Triggered:** None.
+- **Deferred:** a public staff directory / professional profile page (the customer picks the professional *first*, then a compatible service) has no screen, route or list endpoint behind it and is not part of M23. The earlier prototype of that page (`08-staff-calendar`) was removed on 2026-10-02.
 
 ---
 
 ### **UC-067: Customer Books a Variable-Duration Resource Reservation**
 
 - **Actor:** Customer or Guest
-- **Endpoint:** `POST /bookings` — body includes `startsAt`, `durationMinutes`, `participantCount`
+- **Endpoint:** `POST /bookings` — body includes `scheduledAt`, `durationMinutes`; `participantCount` is an independent, always-accepted booking field (UC-068)
 - **Preconditions:** APPOINTMENT service has `durationPolicy = CUSTOMER_SELECTED` and a resource/bundle requirement.
 - **Trigger:** Customer selects an eligible room, court, bay, desk, or equipment service.
 - **Main Flow:**
   1. Customer chooses a start and duration within the service's minimum, maximum, and increment rules.
-  2. System validates the whole interval, required quantity, and participant limit.
+  2. System validates the whole interval and the required quantity. (No participant-limit rule exists: `participantCount` is a recorded input only and is never checked against a capacity.)
   3. System quotes the service-level per-increment price (`docs/13-DATABASE_SCHEMA.md`'s round-up rule), resolves every required resource atomically.
   4. System creates the normal booking under its snapshotted approval policy.
 - **Alternative Flows:**

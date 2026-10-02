@@ -6,7 +6,7 @@
 
 ## Overview
 
-The authenticated customer path shares all 4 steps with the guest path — there is no separate component or route branch. `BookingForm` calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, the form treats the visitor as an authenticated customer for the rest of the flow (step 3 hides contact fields and pre-fills the pickup address; submit calls a different endpoint).
+The authenticated customer path shares all of its steps with the guest path (4 by default; the real indicator is computed — M23-S11 adds an intake step, resource/duration steps and the booking-details success box) — there is no separate component or route branch. `BookingForm` calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, the form treats the visitor as an authenticated customer for the rest of the flow (step 3 hides contact fields and pre-fills the pickup address; submit calls a different endpoint).
 
 ---
 
@@ -18,7 +18,7 @@ The authenticated customer path shares all 4 steps with the guest path — there
 | `apps/web/features/booking/components/public/BookingForm.tsx` | Auto-detects auth via `getHotsiteCustomerProfile(slug)` — no `mode` prop |
 | `apps/web/features/booking/api/public.ts` | `createAuthenticatedBooking()`, `createBooking()` |
 | `apps/web/features/booking/components/public/PersonalInfoStep.tsx` | Reused for step 3 in both paths, via `hideContactFields` prop |
-| `apps/web/features/booking/components/public/{ServiceSelectionStep,AvailabilityCarousel,SlotPicker,ConfirmationStep,PhotoUpload,AddressFields}.tsx` | Unchanged, shared with the guest flow |
+| `apps/web/features/booking/components/public/{ServiceSelectionStep,AvailabilityCarousel,SlotPicker,ConfirmationStep,PhotoUpload,AddressFields}.tsx` | Shared with the guest flow (M23-S11 extends `ServiceSelectionStep`, the availability components and `ConfirmationStep` for both actors) |
 
 There is no `/api/auth/callback/google` Next.js route and no `/select-tenant` page — OAuth is handled entirely by the BFF (`GET /v1/auth/google/callback`), and login-time tenant selection was permanently descoped (see `customer/login.md`).
 
@@ -67,7 +67,7 @@ No separate review component was built — `PersonalInfoStep` handles both paths
 
 ## New fetcher — `createAuthenticatedBooking()`
 
-**File:** `apps/web/lib/api/bookings.ts` (add to existing file)
+**File:** `apps/web/features/booking/api/public.ts` (shipped; uses `bffClient`, not a raw `fetch`)
 
 ```ts
 export async function createAuthenticatedBooking(
@@ -95,6 +95,8 @@ POST /bookings/authenticated
       serviceIds:              string[],   // uuid[]
       pickupAddress?:          Address,
       beforeServicePhotoUrls?: string[],
+      // M23: resourceSelections?, durationMinutes?, participantCount?, intakeSchemaVersion?,
+      //      intakeAnswers?, consentAccepted?, attendees?  (identical to the guest endpoint)
     }
   201 Created → BookingResponse
   409 Conflict → slot taken
@@ -124,7 +126,7 @@ A small bar showing `"{name} · {email}"` at the top of steps 1–4 for the cust
 
 ## Testing notes
 
-New files require Vitest unit tests (`*.spec.tsx` alongside each new component) and at least one integration test for `POST /bookings/authenticated`. Reused components (`ServiceSelectionStep`, etc.) do not need new tests.
+New files require Vitest unit tests (`*.spec.tsx` alongside each new component); `apps/web` has no integration-test tier (the BFF `POST /bookings/authenticated` is covered in the BFF/backend suites and by Playwright). Reused components (`ServiceSelectionStep`, etc.) do not need new tests.
 
 `PersonalInfoStep` (authenticated branch) key test cases:
 - `hideContactFields={true}` → no name/email/phone fields rendered
@@ -164,3 +166,8 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 
 `04b`/`04c`/`04d` are shared by both paths (only the step number differs on the 5-step path). `03d` and `04e` are copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets.
 
+---
+
+### M23-S11 — success details box and the other new steps
+
+The customer path gets the same components as the guest path. See `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § ❓ GAP for the picker, bundle, leg, variable-duration and intake steps and the error table; `04d-success.html` here shows the subtle booking-details box (`BookingSubmittedDetails`) between the unchanged "Solicitação enviada!" message and the buttons, for every booking. `plan/journey/guest/prototypes/book-a-service/04f-success-details-resources.html` shows the resource/leg variant (it applies to both actors).

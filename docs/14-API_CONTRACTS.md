@@ -485,7 +485,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   - `404` if the service doesn't exist or belongs to another tenant
   - Backed by one bounded read, `IServiceIntakeSchemaRepository.findLatestByServiceId(…, SERVICE_INTAKE_HISTORY_LIMIT + 1)`, partitioned by `isActive` (the active version is always the newest) — the payload does not grow with every publish; no separate per-version endpoint
 
-- `GET /services/:id/intake-schema/public` -> Read a service's **active** intake schema only (UC-068 step 1; M23-S02, locked at story-discovery). Public — no auth guard, reuses `GetServiceIntakeSchemaUseCase` but returns only the `active` half of its result, never `history` — a customer has no reason to see prior form versions. Distinct path from the staff-facing `GET /services/:id/intake-schema` above (same path can't carry two different guards/handlers). Response:
+- `GET /services/:id/intake-schema/public` -> Read a service's **active** intake schema only (UC-068 step 1; M23-S02, locked at story-discovery). **BFF route (what the web calls): `GET /public/services/:id/intake-schema`** (`services.public.controller.ts`, `@Public`, `X-Tenant-Slug`); the path above is the backend's. Public — no auth guard, reuses `GetServiceIntakeSchemaUseCase` but returns only the `active` half of its result, never `history` — a customer has no reason to see prior form versions. Distinct path from the staff-facing `GET /services/:id/intake-schema` above (same path can't carry two different guards/handlers). Response:
   ```json
   { "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." } }
   ```
@@ -514,7 +514,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   { "date": "2026-08-04", "columns": [{ "resourceId": "uuid", "name": "Camila Duarte", "type": "STAFF", "blocks": [{ "startsAt": "...", "endsAt": "...", "kind": "BOOKING"|"CLASS_SESSION", "refId": "uuid" }] }] }
   ```
 
-**`GET /schedule/availability` (UC-011) — extended by M22 Cluster 2 (UC-058, UC-059):** the existing endpoint's response is unchanged in shape; internally, once a queried service has non-default `resourceRequirements`/`legs`, the backend scopes the query to the relevant `resourceId(s)` via `IBookingAvailabilityPort` against `booking.resource_occupancy` instead of the whole tenant — see `docs/02-DOMAIN_MODEL.md`. No new query params for this cluster.
+**`GET /schedule/availability` (UC-011) — extended by M22 Cluster 2 (UC-058, UC-059):** the existing endpoint's response is unchanged in shape; internally, once a queried service has non-default `resourceRequirements`/`legs`, the backend scopes the query to the relevant `resourceId(s)` via `IBookingAvailabilityPort` against `booking.resource_occupancy` instead of the whole tenant — see `docs/02-DOMAIN_MODEL.md`. No new query params for this cluster. **Planned (M23-S29):** two optional params, `resourceSelections` (the customer's picks for the queried service's `CUSTOMER_CHOICE` requirements — same item shape as the booking request) and `durationMinutes` (for the one `CUSTOMER_SELECTED` service), compute availability for the service's full requirements with those resources pinned. An **explicit `resourceId` still bypasses the queried service's requirements** (`get-availability.use-case.ts`: it uses only that resource's own schedule and the service's `durationMinutes`), so it is a manager/staff single-resource view, not what the guest/customer booking flow uses.
 
 ---
 
@@ -853,7 +853,7 @@ GET /v1/schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=u
 X-Tenant-Slug: lavacar-test
 ```
 
-`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — omit for tenant-wide availability (today's exact unchanged behavior). When set, scopes the calculation to that resource's own closures/openings/workingHours, combined with the tenant-wide ones (`docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution). Cluster 2 (UC-058/UC-059, planned) will additionally derive this automatically from a queried service's `resourceRequirements` when the caller doesn't pass one explicitly — this explicit param is the foundation that later auto-derivation builds on, not a competing mechanism.
+`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — omit for tenant-wide availability (today's exact unchanged behavior). When set, scopes the calculation to that resource's own closures/openings/workingHours, combined with the tenant-wide ones (`docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution). Without it, M22's availability engine already derives the resources from the queried service's `resourceRequirements`/`legs` (shipped, M22 Cluster 2); an explicit `resourceId` is a single-resource view that ignores them. The chosen resources and duration of the booking flow are passed with M23-S29's `resourceSelections`/`durationMinutes` (planned).
 
 Response `200`:
 ```json

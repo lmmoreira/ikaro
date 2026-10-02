@@ -28,24 +28,13 @@
 <body>
 
   <!--
-    DISCOVERY PROTOTYPE — illustrative only, NOT a plan/journey/ prototype. Added on
-    review (2026-07-29) to close the CAND-19 gap — the multi-leg/spa scenario had zero
-    prototype coverage despite being explicitly scoped in full detail.
-    See ../multivertical-booking.md (§5 Sequential Legs — same JSON example,
-    now with Vitta Studio's own resource names) and
-    ../multivertical-booking_USECASES.md (CAND-19).
-
-    Reuses the "Revisar pedido" summary-card convention from
-    guest/prototypes/book-a-service/, but as a timeline since a multi-leg booking has
-    no single time/resource pair to summarize.
-
-    Middle leg shares Renata Souza + Sala de Terapia with "Massagem Relaxante"
-    (public-04-bundle-booking.html) — same two resources, same cross-service
-    exclusivity (CAND-31) demonstrated from the other direction.
-
-    COMPONENT (GAP): MultiLegItineraryReview
-    BFF CALL (GAP): POST /bookings — request body carries the whole leg chain; response
-      (or a pre-submit GET) returns legAssignments[], matching the discovery doc §5 shape.
+    COMPONENT: LegItineraryStep  apps/web/features/booking/components/public/LegItineraryStep.tsx  (NEW, M23-S11)
+    SCENARIO:  legged service ("Jornada Spa Vitta"). This is the legged service's version of the final summary, not an
+               extra step. Legs, times, durations and transitions are COMPUTED from service.legs + the chosen slot.
+    RESOURCES: a resource is named ONLY when it is the customer's own pick or fixed. Automatic legs/rooms show their type
+               ("Sala — atribuída automaticamente"), never a pool or unit name (no assignment preview exists).
+    ERROR:     409 BOOKING_LEG_UNAVAILABLE -> 10b (static catalogue copy).
+    AFTER:     the booking-submitted details box (04f) shows the leg timeline from the response `itinerary`.
   -->
 
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);
@@ -78,16 +67,14 @@
           <div class="leg-dot"></div><div class="leg-line"></div>
           <p class="leg-time">13:00 – 13:20</p>
           <p class="leg-name">Sauna</p>
-          <p class="leg-resource">Sala de Sauna</p>
+          <p class="leg-resource">Sala — atribuída automaticamente</p>
           <p class="transition-note">+ 10 min de transição antes da próxima etapa</p>
         </div>
-
-        <!-- Same two resources as public-04's bundle — CAND-31 from the other direction -->
         <div class="leg-item">
           <div class="leg-dot"></div><div class="leg-line"></div>
           <p class="leg-time">13:30 – 14:20</p>
           <p class="leg-name">Massagem</p>
-          <p class="leg-resource">Renata Souza · Sala de Terapia</p>
+          <p class="leg-resource">com Renata Souza (sua escolha) · Sala atribuída automaticamente</p>
           <p class="transition-note">+ 5 min de transição antes da próxima etapa</p>
         </div>
 
@@ -95,7 +82,7 @@
           <div class="leg-dot"></div>
           <p class="leg-time">14:25 – 14:45</p>
           <p class="leg-name">Relaxamento</p>
-          <p class="leg-resource">Sala de Relaxamento</p>
+          <p class="leg-resource">Sala — atribuída automaticamente</p>
         </div>
 
       </div>

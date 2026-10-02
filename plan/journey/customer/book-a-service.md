@@ -2,7 +2,7 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Submit a booking request on a tenant's hotsite as an authenticated customer  
-**UCs covered:** UC-021, UC-002, UC-011, UC-068 (intake step — ❓ Gap, M23-S11)  
+**UCs covered:** UC-021, UC-002, UC-011, UC-061–068 (the multi-vertical steps and the intake step — ❓ Gap, `M23-S11` on top of `M23-S29`)  
 **Status:** Reviewed
 
 ## Flow
@@ -38,11 +38,11 @@ flowchart TD
     S4 --> Submit(("Confirmar agendamento"))
     Submit --> POST["POST /bookings/authenticated<br/>Auth: JWT cookie → X-Actor-* headers"]
     POST --> SlotOk{"HTTP status?"}
-    SlotOk -- 201 Created --> Done["'Solicitação enviada!<br/>Aguarde confirmação por email'"]
-    SlotOk -- 409 Conflict --> S2Error["❓ GAP: 'Horário indisponível'<br/>→ back to step 2<br/>(no prototype screen here — guest's<br/>02e-slot-conflict.html is the pattern to reuse)"]
+    SlotOk -- 201 Created --> Done["'Solicitação enviada!<br/>Aguarde confirmação por email'<br/>+ booking-details box (04d, M23-S11)"]
+    SlotOk -- 409 Conflict --> S2Error["'Horário indisponível'<br/>→ back to step 2<br/>(shipped: BOOKING_SLOT_UNAVAILABLE routes to the availability step;<br/>no screen here — guest's 02e-slot-conflict.html is the pattern)"]
 
-    class S1,PickupField,S2,DayClick,SlotPicker,S4,Submit,POST,Done,LoginPage,Callback,Hotsite,CTA,S3 existing
-    class S2Error,Intake gap
+    class S1,PickupField,S2,DayClick,SlotPicker,S4,Submit,POST,Done,LoginPage,Callback,Hotsite,CTA,S3,S2Error existing
+    class Intake gap
 ```
 
 **Note (2026-07-31 docs audit):** this flowchart previously described a generic `/auth/login` + `/api/auth/callback/google` + `/select-tenant` architecture that was never built and has since been superseded — see `customer/login.md`'s 2026-06-24 scope-change note for the canonical, shipped design (tenant-scoped `/{slug}/login`, BFF-only OAuth callback, `/select-tenant` permanently descoped). This file now matches that canonical design instead of duplicating it.
@@ -54,11 +54,12 @@ flowchart TD
 | `/{slug}/login` | `LoginPage` | M13-S42 | ✅ Existing |
 | BFF `GET /v1/auth/google/callback` | BFF-only, no Next.js route | M13-S42 | ✅ Existing |
 | ~~`/select-tenant`~~ | ~~New page (multi-tenant picker)~~ | — | ❌ Descoped — see `customer/login.md` |
-| `/[slug]/booking` Step 1 | `ServiceSelectionStep` (reuse, no changes) | M12-S07 | ✅ Existing |
-| `/[slug]/booking` Step 2 | `AvailabilityCarousel` + `SlotPicker` (reuse) | M12-S07 | ✅ Existing |
+| `/[slug]/booking` Step 1 | `ServiceSelectionStep` (extended by M23-S11: type-aware cards, APPOINTMENT-only list) | M12-S07, M23-S11 | ✅ Existing / ❓ extension |
+| `/[slug]/booking` Step 2 | `AvailabilityCarousel` + `SlotPicker` (extended by M23-S11: `resourceSelections`/`durationMinutes`) | M12-S07, M23-S11 | ✅ Existing / ❓ extension |
 | `/[slug]/booking` Step 3 | `PersonalInfoStep` (reused, `hideContactFields` prop) | M13-S14 | ✅ Existing |
 | `/[slug]/booking` Step 4 (only for intake-bearing services) | `IntakeAnswersStep` (new, shared with the guest path; Confirmation then becomes "Passo 5 de 5") | M23-S11 | ❓ Gap |
-| `/[slug]/booking` final step | `ConfirmationStep` (reuse, no changes) | M12-S07 | ✅ Existing |
+| `/[slug]/booking` final step | `ConfirmationStep` (M23-S11 adds the booking-details box on success) | M12-S07, M23-S11 | ✅ Existing / ❓ extension |
+| `/[slug]/booking` resource / bundle / leg / variable-duration steps | the same components as the guest path (`guest/book-a-service.md` § M23) | M23-S11 | ❓ Gap |
 
 ## Open questions / gaps
 

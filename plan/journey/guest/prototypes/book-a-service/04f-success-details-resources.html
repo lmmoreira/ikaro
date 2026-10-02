@@ -3,24 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Passo 4 — Solicitação enviada</title>
+  <title>Passo 5 de 5 — Solicitação enviada (com recursos)</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
 </head>
 <body>
   <!--
-    VARIANT OF: 04-confirmation.html
-    SCENARIO:   POST /bookings returned 201 Created. status = 'success' — the entire
-                step content is replaced with this view. Terminal state — no nav-buttons.
-    COMPONENTS: ConfirmationStep (EXISTS) + BookingSubmittedDetails (NEW, M23-S11)
-                apps/web/features/booking/components/public/ConfirmationStep.tsx
+    VARIANT OF: 04d-success.html — same success block, details box with resources and a leg timeline (M23-S11).
+    COMPONENTS: ConfirmationStep + BookingSubmittedDetails
                 apps/web/features/booking/components/public/BookingSubmittedDetails.tsx
-    SUCCESS:    "Solicitação enviada! Aguarde a confirmação por email."  (data-testid="booking-success", unchanged)
-    DETAILS BOX (M23-S11): a subtle box between the message and "Voltar para o site", for EVERY booking.
-                Data = the booking response the submission hook keeps: lines (name, price, duration), scheduledAt
-                (formatted in the TENANT timezone with useFormatting), totalPrice, totalDurationMins.
-                Resource lines render only when applicable (see 04f). No hold deadline, countdown or alert button —
-                every one-off booking is created PENDING and the message already says so.
-                Styling: business branding (--ba-* tokens), same look as BookingSummaryCard.
+    RULES for the resource lines (all from the booking response `lines[]`, never an assignment preview):
+      - CUSTOMER_CHOICE  -> the customer's own pick (known from the picker state)
+      - AUTO_ANY         -> `assignedResourceName` (the staff member the system assigned — UC-063)
+      - AUTO_FUNGIBLE_POOL -> NO name at all (UC-062: no unit identity is ever shown)
+      - legged service   -> `itinerary[]` timeline (per-leg time + resource where known — UC-065)
+    No hold deadline, countdown, approval-status branch or alert button.
   -->
   <!-- BRAND + AUTH BAR -->
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);
@@ -29,7 +25,7 @@
       <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
                   color:white;display:flex;align-items:center;justify-content:center;
                   font-weight:700;font-size:0.8125rem;">B</div>
-      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">BeloAuto Demo</span>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
     </div>
     <a href="../../../shared/login.html" style="display:flex;align-items:center;gap:0.375rem;
        font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">
@@ -41,16 +37,21 @@
   </div>
 
   <div class="step-container">
-    <p class="step-indicator">Passo 4 de 4</p>
+    <p class="step-indicator">Passo 5 de 5</p>
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">Solicitação enviada!</h2>
     <p data-testid="booking-success">Solicitação enviada! Aguarde a confirmação por email.</p>
 
     <div class="card" data-testid="booking-submitted-details" style="margin-top:1.25rem;font-size:.875rem;color:var(--ba-text);">
       <p style="font-weight:600;margin-bottom:.5rem;">Detalhes da sua solicitação</p>
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Lavagem Completa</span><span style="text-align:right;">R$ 80,00 · 75 min</span></div>
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Data e horário</span><span style="text-align:right;">qui, 18 de junho de 2026 · 10:00</span></div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Jornada Spa Vitta</span><span style="text-align:right;">R$ 260,00</span></div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Data e horário</span><span style="text-align:right;">seg, 18 de agosto de 2026 · 13:00–14:45</span></div>
+      <ol style="list-style:none;margin:.75rem 0 .25rem;padding:0 0 0 1rem;border-left:2px solid var(--ba-secondary);">
+        <li style="margin-bottom:.625rem;"><strong>13:00 – 13:30</strong> · Sauna</li>
+        <li style="margin-bottom:.625rem;"><strong>13:30 – 14:20</strong> · Massagem<br><span style="opacity:.65;font-size:.8125rem;">com Renata Souza</span></li>
+        <li><strong>14:25 – 14:45</strong> · Relaxamento</li>
+      </ol>
       <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:.5rem 0;">
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;"><strong>Total</strong></span><span style="text-align:right;"><strong>R$ 80,00 · 75 min</strong></span></div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;"><strong>Total</strong></span><span style="text-align:right;"><strong>R$ 260,00 · 105 min</strong></span></div>
     </div>
 
     <a href="../../../shared/hotsite.html"

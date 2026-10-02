@@ -7,15 +7,15 @@
 </head>
 <body>
   <!--
-    DISCOVERY PROTOTYPE — the single availability step shared by appointment-like
-    services. Query/context changes the availability calculation; the interaction does
-    not. It extends the established AvailabilityCarousel + SlotPicker pattern in
-    plan/journey/guest/prototypes/book-a-service/02-calendar-slot.html.
-
-    Examples: customer-chosen staff passes selectedStaffId; AUTO_ANY passes no resource
-    id; a fungible pool passes the requirement/pool; a bundle intersects all required
-    resources; a journey returns feasible start slots across every leg. Assignment occurs
-    atomically only on booking submission, never as a promise while browsing a slot.
+    COMPONENTS: AvailabilityStep (+ AvailabilityCarousel/AvailabilityCalendar + SlotPicker) — EXISTING, extended in M23-S11
+    SCENARIO:   the single availability step shared by every appointment-like service. The query changes the calculation;
+                the interaction does not.
+    CALLS:      GET /schedule/availability(/summary)?serviceIds=&resourceSelections=&durationMinutes=  (M23-S29)
+                - customer-chosen staff: the pick goes in resourceSelections; the engine pins it and still intersects the
+                  rest of the service (a bundle's room, every leg of a journey, requiredQuantity)
+                - AUTO_ANY / pool: no selection — the engine derives the resources
+                - CUSTOMER_SELECTED duration: durationMinutes
+                Assignment happens atomically only on booking submission, never as a promise while browsing a slot.
   -->
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.625rem 1.5rem;display:flex;justify-content:space-between"><strong>Vitta Studio</strong><a href="../../../shared/login.html">Entrar</a></div>
   <main class="step-container">
