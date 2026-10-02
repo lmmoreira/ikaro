@@ -53,7 +53,7 @@
 NotificationDispatcherAdapter (INotificationDispatcher)
   └── route by message.channel → find matching IDeliveryChannel
         └── EmailDeliveryChannelAdapter  (channelType = 'EMAIL')
-              │  resolves from: tenantInfo.fromEmail ?? EMAIL_FROM env
+              │  From = EMAIL_FROM env (tenant name as display name, Reply-To = businessInfo.email) — per-tenant fromEmail removed in M18-S09
               └── IEmailSender  (pure transport — no rendering)
                     ├── MailhogEmailAdapter   (EMAIL_ADAPTER=mailhog — local dev default)
                     └── SendGridEmailAdapter  (EMAIL_ADAPTER=sendgrid)
@@ -115,7 +115,7 @@ NotificationDispatcherAdapter (INotificationDispatcher)
 | Var | Default | Notes |
 |---|---|---|
 | `EMAIL_ADAPTER` | `mailhog` | `sendgrid` in staging/prod |
-| `EMAIL_FROM` | — | Global sender fallback; per-tenant override via `settings.notification.fromEmail` |
+| `EMAIL_FROM` | — | Platform sender address for all tenants (per-tenant override removed in M18-S09) |
 | `SENDGRID_API_KEY` | — | Required only when `EMAIL_ADAPTER=sendgrid`; never log |
 | `PUBSUB_MAX_DELIVERY_ATTEMPTS` | `5` | Nack threshold before DLQ routing |
 | `PUBSUB_AUTO_CREATE` | `true` | Set `false` in staging/prod |

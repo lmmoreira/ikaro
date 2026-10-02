@@ -8,7 +8,7 @@
 
 ## Overview
 
-✅ **Fully shipped** (`M13-S31`). Updated 2026-07-31 — this file previously claimed the BFF endpoint didn't exist; it does, and the real form has 7 sections / far more fields than originally scoped here (deliberate scope expansion during `M13-S31`, never backfilled into this handoff doc until now).
+✅ **Fully shipped** (`M13-S31`). Updated 2026-07-31 — this file previously claimed the BFF endpoint didn't exist; it does, and the real form has 6 sections (7 until M18-S09 removed Notificações — emails now always go From the platform sender with Reply-To = the Contato email, so there is no tenant sender setting) / far more fields than originally scoped here (deliberate scope expansion during `M13-S31`, never backfilled into this handoff doc until now).
 
 ---
 
@@ -71,14 +71,13 @@ Verify exact key casing (`businessHours` vs `business_hours`) against the actual
 
 ## Field set (real, ✅ shipped — expanded well beyond the original scope)
 
-The real `SettingsForm.tsx` has 7 sections, not the 5 this file originally described:
+The real `SettingsForm.tsx` has 6 sections, not the 5 this file originally described (the former Notificações section was removed in M18-S09):
 
 | Section | Fields |
 |---|---|
 | Geral | name, slug (read-only) |
 | Agendamento | cancellationWindowHours, serviceBufferMinutes, **autoApproveEnabled**, **minBookingAdvanceHours**, **maxBookingAdvanceDays**, **slotGranularityMinutes**, **welcomeStaffScreenDays** |
 | Fidelidade | loyaltyExpiryDays, **pointsPerCurrencyUnit**, **loyaltyEnableNotifications**, **loyaltyExpiryWarningDays**, **loyaltyNotificationMinPoints** |
-| **Notificações** (missing from the original draft entirely) | notificationFromEmail |
 | Horário | timezone + per-day open/close/closed |
 | Contato | phone, email, **structured address** (zipCode with ViaCEP lookup, number, street, complement, neighborhood, city, state — not one free-text line as originally drafted), **social links** (whatsapp, instagram, facebook) |
 | **Chatbot** (✅ shipped — added 2026-08-08, built by the M19 chatbot milestone) | `chatbot.knowledgeText` only — see below |

@@ -1203,7 +1203,7 @@ None outstanding for Parts 1–6 — `ModuleConfigShell`, `HotsitePreview`, `dra
 
 **Agent:** `backend-ts` (plus `web-ts` for the settings form and shared-package edits)
 **Complexity:** M
-**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` § 4, `docs/04-USE_CASES.md` § UC-026, `docs/02-DOMAIN_MODEL.md` (tenant settings), `docs/13-DATABASE_SCHEMA.md` (tenants.settings), `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/ENGINEERING_RULES_SHARED.md` § Value objects, `docs/CODE_STANDARDS.md`
+**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` § 4, `docs/04-USE_CASES.md` § UC-026, `docs/02-DOMAIN_MODEL.md` (tenant settings), `docs/13-DATABASE_SCHEMA.md` (tenants.settings), `docs/ENGINEERING_RULES_SHARED.md` § Value objects, `docs/CODE_STANDARDS.md`
 **Dependencies:** none
 **Pattern:** plain composition — no named pattern applies
 
@@ -1219,22 +1219,19 @@ Per-tenant From addresses cannot scale on Brevo: each address needs individual v
 Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at discovery):
 1. The whole `settings.notification` block is removed from the domain, the shared packages, the BFF and the dashboard. There is no `replyTo` setting of its own, and no dual field.
 2. `NotificationTenantInfo.fromEmail` becomes `replyToEmail: string | null`, sourced from `businessInfo.email`. `EmailSendOptions` gets `fromName?: string` and `replyTo?: string`; `from` stays the bare address. Both adapters (Brevo, MailHog) pass them through nodemailer's structured `{ name, address }` form. Do NOT hand-concatenate `"Name" <addr>` strings, because tenant names can contain quotes or CRLF and nodemailer sanitizes headers.
-3. **Rollout compatibility:** a stale dashboard tab or API client may still send `settings.notification` on PATCH. The BFF and backend schemas must strip it and not reject it (no 400 during the rollout window). Reads never return it.
-4. **Data migration** (new, separate migration job, never at startup): for every tenant, (a) if `settings.businessInfo.email` is null/absent and `settings.notification.fromEmail` is non-null, copy it into `businessInfo.email`; (b) remove the `notification` key. The `down` migration is a documented no-op, because the removed value is not recoverable and the feature is gone. A tenant such as the staging one therefore keeps its Gmail as its Reply-To contact. (Open item for `/story-discovery`: confirm whether `businessInfo.email` is rendered publicly — see "Open items" below — before keeping the copy step.)
+3. **No stale-client tolerance (discovery, 2026-10-02):** the project is pre-production, so the shared update schema (`buildUpdateTenantSettingsSchema`, `.strict()`) simply drops its `notification` key; a stale tab that still sends it gets a 400 like any unknown key. No compat shim.
+4. **No data migration (discovery, 2026-10-02):** there are no production tenants. The only stored `settings.notification` (staging) was removed manually by the user via `UPDATE platform.tenants SET settings = settings #- '{notification}' WHERE settings ? 'notification'` (verified: 0 rows left). Nothing is copied into `businessInfo.email` (it is public — hotsite manifest and chatbot prompt — so auto-copying a private address would publish it); the staging tenant sets its own business email via the dashboard if it wants a Reply-To. No migration file, no `integration-global-setup.ts` registration.
 5. The `architecture-policy.json` `requiredVo` entry for `notification.fromEmail` is removed along with the field.
 6. Out of scope: per-tenant authenticated sending domains (a possible future story), and any Reply-To override separate from `businessInfo.email`.
 
-**Open items for `/story-discovery`:**
-- Confirm whether `businessInfo.email` is exposed on the public hotsite or chatbot context (`apps/bff/src/features/platform/platform.public.controller.ts`, `chatbot-context.ts` read `businessInfo`). If it is, auto-copying a private address into it could publish it; then drop the copy step or limit it.
-- Locate the `SettingsForm` component's Notificações section and the exact i18n keys (marked "locate" below).
-- Confirm the exact table/schema name for the migration (`platform.tenants` vs `tenants`).
+**Discovery resolutions (2026-10-02):** `businessInfo.email` IS public (hotsite manifest `business.email`, chatbot system prompt), so Reply-To exposes it to email recipients by design and nothing is auto-copied. The Notificações UI is `SettingsNotificationSection.tsx` (+ spec), wired in `SettingsForm.tsx`. Table is `platform.tenants` (`settings JSONB`). `docs/21` §4 stays as a "removed" tombstone (no renumbering, so `§5`–`§8` citations stay valid).
 
 **Backend use case steps:** none (no new use case). Behavior change in `EmailDeliveryChannelAdapter.send()`: (1) load `tenantInfo`; (2) `from = EMAIL_FROM`, `fromName = tenantInfo.name` (omitted when tenantInfo is null); (3) `replyTo = tenantInfo.replyToEmail ?? undefined`; (4) call `emailSender.send(...)`.
 **Backend HTTP surface:** reuses `PATCH/GET /v1/tenant/settings` with the `notification` key removed from the contract. No new endpoint.
-**BFF endpoint spec:** reuses the existing tenant-settings endpoints; the `NotificationSchema` / `notification` property is removed from the request/response schemas. Legacy `notification` in a PATCH body is stripped.
-**New migration / i18n keys / env vars / feature flags:** one new migration under `apps/backend/src/contexts/platform/infrastructure/migrations/` (data-only, JSONB). Locale JSON: the "Notificações" section keys are removed from BOTH `pt-BR` and `en` in the same change (exact keys located at discovery). No env vars, no flags.
+**BFF endpoint spec:** reuses the existing tenant-settings endpoints; the `notification` property is removed from the request/response schemas (shared `buildUpdateTenantSettingsSchema` stays `.strict()`).
+**New migration / i18n keys / env vars / feature flags:** none new. i18n removals in BOTH `pt-BR` and `en`: `web.json` `sections.notification`, `notificationFromEmailLabel`, `notificationFromEmailHint`, `errors.notificationFromEmailInvalid`; `errors.json` `PLATFORM_SETTINGS_NOTIFICATION_EMAIL_INVALID`.
 
-**Files to create/modify:** (paths confirmed to exist by grep on 2026-10-02, except where marked "locate")
+**Files to create/modify:** (paths confirmed to exist by grep on 2026-10-02)
 - `apps/backend/src/contexts/notification/infrastructure/delivery/email-delivery-channel.adapter.ts` (+ `.spec.ts`)
 - `apps/backend/src/contexts/notification/infrastructure/delivery/brevo-email.adapter.ts` (+ `.spec.ts`), `mailhog-email.adapter.ts`
 - `apps/backend/src/contexts/notification/application/ports/email-sender.port.ts`
@@ -1247,33 +1244,31 @@ Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at disc
 - `apps/backend/src/shared/value-objects/tenant-settings-data.ts`, `apps/backend/src/shared/database/seed.ts`
 - `apps/backend/src/test/builders/platform/tenant-settings-props.builder.ts`
 - `apps/backend/src/contexts/platform/application/use-cases/update-tenant-settings.use-case.spec.ts`, `apps/backend/src/contexts/platform/infrastructure/controllers/tenant-settings.controller.integration.spec.ts`
-- `apps/backend/src/contexts/platform/infrastructure/migrations/<next-timestamp>-RemoveTenantNotificationSettings.ts` (new) + an integration spec for the migration
-- `packages/types/src/tenant.dto.ts`, `packages/validation/src/tenant-settings.ts`
+- `packages/types/src/tenant.dto.ts`, `packages/types/src/error-codes.ts` (remove `SETTINGS_NOTIFICATION_EMAIL_INVALID`), `packages/validation/src/tenant-settings.ts` (remove `NotificationSettingsSchema` and the `notification` key)
 - `packages/architecture-check/architecture-policy.json` (remove the `notification.fromEmail` `requiredVo` entry; needs the explicit doc/config yes, §0)
 - `apps/bff/src/features/platform/tenant-settings.controller.spec.ts`, `apps/bff/http/platform/tenant-settings.http`
-- `apps/web/features/platform/settings-form.ts`, `settings-form-validation.ts`, `settings-form.spec.ts`, `api/tenant-settings.spec.ts`, `components/settings/SettingsForm.spec.tsx`, and the Notificações section in the `SettingsForm` component (locate), plus `packages/i18n/locales/{pt-BR,en}/*.json` (locate)
-- `docs/21-TENANTS_SETTINGS_SCHEMA.md` (remove § 4, fix the example JSON blocks at ~lines 435 and 510, renumber), `docs/04-USE_CASES.md` UC-026 note (~line 2403), `docs/02-DOMAIN_MODEL.md` / `docs/13-DATABASE_SCHEMA.md` if they mention the block, `plan/journey/manager/prototypes/configuracoes/dev-notes.md` (one-sentence sync). Historical milestone files (`plan/M13-*`, `plan/M11-*`) are NOT edited.
+- `apps/web/features/platform/settings-form.ts`, `settings-form-validation.ts`, `settings-form.spec.ts`, `api/tenant-settings.spec.ts`, `components/settings/SettingsForm.tsx` + `SettingsForm.spec.tsx`, `components/settings/SettingsNotificationSection.tsx` + `.spec.tsx` (delete), `apps/web/e2e/helpers/platform/settings-api.ts` (drops `notification` passthrough), `packages/i18n/locales/{pt-BR,en}/{web,errors}.json`
+- Additional `fromEmail` fixture specs beyond the ~12 above: `seed-default-templates.use-case.spec.ts`, `staff-invited.handler.spec.ts`, `send-staff-invitation.use-case.spec.ts`, `send-admin-daily-schedule-reminder-notification.use-case.spec.ts` (find all with `grep -rl fromEmail`)
+- Docs/prototypes already synced during discovery (2026-10-02): `docs/21-TENANTS_SETTINGS_SCHEMA.md` (§4 tombstone, examples), `docs/04-USE_CASES.md` UC-026 note, `plan/journey/manager/prototypes/configuracoes/**` (Notificações card removed from 01/01b/01c/01d, counts 7→6 in `index.html`/`01e`/`dev-notes.md`), `plan/M11-NOTIFICATIONS-CRON_IMPLEMENTATION_DETAILS_IA.md` (EMAIL_FROM lines). `docs/02`/`docs/13` do not mention the block. Historical milestone files (`plan/M13-*`, `plan/M11-*`) are NOT edited.
 
 **Acceptance criteria — product:**
 - [ ] Every outbound email is sent From the platform `EMAIL_FROM` address with the tenant's name as display name, regardless of any legacy stored value.
 - [ ] A reply to any tenant email goes to the tenant's `businessInfo.email`; when that is empty, no Reply-To header is present.
 - [ ] The Configurações form no longer shows a Notificações / sender-email field, in either locale.
-- [ ] The staging tenant (formerly `fromEmail = lm.moreira@gmail.com`) sends "Novo agendamento recebido" successfully, with Reply-To = its former Gmail.
-- [ ] A stale client PATCH that still includes `settings.notification` succeeds and the key is not persisted.
+- [ ] The staging tenant (legacy `notification` already removed manually) sends "Novo agendamento recebido" successfully From the platform address; it has a Reply-To only once its `businessInfo.email` is set.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `email-delivery-channel.adapter.spec.ts`: From = `EMAIL_FROM`, `fromName` = tenant name, `replyTo` = `replyToEmail`; null `replyToEmail` ⇒ `replyTo` undefined; null tenantInfo ⇒ no `fromName`/`replyTo`, still sends.
-  - [ ] `brevo-email.adapter.spec.ts` and the MailHog equivalent: structured `from {name,address}` and `replyTo` reach nodemailer; a tenant name containing `"` and `\r\n` produces no header injection.
-  - [ ] `tenant-settings.spec.ts`: legacy props with `notification` are accepted and the key is dropped from `toJSON()`; the `notification-settings.validator` spec is removed.
+  - [ ] `brevo-email.adapter.spec.ts` and the MailHog equivalent: structured `from {name,address}` and `replyTo` reach nodemailer; plus one test using real nodemailer (`streamTransport`, no `jest.mock`) proving a tenant name containing `"` and `\r\n` yields no injected header line in the raw message (a mocked transporter cannot prove this).
+  - [ ] `tenant-settings.spec.ts`: no `notification` in props/`toJSON()`/defaults; the `notification-settings.validator` spec is removed.
   - [ ] `notification-platform.adapter.spec.ts`: `replyToEmail` mapped from `businessInfo.email` (null when absent).
   - [ ] web: `settings-form.spec.ts` / `SettingsForm.spec.tsx` have no notification field and the submit payload has no `notification` key.
 - Integration:
-  - [ ] Migration spec: tenant with `fromEmail` set and `businessInfo.email` null ⇒ email copied and `notification` key gone; tenant with both set ⇒ `businessInfo.email` unchanged and `notification` gone; tenant with no `notification` ⇒ unchanged; migration is idempotent on re-run.
-  - [ ] `tenant-settings.controller.integration.spec.ts`: PATCH with legacy `notification` ⇒ 200, not persisted; GET never returns it.
+  - [ ] `tenant-settings.controller.integration.spec.ts`: GET never returns `notification`; PATCH with `notification` ⇒ 400 (strict schema).
   - [ ] `send-booking-requested-notification.use-case.integration.spec.ts`: the sent message carries the platform From, tenant display name and tenant Reply-To.
 - Tenant isolation:
-  - [ ] Two tenants with different `businessInfo.email` each get their own Reply-To on messages for their own `tenantId`; neither leaks into the other. The migration touches only the `settings` JSON and never changes `tenant_id`.
+  - [ ] Two tenants with different `businessInfo.email` each get their own Reply-To on messages for their own `tenantId`; neither leaks into the other.
 - E2E:
   - [ ] none — the settings form change is covered by `SettingsForm` unit specs and the delivery change by integration specs. (Discovery to confirm whether an existing settings E2E asserts the Notificações section.)
 - [ ] Coverage ≥80% on changed code

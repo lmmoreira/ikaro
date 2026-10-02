@@ -21,7 +21,6 @@ The `tenants.settings` column is a JSONB field that stores per-tenant configurat
   "loyalty": { ... },
   "booking": { ... },
   "businessHours": { ... },
-  "notification": { ... },
   "localization": { ... },
   "businessInfo": { ... },
   "chatbot": { ... },
@@ -194,34 +193,14 @@ const isWithinHours = bookingTimeLocal.toFormat("HH:mm") >= dayHours.open &&
 
 ---
 
-### **4. Notification Settings** (`settings.notification`)
+### **4. ~~Notification Settings~~** (removed in M18-S09)
 
-Controls per-tenant email delivery behaviour.
+`settings.notification` (a per-tenant `fromEmail` sender override) no longer exists. Per-tenant From addresses cannot scale on Brevo — each needs individual validation, and public-mailbox addresses (Gmail, Hotmail) can never be domain-authenticated, so a tenant saving one silently broke ALL of its email. Instead, every outbound email is sent:
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `fromEmail` | string \| null | null | Custom sender address for this tenant's emails (e.g. `"lavagem@<ikaro-domain>"`). When null, the global `EMAIL_FROM` environment variable is used. Must be a valid email address. |
+- **From** the platform's authenticated `EMAIL_FROM` address, with the tenant's name as display name (`"Lava Rápido do João" <noreply@ikaro.online>`).
+- **Reply-To** the tenant's `businessInfo.email` (§6). When it is null/absent, no Reply-To header is sent.
 
-**Example:**
-```json
-{
-  "notification": {
-    "fromEmail": "lavagem@<ikaro-domain>"
-  }
-}
-```
-
-**Validation Rules:**
-- `fromEmail` must be a valid email address when present
-- If null or absent, falls back to the global `EMAIL_FROM` env var
-- The address must be verified as a sender in Brevo before emails will be delivered in staging/production (confirm Brevo's exact sender/domain-verification menu path at implementation time)
-
-**Usage in code:**
-```typescript
-// EmailDeliveryChannelAdapter resolves from address:
-const tenantInfo = await tenantPort.getTenantInfo(message.tenantId);
-const from = tenantInfo?.fromEmail ?? config.get('EMAIL_FROM');
-```
+There is no tenant-level sender or reply-to setting. The section number is kept (not renumbered) so existing `§5`–`§8` citations in other docs stay valid. A stray `notification` key in a stored row (pre-M18-S09 data) is not part of the schema; clean it with a one-off `UPDATE platform.tenants SET settings = settings #- '{notification}'` — no migration (pre-production, M18-S09 decision).
 
 ---
 
@@ -431,9 +410,6 @@ Configuration for the `LEAD_FORM` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHI
     "saturday": { "open": "09:00", "close": "17:00" },
     "sunday": null
   },
-  "notification": {
-    "fromEmail": null
-  },
   "localization": {
     "countryCode": "BR",
     "currency": "BRL",
@@ -505,9 +481,6 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
     "friday": { "open": "09:00", "close": "18:00" },
     "saturday": { "open": "09:00", "close": "17:00" },
     "sunday": null
-  },
-  "notification": {
-    "fromEmail": null
   },
   "localization": {
     "countryCode": "BR",

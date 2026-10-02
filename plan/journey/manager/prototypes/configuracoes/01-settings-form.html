@@ -53,10 +53,11 @@
     200 → 01c-saved-success.html
     422 validation → 01b-validation-error.html
 
-    Real form has 7 sections (this screen was expanded 2026-07-31 to match): Geral,
-    Agendamento, Fidelidade, Notificações, Horário, Contato, Localização — the last
-    two (Notificações, Localização) plus several fields below were entirely missing
-    from this screen before that date.
+    Real form has 6 sections (this screen was expanded 2026-07-31 to match): Geral,
+    Agendamento, Fidelidade, Horário, Contato, Localização — the last (Localização)
+    plus several fields below were entirely missing from this screen before that date.
+    The former Notificações section (tenant sender email) was removed in M18-S09:
+    emails are always sent from the platform sender, with Reply-To = Contato › email.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -214,16 +215,6 @@
               <label class="form-label" for="notificationMinPoints">Pontos mínimos para avisar</label>
               <input id="notificationMinPoints" type="number" min="0" class="form-input" value="50">
             </div>
-          </div>
-        </div>
-
-        <!-- Notificações -->
-        <div class="section-card">
-          <div class="section-card-title">Notificações</div>
-          <div class="section-card-sub">Remetente usado nos e-mails enviados pelo sistema</div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label" for="fromEmail">E-mail de envio</label>
-            <input id="fromEmail" type="email" class="form-input" placeholder="contato@beloauto.com.br">
           </div>
         </div>
 
