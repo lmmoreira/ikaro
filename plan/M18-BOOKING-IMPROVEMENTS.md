@@ -1199,7 +1199,7 @@ None outstanding for Parts 1–6 — `ModuleConfigShell`, `HotsitePreview`, `dra
 
 ---
 
-## M18-S09 — Remove tenant `notification.fromEmail`; always send From the platform sender, with the tenant name as display name and `businessInfo.email` as Reply-To
+## M18-S09 — Remove tenant `notification.fromEmail`; always send From the platform sender, with the tenant name as display name and `businessInfo.email` as Reply-To ✅ Done
 
 **Agent:** `backend-ts` (plus `web-ts` for the settings form and shared-package edits)
 **Complexity:** M
