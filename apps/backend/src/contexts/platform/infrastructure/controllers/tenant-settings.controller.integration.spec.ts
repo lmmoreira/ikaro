@@ -395,20 +395,23 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.settings.businessInfo.socialLinks).toBeNull();
   });
 
-  it('returns 200 and persists a notification.fromEmail update', async () => {
-    const { body } = await request(app.getHttpServer())
+  it('rejects the removed settings.notification key with 400 and never returns it on GET', async () => {
+    await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
       .send({
         settings: { notification: { fromEmail: 'reservas@lavacar.com.br' } },
       })
+      .expect(400);
+
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
       .expect(200);
 
-    expect(body.settings.notification).toEqual({ fromEmail: 'reservas@lavacar.com.br' });
-
-    const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
-    expect(row!.settings.notification?.fromEmail).toBe('reservas@lavacar.com.br');
+    expect(body.settings).not.toHaveProperty('notification');
   });
 
   it('returns 200 and persists a chatbot.knowledgeText update', async () => {

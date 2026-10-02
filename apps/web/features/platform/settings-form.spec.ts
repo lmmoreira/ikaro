@@ -62,7 +62,6 @@ function buildTenant(overrides?: Partial<TenantSettingsResponse>): TenantSetting
         },
         socialLinks: null,
       },
-      notification: { fromEmail: null },
       chatbot: { knowledgeText: '' },
       leadForm: { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 },
     },
@@ -106,7 +105,6 @@ describe('toSettingsFormValues', () => {
     expect(values.loyaltyExpiryWarningDays).toBe('15');
     expect(values.loyaltyEnableNotifications).toBe(true);
     expect(values.loyaltyNotificationMinPoints).toBe('10');
-    expect(values.notificationFromEmail).toBe('');
     expect(values.socialLinks).toEqual({ whatsapp: '', instagram: '', facebook: '' });
     expect(values.retentionMonths).toBe('6');
     expect(values.maxSubmissionsPerDay).toBe('100');
@@ -195,7 +193,7 @@ describe('validateSettingsForm', () => {
     expect(normalized?.settings.businessHours?.sunday).toBeNull();
     expect(normalized?.settings.businessHours?.monday).toEqual({ open: '08:00', close: '18:00' });
     expect(normalized?.settings.businessInfo?.phone).toBe('+5531999999999');
-    expect(normalized?.settings.notification).toEqual({ fromEmail: null });
+    expect(normalized?.settings).not.toHaveProperty('notification');
     expect(normalized?.settings.leadForm).toEqual({
       retentionMonths: 6,
       maxSubmissionsPerDay: 100,
@@ -516,93 +514,6 @@ describe('validateSettingsForm', () => {
       );
       expect(over.errors.loyaltyNotificationMinPoints).toBe('errors.notificationMinPointsMax');
       expect(over.normalized).toBeNull();
-    });
-  });
-
-  describe('notification.fromEmail', () => {
-    it('accepts a blank value as null', () => {
-      const { errors, normalized } = validateSettingsForm(
-        validValues({ notificationFromEmail: '' }),
-        BR,
-        t,
-      );
-
-      expect(errors).toEqual({});
-      expect(normalized?.settings.notification).toEqual({ fromEmail: null });
-    });
-
-    it('accepts a valid email', () => {
-      const { errors, normalized } = validateSettingsForm(
-        validValues({ notificationFromEmail: 'reservas@lavacar.com.br' }),
-        BR,
-        t,
-      );
-
-      expect(errors).toEqual({});
-      expect(normalized?.settings.notification).toEqual({ fromEmail: 'reservas@lavacar.com.br' });
-    });
-
-    it('rejects an invalid email', () => {
-      const { errors, normalized } = validateSettingsForm(
-        validValues({ notificationFromEmail: 'not-an-email' }),
-        BR,
-        t,
-      );
-
-      expect(errors.notificationFromEmail).toBe('errors.notificationFromEmailInvalid');
-      expect(normalized).toBeNull();
-    });
-  });
-
-  describe('leadForm fields', () => {
-    it('normalizes all three fields at their defaults', () => {
-      const { errors, normalized } = validateSettingsForm(validValues(), BR, t);
-
-      expect(errors).toEqual({});
-      expect(normalized?.settings.leadForm).toEqual({
-        retentionMonths: 6,
-        maxSubmissionsPerDay: 100,
-        maxSubmissionsPerIpPerDay: 3,
-      });
-    });
-
-    it('rejects retentionMonths outside 1-24, independently of the other two fields', () => {
-      const { errors, normalized } = validateSettingsForm(
-        validValues({ retentionMonths: '25' }),
-        BR,
-        t,
-      );
-
-      expect(errors.retentionMonths).toBe('errors.leadFormRetentionMonthsInvalid');
-      expect(errors.maxSubmissionsPerDay).toBeUndefined();
-      expect(errors.maxSubmissionsPerIpPerDay).toBeUndefined();
-      expect(normalized).toBeNull();
-
-      expect(
-        validateSettingsForm(validValues({ retentionMonths: '0' }), BR, t).errors.retentionMonths,
-      ).toBe('errors.leadFormRetentionMonthsInvalid');
-    });
-
-    it('rejects maxSubmissionsPerDay outside 1-1000', () => {
-      const over = validateSettingsForm(validValues({ maxSubmissionsPerDay: '1001' }), BR, t);
-      expect(over.errors.maxSubmissionsPerDay).toBe('errors.leadFormMaxSubmissionsPerDayInvalid');
-      expect(over.normalized).toBeNull();
-
-      const under = validateSettingsForm(validValues({ maxSubmissionsPerDay: '0' }), BR, t);
-      expect(under.errors.maxSubmissionsPerDay).toBe('errors.leadFormMaxSubmissionsPerDayInvalid');
-    });
-
-    it('rejects maxSubmissionsPerIpPerDay outside 1-100', () => {
-      const over = validateSettingsForm(validValues({ maxSubmissionsPerIpPerDay: '101' }), BR, t);
-      expect(over.errors.maxSubmissionsPerIpPerDay).toBe(
-        'errors.leadFormMaxSubmissionsPerIpPerDayInvalid',
-      );
-      expect(over.normalized).toBeNull();
-
-      const under = validateSettingsForm(validValues({ maxSubmissionsPerIpPerDay: '0' }), BR, t);
-      expect(under.errors.maxSubmissionsPerIpPerDay).toBe(
-        'errors.leadFormMaxSubmissionsPerIpPerDayInvalid',
-      );
     });
   });
 

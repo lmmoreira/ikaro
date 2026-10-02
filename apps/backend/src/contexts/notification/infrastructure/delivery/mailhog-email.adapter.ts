@@ -18,7 +18,8 @@ export class MailhogEmailAdapter implements IEmailSender {
 
   async send(options: EmailSendOptions): Promise<void> {
     await this.transporter.sendMail({
-      from: options.from,
+      from: options.fromName ? { name: options.fromName, address: options.from } : options.from,
+      replyTo: options.replyTo,
       to: options.to,
       subject: options.subject,
       html: options.html,

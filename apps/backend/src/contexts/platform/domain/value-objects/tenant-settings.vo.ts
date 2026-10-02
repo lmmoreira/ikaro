@@ -10,7 +10,6 @@ import type {
   LeadFormSettings,
   LocalizationSettings,
   LoyaltySettings,
-  NotificationSettings,
   ResolvedLocalization,
   TenantSettingsData,
 } from '../../../../shared/value-objects/tenant-settings-data';
@@ -21,7 +20,6 @@ import { ChatbotSettingsValidator } from './validators/chatbot-settings.validato
 import { LeadFormSettingsValidator } from './validators/lead-form-settings.validator';
 import { LocalizationSettingsValidator } from './validators/localization-settings.validator';
 import { LoyaltySettingsValidator } from './validators/loyalty-settings.validator';
-import { NotificationSettingsValidator } from './validators/notification-settings.validator';
 import { requireTrimmedString } from './validators/require-trimmed-string';
 import {
   DEFAULT_BOOKING_SETTINGS,
@@ -29,7 +27,6 @@ import {
   DEFAULT_CHATBOT_SETTINGS,
   DEFAULT_LEAD_FORM_SETTINGS,
   DEFAULT_LOYALTY_SETTINGS,
-  DEFAULT_NOTIFICATION_SETTINGS,
   buildDefaultBusinessHours,
 } from './tenant-settings-defaults';
 
@@ -41,7 +38,6 @@ export type {
   LeadFormSettings,
   LocalizationSettings,
   LoyaltySettings,
-  NotificationSettings,
   ResolvedLocalization,
 };
 export type { SocialLinks } from '../../../../shared/value-objects/tenant-settings-data';
@@ -68,10 +64,6 @@ export class TenantSettings {
 
   get localization(): LocalizationSettings {
     return { ...this.props.localization };
-  }
-
-  get notification(): NotificationSettings {
-    return this.props.notification ?? { fromEmail: null };
   }
 
   resolveLocalization(): ResolvedLocalization {
@@ -136,7 +128,6 @@ export class TenantSettings {
         language: spec.language,
         decimalPlaces: 2,
       },
-      notification: DEFAULT_NOTIFICATION_SETTINGS,
       businessInfo: DEFAULT_BUSINESS_INFO_SETTINGS,
       chatbot: DEFAULT_CHATBOT_SETTINGS,
       leadForm: DEFAULT_LEAD_FORM_SETTINGS,
@@ -154,9 +145,9 @@ export class TenantSettings {
       businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, resolvedCountryCode),
     };
     TenantSettings.validate(normalizedProps);
-    // Runs strictly after validate() succeeds: BusinessInfoValidator/NotificationSettingsValidator
+    // Runs strictly after validate() succeeds: BusinessInfoValidator
     // already confirmed the raw format via Email.isValid() and throw their own typed error codes
-    // (SETTINGS_BUSINESS_EMAIL_INVALID / SETTINGS_NOTIFICATION_EMAIL_INVALID) on a bad value — an
+    // (SETTINGS_BUSINESS_EMAIL_INVALID) on a bad value — an
     // already-valid email can never fail Email.create() here, so this step only ever normalizes
     // (lowercase/trim), never changes what error a caller sees for invalid input.
     return new TenantSettings(TenantSettings.normalizeValidatedEmails(normalizedProps));
@@ -178,7 +169,6 @@ export class TenantSettings {
     BookingSettingsValidator.validate(props.booking);
     BusinessHoursValidator.validate(props.businessHours);
     LocalizationSettingsValidator.validate(props.localization);
-    NotificationSettingsValidator.validate(props.notification);
     BusinessInfoValidator.validate(props.businessInfo);
     ChatbotSettingsValidator.validate(props.chatbot);
     LeadFormSettingsValidator.validate(props.leadForm);
@@ -223,13 +213,6 @@ export class TenantSettings {
         props.businessInfo?.email == null
           ? props.businessInfo
           : { ...props.businessInfo, email: Email.create(props.businessInfo.email).address },
-      notification:
-        props.notification?.fromEmail == null
-          ? props.notification
-          : {
-              ...props.notification,
-              fromEmail: Email.create(props.notification.fromEmail).address,
-            },
     };
   }
 }

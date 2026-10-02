@@ -162,20 +162,12 @@ describe('TenantSettingsController', () => {
       expect(result.success).toBe(true);
     });
 
-    it('accepts a notification.fromEmail update', () => {
+    it('rejects the removed notification key (M18-S09)', () => {
       const result = UpdateTenantSettingsBodySchema.safeParse({
         settings: { notification: { fromEmail: 'reservas@lavacar.com.br' } },
       });
 
-      expect(result.success).toBe(true);
-    });
-
-    it('accepts notification.fromEmail set to null', () => {
-      const result = UpdateTenantSettingsBodySchema.safeParse({
-        settings: { notification: { fromEmail: null } },
-      });
-
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
     });
 
     it('accepts businessInfo.socialLinks set to null (all fields blank client-side)', () => {

@@ -5,7 +5,6 @@ import {
   LeadFormSettings,
   LocalizationSettings,
   LoyaltySettings,
-  NotificationSettings,
   SocialLinks,
   TenantSettings,
   TenantSettingsProps,
@@ -36,11 +35,6 @@ export class TenantSettingsPropsBuilder {
 
   withLocalization(overrides: Partial<LocalizationSettings>): this {
     this.props.localization = { ...this.props.localization, ...overrides };
-    return this;
-  }
-
-  withNotification(overrides: Partial<NotificationSettings>): this {
-    this.props.notification = { fromEmail: null, ...this.props.notification, ...overrides };
     return this;
   }
 

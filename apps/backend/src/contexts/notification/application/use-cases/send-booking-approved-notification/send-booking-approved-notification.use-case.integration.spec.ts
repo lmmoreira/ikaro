@@ -45,7 +45,7 @@ describe('SendBookingApprovedNotificationUseCase — inbox atomic claim (integra
       slug: 'lavacar',
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
-      fromEmail: null,
+      replyToEmail: null,
     });
     const templateRepo = new InMemoryNotificationTemplateRepository();
     templateRepo.seed(

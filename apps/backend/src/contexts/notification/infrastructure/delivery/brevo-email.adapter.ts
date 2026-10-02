@@ -29,7 +29,8 @@ export class BrevoEmailAdapter implements IEmailSender {
     try {
       await this.transporter.sendMail({
         to: options.to,
-        from: options.from,
+        from: options.fromName ? { name: options.fromName, address: options.from } : options.from,
+        replyTo: options.replyTo,
         subject: options.subject,
         html: options.html,
       });

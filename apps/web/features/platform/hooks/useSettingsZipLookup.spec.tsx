@@ -44,7 +44,6 @@ function baseValues(): SettingsFormValues {
       state: '',
       zipCode: '',
     },
-    notificationFromEmail: '',
     socialLinks: { whatsapp: '', instagram: '', facebook: '' },
     knowledgeText: '',
     retentionMonths: '6',

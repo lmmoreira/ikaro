@@ -23,12 +23,13 @@ export class EmailDeliveryChannelAdapter implements IDeliveryChannel {
 
   async send(message: OutboundMessage): Promise<void> {
     const tenantInfo = await this.tenantPort.getTenantInfo(message.tenantId);
-    const from =
-      tenantInfo?.fromEmail ?? this.config.get<string>('EMAIL_FROM', 'noreply@ikaro.example');
+    const from = this.config.get<string>('EMAIL_FROM', 'noreply@ikaro.example');
 
     await this.emailSender.send({
       to: message.to,
       from,
+      fromName: tenantInfo?.name,
+      replyTo: tenantInfo?.replyToEmail ?? undefined,
       subject: message.subject,
       html: message.body,
     });

@@ -111,12 +111,6 @@ export const BusinessInfoSettingsSchema = z
   })
   .partial();
 
-export const NotificationSettingsSchema = z
-  .object({
-    fromEmail: z.string().nullable(),
-  })
-  .partial();
-
 // Only `knowledgeText` is accepted here — the resolved `maxKnowledgeTextLength` cap (default or a
 // tenant's own Ikaro-granted override) is enforced by ChatbotSettingsValidator in the backend's
 // domain layer, not here: a hardcoded Zod .max() would make an above-default override unenforceable.
@@ -182,7 +176,6 @@ export function buildUpdateTenantSettingsSchema<T extends z.ZodTypeAny>(localiza
         loyalty: LoyaltySettingsSchema.optional(),
         booking: BookingSettingsSchema.optional(),
         businessHours: BusinessHoursSettingsSchema.optional(),
-        notification: NotificationSettingsSchema.optional(),
         localization: localizationSchema.optional(),
         businessInfo: BusinessInfoSettingsSchema.optional(),
         chatbot: ChatbotSettingsSchema.optional(),

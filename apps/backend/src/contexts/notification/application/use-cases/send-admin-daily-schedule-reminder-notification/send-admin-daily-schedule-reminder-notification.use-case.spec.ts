@@ -54,7 +54,7 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
       slug: 'lavacar-sp',
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
-      fromEmail: null,
+      replyToEmail: null,
     });
     staffPort.setManagerEmails(TENANT_ID, ['manager1@lavacar.com', 'manager2@lavacar.com']);
     templateRepo.seed(
@@ -128,7 +128,7 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
       slug: 'lavacar-sp',
       timezone: 'America/Sao_Paulo',
       locale: 'en',
-      fromEmail: null,
+      replyToEmail: null,
     });
     localizationPort.setTemplateForLocale('AdminDailyScheduleReminder:admin', 'en', {
       subject: "Today's schedule — {{localDate}}",

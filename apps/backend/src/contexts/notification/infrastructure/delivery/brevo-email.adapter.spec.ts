@@ -79,6 +79,25 @@ describe('BrevoEmailAdapter', () => {
     });
   });
 
+  it('passes a structured from {name,address} and replyTo when provided', async () => {
+    await adapter.send({
+      to: 'joao@example.com',
+      from: 'noreply@ikaro.example',
+      fromName: 'Lava Car',
+      replyTo: 'contato@lavacar.example',
+      subject: 'Teste',
+      html: '<p>Olá</p>',
+    });
+
+    expect(mockSendMail).toHaveBeenCalledWith({
+      to: 'joao@example.com',
+      from: { name: 'Lava Car', address: 'noreply@ikaro.example' },
+      replyTo: 'contato@lavacar.example',
+      subject: 'Teste',
+      html: '<p>Olá</p>',
+    });
+  });
+
   it('throws EmailDeliveryException on send failure', async () => {
     mockSendMail.mockRejectedValue(new Error('Relay rejected'));
 

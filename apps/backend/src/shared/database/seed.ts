@@ -83,9 +83,6 @@ const TENANT_SETTINGS_BR = {
     language: 'pt-BR',
     decimalPlaces: 2,
   },
-  notification: {
-    fromEmail: null,
-  },
 };
 
 // Ikaro (TD02-S09) — en/USD/America/New_York, exercises the US CountrySpec branch.
