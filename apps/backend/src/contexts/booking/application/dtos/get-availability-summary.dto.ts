@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  DurationMinutesQuerySchema,
   isResourceIdExclusiveOfSelections,
   RESOURCE_ID_EXCLUDES_SELECTIONS_MESSAGE,
   ResourceSelectionsQuerySchema,
@@ -18,7 +19,7 @@ export const GetAvailabilitySummarySchema = z
     resourceId: z.uuid().optional(),
     // Optional — see GetAvailabilitySchema.
     resourceSelections: ResourceSelectionsQuerySchema.optional(),
-    durationMinutes: z.coerce.number().int().positive().optional(),
+    durationMinutes: DurationMinutesQuerySchema.optional(),
   })
   .refine(isResourceIdExclusiveOfSelections, {
     error: RESOURCE_ID_EXCLUDES_SELECTIONS_MESSAGE,

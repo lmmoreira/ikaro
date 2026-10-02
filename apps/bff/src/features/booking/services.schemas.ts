@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   BookingModelSchema,
+  QuoteServiceDurationQuerySchema,
   ClassResourceSlotSchema as ClassResourceSlotBodySchema,
   PublishServiceIntakeSchemaSchema as PublishServiceIntakeSchemaBodySchema,
   UpdateServiceBookingPolicySchema as UpdateServiceBookingPolicyBodySchema,
@@ -65,11 +66,8 @@ export const UpdateServiceBodySchema = z
   })
   .default({});
 
-// Optional at the boundary — a FIXED-duration service ignores it, and a CUSTOMER_SELECTED service
-// without one is a domain-level 422 (BOOKING_DURATION_OUT_OF_RANGE) from the backend.
-export const QuoteQuerySchema = z.object({
-  durationMinutes: z.coerce.number().int().positive().optional(),
-});
+// Shared with the backend's identical query schema via @ikaro/validation (no per-app deviation).
+export const QuoteQuerySchema = QuoteServiceDurationQuerySchema;
 
 export type QuoteQuery = z.infer<typeof QuoteQuerySchema>;
 export type CreateServiceBody = z.infer<typeof CreateServiceBodySchema>;

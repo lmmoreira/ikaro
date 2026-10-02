@@ -1,5 +1,7 @@
 import {
+  DurationMinutesQuerySchema,
   isResourceIdExclusiveOfSelections,
+  QuoteServiceDurationQuerySchema,
   ListRecurringBookingSchedulesQuerySchema,
   ResourceSelectionsQuerySchema,
   ResourceSelectionsQueryStringSchema,
@@ -196,4 +198,21 @@ describe('ResourceSelectionsQueryStringSchema', () => {
       expect(ResourceSelectionsQueryStringSchema.safeParse(raw).success).toBe(false);
     },
   );
+});
+
+describe('DurationMinutesQuerySchema / QuoteServiceDurationQuerySchema', () => {
+  it('coerces a query-string duration to a positive integer', () => {
+    expect(DurationMinutesQuerySchema.parse('90')).toBe(90);
+  });
+
+  it.each(['0', '-30', '1.5', 'abc', ''])('rejects %j', (raw) => {
+    expect(DurationMinutesQuerySchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('keeps durationMinutes optional on the quote query', () => {
+    expect(QuoteServiceDurationQuerySchema.safeParse({}).success).toBe(true);
+    expect(QuoteServiceDurationQuerySchema.parse({ durationMinutes: '60' })).toEqual({
+      durationMinutes: 60,
+    });
+  });
 });

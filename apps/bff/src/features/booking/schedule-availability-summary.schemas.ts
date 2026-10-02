@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  DurationMinutesQuerySchema,
   isResourceIdExclusiveOfSelections,
   RESOURCE_ID_EXCLUDES_SELECTIONS_MESSAGE,
   ResourceSelectionsQueryStringSchema,
@@ -20,7 +21,7 @@ export const GetAvailabilitySummaryQuerySchema = z
     // the backend verbatim as the same comma-joined string) and the chosen duration of a
     // CUSTOMER_SELECTED service. The backend owns the domain validation of both.
     resourceSelections: ResourceSelectionsQueryStringSchema.optional(),
-    durationMinutes: z.coerce.number().int().positive().optional(),
+    durationMinutes: DurationMinutesQuerySchema.optional(),
   })
   .refine(isResourceIdExclusiveOfSelections, {
     error: RESOURCE_ID_EXCLUDES_SELECTIONS_MESSAGE,

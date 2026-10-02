@@ -151,6 +151,16 @@ export const ResourceSelectionsQuerySchema = z.preprocess((raw, ctx) => {
   }));
 }, z.array(ResourceSelectionSchema));
 
+// The chosen duration of a CUSTOMER_SELECTED service as a GET query param (availability) — coerced
+// from its query string. Domain range validation (min/max/increment) stays in BookingQuoteService.
+export const DurationMinutesQuerySchema = z.coerce.number().int().positive();
+
+// GET /services/:id/quote?durationMinutes= — optional at the boundary: a FIXED-duration service
+// ignores it, and a CUSTOMER_SELECTED service without one is a domain-level 422.
+export const QuoteServiceDurationQuerySchema = z.object({
+  durationMinutes: DurationMinutesQuerySchema.optional(),
+});
+
 // Validate-only variant for a proxy that forwards the query string verbatim (the BFF): the raw
 // string is kept, because re-serializing the parsed array would not round-trip through axios.
 export const ResourceSelectionsQueryStringSchema = z

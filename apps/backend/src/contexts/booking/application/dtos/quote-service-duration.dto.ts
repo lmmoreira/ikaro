@@ -1,9 +1,7 @@
 import { z } from 'zod';
+import { QuoteServiceDurationQuerySchema } from '@ikaro/validation';
 
-// Optional at the HTTP boundary — a FIXED-duration service ignores it, and a CUSTOMER_SELECTED
-// service with none is a domain-level 422 (BookingQuoteService), same as POST /bookings.
-export const QuoteServiceDurationSchema = z.object({
-  durationMinutes: z.coerce.number().int().positive().optional(),
-});
+// Shared with the BFF's identical query schema via @ikaro/validation (no per-app deviation).
+export const QuoteServiceDurationSchema = QuoteServiceDurationQuerySchema;
 
 export type QuoteServiceDurationDto = z.infer<typeof QuoteServiceDurationSchema>;

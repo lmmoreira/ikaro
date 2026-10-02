@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  DurationMinutesQuerySchema,
   isResourceIdExclusiveOfSelections,
   RESOURCE_ID_EXCLUDES_SELECTIONS_MESSAGE,
   ResourceSelectionsQuerySchema,
@@ -18,7 +19,7 @@ export const GetAvailabilitySchema = z
     // Optional — the customer's picks for the queried services' CUSTOMER_CHOICE requirements.
     resourceSelections: ResourceSelectionsQuerySchema.optional(),
     // Optional — the chosen duration for the one CUSTOMER_SELECTED service in serviceIds.
-    durationMinutes: z.coerce.number().int().positive().optional(),
+    durationMinutes: DurationMinutesQuerySchema.optional(),
   })
   .refine(isResourceIdExclusiveOfSelections, {
     error: RESOURCE_ID_EXCLUDES_SELECTIONS_MESSAGE,
