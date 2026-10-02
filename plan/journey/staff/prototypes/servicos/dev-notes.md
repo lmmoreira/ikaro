@@ -230,6 +230,10 @@ UpdateServiceBookingPolicySchema — ALL 17 independently-submittable fields:
      a separate "Preço" card (policy select + increment/price/minimum-charge fields shown only
      when Por incremento), and a "Janela de reserva" card for the 2 advance-notice fields —
      see 03-service-edit.html's Políticas de reserva tab.
+  -- M23-S29: for a service WITH legs the real component disables the "Cliente escolhe" option and
+     shows a hint (`politicasDurationPolicyLegsHint`) — a legged service's length is the sum of
+     its legs (UC-052 A2 / UC-055 A4; backend 409 `BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT`). The HTML prototype does not draw
+     this variant; it is documented here rather than restructuring the prototype (CLAUDE.md §15).
   -- recurringHorizonDays (added 2026-09-30, M23-S16 — missed by the 2026-09-17 audit above):
      the MAXIMUM TERM of a recurring schedule for this service (a schedule's endsOn may not be
      later than startsOn + this many days). Number input in the "Quem e como reserva" card,

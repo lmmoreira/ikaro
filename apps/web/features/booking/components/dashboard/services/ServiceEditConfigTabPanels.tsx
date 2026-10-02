@@ -71,6 +71,7 @@ export function ServiceEditConfigTabPanels({
         <ServiceBookingPolicyPanel
           serviceId={service.serviceId}
           initialPolicy={service.bookingPolicy}
+          hasLegs={service.legs !== null}
           onDirtyChange={(value) => onTabDirtyChange('politicas', value)}
           onActionChange={onPoliticasAction}
         />

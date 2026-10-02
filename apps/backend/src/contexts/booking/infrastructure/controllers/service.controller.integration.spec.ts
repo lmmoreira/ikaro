@@ -922,24 +922,29 @@ describe('ServiceController (integration)', () => {
         .set(actorHeaders(tenant, MANAGER_ID))
         .expect(200);
 
-      await request(app.getHttpServer())
+      const { body } = await request(app.getHttpServer())
         .get(`/services/${serviceId}/resource-options`)
         .set(guest(tenant))
         .expect(404);
+
+      expect(body.status).toBe(404);
     });
 
     it('tenant isolation: resource-options and quote return 404 for a service of another tenant', async () => {
       const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
       await ds.getRepository(ServiceEntity).save(entity);
 
-      await request(app.getHttpServer())
+      const options = await request(app.getHttpServer())
         .get(`/services/${entity.id}/resource-options`)
         .set(guest(tenantA))
         .expect(404);
-      await request(app.getHttpServer())
+      const quote = await request(app.getHttpServer())
         .get(`/services/${entity.id}/quote?durationMinutes=60`)
         .set(guest(tenantA))
         .expect(404);
+
+      expect(options.body.status).toBe(404);
+      expect(quote.body.status).toBe(404);
     });
 
     it('tenant isolation: resource options never include another tenant’s resources', async () => {
@@ -1009,6 +1014,102 @@ describe('ServiceController (integration)', () => {
         .expect(200);
 
       expect(body).toEqual({ durationMinutes: 60, price: { amount: 150, currency: 'BRL' } });
+    });
+  });
+
+  // ─── Legs and a customer-selected duration are mutually exclusive (M23-S29) ──
+
+  describe('legs vs customer-selected duration', () => {
+    const customDurationPolicy = {
+      durationPolicy: 'CUSTOMER_SELECTED',
+      durationMinMinutes: 30,
+      durationMaxMinutes: 120,
+      durationIncrementMinutes: 30,
+      pricingPolicy: 'PER_TIME_INCREMENT',
+      pricingIncrementMinutes: 30,
+      pricePerIncrementAmount: 20,
+    };
+    const twoLegs = {
+      legs: [
+        {
+          legIndex: 0,
+          name: 'Sauna',
+          durationMinutes: 20,
+          resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY' }],
+        },
+        {
+          legIndex: 1,
+          name: 'Massagem',
+          durationMinutes: 50,
+          resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY' }],
+        },
+      ],
+    };
+
+    async function createServiceWithRoom(): Promise<{ tenant: string; serviceId: string }> {
+      const tenant = await provisionTenant();
+      await request(app.getHttpServer())
+        .post('/resources')
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send({ type: 'ROOM', name: 'Sala 1' })
+        .expect(201);
+      const { body } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+      return { tenant, serviceId: body.id as string };
+    }
+
+    it('rejects a customer-selected duration on a service that already has legs with 409', async () => {
+      const { tenant, serviceId } = await createServiceWithRoom();
+      await request(app.getHttpServer())
+        .put(`/services/${serviceId}/legs`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(twoLegs)
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/booking-policy`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(customDurationPolicy)
+        .expect(409);
+
+      expect(body.code).toBe('BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT');
+    });
+
+    it('rejects legs on a service whose duration is customer-selected with 409', async () => {
+      const { tenant, serviceId } = await createServiceWithRoom();
+      await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/booking-policy`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(customDurationPolicy)
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .put(`/services/${serviceId}/legs`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(twoLegs)
+        .expect(409);
+
+      expect(body.code).toBe('BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT');
+    });
+
+    it('still lets a legged service change its other booking-policy fields', async () => {
+      const { tenant, serviceId } = await createServiceWithRoom();
+      await request(app.getHttpServer())
+        .put(`/services/${serviceId}/legs`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(twoLegs)
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/booking-policy`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send({ defaultApprovalMode: 'MANUAL_APPROVAL', manualHoldMinutes: 30 })
+        .expect(200);
+
+      expect(body.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
     });
   });
 

@@ -896,6 +896,39 @@ describe('GetAvailabilityUseCase', () => {
         );
       });
 
+      it('never lets a chosen duration change a legged service window (its length is fixed by its legs), but still validates it like POST /bookings', async () => {
+        await room();
+        // Built through the builder because the aggregate now forbids this combination — it can
+        // only exist as pre-existing data, and the read path must still agree with booking creation.
+        const legged = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withBookingPolicy(variablePolicy)
+          .withLegs([
+            ServiceLeg.create({
+              legIndex: 0,
+              name: 'Etapa 1',
+              durationMinutes: 30,
+              resourceRequirements: [auto(ResourceType.ROOM)],
+            }),
+            ServiceLeg.create({
+              legIndex: 1,
+              name: 'Etapa 2',
+              durationMinutes: 30,
+              resourceRequirements: [auto(ResourceType.ROOM)],
+            }),
+          ])
+          .build();
+        await serviceRepo.save(legged);
+
+        const short = await run([legged.id], { durationMinutes: 60 });
+        const long = await run([legged.id], { durationMinutes: 240 });
+
+        expect(long).toEqual(short);
+        await expect(run([legged.id], { durationMinutes: 300 })).rejects.toBeInstanceOf(
+          BookingDurationOutOfRangeError,
+        );
+      });
+
       it('ignores a duration when no requested service is CUSTOMER_SELECTED', async () => {
         const service = new ServiceBuilder()
           .withTenantId(TENANT_ID)

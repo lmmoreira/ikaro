@@ -45,11 +45,7 @@ export async function resolveRequirementResources(
   }
 
   const chosenIds = candidateIds.slice(0, requirement.requiredQuantity);
-  const resources: Resource[] = [];
-  for (const id of chosenIds) {
-    resources.push(await lookupResource(id, requirement, ctx));
-  }
-  return resources;
+  return Promise.all(chosenIds.map((id) => lookupResource(id, requirement, ctx)));
 }
 
 // selectionMode-aware since M23-S01 (UC-061/062/063): CUSTOMER_CHOICE uses the caller-supplied

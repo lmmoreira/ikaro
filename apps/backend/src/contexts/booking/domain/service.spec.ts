@@ -7,6 +7,7 @@ import {
   BookingServiceBookingModelImmutableError,
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
+  BookingServiceLegsCustomDurationConflictError,
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
   ClassResourceSlotBookingModelMismatchError,
@@ -551,6 +552,26 @@ describe('Service', () => {
         .build();
     });
 
+    it('rejects legs on a service whose durationPolicy is CUSTOMER_SELECTED (a legged service has a fixed length)', () => {
+      const customDuration = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 30,
+          pricePerIncrementAmount: 10,
+        })
+        .build();
+
+      expect(() => customDuration.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM))).toThrow(
+        BookingServiceLegsCustomDurationConflictError,
+      );
+      expect(customDuration.legs).toBeNull();
+    });
+
     it('clears resourceRequirements and bufferAfterMinutes when legs is set (mutual exclusivity)', () => {
       service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
       expect(service.resourceRequirements).toEqual([]);
@@ -678,6 +699,37 @@ describe('Service', () => {
           policy({ durationPolicy: 'CUSTOMER_SELECTED', pricingPolicy: 'FIXED' }),
         ),
       ).toThrow(ServiceDurationPolicyRequiresPricingError);
+    });
+
+    it('rejects durationPolicy=CUSTOMER_SELECTED on a service that has legs (a legged service has a fixed length)', () => {
+      const legged = new ServiceBuilder().withTenantId(TENANT).build();
+      legged.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+
+      expect(() =>
+        legged.setBookingPolicy(
+          policy({
+            durationPolicy: 'CUSTOMER_SELECTED',
+            pricingPolicy: 'PER_TIME_INCREMENT',
+            durationMinMinutes: 30,
+            durationMaxMinutes: 120,
+            durationIncrementMinutes: 15,
+            pricingIncrementMinutes: 15,
+            pricePerIncrementAmount: 10,
+          }),
+        ),
+      ).toThrow(BookingServiceLegsCustomDurationConflictError);
+      expect(legged.bookingPolicy.durationPolicy).toBe('FIXED');
+    });
+
+    it('still accepts every other policy change on a service that has legs', () => {
+      const legged = new ServiceBuilder().withTenantId(TENANT).build();
+      legged.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+
+      legged.setBookingPolicy(
+        policy({ defaultApprovalMode: 'MANUAL_APPROVAL', manualHoldMinutes: 30 }),
+      );
+
+      expect(legged.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
     });
 
     it('accepts durationPolicy=CUSTOMER_SELECTED with a non-FIXED pricingPolicy', () => {

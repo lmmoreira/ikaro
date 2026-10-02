@@ -1211,6 +1211,7 @@
       "politicasDurationPolicyFixed": "Fixed",
       "politicasDurationPolicyCustomer": "Customer picks",
       "politicasDurationPolicyHint": "Fixed: uses the duration (in minutes) set on the Details tab. Customer picks: the customer chooses the duration within a range.",
+      "politicasDurationPolicyLegsHint": "\"Customer picks\" is unavailable — a service with legs has a fixed length (the sum of its legs), so the customer cannot choose the duration.",
       "politicasDurationMinLabel": "Minimum duration (minutes)",
       "politicasDurationMaxLabel": "Maximum duration (minutes)",
       "politicasDurationIncrementLabel": "Selection step (minutes)",

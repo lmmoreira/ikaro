@@ -57,7 +57,12 @@ export async function buildAvailabilityLines(
   const pinsByServiceId = await resolvePins(deps.resourceRepo, tenantId, services, selections);
   return services.map((service) => ({
     service,
-    durationMinutes: durations.get(service.id) ?? service.durationMinutes,
+    // A legged service's length is fixed by its legs, and booking creation builds every leg window
+    // from the leg durations alone — so the chosen duration is still validated above (as
+    // POST /bookings does) but never changes a legged line's window.
+    durationMinutes: service.legs
+      ? service.durationMinutes
+      : (durations.get(service.id) ?? service.durationMinutes),
     pins: pinsByServiceId.get(service.id) ?? new Map(),
   }));
 }
@@ -115,18 +120,11 @@ function findPinnableRequirement(
   return located.requirement;
 }
 
-async function loadPinnableResource(
-  resourceRepo: IResourceRepository,
-  tenantId: string,
-  resourceById: Map<string, Resource>,
+function assertPinnableResource(
+  resource: Resource | undefined,
   selection: ResourceSelectionInput,
   requirement: ResourceRequirement,
-): Promise<Resource> {
-  let resource = resourceById.get(selection.resourceId);
-  if (!resource) {
-    resource = (await resourceRepo.findById(selection.resourceId, tenantId)) ?? undefined;
-    if (resource) resourceById.set(resource.id, resource);
-  }
+): Resource {
   if (
     !resource?.isActive ||
     resource.type !== requirement.type ||
@@ -146,15 +144,19 @@ async function resolvePins(
   const requirementsByServiceId = new Map(
     services.map((service) => [service.id, locateRequirements(service)]),
   );
-  const resourceById = new Map<string, Resource>();
+  // One concurrent round of lookups for every distinct picked resource; validation then runs
+  // synchronously against the loaded rows.
+  const resourceIds = [...new Set(selections.map((selection) => selection.resourceId))];
+  const loaded = await Promise.all(resourceIds.map((id) => resourceRepo.findById(id, tenantId)));
+  const resourceById = new Map(
+    loaded.flatMap((resource) => (resource ? [[resource.id, resource] as const] : [])),
+  );
   const pinsByServiceId = new Map<string, Map<string, Resource[]>>();
 
   for (const selection of selections) {
     const requirement = findPinnableRequirement(requirementsByServiceId, selection);
-    const resource = await loadPinnableResource(
-      resourceRepo,
-      tenantId,
-      resourceById,
+    const resource = assertPinnableResource(
+      resourceById.get(selection.resourceId),
       selection,
       requirement,
     );

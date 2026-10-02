@@ -9,6 +9,7 @@ import { IScheduleClosureRepository } from '../ports/schedule-closure-repository
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { AvailabilityLine } from './availability-lines.helpers';
+import { createWindowResolutionContext } from './availability-window-resolution.helpers';
 import { calculateResourceScopedAvailability } from './resource-scoped-availability.helpers';
 
 export interface DaySummary {
@@ -178,37 +179,42 @@ export async function buildResourceScopedSummary(
   lines: AvailabilityLine[],
 ): Promise<DaySummary[]> {
   const today = todayUTC();
-  const results: DaySummary[] = [];
   const rangeCache = new Map<string, Promise<ResourceRangeData>>();
 
   const loadRangeData = makeRangeDataLoader(deps, tenantId, request, rangeCache);
+  // One context for the whole range: a requirement's candidate set doesn't depend on the day.
+  const windowContext = createWindowResolutionContext(
+    deps.resourceRepo,
+    deps.availabilityService,
+    tenantId,
+  );
 
-  for (const date of dateRange(request.from, request.to)) {
-    if (date < today) {
-      results.push({ date, available: false, slotCount: 0 });
-      continue;
-    }
-    const slots = await calculateResourceScopedAvailability(
-      {
-        resourceRepo: deps.resourceRepo,
-        availabilityService: deps.availabilityService,
-        loadScheduleContext: (resourceId) =>
-          sliceScheduleContextForDate(loadRangeData, resourceId, date),
-        loadOccupancy: async (resourceId) => (await loadRangeData(resourceId)).occupancy,
-      },
-      {
-        tenantId,
-        date,
-        businessHours: request.businessHours,
-        slotGranularityMinutes: request.slotGranularityMinutes,
-        serviceBufferMinutes: request.serviceBufferMinutes,
-      },
-      lines,
-    );
-    results.push({ date, available: slots.length > 0, slotCount: slots.length });
-  }
-
-  return results;
+  // Days are independent — each reads its own slice of the range-wide, promise-cached data — so
+  // they are evaluated concurrently; Promise.all keeps the result in date order.
+  return Promise.all(
+    [...dateRange(request.from, request.to)].map(async (date): Promise<DaySummary> => {
+      if (date < today) return { date, available: false, slotCount: 0 };
+      const slots = await calculateResourceScopedAvailability(
+        {
+          resourceRepo: deps.resourceRepo,
+          availabilityService: deps.availabilityService,
+          windowContext,
+          loadScheduleContext: (resourceId) =>
+            sliceScheduleContextForDate(loadRangeData, resourceId, date),
+          loadOccupancy: async (resourceId) => (await loadRangeData(resourceId)).occupancy,
+        },
+        {
+          tenantId,
+          date,
+          businessHours: request.businessHours,
+          slotGranularityMinutes: request.slotGranularityMinutes,
+          serviceBufferMinutes: request.serviceBufferMinutes,
+        },
+        lines,
+      );
+      return { date, available: slots.length > 0, slotCount: slots.length };
+    }),
+  );
 }
 
 function makeRangeDataLoader(

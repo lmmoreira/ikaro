@@ -18,6 +18,7 @@ import {
 interface ServiceBookingPolicyPanelProps {
   readonly serviceId: string;
   readonly initialPolicy: ServiceBookingPolicyItem;
+  readonly hasLegs: boolean;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onActionChange: ServiceTabActionChange;
 }
@@ -25,6 +26,7 @@ interface ServiceBookingPolicyPanelProps {
 export function ServiceBookingPolicyPanel({
   serviceId,
   initialPolicy,
+  hasLegs,
   onDirtyChange,
   onActionChange,
 }: ServiceBookingPolicyPanelProps): React.JSX.Element {
@@ -73,7 +75,7 @@ export function ServiceBookingPolicyPanel({
     <div className="space-y-4">
       <p className="text-sm text-gray-500">{t('politicasIntro')}</p>
 
-      <PolicyDurationPricingCard policy={policy} onPatch={patch} />
+      <PolicyDurationPricingCard policy={policy} hasLegs={hasLegs} onPatch={patch} />
       <PolicyConfirmationCard policy={policy} onPatch={patch} />
       <PolicyBookingWindowCard policy={policy} onPatch={patch} />
       <PolicyWhoHowCard policy={policy} onPatch={patch} />

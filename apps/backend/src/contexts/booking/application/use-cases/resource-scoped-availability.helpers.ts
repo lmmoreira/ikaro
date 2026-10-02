@@ -7,9 +7,11 @@ import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { AvailabilityLine } from './availability-lines.helpers';
 import {
+  createWindowResolutionContext,
   isBookingWindowAvailable,
   ResourceAvailabilityContext,
   ResourceScopedAvailabilityDeps,
+  WindowResolutionContext,
 } from './availability-window-resolution.helpers';
 
 export interface ResourceScopedAvailabilityRequest {
@@ -30,6 +32,9 @@ export interface ScheduleContextResult {
 export interface ResourceScopedReadDeps {
   resourceRepo: IResourceRepository;
   availabilityService: AvailabilityService;
+  // Optional: a multi-day caller (the summary) shares one context across its days so each
+  // requirement's candidate set is loaded once for the whole range, not once per day.
+  windowContext?: WindowResolutionContext;
   loadScheduleContext: (resourceId: string | undefined) => Promise<ScheduleContextResult>;
   loadOccupancy: (
     resourceId: string,
@@ -77,22 +82,21 @@ export async function calculateResourceScopedAvailability(
   if (outerSlots.length === 0) return [];
 
   const windowDeps: ResourceScopedAvailabilityDeps = {
-    resourceRepo: deps.resourceRepo,
     availabilityService: deps.availabilityService,
-    tenantId: request.tenantId,
+    windowContext:
+      deps.windowContext ??
+      createWindowResolutionContext(deps.resourceRepo, deps.availabilityService, request.tenantId),
     date: request.date,
     businessHours: request.businessHours,
     loadResourceContext: (resourceId) => loadResourceAvailabilityContext(deps, request, resourceId),
   };
-  const contextCache = new Map<string, ResourceAvailabilityContext>();
-  const available: AvailableSlot[] = [];
-  for (const slot of outerSlots) {
-    const candidateStart = new Date(slot.startsAt);
-    if (await isBookingWindowAvailable(windowDeps, lines, candidateStart, contextCache)) {
-      available.push(slot);
-    }
-  }
-  return available;
+  const contextCache = new Map<string, Promise<ResourceAvailabilityContext>>();
+  const verdicts = await Promise.all(
+    outerSlots.map((slot) =>
+      isBookingWindowAvailable(windowDeps, lines, new Date(slot.startsAt), contextCache),
+    ),
+  );
+  return outerSlots.filter((_slot, index) => verdicts[index]);
 }
 
 async function loadResourceAvailabilityContext(

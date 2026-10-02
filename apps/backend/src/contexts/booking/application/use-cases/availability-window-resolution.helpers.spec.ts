@@ -8,6 +8,7 @@ import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { ServiceLeg } from '../../domain/service-leg';
 import {
+  createWindowResolutionContext,
   isBookingWindowAvailable,
   resolveAvailabilityRequirementWindows,
   ResourceAvailabilityContext,
@@ -413,9 +414,8 @@ describe('isBookingWindowAvailable', () => {
       ])
       .build();
     const deps = {
-      resourceRepo,
       availabilityService,
-      tenantId: TENANT_ID,
+      windowContext: createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID),
       date: '2026-06-01',
       businessHours: OPEN_ALL_DAY_UTC,
     };
@@ -442,5 +442,78 @@ describe('isBookingWindowAvailable', () => {
       new Map(),
     );
     expect(bothFree).toBe(true);
+  });
+
+  describe('WindowResolutionContext sharing (M23-S29)', () => {
+    const availabilityService = new AvailabilityService();
+    const LATER_START = new Date('2026-06-01T10:00:00.000Z');
+
+    it('loads a requirement candidate set once across candidate starts that share one context', async () => {
+      const resourceRepo = new InMemoryResourceRepository();
+      await resourceRepo.save(
+        new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.ROOM).build(),
+      );
+      const service = new ServiceBuilder()
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      const findByTenant = jest.spyOn(resourceRepo, 'findByTenant');
+      const ctx = createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID);
+      const lines = toPlainAvailabilityLines([service]);
+
+      await Promise.all(
+        [CANDIDATE_START, LATER_START].map((start) =>
+          resolveAvailabilityRequirementWindows(
+            resourceRepo,
+            availabilityService,
+            TENANT_ID,
+            start,
+            lines,
+            ctx,
+          ),
+        ),
+      );
+
+      expect(findByTenant).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps every requirement entry in line order when lines are resolved concurrently', async () => {
+      const resourceRepo = new InMemoryResourceRepository();
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.EQUIPMENT)
+        .build();
+      await resourceRepo.save(room);
+      await resourceRepo.save(equipment);
+      const roomService = new ServiceBuilder()
+        .withDurationMinutes(30)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      const equipmentService = new ServiceBuilder()
+        .withDurationMinutes(45)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+
+      const entries = await resolveAvailabilityRequirementWindows(
+        resourceRepo,
+        availabilityService,
+        TENANT_ID,
+        CANDIDATE_START,
+        toPlainAvailabilityLines([roomService, equipmentService]),
+      );
+
+      expect(entries.map((entry) => entry[0].resourceId)).toEqual([room.id, equipment.id]);
+      expect(entries[1][0].startsAt).toEqual(new Date(CANDIDATE_START.getTime() + 30 * 60_000));
+    });
   });
 });

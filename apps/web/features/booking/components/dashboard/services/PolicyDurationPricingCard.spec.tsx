@@ -28,7 +28,9 @@ const BASE_POLICY: ServiceBookingPolicyItem = {
 
 describe('PolicyDurationPricingCard', () => {
   it('hides duration/pricing detail fields when policy is FIXED', () => {
-    renderWithIntl(<PolicyDurationPricingCard policy={BASE_POLICY} onPatch={vi.fn()} />);
+    renderWithIntl(
+      <PolicyDurationPricingCard hasLegs={false} policy={BASE_POLICY} onPatch={vi.fn()} />,
+    );
 
     expect(screen.queryByTestId('policy-duration-detail')).not.toBeInTheDocument();
     expect(screen.queryByTestId('policy-pricing-detail')).not.toBeInTheDocument();
@@ -38,7 +40,9 @@ describe('PolicyDurationPricingCard', () => {
   it('calls onPatch with the new durationPolicy when changed', async () => {
     const user = userEvent.setup();
     const onPatch = vi.fn();
-    renderWithIntl(<PolicyDurationPricingCard policy={BASE_POLICY} onPatch={onPatch} />);
+    renderWithIntl(
+      <PolicyDurationPricingCard hasLegs={false} policy={BASE_POLICY} onPatch={onPatch} />,
+    );
 
     await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'CUSTOMER_SELECTED');
     expect(onPatch).toHaveBeenCalledWith({ durationPolicy: 'CUSTOMER_SELECTED' });
@@ -47,6 +51,7 @@ describe('PolicyDurationPricingCard', () => {
   it('shows duration and pricing detail fields for a variable-duration, per-increment policy', () => {
     renderWithIntl(
       <PolicyDurationPricingCard
+        hasLegs={false}
         policy={{
           ...BASE_POLICY,
           durationPolicy: 'CUSTOMER_SELECTED',
@@ -66,6 +71,7 @@ describe('PolicyDurationPricingCard', () => {
     const onPatch = vi.fn();
     renderWithIntl(
       <PolicyDurationPricingCard
+        hasLegs={false}
         policy={{
           ...BASE_POLICY,
           durationPolicy: 'CUSTOMER_SELECTED',
@@ -85,6 +91,7 @@ describe('PolicyDurationPricingCard', () => {
   it('states the unit (minutes / R$) on every duration and pricing field', () => {
     renderWithIntl(
       <PolicyDurationPricingCard
+        hasLegs={false}
         policy={{
           ...BASE_POLICY,
           durationPolicy: 'CUSTOMER_SELECTED',
@@ -105,6 +112,7 @@ describe('PolicyDurationPricingCard', () => {
   it('explains what each policy does, including how the total is computed', () => {
     renderWithIntl(
       <PolicyDurationPricingCard
+        hasLegs={false}
         policy={{
           ...BASE_POLICY,
           durationPolicy: 'CUSTOMER_SELECTED',

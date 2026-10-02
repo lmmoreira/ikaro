@@ -155,15 +155,19 @@ describe('Availability with pinned selections and a chosen duration (integration
   });
 
   it('returns 400 when resourceId and resourceSelections are combined', async () => {
-    await availability(
+    const { body } = await availability(
       `date=${MONDAY}&serviceIds=${serviceId}&resourceId=${roomOne}&resourceSelections=${pin('ROOM', roomTwo)}`,
     ).expect(400);
+
+    expect(body.status).toBe(400);
   });
 
   it('returns 400 for a malformed resourceSelections item', async () => {
-    await availability(
+    const { body } = await availability(
       `date=${MONDAY}&serviceIds=${serviceId}&resourceSelections=not-a-selection`,
     ).expect(400);
+
+    expect(body.status).toBe(400);
   });
 
   it('returns 422 for a selection that is not a CUSTOMER_CHOICE requirement of the service', async () => {
@@ -175,9 +179,11 @@ describe('Availability with pinned selections and a chosen duration (integration
   });
 
   it('tenant isolation: another tenant’s resource in resourceSelections is rejected with 422', async () => {
-    await availability(
+    const { body } = await availability(
       `date=${MONDAY}&serviceIds=${serviceId}&resourceSelections=${pin('ROOM', foreignRoom)}`,
     ).expect(422);
+
+    expect(body.status).toBe(422);
   });
 
   it('the summary honours the same pins: a fully blocked pinned room empties the day while the unpinned day stays open', async () => {

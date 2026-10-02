@@ -472,6 +472,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   - `200` on success; response includes the computed total span
   - `422` if fewer than 2 legs (UC-052 A1)
+  - `409` `BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT` if the service has `durationPolicy = CUSTOMER_SELECTED` (UC-052 A2)
 
 - `POST /services/:id/intake-schema` -> Publish a new booking-intake schema version (UC-054). Body:
   ```json
@@ -526,6 +527,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   - `recurringHorizonDays`: integer 1–180 or `null` — the maximum term of a recurring schedule for this service; `null` inherits the 90-day platform default (UC-055 step 3)
   - `200` on success
   - `422` if `durationPolicy = CUSTOMER_SELECTED` with no `pricingPolicy` (UC-055 A2)
+  - `409` `BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT` if `durationPolicy = CUSTOMER_SELECTED` on a service that has `legs` (UC-055 A4)
   - `400` (request validation, `violations[]`, no error `code`) if `recurringHorizonDays` is outside 1–180 or not an integer (UC-055 A3); the dashboard validates the same bounds inline so it never sends one
 
 - `GET /schedule/day-grid?date=` -> Combined multi-resource day grid (UC-057). MANAGER only.

@@ -49,18 +49,20 @@ export class ListServiceResourceOptionsUseCase {
         )
       : service.resourceRequirements.map((requirement) => ({ legIndex: null, requirement }));
 
-    const activeByType = new Map<ResourceType, Resource[]>();
+    const choiceSources = sources.filter(
+      ({ requirement }) => requirement.selectionMode === 'CUSTOMER_CHOICE',
+    );
+    const types = [...new Set(choiceSources.map(({ requirement }) => requirement.type))];
+    const loaded = await Promise.all(
+      types.map((type) => this.resourceRepo.findByTenant(input.tenantId, { type, isActive: true })),
+    );
+    const activeByType = new Map<ResourceType, Resource[]>(
+      types.map((type, index) => [type, loaded[index]]),
+    );
+
     const requirements: ServiceResourceOptionsRequirementResult[] = [];
-    for (const { legIndex, requirement } of sources) {
-      if (requirement.selectionMode !== 'CUSTOMER_CHOICE') continue;
-      let active = activeByType.get(requirement.type);
-      if (!active) {
-        active = await this.resourceRepo.findByTenant(input.tenantId, {
-          type: requirement.type,
-          isActive: true,
-        });
-        activeByType.set(requirement.type, active);
-      }
+    for (const { legIndex, requirement } of choiceSources) {
+      const active = activeByType.get(requirement.type)!;
       requirements.push({
         serviceId: service.id,
         legIndex,

@@ -1211,6 +1211,7 @@
       "politicasDurationPolicyFixed": "Fixa",
       "politicasDurationPolicyCustomer": "Cliente escolhe",
       "politicasDurationPolicyHint": "Fixa: usa a duração (em minutos) definida na aba Detalhes. Cliente escolhe: o cliente define a duração dentro de um intervalo.",
+      "politicasDurationPolicyLegsHint": "\"Cliente escolhe\" está indisponível — um serviço com etapas tem duração fixa (a soma das etapas), então o cliente não pode escolher o tempo.",
       "politicasDurationMinLabel": "Duração mínima (minutos)",
       "politicasDurationMaxLabel": "Duração máxima (minutos)",
       "politicasDurationIncrementLabel": "Intervalo de escolha (minutos)",
