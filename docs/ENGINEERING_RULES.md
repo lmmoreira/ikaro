@@ -54,7 +54,7 @@
 - `architecture-check`'s `transactional-save` detector requires `save()` to be textually inside `txManager.run()` — not merely reachable through it
 - A wholesale-replaced child collection needs a dirty flag on the aggregate — resyncing it on every `save()` is a real, silent perf cost
 - A child table with only a composite PK cannot represent "declared but empty" — reject that state at the aggregate boundary, don't rely on storage to preserve it
-- A versioned, append-only child concept ("new version supersedes, never edits the previous one") is an independent aggregate root with its own repository, not a `Service`-owned child collection
+- A versioned, append-only child concept ("new version supersedes, never edits the previous one") is an independent object with its own repository (an aggregate root only if it has behavior of its own), not a `Service`-owned child collection
 
 ## `docs/ENGINEERING_RULES_INFRA.md` — infra / Cloud Run
 
