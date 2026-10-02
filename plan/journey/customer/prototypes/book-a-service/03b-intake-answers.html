@@ -20,10 +20,10 @@
                an intake-bearing service ("Passo 5 de 5" = Confirmation).
     DATA:      GET /services/:id/intake-schema/public  ->  { active } (no auth, active version only)
     RENDERING: schema-driven, NOT hardcoded. The fields below are illustrative:
-                 - one input per `questions[]` entry: type FREE_TEXT -> textarea/input, type BOOLEAN -> checkbox,
+                 - one input per `questions[]` entry: type FREE_TEXT -> textarea/input, type BOOLEAN -> checkbox when optional / Sim-Não radio pair when required ("Não" is a valid answer; the backend only checks the key is present),
                    `required` -> asterisk + validation, `label` -> the visible label
                  - "Quantidade de participantes" only when `participantCountRequired = true`
-                 - "Participantes nomeados" only when `requiresNamedAttendees = true`
+                 - "Participantes nomeados" only when `requiresNamedAttendees = true`: a repeatable list of { name (1-255), isMinor? } rows — NOT free text
                  - consent checkbox always, text = `consentText` (always required)
     STATE:     keeps the displayed `version` in the form state and submits it as `intakeSchemaVersion`;
                answers are validated against THAT version, never silently re-validated against a newer one.
@@ -38,8 +38,25 @@
       <div class="field"><label for="q-goal">Qual o objetivo da reserva? <span aria-hidden="true">*</span></label><textarea id="q-goal" class="form-input" rows="2" required></textarea></div>
       <div class="field"><label for="q-access">Necessidades de acesso <span aria-hidden="true">(opcional)</span></label><textarea id="q-access" class="form-input" rows="2" placeholder="Ex.: acesso sem escadas"></textarea></div>
       <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem;margin:1rem 0"><input id="q-first-time" type="checkbox"> <span>É a primeira vez que utilizo este serviço.</span></label>
+      <fieldset class="field" style="border:0;padding:0;margin:1rem 0" data-testid="intake-field-bool-equipment">
+        <legend style="font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em">Precisa de algum equipamento especial? <span aria-hidden="true">*</span></legend>
+        <label style="display:inline-flex;gap:.375rem;align-items:center;margin-right:1.25rem;font-size:.875rem"><input type="radio" name="q-equipment" value="true" required> Sim</label>
+        <label style="display:inline-flex;gap:.375rem;align-items:center;font-size:.875rem"><input type="radio" name="q-equipment" value="false" required> Não</label>
+        <p class="hint">Pergunta obrigatória do tipo sim/não: "Não" também é uma resposta válida.</p>
+      </fieldset>
       <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><input id="participants" class="form-input" type="number" min="1" required style="max-width:8rem"></div>
-      <div class="field"><label for="attendees">Participantes nomeados <span aria-hidden="true">*</span></label><textarea id="attendees" class="form-input" rows="3" placeholder="Ex.: Marina Lopes, João Silva" required></textarea><p class="hint">Um nome por linha.</p></div>
+      <fieldset class="field" style="border:0;padding:0;margin:1rem 0" data-testid="intake-attendees">
+        <legend style="font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em">Participantes nomeados</legend>
+        <div id="attendee-list">
+          <div class="attendee-row" style="display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem">
+            <input class="form-input" aria-label="Nome do participante 1" placeholder="Nome completo" maxlength="255" style="flex:1">
+            <label style="display:inline-flex;gap:.375rem;align-items:center;font-size:.8125rem;white-space:nowrap"><input type="checkbox"> Menor de idade</label>
+            <button type="button" class="btn-secondary" aria-label="Remover participante 1" style="padding:.375rem .625rem">Remover</button>
+          </div>
+        </div>
+        <button type="button" id="add-attendee" class="btn-secondary" style="margin-top:.25rem">Adicionar participante</button>
+        <p class="hint">Cada participante tem nome e, se for o caso, é marcado como menor de idade (quem reserva em nome de um menor é o responsável). Os participantes são opcionais — não há mínimo exigido pelo servidor.</p>
+      </fieldset>
       <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
       <div class="nav-buttons"><a class="btn-secondary" href="03d-review-confirm-with-intake.html">Voltar</a><button id="next" class="btn-primary" type="submit" disabled>Próximo</button></div>
     </form>
@@ -47,6 +64,17 @@
   <script>
     const form = document.getElementById('intake-form');
     const next = document.getElementById('next');
+    document.getElementById('add-attendee').addEventListener('click', () => {
+      const list = document.getElementById('attendee-list');
+      const n = list.children.length + 1;
+      const row = list.firstElementChild.cloneNode(true);
+      row.querySelector('input.form-input').value = '';
+      row.querySelector('input.form-input').setAttribute('aria-label', 'Nome do participante ' + n);
+      row.querySelector('input[type=checkbox]').checked = false;
+      row.querySelector('button').addEventListener('click', () => row.remove());
+      list.appendChild(row);
+    });
+    document.querySelector('.attendee-row button').addEventListener('click', e => { const r = e.target.closest('.attendee-row'); if (r.parentElement.children.length > 1) r.remove(); });
     form.addEventListener('input', () => { next.disabled = !form.checkValidity(); });
     form.addEventListener('submit', event => { event.preventDefault(); window.location.href = '04e-confirmation-with-intake.html'; });
   </script>

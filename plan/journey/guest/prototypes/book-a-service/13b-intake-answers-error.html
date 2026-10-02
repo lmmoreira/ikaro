@@ -31,11 +31,29 @@
       <div class="field"><label for="q-goal">Qual o objetivo da reserva? <span aria-hidden="true">*</span></label><textarea id="q-goal" class="form-input error" rows="2" required aria-invalid="true" aria-describedby="err-goal"></textarea><p id="err-goal" class="form-error" data-testid="intake-field-error-goal">Este campo é obrigatório.</p></div>
       <div class="field"><label for="q-access">Necessidades de acesso <span aria-hidden="true">(opcional)</span></label><textarea id="q-access" class="form-input" rows="2" placeholder="Ex.: acesso sem escadas"></textarea></div>
       <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem;margin:1rem 0"><input id="q-first-time" type="checkbox"> <span>É a primeira vez que utilizo este serviço.</span></label>
+      <fieldset class="field" style="border:0;padding:0;margin:1rem 0" data-testid="intake-field-bool-equipment" aria-invalid="true" aria-describedby="err-equipment">
+        <legend style="font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em">Precisa de algum equipamento especial? <span aria-hidden="true">*</span></legend>
+        <label style="display:inline-flex;gap:.375rem;align-items:center;margin-right:1.25rem;font-size:.875rem"><input type="radio" name="q-equipment" value="true" required> Sim</label>
+        <label style="display:inline-flex;gap:.375rem;align-items:center;font-size:.875rem"><input type="radio" name="q-equipment" value="false" required> Não</label>
+        <p class="hint">Pergunta obrigatória do tipo sim/não: "Não" também é uma resposta válida.</p>
+        <p id="err-equipment" class="form-error" data-testid="intake-field-error-equipment">Este campo é obrigatório.</p>
+      </fieldset>
       <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><input id="participants" class="form-input error" type="number" min="1" required style="max-width:8rem" aria-invalid="true" aria-describedby="err-participants"><p id="err-participants" class="form-error" data-testid="intake-field-error-participants">Informe a quantidade de participantes.</p></div>
-      <div class="field"><label for="attendees">Participantes nomeados <span aria-hidden="true">*</span></label><textarea id="attendees" class="form-input" rows="3" placeholder="Ex.: Marina Lopes, João Silva" required></textarea><p class="hint">Um nome por linha.</p></div>
+      <fieldset class="field" style="border:0;padding:0;margin:1rem 0" data-testid="intake-attendees">
+        <legend style="font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em">Participantes nomeados</legend>
+        <div id="attendee-list">
+          <div class="attendee-row" style="display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem">
+            <input class="form-input" aria-label="Nome do participante 1" placeholder="Nome completo" maxlength="255" style="flex:1">
+            <label style="display:inline-flex;gap:.375rem;align-items:center;font-size:.8125rem;white-space:nowrap"><input type="checkbox"> Menor de idade</label>
+            <button type="button" class="btn-secondary" aria-label="Remover participante 1" style="padding:.375rem .625rem">Remover</button>
+          </div>
+        </div>
+        <button type="button" id="add-attendee" class="btn-secondary" style="margin-top:.25rem">Adicionar participante</button>
+        <p class="hint">Cada participante tem nome e, se for o caso, é marcado como menor de idade (quem reserva em nome de um menor é o responsável). Os participantes são opcionais — não há mínimo exigido pelo servidor.</p>
+      </fieldset>
       <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
       <p class="form-error" style="margin-left:1.875rem;" data-testid="intake-consent-error">Você precisa aceitar os termos para continuar.</p>
-      <div role="alert" data-testid="intake-error-summary" style="margin-top:1rem;padding:.875rem;background:#fef2f2;border-radius:var(--ba-radius);font-size:.875rem;color:#b91c1c;"><strong>Não foi possível continuar</strong><br>3 campos precisam de atenção — veja os destaques acima.</div>
+      <div role="alert" data-testid="intake-error-summary" style="margin-top:1rem;padding:.875rem;background:#fef2f2;border-radius:var(--ba-radius);font-size:.875rem;color:#b91c1c;"><strong>Não foi possível continuar</strong><br>4 campos precisam de atenção — veja os destaques acima.</div>
       <div class="nav-buttons"><a class="btn-secondary" href="03d-personal-info-with-intake.html">Voltar</a><button id="next" class="btn-primary" type="submit">Próximo</button></div>
     </form>
     <div class="card" style="margin-top:1.5rem;background:#eff6ff;border-color:#bfdbfe;">

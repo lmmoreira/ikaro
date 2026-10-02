@@ -142,15 +142,16 @@ For a service with an active `service_booking_intake_schema`, the authenticated-
 - Customer-specific: the final `POST /bookings/authenticated` on Confirmation carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` (identical shape to the guest endpoint, `docs/14-API_CONTRACTS.md`).
 - File: `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` — one component for both actors, not duplicated.
 
-**Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 intake-answer-missing` naming the missing field(s)):**
+**Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 intake-answer-missing` naming the missing field(s) — it names question `fieldKey`s, `participantCount` and `consentAccepted`, never attendee problems):**
 
-| Field | Source in the schema | Rule | Error message | `data-testid` |
-|---|---|---|---|---|
-| each question (`fieldKey`) | `questions[]`, `type = FREE_TEXT` | required only when `required = true`; non-empty | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
-| each question (`fieldKey`) | `questions[]`, `type = BOOLEAN` | required only when `required = true`; must be checked | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
-| `participantCount` | shown only if `participantCountRequired` | integer >= 1 | `"Informe a quantidade de participantes."` | `intake-field-error-participants` |
-| `attendees` | shown only if `requiresNamedAttendees` | at least one name | `"Este campo é obrigatório."` | `intake-field-error-attendees` |
-| `consentAccepted` | `consentText` (always shown) | must be `true` | `"Você precisa aceitar os termos para continuar."` | `intake-consent-error` |
+| Field | Source in the schema | Control | Rule | Error message | `data-testid` |
+|---|---|---|---|---|---|
+| each question, `type = FREE_TEXT` | `questions[]` | text input / textarea | required only when `required = true`; whitespace-only counts as missing | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
+| each question, `type = BOOLEAN`, optional | `questions[]` | single checkbox | none (unchecked = `false` or omitted) | — | — |
+| each question, `type = BOOLEAN`, `required = true` | `questions[]` | **Sim / Não radio pair** | an explicit answer is required; `false` ("Não") is valid — the backend checks the key is present, not that it is `true` | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
+| `participantCount` | shown only if `participantCountRequired` | number input | integer > 0 (BFF `z.number().int().positive()`) | `"Informe a quantidade de participantes."` | `intake-field-error-participants` |
+| `attendees[]` | shown only if `requiresNamedAttendees` | repeatable rows: name input + "Menor de idade" checkbox + Remover; "Adicionar participante" | each row `{ name: 1–255 chars trimmed, isMinor?: boolean (default false) }`; **no minimum count** — the backend never requires ≥ 1 attendee nor ties the count to `participantCount` (open decision for story-discovery: enforce a minimum in the UI?) | row name blank → `"Informe o nome do participante."` (client-only) | `intake-field-error-attendees` |
+| `consentAccepted` | `consentText` (always shown) | checkbox, label = `consentText` | must be `true` | `"Você precisa aceitar os termos para continuar."` | `intake-consent-error` |
 
 Summary banner on any failure: `data-testid="intake-error-summary"`, `role="alert"`. The step holds no async state — it never submits, so there is no loading/success state of its own (the POST and its states stay on Confirmation).
 
