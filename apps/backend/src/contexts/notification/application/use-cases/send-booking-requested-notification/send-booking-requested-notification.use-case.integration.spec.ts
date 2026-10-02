@@ -47,6 +47,16 @@ class SelectiveFailDispatcher implements INotificationDispatcher {
   }
 }
 
+function buildTenantPort(tenantInfos: NotificationTenantInfo[]): InMemoryNotificationPlatformPort {
+  const tenantPort = new InMemoryNotificationPlatformPort();
+  for (const info of tenantInfos) tenantPort.setTenantInfo(info.id, info);
+  return tenantPort;
+}
+
+function defaultManagerEmails(): string[] {
+  return ['mgr1@lavacar.com.br', 'mgr2@lavacar.com.br', 'mgr3@lavacar.com.br'];
+}
+
 // AUD-004 item 3: proves the per-recipient inbox claim against a REAL Postgres instance — a
 // redelivery of the same eventId must skip recipients who already succeeded (cheap tryClaim-false
 // no-op) and only re-dispatch to the recipient whose send actually failed.
@@ -66,17 +76,13 @@ describe('SendBookingRequestedNotificationUseCase — multi-recipient partial-fa
   function makeUseCase(
     dispatcher: INotificationDispatcher,
     tenantInfos: NotificationTenantInfo[] = [DEFAULT_TENANT_INFO],
+    tenantPort: InMemoryNotificationPlatformPort = buildTenantPort(tenantInfos),
+    managerEmailsFor: (info: NotificationTenantInfo) => string[] = defaultManagerEmails,
   ): SendBookingRequestedNotificationUseCase {
-    const tenantPort = new InMemoryNotificationPlatformPort();
     const staffPort = new InMemoryNotificationStaffPort();
     const templateRepo = new InMemoryNotificationTemplateRepository();
     for (const info of tenantInfos) {
-      tenantPort.setTenantInfo(info.id, info);
-      staffPort.setManagerEmails(info.id, [
-        'mgr1@lavacar.com.br',
-        'mgr2@lavacar.com.br',
-        'mgr3@lavacar.com.br',
-      ]);
+      staffPort.setManagerEmails(info.id, managerEmailsFor(info));
       for (const key of [
         NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
         NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
@@ -151,24 +157,10 @@ describe('SendBookingRequestedNotificationUseCase — multi-recipient partial-fa
       'joao@example.com',
     ]);
   });
-});
 
-// M18-S09: drives the REAL dispatcher -> EmailDeliveryChannelAdapter chain (only the SMTP sender
-// is in-memory) so the From / display name / Reply-To the transport would receive is asserted
-// end-to-end, including per-tenant isolation of the Reply-To.
-describe('SendBookingRequestedNotificationUseCase — sender and Reply-To (integration)', () => {
-  let ds: DataSource;
-  let inboxRepo: TypeOrmInboxRepository;
-
-  beforeAll(async () => {
-    ds = await createTestDataSource();
-    inboxRepo = new TypeOrmInboxRepository(ds.getRepository(InboxRecordEntity));
-  });
-
-  afterAll(async () => {
-    await ds.destroy();
-  });
-
+  // M18-S09: drives the REAL dispatcher -> EmailDeliveryChannelAdapter chain (only the SMTP
+  // sender is in-memory) so the From / display name / Reply-To the transport would receive is
+  // asserted end-to-end, including per-tenant isolation of the Reply-To.
   it('sends From the platform address with the tenant name and its own Reply-To, never leaking across tenants', async () => {
     const tenantA: NotificationTenantInfo = {
       ...DEFAULT_TENANT_INFO,
@@ -181,57 +173,15 @@ describe('SendBookingRequestedNotificationUseCase — sender and Reply-To (integ
       slug: 'autospa',
       replyToEmail: 'reservas@autospa.com.br',
     };
-    const tenantPort = new InMemoryNotificationPlatformPort();
-    tenantPort.setTenantInfo(tenantA.id, tenantA);
-    tenantPort.setTenantInfo(tenantB.id, tenantB);
+    const tenantPort = buildTenantPort([tenantA, tenantB]);
     const emailSender = new InMemoryEmailSender();
-    const config = {
-      get: jest.fn().mockReturnValue('noreply@ikaro.example'),
-    } as unknown as ConfigService;
+    const config = { get: () => 'noreply@ikaro.example' } as unknown as ConfigService;
     const dispatcher = new NotificationDispatcherAdapter([
       new EmailDeliveryChannelAdapter(emailSender, tenantPort, config),
     ]);
-
-    const useCase = (() => {
-      const staffPort = new InMemoryNotificationStaffPort();
-      const templateRepo = new InMemoryNotificationTemplateRepository();
-      for (const info of [tenantA, tenantB]) {
-        staffPort.setManagerEmails(info.id, [`mgr@${info.slug}.com.br`]);
-        for (const key of [
-          NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
-          NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
-        ]) {
-          templateRepo.seed(
-            new NotificationTemplateBuilder()
-              .withTenantId(info.id)
-              .withTriggerEvent(key)
-              .withChannel('EMAIL')
-              .withSubject('unused')
-              .withBody('unused')
-              .build(),
-          );
-        }
-      }
-      const localizationPort = new InMemoryLocalizationPort();
-      localizationPort.setTemplate('BookingRequested:admin', {
-        subject: 'Nova solicitação',
-        body: '<p>Cliente: {{contactName}}</p>',
-      });
-      localizationPort.setTemplate('BookingRequested:customer', {
-        subject: 'Agendamento recebido',
-        body: '<p>Olá, {{contactName}}!</p>',
-      });
-      return new SendBookingRequestedNotificationUseCase(
-        new InMemoryNotificationLogRepository(),
-        inboxRepo,
-        dispatcher,
-        staffPort,
-        tenantPort,
-        new InMemoryTransactionManager(),
-        templateRepo,
-        localizationPort,
-      );
-    })();
+    const useCase = makeUseCase(dispatcher, [tenantA, tenantB], tenantPort, (info) => [
+      `mgr@${info.slug}.com.br`,
+    ]);
 
     await useCase.execute(
       new SendBookingRequestedNotificationDtoBuilder()

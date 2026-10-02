@@ -432,18 +432,18 @@ async function seedNotificationTemplates(
   q: ReturnType<DataSource['createQueryRunner']>,
 ): Promise<void> {
   // Mirrors TenantProvisionedHandler → copyGlobalDefaultsForTenant
-  // Copies all global templates (tenant_id IS NULL) to each seed tenant.
-  for (const tenantId of [IDS.tenantIkaro, IDS.tenantA, IDS.tenantB]) {
-    await q.query(
-      `INSERT INTO notification.notification_templates
-         (id, tenant_id, trigger_event, channel, subject, body, created_at, updated_at)
-       SELECT gen_random_uuid(), $1::uuid, trigger_event, channel, subject, body, now(), now()
-       FROM notification.notification_templates
-       WHERE tenant_id IS NULL
-       ON CONFLICT DO NOTHING`,
-      [tenantId],
-    );
-  }
+  // Copies all global templates (tenant_id IS NULL) to each seed tenant — one statement for all
+  // tenants rather than one awaited query per tenant.
+  await q.query(
+    `INSERT INTO notification.notification_templates
+       (id, tenant_id, trigger_event, channel, subject, body, created_at, updated_at)
+     SELECT gen_random_uuid(), t.tenant_id, g.trigger_event, g.channel, g.subject, g.body, now(), now()
+     FROM unnest($1::uuid[]) AS t(tenant_id)
+     CROSS JOIN notification.notification_templates g
+     WHERE g.tenant_id IS NULL
+     ON CONFLICT DO NOTHING`,
+    [[IDS.tenantIkaro, IDS.tenantA, IDS.tenantB]],
+  );
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────────

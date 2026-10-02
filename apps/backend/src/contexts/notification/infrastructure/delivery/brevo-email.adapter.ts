@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { EmailDeliveryException } from '../../domain/errors/notification-domain.error';
 import { EmailSendOptions, IEmailSender } from '../../application/ports/email-sender.port';
+import { toNodemailerMessage } from './email-message.mapper';
 
 @Injectable()
 export class BrevoEmailAdapter implements IEmailSender {
@@ -27,13 +28,7 @@ export class BrevoEmailAdapter implements IEmailSender {
 
   async send(options: EmailSendOptions): Promise<void> {
     try {
-      await this.transporter.sendMail({
-        to: options.to,
-        from: options.fromName ? { name: options.fromName, address: options.from } : options.from,
-        replyTo: options.replyTo,
-        subject: options.subject,
-        html: options.html,
-      });
+      await this.transporter.sendMail(toNodemailerMessage(options));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'unknown error';
       throw new EmailDeliveryException(this.redactSmtpKey(message));

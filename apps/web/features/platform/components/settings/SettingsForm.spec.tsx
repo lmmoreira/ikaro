@@ -444,10 +444,11 @@ describe('SettingsForm', () => {
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
     expect(screen.queryByText('E-mail de envio das notificações')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('settings-notification-from-email')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('E-mail de envio das notificações')).not.toBeInTheDocument();
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
     expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(mockUpdateTenantSettings).toHaveBeenCalledTimes(1);
     const payload = mockUpdateTenantSettings.mock.calls[0][0] as { settings: object };
     expect(payload.settings).not.toHaveProperty('notification');
   });

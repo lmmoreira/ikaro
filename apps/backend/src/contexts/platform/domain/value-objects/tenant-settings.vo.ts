@@ -145,11 +145,11 @@ export class TenantSettings {
       businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, resolvedCountryCode),
     };
     TenantSettings.validate(normalizedProps);
-    // Runs strictly after validate() succeeds: BusinessInfoValidator
-    // already confirmed the raw format via Email.isValid() and throw their own typed error codes
-    // (SETTINGS_BUSINESS_EMAIL_INVALID) on a bad value — an
-    // already-valid email can never fail Email.create() here, so this step only ever normalizes
-    // (lowercase/trim), never changes what error a caller sees for invalid input.
+    // Runs strictly after validate() succeeds: BusinessInfoValidator already confirmed the raw
+    // format via Email.isValid() and throws its own typed error code
+    // (SETTINGS_BUSINESS_EMAIL_INVALID) on a bad value — an already-valid email can never fail
+    // Email.create() here, so this step only ever normalizes (lowercase/trim), never changes what
+    // error a caller sees for invalid input.
     return new TenantSettings(TenantSettings.normalizeValidatedEmails(normalizedProps));
   }
 

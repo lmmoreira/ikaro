@@ -178,7 +178,7 @@ Add `chatbot` to the fixed category-key list in both `UpdateTenantSettingsSchema
 - [ ] `PATCH /v1/tenants/settings` accepts `settings.chatbot.knowledgeText` as a string with no hardcoded length bound at the Zod layer (BFF + backend) — the resolved `maxKnowledgeTextLength` cap is enforced solely by `ChatbotSettingsValidator` in the domain layer, `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` if exceeded; rejects any other `chatbot.*` key with `400` at the Zod `.strict()` layer
 - [ ] `GET /v1/tenants/settings` returns the `chatbot` category for every tenant (empty `knowledgeText` for tenants that never set it)
 - [ ] New error code `PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` added to `packages/types/src/error-codes.ts` + both `pt-BR`/`en` locale files in the same commit — exhaustiveness test passes
-- [ ] `packages/types/src/tenant.dto.ts`'s `TenantSettings` and `UpdateTenantSettingsRequest` interfaces gain a `chatbot` field (`TenantChatbotSettings { knowledgeText: string }`, and `Partial<TenantChatbotSettings>` on the update request), matching the existing `TenantNotificationSettings` pattern
+- [ ] `packages/types/src/tenant.dto.ts`'s `TenantSettings` and `UpdateTenantSettingsRequest` interfaces gain a `chatbot` field (`TenantChatbotSettings { knowledgeText: string }`, and `Partial<TenantChatbotSettings>` on the update request), matching the existing per-category `Tenant<Category>Settings` pattern (`TenantNotificationSettings`, the original example, was removed in M18-S09)
 - [ ] Unit + integration tests for the VO default/validation and the `PATCH`/`GET` endpoints
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 

@@ -90,10 +90,10 @@ export interface TenantSettings {
   businessInfo?: TenantBusinessInfo;
   // Required, unlike businessInfo above: that one is optional because its presence merely
   // mirrors whatever TenantSettings.toJSON() happens to contain for a given tenant. chatbot is
-  // different — get-tenant-by-id.use-case.ts and
-  // update-tenant-settings.use-case.ts both override toJSON()'s raw value with the chatbot
-  // getter's result, which always resolves knowledgeText (defaulting to '' for any tenant whose
-  // stored settings predate M19-S04). The response genuinely can never omit this field.
+  // different — get-tenant-by-id.use-case.ts and update-tenant-settings.use-case.ts both
+  // override toJSON()'s raw value with the chatbot getter's result, which always resolves
+  // knowledgeText (defaulting to '' for any tenant whose stored settings predate M19-S04). The
+  // response genuinely can never omit this field.
   chatbot: TenantChatbotSettings;
   leadForm: TenantLeadFormSettings;
 }
