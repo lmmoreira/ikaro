@@ -75,6 +75,12 @@ describe('SettingsContactSection', () => {
     expect(screen.getByTestId('settings-email')).toHaveValue('contato@beloauto.com.br');
   });
 
+  it('explains the email is also the Reply-To of customer emails and is shown publicly', () => {
+    renderWithIntl(<SettingsContactSection {...baseProps()} />);
+
+    expect(screen.getByText(/respostas dos clientes aos e-mails/)).toBeInTheDocument();
+  });
+
   it('calls onAddressFieldChange when the street field changes', async () => {
     const user = userEvent.setup();
     const props = baseProps();

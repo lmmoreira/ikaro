@@ -1046,6 +1046,7 @@
       "phoneLabel": "Phone",
       "emailLabel": "Email",
       "emailPlaceholder": "contact@yourbusiness.com",
+      "emailHint": "Also where customers' replies to the emails we send for your business are delivered, and shown publicly on your site and chatbot.",
       "addressLegend": "Address",
       "addressHint": "Optional — fill in every field to show the address on the site, or leave them all blank.",
       "addressZipSearching": "Looking up address...",
