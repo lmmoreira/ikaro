@@ -8,10 +8,12 @@ import { IResourceRepository } from '../ports/resource-repository.port';
 import { AvailabilityLine } from './availability-lines.helpers';
 import {
   createWindowResolutionContext,
+  WindowResolutionContext,
+} from './availability-window-candidates.helpers';
+import {
   isBookingWindowAvailable,
   ResourceAvailabilityContext,
   ResourceScopedAvailabilityDeps,
-  WindowResolutionContext,
 } from './availability-window-resolution.helpers';
 
 export interface ResourceScopedAvailabilityRequest {

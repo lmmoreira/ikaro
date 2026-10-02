@@ -7,8 +7,8 @@ import { AvailabilityService } from '../../domain/services/availability.service'
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { ServiceLeg } from '../../domain/service-leg';
+import { createWindowResolutionContext } from './availability-window-candidates.helpers';
 import {
-  createWindowResolutionContext,
   isBookingWindowAvailable,
   resolveAvailabilityRequirementWindows,
   ResourceAvailabilityContext,

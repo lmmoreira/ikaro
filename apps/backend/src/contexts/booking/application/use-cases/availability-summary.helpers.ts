@@ -9,7 +9,7 @@ import { IScheduleClosureRepository } from '../ports/schedule-closure-repository
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { AvailabilityLine } from './availability-lines.helpers';
-import { createWindowResolutionContext } from './availability-window-resolution.helpers';
+import { createWindowResolutionContext } from './availability-window-candidates.helpers';
 import { calculateResourceScopedAvailability } from './resource-scoped-availability.helpers';
 
 export interface DaySummary {
