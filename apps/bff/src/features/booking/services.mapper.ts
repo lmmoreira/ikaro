@@ -1,5 +1,10 @@
 import {
   ClassResourceSlotItem,
+  HotsiteServiceLeg,
+  HotsiteServiceQuoteResponse,
+  HotsiteServiceResourceOptionsResponse,
+  HotsiteServiceResourceRequirement,
+  HotsiteServiceResponse,
   PublicServiceIntakeSchemaResponse,
   ResourceRequirementItem,
   ServiceIntakeSchemaResponse,
@@ -13,6 +18,8 @@ import {
   ClassResourceSlotDetail,
   GetPublicServiceIntakeSchemaResult,
   GetServiceIntakeSchemaResult,
+  GetServiceQuoteResult,
+  GetServiceResourceOptionsResult,
   ResourceRequirementDetail,
   ServiceDetail,
   ServiceIntakeSchemaVersionDetail,
@@ -118,5 +125,95 @@ export function toStaffServiceEditViewResponse(
   return {
     service: toStaffServiceResponse(service),
     intakeSchema: toServiceIntakeSchemaResponse(intakeSchema),
+  };
+}
+
+// The unauthenticated service shape: every field is named explicitly (never an object spread) so a
+// field added to the backend's ServiceUseCaseResult can never leak to an anonymous caller.
+// toResourceRequirementItem is deliberately NOT reused: it copies resourcePoolIds.
+function toHotsiteResourceRequirement(
+  item: ResourceRequirementDetail,
+): HotsiteServiceResourceRequirement {
+  return {
+    type: item.type as HotsiteServiceResourceRequirement['type'],
+    selectionMode: item.selectionMode,
+    requiredQuantity: item.requiredQuantity,
+  };
+}
+
+function toHotsiteServiceLeg(leg: ServiceLegDetail): HotsiteServiceLeg {
+  return {
+    legIndex: leg.legIndex,
+    name: leg.name,
+    durationMinutes: leg.durationMinutes,
+    resourceRequirements: leg.resourceRequirements.map(toHotsiteResourceRequirement),
+    transitionGapAfterMinutes: leg.transitionGapAfterMinutes,
+  };
+}
+
+export function toPublicServiceResponse(service: ServiceDetail): HotsiteServiceResponse {
+  const policy = service.bookingPolicy;
+  return {
+    id: service.id,
+    name: service.name,
+    description: service.description,
+    price: {
+      amount: service.price.amount,
+      currency: service.price.currency,
+      formatted: service.price.formatted,
+    },
+    durationMinutes: service.durationMinutes,
+    loyaltyPointsValue: service.loyaltyPointsValue,
+    requiresPickupAddress: service.requiresPickupAddress,
+    isActive: service.isActive,
+    createdAt: service.createdAt,
+    bookingModel: service.bookingModel,
+    resourceRequirements: service.resourceRequirements.map(toHotsiteResourceRequirement),
+    legs: service.legs ? service.legs.map(toHotsiteServiceLeg) : null,
+    bookingPolicy: {
+      durationPolicy: policy.durationPolicy,
+      durationMinMinutes: policy.durationMinMinutes,
+      durationMaxMinutes: policy.durationMaxMinutes,
+      durationIncrementMinutes: policy.durationIncrementMinutes,
+      pricingPolicy: policy.pricingPolicy,
+      pricingIncrementMinutes: policy.pricingIncrementMinutes,
+      pricePerIncrementAmount: policy.pricePerIncrementAmount,
+      minimumChargeAmount: policy.minimumChargeAmount,
+      recurrenceEligible: policy.recurrenceEligible,
+      recurringHorizonDays: policy.recurringHorizonDays,
+    },
+  };
+}
+
+export function toPublicServiceListResponse(list: ServiceListResponse): {
+  items: HotsiteServiceResponse[];
+} {
+  return { items: list.items.map(toPublicServiceResponse) };
+}
+
+export function toPublicServiceResourceOptionsResponse(
+  result: GetServiceResourceOptionsResult,
+): HotsiteServiceResourceOptionsResponse {
+  return {
+    requirements: result.requirements.map((requirement) => ({
+      serviceId: requirement.serviceId,
+      legIndex: requirement.legIndex,
+      resourceType: requirement.resourceType as HotsiteServiceResourceRequirement['type'],
+      selectionMode: requirement.selectionMode,
+      requiredQuantity: requirement.requiredQuantity,
+      options: requirement.options.map((option) => ({
+        resourceId: option.resourceId,
+        name: option.name,
+      })),
+    })),
+  };
+}
+
+export function toPublicServiceQuoteResponse(
+  result: GetServiceQuoteResult,
+): HotsiteServiceQuoteResponse {
+  return {
+    durationMinutes: result.durationMinutes,
+    price: { amount: result.price.amount, currency: result.price.currency },
   };
 }

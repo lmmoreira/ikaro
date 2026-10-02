@@ -64,3 +64,60 @@ GET {{baseUrl}}/schedule/availability?date=not-a-date&serviceIds={{serviceId}}
 X-Tenant-ID: {{tenantId}}
 
 ###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M23-S29 — pinned selections and a chosen duration
+# resourceSelections = <serviceId>:<legIndex or ->:<resourceType>:<resourceId>[,…]
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Availability with the customer's chosen resource pinned to a CUSTOMER_CHOICE requirement
+GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceSelections={{serviceId}}:-:STAFF:{{resourceId}}
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### Availability for a legged service — the pick is addressed to its leg
+GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceSelections={{serviceId}}:0:STAFF:{{resourceId}}
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### Availability for a CUSTOMER_SELECTED service with its chosen duration
+GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&durationMinutes=120
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### Summary with a pinned pick and a chosen duration
+GET {{baseUrl}}/schedule/availability/summary?from=2026-06-01&to=2026-06-07&serviceIds={{serviceId}}&resourceSelections={{serviceId}}:-:STAFF:{{resourceId}}&durationMinutes=120
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 400 — resourceId and resourceSelections together
+GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceId={{resourceId}}&resourceSelections={{serviceId}}:-:STAFF:{{resourceId}}
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 400 — malformed resourceSelections item
+GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceSelections=not-a-selection
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 422 — a pick that is not a CUSTOMER_CHOICE requirement of the service, or an inactive/out-of-pool/other-tenant resource (BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE)
+GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceSelections={{serviceId}}:-:ROOM:{{resourceId}}
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 422 — durationMinutes out of range for a CUSTOMER_SELECTED service (BOOKING_DURATION_OUT_OF_RANGE)
+GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&durationMinutes=9999
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 422 — durationMinutes with more than one CUSTOMER_SELECTED service
+GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}},{{service2Id}}&durationMinutes=60
+X-Tenant-ID: {{tenantId}}

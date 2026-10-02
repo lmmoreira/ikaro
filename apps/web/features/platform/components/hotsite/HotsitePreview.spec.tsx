@@ -3,7 +3,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import type { HotsiteAdminContentResponse, HotsiteManifestResponse } from '@ikaro/types';
-import { clearPublicEnv, renderWithIntl, stubPublicEnv } from '@/test-utils';
+import {
+  clearPublicEnv,
+  renderWithIntl,
+  stubPublicEnv,
+  hotsiteServiceBookingDefaults,
+} from '@/test-utils';
 import { fetchManifestClient } from '@/features/platform/api';
 import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
@@ -301,6 +306,7 @@ describe('HotsitePreview', () => {
         requiresPickupAddress: false,
         isActive: true,
         createdAt: '2026-01-01T00:00:00.000Z',
+        ...hotsiteServiceBookingDefaults,
       },
     ]);
     const draft = makeDraft({

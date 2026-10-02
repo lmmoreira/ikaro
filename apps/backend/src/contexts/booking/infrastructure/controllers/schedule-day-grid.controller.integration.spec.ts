@@ -2,16 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource, In } from 'typeorm';
 import { CalendarDateErrorCode } from '@ikaro/types';
-import {
-  BookingEntityBuilder,
-  BookingLineEntityBuilder,
-  BookingLineResourceAssignmentEntityBuilder,
-  ResourceEntityBuilder,
-  ResourceOccupancyEntityBuilder,
-  ServiceEntityBuilder,
-} from '../../../../test/builders/booking/index';
+import { ResourceEntityBuilder } from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
+import { seedOccupiedBlock } from '../../../../test/utils/seed-resource-occupancy';
 import { ResourceEntity } from '../entities/resource.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
@@ -57,47 +51,6 @@ describe('ScheduleDayGridController (integration)', () => {
     }
   });
 
-  // Real composite FKs require a genuinely persisted service + booking + line + assignment
-  // before a resource_occupancy row can reference one — same discipline as
-  // typeorm-resource-occupancy.repository.integration.spec.ts.
-  async function seedOccupiedBlock(
-    tenantId: string,
-    resourceId: string,
-    resourceType: ResourceType,
-    lockState: 'REQUESTED' | 'HOLD' | 'COMMITTED',
-    startsAt: Date,
-    endsAt: Date,
-  ): Promise<{ bookingId: string }> {
-    const service = new ServiceEntityBuilder().withTenantId(tenantId).build();
-    await ds.getRepository(ServiceEntity).save(service);
-    const booking = new BookingEntityBuilder().withTenantId(tenantId).build();
-    await ds.getRepository(BookingEntity).save(booking);
-    const line = new BookingLineEntityBuilder()
-      .withTenantId(tenantId)
-      .withBookingId(booking.id)
-      .withServiceId(service.id)
-      .build();
-    await ds.getRepository(BookingLineEntity).save(line);
-    const assignment = new BookingLineResourceAssignmentEntityBuilder()
-      .withTenantId(tenantId)
-      .withBookingLineId(line.lineId)
-      .withResourceId(resourceId)
-      .withResourceType(resourceType)
-      .build();
-    await ds.getRepository(BookingLineResourceAssignmentEntity).save(assignment);
-    const occupancy = new ResourceOccupancyEntityBuilder()
-      .withTenantId(tenantId)
-      .withResourceId(resourceId)
-      .withResourceType(resourceType)
-      .withBookingLineResourceAssignmentId(assignment.id)
-      .withLockState(lockState)
-      .withStartsAt(startsAt)
-      .withEndsAt(endsAt)
-      .build();
-    await ds.getRepository(ResourceOccupancyEntity).save(occupancy);
-    return { bookingId: booking.id };
-  }
-
   describe('GET /schedule/day-grid', () => {
     it('returns one column per active resource with correctly placed occupied blocks, including a REQUESTED-state booking', async () => {
       const resource = new ResourceEntityBuilder()
@@ -108,6 +61,7 @@ describe('ScheduleDayGridController (integration)', () => {
       await ds.getRepository(ResourceEntity).save(resource);
 
       const { bookingId } = await seedOccupiedBlock(
+        ds,
         TENANT_A,
         resource.id,
         ResourceType.ROOM,
@@ -181,6 +135,7 @@ describe('ScheduleDayGridController (integration)', () => {
       await ds.getRepository(ResourceEntity).save([ownResource, otherResource]);
 
       const { bookingId: otherTenantBookingId } = await seedOccupiedBlock(
+        ds,
         TENANT_B,
         otherResource.id,
         ResourceType.ROOM,

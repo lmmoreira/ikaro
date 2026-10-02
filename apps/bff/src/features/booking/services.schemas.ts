@@ -65,6 +65,13 @@ export const UpdateServiceBodySchema = z
   })
   .default({});
 
+// Optional at the boundary — a FIXED-duration service ignores it, and a CUSTOMER_SELECTED service
+// without one is a domain-level 422 (BOOKING_DURATION_OUT_OF_RANGE) from the backend.
+export const QuoteQuerySchema = z.object({
+  durationMinutes: z.coerce.number().int().positive().optional(),
+});
+
+export type QuoteQuery = z.infer<typeof QuoteQuerySchema>;
 export type CreateServiceBody = z.infer<typeof CreateServiceBodySchema>;
 export type UpdateServiceBody = z.infer<typeof UpdateServiceBodySchema>;
 export type UpdateServiceResourceRequirementsBody = z.infer<

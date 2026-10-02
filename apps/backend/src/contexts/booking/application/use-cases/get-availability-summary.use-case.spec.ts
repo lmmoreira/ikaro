@@ -1,3 +1,4 @@
+import { BookingQuoteService } from '../services/booking-quote.service';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
@@ -10,6 +11,11 @@ import { ResourceBuilder } from '../../../../test/builders/booking/resource.buil
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import {
+  BookingDurationOutOfRangeError,
+  BookingServiceResourceTypeUnavailableError,
+} from '../../domain/errors/booking-domain.error';
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -45,6 +51,7 @@ describe('GetAvailabilitySummaryUseCase', () => {
       resourceRepo,
       bookingPort,
       new AvailabilityService(),
+      new BookingQuoteService(),
     );
     // M22-S03: the degenerate (tenant-wide) path now resolves the tenant's LOCATION resource
     // (M21-S02's real backfill guarantees one always exists in production) — every test in this
@@ -538,6 +545,115 @@ describe('GetAvailabilitySummaryUseCase', () => {
         monday,
         to,
         expect.any(String),
+      );
+    });
+  });
+
+  describe('pinned selections and a chosen duration (M23-S29)', () => {
+    const run = (
+      serviceId: string,
+      overrides: Partial<Parameters<GetAvailabilitySummaryUseCase['execute']>[0]> = {},
+    ) =>
+      useCase.execute({
+        from: monday,
+        to: monday,
+        serviceIds: [serviceId],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: 60,
+        serviceBufferMinutes: 0,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+        ...overrides,
+      });
+
+    const seedPinnableService = async () => {
+      const ana = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.STAFF)
+        .withRefId(uuidv7())
+        .build();
+      await resourceRepo.save(ana);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.STAFF,
+            selectionMode: 'CUSTOMER_CHOICE',
+          }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+      return { ana, service };
+    };
+
+    it('counts only the days/slots where the chosen resource is free, matching the single-day answer', async () => {
+      const { ana, service } = await seedPinnableService();
+      const selections = [
+        {
+          serviceId: service.id,
+          legIndex: null,
+          resourceType: ResourceType.STAFF,
+          resourceId: ana.id,
+        },
+      ];
+      const [free] = await run(service.id, { resourceSelections: selections });
+      // Ana is busy for the whole local business day.
+      bookingPort.setSlots([
+        {
+          resourceId: ana.id,
+          startsAt: new Date(`${monday}T00:00:00.000Z`),
+          endsAt: new Date(`${monday}T23:59:00.000Z`),
+        },
+      ]);
+
+      const [busy] = await run(service.id, { resourceSelections: selections });
+
+      expect(free.available).toBe(true);
+      expect(busy).toEqual({ date: monday, available: false, slotCount: 0 });
+    });
+
+    it('rejects a selection that is not a CUSTOMER_CHOICE requirement of the service', async () => {
+      const { ana } = await seedPinnableService();
+      const other = new ServiceBuilder().withTenantId(TENANT_ID).build();
+      await serviceRepo.save(other);
+
+      await expect(
+        run(other.id, {
+          resourceSelections: [
+            {
+              serviceId: other.id,
+              legIndex: null,
+              resourceType: ResourceType.STAFF,
+              resourceId: ana.id,
+            },
+          ],
+        }),
+      ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
+    });
+
+    it('uses the chosen duration for a CUSTOMER_SELECTED service and validates its range', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withBufferAfterMinutes(0)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 600,
+          durationIncrementMinutes: 60,
+          pricingPolicy: 'FIXED',
+        })
+        .build();
+      await serviceRepo.save(service);
+
+      const [short] = await run(service.id, { durationMinutes: 60 });
+      const [long] = await run(service.id, { durationMinutes: 480 });
+
+      expect(long.slotCount).toBeLessThan(short.slotCount);
+      await expect(run(service.id, { durationMinutes: 700 })).rejects.toBeInstanceOf(
+        BookingDurationOutOfRangeError,
       );
     });
   });

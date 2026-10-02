@@ -28,7 +28,10 @@ import {
 } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { BookingQuoteService } from '../services/booking-quote.service';
+import { toResourceSelections } from './booking-request.mapper';
 import { GetAvailabilityDto } from '../dtos/get-availability.dto';
+import { AvailabilityLine, buildAvailabilityLines } from './availability-lines.helpers';
 import { isDegenerateService } from './availability-resource-scope.helpers';
 import { calculateResourceScopedAvailability } from './resource-scoped-availability.helpers';
 
@@ -67,6 +70,7 @@ export class GetAvailabilityUseCase {
     @Inject(BOOKING_AVAILABILITY_PORT)
     private readonly bookingPort: IBookingAvailabilityPort,
     private readonly availabilityService: AvailabilityService,
+    private readonly quoteService: BookingQuoteService,
   ) {}
 
   async execute(input: GetAvailabilityUseCaseInput): Promise<GetAvailabilityUseCaseResult> {
@@ -77,7 +81,16 @@ export class GetAvailabilityUseCase {
 
     const services = await this.findAndValidateServices(input.serviceIds, tenantId);
 
-    const slots = await this.computeSlots(input, services);
+    const lines = await buildAvailabilityLines(
+      { quoteService: this.quoteService, resourceRepo: this.resourceRepo },
+      tenantId,
+      services,
+      {
+        resourceSelections: toResourceSelections(input.resourceSelections),
+        durationMinutes: input.durationMinutes,
+      },
+    );
+    const slots = await this.computeSlots(input, lines);
     return { date: input.date, slots, available: slots.length > 0 };
   }
 
@@ -96,24 +109,27 @@ export class GetAvailabilityUseCase {
 
   private async computeSlots(
     input: GetAvailabilityUseCaseInput,
-    services: Service[],
+    lines: AvailabilityLine[],
   ): Promise<AvailableSlot[]> {
     // An explicit resourceId (a manager/staff view of one specific resource's own schedule,
     // independent of any service's resourceRequirements) is unchanged from before M22-S03 — only
     // its occupancy source moves from the old tenant-wide port method to the new resource-scoped
     // one, for that one resource.
     if (input.resourceId != null) {
-      return this.calculateForResource(input, services, input.resourceId);
+      return this.calculateForResource(input, lines, input.resourceId);
     }
-    if (services.every((s) => isDegenerateService(s))) {
-      return this.calculateDegenerate(input, services);
+    // A pinned pick routes through the resource-scoped path even for an otherwise-degenerate
+    // service — the pin is meaningless to the tenant-wide LOCATION model.
+    const hasPins = lines.some((line) => line.pins.size > 0);
+    if (!hasPins && lines.every((line) => isDegenerateService(line.service))) {
+      return this.calculateDegenerate(input, lines);
     }
-    return this.calculateResourceScoped(input, services);
+    return this.calculateResourceScoped(input, lines);
   }
 
   private async calculateForResource(
     input: GetAvailabilityUseCaseInput,
-    services: Service[],
+    lines: AvailabilityLine[],
     resourceId: string,
   ): Promise<AvailableSlot[]> {
     const { businessHours, slotGranularityMinutes, serviceBufferMinutes } = input;
@@ -130,14 +146,14 @@ export class GetAvailabilityUseCase {
       ]);
     return this.availabilityService.calculate({
       date: input.date,
-      services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
+      services: lines.map((line) => ({ durationMinutes: line.durationMinutes })),
       businessHours,
       resource,
       slotGranularityMinutes,
       // Only the last requested service's own buffer applies (matching
       // effectiveFlatGapMinutes's last-line-only rule everywhere else) — the tenant default is
       // only a fallback for a service with no override.
-      serviceBufferMinutes: services.at(-1)!.bufferAfterMinutes ?? serviceBufferMinutes,
+      serviceBufferMinutes: lines.at(-1)!.service.bufferAfterMinutes ?? serviceBufferMinutes,
       closures,
       opening: tenantOpening,
       resourceOpening,
@@ -149,7 +165,7 @@ export class GetAvailabilityUseCase {
   // resource_occupancy rows instead of raw bookings, but every other input is byte-identical.
   private async calculateDegenerate(
     input: GetAvailabilityUseCaseInput,
-    services: Service[],
+    lines: AvailabilityLine[],
   ): Promise<AvailableSlot[]> {
     const { tenantId, businessHours, slotGranularityMinutes, serviceBufferMinutes } = input;
     const [locationResource] = await this.resourceRepo.findByTenant(tenantId, {
@@ -173,11 +189,11 @@ export class GetAvailabilityUseCase {
 
     return this.availabilityService.calculate({
       date: input.date,
-      services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
+      services: lines.map((line) => ({ durationMinutes: line.durationMinutes })),
       businessHours,
       resource: null,
       slotGranularityMinutes,
-      serviceBufferMinutes: services.at(-1)!.bufferAfterMinutes ?? serviceBufferMinutes,
+      serviceBufferMinutes: lines.at(-1)!.service.bufferAfterMinutes ?? serviceBufferMinutes,
       closures,
       opening: tenantOpening,
       resourceOpening: null,
@@ -187,7 +203,7 @@ export class GetAvailabilityUseCase {
 
   private async calculateResourceScoped(
     input: GetAvailabilityUseCaseInput,
-    services: Service[],
+    lines: AvailabilityLine[],
   ): Promise<AvailableSlot[]> {
     return calculateResourceScopedAvailability(
       {
@@ -205,7 +221,7 @@ export class GetAvailabilityUseCase {
           ),
       },
       input,
-      services,
+      lines,
     );
   }
 

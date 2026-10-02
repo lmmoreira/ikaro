@@ -23,7 +23,10 @@ import {
 } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { BookingQuoteService } from '../services/booking-quote.service';
+import { toResourceSelections } from './booking-request.mapper';
 import { GetAvailabilitySummaryDto } from '../dtos/get-availability-summary.dto';
+import { AvailabilityLine, buildAvailabilityLines } from './availability-lines.helpers';
 import { isDegenerateService } from './availability-resource-scope.helpers';
 import {
   buildDaySummaries,
@@ -56,6 +59,7 @@ export class GetAvailabilitySummaryUseCase {
     @Inject(BOOKING_AVAILABILITY_PORT)
     private readonly bookingPort: IBookingAvailabilityPort,
     private readonly availabilityService: AvailabilityService,
+    private readonly quoteService: BookingQuoteService,
   ) {}
 
   async execute(
@@ -65,11 +69,21 @@ export class GetAvailabilitySummaryUseCase {
 
     this.validateRange(input.from, input.to, maxBookingAdvanceDays);
     const services = await this.findAndValidateServices(input.serviceIds, tenantId);
+    const lines = await buildAvailabilityLines(
+      { quoteService: this.quoteService, resourceRepo: this.resourceRepo },
+      tenantId,
+      services,
+      {
+        resourceSelections: toResourceSelections(input.resourceSelections),
+        durationMinutes: input.durationMinutes,
+      },
+    );
 
     if (input.resourceId != null) {
-      return this.buildSummaryForResources(input, services, [input.resourceId]);
+      return this.buildSummaryForResources(input, lines, [input.resourceId]);
     }
-    if (services.every((s) => isDegenerateService(s))) {
+    const hasPins = lines.some((line) => line.pins.size > 0);
+    if (!hasPins && lines.every((line) => isDegenerateService(line.service))) {
       const [locationResource] = await this.resourceRepo.findByTenant(tenantId, {
         type: ResourceType.LOCATION,
         isActive: true,
@@ -77,9 +91,9 @@ export class GetAvailabilitySummaryUseCase {
       if (!locationResource) {
         throw new BookingServiceResourceTypeUnavailableError(ResourceType.LOCATION);
       }
-      return this.buildSummaryForResources(input, services, [locationResource.id], true);
+      return this.buildSummaryForResources(input, lines, [locationResource.id], true);
     }
-    return buildResourceScopedSummary(this.deps(), input, tenantId, services);
+    return buildResourceScopedSummary(this.deps(), input, tenantId, lines);
   }
 
   private deps(): SummaryDeps {
@@ -96,7 +110,7 @@ export class GetAvailabilitySummaryUseCase {
   // reduce to "one resource, one occupancy range fetch, one calculate() per day."
   private async buildSummaryForResources(
     input: GetAvailabilitySummaryUseCaseInput,
-    services: Service[],
+    lines: AvailabilityLine[],
     resourceIds: string[],
     tenantWideScheduleContext = false,
   ): Promise<GetAvailabilitySummaryUseCaseResult> {
@@ -124,7 +138,7 @@ export class GetAvailabilitySummaryUseCase {
     return buildDaySummaries(
       this.availabilityService,
       input,
-      services,
+      lines,
       resource,
       scheduleRange,
       occupancy,

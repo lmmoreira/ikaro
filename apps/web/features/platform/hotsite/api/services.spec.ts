@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { HotsiteServiceResponse } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 import { fetchServicesClient } from './services';
+import { hotsiteServiceBookingDefaults } from '@/test-utils';
 
 function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServiceResponse {
   return {
@@ -15,6 +16,7 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
     requiresPickupAddress: false,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z',
+    ...hotsiteServiceBookingDefaults,
     ...overrides,
   };
 }

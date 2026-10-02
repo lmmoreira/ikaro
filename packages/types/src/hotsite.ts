@@ -1,5 +1,11 @@
-import type { HotsiteModuleType } from './enums';
-import type { Money } from './money';
+import type { HotsiteModuleType, ResourceType } from './enums';
+import type { Money, MoneyAmount } from './money';
+import type {
+  ResourceRequirementSelectionMode,
+  ServiceBookingModel,
+  ServiceDurationPolicy,
+  ServicePricingPolicy,
+} from './service.dto';
 import type { LeadFormAudienceMode, LeadFormQuestion, TenantInfoResponse } from './tenant.dto';
 
 export type { HotsiteModuleType };
@@ -312,6 +318,38 @@ export interface FeatureBookingPhotoResponse {
 
 // ─── Public service list (consumed by SERVICE_LIST module + future hotsite modules) ──
 
+// Public counterpart of ResourceRequirementItem — never carries resourcePoolIds (which resources a
+// tenant restricts a requirement to is not a public fact; see HotsiteServiceResourceOptionsResponse
+// for what a customer may actually pick).
+export interface HotsiteServiceResourceRequirement {
+  type: ResourceType;
+  selectionMode: ResourceRequirementSelectionMode;
+  requiredQuantity: number;
+}
+
+export interface HotsiteServiceLeg {
+  legIndex: number;
+  name: string;
+  durationMinutes: number;
+  resourceRequirements: HotsiteServiceResourceRequirement[];
+  transitionGapAfterMinutes: number;
+}
+
+// The subset of the service's booking policy the booking flow reads — no override, approval,
+// hold, availability-alert or class-slot fields.
+export interface HotsiteServiceBookingPolicy {
+  durationPolicy: ServiceDurationPolicy;
+  durationMinMinutes: number | null;
+  durationMaxMinutes: number | null;
+  durationIncrementMinutes: number | null;
+  pricingPolicy: ServicePricingPolicy;
+  pricingIncrementMinutes: number | null;
+  pricePerIncrementAmount: number | null;
+  minimumChargeAmount: number | null;
+  recurrenceEligible: boolean;
+  recurringHorizonDays: number | null;
+}
+
 export interface HotsiteServiceResponse {
   id: string;
   name: string;
@@ -322,10 +360,40 @@ export interface HotsiteServiceResponse {
   requiresPickupAddress: boolean;
   isActive: boolean;
   createdAt: string;
+  bookingModel: ServiceBookingModel;
+  resourceRequirements: HotsiteServiceResourceRequirement[];
+  legs: HotsiteServiceLeg[] | null;
+  bookingPolicy: HotsiteServiceBookingPolicy;
 }
 
 export interface HotsiteServiceListResponse {
   items: HotsiteServiceResponse[];
+}
+
+// GET /public/services/:id/resource-options — the CUSTOMER_CHOICE requirements of a service and
+// the active resources a customer may pick for each (id and name only).
+export interface HotsiteServiceResourceOption {
+  resourceId: string;
+  name: string;
+}
+
+export interface HotsiteServiceResourceOptionsRequirement {
+  serviceId: string;
+  legIndex: number | null;
+  resourceType: ResourceType;
+  selectionMode: 'CUSTOMER_CHOICE';
+  requiredQuantity: number;
+  options: HotsiteServiceResourceOption[];
+}
+
+export interface HotsiteServiceResourceOptionsResponse {
+  requirements: HotsiteServiceResourceOptionsRequirement[];
+}
+
+// GET /public/services/:id/quote — what booking creation would persist for the chosen duration.
+export interface HotsiteServiceQuoteResponse {
+  durationMinutes: number;
+  price: MoneyAmount;
 }
 
 // ─── Published hotsites listing (sitemap.xml — M12-S09) ───────────────────────

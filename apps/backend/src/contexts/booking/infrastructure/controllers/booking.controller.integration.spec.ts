@@ -570,6 +570,28 @@ describe('BookingController (integration)', () => {
       expect(body.totalDurationMins).toBe(90);
     });
 
+    it('GET /services/:id/quote returns exactly the duration and priceAtBooking that POST /bookings persists (M23-S29)', async () => {
+      const { body: quote } = await request(app.getHttpServer())
+        .get(`/services/${variableDurationServiceId}/quote?durationMinutes=90`)
+        .set(guestHeaders(tenantAId))
+        .expect(200);
+
+      const { body: booking } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(37)}T10:00:00.000Z`,
+          serviceIds: [variableDurationServiceId],
+          durationMinutes: 90,
+        })
+        .expect(201);
+
+      expect(quote.price.amount).toBe(booking.lines[0].priceAtBooking.amount);
+      expect(quote.price.currency).toBe(booking.lines[0].priceAtBooking.currency);
+      expect(quote.durationMinutes).toBe(booking.lines[0].durationMinsAtBooking);
+    });
+
     it('422s when durationMinutes is omitted for a CUSTOMER_SELECTED service', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/bookings')

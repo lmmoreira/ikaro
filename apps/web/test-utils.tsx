@@ -6,6 +6,7 @@ import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
 import enMessages from '@ikaro/i18n/locales/en/web.json';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import type { DateFormat } from '@ikaro/i18n';
+import type { HotsiteServiceResponse } from '@ikaro/types';
 import type { PublicEnvKey } from '@/shared/lib/runtime-env/public-env';
 
 // getPublicEnv() reads window.__PUBLIC_ENV__ in any jsdom (client-simulated) spec, never
@@ -25,6 +26,29 @@ export function stubPublicEnv(values: Partial<Record<PublicEnvKey, string>>): vo
 export function clearPublicEnv(): void {
   delete window.__PUBLIC_ENV__;
 }
+
+// The booking-flow fields of HotsiteServiceResponse for a plain fixed-duration, LOCATION-only
+// service — spread into a spec's own service fixture so each spec keeps its own name/price.
+export const hotsiteServiceBookingDefaults: Pick<
+  HotsiteServiceResponse,
+  'bookingModel' | 'resourceRequirements' | 'legs' | 'bookingPolicy'
+> = {
+  bookingModel: 'APPOINTMENT',
+  resourceRequirements: [{ type: 'LOCATION', selectionMode: 'NONE', requiredQuantity: 1 }],
+  legs: null,
+  bookingPolicy: {
+    durationPolicy: 'FIXED',
+    durationMinMinutes: null,
+    durationMaxMinutes: null,
+    durationIncrementMinutes: null,
+    pricingPolicy: 'FIXED',
+    pricingIncrementMinutes: null,
+    pricePerIncrementAmount: null,
+    minimumChargeAmount: null,
+    recurrenceEligible: false,
+    recurringHorizonDays: null,
+  },
+};
 
 const FORMATTING_DEFAULTS: Record<
   string,

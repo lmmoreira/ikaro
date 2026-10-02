@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, hotsiteServiceBookingDefaults } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
@@ -16,6 +16,7 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
     requiresPickupAddress: false,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z',
+    ...hotsiteServiceBookingDefaults,
     ...overrides,
   };
 }

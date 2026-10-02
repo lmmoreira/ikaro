@@ -6,6 +6,7 @@ import {
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResolutionContext } from './resource-resolution-context.helpers';
+import { filterByResourcePool, isInResourcePool } from './resource-pool.helpers';
 
 // Split out of resource-occupancy.helpers.ts (docs/CODE_STANDARDS.md's file-length limit) — the
 // selectionMode-aware algorithm for turning one ResourceRequirement + its caller-supplied
@@ -164,9 +165,8 @@ export async function resolveEligibleResources(
       ctx.resourceCache.set(resource.id, resource);
     }
   }
-  if (requirement.resourcePoolIds && requirement.resourcePoolIds.length > 0) {
-    const poolIds = new Set(requirement.resourcePoolIds);
-    return activeOfType.filter((resource) => poolIds.has(resource.id));
+  if (requirement.resourcePoolIds?.length) {
+    return filterByResourcePool(activeOfType, requirement.resourcePoolIds);
   }
   if (activeOfType.length === 0) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
@@ -222,15 +222,12 @@ async function lookupResource(
   // since every candidate id it ever saw was already sourced from resolveEligibleResources's own
   // pool-correct output.
   const found = await fetchResourceCached(id, ctx);
-  // .length > 0, not a bare truthiness check — an empty array is a real, reachable domain state
-  // (ResourceRequirementSchema has no .min(1)) distinct from null, and this codebase's own
-  // convention treats [] the same as null/unrestricted everywhere else (isDegenerateService,
-  // resolveEligibleResources, availability-window-resolution.helpers.ts's own resourcePoolIds
-  // check) — a bare `!!requirement.resourcePoolIds` would treat [] as "restricted to nothing" and
-  // reject every CUSTOMER_CHOICE selection for a requirement explicitly configured as unrestricted.
-  const poolRestricted =
-    !!requirement.resourcePoolIds?.length && !requirement.resourcePoolIds.includes(id);
-  if (!found?.isActive || found.type !== requirement.type || poolRestricted) {
+  // isInResourcePool owns the "[] is unrestricted, not restricted-to-nothing" rule.
+  if (
+    !found?.isActive ||
+    found.type !== requirement.type ||
+    !isInResourcePool(requirement.resourcePoolIds, id)
+  ) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
   return found;

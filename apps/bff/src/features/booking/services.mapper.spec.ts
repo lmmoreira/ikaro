@@ -4,6 +4,10 @@ import {
   ServiceDetail,
 } from './services.types';
 import {
+  toPublicServiceListResponse,
+  toPublicServiceQuoteResponse,
+  toPublicServiceResourceOptionsResponse,
+  toPublicServiceResponse,
   toPublicServiceIntakeSchemaResponse,
   toServiceIntakeSchemaResponse,
   toStaffServiceEditViewResponse,
@@ -35,7 +39,7 @@ const serviceDetail: ServiceDetail = {
   id: '10000000-0000-4000-8000-000000000001',
   name: 'Lavagem Completa',
   description: 'Lavagem exterior e interior',
-  price: { amount: 150, currency: 'BRL' },
+  price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
   durationMinutes: 60,
   loyaltyPointsValue: 10,
   requiresPickupAddress: false,
@@ -236,5 +240,157 @@ describe('toStaffServiceEditViewResponse()', () => {
 
     expect(result.service.serviceId).toBe(serviceDetail.id);
     expect(result.intakeSchema).toEqual({ active: null, history: [] });
+  });
+});
+
+describe('toPublicServiceResponse() (M23-S29)', () => {
+  const sensitivePolicy = {
+    ...bookingPolicy,
+    defaultApprovalMode: 'MANUAL_APPROVAL' as const,
+    manualHoldMinutes: 30,
+    cancellationWindowHoursOverride: 24,
+    rescheduleWindowHoursOverride: 24,
+    minBookingAdvanceHoursOverride: 2,
+    maxBookingAdvanceDaysOverride: 30,
+    availabilityAlertEligible: true,
+    recurrenceEligible: true,
+    recurringHorizonDays: 90,
+    durationPolicy: 'CUSTOMER_SELECTED' as const,
+    durationMinMinutes: 60,
+    durationMaxMinutes: 240,
+    durationIncrementMinutes: 30,
+    pricingPolicy: 'PER_TIME_INCREMENT' as const,
+    pricingIncrementMinutes: 60,
+    pricePerIncrementAmount: 50,
+    minimumChargeAmount: 80,
+  };
+  const privateService: ServiceDetail = {
+    ...serviceDetail,
+    resourceRequirements: [
+      {
+        type: 'STAFF',
+        selectionMode: 'CUSTOMER_CHOICE',
+        resourcePoolIds: ['pool-1', 'pool-2'],
+        requiredQuantity: 1,
+      },
+    ],
+    legs: [
+      {
+        legIndex: 0,
+        name: 'Etapa',
+        durationMinutes: 30,
+        resourceRequirements: [
+          {
+            type: 'ROOM',
+            selectionMode: 'AUTO_ANY',
+            resourcePoolIds: ['room-1'],
+            requiredQuantity: 2,
+          },
+        ],
+        transitionGapAfterMinutes: 5,
+      },
+    ],
+    classResourceSlots: [{ type: 'ROOM', eligibleResourceIds: ['room-1'] }],
+    bookingPolicy: sensitivePolicy,
+  };
+
+  it('maps every retained and added field', () => {
+    const result = toPublicServiceResponse(privateService);
+
+    expect(result).toEqual({
+      id: privateService.id,
+      name: 'Lavagem Completa',
+      description: 'Lavagem exterior e interior',
+      price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
+      durationMinutes: 60,
+      loyaltyPointsValue: 10,
+      requiresPickupAddress: false,
+      isActive: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      bookingModel: 'APPOINTMENT',
+      resourceRequirements: [
+        { type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE', requiredQuantity: 1 },
+      ],
+      legs: [
+        {
+          legIndex: 0,
+          name: 'Etapa',
+          durationMinutes: 30,
+          resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY', requiredQuantity: 2 }],
+          transitionGapAfterMinutes: 5,
+        },
+      ],
+      bookingPolicy: {
+        durationPolicy: 'CUSTOMER_SELECTED',
+        durationMinMinutes: 60,
+        durationMaxMinutes: 240,
+        durationIncrementMinutes: 30,
+        pricingPolicy: 'PER_TIME_INCREMENT',
+        pricingIncrementMinutes: 60,
+        pricePerIncrementAmount: 50,
+        minimumChargeAmount: 80,
+        recurrenceEligible: true,
+        recurringHorizonDays: 90,
+      },
+    });
+  });
+
+  it('never exposes pool ids, overrides, alert/approval policy, hold, class slots or buffer', () => {
+    const serialized = JSON.stringify(toPublicServiceResponse(privateService));
+
+    for (const leaked of [
+      'resourcePoolIds',
+      'pool-1',
+      'room-1',
+      'Override',
+      'availabilityAlertEligible',
+      'defaultApprovalMode',
+      'manualHoldMinutes',
+      'classResourceSlots',
+      'bufferAfterMinutes',
+    ]) {
+      expect(serialized).not.toContain(leaked);
+    }
+  });
+
+  it('keeps legs null for a flat service', () => {
+    expect(toPublicServiceResponse(serviceDetail).legs).toBeNull();
+  });
+});
+
+describe('toPublicServiceListResponse() (M23-S29)', () => {
+  it('maps each item and keeps the { items } list shape', () => {
+    const result = toPublicServiceListResponse({ items: [serviceDetail, serviceDetail] });
+
+    expect(result.items).toHaveLength(2);
+    expect(result).not.toHaveProperty('total');
+  });
+});
+
+describe('toPublicServiceResourceOptionsResponse() / toPublicServiceQuoteResponse() (M23-S29)', () => {
+  it('keeps only id and name on each option', () => {
+    const result = toPublicServiceResourceOptionsResponse({
+      requirements: [
+        {
+          serviceId: 's-1',
+          legIndex: null,
+          resourceType: 'STAFF',
+          selectionMode: 'CUSTOMER_CHOICE',
+          requiredQuantity: 1,
+          options: [{ resourceId: 'r-1', name: 'Ana', refId: 'staff-uuid' } as never],
+        },
+      ],
+    });
+
+    expect(result.requirements[0].options).toEqual([{ resourceId: 'r-1', name: 'Ana' }]);
+  });
+
+  it('maps the quote to { durationMinutes, price: { amount, currency } }', () => {
+    expect(
+      toPublicServiceQuoteResponse({
+        durationMinutes: 90,
+        price: { amount: 100, currency: 'BRL', extra: 1 } as never,
+      }),
+    ).toEqual({ durationMinutes: 90, price: { amount: 100, currency: 'BRL' } });
   });
 });

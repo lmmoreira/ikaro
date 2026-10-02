@@ -1,3 +1,4 @@
+import { toPlainAvailabilityLines } from './availability-lines.helpers';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
@@ -62,7 +63,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [service],
+      toPlainAvailabilityLines([service]),
     );
 
     expect(entries).toHaveLength(1);
@@ -96,7 +97,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [service],
+      toPlainAvailabilityLines([service]),
     );
 
     expect(entries).toHaveLength(1);
@@ -124,7 +125,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [service],
+      toPlainAvailabilityLines([service]),
     );
 
     expect(entries[0]).toHaveLength(2);
@@ -147,7 +148,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [service],
+      toPlainAvailabilityLines([service]),
     );
 
     expect(entries[0]).toEqual([
@@ -172,7 +173,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [service],
+      toPlainAvailabilityLines([service]),
     );
 
     expect(entries).toEqual([[]]);
@@ -206,7 +207,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [serviceA, serviceB],
+      toPlainAvailabilityLines([serviceA, serviceB]),
     );
 
     expect(entries).toHaveLength(2);
@@ -250,7 +251,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [serviceA, serviceB],
+      toPlainAvailabilityLines([serviceA, serviceB]),
     );
 
     // First line: no gap applied (not the last line) — ends exactly at +30min.
@@ -295,7 +296,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [legged],
+      toPlainAvailabilityLines([legged]),
     );
 
     expect(entries).toHaveLength(2);
@@ -348,7 +349,7 @@ describe('resolveAvailabilityRequirementWindows', () => {
       availabilityService,
       TENANT_ID,
       CANDIDATE_START,
-      [legged],
+      toPlainAvailabilityLines([legged]),
     );
 
     const [candidates] = entries;
@@ -425,7 +426,7 @@ describe('isBookingWindowAvailable', () => {
         loadResourceContext: (id) =>
           Promise.resolve(contextFor(id, resourcesById, new Set([roomB.id]))),
       },
-      [service],
+      toPlainAvailabilityLines([service]),
       CANDIDATE_START,
       new Map(),
     );
@@ -436,7 +437,7 @@ describe('isBookingWindowAvailable', () => {
         ...deps,
         loadResourceContext: (id) => Promise.resolve(contextFor(id, resourcesById, new Set())),
       },
-      [service],
+      toPlainAvailabilityLines([service]),
       CANDIDATE_START,
       new Map(),
     );

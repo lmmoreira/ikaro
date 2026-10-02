@@ -4,7 +4,36 @@ import type { BookingStatus, ResourceType } from './enums';
 export { ALLOWED_IMAGE_CONTENT_TYPES } from './media';
 export type { ImageContentType } from './media';
 
-export interface CreateBookingRequest {
+// One customer-chosen resource for one CUSTOMER_CHOICE requirement. legIndex is omitted/null for a
+// flat (non-legged) requirement; resourceType disambiguates within a bundle.
+export interface ResourceSelectionItem {
+  serviceId: string;
+  legIndex?: number | null;
+  resourceType: ResourceType;
+  resourceId: string;
+}
+
+export interface BookingAttendeeInput {
+  name: string;
+  isMinor?: boolean;
+}
+
+// Keys are ServiceIntakeQuestion.fieldKey; FREE_TEXT answers are strings, BOOLEAN answers booleans.
+export type BookingIntakeAnswers = Record<string, string | boolean>;
+
+// Request fields shared by the guest and authenticated booking requests (M23): resource picks, the
+// chosen duration, capacity, and the intake form submission.
+export interface BookingFlowRequestFields {
+  resourceSelections?: ResourceSelectionItem[];
+  durationMinutes?: number;
+  participantCount?: number;
+  intakeSchemaVersion?: number;
+  intakeAnswers?: BookingIntakeAnswers;
+  consentAccepted?: boolean;
+  attendees?: BookingAttendeeInput[];
+}
+
+export interface CreateBookingRequest extends BookingFlowRequestFields {
   contactEmail: string;
   contactName: string;
   contactPhone: string;
@@ -16,6 +45,22 @@ export interface CreateBookingRequest {
   beforeServicePhotoUrls?: string[];
 }
 
+export interface AuthenticatedBookingRequest extends BookingFlowRequestFields {
+  scheduledAt: string; // ISO-8601 datetime
+  serviceIds: string[];
+  pickupAddress?: Address;
+  notes?: string;
+  beforeServicePhotoUrls?: string[];
+}
+
+// One leg's resolved schedule/resource entry on a legged-service booking line.
+export interface BookingLineItineraryLegResponse {
+  legIndex: number;
+  resourceName: string;
+  startsAt: string;
+  endsAt: string;
+}
+
 export interface BookingLineResponse {
   lineId: string;
   serviceId: string;
@@ -23,6 +68,10 @@ export interface BookingLineResponse {
   durationMinsAtBooking: number;
   pointsValueAtBooking: number;
   requiresPickupAddressAtBooking: boolean;
+  // Set only for a flat AUTO_ANY requirement — never for AUTO_FUNGIBLE_POOL or CUSTOMER_CHOICE.
+  assignedResourceName?: string;
+  // Set only for a legged service; mutually exclusive with assignedResourceName.
+  itinerary?: BookingLineItineraryLegResponse[];
 }
 
 export interface BookingResponse {

@@ -1,3 +1,4 @@
+import { BookingQuoteService } from '../services/booking-quote.service';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
@@ -10,6 +11,12 @@ import { ResourceBuilder } from '../../../../test/builders/booking/resource.buil
 import { nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import {
+  BookingDurationOutOfRangeError,
+  BookingInvalidMultipleVariableServicesError,
+  BookingServiceResourceTypeUnavailableError,
+} from '../../domain/errors/booking-domain.error';
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -44,6 +51,7 @@ describe('GetAvailabilityUseCase', () => {
       resourceRepo,
       bookingPort,
       new AvailabilityService(),
+      new BookingQuoteService(),
     );
     // M22-S03: the degenerate (tenant-wide) path now resolves the tenant's LOCATION resource
     // (M21-S02's real backfill guarantees one always exists in production) — every test in this
@@ -590,6 +598,317 @@ describe('GetAvailabilityUseCase', () => {
           startsAt: new Date(`${saturday}T19:30:00.000Z`).toISOString(),
         }),
       );
+    });
+  });
+
+  describe('pinned selections and a chosen duration (M23-S29)', () => {
+    const OTHER_TENANT_ID = '00000000-0000-7000-8000-0000000000b2';
+    const at = (time: string) => new Date(`${monday}T${time}.000Z`).toISOString();
+
+    const staff = async (tenantId = TENANT_ID) => {
+      const resource = new ResourceBuilder()
+        .withTenantId(tenantId)
+        .withType(ResourceType.STAFF)
+        .withRefId(uuidv7())
+        .build();
+      await resourceRepo.save(resource);
+      return resource;
+    };
+    const room = async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(resource);
+      return resource;
+    };
+    const choice = (type: ResourceType) =>
+      ResourceRequirement.create({ type, selectionMode: 'CUSTOMER_CHOICE' });
+    const auto = (type: ResourceType, extra: { requiredQuantity?: number } = {}) =>
+      ResourceRequirement.create({ type, selectionMode: 'AUTO_FUNGIBLE_POOL', ...extra });
+    const pick = (serviceId: string, resourceType: ResourceType, resourceId: string) => ({
+      serviceId,
+      legIndex: null,
+      resourceType,
+      resourceId,
+    });
+    const run = (
+      serviceIds: string[],
+      overrides: Partial<Parameters<GetAvailabilityUseCase['execute']>[0]> = {},
+    ) =>
+      useCase.execute({
+        date: monday,
+        serviceIds,
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: 60,
+        serviceBufferMinutes: 0,
+        ...overrides,
+      });
+    const busy = (resourceId: string, from: string, to: string) => ({
+      resourceId,
+      startsAt: new Date(`${monday}T${from}.000Z`),
+      endsAt: new Date(`${monday}T${to}.000Z`),
+    });
+    const starts = (r: { slots: { startsAt: string }[] }) => r.slots.map((s) => s.startsAt);
+    const bundleService = () =>
+      new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([choice(ResourceType.STAFF), auto(ResourceType.ROOM)])
+        .build();
+
+    it('narrows a bundle to the chosen staff member and still intersects with the automatic room', async () => {
+      const ana = await staff();
+      const bia = await staff();
+      const salaA = await room();
+      const service = bundleService();
+      await serviceRepo.save(service);
+      // Ana is busy 09:00-10:00 local (12:00Z); Bia is free; the room is busy 10:00-11:00 local.
+      bookingPort.setSlots([
+        busy(ana.id, '12:00:00', '13:00:00'),
+        busy(salaA.id, '13:00:00', '14:00:00'),
+      ]);
+
+      const unpinned = await run([service.id]);
+      const pinnedAna = await run([service.id], {
+        resourceSelections: [pick(service.id, ResourceType.STAFF, ana.id)],
+      });
+      const pinnedBia = await run([service.id], {
+        resourceSelections: [pick(service.id, ResourceType.STAFF, bia.id)],
+      });
+
+      expect(starts(unpinned)).toContain(at('12:00:00'));
+      expect(starts(pinnedAna)).not.toContain(at('12:00:00'));
+      expect(starts(pinnedBia)).toContain(at('12:00:00'));
+      // The pinned staff member is free at 13:00Z but the room is not — the bundle still intersects.
+      expect(starts(pinnedBia)).not.toContain(at('13:00:00'));
+      expect(starts(pinnedAna)).not.toContain(at('13:00:00'));
+    });
+
+    it('chains the legs of a legged service with the chosen resource pinned to its own leg window', async () => {
+      const ana = await staff();
+      const bia = await staff();
+      await room();
+      const legged = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withLegs([
+          ServiceLeg.create({
+            legIndex: 0,
+            name: 'Avaliação',
+            durationMinutes: 30,
+            resourceRequirements: [choice(ResourceType.STAFF)],
+          }),
+          ServiceLeg.create({
+            legIndex: 1,
+            name: 'Procedimento',
+            durationMinutes: 30,
+            resourceRequirements: [auto(ResourceType.ROOM)],
+          }),
+        ])
+        .build();
+      await serviceRepo.save(legged);
+      bookingPort.setSlots([busy(ana.id, '12:00:00', '12:30:00')]);
+      const legPick = (resourceId: string) => ({
+        serviceId: legged.id,
+        legIndex: 0,
+        resourceType: ResourceType.STAFF,
+        resourceId,
+      });
+
+      const withAna = await run([legged.id], { resourceSelections: [legPick(ana.id)] });
+      const withBia = await run([legged.id], { resourceSelections: [legPick(bia.id)] });
+
+      expect(starts(withAna)).not.toContain(at('12:00:00'));
+      expect(starts(withBia)).toContain(at('12:00:00'));
+    });
+
+    it('honours requiredQuantity > 1 on a bundle requirement alongside a pinned pick', async () => {
+      const ana = await staff();
+      await room();
+      const salaB = await room();
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([
+          choice(ResourceType.STAFF),
+          auto(ResourceType.ROOM, { requiredQuantity: 2 }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+      bookingPort.setSlots([busy(salaB.id, '12:00:00', '13:00:00')]);
+      const selections = [pick(service.id, ResourceType.STAFF, ana.id)];
+
+      const oneRoomFree = await run([service.id], { resourceSelections: selections });
+      bookingPort.setSlots([]);
+      const bothRoomsFree = await run([service.id], { resourceSelections: selections });
+
+      expect(starts(oneRoomFree)).not.toContain(at('12:00:00'));
+      expect(starts(bothRoomsFree)).toContain(at('12:00:00'));
+    });
+
+    it('keeps the union of candidates for an unpinned CUSTOMER_CHOICE requirement when only another one is pinned', async () => {
+      const ana = await staff();
+      await room();
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withBufferAfterMinutes(0)
+        .withResourceRequirements([choice(ResourceType.STAFF), choice(ResourceType.ROOM)])
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await run([service.id], {
+        resourceSelections: [pick(service.id, ResourceType.STAFF, ana.id)],
+      });
+
+      expect(starts(result)).toContain(at('12:00:00'));
+    });
+
+    it.each([
+      ['a selection that is not a CUSTOMER_CHOICE requirement of the service', 'auto-room'],
+      ['a resource outside the requirement pool', 'out-of-pool'],
+      ['an inactive resource', 'inactive'],
+      ['a resource of another tenant', 'other-tenant'],
+      ['a resource of the wrong type', 'wrong-type'],
+      ['an unknown resource', 'unknown'],
+    ])('rejects %s with BookingServiceResourceTypeUnavailableError', async (_label, kind) => {
+      const ana = await staff();
+      const other = await staff();
+      const salaA = await room();
+      const foreign = await staff(OTHER_TENANT_ID);
+      const inactive = await staff();
+      inactive.deactivate();
+      await resourceRepo.save(inactive);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.STAFF,
+            selectionMode: 'CUSTOMER_CHOICE',
+            resourcePoolIds: [ana.id, inactive.id, foreign.id],
+          }),
+          auto(ResourceType.ROOM),
+        ])
+        .build();
+      await serviceRepo.save(service);
+      const selections = {
+        'auto-room': [pick(service.id, ResourceType.ROOM, salaA.id)],
+        'out-of-pool': [pick(service.id, ResourceType.STAFF, other.id)],
+        inactive: [pick(service.id, ResourceType.STAFF, inactive.id)],
+        'other-tenant': [pick(service.id, ResourceType.STAFF, foreign.id)],
+        'wrong-type': [pick(service.id, ResourceType.STAFF, salaA.id)],
+        unknown: [pick(service.id, ResourceType.STAFF, uuidv7())],
+      }[kind]!;
+
+      await expect(run([service.id], { resourceSelections: selections })).rejects.toBeInstanceOf(
+        BookingServiceResourceTypeUnavailableError,
+      );
+    });
+
+    describe('durationMinutes', () => {
+      const variablePolicy = {
+        durationPolicy: 'CUSTOMER_SELECTED' as const,
+        durationMinMinutes: 60,
+        durationMaxMinutes: 240,
+        durationIncrementMinutes: 60,
+        pricingPolicy: 'FIXED' as const,
+      };
+      const span = (slot: { startsAt: string; endsAt: string }) =>
+        new Date(slot.endsAt).getTime() - new Date(slot.startsAt).getTime();
+
+      it('uses the chosen duration on the degenerate (LOCATION-only) path', async () => {
+        const service = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withDurationMinutes(60)
+          .withBufferAfterMinutes(0)
+          .withBookingPolicy(variablePolicy)
+          .build();
+        await serviceRepo.save(service);
+
+        const result = await run([service.id], { durationMinutes: 180 });
+
+        expect(result.available).toBe(true);
+        expect(result.slots.every((slot) => span(slot) === 180 * 60_000)).toBe(true);
+      });
+
+      it('uses the chosen duration on the flat resource-scoped path', async () => {
+        await room();
+        const service = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withDurationMinutes(60)
+          .withBufferAfterMinutes(0)
+          .withBookingPolicy(variablePolicy)
+          .withResourceRequirements([auto(ResourceType.ROOM)])
+          .build();
+        await serviceRepo.save(service);
+
+        const short = await run([service.id], { durationMinutes: 60 });
+        const long = await run([service.id], { durationMinutes: 240 });
+
+        expect(long.slots.length).toBeLessThan(short.slots.length);
+        expect(long.slots.every((slot) => span(slot) === 240 * 60_000)).toBe(true);
+      });
+
+      it('rejects a missing duration for a CUSTOMER_SELECTED service once a selection is sent', async () => {
+        const ana = await staff();
+        const service = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withBookingPolicy(variablePolicy)
+          .withResourceRequirements([choice(ResourceType.STAFF)])
+          .build();
+        await serviceRepo.save(service);
+
+        await expect(
+          run([service.id], { resourceSelections: [pick(service.id, ResourceType.STAFF, ana.id)] }),
+        ).rejects.toBeInstanceOf(BookingDurationOutOfRangeError);
+      });
+
+      it('rejects an out-of-range duration', async () => {
+        const service = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withBookingPolicy(variablePolicy)
+          .build();
+        await serviceRepo.save(service);
+
+        await expect(run([service.id], { durationMinutes: 300 })).rejects.toBeInstanceOf(
+          BookingDurationOutOfRangeError,
+        );
+      });
+
+      it('rejects a duration when the request holds more than one CUSTOMER_SELECTED service', async () => {
+        const a = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withBookingPolicy(variablePolicy)
+          .build();
+        const b = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withBookingPolicy(variablePolicy)
+          .build();
+        await serviceRepo.save(a);
+        await serviceRepo.save(b);
+
+        await expect(run([a.id, b.id], { durationMinutes: 60 })).rejects.toBeInstanceOf(
+          BookingInvalidMultipleVariableServicesError,
+        );
+      });
+
+      it('ignores a duration when no requested service is CUSTOMER_SELECTED', async () => {
+        const service = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withDurationMinutes(60)
+          .withBufferAfterMinutes(0)
+          .build();
+        await serviceRepo.save(service);
+
+        const withDuration = await run([service.id], { durationMinutes: 180 });
+        const without = await run([service.id]);
+
+        expect(withDuration).toEqual(without);
+      });
     });
   });
 });

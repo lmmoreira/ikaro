@@ -64,6 +64,8 @@ import { UpdateServiceLegsUseCase } from './application/use-cases/update-service
 import { UpdateServiceBookingPolicyUseCase } from './application/use-cases/update-service-booking-policy.use-case';
 import { PublishServiceIntakeSchemaUseCase } from './application/use-cases/publish-service-intake-schema.use-case';
 import { GetServiceIntakeSchemaUseCase } from './application/use-cases/get-service-intake-schema.use-case';
+import { ListServiceResourceOptionsUseCase } from './application/use-cases/list-service-resource-options.use-case';
+import { QuoteServiceDurationUseCase } from './application/use-cases/quote-service-duration.use-case';
 import { ApproveBookingUseCase } from './application/use-cases/approve-booking.use-case';
 import { RejectBookingUseCase } from './application/use-cases/reject-booking.use-case';
 import { RequestMoreInfoUseCase } from './application/use-cases/request-more-info.use-case';
@@ -168,6 +170,8 @@ export const bookingModuleProviders: Provider[] = [
   UpdateServiceBookingPolicyUseCase,
   PublishServiceIntakeSchemaUseCase,
   GetServiceIntakeSchemaUseCase,
+  ListServiceResourceOptionsUseCase,
+  QuoteServiceDurationUseCase,
   DeactivateServiceUseCase,
   CloseScheduleUseCase,
   RemoveClosureUseCase,

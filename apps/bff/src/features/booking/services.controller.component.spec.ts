@@ -38,7 +38,7 @@ const mockServiceDetail: ServiceDetail = {
   id: SERVICE_ID,
   name: 'Lavagem Completa',
   description: null,
-  price: { amount: 150, currency: 'BRL' },
+  price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
   durationMinutes: 60,
   loyaltyPointsValue: 10,
   requiresPickupAddress: false,

@@ -1,6 +1,6 @@
 import type {
-  Address,
   ApproveBookingRequest,
+  AuthenticatedBookingRequest,
   ApproveBookingResponse,
   RejectBookingRequest,
   RequestMoreInfoRequest,
@@ -46,13 +46,6 @@ export interface CompleteBookingRequest {
 export interface SubmitInfoRequest {
   readonly response: string;
   readonly photoUrls?: readonly string[];
-}
-
-export interface AuthenticatedBookingRequest {
-  readonly scheduledAt: string;
-  readonly serviceIds: readonly string[];
-  readonly pickupAddress?: Address;
-  readonly beforeServicePhotoUrls?: readonly string[];
 }
 
 export interface CancelBookingResponse {

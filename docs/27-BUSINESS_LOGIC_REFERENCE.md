@@ -65,6 +65,33 @@ flowchart TD
 
 Key files: `get-availability.use-case.ts` (single day), `availability-summary.helpers.ts` (date range — batches each distinct resource's schedule/occupancy once for the whole range, not once per day), `resource-scoped-availability.helpers.ts` (shared outer-slot orchestration), `availability-window-resolution.helpers.ts` (per-line/per-leg window resolution + the intersect/union combinator), `resource-occupancy.helpers.ts` (the write-path orchestrator — same cursor/leg-span shape, delegates per-shape candidate building to `resource-occupancy-candidate-builders.helpers.ts` and per-requirement resolution to `resource-requirement-resolution.helpers.ts`, split out M23-S01 for file length).
 
+### Pinned selections and a chosen duration (M23-S29)
+
+`GET /schedule/availability` and `/summary` accept the customer's `CUSTOMER_CHOICE` picks (`resourceSelections`) and the chosen duration of the one `CUSTOMER_SELECTED` service (`durationMinutes`). Both are resolved **once, up front**, into `AvailabilityLine`s (`availability-lines.helpers.ts`) — each line is a requested service plus its quoted duration plus its validated pins — which the three read paths then consume. The write-path `ResolutionContext` helpers are not reused (a separate engine that throws instead of degrading); only the pure pool rule (`isInResourcePool`, `resource-pool.helpers.ts`) is shared between the write path, the read path and the public resource-options read.
+
+```mermaid
+flowchart TD
+  A["resourceSelections and/or durationMinutes present?"] -->|No| B["Plain lines: service.durationMinutes, no pins — byte-identical to before"]
+  A -->|Yes| C{"More than one CUSTOMER_SELECTED service and durationMinutes sent?"}
+  C -->|Yes| X1["422 BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES"]
+  C -->|No| D["CUSTOMER_SELECTED service: BookingQuoteService.quote() — missing or out of range = 422 BOOKING_DURATION_OUT_OF_RANGE"]
+  D --> E["For each pick: find a CUSTOMER_CHOICE requirement of that service (same leg, same type)"]
+  E -->|None| X2["422 BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE"]
+  E -->|Found| F{"Resource of this tenant, active, right type, inside the pool?"}
+  F -->|No| X2
+  F -->|Yes| G["Pin: that requirement's candidate set is exactly the picked resource(s)"]
+  G --> H["Read engine: pinned requirements use the pin; unpinned requirements keep the union of eligible candidates; bundle intersect / leg chain / requiredQuantity unchanged"]
+  B --> H
+```
+
+Rules that are easy to get wrong:
+- **Stricter than the write path on purpose.** `POST /bookings` ignores a selection entry that matches no `CUSTOMER_CHOICE` requirement (its replay of existing assignments depends on that); the read path rejects it, because a silently ignored pick would show the customer availability for a resource they never constrained.
+- **A pin replaces the candidate set, it does not add to it.** With `requiredQuantity > 1` and fewer distinct picks than the quantity, the requirement can never be satisfied and no slot is offered — the read path never over-promises.
+- **Unpinned `CUSTOMER_CHOICE` requirements keep the union** so the UI can show availability progressively before every pick is made; `POST /bookings` still requires the full selection.
+- **A pinned service takes the resource-scoped path even if it is otherwise degenerate** (`LOCATION`-only) — a pin is meaningless to the tenant-wide model. A degenerate `CUSTOMER_SELECTED` service with only a duration stays on the degenerate path, using the quoted duration.
+- **The duration threads through every read site** — the outer fit-check, flat-line windows, the degenerate path and the summary's per-day slots all read `line.durationMinutes`, never `service.durationMinutes`.
+- `resourceId` together with `resourceSelections` is a `400`: the explicit-resource view is a single resource's own schedule, not the service's requirements.
+
 **Write path vs. read path divergence (M22 gap, partially closed by M23-S01):** the read path unions across *every* free pool member, regardless of `selectionMode`. The write path's behavior now depends on `selectionMode` — see the subsection immediately below. For `AUTO_FUNGIBLE_POOL`/`NONE` specifically, the M22 gap remains exactly as originally documented: the write path deterministically picks the first `requiredQuantity` candidates from the pool and does not retry a different member on conflict, so a slot the read path advertises as available (because *some* pool member is free) can still be rejected at booking time if the specific member picked isn't. This residual gap is accepted, not a bug — a pool member is anonymous to the customer either way (UC-062), so "which specific one got picked" carrying no retry has no customer-visible correctness impact, only a slightly worse conflict rate under contention than a retry would give.
 
 ### selectionMode resolution algorithm (M23-S01)

@@ -110,4 +110,65 @@ describe('ScheduleAvailabilityController (component)', () => {
 
     expect(res.status).toBe(400);
   });
+
+  // ─── M23-S29 — pinned selections and a chosen duration ──────────────────────
+
+  describe('resourceSelections / durationMinutes', () => {
+    const RESOURCE_ID = '00000000-0000-4000-8000-000000000002';
+    const SELECTIONS = `${SERVICE_ID}:-:STAFF:${RESOURCE_ID}`;
+
+    it('forwards the comma-joined resourceSelections string verbatim and the duration as a number', async () => {
+      backendHttpService.get.mockResolvedValueOnce({ id: TENANT_ID });
+      backendHttpService.getForPublic.mockResolvedValueOnce(mockAvailability);
+
+      const res = await request(app.getHttpServer())
+        .get(`${availabilityUrl}&resourceSelections=${SELECTIONS}&durationMinutes=90`)
+        .set('x-tenant-slug', TENANT_SLUG);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.getForPublic).toHaveBeenCalledWith(
+        '/schedule/availability',
+        TENANT_ID,
+        expect.objectContaining({ resourceSelections: SELECTIONS, durationMinutes: 90 }),
+      );
+    });
+
+    it('returns 400 when resourceId and resourceSelections are combined', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`${availabilityUrl}&resourceId=${RESOURCE_ID}&resourceSelections=${SELECTIONS}`)
+        .set('x-tenant-slug', TENANT_SLUG);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for a malformed resourceSelections item before reaching the backend', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`${availabilityUrl}&resourceSelections=not-a-selection`)
+        .set('x-tenant-slug', TENANT_SLUG);
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.getForPublic).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 for a non-positive duration', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`${availabilityUrl}&durationMinutes=0`)
+        .set('x-tenant-slug', TENANT_SLUG);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('propagates backend 422 for a rejected selection', async () => {
+      backendHttpService.get.mockResolvedValueOnce({ id: TENANT_ID });
+      backendHttpService.getForPublic.mockRejectedValueOnce(
+        new HttpException({ title: 'Unprocessable', status: 422 }, 422),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get(`${availabilityUrl}&resourceSelections=${SELECTIONS}`)
+        .set('x-tenant-slug', TENANT_SLUG);
+
+      expect(res.status).toBe(422);
+    });
+  });
 });

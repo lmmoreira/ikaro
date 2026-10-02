@@ -502,3 +502,45 @@ X-Actor-Role: MANAGER
 {
   "bookingModel": "SESSION"
 }
+
+###
+
+### Resource options a customer may pick, public/guest path — no actor required (M23-S29)
+GET {{baseUrl}}/services/{{serviceId}}/resource-options
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 404 — resource-options for an unknown, inactive or cross-tenant service
+GET {{baseUrl}}/services/00000000-0000-4000-8000-000000009999/resource-options
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### Quote the price of a chosen duration for a per-time service (M23-S29)
+GET {{baseUrl}}/services/{{serviceId}}/quote?durationMinutes=90
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 422 — quote with an out-of-range duration (BOOKING_DURATION_OUT_OF_RANGE)
+GET {{baseUrl}}/services/{{serviceId}}/quote?durationMinutes=9999
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 422 — quote without a duration for a CUSTOMER_SELECTED service
+GET {{baseUrl}}/services/{{serviceId}}/quote
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 400 — quote with a non-numeric duration
+GET {{baseUrl}}/services/{{serviceId}}/quote?durationMinutes=abc
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 404 — quote for an unknown, inactive or cross-tenant service
+GET {{baseUrl}}/services/00000000-0000-4000-8000-000000009999/quote?durationMinutes=60
+X-Tenant-ID: {{tenantId}}

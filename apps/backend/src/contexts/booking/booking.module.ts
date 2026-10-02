@@ -48,6 +48,7 @@ import { ScheduleDayGridController } from './infrastructure/controllers/schedule
 import { ScheduleClosureController } from './infrastructure/controllers/schedule-closure.controller';
 import { ScheduleOpeningController } from './infrastructure/controllers/schedule-opening.controller';
 import { ServiceController } from './infrastructure/controllers/service.controller';
+import { ServicePublicController } from './infrastructure/controllers/service-public.controller';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { bookingModuleProviders } from './booking.module-providers';
 
@@ -91,6 +92,7 @@ import { bookingModuleProviders } from './booking.module-providers';
     BookingLifecycleController,
     BookingCompletionController,
     ServiceController,
+    ServicePublicController,
     ScheduleClosureController,
     ScheduleOpeningController,
     ScheduleAvailabilityController,

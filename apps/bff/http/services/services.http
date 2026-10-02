@@ -270,3 +270,49 @@ Authorization: Bearer {{managerToken}}
 {
   "name": "Tentativa após desativação"
 }
+
+###
+
+### Resource options a customer may pick, no auth required (M23-S29)
+GET {{bffUrl}}/v1/public/services/{{serviceId}}/resource-options
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 400 — Missing X-Tenant-Slug on public resource-options
+GET {{bffUrl}}/v1/public/services/{{serviceId}}/resource-options
+
+###
+
+### 404 — resource-options for an unknown, inactive or cross-tenant service
+GET {{bffUrl}}/v1/public/services/00000000-0000-4000-8000-000000009999/resource-options
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### Quote the price of a chosen duration, no auth required (M23-S29)
+GET {{bffUrl}}/v1/public/services/{{serviceId}}/quote?durationMinutes=90
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 400 — Missing X-Tenant-Slug on public quote
+GET {{bffUrl}}/v1/public/services/{{serviceId}}/quote?durationMinutes=90
+
+###
+
+### 400 — quote with a non-numeric duration
+GET {{bffUrl}}/v1/public/services/{{serviceId}}/quote?durationMinutes=abc
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 422 — quote with an out-of-range duration (BOOKING_DURATION_OUT_OF_RANGE)
+GET {{bffUrl}}/v1/public/services/{{serviceId}}/quote?durationMinutes=9999
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 404 — quote for an unknown, inactive or cross-tenant service
+GET {{bffUrl}}/v1/public/services/00000000-0000-4000-8000-000000009999/quote?durationMinutes=60
+X-Tenant-Slug: {{tenantSlug}}

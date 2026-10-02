@@ -1,0 +1,69 @@
+# BFF — Public schedule availability (UC-011, UC-058/059; M23-S29 pinned selections + duration)
+# Public — no JWT. Tenant resolved from X-Tenant-Slug.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#   4. pnpm --filter @ikaro/bff run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+#
+# resourceSelections = <serviceId>:<legIndex or ->:<resourceType>:<resourceId>[,…]
+
+### Availability for one day
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### Availability with the customer's chosen resource pinned to a CUSTOMER_CHOICE requirement
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceSelections={{serviceId}}:-:STAFF:{{resourceId}}
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### Availability for a CUSTOMER_SELECTED service with its chosen duration
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&durationMinutes=120
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### Summary for a date range, with a pinned pick and a chosen duration
+GET {{bffUrl}}/v1/schedule/availability/summary?from=2026-06-01&to=2026-06-07&serviceIds={{serviceId}}&resourceSelections={{serviceId}}:-:STAFF:{{resourceId}}&durationMinutes=120
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 400 — Missing X-Tenant-Slug
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}
+
+###
+
+### 400 — resourceId and resourceSelections together
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceId={{resourceId}}&resourceSelections={{serviceId}}:-:STAFF:{{resourceId}}
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 400 — malformed resourceSelections item
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceSelections=not-a-selection
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 400 — non-positive durationMinutes
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&durationMinutes=0
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 422 — a pick the service does not allow, or an inactive/out-of-pool/other-tenant resource (BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE)
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&resourceSelections={{serviceId}}:-:ROOM:{{resourceId}}
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 422 — durationMinutes out of range for a CUSTOMER_SELECTED service (BOOKING_DURATION_OUT_OF_RANGE)
+GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}&durationMinutes=9999
+X-Tenant-Slug: {{tenantSlug}}

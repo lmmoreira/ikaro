@@ -6,9 +6,10 @@ import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
-import { Service } from '../../domain/service.aggregate';
 import { ServiceLeg } from '../../domain/service-leg';
 import { IResourceRepository } from '../ports/resource-repository.port';
+import { AvailabilityLine } from './availability-lines.helpers';
+import { selectionKey } from './resource-resolution-context.helpers';
 
 export interface RequirementWindowCandidate {
   resourceId: string;
@@ -50,7 +51,7 @@ export async function resolveAvailabilityRequirementWindows(
   availabilityService: AvailabilityService,
   tenantId: string,
   candidateStart: Date,
-  services: Service[],
+  lines: AvailabilityLine[],
 ): Promise<RequirementWindowEntry[]> {
   const ctx: WindowResolutionContext = {
     resourceRepo,
@@ -61,16 +62,16 @@ export async function resolveAvailabilityRequirementWindows(
   const entries: RequirementWindowEntry[] = [];
   let cursor = candidateStart;
 
-  for (let i = 0; i < services.length; i++) {
-    const service = services[i];
-    const isLastLine = i === services.length - 1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isLastLine = i === lines.length - 1;
     const lineStart = cursor;
-    const lineEnd = new Date(cursor.getTime() + service.durationMinutes * 60_000);
+    const lineEnd = new Date(cursor.getTime() + line.durationMinutes * 60_000);
 
-    if (service.legs) {
-      entries.push(...(await resolveLeggedWindows(service, ctx, lineStart)));
+    if (line.service.legs) {
+      entries.push(...(await resolveLeggedWindows(line, ctx, lineStart)));
     } else {
-      entries.push(...(await resolveFlatWindows(service, ctx, lineStart, lineEnd, isLastLine)));
+      entries.push(...(await resolveFlatWindows(line, ctx, lineStart, lineEnd, isLastLine)));
     }
     cursor = lineEnd;
   }
@@ -79,19 +80,24 @@ export async function resolveAvailabilityRequirementWindows(
 }
 
 async function resolveFlatWindows(
-  service: Service,
+  line: AvailabilityLine,
   ctx: WindowResolutionContext,
   lineStart: Date,
   lineEnd: Date,
   isLastLine: boolean,
 ): Promise<RequirementWindowEntry[]> {
+  const { service } = line;
   const requirements =
     service.resourceRequirements.length > 0
       ? service.resourceRequirements
       : [DEGENERATE_LOCATION_REQUIREMENT];
   const entries: RequirementWindowEntry[] = [];
   for (const requirement of requirements) {
-    const resources = await resolveActiveCandidates(requirement, ctx);
+    const resources = await resolveActiveCandidates(
+      requirement,
+      ctx,
+      line.pins.get(selectionKey(service.id, null, requirement.type)),
+    );
     entries.push(
       resources.map((resource) => {
         const gap = isLastLine
@@ -126,6 +132,7 @@ interface PerLegCandidates {
 }
 
 async function resolvePerLegCandidates(
+  line: AvailabilityLine,
   legs: ServiceLeg[],
   ctx: WindowResolutionContext,
 ): Promise<PerLegCandidates[]> {
@@ -134,7 +141,11 @@ async function resolvePerLegCandidates(
     for (const requirement of leg.resourceRequirements) {
       perLeg.push({
         legIndex: leg.legIndex,
-        resources: await resolveActiveCandidates(requirement, ctx),
+        resources: await resolveActiveCandidates(
+          requirement,
+          ctx,
+          line.pins.get(selectionKey(line.service.id, leg.legIndex, requirement.type)),
+        ),
         requiredQuantity: requirement.requiredQuantity,
       });
     }
@@ -143,12 +154,12 @@ async function resolvePerLegCandidates(
 }
 
 async function resolveLeggedWindows(
-  service: Service,
+  line: AvailabilityLine,
   ctx: WindowResolutionContext,
   lineStart: Date,
 ): Promise<RequirementWindowEntry[]> {
-  const legs = service.legs!;
-  const perLeg = await resolvePerLegCandidates(legs, ctx);
+  const legs = line.service.legs!;
+  const perLeg = await resolvePerLegCandidates(line, legs, ctx);
 
   const legSpans = ctx.availabilityService.computeLegSpans(
     lineStart,
@@ -172,19 +183,23 @@ async function resolveLeggedWindows(
   });
 }
 
+// `pinned` is the customer's already-validated CUSTOMER_CHOICE pick(s) for this requirement
+// (availability-lines.helpers.ts) — when present they ARE the candidate set, so only the chosen
+// resource(s) are consulted; every unpinned requirement keeps the union of its eligible candidates.
 async function resolveActiveCandidates(
   requirement: ResourceRequirement,
   ctx: WindowResolutionContext,
+  pinned: Resource[] | undefined,
 ): Promise<Resource[]> {
-  const candidateIds =
-    requirement.resourcePoolIds && requirement.resourcePoolIds.length > 0
-      ? requirement.resourcePoolIds
-      : (
-          await ctx.resourceRepo.findByTenant(ctx.tenantId, {
-            type: requirement.type,
-            isActive: true,
-          })
-        ).map((r) => r.id);
+  if (pinned) return pinned;
+  const candidateIds = requirement.resourcePoolIds?.length
+    ? requirement.resourcePoolIds
+    : (
+        await ctx.resourceRepo.findByTenant(ctx.tenantId, {
+          type: requirement.type,
+          isActive: true,
+        })
+      ).map((r) => r.id);
 
   const resources: Resource[] = [];
   for (const id of candidateIds) {
@@ -236,7 +251,7 @@ export interface ResourceScopedAvailabilityDeps {
 // (candidateStarts × entries × candidates).
 export async function isBookingWindowAvailable(
   deps: ResourceScopedAvailabilityDeps,
-  services: Service[],
+  lines: AvailabilityLine[],
   candidateStart: Date,
   contextCache: Map<string, ResourceAvailabilityContext>,
 ): Promise<boolean> {
@@ -245,7 +260,7 @@ export async function isBookingWindowAvailable(
     deps.availabilityService,
     deps.tenantId,
     candidateStart,
-    services,
+    lines,
   );
   for (const entry of entries) {
     if (!(await enoughCandidatesFree(deps, entry, contextCache))) return false;
