@@ -1,7 +1,9 @@
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { InboxRecordEntity } from '../../../../../shared/infrastructure/inbox/inbox-record.entity';
 import { TypeOrmInboxRepository } from '../../../../../shared/infrastructure/inbox/typeorm-inbox.repository';
 import { createTestDataSource } from '../../../../../test/test-datasource';
+import { InMemoryEmailSender } from '../../../../../test/infrastructure/in-memory-email-sender';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
@@ -9,12 +11,25 @@ import { InMemoryNotificationTemplateRepository } from '../../../../../test/repo
 import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingRequestedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
+import { NotificationDispatcherAdapter } from '../../../infrastructure/delivery/notification-dispatcher.adapter';
+import { EmailDeliveryChannelAdapter } from '../../../infrastructure/delivery/email-delivery-channel.adapter';
+import { NotificationTenantInfo } from '../../ports/notification-platform.port';
 import { INotificationDispatcher, OutboundMessage } from '../../ports/notification-dispatcher.port';
 import { NotificationTemplateBuilder } from '../../../../../test/builders/notification/notification-template.builder';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { SendBookingRequestedNotificationUseCase } from './send-booking-requested-notification.use-case';
 
 const TENANT_ID = 'aaaaaaaa-0005-4000-8000-000000000001';
+const OTHER_TENANT_ID = 'aaaaaaaa-0005-4000-8000-000000000002';
+
+const DEFAULT_TENANT_INFO: NotificationTenantInfo = {
+  id: TENANT_ID,
+  name: 'Lava Car',
+  slug: 'lavacar',
+  timezone: 'America/Sao_Paulo',
+  locale: 'pt-BR',
+  replyToEmail: null,
+};
 
 // Fails dispatch for a fixed set of recipients regardless of call order — deterministic proof of
 // which recipient(s) actually failed, unlike InMemoryNotificationDispatcher's order-dependent
@@ -30,6 +45,16 @@ class SelectiveFailDispatcher implements INotificationDispatcher {
     }
     this.dispatched.push(message);
   }
+}
+
+function buildTenantPort(tenantInfos: NotificationTenantInfo[]): InMemoryNotificationPlatformPort {
+  const tenantPort = new InMemoryNotificationPlatformPort();
+  for (const info of tenantInfos) tenantPort.setTenantInfo(info.id, info);
+  return tenantPort;
+}
+
+function defaultManagerEmails(): string[] {
+  return ['mgr1@lavacar.com.br', 'mgr2@lavacar.com.br', 'mgr3@lavacar.com.br'];
 }
 
 // AUD-004 item 3: proves the per-recipient inbox claim against a REAL Postgres instance — a
@@ -50,41 +75,29 @@ describe('SendBookingRequestedNotificationUseCase — multi-recipient partial-fa
 
   function makeUseCase(
     dispatcher: INotificationDispatcher,
+    tenantInfos: NotificationTenantInfo[] = [DEFAULT_TENANT_INFO],
+    tenantPort: InMemoryNotificationPlatformPort = buildTenantPort(tenantInfos),
+    managerEmailsFor: (info: NotificationTenantInfo) => string[] = defaultManagerEmails,
   ): SendBookingRequestedNotificationUseCase {
-    const tenantPort = new InMemoryNotificationPlatformPort();
-    tenantPort.setTenantInfo(TENANT_ID, {
-      id: TENANT_ID,
-      name: 'Lava Car',
-      slug: 'lavacar',
-      timezone: 'America/Sao_Paulo',
-      locale: 'pt-BR',
-      fromEmail: null,
-    });
     const staffPort = new InMemoryNotificationStaffPort();
-    staffPort.setManagerEmails(TENANT_ID, [
-      'mgr1@lavacar.com.br',
-      'mgr2@lavacar.com.br',
-      'mgr3@lavacar.com.br',
-    ]);
     const templateRepo = new InMemoryNotificationTemplateRepository();
-    templateRepo.seed(
-      new NotificationTemplateBuilder()
-        .withTenantId(TENANT_ID)
-        .withTriggerEvent(NotificationTemplateKey.BOOKING_REQUESTED_ADMIN)
-        .withChannel('EMAIL')
-        .withSubject('unused — sourced from ILocalizationPort')
-        .withBody('unused')
-        .build(),
-    );
-    templateRepo.seed(
-      new NotificationTemplateBuilder()
-        .withTenantId(TENANT_ID)
-        .withTriggerEvent(NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER)
-        .withChannel('EMAIL')
-        .withSubject('unused — sourced from ILocalizationPort')
-        .withBody('unused')
-        .build(),
-    );
+    for (const info of tenantInfos) {
+      staffPort.setManagerEmails(info.id, managerEmailsFor(info));
+      for (const key of [
+        NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
+        NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
+      ]) {
+        templateRepo.seed(
+          new NotificationTemplateBuilder()
+            .withTenantId(info.id)
+            .withTriggerEvent(key)
+            .withChannel('EMAIL')
+            .withSubject('unused — sourced from ILocalizationPort')
+            .withBody('unused')
+            .build(),
+        );
+      }
+    }
     const localizationPort = new InMemoryLocalizationPort();
     localizationPort.setTemplate('BookingRequested:admin', {
       subject: 'Nova solicitação',
@@ -143,5 +156,60 @@ describe('SendBookingRequestedNotificationUseCase — multi-recipient partial-fa
       'mgr2@lavacar.com.br',
       'joao@example.com',
     ]);
+  });
+
+  // M18-S09: drives the REAL dispatcher -> EmailDeliveryChannelAdapter chain (only the SMTP
+  // sender is in-memory) so the From / display name / Reply-To the transport would receive is
+  // asserted end-to-end, including per-tenant isolation of the Reply-To.
+  it('sends From the platform address with the tenant name and its own Reply-To, never leaking across tenants', async () => {
+    const tenantA: NotificationTenantInfo = {
+      ...DEFAULT_TENANT_INFO,
+      replyToEmail: 'contato@lavacar.com.br',
+    };
+    const tenantB: NotificationTenantInfo = {
+      ...DEFAULT_TENANT_INFO,
+      id: OTHER_TENANT_ID,
+      name: 'Auto Spa',
+      slug: 'autospa',
+      replyToEmail: 'reservas@autospa.com.br',
+    };
+    const tenantPort = buildTenantPort([tenantA, tenantB]);
+    const emailSender = new InMemoryEmailSender();
+    const config = { get: () => 'noreply@ikaro.example' } as unknown as ConfigService;
+    const dispatcher = new NotificationDispatcherAdapter([
+      new EmailDeliveryChannelAdapter(emailSender, tenantPort, config),
+    ]);
+    const useCase = makeUseCase(dispatcher, [tenantA, tenantB], tenantPort, (info) => [
+      `mgr@${info.slug}.com.br`,
+    ]);
+
+    await useCase.execute(
+      new SendBookingRequestedNotificationDtoBuilder()
+        .withTenantId(tenantA.id)
+        .withEventId('eeeeeeee-0005-4000-8000-0000000000a1')
+        .build(),
+    );
+    const sentForA = [...emailSender.sent];
+    await useCase.execute(
+      new SendBookingRequestedNotificationDtoBuilder()
+        .withTenantId(tenantB.id)
+        .withEventId('eeeeeeee-0005-4000-8000-0000000000b1')
+        .build(),
+    );
+
+    const sentForB = emailSender.sent.slice(sentForA.length);
+    // 1 admin + 1 customer message per tenant.
+    expect(sentForA).toHaveLength(2);
+    expect(sentForB).toHaveLength(2);
+    for (const m of sentForA) {
+      expect(m.from).toBe('noreply@ikaro.example');
+      expect(m.fromName).toBe('Lava Car');
+      expect(m.replyTo).toBe('contato@lavacar.com.br');
+    }
+    for (const m of sentForB) {
+      expect(m.from).toBe('noreply@ikaro.example');
+      expect(m.fromName).toBe('Auto Spa');
+      expect(m.replyTo).toBe('reservas@autospa.com.br');
+    }
   });
 });

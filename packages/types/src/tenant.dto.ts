@@ -69,10 +69,6 @@ export interface TenantBusinessInfo {
   socialLinks: TenantSocialLinks | null;
 }
 
-export interface TenantNotificationSettings {
-  fromEmail: string | null;
-}
-
 // The only chatbot field exposed through this wire contract — the 8 volume/cost caps and
 // llmProvider/llmModel are Ikaro-only overrides, never accepted or returned via this form
 // (docs/21-TENANTS_SETTINGS_SCHEMA.md §7).
@@ -91,14 +87,13 @@ export interface TenantSettings {
   booking: TenantBookingSettings;
   businessHours: TenantBusinessHours;
   localization: TenantLocalizationSettings;
-  notification?: TenantNotificationSettings;
   businessInfo?: TenantBusinessInfo;
-  // Required, unlike notification/businessInfo above: those two are optional because their
-  // presence merely mirrors whatever TenantSettings.toJSON() happens to contain for a given
-  // tenant. chatbot is different — get-tenant-by-id.use-case.ts and
-  // update-tenant-settings.use-case.ts both override toJSON()'s raw value with the chatbot
-  // getter's result, which always resolves knowledgeText (defaulting to '' for any tenant whose
-  // stored settings predate M19-S04). The response genuinely can never omit this field.
+  // Required, unlike businessInfo above: that one is optional because its presence merely
+  // mirrors whatever TenantSettings.toJSON() happens to contain for a given tenant. chatbot is
+  // different — get-tenant-by-id.use-case.ts and update-tenant-settings.use-case.ts both
+  // override toJSON()'s raw value with the chatbot getter's result, which always resolves
+  // knowledgeText (defaulting to '' for any tenant whose stored settings predate M19-S04). The
+  // response genuinely can never omit this field.
   chatbot: TenantChatbotSettings;
   leadForm: TenantLeadFormSettings;
 }
@@ -116,7 +111,6 @@ export interface UpdateTenantSettingsRequest {
     booking?: Partial<TenantBookingSettings>;
     businessHours?: Partial<TenantBusinessHours>;
     localization?: Partial<TenantLocalizationSettings>;
-    notification?: Partial<TenantNotificationSettings>;
     businessInfo?: {
       phone?: string | null;
       email?: string | null;

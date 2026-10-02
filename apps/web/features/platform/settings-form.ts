@@ -63,7 +63,6 @@ export interface SettingsFormValues {
   readonly phone: string;
   readonly email: string;
   readonly address: SettingsAddressValues;
-  readonly notificationFromEmail: string;
   readonly socialLinks: SettingsSocialLinksValues;
   readonly knowledgeText: string;
   readonly retentionMonths: string;
@@ -92,7 +91,6 @@ export interface SettingsFormErrors {
   addressCity?: string;
   addressState?: string;
   addressZipCode?: string;
-  notificationFromEmail?: string;
   socialLinksWhatsapp?: string;
   knowledgeText?: string;
   retentionMonths?: string;
@@ -183,7 +181,6 @@ export function toSettingsFormValues(tenant: TenantSettingsResponse): SettingsFo
     phone: businessInfo?.phone ? stripPhonePrefix(businessInfo.phone, phonePrefix) : '',
     email: businessInfo?.email ?? '',
     address: toAddressValues(businessInfo?.address),
-    notificationFromEmail: settings.notification?.fromEmail ?? '',
     socialLinks: {
       whatsapp: socialLinks?.whatsapp ? stripPhonePrefix(socialLinks.whatsapp, phonePrefix) : '',
       instagram: socialLinks?.instagram ?? '',

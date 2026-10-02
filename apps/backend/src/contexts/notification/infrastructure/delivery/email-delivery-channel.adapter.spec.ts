@@ -6,7 +6,7 @@ import { OutboundMessage } from '../../application/ports/notification-dispatcher
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 
-function makeAdapter(fromEmail: string | null = null): {
+function makeAdapter(replyToEmail: string | null = null): {
   adapter: EmailDeliveryChannelAdapter;
   emailSender: InMemoryEmailSender;
   configService: ConfigService;
@@ -19,7 +19,7 @@ function makeAdapter(fromEmail: string | null = null): {
     slug: 'lavacar',
     timezone: 'America/Sao_Paulo',
     locale: 'pt-BR',
-    fromEmail,
+    replyToEmail,
   });
   const configService = {
     get: jest.fn().mockReturnValue('noreply@ikaro.example'),
@@ -43,23 +43,50 @@ describe('EmailDeliveryChannelAdapter', () => {
     expect(adapter.channelType).toBe('EMAIL');
   });
 
-  describe('from address resolution', () => {
-    it('uses tenantInfo.fromEmail when set', async () => {
-      const { adapter, emailSender } = makeAdapter('lavagem@ikaro.example');
-
-      await adapter.send(baseMessage);
-
-      const call = emailSender.sent[0];
-      expect(call.from).toBe('lavagem@ikaro.example');
-    });
-
-    it('falls back to EMAIL_FROM config when fromEmail is null', async () => {
-      const { adapter, emailSender } = makeAdapter(null);
+  describe('sender resolution', () => {
+    it('always sends From the platform EMAIL_FROM with the tenant name as display name', async () => {
+      const { adapter, emailSender } = makeAdapter();
 
       await adapter.send(baseMessage);
 
       const call = emailSender.sent[0];
       expect(call.from).toBe('noreply@ikaro.example');
+      expect(call.fromName).toBe('Lava Car');
+    });
+
+    it('sets replyTo to the tenant replyToEmail when present', async () => {
+      const { adapter, emailSender } = makeAdapter('contato@lavacar.example');
+
+      await adapter.send(baseMessage);
+
+      expect(emailSender.sent[0].replyTo).toBe('contato@lavacar.example');
+    });
+
+    it('leaves replyTo undefined when the tenant has no replyToEmail', async () => {
+      const { adapter, emailSender } = makeAdapter(null);
+
+      await adapter.send(baseMessage);
+
+      expect(emailSender.sent[0].replyTo).toBeUndefined();
+    });
+
+    it('still sends From EMAIL_FROM, with no fromName/replyTo, when tenant info is unavailable', async () => {
+      const emailSender = new InMemoryEmailSender();
+      const configService = {
+        get: jest.fn().mockReturnValue('noreply@ikaro.example'),
+      } as unknown as ConfigService;
+      const adapter = new EmailDeliveryChannelAdapter(
+        emailSender,
+        new InMemoryNotificationPlatformPort(),
+        configService,
+      );
+
+      await adapter.send(baseMessage);
+
+      const call = emailSender.sent[0];
+      expect(call.from).toBe('noreply@ikaro.example');
+      expect(call.fromName).toBeUndefined();
+      expect(call.replyTo).toBeUndefined();
     });
   });
 

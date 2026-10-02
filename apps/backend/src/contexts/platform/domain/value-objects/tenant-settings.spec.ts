@@ -42,7 +42,7 @@ describe('TenantSettings', () => {
       expect(settings.localization.countryCode).toBe('BR');
       expect(settings.localization.currency).toBe('BRL');
       expect(settings.localization.language).toBe('pt-BR');
-      expect(settings.notification.fromEmail).toBeNull();
+      expect(settings.toJSON()).not.toHaveProperty('notification');
       expect(settings.businessInfo).toEqual({
         phone: null,
         email: null,
@@ -197,36 +197,6 @@ describe('TenantSettings', () => {
     it('accepts null day (closed)', () => {
       const props = new TenantSettingsPropsBuilder().withBusinessHours({ saturday: null }).build();
       expect(() => TenantSettings.create(props)).not.toThrow();
-    });
-  });
-
-  describe('create() — notification validation', () => {
-    it('accepts a null fromEmail (default)', () => {
-      const props = new TenantSettingsPropsBuilder().build();
-      expect(() => TenantSettings.create(props)).not.toThrow();
-    });
-
-    it('accepts a valid fromEmail and exposes it via the getter', () => {
-      const props = new TenantSettingsPropsBuilder()
-        .withNotification({ fromEmail: 'reservas@lavacar.com.br' })
-        .build();
-      const settings = TenantSettings.create(props);
-      expect(settings.notification.fromEmail).toBe('reservas@lavacar.com.br');
-    });
-
-    it('throws for an invalid fromEmail', () => {
-      const props = new TenantSettingsPropsBuilder()
-        .withNotification({ fromEmail: 'not-an-email' })
-        .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
-    });
-
-    it('normalizes a mixed-case/whitespace fromEmail (TD37-S20)', () => {
-      const props = new TenantSettingsPropsBuilder()
-        .withNotification({ fromEmail: ' Reservas@LavaCar.com.br ' })
-        .build();
-      const settings = TenantSettings.create(props);
-      expect(settings.notification.fromEmail).toBe('reservas@lavacar.com.br');
     });
   });
 

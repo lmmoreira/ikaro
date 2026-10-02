@@ -21,7 +21,7 @@ describe('SeedDefaultTemplatesUseCase', () => {
       slug: 'tenant-a',
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
-      fromEmail: null,
+      replyToEmail: null,
     });
     useCase = new SeedDefaultTemplatesUseCase(templateRepo, platformPort);
   });
@@ -64,7 +64,7 @@ describe('SeedDefaultTemplatesUseCase', () => {
       slug: 'tenant-a',
       timezone: 'America/New_York',
       locale: 'en',
-      fromEmail: null,
+      replyToEmail: null,
     });
     templateRepo.seed(
       new NotificationTemplateBuilder()

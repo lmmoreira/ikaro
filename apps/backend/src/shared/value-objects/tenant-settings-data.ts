@@ -1,10 +1,6 @@
 import type { AddressProps } from './address';
 import type { BusinessHours } from './business-hours.vo';
 
-export interface NotificationSettings {
-  fromEmail: string | null;
-}
-
 export interface LoyaltySettings {
   expiryDays: number;
   enableNotifications: boolean;
@@ -90,7 +86,6 @@ export interface TenantSettingsData {
   booking: BookingSettings;
   businessHours: BusinessHours;
   localization: LocalizationSettings;
-  notification?: NotificationSettings;
   businessInfo?: BusinessInfo;
   chatbot?: ChatbotSettings;
   leadForm: LeadFormSettings;

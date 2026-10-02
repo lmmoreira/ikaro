@@ -6,7 +6,8 @@ export interface NotificationTenantInfo {
   slug: string;
   timezone: string;
   locale: string;
-  fromEmail: string | null;
+  /** The tenant's `businessInfo.email`, used as Reply-To; null when unset. */
+  replyToEmail: string | null;
 }
 
 export interface INotificationPlatformPort {

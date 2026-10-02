@@ -1464,7 +1464,7 @@ A fixed-term recurring schedule ends by itself, and a customer who still wants t
 5. **The email link is a deep link** to `/{slug}/my-account/recurring-schedules/new?renewFrom=<recurringScheduleId>`, built the way the other notification links are built (check the existing reminder use case for the URL helper); M23-S22 owns the page that receives it.
 
 **Decisions left for `/story-discovery` (business decisions, not code questions):**
-- **Lead time and where it lives:** default proposal 7 days, as a `tenants.settings.notification` key (name and bounds to be added to `docs/21-TENANTS_SETTINGS_SCHEMA.md`, e.g. `recurringRenewalReminderDays`, integer 1–30), never hard-coded (`CLAUDE.md` §7: no hardcoded business values). Confirm the number and whether a tenant can turn the reminder off.
+- **Lead time and where it lives:** default proposal 7 days, as a new `tenants.settings` key (the former `settings.notification` category no longer exists — removed in M18-S09 — so the category it lives under, e.g. `booking`, is a discovery decision; name and bounds to be added to `docs/21-TENANTS_SETTINGS_SCHEMA.md`, e.g. `recurringRenewalReminderDays`, integer 1–30), never hard-coded (`CLAUDE.md` §7: no hardcoded business values). Confirm the number and whether a tenant can turn the reminder off.
 - **One reminder or two** (for example 7 days and 1 day before). One is the proposal.
 - **Suppress the reminder if the customer already created a successor** (another `ACTIVE`/`PENDING_APPROVAL` schedule for the same service that starts on or after this one's `endsOn`)? Proposed: yes, a cheap in-memory check on the same scan.
 - **A by-id read:** verify whether M23-S12 or M23-S05 has already added `GET /recurring-booking-schedules/:id`; if not, this story adds it (own schedule for `CUSTOMER`, any for `STAFF|MANAGER`) because M23-S22's pre-fill needs it.
@@ -1475,7 +1475,7 @@ A fixed-term recurring schedule ends by itself, and a customer who still wants t
 
 **Backend HTTP surface:** none for the reminder itself; the by-id read above, if it is not already there, is `GET /recurring-booking-schedules/:id`.
 **BFF endpoint spec:** only if the by-id read is added here — `GET /v1/recurring-booking-schedules/:id`, JWT required, `CUSTOMER` (own) or `STAFF|MANAGER`, response the same item shape as the list.
-**New migration / i18n keys / env vars / feature flags:** a migration inserting the global default template rows for the new key and copying them to every existing tenant (the "existing tenants don't automatically get new template rows" gotcha in `docs/ENGINEERING_RULES_BACKEND.md`); `packages/i18n/locales/{pt-BR,en}/notifications.json` entries; the new `tenants.settings.notification` key; no env var, no feature flag.
+**New migration / i18n keys / env vars / feature flags:** a migration inserting the global default template rows for the new key and copying them to every existing tenant (the "existing tenants don't automatically get new template rows" gotcha in `docs/ENGINEERING_RULES_BACKEND.md`); `packages/i18n/locales/{pt-BR,en}/notifications.json` entries; the new `tenants.settings` key (category per discovery — `settings.notification` was removed in M18-S09); no env var, no feature flag.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/application/jobs/recurring-schedule-renewal-reminder.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)

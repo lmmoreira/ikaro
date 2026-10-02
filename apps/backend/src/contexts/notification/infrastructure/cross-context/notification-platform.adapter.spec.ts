@@ -5,7 +5,7 @@ import { NotificationPlatformAdapter } from './notification-platform.adapter';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 
-function makeTenantResult(fromEmail: string | null = 'no-reply@example.com') {
+function makeTenantResult(businessEmail: string | null = 'no-reply@example.com') {
   const tenant = new TenantBuilder().build();
   const settings = tenant.settings.toJSON();
   return {
@@ -15,7 +15,13 @@ function makeTenantResult(fromEmail: string | null = 'no-reply@example.com') {
     locale: tenant.settings.localization.language,
     settings: {
       ...settings,
-      notification: { fromEmail: fromEmail },
+      businessInfo: {
+        phone: null,
+        address: null,
+        socialLinks: null,
+        ...settings.businessInfo,
+        email: businessEmail,
+      },
     },
   };
 }
@@ -43,18 +49,18 @@ describe('NotificationPlatformAdapter', () => {
       slug: tenantResult.slug,
       timezone: tenantResult.settings.businessHours.timezone,
       locale: tenantResult.settings.localization.language,
-      fromEmail: 'hello@ikaro.example',
+      replyToEmail: 'hello@ikaro.example',
     });
     expect(getTenantById.execute).toHaveBeenCalledWith({ tenantId: TENANT_ID });
   });
 
-  it('returns null fromEmail when fromEmail is null', async () => {
+  it('returns null replyToEmail when businessInfo.email is null', async () => {
     const tenantResult = makeTenantResult(null);
     getTenantById.execute.mockResolvedValue(tenantResult);
 
     const result = await adapter.getTenantInfo(TENANT_ID);
 
-    expect(result?.fromEmail).toBeNull();
+    expect(result?.replyToEmail).toBeNull();
   });
 
   it('returns null when tenant is not found', async () => {

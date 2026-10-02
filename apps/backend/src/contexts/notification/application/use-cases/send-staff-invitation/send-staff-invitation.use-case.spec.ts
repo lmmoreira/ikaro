@@ -50,7 +50,7 @@ describe('SendStaffInvitationUseCase', () => {
       slug: 'lavacar',
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
-      fromEmail: null,
+      replyToEmail: null,
     });
     templateRepo = new InMemoryNotificationTemplateRepository();
     templateRepo.seed(

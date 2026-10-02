@@ -65,7 +65,6 @@ const tenantSettingsResponse = {
       language: 'pt-BR',
       decimalPlaces: 2,
     },
-    notification: { fromEmail: null },
     businessInfo: {
       phone: null,
       email: null,

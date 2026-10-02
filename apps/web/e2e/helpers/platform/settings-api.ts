@@ -42,7 +42,6 @@ export function toUpdateRequest(
       booking: settings.booking,
       businessHours: settings.businessHours,
       localization: settings.localization,
-      notification: settings.notification,
       businessInfo: settings.businessInfo,
     },
   };

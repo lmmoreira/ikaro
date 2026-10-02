@@ -18,7 +18,7 @@ export class NotificationPlatformAdapter implements INotificationPlatformPort {
         slug: result.slug,
         timezone: result.settings.businessHours.timezone,
         locale: result.settings.localization.language,
-        fromEmail: result.settings.notification?.fromEmail ?? null,
+        replyToEmail: result.settings.businessInfo?.email ?? null,
       };
     } catch {
       return null;

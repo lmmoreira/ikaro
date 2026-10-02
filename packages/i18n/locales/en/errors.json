@@ -147,7 +147,6 @@
   "PLATFORM_SETTINGS_CURRENCY_SYMBOL_INVALID": "The currency symbol must be between 1 and 3 characters.",
   "PLATFORM_SETTINGS_DECIMAL_PLACES_INVALID": "The number of decimal places must be between 0 and 8.",
   "PLATFORM_SETTINGS_FIELD_NOT_STRING": "Something went wrong. Please try again.",
-  "PLATFORM_SETTINGS_NOTIFICATION_EMAIL_INVALID": "The notification email provided is invalid.",
   "PLATFORM_SETTINGS_LOYALTY_EXPIRY_DAYS_INVALID": "The points expiration period must be between 1 and 3650 days.",
   "PLATFORM_SETTINGS_LOYALTY_EXPIRY_WARNING_DAYS_INVALID": "The expiration warning period must be between 1 and 90 days.",
   "PLATFORM_SETTINGS_LOYALTY_EXPIRY_WARNING_TOO_LATE": "The expiration warning period must be shorter than the points expiration period.",

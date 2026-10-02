@@ -5,7 +5,6 @@ import type {
   ChatbotSettings,
   LeadFormSettings,
   LoyaltySettings,
-  NotificationSettings,
 } from '../../../../shared/value-objects/tenant-settings-data';
 
 export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
@@ -25,8 +24,6 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
   slotGranularityMinutes: 30,
   welcomeStaffScreenDays: 14,
 };
-
-export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { fromEmail: null };
 
 export const DEFAULT_BUSINESS_INFO_SETTINGS: BusinessInfo = {
   phone: null,

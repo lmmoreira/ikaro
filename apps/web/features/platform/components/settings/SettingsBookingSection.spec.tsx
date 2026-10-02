@@ -42,7 +42,6 @@ function buildValues(): SettingsFormValues {
       state: 'MG',
       zipCode: '30000-000',
     },
-    notificationFromEmail: '',
     socialLinks: { whatsapp: '', instagram: '', facebook: '' },
     knowledgeText: '',
     retentionMonths: '6',

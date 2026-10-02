@@ -147,7 +147,6 @@
   "PLATFORM_SETTINGS_CURRENCY_SYMBOL_INVALID": "O símbolo da moeda deve ter entre 1 e 3 caracteres.",
   "PLATFORM_SETTINGS_DECIMAL_PLACES_INVALID": "O número de casas decimais deve estar entre 0 e 8.",
   "PLATFORM_SETTINGS_FIELD_NOT_STRING": "Ocorreu um erro inesperado. Tente novamente.",
-  "PLATFORM_SETTINGS_NOTIFICATION_EMAIL_INVALID": "O e-mail de notificação informado é inválido.",
   "PLATFORM_SETTINGS_LOYALTY_EXPIRY_DAYS_INVALID": "O prazo de expiração dos pontos deve estar entre 1 e 3650 dias.",
   "PLATFORM_SETTINGS_LOYALTY_EXPIRY_WARNING_DAYS_INVALID": "O prazo de aviso de expiração deve estar entre 1 e 90 dias.",
   "PLATFORM_SETTINGS_LOYALTY_EXPIRY_WARNING_TOO_LATE": "O prazo de aviso de expiração deve ser menor que o prazo de expiração dos pontos.",

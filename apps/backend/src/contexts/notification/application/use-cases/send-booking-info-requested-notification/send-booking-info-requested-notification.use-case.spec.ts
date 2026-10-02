@@ -75,7 +75,7 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
       slug: 'lava-car-test',
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
-      fromEmail: null,
+      replyToEmail: null,
     });
     useCase = new SendBookingInfoRequestedNotificationUseCase(
       logRepo,

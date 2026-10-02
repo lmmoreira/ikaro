@@ -76,7 +76,6 @@ function buildTenant(): TenantSettingsResponse {
         },
         socialLinks: null,
       },
-      notification: { fromEmail: null },
       chatbot: { knowledgeText: 'Aceitamos Pix e cartão.' },
       leadForm: { retentionMonths: 6, maxSubmissionsPerDay: 100, maxSubmissionsPerIpPerDay: 3 },
     },
@@ -116,7 +115,7 @@ describe('SettingsForm', () => {
     expect(screen.queryByRole('textbox', { name: 'País' })).not.toBeInTheDocument();
   });
 
-  it('pre-fills the new booking, loyalty, notification, and social fields', () => {
+  it('pre-fills the new booking, loyalty, and social fields', () => {
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
     expect(screen.getByRole('switch', { name: /Aprovação automática/ })).toHaveAttribute(
@@ -132,7 +131,6 @@ describe('SettingsForm', () => {
     ).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByLabelText('Aviso de expiração dos pontos')).toHaveValue(15);
     expect(screen.getByLabelText('Saldo mínimo para notificar')).toHaveValue(10);
-    expect(screen.getByLabelText('E-mail de envio das notificações')).toHaveValue('');
     expect(screen.getByLabelText('WhatsApp')).toHaveValue('');
     expect(screen.getByLabelText('Instagram')).toHaveValue('');
     expect(screen.getByLabelText('Facebook')).toHaveValue('');
@@ -441,26 +439,18 @@ describe('SettingsForm', () => {
     );
   });
 
-  it('accepts a blank notification.fromEmail as null and rejects an invalid one inline', async () => {
+  it('has no Notificações sender section and submits no notification key (M18-S09)', async () => {
     const user = userEvent.setup();
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
+    expect(screen.queryByText('E-mail de envio das notificações')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('E-mail de envio das notificações')).not.toBeInTheDocument();
+
     await user.click(screen.getByTestId('settings-submit-desktop'));
     expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
-    expect(mockUpdateTenantSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({
-          notification: { fromEmail: null },
-        }),
-      }),
-    );
-
-    await user.type(screen.getByLabelText('E-mail de envio das notificações'), 'not-an-email');
-    await user.click(screen.getByTestId('settings-submit-desktop'));
-
-    expect(screen.getByTestId('settings-notification-from-email-error')).toHaveTextContent(
-      'E-mail inválido.',
-    );
+    expect(mockUpdateTenantSettings).toHaveBeenCalledTimes(1);
+    const payload = mockUpdateTenantSettings.mock.calls[0][0] as { settings: object };
+    expect(payload.settings).not.toHaveProperty('notification');
   });
 
   it('pre-fills the chatbot knowledge text field with no maxLength cap', () => {

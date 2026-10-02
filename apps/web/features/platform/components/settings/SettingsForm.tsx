@@ -28,7 +28,6 @@ import {
 import { SettingsGeneralSection } from './SettingsGeneralSection';
 import { SettingsBookingSection } from './SettingsBookingSection';
 import { SettingsLoyaltySection } from './SettingsLoyaltySection';
-import { SettingsNotificationSection } from './SettingsNotificationSection';
 import { SettingsHoursSection } from './SettingsHoursSection';
 import { SettingsContactSection } from './SettingsContactSection';
 import { SettingsChatbotSection } from './SettingsChatbotSection';
@@ -223,12 +222,6 @@ export function SettingsForm({
             values={values}
             fieldErrors={fieldErrors}
             onFieldChange={setField}
-          />
-
-          <SettingsNotificationSection
-            notificationFromEmail={values.notificationFromEmail}
-            notificationFromEmailError={fieldErrors.notificationFromEmail}
-            onChange={(value) => setField('notificationFromEmail', value)}
           />
 
           <SettingsHoursSection
