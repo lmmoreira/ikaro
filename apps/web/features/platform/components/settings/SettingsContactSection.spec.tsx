@@ -79,6 +79,10 @@ describe('SettingsContactSection', () => {
     renderWithIntl(<SettingsContactSection {...baseProps()} />);
 
     expect(screen.getByText(/respostas dos clientes aos e-mails/)).toBeInTheDocument();
+    expect(screen.getByTestId('settings-email')).toHaveAttribute(
+      'aria-describedby',
+      'settings-email-hint',
+    );
   });
 
   it('calls onAddressFieldChange when the street field changes', async () => {

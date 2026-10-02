@@ -19,6 +19,14 @@ export function FieldError({ id, message }: FieldErrorProps): React.JSX.Element 
   );
 }
 
+// The visible hint is announced with the input only while it is shown (no error); an error takes
+// precedence, matching the `hint && !error` rendering in every field below.
+function describedByFor(id: string, error?: string, hint?: string): string | undefined {
+  if (error) return `${id}-error`;
+  if (hint) return `${id}-hint`;
+  return undefined;
+}
+
 interface SuffixNumberFieldProps {
   readonly id: string;
   readonly label: string;
@@ -52,14 +60,18 @@ export function SuffixNumberField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${id}-error` : undefined}
+          aria-describedby={describedByFor(id, error, hint)}
           className={`${INPUT_CLASS} pr-16`}
         />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
           {suffix}
         </span>
       </div>
-      {hint && !error && <p className="mt-1.5 text-sm text-gray-500">{hint}</p>}
+      {hint && !error && (
+        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+          {hint}
+        </p>
+      )}
       <FieldError id={`${id}-error`} message={error} />
     </div>
   );
@@ -102,10 +114,14 @@ export function TextField({
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
+        aria-describedby={describedByFor(id, error, hint)}
         className={INPUT_CLASS}
       />
-      {hint && !error && <p className="mt-1.5 text-sm text-gray-500">{hint}</p>}
+      {hint && !error && (
+        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+          {hint}
+        </p>
+      )}
       <FieldError id={`${id}-error`} message={error} />
     </div>
   );
@@ -130,13 +146,6 @@ export function TextareaField({
   placeholder,
   onChange,
 }: TextareaFieldProps): React.JSX.Element {
-  let describedBy: string | undefined;
-  if (error) {
-    describedBy = `${id}-error`;
-  } else if (hint) {
-    describedBy = `${id}-hint`;
-  }
-
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -149,7 +158,7 @@ export function TextareaField({
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
-        aria-describedby={describedBy}
+        aria-describedby={describedByFor(id, error, hint)}
         rows={5}
         className={`${INPUT_CLASS} min-h-32 resize-y`}
       />
@@ -193,7 +202,7 @@ export function SelectField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
+        aria-describedby={describedByFor(id, error, hint)}
         className={`${INPUT_CLASS} max-w-56`}
       >
         {options.map((option) => (
@@ -202,7 +211,11 @@ export function SelectField({
           </option>
         ))}
       </select>
-      {hint && !error && <p className="mt-1.5 text-sm text-gray-500">{hint}</p>}
+      {hint && !error && (
+        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+          {hint}
+        </p>
+      )}
       <FieldError id={`${id}-error`} message={error} />
     </div>
   );
