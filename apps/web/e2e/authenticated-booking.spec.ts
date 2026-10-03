@@ -149,7 +149,16 @@ test.describe('UC-002 — Authenticated customer booking golden path', () => {
       return route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({ bookingId: 'booking-auth-1', status: 'PENDING' }),
+        body: JSON.stringify({
+          bookingId: 'booking-auth-1',
+          status: 'PENDING',
+          scheduledAt: new Date().toISOString(),
+          totalPrice: { amount: 0, currency: 'USD' },
+          totalDurationMins: 0,
+          pickupAddress: null,
+          beforeServicePhotoUrls: [],
+          lines: [],
+        }),
       });
     });
 

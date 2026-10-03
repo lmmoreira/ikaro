@@ -49,3 +49,5 @@ export async function navigateToAuthenticatedStep3(
   await page.locator('[data-testid="time-slot"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 }
+
+export * from './flow';

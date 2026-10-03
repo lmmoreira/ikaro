@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorAlert } from './ErrorAlert';
-import type { DaySummary } from '@ikaro/types';
+import type { DaySummary, ResourceSelectionItem } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
 import {
   addDays,
@@ -20,6 +20,8 @@ interface AvailabilityCarouselProps {
   readonly onSelectDate: (date: string) => void;
   readonly carouselDays: number;
   readonly maxBookingAdvanceDays: number;
+  readonly resourceSelections?: readonly ResourceSelectionItem[];
+  readonly durationMinutes?: number;
   readonly variant?: 'hotsite' | 'dashboard';
 }
 
@@ -33,6 +35,8 @@ export function AvailabilityCarousel({
   onSelectDate,
   carouselDays,
   maxBookingAdvanceDays,
+  resourceSelections,
+  durationMinutes,
   variant = 'hotsite',
 }: AvailabilityCarouselProps): React.JSX.Element {
   const t = useTranslations('booking');
@@ -49,7 +53,7 @@ export function AvailabilityCarousel({
     const from = toISODate(today);
     const to = toISODate(addDays(today, Math.min(carouselDays, maxBookingAdvanceDays) - 1));
 
-    fetchAvailabilitySummary(slug, from, to, serviceIds)
+    fetchAvailabilitySummary(slug, from, to, serviceIds, { resourceSelections, durationMinutes })
       .then((result) => {
         if (!cancelled) setDays(result);
       })
@@ -60,7 +64,15 @@ export function AvailabilityCarousel({
     return () => {
       cancelled = true;
     };
-  }, [slug, serviceIds, carouselDays, maxBookingAdvanceDays, retryCount]);
+  }, [
+    slug,
+    serviceIds,
+    resourceSelections,
+    durationMinutes,
+    carouselDays,
+    maxBookingAdvanceDays,
+    retryCount,
+  ]);
 
   const handleRetry = useCallback(() => {
     setError(false);

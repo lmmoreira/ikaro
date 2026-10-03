@@ -1,6 +1,5 @@
 import type {
   ApproveBookingRequest,
-  AuthenticatedBookingRequest,
   ApproveBookingResponse,
   RejectBookingRequest,
   RequestMoreInfoRequest,
@@ -150,15 +149,5 @@ export async function submitBookingInfo(
     status: string;
     infoSubmittedAt: string;
   }>(`/bookings/${id}/submit-info`, body);
-  return res.data;
-}
-
-export async function createAuthenticatedBooking(
-  body: AuthenticatedBookingRequest,
-): Promise<{ bookingId: string; status: string }> {
-  const res = await bffClient.post<{ bookingId: string; status: string }>(
-    '/bookings/authenticated',
-    body,
-  );
   return res.data;
 }

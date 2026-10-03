@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { AvailableSlot } from '@ikaro/types';
+import type { AvailableSlot, ResourceSelectionItem } from '@ikaro/types';
 import { fetchAvailability } from '@/features/platform/hotsite/api/schedule';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { cn } from '@/shared/utils/cn';
@@ -14,6 +14,8 @@ interface SlotPickerProps {
   readonly date: string;
   readonly selectedSlot: AvailableSlot | null;
   readonly onSelectSlot: (slot: AvailableSlot) => void;
+  readonly resourceSelections?: readonly ResourceSelectionItem[];
+  readonly durationMinutes?: number;
   readonly variant?: 'hotsite' | 'dashboard';
 }
 
@@ -23,6 +25,8 @@ export function SlotPicker({
   date,
   selectedSlot,
   onSelectSlot,
+  resourceSelections,
+  durationMinutes,
   variant = 'hotsite',
 }: SlotPickerProps): React.JSX.Element {
   const t = useTranslations('booking');
@@ -34,7 +38,7 @@ export function SlotPicker({
   useEffect(() => {
     let cancelled = false;
 
-    fetchAvailability(slug, date, serviceIds)
+    fetchAvailability(slug, date, serviceIds, { resourceSelections, durationMinutes })
       .then((response) => {
         if (!cancelled) setResult({ date, slots: response.slots });
       })
@@ -45,7 +49,7 @@ export function SlotPicker({
     return () => {
       cancelled = true;
     };
-  }, [slug, date, serviceIds, retryCount]);
+  }, [slug, date, serviceIds, resourceSelections, durationMinutes, retryCount]);
 
   const handleRetry = useCallback(() => {
     setErrorDate(null);

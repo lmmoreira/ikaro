@@ -13,6 +13,9 @@ import {
   createAttachmentSignedUrl,
   createBooking,
   createGuestAttachmentSignedUrl,
+  fetchPublicIntakeSchema,
+  fetchServiceQuote,
+  fetchServiceResourceOptions,
   submitGuestBookingInfo,
 } from './public';
 import { fetchGuestBookingSummary, GuestBookingReadError } from './public.server';
@@ -112,13 +115,45 @@ describe('createAuthenticatedBooking', () => {
       serviceIds: ['svc-1'],
     });
 
-    expect(result).toEqual({ bookingId: 'booking-1', status: 'PENDING' });
+    expect(result).toMatchObject({ bookingId: 'booking-1', status: 'PENDING' });
     expect(mock.history.post?.[0]?.data).toBe(
       JSON.stringify({
         scheduledAt: '2026-06-20T13:00:00.000Z',
         serviceIds: ['svc-1'],
       }),
     );
+  });
+});
+
+describe('public service reads (M23)', () => {
+  beforeEach(() => mock.reset());
+
+  afterEach(() => mock.reset());
+
+  it('fetchPublicIntakeSchema reads the active schema with the tenant slug', async () => {
+    mock.onGet('/public/services/svc-1/intake-schema').reply(200, { active: null });
+
+    await expect(fetchPublicIntakeSchema('lavacar', 'svc-1')).resolves.toEqual({ active: null });
+    expect(mock.history.get?.[0]?.headers?.['X-Tenant-Slug']).toBe('lavacar');
+  });
+
+  it('fetchServiceResourceOptions reads the CUSTOMER_CHOICE options', async () => {
+    mock.onGet('/public/services/svc-1/resource-options').reply(200, { requirements: [] });
+
+    await expect(fetchServiceResourceOptions('lavacar', 'svc-1')).resolves.toEqual({
+      requirements: [],
+    });
+  });
+
+  it('fetchServiceQuote sends the duration as a query param', async () => {
+    mock
+      .onGet('/public/services/svc-1/quote')
+      .reply(200, { durationMinutes: 90, price: { amount: 100, currency: 'BRL' } });
+
+    const quote = await fetchServiceQuote('lavacar', 'svc-1', 90);
+
+    expect(quote.durationMinutes).toBe(90);
+    expect(mock.history.get?.[0]?.params).toEqual({ durationMinutes: 90 });
   });
 });
 

@@ -6,12 +6,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AvailabilityResponse,
   Address,
+  BookingResponse,
   DaySummary,
   HotsiteAddressSpec,
   HotsiteServiceResponse,
   CustomerProfileResponse,
 } from '@ikaro/types';
-import { createAuthenticatedBooking, createBooking } from '@/features/booking/api/public';
+import {
+  createAuthenticatedBooking,
+  createBooking,
+  fetchPublicIntakeSchema,
+  fetchServiceResourceOptions,
+} from '@/features/booking/api/public';
 import { ApiError } from '@/shared/lib/api/errors';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
 import {
@@ -44,6 +50,8 @@ vi.mock('@/features/booking/api/public', async (importOriginal) => {
     createBooking: vi.fn(),
     createAuthenticatedBooking: vi.fn(),
     createAttachmentSignedUrl: vi.fn(),
+    fetchPublicIntakeSchema: vi.fn(),
+    fetchServiceResourceOptions: vi.fn(),
   };
 });
 
@@ -69,6 +77,29 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
     createdAt: '2026-01-01T00:00:00.000Z',
     ...hotsiteServiceBookingDefaults,
     ...overrides,
+  };
+}
+
+function bookingResponse(line: Partial<BookingResponse['lines'][number]> = {}): BookingResponse {
+  return {
+    bookingId: 'booking-1',
+    status: 'PENDING',
+    scheduledAt: '2026-06-15T12:00:00.000Z',
+    totalPrice: { amount: 150, currency: 'BRL' },
+    totalDurationMins: 60,
+    pickupAddress: null,
+    beforeServicePhotoUrls: [],
+    lines: [
+      {
+        lineId: 'line-1',
+        serviceId: 'svc-1',
+        priceAtBooking: { amount: 150, currency: 'BRL' },
+        durationMinsAtBooking: 60,
+        pointsValueAtBooking: 10,
+        requiresPickupAddressAtBooking: false,
+        ...line,
+      },
+    ],
   };
 }
 
@@ -132,6 +163,8 @@ async function fillContactFields(user: ReturnType<typeof userEvent.setup>) {
 describe('BookingForm', () => {
   beforeEach(() => {
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
+    vi.mocked(fetchPublicIntakeSchema).mockResolvedValue({ active: null });
+    vi.mocked(fetchServiceResourceOptions).mockResolvedValue({ requirements: [] });
   });
 
   afterEach(() => {
@@ -339,10 +372,7 @@ describe('BookingForm', () => {
       phone: '+5511999999999',
       defaultAddress: pickupAddress,
     } satisfies CustomerProfileResponse);
-    vi.mocked(createAuthenticatedBooking).mockResolvedValue({
-      bookingId: 'booking-1',
-      status: 'PENDING',
-    });
+    vi.mocked(createAuthenticatedBooking).mockResolvedValue(bookingResponse());
 
     await advanceToStep3(user, [makeService()], false);
 
@@ -360,16 +390,7 @@ describe('BookingForm', () => {
 
   it('submits the booking and shows the success message', async () => {
     const user = userEvent.setup();
-    vi.mocked(createBooking).mockResolvedValue({
-      bookingId: 'booking-1',
-      status: 'PENDING',
-      scheduledAt: slot.startsAt,
-      totalPrice: { amount: 150, currency: 'BRL' },
-      totalDurationMins: 60,
-      pickupAddress: null,
-      beforeServicePhotoUrls: [],
-      lines: [],
-    });
+    vi.mocked(createBooking).mockResolvedValue(bookingResponse());
 
     await advanceToStep3(user, [makeService()]);
     await fillContactFields(user);

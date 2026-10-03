@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
+import { summarizeSelection } from '@/features/booking/model/selection-totals';
 
 interface BookingSummaryCardProps {
   readonly services: readonly HotsiteServiceResponse[];
@@ -24,8 +25,7 @@ export function BookingSummaryCard({
   const t = useTranslations('booking');
   const { formatMoney, formatDateLong, formatTime } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
-  const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
-  const totalDuration = selected.reduce((sum, service) => sum + service.durationMinutes, 0);
+  const { amount, durationMinutes, isFloor } = summarizeSelection(selected);
   const serviceLabel =
     selected.length === 1 ? t('summary.serviceSingular') : t('summary.servicePlural');
 
@@ -47,7 +47,9 @@ export function BookingSummaryCard({
           </p>
         ))}
         <p className="mt-0.5 text-sm" style={{ color: 'var(--ba-primary)' }}>
-          {formatMoney(totalAmount)} — {formatDuration(totalDuration)}
+          {isFloor
+            ? `${t('summary.fromAmount', { amount: formatMoney(amount) })} — ${t('summary.durationToChoose')}`
+            : `${formatMoney(amount)} — ${formatDuration(durationMinutes)}`}
         </p>
 
         <hr className="my-3.5" style={{ borderColor: 'var(--ba-secondary)' }} />

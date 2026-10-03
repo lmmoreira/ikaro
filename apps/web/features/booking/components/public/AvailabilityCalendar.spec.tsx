@@ -255,6 +255,7 @@ describe('AvailabilityCalendar', () => {
       '2026-06-15',
       '2026-06-30',
       ['svc-1'],
+      { resourceSelections: undefined, durationMinutes: undefined },
     );
 
     await user.click(screen.getByTestId('calendar-next-month'));
@@ -265,6 +266,7 @@ describe('AvailabilityCalendar', () => {
         '2026-07-01',
         '2026-07-31',
         ['svc-1'],
+        { resourceSelections: undefined, durationMinutes: undefined },
       );
     });
   });
@@ -313,5 +315,44 @@ describe('AvailabilityCalendar', () => {
 
     await screen.findAllByTestId('calendar-day');
     expect(screen.getByText('June 2026')).toBeInTheDocument();
+  });
+
+  it('forwards the resource picks and the duration to the summary query and re-fetches when they change', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+    const pick = (resourceId: string) => [
+      { serviceId: 'svc-1', legIndex: null, resourceType: 'STAFF' as const, resourceId },
+    ];
+    const { rerender } = renderCalendar({ resourceSelections: pick('r-1'), durationMinutes: 90 });
+    await screen.findAllByTestId('calendar-day');
+
+    expect(fetchAvailabilitySummary).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      '2026-06-15',
+      '2026-06-30',
+      ['svc-1'],
+      { resourceSelections: pick('r-1'), durationMinutes: 90 },
+    );
+
+    rerender(
+      <AvailabilityCalendar
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        selectedDate={null}
+        onSelectDate={vi.fn()}
+        maxBookingAdvanceDays={90}
+        resourceSelections={pick('r-2')}
+        durationMinutes={90}
+      />,
+    );
+
+    await vi.waitFor(() =>
+      expect(fetchAvailabilitySummary).toHaveBeenLastCalledWith(
+        'lavacar-beloauto',
+        '2026-06-15',
+        '2026-06-30',
+        ['svc-1'],
+        { resourceSelections: pick('r-2'), durationMinutes: 90 },
+      ),
+    );
   });
 });

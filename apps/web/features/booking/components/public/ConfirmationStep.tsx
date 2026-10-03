@@ -2,7 +2,15 @@
 
 import type React from 'react';
 import { useTranslations } from 'next-intl';
-import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
+import type {
+  AvailableSlot,
+  BookingResponse,
+  HotsiteServiceResourceOptionsRequirement,
+  HotsiteServiceResponse,
+  ResourceSelectionItem,
+} from '@ikaro/types';
+import { summarizeSelection } from '@/features/booking/model/selection-totals';
+import { BookingSubmittedDetails } from './BookingSubmittedDetails';
 import { ErrorAlert } from './ErrorAlert';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
@@ -17,6 +25,9 @@ interface ConfirmationStepProps {
   readonly selectedSlot: AvailableSlot;
   readonly status: BookingSubmissionStatus;
   readonly errorMessage: string | null;
+  readonly booking: BookingResponse | null;
+  readonly picks: readonly ResourceSelectionItem[];
+  readonly requirements: readonly HotsiteServiceResourceOptionsRequirement[];
   readonly onSubmit: () => void;
   readonly onBack: () => void;
 }
@@ -36,6 +47,9 @@ export function ConfirmationStep({
   selectedSlot,
   status,
   errorMessage,
+  booking,
+  picks,
+  requirements,
   onSubmit,
   onBack,
 }: ConfirmationStepProps): React.JSX.Element {
@@ -43,8 +57,7 @@ export function ConfirmationStep({
   const tc = useTranslations('common');
   const { formatMoney, formatDateLong, formatTime } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
-  const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
-  const totalDuration = selected.reduce((sum, service) => sum + service.durationMinutes, 0);
+  const { amount, durationMinutes, isFloor } = summarizeSelection(selected);
 
   if (status === 'success') {
     return (
@@ -53,6 +66,16 @@ export function ConfirmationStep({
           {t('confirmation.successHeading')}
         </h2>
         <p data-testid="booking-success">{t('confirmation.successBody')}</p>
+        {booking && (
+          <BookingSubmittedDetails
+            services={services}
+            booking={booking}
+            selectedDate={selectedDate}
+            selectedSlot={selectedSlot}
+            picks={picks}
+            requirements={requirements}
+          />
+        )}
         <a
           href={`/${slug}`}
           className="mt-6 inline-block border px-6 py-3"
@@ -88,7 +111,10 @@ export function ConfirmationStep({
       </ul>
 
       <p className="mb-2 font-semibold" style={{ color: 'var(--ba-text)' }}>
-        Total: {formatMoney(totalAmount)} — {formatDuration(totalDuration)}
+        Total:{' '}
+        {isFloor
+          ? `${t('summary.fromAmount', { amount: formatMoney(amount) })} — ${t('summary.durationToChoose')}`
+          : `${formatMoney(amount)} — ${formatDuration(durationMinutes)}`}
       </p>
 
       <p data-testid="confirmation-datetime" style={{ color: 'var(--ba-text)' }}>
