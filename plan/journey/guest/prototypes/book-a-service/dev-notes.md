@@ -339,6 +339,7 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 | + intake (5) | … · Dados do serviço (after Seus dados) | `03d` → `13` (`13b`/`13c`) → `04e` |
 | + resource choice (5; with intake 6) | Serviços · **Escolha** · Data e horário · Seus dados [· Dados do serviço] · Confirmar | `05`…`05f` → `02` → `09b`/`02e` → `04d` |
 | + variable duration (5; with intake 6) | Serviços · **Duração** · Data e horário · … | `12`…`12d` → `02` |
+| + resource choice **and** variable duration (6; with intake 7) | Serviços · **Escolha(s)** · **Duração** · Data e horário · … — the order is fixed: every picker step first, then the duration step, then availability (the duration can depend on the chosen resource, and the slot search needs all of them) | `05`…`05f` → `12` → `02` |
 | Legged journey (one step per leg that has a choice; the review replaces the final summary) | Serviços · **Escolha leg 2 · Escolha leg 3** · Data e horário · Seus dados · **Confirmar jornada** (6 here) | `05g` → `05h` → `02` → `10`/`10b` → `04f` |
 
 `03d` and `04e` are exact copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets. A path with both a choice and a duration adds one step to each count (6 / 7 with intake). The `04b`/`04c`/`04d` states are shared by every path and are not duplicated.
