@@ -1,3 +1,4 @@
+import { toPlainAvailabilityLines } from './availability-lines.helpers';
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { AvailabilityService } from '../../domain/services/availability.service';
@@ -26,7 +27,7 @@ describe('calculateSlotsForDate', () => {
     const service = new ServiceBuilder().withDurationMinutes(60).withBufferAfterMinutes(0).build();
 
     const slotsWithoutOccupancy = calculateSlotsForDate(availabilityService, monday, {
-      services: [service],
+      lines: toPlainAvailabilityLines([service]),
       resource: null,
       closures: [],
       tenantOpenings: [],
@@ -43,7 +44,7 @@ describe('calculateSlotsForDate', () => {
     // would exclude it (its startsAt is on/after Tuesday 00:00 UTC), wrongly reporting the window
     // as free.
     const slotsWithOccupancy = calculateSlotsForDate(availabilityService, monday, {
-      services: [service],
+      lines: toPlainAvailabilityLines([service]),
       resource: null,
       closures: [],
       tenantOpenings: [],

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   BookingModelSchema,
+  QuoteServiceDurationQuerySchema,
   ClassResourceSlotSchema as ClassResourceSlotBodySchema,
   PublishServiceIntakeSchemaSchema as PublishServiceIntakeSchemaBodySchema,
   UpdateServiceBookingPolicySchema as UpdateServiceBookingPolicyBodySchema,
@@ -65,6 +66,10 @@ export const UpdateServiceBodySchema = z
   })
   .default({});
 
+// Shared with the backend's identical query schema via @ikaro/validation (no per-app deviation).
+export const QuoteQuerySchema = QuoteServiceDurationQuerySchema;
+
+export type QuoteQuery = z.infer<typeof QuoteQuerySchema>;
 export type CreateServiceBody = z.infer<typeof CreateServiceBodySchema>;
 export type UpdateServiceBody = z.infer<typeof UpdateServiceBodySchema>;
 export type UpdateServiceResourceRequirementsBody = z.infer<

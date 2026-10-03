@@ -819,6 +819,300 @@ describe('ServiceController (integration)', () => {
     });
   });
 
+  // ─── GET /services/:id/resource-options + /quote (M23-S29) ─────────────────
+
+  describe('GET /services/:id/resource-options and /quote (M23-S29)', () => {
+    const guest = (tenantId: string) => ({
+      'x-tenant-id': tenantId,
+      'x-correlation-id': 'test-correlation-id',
+    });
+
+    async function createResource(tenantId: string, type: string, name: string): Promise<string> {
+      const { body } = await request(app.getHttpServer())
+        .post('/resources')
+        .set(actorHeaders(tenantId, MANAGER_ID))
+        .send({ type, name })
+        .expect(201);
+      return body.id as string;
+    }
+
+    async function createService(tenantId: string): Promise<string> {
+      const { body } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(tenantId, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+      return body.id as string;
+    }
+
+    it('resource-options: a bundle service returns only its CUSTOMER_CHOICE requirement, id and name only, without actor headers', async () => {
+      const tenant = await provisionTenant();
+      const roomId = await createResource(tenant, 'ROOM', 'Sala 1');
+      await createResource(tenant, 'EQUIPMENT', 'Máquina 1');
+      const serviceId = await createService(tenant);
+      await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/resource-requirements`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send({
+          resourceRequirements: [
+            { type: 'ROOM', selectionMode: 'CUSTOMER_CHOICE' },
+            { type: 'EQUIPMENT', selectionMode: 'AUTO_ANY' },
+          ],
+        })
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${serviceId}/resource-options`)
+        .set(guest(tenant))
+        .expect(200);
+
+      expect(body).toEqual({
+        requirements: [
+          {
+            serviceId,
+            legIndex: null,
+            resourceType: 'ROOM',
+            selectionMode: 'CUSTOMER_CHOICE',
+            requiredQuantity: 1,
+            options: [{ resourceId: roomId, name: 'Sala 1' }],
+          },
+        ],
+      });
+    });
+
+    it('resource-options: a legged service returns per-leg entries', async () => {
+      const tenant = await provisionTenant();
+      await createResource(tenant, 'ROOM', 'Sala 1');
+      await createResource(tenant, 'EQUIPMENT', 'Máquina 1');
+      const serviceId = await createService(tenant);
+      await request(app.getHttpServer())
+        .put(`/services/${serviceId}/legs`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send({
+          legs: [
+            {
+              legIndex: 0,
+              name: 'Sauna',
+              durationMinutes: 20,
+              resourceRequirements: [{ type: 'ROOM', selectionMode: 'CUSTOMER_CHOICE' }],
+            },
+            {
+              legIndex: 1,
+              name: 'Massagem',
+              durationMinutes: 50,
+              resourceRequirements: [{ type: 'EQUIPMENT', selectionMode: 'CUSTOMER_CHOICE' }],
+            },
+          ],
+        })
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${serviceId}/resource-options`)
+        .set(guest(tenant))
+        .expect(200);
+
+      expect(body.requirements.map((r: { legIndex: number }) => r.legIndex)).toEqual([0, 1]);
+    });
+
+    it('resource-options: an inactive service returns 404', async () => {
+      const tenant = await provisionTenant();
+      const serviceId = await createService(tenant);
+      await request(app.getHttpServer())
+        .delete(`/services/${serviceId}`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${serviceId}/resource-options`)
+        .set(guest(tenant))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('tenant isolation: resource-options and quote return 404 for a service of another tenant', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      const options = await request(app.getHttpServer())
+        .get(`/services/${entity.id}/resource-options`)
+        .set(guest(tenantA))
+        .expect(404);
+      const quote = await request(app.getHttpServer())
+        .get(`/services/${entity.id}/quote?durationMinutes=60`)
+        .set(guest(tenantA))
+        .expect(404);
+
+      expect(options.body.status).toBe(404);
+      expect(quote.body.status).toBe(404);
+    });
+
+    it('tenant isolation: resource options never include another tenant’s resources', async () => {
+      const tenant = await provisionTenant();
+      const otherTenant = await provisionTenant();
+      await createResource(otherTenant, 'ROOM', 'Sala do outro tenant');
+      const ownRoom = await createResource(tenant, 'ROOM', 'Sala própria');
+      const serviceId = await createService(tenant);
+      await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/resource-requirements`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send({ resourceRequirements: [{ type: 'ROOM', selectionMode: 'CUSTOMER_CHOICE' }] })
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${serviceId}/resource-options`)
+        .set(guest(tenant))
+        .expect(200);
+
+      expect(body.requirements[0].options).toEqual([{ resourceId: ownRoom, name: 'Sala própria' }]);
+    });
+
+    it('quote: prices a per-time service and returns 422 for an out-of-range duration', async () => {
+      const tenant = await provisionTenant();
+      const serviceId = await createService(tenant);
+      await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/booking-policy`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 60,
+          pricePerIncrementAmount: 50,
+        })
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${serviceId}/quote?durationMinutes=90`)
+        .set(guest(tenant))
+        .expect(200);
+      expect(body).toEqual({ durationMinutes: 90, price: { amount: 100, currency: 'BRL' } });
+
+      await request(app.getHttpServer())
+        .get(`/services/${serviceId}/quote?durationMinutes=300`)
+        .set(guest(tenant))
+        .expect(422);
+      await request(app.getHttpServer())
+        .get(`/services/${serviceId}/quote`)
+        .set(guest(tenant))
+        .expect(422);
+      await request(app.getHttpServer())
+        .get(`/services/${serviceId}/quote?durationMinutes=abc`)
+        .set(guest(tenant))
+        .expect(400);
+    });
+
+    it('quote: a FIXED service ignores durationMinutes and returns its own price and duration', async () => {
+      const tenant = await provisionTenant();
+      const serviceId = await createService(tenant);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${serviceId}/quote?durationMinutes=999`)
+        .set(guest(tenant))
+        .expect(200);
+
+      expect(body).toEqual({ durationMinutes: 60, price: { amount: 150, currency: 'BRL' } });
+    });
+  });
+
+  // ─── Legs and a customer-selected duration are mutually exclusive (M23-S29) ──
+
+  describe('legs vs customer-selected duration', () => {
+    const customDurationPolicy = {
+      durationPolicy: 'CUSTOMER_SELECTED',
+      durationMinMinutes: 30,
+      durationMaxMinutes: 120,
+      durationIncrementMinutes: 30,
+      pricingPolicy: 'PER_TIME_INCREMENT',
+      pricingIncrementMinutes: 30,
+      pricePerIncrementAmount: 20,
+    };
+    const twoLegs = {
+      legs: [
+        {
+          legIndex: 0,
+          name: 'Sauna',
+          durationMinutes: 20,
+          resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY' }],
+        },
+        {
+          legIndex: 1,
+          name: 'Massagem',
+          durationMinutes: 50,
+          resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY' }],
+        },
+      ],
+    };
+
+    async function createServiceWithRoom(): Promise<{ tenant: string; serviceId: string }> {
+      const tenant = await provisionTenant();
+      await request(app.getHttpServer())
+        .post('/resources')
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send({ type: 'ROOM', name: 'Sala 1' })
+        .expect(201);
+      const { body } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+      return { tenant, serviceId: body.id as string };
+    }
+
+    it('rejects a customer-selected duration on a service that already has legs with 409', async () => {
+      const { tenant, serviceId } = await createServiceWithRoom();
+      await request(app.getHttpServer())
+        .put(`/services/${serviceId}/legs`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(twoLegs)
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/booking-policy`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(customDurationPolicy)
+        .expect(409);
+
+      expect(body.code).toBe('BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT');
+    });
+
+    it('rejects legs on a service whose duration is customer-selected with 409', async () => {
+      const { tenant, serviceId } = await createServiceWithRoom();
+      await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/booking-policy`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(customDurationPolicy)
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .put(`/services/${serviceId}/legs`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(twoLegs)
+        .expect(409);
+
+      expect(body.code).toBe('BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT');
+    });
+
+    it('still lets a legged service change its other booking-policy fields', async () => {
+      const { tenant, serviceId } = await createServiceWithRoom();
+      await request(app.getHttpServer())
+        .put(`/services/${serviceId}/legs`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send(twoLegs)
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${serviceId}/booking-policy`)
+        .set(actorHeaders(tenant, MANAGER_ID))
+        .send({ defaultApprovalMode: 'MANUAL_APPROVAL', manualHoldMinutes: 30 })
+        .expect(200);
+
+      expect(body.bookingPolicy.defaultApprovalMode).toBe('MANUAL_APPROVAL');
+    });
+  });
+
   // ─── PATCH /services/:id/activate ───────────────────────────────────────────
 
   describe('PATCH /services/:id/activate', () => {

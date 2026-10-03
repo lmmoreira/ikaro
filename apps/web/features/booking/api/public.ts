@@ -1,8 +1,8 @@
 import type {
   AttachmentSignedUrlResponse,
+  AuthenticatedBookingRequest,
   BookingResponse,
   CreateBookingRequest,
-  Address,
   ImageContentType,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
@@ -15,13 +15,6 @@ export async function createBooking(
     headers: { 'X-Tenant-Slug': slug },
   });
   return res.data;
-}
-
-export interface AuthenticatedBookingRequest {
-  readonly scheduledAt: string;
-  readonly serviceIds: readonly string[];
-  readonly pickupAddress?: Address;
-  readonly beforeServicePhotoUrls?: readonly string[];
 }
 
 export async function createAuthenticatedBooking(

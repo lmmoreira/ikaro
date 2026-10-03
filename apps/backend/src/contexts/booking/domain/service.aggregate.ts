@@ -8,6 +8,7 @@ import {
   BookingServiceBookingModelImmutableError,
   BookingServiceBookingModelMismatchError,
   BookingServiceHasLegsError,
+  BookingServiceLegsCustomDurationConflictError,
   BookingServiceLegsTooFewError,
   ServiceBookingPolicyInvalidError,
   ServiceBufferAfterMinutesInvalidError,
@@ -243,6 +244,9 @@ export class Service extends AggregateRoot {
       throw new BookingServiceBookingModelMismatchError(this.props.id);
     }
     if (legs.length < 2) throw new BookingServiceLegsTooFewError();
+    if (this.props.bookingPolicy.durationPolicy === 'CUSTOMER_SELECTED') {
+      throw new BookingServiceLegsCustomDurationConflictError(this.props.id);
+    }
     const legIndexes = legs.map((leg) => leg.legIndex);
     if (new Set(legIndexes).size !== legIndexes.length) {
       throw new ServiceLegInvalidError('duplicate-leg-index');
@@ -280,6 +284,9 @@ export class Service extends AggregateRoot {
       throw new BookingServiceBookingConfigModelMismatchError(this.props.id);
     }
     const normalized = Service.normalizeBookingPolicy(policy);
+    if (this.props.legs !== null && normalized.durationPolicy === 'CUSTOMER_SELECTED') {
+      throw new BookingServiceLegsCustomDurationConflictError(this.props.id);
+    }
     if (normalized.durationPolicy === 'CUSTOMER_SELECTED' && normalized.pricingPolicy === 'FIXED') {
       throw new ServiceDurationPolicyRequiresPricingError();
     }

@@ -1,3 +1,4 @@
+import { BookingQuoteService } from '../../application/services/booking-quote.service';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
@@ -40,6 +41,7 @@ describe('ScheduleAvailabilityController', () => {
         resourceRepo,
         new InMemoryBookingAvailabilityPort(),
         new AvailabilityService(),
+        new BookingQuoteService(),
       ),
     );
   });

@@ -13,12 +13,14 @@ import { ServiceBookingPolicyPanel } from './ServiceBookingPolicyPanel';
 // ServiceEditPage's sticky action panel. This harness plays that role so the panel's own
 // behavior (validation, in-flight state, dirty tracking) stays testable in isolation.
 function PolicyPanelWithAction(
-  props: Omit<Parameters<typeof ServiceBookingPolicyPanel>[0], 'onActionChange'>,
+  props: Omit<Parameters<typeof ServiceBookingPolicyPanel>[0], 'onActionChange' | 'hasLegs'> & {
+    readonly hasLegs?: boolean;
+  },
 ) {
   const [action, setAction] = useState<ServiceTabAction | null>(null);
   return (
     <>
-      <ServiceBookingPolicyPanel {...props} onActionChange={setAction} />
+      <ServiceBookingPolicyPanel hasLegs={false} {...props} onActionChange={setAction} />
       <button
         type="button"
         data-testid="policy-save"

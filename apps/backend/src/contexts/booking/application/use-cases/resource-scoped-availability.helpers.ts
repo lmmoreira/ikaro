@@ -4,8 +4,12 @@ import { Resource } from '../../domain/resource.aggregate';
 import { ResourceOccupiedSlot } from '../../domain/resource-occupied-slot';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
-import { Service } from '../../domain/service.aggregate';
 import { IResourceRepository } from '../ports/resource-repository.port';
+import { AvailabilityLine } from './availability-lines.helpers';
+import {
+  createWindowResolutionContext,
+  WindowResolutionContext,
+} from './availability-window-candidates.helpers';
 import {
   isBookingWindowAvailable,
   ResourceAvailabilityContext,
@@ -30,6 +34,9 @@ export interface ScheduleContextResult {
 export interface ResourceScopedReadDeps {
   resourceRepo: IResourceRepository;
   availabilityService: AvailabilityService;
+  // Optional: a multi-day caller (the summary) shares one context across its days so each
+  // requirement's candidate set is loaded once for the whole range, not once per day.
+  windowContext?: WindowResolutionContext;
   loadScheduleContext: (resourceId: string | undefined) => Promise<ScheduleContextResult>;
   loadOccupancy: (
     resourceId: string,
@@ -49,7 +56,7 @@ export interface ResourceScopedReadDeps {
 export async function calculateResourceScopedAvailability(
   deps: ResourceScopedReadDeps,
   request: ResourceScopedAvailabilityRequest,
-  services: Service[],
+  lines: AvailabilityLine[],
 ): Promise<AvailableSlot[]> {
   const { closures, tenantOpening } = await deps.loadScheduleContext(undefined);
   // Only the last line's own buffer applies (matching effectiveFlatGapMinutes's last-line-only
@@ -60,11 +67,11 @@ export async function calculateResourceScopedAvailability(
   // omitting it here is safe: isBookingWindowAvailable's per-candidate check re-verifies the real,
   // resource-specific window against business hours regardless of what this coarse pre-filter let
   // through.
-  const lastService = services.at(-1)!;
+  const lastService = lines.at(-1)!.service;
   const outerBufferMinutes = lastService.bufferAfterMinutes ?? request.serviceBufferMinutes;
   const outerSlots = deps.availabilityService.calculate({
     date: request.date,
-    services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
+    services: lines.map((line) => ({ durationMinutes: line.durationMinutes })),
     businessHours: request.businessHours,
     resource: null,
     slotGranularityMinutes: request.slotGranularityMinutes,
@@ -77,22 +84,21 @@ export async function calculateResourceScopedAvailability(
   if (outerSlots.length === 0) return [];
 
   const windowDeps: ResourceScopedAvailabilityDeps = {
-    resourceRepo: deps.resourceRepo,
     availabilityService: deps.availabilityService,
-    tenantId: request.tenantId,
+    windowContext:
+      deps.windowContext ??
+      createWindowResolutionContext(deps.resourceRepo, deps.availabilityService, request.tenantId),
     date: request.date,
     businessHours: request.businessHours,
     loadResourceContext: (resourceId) => loadResourceAvailabilityContext(deps, request, resourceId),
   };
-  const contextCache = new Map<string, ResourceAvailabilityContext>();
-  const available: AvailableSlot[] = [];
-  for (const slot of outerSlots) {
-    const candidateStart = new Date(slot.startsAt);
-    if (await isBookingWindowAvailable(windowDeps, services, candidateStart, contextCache)) {
-      available.push(slot);
-    }
-  }
-  return available;
+  const contextCache = new Map<string, Promise<ResourceAvailabilityContext>>();
+  const verdicts = await Promise.all(
+    outerSlots.map((slot) =>
+      isBookingWindowAvailable(windowDeps, lines, new Date(slot.startsAt), contextCache),
+    ),
+  );
+  return outerSlots.filter((_slot, index) => verdicts[index]);
 }
 
 async function loadResourceAvailabilityContext(

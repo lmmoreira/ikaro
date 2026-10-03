@@ -3,12 +3,13 @@ import type { BusinessHours } from '../../../../shared/value-objects/business-ho
 import { AvailabilityService, AvailableSlot } from '../../domain/services/availability.service';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceOccupiedSlot } from '../../domain/resource-occupied-slot';
-import { Service } from '../../domain/service.aggregate';
 import { ResourceNotActiveError, ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { IBookingAvailabilityPort } from '../ports/booking-availability.port';
 import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
+import { AvailabilityLine } from './availability-lines.helpers';
+import { createWindowResolutionContext } from './availability-window-candidates.helpers';
 import { calculateResourceScopedAvailability } from './resource-scoped-availability.helpers';
 
 export interface DaySummary {
@@ -81,7 +82,7 @@ export function calculateSlotsForDate(
   availabilityService: AvailabilityService,
   date: string,
   ctx: {
-    services: Service[];
+    lines: AvailabilityLine[];
     resource: Resource | null;
     closures: ScheduleRangeContext['closures'];
     tenantOpenings: ScheduleRangeContext['tenantOpenings'];
@@ -102,14 +103,14 @@ export function calculateSlotsForDate(
 
   return availabilityService.calculate({
     date,
-    services: ctx.services.map((s) => ({ durationMinutes: s.durationMinutes })),
+    services: ctx.lines.map((line) => ({ durationMinutes: line.durationMinutes })),
     businessHours: ctx.businessHours,
     resource: ctx.resource,
     slotGranularityMinutes: ctx.slotGranularityMinutes,
     // Only the last requested service's own buffer applies (matching
     // effectiveFlatGapMinutes's last-line-only rule everywhere else) — the tenant default is
     // only a fallback for a service with no override.
-    serviceBufferMinutes: ctx.services.at(-1)!.bufferAfterMinutes ?? ctx.serviceBufferMinutes,
+    serviceBufferMinutes: ctx.lines.at(-1)!.service.bufferAfterMinutes ?? ctx.serviceBufferMinutes,
     closures: dayClosures,
     opening: dayTenantOpening,
     resourceOpening: dayResourceOpening,
@@ -129,7 +130,7 @@ export function* dateRange(from: string, to: string): Generator<string> {
 export function buildDaySummaries(
   availabilityService: AvailabilityService,
   request: SummaryRequestShape,
-  services: Service[],
+  lines: AvailabilityLine[],
   resource: Resource | null,
   scheduleRange: ScheduleRangeContext,
   occupancy: ResourceOccupiedSlot[],
@@ -143,7 +144,7 @@ export function buildDaySummaries(
       continue;
     }
     const slots = calculateSlotsForDate(availabilityService, date, {
-      services,
+      lines,
       resource,
       ...scheduleRange,
       occupancy,
@@ -175,40 +176,45 @@ export async function buildResourceScopedSummary(
   deps: SummaryDeps,
   request: SummaryRequestShape,
   tenantId: string,
-  services: Service[],
+  lines: AvailabilityLine[],
 ): Promise<DaySummary[]> {
   const today = todayUTC();
-  const results: DaySummary[] = [];
   const rangeCache = new Map<string, Promise<ResourceRangeData>>();
 
   const loadRangeData = makeRangeDataLoader(deps, tenantId, request, rangeCache);
+  // One context for the whole range: a requirement's candidate set doesn't depend on the day.
+  const windowContext = createWindowResolutionContext(
+    deps.resourceRepo,
+    deps.availabilityService,
+    tenantId,
+  );
 
-  for (const date of dateRange(request.from, request.to)) {
-    if (date < today) {
-      results.push({ date, available: false, slotCount: 0 });
-      continue;
-    }
-    const slots = await calculateResourceScopedAvailability(
-      {
-        resourceRepo: deps.resourceRepo,
-        availabilityService: deps.availabilityService,
-        loadScheduleContext: (resourceId) =>
-          sliceScheduleContextForDate(loadRangeData, resourceId, date),
-        loadOccupancy: async (resourceId) => (await loadRangeData(resourceId)).occupancy,
-      },
-      {
-        tenantId,
-        date,
-        businessHours: request.businessHours,
-        slotGranularityMinutes: request.slotGranularityMinutes,
-        serviceBufferMinutes: request.serviceBufferMinutes,
-      },
-      services,
-    );
-    results.push({ date, available: slots.length > 0, slotCount: slots.length });
-  }
-
-  return results;
+  // Days are independent — each reads its own slice of the range-wide, promise-cached data — so
+  // they are evaluated concurrently; Promise.all keeps the result in date order.
+  return Promise.all(
+    [...dateRange(request.from, request.to)].map(async (date): Promise<DaySummary> => {
+      if (date < today) return { date, available: false, slotCount: 0 };
+      const slots = await calculateResourceScopedAvailability(
+        {
+          resourceRepo: deps.resourceRepo,
+          availabilityService: deps.availabilityService,
+          windowContext,
+          loadScheduleContext: (resourceId) =>
+            sliceScheduleContextForDate(loadRangeData, resourceId, date),
+          loadOccupancy: async (resourceId) => (await loadRangeData(resourceId)).occupancy,
+        },
+        {
+          tenantId,
+          date,
+          businessHours: request.businessHours,
+          slotGranularityMinutes: request.slotGranularityMinutes,
+          serviceBufferMinutes: request.serviceBufferMinutes,
+        },
+        lines,
+      );
+      return { date, available: slots.length > 0, slotCount: slots.length };
+    }),
+  );
 }
 
 function makeRangeDataLoader(

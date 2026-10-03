@@ -1,19 +1,10 @@
-import { HotsiteServiceListResponse, HotsiteServiceResponse, TenantSettings } from '@ikaro/types';
+import { HotsiteServiceListResponse, TenantSettings } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { BackendTenantByIdResponse } from './platform.types';
+import { HotsiteServiceBuilder } from '../../test/builders/hotsite-service.builder';
 
-const mockService: HotsiteServiceResponse = {
-  id: '10000000-0000-4000-8000-000000000001',
-  name: 'Lavagem Completa',
-  description: null,
-  price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
-  durationMinutes: 60,
-  loyaltyPointsValue: 10,
-  requiresPickupAddress: false,
-  isActive: true,
-  createdAt: '2026-01-01T00:00:00.000Z',
-};
+const mockService = new HotsiteServiceBuilder().build();
 
 const mockSettings: TenantSettings = {
   loyalty: {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, hotsiteServiceBookingDefaults } from '@/test-utils';
 import { useState } from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -35,6 +35,7 @@ const service: HotsiteServiceResponse = {
   requiresPickupAddress: false,
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
+  ...hotsiteServiceBookingDefaults,
 };
 
 const slot: AvailableSlot = {

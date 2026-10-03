@@ -1,18 +1,9 @@
 import { HttpException, INestApplication } from '@nestjs/common';
-import { HotsiteServiceListResponse, HotsiteServiceResponse } from '@ikaro/types';
+import { HotsiteServiceListResponse } from '@ikaro/types';
 import { MockBackendHttpService, createTestApp, request } from '../../test/component-test.helpers';
+import { HotsiteServiceBuilder } from '../../test/builders/hotsite-service.builder';
 
-const mockServiceResponse: HotsiteServiceResponse = {
-  id: '10000000-0000-4000-8000-000000000001',
-  name: 'Lavagem Completa',
-  description: null,
-  price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
-  durationMinutes: 60,
-  loyaltyPointsValue: 10,
-  requiresPickupAddress: false,
-  isActive: true,
-  createdAt: '2026-01-01T00:00:00.000Z',
-};
+const mockServiceResponse = new HotsiteServiceBuilder().build();
 
 const mockListResponse: HotsiteServiceListResponse = { items: [mockServiceResponse] };
 
@@ -125,6 +116,106 @@ describe('ServicesPublicController (component)', () => {
         .set('X-Tenant-Slug', 'lavacar-bh');
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  // ─── GET /v1/public/services/:id/resource-options and /quote (M23-S29) ──────
+
+  describe('GET /v1/public/services/:id/resource-options', () => {
+    it('returns 400 when X-Tenant-Slug header is missing', async () => {
+      const res = await request(app.getHttpServer()).get(
+        `/v1/public/services/${SERVICE_ID}/resource-options`,
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it('resolves the slug and returns the options without a JWT', async () => {
+      backendHttpService.get.mockResolvedValueOnce({ id: 'tenant-uuid', slug: 'lavacar-bh' });
+      backendHttpService.getForPublic = jest.fn().mockResolvedValueOnce({
+        requirements: [
+          {
+            serviceId: SERVICE_ID,
+            legIndex: 0,
+            resourceType: 'ROOM',
+            selectionMode: 'CUSTOMER_CHOICE',
+            requiredQuantity: 1,
+            options: [{ resourceId: 'r-1', name: 'Sala 1' }],
+          },
+        ],
+      });
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/public/services/${SERVICE_ID}/resource-options`)
+        .set('X-Tenant-Slug', 'lavacar-bh');
+
+      expect(res.status).toBe(200);
+      expect(res.body.requirements[0].options).toEqual([{ resourceId: 'r-1', name: 'Sala 1' }]);
+      expect(backendHttpService.getForPublic).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/resource-options`,
+        'tenant-uuid',
+      );
+    });
+
+    it('propagates 404 from the backend for a missing/inactive/cross-tenant service', async () => {
+      backendHttpService.get.mockResolvedValueOnce({ id: 'tenant-uuid', slug: 'lavacar-bh' });
+      backendHttpService.getForPublic = jest
+        .fn()
+        .mockRejectedValueOnce(new HttpException({ title: 'Not Found', status: 404 }, 404));
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/public/services/${SERVICE_ID}/resource-options`)
+        .set('X-Tenant-Slug', 'lavacar-bh');
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /v1/public/services/:id/quote', () => {
+    it('returns 400 when X-Tenant-Slug header is missing', async () => {
+      const res = await request(app.getHttpServer()).get(
+        `/v1/public/services/${SERVICE_ID}/quote?durationMinutes=60`,
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for a non-numeric duration before reaching the backend', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/public/services/${SERVICE_ID}/quote?durationMinutes=abc`)
+        .set('X-Tenant-Slug', 'lavacar-bh');
+
+      expect(res.status).toBe(400);
+    });
+
+    it('forwards the duration and returns the quote without a JWT', async () => {
+      backendHttpService.get.mockResolvedValueOnce({ id: 'tenant-uuid', slug: 'lavacar-bh' });
+      backendHttpService.getForPublic = jest
+        .fn()
+        .mockResolvedValueOnce({ durationMinutes: 90, price: { amount: 100, currency: 'BRL' } });
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/public/services/${SERVICE_ID}/quote?durationMinutes=90`)
+        .set('X-Tenant-Slug', 'lavacar-bh');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ durationMinutes: 90, price: { amount: 100, currency: 'BRL' } });
+      expect(backendHttpService.getForPublic).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/quote`,
+        'tenant-uuid',
+        { durationMinutes: 90 },
+      );
+    });
+
+    it('propagates 422 from the backend for an out-of-range duration', async () => {
+      backendHttpService.get.mockResolvedValueOnce({ id: 'tenant-uuid', slug: 'lavacar-bh' });
+      backendHttpService.getForPublic = jest
+        .fn()
+        .mockRejectedValueOnce(new HttpException({ title: 'Unprocessable', status: 422 }, 422));
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/public/services/${SERVICE_ID}/quote?durationMinutes=999`)
+        .set('X-Tenant-Slug', 'lavacar-bh');
+
+      expect(res.status).toBe(422);
     });
   });
 });

@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import { axe } from '@/axe-helper';
 import { describe, expect, it } from 'vitest';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, hotsiteServiceBookingDefaults } from '@/test-utils';
 import { ServiceListModule } from './ServiceListModule';
 
 function makeData(overrides?: Partial<ServiceListModuleData>): ServiceListModuleData {
@@ -26,6 +26,7 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
     requiresPickupAddress: false,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z',
+    ...hotsiteServiceBookingDefaults,
     ...overrides,
   };
 }

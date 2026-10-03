@@ -30,6 +30,7 @@ import {
   BookingServiceBookingModelMismatchError,
   BookingServiceConcurrentModificationError,
   BookingServiceHasLegsError,
+  BookingServiceLegsCustomDurationConflictError,
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
   BookingServiceSessionNotBookableError,
@@ -167,6 +168,12 @@ describe('mapBookingError', () => {
 
   it('maps BookingServiceHasLegsError to 409', () => {
     const err = call(new BookingServiceHasLegsError('service-1'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingServiceLegsCustomDurationConflictError to 409', () => {
+    const err = call(new BookingServiceLegsCustomDurationConflictError('service-1'));
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
   });

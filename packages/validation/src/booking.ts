@@ -126,6 +126,62 @@ export const ResourceSelectionSchema = z.object({
   resourceId: z.uuid(),
 });
 
+// M23-S29 — the same selection items as ResourceSelectionSchema, encoded for a GET query string as
+// one comma-joined param (the `serviceIds` convention; a repeated param would be serialized as
+// `key[]=` by axios in the BFF): `<serviceId>:<legIndex or ->:<resourceType>:<resourceId>,…`.
+const RESOURCE_SELECTION_QUERY_MAX_ITEMS = 100;
+
+export const ResourceSelectionsQuerySchema = z.preprocess((raw, ctx) => {
+  if (typeof raw !== 'string') return raw;
+  const items = raw.split(',').map((item) => item.split(':'));
+  if (items.length > RESOURCE_SELECTION_QUERY_MAX_ITEMS || items.some((p) => p.length !== 4)) {
+    ctx.issues.push({
+      code: 'custom',
+      message:
+        'resourceSelections must be comma-separated <serviceId>:<legIndex or ->:<resourceType>:<resourceId> items',
+      input: raw,
+    });
+    return z.NEVER;
+  }
+  return items.map(([serviceId, legIndex, resourceType, resourceId]) => ({
+    serviceId,
+    legIndex: legIndex === '-' ? null : Number(legIndex),
+    resourceType,
+    resourceId,
+  }));
+}, z.array(ResourceSelectionSchema));
+
+// The chosen duration of a CUSTOMER_SELECTED service as a GET query param (availability) — coerced
+// from its query string. Domain range validation (min/max/increment) stays in BookingQuoteService.
+export const DurationMinutesQuerySchema = z.coerce.number().int().positive();
+
+// GET /services/:id/quote?durationMinutes= — optional at the boundary: a FIXED-duration service
+// ignores it, and a CUSTOMER_SELECTED service without one is a domain-level 422.
+export const QuoteServiceDurationQuerySchema = z.object({
+  durationMinutes: DurationMinutesQuerySchema.optional(),
+});
+
+// Validate-only variant for a proxy that forwards the query string verbatim (the BFF): the raw
+// string is kept, because re-serializing the parsed array would not round-trip through axios.
+export const ResourceSelectionsQueryStringSchema = z
+  .string()
+  .refine((raw) => ResourceSelectionsQuerySchema.safeParse(raw).success, {
+    error:
+      'resourceSelections must be comma-separated <serviceId>:<legIndex or ->:<resourceType>:<resourceId> items',
+  });
+
+// resourceId is a manager/staff view of one resource's own schedule; resourceSelections pins
+// customer picks onto the service's own requirements — the two never combine.
+export const RESOURCE_ID_EXCLUDES_SELECTIONS_MESSAGE =
+  'resourceId and resourceSelections are mutually exclusive';
+
+export function isResourceIdExclusiveOfSelections(query: {
+  resourceId?: string;
+  resourceSelections?: unknown;
+}): boolean {
+  return query.resourceId === undefined || query.resourceSelections === undefined;
+}
+
 // M23-S02 (UC-067/068) — shared by the backend DTOs and the BFF's identical bookings.schemas.ts
 // shape (same direct-reuse pattern as ResourceSelectionSchema above). At most one service in a
 // request's basket may be CUSTOMER_SELECTED/intake-bearing (enforced at the use-case level, not

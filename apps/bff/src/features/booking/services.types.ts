@@ -50,7 +50,7 @@ export interface ServiceDetail {
   id: string;
   name: string;
   description: string | null;
-  price: { amount: number; currency: string };
+  price: { amount: number; currency: string; formatted: string };
   durationMinutes: number;
   loyaltyPointsValue: number;
   requiresPickupAddress: boolean;
@@ -118,4 +118,21 @@ export interface GetServiceIntakeSchemaResult {
 // toPublicServiceIntakeSchemaResponse's own comment in services.mapper.ts exists to avoid).
 export interface GetPublicServiceIntakeSchemaResult {
   active: ServiceIntakeSchemaVersionDetail | null;
+}
+
+// The backend's own GET /services/:id/resource-options and /quote response shapes.
+export interface GetServiceResourceOptionsResult {
+  requirements: {
+    serviceId: string;
+    legIndex: number | null;
+    resourceType: string;
+    selectionMode: 'CUSTOMER_CHOICE';
+    requiredQuantity: number;
+    options: { resourceId: string; name: string }[];
+  }[];
+}
+
+export interface GetServiceQuoteResult {
+  durationMinutes: number;
+  price: { amount: number; currency: string };
 }

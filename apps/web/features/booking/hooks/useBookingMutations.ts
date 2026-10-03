@@ -12,10 +12,10 @@ import {
   type CompleteBookingRequest,
   type RescheduleBookingRequest,
   type SubmitInfoRequest,
-  type AuthenticatedBookingRequest,
 } from '@/features/booking/api/booking';
 import type {
   ApproveBookingRequest,
+  AuthenticatedBookingRequest,
   RejectBookingRequest,
   RequestMoreInfoRequest,
 } from '@ikaro/types';

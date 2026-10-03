@@ -5,15 +5,12 @@ import { BookingErrorCode } from '@ikaro/types';
 import type {
   Address,
   AvailableSlot,
+  AuthenticatedBookingRequest,
   CreateBookingRequest,
   CustomerProfileResponse,
   HotsiteAddressSpec,
 } from '@ikaro/types';
-import {
-  createAuthenticatedBooking,
-  createBooking,
-  type AuthenticatedBookingRequest,
-} from '@/features/booking/api/public';
+import { createAuthenticatedBooking, createBooking } from '@/features/booking/api/public';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
 import { extractProblemDetailShape } from '@/shared/lib/api/errors';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';

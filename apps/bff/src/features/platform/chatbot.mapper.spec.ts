@@ -1,5 +1,6 @@
 import { HotsiteServiceResponse, TenantBusinessHours, TenantBusinessInfo } from '@ikaro/types';
 import { buildAssistantRules, buildSystemPrompt } from './chatbot.mapper';
+import { HotsiteServiceBuilder } from '../../test/builders/hotsite-service.builder';
 
 const businessHours: TenantBusinessHours = {
   timezone: 'America/Sao_Paulo',
@@ -26,17 +27,7 @@ const businessInfo: TenantBusinessInfo = {
   socialLinks: null,
 };
 
-const activeService: HotsiteServiceResponse = {
-  id: '10000000-0000-4000-8000-000000000001',
-  name: 'Lavagem Completa',
-  description: null,
-  price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
-  durationMinutes: 60,
-  loyaltyPointsValue: 10,
-  requiresPickupAddress: false,
-  isActive: true,
-  createdAt: '2026-01-01T00:00:00.000Z',
-};
+const activeService = new HotsiteServiceBuilder().build();
 
 const inactiveService: HotsiteServiceResponse = {
   ...activeService,

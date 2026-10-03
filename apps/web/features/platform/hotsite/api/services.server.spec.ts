@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HotsiteServiceResponse } from '@ikaro/types';
 import { fetchServices } from './services.server';
+import { hotsiteServiceBookingDefaults } from '@/test-utils';
 
 const BFF_URL = 'http://bff-test:3002';
 
@@ -15,6 +16,7 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
     requiresPickupAddress: false,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z',
+    ...hotsiteServiceBookingDefaults,
     ...overrides,
   };
 }

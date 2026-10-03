@@ -71,3 +71,16 @@ export class ServiceBookingPolicyInvalidError extends BookingDomainError {
     this.name = 'ServiceBookingPolicyInvalidError';
   }
 }
+
+// A legged service's length is fixed by its legs (sum of leg durations + transition gaps), so a
+// customer-chosen duration (durationPolicy=CUSTOMER_SELECTED) has no meaning for it — enforced in
+// both directions (setLegs() on a custom-duration service, setBookingPolicy() on a legged one).
+export class BookingServiceLegsCustomDurationConflictError extends BookingDomainError {
+  constructor(id: string) {
+    super(
+      `A service with legs has a fixed length and cannot use a customer-selected duration: ${id}`,
+      BookingErrorCode.SERVICE_LEGS_CUSTOM_DURATION_CONFLICT,
+    );
+    this.name = 'BookingServiceLegsCustomDurationConflictError';
+  }
+}

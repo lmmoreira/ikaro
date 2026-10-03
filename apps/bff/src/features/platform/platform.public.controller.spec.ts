@@ -16,10 +16,10 @@ import {
   HotsiteLocalizationResponse,
   HotsiteResponse,
   HotsiteServiceListResponse,
-  HotsiteServiceResponse,
   HotsiteSitemapEntryListResponse,
   TenantSettings,
 } from '@ikaro/types';
+import { HotsiteServiceBuilder } from '../../test/builders/hotsite-service.builder';
 
 const JWT_SECRET = 'a'.repeat(64);
 const makeConfigService = (secret = JWT_SECRET) =>
@@ -217,17 +217,7 @@ describe('PlatformPublicController', () => {
   describe('sendChatbotMessage()', () => {
     const mockReq: ClientIpRequest = { headers: { 'x-real-client-ip': '203.0.113.10' } };
 
-    const mockService: HotsiteServiceResponse = {
-      id: '10000000-0000-4000-8000-000000000001',
-      name: 'Lavagem Completa',
-      description: null,
-      price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
-      durationMinutes: 60,
-      loyaltyPointsValue: 10,
-      requiresPickupAddress: false,
-      isActive: true,
-      createdAt: '2026-01-01T00:00:00.000Z',
-    };
+    const mockService = new HotsiteServiceBuilder().build();
 
     const mockSettings: TenantSettings = {
       loyalty: {

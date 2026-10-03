@@ -830,6 +830,7 @@ Returns:
   3. System clears `resourceRequirements`/`bufferAfterMinutes` on the service (mutually exclusive with `legs`).
 - **Alternative Flows:**
   - **A1: Fewer than 2 legs** → `422 Unprocessable` — a single leg is just the flat model (UC-050).
+  - **A2: The service has `durationPolicy = CUSTOMER_SELECTED`** → `409 Conflict` (`BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT`) — a legged service's length is the sum of its legs, so a customer cannot choose its duration; the admin switches the service to a fixed duration first (UC-055).
 - **Postconditions:** Booking this service locks every leg's resource(s) independently for that leg's own sub-window.
 - **Events Triggered:** None.
 
@@ -886,6 +887,7 @@ Returns:
   - **A1: Admin reduces the cancellation window or approval hold below a value already relied on by an in-flight booking** → No retroactive effect; only bookings created after the change use the new values.
   - **A2: Admin sets `durationPolicy = CUSTOMER_SELECTED` without a `pricingPolicy`** → `422 Unprocessable` — a variable-duration service must declare how it prices.
   - **A3: Admin sets `recurringHorizonDays` outside 1–180** → rejected: the dashboard shows an inline range error and blocks the save; a direct API call gets `400` (request validation). The ceiling bounds how many occurrences one schedule can materialize at creation.
+  - **A4: Admin sets `durationPolicy = CUSTOMER_SELECTED` on a service that has `legs`** → `409 Conflict` (`BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT`) — see UC-052 A2; the dashboard disables the "Cliente escolhe" option (with an explanatory hint) for a legged service so a manager never reaches this error from the UI.
 - **Postconditions:** The service has a complete, self-contained booking policy; no field silently falls back to an undocumented default.
 - **Events Triggered:** None.
 
@@ -1092,7 +1094,7 @@ Returns:
 
 - **Actor:** Customer or Guest
 - **Endpoint:** `POST /bookings` — body includes `scheduledAt`, `durationMinutes`; `participantCount` is an independent, always-accepted booking field (UC-068)
-- **Preconditions:** APPOINTMENT service has `durationPolicy = CUSTOMER_SELECTED` and a resource/bundle requirement.
+- **Preconditions:** APPOINTMENT service has `durationPolicy = CUSTOMER_SELECTED` and a flat resource/bundle requirement (a service with `legs` can never be `CUSTOMER_SELECTED` — UC-052 A2, UC-055 A4).
 - **Trigger:** Customer selects an eligible room, court, bay, desk, or equipment service.
 - **Main Flow:**
   1. Customer chooses a start and duration within the service's minimum, maximum, and increment rules.
