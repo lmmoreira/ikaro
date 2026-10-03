@@ -45,6 +45,7 @@
     never a hard-coded one) and the duration RANGE (durationMin–durationMax), not a fixed price/duration.
     The selection total reads "a partir de <minimumCharge or one increment>" until a duration is chosen on the next step
     (BookingSummaryCard too). A fixed-price service in the same basket still shows its fixed price.
+    NEXT: "Próximo" goes to the duration step (12) — this service has no customer-choice resource, so no picker step; with a CUSTOMER_CHOICE requirement the picker (05) would come first.
     INDICATOR: 4 until the customer leaves Step 1 (the final total is only known after the intake-schema fetch).
   -->
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
@@ -63,7 +64,7 @@
     </ul>
     <p style="font-weight:600;color:var(--ba-text);margin-top:1rem;" data-testid="selection-total">1 serviço — a partir de R$ 50,00 — duração a escolher</p>
     <p class="hint">O total final aparece depois que você escolher a duração.</p>
-    <div class="nav-buttons"><a class="btn-secondary" href="00-hotsite.html">Voltar</a><a class="btn-primary" href="05-staff-picker.html">Próximo</a></div>
+    <div class="nav-buttons"><a class="btn-secondary" href="00-hotsite.html">Voltar</a><a class="btn-primary" href="12-reserva-por-tempo.html">Próximo</a></div>
   </div>
 </body>
 </html>
