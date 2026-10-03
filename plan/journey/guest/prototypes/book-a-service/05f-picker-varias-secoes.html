@@ -38,12 +38,12 @@
 <body>
   <!--
     COMPONENT: ResourcePicker  apps/web/features/booking/components/public/ResourcePicker.tsx  (NEW, M23-S11a) — same component as 05.
-    RULE: ANY service — flat or legged — can have a CUSTOMER_CHOICE requirement for each resource type it needs (staff, room, equipment),
-    any combination of them, each independently CUSTOMER_CHOICE / AUTO_ANY / AUTO_FUNGIBLE_POOL. The picker renders one section per
-    CUSTOMER_CHOICE requirement and nothing for the others. A flat service has requirements at the service level; a legged service has them
-    PER LEG (each leg can have its own staff, room and equipment). Legs/requirements without a CUSTOMER_CHOICE are not shown at all.
+    RULE: ANY service — flat or legged — can have a CUSTOMER_CHOICE requirement for each resource type it needs (staff, room, equipment), any
+    combination, each independently CUSTOMER_CHOICE / AUTO_ANY / AUTO_FUNGIBLE_POOL. The picker is shown ONCE PER UNIT: a flat service (or bundle)
+    is one unit (this screen); a legged service has one unit per leg, each leg that has a choice getting its own full step (05g/05h).
+    Sections without a CUSTOMER_CHOICE requirement are not shown, and a unit with none has no step.
     SCENARIO: a SIMPLE (non-legged) service, "Massagem Premium", whose three requirements are all CUSTOMER_CHOICE: STAFF + ROOM + EQUIPMENT ->
-    three stacked sections on the one screen, headings by resource-type label only. If the room were AUTO_ANY, the "Sala" section would simply
+    three stacked sections on the ONE step (a flat service is one unit), headings by resource-type label only. If the room were AUTO_ANY, the "Sala" section would simply
     not exist (the picker would show two sections). Próximo stays disabled until every shown section has a pick.
     INDICATOR: path "resource choice" (no intake) = "Passo 2 de 5".
   -->
