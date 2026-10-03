@@ -51,9 +51,9 @@ None of these are new routes — each is the same component in a different state
 | `04b-submitting.html` | 4 | `status = 'submitting'` | — | |
 | `04c-submission-error.html` | 4 | `status = 'error'` (non-409) | `confirmation-error` | |
 | `04d-success.html` | 4 | `status = 'success'` | `booking-success` | Terminal state |
-| `03d-personal-info-with-intake.html` | 3 of 5 | Intake-path copy of `03` (service with an intake schema) | — | M23-S11; Próximo → `13` |
-| `13b-intake-answers-error.html` | 4 of 5 | Required answer / consent missing; alt A1 notice | `intake-error-summary` | M23-S11 |
-| `04e-confirmation-with-intake.html` | 5 of 5 | Intake-path copy of `04` | — | M23-S11; Voltar → `13` |
+| `03d-personal-info-with-intake.html` | 3 of 5 | Intake-path copy of `03` (service with an intake schema) | — | M23-S11a; Próximo → `13` |
+| `13b-intake-answers-error.html` | 4 of 5 | Required answer / consent missing; alt A1 notice | `intake-error-summary` | M23-S11a |
+| `04e-confirmation-with-intake.html` | 5 of 5 | Intake-path copy of `04` | — | M23-S11a; Voltar → `13` |
 
 ---
 
@@ -213,38 +213,52 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 ---
 
-## ❓ GAP — M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03, frontend = M23-S11 on top of M23-S29, not yet built)
+## ❓ GAP — M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03 and M23-S29, frontend = M23-S11a + M23-S11b, not yet built)
 
-> Everything above this line is shipped (`M12-S07`). Everything below is new, unimplemented scope. Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: `M23-S11`, one story in groups A–E. See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Requests.
+> Everything above this line is shipped (`M12-S07`). Everything below is new, unimplemented scope. Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Requests.
 
-**New prototype screens:**
+### Design decisions (settled in the 2026-10-03 prototype review)
 
-| File | Screen | UC |
-|---|---|---|
-| `05-staff-picker.html` | Choose a specific staff member (`CUSTOMER_CHOICE`; names only) | UC-061 (UC-066: the staff's slots are shown after the pick) |
-| `06-auto-staff.html` | System-auto-assigned staff (no picker shown; the name appears in the success details box) | UC-063 |
-| `07-fungible-resource.html` | Auto-assigned from a fungible pool (no identity ever shown) | UC-062 |
-| `09-bundle-booking.html` / `09b-bundle-booking-erro.html` | Bundle: staff choice + automatic room; race-condition error (static catalogue copy) | UC-064 |
-| `10-multi-leg-itinerary.html` / `10b-multi-leg-itinerary-erro.html` | Multi-leg itinerary review; race-condition error (static catalogue copy) | UC-065 |
-| `11-appointment-availability.html` | Shared availability step reused by every resource-scoped/bundled/legged flow | UC-058 / UC-059 |
-| `12-reserva-por-tempo.html` / `12b-reserva-por-tempo-erro.html` | Variable-duration reservation (duration, quoted total) + unavailable error | UC-067 |
-| `13-intake-answers.html` / `13b-intake-answers-error.html` | Intake step — its own step after Personal Info, before Confirmation (versioned schema questions + consent; no submit) + missing-field error | UC-068 |
-| `04d-success.html` / `04f-success-details-resources.html` | Success view = the existing message + a subtle booking-details box (04f: with resources and the leg timeline) | UC-063, UC-065 (reveal), all bookings |
-| `15-login-required.html` | Auth boundary before a waitlist/alert action — **out of M23-S11's scope** (availability-alert stories, M23-S12/S17) | UC-072 A1 |
+1. **One resource-picker screen for every resource type and service type.** `ResourcePicker` is built from `GET /public/services/:id/resource-options` → `requirements[]`. Each requirement with `selectionMode = CUSTOMER_CHOICE` becomes **one section** on the same screen (heading = resource-type label — "Profissional", "Sala", "Equipamento" — plus the leg name for a legged service). A simple staff service, a bundle with a staff choice and a legged journey with two choices are the same component (`05`, `05g`). A picker for a room or equipment is the same screen with a different heading (no extra prototype).
+2. **Automatic resources have no screen and no note.** `AUTO_ANY` staff, `AUTO_FUNGIBLE_POOL` units and an automatic room/equipment never produce a section; when the options response has no `CUSTOMER_CHOICE` requirement the step is **omitted** from the step list and the customer goes from Serviços straight to the next step. The assigned name is shown only **after** booking, on the success box (`04h`); a pool shows no unit name at all (`04d`). `06-auto-staff`, `07-fungible-resource` and `09-bundle-booking` were **deleted** (the old "three stations" copy claimed pool data the API never sends).
+3. **A pool with `requiredQuantity > 1` needs nothing** (no screen, no hint). **Two same-type picks in one bundle** are two sections; the leg or requirement position in the heading tells them apart. **Duplicate service lines cannot happen** (Step 1 is a toggle set) — `resourceSelections` follow the `serviceIds` order.
+4. **Variable duration is a duration choice only (`12`).** Date and time come from the normal availability step (`11`), re-fetched with `durationMinutes`. No free date/time input, no client-side midnight logic (the API's slot list is authoritative), "Total estimado" from `/quote` with loading (`12d`) and error (`12c`) states; `BOOKING_DURATION_OUT_OF_RANGE` → `12b`.
+5. **The legs review (`10`) is the final Confirmation step of a legged service**, not an extra step; a taken slot, a bundle race and a leg race return to the **availability step** with only the slot cleared (`02e`, `09b`, `10b`).
+6. **Customer rescheduling is a separate story and prototype** (see `plan/journey/customer/minha-conta.md` § Reagendar) — it is no longer part of the booking flow.
+7. **Attendees are optional with no UI minimum** (the backend never requires one) — decided as the default; reconfirm at `/story-discovery M23-S11a`.
 
-**Removed (2026-10-02):** `16-service-type-selector.html` (Step 1's service list already is the catalogue; a class is just another service — class entry is `M24-S20`); `08-staff-calendar.html` (a public staff-profile page needing a staff directory and "services per staff" data that do not exist — UC-066 is now served by the picker flow, the directory is deferred); `14-pending-approval.html` (every one-off booking is created `PENDING` and today's "Solicitação enviada! Aguarde a confirmação por email." already says so — replaced by the booking-details box, `04f`).
+**Screens:**
 
-**File map (❓ none exist yet — M23-S11):**
+| File | Screen | UC | Story |
+|---|---|---|---|
+| `01c-servico-por-tempo.html` | Step 1 — per-time service card (rate, duration range) and "a partir de" total | UC-067 | M23-S11a |
+| `01d-erro-varios-servicos-variaveis.html` | Step 1 — inline `BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES` | UC-067 A4 / UC-068 A4 | M23-S11a |
+| `01e-carregando-formulario.html` | Step 1 — "Próximo" while the intake schemas load | UC-068 | M23-S11a |
+| `01f-erro-formulario.html` | Step 1 — schema fetch failed (fails closed, retry) | UC-068 | M23-S11a |
+| `05-staff-picker.html` | Resource picker (one section per `CUSTOMER_CHOICE` requirement) | UC-061 (UC-066: the picked staff's slots follow) | M23-S11a |
+| `05b`…`05f` | Picker states: nothing picked · loading · empty · fetch error · 422 selection invalid | UC-061 | M23-S11a |
+| `05g-picker-varias-secoes.html` | Picker with two sections (journey / bundle with two choices) | UC-064 / UC-065 | M23-S11a |
+| `11-appointment-availability.html` | Shared availability step (every flow) | UC-058 / UC-059 / UC-066 | M23-S11a |
+| `13-intake-answers.html` / `13b` / `13c` | Intake step · client field errors · server-only rejection (summary banner) | UC-068 | M23-S11a |
+| `04d-success.html` / `04g` / `04h` | Success box: plain · chosen staff · auto-assigned staff | UC-061 / UC-063 / all | M23-S11a |
+| `09b-bundle-booking-erro.html` | Availability step — `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE` | UC-064 A2 | M23-S11b |
+| `10-multi-leg-itinerary.html` / `10b` | Journey confirmation (leg timeline) · availability step — `BOOKING_LEG_UNAVAILABLE` | UC-065 / UC-065 A1 | M23-S11b |
+| `12-reserva-por-tempo.html` / `12b` / `12c` / `12d` | Duration + quote · `OUT_OF_RANGE` · quote error · quote loading | UC-067 | M23-S11b |
+| `04f-success-details-resources.html` | Success box with the leg timeline | UC-065 | M23-S11b |
+| `15-login-required.html` | Auth boundary before a waitlist/alert action — **out of M23-S11a/S11b's scope** (M23-S12/S17) | UC-072 A1 | — |
+
+**Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).
+
+**File map (❓ none exist yet):**
 
 | File | Status |
 |---|---|
-| `apps/web/features/booking/model/booking-steps.ts` — `resolveBookingSteps()`, `resolveBookingSubmitErrorRoute()` | ❓ Gap |
-| `apps/web/features/booking/components/public/ResourcePicker.tsx` (`CUSTOMER_CHOICE` selection; `05`, `09`) | ❓ Gap |
-| `apps/web/features/booking/components/public/LegItineraryStep.tsx` (`10`/`10b`) | ❓ Gap |
-| `apps/web/features/booking/components/public/VariableDurationStep.tsx` (`12`/`12b`) | ❓ Gap |
-| `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (`13`/`13b`) | ❓ Gap |
-| `apps/web/features/booking/components/public/BookingSubmittedDetails.tsx` (`04d`/`04f`) | ❓ Gap |
-| `06`/`07` need no component of their own: `ServiceSelectionStep` branches to the availability step, which shows the explanatory note | — |
+| `apps/web/features/booking/model/booking-steps.ts` — `resolveBookingSteps()`; the existing private `resolveBookingSubmitErrorRoute()` in `useBookingSubmission.ts` moves here | ❓ Gap (S11a) |
+| `apps/web/features/booking/components/public/ResourcePicker.tsx` (`05`…`05g`) | ❓ Gap (S11a) |
+| `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (`13`/`13b`/`13c`) | ❓ Gap (S11a) |
+| `apps/web/features/booking/components/public/BookingSubmittedDetails.tsx` (`04d`/`04g`/`04h`/`04f`) | ❓ Gap (S11a) |
+| `apps/web/features/booking/components/public/LegItineraryStep.tsx` (`10`) | ❓ Gap (S11b) |
+| `apps/web/features/booking/components/public/VariableDurationStep.tsx` (`12`…`12d`) | ❓ Gap (S11b) |
 
 **BFF calls (new/extended — see `docs/14-API_CONTRACTS.md` and `plan/M23-…md` § M23-S29):**
 ```
@@ -255,16 +269,30 @@ GET  /schedule/availability(/summary)?serviceIds=&resourceSelections=&durationMi
 POST /bookings, POST /bookings/authenticated               -- body gains resourceSelections, durationMinutes,
                                                               participantCount, intakeSchemaVersion/intakeAnswers/consentAccepted, attendees
 ```
-Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections` field); the start is `scheduledAt` (there is no `startsAt`); the explicit `resourceId` availability param is a single-resource view that ignores the service's other requirements and is not used by this flow.
+Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections` field); the start is `scheduledAt` (there is no `startsAt`); the explicit `resourceId` availability param is a single-resource view and is not used by this flow.
 
-**Errors (static catalogue copy, `packages/i18n/locales/*/errors.json` — the errors carry no resource name, window or alternatives, so no screen shows any):** `BOOKING_SLOT_UNAVAILABLE`, `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`, `BOOKING_LEG_UNAVAILABLE`, `BOOKING_DURATION_OUT_OF_RANGE`, `BOOKING_INTAKE_ANSWER_MISSING` (carries no field names — field errors come from client validation of the schema), `BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES` (inline on Step 1). Routing table: `plan/M23-…md` § M23-S11 group A.
+**Error routing — every `BOOKING_*` code the flow can receive, and the screen it lands on** (static catalogue copy from `packages/i18n/locales/*/errors.json` is the headline; the second line on a screen is screen copy and needs its own `web.json` key):
+
+| Code | Lands on | Screen | Keeps | Clears |
+|---|---|---|---|---|
+| `BOOKING_SLOT_UNAVAILABLE` | availability | `02e` | everything | slot |
+| `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE` | availability | `09b` | services, picks, duration | slot |
+| `BOOKING_LEG_UNAVAILABLE` | availability | `10b` | services, picks, duration | slot |
+| `BOOKING_DURATION_OUT_OF_RANGE` (`field = durationMinutes`) | duration step | `12b` | services, picks | duration |
+| `BOOKING_RESOURCE_SELECTION_REQUIRED`, `BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE` | resource picker (options re-fetched) | `05f` | services, other picks | invalid pick |
+| `BOOKING_INTAKE_ANSWER_MISSING` | intake step | `13c` (summary only — no field names) | all answers | — |
+| `BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES` | Step 1 | `01d` | selection | — |
+| `BOOKING_SERVICE_NOT_ACTIVE` (verify the wire name in `error-codes.ts`) | Step 1 | `01d`-style inline error | rest of selection | — |
+| `field = pickupAddress` / `contactAddress` | their steps | existing `01b` / `03b` | — | — |
+| `401` (authenticated path) | hotsite login | existing handling | — | — |
+| anything else | Confirmation, generic message | `04c` | — | — |
 
 **Open questions / gaps:**
-- [ ] Story: `M23-S11` (depends on `M23-S29`) — `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`; run `/story-discovery M23-S29` first, then `M23-S11`. Its open items: per-leg picker for a `CUSTOMER_CHOICE` leg; a fungible pool with `requiredQuantity > 1`; room/equipment `CUSTOMER_CHOICE` (only staff is prototyped); a variable-duration interval crossing midnight; two `CUSTOMER_CHOICE` requirements of the same type in one bundle; duplicate service lines; which screen carries the customer reschedule quote preview.
-- [x] `16-service-type-selector.html` removed — the existing `ServiceSelectionStep` gains type-aware cards instead of being replaced.
-- [x] Pending-approval screen dropped — see the removed list above.
+- [ ] Stories: `M23-S11a` then `M23-S11b` (`/story-discovery` each) — `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`. S11a must land first (the step engine S11b plugs into).
+- [x] Decisions 1–7 above (resolves the former open items: per-leg picker, non-staff pickers, pool quantity, midnight, same-type picks, duplicate lines, reschedule preview).
+- [x] `16-service-type-selector.html`, `08-staff-calendar.html`, `14-pending-approval.html`, `06`, `07`, `09` removed — see above.
 
-### Intake step placement (decided before M23-S11 story-discovery)
+### Intake step placement (decided before M23-S11a story-discovery)
 
 Intake is **its own step**, not merged into the final summary: Services → Availability → Personal Info (Step 3) → **Intake (`IntakeAnswersStep`)** → Confirmation (the existing final summary + submit).
 
@@ -284,17 +312,19 @@ Intake is **its own step**, not merged into the final summary: Services → Avai
 | each question, `type = BOOLEAN`, optional | `questions[]` | single checkbox | none (unchecked = `false` or omitted) | — | — |
 | each question, `type = BOOLEAN`, `required = true` | `questions[]` | **Sim / Não radio pair** | an explicit answer is required; `false` ("Não") is valid — the backend checks the key is present, not that it is `true` | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
 | `participantCount` | shown only if `participantCountRequired` | number input | integer > 0 (BFF `z.number().int().positive()`) | `"Informe a quantidade de participantes."` | `intake-field-error-participants` |
-| `attendees[]` | shown only if `requiresNamedAttendees` | repeatable rows: name input + "Menor de idade" checkbox + Remover; "Adicionar participante" | each row `{ name: 1–255 chars trimmed, isMinor?: boolean (default false) }`; **no minimum count** — the backend never requires ≥ 1 attendee nor ties the count to `participantCount` (open decision for story-discovery: enforce a minimum in the UI?) | row name blank → `"Informe o nome do participante."` (client-only) | `intake-field-error-attendees` |
+| `attendees[]` | shown only if `requiresNamedAttendees` | repeatable rows: name input + "Menor de idade" checkbox + Remover; "Adicionar participante" | each row `{ name: 1–255 chars trimmed, isMinor?: boolean (default false) }`; **no minimum count** — the backend never requires ≥ 1 attendee nor ties the count to `participantCount` (decided: no minimum is enforced in the UI) | row name blank → `"Informe o nome do participante."` (client-only) | `intake-field-error-attendees` |
 | `consentAccepted` | `consentText` (always shown) | checkbox, label = `consentText` | must be `true` | `"Você precisa aceitar os termos para continuar."` | `intake-consent-error` |
 
 Summary banner on any failure: `data-testid="intake-error-summary"`, `role="alert"`. The step holds no async state — it never submits, so there is no loading/success state of its own (the POST and its states stay on Confirmation).
 
-**Two clickable paths in this prototype set (the real indicator is computed — "Passo N de M" with M from the step list; a picker adds a step: chosen-staff = 5, with intake = 6):**
+**Step paths — the real indicator is computed ("Passo N de M", M from `resolveBookingSteps()`); each prototype screen shows the value of the path it illustrates and then re-joins the existing screens:**
 
-| Path | Screens | Indicators |
+| Path | Steps | Illustrated by |
 |---|---|---|
-| Default — service **without** an intake schema (4 steps) | `01` → `02` → `03-personal-info` → `04-confirmation` (→ `04b`/`04c`/`04d`) | Passo 1–4 de 4 |
-| Service **with** an intake schema (5 steps) | `11`/`12`/`12b` → `03d-personal-info-with-intake` → `13-intake-answers` (`13b` error) → `04e-confirmation-with-intake` | Passo 3 de 5 → 4 de 5 → 5 de 5 |
+| Default (4) | Serviços · Data e horário · Seus dados · Confirmar | `01` → `02` → `03` → `04` (→ `04b`/`04c`/`04d`/`04h`) |
+| + intake (5) | … · Dados do serviço (after Seus dados) | `03d` → `13` (`13b`/`13c`) → `04e` |
+| + resource choice (5; with intake 6) | Serviços · **Escolha** · Data e horário · Seus dados [· Dados do serviço] · Confirmar | `05`…`05g` → `11` → `09b`/`02e` → `04g` |
+| + variable duration (5; with intake 6) | Serviços · **Duração** · Data e horário · … | `12`…`12d` → `11` |
+| Legged journey (5 with a choice; the review replaces the final summary) | Serviços · Escolha · Data e horário · Seus dados · **Confirmar jornada** | `05g` → `11` → `10`/`10b` → `04f` |
 
-The `04b`/`04c`/`04d` states (submitting / error / success) are shared by both paths; on the 5-step path only the step number differs ("Passo 5 de 5") — they are not duplicated. `03d` and `04e` are exact copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets.
-
+`03d` and `04e` are exact copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets. A path with both a choice and a duration adds one step to each count (6 / 7 with intake). The `04b`/`04c`/`04d` states are shared by every path and are not duplicated.

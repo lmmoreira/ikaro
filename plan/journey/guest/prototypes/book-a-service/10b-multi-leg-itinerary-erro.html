@@ -3,110 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jornada não confirmada — Jornada Spa Vitta</title>
+  <title>Horário indisponível — jornada</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
-    .leg-timeline { position: relative; padding-left: 1.75rem; }
-    .leg-item { position: relative; padding-bottom: 1.5rem; }
-    .leg-item:last-child { padding-bottom: 0; }
-    .leg-dot {
-      position: absolute; left: -1.75rem; top: 0.125rem;
-      width: 0.75rem; height: 0.75rem; border-radius: 9999px;
-      background: var(--ba-primary); border: 2px solid white; box-shadow: 0 0 0 1px var(--ba-secondary);
-    }
-    .leg-dot.error { background: #dc2626; }
-    .leg-line {
-      position: absolute; left: -1.4375rem; top: 0.875rem; bottom: -0.625rem;
-      width: 2px; background: var(--ba-secondary);
-    }
-    .leg-item:last-child .leg-line { display: none; }
-    .leg-time { font-weight: 700; color: var(--ba-text); font-size: 0.9375rem; }
-    .leg-name { font-weight: 600; color: var(--ba-primary); font-size: 0.9375rem; margin-top: 0.125rem; }
-    .leg-item.error .leg-name { color: #dc2626; }
-    .leg-resource { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.125rem; }
-    .leg-item.error .leg-resource { opacity: 1; color: #dc2626; text-decoration: line-through; }
-    .transition-note { font-size: 0.75rem; opacity: 0.5; margin-top: 0.375rem; font-style: italic; }
+    .staff-card { display:flex; align-items:center; gap:0.875rem; padding:0.875rem; cursor:pointer; }
+    .staff-avatar { width:3rem; height:3rem; border-radius:9999px; flex-shrink:0; background:var(--ba-primary); color:white;
+      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; }
+    .staff-name { font-weight:600; color:var(--ba-text); }
+    .section-title { font-size:0.875rem; font-weight:700; color:var(--ba-text); margin:1.25rem 0 0.5rem; }
+    .section-title small { font-weight:500; opacity:0.65; }
+    .hint { font-size:0.8125rem; opacity:0.7; }
+    .alert-err { display:flex; align-items:flex-start; gap:0.625rem; background:#fef2f2; border:1.5px solid #fca5a5;
+      border-radius:var(--ba-radius); padding:0.75rem 1rem; margin:1rem 0; color:#991b1b; }
+    .alert-err p { margin:0; }
+    .alert-err .t { font-weight:700; }
+    .alert-err .d { font-size:0.8125rem; margin-top:0.25rem; }
+    .skeleton { background:linear-gradient(90deg,#e5e7eb,#f3f4f6,#e5e7eb); border-radius:var(--ba-radius); height:4.25rem; margin-bottom:0.75rem; }
+    .leg-timeline { position:relative; padding-left:1.75rem; }
+    .leg-item { position:relative; padding-bottom:1.5rem; }
+    .leg-item:last-child { padding-bottom:0; }
+    .leg-dot { position:absolute; left:-1.75rem; top:0.125rem; width:0.75rem; height:0.75rem; border-radius:9999px;
+      background:var(--ba-primary); border:2px solid white; box-shadow:0 0 0 1px var(--ba-secondary); }
+    .leg-line { position:absolute; left:-1.4375rem; top:0.875rem; bottom:-0.625rem; width:2px; background:var(--ba-secondary); }
+    .leg-item:last-child .leg-line { display:none; }
+    .leg-time { font-weight:700; color:var(--ba-text); font-size:0.9375rem; }
+    .leg-name { font-weight:600; color:var(--ba-primary); font-size:0.9375rem; margin-top:0.125rem; }
+    .leg-resource { font-size:0.8125rem; opacity:0.6; margin-top:0.125rem; }
+    .transition-note { font-size:0.75rem; opacity:0.5; margin-top:0.375rem; font-style:italic; }
+    .row { display:flex; justify-content:space-between; font-size:0.875rem; color:var(--ba-text); padding:0.25rem 0; }
+    .btn-disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+    .rate { font-size:0.8125rem; opacity:0.75; }
   </style>
 </head>
 <body>
-
   <!--
-    ERROR VARIANT OF 10-multi-leg-itinerary.html — POST /bookings returned 409 BOOKING_LEG_UNAVAILABLE.
-    COPY: static catalogue message only: "Uma das etapas deste agendamento não está mais disponível." The error carries
-    no leg index, resource name or window, so no leg is highlighted and no resource is blamed. Nothing was booked
-    (the whole chain is atomic); the customer's selections are kept and only the slot is cleared.
+    ERROR VARIANT — the AVAILABILITY step (see 11-appointment-availability.html) after POST /bookings returned
+    409 BOOKING_LEG_UNAVAILABLE (UC-065 A1).
+    Same handling as 09b: back to the availability step with the picks kept and only the slot cleared; no leg is highlighted
+    because the error carries no leg index, resource name or window.
+    COPY: static catalogue message: "Uma das etapas deste agendamento não está mais disponível."
+    INDICATOR: path "journey" (no intake) = "Passo 3 de 5".
   -->
-
-  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
-    Variante de erro — 409 BOOKING_LEG_UNAVAILABLE (cópia estática do catálogo)
-  </div>
-
-  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
-              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
     <div style="display:flex;align-items:center;gap:0.625rem;">
-      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
-                  color:white;display:flex;align-items:center;justify-content:center;
-                  font-weight:700;font-size:0.8125rem;">V</div>
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">V</div>
       <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
     </div>
-    <a href="../../../shared/login.html" style="display:flex;align-items:center;gap:0.375rem;
-       font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-      </svg>
-      Entrar
-    </a>
+    <a href="../../../shared/login.html" style="font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">Entrar</a>
   </div>
-
   <div class="step-container">
-    <p class="step-indicator">Jornada Spa Vitta — R$ 260,00</p>
-    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--ba-text)">
-      Não foi possível confirmar sua jornada
-    </h2>
-
-    <div class="card" style="border-color:#fca5a5;background:#fef2f2;padding:1.125rem;margin-bottom:1.25rem;">
-      <div style="display:flex;gap:0.625rem;align-items:flex-start;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:0.125rem;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <div>
-          <p style="font-weight:700;color:#991b1b;">Uma das etapas deste agendamento não está mais disponível.</p>
-          <p style="font-size:0.8125rem;color:#991b1b;margin-top:0.375rem;">Nenhuma parte foi confirmada — nada foi reservado parcialmente.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="padding: 1.25rem;">
-      <div class="leg-timeline">
-
-        <div class="leg-item">
-          <div class="leg-dot"></div><div class="leg-line"></div>
-          <p class="leg-time">13:00 – 13:20</p>
-          <p class="leg-name">Sauna</p>
-          <p class="leg-resource">Sala — atribuída automaticamente</p>
-          <p class="transition-note">+ 10 min de transição antes da próxima etapa</p>
-        </div>
-
-        <div class="leg-item">
-          <div class="leg-dot"></div><div class="leg-line"></div>
-          <p class="leg-time">13:30 – 14:20</p>
-          <p class="leg-name">Massagem</p>
-          <p class="leg-resource">com Renata Souza (sua escolha) · Sala atribuída automaticamente</p>
-          <p class="transition-note">+ 5 min de transição antes da próxima etapa</p>
-        </div>
-
-        <div class="leg-item">
-          <div class="leg-dot"></div>
-          <p class="leg-time">14:25 – 14:45</p>
-          <p class="leg-name">Relaxamento</p>
-          <p class="leg-resource">Sala — atribuída automaticamente</p>
-        </div>
-
-      </div>
-    </div>
-
-    <div class="nav-buttons">
-      <button class="btn-secondary" onclick="window.history.back()">Voltar</button>
-      <a class="btn-primary" href="11-appointment-availability.html?service=spa-journey">Ver outro horário</a>
-    </div>
+    <p class="step-indicator">Passo 3 de 5</p>
+    <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.375rem;color:var(--ba-text)">Escolha data e horário</h2>
+    <p style="font-size:0.875rem;opacity:0.7;margin-bottom:1.25rem;">Jornada Spa Vitta</p>
+    <div class="alert-err" role="alert" data-testid="availability-error"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div><p class="t">Uma das etapas deste agendamento não está mais disponível.</p><p class="d">Nenhuma parte foi confirmada — nada foi reservado parcialmente. Escolha outro horário.</p></div></div>
+    <div style="display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.5rem"><button class="day-pill available"><span>TER</span><strong>05</strong></button><button class="day-pill selected"><span>QUA</span><strong>06</strong></button><button class="day-pill available"><span>QUI</span><strong>07</strong></button></div>
+    <section style="margin-top:1.25rem"><p class="hint" style="margin-bottom:.75rem">Horários disponíveis — Qua, 06 de agosto</p><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="slot-btn">09:00</button><button class="slot-btn">10:00</button><button class="slot-btn">16:00</button></div></section>
+    <div class="nav-buttons"><button class="btn-secondary" onclick="window.history.back()">Voltar</button><button class="btn-primary btn-disabled" disabled aria-disabled="true">Próximo</button></div>
   </div>
 </body>
 </html>

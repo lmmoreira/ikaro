@@ -3,100 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Revisar sua jornada — Jornada Spa Vitta</title>
+  <title>Passo 5 — Confirme sua jornada</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
-    .leg-timeline { position: relative; padding-left: 1.75rem; }
-    .leg-item { position: relative; padding-bottom: 1.5rem; }
-    .leg-item:last-child { padding-bottom: 0; }
-    .leg-dot {
-      position: absolute; left: -1.75rem; top: 0.125rem;
-      width: 0.75rem; height: 0.75rem; border-radius: 9999px;
-      background: var(--ba-primary); border: 2px solid white; box-shadow: 0 0 0 1px var(--ba-secondary);
-    }
-    .leg-line {
-      position: absolute; left: -1.4375rem; top: 0.875rem; bottom: -0.625rem;
-      width: 2px; background: var(--ba-secondary);
-    }
-    .leg-item:last-child .leg-line { display: none; }
-    .leg-time { font-weight: 700; color: var(--ba-text); font-size: 0.9375rem; }
-    .leg-name { font-weight: 600; color: var(--ba-primary); font-size: 0.9375rem; margin-top: 0.125rem; }
-    .leg-resource { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.125rem; }
-    .transition-note { font-size: 0.75rem; opacity: 0.5; margin-top: 0.375rem; font-style: italic; }
+    .staff-card { display:flex; align-items:center; gap:0.875rem; padding:0.875rem; cursor:pointer; }
+    .staff-avatar { width:3rem; height:3rem; border-radius:9999px; flex-shrink:0; background:var(--ba-primary); color:white;
+      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; }
+    .staff-name { font-weight:600; color:var(--ba-text); }
+    .section-title { font-size:0.875rem; font-weight:700; color:var(--ba-text); margin:1.25rem 0 0.5rem; }
+    .section-title small { font-weight:500; opacity:0.65; }
+    .hint { font-size:0.8125rem; opacity:0.7; }
+    .alert-err { display:flex; align-items:flex-start; gap:0.625rem; background:#fef2f2; border:1.5px solid #fca5a5;
+      border-radius:var(--ba-radius); padding:0.75rem 1rem; margin:1rem 0; color:#991b1b; }
+    .alert-err p { margin:0; }
+    .alert-err .t { font-weight:700; }
+    .alert-err .d { font-size:0.8125rem; margin-top:0.25rem; }
+    .skeleton { background:linear-gradient(90deg,#e5e7eb,#f3f4f6,#e5e7eb); border-radius:var(--ba-radius); height:4.25rem; margin-bottom:0.75rem; }
+    .leg-timeline { position:relative; padding-left:1.75rem; }
+    .leg-item { position:relative; padding-bottom:1.5rem; }
+    .leg-item:last-child { padding-bottom:0; }
+    .leg-dot { position:absolute; left:-1.75rem; top:0.125rem; width:0.75rem; height:0.75rem; border-radius:9999px;
+      background:var(--ba-primary); border:2px solid white; box-shadow:0 0 0 1px var(--ba-secondary); }
+    .leg-line { position:absolute; left:-1.4375rem; top:0.875rem; bottom:-0.625rem; width:2px; background:var(--ba-secondary); }
+    .leg-item:last-child .leg-line { display:none; }
+    .leg-time { font-weight:700; color:var(--ba-text); font-size:0.9375rem; }
+    .leg-name { font-weight:600; color:var(--ba-primary); font-size:0.9375rem; margin-top:0.125rem; }
+    .leg-resource { font-size:0.8125rem; opacity:0.6; margin-top:0.125rem; }
+    .transition-note { font-size:0.75rem; opacity:0.5; margin-top:0.375rem; font-style:italic; }
+    .row { display:flex; justify-content:space-between; font-size:0.875rem; color:var(--ba-text); padding:0.25rem 0; }
+    .btn-disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+    .rate { font-size:0.8125rem; opacity:0.75; }
   </style>
 </head>
 <body>
-
   <!--
-    COMPONENT: LegItineraryStep  apps/web/features/booking/components/public/LegItineraryStep.tsx  (NEW, M23-S11)
-    SCENARIO:  legged service ("Jornada Spa Vitta"). This is the legged service's version of the final summary, not an
-               extra step. Legs, times, durations and transitions are COMPUTED from service.legs + the chosen slot.
-    RESOURCES: a resource is named ONLY when it is the customer's own pick or fixed. Automatic legs/rooms show their type
-               ("Sala — atribuída automaticamente"), never a pool or unit name (no assignment preview exists).
-    ERROR:     409 BOOKING_LEG_UNAVAILABLE -> 10b (static catalogue copy).
-    AFTER:     the booking-submitted details box (04f) shows the leg timeline from the response `itinerary`.
+    COMPONENT: LegItineraryStep  apps/web/features/booking/components/public/LegItineraryStep.tsx  (NEW, M23-S11b)
+    POSITION:  this IS the final Confirmation step for a legged service (same slot as 04-confirmation): the service list is
+               replaced by the leg timeline and "Confirmar agendamento" submits POST /bookings. It is NOT an extra step.
+    DATA:      legs, times, durations and transitions are COMPUTED from service.legs + the chosen slot (no assignment preview).
+    RESOURCES: a resource is named ONLY when it is the customer's own pick (from the picker, 05g) or fixed. An automatic leg shows
+               its resource TYPE ("Sala — atribuída automaticamente"), never a pool or unit name.
+    ERROR:     409 BOOKING_LEG_UNAVAILABLE -> back to the availability step (10b).
+    AFTER:     success view with the leg timeline from the response `itinerary` (04f).
+    INDICATOR: path "journey" (no intake) = "Passo 5 de 5".
+    TIMES:     Sauna 13:00-13:20 (+10) · Massagem 13:30-14:20 (+5) · Relaxamento 14:25-14:45 = 90 min + 15 min transition = 105.
   -->
-
-  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
-              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
     <div style="display:flex;align-items:center;gap:0.625rem;">
-      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
-                  color:white;display:flex;align-items:center;justify-content:center;
-                  font-weight:700;font-size:0.8125rem;">V</div>
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">V</div>
       <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
     </div>
-    <a href="../../../shared/login.html" style="display:flex;align-items:center;gap:0.375rem;
-       font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-      </svg>
-      Entrar
-    </a>
+    <a href="../../../shared/login.html" style="font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">Entrar</a>
   </div>
-
   <div class="step-container">
-    <p class="step-indicator">Jornada Spa Vitta — R$ 260,00</p>
-    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--ba-text)">
-      Revisar sua jornada
-    </h2>
-
-    <div class="card" style="padding: 1.25rem;">
+    <p class="step-indicator">Passo 5 de 5</p>
+    <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.375rem;color:var(--ba-text)">Confirme sua jornada</h2>
+    <div class="card">
       <div class="leg-timeline">
-
-        <div class="leg-item">
-          <div class="leg-dot"></div><div class="leg-line"></div>
-          <p class="leg-time">13:00 – 13:20</p>
-          <p class="leg-name">Sauna</p>
-          <p class="leg-resource">Sala — atribuída automaticamente</p>
-          <p class="transition-note">+ 10 min de transição antes da próxima etapa</p>
-        </div>
-        <div class="leg-item">
-          <div class="leg-dot"></div><div class="leg-line"></div>
-          <p class="leg-time">13:30 – 14:20</p>
-          <p class="leg-name">Massagem</p>
-          <p class="leg-resource">com Renata Souza (sua escolha) · Sala atribuída automaticamente</p>
-          <p class="transition-note">+ 5 min de transição antes da próxima etapa</p>
-        </div>
-
-        <div class="leg-item">
-          <div class="leg-dot"></div>
-          <p class="leg-time">14:25 – 14:45</p>
-          <p class="leg-name">Relaxamento</p>
-          <p class="leg-resource">Sala — atribuída automaticamente</p>
-        </div>
-
+        <div class="leg-item"><div class="leg-dot"></div><div class="leg-line"></div><p class="leg-time">13:00 – 13:20</p><p class="leg-name">Sauna</p><p class="leg-resource">Sala — atribuída automaticamente</p><p class="transition-note">+ 10 min de transição antes da próxima etapa</p></div>
+        <div class="leg-item"><div class="leg-dot"></div><div class="leg-line"></div><p class="leg-time">13:30 – 14:20</p><p class="leg-name">Massagem</p><p class="leg-resource">com Renata Souza (sua escolha) · Sala atribuída automaticamente</p><p class="transition-note">+ 5 min de transição antes da próxima etapa</p></div>
+        <div class="leg-item"><div class="leg-dot"></div><p class="leg-time">14:25 – 14:45</p><p class="leg-name">Relaxamento</p><p class="leg-resource">com Poltrona de relaxamento 1 (sua escolha)</p></div>
       </div>
-      <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:1.25rem 0;">
-      <p style="font-size:0.8125rem;color:var(--ba-text);">
-        <strong>90 min</strong> de serviço + <strong>15 min</strong> de transição =
-        <strong>105 min</strong> reservados no total (13:00–14:45).
-      </p>
+      <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:1rem 0 .75rem;">
+      <p style="font-size:.875rem;color:var(--ba-text);"><strong>90 min</strong> de serviço + <strong>15 min</strong> de transição = <strong>105 min</strong> reservados (13:00–14:45).</p>
     </div>
-
-    <div class="nav-buttons">
-      <button class="btn-secondary" onclick="window.history.back()">Voltar</button>
-      <a class="btn-primary" href="04-confirmation.html">Confirmar</a>
-    </div>
+    <p style="font-weight:600;color:var(--ba-text);margin:1rem 0 .25rem;">Total: R$ 260,00 — 105 min</p>
+    <p style="color:var(--ba-text);">Segunda-feira, 18 de agosto às 13:00</p>
+    <div class="nav-buttons"><a class="btn-secondary" href="03-personal-info.html">Voltar</a><a class="btn-primary" href="04f-success-details-resources.html">Confirmar agendamento</a></div>
   </div>
 </body>
 </html>

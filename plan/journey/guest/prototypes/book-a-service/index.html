@@ -109,31 +109,50 @@
       <span class="tag tag-green">EXISTS: ConfirmationStep (confirmation-error)</span>
     </li>
     <li>
-      <a href="04d-success.html">Passo 4d — Solicitação enviada (sucesso, com caixa de detalhes — M23-S11)</a>
+      <a href="04d-success.html">Passo 4d — Solicitação enviada (sucesso, com caixa de detalhes — M23-S11a)</a>
       <span class="tag tag-green">EXISTS: ConfirmationStep (booking-success)</span>
     </li>
   </ul>
 
   <hr>
 
-  <p><strong>M21 Cluster 3 — ❓ Gap, não construído ainda:</strong></p>
+  <p><strong>M23 Cluster 3 — ❓ Gap, não construído ainda:</strong></p>
+  <p style="font-size:.8125rem;opacity:.75;">O indicador “Passo N de M” é calculado no produto; cada tela mostra o valor do caminho que ilustra (padrão 4 · formulário 5 · profissional+formulário 6 · jornada 5 · duração+formulário 6) e depois reencontra as telas existentes. Recursos automáticos (profissional, sala, equipamento, pool) <strong>não têm tela</strong>: o passo de escolha só existe quando há escolha do cliente.</p>
   <ul>
-    <li><a href="05-staff-picker.html">Escolher profissional</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-061</span></li>
-    <li><a href="06-auto-staff.html">Profissional auto-atribuído</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-063</span></li>
-    <li><a href="07-fungible-resource.html">Pool de recursos fungíveis</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-062</span></li>
-    <li><a href="09-bundle-booking.html">Reserva com bundle de recursos</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-064</span></li>
-    <li><a href="09b-bundle-booking-erro.html">Erro — recurso do bundle indisponível</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-064 A2</span></li>
-    <li><a href="10-multi-leg-itinerary.html">Itinerário multi-etapas</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-065</span></li>
-    <li><a href="10b-multi-leg-itinerary-erro.html">Erro — etapa indisponível</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-065 A1</span></li>
-    <li><a href="11-appointment-availability.html">Disponibilidade compartilhada</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-058</span></li>
-    <li><a href="12-reserva-por-tempo.html">Reserva de duração variável</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-067</span></li>
-    <li><a href="12b-reserva-por-tempo-erro.html">Erro — indisponível ao confirmar</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-067 A1</span></li>
-    <li><a href="03d-personal-info-with-intake.html">Passo 3 de 5 — Seus dados (serviço com intake)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — M23-S11</span></li>
-    <li><a href="13-intake-answers.html">Passo 4 de 5 — Dados do serviço (intake, após Seus dados)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-068</span></li>
-    <li><a href="13b-intake-answers-error.html">Erro — campo obrigatório faltando</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-068 A3</span></li>
-    <li><a href="04e-confirmation-with-intake.html">Passo 5 de 5 — Confirmar agendamento (serviço com intake)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — M23-S11</span></li>
-    <li><a href="04f-success-details-resources.html">Solicitação enviada — detalhes com recursos e itinerário</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — M23-S11</span></li>
-    <li><a href="15-login-required.html">Login necessário (fila/aviso)</a> <span class="tag" style="background:#e5e7eb;color:#374151;">FORA DO M23-S11 — alertas (S12/S17), UC-072 A1</span></li>
+  </ul>
+  <p><strong>S11a — passos, serviços, escolha de recurso, formulário e sucesso (grupos A, B, E)</strong></p>
+  <ul>
+    <li><a href="01c-servico-por-tempo.html">Passo 1 — serviço por tempo (taxa e “a partir de”)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-067 · M23-S11a</span></li>
+    <li><a href="01d-erro-varios-servicos-variaveis.html">Passo 1 — erro: mais de um serviço de duração variável / com formulário</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-067 A4 · UC-068 A4 · M23-S11a</span></li>
+    <li><a href="01e-carregando-formulario.html">Passo 1 — carregando o formulário do serviço (“Próximo”)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-068 · M23-S11a</span></li>
+    <li><a href="01f-erro-formulario.html">Passo 1 — erro ao carregar o formulário (falha fechada, tentar novamente)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-068 · M23-S11a</span></li>
+    <li><a href="05-staff-picker.html">Passo 2 — escolher o recurso (uma seção por escolha; qualquer tipo de recurso)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-061 · M23-S11a</span></li>
+    <li><a href="05b-picker-nada-escolhido.html">Passo 2 — nada escolhido (Próximo desabilitado)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-061 · M23-S11a</span></li>
+    <li><a href="05c-picker-loading.html">Passo 2 — carregando opções</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-061 · M23-S11a</span></li>
+    <li><a href="05d-picker-vazio.html">Passo 2 — sem opções</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-061 · M23-S11a</span></li>
+    <li><a href="05e-picker-erro-carregar.html">Passo 2 — erro ao carregar opções</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-061 · M23-S11a</span></li>
+    <li><a href="05f-picker-selecao-invalida.html">Passo 2 — erro: opção escolhida inválida (422)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-061 · M23-S11a</span></li>
+    <li><a href="05g-picker-varias-secoes.html">Passo 2 — várias escolhas (jornada / pacote com duas escolhas)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-064 · UC-065 · M23-S11a</span></li>
+    <li><a href="11-appointment-availability.html">Passo 3 — disponibilidade compartilhada (todos os fluxos)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-058 · UC-059 · UC-066 · M23-S11a</span></li>
+    <li><a href="03d-personal-info-with-intake.html">Passo 3 de 5 — Seus dados (serviço com formulário)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — M23-S11a</span></li>
+    <li><a href="13-intake-answers.html">Passo 4 de 5 — Dados do serviço (formulário, após Seus dados)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-068 · M23-S11a</span></li>
+    <li><a href="13b-intake-answers-error.html">Erro — campos obrigatórios (validação do cliente)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-068 A3 · M23-S11a</span></li>
+    <li><a href="13c-intake-answers-erro-servidor.html">Erro — rejeição do servidor (somente o resumo)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-068 A3 · M23-S11a</span></li>
+    <li><a href="04e-confirmation-with-intake.html">Passo 5 de 5 — Confirmar agendamento (serviço com formulário)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — M23-S11a</span></li>
+    <li><a href="04g-success-profissional-escolhido.html">Sucesso — profissional escolhido pelo cliente</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-061 · M23-S11a</span></li>
+    <li><a href="04h-success-profissional-atribuido.html">Sucesso — profissional atribuído automaticamente (pool não mostra nome — ver 04d)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-062 · UC-063 · M23-S11a</span></li>
+  </ul>
+  <p><strong>S11b — pacote, jornada e duração variável (grupos C, D)</strong></p>
+  <ul>
+    <li><a href="09b-bundle-booking-erro.html">Disponibilidade — erro: parte do pacote indisponível (409)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-064 A2 · M23-S11b</span></li>
+    <li><a href="10-multi-leg-itinerary.html">Passo 5 de 5 — Confirmar jornada (itinerário de etapas)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-065 · M23-S11b</span></li>
+    <li><a href="10b-multi-leg-itinerary-erro.html">Disponibilidade — erro: etapa indisponível (409)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-065 A1 · M23-S11b</span></li>
+    <li><a href="12-reserva-por-tempo.html">Passo 2 — duração e total estimado</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-067 · M23-S11b</span></li>
+    <li><a href="12b-reserva-por-tempo-erro.html">Passo 2 — erro: duração inválida (422)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-067 · M23-S11b</span></li>
+    <li><a href="12c-reserva-por-tempo-total-erro.html">Passo 2 — erro ao calcular o total</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-067 · M23-S11b</span></li>
+    <li><a href="12d-reserva-por-tempo-carregando.html">Passo 2 — calculando o total</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-067 · M23-S11b</span></li>
+    <li><a href="04f-success-details-resources.html">Sucesso — jornada com itinerário</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-065 · M23-S11b</span></li>
+    <li><a href="15-login-required.html">Login necessário (fila/aviso)</a> <span class="tag" style="background:#e5e7eb;color:#374151;">FORA DO M23-S11a/S11b — alertas (S12/S17), UC-072 A1</span></li>
   </ul>
 
   <hr>

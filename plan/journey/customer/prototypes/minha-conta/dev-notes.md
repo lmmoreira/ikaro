@@ -239,6 +239,33 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 
 ---
 
+## ❓ GAP — M23 Cluster 3 — Reagendar uma reserva (UC-069, story `M23-S30`, not yet built)
+
+The customer area had **no reschedule screen** (only the staff `RescheduleBookingPage` in the dashboard and the recurring-occurrence panel in `06`). This pass adds it; `06`'s inline reschedule panel (a slot `<select>` with "Preço será recalculado") was **removed** — an occurrence is an ordinary booking, so "Reagendar esta ocorrência" opens the same `15-reagendar` screen.
+
+**Decisions (2026-10-03):**
+1. **Only date and time change.** A `CUSTOMER_CHOICE` pick (staff, room, equipment) is **kept and shown read-only** (`15b`); there is no picker. Changing a pick = cancel and rebook. Automatic resources are not listed (they are re-resolved for the new window and an automatic room may change).
+2. **The duration is kept.** No duration control, therefore **no price change and no quote preview** (the old S11 "recomputed quote before confirming" item no longer exists). `PATCH` carries `{ scheduledAt }` only — never `resourceSelections`/`durationMinutes`.
+3. **Only `APPROVED` bookings** (the aggregate rejects any other status); a `PENDING` booking offers only "Cancelar". The button is hidden once the reschedule window has closed.
+4. The booking **stays `APPROVED`** after a reschedule (no re-approval); the customer gets the `BookingRescheduled` email.
+
+**Screens:** `15` default · `15b` kept picks (journey) · `15c` loading · `15d` no slots · `15e` fetch error · `15f` submitting · `15g` success · `15h` `409 BOOKING_SLOT_UNAVAILABLE` · `15i` `409 BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`/`BOOKING_LEG_UNAVAILABLE` · `15j` `422 BOOKING_RESCHEDULE_WINDOW_EXPIRED` · `15k` network/other (incl. `BOOKING_INVALID_TRANSITION`/`BOOKING_ALREADY_TERMINAL`). Entry: `02-agendamento-detail` ("Reagendar") and `06-reserva-recorrente` (each occurrence row).
+
+**File map (❓ none exist yet — M23-S30):**
+
+| File | Status |
+|---|---|
+| `apps/web/app/[slug]/my-account/bookings/[id]/reschedule/page.tsx` (thin) | ❓ Gap |
+| `apps/web/features/booking/components/customer/CustomerReschedulePage.tsx` | ❓ Gap |
+| `apps/web/features/booking/api/` — `rescheduleBookingAsCustomer` fetcher (`PATCH /bookings/:id/reschedule`) | ❓ Gap |
+
+**To resolve at `/story-discovery M23-S30` (found while drawing — not decided here):**
+- **Kept picks cannot be shown or pinned today.** `BookingLineResponse` exposes `assignedResourceName` only for `AUTO_ANY` and `itinerary` for legs; a `CUSTOMER_CHOICE` pick is not returned by `GET /bookings/:id` for the customer, so `15b`'s read-only list and the pinned availability query both need the customer booking read to expose the kept picks (names for display, ids for `resourceSelections`) — a backend/BFF change.
+- **Availability for a reschedule.** The staff `RescheduleBookingPage` lists slots with `serviceIds` only, ignoring the booking's own occupancy and picks. For resource-scoped bookings the list must pin the kept picks and the kept duration (S29 params), and ideally ignore the booking's own current window (the commit already releases it inside the same transaction) — decide whether a read-side `excludeBookingId`-style parameter is needed.
+- Confirm the `BookingRescheduled` customer email exists and its copy matches "Enviamos a confirmação por email".
+
+**Error copy:** headlines are the catalogue texts (`BOOKING_SLOT_UNAVAILABLE`, `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`, `BOOKING_LEG_UNAVAILABLE`, `BOOKING_RESCHEDULE_WINDOW_EXPIRED`); supporting lines are screen copy needing `web.json` keys in both locales. Error text on a fixed red tint uses `#dc2626`/`#991b1b` with fixed backgrounds (customer area, SaaS design system — no `--ba-*`).
+
 ## ❓ GAP — M24 Cluster 4 extension (UC-089–095, UC-102, not yet built)
 
 > Relocated from `docs/discovery/multivertical-booking/prototype/customer-minhasturmas-*.html` and `customer-08*.html` — already implementation-grade (route tables, BFF contracts) per `docs/discovery/multivertical-booking/prototype/minha-conta-turmas-journey.md`, which this section carries forward. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`/`RecurringEnrollment`, `docs/14-API_CONTRACTS.md` § Classes & Sessions.

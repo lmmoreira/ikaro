@@ -2,7 +2,7 @@
 
 **Actor(s):** GUEST  
 **Goal:** Submit a booking request on a tenant's public hotsite without authentication  
-**UCs covered:** UC-001, UC-011 (✅ Reviewed) · UC-061, UC-062, UC-063, UC-064, UC-065, UC-066, UC-067, UC-068 (❓ Gap — M23 Cluster 3 frontend, `M23-S11` on top of `M23-S29`; backend/BFF for UC-061–068 shipped in M23-S01–S03; UC-066 = the picker flow, the staff directory is deferred)  
+**UCs covered:** UC-001, UC-011 (✅ Reviewed) · UC-061, UC-062, UC-063, UC-064, UC-065, UC-066, UC-067, UC-068 (❓ Gap — M23 Cluster 3 frontend, `M23-S11a` (A, B, E) and `M23-S11b` (C, D) on top of `M23-S29`; backend/BFF for UC-061–068 shipped in M23-S01–S03; UC-066 = the picker flow, the staff directory is deferred)  
 **Status:** Base flow reviewed — M23 Cluster 3 extension not yet built, see the ❓ GAP section in `dev-notes.md`
 
 ## Flow
@@ -52,40 +52,40 @@ flowchart TD
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
 
-> Promoted from `docs/discovery/multivertical-booking/`. Step 1 ("Select Services") now branches on the selected service's `bookingModel`/`resourceRequirements`/`legs`/`durationPolicy` before reaching the existing Step 2 calendar. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+> Promoted from `docs/discovery/multivertical-booking/`. Step 1 ("Select Services") now decides which extra steps the flow has. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+>
+> **Two rules shape the whole extension (settled 2026-10-03):** (1) a resource is only asked for when the customer has a real choice — **automatic staff, rooms, equipment and fungible pools have no screen and no note**; (2) every choice — staff, room, equipment; a simple service, a bundle or a journey — is **one** picker screen with one section per choice.
 
 ```mermaid
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    S1b["Step 1: Select Services<br/>(existing — service cards adapt per type; the branch happens on Próximo)"] -->|"STAFF, CUSTOMER_CHOICE"| StaffPicker["❓ GAP: staff picker<br/>(05-staff-picker)"]
-    S1b -->|"STAFF, AUTO_ANY"| AutoStaff["❓ GAP: auto-assigned staff note<br/>(06-auto-staff)"]
-    S1b -->|"ROOM/EQUIPMENT, AUTO_FUNGIBLE_POOL"| Fungible["❓ GAP: fungible pool note<br/>(07-fungible-resource)"]
-    S1b -->|"resourceRequirements.length >= 2"| Bundle["❓ GAP: bundle — picker for the CUSTOMER_CHOICE requirement<br/>(09-bundle-booking)"]
-    S1b -->|"legs.length >= 2"| MultiLeg["❓ GAP: multi-leg itinerary review<br/>(10-multi-leg-itinerary)"]
-    S1b -->|"durationPolicy=CUSTOMER_SELECTED"| VarDuration["❓ GAP: variable-duration step<br/>(12-reserva-por-tempo)"]
+    S1b["Step 1: Select Services<br/>(existing — cards adapt per type: 01c per-time rate, 01d/01e/01f errors and loading)"] --> HasChoice{"any CUSTOMER_CHOICE<br/>requirement?"}
+    HasChoice -- "yes" --> Picker["❓ GAP: resource picker — one section per choice<br/>(05, 05b–05g)<br/>GET /public/services/:id/resource-options"]
+    HasChoice -- "no (auto staff / pool / auto room: nothing shown)" --> HasDuration
+    Picker --> HasDuration{"durationPolicy =<br/>CUSTOMER_SELECTED?"}
+    HasDuration -- "yes" --> Duration["❓ GAP: duration + Total estimado<br/>(12, 12b–12d)<br/>GET /public/services/:id/quote"]
+    HasDuration -- "no" --> Availability
+    Duration --> Availability["❓ GAP: shared availability step<br/>(11 — resourceSelections + durationMinutes)"]
 
-    StaffPicker --> Availability["❓ GAP: shared availability step<br/>(11-appointment-availability)"]
-    AutoStaff --> Availability
-    Fungible --> Availability
-    Bundle --> Availability
-    MultiLeg --> Availability
-    VarDuration --> Availability
-
-    Availability --> S3m["Step: Personal Info<br/>(03-personal-info, existing; 03d-personal-info-with-intake on the intake path)"]
-    S3m -->|"service has an active intake schema"| Intake["❓ GAP: intake answers + consent<br/>(13-intake-answers)<br/>GET /public/services/:id/intake-schema"]
+    Availability --> S3m["Step: Personal Info<br/>(03-personal-info, existing; 03d on the intake path)"]
+    S3m -->|"service has an active intake schema"| Intake["❓ GAP: intake answers + consent<br/>(13, 13b, 13c)<br/>GET /public/services/:id/intake-schema"]
     S3m -->|"no intake schema"| Confirm
-    Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation, existing; 04e-confirmation-with-intake on the intake path)"]
-    Confirm -->|"POST /bookings (always created PENDING)"| Done["Success view: 'Solicitação enviada!'<br/>+ booking-details box (04d, 04f)<br/>+ Voltar para o site"]
-    Confirm -->|"409/422 BOOKING_* error"| Errors["❓ GAP: static catalogue error screens<br/>(09b, 10b, 12b, 13b; slot conflict 02e exists)"]
+    Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation; 04e on the intake path;<br/>10 = journey confirmation with the leg timeline)"]
+    Confirm -->|"POST /bookings (always created PENDING)"| Done["Success: 'Solicitação enviada!'<br/>+ booking-details box (04d, 04g, 04h, 04f)<br/>+ Voltar para o site"]
+    Confirm -->|"409 slot / bundle / leg"| BackAvail["❓ GAP: back to availability, slot cleared<br/>(02e, 09b, 10b)"]
+    Confirm -->|"422 duration"| Duration
+    Confirm -->|"422 resource selection"| Picker
+    Confirm -->|"422 intake / 422 multiple variable"| Errors["❓ GAP: intake summary (13c) / Step 1 inline (01d)"]
+    BackAvail --> Availability
 ```
 
-**Prototype:** `guest/prototypes/book-a-service/05-staff-picker.html` through `13b-intake-answers-error.html`, plus the success variants `04d`/`04f` (`15-login-required.html` is out of M23-S11 — availability alerts; `08-staff-calendar`, `14-pending-approval` and `16-service-type-selector` were removed — see `dev-notes.md`).
+**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01f`, `05`–`05g`, `09b`, `10`, `10b`, `11`, `12`–`12d`, `13`–`13c` and the success variants `04d`/`04f`/`04g`/`04h` (`15-login-required.html` is out of M23-S11a/S11b's scope — availability alerts; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
+
+**Stories:** `M23-S29` (backend/BFF prerequisites, ✅ Done), **`M23-S11a`** (step engine, intake, service cards, resource picker, success box) then **`M23-S11b`** (bundle/journey confirmation and variable duration) in `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`.
 
 **Open questions:**
-- [x] Stories: `M23-S29` (backend/BFF prerequisites) then `M23-S11` (frontend) in `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md` — run `/story-discovery M23-S29`, then `M23-S11`.
-- [x] Intake placement decided: its own step after Personal Info (Step 3), before the final Review & Confirm — never merged with the summary (`dev-notes.md` § Intake step placement).
-- [x] `16-service-type-selector.html` removed (2026-10-02): the existing Step 1 service list is the catalogue; its cards adapt to the service type and a class (M24) is just another service.
-- [x] Pending-approval screen (14) dropped: the existing success message already says the request awaits email confirmation; a subtle booking-details box is added below it (`04d`/`04f`), for every booking.
-- [x] Staff profile page (08) dropped; UC-066 is the picker flow; a public staff directory is deferred.
-- [ ] `15-login-required.html` still links to the Cluster 4 class agenda (`public-02b-class-agenda.html`, not yet promoted) — out of M23-S11's scope, carried by the alert stories (M23-S12/S17) and M24.
+- [x] Intake placement decided: its own step after Personal Info, before the final Review & Confirm (`dev-notes.md` § Intake step placement).
+- [x] No screen for automatic resources; one picker for every resource and service type; duration is a duration-only step; the legs review is the final Confirmation step; customer rescheduling is a separate story (`dev-notes.md` § Design decisions).
+- [x] `06`, `07`, `08`, `09`, `14`, `16` removed.
+- [ ] `15-login-required.html` still links to the Cluster 4 class agenda (`public-02b-class-agenda.html`, not yet promoted) — out of M23-S11a/S11b's scope, carried by the alert stories (M23-S12/S17) and M24.

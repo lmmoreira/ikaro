@@ -11,11 +11,11 @@
     VARIANT OF: 04-confirmation.html
     SCENARIO:   POST /bookings returned 201 Created. status = 'success' — the entire
                 step content is replaced with this view. Terminal state — no nav-buttons.
-    COMPONENTS: ConfirmationStep (EXISTS) + BookingSubmittedDetails (NEW, M23-S11)
+    COMPONENTS: ConfirmationStep (EXISTS) + BookingSubmittedDetails (NEW, M23-S11a)
                 apps/web/features/booking/components/public/ConfirmationStep.tsx
                 apps/web/features/booking/components/public/BookingSubmittedDetails.tsx
     SUCCESS:    "Solicitação enviada! Aguarde a confirmação por email."  (data-testid="booking-success", unchanged)
-    DETAILS BOX (M23-S11): a subtle box between the message and "Voltar para o site", for EVERY booking.
+    DETAILS BOX (M23-S11a): a subtle box between the message and "Voltar para o site", for EVERY booking.
                 Data = the booking response the submission hook keeps: lines (name, price, duration), scheduledAt
                 (formatted in the TENANT timezone with useFormatting), totalPrice, totalDurationMins.
                 Resource lines render only when applicable (see 04f). No hold deadline, countdown or alert button —

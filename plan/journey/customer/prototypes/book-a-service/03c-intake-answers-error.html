@@ -16,7 +16,7 @@
   <!--
     Error-state sibling of 03b-intake-answers.html (same step as guest/…/13b-intake-answers-error.html) (UC-068 A3 / alt A1).
     Primary content: required questions + the consent checkbox left unanswered on "Próximo" ->
-    backend 422 intake-answer-missing names the missing field(s); the client mirrors this inline.
+    these field-level errors come from CLIENT validation of the displayed schema (the backend 422 BOOKING_INTAKE_ANSWER_MISSING names no fields — its server-only state is 03e).
     Secondary notice: alt A1 — the service form changed while the customer was filling it; submission is
     validated against the DISPLAYED version, a removed/changed field never silently rewrites completed answers.
     Error red is #b91c1c (not #dc2626) so it passes WCAG AA on --ba-secondary too (see dev-notes.md § Color contrast).

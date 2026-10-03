@@ -6,7 +6,7 @@
 
 ## Overview
 
-The authenticated customer path shares all of its steps with the guest path (4 by default; the real indicator is computed — M23-S11 adds an intake step, resource/duration steps and the booking-details success box) — there is no separate component or route branch. `BookingForm` calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, the form treats the visitor as an authenticated customer for the rest of the flow (step 3 hides contact fields and pre-fills the pickup address; submit calls a different endpoint).
+The authenticated customer path shares all of its steps with the guest path (4 by default; the real indicator is computed — M23-S11a adds an intake step, resource/duration steps and the booking-details success box) — there is no separate component or route branch. `BookingForm` calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, the form treats the visitor as an authenticated customer for the rest of the flow (step 3 hides contact fields and pre-fills the pickup address; submit calls a different endpoint).
 
 ---
 
@@ -18,7 +18,7 @@ The authenticated customer path shares all of its steps with the guest path (4 b
 | `apps/web/features/booking/components/public/BookingForm.tsx` | Auto-detects auth via `getHotsiteCustomerProfile(slug)` — no `mode` prop |
 | `apps/web/features/booking/api/public.ts` | `createAuthenticatedBooking()`, `createBooking()` |
 | `apps/web/features/booking/components/public/PersonalInfoStep.tsx` | Reused for step 3 in both paths, via `hideContactFields` prop |
-| `apps/web/features/booking/components/public/{ServiceSelectionStep,AvailabilityCarousel,SlotPicker,ConfirmationStep,PhotoUpload,AddressFields}.tsx` | Shared with the guest flow (M23-S11 extends `ServiceSelectionStep`, the availability components and `ConfirmationStep` for both actors) |
+| `apps/web/features/booking/components/public/{ServiceSelectionStep,AvailabilityCarousel,SlotPicker,ConfirmationStep,PhotoUpload,AddressFields}.tsx` | Shared with the guest flow (M23-S11a extends `ServiceSelectionStep`, the availability components and `ConfirmationStep` for both actors) |
 
 There is no `/api/auth/callback/google` Next.js route and no `/select-tenant` page — OAuth is handled entirely by the BFF (`GET /v1/auth/google/callback`), and login-time tenant selection was permanently descoped (see `customer/login.md`).
 
@@ -136,15 +136,15 @@ New files require Vitest unit tests (`*.spec.tsx` alongside each new component);
 
 ---
 
-## ❓ GAP — Intake step (M23-S11, UC-068; backend/BFF shipped in M23-S02, frontend not built)
+## ❓ GAP — Intake step (M23-S11a, UC-068; backend/BFF shipped in M23-S02, frontend not built)
 
 For a service with an active `service_booking_intake_schema`, the authenticated-customer flow gains one step between Review (Step 3) and Confirmation: Services → Calendar → Review → **Intake (`IntakeAnswersStep`)** → Confirm ("Passo N de 5"). Services without a schema skip it and the flow stays 4 steps.
 
-- Prototype: `03b-intake-answers.html` + `03c-intake-answers-error.html` — the same component and behavior as the guest path; full spec (schema-driven rendering, version kept as `intakeSchemaVersion`, no submit on this step, `#b91c1c` error text, `422 intake-answer-missing`) lives in `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § Intake step placement.
+- Prototype: `03b-intake-answers.html` + `03c-intake-answers-error.html` (client field errors) + `03e-intake-answers-erro-servidor.html` (server rejection, summary only) — the same component and behavior as the guest path; full spec (schema-driven rendering, version kept as `intakeSchemaVersion`, no submit on this step, `#b91c1c` error text, `422 intake-answer-missing`) lives in `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § Intake step placement.
 - Customer-specific: the final `POST /bookings/authenticated` on Confirmation carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` (identical shape to the guest endpoint, `docs/14-API_CONTRACTS.md`).
 - File: `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` — one component for both actors, not duplicated.
 
-**Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 intake-answer-missing` naming the missing field(s) — it names question `fieldKey`s, `participantCount` and `consentAccepted`, never attendee problems):**
+**Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 BOOKING_INTAKE_ANSWER_MISSING`, whose missing field names are only in `detail` and never rendered — field-level errors here are client-side only; a server-only rejection shows the summary banner (`03e`)):**
 
 | Field | Source in the schema | Control | Rule | Error message | `data-testid` |
 |---|---|---|---|---|---|
@@ -152,7 +152,7 @@ For a service with an active `service_booking_intake_schema`, the authenticated-
 | each question, `type = BOOLEAN`, optional | `questions[]` | single checkbox | none (unchecked = `false` or omitted) | — | — |
 | each question, `type = BOOLEAN`, `required = true` | `questions[]` | **Sim / Não radio pair** | an explicit answer is required; `false` ("Não") is valid — the backend checks the key is present, not that it is `true` | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
 | `participantCount` | shown only if `participantCountRequired` | number input | integer > 0 (BFF `z.number().int().positive()`) | `"Informe a quantidade de participantes."` | `intake-field-error-participants` |
-| `attendees[]` | shown only if `requiresNamedAttendees` | repeatable rows: name input + "Menor de idade" checkbox + Remover; "Adicionar participante" | each row `{ name: 1–255 chars trimmed, isMinor?: boolean (default false) }`; **no minimum count** — the backend never requires ≥ 1 attendee nor ties the count to `participantCount` (open decision for story-discovery: enforce a minimum in the UI?) | row name blank → `"Informe o nome do participante."` (client-only) | `intake-field-error-attendees` |
+| `attendees[]` | shown only if `requiresNamedAttendees` | repeatable rows: name input + "Menor de idade" checkbox + Remover; "Adicionar participante" | each row `{ name: 1–255 chars trimmed, isMinor?: boolean (default false) }`; **no minimum count** — the backend never requires ≥ 1 attendee nor ties the count to `participantCount` (decided: no minimum is enforced in the UI) | row name blank → `"Informe o nome do participante."` (client-only) | `intake-field-error-attendees` |
 | `consentAccepted` | `consentText` (always shown) | checkbox, label = `consentText` | must be `true` | `"Você precisa aceitar os termos para continuar."` | `intake-consent-error` |
 
 Summary banner on any failure: `data-testid="intake-error-summary"`, `role="alert"`. The step holds no async state — it never submits, so there is no loading/success state of its own (the POST and its states stay on Confirmation).
@@ -168,6 +168,17 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 
 ---
 
-### M23-S11 — success details box and the other new steps
+### M23-S11a / M23-S11b — the other new steps (reuse of the guest screens)
 
-The customer path gets the same components as the guest path. See `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § ❓ GAP for the picker, bundle, leg, variable-duration and intake steps and the error table; `04d-success.html` here shows the subtle booking-details box (`BookingSubmittedDetails`) between the unchanged "Solicitação enviada!" message and the buttons, for every booking. `plan/journey/guest/prototypes/book-a-service/04f-success-details-resources.html` shows the resource/leg variant (it applies to both actors).
+The authenticated-customer flow uses the **same components and the same screens** as the guest flow; the clickable prototype for them lives in `plan/journey/guest/prototypes/book-a-service/` and is not duplicated here. Only the auth bar (avatar → Minha conta / Sair) and Step 3's `hideContactFields` differ, and both are already drawn in this folder (`01`–`04`).
+
+| Customer step | Screens (guest folder) | Customer-specific difference |
+|---|---|---|
+| Step 1 type-aware cards, schema loading/error, multiple-variable error | `01c`–`01f` | none |
+| Resource picker (only when there is a `CUSTOMER_CHOICE` requirement — **automatic resources have no screen**) | `05`–`05g` | none |
+| Variable duration · journey confirmation | `12`–`12d` · `10` | none; the journey confirmation submits `POST /bookings/authenticated` |
+| Shared availability step · slot / bundle / leg errors | `11` · `02e`, `09b`, `10b` | none |
+| Intake step · errors | `03b`/`03c`/`03e` here (same as `13`/`13b`/`13c`) | none |
+| Success box | `04d` here (plain, CTA → Agendamentos) · `04f`/`04g`/`04h` (guest folder) | the primary CTA links to the Agendamentos list |
+
+Error routing, step paths and the design decisions: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § ❓ GAP.

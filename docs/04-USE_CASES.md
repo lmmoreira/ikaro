@@ -1029,7 +1029,7 @@ Returns:
   1. Customer goes directly to the calendar/slot picker — no staff-selection step (unlike UC-061).
   2. Availability is the union across every active `STAFF` resource offering this service.
   3. Customer picks a slot and submits; system assigns whichever eligible staff member is free.
-  4. The booking-submitted view (the details box under "Solicitação enviada!", M23-S11) reveals the assigned staff member's name (unlike UC-062, where no identity is shown).
+  4. The booking-submitted view (the details box under "Solicitação enviada!", M23-S11a) reveals the assigned staff member's name (unlike UC-062, where no identity is shown).
 - **Alternative Flows:**
   - **A1: More than one staff member is free for the chosen slot** → System selects the one with the least already-locked workload on that tenant-local day; `resourceId` is the stable tie-breaker.
 - **Postconditions:** Booking exists with a resolved resource assignment the customer did not choose.
@@ -1064,7 +1064,7 @@ Returns:
 - **Main Flow:**
   1. Customer picks `CUSTOMER_CHOICE` resources per leg where applicable.
   2. Calendar shows start times where the **entire chained itinerary** fits — every leg's resource(s) free at that leg's computed sub-window, honoring transition gaps.
-  3. Customer books; the booking-submitted view (the details box under "Solicitação enviada!", M23-S11) shows the full itinerary (per-leg time + resource(s)).
+  3. Customer books; the booking-submitted view (the details box under "Solicitação enviada!", M23-S11b) shows the full itinerary (per-leg time + resource(s)).
 - **Alternative Flows:**
   - **A1: A middle leg's resource(s) become unavailable between page load and submit** → System re-validates the whole chain atomically at submit time; `409 Conflict` — "one part of this journey is no longer available."
 - **Postconditions:** One `BookingLine` with a full leg-assignment snapshot.
@@ -1150,6 +1150,7 @@ Returns:
   - **A3: Staff policy override** → Staff records reason and actor, but never bypasses capacity, verification, or resource exclusivity, and never runs the reschedule-window eligibility check (staff acts outside that customer-facing guardrail, same as the existing cancellation-window override).
 - **Postconditions:** Customer never loses the original slot merely because a replacement submit races.
 - **Events Triggered:** `BookingRescheduled`.
+- **Customer UI (M23-S30, 2026-10-03):** the customer screen changes the date and time only — the booking's `CUSTOMER_CHOICE` picks and duration are kept (shown read-only), so it sends `{ scheduledAt }` and the price never changes; only an `APPROVED` booking inside the reschedule window offers the action. The body-supplied `resourceSelections`/`durationMinutes` remain API capabilities (staff override), not customer-screen features.
 
 ---
 

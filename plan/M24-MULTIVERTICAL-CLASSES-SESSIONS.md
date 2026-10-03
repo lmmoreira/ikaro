@@ -941,12 +941,12 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 **Agent:** `frontend-ts`
 **Complexity:** S
 **Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components
-**Dependencies:** M24-S17, M24-S19 (the class-agenda routes this story links to), M23-S11 (the Step 1 service list this story extends), M23-S29 (the public service list exposes `bookingModel`)
+**Dependencies:** M24-S17, M24-S19 (the class-agenda routes this story links to), M23-S11a (the Step 1 service list this story extends), M23-S29 (the public service list exposes `bookingModel`)
 **Pattern:** plain composition — one extra card variant in the existing `ServiceSelectionStep`; no new pattern.
 **Prototype references:** `plan/journey/guest/book-a-service/` is unchanged by this story; the destination screens are `plan/journey/guest/prototypes/book-a-class/01-class-agenda.html` and `plan/journey/customer/prototypes/reservar-aula/`. This story needs one new prototype variant of the booking-page Step 1 showing a class card (drafted at its own `/story-discovery`, per `plan/journey/README.md`).
 
 **Description:**
-`POST /bookings` rejects any service whose `bookingModel` is not `APPOINTMENT` (`request-booking.use-case.ts:153`), so the appointment flow's Step 1 (M23-S11) lists only `APPOINTMENT` services — a `SESSION` (class) service must never be selectable there. Without this story a tenant that offers classes has no way to reach them from the booking page: the class agenda routes (`/[slug]/aulas`, M24-S17 for customers; `/[slug]/aulas/agenda`, M24-S19 for guests) exist but nothing links to them. This story adds the entry point: the Step 1 list shows each `SESSION` service as a non-selectable "Ver turmas" card, below the appointment services, that routes to the class agenda for that service (`serviceId` retained). It replaces the type-selector screen (16) that was removed from M23 — a class is just another service in the same list, rendered differently by `bookingModel`.
+`POST /bookings` rejects any service whose `bookingModel` is not `APPOINTMENT` (`request-booking.use-case.ts:153`), so the appointment flow's Step 1 (M23-S11a) lists only `APPOINTMENT` services — a `SESSION` (class) service must never be selectable there. Without this story a tenant that offers classes has no way to reach them from the booking page: the class agenda routes (`/[slug]/aulas`, M24-S17 for customers; `/[slug]/aulas/agenda`, M24-S19 for guests) exist but nothing links to them. This story adds the entry point: the Step 1 list shows each `SESSION` service as a non-selectable "Ver turmas" card, below the appointment services, that routes to the class agenda for that service (`serviceId` retained). It replaces the type-selector screen (16) that was removed from M23 — a class is just another service in the same list, rendered differently by `bookingModel`.
 
 **Open items carried into `/story-discovery M24-S20`:** (1) one link or two — the customer (`/aulas`) and guest (`/aulas/agenda`) routes differ, so the card either detects authentication (as `BookingForm` already does with `getHotsiteCustomerProfile`) or the two routes are unified; (2) whether the `BOOKING_CTA` hotsite module should route straight to the agenda when the tenant has only `SESSION` services; (3) whether a basket mixing an appointment service and a class is simply impossible (the class card is not selectable) or needs an explanation; (4) `guestAccessEnabled = false` services — hidden from guests, shown to customers only.
 
@@ -960,7 +960,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 
 **Acceptance criteria — product:**
 - [ ] A tenant offering both appointment and class services sees both in the booking page's Step 1; selecting an appointment service starts the booking flow, a class card links to the class agenda instead and cannot be added to the basket.
-- [ ] A tenant with no `SESSION` services sees Step 1 exactly as M23-S11 leaves it.
+- [ ] A tenant with no `SESSION` services sees Step 1 exactly as M23-S11a leaves it.
 - [ ] The card never appears for a service the visitor may not book (`guestAccessEnabled = false` for a guest, per M24-S19).
 
 **Acceptance criteria — technical:**

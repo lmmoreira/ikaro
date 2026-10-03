@@ -169,6 +169,11 @@
 
             <!-- Mobile-only actions -->
             <div class="mobile-actions">
+              <!-- M23-S30 (UC-069): "Reagendar" only when status = APPROVED and the reschedule window is still open (a PENDING booking offers only Cancelar). -->
+              <a href="15-reagendar.html" class="btn-secondary"
+                 style="display:block;text-align:center;padding:0.8125rem;margin-bottom:0.625rem;" data-testid="reschedule-button">
+                Reagendar
+              </a>
               <a href="03-cancel-confirm.html" class="btn-danger"
                  style="display:block;text-align:center;padding:0.8125rem;">
                 Cancelar agendamento
@@ -187,6 +192,10 @@
                 <strong style="color:var(--ba-text);opacity:1;">18 jun 2026 às 10h00</strong><br>
                 <span style="font-size:0.8125rem;">(48 horas antes do serviço)</span>
               </p>
+              <a href="15-reagendar.html" class="btn-secondary"
+                 style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;" data-testid="reschedule-button">
+                Reagendar
+              </a>
               <a href="03-cancel-confirm.html" class="btn-danger"
                  style="display:block;text-align:center;padding:0.75rem;">
                 Cancelar agendamento

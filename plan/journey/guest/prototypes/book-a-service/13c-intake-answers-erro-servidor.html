@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Passo 4 — Dados do serviço — Vitta Studio</title>
+  <title>Erro no envio — Passo 4 — Dados do serviço — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     .field { margin:1rem 0; }
@@ -12,28 +12,20 @@
 </head>
 <body>
   <!--
-    COMPONENT: IntakeAnswersStep  (M23-S11a — new, not built yet)
-    FILE:      apps/web/features/booking/components/public/IntakeAnswersStep.tsx
-    POSITION:  its own step AFTER Review (Step 3, PersonalInfoStep with hideContactFields) — authenticated-customer path; same component as the guest path (see guest/prototypes/book-a-service/13-intake-answers.html) — and BEFORE Confirmation (the final summary + submit).
-               Shown ONLY when the selected service has an active service_booking_intake_schema;
-               otherwise Step 3 goes straight to Confirmation. The step total becomes "N de 5" for
-               an intake-bearing service ("Passo 5 de 5" = Confirmation).
-    DATA:      GET /services/:id/intake-schema/public  ->  { active } (no auth, active version only)
-    RENDERING: schema-driven, NOT hardcoded. The fields below are illustrative:
-                 - one input per `questions[]` entry: type FREE_TEXT -> textarea/input, type BOOLEAN -> checkbox when optional / Sim-Não radio pair when required ("Não" is a valid answer; the backend only checks the key is present),
-                   `required` -> asterisk + validation, `label` -> the visible label
-                 - "Quantidade de participantes" only when `participantCountRequired = true`
-                 - "Participantes nomeados" only when `requiresNamedAttendees = true`: a repeatable list of { name (1-255), isMinor? } rows — NOT free text
-                 - consent checkbox always, text = `consentText` (always required)
-    STATE:     keeps the displayed `version` in the form state and submits it as `intakeSchemaVersion`;
-               answers are validated against THAT version, never silently re-validated against a newer one.
-    NO SUBMIT: this step only collects and validates locally; the POST /bookings happens on the Confirmation step.
+    ERROR VARIANT of 13-intake-answers.html — SERVER-SIDE rejection only. The client validation passed (or the schema changed
+    between the displayed version and the server's check), and POST /bookings returned 422 BOOKING_INTAKE_ANSWER_MISSING.
+    That error carries NO machine-readable field names (they are only in `detail`, which is never rendered), so NO field is
+    highlighted: the step shows ONLY the summary banner with the catalogue text. Field-level errors (13b) come exclusively from
+    client validation of the displayed schema. The form returns to this step with every answer kept.
+    COPY: catalogue text of the wire code: "É necessário responder às perguntas obrigatórias e aceitar os termos."
+    data-testid hooks: intake-error-summary
   -->
   <header style="background:white;border-bottom:1px solid var(--ba-secondary);padding:.75rem 1.5rem"><strong>Vitta Studio</strong></header>
   <main class="step-container">
     <p class="step-indicator">Passo 4 de 5</p>
     <h1 style="font-size:1.5rem">Dados do serviço</h1>
     <p style="opacity:.7">Estas perguntas dependem do serviço escolhido. O que você enviar fica registrado com a versão atual do formulário (v<span id="schema-version">2</span>).</p>
+    <div role="alert" data-testid="intake-error-summary" style="margin:1rem 0;padding:.875rem;background:#fef2f2;border-radius:var(--ba-radius);font-size:.875rem;color:#b91c1c;"><strong>Não foi possível continuar</strong><br>É necessário responder às perguntas obrigatórias e aceitar os termos.</div>
     <form id="intake-form">
       <div class="field"><label for="q-goal">Qual o objetivo da reserva? <span aria-hidden="true">*</span></label><textarea id="q-goal" class="form-input" rows="2" required></textarea></div>
       <div class="field"><label for="q-access">Necessidades de acesso <span aria-hidden="true">(opcional)</span></label><textarea id="q-access" class="form-input" rows="2" placeholder="Ex.: acesso sem escadas"></textarea></div>
@@ -58,7 +50,7 @@
         <p class="hint">Cada participante tem nome e, se for o caso, é marcado como menor de idade (quem reserva em nome de um menor é o responsável). Os participantes são opcionais — não há mínimo exigido pelo servidor.</p>
       </fieldset>
       <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
-      <div class="nav-buttons"><a class="btn-secondary" href="03d-review-confirm-with-intake.html">Voltar</a><button id="next" class="btn-primary" type="submit" disabled>Próximo</button></div>
+      <div class="nav-buttons"><a class="btn-secondary" href="03d-personal-info-with-intake.html">Voltar</a><button id="next" class="btn-primary" type="submit" disabled>Próximo</button></div>
     </form>
   </main>
   <script>

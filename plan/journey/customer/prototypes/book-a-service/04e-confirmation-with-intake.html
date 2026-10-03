@@ -8,7 +8,7 @@
 </head>
 <body>
   <!--
-    VARIANT — service WITH an active intake schema (M23-S11): final step is "Passo 5 de 5"; "Voltar" returns to
+    VARIANT — service WITH an active intake schema (M23-S11a): final step is "Passo 5 de 5"; "Voltar" returns to
     03b-intake-answers.html. This step still owns the POST /bookings/authenticated. Default 4-step path: 04-confirmation.html.
   -->
   <!--
@@ -26,13 +26,24 @@
           serviceIds:              string[],   // uuid[]
           pickupAddress?:          Address,    // optional, only if requiresPickupAddress
           beforeServicePhotoUrls?: string[],   // GCS keys, optional
+          // M23 (all optional; same shape and rules as the guest endpoint, docs/14-API_CONTRACTS.md):
+          resourceSelections?:     { serviceId, legIndex, resourceType, resourceId }[],
+          durationMinutes?:        number,
+          participantCount?:       number,
+          intakeSchemaVersion?:    number,
+          intakeAnswers?:          Record<string, string | boolean>,
+          consentAccepted?:        boolean,
+          attendees?:              { name: string, isMinor?: boolean }[],
         }
 
     NOTE: NO contactName / contactEmail / contactPhone in payload — BFF reads customer from JWT sub.
 
     RESPONSES: same handling as guest
-      201 Created → status = 'success'
-      409 Conflict → back to step 2 + step2Error
+      201 Created → status = 'success' (keeps the response: BookingSubmittedDetails reads it)
+      409 BOOKING_SLOT_UNAVAILABLE / BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE / BOOKING_LEG_UNAVAILABLE → back to the availability step, slot cleared
+      422 BOOKING_DURATION_OUT_OF_RANGE → duration step · BOOKING_RESOURCE_SELECTION_REQUIRED / ..._TYPE_UNAVAILABLE → picker
+      422 BOOKING_INTAKE_ANSWER_MISSING → intake step (03e: summary banner only) · BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES → Step 1
+      401 → hotsite login (existing handling)
       Other → status = 'error'
   -->
 

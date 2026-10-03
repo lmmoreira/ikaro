@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Horário indisponível — pacote</title>
+  <title>Passo 2 — Nada escolhido</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     .staff-card { display:flex; align-items:center; gap:0.875rem; padding:0.875rem; cursor:pointer; }
@@ -37,13 +37,19 @@
 </head>
 <body>
   <!--
-    ERROR VARIANT — the AVAILABILITY step (see 11-appointment-availability.html) after POST /bookings returned
-    409 BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE (UC-064 A2).
-    The form returns to the availability step: services, resource picks and duration are KEPT; ONLY the slot is cleared (so
-    Próximo is disabled until a new slot is picked) and the slot list is re-fetched. The picker is NOT redrawn.
-    COPY: static catalogue message (packages/i18n/locales/pt-BR/errors.json): "Parte deste agendamento não está mais disponível."
-    The error carries no resource name, window or alternative, so none is shown. Nothing was booked (atomic).
-    INDICATOR: path "chosen staff + intake" = "Passo 3 de 6".
+    COMPONENT: ResourcePicker  apps/web/features/booking/components/public/ResourcePicker.tsx  (NEW, M23-S11a)
+    ONE screen for EVERY resource type and EVERY service type (staff, room, equipment; flat service, bundle, legged
+    journey). It is built from GET /public/services/:id/resource-options -> requirements[]; each requirement whose
+    selectionMode is CUSTOMER_CHOICE becomes one section (heading = resource type label, plus the leg name for a legged
+    service). AUTO_ANY / AUTO_FUNGIBLE_POOL / NONE requirements never produce a section.
+    NO SCREEN WHEN: the options response has no CUSTOMER_CHOICE requirement (auto staff, fungible pool, an automatic
+    room, ...). The step engine (resolveBookingSteps) omits the step entirely: Serviços -> next step, no note, no
+    "automatic" screen. The assigned name only appears AFTER booking (04h); a pool never shows a unit name.
+    BFF CALL:  GET /public/services/:id/resource-options (M23-S29)  ->  requirements[{ serviceId, legIndex, resourceType,
+               selectionMode:'CUSTOMER_CHOICE', requiredQuantity, options:[{ resourceId, name }] }]  — NAME ONLY.
+    OUTPUT:    the picks go to availability (resourceSelections param) and to POST /bookings (resourceSelections[]).
+    INDICATOR: computed. This screen shows the path "chosen staff + intake" = "Passo 2 de 6".
+    STATE: nothing picked yet — Próximo disabled (aria-disabled), hint below the list.
   -->
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
     <div style="display:flex;align-items:center;gap:0.625rem;">
@@ -53,13 +59,15 @@
     <a href="../../../shared/login.html" style="font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">Entrar</a>
   </div>
   <div class="step-container">
-    <p class="step-indicator">Passo 3 de 6</p>
-    <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.375rem;color:var(--ba-text)">Escolha data e horário</h2>
-    <p style="font-size:0.875rem;opacity:0.7;margin-bottom:1.25rem;">Massagem Relaxante · Renata Souza</p>
-    <div class="alert-err" role="alert" data-testid="availability-error"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div><p class="t">Parte deste agendamento não está mais disponível.</p><p class="d">Nada foi confirmado — nenhuma reserva parcial foi criada. Escolha outro horário.</p></div></div>
-    <div style="display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.5rem"><button class="day-pill available"><span>TER</span><strong>05</strong></button><button class="day-pill selected"><span>QUA</span><strong>06</strong></button><button class="day-pill available"><span>QUI</span><strong>07</strong></button></div>
-    <section style="margin-top:1.25rem"><p class="hint" style="margin-bottom:.75rem">Horários disponíveis — Qua, 06 de agosto</p><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="slot-btn">09:00</button><button class="slot-btn">10:00</button><button class="slot-btn">16:00</button></div></section>
-    <div class="nav-buttons"><button class="btn-secondary" onclick="window.history.back()">Voltar</button><button class="btn-primary btn-disabled" disabled aria-disabled="true">Próximo</button></div>
+    <p class="step-indicator">Passo 2 de 6</p>
+    <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.375rem;color:var(--ba-text)">Escolha o profissional</h2>
+    <p style="font-size:0.875rem;opacity:0.7;margin-bottom:1.25rem;">Corte + Escova — R$ 90,00 — 50 min</p>
+    <ul style="display:flex;flex-direction:column;gap:0.75rem;list-style:none;padding:0;">
+      <li><label class="card staff-card"><input type="radio" name="p" style="width:1.125rem;height:1.125rem;"><div class="staff-avatar">CD</div><div style="flex:1;"><p class="staff-name">Camila Duarte</p></div></label></li>
+      <li><label class="card staff-card"><input type="radio" name="p" style="width:1.125rem;height:1.125rem;"><div class="staff-avatar" style="background:#7c3aed;">BA</div><div style="flex:1;"><p class="staff-name">Bruno Alves</p></div></label></li>
+    </ul>
+    <p class="hint" style="margin-top:0.75rem;">Escolha um profissional para continuar.</p>
+    <div class="nav-buttons"><a class="btn-secondary" href="01-service-selection.html">Voltar</a><button class="btn-primary btn-disabled" disabled aria-disabled="true">Próximo</button></div>
   </div>
 </body>
 </html>
