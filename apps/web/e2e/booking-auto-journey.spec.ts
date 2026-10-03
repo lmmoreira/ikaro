@@ -317,3 +317,186 @@ test.describe('M23-S11a — journey (multi-leg) picks', () => {
     }
   });
 });
+
+test.describe('M23-S11a — automatic and selectable resources together', () => {
+  async function cleanup(page: Page, serviceId: string, resourceIds: readonly string[]) {
+    await deactivateService(page, serviceId);
+    for (const id of resourceIds) await deactivateResource(page, id);
+  }
+
+  test('a flat service with a chosen staff member and an automatic room asks only for the staff member', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const staffs = [await seedResource(page, 'STAFF'), await seedResource(page, 'STAFF')];
+    const room = await seedResource(page, 'ROOM');
+    const service = await seedService(page, 'e2e-misto-plano');
+    await setResourceRequirements(page, service.serviceId, [
+      { type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE', resourcePoolIds: staffs.map((s) => s.id) },
+      { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: [room.id] },
+    ]);
+    const guest = await newGuestPage(browser);
+
+    try {
+      await openBooking(guest.page);
+      await selectService(guest.page, service.serviceId);
+      await nextButton(guest.page).click();
+
+      await expect(stepIndicator(guest.page, 2, 5)).toBeVisible();
+      await expect(guest.page.getByTestId('picker-section')).toHaveCount(1);
+      await expect(guest.page.getByTestId('picker-section')).toHaveAttribute(
+        'data-resource-type',
+        'STAFF',
+      );
+      await guest.page.locator(`[data-resource-id="${staffs[1]!.id}"]`).click();
+      await nextButton(guest.page).click();
+      await finishGuestBooking(guest.page);
+
+      await expect(guest.page.getByTestId('booking-success')).toBeVisible();
+      const rows = guest.page.getByTestId('submitted-resource');
+      await expect(rows).toHaveCount(2);
+      await expect(rows.filter({ hasText: staffs[1]!.name })).toHaveCount(1);
+      await expect(rows.filter({ hasText: room.name })).toHaveCount(1);
+    } finally {
+      await guest.close();
+      await cleanup(page, service.serviceId, [...staffs.map((s) => s.id), room.id]);
+    }
+  });
+
+  test('a journey whose first leg mixes an automatic room and a chosen staff member shows one section there, skips the automatic leg and asks for the last', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const roomAuto = await seedResource(page, 'ROOM');
+    const roomMid = await seedResource(page, 'ROOM');
+    const staffs = [await seedResource(page, 'STAFF'), await seedResource(page, 'STAFF')];
+    const equipments = [
+      await seedResource(page, 'EQUIPMENT'),
+      await seedResource(page, 'EQUIPMENT'),
+    ];
+    const service = await seedService(page, 'e2e-misto-jornada', 70);
+    await setServiceLegs(page, service.serviceId, [
+      {
+        legIndex: 0,
+        name: 'Sauna',
+        durationMinutes: 20,
+        resourceRequirements: [
+          { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: [roomAuto.id] },
+          {
+            type: 'STAFF',
+            selectionMode: 'CUSTOMER_CHOICE',
+            resourcePoolIds: staffs.map((s) => s.id),
+          },
+        ],
+      },
+      {
+        legIndex: 1,
+        name: 'Banho',
+        durationMinutes: 30,
+        resourceRequirements: [
+          { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: [roomMid.id] },
+        ],
+      },
+      {
+        legIndex: 2,
+        name: 'Relaxamento',
+        durationMinutes: 20,
+        resourceRequirements: [
+          {
+            type: 'EQUIPMENT',
+            selectionMode: 'CUSTOMER_CHOICE',
+            resourcePoolIds: equipments.map((e) => e.id),
+          },
+        ],
+      },
+    ]);
+    const guest = await newGuestPage(browser);
+
+    try {
+      await openBooking(guest.page);
+      await selectService(guest.page, service.serviceId);
+      await nextButton(guest.page).click();
+
+      await expect(stepIndicator(guest.page, 2, 6)).toBeVisible();
+      await expect(guest.page.getByTestId('picker-heading')).toHaveText('Sauna');
+      await expect(guest.page.getByTestId('picker-section')).toHaveCount(1);
+      await expect(guest.page.getByTestId('picker-section')).toHaveAttribute(
+        'data-resource-type',
+        'STAFF',
+      );
+      await guest.page.locator(`[data-resource-id="${staffs[0]!.id}"]`).click();
+      await nextButton(guest.page).click();
+
+      // Leg 2 ("Banho") is fully automatic: no step of its own.
+      await expect(stepIndicator(guest.page, 3, 6)).toBeVisible();
+      await expect(guest.page.getByTestId('picker-heading')).toHaveText('Relaxamento');
+      await guest.page.locator(`[data-resource-id="${equipments[0]!.id}"]`).click();
+      await nextButton(guest.page).click();
+
+      await finishGuestBooking(guest.page);
+      await expect(guest.page.getByTestId('booking-success')).toBeVisible();
+    } finally {
+      await guest.close();
+      await cleanup(page, service.serviceId, [
+        roomAuto.id,
+        roomMid.id,
+        ...staffs.map((s) => s.id),
+        ...equipments.map((e) => e.id),
+      ]);
+    }
+  });
+
+  test('a journey whose every leg is automatic goes straight from the services to the date step', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const room = await seedResource(page, 'ROOM');
+    const staff = await seedResource(page, 'STAFF');
+    const equipment = await seedResource(page, 'EQUIPMENT');
+    const service = await seedService(page, 'e2e-jornada-auto', 70);
+    await setServiceLegs(page, service.serviceId, [
+      {
+        legIndex: 0,
+        name: 'Sauna',
+        durationMinutes: 20,
+        resourceRequirements: [
+          { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: [room.id] },
+        ],
+      },
+      {
+        legIndex: 1,
+        name: 'Massagem',
+        durationMinutes: 30,
+        resourceRequirements: [
+          { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: [staff.id] },
+        ],
+      },
+      {
+        legIndex: 2,
+        name: 'Relaxamento',
+        durationMinutes: 20,
+        resourceRequirements: [
+          { type: 'EQUIPMENT', selectionMode: 'AUTO_ANY', resourcePoolIds: [equipment.id] },
+        ],
+      },
+    ]);
+    const guest = await newGuestPage(browser);
+
+    try {
+      await openBooking(guest.page);
+      await selectService(guest.page, service.serviceId);
+      await nextButton(guest.page).click();
+
+      await expect(stepIndicator(guest.page, 2, 4)).toBeVisible();
+      await expect(guest.page.getByTestId('resource-picker')).toHaveCount(0);
+      await finishGuestBooking(guest.page);
+      await expect(guest.page.getByTestId('booking-success')).toBeVisible();
+    } finally {
+      await guest.close();
+      await cleanup(page, service.serviceId, [room.id, staff.id, equipment.id]);
+    }
+  });
+});
