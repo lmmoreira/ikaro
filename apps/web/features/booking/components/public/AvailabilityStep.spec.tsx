@@ -68,7 +68,11 @@ describe('AvailabilityStep', () => {
   it('shows the step2 error when present', () => {
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
     renderWithIntl(
-      <AvailabilityStep {...baseProps()} datePickerType="carousel" error="Erro no passo 2" />,
+      <AvailabilityStep
+        {...baseProps()}
+        datePickerType="carousel"
+        error={{ message: 'Erro no passo 2' }}
+      />,
     );
 
     expect(screen.getByTestId('step2-error')).toHaveTextContent('Erro no passo 2');
@@ -106,5 +110,60 @@ describe('AvailabilityStep', () => {
     await user.click(screen.getByRole('button', { name: 'Voltar' }));
 
     expect(onBack).toHaveBeenCalled();
+  });
+
+  it('forwards the resource picks and the duration to the summary and the slot queries', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+    vi.mocked(fetchAvailability).mockResolvedValue(availability);
+    const picks = [
+      { serviceId: 'svc-1', legIndex: null, resourceType: 'STAFF' as const, resourceId: 'r-1' },
+    ];
+    renderWithIntl(
+      <AvailabilityStep
+        {...baseProps()}
+        datePickerType="carousel"
+        selectedDate="2026-06-15"
+        resourceSelections={picks}
+        durationMinutes={90}
+      />,
+    );
+
+    await screen.findByTestId('time-slot');
+
+    const flow = { resourceSelections: picks, durationMinutes: 90 };
+    expect(fetchAvailabilitySummary).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      expect.any(String),
+      expect.any(String),
+      ['svc-1'],
+      flow,
+    );
+    expect(fetchAvailability).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      '2026-06-15',
+      ['svc-1'],
+      flow,
+    );
+  });
+
+  it('re-fetches the slot list when a pick changes', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+    vi.mocked(fetchAvailability).mockResolvedValue(availability);
+    const pick = (resourceId: string) => [
+      { serviceId: 'svc-1', legIndex: null, resourceType: 'STAFF' as const, resourceId },
+    ];
+    const props = {
+      ...baseProps(),
+      datePickerType: 'carousel' as const,
+      selectedDate: '2026-06-15',
+    };
+    const { rerender } = renderWithIntl(
+      <AvailabilityStep {...props} resourceSelections={pick('r-1')} />,
+    );
+    await screen.findByTestId('time-slot');
+
+    rerender(<AvailabilityStep {...props} resourceSelections={pick('r-2')} />);
+
+    await vi.waitFor(() => expect(fetchAvailability).toHaveBeenCalledTimes(2));
   });
 });

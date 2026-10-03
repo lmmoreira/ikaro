@@ -2,8 +2,8 @@
 
 **Actor(s):** GUEST  
 **Goal:** Submit a booking request on a tenant's public hotsite without authentication  
-**UCs covered:** UC-001, UC-011 (✅ Reviewed) · UC-061, UC-062, UC-063, UC-064, UC-065, UC-066, UC-067, UC-068 (❓ Gap — M23 Cluster 3 frontend, `M23-S11a` (A, B, E) and `M23-S11b` (C, D) on top of `M23-S29`; backend/BFF for UC-061–068 shipped in M23-S01–S03; UC-066 = the picker flow, the staff directory is deferred)  
-**Status:** Base flow reviewed — M23 Cluster 3 extension not yet built, see the ❓ GAP section in `dev-notes.md`
+**UCs covered:** UC-001, UC-011 (✅ Reviewed) · UC-061, UC-062, UC-063, UC-064 (flat bundle picks), UC-066, UC-068 (✅ Built — `M23-S11a`) · UC-065 (picker per leg ✅ `M23-S11a`; the itinerary confirmation ❓ Gap `M23-S11b`) · UC-067 (per-time card ✅ `M23-S11a`; the duration step ❓ Gap `M23-S11b`); backend/BFF for UC-061–068 shipped in M23-S01–S03 and `M23-S29`; UC-066 = the picker flow, the staff directory is deferred  
+**Status:** Base flow reviewed — M23 Cluster 3 extension built by `M23-S11a` (step engine, service cards, resource picker, intake, details box); `M23-S11b` (bundle/journey confirmation, variable duration) still ❓ GAP, see `dev-notes.md`
 
 ## Flow
 
@@ -50,7 +50,7 @@ flowchart TD
 - UC-005 (A2) — guest submits admin-requested info: backend complete (`PATCH /bookings/:id/submit-info/guest?token=`), but frontend page `/[slug]/bookings/:id/submit-info` does not exist. Tracked in `guest/use-cases.md`. Out of scope for this journey.
 - When a session is full or an appointment has no matching availability, a guest cannot create a waitlist entry or availability alert. Preserve the selected session/criteria through login/account creation, then return the authenticated customer to the action.
 
-## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
+## M23 — Multi-Vertical Scheduling, Cluster 3 extension (✅ `M23-S11a` built · ❓ `M23-S11b` not yet built)
 
 > Promoted from `docs/discovery/multivertical-booking/`. Step 1 ("Select Services") now decides which extra steps the flow has. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 >
@@ -61,23 +61,23 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     S1b["Step 1: Select Services<br/>(existing — cards adapt per type: 01c per-time rate, 01d/01e/01f/01g errors and loading)"] --> HasChoice{"any CUSTOMER_CHOICE<br/>requirement?"}
-    HasChoice -- "yes (repeats for each leg that has a choice)" --> Picker["❓ GAP: resource picker — one section per choice<br/>(05, 05b–05h; one step per unit — each leg that has a choice)<br/>GET /public/services/:id/resource-options"]
+    HasChoice -- "yes (repeats for each leg that has a choice)" --> Picker["✅ resource picker — one section per choice<br/>(05, 05b–05h; one step per unit — each leg that has a choice)<br/>GET /public/services/:id/resource-options"]
     HasChoice -- "no (auto staff / pool / auto room: nothing shown)" --> HasDuration
     Picker -->|"next leg that has a choice"| Picker
     Picker --> HasDuration{"durationPolicy =<br/>CUSTOMER_SELECTED?"}
     HasDuration -- "yes" --> Duration["❓ GAP: duration + Total<br/>(12, 12b–12d)<br/>GET /public/services/:id/quote"]
     HasDuration -- "no" --> Availability
-    Duration --> Availability["❓ GAP: shared availability step<br/>(existing 02 — no UI change; resourceSelections + durationMinutes are optional query params)"]
+    Duration --> Availability["✅ shared availability step<br/>(existing 02 — no UI change; resourceSelections + durationMinutes are optional query params)"]
 
     Availability --> S3m["Step: Personal Info<br/>(03-personal-info, existing; 03d on the intake path)"]
-    S3m -->|"service has an active intake schema"| Intake["❓ GAP: intake answers + consent<br/>(13, 13b, 13c)<br/>GET /public/services/:id/intake-schema"]
+    S3m -->|"service has an active intake schema"| Intake["✅ intake answers + consent<br/>(13, 13b, 13c)<br/>GET /public/services/:id/intake-schema"]
     S3m -->|"no intake schema"| Confirm
     Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation; 04e on the intake path;<br/>10 = journey confirmation with the leg timeline)"]
     Confirm -->|"POST /bookings (always created PENDING)"| Done["Success: 'Solicitação enviada!'<br/>+ booking-details box (04d, 04f)<br/>+ Voltar para o site"]
-    Confirm -->|"409 slot / bundle / leg"| BackAvail["❓ GAP: back to availability, slot cleared<br/>(02e, 09b, 10b)"]
+    Confirm -->|"409 slot / bundle / leg"| BackAvail["✅ back to availability, slot cleared<br/>(02e; 09b and 10b share the path)"]
     Confirm -->|"422 duration"| Duration
     Confirm -->|"422 resource selection"| Picker
-    Confirm -->|"422 intake / 422 multiple variable"| Errors["❓ GAP: intake summary (13c) / Step 1 inline (01d)"]
+    Confirm -->|"422 intake / 422 multiple variable"| Errors["✅ intake summary (13c) / Step 1 inline (01d)"]
     BackAvail --> Availability
 ```
 

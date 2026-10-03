@@ -63,3 +63,47 @@ describe('fetchAvailability', () => {
     await expect(fetchAvailability('lavacar-beloauto', '2026-06-15', ['svc-1'])).rejects.toThrow();
   });
 });
+
+describe('availability flow params (resourceSelections / durationMinutes)', () => {
+  const picks = [
+    { serviceId: 'svc-1', legIndex: null, resourceType: 'STAFF', resourceId: 'r-1' },
+    { serviceId: 'svc-1', legIndex: 2, resourceType: 'ROOM', resourceId: 'r-2' },
+  ] as const;
+
+  it('encodes the picks as one comma-joined param and sends the duration on the day query', async () => {
+    mock.onGet().reply(200, { date: '2026-06-15', slots: [], available: false });
+
+    await fetchAvailability('lavacar-beloauto', '2026-06-15', ['svc-1'], {
+      resourceSelections: picks,
+      durationMinutes: 90,
+    });
+
+    const params = new URLSearchParams(mock.history.get?.[0]?.url?.split('?')[1]);
+    expect(params.get('resourceSelections')).toBe('svc-1:-:STAFF:r-1,svc-1:2:ROOM:r-2');
+    expect(params.get('durationMinutes')).toBe('90');
+  });
+
+  it('sends the same params on the summary query', async () => {
+    mock.onGet().reply(200, []);
+
+    await fetchAvailabilitySummary('lavacar-beloauto', '2026-06-15', '2026-06-28', ['svc-1'], {
+      resourceSelections: picks,
+    });
+
+    const params = new URLSearchParams(mock.history.get?.[0]?.url?.split('?')[1]);
+    expect(params.get('resourceSelections')).toBe('svc-1:-:STAFF:r-1,svc-1:2:ROOM:r-2');
+    expect(params.has('durationMinutes')).toBe(false);
+  });
+
+  it('leaves the query byte-identical when no flow param is given or the picks are empty', async () => {
+    mock.onGet().reply(200, { date: '2026-06-15', slots: [], available: false });
+
+    await fetchAvailability('lavacar-beloauto', '2026-06-15', ['svc-1'], {
+      resourceSelections: [],
+    });
+
+    expect(mock.history.get?.[0]?.url).toBe(
+      '/schedule/availability?date=2026-06-15&serviceIds=svc-1',
+    );
+  });
+});

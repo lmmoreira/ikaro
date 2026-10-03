@@ -3,7 +3,7 @@ import { renderWithIntl, hotsiteServiceBookingDefaults } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
+import type { AvailableSlot, BookingResponse, HotsiteServiceResponse } from '@ikaro/types';
 import { ConfirmationStep } from './ConfirmationStep';
 
 function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServiceResponse {
@@ -40,6 +40,9 @@ describe('ConfirmationStep', () => {
         selectedSlot={slot}
         status="idle"
         errorMessage={null}
+        booking={null}
+        picks={[]}
+        requirements={[]}
         onSubmit={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -64,6 +67,9 @@ describe('ConfirmationStep', () => {
         selectedSlot={slot}
         status="idle"
         errorMessage={null}
+        booking={null}
+        picks={[]}
+        requirements={[]}
         onSubmit={vi.fn()}
         onBack={onBack}
       />,
@@ -88,6 +94,9 @@ describe('ConfirmationStep', () => {
         selectedSlot={slot}
         status="idle"
         errorMessage={null}
+        booking={null}
+        picks={[]}
+        requirements={[]}
         onSubmit={onSubmit}
         onBack={vi.fn()}
       />,
@@ -110,6 +119,9 @@ describe('ConfirmationStep', () => {
         selectedSlot={slot}
         status="submitting"
         errorMessage={null}
+        booking={null}
+        picks={[]}
+        requirements={[]}
         onSubmit={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -131,6 +143,9 @@ describe('ConfirmationStep', () => {
         selectedSlot={slot}
         status="error"
         errorMessage="Horário indisponível, escolha outro"
+        booking={null}
+        picks={[]}
+        requirements={[]}
         onSubmit={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -153,6 +168,9 @@ describe('ConfirmationStep', () => {
         selectedSlot={slot}
         status="success"
         errorMessage={null}
+        booking={null}
+        picks={[]}
+        requirements={[]}
         onSubmit={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -162,5 +180,91 @@ describe('ConfirmationStep', () => {
       'Aguarde a confirmação por email.',
     );
     expect(screen.queryByRole('button', { name: 'Confirmar agendamento' })).not.toBeInTheDocument();
+  });
+
+  describe('on success with the created booking', () => {
+    const service = makeService();
+    const booking: BookingResponse = {
+      bookingId: 'b-1',
+      status: 'PENDING',
+      scheduledAt: slot.startsAt,
+      totalPrice: { amount: 150, currency: 'BRL' },
+      totalDurationMins: 60,
+      pickupAddress: null,
+      beforeServicePhotoUrls: [],
+      lines: [
+        {
+          lineId: 'l-1',
+          serviceId: service.id,
+          priceAtBooking: { amount: 150, currency: 'BRL' },
+          durationMinsAtBooking: 60,
+          pointsValueAtBooking: 10,
+          requiresPickupAddressAtBooking: false,
+        },
+      ],
+    };
+
+    function renderSuccess() {
+      return renderWithIntl(
+        <ConfirmationStep
+          slug="lavacar-beloauto"
+          services={[service]}
+          selectedServiceIds={[service.id]}
+          selectedDate="2026-06-15"
+          selectedSlot={slot}
+          status="success"
+          errorMessage={null}
+          booking={booking}
+          picks={[]}
+          requirements={[]}
+          onSubmit={vi.fn()}
+          onBack={vi.fn()}
+        />,
+      );
+    }
+
+    it('keeps the unchanged message and the back link around the details box', () => {
+      renderSuccess();
+
+      expect(screen.getByRole('heading', { name: 'Solicitação enviada!' })).toBeInTheDocument();
+      expect(screen.getByTestId('booking-success')).toBeInTheDocument();
+      expect(screen.getByTestId('booking-submitted-details')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Voltar para o site' })).toHaveAttribute(
+        'href',
+        '/lavacar-beloauto',
+      );
+    });
+  });
+
+  it('shows "a partir de" in the total of a per-time service', () => {
+    const perTime = makeService({
+      bookingPolicy: {
+        ...hotsiteServiceBookingDefaults.bookingPolicy,
+        durationPolicy: 'CUSTOMER_SELECTED',
+        pricingPolicy: 'PER_TIME_INCREMENT',
+        pricingIncrementMinutes: 60,
+        pricePerIncrementAmount: 50,
+      },
+    });
+    renderWithIntl(
+      <ConfirmationStep
+        slug="lavacar-beloauto"
+        services={[perTime]}
+        selectedServiceIds={[perTime.id]}
+        selectedDate="2026-06-15"
+        selectedSlot={slot}
+        status="idle"
+        errorMessage={null}
+        booking={null}
+        picks={[]}
+        requirements={[]}
+        onSubmit={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText('Total: a partir de R$ 50,00 — duração a escolher'),
+    ).toBeInTheDocument();
   });
 });

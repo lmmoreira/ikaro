@@ -1,7 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { AvailableSlot } from '@ikaro/types';
+import type { AvailableSlot, ResourceSelectionItem } from '@ikaro/types';
+import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import { AvailabilityCalendar } from './AvailabilityCalendar';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
 import { ErrorAlert } from './ErrorAlert';
@@ -17,7 +18,9 @@ interface AvailabilityStepProps {
   readonly maxBookingAdvanceDays: number;
   readonly onSelectDate: (date: string) => void;
   readonly onSelectSlot: (slot: AvailableSlot) => void;
-  readonly error: string | null;
+  readonly resourceSelections?: readonly ResourceSelectionItem[];
+  readonly durationMinutes?: number;
+  readonly error: StepError | null;
   readonly onBack: () => void;
   readonly onNext: () => void;
 }
@@ -34,6 +37,8 @@ export function AvailabilityStep({
   maxBookingAdvanceDays,
   onSelectDate,
   onSelectSlot,
+  resourceSelections,
+  durationMinutes,
   error,
   onBack,
   onNext,
@@ -54,6 +59,8 @@ export function AvailabilityStep({
           selectedDate={selectedDate}
           onSelectDate={onSelectDate}
           maxBookingAdvanceDays={maxBookingAdvanceDays}
+          resourceSelections={resourceSelections}
+          durationMinutes={durationMinutes}
         />
       ) : (
         <AvailabilityCarousel
@@ -63,6 +70,8 @@ export function AvailabilityStep({
           onSelectDate={onSelectDate}
           carouselDays={carouselDays}
           maxBookingAdvanceDays={maxBookingAdvanceDays}
+          resourceSelections={resourceSelections}
+          durationMinutes={durationMinutes}
         />
       )}
 
@@ -74,13 +83,15 @@ export function AvailabilityStep({
             date={selectedDate}
             selectedSlot={selectedSlot}
             onSelectSlot={onSelectSlot}
+            resourceSelections={resourceSelections}
+            durationMinutes={durationMinutes}
           />
         </div>
       )}
 
       {error && (
         <div className="mt-4" data-testid="step2-error">
-          <ErrorAlert>{error}</ErrorAlert>
+          <ErrorAlert focusOnMount>{error.message}</ErrorAlert>
         </div>
       )}
 

@@ -74,7 +74,17 @@
       "pickupAddressHeading": "Pickup address",
       "pickupAddressError": "Please enter the pickup address to continue.",
       "singular": "service",
-      "plural": "services"
+      "plural": "services",
+      "ratePerHour": "{rate} / hour",
+      "ratePerIncrement": "{rate} / {minutes} min",
+      "durationRange": "{min} to {max}",
+      "totalFrom": "{count} {word} — from {amount} — duration to be chosen",
+      "finalTotalHint": "The final total appears after you choose the duration.",
+      "unavailable": "This service is not available for booking right now.",
+      "unavailableHint": "{name} — choose another service to continue.",
+      "multipleVariableHint": "Untick one of them to continue. Your other choices were kept.",
+      "formLoadErrorTitle": "We could not continue.",
+      "formLoadError": "We could not load this service's information. Please try again."
     },
     "slotPicker": {
       "loading": "Loading time slots...",
@@ -125,7 +135,9 @@
       "serviceSingular": "Service",
       "servicePlural": "Services",
       "dateTimeLabel": "Date and time",
-      "at": "at"
+      "at": "at",
+      "fromAmount": "from {amount}",
+      "durationToChoose": "duration to be chosen"
     },
     "photo": {
       "unsupportedFormat": "Unsupported image format",
@@ -173,6 +185,60 @@
       "invalidContactNote": "If you believe this is a mistake, contact the {tenantName} team.",
       "invalidLoginCta": "Sign in to see your bookings",
       "processedMessage": "This booking has already been processed."
+    },
+    "resourcePicker": {
+      "headingMulti": "Make your choices",
+      "headingSingle": {
+        "STAFF": "Choose the professional",
+        "ROOM": "Choose the room",
+        "EQUIPMENT": "Choose the equipment",
+        "LOCATION": "Choose the location"
+      },
+      "sectionTitle": {
+        "STAFF": "Professional",
+        "ROOM": "Room",
+        "EQUIPMENT": "Equipment",
+        "LOCATION": "Location"
+      },
+      "pickHintSingle": {
+        "STAFF": "Choose a professional to continue.",
+        "ROOM": "Choose a room to continue.",
+        "EQUIPMENT": "Choose equipment to continue.",
+        "LOCATION": "Choose a location to continue."
+      },
+      "pickHintMulti": "Choose one option in each section to continue.",
+      "legSubtitle": "Step {index} of {total} of the journey",
+      "loading": "Loading options…",
+      "loadError": "We could not load the options.",
+      "loadErrorHint": "Check your connection and try again.",
+      "reselectHint": "Choose again. Your services and your other choices were kept.",
+      "serviceLine": "{name} — {price} — {duration}"
+    },
+    "intake": {
+      "heading": "Service details",
+      "description": "These questions depend on the chosen service. What you send is recorded with the current version of the form (v{version}).",
+      "optional": "(optional)",
+      "yes": "Yes",
+      "no": "No",
+      "requiredError": "This field is required.",
+      "participantsLabel": "Number of participants",
+      "participantsError": "Enter the number of participants.",
+      "attendeesLegend": "Named participants",
+      "attendeeNameLabel": "Participant {index} name",
+      "attendeeNamePlaceholder": "Full name",
+      "attendeeMinor": "Minor",
+      "attendeeRemove": "Remove",
+      "attendeeRemoveLabel": "Remove participant {index}",
+      "attendeeNameError": "Enter the participant's name.",
+      "addAttendee": "Add participant",
+      "attendeesHint": "Each participant has a name and, where applicable, is marked as a minor (whoever books on behalf of a minor is the responsible adult). Participants are optional.",
+      "consentError": "You must accept the terms to continue.",
+      "summaryTitle": "We could not continue",
+      "summaryFields": "{count, plural, one {# field needs attention} other {# fields need attention}} — see the highlights above."
+    },
+    "submitted": {
+      "heading": "Your request details",
+      "total": "Total"
     }
   },
   "hotsite": {

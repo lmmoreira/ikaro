@@ -3,12 +3,17 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
+import { BookingErrorCode } from '@ikaro/types';
 import type { Address, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { isAddressFilled } from '@/features/booking/model/personal-info';
+import { summarizeSelection } from '@/features/booking/model/selection-totals';
+import type { BookingFormDataStatus } from '@/features/booking/hooks/useBookingFormData';
+import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import { AddressFields } from './AddressFields';
 import { ErrorAlert } from './ErrorAlert';
+import { ServiceCard } from './ServiceCard';
 
 interface ServiceSelectionStepProps {
   readonly services: readonly HotsiteServiceResponse[];
@@ -18,6 +23,10 @@ interface ServiceSelectionStepProps {
   readonly pickupAddress: Address;
   readonly onPickupAddressChange: (address: Address) => void;
   readonly addressSpec: HotsiteAddressSpec;
+  /** State of the intake-schema and resource-options fetch that "Próximo" starts. */
+  readonly formStatus: BookingFormDataStatus;
+  readonly unavailableServiceIds: readonly string[];
+  readonly submitError: StepError | null;
   readonly onNext: () => void;
   readonly onBack: () => void;
 }
@@ -29,11 +38,30 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 'var(--ba-radius)',
 };
 
-function cardStyle(isSelected: boolean): React.CSSProperties {
-  return {
-    borderRadius: 'var(--ba-radius)',
-    borderColor: isSelected ? 'var(--ba-primary)' : 'var(--ba-secondary)',
-  };
+function SelectionTotal({
+  selected,
+}: {
+  readonly selected: readonly HotsiteServiceResponse[];
+}): React.JSX.Element {
+  const t = useTranslations('booking');
+  const { formatMoney } = useFormatting();
+  const { amount, durationMinutes, isFloor } = summarizeSelection(selected);
+  const word =
+    selected.length === 1 ? t('serviceSelection.singular') : t('serviceSelection.plural');
+  return (
+    <div className="mt-4" style={{ color: 'var(--ba-text)' }}>
+      <p className="font-semibold" data-testid="selection-total">
+        {isFloor
+          ? t('serviceSelection.totalFrom', {
+              count: selected.length,
+              word,
+              amount: formatMoney(amount),
+            })
+          : `${selected.length} ${word} — ${formatMoney(amount)} — ${formatDuration(durationMinutes)}`}
+      </p>
+      {isFloor && <p className="text-sm opacity-70">{t('serviceSelection.finalTotalHint')}</p>}
+    </div>
+  );
 }
 
 export function ServiceSelectionStep({
@@ -44,6 +72,9 @@ export function ServiceSelectionStep({
   pickupAddress,
   onPickupAddressChange,
   addressSpec,
+  formStatus,
+  unavailableServiceIds,
+  submitError,
   onNext,
   onBack,
 }: ServiceSelectionStepProps): React.JSX.Element {
@@ -51,12 +82,9 @@ export function ServiceSelectionStep({
   const tc = useTranslations('common');
   const [error, setError] = useState<string | null>(null);
 
-  const { formatMoney } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
-  const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
-  const totalDuration = selected.reduce((sum, service) => sum + service.durationMinutes, 0);
-  const serviceWord =
-    selected.length === 1 ? t('serviceSelection.singular') : t('serviceSelection.plural');
+  const hasUnavailable = selected.some((service) => unavailableServiceIds.includes(service.id));
+  const isLoading = formStatus === 'loading';
 
   function handleNext() {
     if (selected.length === 0) return;
@@ -75,51 +103,19 @@ export function ServiceSelectionStep({
       </h2>
 
       <ul className="flex flex-col gap-3">
-        {services.map((service) => {
-          const isSelected = selectedServiceIds.includes(service.id);
-          return (
-            <li key={service.id}>
-              <label
-                className="flex cursor-pointer items-center gap-3 border p-4"
-                style={cardStyle(isSelected)}
-                data-testid="service-card"
-                data-requires-pickup={service.requiresPickupAddress ? 'true' : 'false'}
-              >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => onToggleService(service.id)}
-                />
-                <div className="flex-1">
-                  <p className="font-semibold" style={{ color: 'var(--ba-text)' }}>
-                    {service.name}
-                  </p>
-                  {service.description && (
-                    <p className="text-sm opacity-75">{service.description}</p>
-                  )}
-                </div>
-                <div className="text-right text-sm">
-                  <p className="font-semibold" style={{ color: 'var(--ba-primary)' }}>
-                    {service.price.formatted}
-                  </p>
-                  <p className="opacity-75">{formatDuration(service.durationMinutes)}</p>
-                </div>
-              </label>
-            </li>
-          );
-        })}
+        {services.map((service) => (
+          <li key={service.id}>
+            <ServiceCard
+              service={service}
+              isSelected={selectedServiceIds.includes(service.id)}
+              isUnavailable={unavailableServiceIds.includes(service.id)}
+              onToggle={() => onToggleService(service.id)}
+            />
+          </li>
+        ))}
       </ul>
 
-      {selected.length > 0 && (
-        <p
-          className="mt-4 font-semibold"
-          style={{ color: 'var(--ba-text)' }}
-          data-testid="selection-total"
-        >
-          {selected.length} {serviceWord} — {formatMoney(totalAmount)} —{' '}
-          {formatDuration(totalDuration)}
-        </p>
-      )}
+      {selected.length > 0 && <SelectionTotal selected={selected} />}
 
       {requiresPickupAddress && (
         <div className="mt-6">
@@ -145,6 +141,34 @@ export function ServiceSelectionStep({
         </div>
       )}
 
+      {submitError && (
+        <div className="mt-4" data-testid="step1-submit-error">
+          <ErrorAlert
+            focusOnMount
+            hint={
+              submitError.code === BookingErrorCode.INVALID_MULTIPLE_VARIABLE_SERVICES
+                ? t('serviceSelection.multipleVariableHint')
+                : undefined
+            }
+          >
+            {submitError.message}
+          </ErrorAlert>
+        </div>
+      )}
+
+      {formStatus === 'error' && (
+        <div className="mt-4" data-testid="step1-form-error">
+          <ErrorAlert
+            focusOnMount
+            hint={t('serviceSelection.formLoadError')}
+            onRetry={handleNext}
+            retryLabel={t('errors.tryAgain')}
+          >
+            {t('serviceSelection.formLoadErrorTitle')}
+          </ErrorAlert>
+        </div>
+      )}
+
       <div className="mt-6 flex gap-3">
         <button
           type="button"
@@ -160,13 +184,13 @@ export function ServiceSelectionStep({
         </button>
         <button
           type="button"
-          disabled={selected.length === 0}
+          disabled={selected.length === 0 || isLoading || hasUnavailable}
           onClick={handleNext}
           data-testid="step-next"
           style={btnStyle}
           className="cursor-pointer border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {tc('next')}
+          {isLoading ? tc('loading') : tc('next')}
         </button>
       </div>
     </div>

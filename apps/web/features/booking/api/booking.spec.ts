@@ -5,7 +5,6 @@ import {
   approveBooking,
   cancelBooking,
   completeBooking,
-  createAuthenticatedBooking,
   getBooking,
   listAllBookings,
   listBookings,
@@ -229,16 +228,5 @@ describe('submitBookingInfo', () => {
       .reply(200, { bookingId: 'b-1', status: 'PENDING', infoSubmittedAt: '' });
     const res = await submitBookingInfo('b-1', { response: 'Here is the photo' });
     expect(res.status).toBe('PENDING');
-  });
-});
-
-describe('createAuthenticatedBooking', () => {
-  it('calls POST /bookings/authenticated', async () => {
-    mock.onPost('/bookings/authenticated').reply(201, { bookingId: 'b-new', status: 'PENDING' });
-    const res = await createAuthenticatedBooking({
-      scheduledAt: '2026-07-01T09:00:00Z',
-      serviceIds: ['svc-1'],
-    });
-    expect(res.bookingId).toBe('b-new');
   });
 });

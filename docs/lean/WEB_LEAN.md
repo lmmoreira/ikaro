@@ -1179,7 +1179,7 @@ private static validateSocialLinks(socialLinks: SocialLinks | null): void {
 
 ### 36. Lifting State Up — Multi-Step Forms
 
-The booking form has four steps: pick services, pick a date/time, enter personal info, confirm. Each step is its own component (`ServiceSelectionStep`, `AvailabilityCarousel`+`SlotPicker`, `PersonalInfoStep`, `ConfirmationStep`) — but none of them holds its own state. **`BookingForm.tsx` owns everything**:
+The booking form has four steps: pick services, pick a date/time, enter personal info, confirm. Each step is its own component (`ServiceSelectionStep`, `AvailabilityCarousel`+`SlotPicker`, `PersonalInfoStep`, `ConfirmationStep`) — but none of them holds its own state. **`BookingForm.tsx` owns everything** (the example below is the original four-step shape; since M23-S11a the step list is computed from the selected services — the default four, plus a resource-picker step per customer choice and an intake step — and the state lives in small hooks beside it, `useBookingSelections`/`useBookingFlow`, but the lifting-state idea is the same):
 
 ```tsx
 type Step = 1 | 2 | 3 | 4;

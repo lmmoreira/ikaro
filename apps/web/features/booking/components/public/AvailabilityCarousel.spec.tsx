@@ -201,4 +201,39 @@ describe('AvailabilityCarousel', () => {
       (new Date(to).getTime() - new Date(from).getTime()) / (24 * 60 * 60 * 1000) + 1;
     expect(dayCount).toBe(7);
   });
+
+  it('forwards the resource picks and the duration to the summary query and re-fetches when they change', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([
+      { date: '2026-06-15', available: true, slotCount: 1 } satisfies DaySummary,
+    ]);
+    const pick = (resourceId: string) => [
+      { serviceId: 'svc-1', legIndex: null, resourceType: 'STAFF' as const, resourceId },
+    ];
+    const element = (resourceId: string) => (
+      <AvailabilityCarousel
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        selectedDate={null}
+        onSelectDate={vi.fn()}
+        carouselDays={14}
+        maxBookingAdvanceDays={90}
+        resourceSelections={pick(resourceId)}
+        durationMinutes={90}
+      />
+    );
+    const { rerender } = renderWithIntl(element('r-1'));
+    await screen.findAllByTestId('day-option');
+
+    expect(fetchAvailabilitySummary).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      expect.any(String),
+      expect.any(String),
+      ['svc-1'],
+      { resourceSelections: pick('r-1'), durationMinutes: 90 },
+    );
+
+    rerender(element('r-2'));
+
+    await vi.waitFor(() => expect(fetchAvailabilitySummary).toHaveBeenCalledTimes(2));
+  });
 });
