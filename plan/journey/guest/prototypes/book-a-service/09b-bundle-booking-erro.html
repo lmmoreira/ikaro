@@ -5,61 +5,101 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Horário indisponível — pacote</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
-  <style>
-    .staff-card { display:flex; align-items:center; gap:0.875rem; padding:0.875rem; cursor:pointer; }
-    .staff-avatar { width:3rem; height:3rem; border-radius:9999px; flex-shrink:0; background:var(--ba-primary); color:white;
-      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; }
-    .staff-name { font-weight:600; color:var(--ba-text); }
-    .section-title { font-size:0.875rem; font-weight:700; color:var(--ba-text); margin:1.25rem 0 0.5rem; }
-    .section-title small { font-weight:500; opacity:0.65; }
-    .hint { font-size:0.8125rem; opacity:0.7; }
-    .alert-err { display:flex; align-items:flex-start; gap:0.625rem; background:#fef2f2; border:1.5px solid #fca5a5;
-      border-radius:var(--ba-radius); padding:0.75rem 1rem; margin:1rem 0; color:#991b1b; }
-    .alert-err p { margin:0; }
-    .alert-err .t { font-weight:700; }
-    .alert-err .d { font-size:0.8125rem; margin-top:0.25rem; }
-    .skeleton { background:linear-gradient(90deg,#e5e7eb,#f3f4f6,#e5e7eb); border-radius:var(--ba-radius); height:4.25rem; margin-bottom:0.75rem; }
-    .leg-timeline { position:relative; padding-left:1.75rem; }
-    .leg-item { position:relative; padding-bottom:1.5rem; }
-    .leg-item:last-child { padding-bottom:0; }
-    .leg-dot { position:absolute; left:-1.75rem; top:0.125rem; width:0.75rem; height:0.75rem; border-radius:9999px;
-      background:var(--ba-primary); border:2px solid white; box-shadow:0 0 0 1px var(--ba-secondary); }
-    .leg-line { position:absolute; left:-1.4375rem; top:0.875rem; bottom:-0.625rem; width:2px; background:var(--ba-secondary); }
-    .leg-item:last-child .leg-line { display:none; }
-    .leg-time { font-weight:700; color:var(--ba-text); font-size:0.9375rem; }
-    .leg-name { font-weight:600; color:var(--ba-primary); font-size:0.9375rem; margin-top:0.125rem; }
-    .leg-resource { font-size:0.8125rem; opacity:0.6; margin-top:0.125rem; }
-    .transition-note { font-size:0.75rem; opacity:0.5; margin-top:0.375rem; font-style:italic; }
-    .row { display:flex; justify-content:space-between; font-size:0.875rem; color:var(--ba-text); padding:0.25rem 0; }
-    .btn-disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
-    .rate { font-size:0.8125rem; opacity:0.75; }
-  </style>
 </head>
 <body>
   <!--
-    ERROR VARIANT — the AVAILABILITY step (see 11-appointment-availability.html) after POST /bookings returned
-    409 BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE (UC-064 A2).
-    The form returns to the availability step: services, resource picks and duration are KEPT; ONLY the slot is cleared (so
-    Próximo is disabled until a new slot is picked) and the slot list is re-fetched. The picker is NOT redrawn.
+    VARIANT OF: 02-calendar-slot.html / 02e-slot-conflict.html — the existing availability step after POST /bookings returned
+    409 BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE (UC-064 A2). Same layout and banner as 02e; only the message differs.
+    The form returns to the availability step: services, resource picks and duration are KEPT; ONLY the slot is cleared (so the previously selected
+    slot is NOT shown selected and Próximo is disabled until a new one is picked) and the slot list is re-fetched. The picker is not redrawn.
     COPY: static catalogue message (packages/i18n/locales/pt-BR/errors.json): "Parte deste agendamento não está mais disponível."
     The error carries no resource name, window or alternative, so none is shown. Nothing was booked (atomic).
     INDICATOR: path "chosen staff + intake" = "Passo 3 de 6".
   -->
-  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+  <!-- BRAND + AUTH BAR -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
     <div style="display:flex;align-items:center;gap:0.625rem;">
-      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">V</div>
-      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
+                  color:white;display:flex;align-items:center;justify-content:center;
+                  font-weight:700;font-size:0.8125rem;">B</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">BeloAuto Demo</span>
     </div>
-    <a href="../../../shared/login.html" style="font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">Entrar</a>
+    <a href="../../../shared/login.html" style="display:flex;align-items:center;gap:0.375rem;
+       font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      Entrar
+    </a>
   </div>
+
   <div class="step-container">
     <p class="step-indicator">Passo 3 de 6</p>
-    <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.375rem;color:var(--ba-text)">Escolha data e horário</h2>
-    <p style="font-size:0.875rem;opacity:0.7;margin-bottom:1.25rem;">Massagem Relaxante · Renata Souza</p>
-    <div class="alert-err" role="alert" data-testid="availability-error"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div><p class="t">Parte deste agendamento não está mais disponível.</p><p class="d">Nada foi confirmado — nenhuma reserva parcial foi criada. Escolha outro horário.</p></div></div>
-    <div style="display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.5rem"><button class="day-pill available"><span>TER</span><strong>05</strong></button><button class="day-pill selected"><span>QUA</span><strong>06</strong></button><button class="day-pill available"><span>QUI</span><strong>07</strong></button></div>
-    <section style="margin-top:1.25rem"><p class="hint" style="margin-bottom:.75rem">Horários disponíveis — Qua, 06 de agosto</p><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="slot-btn">09:00</button><button class="slot-btn">10:00</button><button class="slot-btn">16:00</button></div></section>
-    <div class="nav-buttons"><button class="btn-secondary" onclick="window.history.back()">Voltar</button><button class="btn-primary btn-disabled" disabled aria-disabled="true">Próximo</button></div>
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Escolha data e horário</h2>
+
+    <div style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem;">
+      <div class="day-pill unavailable">
+        <p style="font-size: 0.7rem; font-weight: 600;">SEG</p>
+        <p style="font-weight: 700; font-size: 0.9375rem;">16</p>
+      </div>
+      <div class="day-pill available">
+        <p style="font-size: 0.7rem; font-weight: 600;">TER</p>
+        <p style="font-weight: 700; font-size: 0.9375rem;">17</p>
+      </div>
+      <div class="day-pill selected">
+        <p style="font-size: 0.7rem; font-weight: 600;">QUA</p>
+        <p style="font-weight: 700; font-size: 0.9375rem;">18</p>
+      </div>
+      <div class="day-pill available">
+        <p style="font-size: 0.7rem; font-weight: 600;">QUI</p>
+        <p style="font-weight: 700; font-size: 0.9375rem;">19</p>
+      </div>
+      <div class="day-pill unavailable">
+        <p style="font-size: 0.7rem; font-weight: 600;">SEX</p>
+        <p style="font-weight: 700; font-size: 0.9375rem;">20</p>
+      </div>
+      <div class="day-pill unavailable">
+        <p style="font-size: 0.7rem; font-weight: 600;">SÁB</p>
+        <p style="font-weight: 700; font-size: 0.9375rem;">21</p>
+      </div>
+      <div class="day-pill unavailable">
+        <p style="font-size: 0.7rem; font-weight: 600;">DOM</p>
+        <p style="font-weight: 700; font-size: 0.9375rem;">22</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 1.5rem;">
+      <p style="font-size: 0.875rem; opacity: 0.75; margin-bottom: 0.75rem;">
+        Horários disponíveis — Qua, 18 de junho
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+        <button class="slot-btn">08:00</button>
+        <button class="slot-btn">09:00</button>
+        <button class="slot-btn">10:00</button>
+        <button class="slot-btn">11:00</button>
+        <button class="slot-btn">14:00</button>
+        <button class="slot-btn">15:00</button>
+        <button class="slot-btn">16:00</button>
+      </div>
+    </div>
+
+    <div role="alert" style="
+      display: flex; align-items: flex-start; gap: 0.625rem;
+      background: #fef2f2; border: 1.5px solid #fca5a5;
+      border-radius: var(--ba-radius); padding: 0.75rem 1rem;
+      margin-top: 1rem;
+    " data-testid="availability-error">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span style="font-size: 0.875rem; color: #dc2626; font-weight: 500;">Parte deste agendamento não está mais disponível.</span>
+    </div>
+
+    <div class="nav-buttons">
+      <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
+      <button class="btn-primary" disabled aria-disabled="true" style="opacity:.5;cursor:not-allowed;">Próximo</button>
+    </div>
   </div>
 </body>
 </html>

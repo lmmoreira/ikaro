@@ -67,7 +67,7 @@ flowchart TD
     Picker --> HasDuration{"durationPolicy =<br/>CUSTOMER_SELECTED?"}
     HasDuration -- "yes" --> Duration["❓ GAP: duration + Total estimado<br/>(12, 12b–12d)<br/>GET /public/services/:id/quote"]
     HasDuration -- "no" --> Availability
-    Duration --> Availability["❓ GAP: shared availability step<br/>(11 — resourceSelections + durationMinutes)"]
+    Duration --> Availability["❓ GAP: shared availability step<br/>(existing 02 — no UI change; resourceSelections + durationMinutes are optional query params)"]
 
     Availability --> S3m["Step: Personal Info<br/>(03-personal-info, existing; 03d on the intake path)"]
     S3m -->|"service has an active intake schema"| Intake["❓ GAP: intake answers + consent<br/>(13, 13b, 13c)<br/>GET /public/services/:id/intake-schema"]

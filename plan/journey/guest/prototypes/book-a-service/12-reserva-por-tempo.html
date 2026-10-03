@@ -39,7 +39,7 @@
   <!--
     COMPONENT: VariableDurationStep  apps/web/features/booking/components/public/VariableDurationStep.tsx  (NEW, M23-S11b)
     SCENARIO:  the basket contains ONE service with durationPolicy = CUSTOMER_SELECTED (at most one — see 01d). The step is ONLY
-               a duration choice; date and time come from the normal availability step that follows (11), which is re-fetched with
+               a duration choice; date and time come from the normal availability step that follows (02-calendar-slot), which is re-fetched with
                durationMinutes so the slots reflect the chosen duration. There is NO free date/time input here.
     OPTIONS:   from bookingPolicy: durationMinMinutes .. durationMaxMinutes in steps of durationIncrementMinutes.
     QUOTE:     GET /public/services/:id/quote?durationMinutes=  ->  { durationMinutes, price }  — "Total estimado", formatted with
@@ -62,7 +62,7 @@
     <p style="font-size:0.875rem;opacity:0.7;margin-bottom:1.25rem;">Sala de reunião — a sala fica exclusiva durante todo o período.</p>
     <div class="card"><label class="form-label" for="duration">Duração</label><select id="duration" class="form-input"><option>1 hora</option><option>1 hora e 30 min</option><option selected>2 horas</option><option>2 horas e 30 min</option><option>3 horas</option></select><p class="hint" style="margin-top:.5rem;">De 1 a 8 horas, em blocos de 30 minutos.</p></div>
     <div class="card" style="margin-top:1rem;" data-testid="duration-quote"><p class="hint">R$ 50,00 por hora · mínimo de 1 hora</p><p style="font-size:1.25rem;font-weight:700;margin-top:.5rem;color:var(--ba-text);">Total estimado: R$ 100,00</p><p class="hint">O preço fica registrado na reserva.</p></div>
-    <div class="nav-buttons"><a class="btn-secondary" href="01-service-selection.html">Voltar</a><a class="btn-primary" href="11-appointment-availability.html">Próximo</a></div>
+    <div class="nav-buttons"><a class="btn-secondary" href="01-service-selection.html">Voltar</a><a class="btn-primary" href="02-calendar-slot.html">Próximo</a></div>
   </div>
 </body>
 </html>

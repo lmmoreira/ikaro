@@ -22,6 +22,17 @@
                  Header: X-Tenant-Slug: {slug}
                  Response: AvailabilityResponse { slots: { startsAt: string; endsAt: string }[] }
 
+    M23 (S11a/S11b) — THIS is the single availability step for EVERY flow (simple service, chosen/auto resources, bundle, legged journey,
+      variable duration); there is no separate "11" screen and no UI change: same day-pill carousel + slot buttons. The query changes, the
+      interaction does not:
+        GET /schedule/availability(/summary)?...&resourceSelections=<serviceId>:<legIndex|->:<type>:<resourceId>,...&durationMinutes=N  (M23-S29)
+        - the customer's picks (steps 05-05h) are pinned and the engine still intersects the rest of the service (bundle room, every leg, quantity)
+        - AUTO_ANY / pool: no selection, the engine derives the resources
+        - CUSTOMER_SELECTED duration (step 12): durationMinutes
+      Both params are OPTIONAL props on AvailabilityStep/AvailabilityCarousel/AvailabilityCalendar/SlotPicker and part of their effect
+      dependencies, so a changed pick or duration re-fetches (loading 02b, error 02c, empty 02d, day error 02f); the dashboard
+      RescheduleBookingPage, which renders the same components, is unchanged. Errors returning here: 02e (slot), 09b (bundle), 10b (leg).
+      The indicator is computed; this file shows the default path ("Passo 2 de 4").
     STATE (in BookingForm parent):
       selectedDate: string | null
       selectedSlot: AvailableSlot | null

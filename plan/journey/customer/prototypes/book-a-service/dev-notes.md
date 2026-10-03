@@ -177,7 +177,7 @@ The authenticated-customer flow uses the **same components and the same screens*
 | Step 1 type-aware cards, schema loading/error, multiple-variable error | `01c`–`01g` | none |
 | Resource picker (only when there is a `CUSTOMER_CHOICE` requirement — **automatic resources have no screen**) | `05`–`05h` | none |
 | Variable duration · journey confirmation | `12`–`12d` · `10` | none; the journey confirmation submits `POST /bookings/authenticated` |
-| Shared availability step · slot / bundle / leg errors | `11` · `02e`, `09b`, `10b` | none |
+| Availability step (the existing `02`, unchanged UI) · slot / bundle / leg errors | `02` · `02e`, `09b`, `10b` | none |
 | Intake step · errors | `03b`/`03c`/`03e` here (same as `13`/`13b`/`13c`) | none |
 | Success box | `04d` here (plain, CTA → Agendamentos) · `04f`/`04g`/`04h` (guest folder) | the primary CTA links to the Agendamentos list |
 

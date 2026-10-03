@@ -39,7 +39,7 @@
   <!--
     COMPONENT: VariableDurationStep  apps/web/features/booking/components/public/VariableDurationStep.tsx  (NEW, M23-S11b)
     SCENARIO:  the basket contains ONE service with durationPolicy = CUSTOMER_SELECTED (at most one — see 01d). The step is ONLY
-               a duration choice; date and time come from the normal availability step that follows (11), which is re-fetched with
+               a duration choice; date and time come from the normal availability step that follows (02-calendar-slot), which is re-fetched with
                durationMinutes so the slots reflect the chosen duration. There is NO free date/time input here.
     OPTIONS:   from bookingPolicy: durationMinMinutes .. durationMaxMinutes in steps of durationIncrementMinutes.
     QUOTE:     GET /public/services/:id/quote?durationMinutes=  ->  { durationMinutes, price }  — "Total estimado", formatted with
