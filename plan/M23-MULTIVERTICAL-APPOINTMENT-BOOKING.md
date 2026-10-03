@@ -834,7 +834,7 @@ Two coupled pieces, bundled because the materialization step is shared by both t
 
 ---
 
-### M23-S11a — Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, resource picker and the booking-details success box
+### M23-S11a — Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, resource picker and the booking-details success box ✅ Done
 
 > **Split from the original M23-S11 on 2026-10-03** (product decision after the prototype review): S11a = groups A, B and E; **M23-S11b** = groups C and D (bundle/journey confirmation and variable duration), which plug into the step engine this story builds. The customer-reschedule quote preview that S11 carried is **not** part of either story — it moved to its own story with its own prototype (see **M23-S30**). Prototype review outcome and design decisions: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § Design decisions.
 
