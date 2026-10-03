@@ -219,7 +219,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 ### Design decisions (settled in the 2026-10-03 prototype review)
 
-1. **One resource-picker screen for every resource type and service type.** `ResourcePicker` is built from `GET /public/services/:id/resource-options` → `requirements[]`. Each requirement with `selectionMode = CUSTOMER_CHOICE` becomes **one section** on the same screen (heading = resource-type label — "Profissional", "Sala", "Equipamento" — plus the leg name for a legged service). A simple staff service, a bundle with a staff choice and a legged journey with two choices are the same component (`05`, `05f`). A picker for a room or equipment is the same screen with a different heading (no extra prototype). **An empty options list never reaches the picker:** a service whose `CUSTOMER_CHOICE` requirement has no active resource cannot be booked, so Step 1 shows an inline "serviço indisponível" message and stays put (`01g`, fails closed) — there is no empty-picker screen.
+1. **One resource-picker screen for every resource type and service type.** `ResourcePicker` is built from `GET /public/services/:id/resource-options` → `requirements[]`. Each requirement with `selectionMode = CUSTOMER_CHOICE` becomes **one section** on the same screen (heading = resource-type label — "Profissional", "Sala", "Equipamento"). **Any service — flat or legged — can have a choice for each of the three resource types, in any combination:** a flat service has requirements at the service level (`05f`: staff + room + equipment = three sections, or fewer when some are automatic); a legged service has them **per leg**, so the picker groups the sections by leg (heading = the leg name, `05g`: the Massagem leg asks for staff **and** room, Relaxamento for equipment, Sauna has no choice and does not appear). Two legs may ask for the same type; the leg heading tells them apart. A simple staff service, a bundle and a journey are all the same component (`05`, `05f`, `05g`). A picker for a room or equipment is the same screen with a different heading (no extra prototype). **An empty options list never reaches the picker:** a service whose `CUSTOMER_CHOICE` requirement has no active resource cannot be booked, so Step 1 shows an inline "serviço indisponível" message and stays put (`01g`, fails closed) — there is no empty-picker screen.
 2. **Automatic resources have no screen and no note.** `AUTO_ANY` staff, `AUTO_FUNGIBLE_POOL` units and an automatic room/equipment never produce a section; when the options response has no `CUSTOMER_CHOICE` requirement the step is **omitted** from the step list and the customer goes from Serviços straight to the next step. The assigned name is shown only **after** booking, on the success box (`04h`); a pool shows no unit name at all (`04d`). `06-auto-staff`, `07-fungible-resource` and `09-bundle-booking` were **deleted** (the old "three stations" copy claimed pool data the API never sends).
 3. **A pool with `requiredQuantity > 1` needs nothing** (no screen, no hint). **Two same-type picks in one bundle** are two sections; the leg or requirement position in the heading tells them apart. **Duplicate service lines cannot happen** (Step 1 is a toggle set) — `resourceSelections` follow the `serviceIds` order.
 4. **Variable duration is a duration choice only (`12`).** Date and time come from the normal availability step (`11`), re-fetched with `durationMinutes`. No free date/time input, no client-side midnight logic (the API's slot list is authoritative), "Total estimado" from `/quote` with loading (`12d`) and error (`12c`) states; `BOOKING_DURATION_OUT_OF_RANGE` → `12b`.
@@ -238,7 +238,8 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `01g-servico-indisponivel.html` | Step 1 — a `CUSTOMER_CHOICE` requirement has no options: inline message on the service, flow stays on Step 1 | UC-061 | M23-S11a |
 | `05-staff-picker.html` | Resource picker (one section per `CUSTOMER_CHOICE` requirement) | UC-061 (UC-066: the picked staff's slots follow) | M23-S11a |
 | `05b`…`05e` | Picker states: nothing picked · loading · fetch error · 422 selection invalid | UC-061 | M23-S11a |
-| `05f-picker-varias-secoes.html` | Picker with two sections (journey / bundle with two choices) | UC-064 / UC-065 | M23-S11a |
+| `05f-picker-varias-secoes.html` | Picker for a flat service with three choices (staff + room + equipment); fewer sections when some are automatic | UC-061 / UC-064 | M23-S11a |
+| `05g-picker-por-etapa.html` | Picker for a legged journey: sections grouped by leg (one leg can ask for staff and room, another for equipment) | UC-065 | M23-S11a |
 | `11-appointment-availability.html` | Shared availability step (every flow) | UC-058 / UC-059 / UC-066 | M23-S11a |
 | `13-intake-answers.html` / `13b` / `13c` | Intake step · client field errors · server-only rejection (summary banner) | UC-068 | M23-S11a |
 | `04d-success.html` / `04g` / `04h` | Success box: plain · chosen staff · auto-assigned staff | UC-061 / UC-063 / all | M23-S11a |
@@ -255,7 +256,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | File | Status |
 |---|---|
 | `apps/web/features/booking/model/booking-steps.ts` — `resolveBookingSteps()`; the existing private `resolveBookingSubmitErrorRoute()` in `useBookingSubmission.ts` moves here | ❓ Gap (S11a) |
-| `apps/web/features/booking/components/public/ResourcePicker.tsx` (`05`…`05f`) | ❓ Gap (S11a) |
+| `apps/web/features/booking/components/public/ResourcePicker.tsx` (`05`…`05g`) | ❓ Gap (S11a) |
 | `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (`13`/`13b`/`13c`) | ❓ Gap (S11a) |
 | `apps/web/features/booking/components/public/BookingSubmittedDetails.tsx` (`04d`/`04g`/`04h`/`04f`) | ❓ Gap (S11a) |
 | `apps/web/features/booking/components/public/LegItineraryStep.tsx` (`10`) | ❓ Gap (S11b) |
@@ -326,6 +327,6 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 | + intake (5) | … · Dados do serviço (after Seus dados) | `03d` → `13` (`13b`/`13c`) → `04e` |
 | + resource choice (5; with intake 6) | Serviços · **Escolha** · Data e horário · Seus dados [· Dados do serviço] · Confirmar | `05`…`05f` → `11` → `09b`/`02e` → `04g` |
 | + variable duration (5; with intake 6) | Serviços · **Duração** · Data e horário · … | `12`…`12d` → `11` |
-| Legged journey (5 with a choice; the review replaces the final summary) | Serviços · Escolha · Data e horário · Seus dados · **Confirmar jornada** | `05f` → `11` → `10`/`10b` → `04f` |
+| Legged journey (5 with a choice; the review replaces the final summary) | Serviços · Escolha · Data e horário · Seus dados · **Confirmar jornada** | `05g` → `11` → `10`/`10b` → `04f` |
 
 `03d` and `04e` are exact copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets. A path with both a choice and a duration adds one step to each count (6 / 7 with intake). The `04b`/`04c`/`04d` states are shared by every path and are not duplicated.
