@@ -174,8 +174,8 @@ The authenticated-customer flow uses the **same components and the same screens*
 
 | Customer step | Screens (guest folder) | Customer-specific difference |
 |---|---|---|
-| Step 1 type-aware cards, schema loading/error, multiple-variable error | `01c`–`01f` | none |
-| Resource picker (only when there is a `CUSTOMER_CHOICE` requirement — **automatic resources have no screen**) | `05`–`05g` | none |
+| Step 1 type-aware cards, schema loading/error, multiple-variable error | `01c`–`01g` | none |
+| Resource picker (only when there is a `CUSTOMER_CHOICE` requirement — **automatic resources have no screen**) | `05`–`05f` | none |
 | Variable duration · journey confirmation | `12`–`12d` · `10` | none; the journey confirmation submits `POST /bookings/authenticated` |
 | Shared availability step · slot / bundle / leg errors | `11` · `02e`, `09b`, `10b` | none |
 | Intake step · errors | `03b`/`03c`/`03e` here (same as `13`/`13b`/`13c`) | none |

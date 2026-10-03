@@ -41,7 +41,7 @@
     POSITION:  this IS the final Confirmation step for a legged service (same slot as 04-confirmation): the service list is
                replaced by the leg timeline and "Confirmar agendamento" submits POST /bookings. It is NOT an extra step.
     DATA:      legs, times, durations and transitions are COMPUTED from service.legs + the chosen slot (no assignment preview).
-    RESOURCES: a resource is named ONLY when it is the customer's own pick (from the picker, 05g) or fixed. An automatic leg shows
+    RESOURCES: a resource is named ONLY when it is the customer's own pick (from the picker, 05f) or fixed. An automatic leg shows
                its resource TYPE ("Sala — atribuída automaticamente"), never a pool or unit name.
     ERROR:     409 BOOKING_LEG_UNAVAILABLE -> back to the availability step (10b).
     AFTER:     success view with the leg timeline from the response `itinerary` (04f).
