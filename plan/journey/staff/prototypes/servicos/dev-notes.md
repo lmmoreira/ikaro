@@ -232,8 +232,11 @@ UpdateServiceBookingPolicySchema — ALL 17 independently-submittable fields:
      see 03-service-edit.html's Políticas de reserva tab.
   -- M23-S29: for a service WITH legs the real component disables the "Cliente escolhe" option and
      shows a hint (`politicasDurationPolicyLegsHint`) — a legged service's length is the sum of
-     its legs (UC-052 A2 / UC-055 A4; backend 409 `BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT`). The HTML prototype does not draw
-     this variant; it is documented here rather than restructuring the prototype (CLAUDE.md §15).
+     its legs (UC-052 A2 / UC-055 A4; backend 409 `BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT`). The HTML prototypes draw
+     this variant: in `03-service-edit.html`, `02c-service-create-success.html` and `03c-service-edit-inactive.html`,
+     `selectResourceMode('legs')` calls `lockCustomerDurationForLegs()`, which disables the option, shows the hint
+     and resets a "Cliente escolhe" selection to "Fixa". Prototype simplification: the lock follows the mode toggle;
+     the real component keys off whether the saved service has legs.
   -- recurringHorizonDays (added 2026-09-30, M23-S16 — missed by the 2026-09-17 audit above):
      the MAXIMUM TERM of a recurring schedule for this service (a schedule's endsOn may not be
      later than startsOn + this many days). Number input in the "Quem e como reserva" card,

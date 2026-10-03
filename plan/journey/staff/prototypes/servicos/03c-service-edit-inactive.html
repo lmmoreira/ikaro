@@ -344,8 +344,9 @@
               <label class="form-label" for="pol-duration">Política de duração</label>
               <select id="pol-duration" class="form-input" onchange="toggleDurationPolicy(this)">
                 <option value="fixed" selected>Fixa (180 min, ver aba Detalhes)</option>
-                <option value="customer">Cliente escolhe</option>
+                <option value="customer" id="pol-duration-customer-opt">Cliente escolhe</option>
               </select>
+              <p class="form-hint" id="pol-duration-legs-hint" style="display:none;">"Cliente escolhe" está indisponível — um serviço com etapas tem duração fixa (a soma das etapas), então o cliente não pode escolher o tempo (UC-052 A2 / UC-055 A4).</p>
             </div>
             <div id="pol-duration-detail" style="display:none;">
               <div class="form-row-3">
@@ -660,12 +661,26 @@
       });
     }
 
+    // M23-S29: a legged service's length is the sum of its legs (UC-052), so the real component
+    // disables "Cliente escolhe" (with politicasDurationPolicyLegsHint) whenever the service has legs.
+    // Switching to legs mode here previews that state; switching back re-enables the option.
+    function lockCustomerDurationForLegs(isLegs) {
+      var select = document.getElementById('pol-duration');
+      document.getElementById('pol-duration-customer-opt').disabled = isLegs;
+      document.getElementById('pol-duration-legs-hint').style.display = isLegs ? '' : 'none';
+      if (isLegs && select.value === 'customer') {
+        select.value = 'fixed';
+        toggleDurationPolicy(select);
+      }
+    }
+
     function selectResourceMode(mode) {
       var isLegs = mode === 'legs';
       document.getElementById('resmode-flat').classList.toggle('selected', !isLegs);
       document.getElementById('resmode-legs').classList.toggle('selected', isLegs);
       document.getElementById('flat-resource-config').style.display = isLegs ? 'none' : '';
       document.getElementById('legs-resource-config').style.display = isLegs ? '' : 'none';
+      lockCustomerDurationForLegs(isLegs);
     }
 
     function toggleDurationPolicy(select) {

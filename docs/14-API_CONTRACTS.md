@@ -874,7 +874,7 @@ GET /v1/schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=u
 X-Tenant-Slug: lavacar-test
 ```
 
-`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — omit for tenant-wide availability (today's exact unchanged behavior). When set, scopes the calculation to that resource's own closures/openings/workingHours, combined with the tenant-wide ones (`docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution). Without it, M22's availability engine already derives the resources from the queried service's `resourceRequirements`/`legs` (shipped, M22 Cluster 2); an explicit `resourceId` is a single-resource view that ignores them. The chosen resources and duration of the booking flow are passed with M23-S29's `resourceSelections`/`durationMinutes` (planned).
+`resourceId` optional (M21 Cluster 1, Codex PR #460 round-8 finding) — omit for tenant-wide availability (today's exact unchanged behavior). When set, scopes the calculation to that resource's own closures/openings/workingHours, combined with the tenant-wide ones (`docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution). Without it, M22's availability engine already derives the resources from the queried service's `resourceRequirements`/`legs` (shipped, M22 Cluster 2); an explicit `resourceId` is a single-resource view that ignores them. The chosen resources and duration of the booking flow are passed with M23-S29's `resourceSelections`/`durationMinutes` (shipped, M23-S29 — see § Schedule Availability above).
 
 Response `200`:
 ```json
