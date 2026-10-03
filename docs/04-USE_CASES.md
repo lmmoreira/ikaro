@@ -988,15 +988,16 @@ Returns:
 
 - **Actor:** Customer or Guest
 - **Endpoint:** `POST /bookings` (existing UC-001/002 endpoint; resource-scoped internally per UC-058)
-- **Preconditions:** Service has `resourceRequirements = [{ type: STAFF, selectionMode: CUSTOMER_CHOICE }]`.
-- **Trigger:** Customer selects the service and is prompted to choose a staff member.
+- **Preconditions:** Service has a requirement with `selectionMode: CUSTOMER_CHOICE` — typically `STAFF`, but a `ROOM` or `EQUIPMENT` requirement is chosen the same way, and a service can have one such requirement per resource type.
+- **Trigger:** Customer selects the service and is prompted to choose the resource(s) (a staff member, a room, equipment). The prompt is **one booking step per unit** — a flat service is one step with a section per chosen requirement; a legged service (UC-065) gets one step per leg that has a choice; a service whose requirements are all automatic has **no step**.
 - **Main Flow:**
-  1. Customer sees the list of active `STAFF`-type resources offering this service.
-  2. Customer picks one; calendar shows **only that resource's** availability.
+  1. Customer sees the list of active resources of that type offering this service (names only) and picks one — nothing is pre-selected.
+  2. Calendar shows **only the slots where the picked resource(s) are free** (the existing date/time step, unchanged).
   3. Customer picks a slot; remainder matches UC-001/UC-002.
   4. System locks the chosen resource (not the whole tenant) for the booked window.
 - **Alternative Flows:**
-  - **A1: Chosen staff member has no availability in the visible range** → Customer picks a different staff member or a later date.
+  - **A1: Chosen staff member has no availability in the visible range** → Customer goes Back to pick a different one, or picks a later date.
+  - **A2: A requirement has no active resource to offer (every resource of its pool is inactive)** → The service cannot be booked: Step 1 shows an inline "service unavailable" message and the flow does not advance (the backend would answer `BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE` at submit).
 - **Postconditions:** Booking exists with a resolved resource assignment for the chosen staff.
 - **Events Triggered:** `BookingRequested` (unchanged envelope, now implies a resource-scoped slot).
 
@@ -1062,7 +1063,7 @@ Returns:
 - **Preconditions:** Service has `legs.length >= 2` (e.g. spa journey).
 - **Trigger:** Customer selects the service.
 - **Main Flow:**
-  1. Customer picks `CUSTOMER_CHOICE` resources per leg where applicable.
+  1. Customer picks `CUSTOMER_CHOICE` resources per leg where applicable — one picker step per leg that has a choice, headed with the leg name; a leg with only automatic resources has no step.
   2. Calendar shows start times where the **entire chained itinerary** fits — every leg's resource(s) free at that leg's computed sub-window, honoring transition gaps.
   3. Customer books; the booking-submitted view (the details box under "Solicitação enviada!", M23-S11b) shows the full itinerary (per-leg time + resource(s)).
 - **Alternative Flows:**
@@ -1097,7 +1098,7 @@ Returns:
 - **Preconditions:** APPOINTMENT service has `durationPolicy = CUSTOMER_SELECTED` and a flat resource/bundle requirement (a service with `legs` can never be `CUSTOMER_SELECTED` — UC-052 A2, UC-055 A4).
 - **Trigger:** Customer selects an eligible room, court, bay, desk, or equipment service.
 - **Main Flow:**
-  1. Customer chooses a start and duration within the service's minimum, maximum, and increment rules.
+  1. Customer chooses a duration within the service's minimum, maximum, and increment rules (a duration-only step, with the server-quoted total), then a start from the normal availability step, which lists only slots that fit that duration.
   2. System validates the whole interval and the required quantity. (No participant-limit rule exists: `participantCount` is a recorded input only and is never checked against a capacity.)
   3. System quotes the service-level per-increment price (`docs/13-DATABASE_SCHEMA.md`'s round-up rule), resolves every required resource atomically.
   4. System creates the normal booking under its snapshotted approval policy.
@@ -1125,7 +1126,7 @@ Returns:
 - **Alternative Flows:**
   - **A1: The service form changes while the customer is completing it** → Submission validates against the displayed schema version; a removed/changed field never silently rewrites already-completed answers.
   - **A2: A minor attends** → A responsible authenticated adult may be the booker; no family-account hierarchy implied.
-  - **A3: A required intake question or the consent checkbox is left unanswered** → `422 Unprocessable` — inline validation error naming the missing field(s).
+  - **A3: A required intake question or the consent checkbox is left unanswered** → The form validates the displayed schema client-side and shows an inline error on each missing field. If the server rejects anyway (`422 BOOKING_INTAKE_ANSWER_MISSING`), the response names the fields only in `detail`, so the form shows a summary banner without field highlights and keeps every answer.
   - **A4: `serviceIds` contains more than one intake-bearing and/or `CUSTOMER_SELECTED` service** → same `422` rejection as UC-067 A4 — one shared basket-scope rule for both extensions.
   - **A5: `intakeAnswers`/`attendees` are submitted for a service with no active intake schema** → Silently ignored (not persisted, not an error) — the precondition never applied, so there is nothing to validate against.
 - **Postconditions:** Historical bookings remain readable under the form version used at submission.

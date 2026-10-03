@@ -222,7 +222,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 1. **One resource-picker step component for every resource type and service type, shown once per unit of the booking.** `ResourcePicker` is built from `GET /public/services/:id/resource-options` → `requirements[]` (grouped by `legIndex`). A **flat service (or bundle) is one unit**: one "Escolha" step with one section per `CUSTOMER_CHOICE` requirement — staff, room and/or equipment, any combination (`05`, `05f`). A **legged service has one unit per leg**: each leg that has a `CUSTOMER_CHOICE` requirement gets its **own full picker step**, headed with the leg name ("Etapa 2 de 3 — Massagem", `05g`/`05h`), so a 3-leg journey can show the step up to three times; a leg with only automatic resources (Sauna) has no step. **A unit with nothing to choose has no step at all**, whatever its type (`AUTO_ANY`, `AUTO_FUNGIBLE_POOL`, `NONE`). All picker steps come **before** availability (the slot search needs every pick pinned); going back keeps earlier picks and one leg's pick never invalidates another's. A room or equipment picker is the same screen with another heading. **An empty options list never reaches the picker:** a service whose `CUSTOMER_CHOICE` requirement has no active resource cannot be booked, so Step 1 shows an inline "serviço indisponível" message and stays put (`01g`, fails closed) — there is no empty-picker screen.
 2. **Automatic resources have no screen and no note.** `AUTO_ANY` staff, `AUTO_FUNGIBLE_POOL` units and an automatic room/equipment never produce a section; when the options response has no `CUSTOMER_CHOICE` requirement the step is **omitted** from the step list and the customer goes from Serviços straight to the next step. The assigned name is shown only **after** booking, on the success box (`04d`); a pool shows no unit name at all (`04d`). `06-auto-staff`, `07-fungible-resource` and `09-bundle-booking` were **deleted** (the old "three stations" copy claimed pool data the API never sends).
 3. **A pool with `requiredQuantity > 1` needs nothing** (no screen, no hint). **Two same-type picks in one bundle** are two sections; the leg or requirement position in the heading tells them apart. **Duplicate service lines cannot happen** (Step 1 is a toggle set) — `resourceSelections` follow the `serviceIds` order.
-4. **Variable duration is a duration choice only (`12`).** Date and time come from the existing availability step (`02`, unchanged UI), re-fetched with `durationMinutes`. No free date/time input, no client-side midnight logic (the API's slot list is authoritative), "Total estimado" from `/quote` with loading (`12d`) and error (`12c`) states; `BOOKING_DURATION_OUT_OF_RANGE` → `12b`.
+4. **Variable duration is a duration choice only (`12`).** Date and time come from the existing availability step (`02`, unchanged UI), re-fetched with `durationMinutes`. No free date/time input, no client-side midnight logic (the API's slot list is authoritative), "Total" from `/quote` with loading (`12d`) and error (`12c`) states; `BOOKING_DURATION_OUT_OF_RANGE` → `12b`.
 5. **The legs review (`10`) is the final Confirmation step of a legged service**, not an extra step; a taken slot, a bundle race and a leg race return to the **availability step** with only the slot cleared (`02e`, `09b`, `10b`).
 6. **Customer rescheduling is a separate story and prototype** (see `plan/journey/customer/minha-conta.md` § Reagendar) — it is no longer part of the booking flow.
 7. **Attendees are optional with no UI minimum** (the backend never requires one) — decided as the default; reconfirm at `/story-discovery M23-S11a`.
@@ -246,7 +246,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `10-multi-leg-itinerary.html` / `10b` | Journey confirmation (leg timeline) · availability step — `BOOKING_LEG_UNAVAILABLE` | UC-065 / UC-065 A1 | M23-S11b |
 | `12-reserva-por-tempo.html` / `12b` / `12c` / `12d` | Duration + quote · `OUT_OF_RANGE` · quote error · quote loading | UC-067 | M23-S11b |
 | `04f-success-details-resources.html` | Success box with the leg timeline — every leg's assigned resources named (the response `itinerary` lists them all, automatic ones included) | UC-065 | M23-S11b |
-| `15-login-required.html` | Auth boundary before a waitlist/alert action — **out of M23-S11a/S11b's scope** (M23-S12/S17) | UC-072 A1 | — |
+| `15-login-required.html` | A **class-waitlist** login screen (Pilates, "fila de espera") — an M24 screen, **out of M23-S11a/S11b's scope**; it is not the appointment availability-alert entry (see the IA gap below) | M24 | — |
 
 **Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `11-appointment-availability` (2026-10-03 — it redrew the date/time step in a different format; the existing `02-calendar-slot` day-pill carousel + slot buttons stays the single availability step for every flow, extended only by optional `resourceSelections`/`durationMinutes` props — documented in `02`'s header comment); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).
 
@@ -264,7 +264,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 **BFF calls (new/extended — see `docs/14-API_CONTRACTS.md` and `plan/M23-…md` § M23-S29):**
 ```
 GET  /public/services/:id/resource-options                  -- feeds ResourcePicker (CUSTOMER_CHOICE options, names only)  [M23-S29]
-GET  /public/services/:id/quote?durationMinutes=            -- "Total estimado" on the variable-duration step               [M23-S29]
+GET  /public/services/:id/quote?durationMinutes=            -- "Total" on the variable-duration step               [M23-S29]
 GET  /public/services/:id/intake-schema                     -- feeds IntakeAnswersStep (active version only, no auth); backend path is /services/:id/intake-schema/public
 GET  /schedule/availability(/summary)?serviceIds=&resourceSelections=&durationMinutes=   -- requirement-aware availability  [M23-S29]
 POST /bookings, POST /bookings/authenticated               -- body gains resourceSelections, durationMinutes,
@@ -287,6 +287,19 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 | `field = pickupAddress` / `contactAddress` | their steps | existing `01b` / `03b` | — | — |
 | `401` (authenticated path) | hotsite login | existing handling | — | — |
 | anything else | Confirmation, generic message | `04c` | — | — |
+
+### UX rules (docs audit, 2026-10-03) — apply to every new screen in this set
+
+1. **No option is pre-selected** in a picker — the initial state is `05b` (nothing picked, Próximo disabled until every section has an explicit pick); `05`, `05f`, `05g` and `05h` illustrate states *after* the customer has picked.
+2. Each picker section is a **radio group in a `fieldset` with a `legend`** (the resource-type label) so screen readers announce the group.
+3. On any **error return to a step** (picker, duration, intake, availability, Step 1) keyboard **focus moves to the error alert** (`role="alert"`) — the intake step already specified it; the rest now follow it.
+4. The per-leg picker heading is the **leg name with a small subtitle** "Etapa N de M da jornada"; the page's "Passo N de M" indicator stays the only step counter.
+5. The variable-duration total reads **"Total"** (the quote is exactly what booking creation persists); "a partir de…" appears only before a duration is chosen.
+6. **Contrast:** error text on a red tint uses `#b91c1c` (5.9:1) — not `#dc2626` (4.41:1); hint text never goes below `opacity: .6` (`.5` is 3.4:1). The shipped legacy screens (`02`, `02e`, customer `02`) still use the old values and are not changed here; fix when those components are next touched.
+
+### IA gap — availability-alert entry in the booking flow (unowned)
+
+UC-072's trigger ("Customer sees no suitable availability") has no screen in the public booking flow: `02d-fully-booked` shows only "Entre em contato conosco para agendar", there is no "Avise-me quando abrir" action, and no login redirect that preserves the chosen criteria for **appointments** (`15-login-required` is a class-waitlist screen). It needs its own prototype pass and story (depends on `M23-S06`, `M23-S11a`); `M23-S12` is the Minha Conta management surface (`07-availability-alert`) only.
 
 **Open questions / gaps:**
 - [ ] Stories: `M23-S11a` then `M23-S11b` (`/story-discovery` each) — `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`. S11a must land first (the step engine S11b plugs into).

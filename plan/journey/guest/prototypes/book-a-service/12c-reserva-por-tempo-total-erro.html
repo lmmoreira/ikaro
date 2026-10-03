@@ -29,7 +29,7 @@
     .leg-time { font-weight:700; color:var(--ba-text); font-size:0.9375rem; }
     .leg-name { font-weight:600; color:var(--ba-primary); font-size:0.9375rem; margin-top:0.125rem; }
     .leg-resource { font-size:0.8125rem; opacity:0.6; margin-top:0.125rem; }
-    .transition-note { font-size:0.75rem; opacity:0.5; margin-top:0.375rem; font-style:italic; }
+    .transition-note { font-size:0.75rem; opacity:0.6; margin-top:0.375rem; font-style:italic; }
     .row { display:flex; justify-content:space-between; font-size:0.875rem; color:var(--ba-text); padding:0.25rem 0; }
     .btn-disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
     .rate { font-size:0.8125rem; opacity:0.75; }
@@ -42,7 +42,7 @@
                a duration choice; date and time come from the normal availability step that follows (02-calendar-slot), which is re-fetched with
                durationMinutes so the slots reflect the chosen duration. There is NO free date/time input here.
     OPTIONS:   from bookingPolicy: durationMinMinutes .. durationMaxMinutes in steps of durationIncrementMinutes.
-    QUOTE:     GET /public/services/:id/quote?durationMinutes=  ->  { durationMinutes, price }  — "Total estimado", formatted with
+    QUOTE:     GET /public/services/:id/quote?durationMinutes=  ->  { durationMinutes, price }  — "Total", formatted with
                useFormatting in the tenant currency; it is the price booking creation persists. Re-requested on every change.
     NO participants/capacity input here (asked only on the intake step). NO resource name (an automatic room is never named).
     MIDNIGHT:  no client-side midnight logic — the slot list the API returns is authoritative.

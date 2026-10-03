@@ -65,7 +65,7 @@ flowchart TD
     HasChoice -- "no (auto staff / pool / auto room: nothing shown)" --> HasDuration
     Picker -->|"next leg that has a choice"| Picker
     Picker --> HasDuration{"durationPolicy =<br/>CUSTOMER_SELECTED?"}
-    HasDuration -- "yes" --> Duration["❓ GAP: duration + Total estimado<br/>(12, 12b–12d)<br/>GET /public/services/:id/quote"]
+    HasDuration -- "yes" --> Duration["❓ GAP: duration + Total<br/>(12, 12b–12d)<br/>GET /public/services/:id/quote"]
     HasDuration -- "no" --> Availability
     Duration --> Availability["❓ GAP: shared availability step<br/>(existing 02 — no UI change; resourceSelections + durationMinutes are optional query params)"]
 
@@ -81,7 +81,7 @@ flowchart TD
     BackAvail --> Availability
 ```
 
-**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `09b`, `10`, `10b`, `11`, `12`–`12d`, `13`–`13c` and the success variants `04d`/`04f` (`15-login-required.html` is out of M23-S11a/S11b's scope — availability alerts; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
+**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `02` (the existing date/time step, no UI change), `09b`, `10`, `10b`, `12`–`12d`, `13`–`13c` and the success variants `04d`/`04f` (`15-login-required.html` is out of M23-S11a/S11b's scope — availability alerts; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
 
 **Stories:** `M23-S29` (backend/BFF prerequisites, ✅ Done), **`M23-S11a`** (step engine, intake, service cards, resource picker, success box) then **`M23-S11b`** (bundle/journey confirmation and variable duration) in `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`.
 
@@ -89,4 +89,5 @@ flowchart TD
 - [x] Intake placement decided: its own step after Personal Info, before the final Review & Confirm (`dev-notes.md` § Intake step placement).
 - [x] No screen for automatic resources; one picker for every resource and service type; duration is a duration-only step; the legs review is the final Confirmation step; customer rescheduling is a separate story (`dev-notes.md` § Design decisions).
 - [x] `06`, `07`, `08`, `09`, `14`, `16` removed.
-- [ ] `15-login-required.html` still links to the Cluster 4 class agenda (`public-02b-class-agenda.html`, not yet promoted) — out of M23-S11a/S11b's scope, carried by the alert stories (M23-S12/S17) and M24.
+- [ ] `15-login-required.html` is a **class-waitlist** screen ("Entre para entrar na fila de espera", Pilates), linked to the Cluster 4 class agenda (`public-02b-class-agenda.html`, not yet promoted) — it belongs to M24 and is **not** the appointment availability-alert entry.
+- [ ] **IA gap (docs audit 2026-10-03): nobody owns the availability-alert entry in the public booking flow** (UC-072 trigger/A1): no "Avise-me quando abrir" action on the no-availability state (`02d` only says "Entre em contato conosco"), no login redirect that preserves the chosen criteria for appointments, no prototype. Needs its own prototype pass and story (depends on `M23-S06` and `M23-S11a`); `M23-S12` is the Minha Conta management surface only.

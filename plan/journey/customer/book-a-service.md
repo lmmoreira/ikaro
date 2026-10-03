@@ -45,6 +45,8 @@ flowchart TD
     class Intake gap
 ```
 
+> **M23 extension (❓ Gap, `M23-S11a`/`S11b`):** between Step 1 and the calendar the flow can add one resource-picker step per unit that has a customer choice (none when everything is automatic), a duration step for a variable-duration service, and — after Personal Info — the intake step; a legged service ends with the journey confirmation. The authenticated customer uses the **same screens and the same step engine as the guest** — see the flow diagram in `guest/book-a-service.md` § M23; only the auth bar and `hideContactFields` differ.
+
 **Note (2026-07-31 docs audit):** this flowchart previously described a generic `/auth/login` + `/api/auth/callback/google` + `/select-tenant` architecture that was never built and has since been superseded — see `customer/login.md`'s 2026-06-24 scope-change note for the canonical, shipped design (tenant-scoped `/{slug}/login`, BFF-only OAuth callback, `/select-tenant` permanently descoped). This file now matches that canonical design instead of duplicating it.
 
 ## Pages referenced

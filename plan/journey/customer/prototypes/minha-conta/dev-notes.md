@@ -264,6 +264,8 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 - **Availability for a reschedule.** The staff `RescheduleBookingPage` lists slots with `serviceIds` only, ignoring the booking's own occupancy and picks. For resource-scoped bookings the list must pin the kept picks and the kept duration (S29 params), and ideally ignore the booking's own current window (the commit already releases it inside the same transaction) — decide whether a read-side `excludeBookingId`-style parameter is needed.
 - Confirm the `BookingRescheduled` customer email exists and its copy matches "Enviamos a confirmação por email".
 
+**UX rules (docs audit, 2026-10-03):** a **"De … Para …" change summary** (current and newly chosen date/time) sits directly above "Confirmar novo horário" (`15`, `15b`); error text on a red tint is `#b91c1c` and hint text never below `opacity: .6`; on any error the focus moves to the alert (`role="alert"`).
+
 **Error copy:** headlines are the catalogue texts (`BOOKING_SLOT_UNAVAILABLE`, `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`, `BOOKING_LEG_UNAVAILABLE`, `BOOKING_RESCHEDULE_WINDOW_EXPIRED`); supporting lines are screen copy needing `web.json` keys in both locales. Error text on a fixed red tint uses `#dc2626`/`#991b1b` with fixed backgrounds (customer area, SaaS design system — no `--ba-*`).
 
 ## ❓ GAP — M24 Cluster 4 extension (UC-089–095, UC-102, not yet built)
