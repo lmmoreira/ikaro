@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { DayPicker } from 'react-day-picker';
-import type { DaySummary } from '@ikaro/types';
+import type { DaySummary, ResourceSelectionItem } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
 import {
   addDays as addUTCDays,
@@ -20,6 +20,8 @@ interface AvailabilityCalendarProps {
   readonly selectedDate: string | null;
   readonly onSelectDate: (date: string) => void;
   readonly maxBookingAdvanceDays: number;
+  readonly resourceSelections?: readonly ResourceSelectionItem[];
+  readonly durationMinutes?: number;
 }
 
 // DayPicker's CalendarDay wraps a *local* Date instance for each rendered cell — reading it back
@@ -58,6 +60,8 @@ export function AvailabilityCalendar({
   selectedDate,
   onSelectDate,
   maxBookingAdvanceDays,
+  resourceSelections,
+  durationMinutes,
 }: AvailabilityCalendarProps): React.JSX.Element {
   const t = useTranslations('booking');
   const locale = useLocale();
@@ -111,7 +115,10 @@ export function AvailabilityCalendar({
     if (monthEntirelyOutOfRange) return;
     let cancelled = false;
 
-    fetchAvailabilitySummary(slug, fetchFromIso, fetchToIso, serviceIds)
+    fetchAvailabilitySummary(slug, fetchFromIso, fetchToIso, serviceIds, {
+      resourceSelections,
+      durationMinutes,
+    })
       .then((fetchedDays) => {
         if (!cancelled) setResult({ rangeKey: currentRangeKey, days: fetchedDays });
       })
@@ -125,6 +132,8 @@ export function AvailabilityCalendar({
   }, [
     slug,
     serviceIds,
+    resourceSelections,
+    durationMinutes,
     fetchFromIso,
     fetchToIso,
     monthEntirelyOutOfRange,

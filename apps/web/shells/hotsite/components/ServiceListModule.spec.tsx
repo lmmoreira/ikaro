@@ -188,4 +188,64 @@ describe('ServiceListModule', () => {
 
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  describe('a per-time service', () => {
+    const perTime = makeService({
+      id: 'per-time',
+      name: 'Sala de reunião',
+      bookingPolicy: {
+        ...hotsiteServiceBookingDefaults.bookingPolicy,
+        durationPolicy: 'CUSTOMER_SELECTED',
+        durationMinMinutes: 60,
+        durationMaxMinutes: 480,
+        durationIncrementMinutes: 60,
+        pricingPolicy: 'PER_TIME_INCREMENT',
+        pricingIncrementMinutes: 60,
+        pricePerIncrementAmount: 50,
+      },
+    });
+
+    it('shows its rate and duration range instead of the fixed price', () => {
+      renderWithIntl(<ServiceListModule data={makeData()} slug="tenant" services={[perTime]} />);
+
+      expect(screen.getByTestId('price-badge')).toHaveTextContent('R$ 50,00 / hora');
+      expect(screen.getByText('1h a 8h')).toBeInTheDocument();
+      expect(screen.queryByText('R$ 150,00')).not.toBeInTheDocument();
+    });
+
+    it('labels a non-hourly increment in minutes', () => {
+      const halfHour = {
+        ...perTime,
+        bookingPolicy: { ...perTime.bookingPolicy, pricingIncrementMinutes: 30 },
+      };
+      renderWithIntl(<ServiceListModule data={makeData()} slug="tenant" services={[halfHour]} />);
+
+      expect(screen.getByTestId('price-badge')).toHaveTextContent('R$ 50,00 / 30 min');
+    });
+
+    it('shows no duration text when the policy has no range', () => {
+      const unbounded = {
+        ...perTime,
+        bookingPolicy: {
+          ...perTime.bookingPolicy,
+          durationMinMinutes: null,
+          durationMaxMinutes: null,
+        },
+      };
+      renderWithIntl(<ServiceListModule data={makeData()} slug="tenant" services={[unbounded]} />);
+
+      expect(screen.queryByText(/a 8h/)).not.toBeInTheDocument();
+      expect(screen.getByTestId('price-badge')).toHaveTextContent('R$ 50,00 / hora');
+    });
+
+    it('falls back to the fixed price when the increment amount is missing', () => {
+      const fallback = {
+        ...perTime,
+        bookingPolicy: { ...perTime.bookingPolicy, pricePerIncrementAmount: null },
+      };
+      renderWithIntl(<ServiceListModule data={makeData()} slug="tenant" services={[fallback]} />);
+
+      expect(screen.getByTestId('price-badge')).toHaveTextContent('R$ 150,00');
+    });
+  });
 });

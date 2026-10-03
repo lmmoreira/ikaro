@@ -3,7 +3,10 @@ import type {
   AuthenticatedBookingRequest,
   BookingResponse,
   CreateBookingRequest,
+  HotsiteServiceQuoteResponse,
+  HotsiteServiceResourceOptionsResponse,
   ImageContentType,
+  PublicServiceIntakeSchemaResponse,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 
@@ -19,10 +22,43 @@ export async function createBooking(
 
 export async function createAuthenticatedBooking(
   payload: AuthenticatedBookingRequest,
-): Promise<{ bookingId: string; status: string }> {
-  const res = await bffClient.post<{ bookingId: string; status: string }>(
-    '/bookings/authenticated',
-    payload,
+): Promise<BookingResponse> {
+  const res = await bffClient.post<BookingResponse>('/bookings/authenticated', payload);
+  return res.data;
+}
+
+export async function fetchPublicIntakeSchema(
+  slug: string,
+  serviceId: string,
+): Promise<PublicServiceIntakeSchemaResponse> {
+  const res = await bffClient.get<PublicServiceIntakeSchemaResponse>(
+    `/public/services/${serviceId}/intake-schema`,
+    { headers: { 'X-Tenant-Slug': slug } },
+  );
+  return res.data;
+}
+
+export async function fetchServiceResourceOptions(
+  slug: string,
+  serviceId: string,
+): Promise<HotsiteServiceResourceOptionsResponse> {
+  const res = await bffClient.get<HotsiteServiceResourceOptionsResponse>(
+    `/public/services/${serviceId}/resource-options`,
+    { headers: { 'X-Tenant-Slug': slug } },
+  );
+  return res.data;
+}
+
+// Consumed by the variable-duration step (M23-S11b); the fetcher lands with the other public
+// service reads so that story is UI-only.
+export async function fetchServiceQuote(
+  slug: string,
+  serviceId: string,
+  durationMinutes: number,
+): Promise<HotsiteServiceQuoteResponse> {
+  const res = await bffClient.get<HotsiteServiceQuoteResponse>(
+    `/public/services/${serviceId}/quote`,
+    { params: { durationMinutes }, headers: { 'X-Tenant-Slug': slug } },
   );
   return res.data;
 }

@@ -5,3 +5,9 @@ export {
   makeUniqueServiceName,
   updateService,
 } from './service-api';
+export {
+  publishIntakeSchema,
+  setBookingPolicy,
+  setResourceRequirements,
+  setServiceLegs,
+} from './service-config-api';

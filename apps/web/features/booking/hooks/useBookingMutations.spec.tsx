@@ -38,6 +38,9 @@ vi.mock('@/features/booking/api/booking', () => ({
   submitBookingInfo: vi
     .fn()
     .mockResolvedValue({ bookingId: 'b-1', status: 'PENDING', infoSubmittedAt: '' }),
+}));
+
+vi.mock('@/features/booking/api/public', () => ({
   createAuthenticatedBooking: vi.fn().mockResolvedValue({ bookingId: 'b-new', status: 'PENDING' }),
 }));
 

@@ -160,4 +160,37 @@ describe('SlotPicker', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
   });
+
+  it('forwards the resource picks and the duration and re-fetches when a pick changes', async () => {
+    vi.mocked(fetchAvailability).mockResolvedValue({
+      date: '2026-06-15',
+      available: true,
+      slots: [{ startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' }],
+    });
+    const pick = (resourceId: string) => [
+      { serviceId: 'svc-1', legIndex: null, resourceType: 'STAFF' as const, resourceId },
+    ];
+    const element = (resourceId: string) => (
+      <SlotPicker
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        date="2026-06-15"
+        selectedSlot={null}
+        onSelectSlot={vi.fn()}
+        resourceSelections={pick(resourceId)}
+        durationMinutes={60}
+      />
+    );
+    const { rerender } = renderWithIntl(element('r-1'));
+    await screen.findByTestId('time-slot');
+
+    expect(fetchAvailability).toHaveBeenCalledWith('lavacar-beloauto', '2026-06-15', ['svc-1'], {
+      resourceSelections: pick('r-1'),
+      durationMinutes: 60,
+    });
+
+    rerender(element('r-2'));
+
+    await vi.waitFor(() => expect(fetchAvailability).toHaveBeenCalledTimes(2));
+  });
 });

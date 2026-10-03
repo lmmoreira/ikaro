@@ -136,13 +136,13 @@ New files require Vitest unit tests (`*.spec.tsx` alongside each new component);
 
 ---
 
-## ❓ GAP — Intake step (M23-S11a, UC-068; backend/BFF shipped in M23-S02, frontend not built)
+## ✅ Intake step (M23-S11a, UC-068; backend/BFF shipped in M23-S02, frontend built by M23-S11a)
 
 For a service with an active `service_booking_intake_schema`, the authenticated-customer flow gains one step between Review (Step 3) and Confirmation: Services → Calendar → Review → **Intake (`IntakeAnswersStep`)** → Confirm ("Passo N de 5"). Services without a schema skip it and the flow stays 4 steps.
 
 - Prototype: `03b-intake-answers.html` + `03c-intake-answers-error.html` (client field errors) + `03e-intake-answers-erro-servidor.html` (server rejection, summary only) — the same component and behavior as the guest path; full spec (schema-driven rendering, version kept as `intakeSchemaVersion`, no submit on this step, `#b91c1c` error text, `422 intake-answer-missing`) lives in `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § Intake step placement.
 - Customer-specific: the final `POST /bookings/authenticated` on Confirmation carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` (identical shape to the guest endpoint, `docs/14-API_CONTRACTS.md`).
-- File: `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` — one component for both actors, not duplicated.
+- Files: `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (+ `IntakeQuestionField.tsx`, `IntakeAttendeesList.tsx`) — one component for both actors, not duplicated.
 
 **Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 BOOKING_INTAKE_ANSWER_MISSING`, whose missing field names are only in `detail` and never rendered — field-level errors here are client-side only; a server-only rejection shows the summary banner (`03e`)):**
 
@@ -168,7 +168,7 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 
 ---
 
-### M23-S11a / M23-S11b — the other new steps (reuse of the guest screens)
+### M23-S11a (✅ built) / M23-S11b (❓ GAP) — the other new steps (reuse of the guest screens)
 
 The authenticated-customer flow uses the **same components and the same screens** as the guest flow; the clickable prototype for them lives in `plan/journey/guest/prototypes/book-a-service/` and is not duplicated here. Only the auth bar (avatar → Minha conta / Sair) and Step 3's `hideContactFields` differ, and both are already drawn in this folder (`01`–`04`).
 
@@ -181,4 +181,4 @@ The authenticated-customer flow uses the **same components and the same screens*
 | Intake step · errors | `03b`/`03c`/`03e` here (same as `13`/`13b`/`13c`) | none |
 | Success box | `04d` here (plain, CTA → Agendamentos; the resource-line variants are in the guest `04d`) · `04f` (guest folder) | the primary CTA links to the Agendamentos list |
 
-Error routing, step paths and the design decisions: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § ❓ GAP.
+Error routing, step paths and the design decisions: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § M23 Cluster 3 extension.

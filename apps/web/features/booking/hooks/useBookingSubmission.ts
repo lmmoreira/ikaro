@@ -1,92 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { BookingErrorCode } from '@ikaro/types';
 import type {
   Address,
   AvailableSlot,
-  AuthenticatedBookingRequest,
-  CreateBookingRequest,
+  BookingFlowRequestFields,
+  BookingResponse,
   CustomerProfileResponse,
   HotsiteAddressSpec,
+  ResourceSelectionItem,
 } from '@ikaro/types';
 import { createAuthenticatedBooking, createBooking } from '@/features/booking/api/public';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
-import { extractProblemDetailShape } from '@/shared/lib/api/errors';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
-import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import {
-  isAddressFilled,
-  sanitizeAddress,
-  type PersonalInfoValue,
-} from '@/features/booking/model/personal-info';
+  buildAuthenticatedBookingPayload,
+  buildGuestBookingPayload,
+  type BookingPayloadSelections,
+} from '@/features/booking/model/booking-payload';
+import {
+  resolveBookingSubmitErrorRoute,
+  resolveErrorStep,
+  type BookingStepId,
+  type ResolvedErrorStep,
+} from '@/features/booking/model/booking-steps';
+import type { PersonalInfoValue } from '@/features/booking/model/personal-info';
+import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import type { BookingSubmissionStatus } from '../components/public/ConfirmationStep';
-
-type ErrorStep = 1 | 2 | 3 | 4;
-
-function buildPayload(
-  personalInfo: PersonalInfoValue,
-  selectedServiceIds: readonly string[],
-  selectedSlot: AvailableSlot,
-  pickupAddress: Address,
-  requiresPickupAddress: boolean,
-  requireNeighborhood: boolean,
-): CreateBookingRequest {
-  return {
-    contactName: personalInfo.contactName,
-    contactEmail: personalInfo.contactEmail,
-    contactPhone: personalInfo.contactPhone,
-    scheduledAt: selectedSlot.startsAt,
-    serviceIds: [...selectedServiceIds],
-    ...(isAddressFilled(personalInfo.contactAddress, requireNeighborhood)
-      ? { contactAddress: sanitizeAddress(personalInfo.contactAddress) }
-      : {}),
-    ...(requiresPickupAddress ? { pickupAddress: sanitizeAddress(pickupAddress) } : {}),
-    ...(personalInfo.photoFilePaths.length > 0
-      ? { beforeServicePhotoUrls: [...personalInfo.photoFilePaths] }
-      : {}),
-  };
-}
-
-interface BookingSubmitErrorRoute {
-  readonly step: ErrorStep;
-  readonly message: string;
-}
-
-function resolveBookingSubmitErrorRoute(
-  err: unknown,
-  locale: SupportedLocale,
-): BookingSubmitErrorRoute {
-  const shape = extractProblemDetailShape(err);
-  if (!shape) {
-    return { step: 4, message: resolveErrorMessage(undefined, locale) };
-  }
-  if (shape.code === BookingErrorCode.SLOT_UNAVAILABLE) {
-    return { step: 2, message: resolveErrorMessage(shape.code, locale) };
-  }
-  if (shape.field === 'pickupAddress') {
-    return { step: 1, message: resolveErrorMessage(shape.code, locale) };
-  }
-  if (shape.field === 'contactAddress') {
-    return { step: 3, message: resolveErrorMessage(shape.code, locale) };
-  }
-  return { step: 4, message: resolveErrorMessage(shape.code, locale) };
-}
-
-function buildAuthenticatedPayload(
-  selectedServiceIds: readonly string[],
-  selectedSlot: AvailableSlot,
-  pickupAddress: Address,
-  requiresPickupAddress: boolean,
-  photoFilePaths: readonly string[],
-): AuthenticatedBookingRequest {
-  return {
-    scheduledAt: selectedSlot.startsAt,
-    serviceIds: [...selectedServiceIds],
-    ...(requiresPickupAddress ? { pickupAddress: sanitizeAddress(pickupAddress) } : {}),
-    ...(photoFilePaths.length > 0 ? { beforeServicePhotoUrls: [...photoFilePaths] } : {}),
-  };
-}
 
 interface UseBookingSubmissionParams {
   readonly slug: string;
@@ -98,17 +37,19 @@ interface UseBookingSubmissionParams {
   readonly requiresPickupAddress: boolean;
   readonly personalInfo: PersonalInfoValue;
   readonly addressSpec: HotsiteAddressSpec;
+  readonly resourcePicks: readonly ResourceSelectionItem[];
+  readonly intakeFields: BookingFlowRequestFields | null;
   readonly locale: SupportedLocale;
-  readonly onErrorStep: (step: ErrorStep) => void;
+  readonly steps: readonly BookingStepId[];
+  /** Re-fetches the options and returns the first picker step whose pick is missing or stale. */
+  readonly resolveInvalidPickerStep: () => Promise<BookingStepId | null>;
+  readonly onRoute: (resolved: ResolvedErrorStep) => void;
+  readonly onSubmitStart: () => void;
 }
 
-interface UseBookingSubmissionResult {
+export interface UseBookingSubmissionResult {
   readonly status: BookingSubmissionStatus;
-  readonly errorMessage: string | null;
-  readonly step1Error: string | null;
-  readonly step2Error: string | null;
-  readonly step3Error: string | null;
-  readonly clearStep2Error: () => void;
+  readonly booking: BookingResponse | null;
   readonly handleSubmit: () => Promise<void>;
 }
 
@@ -125,105 +66,73 @@ async function resolveCustomerProfileForSubmit(
   return resolvedProfile;
 }
 
+function payloadSelections(
+  params: UseBookingSubmissionParams,
+  slot: AvailableSlot,
+): BookingPayloadSelections {
+  return {
+    serviceIds: params.selectedServiceIds,
+    slot,
+    pickupAddress: params.pickupAddress,
+    requiresPickupAddress: params.requiresPickupAddress,
+    resourcePicks: params.resourcePicks,
+    intakeFields: params.intakeFields,
+  };
+}
+
 async function submitBooking(
   params: UseBookingSubmissionParams,
   resolvedProfile: CustomerProfileResponse | null,
-): Promise<void> {
-  if (!params.selectedSlot) return;
-
+  slot: AvailableSlot,
+): Promise<BookingResponse> {
+  const selections = payloadSelections(params, slot);
   if (resolvedProfile) {
-    await createAuthenticatedBooking(
-      buildAuthenticatedPayload(
-        params.selectedServiceIds,
-        params.selectedSlot,
-        params.pickupAddress,
-        params.requiresPickupAddress,
-        params.personalInfo.photoFilePaths,
-      ),
+    return createAuthenticatedBooking(
+      buildAuthenticatedBookingPayload(params.personalInfo.photoFilePaths, selections),
     );
-    return;
   }
-
-  const payload = buildPayload(
-    params.personalInfo,
-    params.selectedServiceIds,
-    params.selectedSlot,
-    params.pickupAddress,
-    params.requiresPickupAddress,
-    params.addressSpec.requireNeighborhood,
+  return createBooking(
+    params.slug,
+    buildGuestBookingPayload(
+      params.personalInfo,
+      selections,
+      params.addressSpec.requireNeighborhood,
+    ),
   );
-  await createBooking(params.slug, payload);
 }
 
-interface ErrorRouteSetters {
-  readonly setStatus: (status: BookingSubmissionStatus) => void;
-  readonly setErrorMessage: (message: string | null) => void;
-  readonly setStep1Error: (message: string | null) => void;
-  readonly setStep2Error: (message: string | null) => void;
-  readonly setStep3Error: (message: string | null) => void;
-  readonly onErrorStep: (step: ErrorStep) => void;
-}
-
-function applyBookingSubmitErrorRoute(
-  route: BookingSubmitErrorRoute,
-  setters: ErrorRouteSetters,
-): void {
-  setters.setStatus(route.step === 4 ? 'error' : 'idle');
-  setters.setStep1Error(route.step === 1 ? route.message : null);
-  setters.setStep2Error(route.step === 2 ? route.message : null);
-  setters.setStep3Error(route.step === 3 ? route.message : null);
-  setters.setErrorMessage(route.step === 4 ? route.message : null);
-  setters.onErrorStep(route.step);
-}
-
-async function submitAndRouteErrors(
+async function routeSubmitError(
+  err: unknown,
   params: UseBookingSubmissionParams,
-  setters: ErrorRouteSetters,
-): Promise<void> {
-  if (!params.selectedSlot) return;
-
-  setters.setStatus('submitting');
-  setters.setErrorMessage(null);
-  setters.setStep1Error(null);
-  setters.setStep2Error(null);
-  setters.setStep3Error(null);
-
-  try {
-    const resolvedProfile = await resolveCustomerProfileForSubmit(params);
-    await submitBooking(params, resolvedProfile);
-    setters.setStatus('success');
-  } catch (err) {
-    applyBookingSubmitErrorRoute(resolveBookingSubmitErrorRoute(err, params.locale), setters);
-  }
+): Promise<boolean> {
+  const route = resolveBookingSubmitErrorRoute(err, params.locale);
+  const invalidPicker = route.target === 'picker' ? await params.resolveInvalidPickerStep() : null;
+  const resolved = resolveErrorStep(route, params.steps, params.locale, invalidPicker);
+  params.onRoute(resolved);
+  return resolved.kind === 'step' && resolved.stepId === 'confirmation';
 }
 
 // Extracted from BookingForm (TD37-S5A) — the submission flow (payload building, error-route
-// resolution, and the status/per-step-error state it drives) is a self-contained concern,
-// unrelated to step navigation or field rendering.
+// resolution and the status it drives) is a self-contained concern, unrelated to step
+// navigation or field rendering. Where an error lands is decided by booking-steps.ts.
 export function useBookingSubmission(
   params: UseBookingSubmissionParams,
 ): UseBookingSubmissionResult {
   const [status, setStatus] = useState<BookingSubmissionStatus>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [step1Error, setStep1Error] = useState<string | null>(null);
-  const [step2Error, setStep2Error] = useState<string | null>(null);
-  const [step3Error, setStep3Error] = useState<string | null>(null);
-  const setters: ErrorRouteSetters = {
-    setStatus,
-    setErrorMessage,
-    setStep1Error,
-    setStep2Error,
-    setStep3Error,
-    onErrorStep: params.onErrorStep,
-  };
+  const [booking, setBooking] = useState<BookingResponse | null>(null);
 
-  return {
-    status,
-    errorMessage,
-    step1Error,
-    step2Error,
-    step3Error,
-    clearStep2Error: () => setStep2Error(null),
-    handleSubmit: () => submitAndRouteErrors(params, setters),
-  };
+  async function handleSubmit(): Promise<void> {
+    if (!params.selectedSlot) return;
+    setStatus('submitting');
+    params.onSubmitStart();
+    try {
+      const resolvedProfile = await resolveCustomerProfileForSubmit(params);
+      setBooking(await submitBooking(params, resolvedProfile, params.selectedSlot));
+      setStatus('success');
+    } catch (err) {
+      setStatus((await routeSubmitError(err, params)) ? 'error' : 'idle');
+    }
+  }
+
+  return { status, booking, handleSubmit };
 }

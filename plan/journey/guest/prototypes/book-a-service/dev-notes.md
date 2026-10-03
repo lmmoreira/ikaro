@@ -213,9 +213,9 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 ---
 
-## ❓ GAP — M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03 and M23-S29, frontend = M23-S11a + M23-S11b, not yet built)
+## M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03 and M23-S29; frontend = M23-S11a ✅ built, M23-S11b ❓ GAP, not yet built)
 
-> Everything above this line is shipped (`M12-S07`). Everything below is new, unimplemented scope. Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Requests.
+> Everything above this line is shipped (`M12-S07`). Below: the screens tagged **M23-S11a** are built (✅); the screens tagged **M23-S11b** are still unimplemented (❓ GAP). Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Requests.
 
 ### Design decisions (settled in the 2026-10-03 prototype review)
 
@@ -225,7 +225,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 4. **Variable duration is a duration choice only (`12`).** Date and time come from the existing availability step (`02`, unchanged UI), re-fetched with `durationMinutes`. No free date/time input, no client-side midnight logic (the API's slot list is authoritative), "Total" from `/quote` with loading (`12d`) and error (`12c`) states; `BOOKING_DURATION_OUT_OF_RANGE` → `12b`.
 5. **The legs review (`10`) is the final Confirmation step of a legged service**, not an extra step; a taken slot, a bundle race and a leg race return to the **availability step** with only the slot cleared (`02e`, `09b`, `10b`).
 6. **Customer rescheduling is a separate story and prototype** (see `plan/journey/customer/minha-conta.md` § Reagendar) — it is no longer part of the booking flow.
-7. **Attendees are optional with no UI minimum** (the backend never requires one) — decided as the default; reconfirm at `/story-discovery M23-S11a`.
+7. **Attendees are optional with no UI minimum** (the backend never requires one) — confirmed at `/story-discovery M23-S11a`.
 
 **Screens:**
 
@@ -250,14 +250,16 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 **Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `11-appointment-availability` (2026-10-03 — it redrew the date/time step in a different format; the existing `02-calendar-slot` day-pill carousel + slot buttons stays the single availability step for every flow, extended only by optional `resourceSelections`/`durationMinutes` props — documented in `02`'s header comment); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).
 
-**File map (❓ none exist yet):**
+**File map (S11a built ✅; S11b ❓ not yet):**
 
 | File | Status |
 |---|---|
-| `apps/web/features/booking/model/booking-steps.ts` — `resolveBookingSteps()`; the existing private `resolveBookingSubmitErrorRoute()` in `useBookingSubmission.ts` moves here | ❓ Gap (S11a) |
-| `apps/web/features/booking/components/public/ResourcePicker.tsx` (`05`…`05h`) | ❓ Gap (S11a) |
-| `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (`13`/`13b`/`13c`) | ❓ Gap (S11a) |
-| `apps/web/features/booking/components/public/BookingSubmittedDetails.tsx` (`04d`/`04f`) | ❓ Gap (S11a) |
+| `apps/web/features/booking/model/booking-steps.ts` — `resolveBookingSteps()`, `resolveBookingSubmitErrorRoute()`, `resolveErrorStep()` (moved from `useBookingSubmission.ts`); `resource-picks.ts`, `intake-answers.ts`, `booking-payload.ts`, `selection-totals.ts` beside it | ✅ Built (S11a) |
+| `apps/web/features/booking/hooks/useBookingFlow.ts` (symbolic step ids + per-step errors), `useBookingFormData.ts` (intake schemas + resource options, fetched once per selection), `useBookingSelections.ts`, `useBookingFormController.ts` | ✅ Built (S11a) |
+| `apps/web/features/booking/components/public/ResourcePicker.tsx` + `ResourcePickerStep.tsx` (`05`…`05h`) | ✅ Built (S11a) |
+| `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` + `IntakeQuestionField.tsx` + `IntakeAttendeesList.tsx` (`13`/`13b`/`13c`) | ✅ Built (S11a) |
+| `apps/web/features/booking/components/public/ServiceCard.tsx` (`01c`/`01g`) | ✅ Built (S11a) |
+| `apps/web/features/booking/components/public/BookingSubmittedDetails.tsx` (`04d`; `04f` is S11b) | ✅ Built (S11a) |
 | `apps/web/features/booking/components/public/LegItineraryStep.tsx` (`10`) | ❓ Gap (S11b) |
 | `apps/web/features/booking/components/public/VariableDurationStep.tsx` (`12`…`12d`) | ❓ Gap (S11b) |
 

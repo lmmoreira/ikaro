@@ -3,7 +3,6 @@ import {
   approveBooking,
   cancelBooking,
   completeBooking,
-  createAuthenticatedBooking,
   rejectBooking,
   requestMoreInfo,
   rescheduleBooking,
@@ -13,6 +12,7 @@ import {
   type RescheduleBookingRequest,
   type SubmitInfoRequest,
 } from '@/features/booking/api/booking';
+import { createAuthenticatedBooking } from '@/features/booking/api/public';
 import type {
   ApproveBookingRequest,
   AuthenticatedBookingRequest,

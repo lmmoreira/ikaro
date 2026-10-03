@@ -1,26 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import type {
-  AvailableSlot,
-  HotsiteAddressSpec,
-  HotsiteServiceResponse,
-  CustomerProfileResponse,
-} from '@ikaro/types';
-import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
-import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import {
-  emptyPersonalInfo,
-  isAddressBlank,
-  type PersonalInfoValue,
-} from '@/features/booking/model/personal-info';
-import { useBookingSubmission } from '@/features/booking/hooks/useBookingSubmission';
+import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
+import { useBookingFormController } from '@/features/booking/hooks/useBookingFormController';
+import { pickerStepId, resolvePickerUnits } from '@/features/booking/model/booking-steps';
 import { AvailabilityStep } from './AvailabilityStep';
-import { ErrorAlert } from './ErrorAlert';
 import { ConfirmationStep } from './ConfirmationStep';
+import { ErrorAlert } from './ErrorAlert';
+import { IntakeAnswersStep } from './IntakeAnswersStep';
 import { PersonalInfoStep } from './PersonalInfoStep';
+import { ResourcePickerStep } from './ResourcePickerStep';
 import { ServiceSelectionStep } from './ServiceSelectionStep';
 
 interface BookingFormProps {
@@ -33,10 +23,6 @@ interface BookingFormProps {
   readonly addressSpec: HotsiteAddressSpec;
 }
 
-type Step = 1 | 2 | 3 | 4;
-
-const TOTAL_STEPS = 4;
-
 export function BookingForm({
   slug,
   services,
@@ -47,88 +33,15 @@ export function BookingForm({
   addressSpec,
 }: BookingFormProps): React.JSX.Element {
   const t = useTranslations('booking');
-  const locale = useResolvedLocale();
   const router = useRouter();
-  const [step, setStep] = useState<Step>(1);
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
-  const [personalInfo, setPersonalInfo] = useState<PersonalInfoValue>(emptyPersonalInfo());
-  const [customerProfile, setCustomerProfile] = useState<
-    CustomerProfileResponse | null | undefined
-  >(undefined);
-  const [pickupAddressEdited, setPickupAddressEdited] = useState(false);
-
-  const requiresPickupAddress = services.some(
-    (service) => selectedServiceIds.includes(service.id) && service.requiresPickupAddress,
+  const c = useBookingFormController({ slug, services, addressSpec });
+  const { flow, selections, formData, submission } = c;
+  const { selectedServiceIds, selectedServices, selectedDate, selectedSlot } = selections;
+  const { stepId } = flow;
+  const pickerUnit = resolvePickerUnits(selectedServices).find(
+    (unit) => pickerStepId(unit) === stepId,
   );
-
-  useEffect(() => {
-    let active = true;
-
-    getHotsiteCustomerProfile(slug)
-      .then((profile) => {
-        if (!active) return;
-        setCustomerProfile(profile);
-      })
-      .catch(() => {
-        if (active) setCustomerProfile(null);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [slug]);
-
-  const pickupAddress =
-    requiresPickupAddress &&
-    !pickupAddressEdited &&
-    isAddressBlank(personalInfo.pickupAddress) &&
-    customerProfile?.defaultAddress
-      ? customerProfile.defaultAddress
-      : personalInfo.pickupAddress;
-  const isAuthenticatedCustomer = customerProfile !== null && customerProfile !== undefined;
-
-  const {
-    status,
-    errorMessage,
-    step1Error,
-    step2Error,
-    step3Error,
-    clearStep2Error,
-    handleSubmit,
-  } = useBookingSubmission({
-    slug,
-    customerProfile,
-    onCustomerProfileResolved: setCustomerProfile,
-    selectedServiceIds,
-    selectedSlot,
-    pickupAddress,
-    requiresPickupAddress,
-    personalInfo,
-    addressSpec,
-    locale,
-    onErrorStep: setStep,
-  });
-
-  function toggleService(serviceId: string) {
-    setSelectedServiceIds((prev) =>
-      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId],
-    );
-    setSelectedDate(null);
-    setSelectedSlot(null);
-  }
-
-  function handleSelectDate(date: string) {
-    setSelectedDate(date);
-    setSelectedSlot(null);
-    clearStep2Error();
-  }
-
-  function handleSelectSlot(slot: AvailableSlot) {
-    setSelectedSlot(slot);
-    clearStep2Error();
-  }
+  const pickerService = selectedServices.find((service) => service.id === pickerUnit?.serviceId);
 
   return (
     <main
@@ -138,34 +51,42 @@ export function BookingForm({
       <div className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="sr-only">{t('title')}</h1>
         <p className="mb-6 text-sm opacity-75" style={{ color: 'var(--ba-text)' }}>
-          {t('stepIndicator', { step, total: TOTAL_STEPS })}
+          {t('stepIndicator', { step: flow.position, total: flow.total })}
         </p>
 
-        {step === 1 && (
-          <>
-            <ServiceSelectionStep
-              services={services}
-              selectedServiceIds={selectedServiceIds}
-              onToggleService={toggleService}
-              requiresPickupAddress={requiresPickupAddress}
-              pickupAddress={pickupAddress}
-              onPickupAddressChange={(address) => {
-                setPickupAddressEdited(true);
-                setPersonalInfo((prev) => ({ ...prev, pickupAddress: address }));
-              }}
-              addressSpec={addressSpec}
-              onNext={() => setStep(2)}
-              onBack={() => router.push(`/${slug}`)}
-            />
-            {step1Error && (
-              <div className="mt-4" data-testid="step1-submit-error">
-                <ErrorAlert>{step1Error}</ErrorAlert>
-              </div>
-            )}
-          </>
+        {stepId === 'services' && (
+          <ServiceSelectionStep
+            services={c.bookable}
+            selectedServiceIds={selectedServiceIds}
+            onToggleService={c.toggleService}
+            requiresPickupAddress={c.requiresPickupAddress}
+            pickupAddress={c.pickupAddress}
+            onPickupAddressChange={c.editPickupAddress}
+            addressSpec={addressSpec}
+            formStatus={formData.status}
+            unavailableServiceIds={formData.unavailableServiceIds}
+            submitError={flow.errors.services ?? null}
+            onNext={c.leaveServicesStep}
+            onBack={() => router.push(`/${slug}`)}
+          />
         )}
 
-        {step === 2 && (
+        {pickerUnit && pickerService && (
+          <ResourcePickerStep
+            unit={pickerUnit}
+            service={pickerService}
+            requirements={formData.requirements}
+            picks={selections.picks}
+            status={c.pickerStatus}
+            reselectMessage={flow.errors[stepId]?.message ?? null}
+            onPick={c.pick}
+            onRetry={c.retryPickerOptions}
+            onBack={flow.goBack}
+            onNext={flow.goNext}
+          />
+        )}
+
+        {stepId === 'availability' && (
           <AvailabilityStep
             slug={slug}
             datePickerType={datePickerType}
@@ -174,49 +95,64 @@ export function BookingForm({
             selectedSlot={selectedSlot}
             carouselDays={carouselDays}
             maxBookingAdvanceDays={maxBookingAdvanceDays}
-            onSelectDate={handleSelectDate}
-            onSelectSlot={handleSelectSlot}
-            error={step2Error}
-            onBack={() => setStep(1)}
-            onNext={() => setStep(3)}
+            onSelectDate={c.selectDate}
+            onSelectSlot={c.selectSlot}
+            resourceSelections={c.resourceSelections}
+            error={flow.errors.availability ?? null}
+            onBack={flow.goBack}
+            onNext={flow.goNext}
           />
         )}
 
-        {step === 3 && selectedDate && selectedSlot && (
+        {stepId === 'personal' && selectedDate && selectedSlot && (
           <>
             <PersonalInfoStep
               slug={slug}
-              value={personalInfo}
-              onChange={setPersonalInfo}
-              services={services}
+              value={selections.personalInfo}
+              onChange={selections.setPersonalInfo}
+              services={c.bookable}
               selectedServiceIds={selectedServiceIds}
               selectedDate={selectedDate}
               selectedSlot={selectedSlot}
               phonePrefix={phonePrefix}
               addressSpec={addressSpec}
-              hideContactFields={isAuthenticatedCustomer}
-              onNext={() => setStep(4)}
-              onBack={() => setStep(2)}
+              hideContactFields={c.isAuthenticatedCustomer}
+              onNext={flow.goNext}
+              onBack={flow.goBack}
             />
-            {step3Error && (
+            {flow.errors.personal && (
               <div className="mt-4" data-testid="step3-submit-error">
-                <ErrorAlert>{step3Error}</ErrorAlert>
+                <ErrorAlert focusOnMount>{flow.errors.personal.message}</ErrorAlert>
               </div>
             )}
           </>
         )}
 
-        {step === 4 && selectedDate && selectedSlot && (
+        {stepId === 'intake' && formData.intakeSchema && (
+          <IntakeAnswersStep
+            schema={formData.intakeSchema}
+            value={selections.intake}
+            onChange={selections.setIntake}
+            serverError={flow.errors.intake?.message ?? null}
+            onNext={flow.goNext}
+            onBack={flow.goBack}
+          />
+        )}
+
+        {stepId === 'confirmation' && selectedDate && selectedSlot && (
           <ConfirmationStep
             slug={slug}
-            services={services}
+            services={c.bookable}
             selectedServiceIds={selectedServiceIds}
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
-            status={status}
-            errorMessage={errorMessage}
-            onSubmit={handleSubmit}
-            onBack={() => setStep(3)}
+            status={submission.status}
+            errorMessage={flow.errors.confirmation?.message ?? null}
+            booking={submission.booking}
+            picks={selections.picks}
+            requirements={formData.requirements}
+            onSubmit={submission.handleSubmit}
+            onBack={flow.goBack}
           />
         )}
       </div>

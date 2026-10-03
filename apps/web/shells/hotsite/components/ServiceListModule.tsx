@@ -1,7 +1,9 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type React from 'react';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
+import { formatMoney } from '@/shared/lib/formatting/format-money';
+import { isPerTimeService } from '@/features/booking/model/selection-totals';
 import { sectionHeadingFont } from '@/features/platform/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
 
@@ -24,6 +26,31 @@ interface ServiceCardProps {
   readonly cardBg: string;
 }
 
+// A per-time service has no fixed price or duration: show its rate and duration range instead.
+function useDurationAndPrice(service: HotsiteServiceResponse): { duration: string; price: string } {
+  const t = useTranslations('booking');
+  const locale = useLocale();
+  const { bookingPolicy: policy } = service;
+  if (!isPerTimeService(service) || policy.pricePerIncrementAmount === null) {
+    return { duration: formatDuration(service.durationMinutes), price: service.price.formatted };
+  }
+  const rate = formatMoney(policy.pricePerIncrementAmount, locale, service.price.currency);
+  const minutes = policy.pricingIncrementMinutes ?? 60;
+  const hasRange = policy.durationMinMinutes !== null && policy.durationMaxMinutes !== null;
+  return {
+    duration: hasRange
+      ? t('serviceSelection.durationRange', {
+          min: formatDuration(policy.durationMinMinutes ?? 0),
+          max: formatDuration(policy.durationMaxMinutes ?? 0),
+        })
+      : '',
+    price:
+      minutes === 60
+        ? t('serviceSelection.ratePerHour', { rate })
+        : t('serviceSelection.ratePerIncrement', { rate, minutes }),
+  };
+}
+
 function ServiceCard({
   service,
   showPrices,
@@ -31,6 +58,7 @@ function ServiceCard({
   cardBg,
 }: ServiceCardProps): React.JSX.Element {
   const t = useTranslations('hotsite');
+  const { duration, price } = useDurationAndPrice(service);
   const cardStyle: React.CSSProperties = {
     backgroundColor: cardBg,
     borderRadius: 'var(--ba-radius)',
@@ -43,14 +71,14 @@ function ServiceCard({
       </h3>
       {service.description && <p className="text-sm opacity-80">{service.description}</p>}
       <div className="mt-2 flex items-center justify-between text-sm">
-        <span className="opacity-75">{formatDuration(service.durationMinutes)}</span>
+        <span className="opacity-75">{duration}</span>
         {showPrices && (
           <span
             className="font-bold"
             style={{ color: 'var(--ba-primary)' }}
             data-testid="price-badge"
           >
-            {service.price.formatted}
+            {price}
           </span>
         )}
       </div>

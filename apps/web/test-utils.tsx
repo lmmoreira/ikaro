@@ -50,6 +50,41 @@ export const hotsiteServiceBookingDefaults: Pick<
   },
 };
 
+// The inline error of one intake question (its data-testid is static; the key rides in data-field-key).
+export function intakeFieldError(fieldKey: string): HTMLElement | null {
+  return (
+    screen
+      .queryAllByTestId('intake-field-error')
+      .find((element) => element.dataset.fieldKey === fieldKey) ?? null
+  );
+}
+
+export function choiceRequirement(
+  type: 'STAFF' | 'ROOM' | 'EQUIPMENT',
+): HotsiteServiceResponse['resourceRequirements'][number] {
+  return { type, selectionMode: 'CUSTOMER_CHOICE', requiredQuantity: 1 };
+}
+
+// A complete HotsiteServiceResponse; `overrides` replace whole fields (booking-flow defaults are a
+// plain fixed-duration, LOCATION-only service).
+export function makeHotsiteService(
+  overrides: Partial<HotsiteServiceResponse> = {},
+): HotsiteServiceResponse {
+  return {
+    id: '00000000-0000-0000-0000-000000000001',
+    name: 'Lavagem Completa',
+    description: null,
+    price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
+    durationMinutes: 60,
+    loyaltyPointsValue: 10,
+    requiresPickupAddress: false,
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    ...hotsiteServiceBookingDefaults,
+    ...overrides,
+  };
+}
+
 const FORMATTING_DEFAULTS: Record<
   string,
   {
