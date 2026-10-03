@@ -179,6 +179,7 @@ The authenticated-customer flow uses the **same components and the same screens*
 | Variable duration · journey confirmation | `12`–`12d` · `10` | none; the journey confirmation submits `POST /bookings/authenticated` |
 | Availability step (the existing `02`, unchanged UI) · slot / bundle / leg errors | `02` · `02e`, `09b`, `10b` | none |
 | Intake step · errors | `03b`/`03c`/`03e` here (same as `13`/`13b`/`13c`) | none |
+| Combined baskets — summary card · confirmation · journey review · success | `03e` · `04g`/`04i` · `10c` · `04h` (guest folder) | none; only the submit endpoint differs |
 | Success box | `04d` here (plain, CTA → Agendamentos; the resource-line variants are in the guest `04d`) · `04f` (guest folder) | the primary CTA links to the Agendamentos list |
 
 Error routing, step paths and the design decisions: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § M23 Cluster 3 extension.

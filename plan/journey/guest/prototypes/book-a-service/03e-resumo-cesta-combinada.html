@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passo 6 de 7 — Seus dados (cesta combinada)</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    .staff-card { display:flex; align-items:center; gap:0.875rem; padding:0.875rem; cursor:pointer; }
+    .staff-avatar { width:3rem; height:3rem; border-radius:9999px; flex-shrink:0; background:var(--ba-primary); color:white;
+      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; }
+    .staff-name { font-weight:600; color:var(--ba-text); }
+    .section-title { font-size:0.875rem; font-weight:700; color:var(--ba-text); margin:1.25rem 0 0.5rem; }
+    .section-title small { font-weight:500; opacity:0.65; }
+    .hint { font-size:0.8125rem; opacity:0.7; }
+    .alert-err { display:flex; align-items:flex-start; gap:0.625rem; background:#fef2f2; border:1.5px solid #fca5a5;
+      border-radius:var(--ba-radius); padding:0.75rem 1rem; margin:1rem 0; color:#991b1b; }
+    .alert-err p { margin:0; }
+    .alert-err .t { font-weight:700; }
+    .alert-err .d { font-size:0.8125rem; margin-top:0.25rem; }
+    .skeleton { background:linear-gradient(90deg,#e5e7eb,#f3f4f6,#e5e7eb); border-radius:var(--ba-radius); height:4.25rem; margin-bottom:0.75rem; }
+    .leg-timeline { position:relative; padding-left:1.75rem; }
+    .leg-item { position:relative; padding-bottom:1.5rem; }
+    .leg-item:last-child { padding-bottom:0; }
+    .leg-dot { position:absolute; left:-1.75rem; top:0.125rem; width:0.75rem; height:0.75rem; border-radius:9999px;
+      background:var(--ba-primary); border:2px solid white; box-shadow:0 0 0 1px var(--ba-secondary); }
+    .leg-line { position:absolute; left:-1.4375rem; top:0.875rem; bottom:-0.625rem; width:2px; background:var(--ba-secondary); }
+    .leg-item:last-child .leg-line { display:none; }
+    .leg-time { font-weight:700; color:var(--ba-text); font-size:0.9375rem; }
+    .leg-name { font-weight:600; color:var(--ba-primary); font-size:0.9375rem; margin-top:0.125rem; }
+    .leg-resource { font-size:0.8125rem; opacity:0.6; margin-top:0.125rem; }
+    .transition-note { font-size:0.75rem; opacity:0.6; margin-top:0.375rem; font-style:italic; }
+    .row { display:flex; justify-content:space-between; font-size:0.875rem; color:var(--ba-text); padding:0.25rem 0; }
+    .btn-disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+    .rate { font-size:0.8125rem; opacity:0.75; }
+  
+    .line-row { display:flex; justify-content:space-between; gap:1rem; padding:.25rem 0; font-size:.875rem; color:var(--ba-text); }
+    .line-name { font-weight:600; }
+    .line-sub { font-size:.8125rem; opacity:.65; margin-top:.125rem; }
+    .line-range { font-size:.8125rem; font-weight:600; color:var(--ba-primary); }
+    .line-block { padding:.625rem 0; border-top:1px solid var(--ba-secondary); }
+    .line-block:first-child { border-top:none; padding-top:0; }
+    .total-row { display:flex; justify-content:space-between; gap:1rem; font-weight:700; color:var(--ba-text); padding-top:.5rem; }
+  </style>
+</head>
+<body>
+  <!--
+    VARIANT OF: 03-personal-info.html / 03d — the "Revisar pedido" summary card (BookingSummaryCard) of a COMBINED basket: fixed service + journey + variable-duration service (the 12 quote is already part of the total). Path "choices on 2 legs + duration" (no intake) = "Passo 6 de 7".
+    COMBINED BASKETS (M23-S11b, decided 2026-10-03): a basket can mix fixed services, one variable-duration service, a bundle and journeys. One row per line, ONE total (fixed prices + quoted amount); duration = sum of the line durations, a journey counting its legs plus the transitions between them. Lines run back-to-back from the chosen slot in basket (serviceIds) order, so a journey that is not the first line starts when the previous lines end. Per-line time ranges appear ONLY when the basket contains a journey. Pure single-service baskets keep rendering exactly as 03/04/10/04d/04f.
+    The row composition is ONE shared helper feeding the summary card, the confirmation/journey review and the success box, so the three surfaces can never disagree on lines, times or total.
+    TIMES:  Avaliação 13:00-13:30 · Jornada 13:30-15:15 (Sauna 13:30-13:50 +10 · Massagem 14:00-14:50 +5 · Relaxamento 14:55-15:15) · Alongamento 15:15-16:15 = 30 + 105 + 60 = 195 min · R$ 80 + 260 + 50 = R$ 390,00.
+    The summary lists the journey as ONE row with its span and a one-line leg list (the full timeline is the Confirmation step, 04g/10c); no resource is named here.
+  -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Vitta Studio</span>
+    </div>
+    <a href="../../../shared/login.html" style="font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">Entrar</a>
+  </div>
+  <div class="step-container">
+    <p class="step-indicator">Passo 6 de 7</p>
+    <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--ba-text)">Seus dados</h2>
+    <p class="hint" style="margin-bottom:.5rem;">Nome, e-mail, telefone e fotos: os mesmos campos de <a href="03-personal-info.html">03</a> (omitidos aqui — esta tela mostra só o resumo do pedido).</p>
+    <h3 style="font-size:1.5rem;font-weight:700;margin-top:1.5rem;margin-bottom:1rem;color:var(--ba-text)">Revisar pedido</h3>
+    <div class="card" data-testid="booking-summary-card">
+      <p style="font-size:.75rem;font-weight:600;opacity:.65;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">Serviços</p>
+      <div class="line-block"><div class="line-row"><span class="line-name">Avaliação Corporal</span><span>R$ 80,00</span></div><p class="line-range">13:00 – 13:30 · 30 min</p></div>
+      <div class="line-block"><div class="line-row"><span class="line-name">Jornada Spa Vitta</span><span>R$ 260,00</span></div><p class="line-range">13:30 – 15:15 · 105 min (90 min de serviço + 15 min de transição)</p><p class="line-sub">3 etapas: Sauna · Massagem · Relaxamento</p></div>
+      <div class="line-block"><div class="line-row"><span class="line-name">Alongamento (por tempo)</span><span>R$ 50,00</span></div><p class="line-range">15:15 – 16:15 · 1 hora</p></div>
+      <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:.875rem 0;">
+      <p style="font-size:.75rem;font-weight:600;opacity:.65;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem;">Data e horário</p>
+      <p style="font-weight:600;color:var(--ba-text)">Segunda-feira, 18 de agosto · 13:00 – 16:15</p>
+      <div class="total-row"><span>Total</span><span>R$ 390,00 · 195 min</span></div>
+    </div>
+    <div class="nav-buttons"><a class="btn-secondary" href="02-calendar-slot.html">Voltar</a><a class="btn-primary" href="13-intake-answers.html">Próximo</a></div>
+  </div>
+</body>
+</html>

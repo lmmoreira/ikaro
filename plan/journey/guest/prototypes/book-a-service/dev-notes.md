@@ -246,6 +246,11 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `10-multi-leg-itinerary.html` / `10b` | Journey confirmation (leg timeline) · availability step — `BOOKING_LEG_UNAVAILABLE` | UC-065 / UC-065 A1 | M23-S11b |
 | `12-reserva-por-tempo.html` / `12b` / `12c` / `12d` | Duration + quote · `OUT_OF_RANGE` · quote error · quote loading | UC-067 | M23-S11b |
 | `04f-success-details-resources.html` | Success box with the leg timeline — every leg's assigned resources named (the response `itinerary` lists them all, automatic ones included) | UC-065 | M23-S11b |
+| `03e-resumo-cesta-combinada.html` | Summary card ("Revisar pedido") of a combined basket — fixed + journey + variable duration, one total | UC-061–068 | M23-S11b |
+| `04g-confirmacao-cesta-fixo-jornada.html` | Confirmation of fixed + journey: ordinary row + the leg timeline inside the journey row, one total | UC-065 | M23-S11b |
+| `10c-jornada-com-tempo-variavel.html` | Journey review in a basket that also holds a variable-duration line (chosen duration + quote on its row) | UC-065 / UC-067 | M23-S11b |
+| `04h-sucesso-cesta-combinada.html` | Success box of the combined basket — every line, assigned resources named from the response (pools never) | UC-065 / UC-067 | M23-S11b |
+| `04i-confirmacao-pacote-na-cesta.html` | Confirmation of a bundle (staff pick + automatic room) next to a fixed service — only the pick is named | UC-064 | M23-S11b |
 | `15-login-required.html` | A **class-waitlist** login screen (Pilates, "fila de espera") — an M24 screen, **out of M23-S11a/S11b's scope**; it is not the appointment availability-alert entry (see the IA gap below) | M24 | — |
 
 **Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `11-appointment-availability` (2026-10-03 — it redrew the date/time step in a different format; the existing `02-calendar-slot` day-pill carousel + slot buttons stays the single availability step for every flow, extended only by optional `resourceSelections`/`durationMinutes` props — documented in `02`'s header comment); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).
@@ -343,5 +348,13 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 | + variable duration (5; with intake 6) | Serviços · **Duração** · Data e horário · … | `12`…`12d` → `02` |
 | + resource choice **and** variable duration (6; with intake 7) | Serviços · **Escolha(s)** · **Duração** · Data e horário · … — the order is fixed: every picker step first, then the duration step, then availability (the duration can depend on the chosen resource, and the slot search needs all of them) | `05`…`05f` → `12` → `02` |
 | Legged journey (one step per leg that has a choice; the review replaces the final summary) | Serviços · **Escolha leg 2 · Escolha leg 3** · Data e horário · Seus dados · **Confirmar jornada** (6 here) | `05g` → `05h` → `02` → `10`/`10b` → `04f` |
+
+**Combined baskets (decided 2026-10-03, M23-S11b).** Any mix of fixed services, one variable-duration service, a bundle and journeys is a valid basket (only one `CUSTOMER_SELECTED` service per basket). `03e`/`04g`/`10c`/`04h`/`04i` draw the combinations the pure screens (`03`/`04`/`10`/`04d`/`04f`) do not. Rules, shared by the summary card, the Confirmation/journey review and the success box (one shared row-composition helper, so the three can never disagree):
+- **One row per line, one total.** Total = fixed prices + the quoted amount of the variable line (the "a partir de" form only before a duration is chosen). Duration = the sum of the line durations; a journey counts its legs **plus the transitions between them** (90 + 15 = 105 min).
+- **Back-to-back from the chosen slot, in basket (`serviceIds`) order** — the backend's cursor. A journey that is not the first line starts when the previous lines end, so its leg times are the line start plus offsets, not the slot plus offsets.
+- **Per-line time ranges appear only when the basket contains a journey**; a multi-line basket without one keeps today's price-and-duration rows and one start time (`04i`).
+- **Names:** before booking only the customer's own picks are named (`04g`/`10c`/`04i`); after booking every assigned resource from the response is named, automatic rooms included, a fungible pool never (`04h`).
+- **Step counts** (no intake): fixed + journey = 6 (`04g`); journey + variable duration = 7 (`10c`, `03e`, `04h`); bundle + fixed = 5 (`04i`).
+- **Duration preselection:** the duration step opens with `durationMinMinutes` selected and its quote fetched (`12` now shows 1 hora / R$ 50,00).
 
 `03d` and `04e` are exact copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets. A path with both a choice and a duration adds one step to each count (6 / 7 with intake). The `04b`/`04c`/`04d` states are shared by every path and are not duplicated.
