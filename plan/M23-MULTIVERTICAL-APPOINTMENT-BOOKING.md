@@ -40,6 +40,7 @@
 | 3 | M23-S20 | Remove recurring-schedule Pause (shipped pause endpoint, event and `PAUSED` status) — lands before S05 and S12 |
 | 4 | M23-S05 | Recurring-schedule approval (atomic, `409` conflicts list) + one-shot occurrence materialization + approval-expiry/`ENDED` job; removes the S04 overlap layer (UC-071) |
 | 4 | M23-S30 | Customer reschedules a booking — "Reagendar" screen in Minha Conta, date and time only (UC-069; needs a prototype-driven discovery of the kept-picks read) |
+| 4 | M23-S31 | "Avise-me quando abrir" — availability-alert entry in the public booking flow (UC-072; needs a prototype pass first) |
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
@@ -60,6 +61,9 @@ graph TD
   S03 --> S30
   S29 --> S30
   S11a --> S30
+  S06 --> S31
+  S11a --> S31
+  S29 --> S31
   S30 --> S12
   S11a --> S11b
   S04 --> S05
@@ -853,6 +857,15 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 
 **Decisions locked at the 2026-10-03 prototype review:** automatic resources have no screen; one picker for all resource and service types; a pool quantity > 1 needs no copy; duplicate service lines cannot occur; attendees have no UI-enforced minimum. **Still to confirm at `/story-discovery M23-S11a`:** nothing business-level; implementation questions only.
 
+**Locked at `/story-discovery M23-S11a` (2026-10-03):**
+1. **One PR** for the whole story (no further split).
+2. **i18n namespaces** under `booking` in both locales, named up front: `booking.intake.*`, `booking.resourcePicker.*`, `booking.submitted.*`, plus the Step 1 loading/error/unavailable and per-time card keys; both locales in the same commit.
+3. **`createAuthenticatedBooking`** keeps one copy in `api/public.ts` (typed `BookingResponse`, `@ikaro/types`' `AuthenticatedBookingRequest`). The `api/booking.ts` copy is used by `useBookingMutations`; remove it only if that caller can use the public one, otherwise keep both and record why in the PR.
+4. **Empty-options services stay listed publicly** — Step 1's inline `01g` state (Próximo disabled) is the only handling: the customer cannot reach the calendar or confirmation, so no backend story to hide such services is needed.
+5. **Local verification:** Playwright and the dev stack may be run locally (user-approved).
+6. **Follow-up filed:** the availability-alert entry in the booking flow is **M23-S31** (needs a prototype pass first).
+7. **E2E plan widened** after a UC-061–068 coverage review (every alternative flow owned by this story now has a named scenario or an explicit "unit only" note).
+
 **UX rules locked at the 2026-10-03 docs audit (apply to every new S11a/S11b screen):** (1) **no option is pre-selected** in a picker — Próximo stays disabled until every section has an explicit pick; (2) each picker section is a radio group wrapped in a `fieldset` with a `legend` (the resource-type label); (3) on any error return to a step (picker, duration, intake, availability, Step 1), keyboard focus moves to the error alert (`role="alert"`), as the intake step already specifies; (4) the per-leg picker heading is the leg name with a small subtitle "Etapa N de M da jornada" — the page's "Passo N de M" indicator stays the only step counter; (5) the variable-duration total reads "Total" (the quote is exactly what booking persists), with "a partir de…" only before a duration is chosen; (6) error text on a red tint uses `#b91c1c` (not `#dc2626`, 4.41:1) and hint text never goes below `opacity: .6` (`.5` is 3.4:1).
 
 **Backend/BFF:** none — all endpoints and types come from M23-S01–S03 and M23-S29. `apps/web` consumes `@ikaro/types` only (never `@ikaro/validation`).
@@ -870,7 +883,7 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 - `apps/web/features/booking/api/public.ts` (+ spec) (modify — `fetchPublicIntakeSchema`, `fetchServiceResourceOptions`, `fetchServiceQuote` (S11b consumes it; the fetcher lands here so S11b is UI-only); `createAuthenticatedBooking` returns the typed `BookingResponse`; the duplicate `AuthenticatedBookingRequest` here and in `api/booking.ts` consolidate onto the one S29 adds to `@ikaro/types`; remove the duplicate `createAuthenticatedBooking` in `api/booking.ts` if nothing else uses it — verify)
 - `apps/web/shells/hotsite/components/ServiceListModule.tsx` (+ spec) (modify — a per-time service shows its rate, not a misleading fixed price)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — new keys under the existing `booking` namespace: `intake.*`, `resourcePicker.*`, `submitted.*`, the Step 1 loading/error and per-time card copy; no `errors.json` change; exact key names fixed at implementation, both locales in the same commit, `locale-family-key-parity.spec.ts` must stay green)
-- `apps/web/e2e/helpers/services/` and `apps/web/e2e/helpers/booking-form/` (modify/new — helpers wrapping the existing BFF endpoints for resource requirements, booking policy and intake-schema publishing, and a STAFF-resource seeder (`createResource` already takes `type: 'STAFF'` + `refId`; a Staff row comes from `inviteStaff`); the existing `createService`, `createResource`, `completeCustomerProfile`, `loginAsStaff`/`loginAsCustomer` are reused) and the new Playwright specs listed below
+- `apps/web/e2e/helpers/services/` and `apps/web/e2e/helpers/booking-form/` (modify/new — helpers wrapping the existing BFF endpoints for resource requirements, booking policy and intake-schema publishing, a STAFF-resource seeder (`createResource` already takes `type: 'STAFF'` + `refId`; a Staff row comes from `inviteStaff`), a legged-service seeder (legs with `CUSTOMER_CHOICE` requirements), a pool seeder with N units and a per-time service seeder; the existing `createService`, `createResource`, `completeCustomerProfile`, `loginAsStaff`/`loginAsCustomer` are reused) and the new Playwright specs listed below
 - `plan/journey/guest/book-a-service.md`, `plan/journey/customer/book-a-service.md`, both `dev-notes.md`, both prototype `index.html`, and the UC-061–068 rows of `plan/journey/{guest,customer,staff}/use-cases.md` (modify — flip every shipped screen's `❓ GAP` to ✅ in the same commit for the screens in this story's prototype list, including the customer journey's already-shipped `S2Error` slot-conflict GAP; leave S11b's screens as GAP; keep `15-login-required` tagged out of scope; reconcile the dev-notes file-map component names with the ones this story creates)
 
 **Acceptance criteria — product:**
@@ -878,7 +891,9 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 - [ ] A service with an active intake schema adds the intake step (guest and customer); one without it keeps today's steps. Required answers and consent are enforced with field-level errors from the displayed schema; a server rejection shows the summary banner only.
 - [ ] A per-time service shows its rate and duration range on the card and "a partir de…" in the total, in the tenant's currency; no other service shows a rate.
 - [ ] After a booking the customer sees the unchanged "Solicitação enviada!" message, then a details box (services, date/time in the tenant timezone, totals, resources where applicable), then "Voltar para o site"; a chosen-staff booking shows the pick, an automatic-staff booking shows the assigned staff name, a pool booking shows no unit name.
-- [ ] Every error screen in this story's scope (`05e`, `13c`/`03e`, `01d`, `01f`, `01g`, plus the existing slot-conflict screen and the availability-step errors `09b`/`10b`'s shared path) is reachable from its real backend error and shows the catalogue headline copy; none claims a resource name, window or alternative the backend never sent.
+- [ ] A journey (legged service) shows one picker step per leg that has a choice, none for a leg with only automatic resources, all before availability, and going back keeps earlier picks. Nothing is ever pre-selected.
+- [ ] Every error screen in this story's scope (`05e`, `13c`/`03e`, `01d`, `01f`, `01g`, plus the existing slot-conflict screen and the availability-step errors `09b`/`10b`'s shared path) is reachable from its backend error code — a real seeded error where one can be seeded, a mocked wire response otherwise (listed in the E2E section) — and shows the catalogue headline copy; none claims a resource name, window or alternative the backend never sent.
+- [ ] The guest and the authenticated customer paths show the same details box.
 - [ ] A basket mixing two intake-bearing/variable services shows the backend's rejection inline on Step 1 instead of failing silently; class (`SESSION`) services never appear in Step 1.
 - [ ] Every new screen paints `--ba-background`/`--ba-text` per the hotsite full-page-component invariant, a fixed-colour box pairs a fixed background with fixed text, and error text on `--ba-secondary` uses `#b91c1c` (not `#dc2626`).
 
@@ -895,15 +910,39 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 - Integration: n/a — no `.integration.spec.ts` tier for `apps/web`
 - Tenant isolation: n/a — hotsite already tenant-scoped by slug (an E2E below checks the picker never lists another tenant's staff)
 - E2E (Playwright, real BFF/backend, seeded through the new helpers; unique seeded resources per test, retry-on-`409` across day offsets, "today" computed in the tenant timezone, seeded services deactivated in `finally`, staff seeding before the customer login because both share the page's cookie jar):
-  - [ ] guest books a chosen-staff service and only that staff's slots are listed; an inactive staff member is not offered
-  - [ ] guest books a flat service with two `CUSTOMER_CHOICE` requirements (staff + room) and sees both sections on one picker screen; only slots where both picks are free are listed
-  - [ ] guest books an auto-any service (no picker step) and sees the assigned staff name in the details box; guest books a pool service (no picker step) and sees no unit name
-  - [ ] guest completes an intake-schema service; a missing required answer and an unchecked consent show field errors and the summary; a "Não" answer to a required yes/no is accepted
-  - [ ] authenticated customer completes an intake-schema service and a chosen-staff service end to end (after `completeCustomerProfile`; the layout's `InformationCompletionPrompt` otherwise intercepts an incomplete profile)
-  - [ ] a basket with two intake-bearing services shows the inline rejection on Step 1
-  - [ ] a seeded conflict produces the slot-conflict screen with its catalogue copy and the selections retained
-  - [ ] step indicator reads the right "N de M" for no-intake (4), intake (5), chosen-staff (5) and chosen-staff + intake (6)
-  - [ ] a real-browser check against one dark-themed and one light-themed tenant for the new screens (jsdom axe cannot catch contrast or background-paint bugs — `ENGINEERING_RULES_FRONTEND.md`); axe scans on each new step
+  - **Chosen resources (UC-061, UC-064, UC-066):**
+    - [ ] guest books a chosen-staff service and only that staff's slots are listed; an inactive staff member is not offered; the details box shows the chosen staff name
+    - [ ] nothing is pre-selected: Próximo is disabled until a pick is made; Back from availability to the picker keeps the pick (UC-061 A1: the customer re-picks another staff member)
+    - [ ] guest books a flat service with two `CUSTOMER_CHOICE` requirements (staff + room) and sees both sections on one picker screen; only slots where both picks are free are listed
+    - [ ] guest books a service with a room-only (or equipment-only) choice and sees that type's heading
+    - [ ] a service whose `CUSTOMER_CHOICE` requirement has no active resource (all staff deactivated) shows the inline "serviço indisponível" on Step 1, Próximo stays disabled and the flow never reaches the calendar (UC-061 A2, `01g`)
+    - [ ] a resource deactivated after the picker was filled makes the submit return `BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE`, the flow returns to the picker with the invalid pick cleared and the alert focused (`05e`)
+  - **Automatic resources (UC-062, UC-063):**
+    - [ ] guest books an auto-any service (no picker step) and sees the assigned staff name in the details box
+    - [ ] guest books a pool service (no picker step), sees no unit name; with a two-unit pool, one unit booked still offers the slot and both booked hides it (UC-062 A1); a pool with `requiredQuantity > 1` books normally
+  - **Bundle and journey picks (UC-064 A2, UC-065):**
+    - [ ] a seeded room conflict created after the slot list loaded makes the submit return `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`; the flow lands on the availability step with the catalogue message, keeping services and picks and clearing only the slot (`09b`)
+    - [ ] a 3-leg journey with choices on legs 2 and 3 shows two picker steps, each headed with its leg name and the "Etapa N de M da jornada" subtitle, none for leg 1, the indicator reads "de 6", Back keeps an earlier leg's pick, and the booking completes through the normal Confirmation (the itinerary box is S11b)
+    - [ ] a mocked `BOOKING_LEG_UNAVAILABLE` response lands on the availability step with the catalogue message (`10b` shared path; a real mid-chain conflict cannot be seeded reliably)
+  - **Intake (UC-068):**
+    - [ ] guest completes an intake-schema service; a missing required answer and an unchecked consent show field errors and the summary; a "Não" answer to a required yes/no is accepted
+    - [ ] a service requiring `participantCount` and named attendees: a count of 0 shows the field error; attendees (including one marked "Menor de idade") are submitted and the booking is created (UC-068 A2)
+    - [ ] the schema is re-published (new version) after the form loaded; the submit still carries the displayed version and succeeds (UC-068 A1)
+    - [ ] a mocked `BOOKING_INTAKE_ANSWER_MISSING` response shows the summary banner only (no field highlights) and keeps every answer (`13c`/`03e`)
+    - [ ] a basket with two intake-bearing services shows the inline rejection on Step 1
+  - **Per-time service and success box (UC-067 S11a part):**
+    - [ ] a per-time service shows its rate and duration range on the card and "a partir de…" in the total, in the tenant's currency (seeded `ikaro` is US — assert the formatted value, not `R$`)
+    - [ ] the existing guest golden path asserts the details box (service lines, date/time in the tenant timezone, total) between "Solicitação enviada!" and "Voltar para o site"; the `booking-success` test id is still present
+  - **Authenticated customer:**
+    - [ ] authenticated customer completes an intake-schema service and a chosen-staff service end to end (after `completeCustomerProfile`; the layout's `InformationCompletionPrompt` otherwise intercepts an incomplete profile) and sees the details box with the chosen staff name
+    - [ ] a mocked `401` on the authenticated submit sends the customer to the hotsite login (verify the existing handling first)
+  - **Error routing (table-driven, real error where it can be seeded, a mocked `POST` response where it cannot — the pattern `guest-booking.spec.ts` already uses for 400/500):**
+    - [ ] a seeded conflict produces the slot-conflict screen with its catalogue copy and the selections retained (real)
+    - [ ] mocked `BOOKING_SERVICE_NOT_ACTIVE` → Step 1 with the message; mocked `BOOKING_RESOURCE_SELECTION_REQUIRED` → the first picker step whose pick is missing; any other code → Confirmation with the generic message
+  - **Indicator and quality:**
+    - [ ] step indicator reads the right "N de M" for no-intake (4), intake (5), chosen-staff (5), chosen-staff + intake (6) and the 3-leg journey with two choices (6)
+    - [ ] a real-browser check against one dark-themed and one light-themed tenant for the new screens (jsdom axe cannot catch contrast or background-paint bugs — `ENGINEERING_RULES_FRONTEND.md`); axe scans on each new step. **Playwright and the dev stack may be run locally for this and for fast feedback (user-approved 2026-10-03, `CLAUDE.md` §0 local-verification gate); CI's E2E job stays the full-matrix gate**
+  - **Not covered by E2E (unit only):** `SESSION` services never listed in Step 1 (no seeder until M24-S20), the three-section staff + room + equipment picker, and the `02`/`02b`–`02f` states unchanged from today (existing `guest-booking.spec.ts` covers them)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -2192,5 +2231,37 @@ The slot list is the booking's services' availability with the kept picks and th
 - Unit: `CustomerReschedulePage` — default, kept-picks, loading, empty, fetch-error, submitting, success, each of the three error states; the payload is `{ scheduledAt }` only; the button visibility rule (status + window) as a pure helper with its own spec.
 - Integration: n/a for `apps/web`; backend/BFF read changes (if any) carry their own integration specs including tenant isolation (Tenant A booking + Tenant B caller → 404).
 - E2E (Playwright, real BFF/backend): customer reschedules an approved booking to another day; a seeded conflict shows `15h`; a booking past the window shows no button; a chosen-staff booking shows the kept pick and only that staff's slots; the occurrence entry (after S12).
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S31 — "Avise-me quando abrir": availability-alert entry in the public booking flow
+
+**Discovered:** 2026-10-03, docs audit of the M23-S11 prototypes: UC-072's trigger ("Customer sees no suitable availability") has no screen. `02d-fully-booked` only says "Entre em contato conosco para agendar"; `15-login-required` is a class-waitlist (M24) screen, not the appointment entry; M23-S12 owns only the Minha Conta management surface.
+**Agent:** `frontend-ts`
+**Complexity:** M (web, plus one small public-read change locked at discovery)
+**Docs to load:** `docs/04-USE_CASES.md` UC-072 (A1) and UC-055, `docs/14-API_CONTRACTS.md` § Availability Alerts + the public service shape, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components, `docs/ENGINEERING_RULES_TESTING.md`, `docs/08-TESTING_STRATEGY.md` § apps/web
+**Dependencies:** M23-S06 (`POST /availability-alerts` and the BFF controller), M23-S11a (the step engine and the extended availability components this entry hangs off), M23-S29 (✅ Done — the public service shape this story extends). Independent of M23-S12 (management surface only). **Needs its own prototype pass (journey `.md` → use-cases → prototype folder per CLAUDE.md §15, after a clean `/docs-audit`) before `/story-discovery`.**
+**Pattern:** plain composition — a new action on the existing no-availability state and a login hand-off that restores the booking criteria; no new architectural pattern. The mechanism for carrying the criteria through login (query params vs. session storage vs. an existing redirect-return helper) is chosen at discovery by checking the existing guest→login return path first, not invented here.
+**Prototype references:** none yet — to be drawn first (guest `book-a-service` extension: the "Avise-me quando abrir" action on `02d`, the alert criteria form [service, optional preferred resource, duration/participants, one-time range or weekly preference], the login redirect, the post-login confirmation, and error/ineligible states). Source: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § "IA gap".
+
+**Description:**
+When a guest or customer in the public booking flow sees no suitable availability (the fully-booked state of the date step, or an empty slot list), and the service permits alerts (`availabilityAlertEligible`, UC-055), the flow offers "Avise-me quando abrir". An authenticated customer fills the alert criteria (prefilled from the flow: service, resource picks, duration, participants) and saves through `POST /availability-alerts` (M23-S06); an unauthenticated visitor is sent to login/account creation and returns with the chosen criteria intact (UC-072 A1), then saves. The alert reserves nothing; managing it later is M23-S12's "Meus avisos". The public service shape (S29) currently omits `availabilityAlertEligible` (it exists only on the staff shape), so a small public-read addition is needed for the flow to know whether to offer the action (locked at discovery: BFF/backend field vs. an existing endpoint).
+
+**Backend/BFF:** to be locked at discovery — at minimum `availabilityAlertEligible` on the whitelisted public service shape (`HotsiteServiceBookingPolicy`) and its `@ikaro/types` copy.
+
+**Files to create/modify:** to be listed at `/story-discovery` after the prototype pass (verified paths only); expected: the availability components under `apps/web/features/booking/components/public/`, a new alert-entry component + spec, `apps/web/features/booking/api/` fetcher, `packages/i18n/locales/{pt-BR,en}/web.json`, e2e spec/helpers, and the journey/prototype files (flip GAP → ✅, UC-072 rows in `plan/journey/{guest,customer}/use-cases.md`).
+
+**Acceptance criteria — product:**
+- [ ] On the fully-booked/no-slot state of an alert-eligible service, the customer sees "Avise-me quando abrir"; an ineligible service shows no such action.
+- [ ] An authenticated customer saves an alert with the criteria carried from the flow and sees a confirmation; nothing is reserved.
+- [ ] An unauthenticated visitor is sent to login and returns to the alert with the same criteria, then saves.
+- [ ] A saved alert appears in M23-S12's "Meus avisos" (cross-check once S12 lands).
+
+**Acceptance criteria — technical:**
+- Unit: criteria builder from flow state (pure helper); the entry visibility rule (eligible + no availability); the form and each error state; login hand-off round-trip of the criteria.
+- Integration: n/a for `apps/web`; the public-shape field carries its own backend/BFF specs including tenant isolation.
+- E2E: eligible service → fully-booked → create alert as customer; guest → login → returns with criteria → saves; ineligible service shows no action.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
