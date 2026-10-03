@@ -19,6 +19,8 @@
 | M18-S06 | Gallery module: automatic masonry layout (tile height from photo aspect ratio) |
 | M18-S07 | Gallery module: "Destaque" layout — 1 large + 4 small photos, fixed 5-image template |
 | M18-S08 | Hotsite editor usability: module-config Preview + discard-confirm, and a "visit live site" link |
+| M18-S09 | Remove tenant `notification.fromEmail`; send From the platform sender, tenant name as display name, `businessInfo.email` as Reply-To |
+| M18-S10 | Manager schedule columns board: show who is held after each booking and why (buffer/turnover origin), persisted at booking time |
 
 *(more stories will be appended here as they're scoped)*
 
@@ -1273,3 +1275,110 @@ Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at disc
   - [ ] none — the settings form change is covered by `SettingsForm` unit specs and the delivery change by integration specs. (Discovery to confirm whether an existing settings E2E asserts the Notificações section.)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including `architecture-check` after the policy-entry removal)
+
+---
+
+## M18-S10 — Manager schedule columns board: show who is held after each booking and why (buffer/turnover origin), persisted at booking time
+
+**Agent:** `backend-ts` (plus `bff-ts` for the response type pass-through and `web-ts` for the columns board)
+**Complexity:** L
+**Docs to load:** `docs/04-USE_CASES.md` § UC-057 and UC-059, `docs/02-DOMAIN_MODEL.md` (`resource_occupancy`, effective gap rule), `docs/13-DATABASE_SCHEMA.md` § `booking.resource_occupancy`, `docs/14-API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`, `docs/DEFINITION_OF_DONE.md` § Migration history, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/CODE_STANDARDS.md`, `docs/08-TESTING_STRATEGY.md`, `plan/journey/staff/horarios.md` (UC-057, TD43, TD44 sections), `plan/journey/staff/prototypes/horarios/dev-notes.md`
+**Dependencies:** none (builds on shipped M22-S03 `resource_occupancy`, M22-S05 day-grid, M22-S06 columns board, TD43, TD44)
+**Pattern:** plain composition — no named pattern applies (one domain rule resolves `{minutes, source}` once, in `AvailabilityService`, and every consumer reads that result; a new `buffer` timeline-event kind on the web)
+
+**Discovered:** 2026-10-03, user report (manager debugging local BeloAuto data): on Thu 2026-10-08 there were PENDING bookings at 11:00, 13:00 and 16:00. A 2h Polimento (60 min buffer, so a 3h window) was only offered at 08:00 and never at 14:00–16:00, and the schedule screen showed 15:00–16:00 as empty. Follow-up, same day: the manager must be able to see *who* is held and *why* — the buffer can come from the service, from the resource, or from something else — and a manager who checks only one resource (Walace) must still read "Walace" and the origin on that resource's buffer.
+
+**Root cause:** two separate gaps.
+1. **The held tail is invisible.** The backend already sends each resource's full occupied window, buffer/turnover included (`get-schedule-day-grid.use-case.ts` → `DayGridBlock.startsAt/endsAt`, read from `resource_occupancy`). The web ignores it for every booking that matches a card: `schedule-resource-columns.ts` `resolveResourceBookings` pushes the matched booking, and `schedule-timeline-events.ts:57` draws it as `scheduledAt + totalDurationMins`. A block's `endsAt` is used only by the "Ocupado" placeholder and the TD43 midnight-spillover banner. The screen shows free time that the engine will refuse.
+2. **The reason is never stored.** The gap is `max(service.bufferAfterMinutes, resource.turnoverMinutes)` (`AvailabilityService.effectiveFlatGapMinutes`, called via `gapMinutesFor` in `resource-occupancy-candidate-builders.helpers.ts:55-62`), computed at booking time and folded straight into `ends_at`. `resource_occupancy` keeps only the sum (`ends_at`); `DayGridOccupancyBlock`, `DayGridBlock` and `StaffBookingCardResponse` carry no gap, so neither the web nor the BFF can tell a service buffer from a resource turnover. Recomputing it later from current service/resource config would be wrong whenever either was edited after the booking.
+
+**Description:**
+Make the Day-view resource columns board show, in every checked resource's column, the time a booking keeps *that resource* blocked after the booking itself ends — and say, on the segment itself, who is held and why. This is a full-stack story because the "why" has to be captured when the booking is written.
+
+*What the manager sees.* After each booking, directly below it in the same column, a visually distinct segment (hatched amber, not clickable) running from the booking's end to that resource's block `endsAt`:
+- **Line 1 — who is held and until when:** `"{resource name} · até {HH:MM}"`. The resource name is always on the segment, even though the column header already names it, because a manager who checks one resource still needs to read it on the buffer, and a screenshot of one column must stay self-explanatory.
+- **Line 2 — why:** `"Buffer do serviço {service name} · {N} min"` when the service's own `bufferAfterMinutes` is the cause, or `"Virada do recurso · {N} min"` when the resource's `turnoverMinutes` is.
+- **Tooltip (full sentence):** for a service buffer, "Buffer do serviço Polimento (60 min): Walace fica bloqueado(a) até 15:00. O mesmo buffer vale para todos os recursos deste agendamento." For a resource turnover, "Virada do recurso Walace (30 min): só Walace fica bloqueado(a) até 10:00."
+- A service buffer therefore appears in *every* resource column the booking uses, while a resource turnover appears only in the column of the resource that causes it. Example (prototype data): after a 09:00–09:30 Lavagem rápida with no service buffer, only Walace (30 min turnover) is held until 10:00 and the Localização Principal is already free at 09:30; after an 11:00–12:00 Lavagem simples with a 30 min service buffer, every resource of that booking is held until 12:30.
+
+*Decisions already made (do not re-open at discovery):*
+1. **Full-stack, one story.** The origin of the gap is persisted at write time and flows through the day-grid; recomputing it on read (from current service/resource config) was rejected because it is wrong after any later edit, and "approximate" attribution is a workaround the project rules forbid.
+2. **Gap source vocabulary (closed list, extendable later):** `SERVICE_BUFFER` or `RESOURCE_TURNOVER`. Rule, owned by one new method `AvailabilityService.resolveFlatGap(bufferAfterMinutes, turnoverMinutes)` that returns `{ minutes, source }` (with `effectiveFlatGapMinutes` delegating to it so there is still exactly one rule): `minutes = max(buffer, turnover)`; `source = SERVICE_BUFFER` when `buffer >= turnover` and `buffer > 0` (a tie goes to the service), `RESOURCE_TURNOVER` when `turnover > buffer`, and no source when both are 0.
+3. **Which lines get a gap** (unchanged behavior, now recorded): only the *last* line of a booking carries the service buffer (`isLastLine`), so only that line's occupancy rows get a source; earlier lines get none. A legged line's gap is the resource's turnover only (`computeLegSpans` + `resource.turnoverMinutes`), so its source is `RESOURCE_TURNOVER` when turnover > 0 and none otherwise. `CLASS_SESSION` rows (M24) get none.
+4. **Storage:** two nullable columns on `booking.resource_occupancy`: `gap_minutes INT` and `gap_source VARCHAR(20)`. NULL means "no gap, or a row written before this story". Constraint: both NULL, or `gap_source IN ('SERVICE_BUFFER','RESOURCE_TURNOVER') AND gap_minutes > 0`. Added as `CHECK ... NOT VALID` plus a separate `VALIDATE CONSTRAINT` (CLAUDE.md §7: a plain `ADD CONSTRAINT` on a live table takes `ACCESS EXCLUSIVE`).
+5. **No backfill; legacy rows degrade honestly.** `resource_occupancy` is a short-lived locking projection (retention 90 days past `ends_at`), and the origin of an already-folded gap cannot be reconstructed exactly. Rows with NULL source whose block still extends past the booking end render the generic label `"{resource} · até {HH:MM}"` + `"Origem não registrada"`, never a guessed cause. Discovery must still verify the go-live status in `plan/M17-CLOUD-DEPLOY.md` (DoD § Migration history) and that no environment depends on those rows' origin; the migration is an additive expand, so no existing migration is edited.
+6. **Day-grid contract:** each `DayGridBlock` gains `gap: { source: 'SERVICE_BUFFER' | 'RESOURCE_TURNOVER'; minutes: number; serviceName: string | null } | null`. `serviceName` is the booking line's own `service_name_at_booking` (already joined in `findDayGridOccupancy` via `blra`/`bl`, no new join), set only for `SERVICE_BUFFER`; the label uses the snapshot name, so it matches the booking the manager is looking at. `gap` is null for NULL source.
+7. **Tail geometry stays authoritative from `endsAt`:** the web draws the tail as `block.endsAt − booking end` (booking end = `scheduledAt + totalDurationMins`), positive differences only; `gap` only supplies the *label*. If `gap.minutes` and the geometric tail disagree, the geometry wins and the label still uses `gap`. A multi-line booking yields one tail, from the block whose `endsAt` exceeds the booking end. An unmatched "Ocupado" placeholder gets no tail. A tail that crosses midnight keeps TD43's fixed "Ocupado até" banner (no positioned block).
+8. **Scope:** Day-view columns board only (the only place with per-resource data). The merged single timeline and Week view are unchanged and explicitly out of scope; a follow-up story if wanted.
+9. **i18n:** copy comes from ICU keys in both locales (see below); no string concatenation in components.
+
+*Verify at discovery (each with its default, so discovery confirms rather than re-derives):*
+- The write path uses `service.bufferAfterMinutes ?? 0`, while the read path's outer fit-check in `resource-scoped-availability.helpers.ts` falls back to the tenant `serviceBufferMinutes` when the service has no override. Confirm whether the tenant default is ever folded into a stored `ends_at`. Default: no (the write path never applies it), so there is no `TENANT_DEFAULT` source; if discovery finds it *is* applied somewhere, add that source and its label instead of mislabeling it a service buffer.
+- Every writer of `resource_occupancy` goes through `buildOccupancyRows`/`INSERT_OCCUPANCY_SQL` (create, reschedule via `reschedule-quote.helpers.ts`, recurring materialization). Default: yes; grep found no `UPDATE ... ends_at`. Confirm, because a reschedule that rewrote `ends_at` without the source would silently desync the label.
+- `apps/bff/src/features/booking/schedule.types.ts` keeps its own copy of `DayGridBlock`/`DayGridColumn` next to `@ikaro/types`; both must change together (the `ikaro-types-drift` detector). Default: update both identically; replacing the BFF copy with the shared import is out of scope unless trivial.
+- The E2E data source for a service buffer and a resource turnover (seed vs. UI-created) without a fixed-slot booking race (CLAUDE.md §7 fixture rules).
+
+**Backend use case steps:**
+1. `AvailabilityService.resolveFlatGap(bufferAfterMinutes, turnoverMinutes)` → `{ minutes, source }`; `effectiveFlatGapMinutes` returns `resolveFlatGap(...).minutes`.
+2. `resource-occupancy-candidate-builders.helpers.ts`: `gapMinutesFor` becomes `gapFor` returning `{ minutes, source }` (still the single source of truth shared with `resolveRequirementResources`' availability pre-filter); `ResourceOccupancyCandidate` gains `gapMinutes: number | null` and `gapSource: ResourceGapSource | null`; flat candidates fill them from `gapFor`; legged candidates fill `RESOURCE_TURNOVER`/turnover when turnover > 0.
+3. `typeorm-resource-occupancy.write-queries.ts`: `buildOccupancyRows` copies the two fields onto the entity; `INSERT_OCCUPANCY_SQL` binds 16 arrays (was 14), unnested server-side as today.
+4. `typeorm-booking-availability.adapter.ts` `findDayGridOccupancy`: also selects `ro.gapMinutes`, `ro.gapSource`, `bl.serviceNameAtBooking`; `toDayGridOccupancyBlock` maps them; `DayGridOccupancyBlock` (domain) gains `gap`.
+5. `get-schedule-day-grid.use-case.ts`: maps `gap` onto `DayGridBlock` (null-safe; `CLASS_SESSION` ⇒ null).
+**Backend HTTP surface:** reuses `GET /v1/schedule/day-grid` with an extended response block; no new endpoint, no new query param.
+**BFF endpoint spec:** reuses `GET /v1/schedule/day-grid` (`schedule-day-grid.controller.ts` is a pass-through of the backend response); the BFF response type `DayGridBlock` (`schedule.types.ts`) and `packages/types` `DayGridBlock` both gain `gap`. No new route and no new `.http` file; the existing `apps/backend/http/booking/schedule-day-grid.http` and `apps/bff/http/schedule/schedule-day-grid.http` are extended with the new field in their documented response.
+**Web steps:**
+1. `schedule-resource-columns.ts`: for each matched booking block with `block.endsAt > booking end`, derive a tail `{ resourceName, endsAt, gap }`; same for the multi-line and placeholder rules above.
+2. `schedule-timeline-events.ts` / `schedule-timeline.ts` / `schedule-timeline-event-list.ts`: new `BufferTimelineEvent` kind carrying resource name, release time and `gap`; lane assignment never gives it a lane of a booking; a tail overlapped by another event renders beneath it.
+3. `ScheduleTimelineEventRenderer.tsx` / `TimelineBlockShell.tsx` / `ScheduleResourceColumnsBoard.tsx`: render line 1, line 2 and the tooltip from the i18n keys; segment is `aria`-labelled with the tooltip text and is not focusable/clickable.
+**Prototype references:** `plan/journey/staff/prototypes/horarios/09-colunas-buffer.html` (3 columns: both origin types side by side, including a resource turnover holding only Walace and a service buffer holding every resource) and `09b-so-walace.html` (only Walace checked, label still names Walace and the origin). Baseline is `08-visao-geral-manager.html`. `horarios.md`, `dev-notes.md`, `staff/use-cases.md` and `index.html` are updated alongside.
+**New migration / i18n keys / env vars / feature flags:**
+- Migration `AddGapToResourceOccupancy` (next number after `1748500000023`, `contexts/booking/infrastructure/migrations/`): `ADD COLUMN gap_minutes INT NULL`, `ADD COLUMN gap_source VARCHAR(20) NULL`, `ADD CONSTRAINT CHK_booking_resource_occupancy_gap ... NOT VALID`, then a separate `VALIDATE CONSTRAINT`. Additive, backward-compatible, no backfill, nothing locked beyond a brief catalog change. `down()` drops the constraint then the columns.
+- i18n in BOTH `pt-BR` and `en` `web.json` next to `dayGridSpilloverOccupancy`: `dayGridBufferHeading` ("{resource} · até {time}"), `dayGridBufferServiceBuffer` ("Buffer do serviço {service} · {minutes} min"), `dayGridBufferResourceTurnover` ("Virada do recurso · {minutes} min"), `dayGridBufferUnknownOrigin` ("Origem não registrada"), plus `dayGridBufferTooltipServiceBuffer`, `dayGridBufferTooltipResourceTurnover`, `dayGridBufferTooltipUnknownOrigin`. No env var, no feature flag, no new error code.
+
+**Files to create/modify:** (paths confirmed to exist by grep/ls on 2026-10-03 unless marked new)
+- `apps/backend/src/contexts/booking/domain/services/availability.service.ts` (+ `.spec.ts`): `resolveFlatGap`
+- `apps/backend/src/contexts/booking/domain/resource-gap-source.ts` (new): the closed `ResourceGapSource` type
+- `apps/backend/src/contexts/booking/application/use-cases/resource-occupancy-candidate-builders.helpers.ts` (+ spec), `resource-occupancy.helpers.ts`, `reschedule-quote.helpers.ts` (only if it constructs candidates itself)
+- `apps/backend/src/contexts/booking/application/ports/resource-occupancy-repository.port.ts` (`ResourceOccupancyCandidate`), `booking-availability.port.ts`
+- `apps/backend/src/contexts/booking/domain/day-grid-occupancy-block.ts`
+- `apps/backend/src/contexts/booking/infrastructure/entities/resource-occupancy.entity.ts`
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.write-queries.ts` (+ spec), `typeorm-resource-occupancy.repository.ts`
+- `apps/backend/src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts` (+ spec / integration spec)
+- `apps/backend/src/contexts/booking/application/use-cases/get-schedule-day-grid.use-case.ts` (+ spec)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/<next>-AddGapToResourceOccupancy.ts` (new)
+- `apps/backend/src/test/builders/booking/resource-occupancy-entity.builder.ts` (`test-builder-coverage`; defaults for the two new fields), `apps/backend/src/test/utils/seed-resource-occupancy.ts`, `apps/backend/src/test/integration-global-setup.ts` (only if a new entity were added; not expected)
+- `packages/types/src/schedule.dto.ts` (`DayGridBlock.gap`), `apps/bff/src/features/booking/schedule.types.ts` (+ `schedule-day-grid.controller.spec.ts`)
+- `apps/backend/http/booking/schedule-day-grid.http`, `apps/bff/http/schedule/schedule-day-grid.http`
+- `apps/web/features/booking/schedule/schedule-resource-columns.ts` (+ `.spec.ts`), `schedule-timeline-events.ts` (+ `.spec.ts`), `schedule-timeline.ts` (+ `.spec.ts`), `schedule-timeline-event-list.ts`
+- `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (+ `.spec.tsx`), `TimelineBlockShell.tsx`, `ScheduleResourceColumnsBoard.tsx` (+ `.spec.tsx`)
+- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json`
+- `apps/web/e2e/schedule-resource-columns.spec.ts` (+ helpers under `apps/web/e2e/helpers/` if a seed helper is needed)
+- Docs (doc gate applies, each needs its own yes at implementation time): `docs/13-DATABASE_SCHEMA.md` (two new `resource_occupancy` columns + constraint), `docs/14-API_CONTRACTS.md` (`gap` on the day-grid block), `docs/02-DOMAIN_MODEL.md` / `docs/04-USE_CASES.md` (UC-059 gap source, UC-057 note)
+- Journey/prototype (already drafted 2026-10-03): `plan/journey/staff/horarios.md`, `plan/journey/staff/use-cases.md`, `plan/journey/staff/prototypes/horarios/{09-colunas-buffer.html, 09b-so-walace.html, index.html, dev-notes.md}`
+
+**Acceptance criteria — product:**
+- [ ] In Day view with ≥1 resource checked, every booking in a column is followed by a distinct segment covering the time that resource stays blocked after the booking ends, labeled with the resource name, the release time and the origin.
+- [ ] A service buffer shows the same origin ("Buffer do serviço X · N min") in every resource column of the booking; a resource turnover shows ("Virada do recurso · N min") only in that resource's own column; a resource with no gap shows no segment.
+- [ ] With only one resource checked (e.g. Walace), the segment still reads "Walace · até HH:MM" plus the correct origin.
+- [ ] A booking made before this change (no recorded origin) still shows the blocked time, with "Origem não registrada" instead of a guessed cause.
+- [ ] The visible free space in a column matches what availability will offer (Oct 8 example: 15:00–16:00 reads as held/short, not free for a 3h window).
+- [ ] The merged timeline and Week view are unchanged; both locales render every string with no hardcoded copy.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `availability.service.spec.ts`: `resolveFlatGap` — buffer > turnover ⇒ `SERVICE_BUFFER`; turnover > buffer ⇒ `RESOURCE_TURNOVER`; tie with buffer > 0 ⇒ `SERVICE_BUFFER`; both 0 ⇒ no source; `effectiveFlatGapMinutes` unchanged for every existing case.
+  - [ ] `resource-occupancy-candidate-builders.helpers.spec.ts`: flat last line carries minutes+source; non-last line none; legged candidate `RESOURCE_TURNOVER` only when turnover > 0; two resources with different turnover on one booking get different sources.
+  - [ ] `typeorm-resource-occupancy.write-queries.spec.ts`: `buildOccupancyRows` copies the fields; `INSERT_OCCUPANCY_SQL` parameter count matches.
+  - [ ] `get-schedule-day-grid.use-case.spec.ts`: `gap` mapped, null when no source, `CLASS_SESSION` ⇒ null.
+  - [ ] web `schedule-resource-columns.spec.ts`: tail = block end − booking end; zero/negative ⇒ none; multi-line ⇒ one tail; placeholder ⇒ none; midnight-crossing ⇒ spillover banner only; null `gap` ⇒ unknown-origin label.
+  - [ ] web `schedule-timeline-events.spec.ts` / `schedule-timeline.spec.ts` / `ScheduleTimelineEventRenderer.spec.tsx` / `ScheduleResourceColumnsBoard.spec.tsx`: no lane stealing from bookings; all three label variants + tooltips render in both locales; no axe violations.
+- Integration:
+  - [ ] `typeorm-resource-occupancy.repository.integration.spec.ts` (or the existing occupancy integration spec): a booking created through the real use case persists `gap_minutes`/`gap_source` per candidate (service-buffer, resource-turnover, tie, none, legged); a reschedule rewrites them with the new window.
+  - [ ] The migration's constraint rejects `gap_source` without `gap_minutes > 0` and a source outside the closed list, and accepts NULL/NULL.
+  - [ ] `GET /schedule/day-grid` returns `gap` (with `serviceName` only for `SERVICE_BUFFER`) and `null` for legacy NULL rows.
+- Tenant isolation:
+  - [ ] Two tenants with different services/resources: tenant A's day-grid never returns tenant B's blocks, gap or service names.
+- E2E:
+  - [ ] `schedule-resource-columns.spec.ts`: (a) a seeded booking whose service has a buffer shows "Buffer do serviço {name}" in each of its resource columns; (b) a resource with turnover but a zero-buffer service shows "Virada do recurso" only in that resource's column; (c) with only that resource checked the segment names it. Data source chosen at discovery (no fixed-slot booking race).
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean (including `architecture-check`: `test-builder-coverage`, `ikaro-types-drift`, `transactional-save`)

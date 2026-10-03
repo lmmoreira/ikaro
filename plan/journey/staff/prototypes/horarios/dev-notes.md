@@ -301,3 +301,36 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
   - **Round 2 (CodeRabbit round-1 findings + live testing on the deployed PR, 2026-09-25):** the fixed per-board floor (`DESKTOP_MIN_BLOCK_HEIGHT_PX`/`COMPACT_MIN_BLOCK_HEIGHT_PX`) still visibly overflowed a short booking's true time span (a 30-min Week-view booking rendered 96px tall against a true 22px slot) — `getBlockMinHeightPx` became content-aware (`(compact, extraLineCount)`), shrinking the floor to match how many of the 2 optional footer lines a block actually renders; Week view's compact scale rose from 0.45 to 0.85 now that the page no longer needs to fit in one screen (see sticky toolbar below); an attempt to also drop the resource-summary line at minimum granularity in Week view specifically was tried and reverted within this same round — it broke Story 1/2's own resource-filtering feature, which depends on that line staying visible. CodeRabbit separately found and this round fixed: the scroll-to-now guard didn't reset when the marker's DOM node changed (root cause of the round-1 Playwright failure — a Week→Day view switch at the same date silently skipped the new marker's scroll), a closed "today" card never mounted the marker at all, and the new e2e test's `nextOpenDateKey(0)` fixture could silently decouple from `todayKey` on a Sunday. Also from live testing (not CodeRabbit): the Week-view day-card badge and a new Day-view header badge now show a booking count (`bookingsOnDay`, extended with an explicit `=0` case) instead of the redundant open/closed status text; `ScheduleResourceColumnsBoard`'s per-column "Nada agendado neste dia" text was removed in favor of that single page-level count; and `SchedulePage`'s week/day picker + header now sit in a `sticky top-[3.375rem]` wrapper (reusing the same sticky pattern `Topbar`/`Sidebar` and `CustomerTabNav` already use — no `DashboardShell.tsx` change needed). Full detail: `docs/archive/td/TD44-RESOURCE-COLUMNS-BOARD-SELECTION-CAP.md` Story 4 Round 2.
 
 - **`TD44` Story 5 (`/story-discovery` 2026-09-27) — restored the time-range line at every duration, raised the base slot height:** live product feedback reconsidering Story 4's own minimum-granularity trade-off, now that scroll-to-now and the decoupled per-block `minHeight` (both Story 4) make a modestly taller calendar comfortable to navigate. The time-range line (`data-testid="timeline-block-time-range"`) now always renders, in every board — the `isMinimumGranularity`/`showTimeRangeLine` special case is removed entirely; `extraLineCount` is simply `Number(showResourceLine) + 1`. To keep a minimum-granularity block's rendered height from looking disproportionate next to its real duration, `getSlotHeight`'s base multiplier was raised from 48 to **72** (picked via a live comparison of 60/64/72 against the running app, across Day and Week view, during story-discovery) — an 18-slot (9-hour) business day now renders at ≈1296px, still comfortably navigable with scroll-to-now already in place. Files: `ScheduleTimelineEventRenderer.tsx`, `schedule-timeline-formatting.ts`. Full detail: `docs/archive/td/TD44-RESOURCE-COLUMNS-BOARD-SELECTION-CAP.md` Story 5.
+
+## ❌ Gap — M18-S10: who is held after each booking, and why (prototypes `09-colunas-buffer.html`, `09b-so-walace.html`)
+
+**Story:** `plan/M18-BOOKING-IMPROVEMENTS.md` § M18-S10 (backend-ts + bff-ts + web-ts, size L). **Problem:** `ScheduleResourceColumnsBoard` draws a matched booking as `scheduledAt + totalDurationMins` (`schedule-timeline-events.ts`), ignoring the day-grid block's `endsAt`, which already includes the effective gap `max(service buffer, resource turnover)`. A manager sees free-looking time the availability engine will refuse — and nothing records *why* the time is held, so the origin cannot be shown.
+
+**Segment content (every segment, every time — including when only one resource is checked):**
+- Line 1: `{resource} · até {HH:MM}` — who is held.
+- Line 2: `Buffer do serviço {service} · {N} min` or `Virada do recurso · {N} min` — why. A legacy row with no recorded origin shows `Origem não registrada`.
+- Tooltip: full sentence (a service buffer holds every resource of the booking; a resource turnover holds only that resource).
+- Not clickable; never takes a lane from a booking.
+
+**Behavior rules (locked in the story):**
+- Service buffer → same label in every resource column of the booking. Resource turnover → only the causing resource's column (see 09:30 in `09-colunas-buffer.html`: only Walace is held, the Localização is free).
+- `max(buffer, turnover)`; a tie goes to the service; both 0 → no segment. Only the booking's last line carries the service buffer; a legged line's gap is turnover only.
+- Tail geometry = `block.endsAt − booking end` (positive only); `gap` only supplies the label. Multi-line → one tail; unmatched "Ocupado" placeholder → none; tail crossing midnight → TD43's fixed banner.
+- Day-view columns board only; merged timeline and Week view unchanged.
+
+**Data:** `resource_occupancy` gains nullable `gap_minutes` + `gap_source` (`SERVICE_BUFFER` | `RESOURCE_TURNOVER`), written with the row at booking time by the same `gapFor` the availability pre-filter already uses; `GET /schedule/day-grid` blocks gain `gap: { source, minutes, serviceName | null } | null` (`serviceName` = the booking line's `service_name_at_booking`, joined already). No new endpoint. Legacy rows stay NULL (no backfill).
+
+**Planned file map (not yet implemented):**
+
+| Layer | Files |
+|---|---|
+| Domain | `availability.service.ts` (`resolveFlatGap`), `resource-gap-source.ts` (new), `day-grid-occupancy-block.ts` |
+| Application | `resource-occupancy-candidate-builders.helpers.ts`, `resource-occupancy-repository.port.ts`, `get-schedule-day-grid.use-case.ts` |
+| Infrastructure | `resource-occupancy.entity.ts`, `typeorm-resource-occupancy.write-queries.ts`, `typeorm-booking-availability.adapter.ts`, new migration `AddGapToResourceOccupancy` |
+| Types/BFF | `packages/types/src/schedule.dto.ts`, `apps/bff/src/features/booking/schedule.types.ts` (both `DayGridBlock`) |
+| Web | `schedule-resource-columns.ts`, `schedule-timeline-events.ts`, `schedule-timeline.ts`, `schedule-timeline-event-list.ts`, `ScheduleTimelineEventRenderer.tsx`, `TimelineBlockShell.tsx`, `ScheduleResourceColumnsBoard.tsx` |
+| i18n | `packages/i18n/locales/{pt-BR,en}/web.json` — `dayGridBuffer*` keys |
+
+**Prototype notes:** both files are built from `08-visao-geral-manager.html` using the real Oct 8 Lavacar BeloAuto occupancy (bookings 11:00/13:00/16:00 → held until 12:30/15:00/17:30) plus an illustrative 09:00 Lavagem rápida with a 30-min Walace turnover (not Walace's real turnover, which is 5 min) to contrast the two origins. `09b-so-walace.html` is the one-resource-checked case. Free cells are tinted green only in the prototype so gaps are readable; the real board does not tint free time. Nav links point at real, existing screens (`../turmas/01-turmas-proximas.html`).
+
+**Known limitation carried from `08`:** `08-visao-geral-manager.html` still links `staff-02-session-roster.html` and `staff-04-turmas-proximas.html`, which do not exist (the real screens are `../turmas/02-roster-dia.html` and `../turmas/01-turmas-proximas.html`); left unchanged, flagged by the 2026-10-03 docs-audit.

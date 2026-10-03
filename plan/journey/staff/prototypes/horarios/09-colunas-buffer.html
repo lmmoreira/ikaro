@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horários — Lavacar BeloAuto — tempo bloqueado (buffer)</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    /* ── Week navigation (synced to apps/web/shells/dashboard/components/WeekNav.tsx) ── */
+    .week-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; background: white; border-bottom: 1px solid var(--ba-secondary); }
+    .week-nav-btn { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: var(--ba-radius); border: 1.5px solid var(--ba-secondary); background: white; cursor: pointer; color: var(--ba-text); font-size: 1.125rem; text-decoration: none; line-height: 1; }
+    .week-nav-btn.disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+    .week-nav-month { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
+
+    .week-strip { display: flex; justify-content: space-evenly; gap: 0.25rem; padding: 0.5rem 0.375rem; background: white; border-bottom: 1px solid var(--ba-secondary); overflow-x: auto; }
+    .week-day { display: flex; flex-direction: column; align-items: center; gap: 0.125rem; flex: 1; min-width: 2.5rem; padding: 0.5rem 0.375rem; border-radius: 0.625rem; cursor: pointer; color: #1f2937; }
+    .week-day-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #9ca3af; }
+    .week-day-number { font-size: 1rem; font-weight: 700; line-height: 1; }
+    .week-day-dot { width: 6px; height: 6px; border-radius: 9999px; background: #2563eb; margin-top: 0.3rem; }
+    .week-day-dot.empty { background: transparent; }
+    .week-day.today { background: #2563eb; color: white; }
+    .week-day.today .week-day-label { color: #dbeafe; }
+    .week-day.today .week-day-dot { background: rgba(255,255,255,0.8); }
+    .week-day.selected { background: #030712; color: white; box-shadow: 0 0 0 2px #bfdbfe; }
+    .week-day.selected .week-day-label { color: #e5e7eb; }
+    .week-day.selected .week-day-dot { background: rgba(255,255,255,0.8); }
+
+    /* ── Day header (synced to ScheduleDayHeader.tsx) ── */
+    .day-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 0.875rem 1rem 0; }
+    .day-header-eyebrow { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: #9ca3af; margin: 0; }
+    .day-header-title { font-size: 1.125rem; font-weight: 600; color: #111827; margin: 0.125rem 0 0; }
+    .day-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .btn-outline-sm { display: inline-flex; align-items: center; gap: 0.25rem; height: 2.25rem; padding: 0 0.75rem; border-radius: 0.5rem; border: 1px solid var(--ba-secondary); background: white; color: var(--ba-text); font-size: 0.8125rem; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .view-mode-select { display: inline-flex; align-items: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.75rem; border-radius: 9999px; border: 1px solid var(--ba-secondary); background: white; color: var(--ba-text); font-size: 0.8125rem; font-weight: 600; }
+    .btn-primary-sm { display: inline-flex; align-items: center; gap: 0.25rem; height: 2.25rem; padding: 0 0.875rem; border-radius: 0.5rem; border: none; background: #2563eb; color: white; font-size: 0.8125rem; font-weight: 600; cursor: pointer; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic */
+    .day-header-summary { margin: 0.625rem 1rem 0; font-size: 0.8125rem; color: rgba(17,24,39,0.55); }
+
+    /* ── Bounded multi-resource columns (NEW — only the resources checked in "Filtrar recurso"
+       get a column; this is NOT "every active resource", see the comment block below) ── */
+    .columns-scroll { margin: 0.875rem 1rem 6.5rem; overflow-x: auto; background: white; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); }
+    .columns-table { border-collapse: collapse; width: 100%; min-width: 34rem; }
+    .columns-table th, .columns-table td { border-bottom: 1px solid var(--ba-secondary); border-right: 1px solid var(--ba-secondary); padding: 0.375rem 0.625rem; font-size: 0.8125rem; vertical-align: top; }
+    .columns-table th:last-child, .columns-table td:last-child { border-right: none; }
+    .columns-table th { position: sticky; top: 0; background: white; z-index: 2; font-weight: 700; color: var(--ba-text); text-align: left; padding-top: 0.625rem; padding-bottom: 0.625rem; }
+    .columns-table th.time-col, .columns-table td.time-col { position: sticky; left: 0; background: white; z-index: 1; font-size: 0.6875rem; color: rgba(17,24,39,0.4); font-variant-numeric: tabular-nums; white-space: nowrap; border-right: 2px solid var(--ba-secondary); }
+    .columns-table th.time-col { z-index: 3; }
+
+    .cv-block { display: block; border-radius: 0.5rem; padding: 0.375rem 0.5rem; text-decoration: none; color: inherit; }
+    .cv-booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic. APPOINTMENT-family */
+    .cv-booking p.name { font-weight: 600; color: #2563eb; margin: 0; line-height: 1.2; } /* fixed platform blue, not --ba-primary */
+    .cv-booking p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-session { background: #ede9fe; border-left: 3px solid #7c3aed; } /* SESSION-family — distinct purple accent, matches ScheduleTimelineEventRenderer */
+    .cv-session p.name { font-weight: 600; color: #7c3aed; margin: 0; line-height: 1.2; }
+    .cv-session p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-closure { border-left: 3px solid #64748b; background-image: repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px); } /* matches ScheduleTimelineEventRenderer's closure block exactly */
+    .cv-closure p.name { font-weight: 600; color: #475569; margin: 0; line-height: 1.2; }
+    .cv-closure p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-cont { background: var(--ba-secondary); border-left: 3px solid #2563eb; border-radius: 0 0 0.375rem 0.375rem; }
+    .cv-cont.cv-session-cont { background: #ede9fe; border-left: 3px solid #7c3aed; }
+    .cv-cont.cv-closure-cont { border-left: 3px solid #64748b; background-image: repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px); }
+
+    /* ── Floating filter balloons (synced to ResourceFilterMenu.tsx + ScheduleStatusFilterMenu.tsx —
+       stacked bottom-right, resource filter above status filter, same trigger+popover shape).
+       This balloon is what DRIVES the columns above — checking a resource here is what gives it
+       a column; nothing else narrows/selects columns (no separate type-tab UI). ── */
+    .filter-fab-stack { position: fixed; bottom: 1.25rem; right: 1rem; z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
+    .filter-fab { display: inline-flex; align-items: center; gap: 0.5rem; height: auto; padding: 0.625rem 0.875rem; border-radius: 9999px; border: 1px solid rgba(37,99,235,0.2); background: #2563eb; color: white; font-size: 0.8125rem; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.15); cursor: pointer; }
+    .filter-popover { width: min(19rem, calc(100vw - 2rem)); border-radius: 1rem; border: 1px solid var(--ba-secondary); background: white; box-shadow: 0 20px 45px rgba(0,0,0,0.2); overflow: hidden; margin-bottom: 0.5rem; }
+    .filter-popover-header { padding: 0.75rem 1rem; }
+    .filter-popover-header p.title { font-size: 0.875rem; font-weight: 600; color: #111827; margin: 0; }
+    .filter-popover-header p.desc { font-size: 0.75rem; color: #6b7280; margin: 0.2rem 0 0; }
+    .filter-popover-options { max-height: 16rem; overflow-y: auto; padding: 0.375rem 0.5rem; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+    .filter-option { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; border-radius: 0.75rem; cursor: pointer; }
+    .filter-option:hover { background: #f9fafb; }
+    .filter-option input { width: 1rem; height: 1rem; accent-color: #2563eb; }
+    .filter-option span { font-size: 0.8125rem; font-weight: 500; color: #111827; }
+    .filter-popover-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1rem; }
+    .filter-popover-footer button { border: none; background: none; font-size: 0.8125rem; font-weight: 600; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.5rem; }
+    .filter-popover-footer button.ghost { color: #6b7280; }
+    .filter-popover-footer button.outline { color: var(--ba-text); border: 1px solid var(--ba-secondary); }
+
+    /* ── Buffer / turnover tail (NEW — M18-S10): the time a booking keeps THIS resource blocked after
+       the booking itself ends = block.endsAt (GET /schedule/day-grid) minus booking end
+       (scheduledAt + totalDurationMins). Amber hatch = distinct from booking (blue), session
+       (purple) and closure (grey hatch). Not clickable; never takes a lane from a booking. ── */
+    .cv-buffer { border-left: 3px solid #d97706; background-image: repeating-linear-gradient(45deg, rgba(245,158,11,0.22) 0, rgba(245,158,11,0.22) 6px, rgba(255,251,235,0.95) 6px, rgba(255,251,235,0.95) 12px); cursor: help; }
+    .cv-buffer p.name { font-weight: 600; color: #92400e; margin: 0; line-height: 1.2; font-size: 0.75rem; }
+    .cv-buffer p.meta { color: #92400e; opacity: 0.8; margin: 0; line-height: 1.2; font-size: 0.6875rem; }
+    .cv-cont.cv-buffer-cont { border-left: 3px solid #d97706; border-radius: 0 0 0.375rem 0.375rem; background-image: repeating-linear-gradient(45deg, rgba(245,158,11,0.22) 0, rgba(245,158,11,0.22) 6px, rgba(255,251,235,0.95) 6px, rgba(255,251,235,0.95) 12px); background-color: transparent; }
+    .cv-free { background: #ecfdf5; }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0.625rem 1rem 0; font-size: 0.75rem; color: #374151; align-items: center; }
+    .legend-item { display: inline-flex; align-items: center; gap: 0.375rem; }
+    .legend-swatch { width: 1.25rem; height: 0.875rem; border-radius: 0.25rem; display: inline-block; }
+    .legend-swatch.booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; }
+    .legend-swatch.buffer { border-left: 3px solid #d97706; background-image: repeating-linear-gradient(45deg, rgba(245,158,11,0.22) 0, rgba(245,158,11,0.22) 4px, rgba(255,251,235,0.95) 4px, rgba(255,251,235,0.95) 8px); }
+    .legend-swatch.free { background: #ecfdf5; border: 1px solid #a7f3d0; }
+    .callout { margin: 0.625rem 1rem 0; padding: 0.625rem 0.875rem; border-radius: 0.5rem; background: #fffbeb; border: 1px solid #fcd34d; font-size: 0.8125rem; color: #78350f; }
+  </style>
+</head>
+<body>
+
+  <!--
+    NEW PROTOTYPE (2026-10-03) — M18-S10: buffer / turnover-blocked time in the Day-view columns board.
+    Baseline = 08-visao-geral-manager.html (M22-S06 + TD43/TD44), unchanged otherwise.
+
+    PROBLEM (live report, Lavacar BeloAuto, local data, Thu 2026-10-08): bookings 11:00, 13:00, 16:00 (PENDING)
+    looked like they left 14:00–16:00 free, but a 2h Polimento (+60 min buffer = 3h window) was only offered
+    at 08:00. The columns board drew each booking as scheduledAt + totalDurationMins only, hiding the
+    buffer/turnover the resource stays held afterwards (the engine's resource_occupancy window).
+
+    WHAT THIS SCREEN SHOWS: after each booking, an amber hatched segment per resource column from the
+    booking's end to that resource's block endsAt. EVERY segment states both WHO is held and WHY, so the
+    manager never has to guess (also true when only ONE resource is checked — see 09b-so-walace.html):
+        line 1:  "<Recurso> · até HH:MM"
+        line 2:  "Buffer do serviço <Serviço> · N min"   or   "Virada do recurso · N min"
+    (origin = any gap source; today only SERVICE_BUFFER and RESOURCE_TURNOVER exist, the list is open.)
+    A service buffer shows up in every resource column of the booking; a resource turnover only in that
+    resource's own column (09:00 Julia Prado: only Walace is held, the Localização is free at 09:30).
+    Free time that is genuinely free stays unmarked (green outline here only to make the gaps readable in
+    the prototype — the real board does not tint free time).
+
+    NEEDS the gap origin: day-grid block.endsAt alone does not say why. Persist at write time
+    (resource_occupancy gap_minutes + gap_source) and expose it on the day-grid block — see the story.
+
+    DATA: GET /schedule/day-grid block.endsAt (already includes the effective gap max(service buffer,
+    resource turnover)) minus the matched booking's own end, plus the persisted gap origin. Only a positive
+    difference renders; multi-line booking -> one tail from the last block; unmatched placeholder -> none; a tail that
+    crosses midnight keeps TD43's fixed "Ocupado até" banner instead of a positioned block.
+
+    SCOPE: Day-view columns board only (per-resource data exists only there). Merged single timeline and
+    Week view are unchanged.
+
+    Real files this mockup is synced to (after M18-S10):
+      apps/web/features/booking/schedule/schedule-resource-columns.ts       (derive tails per column)
+      apps/web/features/booking/schedule/schedule-timeline-events.ts        (new BufferTimelineEvent kind)
+      .../schedule/ScheduleTimelineEventRenderer.tsx / TimelineBlockShell.tsx (amber hatched segment)
+      packages/i18n/locales/{pt-BR,en}/web.json                              (dayGridBufferTail*)
+    See plan/M18-BOOKING-IMPROVEMENTS.md M18-S10 and dev-notes.md's M18-S10 section.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand"><div class="topbar-logo-mark">B</div><span class="topbar-tenant-name">Lavacar BeloAuto</span></div>
+    <h1 class="topbar-page-title">Horários</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 03 de outubro de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">B</div>
+        <div><p class="sidebar-tenant-name">Lavacar BeloAuto</p><p class="sidebar-tenant-slug">@lavacar-beloauto</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item active" href="09-colunas-buffer.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="../turmas/01-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding:0;overflow:hidden;">
+
+      <!-- Week navigation — synced to WeekNav.tsx (month row + 7-day strip, activity dot, today/selected states) -->
+      <div class="week-nav">
+        <button class="week-nav-btn" title="Semana anterior">‹</button>
+        <span class="week-nav-month">outubro 2026</span>
+        <button class="week-nav-btn" title="Próxima semana">›</button>
+      </div>
+      <div class="week-strip">
+        <div class="week-day"><span class="week-day-label">Seg</span><span class="week-day-number">5</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Ter</span><span class="week-day-number">6</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Qua</span><span class="week-day-number">7</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day selected"><span class="week-day-label">Qui</span><span class="week-day-number">8</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Sex</span><span class="week-day-number">9</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Sáb</span><span class="week-day-number">10</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day" style="opacity:0.4;"><span class="week-day-label">Dom</span><span class="week-day-number">11</span><span class="week-day-dot empty"></span></div>
+      </div>
+
+      <!-- Day header — synced to ScheduleDayHeader.tsx -->
+      <div class="day-header">
+        <div>
+          <p class="day-header-eyebrow">Dia selecionado</p>
+          <h2 class="day-header-title">Quinta-feira, 8 de outubro de 2026</h2>
+        </div>
+        <div class="day-header-actions">
+          <button class="btn-outline-sm">Hoje</button>
+          <span class="view-mode-select">Dia ▾</span>
+          <button class="btn-primary-sm">+ Bloquear período</button>
+        </div>
+      </div>
+      <p class="day-header-summary">
+        3 recursos marcados no balão "Filtrar recurso" — Localização Principal, Leonardo Moreira e Walace. Cada segmento amarelo
+        hachurado diz QUEM continua retido (o recurso) e POR QUÊ (a origem do buffer), depois que o agendamento termina.
+      </p>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch booking"></span>Agendamento</span>
+        <span class="legend-item"><span class="legend-swatch buffer"></span>Bloqueado após o agendamento — "recurso · até hh:mm" + origem (buffer do serviço ou virada do recurso)</span>
+        <span class="legend-item"><span class="legend-swatch free"></span>Livre (apenas neste protótipo)</span>
+      </div>
+      <p class="callout">
+        <strong>Compare 09:30 e 12:00.</strong> Depois da Julia Prado só a <em>Walace</em> fica retida (virada do recurso, 30 min); a
+        Localização já está livre. Depois do Carlos Mendes o <em>buffer do serviço</em> segura todos os recursos do agendamento.
+        <strong>E 14:00–16:00 não serve para um Polimento (2h + 1h):</strong> o agendamento das 13:00 segura a Localização até 15:00
+        e o das 16:00 começa às 16:00 — sobra só 1h. Passe o mouse num bloco amarelo para ver a explicação completa.
+      </p>
+
+      <!-- Bounded columns — one per CHECKED resource only (3 here), not "every active resource".
+           Bookings from GET /schedule/day-grid (M22-S05) filtered to these 3 ids; closures from
+           the existing resourceId-scoped fetch (M21-S05) — both merged per column, client-side. -->
+      <div class="columns-scroll">
+        <table class="columns-table">
+          <thead>
+            <tr>
+              <th class="time-col">Hora</th><th>Localização Principal</th><th>Leonardo Moreira</th><th>Walace</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="time-col">08:00</td><td class="cv-free"></td><td class="cv-free"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">08:30</td><td class="cv-free"></td><td class="cv-free"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">09:00</td><td><a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Julia Prado</p><p class="meta">Lavagem rápida · 09:00–09:30</p></a></td><td class="cv-free"></td><td><a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Julia Prado</p><p class="meta">Lavagem rápida · 09:00–09:30</p></a></td></tr>
+            <tr><td class="time-col">09:30</td><td class="cv-free"></td><td class="cv-free"></td><td><div class="cv-block cv-buffer" title="Virada do recurso Walace (30 min): só Walace fica bloqueado(a) até 10:00."><p class="name">Walace · até 10:00</p><p class="meta">Virada do recurso · 30 min</p></div></td></tr>
+            <tr><td class="time-col">10:00</td><td class="cv-free"></td><td class="cv-free"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">10:30</td><td class="cv-free"></td><td class="cv-free"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">11:00</td><td><a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Carlos Mendes</p><p class="meta">Lavagem simples · 11:00–12:00</p></a></td><td class="cv-free"></td><td><a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Carlos Mendes</p><p class="meta">Lavagem simples · 11:00–12:00</p></a></td></tr>
+            <tr><td class="time-col">11:30</td><td class="cv-cont"></td><td class="cv-free"></td><td class="cv-cont"></td></tr>
+            <tr><td class="time-col">12:00</td><td><div class="cv-block cv-buffer" title="Buffer do serviço Lavagem simples (30 min): Localização Principal fica bloqueado(a) até 12:30. O mesmo buffer vale para todos os recursos deste agendamento."><p class="name">Localização Principal · até 12:30</p><p class="meta">Buffer do serviço Lavagem simples · 30 min</p></div></td><td class="cv-free"></td><td><div class="cv-block cv-buffer" title="Buffer do serviço Lavagem simples (30 min): Walace fica bloqueado(a) até 12:30. O mesmo buffer vale para todos os recursos deste agendamento."><p class="name">Walace · até 12:30</p><p class="meta">Buffer do serviço Lavagem simples · 30 min</p></div></td></tr>
+            <tr><td class="time-col">12:30</td><td class="cv-free"></td><td class="cv-free"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">13:00</td><td><a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Marina Lopes</p><p class="meta">Lavagem completa · 13:00–14:00</p></a></td><td><a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Marina Lopes</p><p class="meta">Lavagem completa · 13:00–14:00</p></a></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">13:30</td><td class="cv-cont"></td><td class="cv-cont"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">14:00</td><td><div class="cv-block cv-buffer" title="Buffer do serviço Lavagem completa (60 min): Localização Principal fica bloqueado(a) até 15:00. O mesmo buffer vale para todos os recursos deste agendamento."><p class="name">Localização Principal · até 15:00</p><p class="meta">Buffer do serviço Lavagem completa · 60 min</p></div></td><td><div class="cv-block cv-buffer" title="Buffer do serviço Lavagem completa (60 min): Leonardo Moreira fica bloqueado(a) até 15:00. O mesmo buffer vale para todos os recursos deste agendamento."><p class="name">Leonardo Moreira · até 15:00</p><p class="meta">Buffer do serviço Lavagem completa · 60 min</p></div></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">14:30</td><td class="cv-cont cv-buffer-cont"></td><td class="cv-cont cv-buffer-cont"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">15:00</td><td class="cv-free"></td><td class="cv-free"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">15:30</td><td class="cv-free"></td><td class="cv-free"></td><td class="cv-free"></td></tr>
+            <tr><td class="time-col">16:00</td><td><a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Paulo Reis</p><p class="meta">Higienização · 16:00–17:00</p></a></td><td class="cv-free"></td><td><a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html"><p class="name">Paulo Reis</p><p class="meta">Higienização · 16:00–17:00</p></a></td></tr>
+            <tr><td class="time-col">16:30</td><td class="cv-cont"></td><td class="cv-free"></td><td class="cv-cont"></td></tr>
+            <tr><td class="time-col">17:00</td><td><div class="cv-block cv-buffer" title="Buffer do serviço Higienização (30 min): Localização Principal fica bloqueado(a) até 17:30. O mesmo buffer vale para todos os recursos deste agendamento."><p class="name">Localização Principal · até 17:30</p><p class="meta">Buffer do serviço Higienização · 30 min</p></div></td><td class="cv-free"></td><td><div class="cv-block cv-buffer" title="Buffer do serviço Higienização (30 min): Walace fica bloqueado(a) até 17:30. O mesmo buffer vale para todos os recursos deste agendamento."><p class="name">Walace · até 17:30</p><p class="meta">Buffer do serviço Higienização · 30 min</p></div></td></tr>
+            <tr><td class="time-col">17:30</td><td class="cv-free"></td><td class="cv-free"></td><td class="cv-free"></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Floating filter balloons — synced to ResourceFilterMenu.tsx (open here, showing the
+       multi-select checkboxes that drive the columns above) stacked above ScheduleStatusFilterMenu.tsx -->
+  <div class="filter-fab-stack">
+    <div>
+      <div class="filter-popover">
+        <div class="filter-popover-header">
+          <p class="title">Recursos visíveis</p>
+          <p class="desc">Marque os recursos que devem aparecer no calendário.</p>
+        </div>
+        <div class="filter-popover-options">
+          <label class="filter-option"><input type="checkbox" checked><span>Localização Principal</span></label>
+          <label class="filter-option"><input type="checkbox" checked><span>Leonardo Moreira</span></label>
+          <label class="filter-option"><input type="checkbox" checked><span>Walace</span></label>
+          <label class="filter-option"><input type="checkbox"><span>Sala Fogo</span></label>
+          <label class="filter-option"><input type="checkbox"><span>Sky</span></label>
+        </div>
+        <div class="filter-popover-footer">
+          <button class="ghost">Padrão</button>
+          <button class="outline">Fechar</button>
+        </div>
+      </div>
+      <button class="filter-fab" aria-expanded="true">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filtrar recurso
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg);"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <button class="filter-fab">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filtrar status
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item active" href="09-colunas-buffer.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="../servicos/01-servicos-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="../turmas/01-turmas-proximas.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Fidelidade
+    </a>
+  </nav>
+
+</body>
+</html>
