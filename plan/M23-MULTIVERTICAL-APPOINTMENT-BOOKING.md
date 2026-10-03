@@ -1995,7 +1995,7 @@ None of the four events carries an email address, a name or a service name, and 
 
 ---
 
-### M23-S29 — Public booking-flow read APIs for the guest/customer frontend — resource options, duration quote, requirement-aware availability, public service shape
+### M23-S29 — Public booking-flow read APIs for the guest/customer frontend — resource options, duration quote, requirement-aware availability, public service shape ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
