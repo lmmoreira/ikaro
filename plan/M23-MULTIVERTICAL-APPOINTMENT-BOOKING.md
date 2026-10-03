@@ -976,8 +976,8 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 - `apps/web/features/booking/components/public/BookingSummaryCard.tsx` (+ spec) (modify — quoted total once a duration is chosen)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `duration.*`, `legs.*` under the `booking` namespace; both locales in the same commit)
 - `apps/web/e2e/helpers/services/` and `apps/web/e2e/helpers/booking-form/` (modify — leg and bundle seeding, duration-policy seeding) and the new Playwright specs below
-- `plan/journey/guest/prototypes/book-a-service/` new mixed-basket variants (e.g. summary `03e`, review `10c`, success `04g` — final names/set decided when drawn, each cross-referencing the screens it varies) — **drawn before any code, after a clean `/docs-audit` baseline (CLAUDE.md §15)**; `index.html` and `dev-notes.md` register them
-- `plan/journey/guest/book-a-service.md`, `plan/journey/customer/book-a-service.md`, both `dev-notes.md`, both prototype `index.html`, the UC-064/065/067 rows of `plan/journey/{guest,customer,staff}/use-cases.md` (modify — flip the S11b screens from `❓ GAP` to ✅ in the same commit)
+- `plan/journey/guest/prototypes/book-a-service/` new mixed-basket variants — **drawn 2026-10-03** after a clean `/docs-audit` baseline (CLAUDE.md §15): `03e` (summary card, fixed + journey + variable), `04g` (confirmation, fixed + journey), `10c` (journey review + variable-duration line), `04h` (success box of the combined basket), `04i` (bundle + fixed confirmation); `12` now preselects the minimum duration; `index.html` and `dev-notes.md` register them
+- `plan/journey/guest/book-a-service.md`, `plan/journey/customer/book-a-service.md`, both `dev-notes.md`, both prototype `index.html`, the UC-061–068 rows of `plan/journey/{guest,customer,staff}/use-cases.md` (modify — flip the S11b screens from `❓ GAP` to ✅ in the same commit)
 
 **Acceptance criteria — product:**
 - [ ] A guest/customer booking a bundle (staff choice + automatic room) sees the picker for the staff choice only, books it, and the details box shows the pick and no room name.
