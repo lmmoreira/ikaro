@@ -48,7 +48,13 @@ function chosenRows(
         )
         ?.options.find((option) => option.resourceId === pick.resourceId)?.name;
       return name
-        ? [{ key: `${pick.legIndex ?? '-'}:${pick.resourceType}`, type: pick.resourceType, name }]
+        ? [
+            {
+              key: `${pick.legIndex ?? '-'}:${pick.resourceType}:${pick.resourceId}`,
+              type: pick.resourceType,
+              name,
+            },
+          ]
         : [];
     });
 }

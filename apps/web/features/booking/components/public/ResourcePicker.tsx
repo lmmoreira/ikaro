@@ -145,9 +145,9 @@ export function ResourcePicker({
       )}
 
       {status === 'loading' && (
-        <p className="mt-4" role="status" aria-busy="true" data-testid="picker-loading">
+        <output className="mt-4 block" aria-busy="true" data-testid="picker-loading">
           {t('loading')}
-        </p>
+        </output>
       )}
 
       {status === 'error' && (

@@ -70,6 +70,7 @@ test.describe('M23-S11a — chosen resource', () => {
       await guest.page.locator(`[data-resource-id="${staffA}"]`).click();
       await nextButton(guest.page).click();
       await guest.page.locator(`[data-testid="day-option"][data-date="${slot.date}"]`).click();
+      await expect(guest.page.getByTestId('time-slot').first()).toBeVisible();
       const slotsForA = await guest.page.getByTestId('time-slot').count();
 
       await guest.page.getByRole('button', { name: 'Voltar' }).click();
@@ -293,19 +294,21 @@ test.describe('M23-S11a — chosen resource', () => {
       await nextButton(guest.page).click();
 
       // Another customer takes the room (alone) for the slot the guest is about to submit.
-      await bookAsGuest(page, {
-        serviceIds: [service.serviceId],
-        scheduledAt: chosen.startsAt,
-        resourceSelections: [
-          staffPick(service.serviceId, staff.id),
-          {
-            serviceId: service.serviceId,
-            legIndex: null,
-            resourceType: 'ROOM',
-            resourceId: room.id,
-          },
-        ],
-      });
+      expect(
+        await bookAsGuest(page, {
+          serviceIds: [service.serviceId],
+          scheduledAt: chosen.startsAt,
+          resourceSelections: [
+            staffPick(service.serviceId, staff.id),
+            {
+              serviceId: service.serviceId,
+              legIndex: null,
+              resourceType: 'ROOM',
+              resourceId: room.id,
+            },
+          ],
+        }),
+      ).toBe(201);
       await confirmBooking(guest.page);
 
       await expect(guest.page.getByTestId('step2-error')).toBeVisible();

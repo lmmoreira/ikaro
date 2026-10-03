@@ -81,7 +81,7 @@ describe('validateIntake', () => {
   });
 
   it('flags a blank attendee name only when attendees are asked', () => {
-    const value = filled({ attendees: [{ name: '  ', isMinor: false }] });
+    const value = filled({ attendees: [{ id: 'r1', name: '  ', isMinor: false }] });
     expect(validateIntake(makeSchema({ requiresNamedAttendees: true }), value).attendees).toBe(
       true,
     );
@@ -125,8 +125,8 @@ describe('buildIntakeRequestFields', () => {
     const value = filled({
       participantCount: '3',
       attendees: [
-        { name: ' Ana ', isMinor: true },
-        { name: '', isMinor: false },
+        { id: 'r2', name: ' Ana ', isMinor: true },
+        { id: 'r3', name: '', isMinor: false },
       ],
     });
     expect(buildIntakeRequestFields(makeSchema(), value)).not.toHaveProperty('participantCount');

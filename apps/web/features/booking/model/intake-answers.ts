@@ -6,6 +6,7 @@ import type {
 } from '@ikaro/types';
 
 export interface AttendeeDraft {
+  id: string;
   name: string;
   isMinor: boolean;
 }

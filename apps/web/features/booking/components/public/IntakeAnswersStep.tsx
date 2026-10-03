@@ -154,6 +154,11 @@ export function IntakeAnswersStep({
       <label className="flex items-start gap-2.5 text-sm">
         <input
           type="checkbox"
+          required
+          aria-invalid={showFieldErrors && validation.consent ? true : undefined}
+          aria-describedby={
+            showFieldErrors && validation.consent ? 'intake-consent-error' : undefined
+          }
           data-testid="intake-consent"
           checked={value.consentAccepted}
           onChange={(e) => onChange({ ...value, consentAccepted: e.target.checked })}
@@ -162,6 +167,7 @@ export function IntakeAnswersStep({
       </label>
       {showFieldErrors && validation.consent && (
         <p
+          id="intake-consent-error"
           className={`${INTAKE_ERROR_CHIP_CLASS} ml-7`}
           style={INTAKE_ERROR_CHIP_STYLE}
           data-testid="intake-consent-error"

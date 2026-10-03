@@ -40,7 +40,7 @@ export function IntakeAttendeesList({
         {t('attendeesLegend')}
       </legend>
       {attendees.map((row, index) => (
-        <div key={index} className="mb-2 flex items-center gap-2">
+        <div key={row.id} className="mb-2 flex items-center gap-2">
           <input
             type="text"
             data-testid="intake-attendee-name"
@@ -93,7 +93,9 @@ export function IntakeAttendeesList({
         data-testid="intake-add-attendee"
         className="cursor-pointer border px-3.5 py-2 text-sm"
         style={secondaryButton}
-        onClick={() => onChange([...attendees, { name: '', isMinor: false }])}
+        onClick={() =>
+          onChange([...attendees, { id: crypto.randomUUID(), name: '', isMinor: false }])
+        }
       >
         {t('addAttendee')}
       </button>

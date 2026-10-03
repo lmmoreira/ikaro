@@ -11,6 +11,7 @@ import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import type { PickerUnit } from '@/features/booking/model/booking-steps';
 import { findPick } from '@/features/booking/model/resource-picks';
+import { summarizeSelection } from '@/features/booking/model/selection-totals';
 import { ResourcePicker, type ResourcePickerStatus } from './ResourcePicker';
 
 interface ResourcePickerStepProps {
@@ -53,27 +54,33 @@ export function ResourcePickerStep({
 }: ResourcePickerStepProps): React.JSX.Element {
   const t = useTranslations('booking.resourcePicker');
   const tc = useTranslations('common');
+  const tb = useTranslations('booking');
   const { formatMoney } = useFormatting();
   const unitRequirements = requirements.filter(
     (req) => req.serviceId === unit.serviceId && (req.legIndex ?? null) === unit.legIndex,
   );
   const [first] = unitRequirements;
   const isLeg = unit.legName !== null && unit.legIndex !== null;
-  const heading = isLeg
-    ? (unit.legName ?? '')
-    : unitRequirements.length === 1 && first
+  const flatHeading =
+    unitRequirements.length === 1 && first
       ? t(`headingSingle.${first.resourceType}`)
       : t('headingMulti');
+  const heading = isLeg ? (unit.legName ?? '') : flatHeading;
   const legTotal = service.legs?.length ?? 0;
   const subtitle = isLeg
     ? `${service.name} · ${t('legSubtitle', { index: (unit.legIndex ?? 0) + 1, total: legTotal })}`
     : undefined;
+  const totals = summarizeSelection([service]);
   const summaryLine = isLeg
     ? undefined
     : t('serviceLine', {
         name: service.name,
-        price: formatMoney(service.price.amount),
-        duration: formatDuration(service.durationMinutes),
+        price: totals.isFloor
+          ? tb('summary.fromAmount', { amount: formatMoney(totals.amount) })
+          : formatMoney(totals.amount),
+        duration: totals.isFloor
+          ? tb('summary.durationToChoose')
+          : formatDuration(totals.durationMinutes),
       });
   const allPicked =
     unitRequirements.length > 0 &&

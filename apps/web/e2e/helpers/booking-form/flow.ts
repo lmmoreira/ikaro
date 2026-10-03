@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type APIResponse, type Locator, type Page } from '@playwright/test';
 import type {
   AvailabilityResponse,
   AvailabilitySummaryResponse,
@@ -113,6 +113,20 @@ export async function seedChoiceService(
   };
 }
 
+function encodeSelections(picks: readonly ResourceSelectionItem[]): string {
+  const selections = picks
+    .map(
+      (pick) => `${pick.serviceId}:${pick.legIndex ?? '-'}:${pick.resourceType}:${pick.resourceId}`,
+    )
+    .join(',');
+  return selections ? `&resourceSelections=${encodeURIComponent(selections)}` : '';
+}
+
+async function readAvailability<T>(res: APIResponse, action: string): Promise<T> {
+  if (!res.ok()) throw new Error(`${action} failed: ${res.status()} ${await res.text()}`);
+  return (await res.json()) as T;
+}
+
 export interface FoundSlot {
   readonly date: string;
   readonly startsAt: string;
@@ -126,12 +140,7 @@ export async function findFirstSlot(
   picks: readonly ResourceSelectionItem[] = [],
 ): Promise<FoundSlot> {
   const headers = { 'X-Tenant-Slug': TENANT_SLUG, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! };
-  const selections = picks
-    .map(
-      (pick) => `${pick.serviceId}:${pick.legIndex ?? '-'}:${pick.resourceType}:${pick.resourceId}`,
-    )
-    .join(',');
-  const extra = selections ? `&resourceSelections=${encodeURIComponent(selections)}` : '';
+  const extra = encodeSelections(picks);
   const from = new Date();
   const to = new Date(from.getTime() + 13 * 24 * 60 * 60 * 1000);
   const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -139,13 +148,16 @@ export async function findFirstSlot(
     `${BFF_URL}/schedule/availability/summary?from=${iso(from)}&to=${iso(to)}&serviceIds=${serviceId}${extra}`,
     { headers },
   );
-  const days = (await summaryRes.json()) as AvailabilitySummaryResponse;
+  const days = await readAvailability<AvailabilitySummaryResponse>(
+    summaryRes,
+    'availability summary',
+  );
   for (const day of days.filter((d) => d.available)) {
     const res = await page.request.get(
       `${BFF_URL}/schedule/availability?date=${day.date}&serviceIds=${serviceId}${extra}`,
       { headers },
     );
-    const body = (await res.json()) as AvailabilityResponse;
+    const body = await readAvailability<AvailabilityResponse>(res, 'availability');
     const slot = body.slots[0];
     if (slot) return { date: day.date, startsAt: slot.startsAt };
   }
@@ -158,17 +170,12 @@ export async function slotsOnDate(
   date: string,
   picks: readonly ResourceSelectionItem[] = [],
 ): Promise<AvailabilityResponse['slots']> {
-  const selections = picks
-    .map(
-      (pick) => `${pick.serviceId}:${pick.legIndex ?? '-'}:${pick.resourceType}:${pick.resourceId}`,
-    )
-    .join(',');
-  const extra = selections ? `&resourceSelections=${encodeURIComponent(selections)}` : '';
+  const extra = encodeSelections(picks);
   const res = await page.request.get(
     `${BFF_URL}/schedule/availability?date=${date}&serviceIds=${serviceId}${extra}`,
     { headers: { 'X-Tenant-Slug': TENANT_SLUG, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! } },
   );
-  return ((await res.json()) as AvailabilityResponse).slots;
+  return (await readAvailability<AvailabilityResponse>(res, 'availability')).slots;
 }
 
 // Books a slot directly as a guest through the BFF (test setup for conflicts); returns the status.

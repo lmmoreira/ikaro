@@ -20,7 +20,7 @@ describe('IntakeAttendeesList', () => {
 
     await user.click(screen.getByRole('button', { name: 'Adicionar participante' }));
 
-    expect(onChange).toHaveBeenCalledWith([{ name: '', isMinor: false }]);
+    expect(onChange).toHaveBeenCalledWith([{ id: expect.any(String), name: '', isMinor: false }]);
   });
 
   it('edits the name and the minor flag of a row', async () => {
@@ -28,7 +28,7 @@ describe('IntakeAttendeesList', () => {
     const onChange = vi.fn();
     renderWithIntl(
       <IntakeAttendeesList
-        attendees={[{ name: 'Ana', isMinor: false }]}
+        attendees={[{ id: 'r6', name: 'Ana', isMinor: false }]}
         hasError={false}
         onChange={onChange}
       />,
@@ -37,8 +37,8 @@ describe('IntakeAttendeesList', () => {
     await user.type(screen.getByLabelText('Nome do participante 1'), 'b');
     await user.click(screen.getByRole('checkbox', { name: 'Menor de idade' }));
 
-    expect(onChange).toHaveBeenNthCalledWith(1, [{ name: 'Anab', isMinor: false }]);
-    expect(onChange).toHaveBeenNthCalledWith(2, [{ name: 'Ana', isMinor: true }]);
+    expect(onChange).toHaveBeenNthCalledWith(1, [{ id: 'r6', name: 'Anab', isMinor: false }]);
+    expect(onChange).toHaveBeenNthCalledWith(2, [{ id: 'r6', name: 'Ana', isMinor: true }]);
   });
 
   it('removes a row', async () => {
@@ -47,8 +47,8 @@ describe('IntakeAttendeesList', () => {
     renderWithIntl(
       <IntakeAttendeesList
         attendees={[
-          { name: 'Ana', isMinor: false },
-          { name: 'Bia', isMinor: true },
+          { id: 'r9', name: 'Ana', isMinor: false },
+          { id: 'r10', name: 'Bia', isMinor: true },
         ]}
         hasError={false}
         onChange={onChange}
@@ -57,13 +57,13 @@ describe('IntakeAttendeesList', () => {
 
     await user.click(screen.getByRole('button', { name: 'Remover participante 1' }));
 
-    expect(onChange).toHaveBeenCalledWith([{ name: 'Bia', isMinor: true }]);
+    expect(onChange).toHaveBeenCalledWith([{ id: 'r10', name: 'Bia', isMinor: true }]);
   });
 
   it('shows the blank-name error', () => {
     renderWithIntl(
       <IntakeAttendeesList
-        attendees={[{ name: ' ', isMinor: false }]}
+        attendees={[{ id: 'r12', name: ' ', isMinor: false }]}
         hasError
         onChange={vi.fn()}
       />,

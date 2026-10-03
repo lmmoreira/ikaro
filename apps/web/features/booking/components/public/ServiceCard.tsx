@@ -15,14 +15,15 @@ interface ServiceCardProps {
   readonly onToggle: () => void;
 }
 
+function cardBorderColor(isSelected: boolean, isUnavailable: boolean): string {
+  if (isUnavailable) return '#b91c1c';
+  return isSelected ? 'var(--ba-primary)' : 'var(--ba-secondary)';
+}
+
 function cardStyle(isSelected: boolean, isUnavailable: boolean): React.CSSProperties {
   return {
     borderRadius: 'var(--ba-radius)',
-    borderColor: isUnavailable
-      ? '#b91c1c'
-      : isSelected
-        ? 'var(--ba-primary)'
-        : 'var(--ba-secondary)',
+    borderColor: cardBorderColor(isSelected, isUnavailable),
   };
 }
 

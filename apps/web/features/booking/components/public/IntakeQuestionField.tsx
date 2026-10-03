@@ -76,6 +76,8 @@ function YesNoPair({
   const name = `intake-${question.fieldKey}`;
   return (
     <fieldset
+      role="radiogroup"
+      aria-required="true"
       className="my-4 border-0 p-0"
       data-testid="intake-field-bool"
       data-field-key={question.fieldKey}

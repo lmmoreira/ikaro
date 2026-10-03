@@ -4,10 +4,9 @@ import type {
   ResourceType,
 } from '@ikaro/types';
 
-export function isSamePickTarget(
-  a: Pick<ResourceSelectionItem, 'serviceId' | 'legIndex' | 'resourceType'>,
-  b: Pick<ResourceSelectionItem, 'serviceId' | 'legIndex' | 'resourceType'>,
-): boolean {
+type PickTarget = Pick<ResourceSelectionItem, 'serviceId' | 'legIndex' | 'resourceType'>;
+
+export function isSamePickTarget(a: PickTarget, b: PickTarget): boolean {
   return (
     a.serviceId === b.serviceId &&
     (a.legIndex ?? null) === (b.legIndex ?? null) &&

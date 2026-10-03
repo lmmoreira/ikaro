@@ -114,6 +114,9 @@ function usePickerRecovery(state: FormState) {
     setPickerFetchFailed(fresh === null);
     const requirements = fresh ?? data.requirements;
     selections.setPicks(removeInvalidPicks(selections.picks, requirements));
+    // A pool with nothing left to offer cannot be re-picked: the service is unbookable, so the
+    // customer returns to Step 1 (where it now shows as unavailable) instead of an empty picker.
+    if (requirements.some((req) => req.options.length === 0)) return 'services';
     return (
       firstInvalidPickerStep(selections.selectedServices, requirements, selections.picks) ??
       flow.steps.find((id) => id.startsWith('picker:')) ??
@@ -162,7 +165,8 @@ function useErrorRouting(slug: string, state: FormState) {
   const { selections, flow } = state;
   return function handleRoute(resolved: ResolvedErrorStep) {
     if (resolved.kind === 'login') {
-      router.push(`/${slug}/login?returnTo=${encodeURIComponent(`/${slug}/booking`)}`);
+      const returnTo = encodeURIComponent(`/${slug}/booking`);
+      router.push(`/${slug}/login?returnTo=${returnTo}`);
       return;
     }
     if (resolved.code && CLEARS_SLOT.has(resolved.code)) selections.clearSlot();

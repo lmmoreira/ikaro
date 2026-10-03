@@ -184,4 +184,21 @@ describe('IntakeAnswersStep', () => {
 
     expect(onValue).toHaveBeenLastCalledWith(expect.objectContaining({ answers: { goal: 'ab' } }));
   });
+
+  it('marks the consent as required and links it to its error once it fails', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<Harness onNext={vi.fn()} />);
+    const consent = screen.getByTestId('intake-consent');
+    expect(consent).toBeRequired();
+    expect(consent).not.toHaveAttribute('aria-invalid');
+
+    await user.click(screen.getByTestId('step-next'));
+
+    expect(consent).toHaveAttribute('aria-invalid', 'true');
+    expect(consent).toHaveAttribute('aria-describedby', 'intake-consent-error');
+    expect(screen.getByTestId('intake-consent-error')).toHaveAttribute(
+      'id',
+      'intake-consent-error',
+    );
+  });
 });

@@ -337,6 +337,25 @@ describe('BookingForm — chosen resource (M23)', () => {
     expect(next()).toBeDisabled();
   });
 
+  it('returns to Step 1 with the service shown as unavailable when the re-fetched options are empty', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockRejectedValue(
+      new ApiError(422, 'x', { code: 'BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE' }),
+    );
+    await toPicker(user);
+    await user.click(screen.getByText('Bruno Alves'));
+    await user.click(next());
+    await pickSlot(user);
+    await fillGuest(user);
+    vi.mocked(fetchServiceResourceOptions).mockResolvedValue({ requirements: [staffOptions()] });
+    await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
+
+    expect(await screen.findByTestId('service-unavailable')).toBeInTheDocument();
+    expect(screen.getByTestId('step-service-selection')).toBeInTheDocument();
+    expect(screen.queryByTestId('resource-picker')).not.toBeInTheDocument();
+    expect(next()).toBeDisabled();
+  });
+
   it('offers a retry when re-fetching the options after a pick error fails', async () => {
     const user = userEvent.setup();
     vi.mocked(createBooking).mockRejectedValue(

@@ -7,7 +7,12 @@ import type {
   HotsiteServiceResourceOptionsRequirement,
   ResourceSelectionItem,
 } from '@ikaro/types';
-import { choiceRequirement, makeHotsiteService, renderWithIntl } from '@/test-utils';
+import {
+  choiceRequirement,
+  hotsiteServiceBookingDefaults,
+  makeHotsiteService,
+  renderWithIntl,
+} from '@/test-utils';
 import { pickerUnitKey, type PickerUnit } from '@/features/booking/model/booking-steps';
 import { ResourcePickerStep } from './ResourcePickerStep';
 
@@ -132,5 +137,37 @@ describe('ResourcePickerStep', () => {
     renderStep(flatUnit, []);
 
     expect(screen.getByTestId('step-next')).toBeDisabled();
+  });
+
+  it('summarises a per-time service as "a partir de" instead of a fixed price', () => {
+    const perTime = makeHotsiteService({
+      id: SERVICE_ID,
+      name: 'Sala',
+      bookingPolicy: {
+        ...hotsiteServiceBookingDefaults.bookingPolicy,
+        durationPolicy: 'CUSTOMER_SELECTED',
+        pricingPolicy: 'PER_TIME_INCREMENT',
+        pricingIncrementMinutes: 60,
+        pricePerIncrementAmount: 50,
+      },
+    });
+    renderWithIntl(
+      <ResourcePickerStep
+        unit={flatUnit}
+        service={perTime}
+        requirements={[requirement('ROOM', null)]}
+        picks={[]}
+        status="ready"
+        reselectMessage={null}
+        onPick={vi.fn()}
+        onRetry={vi.fn()}
+        onBack={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText('Sala — a partir de R$ 50,00 — duração a escolher'),
+    ).toBeInTheDocument();
   });
 });
