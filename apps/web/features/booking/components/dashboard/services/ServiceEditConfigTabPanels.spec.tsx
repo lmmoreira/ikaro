@@ -116,4 +116,45 @@ describe('ServiceEditConfigTabPanels', () => {
       formulario: 'Publicar formulário',
     });
   });
+
+  it('tells the policies panel whether the service has legs, so a customer-chosen duration is only offered to a flat service', () => {
+    const legs = [
+      {
+        legIndex: 0,
+        name: 'Etapa 1',
+        durationMinutes: 20,
+        resourceRequirements: [],
+        transitionGapAfterMinutes: 0,
+      },
+      {
+        legIndex: 1,
+        name: 'Etapa 2',
+        durationMinutes: 30,
+        resourceRequirements: [],
+        transitionGapAfterMinutes: 0,
+      },
+    ];
+    const { unmount } = renderWithIntl(
+      <ServiceEditConfigTabPanels
+        activeTab="politicas"
+        service={service}
+        intakeSchema={intakeSchema}
+        onTabDirtyChange={vi.fn()}
+        onTabActionChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('option', { name: 'Cliente escolhe' })).toBeEnabled();
+    unmount();
+
+    renderWithIntl(
+      <ServiceEditConfigTabPanels
+        activeTab="politicas"
+        service={{ ...service, legs }}
+        intakeSchema={intakeSchema}
+        onTabDirtyChange={vi.fn()}
+        onTabActionChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('option', { name: 'Cliente escolhe' })).toBeDisabled();
+  });
 });
