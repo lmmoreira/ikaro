@@ -37,7 +37,7 @@
 </head>
 <body>
   <!--
-    VARIANT OF: 04d-success.html — legged service: the leg timeline comes from the response `itinerary` (UC-065). Times match 10-multi-leg-itinerary.
+    VARIANT OF: 04d-success.html — legged service: the leg timeline comes from the response `itinerary` (UC-065), which lists EVERY resolved resource of EVERY leg regardless of its selectionMode (docs/14-API_CONTRACTS.md): entries sharing a legIndex are grouped under that leg (Massagem has two: its staff and its room). So, unlike the pre-booking review (10), where an automatic leg shows only its resource type, the success box names the assigned resources of all legs — including the automatic rooms. Times match 10-multi-leg-itinerary.
     COMPONENTS: ConfirmationStep + BookingSubmittedDetails  apps/web/features/booking/components/public/BookingSubmittedDetails.tsx
     The success block is unchanged; the details box (data from the 201 response `lines[]`, never an assignment preview) is added
     for EVERY booking. Resource line rules: CUSTOMER_CHOICE -> the customer's own pick; AUTO_ANY -> `assignedResourceName`;
@@ -59,10 +59,10 @@
     <div class="card" data-testid="booking-submitted-details" style="margin-top:1.25rem;font-size:.875rem;color:var(--ba-text);">
       <p style="font-weight:600;margin-bottom:.5rem;">Detalhes da sua solicitação</p>
       <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Jornada Spa Vitta</span><span style="text-align:right;">R$ 260,00</span></div>
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Data e horário</span><span style="text-align:right;">seg, 18 de agosto de 2026 · 13:00–14:45</span></div><ol style="list-style:none;margin:.75rem 0 .25rem;padding:0 0 0 1rem;border-left:2px solid var(--ba-secondary);">
-        <li style="margin-bottom:.625rem;"><strong>13:00 – 13:20</strong> · Sauna</li>
-        <li style="margin-bottom:.625rem;"><strong>13:30 – 14:20</strong> · Massagem<br><span style="opacity:.65;font-size:.8125rem;">com Renata Souza</span></li>
-        <li><strong>14:25 – 14:45</strong> · Relaxamento<br><span style="opacity:.65;font-size:.8125rem;">com Poltrona de relaxamento 1</span></li>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Data e horário</span><span style="text-align:right;">seg, 18 de agosto de 2026 · 13:00–14:45</span></div><ol style="list-style:none;margin:.75rem 0 .25rem;padding:0 0 0 1rem;border-left:2px solid var(--ba-secondary);" data-testid="booking-itinerary">
+        <li style="margin-bottom:.625rem;"><strong>13:00 – 13:20</strong> · Sauna<br><span style="opacity:.65;font-size:.8125rem;">Sala Aurora</span></li>
+        <li style="margin-bottom:.625rem;"><strong>13:30 – 14:20</strong> · Massagem<br><span style="opacity:.65;font-size:.8125rem;">Renata Souza · Sala Horizonte</span></li>
+        <li><strong>14:25 – 14:45</strong> · Relaxamento<br><span style="opacity:.65;font-size:.8125rem;">Poltrona de relaxamento 1</span></li>
       </ol>
       <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:.5rem 0;">
       <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span><strong>Total</strong></span><span style="text-align:right;"><strong>R$ 260,00 · 105 min</strong></span></div>

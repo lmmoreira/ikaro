@@ -245,7 +245,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `09b-bundle-booking-erro.html` | Availability step — `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE` | UC-064 A2 | M23-S11b |
 | `10-multi-leg-itinerary.html` / `10b` | Journey confirmation (leg timeline) · availability step — `BOOKING_LEG_UNAVAILABLE` | UC-065 / UC-065 A1 | M23-S11b |
 | `12-reserva-por-tempo.html` / `12b` / `12c` / `12d` | Duration + quote · `OUT_OF_RANGE` · quote error · quote loading | UC-067 | M23-S11b |
-| `04f-success-details-resources.html` | Success box with the leg timeline | UC-065 | M23-S11b |
+| `04f-success-details-resources.html` | Success box with the leg timeline — every leg's assigned resources named (the response `itinerary` lists them all, automatic ones included) | UC-065 | M23-S11b |
 | `15-login-required.html` | Auth boundary before a waitlist/alert action — **out of M23-S11a/S11b's scope** (M23-S12/S17) | UC-072 A1 | — |
 
 **Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `11-appointment-availability` (2026-10-03 — it redrew the date/time step in a different format; the existing `02-calendar-slot` day-pill carousel + slot buttons stays the single availability step for every flow, extended only by optional `resourceSelections`/`durationMinutes` props — documented in `02`'s header comment); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).

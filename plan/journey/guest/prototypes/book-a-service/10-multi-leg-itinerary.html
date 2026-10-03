@@ -41,10 +41,11 @@
     POSITION:  this IS the final Confirmation step for a legged service (same slot as 04-confirmation): the service list is
                replaced by the leg timeline and "Confirmar agendamento" submits POST /bookings. It is NOT an extra step.
     DATA:      legs, times, durations and transitions are COMPUTED from service.legs + the chosen slot (no assignment preview).
-    RESOURCES: a resource is named ONLY when it is the customer's own pick (from the per-leg picker steps, 05g/05h) or fixed. An automatic leg shows
+    RESOURCES: BEFORE booking, a resource is named ONLY when it is the customer's own pick (from the per-leg picker steps, 05g/05h) or fixed. An automatic leg shows
                its resource TYPE ("Sala — atribuída automaticamente"), never a pool or unit name.
     ERROR:     409 BOOKING_LEG_UNAVAILABLE -> back to the availability step (10b).
-    AFTER:     success view with the leg timeline from the response `itinerary` (04f).
+    AFTER:     success view with the leg timeline from the response `itinerary` (04f), which then NAMES the assigned resources of every leg,
+               automatic rooms included — only the booking response knows them; this review can name the customer's own picks only.
     INDICATOR: path "journey, choices on 2 of 3 legs" (no intake) = "Passo 6 de 6".
     TIMES:     Sauna 13:00-13:20 (+10) · Massagem 13:30-14:20 (+5) · Relaxamento 14:25-14:45 = 90 min + 15 min transition = 105.
   -->
