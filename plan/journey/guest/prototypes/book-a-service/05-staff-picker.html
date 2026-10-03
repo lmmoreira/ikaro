@@ -46,7 +46,7 @@
     All picker steps come BEFORE availability (the slot search needs every pick pinned).
     NO SCREEN WHEN: the options response has no CUSTOMER_CHOICE requirement (auto staff, fungible pool, an automatic
     room, ...). The step engine (resolveBookingSteps) omits the step entirely: Serviços -> next step, no note, no
-    "automatic" screen. The assigned name only appears AFTER booking (04h); a pool never shows a unit name.
+    "automatic" screen. The assigned name only appears AFTER booking (04d); a pool never shows a unit name.
     BFF CALL:  GET /public/services/:id/resource-options (M23-S29)  ->  requirements[{ serviceId, legIndex, resourceType,
                selectionMode:'CUSTOMER_CHOICE', requiredQuantity, options:[{ resourceId, name }] }]  — NAME ONLY.
     OUTPUT:    the picks go to availability (resourceSelections param) and to POST /bookings (resourceSelections[]).

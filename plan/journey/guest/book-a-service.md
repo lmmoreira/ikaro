@@ -73,7 +73,7 @@ flowchart TD
     S3m -->|"service has an active intake schema"| Intake["❓ GAP: intake answers + consent<br/>(13, 13b, 13c)<br/>GET /public/services/:id/intake-schema"]
     S3m -->|"no intake schema"| Confirm
     Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation; 04e on the intake path;<br/>10 = journey confirmation with the leg timeline)"]
-    Confirm -->|"POST /bookings (always created PENDING)"| Done["Success: 'Solicitação enviada!'<br/>+ booking-details box (04d, 04g, 04h, 04f)<br/>+ Voltar para o site"]
+    Confirm -->|"POST /bookings (always created PENDING)"| Done["Success: 'Solicitação enviada!'<br/>+ booking-details box (04d, 04f)<br/>+ Voltar para o site"]
     Confirm -->|"409 slot / bundle / leg"| BackAvail["❓ GAP: back to availability, slot cleared<br/>(02e, 09b, 10b)"]
     Confirm -->|"422 duration"| Duration
     Confirm -->|"422 resource selection"| Picker
@@ -81,7 +81,7 @@ flowchart TD
     BackAvail --> Availability
 ```
 
-**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `09b`, `10`, `10b`, `11`, `12`–`12d`, `13`–`13c` and the success variants `04d`/`04f`/`04g`/`04h` (`15-login-required.html` is out of M23-S11a/S11b's scope — availability alerts; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
+**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `09b`, `10`, `10b`, `11`, `12`–`12d`, `13`–`13c` and the success variants `04d`/`04f` (`15-login-required.html` is out of M23-S11a/S11b's scope — availability alerts; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
 
 **Stories:** `M23-S29` (backend/BFF prerequisites, ✅ Done), **`M23-S11a`** (step engine, intake, service cards, resource picker, success box) then **`M23-S11b`** (bundle/journey confirmation and variable duration) in `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`.
 

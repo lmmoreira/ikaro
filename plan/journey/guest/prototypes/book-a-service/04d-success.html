@@ -15,6 +15,9 @@
                 apps/web/features/booking/components/public/ConfirmationStep.tsx
                 apps/web/features/booking/components/public/BookingSubmittedDetails.tsx
     SUCCESS:    "Solicitação enviada! Aguarde a confirmação por email."  (data-testid="booking-success", unchanged)
+    RESOURCE LINE (the only thing that varies; see the "Variantes" panel at the bottom — PROTOTYPE-ONLY, not part of the page): none by default;
+      CUSTOMER_CHOICE -> the customer's own pick, remembered from the picker state (NOT in the response); AUTO_ANY -> `assignedResourceName`
+      from the response; AUTO_FUNGIBLE_POOL -> no line at all (pool identity is never shown). A legged service is the separate 04f.
     DETAILS BOX (M23-S11a): a subtle box between the message and "Voltar para o site", for EVERY booking.
                 Data = the booking response the submission hook keeps: lines (name, price, duration), scheduledAt
                 (formatted in the TENANT timezone with useFormatting), totalPrice, totalDurationMins.
@@ -59,6 +62,27 @@
              color: var(--ba-text); text-decoration: none;">
       Voltar para o site
     </a>
+    <div style="margin-top:2rem;padding:1rem;border:2px dashed #9ca3af;border-radius:var(--ba-radius);" data-testid="prototype-only-variants">
+      <p style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;margin-bottom:.75rem;">Variantes da linha de recurso — apenas protótipo</p>
+      <div class="card" style="font-size:.875rem;color:var(--ba-text);margin-bottom:.75rem;">
+        <p style="font-weight:600;margin-bottom:.5rem;">Detalhes da sua solicitação</p>
+        <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Corte + Escova</span><span style="text-align:right;">R$ 90,00 · 50 min</span></div><div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Data e horário</span><span style="text-align:right;">qui, 07 de agosto de 2026 · 15:00</span></div><div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Profissional</span><span style="text-align:right;">Renata Souza</span></div>
+        <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:.5rem 0;">
+        <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span><strong>Total</strong></span><span style="text-align:right;"><strong>R$ 90,00 · 50 min</strong></span></div>
+      </div>
+      <p style="font-size:.75rem;opacity:.65;margin:-.25rem 0 1rem;">Profissional escolhido pelo cliente (CUSTOMER_CHOICE): vem do estado do seletor, não da resposta.</p>      <div class="card" style="font-size:.875rem;color:var(--ba-text);margin-bottom:.75rem;">
+        <p style="font-weight:600;margin-bottom:.5rem;">Detalhes da sua solicitação</p>
+        <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Corte + Escova</span><span style="text-align:right;">R$ 90,00 · 50 min</span></div><div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Data e horário</span><span style="text-align:right;">qui, 07 de agosto de 2026 · 15:00</span></div><div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Profissional</span><span style="text-align:right;">Camila Duarte</span></div>
+        <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:.5rem 0;">
+        <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span><strong>Total</strong></span><span style="text-align:right;"><strong>R$ 90,00 · 50 min</strong></span></div>
+      </div>
+      <p style="font-size:.75rem;opacity:.65;margin:-.25rem 0 1rem;">Profissional atribuído automaticamente (AUTO_ANY): vem de <code>lines[].assignedResourceName</code> da resposta.</p>      <div class="card" style="font-size:.875rem;color:var(--ba-text);margin-bottom:.75rem;">
+        <p style="font-weight:600;margin-bottom:.5rem;">Detalhes da sua solicitação</p>
+        <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Corte + Escova</span><span style="text-align:right;">R$ 90,00 · 50 min</span></div><div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span style="opacity:.7;">Data e horário</span><span style="text-align:right;">qui, 07 de agosto de 2026 · 15:00</span></div>
+        <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:.5rem 0;">
+        <div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;"><span><strong>Total</strong></span><span style="text-align:right;"><strong>R$ 90,00 · 50 min</strong></span></div>
+      </div>
+      <p style="font-size:.75rem;opacity:.65;margin:-.25rem 0 1rem;">Pool de recursos fungíveis (AUTO_FUNGIBLE_POOL) ou serviço sem recursos escolhidos: nenhuma linha de recurso — o padrão acima.</p>    </div>
   </div>
 </body>
 </html>
