@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ServiceLegItem } from '@ikaro/types';
 import { legsSpanMinutes } from './legs-span';
 
-const leg = (legIndex: number, durationMinutes: number, gap?: number): ServiceLegItem => ({
+const leg = (legIndex: number, durationMinutes: number, gap = 0): ServiceLegItem => ({
   legIndex,
   name: `Etapa ${legIndex}`,
   durationMinutes,
@@ -19,7 +19,7 @@ describe('legsSpanMinutes', () => {
     expect(legsSpanMinutes([leg(0, 20, 10), leg(1, 50, 99)])).toBe(80);
   });
 
-  it('treats a missing gap as zero and an empty list as zero', () => {
+  it('adds nothing for a zero gap, and an empty list is zero', () => {
     expect(legsSpanMinutes([leg(0, 20), leg(1, 30)])).toBe(50);
     expect(legsSpanMinutes([])).toBe(0);
   });
