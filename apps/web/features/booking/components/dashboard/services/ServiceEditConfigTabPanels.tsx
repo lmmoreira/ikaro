@@ -16,6 +16,7 @@ interface ServiceEditConfigTabPanelsProps {
   // Each panel registers its Save/Publish action here so ServiceEditPage can render it in the
   // sticky action panel. Must be referentially stable.
   readonly onTabActionChange: (tab: ServiceEditTabKey, action: ServiceTabAction | null) => void;
+  readonly onLegsSaved?: (totalSpanMinutes: number) => void;
 }
 
 // Split out of ServiceEditPage to stay under docs/CODE_STANDARDS.md's function-length limit —
@@ -29,6 +30,7 @@ export function ServiceEditConfigTabPanels({
   intakeSchema,
   onTabDirtyChange,
   onTabActionChange,
+  onLegsSaved,
 }: ServiceEditConfigTabPanelsProps): React.JSX.Element {
   // One stable callback per tab — a panel's registration effect depends on its identity.
   const onRecursosAction = useCallback(
@@ -59,6 +61,7 @@ export function ServiceEditConfigTabPanels({
           initialBufferAfterMinutes={service.bufferAfterMinutes}
           onDirtyChange={(value) => onTabDirtyChange('recursos', value)}
           onActionChange={onRecursosAction}
+          onLegsSaved={onLegsSaved}
         />
       </div>
 

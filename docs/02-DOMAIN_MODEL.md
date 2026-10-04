@@ -265,7 +265,9 @@ Service {
   durationMinutes:        Duration        -- not authoritative once durationPolicy=CUSTOMER_SELECTED (M23-S02,
                                            -- locked at story-discovery): the customer's own submitted
                                            -- durationMinutes governs that booking; omitting it is a `422`
-                                           -- (BOOKING_DURATION_OUT_OF_RANGE), never a silent fallback to this field
+                                           -- (BOOKING_DURATION_OUT_OF_RANGE), never a silent fallback to this field.
+                                           -- For a LEGGED service it IS the legs' span (M23-S11b): see the
+                                           -- legs invariant below — never an independently edited value
   loyaltyPointsValue:     LoyaltyPoints (e.g., Basic=1pt, Premium=2pts, Wax=3pts)
   requiresPickupAddress:  Boolean        -- true = booking form must collect a pickup address
                                          -- (e.g. "Coleta e Entrega"). Default false.
@@ -360,6 +362,7 @@ ClassResourceSlot {
 - A bundle (`resourceRequirements.length > 1`) requires every listed resource type to have at least one active `Resource` — UC-051's own precondition (generalizing UC-050 A1's single-type error mechanism to the bundle case), structurally the same check `Resource.create()` doesn't need to make but `Service`'s resource-requirement config does.
 - `durationPolicy = CUSTOMER_SELECTED` requires a non-null, non-`FIXED` `pricingPolicy` in the same save (UC-055 A2) — since `pricingPolicy` defaults to `FIXED`, a plain non-null check would never actually reject anything; the service must explicitly declare a real pricing method (`PER_TIME_INCREMENT`) for a variable-duration slot, not silently stay on the default.
 - A service with `legs` cannot have `durationPolicy = CUSTOMER_SELECTED`, and a `CUSTOMER_SELECTED` service cannot be given `legs` — a legged service's length is fixed by its legs (`sum(leg durations) + sum(transition gaps)`, UC-052), so there is no meaningful customer-chosen duration for it. Enforced in both directions by `Service.setLegs()` and `Service.setBookingPolicy()`: `409` `BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT` (UC-052 A2, UC-055 A4). The dashboard disables the "Cliente escolhe" option for a legged service.
+- **A legged service's persisted `durationMinutes` always equals its legs' span (M23-S11b).** `Service.setLegs()` writes the span (`sum(leg durations) + sum(transition gaps except the last leg's)`) into `durationMinutes`, and `Service.update()` recomputes it from the legs instead of taking the caller's value, so a rename or price edit can never move it. Every booking line copies `durationMinutes` into `durationMinsAtBooking`, and the availability/occupancy cursor advances by it between the lines of one booking (`availability-window-resolution.helpers.ts`, `resource-occupancy.helpers.ts`) — while each leg's own window comes from the legs alone (`computeLegSpans`). If the two ever differed, a line after a journey would overlap or leave a gap, and `totalDurationMins` would disagree with the itinerary. Migration `1748500000024-BackfillLeggedServiceDurationToSpan` corrected every pre-existing legged service; existing bookings keep the duration they were persisted with. The dashboard's Detalhes duration field is read-only for a legged service.
 
 ---
 

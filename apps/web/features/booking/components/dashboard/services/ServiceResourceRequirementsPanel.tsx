@@ -2,12 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type {
-  ResourceRequirementItem,
-  ResourceResponse,
-  ResourceType,
-  ServiceLegItem,
-} from '@ikaro/types';
+import type { ResourceRequirementItem, ResourceType, ServiceLegItem } from '@ikaro/types';
 import { useResources } from '@/features/booking/hooks/useResources';
 import {
   useUpdateService,
@@ -17,6 +12,10 @@ import {
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import {
+  normalizeLegsResourcePoolIds,
+  normalizeResourcePoolIds,
+} from './resource-pool-normalization';
 import { hasUnsatisfiableRequirement } from './resource-requirement-quantity';
 import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
 import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
@@ -26,27 +25,6 @@ import { ServiceResourceModePicker } from './ServiceResourceModePicker';
 
 const FLAT_TYPES: ResourceType[] = ['STAFF', 'ROOM', 'EQUIPMENT'];
 
-// Drops any resourcePoolIds entry that isn't among the passed active resources of the matching
-// type — applied to every requirement at save time (not only the one a manager just edited), so
-// a resource that went inactive since this requirement was last saved can never be silently
-// resubmitted via an unrelated edit (e.g. changing a different type, or just the buffer). The
-// per-row normalization in ServiceResourceTypeFields only covers the row actually touched.
-function normalizeResourcePoolIds(
-  requirement: ResourceRequirementItem,
-  availableResources: readonly ResourceResponse[],
-): ResourceRequirementItem {
-  if (!requirement.resourcePoolIds) return requirement;
-  const activeIds = new Set(
-    availableResources
-      .filter((resource) => resource.type === requirement.type)
-      .map((resource) => resource.id),
-  );
-  return {
-    ...requirement,
-    resourcePoolIds: requirement.resourcePoolIds.filter((id) => activeIds.has(id)),
-  };
-}
-
 interface ServiceResourceRequirementsPanelProps {
   readonly serviceId: string;
   readonly initialResourceRequirements: ResourceRequirementItem[];
@@ -54,6 +32,8 @@ interface ServiceResourceRequirementsPanelProps {
   readonly initialBufferAfterMinutes: number | null;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onActionChange: ServiceTabActionChange;
+  // Legs set the service's duration (their span), so the Detalhes tab needs the new value.
+  readonly onLegsSaved?: (totalSpanMinutes: number) => void;
 }
 
 export function ServiceResourceRequirementsPanel({
@@ -63,6 +43,7 @@ export function ServiceResourceRequirementsPanel({
   initialBufferAfterMinutes,
   onDirtyChange,
   onActionChange,
+  onLegsSaved,
 }: ServiceResourceRequirementsPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
@@ -140,18 +121,12 @@ export function ServiceResourceRequirementsPanel({
     const revisionAtSubmit = editRevisionRef.current;
     try {
       if (mode === 'legs') {
-        await updateLegs.mutateAsync({
+        const savedLegs = await updateLegs.mutateAsync({
           id: serviceId,
-          body: {
-            legs: legs.map((leg) => ({
-              ...leg,
-              resourceRequirements: leg.resourceRequirements.map((requirement) =>
-                normalizeResourcePoolIds(requirement, availableResources),
-              ),
-            })),
-          },
+          body: { legs: normalizeLegsResourcePoolIds(legs, availableResources) },
         });
         setLegsLockedOnServer(true);
+        onLegsSaved?.(savedLegs.totalSpanMinutes);
       } else {
         await updateResourceRequirements.mutateAsync({
           id: serviceId,

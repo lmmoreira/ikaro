@@ -216,7 +216,11 @@ export class Service extends AggregateRoot {
     this.props.name = normalizedName;
     this.props.description = normalizeOptionalText(description);
     this.props.price = price;
-    this.props.durationMinutes = durationMinutes;
+    // A legged service's length is its legs' span (UC-052), recomputed here rather than taken from
+    // the caller so a rename or price edit can never reintroduce a duration that disagrees with
+    // the legs — the booking line, the line-to-line cursor and totalDurationMins all read it.
+    this.props.durationMinutes =
+      this.props.legs === null ? durationMinutes : computeLegsTotalSpanMinutes(this.props.legs);
     this.props.loyaltyPointsValue = loyaltyPointsValue;
     this.props.requiresPickupAddress = requiresPickupAddress;
     this.props.updatedAt = new Date();
@@ -259,12 +263,16 @@ export class Service extends AggregateRoot {
     // (typeorm-service.mapper.ts), and setLegs() only rejects duplicate indexes, never out-of-
     // order ones, so the caller's array order can't be trusted as itinerary order.
     const orderedLegs = [...legs].sort((a, b) => a.legIndex - b.legIndex);
+    const totalSpanMinutes = computeLegsTotalSpanMinutes(orderedLegs);
     this.props.legs = orderedLegs;
+    // The persisted duration IS the span: every booking line copies `durationMinutes`, and the
+    // availability/occupancy cursor advances by it between lines of one booking.
+    this.props.durationMinutes = totalSpanMinutes;
     this.props.resourceRequirements = [];
     this.props.bufferAfterMinutes = null;
     this.props.updatedAt = new Date();
     this.childrenDirty = true;
-    return computeLegsTotalSpanMinutes(orderedLegs);
+    return totalSpanMinutes;
   }
 
   setBufferAfterMinutes(bufferAfterMinutes: number): void {

@@ -54,6 +54,9 @@ export function ServiceEditPage({
   const [description, setDescription] = useState(service.description ?? '');
   const [priceAmount, setPriceAmount] = useState(String(service.price.amount));
   const [durationMinutes, setDurationMinutes] = useState(String(service.durationMinutes));
+  // A legged service's duration is its legs' span, computed by the backend: locked once the
+  // service has legs — from the start, or as soon as a flat→legs save lands in this session.
+  const [durationLocked, setDurationLocked] = useState(service.legs !== null);
   const [loyaltyPointsValue, setLoyaltyPointsValue] = useState(String(service.loyaltyPointsValue));
   const [requiresPickupAddress, setRequiresPickupAddress] = useState(service.requiresPickupAddress);
   const [isActive, setIsActive] = useState(service.isActive);
@@ -178,6 +181,7 @@ export function ServiceEditPage({
               durationMinutes={durationMinutes}
               loyaltyPointsValue={loyaltyPointsValue}
               requiresPickupAddress={requiresPickupAddress}
+              durationLocked={durationLocked}
               fieldErrors={fieldErrors}
               onNameChange={(value) => {
                 setName(value);
@@ -212,6 +216,10 @@ export function ServiceEditPage({
             intakeSchema={intakeSchema}
             onTabDirtyChange={setTabDirty}
             onTabActionChange={handleTabActionChange}
+            onLegsSaved={(totalSpanMinutes) => {
+              setDurationMinutes(String(totalSpanMinutes));
+              setDurationLocked(true);
+            }}
           />
         </div>
 

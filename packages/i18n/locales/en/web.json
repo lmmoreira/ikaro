@@ -1189,6 +1189,7 @@
       "createPriceLabel": "Price",
       "createPricePlaceholder": "0.00",
       "createDurationLabel": "Duration",
+      "durationLegsLockedHint": "Calculated from the stages (stage durations + transitions) — edit it in the Resources tab.",
       "createDurationPlaceholder": "60",
       "createPointsLabel": "Loyalty points",
       "createPointsPlaceholder": "0",

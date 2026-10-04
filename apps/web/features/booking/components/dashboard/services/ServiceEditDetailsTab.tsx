@@ -16,6 +16,7 @@ interface ServiceEditDetailsTabProps {
   readonly durationMinutes: string;
   readonly loyaltyPointsValue: string;
   readonly requiresPickupAddress: boolean;
+  readonly durationLocked?: boolean;
   readonly fieldErrors: ServiceFormErrors;
   readonly onNameChange: (value: string) => void;
   readonly onDescriptionChange: (value: string) => void;
@@ -35,6 +36,7 @@ export function ServiceEditDetailsTab({
   durationMinutes,
   loyaltyPointsValue,
   requiresPickupAddress,
+  durationLocked = false,
   fieldErrors,
   onNameChange,
   onDescriptionChange,
@@ -70,6 +72,7 @@ export function ServiceEditDetailsTab({
             durationMinutes={durationMinutes}
             loyaltyPointsValue={loyaltyPointsValue}
             requiresPickupAddress={requiresPickupAddress}
+            durationLocked={durationLocked}
             fieldErrors={fieldErrors}
             onNameChange={onNameChange}
             onDescriptionChange={onDescriptionChange}

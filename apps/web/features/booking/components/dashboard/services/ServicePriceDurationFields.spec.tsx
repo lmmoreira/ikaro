@@ -38,6 +38,42 @@ describe('ServicePriceDurationFields', () => {
     expect(screen.getByTestId('service-price-input')).toHaveAttribute('aria-invalid', 'true');
   });
 
+  it('locks the duration as read-only with the legs hint when durationLocked is set', () => {
+    renderWithIntl(
+      <ServicePriceDurationFields
+        priceAmount="10"
+        durationMinutes="80"
+        priceError={undefined}
+        durationError={undefined}
+        durationLocked
+        onPriceAmountChange={vi.fn()}
+        onDurationMinutesChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByTestId('service-duration-input');
+    expect(input).toHaveAttribute('readonly');
+    expect(input).toHaveAttribute('aria-readonly', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'service-duration-locked-hint');
+    expect(screen.getByTestId('service-duration-locked-hint')).toBeInTheDocument();
+  });
+
+  it('keeps the duration editable with no locked hint by default', () => {
+    renderWithIntl(
+      <ServicePriceDurationFields
+        priceAmount="10"
+        durationMinutes="30"
+        priceError={undefined}
+        durationError={undefined}
+        onPriceAmountChange={vi.fn()}
+        onDurationMinutesChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('service-duration-input')).not.toHaveAttribute('readonly');
+    expect(screen.queryByTestId('service-duration-locked-hint')).not.toBeInTheDocument();
+  });
+
   it('shows the duration error only when durationError is set', () => {
     renderWithIntl(
       <ServicePriceDurationFields

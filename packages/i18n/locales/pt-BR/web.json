@@ -1189,6 +1189,7 @@
       "createPriceLabel": "Preço",
       "createPricePlaceholder": "0,00",
       "createDurationLabel": "Duração",
+      "durationLegsLockedHint": "Calculada a partir das etapas (duração das etapas + transições) — edite na aba Recursos.",
       "createDurationPlaceholder": "60",
       "createPointsLabel": "Pontos de fidelidade",
       "createPointsPlaceholder": "0",

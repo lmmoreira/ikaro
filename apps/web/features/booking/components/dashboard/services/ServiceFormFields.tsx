@@ -23,6 +23,8 @@ interface ServiceFormFieldsProps {
   // SESSION-model services have no per-reservation pickup/delivery concept (a Turma happens at a
   // fixed location) — hidden, not just disabled, when true (UC-056, decided M22-S04).
   readonly hidePickupToggle?: boolean;
+  // A legged service's duration is its legs' span (computed by the backend) — read-only here.
+  readonly durationLocked?: boolean;
   readonly children?: ReactNode;
 }
 
@@ -41,6 +43,7 @@ export function ServiceFormFields({
   onLoyaltyPointsValueChange,
   onToggleRequiresPickupAddress,
   hidePickupToggle = false,
+  durationLocked = false,
   children,
 }: ServiceFormFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
@@ -106,6 +109,7 @@ export function ServiceFormFields({
           durationMinutes={durationMinutes}
           priceError={fieldErrors.priceAmount}
           durationError={fieldErrors.durationMinutes}
+          durationLocked={durationLocked}
           onPriceAmountChange={onPriceAmountChange}
           onDurationMinutesChange={onDurationMinutesChange}
         />
