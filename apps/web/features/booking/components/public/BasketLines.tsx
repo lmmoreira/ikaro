@@ -42,6 +42,17 @@ function LineRange({ line }: { readonly line: BasketLine }): React.JSX.Element |
   );
 }
 
+// A customer-selected duration is part of what the customer chose, so its row always carries it —
+// with a range only inside a journey basket (see LineRange), as a bare duration otherwise.
+function ChosenDurationNote({ line }: { readonly line: BasketLine }): React.JSX.Element | null {
+  if (!line.isDurationChosen || line.durationMinutes === null) return null;
+  return (
+    <p className="text-sm opacity-75" style={textStyle} data-testid="line-chosen-duration">
+      {formatDuration(line.durationMinutes)}
+    </p>
+  );
+}
+
 function OwnPicks({ line }: { readonly line: BasketLine }): React.JSX.Element | null {
   const t = useTranslations('booking.legs');
   if (line.resources.length === 0) return null;
@@ -83,8 +94,8 @@ export function BasketLines({ basket, variant }: BasketLinesProps): React.JSX.El
             <span className={basket.hasJourney ? 'font-semibold' : undefined}>{line.name}</span>
             <span>{priceOf(line)}</span>
           </div>
-          {variant === 'confirmation' && <OwnPicks line={line} />}
-          {basket.hasJourney && <LineRange line={line} />}
+          <OwnPicks line={line} />
+          {basket.hasJourney ? <LineRange line={line} /> : <ChosenDurationNote line={line} />}
           {line.legs && variant === 'confirmation' && (
             <div className="mt-2">
               <LegItineraryStep legs={line.legs} />

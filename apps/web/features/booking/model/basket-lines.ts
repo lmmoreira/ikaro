@@ -40,6 +40,8 @@ export interface BasketLine {
   /** True while a per-time amount is only the "from" floor (no duration quoted yet). */
   readonly isFloor: boolean;
   readonly durationMinutes: number | null;
+  /** The customer picks this line's duration (`CUSTOMER_SELECTED`): it is shown on the row. */
+  readonly isDurationChosen: boolean;
   readonly startsAt: Date | null;
   readonly endsAt: Date | null;
   /** The journey's timeline, for a legged service. */
@@ -205,6 +207,7 @@ export function composeBasket(input: ComposeBasketInput): BasketComposition {
         name: service.name,
         ...priceOf(service, duration),
         durationMinutes,
+        isDurationChosen: isCustomerSelectedDuration(service),
         startsAt,
         endsAt,
         legs,

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderWithIntl, hotsiteServiceBookingDefaults } from '@/test-utils';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { BookingSummaryCard } from './BookingSummaryCard';
@@ -105,6 +105,7 @@ describe('BookingSummaryCard', () => {
     const rows = screen.getAllByTestId('basket-line');
     expect(rows[0]).toHaveTextContent('Lavagem SimplesR$ 60,00');
     expect(rows[1]).toHaveTextContent('AlongamentoR$ 75,00');
+    expect(within(rows[1]!).getByTestId('line-chosen-duration')).toHaveTextContent('1h 30min');
     expect(screen.getByText('Total: R$ 135,00 — 2h')).toBeInTheDocument();
   });
 
@@ -127,11 +128,25 @@ describe('BookingSummaryCard', () => {
         selectedServiceIds={[bundle.id, fixed.id]}
         selectedDate="2026-06-18"
         selectedSlot={slot}
+        picks={[{ serviceId: bundle.id, legIndex: null, resourceType: 'STAFF', resourceId: 's1' }]}
+        requirements={[
+          {
+            serviceId: bundle.id,
+            legIndex: null,
+            resourceType: 'STAFF',
+            selectionMode: 'CUSTOMER_CHOICE',
+            requiredQuantity: 1,
+            options: [{ resourceId: 's1', name: 'Renata Souza' }],
+          },
+        ]}
       />,
     );
 
     const rows = screen.getAllByTestId('basket-line');
     expect(rows[0]).toHaveTextContent('Massagem com salaR$ 180,00');
+    expect(within(rows[0]!).getByTestId('line-own-pick')).toHaveTextContent(
+      'com Renata Souza (sua escolha)',
+    );
     expect(rows[1]).toHaveTextContent('Lavagem SimplesR$ 60,00');
     expect(screen.queryByText(/atribuíd/)).not.toBeInTheDocument();
     expect(screen.getByText('Total: R$ 240,00 — 1h 30min')).toBeInTheDocument();
