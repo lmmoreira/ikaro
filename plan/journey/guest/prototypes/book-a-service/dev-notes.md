@@ -213,9 +213,9 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 ---
 
-## M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03 and M23-S29; frontend = M23-S11a ✅ built, M23-S11b ❓ GAP, not yet built)
+## M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03 and M23-S29; frontend = M23-S11a ✅ built, M23-S11b ✅ built)
 
-> Everything above this line is shipped (`M12-S07`). Below: the screens tagged **M23-S11a** are built (✅); the screens tagged **M23-S11b** are still unimplemented (❓ GAP). Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Requests.
+> Everything above this line is shipped (`M12-S07`). Below: the screens tagged **M23-S11a** are built (✅); the screens tagged **M23-S11b** are built too (✅). Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Requests.
 
 ### Design decisions (settled in the 2026-10-03 prototype review)
 
@@ -255,7 +255,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 **Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `11-appointment-availability` (2026-10-03 — it redrew the date/time step in a different format; the existing `02-calendar-slot` day-pill carousel + slot buttons stays the single availability step for every flow, extended only by optional `resourceSelections`/`durationMinutes` props — documented in `02`'s header comment); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).
 
-**File map (S11a built ✅; S11b ❓ not yet):**
+**File map (S11a ✅ built; S11b ✅ built):**
 
 | File | Status |
 |---|---|
@@ -264,9 +264,10 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `apps/web/features/booking/components/public/ResourcePicker.tsx` + `ResourcePickerStep.tsx` (`05`…`05h`) | ✅ Built (S11a) |
 | `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` + `IntakeQuestionField.tsx` + `IntakeAttendeesList.tsx` (`13`/`13b`/`13c`) | ✅ Built (S11a) |
 | `apps/web/features/booking/components/public/ServiceCard.tsx` (`01c`/`01g`) | ✅ Built (S11a) |
-| `apps/web/features/booking/components/public/BookingSubmittedDetails.tsx` (`04d`; `04f` is S11b) | ✅ Built (S11a) |
-| `apps/web/features/booking/components/public/LegItineraryStep.tsx` (`10`) | ❓ Gap (S11b) |
-| `apps/web/features/booking/components/public/VariableDurationStep.tsx` (`12`…`12d`) | ❓ Gap (S11b) |
+| `apps/web/features/booking/components/public/BookingSubmittedDetails.tsx` (`04d`; `04f`/`04h` journey timeline, S11b) | ✅ Built (S11a), extended (S11b) |
+| `apps/web/features/booking/components/public/LegItineraryStep.tsx` (`10`: the journey timeline inside a basket row) | ✅ Built (S11b) |
+| `apps/web/features/booking/components/public/VariableDurationStep.tsx` (`12`…`12d`) | ✅ Built (S11b) |
+| `apps/web/features/booking/model/basket-lines.ts` (the one row composition behind `03e`/`04g`/`10c`/`04h`/`04i`), `duration-options.ts`, `hooks/useServiceQuote.ts`, `components/public/BasketLines.tsx` | ✅ Built (S11b) |
 
 **BFF calls (new/extended — see `docs/14-API_CONTRACTS.md` and `plan/M23-…md` § M23-S29):**
 ```
@@ -309,7 +310,7 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 UC-072's trigger ("Customer sees no suitable availability") has no screen in the public booking flow: `02d-fully-booked` shows only "Entre em contato conosco para agendar", there is no "Avise-me quando abrir" action, and no login redirect that preserves the chosen criteria for **appointments** (`15-login-required` is a class-waitlist screen). It needs its own prototype pass and story (depends on `M23-S06`, `M23-S11a`); `M23-S12` is the Minha Conta management surface (`07-availability-alert`) only.
 
 **Open questions / gaps:**
-- [ ] Stories: `M23-S11a` then `M23-S11b` (`/story-discovery` each) — `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`. S11a must land first (the step engine S11b plugs into).
+- [x] Stories: `M23-S11a` then `M23-S11b` (`/story-discovery` each) — `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`. S11a must land first (the step engine S11b plugs into).
 - [x] Decisions 1–7 above (resolves the former open items: per-leg picker, non-staff pickers, pool quantity, midnight, same-type picks, duplicate lines, reschedule preview).
 - [x] `16-service-type-selector.html`, `08-staff-calendar.html`, `14-pending-approval.html`, `06`, `07`, `09` removed — see above.
 

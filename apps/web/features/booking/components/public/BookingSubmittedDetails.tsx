@@ -4,6 +4,7 @@ import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type {
   AvailableSlot,
+  BookingLineItineraryLegResponse,
   BookingLineResponse,
   BookingResponse,
   HotsiteServiceResourceOptionsRequirement,
@@ -71,6 +72,72 @@ function autoAnyRow(
     : [];
 }
 
+interface ItineraryLeg {
+  readonly legIndex: number;
+  readonly name: string;
+  readonly startsAt: Date;
+  readonly endsAt: Date;
+  readonly resourceNames: readonly string[];
+}
+
+// The response `itinerary` lists EVERY resolved resource of EVERY leg regardless of its
+// selectionMode (automatic rooms included); entries sharing a legIndex belong to one leg.
+function groupItinerary(
+  entries: readonly BookingLineItineraryLegResponse[],
+  service: HotsiteServiceResponse | undefined,
+): ItineraryLeg[] {
+  const legs = new Map<number, ItineraryLeg>();
+  for (const entry of entries) {
+    const known = legs.get(entry.legIndex);
+    legs.set(entry.legIndex, {
+      legIndex: entry.legIndex,
+      name: service?.legs?.find((leg) => leg.legIndex === entry.legIndex)?.name ?? '',
+      startsAt: known?.startsAt ?? new Date(entry.startsAt),
+      endsAt: known?.endsAt ?? new Date(entry.endsAt),
+      resourceNames: [...(known?.resourceNames ?? []), entry.resourceName],
+    });
+  }
+  return [...legs.values()].sort((a, b) => a.legIndex - b.legIndex);
+}
+
+// Lines run back-to-back from the booking's start, each by its persisted duration — the same
+// cursor the backend used to place them.
+function lineWindows(booking: BookingResponse): { startsAt: Date; endsAt: Date }[] {
+  let cursor = new Date(booking.scheduledAt);
+  return booking.lines.map((line) => {
+    const startsAt = cursor;
+    cursor = new Date(startsAt.getTime() + line.durationMinsAtBooking * 60_000);
+    return { startsAt, endsAt: cursor };
+  });
+}
+
+function ItineraryTimeline({
+  legs,
+}: {
+  readonly legs: readonly ItineraryLeg[];
+}): React.JSX.Element {
+  const { formatTime } = useFormatting();
+  return (
+    <ol
+      className="my-2 list-none border-l-2 pl-4"
+      style={{ borderColor: 'var(--ba-secondary)' }}
+      data-testid="booking-itinerary"
+    >
+      {legs.map((leg) => (
+        <li key={leg.legIndex} className="mb-2 text-sm last:mb-0" data-testid="itinerary-leg">
+          <strong style={{ color: 'var(--ba-text)' }}>
+            {formatTime(leg.startsAt)} – {formatTime(leg.endsAt)}
+          </strong>
+          {leg.name && <span style={{ color: 'var(--ba-text)' }}> · {leg.name}</span>}
+          <p className="opacity-75" style={{ color: 'var(--ba-text)' }}>
+            {leg.resourceNames.join(' · ')}
+          </p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 // Written from the booking the server returned (price, duration and assigned names are what was
 // persisted); only the customer's own picks come from the picker state. A subtle box styled with
 // the business's --ba-* tokens: services, date/time, the resources that apply, the total.
@@ -84,14 +151,25 @@ export function BookingSubmittedDetails({
 }: BookingSubmittedDetailsProps): React.JSX.Element {
   const t = useTranslations('booking');
   const { formatMoney, formatDateLong, formatTime } = useFormatting();
-  const rows = booking.lines.map((line) => {
+  const hasJourney = booking.lines.some((line) => (line.itinerary?.length ?? 0) > 0);
+  const windows = lineWindows(booking);
+  const rows = booking.lines.map((line, index) => {
     const service = services.find((s) => s.id === line.serviceId);
+    const itinerary = groupItinerary(line.itinerary ?? [], service);
     return {
       line,
       name: service?.name ?? '',
-      resources: [...chosenRows(line, picks, requirements), ...autoAnyRow(line, service)],
+      window: windows[index],
+      itinerary,
+      // A journey's timeline already names every resource of every leg (the customer's own
+      // picks included), so it needs no separate resource lines.
+      resources:
+        itinerary.length > 0
+          ? []
+          : [...chosenRows(line, picks, requirements), ...autoAnyRow(line, service)],
     };
   });
+  const basketEnd = windows[windows.length - 1]?.endsAt;
 
   return (
     <section
@@ -102,7 +180,7 @@ export function BookingSubmittedDetails({
       <h3 className="mb-2 text-lg font-bold" style={{ color: 'var(--ba-text)' }}>
         {t('submitted.heading')}
       </h3>
-      {rows.map(({ line, name, resources }) => (
+      {rows.map(({ line, name, window, itinerary, resources }) => (
         <div key={line.lineId} className="mb-2" data-testid="submitted-line">
           <p className="font-semibold" style={{ color: 'var(--ba-text)' }}>
             {name}
@@ -110,6 +188,12 @@ export function BookingSubmittedDetails({
           <p className="text-sm" style={{ color: 'var(--ba-primary)' }}>
             {formatMoney(line.priceAtBooking.amount)} · {formatDuration(line.durationMinsAtBooking)}
           </p>
+          {hasJourney && window && (
+            <p className="text-sm font-semibold" style={{ color: 'var(--ba-primary)' }}>
+              {formatTime(window.startsAt)} – {formatTime(window.endsAt)}
+            </p>
+          )}
+          {itinerary.length > 0 && <ItineraryTimeline legs={itinerary} />}
           {resources.map((row) => (
             <p key={row.key} className="text-sm" data-testid="submitted-resource">
               <span style={labelStyle}>{t(`resourcePicker.sectionTitle.${row.type}`)}: </span>
@@ -129,8 +213,10 @@ export function BookingSubmittedDetails({
         style={{ color: 'var(--ba-text)' }}
         data-testid="submitted-datetime"
       >
-        {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} {t('summary.at')}{' '}
-        {formatTime(new Date(selectedSlot.startsAt))}
+        {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))}
+        {hasJourney && basketEnd
+          ? ` · ${formatTime(new Date(selectedSlot.startsAt))}–${formatTime(basketEnd)}`
+          : ` ${t('summary.at')} ${formatTime(new Date(selectedSlot.startsAt))}`}
       </p>
 
       <p

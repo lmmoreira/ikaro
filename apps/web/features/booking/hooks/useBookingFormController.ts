@@ -170,6 +170,9 @@ function useErrorRouting(slug: string, state: FormState) {
       return;
     }
     if (resolved.code && CLEARS_SLOT.has(resolved.code)) selections.clearSlot();
+    // The duration the server rejected is dropped (with the slot searched for it): the duration
+    // step reopens on a valid choice only, never on the stale one.
+    if (resolved.code === BookingErrorCode.DURATION_OUT_OF_RANGE) selections.clearDuration();
     flow.setError(resolved.stepId, { message: resolved.message, code: resolved.code });
     flow.goTo(resolved.stepId);
   };
@@ -197,6 +200,7 @@ function useBookingFormSubmit(
     personalInfo: selections.personalInfo,
     addressSpec,
     resourcePicks: resourceSelections,
+    durationMinutes: selections.duration?.minutes,
     intakeFields:
       data.intakeSchema === null
         ? null
@@ -260,6 +264,10 @@ export function useBookingFormController(params: Params) {
         setPick(selections.picks, toResourceSelectionItem(requirement, resourceId)),
       );
       flow.clearErrors();
+    },
+    chooseDuration: (minutes: number) => {
+      selections.chooseDuration(minutes);
+      flow.setError('duration', null);
     },
     selectDate: (date: string) => {
       selections.selectDate(date);

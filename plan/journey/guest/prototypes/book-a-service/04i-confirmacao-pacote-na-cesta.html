@@ -48,7 +48,7 @@
     VARIANT OF: 04-confirmation.html — a BUNDLE (a service with two requirements: staff = CUSTOMER_CHOICE + room = automatic) next to a fixed service. The bundle needs no screen of its own: before booking only the customer's own pick (Renata Souza) is named; the automatic room is NEVER named or typed here. Path "resource choice" (no intake) = "Passo 5 de 5" (Serviços · Escolha · Data · Dados · Confirmar).
     COMBINED BASKETS (M23-S11b, decided 2026-10-03): a basket can mix fixed services, one variable-duration service, a bundle and journeys. One row per line, ONE total (fixed prices + quoted amount); duration = sum of the line durations, a journey counting its legs plus the transitions between them. Lines run back-to-back from the chosen slot in basket (serviceIds) order, so a journey that is not the first line starts when the previous lines end. Per-line time ranges appear ONLY when the basket contains a journey. Pure single-service baskets keep rendering exactly as 03/04/10/04d/04f.
     The row composition is ONE shared helper feeding the summary card, the confirmation/journey review and the success box, so the three surfaces can never disagree on lines, times or total.
-    This basket has no journey, so the rows keep today's shape (price — duration, ONE start time below, no per-line ranges).
+    This basket has no journey, so the rows keep today's shape (name and price, ONE start time below, no per-line ranges; the total line carries the duration).
     TOTALS: R$ 180 + 80 = R$ 260,00 · 60 + 30 = 90 min. After booking, the success box (04d) names the staff pick and no room.
   -->
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
@@ -62,8 +62,8 @@
     <p class="step-indicator">Passo 5 de 5</p>
     <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--ba-text)">Confirme seu agendamento</h2>
     <div class="card" data-testid="confirmation-lines">
-      <div class="line-block"><div class="line-row"><span class="line-name">Massagem com sala</span><span>R$ 180,00 — 60 min</span></div><p class="line-sub">com Renata Souza (sua escolha)</p></div>
-      <div class="line-block"><div class="line-row"><span class="line-name">Avaliação Corporal</span><span>R$ 80,00 — 30 min</span></div></div>
+      <div class="line-block"><div class="line-row"><span class="line-name">Massagem com sala</span><span>R$ 180,00</span></div><p class="line-sub">com Renata Souza (sua escolha)</p></div>
+      <div class="line-block"><div class="line-row"><span class="line-name">Avaliação Corporal</span><span>R$ 80,00</span></div></div>
     </div>
     <p style="font-weight:600;color:var(--ba-text);margin:1rem 0 .25rem;">Total: R$ 260,00 — 90 min</p>
     <p style="color:var(--ba-text);">Segunda-feira, 18 de agosto às 13:00</p>

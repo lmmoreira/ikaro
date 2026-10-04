@@ -3,6 +3,7 @@ import type { HotsiteServiceResponse } from '@ikaro/types';
 import { AuthError, extractProblemDetailShape } from '@/shared/lib/api/errors';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { findVariableDurationService } from './duration-options';
 
 export type BookingStepId =
   | 'services'
@@ -77,13 +78,15 @@ export interface ResolveBookingStepsInput {
 }
 
 /**
- * The ordered step list for the selected services. Every picker step precedes the (S11b)
- * duration step, which precedes availability: the slot search needs every pick and the duration.
+ * The ordered step list for the selected services. Every picker step precedes the duration step
+ * (only when a selected service has a customer-selected duration), which precedes availability:
+ * the slot search needs every pick and the duration.
  */
 export function resolveBookingSteps(input: ResolveBookingStepsInput): BookingStepId[] {
   return [
     'services',
     ...resolvePickerUnits(input.services).map(pickerStepId),
+    ...(findVariableDurationService(input.services) ? (['duration'] as const) : []),
     'availability',
     'personal',
     ...(input.hasIntake ? (['intake'] as const) : []),
@@ -145,8 +148,8 @@ export type ResolvedErrorStep =
 
 /**
  * Maps a route to a step of the current list. A target that is not in the list (for example the
- * S11b duration step before it exists) falls back to Confirmation with the generic message, so the
- * customer is never left on a step that cannot render the error.
+ * duration step of a basket with no customer-selected duration) falls back to Confirmation with
+ * the generic message, so the customer is never left on a step that cannot render the error.
  */
 export function resolveErrorStep(
   route: BookingSubmitErrorRoute,

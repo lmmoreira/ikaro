@@ -168,7 +168,7 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 
 ---
 
-### M23-S11a (✅ built) / M23-S11b (❓ GAP) — the other new steps (reuse of the guest screens)
+### M23-S11a (✅ built) / M23-S11b (✅ built) — the other new steps (reuse of the guest screens)
 
 The authenticated-customer flow uses the **same components and the same screens** as the guest flow; the clickable prototype for them lives in `plan/journey/guest/prototypes/book-a-service/` and is not duplicated here. Only the auth bar (avatar → Minha conta / Sair) and Step 3's `hideContactFields` differ, and both are already drawn in this folder (`01`–`04`).
 

@@ -51,3 +51,6 @@ export async function navigateToAuthenticatedStep3(
 }
 
 export * from './flow';
+
+export * from './seeds';
+export * from './theme';

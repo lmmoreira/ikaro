@@ -239,6 +239,32 @@
     "submitted": {
       "heading": "Detalhes da sua solicitação",
       "total": "Total"
+    },
+    "duration": {
+      "heading": "Por quanto tempo?",
+      "label": "Duração",
+      "choose": "Escolha a duração",
+      "rangeHint": "De {min} a {max}, em blocos de {step}.",
+      "rateHint": "{rate} · mínimo de {min}",
+      "total": "Total: {amount}",
+      "priceRecorded": "O preço fica registrado na reserva.",
+      "quoteLoading": "Calculando o total…",
+      "quoteError": "Não foi possível calcular o total.",
+      "unavailable": "Não há durações disponíveis para este serviço."
+    },
+    "legs": {
+      "confirmHeading": "Confirme sua jornada",
+      "timelineLabel": "Etapas da jornada",
+      "transitionAfter": "+ {minutes} min de transição antes da próxima etapa",
+      "chosen": "com {name} (sua escolha)",
+      "autoAssigned": {
+        "STAFF": "Profissional atribuído automaticamente",
+        "ROOM": "Sala atribuída automaticamente",
+        "EQUIPMENT": "Equipamento atribuído automaticamente"
+      },
+      "reserved": "{service} de serviço + {transition} de transição = {total} reservados ({start}–{end})",
+      "reservedNoTransition": "{total} reservados ({start}–{end})",
+      "stagesList": "{count} etapas: {names}"
     }
   },
   "hotsite": {
