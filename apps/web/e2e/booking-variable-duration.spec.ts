@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { loginAsStaff } from './helpers/auth';
+import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
+import { completeCustomerProfile } from './helpers/customer';
 import { deactivateResource } from './helpers/booking';
 import {
   applyDarkHotsitePalette,
@@ -10,6 +11,7 @@ import {
   nextButton,
   openBooking,
   parseRange,
+  pickFirstSlot,
   seedVariableDurationService,
   selectService,
   stepIndicator,
@@ -39,7 +41,7 @@ async function reachDuration(guest: Page, serviceId: string): Promise<void> {
   await openBooking(guest);
   await selectService(guest, serviceId);
   await nextButton(guest).click();
-  await expect(guest.getByTestId('step-variable-duration')).toBeVisible();
+  await expect(guest.getByTestId('step-variable-duration')).toBeVisible({ timeout: 20_000 });
 }
 
 async function chooseDuration(guest: Page, minutes: number, total: string): Promise<void> {
@@ -78,12 +80,26 @@ test.describe('M23-S11b — variable duration', () => {
       await nextButton(guest.page).click();
 
       await openFirstDay(guest.page);
-      const labels = await guest.page.getByTestId('time-slot').allTextContents();
-      expect(labels.length).toBeGreaterThan(0);
-      for (const label of labels) {
-        const { start, end } = parseRange(label);
-        expect(end - start).toBe(120);
-      }
+      // A slot spans the duration plus the tenant's own buffer, so the length is checked against the
+      // 1h search rather than against a fixed number: two hours must add exactly one hour.
+      const lengths = async () =>
+        (await guest.page.getByTestId('time-slot').allTextContents()).map((label) => {
+          const { start, end } = parseRange(label);
+          return end - start;
+        });
+      const twoHours = await lengths();
+      expect(twoHours.length).toBeGreaterThan(0);
+      expect(new Set(twoHours).size).toBe(1);
+      await guest.page.getByRole('button', { name: 'Voltar' }).click();
+      await chooseDuration(guest.page, 60, 'R$ 50,00');
+      await nextButton(guest.page).click();
+      await openFirstDay(guest.page);
+      const oneHour = await lengths();
+      expect(twoHours[0]! - oneHour[0]!).toBe(60);
+      await guest.page.getByRole('button', { name: 'Voltar' }).click();
+      await chooseDuration(guest.page, 120, 'R$ 100,00');
+      await nextButton(guest.page).click();
+      await openFirstDay(guest.page);
 
       await guest.page.getByTestId('time-slot').first().click();
       await nextButton(guest.page).click();
@@ -229,6 +245,37 @@ test.describe('M23-S11b — variable duration', () => {
       expect(dark.violations).toEqual([]);
     } finally {
       await guest.close();
+      await deactivateService(page, service.serviceId);
+      for (const id of resourceIds) await deactivateResource(page, id);
+    }
+  });
+
+  test('an authenticated customer books a chosen duration and the quoted total reaches the details box', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const { service, resourceIds } = await seedVariableDurationService(
+      page,
+      'e2e-por-tempo-cliente',
+    );
+
+    try {
+      // Staff seeding is done: the same page now becomes the customer (they share one cookie jar).
+      await loginAsCustomer(page, uniqueTestEmail('e2e-por-tempo'), TENANT_SLUG);
+      await completeCustomerProfile(page, TENANT_SLUG);
+      await reachDuration(page, service.serviceId);
+      await chooseDuration(page, 180, 'R$ 150,00');
+      await nextButton(page).click();
+      await pickFirstSlot(page);
+      await nextButton(page).click();
+      await nextButton(page).click();
+      await expect(page.getByTestId('confirmation-total')).toHaveText('Total: R$ 150,00 — 3h');
+      await confirmBooking(page);
+
+      await expect(page.getByTestId('booking-success')).toBeVisible();
+      await expect(page.getByTestId('submitted-total')).toContainText('Total: R$ 150,00');
+    } finally {
+      await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
       await deactivateService(page, service.serviceId);
       for (const id of resourceIds) await deactivateResource(page, id);
     }
