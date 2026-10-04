@@ -153,6 +153,61 @@ test.describe('M23-S11b — variable duration', () => {
     }
   });
 
+  test('a variable-duration service with an intake form: duration, slot, answers, then the booking carries both', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const { service, resourceIds } = await seedVariableDurationService(
+      page,
+      'e2e-tempo-formulario',
+    );
+    await publishIntakeSchema(page, service.serviceId, {
+      questions: [
+        { fieldKey: 'goal', label: 'Qual o objetivo?', type: 'FREE_TEXT', required: true },
+      ],
+      consentText: 'Li e aceito os termos.',
+      requiresNamedAttendees: false,
+      participantCountRequired: false,
+    });
+    const guest = await newGuestPage(browser);
+    let sentBody: Record<string, unknown> | null = null;
+    await guest.page.route('**/v1/bookings', (route) => {
+      if (route.request().method() === 'POST') {
+        sentBody = route.request().postDataJSON() as Record<string, unknown>;
+      }
+      return route.continue();
+    });
+
+    try {
+      await reachDuration(guest.page, service.serviceId);
+      await expect(stepIndicator(guest.page, 2, 6)).toBeVisible();
+      await chooseDuration(guest.page, 120, 'R$ 100,00');
+      await nextButton(guest.page).click();
+      await pickFirstSlot(guest.page);
+      await nextButton(guest.page).click();
+      await fillGuestContact(guest.page);
+      await nextButton(guest.page).click();
+      await expect(guest.page.getByTestId('step-intake')).toBeVisible();
+      await guest.page
+        .locator('[data-testid="intake-input"][data-field-key="goal"]')
+        .fill('Treino');
+      await guest.page.getByTestId('intake-consent').check();
+      await nextButton(guest.page).click();
+      await expect(guest.page.getByTestId('confirmation-total')).toHaveText(
+        'Total: R$ 100,00 — 2h',
+      );
+      await confirmBooking(guest.page);
+
+      await expect(guest.page.getByTestId('booking-success')).toBeVisible();
+      expect(sentBody).toMatchObject({ durationMinutes: 120, consentAccepted: true });
+    } finally {
+      await guest.close();
+      await deactivateService(page, service.serviceId);
+      for (const id of resourceIds) await deactivateResource(page, id);
+    }
+  });
+
   test('a failed quote blocks continuing and recovers on retry', async ({ page, browser }) => {
     await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
     const { service, resourceIds } = await seedVariableDurationService(page, 'e2e-por-tempo-erro');

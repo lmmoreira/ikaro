@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import type { ResourceSelectionItem } from '@ikaro/types';
-import { loginAsStaff } from './helpers/auth';
+import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
+import { completeCustomerProfile } from './helpers/customer';
 import { deactivateResource } from './helpers/booking';
 import {
   applyDarkHotsitePalette,
@@ -415,6 +416,232 @@ test.describe('M23-S11b — combined baskets', () => {
       await expect(guest.page.getByTestId('submitted-total')).toContainText(
         'Total: R$ 310,00 · 2h 25min',
       );
+    } finally {
+      await guest.close();
+      await cleanup(
+        page,
+        [journey.service.serviceId, variable.service.serviceId],
+        [...journey.resourceIds, ...variable.resourceIds],
+      );
+    }
+  });
+});
+
+// Walks every resource-picker step in whatever order the form lists them, picking the first option
+// of each section; each step is left only once the page has moved on to the next one.
+async function passAllPickers(guest: Page): Promise<void> {
+  const picker = guest.getByTestId('step-resource-picker');
+  await expect(picker).toBeVisible();
+  while (await picker.isVisible()) {
+    const unit = (await picker.getAttribute('data-unit')) ?? '';
+    const sections = await picker.getByTestId('picker-section').count();
+    for (let index = 0; index < sections; index += 1) {
+      await picker
+        .getByTestId('picker-section')
+        .nth(index)
+        .locator('[data-resource-id]')
+        .first()
+        .click();
+    }
+    await nextButton(guest).click();
+    await guest.waitForFunction((current) => {
+      const el = document.querySelector('[data-testid="step-resource-picker"]');
+      return !el || el.getAttribute('data-unit') !== current;
+    }, unit);
+  }
+}
+
+test.describe('M23-S11b — more combinations', () => {
+  test('a fixed service plus a variable-duration one: one row each, the chosen duration on the variable row, one total', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const fixed = await seedFixedService(page, 'e2e-fixo-tempo');
+    const variable = await seedVariableDurationService(page, 'e2e-tempo-fixo');
+    const guest = await newGuestPage(browser);
+
+    try {
+      await openBooking(guest.page);
+      await selectService(guest.page, fixed.serviceId);
+      await selectService(guest.page, variable.service.serviceId);
+      await nextButton(guest.page).click();
+      await expect(stepIndicator(guest.page, 2, 5)).toBeVisible();
+      await guest.page.getByTestId('duration-select').selectOption('120');
+      await expect(guest.page.getByTestId('duration-total')).toContainText('Total: R$ 100,00');
+      await expect(nextButton(guest.page)).toBeEnabled();
+      await nextButton(guest.page).click();
+      await toConfirmation(guest.page);
+
+      const rows = guest.page.getByTestId('basket-line');
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(1).getByTestId('line-chosen-duration')).toHaveText('2h');
+      await expect(rows.nth(0).getByTestId('line-chosen-duration')).toHaveCount(0);
+      await expect(guest.page.getByTestId('confirmation-total')).toHaveText(
+        'Total: R$ 180,00 — 2h 30min',
+      );
+      await confirmBooking(guest.page);
+
+      await expect(guest.page.getByTestId('booking-success')).toBeVisible();
+      await expect(guest.page.getByTestId('submitted-total')).toContainText(
+        'Total: R$ 180,00 · 2h 30min',
+      );
+    } finally {
+      await guest.close();
+      await cleanup(page, [fixed.serviceId, variable.service.serviceId], variable.resourceIds);
+    }
+  });
+
+  test('a journey plus a bundle: the journey review, the bundle pick named, the bundle room never, and the details box carry one total', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const journey = await seedJourney(page, 'e2e-jornada-pacote');
+    const bundle = await seedBundle(page, 'e2e-pacote-jornada');
+    const guest = await newGuestPage(browser);
+
+    try {
+      await openBooking(guest.page);
+      await selectService(guest.page, journey.service.serviceId);
+      await selectService(guest.page, bundle.service.serviceId);
+      await nextButton(guest.page).click();
+      await passAllPickers(guest.page);
+      await toConfirmation(guest.page);
+
+      await expect(guest.page.getByRole('heading', { name: 'Confirme sua jornada' })).toBeVisible();
+      await expect(guest.page.getByTestId('leg-item')).toHaveCount(3);
+      const bundleRow = guest.page.getByTestId('basket-line').nth(1);
+      await expect(bundleRow.getByTestId('line-own-pick')).toContainText(
+        new RegExp(bundle.staffs.map((staff) => staff.name).join('|')),
+      );
+      await expect(bundleRow).not.toContainText(bundle.room.name);
+      await expect(guest.page.getByTestId('confirmation-total')).toHaveText(
+        'Total: R$ 440,00 — 2h 25min',
+      );
+      await confirmBooking(guest.page);
+
+      await expect(guest.page.getByTestId('booking-success')).toBeVisible();
+      await expect(guest.page.getByTestId('itinerary-leg')).toHaveCount(3);
+      await expect(guest.page.getByTestId('booking-submitted-details')).not.toContainText(
+        bundle.room.name,
+      );
+      await expect(guest.page.getByTestId('submitted-total')).toContainText(
+        'Total: R$ 440,00 · 2h 25min',
+      );
+    } finally {
+      await guest.close();
+      await cleanup(
+        page,
+        [journey.service.serviceId, bundle.service.serviceId],
+        [...journey.resourceIds, ...bundle.resourceIds],
+      );
+    }
+  });
+
+  test('an authenticated customer books a fixed service plus a journey with the same times in the review and the details box', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const fixed = await seedFixedService(page, 'e2e-fixo-cliente');
+    const journey = await seedJourney(page, 'e2e-jornada-cliente');
+
+    try {
+      // Staff seeding is done: the same page now becomes the customer (they share one cookie jar).
+      await loginAsCustomer(page, uniqueTestEmail('e2e-jornada'), TENANT_SLUG);
+      await completeCustomerProfile(page, TENANT_SLUG);
+      await openBooking(page);
+      await selectService(page, fixed.serviceId);
+      await selectService(page, journey.service.serviceId);
+      await nextButton(page).click();
+      await pickJourneyChoices(page, journey);
+      const slotStart = await pickSlotAndRead(page);
+      await nextButton(page).click();
+      await nextButton(page).click();
+
+      const legs = page.getByTestId('leg-item');
+      await expect(legs).toHaveCount(3);
+      const reviewed = await ranges(legs, 'p:first-child');
+      expect(reviewed[0]).toEqual({ start: slotStart + 30, end: slotStart + 50 });
+      await expect(page.getByTestId('confirmation-total')).toHaveText(
+        'Total: R$ 340,00 — 1h 55min',
+      );
+      await confirmBooking(page);
+
+      await expect(page.getByTestId('booking-success')).toBeVisible();
+      expect(await ranges(page.getByTestId('itinerary-leg'), 'strong')).toEqual(reviewed);
+    } finally {
+      await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+      await cleanup(page, [fixed.serviceId, journey.service.serviceId], journey.resourceIds);
+    }
+  });
+
+  test('the details box of a booked journey has no axe violations on a light tenant or under a dark palette', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const journey = await seedJourney(page, 'e2e-jornada-sucesso');
+    const guest = await newGuestPage(browser);
+
+    try {
+      await openBooking(guest.page);
+      await selectService(guest.page, journey.service.serviceId);
+      await nextButton(guest.page).click();
+      await pickJourneyChoices(guest.page, journey);
+      await toConfirmation(guest.page);
+      await confirmBooking(guest.page);
+      await expect(guest.page.getByTestId('booking-submitted-details')).toBeVisible();
+      await waitForAnimationsToSettle(guest.page);
+
+      const light = await new AxeBuilder({ page: guest.page }).include('main').analyze();
+      expect(light.violations).toEqual([]);
+      await applyDarkHotsitePalette(guest.page);
+      await waitForAnimationsToSettle(guest.page);
+      const dark = await new AxeBuilder({ page: guest.page }).include('main').analyze();
+      expect(dark.violations).toEqual([]);
+    } finally {
+      await guest.close();
+      await cleanup(page, [journey.service.serviceId], journey.resourceIds);
+    }
+  });
+});
+
+test.describe('M23-S11b — narrow screens', () => {
+  test('the journey review and the duration step fit a phone screen without horizontal scrolling or axe violations', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const journey = await seedJourney(page, 'e2e-jornada-celular');
+    const variable = await seedVariableDurationService(page, 'e2e-tempo-celular');
+    const guest = await newGuestPage(browser);
+    await guest.page.setViewportSize({ width: 390, height: 844 });
+    const fitsWidth = () =>
+      guest.page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      );
+
+    try {
+      await openBooking(guest.page);
+      await selectService(guest.page, journey.service.serviceId);
+      await selectService(guest.page, variable.service.serviceId);
+      await nextButton(guest.page).click();
+      await pickJourneyChoices(guest.page, journey);
+      await expect(guest.page.getByTestId('duration-total')).toBeVisible();
+      await expect(nextButton(guest.page)).toBeEnabled();
+      await waitForAnimationsToSettle(guest.page);
+      expect(await fitsWidth()).toBe(true);
+      const duration = await new AxeBuilder({ page: guest.page }).include('main').analyze();
+      expect(duration.violations).toEqual([]);
+
+      await nextButton(guest.page).click();
+      await toConfirmation(guest.page);
+      await expect(guest.page.getByTestId('leg-itinerary')).toBeVisible();
+      await waitForAnimationsToSettle(guest.page);
+      expect(await fitsWidth()).toBe(true);
+      const review = await new AxeBuilder({ page: guest.page }).include('main').analyze();
+      expect(review.violations).toEqual([]);
     } finally {
       await guest.close();
       await cleanup(

@@ -249,6 +249,25 @@ describe('composeBasket', () => {
     expect(basket).toMatchObject({ amount: 260, durationMinutes: 90, hasJourney: false });
   });
 
+  it('composes a journey plus a bundle: the bundle follows the journey, only own picks are named, one total', () => {
+    const picks: ResourceSelectionItem[] = [
+      ...journeyPicks,
+      { serviceId: BUNDLE_ID, legIndex: null, resourceType: 'STAFF', resourceId: 'staff-renata' },
+    ];
+
+    const basket = compose({ serviceIds: [JOURNEY_ID, BUNDLE_ID], picks });
+
+    const [journeyLine, bundleLine] = basket.lines;
+    expect(iso(journeyLine!.endsAt)).toBe('2026-08-18T17:45:00.000Z');
+    expect(iso(bundleLine!.startsAt)).toBe('2026-08-18T17:45:00.000Z');
+    expect(iso(bundleLine!.endsAt)).toBe('2026-08-18T18:45:00.000Z');
+    expect(journeyLine!.resources).toEqual([]);
+    expect(bundleLine!.resources).toEqual([
+      { kind: 'chosen', type: 'STAFF', name: 'Renata Souza' },
+    ]);
+    expect(basket).toMatchObject({ amount: 440, durationMinutes: 165, hasJourney: true });
+  });
+
   it('skips a service id that is not in the catalogue', () => {
     const basket = compose({ serviceIds: ['missing', FIXED_ID] });
 
