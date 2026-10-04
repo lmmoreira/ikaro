@@ -389,7 +389,7 @@ describe('BookingForm — variable duration (M23-S11b)', () => {
     await user.click(next());
     await pickSlot(user);
 
-    expect(await screen.findByText('R$ 130,00 — 1h 30min')).toBeInTheDocument();
+    expect(await screen.findByText('Total: R$ 130,00 — 1h 30min')).toBeInTheDocument();
   });
 });
 

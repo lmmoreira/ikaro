@@ -17,6 +17,8 @@ interface ServiceEditConfigTabPanelsProps {
   // sticky action panel. Must be referentially stable.
   readonly onTabActionChange: (tab: ServiceEditTabKey, action: ServiceTabAction | null) => void;
   readonly onLegsSaved?: (totalSpanMinutes: number) => void;
+  // Overrides `service.legs` once a legs save lands in this session (legs bar a customer-chosen duration).
+  readonly hasLegs?: boolean;
 }
 
 // Split out of ServiceEditPage to stay under docs/CODE_STANDARDS.md's function-length limit —
@@ -31,6 +33,7 @@ export function ServiceEditConfigTabPanels({
   onTabDirtyChange,
   onTabActionChange,
   onLegsSaved,
+  hasLegs = service.legs !== null,
 }: ServiceEditConfigTabPanelsProps): React.JSX.Element {
   // One stable callback per tab — a panel's registration effect depends on its identity.
   const onRecursosAction = useCallback(
@@ -74,7 +77,7 @@ export function ServiceEditConfigTabPanels({
         <ServiceBookingPolicyPanel
           serviceId={service.serviceId}
           initialPolicy={service.bookingPolicy}
-          hasLegs={service.legs !== null}
+          hasLegs={hasLegs}
           onDirtyChange={(value) => onTabDirtyChange('politicas', value)}
           onActionChange={onPoliticasAction}
         />

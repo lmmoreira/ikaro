@@ -104,7 +104,11 @@ export function VariableDurationStep({
     }
   }, [duration, state, onQuoted]);
 
-  const canContinue = duration !== null && duration.quotedAmount !== null;
+  const canContinue =
+    duration !== null &&
+    duration.quotedAmount !== null &&
+    state.status === 'ready' &&
+    state.quote.durationMinutes === duration.minutes;
 
   return (
     <div data-testid="step-variable-duration">
@@ -165,12 +169,11 @@ export function VariableDurationStep({
         <div className="mt-4 border p-4" style={cardStyle} data-testid="duration-quote">
           <RateHint service={service} />
           {state.status === 'loading' && (
-            <div
-              role="status"
+            <output
               aria-busy="true"
               aria-label={t('duration.quoteLoading')}
               data-testid="duration-quote-loading"
-              className="mt-2 h-7 w-40 animate-pulse rounded"
+              className="mt-2 block h-7 w-40 animate-pulse rounded"
               style={{ backgroundColor: 'var(--ba-secondary)' }}
             />
           )}

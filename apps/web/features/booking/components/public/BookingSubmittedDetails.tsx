@@ -169,7 +169,7 @@ export function BookingSubmittedDetails({
           : [...chosenRows(line, picks, requirements), ...autoAnyRow(line, service)],
     };
   });
-  const basketEnd = windows[windows.length - 1]?.endsAt;
+  const basketEnd = windows.at(-1)?.endsAt;
 
   return (
     <section

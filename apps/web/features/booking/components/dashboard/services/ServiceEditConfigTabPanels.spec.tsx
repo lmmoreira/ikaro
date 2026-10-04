@@ -57,6 +57,35 @@ const service: StaffServiceResponse = {
 };
 
 describe('ServiceEditConfigTabPanels', () => {
+  it('bars a customer-chosen duration once legs are saved in this session, even though the loaded service had none', () => {
+    const noop = vi.fn();
+    const { rerender } = renderWithIntl(
+      <ServiceEditConfigTabPanels
+        activeTab="politicas"
+        service={service}
+        intakeSchema={intakeSchema}
+        onTabDirtyChange={noop}
+        onTabActionChange={noop}
+      />,
+    );
+    expect(
+      screen.getByRole('option', { name: /Cliente escolhe/ }) as HTMLOptionElement,
+    ).not.toBeDisabled();
+
+    rerender(
+      <ServiceEditConfigTabPanels
+        activeTab="politicas"
+        service={service}
+        hasLegs
+        intakeSchema={intakeSchema}
+        onTabDirtyChange={noop}
+        onTabActionChange={noop}
+      />,
+    );
+
+    expect(screen.getByRole('option', { name: /Cliente escolhe/ })).toBeDisabled();
+  });
+
   it('renders all 3 panels mounted, hiding all but the active tab via the hidden attribute', () => {
     renderWithIntl(
       <ServiceEditConfigTabPanels

@@ -23,7 +23,7 @@ function ReservedSummary({ legs }: LegItineraryStepProps): React.JSX.Element | n
   const t = useTranslations('booking.legs');
   const { formatTime } = useFormatting();
   const start = legs[0]?.startsAt;
-  const end = legs[legs.length - 1]?.endsAt;
+  const end = legs.at(-1)?.endsAt;
   if (!start || !end) return null;
 
   const service = legs.reduce((sum, leg) => sum + leg.durationMinutes, 0);

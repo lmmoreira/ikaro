@@ -48,6 +48,9 @@ export function BookingSummaryCard({
   const serviceLabel =
     basket.lines.length === 1 ? t('summary.serviceSingular') : t('summary.servicePlural');
   const date = formatDateLong(new Date(selectedDate + 'T00:00:00Z'));
+  // One row per line whenever the basket holds more than one line (or a journey); a single plain
+  // service keeps the compact name-and-total form.
+  const rowPerLine = basket.hasJourney || basket.lines.length > 1;
 
   return (
     <div className="mt-6">
@@ -61,7 +64,7 @@ export function BookingSummaryCard({
         <p className="mb-1 text-sm font-medium" style={labelStyle}>
           {serviceLabel}
         </p>
-        {basket.hasJourney ? (
+        {rowPerLine ? (
           <BasketLines basket={basket} variant="summary" />
         ) : (
           basket.lines.map((line) => (
@@ -70,7 +73,7 @@ export function BookingSummaryCard({
             </p>
           ))
         )}
-        {!basket.hasJourney && (
+        {!rowPerLine && (
           <p className="mt-0.5 text-sm" style={{ color: 'var(--ba-primary)' }}>
             {totalText}
           </p>
@@ -86,7 +89,7 @@ export function BookingSummaryCard({
             ? `${date} · ${formatTime(new Date(selectedSlot.startsAt))} – ${formatTime(basket.endsAt)}`
             : `${date} ${t('summary.at')} ${formatTime(new Date(selectedSlot.startsAt))}`}
         </p>
-        {basket.hasJourney && (
+        {rowPerLine && (
           <p className="mt-2 font-semibold" style={{ color: 'var(--ba-text)' }}>
             Total: {totalText}
           </p>
