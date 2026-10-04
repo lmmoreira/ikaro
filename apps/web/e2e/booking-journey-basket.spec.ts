@@ -22,6 +22,7 @@ import {
   stepIndicator,
   TENANT_SLUG,
   type SeededJourney,
+  waitForAnimationsToSettle,
 } from './helpers/booking-form';
 import {
   createService,
@@ -310,15 +311,18 @@ test.describe('M23-S11b — journey', () => {
       await pickJourneyChoices(guest.page, journey);
       await toConfirmation(guest.page);
       await expect(guest.page.getByTestId('leg-itinerary')).toBeVisible();
+      await waitForAnimationsToSettle(guest.page);
 
       const light = await new AxeBuilder({ page: guest.page }).include('main').analyze();
       expect(light.violations).toEqual([]);
       await applyDarkHotsitePalette(guest.page);
+      await waitForAnimationsToSettle(guest.page);
       const dark = await new AxeBuilder({ page: guest.page }).include('main').analyze();
       expect(dark.violations).toEqual([]);
 
       await confirmBooking(guest.page);
       await expect(guest.page.getByTestId('booking-submitted-details')).toBeVisible();
+      await waitForAnimationsToSettle(guest.page);
       const success = await new AxeBuilder({ page: guest.page }).include('main').analyze();
       expect(success.violations).toEqual([]);
     } finally {

@@ -16,6 +16,7 @@ import {
   selectService,
   stepIndicator,
   TENANT_SLUG,
+  waitForAnimationsToSettle,
 } from './helpers/booking-form';
 import { deactivateService, publishIntakeSchema } from './helpers/services';
 
@@ -232,6 +233,8 @@ test.describe('M23-S11b — variable duration', () => {
     try {
       await reachDuration(guest.page, service.serviceId);
       await expect(guest.page.getByTestId('duration-total')).toBeVisible();
+      await expect(nextButton(guest.page)).toBeEnabled();
+      await waitForAnimationsToSettle(guest.page);
 
       const light = await new AxeBuilder({ page: guest.page })
         .include('[data-testid="step-variable-duration"]')
@@ -239,6 +242,7 @@ test.describe('M23-S11b — variable duration', () => {
       expect(light.violations).toEqual([]);
 
       await applyDarkHotsitePalette(guest.page);
+      await waitForAnimationsToSettle(guest.page);
       const dark = await new AxeBuilder({ page: guest.page })
         .include('[data-testid="step-variable-duration"]')
         .analyze();

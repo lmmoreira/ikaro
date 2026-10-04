@@ -14,6 +14,13 @@ const DARK_PALETTE: Readonly<Record<string, string>> = {
   '--ba-btn-border': '#93c5fd',
 };
 
+// The booking buttons and cards animate colour/opacity changes (`transition-all`): axe reads the
+// computed colours at the instant it runs, so a scan during a transition sees a half-blended
+// foreground/background pair and reports a contrast failure that the settled page does not have.
+export async function waitForAnimationsToSettle(page: Page): Promise<void> {
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+}
+
 export async function applyDarkHotsitePalette(page: Page): Promise<void> {
   await page.evaluate((palette) => {
     const host = document.querySelector<HTMLElement>('[style*="--ba-background"]');

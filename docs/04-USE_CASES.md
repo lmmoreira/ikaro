@@ -826,7 +826,7 @@ Returns:
 - **Trigger:** Admin switches the service from "single resource" to "multi-stage journey."
 - **Main Flow:**
   1. Admin adds ordered legs, each with a name, duration, one or more resource requirements, and a transition-gap-after.
-  2. System computes and displays the total appointment span (`sum(leg durations) + sum(transition gaps)`), distinct from total billable time.
+  2. System computes and displays the total appointment span (`sum(leg durations) + sum(transition gaps between consecutive legs)` — a leg's gap applies before the next leg, so the last leg's gap never counts), distinct from total billable time.
   3. System clears `resourceRequirements`/`bufferAfterMinutes` on the service (mutually exclusive with `legs`).
 - **Alternative Flows:**
   - **A1: Fewer than 2 legs** → `422 Unprocessable` — a single leg is just the flat model (UC-050).

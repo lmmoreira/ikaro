@@ -9,6 +9,7 @@ import type {
 } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
+import { legsSpanMinutes } from './legs-span';
 import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
 
 const LEG_TYPES: ResourceType[] = ['STAFF', 'ROOM', 'EQUIPMENT'];
@@ -43,10 +44,7 @@ export function ServiceLegsPanel({
   onChange,
 }: ServiceLegsPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
-  const totalSpanMinutes = legs.reduce(
-    (sum, leg) => sum + leg.durationMinutes + (leg.transitionGapAfterMinutes ?? 0),
-    0,
-  );
+  const totalSpanMinutes = legsSpanMinutes(legs);
 
   function updateLeg(legIndex: number, patch: Partial<ServiceLegItem>): void {
     onChange(legs.map((leg) => (leg.legIndex === legIndex ? { ...leg, ...patch } : leg)));
