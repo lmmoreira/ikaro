@@ -354,12 +354,24 @@ A bundle/leg reschedule re-validates the whole chain atomically on both paths (U
 **Description:**
 Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s field list. Authenticated-customer-only (UC-072 A1 redirects an unauthenticated visitor to login, preserving chosen criteria through the redirect — a **frontend** concern, handled in S12). This story covers create/list/edit/cancel and the expiry worker; the *matching* worker (step 3, "when a slot releases, notify") is S07, a separate async trigger.
 
+**Decisions locked at `/story-discovery` (2026-10-05):**
+- **Eligibility:** create rejects a service whose `availabilityAlertEligible` is `false` — `422` `BOOKING_ALERT_INELIGIBLE_SERVICE` (UC-072 precondition; mirrors `BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE`).
+- **`expiresAt`:** optional on create and PATCH. Default = creation time + 30 days; a client-set value may be at most 90 days after creation; for `ONE_TIME_RANGE` it is clamped to `acceptableEndAt` (an alert for a range that has passed is pointless). Past or beyond-cap values → `422` `BOOKING_ALERT_CRITERIA_INVALID`.
+- **Timezone:** never client-supplied. The alert's `timezone` is always the tenant's timezone from the request context, so `WEEKLY_PREFERENCE` local times are unambiguous.
+- **Cap:** at most 10 `ACTIVE` alerts per customer per tenant — `409` `BOOKING_ALERT_CAP_REACHED`. No duplicate-criteria check.
+- **`preferredResourceId`:** when set, must exist in the tenant, be active, and be eligible for the service (an alert that can never match is rejected) — `422` `BOOKING_ALERT_CRITERIA_INVALID`.
+- **Edit:** PATCH may change `criteriaType`, as long as exactly one criteria set remains afterward. `durationMinutes` / `participantCount` are validated only as positive (the booking flow re-validates against the service later).
+- **Schema:** the migration creates **both** `availability_alerts` and `availability_alert_notification_attempts` exactly as `docs/13-DATABASE_SCHEMA.md` documents them. The child entity, repository and `recordNotificationAttempt` are written in S07.
+- **Events need a consumer:** the four events S06 publishes (`Created`, `Updated`, `Cancelled`, `Expired`) each get a thin audit-log-only subscriber — `docs/ANTI_PATTERNS.md` § A domain event is drained. Copy `recurring-booking-schedule-events.handler.ts` + `log-recurring-booking-schedule-event.use-case.ts`.
+- **Pattern:** Repository + Adapter, no new named pattern.
+
 **Backend use case steps:**
 1. **`CreateAvailabilityAlertUseCase`** (UC-072): validates exactly one criteria representation set (`ONE_TIME_RANGE` xor `WEEKLY_PREFERENCE`), persists, publishes `AvailabilityAlertCreated`.
 2. **`ListAvailabilityAlertsUseCase`** (UC-076): `findByCustomer(tenantId, customerId)`.
 3. **`UpdateAvailabilityAlertUseCase`** (UC-076): re-validates criteria shape, rejects edit on an already-`NOTIFIED`/`EXPIRED` alert (UC-076 A1).
-4. **`CancelAvailabilityAlertUseCase`** (UC-072 A2 / UC-076): sets `status = CANCELLED`, publishes `AvailabilityAlertCancelled`.
-5. **`ExpireAvailabilityAlertsJob`** (scheduled, same shape as the existing loyalty-expiry cron): finds `ACTIVE` alerts past `expiresAt`, transitions to `EXPIRED`, publishes `AvailabilityAlertExpired` per alert.
+4. **`CancelAvailabilityAlertUseCase`** (UC-072 A2 / UC-076): sets `status = CANCELLED`, publishes `AvailabilityAlertCancelled`. Idempotent on an already-`CANCELLED` alert; `422` `BOOKING_ALERT_NOT_EDITABLE` on `NOTIFIED`/`EXPIRED`.
+5. **`ExpireAvailabilityAlertsJob`** (scheduled; shape of `ExpireRecurringBookingScheduleApprovalsJob`): one pass over active tenants, each alert in its own transaction with failures logged and retried next run, "now" taken against `expiresAt` (a UTC instant). Finds `ACTIVE` alerts past `expiresAt`, transitions to `EXPIRED`, publishes `AvailabilityAlertExpired` per alert. Triggered by a new `ExpireAvailabilityAlertsTriggerHandler` registered on the existing `CRON_REMINDERS_TRIGGER` — **no new Cloud Scheduler job**.
+6. **`LogAvailabilityAlertEventUseCase`** + `availability-alert-events.handler.ts`: audit-log-only subscriber for the four events. `UpdateAvailabilityAlertUseCase` publishes `AvailabilityAlertUpdated`.
 
 **Backend HTTP surface:** new controller — `POST /availability-alerts`, `GET /availability-alerts`, `PATCH /availability-alerts/:id`, `DELETE /availability-alerts/:id`. JWT + Customer only (`403` for STAFF/MANAGER/guest).
 
@@ -374,8 +386,15 @@ Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s
 - `apps/backend/src/contexts/booking/infrastructure/entities/availability-alert.entity.ts` (new)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-availability-alert.repository.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/availability-alert.controller.ts` (+ specs) (new)
-- `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-CreateAvailabilityAlerts.ts` (new)
-- `packages/types/src/error-codes.ts` + both locale `errors.json` (modify — `BOOKING_ALERT_CRITERIA_INVALID`, `BOOKING_ALERT_NOT_EDITABLE`)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-CreateAvailabilityAlerts.ts` (new — both tables; update `docs/13-DATABASE_SCHEMA.md` in the same commit if anything differs)
+- `apps/backend/src/test/builders/booking/availability-alert-entity.builder.ts` (new — required by the `test-builder-coverage` / `entity-builder-pk-default` detectors; `uuidv7()` default id)
+- `apps/backend/src/test/integration-global-setup.ts` (modify — register the new entities)
+- `apps/backend/src/contexts/booking/infrastructure/events/expire-availability-alerts-trigger.handler.ts` (+ `.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/infrastructure/events/availability-alert-events.handler.ts` (+ `.spec.ts`) and `application/use-cases/log-availability-alert-event.use-case.ts` (+ `.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/booking.module-providers.ts` (modify — register the use cases, job, handlers, repository token)
+- `infra/terraform/pubsub-catalog.json` (regenerate: `pnpm --filter @ikaro/infra-scripts run pubsub-catalog`)
+- `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` (modify — drop the "planned" status for alerts)
+- `packages/types/src/error-codes.ts` + both locale `errors.json` (modify — `BOOKING_ALERT_CRITERIA_INVALID`, `BOOKING_ALERT_NOT_EDITABLE`, `BOOKING_ALERT_INELIGIBLE_SERVICE`, `BOOKING_ALERT_CAP_REACHED`, plus a not-found code for an unknown/foreign alert id)
 - `apps/bff/src/features/booking/availability-alerts.controller.ts` (+ `.schemas.ts`, `.types.ts`, specs) (new)
 - `apps/backend/http/booking/availability-alerts.http` (new)
 
@@ -383,20 +402,30 @@ Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s
 - [ ] Authenticated customer creates an alert with either a one-time range or weekly preference (never both).
 - [ ] Customer views, edits, and cancels their own active alerts; an already-notified/expired alert is read-only history.
 - [ ] Expired alerts stop counting as active without any manual step.
+- [ ] A service that does not permit alerts cannot get one (`422`); a customer cannot hold more than 10 active alerts (`409`).
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] Aggregate rejects both/neither criteria representation set
   - [ ] Update rejects when `status` is `NOTIFIED`/`EXPIRED`
-  - [ ] Expiry job transitions only past-`expiresAt` `ACTIVE` alerts
+  - [ ] Expiry job transitions only past-`expiresAt` `ACTIVE` alerts, and one failing row does not block the rest
+  - [ ] Range start before end; weekly set has ≥ 1 weekday and local start before local end; `expiresAt` default 30 days, max 90, clamped to `acceptableEndAt`
+  - [ ] Update may switch `criteriaType` but never leaves both or neither set; Update publishes `AvailabilityAlertUpdated`; cancel is idempotent on `CANCELLED`
+  - [ ] Create rejects an ineligible service, an inactive/foreign/ineligible `preferredResourceId`, and the 11th active alert
 - Integration:
   - [ ] `POST /availability-alerts` persists and is retrievable via `GET`
   - [ ] Expiry job integration test against real seeded rows
 - Tenant isolation:
-  - [ ] `GET/PATCH/DELETE /availability-alerts/:id` never crosses tenant or customer boundary
-- E2E: none — covered by S12
+  - [ ] `GET/PATCH/DELETE /availability-alerts/:id` never crosses tenant or customer boundary — another tenant's alert **and** another customer's alert in the same tenant both return `404`
+  - [ ] STAFF, MANAGER and unauthenticated callers get `403`/`401` on every route
+- BFF: controller component test + `.schemas.spec.ts` (create, PATCH and the passthrough of every error code)
+- E2E: none — covered by S12 (management) and S31 (creation entry point)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+**Devops half (PR sequence — `infra/terraform/README.md` § New-resource PR-sequencing playbook, row "new Pub/Sub topic"):** the four events are new topics (a first `subscribe()` call site each). **1 PR + 1 Foundation apply.**
+1. The one PR carries the app code, the regenerated `pubsub-catalog.json`, and the `infra-app-mix-ok` label with a PR-body note (the subscribe call sites and the topics they provision are the same change; precedent M19-S07/#365, M19-S08/#370). No cron job entry is needed — the expiry job reuses `cron-reminders`.
+2. After it merges and the `envs/*` apply finishes: **apply Foundation** — dispatch `foundation-deploy.yml` with `apply=true` from `main`, review the two plans, approve the `staging-foundation` and `production-foundation` Environments, then confirm `gcloud pubsub topics get-iam-policy` on each new topic shows the expected publisher binding in both projects. No code, no PR. Nothing in CI fails if skipped (M23-S04 precedent).
 
 ---
 
@@ -410,6 +439,8 @@ Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s
 
 **Description:**
 Every capacity-releasing event in the Booking context (booking cancelled/rejected, closure removed) triggers a match check: does any `ACTIVE` `AvailabilityAlert` for the affected `serviceId` (and, if set, `preferredResourceId`) match the newly-freed window against its criteria (`ONE_TIME_RANGE` overlap or `WEEKLY_PREFERENCE` weekday+local-time match)? On a match, record one deduplicated `availability_alert_notification_attempts` row (`UNIQUE (tenant_id, alert_id, matching_window, channel)`), transition the alert to `NOTIFIED`, publish `AvailabilityAlertMatched`. An alert is never auto-cancelled just because a different channel met the same need (UC-076's own postcondition) — this worker only ever adds notification history, never cancels.
+
+**Added at M23-S06's `/story-discovery` (2026-10-05):** S06 creates both tables but writes only the alert entity/repository. This story owns the `AvailabilityAlertNotificationAttempt` entity (+ builder, `integration-global-setup.ts` registration), its repository methods and `recordNotificationAttempt`. It also adds the audit-log subscriber for `AvailabilityAlertMatched` — `docs/ANTI_PATTERNS.md` § A domain event is drained: no event ships without a real consumer (extend S06's `availability-alert-events.handler.ts`; the Notification-context consumer for the email/in-app message is a separate, later story).
 
 **Backend use case steps:**
 1. **`MatchAvailabilityAlertsUseCase`**: given `(tenantId, serviceId, freedWindow, resourceId?)`, queries `ACTIVE` alerts for that service, filters by criteria match, for each match calls `recordNotificationAttempt` + transitions to `NOTIFIED`.

@@ -383,30 +383,30 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Trigger:** UC-072.
 - **State change:** `availability_alerts` row created, `status = ACTIVE`.
 - **Data:** `{ alertId, customerId, serviceId, criteriaType, expiresAt }`
-- **Consumers:** None in MVP.
+- **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
 
 #### **AvailabilityAlertUpdated**
 - **Trigger:** UC-076/UC-053 (customer edits criteria or expiry).
 - **Data:** `{ alertId, customerId, serviceId }`
-- **Consumers:** None in MVP.
+- **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
 
 #### **AvailabilityAlertCancelled**
 - **Trigger:** UC-072 A2 (withdraws before a match) or UC-076/UC-053 (explicit cancel).
 - **State change:** `status → CANCELLED`.
 - **Data:** `{ alertId, customerId, serviceId }`
-- **Consumers:** None in MVP.
+- **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
 
 #### **AvailabilityAlertExpired**
 - **Trigger:** System — `expiresAt` passed with no match.
 - **State change:** `status → EXPIRED`.
 - **Data:** `{ alertId, customerId, serviceId }`
-- **Consumers:** None in MVP.
+- **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
 
 #### **AvailabilityAlertMatched**
 - **Trigger:** UC-072 step 3 — a released slot matches an `ACTIVE` alert's criteria.
 - **State change:** `status → NOTIFIED`; one `availability_alert_notification_attempts` row inserted for the matching window.
 - **Data:** `{ alertId, customerId, serviceId, matchingWindowStart, matchingWindowEnd, resourceId: string | null }`
-- **Consumers:** Notification Context → deduplicated email/in-app message.
+- **Consumers:** Notification Context → deduplicated email/in-app message. M23-S07 ships an audit-log-only subscriber first; the Notification consumer is a later story.
 
 #### **FutureCommitmentExceptionRaised**
 - **Trigger:** UC-073 — a resource/hours/template/schedule change affects a future commitment nobody explicitly reviewed per-session (excludes a manager-initiated range cancellation, Cluster 4, whose own step is already the explicit resolution). Wired as of M23-S08 for resource deactivation only, from UC-047 and the UC-048 staff-deactivation cascade, once per affected booking.

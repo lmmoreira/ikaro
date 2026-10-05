@@ -1042,7 +1042,7 @@ Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or cr
 
 Auth: JWT + Customer only — unauthenticated visitors are redirected to login (UC-072 A1).
 
-- `POST /availability-alerts` → create (UC-072). Body: `{ "serviceId", "preferredResourceId"?, "criteriaType": "ONE_TIME_RANGE"|"WEEKLY_PREFERENCE", "acceptableStartAt"?, "acceptableEndAt"?, "weekdays"?, "localStartTime"?, "localEndTime"?, "durationMinutes"?, "participantCount"? }`
+- `POST /availability-alerts` → create (UC-072). Body: `{ "serviceId", "preferredResourceId"?, "criteriaType": "ONE_TIME_RANGE"|"WEEKLY_PREFERENCE", "acceptableStartAt"?, "acceptableEndAt"?, "weekdays"?, "localStartTime"?, "localEndTime"?, "durationMinutes"?, "participantCount"?, "expiresAt"? }`. The alert's timezone is always the tenant's (never sent). `expiresAt` defaults to 30 days after creation, at most 90 days, clamped to `acceptableEndAt` for a range. Errors: `422` `BOOKING_ALERT_CRITERIA_INVALID` / `BOOKING_ALERT_INELIGIBLE_SERVICE` (service has `availabilityAlertEligible = false`), `409` `BOOKING_ALERT_CAP_REACHED` (10 active alerts per customer).
 - `GET /availability-alerts` → list the caller's own (UC-076)
 - `PATCH /availability-alerts/:id` → edit criteria/expiry (UC-076)
 - `DELETE /availability-alerts/:id` → cancel (UC-076)
