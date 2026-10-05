@@ -6,6 +6,30 @@
     ]
   },
   {
+    "event": "AvailabilityAlertCancelled",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "AvailabilityAlertCreated",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "AvailabilityAlertExpired",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "AvailabilityAlertUpdated",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "BookingApproved",
     "consumers": [
       "notification"
@@ -190,6 +214,7 @@
   {
     "event": "cron-reminders",
     "consumers": [
+      "availability-alert-expiry",
       "booking-admin-schedule-reminder",
       "booking-reminder",
       "recurring-schedule-approval-expiry"

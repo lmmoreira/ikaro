@@ -32,6 +32,11 @@ export class TypeOrmTenantLockAdapter implements ITenantLockPort {
     await this.acquire(`service:${tenantId}:${serviceId}`);
   }
 
+  // Brand-new key (M23-S06), free to namespace — see tenant-lock.port.ts's lockCustomerAlerts doc.
+  async lockCustomerAlerts(tenantId: string, customerId: string): Promise<void> {
+    await this.acquire(`availability-alerts:${tenantId}:${customerId}`);
+  }
+
   private async acquire(key: string): Promise<void> {
     const manager = getActiveEntityManager();
     if (!manager) {

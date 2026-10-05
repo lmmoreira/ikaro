@@ -14,6 +14,7 @@ import { SERVICE_INTAKE_SCHEMA_REPOSITORY } from './application/ports/service-in
 import { BOOKING_QUOTE_REVISION_REPOSITORY } from './application/ports/booking-quote-revision-repository.port';
 import { BOOKING_STATUS_TRANSITION_REPOSITORY } from './application/ports/booking-status-transition-repository.port';
 import { RECURRING_BOOKING_SCHEDULE_REPOSITORY } from './application/ports/recurring-booking-schedule-repository.port';
+import { AVAILABILITY_ALERT_REPOSITORY } from './application/ports/availability-alert-repository.port';
 import { FUTURE_COMMITMENT_EXCEPTION_REPOSITORY } from './application/ports/future-commitment-exception-repository.port';
 import { RaiseFutureCommitmentExceptionsForResourceUseCase } from './application/use-cases/raise-future-commitment-exceptions-for-resource.use-case';
 import { ListFutureCommitmentExceptionsUseCase } from './application/use-cases/list-future-commitment-exceptions.use-case';
@@ -25,9 +26,12 @@ import { TypeOrmFutureCommitmentExceptionRepository } from './infrastructure/rep
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { ExpireRecurringBookingScheduleApprovalsJob } from './application/jobs/expire-recurring-schedule-approvals.job';
+import { ExpireAvailabilityAlertsJob } from './application/jobs/expire-availability-alerts.job';
 import { ResourceOccupancyRetentionPurgeJob } from './application/jobs/resource-occupancy-retention-purge.job';
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
 import { ExpireRecurringScheduleApprovalsTriggerHandler } from './infrastructure/events/expire-recurring-schedule-approvals-trigger.handler';
+import { ExpireAvailabilityAlertsTriggerHandler } from './infrastructure/events/expire-availability-alerts-trigger.handler';
+import { AvailabilityAlertEventsHandler } from './infrastructure/events/availability-alert-events.handler';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
 import { ResourceOccupancyRetentionPurgeTriggerHandler } from './infrastructure/events/resource-occupancy-retention-purge-trigger.handler';
 import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
@@ -89,6 +93,11 @@ import { ApproveRecurringBookingScheduleUseCase } from './application/use-cases/
 import { RejectRecurringBookingScheduleUseCase } from './application/use-cases/reject-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from './application/use-cases/list-recurring-booking-schedules.use-case';
 import { LogRecurringBookingScheduleEventUseCase } from './application/use-cases/log-recurring-booking-schedule-event.use-case';
+import { CreateAvailabilityAlertUseCase } from './application/use-cases/create-availability-alert.use-case';
+import { ListAvailabilityAlertsUseCase } from './application/use-cases/list-availability-alerts.use-case';
+import { UpdateAvailabilityAlertUseCase } from './application/use-cases/update-availability-alert.use-case';
+import { CancelAvailabilityAlertUseCase } from './application/use-cases/cancel-availability-alert.use-case';
+import { LogAvailabilityAlertEventUseCase } from './application/use-cases/log-availability-alert-event.use-case';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
 import { BookingQuoteService } from './application/services/booking-quote.service';
 import { BookingIntakeValidationService } from './application/services/booking-intake-validation.service';
@@ -109,6 +118,7 @@ import { TypeOrmServiceIntakeSchemaRepository } from './infrastructure/repositor
 import { TypeOrmBookingQuoteRevisionRepository } from './infrastructure/repositories/typeorm-booking-quote-revision.repository';
 import { TypeOrmBookingStatusTransitionRepository } from './infrastructure/repositories/typeorm-booking-status-transition.repository';
 import { TypeOrmRecurringBookingScheduleRepository } from './infrastructure/repositories/typeorm-recurring-booking-schedule.repository';
+import { TypeOrmAvailabilityAlertRepository } from './infrastructure/repositories/typeorm-availability-alert.repository';
 import { AvailabilityService } from './domain/services/availability.service';
 
 // Split out of booking.module.ts to stay under docs/CODE_STANDARDS.md's file-length limit — a
@@ -130,6 +140,7 @@ export const bookingModuleProviders: Provider[] = [
     provide: RECURRING_BOOKING_SCHEDULE_REPOSITORY,
     useClass: TypeOrmRecurringBookingScheduleRepository,
   },
+  { provide: AVAILABILITY_ALERT_REPOSITORY, useClass: TypeOrmAvailabilityAlertRepository },
   {
     provide: FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
     useClass: TypeOrmFutureCommitmentExceptionRepository,
@@ -147,10 +158,12 @@ export const bookingModuleProviders: Provider[] = [
   AvailabilityService,
   BookingReminderJob,
   ExpireRecurringBookingScheduleApprovalsJob,
+  ExpireAvailabilityAlertsJob,
   AdminScheduleReminderJob,
   ResourceOccupancyRetentionPurgeJob,
   BookingReminderTriggerHandler,
   ExpireRecurringScheduleApprovalsTriggerHandler,
+  ExpireAvailabilityAlertsTriggerHandler,
   AdminScheduleReminderTriggerHandler,
   ResourceOccupancyRetentionPurgeTriggerHandler,
   BookingSlotConflictService,
@@ -216,6 +229,12 @@ export const bookingModuleProviders: Provider[] = [
   ListRecurringBookingSchedulesUseCase,
   LogRecurringBookingScheduleEventUseCase,
   RecurringBookingScheduleEventsHandler,
+  CreateAvailabilityAlertUseCase,
+  ListAvailabilityAlertsUseCase,
+  UpdateAvailabilityAlertUseCase,
+  CancelAvailabilityAlertUseCase,
+  LogAvailabilityAlertEventUseCase,
+  AvailabilityAlertEventsHandler,
   RaiseFutureCommitmentExceptionsForResourceUseCase,
   ListFutureCommitmentExceptionsUseCase,
   ResolveFutureCommitmentExceptionsUseCase,

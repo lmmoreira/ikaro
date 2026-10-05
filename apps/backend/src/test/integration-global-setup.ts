@@ -27,6 +27,7 @@ import { BookingStatusTransitionEntity } from '../contexts/booking/infrastructur
 import { RecurringBookingScheduleEntity } from '../contexts/booking/infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
 import { FutureCommitmentExceptionEntity } from '../contexts/booking/infrastructure/entities/future-commitment-exception.entity';
+import { AvailabilityAlertEntity } from '../contexts/booking/infrastructure/entities/availability-alert.entity';
 import { BookingAttendeeEntity } from '../contexts/booking/infrastructure/entities/booking-attendee.entity';
 import { BookingLineResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../contexts/booking/infrastructure/entities/resource-occupancy.entity';
@@ -52,6 +53,7 @@ import { DropRecurringBookingScheduleExceptions1748500000021 } from '../contexts
 import { AddEndedToRecurringBookingScheduleStatus1748500000022 } from '../contexts/booking/infrastructure/migrations/1748500000022-AddEndedToRecurringBookingScheduleStatus';
 import { CreateBookingStatusTransitions1748500000023 } from '../contexts/booking/infrastructure/migrations/1748500000023-CreateBookingStatusTransitions';
 import { BackfillLeggedServiceDurationToSpan1748500000024 } from '../contexts/booking/infrastructure/migrations/1748500000024-BackfillLeggedServiceDurationToSpan';
+import { CreateAvailabilityAlerts1748500000026 } from '../contexts/booking/infrastructure/migrations/1748500000026-CreateAvailabilityAlerts';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -166,6 +168,7 @@ export default async function globalSetup(): Promise<void> {
       RecurringBookingScheduleEntity,
       RecurringBookingScheduleResourceAssignmentEntity,
       FutureCommitmentExceptionEntity,
+      AvailabilityAlertEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
@@ -223,6 +226,7 @@ export default async function globalSetup(): Promise<void> {
       AddEndedToRecurringBookingScheduleStatus1748500000022,
       CreateBookingStatusTransitions1748500000023,
       BackfillLeggedServiceDurationToSpan1748500000024,
+      CreateAvailabilityAlerts1748500000026,
     ],
     synchronize: false,
     migrationsRun: false,

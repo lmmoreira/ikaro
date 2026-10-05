@@ -369,7 +369,7 @@ Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s
 1. **`CreateAvailabilityAlertUseCase`** (UC-072): validates exactly one criteria representation set (`ONE_TIME_RANGE` xor `WEEKLY_PREFERENCE`), persists, publishes `AvailabilityAlertCreated`.
 2. **`ListAvailabilityAlertsUseCase`** (UC-076): `findByCustomer(tenantId, customerId)`.
 3. **`UpdateAvailabilityAlertUseCase`** (UC-076): re-validates criteria shape, rejects edit on an already-`NOTIFIED`/`EXPIRED` alert (UC-076 A1).
-4. **`CancelAvailabilityAlertUseCase`** (UC-072 A2 / UC-076): sets `status = CANCELLED`, publishes `AvailabilityAlertCancelled`. Idempotent on an already-`CANCELLED` alert; `422` `BOOKING_ALERT_NOT_EDITABLE` on `NOTIFIED`/`EXPIRED`.
+4. **`CancelAvailabilityAlertUseCase`** (UC-072 A2 / UC-076): sets `status = CANCELLED`, publishes `AvailabilityAlertCancelled`. Idempotent on an already-`CANCELLED` alert; `409` `BOOKING_ALERT_NOT_EDITABLE` on `NOTIFIED`/`EXPIRED` (a state conflict, like `BOOKING_RECURRING_SCHEDULE_NOT_ACTIVE`).
 5. **`ExpireAvailabilityAlertsJob`** (scheduled; shape of `ExpireRecurringBookingScheduleApprovalsJob`): one pass over active tenants, each alert in its own transaction with failures logged and retried next run, "now" taken against `expiresAt` (a UTC instant). Finds `ACTIVE` alerts past `expiresAt`, transitions to `EXPIRED`, publishes `AvailabilityAlertExpired` per alert. Triggered by a new `ExpireAvailabilityAlertsTriggerHandler` registered on the existing `CRON_REMINDERS_TRIGGER` — **no new Cloud Scheduler job**.
 6. **`LogAvailabilityAlertEventUseCase`** + `availability-alert-events.handler.ts`: audit-log-only subscriber for the four events. `UpdateAvailabilityAlertUseCase` publishes `AvailabilityAlertUpdated`.
 
