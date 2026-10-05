@@ -799,9 +799,9 @@ test.describe('Held time after a booking (M18-S10)', () => {
   // A booking block lists every resource assigned to it, so matching a column by its text would
   // also match the other resource's column — match the column header exactly instead.
   function columnOf(page: Page, resourceName: string): Locator {
-    return page
-      .getByTestId('schedule-resource-column')
-      .filter({ has: page.getByText(resourceName, { exact: true }) });
+    return page.getByTestId('schedule-resource-column').filter({
+      has: page.getByTestId('schedule-resource-column-name').filter({ hasText: resourceName }),
+    });
   }
 
   async function checkResources(page: Page, names: readonly string[]): Promise<void> {
