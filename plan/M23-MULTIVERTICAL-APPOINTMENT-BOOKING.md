@@ -949,7 +949,7 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 
 ---
 
-### M23-S11b — Guest/customer booking flow frontend, part 2 — bundle and journey confirmation, variable duration
+### M23-S11b — Guest/customer booking flow frontend, part 2 — bundle and journey confirmation, variable duration ✅ Done
 
 **Agent:** `backend-ts` + `frontend-ts` (a small backend prerequisite lands first, as its own commit)
 **Complexity:** L
@@ -1012,6 +1012,7 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
   - [ ] seeded conflicts produce the bundle, leg and duration error screens with their catalogue copy and the selections retained
   - [ ] step indicator reads "N de M" correctly for duration (5), duration + intake (6) and a journey (grows by one per leg that has a choice)
   - [ ] a real-browser check against one dark-themed and one light-themed tenant for the new screens; axe scans on each new step
+  - ⚠️ Checked under a dark `--ba-*` palette applied to the real page, not a stored dark tenant (changing a shared tenant's branding races with parallel specs) — accepted limit, 2026-10-05
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
