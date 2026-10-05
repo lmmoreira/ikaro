@@ -446,7 +446,9 @@ describe('useScheduleCoreData', () => {
                 resourceId: 'res-1',
                 name: 'Camila Duarte',
                 type: 'STAFF',
-                blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+                blocks: [
+                  { startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1', gap: null },
+                ],
               },
             ],
           },

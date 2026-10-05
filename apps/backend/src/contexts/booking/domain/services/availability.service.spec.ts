@@ -610,6 +610,30 @@ describe('AvailabilityService', () => {
     });
   });
 
+  describe('resolveFlatGap (M18-S10)', () => {
+    it.each([
+      [60, 30, { minutes: 60, source: 'SERVICE_BUFFER' }],
+      [10, 20, { minutes: 20, source: 'RESOURCE_TURNOVER' }],
+      [30, 30, { minutes: 30, source: 'SERVICE_BUFFER' }],
+      [0, 15, { minutes: 15, source: 'RESOURCE_TURNOVER' }],
+      [15, 0, { minutes: 15, source: 'SERVICE_BUFFER' }],
+      [0, 0, null],
+    ])('buffer %i / turnover %i resolves to %j', (buffer, turnover, expected) => {
+      expect(svc.resolveFlatGap(buffer, turnover)).toEqual(expected);
+    });
+
+    it('always agrees with effectiveFlatGapMinutes', () => {
+      for (const [b, t] of [
+        [0, 0],
+        [5, 9],
+        [9, 5],
+        [7, 7],
+      ]) {
+        expect(svc.resolveFlatGap(b, t)?.minutes ?? 0).toBe(svc.effectiveFlatGapMinutes(b, t));
+      }
+    });
+  });
+
   describe('computeLegSpans (UC-059)', () => {
     it('applies per-leg resource turnover and transitionGapAfterMinutes between legs', () => {
       const start = new Date('2026-01-01T12:00:00.000Z');

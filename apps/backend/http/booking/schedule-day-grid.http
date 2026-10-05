@@ -19,6 +19,10 @@
 ###
 
 ### Get the day grid
+# Each block carries `gap` (M18-S10): the time the resource stays held after the booking and why —
+#   { "source": "SERVICE_BUFFER" | "RESOURCE_TURNOVER", "minutes": 60, "serviceName": "Polimento" | null }
+# `serviceName` is set only for SERVICE_BUFFER. `gap` is null for a row with no recorded gap
+# (no gap, or written before the gap columns existed) and for a CLASS_SESSION.
 GET {{baseUrl}}/schedule/day-grid?date=2026-06-01
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}

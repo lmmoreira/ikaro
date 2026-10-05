@@ -921,11 +921,12 @@ Returns:
 - **Main Flow:**
   1. Manager checks one or more resources in "Filtrar recurso".
   2. System renders one column **per checked resource only** (not every active resource) for the selected day: bookings from `GET /schedule/day-grid` filtered client-side to the checked resource ids, merged with that resource's closures/openings from the existing resource-scoped fetch (`M21-S05`, unchanged).
-  3. Each cell shows a booking/session/closure/opening block, reusing the same visual block as the single-resource timeline.
+  3. Each cell shows a booking/session/closure/opening block, reusing the same visual block as the single-resource timeline. Directly below each booking, a distinct amber hatched, non-clickable segment shows the time that resource stays held after the booking (M18-S10): line 1 `{resource} · até {HH:MM}`, line 2 the origin — `Buffer do serviço {service} · {N} min` or `Virada do recurso · {N} min` — with the full sentence as tooltip. A service buffer appears in every resource column of the booking; a resource turnover only in the column of the resource that causes it.
   4. Manager clicks any block to drill into its detail.
 - **Alternative Flows:**
   - **A1: Manager checks many resources at once** → Horizontal scroll across the resulting columns; no separate narrowing control — the checkbox filter itself is the only narrowing mechanism, by design (a tenant-type filter was considered and rejected — see the redesign note above).
   - **A2: Manager unchecks every resource** → Reverts to the unchanged single tenant-wide timeline (not this UC).
+  - **A3: A booking made before the origin was recorded** → The held segment still shows, labeled `{resource} · até {HH:MM}` + `Origem não registrada` — never a guessed cause. A held time that crosses midnight is not drawn as a block; the next day shows the fixed "Ocupado até" banner.
 - **Postconditions:** None (read-only).
 - **Events Triggered:** None.
 
@@ -957,8 +958,10 @@ Returns:
 - **Main Flow:**
   1. For a flat service: effective gap before the next booking on a resource = `max(service.bufferAfterMinutes, resource.turnoverMinutes)`.
   2. For a legged service: each leg's own resource turnover applies at that leg's resource; `transitionGapAfterMinutes` is added between legs regardless of resource turnover.
+  3. The origin of the flat gap (`SERVICE_BUFFER` or `RESOURCE_TURNOVER`, a tie going to the service) is persisted with the occupancy row when it is written, so the manager's schedule can say why a resource is held (UC-057).
 - **Alternative Flows:**
   - **A1: Resource has `turnoverMinutes = 0` and the service has no legs (or all gaps are 0)** → No extra gap beyond `service.bufferAfterMinutes`; behaves identically to today's single-number buffer model.
+  - **A2: A booking is reassigned to another resource (UC-077)** → The gap is recomputed from the target resource's turnover (and the line's service buffer), the occupancy window and origin are rewritten, and a target whose longer window would collide is not a valid target.
 - **Postconditions:** Candidate slots correctly reflect both cleanup time and customer transition time, without conflating the two.
 - **Events Triggered:** None.
 

@@ -6,7 +6,10 @@ import type {
   TenantBusinessHours,
 } from '@ikaro/types';
 import { getDayHoursForDate, timeToMinutes } from '@/features/booking/schedule/date-utils';
-import type { TimelineEvent } from '@/features/booking/schedule/schedule-timeline-events';
+import type {
+  BufferTail,
+  TimelineEvent,
+} from '@/features/booking/schedule/schedule-timeline-events';
 import {
   findTenantWideOpening,
   resolveActiveTimelineHours,
@@ -20,6 +23,8 @@ import {
 
 export type {
   BookingTimelineEvent,
+  BufferTail,
+  BufferTimelineEvent,
   ClosureTimelineEvent,
   OpeningTimelineEvent,
   TimelineEvent,
@@ -81,11 +86,15 @@ export interface TimelineLayoutInput {
   // TD44-S2 round 3, not from this map).
   readonly selectedResourceIdSet?: ReadonlySet<string>;
   readonly bookingResourceNamesById?: ReadonlyMap<string, readonly string[]>;
+  // M18-S10 — the held tails of the day-grid columns board (schedule-resource-columns.ts); omitted
+  // by every other caller, so the merged timeline and Week view are unchanged.
+  readonly bufferTails?: readonly BufferTail[];
 }
 
 const EMPTY_SELECTED_RESOURCE_IDS: ReadonlySet<string> = new Set();
 const EMPTY_BOOKING_RESOURCE_NAMES_BY_ID: ReadonlyMap<string, readonly string[]> = new Map();
 const EMPTY_RESOURCE_NAME_BY_ID: ReadonlyMap<string, string> = new Map();
+const EMPTY_BUFFER_TAILS: readonly BufferTail[] = [];
 
 interface TimelineWindow {
   readonly timelineStartMinutes: number;
@@ -106,6 +115,7 @@ interface TimelineWindowFromActiveInput {
   readonly resourceNameById: ReadonlyMap<string, string>;
   readonly selectedResourceIdSet: ReadonlySet<string>;
   readonly bookingResourceNamesById: ReadonlyMap<string, readonly string[]>;
+  readonly bufferTails: readonly BufferTail[];
 }
 
 // Extracted from buildTimelineEvents below purely to stay under the 40-line function cap once
@@ -123,6 +133,7 @@ function buildTimelineWindowFromActive(input: TimelineWindowFromActiveInput): Ti
     resourceNameById,
     selectedResourceIdSet,
     bookingResourceNamesById,
+    bufferTails,
   } = input;
 
   const timelineStartMinutes = timeToMinutes(active.activeStartTime);
@@ -140,6 +151,7 @@ function buildTimelineWindowFromActive(input: TimelineWindowFromActiveInput): Ti
     resourceNameById,
     selectedResourceIdSet,
     bookingResourceNamesById,
+    bufferTails,
   );
 
   return {
@@ -164,6 +176,7 @@ export function buildTimelineEvents({
   resourceNameById = EMPTY_RESOURCE_NAME_BY_ID,
   selectedResourceIdSet = EMPTY_SELECTED_RESOURCE_IDS,
   bookingResourceNamesById = EMPTY_BOOKING_RESOURCE_NAMES_BY_ID,
+  bufferTails = EMPTY_BUFFER_TAILS,
 }: TimelineLayoutInput): TimelineWindow {
   const active = resolveActiveTimelineHours(selectedDateKey, businessHours, closures, openings);
   const slotHeight = getSlotHeight(slotGranularityMinutes, slotHeightScale);
@@ -189,6 +202,7 @@ export function buildTimelineEvents({
     resourceNameById,
     selectedResourceIdSet,
     bookingResourceNamesById,
+    bufferTails,
   });
 }
 

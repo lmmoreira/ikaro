@@ -100,6 +100,7 @@ describe('buildResourceColumns', () => {
               endsAt: '2026-08-17T12:30:00.000Z',
               kind: 'BOOKING',
               refId: 'booking-camila',
+              gap: null,
             },
           ],
         }),
@@ -112,6 +113,7 @@ describe('buildResourceColumns', () => {
               endsAt: '2026-08-17T14:30:00.000Z',
               kind: 'BOOKING',
               refId: 'booking-bruno',
+              gap: null,
             },
           ],
         }),
@@ -222,6 +224,7 @@ describe('buildResourceColumns', () => {
               endsAt: '2026-08-17T12:30:00.000Z',
               kind: 'BOOKING',
               refId: 'booking-missing',
+              gap: null,
             },
           ],
         }),
@@ -257,6 +260,7 @@ describe('buildResourceColumns', () => {
               endsAt: '2026-08-17T12:30:00.000Z',
               kind: 'BOOKING',
               refId: 'booking-pending',
+              gap: null,
             },
           ],
         }),
@@ -291,6 +295,7 @@ describe('buildResourceColumns', () => {
               endsAt: '2026-08-17T12:30:00.000Z',
               kind: 'BOOKING',
               refId: 'booking-pending',
+              gap: null,
             },
           ],
         }),
@@ -322,6 +327,7 @@ describe('buildResourceColumns', () => {
               endsAt: '2026-08-17T12:30:00.000Z',
               kind: 'CLASS_SESSION',
               refId: 'session-1',
+              gap: null,
             },
           ],
         }),
@@ -438,6 +444,7 @@ describe('buildResourceColumns', () => {
       endsAt: '2026-08-18T03:30:00.000Z', // 2026-08-18T00:30 local
       kind: 'BOOKING' as const,
       refId: 'booking-spillover',
+      gap: null,
     };
 
     it("routes a booking whose own day differs from the column's day into spilloverOccupancy, not the grid", () => {
@@ -488,6 +495,7 @@ describe('buildResourceColumns', () => {
                 endsAt: '2026-08-17T12:30:00.000Z',
                 kind: 'BOOKING',
                 refId: 'booking-1',
+                gap: null,
               },
             ],
           }),
@@ -517,6 +525,7 @@ describe('buildResourceColumns', () => {
                 endsAt: '2026-08-17T03:30:00.000Z', // 2026-08-17T00:30 local
                 kind: 'BOOKING',
                 refId: 'booking-sunday',
+                gap: null,
               },
             ],
           }),
@@ -536,6 +545,143 @@ describe('buildResourceColumns', () => {
         { bookingId: 'booking-sunday', contactName: 'Maria Souza', endsAtLocalTime: '00:30' },
       ]);
       expect(columns[0].timeline.events.filter((e) => e.kind === 'booking')).toHaveLength(0);
+    });
+  });
+
+  describe('held tail after a booking (M18-S10)', () => {
+    // 09:00–09:30 local (12:00Z–12:30Z); the day-grid block runs to endsAt.
+    const booking = makeBooking({ bookingId: 'booking-1', totalDurationMins: 30 });
+    const bufferGap = { source: 'SERVICE_BUFFER', minutes: 30, serviceName: 'Polimento' } as const;
+
+    function tailEvents(
+      blocks: DayGridColumn['blocks'],
+      overrides: Partial<Parameters<typeof buildResourceColumns>[0]> = {},
+    ) {
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedResourceIds: new Set(['res-walace']),
+        resourceNameById: new Map([['res-walace', 'Walace']]),
+        dayGridColumns: [makeDayGridColumn({ resourceId: 'res-walace', blocks })],
+        bookings: [booking],
+        closures: [],
+        openings: [],
+        ...overrides,
+      });
+      return columns[0].timeline.events.filter((event) => event.kind === 'buffer');
+    }
+
+    const block = (
+      endsAt: string,
+      gap: DayGridColumn['blocks'][number]['gap'],
+    ): DayGridColumn['blocks'][number] => ({
+      startsAt: '2026-08-17T12:00:00.000Z',
+      endsAt,
+      kind: 'BOOKING',
+      refId: 'booking-1',
+      gap,
+    });
+
+    it('derives the tail as block end minus booking end, naming the resource and the origin', () => {
+      const [tail] = tailEvents([block('2026-08-17T13:00:00.000Z', bufferGap)]);
+
+      expect(tail).toMatchObject({
+        kind: 'buffer',
+        startMinutes: 570, // 09:30
+        endMinutes: 600, // 10:00
+        resourceName: 'Walace',
+        releasesAtLocalTime: '10:00',
+        gap: bufferGap,
+        serviceName: 'Polimento',
+      });
+    });
+
+    it('keeps the geometry from endsAt when gap.minutes disagrees, and still labels from gap', () => {
+      const [tail] = tailEvents([block('2026-08-17T13:30:00.000Z', { ...bufferGap, minutes: 30 })]);
+
+      expect(tail.endMinutes - tail.startMinutes).toBe(60);
+      expect(tail.kind === 'buffer' && tail.gap?.minutes).toBe(30);
+    });
+
+    it('draws no tail when the block ends with the booking (zero) or before it (negative)', () => {
+      expect(tailEvents([block('2026-08-17T12:30:00.000Z', null)])).toHaveLength(0);
+      expect(tailEvents([block('2026-08-17T12:15:00.000Z', null)])).toHaveLength(0);
+    });
+
+    it('labels a legacy row without a recorded origin (null gap) and falls back to the booking service names', () => {
+      const [tail] = tailEvents([block('2026-08-17T13:00:00.000Z', null)]);
+
+      expect(tail).toMatchObject({ gap: null, serviceName: 'Corte' });
+    });
+
+    it('yields one tail per booking even when several lines produce several blocks on the resource', () => {
+      const tails = tailEvents([
+        block('2026-08-17T12:30:00.000Z', null),
+        block('2026-08-17T13:00:00.000Z', bufferGap),
+      ]);
+
+      expect(tails).toHaveLength(1);
+      expect(tails[0]).toMatchObject({ endMinutes: 600, gap: bufferGap });
+    });
+
+    it('never draws a tail for an unmatched "Ocupado" placeholder', () => {
+      const tails = tailEvents([
+        { ...block('2026-08-17T13:00:00.000Z', bufferGap), refId: 'booking-missing' },
+      ]);
+
+      expect(tails).toHaveLength(0);
+    });
+
+    it('draws no tail for a booking hidden by the status filter', () => {
+      const tails = tailEvents([block('2026-08-17T13:00:00.000Z', bufferGap)], {
+        selectedStatusSet: new Set([BOOKING_STATUS.PENDING]),
+      });
+
+      expect(tails).toHaveLength(0);
+    });
+
+    it('draws no positioned tail when the held time crosses midnight', () => {
+      const lateBooking = makeBooking({
+        bookingId: 'booking-1',
+        scheduledAt: '2026-08-18T01:00:00.000Z', // 22:00 on 08-17 local
+        totalDurationMins: 60,
+      });
+      const tails = tailEvents(
+        [
+          {
+            startsAt: '2026-08-18T01:00:00.000Z',
+            endsAt: '2026-08-18T03:30:00.000Z', // 00:30 on 08-18 local
+            kind: 'BOOKING',
+            refId: 'booking-1',
+            gap: bufferGap,
+          },
+        ],
+        {
+          bookings: [lateBooking],
+          businessHours: makeBusinessHours({ monday: { open: '08:00', close: '23:59' } }),
+        },
+      );
+
+      expect(tails).toHaveLength(0);
+    });
+
+    it('does not let a tail displace the booking from its lane', () => {
+      const columns = buildResourceColumns({
+        ...baseInput,
+        selectedResourceIds: new Set(['res-walace']),
+        resourceNameById: new Map([['res-walace', 'Walace']]),
+        dayGridColumns: [
+          makeDayGridColumn({
+            resourceId: 'res-walace',
+            blocks: [block('2026-08-17T13:00:00.000Z', bufferGap)],
+          }),
+        ],
+        bookings: [booking],
+        closures: [],
+        openings: [],
+      });
+
+      const bookingEvent = columns[0].timeline.events.find((event) => event.kind === 'booking');
+      expect(bookingEvent).toMatchObject({ laneIndex: 0, laneCount: 1 });
     });
   });
 });

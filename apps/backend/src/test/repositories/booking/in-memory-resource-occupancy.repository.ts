@@ -205,6 +205,8 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
         endsAt: row.endsAt,
         lockState: row.lockState,
         holdExpiresAt: row.holdExpiresAt,
+        gapMinutes: row.gapMinutes,
+        gapSource: row.gapSource,
       }));
     return Promise.resolve(rows);
   }

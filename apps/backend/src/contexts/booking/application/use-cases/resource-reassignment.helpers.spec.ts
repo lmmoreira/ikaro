@@ -9,6 +9,7 @@ import {
   FutureCommitmentFixture,
 } from '../../../../test/utils/future-commitment-fixture';
 import { FutureCommitmentExceptionReassignTargetInvalidError } from '../../domain/errors/future-commitment-exception.error';
+import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { reassignBookingResource } from './resource-reassignment.helpers';
@@ -26,6 +27,7 @@ describe('reassignBookingResource', () => {
     resourceRepo: world.resourceRepo,
     occupancyRepo: world.occupancyRepo,
     tenantLock: world.tenantLock,
+    availabilityService: new AvailabilityService(),
   });
 
   // A booking whose one line needs a room AND a piece of equipment (a bundle), with one occupancy
@@ -36,6 +38,7 @@ describe('reassignBookingResource', () => {
     const otherRoom = options.secondRoomUnit ? await world.addResource('Sala 9') : null;
     const service = new ServiceBuilder()
       .withTenantId(TENANT_ID)
+      .withBufferAfterMinutes(0)
       .withResourceRequirements([
         ResourceRequirement.create({
           type: ResourceType.ROOM,
@@ -77,6 +80,8 @@ describe('reassignBookingResource', () => {
       endsAt,
       selectionMode: 'AUTO_ANY' as const,
       isBundleMember: true,
+      gapMinutes: null,
+      gapSource: null,
     });
     await world.occupancyRepo.assign(
       TENANT_ID,
@@ -219,5 +224,134 @@ describe('reassignBookingResource', () => {
         timezone: TIMEZONE,
       }),
     ).rejects.toThrow('no eligible resource');
+  });
+
+  describe('gap recomputation for the target resource (M18-S10)', () => {
+    async function seedSingleRoom(roomTurnover: number, serviceBuffer: number) {
+      const room = await world.addResourceWithTurnover('Sala 1', roomTurnover);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withBufferAfterMinutes(serviceBuffer)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+      await world.serviceRepo.save(service);
+      const startsAt = new Date(Date.now() + 48 * 3_600_000);
+      const lineId = uuidv7();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_ID)
+        .withScheduledAt(startsAt)
+        .withLines([
+          new BookingLineBuilder()
+            .withLineId(lineId)
+            .withTenantId(TENANT_ID)
+            .withServiceId(service.id)
+            .withDurationMinsAtBooking(60)
+            .build(),
+        ])
+        .build();
+      await world.bookingRepo.save(booking);
+      const availability = new AvailabilityService();
+      const gap = availability.resolveFlatGap(serviceBuffer, roomTurnover);
+      await world.occupancyRepo.assign(
+        TENANT_ID,
+        lineId,
+        [
+          {
+            resourceId: room.id,
+            resourceType: room.type,
+            resourceName: room.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt,
+            endsAt: new Date(startsAt.getTime() + 3_600_000 + (gap?.minutes ?? 0) * 60_000),
+            gapMinutes: gap?.minutes ?? null,
+            gapSource: gap?.source ?? null,
+            selectionMode: 'AUTO_ANY' as const,
+            isBundleMember: false,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+      return { booking, service, room, startsAt, lineId };
+    }
+
+    const reassign = (seed: Awaited<ReturnType<typeof seedSingleRoom>>, targetId: string) =>
+      reassignBookingResource(deps(), {
+        tenantId: TENANT_ID,
+        booking: seed.booking,
+        serviceMap: new Map([[seed.service.id, seed.service]]),
+        sourceResourceId: seed.room.id,
+        target: { resourceId: targetId },
+        timezone: TIMEZONE,
+      });
+
+    it("rewrites ends_at and the origin from the target's turnover when it is the larger gap", async () => {
+      const seed = await seedSingleRoom(30, 0);
+      const target = await world.addResourceWithTurnover('Sala 2', 15);
+
+      await reassign(seed, target.id);
+
+      const [row] = await occupancy([seed.lineId]);
+      expect(row.resourceId).toBe(target.id);
+      expect(row.endsAt).toEqual(new Date(seed.startsAt.getTime() + 75 * 60_000));
+      expect(row.gapMinutes).toBe(15);
+      expect(row.gapSource).toBe('RESOURCE_TURNOVER');
+    });
+
+    it('turns a turnover gap into no gap when the target has no turnover', async () => {
+      const seed = await seedSingleRoom(30, 0);
+      const target = await world.addResourceWithTurnover('Sala 2', 0);
+
+      await reassign(seed, target.id);
+
+      const [row] = await occupancy([seed.lineId]);
+      expect(row.endsAt).toEqual(new Date(seed.startsAt.getTime() + 60 * 60_000));
+      expect(row.gapMinutes).toBeNull();
+      expect(row.gapSource).toBeNull();
+    });
+
+    it('keeps a service buffer that still dominates the target turnover', async () => {
+      const seed = await seedSingleRoom(0, 60);
+      const target = await world.addResourceWithTurnover('Sala 2', 20);
+
+      await reassign(seed, target.id);
+
+      const [row] = await occupancy([seed.lineId]);
+      expect(row.endsAt).toEqual(new Date(seed.startsAt.getTime() + 120 * 60_000));
+      expect(row.gapMinutes).toBe(60);
+      expect(row.gapSource).toBe('SERVICE_BUFFER');
+    });
+
+    it("refuses a target whose recomputed window collides with that target's next booking", async () => {
+      const seed = await seedSingleRoom(0, 0);
+      const target = await world.addResourceWithTurnover('Sala 2', 45);
+      // Free for the raw hour, busy 30 minutes after it: only the recomputed 45-minute gap hits it.
+      await world.occupancyRepo.assign(
+        TENANT_ID,
+        uuidv7(),
+        [
+          {
+            resourceId: target.id,
+            resourceType: target.type,
+            resourceName: target.name,
+            legIndex: null,
+            quantityPosition: null,
+            startsAt: new Date(seed.startsAt.getTime() + 90 * 60_000),
+            endsAt: new Date(seed.startsAt.getTime() + 150 * 60_000),
+            gapMinutes: null,
+            gapSource: null,
+            selectionMode: 'AUTO_ANY' as const,
+            isBundleMember: false,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+
+      await expect(reassign(seed, target.id)).rejects.toThrow('busy at this time');
+    });
   });
 });

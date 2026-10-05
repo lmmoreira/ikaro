@@ -591,4 +591,29 @@ describe('renderTimelineEvent', () => {
     expect(block.style.left).toBe('50%');
     expect(block.style.width).toBe('50%');
   });
+
+  it('renders a buffer event as a non-interactive held-time note (M18-S10)', () => {
+    renderWithIntl(
+      <Host
+        event={{
+          kind: 'buffer',
+          id: 'buffer-booking-1',
+          startMinutes: 570,
+          endMinutes: 600,
+          title: 'Walace',
+          subtitle: '',
+          resourceName: 'Walace',
+          releasesAtLocalTime: '10:00',
+          gap: { source: 'RESOURCE_TURNOVER', minutes: 30, serviceName: null },
+          serviceName: 'Polimento',
+          laneIndex: 0,
+          laneCount: 1,
+        }}
+        props={baseProps()}
+      />,
+    );
+
+    expect(screen.getByRole('note')).toHaveTextContent('Walace · até 10:00');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
 });

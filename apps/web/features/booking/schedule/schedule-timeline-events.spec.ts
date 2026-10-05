@@ -5,6 +5,7 @@ import {
   assignLanes,
   assignLanesToEventGroup,
   buildBookingTimelineEvent,
+  buildBufferTimelineEvent,
   buildClosureTimelineEvent,
   buildOpeningTimelineEvent,
   getBookingDateKey,
@@ -329,5 +330,30 @@ describe('assignLanes', () => {
     expect(assigned.every((e) => e.laneCount === 2)).toBe(true);
     expect(new Set(assigned.map((e) => e.laneIndex))).toEqual(new Set([0, 1]));
     expect(assigned.map((e) => e.resourceName).sort()).toEqual(['Leonardo', 'Walace']);
+  });
+});
+
+describe('buildBufferTimelineEvent (M18-S10)', () => {
+  it('builds a full-width buffer event that carries the resource, release time and origin', () => {
+    const event = buildBufferTimelineEvent({
+      bookingId: 'booking-1',
+      startMinutes: 570,
+      endMinutes: 600,
+      resourceName: 'Walace',
+      releasesAtLocalTime: '10:00',
+      gap: { source: 'RESOURCE_TURNOVER', minutes: 30, serviceName: null },
+      serviceName: 'Polimento',
+    });
+
+    expect(event).toMatchObject({
+      kind: 'buffer',
+      id: 'buffer-booking-1',
+      startMinutes: 570,
+      endMinutes: 600,
+      resourceName: 'Walace',
+      releasesAtLocalTime: '10:00',
+      laneIndex: 0,
+      laneCount: 1,
+    });
   });
 });

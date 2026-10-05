@@ -13,7 +13,13 @@ import {
   uniqueLabel,
 } from '@/e2e/helpers/schedule';
 import { createResource, deactivateResource } from '@/e2e/helpers/booking';
-import { createService, deactivateService, makeUniqueServiceName } from '@/e2e/helpers/services';
+import {
+  createService,
+  deactivateService,
+  makeUniqueServiceName,
+  setResourceRequirements,
+  updateService,
+} from '@/e2e/helpers/services';
 import { inviteStaff } from '@/e2e/helpers/staff';
 import { BFF_URL, WEB_INTERNAL_KEY } from '@/e2e/helpers/auth/shared';
 
@@ -722,6 +728,145 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resource.id);
+    }
+  });
+});
+
+test.describe('Held time after a booking (M18-S10)', () => {
+  // A real booking on brand-new, uniquely named resources and a far-future date, so nothing else
+  // can occupy the slot (CLAUDE.md §7 fixed-slot rule) and the gap is written by the real create
+  // path. The service needs a ROOM and an EQUIPMENT resource so one booking holds two columns.
+  interface HeldBooking {
+    readonly dateKey: string;
+    readonly serviceName: string;
+    readonly room: { readonly id: string; readonly name: string };
+    readonly equipment: { readonly id: string; readonly name: string };
+    readonly cleanup: () => Promise<void>;
+  }
+
+  async function bookWithGap(
+    page: Page,
+    options: { bufferAfterMinutes: number; roomTurnoverMinutes: number; daysAhead: number },
+  ): Promise<HeldBooking> {
+    const room = await createResource(page, {
+      type: 'ROOM',
+      name: uniqueLabel('E2E Sala Held'),
+      turnoverMinutes: options.roomTurnoverMinutes,
+    });
+    const equipment = await createResource(page, {
+      type: 'EQUIPMENT',
+      name: uniqueLabel('E2E Equip Held'),
+    });
+    const serviceName = makeUniqueServiceName('e2e-held');
+    const service = await createService(page, {
+      name: serviceName,
+      priceAmount: 100,
+      durationMinutes: 30,
+      loyaltyPointsValue: 5,
+      isActive: true,
+    });
+    await updateService(page, service.serviceId, {
+      bufferAfterMinutes: options.bufferAfterMinutes,
+    });
+    await setResourceRequirements(page, service.serviceId, [
+      { type: 'ROOM', selectionMode: 'AUTO_FUNGIBLE_POOL', resourcePoolIds: [room.id] },
+      { type: 'EQUIPMENT', selectionMode: 'AUTO_FUNGIBLE_POOL', resourcePoolIds: [equipment.id] },
+    ]);
+
+    const dateKey = nextOpenDateKey(options.daysAhead);
+    await createScheduleBooking(page, {
+      dateKey,
+      contactName: uniqueLabel('E2E Held'),
+      contactEmail: uniqueTestEmail('schedule-held'),
+      approved: true,
+      time: '11:00',
+      serviceIds: [service.serviceId],
+    });
+
+    return {
+      dateKey,
+      serviceName,
+      room,
+      equipment,
+      cleanup: async () => {
+        await deactivateService(page, service.serviceId);
+        await deactivateResource(page, room.id);
+        await deactivateResource(page, equipment.id);
+      },
+    };
+  }
+
+  async function checkResources(page: Page, names: readonly string[]): Promise<void> {
+    await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+    for (const name of names) {
+      await page.getByRole('checkbox', { name }).check();
+    }
+    await page.getByRole('button', { name: 'Fechar' }).click();
+  }
+
+  test('a service buffer holds every resource of the booking and says so in each column', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+    const held = await bookWithGap(page, {
+      bufferAfterMinutes: 30,
+      roomTurnoverMinutes: 0,
+      daysAhead: 160,
+    });
+
+    try {
+      await page.goto(scheduleRoute(held.dateKey));
+      await switchToDayView(page);
+      await checkResources(page, [held.room.name, held.equipment.name]);
+
+      for (const resource of [held.room, held.equipment]) {
+        const column = page
+          .getByTestId('schedule-resource-column')
+          .filter({ hasText: resource.name });
+        const segment = column.getByRole('note');
+        await expect(segment).toContainText(`${resource.name} · até 12:00`);
+        await expect(segment).toContainText(`Buffer do serviço ${held.serviceName} · 30 min`);
+      }
+    } finally {
+      await held.cleanup();
+    }
+  });
+
+  test('a resource turnover holds only that resource, and the segment still names it when it is the only one checked', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+    const held = await bookWithGap(page, {
+      bufferAfterMinutes: 0,
+      roomTurnoverMinutes: 30,
+      daysAhead: 161,
+    });
+
+    try {
+      await page.goto(scheduleRoute(held.dateKey));
+      await switchToDayView(page);
+      await checkResources(page, [held.room.name, held.equipment.name]);
+
+      const roomColumn = page
+        .getByTestId('schedule-resource-column')
+        .filter({ hasText: held.room.name });
+      const equipmentColumn = page
+        .getByTestId('schedule-resource-column')
+        .filter({ hasText: held.equipment.name });
+      await expect(roomColumn.getByRole('note')).toContainText(`${held.room.name} · até 12:00`);
+      await expect(roomColumn.getByRole('note')).toContainText('Virada do recurso · 30 min');
+      // The equipment is already free at the end of the booking: no held segment at all.
+      await expect(equipmentColumn.getByRole('note')).toHaveCount(0);
+
+      // Uncheck the equipment: only the room is left, and its segment still names it.
+      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+      await page.getByRole('checkbox', { name: held.equipment.name }).uncheck();
+      await page.getByRole('button', { name: 'Fechar' }).click();
+      await expect(page.getByTestId('schedule-resource-column')).toHaveCount(1);
+      await expect(page.getByRole('note')).toContainText(`${held.room.name} · até 12:00`);
+      await expect(page.getByRole('note')).toContainText('Virada do recurso · 30 min');
+    } finally {
+      await held.cleanup();
     }
   });
 });

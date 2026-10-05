@@ -37,6 +37,8 @@ Content-Type: application/json
 ###
 
 ### Get the day grid
+# Pass-through of the backend response; each block carries `gap` (M18-S10) — see
+# apps/backend/http/booking/schedule-day-grid.http for its shape.
 GET {{bffUrl}}/v1/schedule/day-grid?date=2026-06-01
 Authorization: Bearer {{managerToken}}
 

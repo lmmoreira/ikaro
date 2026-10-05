@@ -163,6 +163,8 @@ describe('BookingLifecycleController', () => {
         quantityPosition: null,
         selectionMode: 'NONE' as const,
         isBundleMember: false,
+        gapMinutes: null,
+        gapSource: null,
         startsAt: scheduledAt,
         endsAt: new Date(scheduledAt.getTime() + 60 * 60_000),
       });

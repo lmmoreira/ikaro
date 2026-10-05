@@ -3,10 +3,13 @@ import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { Booking } from '../../domain/booking.aggregate';
 import { FutureCommitmentExceptionReassignTargetInvalidError } from '../../domain/errors/future-commitment-exception.error';
 import { Resource } from '../../domain/resource.aggregate';
+import { ResourceGap } from '../../domain/resource-gap-source';
+import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
 import {
   BookingLineOccupancyRow,
   IResourceOccupancyRepository,
+  ResourceOccupancyCandidate,
   ResourceOccupancyWindow,
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
@@ -19,6 +22,7 @@ export interface ReassignBookingDeps {
   resourceRepo: IResourceRepository;
   occupancyRepo: IResourceOccupancyRepository;
   tenantLock: ITenantLockPort;
+  availabilityService: AvailabilityService;
 }
 
 export interface ReassignBookingParams {
@@ -59,10 +63,23 @@ export async function reassignBookingResource(
     tenantId,
     candidates.map((c) => c.id),
   );
-  const free = await filterFreeCandidates(occupancyRepo, tenantId, candidates, affected, lineIds);
+  const retarget = (row: BookingLineOccupancyRow, target: Resource) =>
+    retargetedWindow(deps.availabilityService, params, row, target);
+  const free = await filterFreeCandidates(
+    occupancyRepo,
+    { tenantId, bookingLineIds: lineIds, retarget },
+    candidates,
+    affected,
+  );
   const chosen = await pickTarget(deps, params, free, candidates, affected);
 
-  await moveAffectedRows(occupancyRepo, tenantId, lineIds, rows, sourceResourceId, chosen);
+  await moveAffectedRows(
+    occupancyRepo,
+    { tenantId, lineIds, retarget },
+    rows,
+    sourceResourceId,
+    chosen,
+  );
   return { targetResourceId: chosen.id };
 }
 
@@ -114,15 +131,63 @@ function assertValidExplicitTarget(
   }
 }
 
+// A row moved to another resource keeps its start but not its gap: the trailing buffer/turnover
+// is re-derived from the TARGET resource (M18-S10), exactly as booking creation derives it, so the
+// held window — and the origin shown to the manager — describe the resource actually holding it.
+interface RetargetedWindow {
+  endsAt: Date;
+  gap: ResourceGap | null;
+}
+type Retarget = (row: BookingLineOccupancyRow, target: Resource) => RetargetedWindow;
+
+function retargetedWindow(
+  availabilityService: AvailabilityService,
+  params: ReassignBookingParams,
+  row: BookingLineOccupancyRow,
+  target: Resource,
+): RetargetedWindow {
+  const { booking, serviceMap } = params;
+  const line = booking.lines.find((l) => l.lineId === row.bookingLineId);
+  const service = line ? serviceMap.get(line.serviceId) : undefined;
+  if (!line || !service) return { endsAt: row.endsAt, gap: recordedGap(row) };
+
+  if (row.legIndex !== null) {
+    // A leg's trailing gap is the resource's own turnover (the transition between legs is a static
+    // service value that never depends on the resource).
+    const leg = service.legs?.find((l) => l.legIndex === row.legIndex);
+    if (!leg) return { endsAt: row.endsAt, gap: recordedGap(row) };
+    const gap = availabilityService.resolveFlatGap(0, target.turnoverMinutes);
+    const rawEnd = row.startsAt.getTime() + leg.durationMinutes * 60_000;
+    return { endsAt: new Date(rawEnd + (gap?.minutes ?? 0) * 60_000), gap };
+  }
+
+  const isLastLine = booking.lines.at(-1)?.lineId === line.lineId;
+  const gap = isLastLine
+    ? availabilityService.resolveFlatGap(service.bufferAfterMinutes ?? 0, target.turnoverMinutes)
+    : null;
+  const rawEnd = row.startsAt.getTime() + line.durationMinsAtBooking * 60_000;
+  return { endsAt: new Date(rawEnd + (gap?.minutes ?? 0) * 60_000), gap };
+}
+
+function recordedGap(row: BookingLineOccupancyRow): ResourceGap | null {
+  return row.gapMinutes !== null && row.gapSource !== null
+    ? { minutes: row.gapMinutes, source: row.gapSource }
+    : null;
+}
+
 async function filterFreeCandidates(
   occupancyRepo: IResourceOccupancyRepository,
-  tenantId: string,
+  ctx: { tenantId: string; bookingLineIds: string[]; retarget: Retarget },
   candidates: Resource[],
   affected: BookingLineOccupancyRow[],
-  bookingLineIds: string[],
 ): Promise<Resource[]> {
+  const { tenantId, bookingLineIds, retarget } = ctx;
   const windows: ResourceOccupancyWindow[] = candidates.flatMap((c) =>
-    affected.map((row) => ({ resourceId: c.id, startsAt: row.startsAt, endsAt: row.endsAt })),
+    affected.map((row) => ({
+      resourceId: c.id,
+      startsAt: row.startsAt,
+      endsAt: retarget(row, c).endsAt,
+    })),
   );
   const conflicting = await occupancyRepo.findConflictingWindows(tenantId, windows, bookingLineIds);
   const busy = new Set(conflicting.map((w) => w.resourceId));
@@ -169,12 +234,12 @@ async function pickTarget(
 // bundle) are re-inserted exactly as read, next to the moved ones.
 async function moveAffectedRows(
   occupancyRepo: IResourceOccupancyRepository,
-  tenantId: string,
-  lineIds: string[],
+  ctx: { tenantId: string; lineIds: string[]; retarget: Retarget },
   rows: BookingLineOccupancyRow[],
   sourceResourceId: string,
   target: Resource,
 ): Promise<void> {
+  const { tenantId, lineIds, retarget } = ctx;
   await occupancyRepo.release(tenantId, lineIds);
   const groups = new Map<string, BookingLineOccupancyRow[]>();
   for (const row of rows) {
@@ -186,26 +251,36 @@ async function moveAffectedRows(
     return occupancyRepo.assign(
       tenantId,
       first.bookingLineId,
-      group.map((row) => {
-        const moved = row.resourceId === sourceResourceId;
-        return {
-          resourceId: moved ? target.id : row.resourceId,
-          resourceType: row.resourceType,
-          resourceName: moved ? target.name : row.resourceName,
-          legIndex: row.legIndex,
-          quantityPosition: row.quantityPosition,
-          startsAt: row.startsAt,
-          endsAt: row.endsAt,
-          // Persistence ignores these two (docs on ResourceOccupancyCandidate); they only shape
-          // booking-creation responses.
-          selectionMode: 'NONE',
-          isBundleMember: false,
-        };
-      }),
+      group.map((row) => toMovedCandidate(row, sourceResourceId, target, retarget)),
       first.lockState,
       first.holdExpiresAt,
     );
   });
+}
+
+function toMovedCandidate(
+  row: BookingLineOccupancyRow,
+  sourceResourceId: string,
+  target: Resource,
+  retarget: Retarget,
+): ResourceOccupancyCandidate {
+  const moved = row.resourceId === sourceResourceId;
+  const window = moved ? retarget(row, target) : { endsAt: row.endsAt, gap: recordedGap(row) };
+  return {
+    resourceId: moved ? target.id : row.resourceId,
+    resourceType: row.resourceType,
+    resourceName: moved ? target.name : row.resourceName,
+    legIndex: row.legIndex,
+    quantityPosition: row.quantityPosition,
+    startsAt: row.startsAt,
+    endsAt: window.endsAt,
+    gapMinutes: window.gap?.minutes ?? null,
+    gapSource: window.gap?.source ?? null,
+    // Persistence ignores these two (docs on ResourceOccupancyCandidate); they only shape
+    // booking-creation responses.
+    selectionMode: 'NONE',
+    isBundleMember: false,
+  };
 }
 
 function invalid(reason: string): FutureCommitmentExceptionReassignTargetInvalidError {

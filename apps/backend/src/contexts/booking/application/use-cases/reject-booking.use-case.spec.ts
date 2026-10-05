@@ -52,6 +52,8 @@ describe('RejectBookingUseCase', () => {
       quantityPosition: null,
       selectionMode: 'NONE' as const,
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt: scheduledAt,
       endsAt: new Date(scheduledAt.getTime() + 30 * 60_000),
     });

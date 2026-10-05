@@ -15,6 +15,9 @@ interface TimelineBlockShellProps {
   readonly subtitle: string;
   readonly footer?: ReactNode;
   readonly trailing?: ReactNode;
+  // Native hover tooltip + accessible name for a purely informational block (no href, no
+  // onClick): that block renders as a non-focusable, non-clickable note instead of a button.
+  readonly tooltip?: string;
 }
 
 // Extracted from SchedulePage (TD37-S5A) — the shared timeline-block shell (booking/opening/
@@ -32,6 +35,7 @@ export function TimelineBlockShell({
   subtitle,
   footer,
   trailing,
+  tooltip,
 }: TimelineBlockShellProps): React.JSX.Element {
   const content = (
     <div className="flex h-full flex-col gap-1">
@@ -69,6 +73,21 @@ export function TimelineBlockShell({
       >
         {content}
       </Link>
+    );
+  }
+
+  if (!onClick) {
+    return (
+      <div
+        role="note"
+        className={shellClassName}
+        style={style}
+        title={tooltip}
+        aria-label={tooltip}
+        data-testid={testId}
+      >
+        {content}
+      </div>
     );
   }
 

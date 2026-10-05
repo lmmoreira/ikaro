@@ -247,6 +247,9 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
           sourceType: 'BOOKING_LINE' as const,
           bookingId: 'booking-1',
           classSessionId: null,
+          gapMinutes: null,
+          gapSource: null,
+          serviceName: 'Polimento',
         },
       ];
       ormRepo.createQueryBuilder.mockReturnValue(buildDayGridQueryBuilder(rows) as never);
@@ -265,9 +268,46 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
           endsAt: new Date('2026-06-01T11:00:00.000Z'),
           kind: 'BOOKING',
           refId: 'booking-1',
+          gap: null,
         },
       ]);
     });
+
+    it.each([
+      ['SERVICE_BUFFER', 60, 'Polimento'],
+      ['RESOURCE_TURNOVER', 30, null],
+    ] as const)(
+      'maps a recorded %s gap; the service name is kept only for SERVICE_BUFFER',
+      async (gapSource, gapMinutes, expectedServiceName) => {
+        const rows = [
+          {
+            resourceId: 'resource-1',
+            startsAt: '2026-06-01T10:00:00.000Z',
+            endsAt: '2026-06-01T12:00:00.000Z',
+            sourceType: 'BOOKING_LINE' as const,
+            bookingId: 'booking-1',
+            classSessionId: null,
+            gapMinutes,
+            gapSource,
+            serviceName: 'Polimento',
+          },
+        ];
+        ormRepo.createQueryBuilder.mockReturnValue(buildDayGridQueryBuilder(rows) as never);
+
+        const [block] = await adapter.findDayGridOccupancy(
+          'tenant-1',
+          ['resource-1'],
+          '2026-06-01',
+          'America/Sao_Paulo',
+        );
+
+        expect(block.gap).toEqual({
+          source: gapSource,
+          minutes: gapMinutes,
+          serviceName: expectedServiceName,
+        });
+      },
+    );
 
     it('maps a CLASS_SESSION row to kind CLASS_SESSION with refId = classSessionId', async () => {
       const rows = [
@@ -278,6 +318,9 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
           sourceType: 'CLASS_SESSION' as const,
           bookingId: null,
           classSessionId: 'session-1',
+          gapMinutes: null,
+          gapSource: null,
+          serviceName: null,
         },
       ];
       ormRepo.createQueryBuilder.mockReturnValue(buildDayGridQueryBuilder(rows) as never);
@@ -295,6 +338,7 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
         endsAt: new Date('2026-06-01T10:00:00.000Z'),
         kind: 'CLASS_SESSION',
         refId: 'session-1',
+        gap: null,
       });
     });
 

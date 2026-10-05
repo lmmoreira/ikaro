@@ -68,6 +68,19 @@ export interface DayGridBlock {
   endsAt: string; // ISO-8601 datetime
   kind: 'BOOKING' | 'CLASS_SESSION'; // CLASS_SESSION unreachable before M24
   refId: string;
+  // Why endsAt extends past the booking's own end (M18-S10): the time this resource stays held
+  // after the booking, and whose rule holds it. null = no gap, or a row written before the gap
+  // was recorded ("origin not recorded" when endsAt still runs past the booking's end).
+  // serviceName is the booking line's own service-name snapshot, set only for SERVICE_BUFFER.
+  gap: DayGridBlockGap | null;
+}
+
+export type DayGridGapSource = 'SERVICE_BUFFER' | 'RESOURCE_TURNOVER';
+
+export interface DayGridBlockGap {
+  source: DayGridGapSource;
+  minutes: number;
+  serviceName: string | null;
 }
 
 export interface DayGridColumn {

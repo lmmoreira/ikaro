@@ -21,6 +21,7 @@ import {
 } from '@/features/booking/schedule/schedule-timeline';
 import { TimelineBlockShell } from './TimelineBlockShell';
 import { BookingResourceSummaryLine } from './BookingResourceSummaryLine';
+import { ScheduleBufferBlock } from './ScheduleBufferBlock';
 
 export interface ScheduleTimelineRenderProps {
   readonly slotGranularityMinutes: number;
@@ -251,6 +252,18 @@ export function renderTimelineEvent(
 
   if (event.kind === 'opening') {
     return renderOpeningTimelineEvent(event, compact, timeline, props, t);
+  }
+
+  if (event.kind === 'buffer') {
+    return (
+      <ScheduleBufferBlock
+        key={event.id}
+        event={event}
+        compact={compact}
+        timeline={timeline}
+        slotGranularityMinutes={props.slotGranularityMinutes}
+      />
+    );
   }
 
   return renderClosureTimelineEvent(event, compact, timeline, props, t);

@@ -207,6 +207,13 @@ describe('materializeRecurringScheduleOccurrences', () => {
     );
     // 90 minutes of service plus max(15 buffer, 30 turnover) / max(15, 0).
     expect(windows).toEqual([120, 105, 120]);
+    // M18-S10: each occurrence persists the same gap with its origin.
+    expect(assignSpy.mock.calls[0][1].map((a) => a.candidates[0].gapSource)).toEqual([
+      'RESOURCE_TURNOVER',
+      'SERVICE_BUFFER',
+      'RESOURCE_TURNOVER',
+    ]);
+    expect(assignSpy.mock.calls[0][1].map((a) => a.candidates[0].gapMinutes)).toEqual([30, 15, 30]);
   });
 
   it('writes the occupancy rows to the repository the conflict check reads', async () => {

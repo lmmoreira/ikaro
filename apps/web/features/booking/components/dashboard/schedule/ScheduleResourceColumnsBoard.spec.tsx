@@ -2,6 +2,7 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { BOOKING_STATUS, type BookingStatus, type TenantBusinessHours } from '@ikaro/types';
+import { axe } from '@/axe-helper';
 import { renderWithIntl } from '@/test-utils';
 import { ScheduleResourceColumnsBoard } from './ScheduleResourceColumnsBoard';
 
@@ -214,6 +215,7 @@ describe('ScheduleResourceColumnsBoard', () => {
                 endsAt: '2026-08-17T03:30:00.000Z', // 2026-08-17T00:30 local
                 kind: 'BOOKING',
                 refId: 'booking-spillover',
+                gap: null,
               },
             ],
           },
@@ -265,5 +267,150 @@ describe('ScheduleResourceColumnsBoard', () => {
       />,
     );
     expect(screen.queryByTestId('schedule-column-spillover-banner')).not.toBeInTheDocument();
+  });
+
+  describe('held tail after a booking (M18-S10)', () => {
+    const booking = {
+      bookingId: 'booking-1',
+      status: BOOKING_STATUS.APPROVED,
+      scheduledAt: '2026-08-17T12:00:00.000Z', // 09:00 local
+      contactName: 'Carlos Mendes',
+      serviceNames: ['Polimento'],
+      totalPrice: { amount: 100, currency: 'BRL' },
+      totalDurationMins: 30,
+      isCustomer: false,
+      assignedResources: [],
+    };
+
+    function mockGrid(
+      columns: Array<{ resourceId: string; name: string; gap: unknown; endsAt: string }>,
+    ) {
+      useScheduleDayGridMock.mockReturnValue({
+        isLoading: false,
+        isError: false,
+        data: {
+          date: '2026-08-17',
+          columns: columns.map((column) => ({
+            resourceId: column.resourceId,
+            name: column.name,
+            type: 'STAFF',
+            blocks: [
+              {
+                startsAt: '2026-08-17T12:00:00.000Z',
+                endsAt: column.endsAt,
+                kind: 'BOOKING',
+                refId: 'booking-1',
+                gap: column.gap,
+              },
+            ],
+          })),
+        },
+      });
+    }
+
+    it('shows a service buffer in every resource column of the booking, each naming its own resource', () => {
+      const gap = { source: 'SERVICE_BUFFER', minutes: 60, serviceName: 'Polimento' };
+      mockGrid([
+        {
+          resourceId: 'res-camila',
+          name: 'Camila Duarte',
+          gap,
+          endsAt: '2026-08-17T13:30:00.000Z',
+        },
+        { resourceId: 'res-bruno', name: 'Bruno Alves', gap, endsAt: '2026-08-17T13:30:00.000Z' },
+      ]);
+
+      renderWithIntl(<ScheduleResourceColumnsBoard {...baseProps()} bookings={[booking]} />);
+
+      expect(screen.getByText('Camila Duarte · até 10:30')).toBeInTheDocument();
+      expect(screen.getByText('Bruno Alves · até 10:30')).toBeInTheDocument();
+      expect(screen.getAllByText('Buffer do serviço Polimento · 60 min')).toHaveLength(2);
+    });
+
+    it('shows a resource turnover only in the column of the resource that causes it', () => {
+      mockGrid([
+        {
+          resourceId: 'res-camila',
+          name: 'Camila Duarte',
+          gap: { source: 'RESOURCE_TURNOVER', minutes: 30, serviceName: null },
+          endsAt: '2026-08-17T13:00:00.000Z',
+        },
+        {
+          resourceId: 'res-bruno',
+          name: 'Bruno Alves',
+          gap: null,
+          endsAt: '2026-08-17T12:30:00.000Z',
+        },
+      ]);
+
+      renderWithIntl(<ScheduleResourceColumnsBoard {...baseProps()} bookings={[booking]} />);
+
+      expect(screen.getAllByRole('note')).toHaveLength(1);
+      expect(screen.getByText('Camila Duarte · até 10:00')).toBeInTheDocument();
+      expect(screen.getByText('Virada do recurso · 30 min')).toBeInTheDocument();
+      expect(screen.queryByText(/Bruno Alves · até/)).not.toBeInTheDocument();
+    });
+
+    it('still names the resource and the origin when only that one resource is checked', () => {
+      mockGrid([
+        {
+          resourceId: 'res-camila',
+          name: 'Camila Duarte',
+          gap: { source: 'RESOURCE_TURNOVER', minutes: 30, serviceName: null },
+          endsAt: '2026-08-17T13:00:00.000Z',
+        },
+      ]);
+
+      renderWithIntl(
+        <ScheduleResourceColumnsBoard
+          {...baseProps()}
+          selectedResourceIdSet={new Set(['res-camila'])}
+          bookings={[booking]}
+        />,
+      );
+
+      expect(screen.getByText('Camila Duarte · até 10:00')).toBeInTheDocument();
+      expect(screen.getByText('Virada do recurso · 30 min')).toBeInTheDocument();
+    });
+
+    it('shows "Origem não registrada" for a booking made before the origin was recorded', () => {
+      mockGrid([
+        {
+          resourceId: 'res-camila',
+          name: 'Camila Duarte',
+          gap: null,
+          endsAt: '2026-08-17T13:00:00.000Z',
+        },
+      ]);
+
+      renderWithIntl(
+        <ScheduleResourceColumnsBoard
+          {...baseProps()}
+          selectedResourceIdSet={new Set(['res-camila'])}
+          bookings={[booking]}
+        />,
+      );
+
+      expect(screen.getByText('Origem não registrada')).toBeInTheDocument();
+    });
+
+    it('has no accessibility violations with held tails rendered', async () => {
+      const gap = { source: 'SERVICE_BUFFER', minutes: 60, serviceName: 'Polimento' };
+      mockGrid([
+        {
+          resourceId: 'res-camila',
+          name: 'Camila Duarte',
+          gap,
+          endsAt: '2026-08-17T13:30:00.000Z',
+        },
+        { resourceId: 'res-bruno', name: 'Bruno Alves', gap, endsAt: '2026-08-17T13:30:00.000Z' },
+      ]);
+
+      const { container } = renderWithIntl(
+        <ScheduleResourceColumnsBoard {...baseProps()} bookings={[booking]} />,
+      );
+
+      expect(await axe(container)).toHaveNoViolations();
+    });
   });
 });

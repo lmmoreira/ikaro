@@ -144,6 +144,8 @@ export function buildOccupancyRows(
     resourceNameAtAssignment: candidate.resourceName,
     startsAt: candidate.startsAt,
     endsAt: candidate.endsAt,
+    gapMinutes: candidate.gapMinutes,
+    gapSource: candidate.gapSource,
     lockState: ctx.lockState,
     holdExpiresAt: ctx.holdExpiresAt,
     createdAt: ctx.now,
@@ -151,7 +153,7 @@ export function buildOccupancyRows(
 }
 
 // Every row of one insert goes in as one array per column, unnested server-side, so the statement
-// binds a fixed 14 parameters however many rows there are — no PostgreSQL bound-parameter limit to
+// binds a fixed 16 parameters however many rows there are — no PostgreSQL bound-parameter limit to
 // chunk around, and one round trip whatever the candidate count (requiredQuantity has no upper
 // bound, and a recurring term inserts one row per occurrence). The same unnest technique the
 // assignment upsert above and the conflict checks use.
@@ -159,11 +161,11 @@ export const INSERT_OCCUPANCY_SQL = `
   INSERT INTO booking.resource_occupancy
     (id, tenant_id, resource_id, resource_type, source_type, booking_line_resource_assignment_id,
      leg_index, class_session_id, resource_name_at_assignment, starts_at, ends_at, lock_state,
-     hold_expires_at, created_at)
+     hold_expires_at, created_at, gap_minutes, gap_source)
   SELECT * FROM unnest(
     $1::uuid[], $2::uuid[], $3::uuid[], $4::varchar[], $5::varchar[], $6::uuid[], $7::int[],
     $8::uuid[], $9::varchar[], $10::timestamptz[], $11::timestamptz[], $12::varchar[],
-    $13::timestamptz[], $14::timestamptz[]
+    $13::timestamptz[], $14::timestamptz[], $15::int[], $16::varchar[]
   )
 `;
 
@@ -187,6 +189,8 @@ export async function insertOccupancyRows(
     rows.map((row) => row.lockState),
     rows.map((row) => row.holdExpiresAt),
     rows.map((row) => row.createdAt),
+    rows.map((row) => row.gapMinutes),
+    rows.map((row) => row.gapSource),
   ]);
 }
 
@@ -224,6 +228,8 @@ function toFreshOccupancyRow(
     resourceNameAtAssignment: pair.candidate.resourceName,
     startsAt: pair.candidate.startsAt,
     endsAt: pair.candidate.endsAt,
+    gapMinutes: pair.candidate.gapMinutes,
+    gapSource: pair.candidate.gapSource,
     lockState: ctx.lockState,
     holdExpiresAt: ctx.holdExpiresAt,
     createdAt: ctx.now,

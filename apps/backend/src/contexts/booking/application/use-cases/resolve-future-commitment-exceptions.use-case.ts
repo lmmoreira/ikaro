@@ -199,6 +199,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
         resourceRepo: this.resourceRepo,
         occupancyRepo: this.occupancyRepo,
         tenantLock: this.tenantLock,
+        availabilityService: this.availabilityService,
       },
       {
         tenantId: input.tenantId,

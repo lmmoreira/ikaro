@@ -2,8 +2,10 @@ import type { ScheduleClosure, StaffBookingCardResponse } from '@ikaro/types';
 import {
   assignLanes,
   buildBookingTimelineEvent,
+  buildBufferTimelineEvent,
   buildClosureTimelineEvent,
   getBookingDateKey,
+  type BufferTail,
   type TimelineEvent,
 } from '@/features/booking/schedule/schedule-timeline-events';
 import {
@@ -75,6 +77,7 @@ export function buildAllTimelineEvents(
   resourceNameById: ReadonlyMap<string, string>,
   selectedResourceIdSet: ReadonlySet<string>,
   bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
+  bufferTails: readonly BufferTail[] = [],
 ): TimelineEvent[] {
   const { dayOpenings, selectedDayClosures, activeStartTime, activeEndTime } = active;
 
@@ -99,7 +102,11 @@ export function buildAllTimelineEvents(
 
   const openingEvents = buildOpeningTimelineEvents(dayOpenings, resourceNameById);
 
-  return [...closureEvents, ...openingEvents, ...bookingEvents].sort(
+  // Built after (and outside) lane assignment on purpose — a held tail must never push a booking
+  // into a narrower lane.
+  const bufferEvents = bufferTails.map(buildBufferTimelineEvent);
+
+  return [...closureEvents, ...openingEvents, ...bufferEvents, ...bookingEvents].sort(
     (left, right) => left.startMinutes - right.startMinutes || right.endMinutes - left.endMinutes,
   );
 }

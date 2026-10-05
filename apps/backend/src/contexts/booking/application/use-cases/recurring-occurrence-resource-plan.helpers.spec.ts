@@ -37,6 +37,8 @@ describe('planOccurrenceResources', () => {
       quantityPosition: null,
       selectionMode: 'AUTO_ANY',
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt,
       endsAt: new Date(startsAt.getTime() + hours * 3_600_000),
     });
@@ -145,6 +147,8 @@ describe('planOccurrenceResources', () => {
         quantityPosition: null,
         selectionMode: 'AUTO_ANY',
         isBundleMember: false,
+        gapMinutes: null,
+        gapSource: null,
         startsAt: new Date(Date.UTC(2026, 9, 1, 15)),
         endsAt: new Date(Date.UTC(2026, 9, 1, 16)),
       });

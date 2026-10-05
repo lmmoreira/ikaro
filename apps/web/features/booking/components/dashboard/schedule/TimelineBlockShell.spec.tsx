@@ -92,4 +92,22 @@ describe('TimelineBlockShell', () => {
 
     expect(screen.getByTestId('schedule-closure-block-abc')).toBeInTheDocument();
   });
+
+  it('renders a non-interactive note (no button, no link) when neither href nor onClick is given', () => {
+    render(
+      <TimelineBlockShell
+        compact={false}
+        className="test-class"
+        style={{}}
+        title="Walace · até 10:00"
+        subtitle="Virada do recurso · 30 min"
+        tooltip="Virada do recurso Walace (30 min): só Walace fica bloqueado(a) até 10:00."
+      />,
+    );
+
+    const note = screen.getByRole('note', { name: /Virada do recurso Walace/ });
+    expect(note).toHaveAttribute('title', expect.stringContaining('Walace'));
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
 });

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { DayGridOccupancyBlock } from '../../domain/day-grid-occupancy-block';
 import { ResourceType } from '../../domain/resource.types';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import {
@@ -17,6 +18,7 @@ export interface DayGridBlock {
   endsAt: string;
   kind: 'BOOKING' | 'CLASS_SESSION';
   refId: string;
+  gap: DayGridOccupancyBlock['gap'];
 }
 
 export interface DayGridColumn {
@@ -59,6 +61,7 @@ export class GetScheduleDayGridUseCase {
         endsAt: block.endsAt.toISOString(),
         kind: block.kind,
         refId: block.refId,
+        gap: block.gap,
       });
       blocksByResource.set(block.resourceId, blocks);
     }

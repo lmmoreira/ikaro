@@ -24,6 +24,8 @@ function buildCandidate(endsAt: Date): ResourceOccupancyCandidate {
     endsAt,
     selectionMode: 'NONE',
     isBundleMember: false,
+    gapMinutes: null,
+    gapSource: null,
   };
 }
 

@@ -291,6 +291,8 @@ describe('ApproveRecurringBookingScheduleUseCase', () => {
         quantityPosition: null,
         selectionMode: 'CUSTOMER_CHOICE',
         isBundleMember: false,
+        gapMinutes: null,
+        gapSource: null,
         startsAt: taken,
         endsAt: new Date(taken.getTime() + 60 * 60_000),
       });
