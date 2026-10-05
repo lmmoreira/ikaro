@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   useCreateClosure,
   useCreateOpening,
@@ -15,6 +15,7 @@ import {
   useWeekBookings,
 } from './useSchedule';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
+import { useTenant } from '@/providers/tenant-provider';
 
 const bookingApi = vi.hoisted(() => ({
   listAllBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 25 }),
@@ -374,5 +375,38 @@ describe('useScheduleWeekDayGrid', () => {
     rerender();
 
     expect(result.current.data).toBe(firstData);
+  });
+});
+
+describe('day-grid for the merged Day / Week held-time strips (M18-S10)', () => {
+  const baseTenant = { tenantId: 't-1', tenantSlug: 'lavacar-bh' };
+  const asRole = (role: 'MANAGER' | 'STAFF') =>
+    vi.mocked(useTenant).mockReturnValue({ ...baseTenant, role } as never);
+
+  afterEach(() => {
+    vi.mocked(useTenant).mockReturnValue(baseTenant as never);
+  });
+
+  it('a MANAGER fetches the selected day with no resource checked', async () => {
+    asRole('MANAGER');
+    const { result } = renderHook(() => useScheduleDayGrid('2026-08-17', []), { wrapper });
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledWith('2026-08-17');
+  });
+
+  it('a STAFF viewer never fetches it (the route is MANAGER-only)', () => {
+    asRole('STAFF');
+    renderHook(() => useScheduleDayGrid('2026-08-17', []), { wrapper });
+    renderHook(() => useScheduleWeekDayGrid(['2026-08-17', '2026-08-18'], []), { wrapper });
+    expect(scheduleApi.getScheduleDayGrid).not.toHaveBeenCalled();
+  });
+
+  it('a MANAGER fetches one grid per visible day for the Week view with no resource checked', async () => {
+    asRole('MANAGER');
+    const { result } = renderHook(() => useScheduleWeekDayGrid(['2026-08-17', '2026-08-18'], []), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.data).toHaveLength(2));
+    expect(scheduleApi.getScheduleDayGrid).toHaveBeenCalledTimes(2);
   });
 });

@@ -15,6 +15,7 @@ import {
   type ScheduleUiState,
 } from '@/features/booking/schedule/schedule-page-ui-state';
 import { useScheduleQueryData } from '@/features/booking/schedule/schedule-page-query-data';
+import { useScheduleDayGrid } from '@/features/booking/schedule/useSchedule';
 import { useScheduleTimelineDerived } from '@/features/booking/schedule/schedule-page-timeline-derived';
 import type { SchedulePageControllerInput } from '@/features/booking/schedule/schedule-page-controller-types';
 import { RESOURCE_FILTER_MAX_SELECTED } from '@/features/booking/schedule/schedule-page-interaction-handlers';
@@ -202,6 +203,14 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
   const { formatDateLong, timezone } = useFormatting();
   const ui = useScheduleUiState(todayKey, initialWeekStartKey, initialSelectedDateKey);
   const visible = useScheduleVisibleData(props, ui);
+  // The merged Day timeline's held-time strips need every resource's block for the selected day
+  // (MANAGER only; shares its cache entry with the Week fan-out and the columns board).
+  const selectedDayGrid = useScheduleDayGrid(
+    ui.selectedDateKey,
+    visible.selectedResourceIdSet.size > 0
+      ? [...visible.selectedResourceIdSet]
+      : EMPTY_RESOURCE_IDS,
+  ).data;
 
   const timelineDerived = useScheduleTimelineDerived({
     weekDates: visible.weekDates,
@@ -215,6 +224,8 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     resourceNameById: visible.resourceNameById,
     selectedResourceIdSet: visible.selectedResourceIdSet,
     bookingResourceIdsById: visible.bookingResourceIdsById,
+    selectedDayGrid,
+    weekDayGrids: visible.weekDayGrids,
   });
 
   return {

@@ -145,6 +145,15 @@ function ResourceNameBadge({
   );
 }
 
+// A resource-scoped block in a shared lane is narrow enough for its trailing resource badge to wrap
+// under the title (TimelineBlockShell), which needs one more line of minimum height.
+function wrappedBadgeLines(event: {
+  readonly resourceName: string | null;
+  readonly laneCount: number;
+}): number {
+  return Number(event.resourceName !== null && event.laneCount > 1);
+}
+
 function renderOpeningTimelineEvent(
   event: OpeningTimelineEvent,
   compact: boolean,
@@ -166,9 +175,9 @@ function renderOpeningTimelineEvent(
   // findTenantWideOpening's note in schedule-timeline.ts) — a higher z-index keeps it readable
   // on top of that full-width backdrop instead of blending into it.
   const isResourceScoped = event.resourceName !== null;
-  // Opening blocks never render a footer (only title/subtitle + the trailing resource badge) — 0
-  // extra lines, same content shape regardless of duration.
-  const minHeight = `${getBlockMinHeightPx(compact, 0)}px`;
+  // Opening blocks never render a footer (only title/subtitle + the trailing resource badge). In a
+  // shared (narrow) lane that badge wraps under the title, so it needs one more line of room.
+  const minHeight = `${getBlockMinHeightPx(compact, wrappedBadgeLines(event))}px`;
 
   return (
     <TimelineBlockShell
@@ -209,7 +218,7 @@ function renderClosureTimelineEvent(
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
   // Closure blocks never render a footer either — same reasoning as the opening block above.
-  const minHeight = `${getBlockMinHeightPx(compact, 0)}px`;
+  const minHeight = `${getBlockMinHeightPx(compact, wrappedBadgeLines(event))}px`;
 
   return (
     <TimelineBlockShell

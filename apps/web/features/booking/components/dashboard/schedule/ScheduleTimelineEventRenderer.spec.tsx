@@ -647,4 +647,45 @@ describe('renderTimelineEvent', () => {
     expect(screen.getByRole('note')).toHaveTextContent('Walace · até 10:00');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  it('reserves one more line for a resource-scoped opening or closure badge only in a shared lane', () => {
+    const makeOpening = (resourceName: string | null, laneCount: number): TimelineEvent => ({
+      kind: 'opening',
+      id: `opening-${resourceName}-${laneCount}`,
+      startMinutes: 540,
+      endMinutes: 600,
+      title: '',
+      subtitle: '',
+      opening: { id: 'o', notes: null, startTime: '09:00', endTime: '10:00' } as never,
+      resourceName,
+      laneIndex: 0,
+      laneCount,
+    });
+    const makeClosure = (resourceName: string | null, laneCount: number): TimelineEvent => ({
+      kind: 'closure',
+      id: `closure-${resourceName}-${laneCount}`,
+      startMinutes: 540,
+      endMinutes: 600,
+      title: '',
+      subtitle: '',
+      closure: { id: 'c', reason: 'MAINTENANCE', notes: null } as never,
+      resourceName,
+      laneIndex: 0,
+      laneCount,
+    });
+    const minHeightOf = (event: TimelineEvent): number => {
+      const { unmount } = renderWithIntl(<Host event={event} props={baseProps()} />);
+      const value = Number.parseInt(screen.getByRole('button').style.minHeight, 10);
+      unmount();
+      return value;
+    };
+
+    for (const make of [makeOpening, makeClosure]) {
+      const tenantWide = minHeightOf(make(null, 2));
+      const scopedAlone = minHeightOf(make('Walace', 1));
+      const scopedShared = minHeightOf(make('Walace', 2));
+      expect(scopedShared).toBeGreaterThan(scopedAlone);
+      expect(tenantWide).toBe(scopedAlone);
+    }
+  });
 });

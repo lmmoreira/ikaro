@@ -926,6 +926,7 @@ Returns:
 - **Alternative Flows:**
   - **A1: Manager checks many resources at once** → Horizontal scroll across the resulting columns; no separate narrowing control — the checkbox filter itself is the only narrowing mechanism, by design (a tenant-type filter was considered and rejected — see the redesign note above).
   - **A2: Manager unchecks every resource** → Reverts to the unchanged single tenant-wide timeline (not this UC).
+  - **A4: No resource is checked (merged Day timeline) or Week view** → The same held time shows as **one strip per booking** (MANAGER only): it runs to the longest hold across the booking's resources, names every resource held until then (`Walace, Sala 1 · até 12:30`) and gives the cause (a service buffer wins a tie). With resources checked in Week view only those resources are considered.
   - **A3: A booking made before the origin was recorded** → The held segment still shows, labeled `{resource} · até {HH:MM}` + `Origem não registrada` — never a guessed cause. A held time that crosses midnight is not drawn as a block; the next day shows the fixed "Ocupado até" banner.
 - **Postconditions:** None (read-only).
 - **Events Triggered:** None.

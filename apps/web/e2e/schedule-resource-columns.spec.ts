@@ -870,4 +870,35 @@ test.describe('Held time after a booking (M18-S10)', () => {
       await held.cleanup();
     }
   });
+
+  test('with no resource checked, the Day view and the Week view show one strip per booking naming every held resource', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+    const held = await bookWithGap(page, {
+      bufferAfterMinutes: 30,
+      roomTurnoverMinutes: 0,
+      daysAhead: 162,
+    });
+
+    try {
+      await page.goto(scheduleRoute(held.dateKey));
+      await switchToDayView(page);
+
+      // The merged timeline lists every booking of the tenant: pick this booking's strip by the
+      // resources it names. One strip, not one per resource.
+      const strip = page.getByRole('note').filter({ hasText: held.room.name });
+      await expect(strip).toHaveCount(1);
+      await expect(strip).toContainText(held.equipment.name);
+      await expect(strip).toContainText('até 12:00');
+      await expect(strip).toContainText(`Buffer do serviço ${held.serviceName} · 30 min`);
+
+      await switchToWeekView(page);
+      const weekStrip = page.getByRole('note').filter({ hasText: held.room.name });
+      await expect(weekStrip).toHaveCount(1);
+      await expect(weekStrip).toContainText('até 12:00');
+    } finally {
+      await held.cleanup();
+    }
+  });
 });

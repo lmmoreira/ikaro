@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type {
+  DayGridResponse,
   ScheduleClosure,
   ScheduleOpening,
   StaffBookingCardResponse,
@@ -9,8 +10,10 @@ import type {
 } from '@ikaro/types';
 import {
   buildTimelineDayData,
+  type BufferTail,
   type TimelineDayData,
 } from '@/features/booking/schedule/schedule-timeline';
+import { buildHeldTails } from '@/features/booking/schedule/schedule-held-tails';
 import {
   buildActiveDates,
   buildDimmedDates,
@@ -50,6 +53,10 @@ interface ScheduleTimelineDerivedInput {
   // buildBookingTimelineEvent, since every booking carries its own resource assignments directly.
   readonly selectedResourceIdSet: ReadonlySet<string>;
   readonly bookingResourceIdsById: ReadonlyMap<string, readonly string[]>;
+  // M18-S10 — the day-grids behind the held-time strips of the merged Day timeline (selected day)
+  // and the Week day-cards (the whole week). Undefined while loading, and always for STAFF.
+  readonly selectedDayGrid?: DayGridResponse | undefined;
+  readonly weekDayGrids?: readonly DayGridResponse[] | undefined;
 }
 
 function useScheduleWeekDayDerived(input: ScheduleTimelineDerivedInput): {
@@ -73,6 +80,22 @@ function useScheduleWeekDayDerived(input: ScheduleTimelineDerivedInput): {
   return { weekDayInfo, activeDates, dimmedDates };
 }
 
+function useSelectedDayHeldTails(input: ScheduleTimelineDerivedInput): BufferTail[] {
+  const { selectedDayGrid, visibleBookings, selectedDateKey, timezone, selectedResourceIdSet } =
+    input;
+  return useMemo(
+    () =>
+      buildHeldTails({
+        dayGrid: selectedDayGrid,
+        bookings: visibleBookings,
+        dateKey: selectedDateKey,
+        timezone,
+        selectedResourceIdSet,
+      }),
+    [selectedDayGrid, visibleBookings, selectedDateKey, timezone, selectedResourceIdSet],
+  );
+}
+
 function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDayData {
   const {
     visibleBookings,
@@ -84,6 +107,7 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
     selectedDateKey,
     resourceNameById,
   } = input;
+  const bufferTails = useSelectedDayHeldTails(input);
 
   return useMemo(
     () =>
@@ -96,6 +120,7 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
         closures: visibleClosures,
         openings: visibleOpenings,
         resourceNameById,
+        bufferTails,
       }),
     [
       businessHours,
@@ -106,6 +131,7 @@ function useSelectedDayTimeline(input: ScheduleTimelineDerivedInput): TimelineDa
       visibleClosures,
       visibleOpenings,
       resourceNameById,
+      bufferTails,
     ],
   );
 }
@@ -122,6 +148,7 @@ interface WeekTimelineCardsSharedInput {
   readonly slotGranularityMinutes: number;
   readonly resourceNameById: ReadonlyMap<string, string>;
   readonly selectedResourceIdSet: ReadonlySet<string>;
+  readonly weekDayGrids: readonly DayGridResponse[] | undefined;
 }
 
 // TD44 Story 3 — resolve the shared hour axis across the week's 7 day-cards' regular-hours
@@ -163,6 +190,7 @@ function buildWeekTimelineCards(
     slotGranularityMinutes,
     resourceNameById,
     selectedResourceIdSet,
+    weekDayGrids,
   } = shared;
 
   const cards = weekDayInfo.map((day) =>
@@ -181,6 +209,13 @@ function buildWeekTimelineCards(
       // booking match any checked resource"), never its values, so the raw resourceId map
       // passes straight through with no name-conversion step (TD44-S2 round 3).
       bookingResourceNamesById: bookingResourceIdsById,
+      bufferTails: buildHeldTails({
+        dayGrid: weekDayGrids?.find((grid) => grid.date === day.dateKey),
+        bookings: visibleBookings,
+        dateKey: day.dateKey,
+        timezone,
+        selectedResourceIdSet,
+      }),
     }),
   );
 
@@ -208,6 +243,7 @@ function useWeekTimelineCards(
           slotGranularityMinutes: input.slotGranularityMinutes,
           resourceNameById: input.resourceNameById,
           selectedResourceIdSet: input.selectedResourceIdSet,
+          weekDayGrids: input.weekDayGrids,
         },
         input.bookingResourceIdsById,
       ),
@@ -222,6 +258,7 @@ function useWeekTimelineCards(
       input.resourceNameById,
       input.selectedResourceIdSet,
       input.bookingResourceIdsById,
+      input.weekDayGrids,
     ],
   );
 }

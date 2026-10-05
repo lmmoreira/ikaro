@@ -316,7 +316,7 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 - Service buffer → same label in every resource column of the booking. Resource turnover → only the causing resource's column (see 09:30 in `09-colunas-buffer.html`: only Walace is held, the Localização is free).
 - `max(buffer, turnover)`; a tie goes to the service; both 0 → no segment. Only the booking's last line carries the service buffer; a legged line's gap is turnover only.
 - Tail geometry = `block.endsAt − booking end` (positive only); `gap` only supplies the label. Multi-line → one tail; unmatched "Ocupado" placeholder → none; tail crossing midnight → TD43's fixed banner.
-- Day-view columns board only; merged timeline and Week view unchanged.
+- Columns board: one strip per held resource. Merged Day timeline (no resource checked) and Week day-cards: one strip per booking — runs to the longest hold, names every resource held until then, cause = service buffer if any of them has it, else the turnover, else "Origem não registrada". MANAGER only; with resources checked in Week view only those are considered. These two views are not drawn in the prototype.
 
 **Data:** `resource_occupancy` gains nullable `gap_minutes` + `gap_source` (`SERVICE_BUFFER` | `RESOURCE_TURNOVER`), written with the row at booking time by the same `gapFor` the availability pre-filter already uses (create, reschedule, recurring materialization); a resource reassignment recomputes it from the target resource; `GET /schedule/day-grid` blocks gain `gap: { source, minutes, serviceName | null } | null` (`serviceName` = the booking line's `service_name_at_booking`, joined already). No new endpoint. Legacy rows stay NULL (no backfill).
 

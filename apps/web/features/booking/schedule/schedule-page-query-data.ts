@@ -210,6 +210,7 @@ function useScheduleQueryDataResult(input: ScheduleQueryDataResultInput) {
     bookingsItems: bookings.items,
     scheduleFetchError,
     bookingResourceIdsById,
+    weekDayGrids: weekDayGridResult.data,
   };
 }
 
