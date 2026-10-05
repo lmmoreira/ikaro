@@ -241,6 +241,9 @@ describe('AvailabilityAlertController (integration)', () => {
       .set(as(tenantA, CUSTOMER_A))
       .send({ ...weeklyBody(serviceA), localStartTime: '20:00', localEndTime: '18:00' })
       .expect(422);
+    expect(
+      await ds.getRepository(AvailabilityAlertEntity).count({ where: { tenantId: tenantA } }),
+    ).toBe(0);
   });
 
   it('rejects the 11th active alert with 409 and still allows another customer', async () => {
@@ -266,6 +269,12 @@ describe('AvailabilityAlertController (integration)', () => {
       .set(as(tenantA, CUSTOMER_A2))
       .send(weeklyBody(serviceA))
       .expect(201);
+    const active = (customerId: string) =>
+      ds
+        .getRepository(AvailabilityAlertEntity)
+        .count({ where: { tenantId: tenantA, customerId, status: 'ACTIVE' } });
+    expect(await active(CUSTOMER_A)).toBe(10);
+    expect(await active(CUSTOMER_A2)).toBe(1);
   });
 
   it('serializes concurrent creates so the cap holds', async () => {
@@ -356,6 +365,10 @@ describe('AvailabilityAlertController (integration)', () => {
         .set(as(tenantB, CUSTOMER_B))
         .send(weeklyBody(serviceB))
         .expect(201);
+      const count = (tenantId: string) =>
+        ds.getRepository(AvailabilityAlertEntity).count({ where: { tenantId } });
+      expect(await count(tenantA)).toBe(0);
+      expect(await count(tenantB)).toBe(1);
     });
   });
 
@@ -379,5 +392,32 @@ describe('AvailabilityAlertController (integration)', () => {
         .set(headers)
         .expect(403);
     }
+    expect(
+      await ds.getRepository(AvailabilityAlertEntity).count({ where: { tenantId: tenantA } }),
+    ).toBe(0);
+  });
+
+  it('refuses to edit or cancel an ACTIVE alert already past its expiry (409), leaving it ACTIVE', async () => {
+    const stale = new AvailabilityAlertEntityBuilder()
+      .withTenantId(tenantA)
+      .withServiceId(serviceA)
+      .withCustomerId(CUSTOMER_A)
+      .withExpiresAt(new Date(Date.now() - 3_600_000))
+      .build();
+    await ds.getRepository(AvailabilityAlertEntity).save(stale);
+    const url = `/availability-alerts/${stale.id}`;
+
+    await request(app.getHttpServer()).delete(url).set(as(tenantA, CUSTOMER_A)).expect(409);
+    await request(app.getHttpServer())
+      .patch(url)
+      .set(as(tenantA, CUSTOMER_A))
+      .send({ durationMinutes: 30 })
+      .expect(409);
+
+    const row = await ds
+      .getRepository(AvailabilityAlertEntity)
+      .findOneByOrFail({ tenantId: tenantA, id: stale.id });
+    expect(row.status).toBe('ACTIVE');
+    expect(row.version).toBe(1);
   });
 });

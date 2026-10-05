@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { ITenantLockPort } from '../../application/ports/tenant-lock.port';
 
 @Injectable()
@@ -22,9 +23,9 @@ export class TypeOrmTenantLockAdapter implements ITenantLockPort {
   // overlapping resource sets in different array orders can't deadlock against each other.
   async lockResources(tenantId: string, resourceIds: string[]): Promise<void> {
     const ordered = [...new Set(resourceIds)].sort((a, b) => a.localeCompare(b));
-    for (const resourceId of ordered) {
-      await this.acquire(`resource:${tenantId}:${resourceId}`);
-    }
+    await mapSequentially(ordered, (resourceId) =>
+      this.acquire(`resource:${tenantId}:${resourceId}`),
+    );
   }
 
   // Brand-new key (M23-S04), free to namespace — see tenant-lock.port.ts's lockService doc.

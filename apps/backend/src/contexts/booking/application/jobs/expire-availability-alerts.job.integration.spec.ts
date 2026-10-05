@@ -11,6 +11,8 @@ import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { createTestDataSource } from '../../../../test/test-datasource';
+import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
+import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { AvailabilityAlertEntity } from '../../infrastructure/entities/availability-alert.entity';
 import { ServiceEntity } from '../../infrastructure/entities/service.entity';
 import { TypeOrmAvailabilityAlertRepository } from '../../infrastructure/repositories/typeorm-availability-alert.repository';
@@ -24,6 +26,7 @@ const HOUR_MS = 3_600_000;
 describe('ExpireAvailabilityAlertsJob (integration)', () => {
   let ds: DataSource;
   let job: ExpireAvailabilityAlertsJob;
+  let alertRepo: TypeOrmAvailabilityAlertRepository;
   const tenantA = uuidv7();
   const tenantB = uuidv7();
   const serviceIds = new Map<string, string>();
@@ -48,7 +51,7 @@ describe('ExpireAvailabilityAlertsJob (integration)', () => {
     ]);
     const txManager = new TypeOrmTransactionManager(ds);
     const outboxRepo = new TypeOrmOutboxRepository(ds.getRepository(OutboxEventEntity));
-    const alertRepo = new TypeOrmAvailabilityAlertRepository(
+    alertRepo = new TypeOrmAvailabilityAlertRepository(
       ds.getRepository(AvailabilityAlertEntity),
       makeRealOutboxPublisher(outboxRepo, new InMemoryEventBus()),
     );
@@ -102,6 +105,25 @@ describe('ExpireAvailabilityAlertsJob (integration)', () => {
       .find({ where: [{ tenantId: tenantA }, { tenantId: tenantB }] });
     const expiredEvents = outbox.filter((row) => row.eventName === 'AvailabilityAlertExpired');
     expect(expiredEvents.map((row) => row.tenantId).sort()).toEqual([tenantA, tenantB].sort());
+  });
+
+  it('loses to a concurrent cancel: a stale save fails the version check and writes no outbox row', async () => {
+    const id = await seedAlert(tenantB, new Date(Date.now() - HOUR_MS));
+    const stale = await alertRepo.findById(id, tenantB);
+    // The customer's cancel commits first and bumps the version.
+    await ds
+      .getRepository(AvailabilityAlertEntity)
+      .update({ tenantId: tenantB, id }, { status: 'CANCELLED', version: 2 });
+    stale?.expire('corr-stale');
+
+    await expect(alertRepo.save(stale as AvailabilityAlert)).rejects.toThrow(
+      BookingConcurrentModificationError,
+    );
+
+    expect((await rowOf(tenantB, id)).status).toBe('CANCELLED');
+    const outbox = await ds.getRepository(OutboxEventEntity).find({ where: { tenantId: tenantB } });
+    expect(outbox.filter((row) => row.payload['alertId'] === id)).toEqual([]);
+    expect((await job.run()).expired).toBe(0);
   });
 
   it('is a no-op on a second run (nothing left to expire)', async () => {

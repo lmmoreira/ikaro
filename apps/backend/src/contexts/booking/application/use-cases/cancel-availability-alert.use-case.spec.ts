@@ -64,6 +64,18 @@ describe('CancelAvailabilityAlertUseCase', () => {
     await expect(run(alert.id)).rejects.toThrow(AvailabilityAlertNotEditableError);
   });
 
+  it('refuses to cancel an ACTIVE alert already past its expiry, publishing nothing', async () => {
+    const alert = new AvailabilityAlertBuilder()
+      .withCustomerId(CUSTOMER)
+      .withExpiresAt(new Date(Date.now() - 3_600_000))
+      .build();
+    alertRepo.seed(alert);
+
+    await expect(run(alert.id)).rejects.toThrow(AvailabilityAlertNotEditableError);
+    expect((await alertRepo.findById(alert.id, TENANT))?.status).toBe('ACTIVE');
+    expect(eventBus.published).toHaveLength(0);
+  });
+
   it("reads another customer's alert in the same tenant as not found, and leaves it untouched", async () => {
     const alert = new AvailabilityAlertBuilder().withCustomerId(CUSTOMER).build();
     alertRepo.seed(alert);

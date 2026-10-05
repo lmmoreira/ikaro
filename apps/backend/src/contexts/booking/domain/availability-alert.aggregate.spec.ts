@@ -401,6 +401,23 @@ describe('AvailabilityAlert', () => {
       expect(alert.domainEvents).toHaveLength(0);
     });
 
+    it('refuses to cancel an ACTIVE alert already past its expiry (the job has not run yet)', () => {
+      const alert = new AvailabilityAlertBuilder().withExpiresAt(at(-HOUR_MS)).build();
+
+      expect(() => alert.cancel('corr-3', NOW)).toThrow(AvailabilityAlertNotEditableError);
+      expect(alert.status).toBe('ACTIVE');
+      expect(alert.domainEvents).toHaveLength(0);
+    });
+
+    it('stays idempotent on an already-cancelled alert even past its expiry', () => {
+      const alert = new AvailabilityAlertBuilder()
+        .withStatus('CANCELLED')
+        .withExpiresAt(at(-HOUR_MS))
+        .build();
+
+      expect(alert.cancel('corr-3', NOW)).toBe(false);
+    });
+
     it.each(['NOTIFIED', 'EXPIRED'] as const)('refuses to cancel a %s alert', (status) => {
       const alert = new AvailabilityAlertBuilder().withStatus(status).build();
 

@@ -161,12 +161,12 @@ export class AvailabilityAlert extends AggregateRoot {
   }
 
   // UC-072 A2 / UC-076. Idempotent on an already-cancelled alert (returns false, no event); a
-  // NOTIFIED or EXPIRED alert is read-only history. Returns whether anything changed.
-  cancel(correlationId: string): boolean {
+  // NOTIFIED or EXPIRED alert is read-only history — and so is an ACTIVE one already past its
+  // expiry that the expiry job has not reached yet, exactly as in update(). Returns whether
+  // anything changed.
+  cancel(correlationId: string, now: Date = new Date()): boolean {
     if (this.props.status === 'CANCELLED') return false;
-    if (this.props.status !== 'ACTIVE') {
-      throw new AvailabilityAlertNotEditableError(this.props.id);
-    }
+    this.assertEditable(now);
     this.props.status = 'CANCELLED';
     this.addDomainEvent(
       new AvailabilityAlertCancelled(this.props.tenantId, correlationId, this.refData()),

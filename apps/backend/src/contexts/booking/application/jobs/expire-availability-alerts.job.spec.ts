@@ -148,7 +148,7 @@ describe('ExpireAvailabilityAlertsJob', () => {
     jest.spyOn(alertRepo, 'save').mockImplementation(async (alert) => {
       running++;
       peak = Math.max(peak, running);
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      await new Promise((resolve) => setImmediate(resolve));
       await realSave(alert);
       running--;
     });

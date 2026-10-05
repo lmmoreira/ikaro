@@ -54,8 +54,10 @@ export class ExpireAvailabilityAlertsJob {
   // an outcome the job is fine with; any other failure is logged and retried on the next run.
   private async expireOne(alert: AvailabilityAlert, correlationId: string): Promise<boolean> {
     try {
-      alert.expire(correlationId);
-      await this.txManager.run(() => this.alertRepo.save(alert));
+      await this.txManager.run(async () => {
+        alert.expire(correlationId);
+        await this.alertRepo.save(alert);
+      });
       return true;
     } catch (err) {
       if (err instanceof BookingConcurrentModificationError) return false;
