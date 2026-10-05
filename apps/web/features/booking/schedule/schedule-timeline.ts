@@ -143,7 +143,7 @@ function buildTimelineWindowFromActive(input: TimelineWindowFromActiveInput): Ti
     timelineEndMinutes,
     slotGranularityMinutes,
   );
-  const events = buildAllTimelineEvents(
+  const events = buildAllTimelineEvents({
     selectedDateKey,
     timezone,
     bookings,
@@ -152,7 +152,7 @@ function buildTimelineWindowFromActive(input: TimelineWindowFromActiveInput): Ti
     selectedResourceIdSet,
     bookingResourceNamesById,
     bufferTails,
-  );
+  });
 
   return {
     timelineStartMinutes,

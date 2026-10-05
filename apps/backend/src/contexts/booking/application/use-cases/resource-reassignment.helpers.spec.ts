@@ -326,7 +326,7 @@ describe('reassignBookingResource', () => {
       expect(row.gapSource).toBe('SERVICE_BUFFER');
     });
 
-    it("keeps a leg's window at duration plus the target's turnover — the transition gap only moves the next leg's start", async () => {
+    it("rebuilds a leg's window from its persisted interval plus the target's turnover, ignoring a later leg edit and the transition gap", async () => {
       const room = await world.addResourceWithTurnover('Sala 1', 0);
       const target = await world.addResourceWithTurnover('Sala 2', 10);
       const service = new ServiceBuilder()
@@ -335,7 +335,8 @@ describe('reassignBookingResource', () => {
           ServiceLeg.create({
             legIndex: 0,
             name: 'Etapa 0',
-            durationMinutes: 30,
+            // Edited after the booking was made (the persisted window below is 30 minutes).
+            durationMinutes: 45,
             transitionGapAfterMinutes: 20,
             resourceRequirements: [
               ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),

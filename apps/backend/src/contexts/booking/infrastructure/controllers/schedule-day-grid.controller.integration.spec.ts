@@ -5,7 +5,10 @@ import { CalendarDateErrorCode } from '@ikaro/types';
 import { ResourceEntityBuilder } from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
-import { seedOccupiedBlock } from '../../../../test/utils/seed-resource-occupancy';
+import {
+  seedOccupiedBlock,
+  seedOccupiedBlockWithSpec,
+} from '../../../../test/utils/seed-resource-occupancy';
 import { ResourceEntity } from '../entities/resource.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
@@ -94,26 +97,22 @@ describe('ScheduleDayGridController (integration)', () => {
         .build();
       await ds.getRepository(ResourceEntity).save(resource);
 
-      const serviceBuffer = await seedOccupiedBlock(
-        ds,
-        TENANT_A,
-        resource.id,
-        ResourceType.ROOM,
-        'COMMITTED',
-        new Date(`${DATE}T10:00:00.000Z`),
-        new Date(`${DATE}T13:00:00.000Z`),
-        { gap: { minutes: 60, source: 'SERVICE_BUFFER' }, serviceName: 'Polimento' },
-      );
-      const turnover = await seedOccupiedBlock(
-        ds,
-        TENANT_A,
-        resource.id,
-        ResourceType.ROOM,
-        'COMMITTED',
-        new Date(`${DATE}T14:00:00.000Z`),
-        new Date(`${DATE}T14:45:00.000Z`),
-        { gap: { minutes: 15, source: 'RESOURCE_TURNOVER' }, serviceName: 'Lavagem rápida' },
-      );
+      const serviceBuffer = await seedOccupiedBlockWithSpec(ds, TENANT_A, resource.id, {
+        resourceType: ResourceType.ROOM,
+        lockState: 'COMMITTED',
+        startsAt: new Date(`${DATE}T10:00:00.000Z`),
+        endsAt: new Date(`${DATE}T13:00:00.000Z`),
+        gap: { minutes: 60, source: 'SERVICE_BUFFER' },
+        serviceName: 'Polimento',
+      });
+      const turnover = await seedOccupiedBlockWithSpec(ds, TENANT_A, resource.id, {
+        resourceType: ResourceType.ROOM,
+        lockState: 'COMMITTED',
+        startsAt: new Date(`${DATE}T14:00:00.000Z`),
+        endsAt: new Date(`${DATE}T14:45:00.000Z`),
+        gap: { minutes: 15, source: 'RESOURCE_TURNOVER' },
+        serviceName: 'Lavagem rápida',
+      });
       const legacy = await seedOccupiedBlock(
         ds,
         TENANT_A,
@@ -193,16 +192,18 @@ describe('ScheduleDayGridController (integration)', () => {
         .build();
       await ds.getRepository(ResourceEntity).save([ownResource, otherResource]);
 
-      const { bookingId: otherTenantBookingId } = await seedOccupiedBlock(
+      const { bookingId: otherTenantBookingId } = await seedOccupiedBlockWithSpec(
         ds,
         TENANT_B,
         otherResource.id,
-        ResourceType.ROOM,
-        'COMMITTED',
-        new Date(`${DATE}T15:00:00.000Z`),
-        new Date(`${DATE}T16:00:00.000Z`),
-
-        { gap: { minutes: 30, source: 'SERVICE_BUFFER' }, serviceName: 'Serviço do Tenant B' },
+        {
+          resourceType: ResourceType.ROOM,
+          lockState: 'COMMITTED',
+          startsAt: new Date(`${DATE}T15:00:00.000Z`),
+          endsAt: new Date(`${DATE}T16:00:00.000Z`),
+          gap: { minutes: 30, source: 'SERVICE_BUFFER' },
+          serviceName: 'Serviço do Tenant B',
+        },
       );
 
       const { body } = await request(app.getHttpServer())

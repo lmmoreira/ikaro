@@ -152,12 +152,14 @@ function retargetedWindow(
   if (!line || !service) return { endsAt: row.endsAt, gap: recordedGap(row) };
 
   if (row.legIndex !== null) {
-    // A leg's trailing gap is the resource's own turnover (the transition between legs is a static
-    // service value that never depends on the resource).
-    const leg = service.legs?.find((l) => l.legIndex === row.legIndex);
-    if (!leg) return { endsAt: row.endsAt, gap: recordedGap(row) };
+    // A leg's trailing gap is the target resource's own turnover (the transition between legs is a
+    // static service value that never depends on the resource). The leg's own work interval is the
+    // persisted one — editing a service's legs later does not touch existing bookings, so the
+    // current leg definition must not be used to rebuild it. A row with no recorded gap is taken as
+    // having none folded into its end (a row written before the gap was recorded that held a
+    // turnover is therefore held a little longer, never shorter).
     const gap = availabilityService.resolveFlatGap(0, target.turnoverMinutes);
-    const rawEnd = row.startsAt.getTime() + leg.durationMinutes * 60_000;
+    const rawEnd = row.endsAt.getTime() - (row.gapMinutes ?? 0) * 60_000;
     return { endsAt: new Date(rawEnd + (gap?.minutes ?? 0) * 60_000), gap };
   }
 

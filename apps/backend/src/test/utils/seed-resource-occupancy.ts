@@ -14,22 +14,27 @@ import { ServiceEntity } from '../../contexts/booking/infrastructure/entities/se
 import { ResourceGapSource } from '../../contexts/booking/domain/resource-gap-source';
 import { ResourceType } from '../../contexts/booking/domain/resource.types';
 
+export interface OccupiedBlockSpec {
+  resourceType: ResourceType;
+  lockState: 'REQUESTED' | 'HOLD' | 'COMMITTED';
+  startsAt: Date;
+  endsAt: Date;
+  // The gap behind endsAt and the booking line's service-name snapshot (M18-S10); omitted = a row
+  // written before the gap was recorded.
+  gap?: { minutes: number; source: ResourceGapSource };
+  serviceName?: string;
+}
+
 // Real composite FKs require a genuinely persisted service + booking + line + assignment before a
 // resource_occupancy row can reference one — same discipline as
 // typeorm-resource-occupancy.repository.integration.spec.ts.
-export async function seedOccupiedBlock(
+export async function seedOccupiedBlockWithSpec(
   ds: DataSource,
   tenantId: string,
   resourceId: string,
-  resourceType: ResourceType,
-  lockState: 'REQUESTED' | 'HOLD' | 'COMMITTED',
-  startsAt: Date,
-  endsAt: Date,
-  options: {
-    gap?: { minutes: number; source: ResourceGapSource };
-    serviceName?: string;
-  } = {},
+  spec: OccupiedBlockSpec,
 ): Promise<{ bookingId: string }> {
+  const { resourceType, lockState, startsAt, endsAt, gap, serviceName } = spec;
   const service = new ServiceEntityBuilder().withTenantId(tenantId).build();
   await ds.getRepository(ServiceEntity).save(service);
   const booking = new BookingEntityBuilder().withTenantId(tenantId).build();
@@ -38,7 +43,7 @@ export async function seedOccupiedBlock(
     .withTenantId(tenantId)
     .withBookingId(booking.id)
     .withServiceId(service.id)
-    .withServiceNameAtBooking(options.serviceName ?? 'Lavagem Básica')
+    .withServiceNameAtBooking(serviceName ?? 'Lavagem Básica')
     .build();
   await ds.getRepository(BookingLineEntity).save(line);
   const assignment = new BookingLineResourceAssignmentEntityBuilder()
@@ -56,8 +61,25 @@ export async function seedOccupiedBlock(
     .withLockState(lockState)
     .withStartsAt(startsAt)
     .withEndsAt(endsAt)
-    .withGap(options.gap?.minutes ?? null, options.gap?.source ?? null)
+    .withGap(gap?.minutes ?? null, gap?.source ?? null)
     .build();
   await ds.getRepository(ResourceOccupancyEntity).save(occupancy);
   return { bookingId: booking.id };
+}
+
+export function seedOccupiedBlock(
+  ds: DataSource,
+  tenantId: string,
+  resourceId: string,
+  resourceType: ResourceType,
+  lockState: OccupiedBlockSpec['lockState'],
+  startsAt: Date,
+  endsAt: Date,
+): Promise<{ bookingId: string }> {
+  return seedOccupiedBlockWithSpec(ds, tenantId, resourceId, {
+    resourceType,
+    lockState,
+    startsAt,
+    endsAt,
+  });
 }

@@ -69,16 +69,28 @@ function buildFilteredBookingEvents(input: FilteredBookingEventsInput) {
   );
 }
 
-export function buildAllTimelineEvents(
-  selectedDateKey: string,
-  timezone: string,
-  bookings: readonly StaffBookingCardResponse[],
-  active: ActiveTimelineHours,
-  resourceNameById: ReadonlyMap<string, string>,
-  selectedResourceIdSet: ReadonlySet<string>,
-  bookingResourceNamesById: ReadonlyMap<string, readonly string[]>,
-  bufferTails: readonly BufferTail[] = [],
-): TimelineEvent[] {
+export interface AllTimelineEventsInput {
+  readonly selectedDateKey: string;
+  readonly timezone: string;
+  readonly bookings: readonly StaffBookingCardResponse[];
+  readonly active: ActiveTimelineHours;
+  readonly resourceNameById: ReadonlyMap<string, string>;
+  readonly selectedResourceIdSet: ReadonlySet<string>;
+  readonly bookingResourceNamesById: ReadonlyMap<string, readonly string[]>;
+  readonly bufferTails: readonly BufferTail[];
+}
+
+export function buildAllTimelineEvents(input: AllTimelineEventsInput): TimelineEvent[] {
+  const {
+    selectedDateKey,
+    timezone,
+    bookings,
+    active,
+    resourceNameById,
+    selectedResourceIdSet,
+    bookingResourceNamesById,
+    bufferTails,
+  } = input;
   const { dayOpenings, selectedDayClosures, activeStartTime, activeEndTime } = active;
 
   const bookingEvents = buildFilteredBookingEvents({

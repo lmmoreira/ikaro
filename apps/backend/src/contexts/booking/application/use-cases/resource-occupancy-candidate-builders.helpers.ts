@@ -6,6 +6,7 @@ import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceLeg } from '../../domain/service-leg';
 import { ResourceOccupancyCandidate } from '../ports/resource-occupancy-repository.port';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { resolveRequirementResources } from './resource-requirement-resolution.helpers';
 import {
   consumeSelections,
@@ -62,19 +63,18 @@ export async function resolveFlatLineCandidates(
           resource.turnoverMinutes,
         )
       : null;
-  const candidates: ResourceOccupancyCandidate[] = [];
-  for (const requirement of requirements) {
-    candidates.push(
-      ...(await resolveFlatCandidatesForRequirement(requirement, service.id, ctx, {
-        lineStart,
-        lineEnd,
-        isBundleMember: isBundle,
-        gapFor,
-        selectionsByKey,
-      })),
-    );
-  }
-  return candidates;
+  // Strictly one requirement after another: each consumes its share of selectionsByKey, and AUTO_ANY
+  // picks read workload the previous requirement's pick would otherwise not yet be part of.
+  const perRequirement = await mapSequentially(requirements, (requirement) =>
+    resolveFlatCandidatesForRequirement(requirement, service.id, ctx, {
+      lineStart,
+      lineEnd,
+      isBundleMember: isBundle,
+      gapFor,
+      selectionsByKey,
+    }),
+  );
+  return perRequirement.flat();
 }
 
 interface FlatRequirementResolutionContext extends FlatCandidateBuildContext {
@@ -212,10 +212,10 @@ async function resolvePerLegResources(
   serviceId: string,
   spanByLegIndex: Map<number, LegSpan>,
 ): Promise<PerLegResource[]> {
-  const perLeg: PerLegResource[] = [];
-  for (const leg of legs) {
+  // Legs and their requirements strictly in order — each consumes its share of selectionsByKey.
+  const perLeg = await mapSequentially(legs, (leg) => {
     const span = spanByLegIndex.get(leg.legIndex)!;
-    for (const requirement of leg.resourceRequirements) {
+    return mapSequentially(leg.resourceRequirements, async (requirement) => {
       const chosenResourceIds = consumeSelections(
         selectionsByKey,
         selectionKey(serviceId, leg.legIndex, requirement.type),
@@ -234,15 +234,13 @@ async function resolvePerLegResources(
         span.endsAtWithTurnover,
         (resource) => resource.turnoverMinutes,
       );
-      resources.forEach((resource, index) => {
-        perLeg.push({
-          legIndex: leg.legIndex,
-          resource,
-          quantityPosition: resources.length > 1 ? index : null,
-          selectionMode: requirement.selectionMode,
-        });
-      });
-    }
-  }
-  return perLeg;
+      return resources.map((resource, index) => ({
+        legIndex: leg.legIndex,
+        resource,
+        quantityPosition: resources.length > 1 ? index : null,
+        selectionMode: requirement.selectionMode,
+      }));
+    });
+  });
+  return perLeg.flat(2);
 }
