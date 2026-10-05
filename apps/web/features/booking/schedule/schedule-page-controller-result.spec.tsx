@@ -68,6 +68,7 @@ function makeCore(overrides: Partial<ScheduleCoreData> = {}): ScheduleCoreData {
     scheduleFetchError: null,
     resourceNameById: new Map<string, string>(),
     bookingResourceIdsById: new Map<string, readonly string[]>(),
+    weekDayGrids: undefined,
     weekDayInfo: [],
     activeDates: new Set(),
     dimmedDates: new Set(),

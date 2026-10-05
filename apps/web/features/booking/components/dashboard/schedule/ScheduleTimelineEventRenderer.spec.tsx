@@ -89,6 +89,37 @@ describe('renderTimelineEvent', () => {
     expect(screen.getByText('Aprovado')).toBeInTheDocument();
   });
 
+  it('gives a booking in a shared (narrow) lane one more line of minimum height for the wrapped badge', () => {
+    const makeEvent = (laneCount: number): TimelineEvent => ({
+      kind: 'booking',
+      id: `booking-${laneCount}`,
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: [],
+      laneIndex: 0,
+      laneCount,
+      booking: {
+        bookingId: `booking-${laneCount}`,
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30,
+      } as never,
+    });
+    const minHeightOf = (laneCount: number): number => {
+      const { unmount } = renderWithIntl(<Host event={makeEvent(laneCount)} props={baseProps()} />);
+      const value = Number.parseInt(screen.getByRole('link').style.minHeight, 10);
+      unmount();
+      return value;
+    };
+
+    expect(minHeightOf(2)).toBeGreaterThan(minHeightOf(1));
+  });
+
   it("composes the booking link's own accessible name from contactName + every matched resource (TD44 Story 2 round 3)", () => {
     const baseEvent = {
       kind: 'booking' as const,
@@ -590,5 +621,71 @@ describe('renderTimelineEvent', () => {
     const block = screen.getByTestId('schedule-closure-block-closure-1');
     expect(block.style.left).toBe('50%');
     expect(block.style.width).toBe('50%');
+  });
+
+  it('renders a buffer event as a non-interactive held-time note (M18-S10)', () => {
+    renderWithIntl(
+      <Host
+        event={{
+          kind: 'buffer',
+          id: 'buffer-booking-1',
+          startMinutes: 570,
+          endMinutes: 600,
+          title: 'Walace',
+          subtitle: '',
+          resourceName: 'Walace',
+          releasesAtLocalTime: '10:00',
+          gap: { source: 'RESOURCE_TURNOVER', minutes: 30, serviceName: null },
+          serviceName: 'Polimento',
+          laneIndex: 0,
+          laneCount: 1,
+        }}
+        props={baseProps()}
+      />,
+    );
+
+    expect(screen.getByRole('note')).toHaveTextContent('Walace · até 10:00');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('reserves one more line for a resource-scoped opening or closure badge only in a shared lane', () => {
+    const makeOpening = (resourceName: string | null, laneCount: number): TimelineEvent => ({
+      kind: 'opening',
+      id: `opening-${resourceName}-${laneCount}`,
+      startMinutes: 540,
+      endMinutes: 600,
+      title: '',
+      subtitle: '',
+      opening: { id: 'o', notes: null, startTime: '09:00', endTime: '10:00' } as never,
+      resourceName,
+      laneIndex: 0,
+      laneCount,
+    });
+    const makeClosure = (resourceName: string | null, laneCount: number): TimelineEvent => ({
+      kind: 'closure',
+      id: `closure-${resourceName}-${laneCount}`,
+      startMinutes: 540,
+      endMinutes: 600,
+      title: '',
+      subtitle: '',
+      closure: { id: 'c', reason: 'MAINTENANCE', notes: null } as never,
+      resourceName,
+      laneIndex: 0,
+      laneCount,
+    });
+    const minHeightOf = (event: TimelineEvent): number => {
+      const { unmount } = renderWithIntl(<Host event={event} props={baseProps()} />);
+      const value = Number.parseInt(screen.getByRole('button').style.minHeight, 10);
+      unmount();
+      return value;
+    };
+
+    for (const make of [makeOpening, makeClosure]) {
+      const tenantWide = minHeightOf(make(null, 2));
+      const scopedAlone = minHeightOf(make('Walace', 1));
+      const scopedShared = minHeightOf(make('Walace', 2));
+      expect(scopedShared).toBeGreaterThan(scopedAlone);
+      expect(tenantWide).toBe(scopedAlone);
+    }
   });
 });

@@ -29,6 +29,8 @@ function candidate(
     endsAt,
     selectionMode: 'NONE',
     isBundleMember: false,
+    gapMinutes: null,
+    gapSource: null,
     ...overrides,
   };
 }

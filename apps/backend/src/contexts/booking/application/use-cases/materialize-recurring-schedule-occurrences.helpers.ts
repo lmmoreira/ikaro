@@ -125,7 +125,7 @@ function buildCandidate(
   const end = new Date(
     occurrence.occurrenceStart.getTime() + schedule.recurrence.durationMinutes * 60_000,
   );
-  const gapMinutes = availabilityService.effectiveFlatGapMinutes(
+  const gap = availabilityService.resolveFlatGap(
     service.bufferAfterMinutes ?? 0,
     resource.turnoverMinutes,
   );
@@ -136,7 +136,9 @@ function buildCandidate(
     legIndex: null,
     quantityPosition: null,
     startsAt: occurrence.occurrenceStart,
-    endsAt: new Date(end.getTime() + gapMinutes * 60_000),
+    endsAt: new Date(end.getTime() + (gap?.minutes ?? 0) * 60_000),
+    gapMinutes: gap?.minutes ?? null,
+    gapSource: gap?.source ?? null,
     selectionMode: service.resourceRequirements[0].selectionMode,
     isBundleMember: false,
   };

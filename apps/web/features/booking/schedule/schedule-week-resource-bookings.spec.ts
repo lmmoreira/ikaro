@@ -25,7 +25,7 @@ describe('buildWeekBookingResourceIds', () => {
       makeDayGridResponse('2026-08-17', [
         makeDayGridColumn({
           resourceId: 'res-camila',
-          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1', gap: null }],
         }),
       ]),
     ];
@@ -38,7 +38,7 @@ describe('buildWeekBookingResourceIds', () => {
       makeDayGridResponse('2026-08-17', [
         makeDayGridColumn({
           resourceId: 'res-unchecked',
-          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1', gap: null }],
         }),
       ]),
     ];
@@ -51,7 +51,7 @@ describe('buildWeekBookingResourceIds', () => {
       makeDayGridResponse('2026-08-17', [
         makeDayGridColumn({
           resourceId: 'res-camila',
-          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1', gap: null }],
         }),
       ]),
     ];
@@ -66,19 +66,19 @@ describe('buildWeekBookingResourceIds', () => {
       makeDayGridResponse('2026-08-17', [
         makeDayGridColumn({
           resourceId: 'res-camila',
-          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1', gap: null }],
         }),
         makeDayGridColumn({
           resourceId: 'res-room',
           name: 'Sala 1',
           type: 'ROOM',
-          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1', gap: null }],
         }),
       ]),
       makeDayGridResponse('2026-08-18', [
         makeDayGridColumn({
           resourceId: 'res-camila',
-          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-2' }],
+          blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-2', gap: null }],
         }),
       ]),
     ];
@@ -94,7 +94,9 @@ describe('buildWeekBookingResourceIds', () => {
       makeDayGridResponse('2026-08-17', [
         makeDayGridColumn({
           resourceId: 'res-camila',
-          blocks: [{ startsAt: '', endsAt: '', kind: 'CLASS_SESSION', refId: 'session-1' }],
+          blocks: [
+            { startsAt: '', endsAt: '', kind: 'CLASS_SESSION', refId: 'session-1', gap: null },
+          ],
         }),
       ]),
     ];

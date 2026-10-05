@@ -9,8 +9,13 @@ import type {
 import {
   buildTimelineDayData,
   getBookingDateKey,
+  type BufferTail,
   type TimelineDayData,
 } from '@/features/booking/schedule/schedule-timeline';
+import {
+  keepLongestTail,
+  resolveBufferTail,
+} from '@/features/booking/schedule/schedule-held-tails';
 import { getLocalTimeKey } from '@/features/booking/schedule/date-utils';
 import {
   applySharedTimelineWindow,
@@ -88,6 +93,7 @@ function buildPlaceholderBooking(
 interface ResolvedResourceBlocks {
   readonly bookings: StaffBookingCardResponse[];
   readonly spillover: SpilloverOccupancyIndicator[];
+  readonly bufferTails: BufferTail[];
 }
 
 // Day-grid is used purely as a resourceId -> booking-id lookup here — CLASS_SESSION blocks are
@@ -116,10 +122,12 @@ function resolveResourceBookings(
   placeholderLabel: string,
   selectedDateKey: string,
   timezone: string,
+  resourceName: string,
 ): ResolvedResourceBlocks {
-  if (!dayGridColumn) return { bookings: [], spillover: [] };
+  if (!dayGridColumn) return { bookings: [], spillover: [], bufferTails: [] };
   const bookings: StaffBookingCardResponse[] = [];
   const spillover: SpilloverOccupancyIndicator[] = [];
+  const tails = new Map<string, BufferTail>();
   for (const block of dayGridColumn.blocks) {
     if (block.kind !== 'BOOKING') continue;
     const match = bookingById.get(block.refId);
@@ -127,6 +135,7 @@ function resolveResourceBookings(
       if (!selectedStatusSet.has(match.status)) continue;
       if (getBookingDateKey(match, timezone) === selectedDateKey) {
         bookings.push(match);
+        keepLongestTail(tails, resolveBufferTail(match, block, resourceName, timezone));
       } else {
         spillover.push({
           bookingId: match.bookingId,
@@ -138,7 +147,7 @@ function resolveResourceBookings(
     }
     bookings.push(buildPlaceholderBooking(block, placeholderLabel));
   }
-  return { bookings, spillover };
+  return { bookings, spillover, bufferTails: [...tails.values()] };
 }
 
 // A resource's own closures/openings, plus every tenant-wide one (resourceId === null) — a
@@ -198,13 +207,18 @@ export function buildResourceColumns(input: BuildResourceColumnsInput): Schedule
     }))
     .sort((a, b) => a.resourceName.localeCompare(b.resourceName))
     .map(({ resourceId, resourceName }) => {
-      const { bookings: resourceBookings, spillover } = resolveResourceBookings(
+      const {
+        bookings: resourceBookings,
+        spillover,
+        bufferTails,
+      } = resolveResourceBookings(
         dayGridColumnByResourceId.get(resourceId),
         bookingById,
         input.selectedStatusSet,
         input.placeholderBookingLabel,
         input.selectedDateKey,
         input.timezone,
+        resourceName,
       );
 
       const timeline = buildTimelineDayData({
@@ -215,6 +229,7 @@ export function buildResourceColumns(input: BuildResourceColumnsInput): Schedule
         bookings: resourceBookings,
         closures: scopeToResource(input.closures, resourceId),
         openings: scopeToResource(input.openings, resourceId),
+        bufferTails,
       });
 
       return { resourceId, resourceName, timeline, spilloverOccupancy: spillover };

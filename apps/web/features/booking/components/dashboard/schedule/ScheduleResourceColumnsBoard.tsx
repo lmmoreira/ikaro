@@ -176,7 +176,10 @@ export function ScheduleResourceColumnsBoard(
             className="min-w-[16rem] flex-1"
             data-testid="schedule-resource-column"
           >
-            <p className="mb-2 truncate text-sm font-semibold text-gray-900">
+            <p
+              data-testid="schedule-resource-column-name"
+              className="mb-2 truncate text-sm font-semibold text-gray-900"
+            >
               {column.resourceName}
             </p>
             {column.spilloverOccupancy.map((indicator) => (

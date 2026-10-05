@@ -271,6 +271,8 @@ describe('RequestBookingUseCase', () => {
       quantityPosition: null,
       selectionMode: 'NONE' as const,
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt: new Date(`${futureDate(1)}T10:00:00.000Z`),
       endsAt: new Date(`${futureDate(1)}T10:30:00.000Z`),
     });

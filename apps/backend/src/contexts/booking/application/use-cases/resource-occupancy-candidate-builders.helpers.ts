@@ -1,3 +1,4 @@
+import { ResourceGap } from '../../domain/resource-gap-source';
 import { LegSpan } from '../../domain/services/availability.service';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -5,6 +6,7 @@ import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceLeg } from '../../domain/service-leg';
 import { ResourceOccupancyCandidate } from '../ports/resource-occupancy-repository.port';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { resolveRequirementResources } from './resource-requirement-resolution.helpers';
 import {
   consumeSelections,
@@ -54,26 +56,25 @@ export async function resolveFlatLineCandidates(
   // resolveRequirementResources' AUTO_ANY availability pre-filter (which must check each
   // candidate's TRUE effective window, not just the raw one) and the final candidate build below,
   // so the two never compute a different answer for the same resource.
-  const gapMinutesFor = (resource: Resource): number =>
+  const gapFor = (resource: Resource): ResourceGap | null =>
     isLastLine
-      ? ctx.availabilityService.effectiveFlatGapMinutes(
+      ? ctx.availabilityService.resolveFlatGap(
           service.bufferAfterMinutes ?? 0,
           resource.turnoverMinutes,
         )
-      : 0;
-  const candidates: ResourceOccupancyCandidate[] = [];
-  for (const requirement of requirements) {
-    candidates.push(
-      ...(await resolveFlatCandidatesForRequirement(requirement, service.id, ctx, {
-        lineStart,
-        lineEnd,
-        isBundleMember: isBundle,
-        gapMinutesFor,
-        selectionsByKey,
-      })),
-    );
-  }
-  return candidates;
+      : null;
+  // Strictly one requirement after another: each consumes its share of selectionsByKey, and AUTO_ANY
+  // picks read workload the previous requirement's pick would otherwise not yet be part of.
+  const perRequirement = await mapSequentially(requirements, (requirement) =>
+    resolveFlatCandidatesForRequirement(requirement, service.id, ctx, {
+      lineStart,
+      lineEnd,
+      isBundleMember: isBundle,
+      gapFor,
+      selectionsByKey,
+    }),
+  );
+  return perRequirement.flat();
 }
 
 interface FlatRequirementResolutionContext extends FlatCandidateBuildContext {
@@ -82,7 +83,7 @@ interface FlatRequirementResolutionContext extends FlatCandidateBuildContext {
 
 // windowEnd passed to resolveRequirementResources is the RAW (pre-gap) line end — the final
 // per-resource gap-adjusted endsAt is computed by buildFlatCandidatesForRequirement below, and
-// resolveRequirementResources applies that same gapMinutesFor function to each AUTO_ANY
+// resolveRequirementResources applies that same gapFor function to each AUTO_ANY
 // candidate's own availability pre-check too.
 async function resolveFlatCandidatesForRequirement(
   requirement: ResourceRequirement,
@@ -90,7 +91,7 @@ async function resolveFlatCandidatesForRequirement(
   ctx: ResolutionContext,
   resolutionCtx: FlatRequirementResolutionContext,
 ): Promise<ResourceOccupancyCandidate[]> {
-  const { lineStart, lineEnd, isBundleMember, gapMinutesFor, selectionsByKey } = resolutionCtx;
+  const { lineStart, lineEnd, isBundleMember, gapFor, selectionsByKey } = resolutionCtx;
   const chosenResourceIds = consumeSelections(
     selectionsByKey,
     selectionKey(serviceId, null, requirement.type),
@@ -102,13 +103,13 @@ async function resolveFlatCandidatesForRequirement(
     chosenResourceIds,
     lineStart,
     lineEnd,
-    gapMinutesFor,
+    (resource) => gapFor(resource)?.minutes ?? 0,
   );
   return buildFlatCandidatesForRequirement(resources, requirement, {
     lineStart,
     lineEnd,
     isBundleMember,
-    gapMinutesFor,
+    gapFor,
   });
 }
 
@@ -116,7 +117,7 @@ interface FlatCandidateBuildContext {
   lineStart: Date;
   lineEnd: Date;
   isBundleMember: boolean;
-  gapMinutesFor: (resource: Resource) => number;
+  gapFor: (resource: Resource) => ResourceGap | null;
 }
 
 function buildFlatCandidatesForRequirement(
@@ -124,18 +125,23 @@ function buildFlatCandidatesForRequirement(
   requirement: ResourceRequirement,
   buildCtx: FlatCandidateBuildContext,
 ): ResourceOccupancyCandidate[] {
-  const { lineStart, lineEnd, isBundleMember, gapMinutesFor } = buildCtx;
-  return resources.map((resource, index) => ({
-    resourceId: resource.id,
-    resourceType: resource.type,
-    resourceName: resource.name,
-    legIndex: null,
-    quantityPosition: resources.length > 1 ? index : null,
-    startsAt: lineStart,
-    endsAt: new Date(lineEnd.getTime() + gapMinutesFor(resource) * 60_000),
-    selectionMode: requirement.selectionMode,
-    isBundleMember,
-  }));
+  const { lineStart, lineEnd, isBundleMember, gapFor } = buildCtx;
+  return resources.map((resource, index) => {
+    const gap = gapFor(resource);
+    return {
+      resourceId: resource.id,
+      resourceType: resource.type,
+      resourceName: resource.name,
+      legIndex: null,
+      quantityPosition: resources.length > 1 ? index : null,
+      startsAt: lineStart,
+      endsAt: new Date(lineEnd.getTime() + (gap?.minutes ?? 0) * 60_000),
+      gapMinutes: gap?.minutes ?? null,
+      gapSource: gap?.source ?? null,
+      selectionMode: requirement.selectionMode,
+      isBundleMember,
+    };
+  });
 }
 
 // computeLegSpans's turnover param only extends a leg's OWN endsAtWithTurnover — it never affects
@@ -173,22 +179,30 @@ export async function resolveLeggedLineCandidates(
     spanByLegIndex,
   );
 
-  return perLeg.map(({ legIndex, resource, quantityPosition, selectionMode }) => {
-    const span = spanByLegIndex.get(legIndex)!;
-    return {
-      resourceId: resource.id,
-      resourceType: resource.type,
-      resourceName: resource.name,
-      legIndex,
-      quantityPosition,
-      startsAt: span.startsAt,
-      endsAt: new Date(span.endsAtWithTurnover.getTime() + resource.turnoverMinutes * 60_000),
-      selectionMode,
-      // A legged candidate is classified via its own non-null legIndex, never isBundleMember —
-      // see BookingSlotConflictService's classifier.
-      isBundleMember: false,
-    };
-  });
+  return perLeg.map((leg) => toLeggedCandidate(leg, spanByLegIndex.get(leg.legIndex)!));
+}
+
+function toLeggedCandidate(
+  { legIndex, resource, quantityPosition, selectionMode }: PerLegResource,
+  span: LegSpan,
+): ResourceOccupancyCandidate {
+  return {
+    resourceId: resource.id,
+    resourceType: resource.type,
+    resourceName: resource.name,
+    legIndex,
+    quantityPosition,
+    startsAt: span.startsAt,
+    endsAt: new Date(span.endsAtWithTurnover.getTime() + resource.turnoverMinutes * 60_000),
+    // A legged line's trailing gap is the resource's turnover alone (computeLegSpans takes the
+    // transition gap between legs separately), so its only possible origin is the resource.
+    gapMinutes: resource.turnoverMinutes > 0 ? resource.turnoverMinutes : null,
+    gapSource: resource.turnoverMinutes > 0 ? 'RESOURCE_TURNOVER' : null,
+    selectionMode,
+    // A legged candidate is classified via its own non-null legIndex, never isBundleMember —
+    // see BookingSlotConflictService's classifier.
+    isBundleMember: false,
+  };
 }
 
 async function resolvePerLegResources(
@@ -198,10 +212,10 @@ async function resolvePerLegResources(
   serviceId: string,
   spanByLegIndex: Map<number, LegSpan>,
 ): Promise<PerLegResource[]> {
-  const perLeg: PerLegResource[] = [];
-  for (const leg of legs) {
+  // Legs and their requirements strictly in order — each consumes its share of selectionsByKey.
+  const perLeg = await mapSequentially(legs, (leg) => {
     const span = spanByLegIndex.get(leg.legIndex)!;
-    for (const requirement of leg.resourceRequirements) {
+    return mapSequentially(leg.resourceRequirements, async (requirement) => {
       const chosenResourceIds = consumeSelections(
         selectionsByKey,
         selectionKey(serviceId, leg.legIndex, requirement.type),
@@ -220,15 +234,13 @@ async function resolvePerLegResources(
         span.endsAtWithTurnover,
         (resource) => resource.turnoverMinutes,
       );
-      resources.forEach((resource, index) => {
-        perLeg.push({
-          legIndex: leg.legIndex,
-          resource,
-          quantityPosition: resources.length > 1 ? index : null,
-          selectionMode: requirement.selectionMode,
-        });
-      });
-    }
-  }
-  return perLeg;
+      return resources.map((resource, index) => ({
+        legIndex: leg.legIndex,
+        resource,
+        quantityPosition: resources.length > 1 ? index : null,
+        selectionMode: requirement.selectionMode,
+      }));
+    });
+  });
+  return perLeg.flat(2);
 }

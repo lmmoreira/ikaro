@@ -1598,6 +1598,13 @@
       "dayGridFetchError": "Não foi possível carregar as colunas dos recursos",
       "dayGridPlaceholderBooking": "Ocupado",
       "dayGridSpilloverOccupancy": "Ocupado até {time} — {name}",
+      "dayGridBufferHeading": "{resource} · até {time}",
+      "dayGridBufferServiceBuffer": "Buffer do serviço {service} · {minutes} min",
+      "dayGridBufferResourceTurnover": "Virada do recurso · {minutes} min",
+      "dayGridBufferUnknownOrigin": "Origem não registrada",
+      "dayGridBufferTooltipServiceBuffer": "Buffer do serviço {service} ({minutes} min): {resource} fica bloqueado(a) até {time}. O mesmo buffer vale para todos os recursos deste agendamento.",
+      "dayGridBufferTooltipResourceTurnover": "Virada do recurso {resource} ({minutes} min): só {resource} fica bloqueado(a) até {time}.",
+      "dayGridBufferTooltipUnknownOrigin": "{resource} fica bloqueado(a) até {time}. A origem deste bloqueio não foi registrada.",
       "fetchError": "Não foi possível carregar a agenda",
       "errors": {
         "requiredDate": "Informe a data.",

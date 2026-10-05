@@ -5,7 +5,10 @@ import { CalendarDateErrorCode } from '@ikaro/types';
 import { ResourceEntityBuilder } from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
-import { seedOccupiedBlock } from '../../../../test/utils/seed-resource-occupancy';
+import {
+  seedOccupiedBlock,
+  seedOccupiedBlockWithSpec,
+} from '../../../../test/utils/seed-resource-occupancy';
 import { ResourceEntity } from '../entities/resource.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
@@ -86,6 +89,61 @@ describe('ScheduleDayGridController (integration)', () => {
       });
     });
 
+    it('returns the recorded gap per block — origin, minutes, service name only for a service buffer — and null for a legacy row (M18-S10)', async () => {
+      const resource = new ResourceEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withType(ResourceType.ROOM)
+        .withName('Walace')
+        .build();
+      await ds.getRepository(ResourceEntity).save(resource);
+
+      const serviceBuffer = await seedOccupiedBlockWithSpec(ds, TENANT_A, resource.id, {
+        resourceType: ResourceType.ROOM,
+        lockState: 'COMMITTED',
+        startsAt: new Date(`${DATE}T10:00:00.000Z`),
+        endsAt: new Date(`${DATE}T13:00:00.000Z`),
+        gap: { minutes: 60, source: 'SERVICE_BUFFER' },
+        serviceName: 'Polimento',
+      });
+      const turnover = await seedOccupiedBlockWithSpec(ds, TENANT_A, resource.id, {
+        resourceType: ResourceType.ROOM,
+        lockState: 'COMMITTED',
+        startsAt: new Date(`${DATE}T14:00:00.000Z`),
+        endsAt: new Date(`${DATE}T14:45:00.000Z`),
+        gap: { minutes: 15, source: 'RESOURCE_TURNOVER' },
+        serviceName: 'Lavagem rápida',
+      });
+      const legacy = await seedOccupiedBlock(
+        ds,
+        TENANT_A,
+        resource.id,
+        ResourceType.ROOM,
+        'COMMITTED',
+        new Date(`${DATE}T16:00:00.000Z`),
+        new Date(`${DATE}T17:00:00.000Z`),
+      );
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/schedule/day-grid?date=${DATE}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .expect(200);
+
+      const column = body.columns.find((c: { resourceId: string }) => c.resourceId === resource.id);
+      const gapOf = (bookingId: string) =>
+        column.blocks.find((b: { refId: string }) => b.refId === bookingId).gap;
+      expect(gapOf(serviceBuffer.bookingId)).toEqual({
+        source: 'SERVICE_BUFFER',
+        minutes: 60,
+        serviceName: 'Polimento',
+      });
+      expect(gapOf(turnover.bookingId)).toEqual({
+        source: 'RESOURCE_TURNOVER',
+        minutes: 15,
+        serviceName: null,
+      });
+      expect(gapOf(legacy.bookingId)).toBeNull();
+    });
+
     it('returns a valid single-column response for a tenant with fewer than 2 active resources', async () => {
       const resource = new ResourceEntityBuilder()
         .withTenantId(TENANT_B)
@@ -134,14 +192,18 @@ describe('ScheduleDayGridController (integration)', () => {
         .build();
       await ds.getRepository(ResourceEntity).save([ownResource, otherResource]);
 
-      const { bookingId: otherTenantBookingId } = await seedOccupiedBlock(
+      const { bookingId: otherTenantBookingId } = await seedOccupiedBlockWithSpec(
         ds,
         TENANT_B,
         otherResource.id,
-        ResourceType.ROOM,
-        'COMMITTED',
-        new Date(`${DATE}T15:00:00.000Z`),
-        new Date(`${DATE}T16:00:00.000Z`),
+        {
+          resourceType: ResourceType.ROOM,
+          lockState: 'COMMITTED',
+          startsAt: new Date(`${DATE}T15:00:00.000Z`),
+          endsAt: new Date(`${DATE}T16:00:00.000Z`),
+          gap: { minutes: 30, source: 'SERVICE_BUFFER' },
+          serviceName: 'Serviço do Tenant B',
+        },
       );
 
       const { body } = await request(app.getHttpServer())
@@ -157,6 +219,7 @@ describe('ScheduleDayGridController (integration)', () => {
         c.blocks.map((b) => b.refId),
       );
       expect(allRefIds).not.toContain(otherTenantBookingId);
+      expect(JSON.stringify(body)).not.toContain('Serviço do Tenant B');
     });
   });
 });

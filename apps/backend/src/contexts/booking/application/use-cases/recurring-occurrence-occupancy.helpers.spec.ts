@@ -32,6 +32,8 @@ describe('findOccupiedRefusals', () => {
       quantityPosition: null,
       selectionMode: 'CUSTOMER_CHOICE',
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt,
       endsAt: new Date(startsAt.getTime() + minutes * 60_000),
     });
@@ -152,6 +154,8 @@ describe('findOccupiedRefusals', () => {
       quantityPosition: null,
       selectionMode: 'CUSTOMER_CHOICE',
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt: OCCURRENCES[0].occurrenceStart,
       endsAt: new Date(OCCURRENCES[0].occurrenceStart.getTime() + 3_600_000),
     });

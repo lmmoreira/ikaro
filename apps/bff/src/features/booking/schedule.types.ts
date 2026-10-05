@@ -55,6 +55,15 @@ export interface DayGridBlock {
   endsAt: string;
   kind: 'BOOKING' | 'CLASS_SESSION';
   refId: string;
+  gap: DayGridBlockGap | null;
+}
+
+export type DayGridGapSource = 'SERVICE_BUFFER' | 'RESOURCE_TURNOVER';
+
+export interface DayGridBlockGap {
+  source: DayGridGapSource;
+  minutes: number;
+  serviceName: string | null;
 }
 
 export interface DayGridColumn {

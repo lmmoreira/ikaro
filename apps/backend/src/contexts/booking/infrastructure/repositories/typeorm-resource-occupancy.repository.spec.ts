@@ -22,6 +22,8 @@ function buildCandidate(
     endsAt: new Date('2026-06-01T11:00:00.000Z'),
     selectionMode: 'NONE',
     isBundleMember: false,
+    gapMinutes: null,
+    gapSource: null,
     ...overrides,
   };
 }
@@ -261,7 +263,7 @@ describe('TypeOrmResourceOccupancyRepository', () => {
       // past PostgreSQL's 65,535 limit. Unnested, it is one statement and 14 arrays.
       expect(manager.query).toHaveBeenCalledTimes(2);
       const params = occupancyInsertParams(manager);
-      expect(params).toHaveLength(14);
+      expect(params).toHaveLength(16);
       expect(params.every((column) => column.length === CANDIDATE_COUNT)).toBe(true);
     });
 

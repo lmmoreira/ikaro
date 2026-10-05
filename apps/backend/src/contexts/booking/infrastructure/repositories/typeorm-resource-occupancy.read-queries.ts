@@ -39,6 +39,8 @@ interface OccupancyByLineRow {
   ends_at: Date;
   lock_state: ResourceOccupancyLockState;
   hold_expires_at: Date | null;
+  gap_minutes: number | null;
+  gap_source: BookingLineOccupancyRow['gapSource'];
 }
 
 // UC-073 — one row per live occupancy of the resource, joined up to the owning booking through the
@@ -88,7 +90,8 @@ export async function queryOccupancyByBookingLines(
     `
     SELECT bla.booking_line_id, ro.resource_id, ro.resource_type,
            ro.resource_name_at_assignment, ro.leg_index, bla.quantity_position,
-           ro.starts_at, ro.ends_at, ro.lock_state, ro.hold_expires_at
+           ro.starts_at, ro.ends_at, ro.lock_state, ro.hold_expires_at,
+           ro.gap_minutes, ro.gap_source
     FROM booking.resource_occupancy ro
     JOIN booking.booking_line_resource_assignments bla
       ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
@@ -109,6 +112,8 @@ export async function queryOccupancyByBookingLines(
     endsAt: row.ends_at,
     lockState: row.lock_state,
     holdExpiresAt: row.hold_expires_at,
+    gapMinutes: row.gap_minutes,
+    gapSource: row.gap_source,
   }));
 }
 

@@ -1,3 +1,4 @@
+import { ResourceGapSource } from '../../domain/resource-gap-source';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
 import { ResourceRequirementSelectionMode } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -15,6 +16,11 @@ export interface ResourceOccupancyCandidate extends ResourceOccupancyWindow {
   resourceName: string;
   legIndex: number | null;
   quantityPosition: number | null;
+  // Why endsAt extends past the line's own end (M18-S10) — persisted so the manager's schedule
+  // can say who is held and why. Both null = no gap. Required (never optional) so a builder that
+  // forgets them fails to compile instead of silently dropping the origin.
+  gapMinutes: number | null;
+  gapSource: ResourceGapSource | null;
   // Carried through from the originating ResourceRequirement — response-shaping only (M23-S01):
   // toBookingResult() reveals a flat AUTO_ANY candidate's name (UC-063) but never an
   // AUTO_FUNGIBLE_POOL one (UC-062); a legged candidate's itinerary entry is always revealed
@@ -185,6 +191,8 @@ export interface BookingLineOccupancyRow {
   endsAt: Date;
   lockState: ResourceOccupancyLockState;
   holdExpiresAt: Date | null;
+  gapMinutes: number | null;
+  gapSource: ResourceGapSource | null;
 }
 
 export interface ResourceBookingImpact {

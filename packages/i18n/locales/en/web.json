@@ -1598,6 +1598,13 @@
       "dayGridFetchError": "Couldn't load the resource columns",
       "dayGridPlaceholderBooking": "Busy",
       "dayGridSpilloverOccupancy": "Occupied until {time} — {name}",
+      "dayGridBufferHeading": "{resource} · until {time}",
+      "dayGridBufferServiceBuffer": "Service buffer {service} · {minutes} min",
+      "dayGridBufferResourceTurnover": "Resource turnover · {minutes} min",
+      "dayGridBufferUnknownOrigin": "Origin not recorded",
+      "dayGridBufferTooltipServiceBuffer": "Service buffer {service} ({minutes} min): {resource} is held until {time}. The same buffer applies to every resource of this booking.",
+      "dayGridBufferTooltipResourceTurnover": "Resource turnover {resource} ({minutes} min): only {resource} is held until {time}.",
+      "dayGridBufferTooltipUnknownOrigin": "{resource} is held until {time}. The origin of this hold was not recorded.",
       "fetchError": "Couldn't load the schedule",
       "errors": {
         "requiredDate": "Enter the date.",

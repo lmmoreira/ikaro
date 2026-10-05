@@ -295,6 +295,8 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       quantityPosition: null,
       selectionMode: 'NONE' as const,
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt: new Date(scheduledAt),
       endsAt: new Date(new Date(scheduledAt).getTime() + 60 * 60_000),
     });

@@ -272,6 +272,91 @@ describe('resolveBookingLinesResourceCandidates', () => {
       expect(secondStart).toEqual(firstEnd);
       // Last line: max(buffer 10, turnover 5) = 10min gap applied at the very end.
       expect(secondEnd).toEqual(new Date(secondStart.getTime() + (30 + 10) * 60_000));
+      // M18-S10: only the last line records the gap, with its origin (buffer 10 > turnover 5).
+      expect(result.get('line-1')!.candidates[0]).toMatchObject({
+        gapMinutes: null,
+        gapSource: null,
+      });
+      expect(result.get('line-2')!.candidates[0]).toMatchObject({
+        gapMinutes: 10,
+        gapSource: 'SERVICE_BUFFER',
+      });
+    });
+
+    it.each([
+      [0, 20, 20, 'RESOURCE_TURNOVER'],
+      [30, 30, 30, 'SERVICE_BUFFER'],
+      [0, 0, null, null],
+    ] as const)(
+      'records the gap origin for buffer %i / turnover %i (M18-S10)',
+      async (buffer, turnover, expectedMinutes, expectedSource) => {
+        await resourceRepo.save(
+          new ResourceBuilder()
+            .withTenantId(TENANT_ID)
+            .withType(ResourceType.ROOM)
+            .withTurnoverMinutes(turnover)
+            .build(),
+        );
+        const service = new ServiceBuilder()
+          .withId('service-1')
+          .withDurationMinutes(30)
+          .withBufferAfterMinutes(buffer)
+          .withResourceRequirements([
+            ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+          ])
+          .build();
+
+        const result = await resolve(
+          [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+          new Map([['service-1', service]]),
+        );
+
+        const candidate = result.get('line-1')!.candidates[0];
+        expect(candidate.gapMinutes).toBe(expectedMinutes);
+        expect(candidate.gapSource).toBe(expectedSource);
+        expect(candidate.endsAt.getTime() - candidate.startsAt.getTime()).toBe(
+          (30 + (expectedMinutes ?? 0)) * 60_000,
+        );
+      },
+    );
+
+    it('gives two resources of one bundle booking their own, different origins', async () => {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .withTurnoverMinutes(30)
+        .build();
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.EQUIPMENT)
+        .withTurnoverMinutes(0)
+        .build();
+      await resourceRepo.save(room);
+      await resourceRepo.save(equipment);
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withBufferAfterMinutes(10)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+      );
+
+      const byResource = new Map(result.get('line-1')!.candidates.map((c) => [c.resourceId, c]));
+      expect(byResource.get(room.id)).toMatchObject({
+        gapMinutes: 30,
+        gapSource: 'RESOURCE_TURNOVER',
+      });
+      expect(byResource.get(equipment.id)).toMatchObject({
+        gapMinutes: 10,
+        gapSource: 'SERVICE_BUFFER',
+      });
     });
   });
 
@@ -374,6 +459,38 @@ describe('resolveBookingLinesResourceCandidates', () => {
 
       const candidate = result.get('line-1')!.candidates[0];
       expect(candidate.endsAt.getTime()).toBe(candidate.startsAt.getTime() + (20 + 10) * 60_000);
+      // M18-S10: a legged line's gap can only come from the resource's turnover.
+      expect(candidate.gapMinutes).toBe(10);
+      expect(candidate.gapSource).toBe('RESOURCE_TURNOVER');
+    });
+
+    it('records no gap for a leg whose resource has no turnover', async () => {
+      await resourceRepo.save(
+        new ResourceBuilder()
+          .withTenantId(TENANT_ID)
+          .withType(ResourceType.ROOM)
+          .withTurnoverMinutes(0)
+          .build(),
+      );
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withLegs([
+          leg(
+            0,
+            ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+            { durationMinutes: 20, transitionGapAfterMinutes: 5 },
+          ),
+        ])
+        .build();
+
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 20 }],
+        new Map([['service-1', service]]),
+      );
+
+      const candidate = result.get('line-1')!.candidates[0];
+      expect(candidate.gapMinutes).toBeNull();
+      expect(candidate.gapSource).toBeNull();
     });
 
     it("gives each of a leg's fungible-pool candidates its own turnover, not the pool's maximum", async () => {
@@ -706,6 +823,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
             endsAt: new Date('2026-06-01T09:00:00.000Z'),
             selectionMode: 'AUTO_ANY',
             isBundleMember: false,
+            gapMinutes: null,
+            gapSource: null,
           },
         ],
         'COMMITTED',
@@ -781,6 +900,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
             endsAt: new Date(SCHEDULED_AT.getTime() + 30 * 60_000),
             selectionMode: 'AUTO_ANY',
             isBundleMember: false,
+            gapMinutes: null,
+            gapSource: null,
           },
         ],
         'COMMITTED',
@@ -802,6 +923,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
             endsAt: new Date('2026-06-01T08:30:00.000Z'),
             selectionMode: 'AUTO_ANY',
             isBundleMember: false,
+            gapMinutes: null,
+            gapSource: null,
           },
           {
             resourceId: higherWorkloadButFree.id,
@@ -813,6 +936,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
             endsAt: new Date('2026-06-01T09:00:00.000Z'),
             selectionMode: 'AUTO_ANY',
             isBundleMember: false,
+            gapMinutes: null,
+            gapSource: null,
           },
         ],
         'COMMITTED',
@@ -871,6 +996,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
             endsAt: new Date(rawLineEnd.getTime() + 15 * 60_000),
             selectionMode: 'AUTO_ANY',
             isBundleMember: false,
+            gapMinutes: null,
+            gapSource: null,
           },
         ],
         'COMMITTED',
@@ -892,6 +1019,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
             endsAt: new Date('2026-06-01T08:30:00.000Z'),
             selectionMode: 'AUTO_ANY',
             isBundleMember: false,
+            gapMinutes: null,
+            gapSource: null,
           },
           {
             resourceId: higherWorkloadButFullyFree.id,
@@ -903,6 +1032,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
             endsAt: new Date('2026-06-01T09:00:00.000Z'),
             selectionMode: 'AUTO_ANY',
             isBundleMember: false,
+            gapMinutes: null,
+            gapSource: null,
           },
         ],
         'COMMITTED',
@@ -1104,6 +1235,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
           endsAt: new Date(SCHEDULED_AT.getTime() + 20 * 60_000),
           selectionMode: 'AUTO_ANY',
           isBundleMember: false,
+          gapMinutes: null,
+          gapSource: null,
         },
       ],
       'COMMITTED',
@@ -1125,6 +1258,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
           endsAt: new Date('2026-06-01T08:30:00.000Z'),
           selectionMode: 'AUTO_ANY',
           isBundleMember: false,
+          gapMinutes: null,
+          gapSource: null,
         },
         {
           resourceId: higherWorkloadButFreeForThisLeg.id,
@@ -1136,6 +1271,8 @@ describe('resolveBookingLinesResourceCandidates', () => {
           endsAt: new Date('2026-06-01T09:00:00.000Z'),
           selectionMode: 'AUTO_ANY',
           isBundleMember: false,
+          gapMinutes: null,
+          gapSource: null,
         },
       ],
       'COMMITTED',

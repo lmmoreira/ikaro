@@ -308,7 +308,9 @@ describe('useScheduleQueryData', () => {
                 resourceId: 'res-1',
                 name: 'Camila',
                 type: 'STAFF',
-                blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+                blocks: [
+                  { startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1', gap: null },
+                ],
               },
             ],
           },
@@ -342,7 +344,9 @@ describe('useScheduleQueryData', () => {
                 resourceId: 'res-1',
                 name: 'Camila',
                 type: 'STAFF',
-                blocks: [{ startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1' }],
+                blocks: [
+                  { startsAt: '', endsAt: '', kind: 'BOOKING', refId: 'booking-1', gap: null },
+                ],
               },
             ],
           },

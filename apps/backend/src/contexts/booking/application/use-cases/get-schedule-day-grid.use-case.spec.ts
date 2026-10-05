@@ -51,6 +51,7 @@ describe('GetScheduleDayGridUseCase', () => {
         endsAt: new Date('2026-06-01T11:00:00.000Z'),
         kind: 'BOOKING',
         refId: 'booking-1',
+        gap: null,
       },
     ]);
 
@@ -69,9 +70,43 @@ describe('GetScheduleDayGridUseCase', () => {
         endsAt: '2026-06-01T11:00:00.000Z',
         kind: 'BOOKING',
         refId: 'booking-1',
+        gap: null,
       },
     ]);
     expect(columnB?.blocks).toEqual([]);
+  });
+
+  it('maps the persisted gap (origin, minutes, service name) onto each block, null when none (M18-S10)', async () => {
+    const resource = new ResourceBuilder().withTenantId(TENANT_ID).withName('Walace').build();
+    await resourceRepo.save(resource);
+    const gap = { source: 'SERVICE_BUFFER' as const, minutes: 60, serviceName: 'Polimento' };
+
+    bookingPort.setDayGridBlocks([
+      {
+        resourceId: resource.id,
+        startsAt: new Date('2026-06-01T10:00:00.000Z'),
+        endsAt: new Date('2026-06-01T13:00:00.000Z'),
+        kind: 'BOOKING',
+        refId: 'booking-1',
+        gap,
+      },
+      {
+        resourceId: resource.id,
+        startsAt: new Date('2026-06-01T15:00:00.000Z'),
+        endsAt: new Date('2026-06-01T16:00:00.000Z'),
+        kind: 'CLASS_SESSION',
+        refId: 'session-1',
+        gap: null,
+      },
+    ]);
+
+    const result = await useCase.execute({
+      tenantId: TENANT_ID,
+      date: '2026-06-01',
+      timezone: 'America/Sao_Paulo',
+    });
+
+    expect(result.columns[0].blocks.map((b) => b.gap)).toEqual([gap, null]);
   });
 
   it('returns a valid empty response for a tenant with no active resources', async () => {

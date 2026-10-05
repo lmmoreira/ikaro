@@ -15,6 +15,9 @@ interface TimelineBlockShellProps {
   readonly subtitle: string;
   readonly footer?: ReactNode;
   readonly trailing?: ReactNode;
+  // Native hover tooltip + accessible name for a purely informational block (no href, no
+  // onClick): that block renders as a non-focusable, non-clickable note instead of a button.
+  readonly tooltip?: string;
 }
 
 // Extracted from SchedulePage (TD37-S5A) — the shared timeline-block shell (booking/opening/
@@ -32,11 +35,15 @@ export function TimelineBlockShell({
   subtitle,
   footer,
   trailing,
+  tooltip,
 }: TimelineBlockShellProps): React.JSX.Element {
   const content = (
     <div className="flex h-full flex-col gap-1">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-2">
+      {/* The trailing badge wraps under the title when the block is too narrow for both (two
+          overlapping bookings share a day box), so the title keeps its room and is never squeezed
+          out by the badge. A wide block keeps both on one row, badge at the right. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+        <div className="flex min-w-0 flex-1 basis-20 items-start gap-2">
           {icon}
           <div className="min-w-0">
             <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>{title}</p>
@@ -69,6 +76,21 @@ export function TimelineBlockShell({
       >
         {content}
       </Link>
+    );
+  }
+
+  if (!onClick) {
+    return (
+      <div
+        role="note"
+        className={shellClassName}
+        style={style}
+        title={tooltip}
+        aria-label={tooltip}
+        data-testid={testId}
+      >
+        {content}
+      </div>
     );
   }
 

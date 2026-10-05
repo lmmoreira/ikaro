@@ -3,6 +3,7 @@ import {
   ResourceOccupancyEntity,
   ResourceOccupancySourceType,
 } from '../../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
+import { ResourceGapSource } from '../../../contexts/booking/domain/resource-gap-source';
 import { ResourceOccupancyLockState } from '../../../contexts/booking/domain/resource-occupancy-lock-state';
 import { ResourceType } from '../../../contexts/booking/domain/resource.types';
 
@@ -20,6 +21,8 @@ export class ResourceOccupancyEntityBuilder {
   private endsAt = new Date('2026-06-01T14:00:00.000Z');
   private lockState: ResourceOccupancyLockState = 'COMMITTED';
   private holdExpiresAt: Date | null = null;
+  private gapMinutes: number | null = null;
+  private gapSource: ResourceGapSource | null = null;
   private readonly createdAt = new Date('2026-01-01T00:00:00Z');
 
   withId(id: string): this {
@@ -59,6 +62,12 @@ export class ResourceOccupancyEntityBuilder {
 
   withHoldExpiresAt(holdExpiresAt: Date | null): this {
     this.holdExpiresAt = holdExpiresAt;
+    return this;
+  }
+
+  withGap(gapMinutes: number | null, gapSource: ResourceGapSource | null): this {
+    this.gapMinutes = gapMinutes;
+    this.gapSource = gapSource;
     return this;
   }
 
@@ -102,6 +111,8 @@ export class ResourceOccupancyEntityBuilder {
     entity.endsAt = this.endsAt;
     entity.lockState = this.lockState;
     entity.holdExpiresAt = this.holdExpiresAt;
+    entity.gapMinutes = this.gapMinutes;
+    entity.gapSource = this.gapSource;
     entity.createdAt = this.createdAt;
     return entity;
   }

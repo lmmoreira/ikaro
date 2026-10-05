@@ -72,6 +72,21 @@ export class FutureCommitmentFixture {
     return resource;
   }
 
+  async addResourceWithTurnover(
+    name: string,
+    turnoverMinutes: number,
+    type: ResourceType = ResourceType.ROOM,
+  ): Promise<Resource> {
+    const resource = new ResourceBuilder()
+      .withTenantId(FCE_TENANT_ID)
+      .withType(type)
+      .withName(name)
+      .withTurnoverMinutes(turnoverMinutes)
+      .build();
+    await this.resourceRepo.save(resource);
+    return resource;
+  }
+
   async addService(
     type: ResourceType = ResourceType.ROOM,
     pool: string[] | null = null,
@@ -79,6 +94,8 @@ export class FutureCommitmentFixture {
   ): Promise<Service> {
     const service = new ServiceBuilder()
       .withTenantId(tenantId)
+      // addBooking() seeds a gap-free window, so the service must not carry a buffer either.
+      .withBufferAfterMinutes(0)
       .withName('Sessão')
       .withResourceRequirements([
         ResourceRequirement.create({ type, selectionMode: 'AUTO_ANY', resourcePoolIds: pool }),
@@ -127,6 +144,8 @@ export class FutureCommitmentFixture {
           endsAt,
           selectionMode: 'AUTO_ANY',
           isBundleMember: false,
+          gapMinutes: null,
+          gapSource: null,
         },
       ],
       options.lockState ?? 'COMMITTED',

@@ -40,6 +40,8 @@ function candidate(
     endsAt,
     selectionMode: 'NONE',
     isBundleMember: false,
+    gapMinutes: null,
+    gapSource: null,
     ...overrides,
   };
 }
@@ -322,6 +324,187 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
     );
     expect(forThisLine).toHaveLength(2);
     expect(forThisLine.map((row) => row.resourceId).sort()).toEqual([resourceA, resourceA2].sort());
+  });
+
+  describe('gap origin (M18-S10)', () => {
+    async function persistedGaps(): Promise<Array<[number | null, string | null]>> {
+      const rows = await dataSource
+        .getRepository(ResourceOccupancyEntity)
+        .find({ where: { tenantId: TENANT_A }, order: { startsAt: 'ASC' } });
+      return rows.map((row) => [row.gapMinutes, row.gapSource]);
+    }
+
+    it('assign() persists the gap minutes and origin of each candidate', async () => {
+      const lineId = await seedBookingLine(TENANT_A);
+      const start = new Date('2026-06-08T10:00:00.000Z');
+      const withBuffer = candidate(resourceA, start, new Date('2026-06-08T12:00:00.000Z'), {
+        gapMinutes: 60,
+        gapSource: 'SERVICE_BUFFER',
+        legIndex: 0,
+      });
+      const withTurnover = candidate(resourceA2, start, new Date('2026-06-08T11:30:00.000Z'), {
+        gapMinutes: 30,
+        gapSource: 'RESOURCE_TURNOVER',
+        legIndex: 1,
+        resourceType: ResourceType.EQUIPMENT,
+      });
+
+      await txManager.run(() =>
+        repo.assign(TENANT_A, lineId, [withBuffer, withTurnover], 'COMMITTED', null),
+      );
+
+      const rows = await dataSource
+        .getRepository(ResourceOccupancyEntity)
+        .find({ where: { tenantId: TENANT_A } });
+      const byResource = new Map(rows.map((r) => [r.resourceId, [r.gapMinutes, r.gapSource]]));
+      expect(byResource.get(resourceA)).toEqual([60, 'SERVICE_BUFFER']);
+      expect(byResource.get(resourceA2)).toEqual([30, 'RESOURCE_TURNOVER']);
+    });
+
+    it('a release() + assign() reschedule rewrites the gap with the new window', async () => {
+      const lineId = await seedBookingLine(TENANT_A);
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineId,
+          [
+            candidate(
+              resourceA,
+              new Date('2026-06-09T10:00:00.000Z'),
+              new Date('2026-06-09T11:30:00.000Z'),
+              { gapMinutes: 30, gapSource: 'SERVICE_BUFFER' },
+            ),
+          ],
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      await txManager.run(async () => {
+        await repo.release(TENANT_A, [lineId]);
+        await repo.assign(
+          TENANT_A,
+          lineId,
+          [
+            candidate(
+              resourceA,
+              new Date('2026-06-09T14:00:00.000Z'),
+              new Date('2026-06-09T15:15:00.000Z'),
+              { gapMinutes: 15, gapSource: 'RESOURCE_TURNOVER' },
+            ),
+          ],
+          'COMMITTED',
+          null,
+        );
+      });
+
+      expect(await persistedGaps()).toEqual([[15, 'RESOURCE_TURNOVER']]);
+    });
+
+    it('assignMany() persists the gap of every line of a batch', async () => {
+      const lineOne = await seedBookingLine(TENANT_A);
+      const lineTwo = await seedBookingLine(TENANT_A);
+
+      await txManager.run(() =>
+        repo.assignMany(
+          TENANT_A,
+          [
+            {
+              bookingLineId: lineOne,
+              candidates: [
+                candidate(
+                  resourceA,
+                  new Date('2026-06-10T10:00:00.000Z'),
+                  new Date('2026-06-10T11:10:00.000Z'),
+                  { gapMinutes: 10, gapSource: 'SERVICE_BUFFER' },
+                ),
+              ],
+            },
+            {
+              bookingLineId: lineTwo,
+              candidates: [
+                candidate(
+                  resourceA,
+                  new Date('2026-06-11T10:00:00.000Z'),
+                  new Date('2026-06-11T11:00:00.000Z'),
+                ),
+              ],
+            },
+          ],
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      expect(await persistedGaps()).toEqual([
+        [10, 'SERVICE_BUFFER'],
+        [null, null],
+      ]);
+    });
+
+    it('findOccupancyByBookingLines returns the stored gap so a reassignment can carry it', async () => {
+      const lineId = await seedBookingLine(TENANT_A);
+      await txManager.run(() =>
+        repo.assign(
+          TENANT_A,
+          lineId,
+          [
+            candidate(
+              resourceA,
+              new Date('2026-06-12T10:00:00.000Z'),
+              new Date('2026-06-12T11:20:00.000Z'),
+              { gapMinutes: 20, gapSource: 'RESOURCE_TURNOVER' },
+            ),
+          ],
+          'COMMITTED',
+          null,
+        ),
+      );
+
+      const [row] = await txManager.run(() => repo.findOccupancyByBookingLines(TENANT_A, [lineId]));
+
+      expect(row.gapMinutes).toBe(20);
+      expect(row.gapSource).toBe('RESOURCE_TURNOVER');
+    });
+
+    describe('CHK_booking_resource_occupancy_gap', () => {
+      const insertWithGap = async (gapMinutes: number | null, gapSource: string | null) => {
+        const lineId = await seedBookingLine(TENANT_A);
+        const assignmentId = uuidv7();
+        await dataSource.query(
+          `INSERT INTO booking.booking_line_resource_assignments
+             (id, tenant_id, booking_line_id, resource_id, resource_type, resource_name_at_assignment, assigned_at)
+           VALUES ($1, $2, $3, $4, 'LOCATION', 'x', now())`,
+          [assignmentId, TENANT_A, lineId, resourceA],
+        );
+        return dataSource.query(
+          `INSERT INTO booking.resource_occupancy
+             (id, tenant_id, resource_id, resource_type, source_type,
+              booking_line_resource_assignment_id, resource_name_at_assignment, starts_at, ends_at,
+              lock_state, created_at, gap_minutes, gap_source)
+           VALUES ($1, $2, $3, 'LOCATION', 'BOOKING_LINE', $4, 'x',
+                   '2026-07-01T10:00:00Z', '2026-07-01T11:00:00Z', 'COMMITTED', now(), $5, $6)`,
+          [uuidv7(), TENANT_A, resourceA, assignmentId, gapMinutes, gapSource],
+        );
+      };
+
+      it('accepts NULL/NULL and a closed-list source with positive minutes', async () => {
+        await expect(insertWithGap(null, null)).resolves.toBeDefined();
+        await dataSource.getRepository(ResourceOccupancyEntity).delete({ tenantId: TENANT_A });
+        await expect(insertWithGap(15, 'SERVICE_BUFFER')).resolves.toBeDefined();
+      });
+
+      it.each([
+        ['a source without minutes', null, 'SERVICE_BUFFER'],
+        ['minutes without a source', 15, null],
+        ['zero minutes', 0, 'SERVICE_BUFFER'],
+        ['a source outside the closed list', 15, 'TENANT_DEFAULT'],
+      ])('rejects %s', async (_label, minutes, source) => {
+        await expect(insertWithGap(minutes, source)).rejects.toThrow(
+          /CHK_booking_resource_occupancy_gap/,
+        );
+      });
+    });
   });
 
   it('a release() + assign() reschedule to the same resource reuses the existing assignment row (immutable, not duplicated)', async () => {
@@ -897,6 +1080,8 @@ describe('TypeOrmResourceOccupancyRepository (integration)', () => {
           endsAt: at(13),
           lockState: 'COMMITTED',
           holdExpiresAt: null,
+          gapMinutes: null,
+          gapSource: null,
         });
         expect(rows.find((r) => r.resourceId === resourceA2)).toMatchObject({
           resourceName: 'Projetor',
