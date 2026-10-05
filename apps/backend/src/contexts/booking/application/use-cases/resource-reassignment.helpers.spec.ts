@@ -11,6 +11,7 @@ import {
 import { FutureCommitmentExceptionReassignTargetInvalidError } from '../../domain/errors/future-commitment-exception.error';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ServiceLeg } from '../../domain/service-leg';
 import { ResourceType } from '../../domain/resource.types';
 import { reassignBookingResource } from './resource-reassignment.helpers';
 
@@ -323,6 +324,76 @@ describe('reassignBookingResource', () => {
       expect(row.endsAt).toEqual(new Date(seed.startsAt.getTime() + 120 * 60_000));
       expect(row.gapMinutes).toBe(60);
       expect(row.gapSource).toBe('SERVICE_BUFFER');
+    });
+
+    it("keeps a leg's window at duration plus the target's turnover — the transition gap only moves the next leg's start", async () => {
+      const room = await world.addResourceWithTurnover('Sala 1', 0);
+      const target = await world.addResourceWithTurnover('Sala 2', 10);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withLegs([
+          ServiceLeg.create({
+            legIndex: 0,
+            name: 'Etapa 0',
+            durationMinutes: 30,
+            transitionGapAfterMinutes: 20,
+            resourceRequirements: [
+              ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+            ],
+          }),
+        ])
+        .build();
+      await world.serviceRepo.save(service);
+      const startsAt = new Date(Date.now() + 48 * 3_600_000);
+      const lineId = uuidv7();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_ID)
+        .withScheduledAt(startsAt)
+        .withLines([
+          new BookingLineBuilder()
+            .withLineId(lineId)
+            .withTenantId(TENANT_ID)
+            .withServiceId(service.id)
+            .withDurationMinsAtBooking(30)
+            .build(),
+        ])
+        .build();
+      await world.bookingRepo.save(booking);
+      await world.occupancyRepo.assign(
+        TENANT_ID,
+        lineId,
+        [
+          {
+            resourceId: room.id,
+            resourceType: room.type,
+            resourceName: room.name,
+            legIndex: 0,
+            quantityPosition: null,
+            startsAt,
+            endsAt: new Date(startsAt.getTime() + 30 * 60_000),
+            gapMinutes: null,
+            gapSource: null,
+            selectionMode: 'AUTO_ANY' as const,
+            isBundleMember: false,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+
+      await reassignBookingResource(deps(), {
+        tenantId: TENANT_ID,
+        booking,
+        serviceMap: new Map([[service.id, service]]),
+        sourceResourceId: room.id,
+        target: { resourceId: target.id },
+        timezone: TIMEZONE,
+      });
+
+      const [row] = await occupancy([lineId]);
+      expect(row.endsAt).toEqual(new Date(startsAt.getTime() + 40 * 60_000));
+      expect(row.gapMinutes).toBe(10);
+      expect(row.gapSource).toBe('RESOURCE_TURNOVER');
     });
 
     it("refuses a target whose recomputed window collides with that target's next booking", async () => {

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { loginAsStaff, uniqueTestEmail } from '@/e2e/helpers/auth';
 import {
   createScheduleBooking,
@@ -796,6 +796,14 @@ test.describe('Held time after a booking (M18-S10)', () => {
     };
   }
 
+  // A booking block lists every resource assigned to it, so matching a column by its text would
+  // also match the other resource's column — match the column header exactly instead.
+  function columnOf(page: Page, resourceName: string): Locator {
+    return page
+      .getByTestId('schedule-resource-column')
+      .filter({ has: page.getByText(resourceName, { exact: true }) });
+  }
+
   async function checkResources(page: Page, names: readonly string[]): Promise<void> {
     await page.getByRole('button', { name: 'Filtrar recurso' }).click();
     for (const name of names) {
@@ -820,10 +828,7 @@ test.describe('Held time after a booking (M18-S10)', () => {
       await checkResources(page, [held.room.name, held.equipment.name]);
 
       for (const resource of [held.room, held.equipment]) {
-        const column = page
-          .getByTestId('schedule-resource-column')
-          .filter({ hasText: resource.name });
-        const segment = column.getByRole('note');
+        const segment = columnOf(page, resource.name).getByRole('note');
         await expect(segment).toContainText(`${resource.name} · até 12:00`);
         await expect(segment).toContainText(`Buffer do serviço ${held.serviceName} · 30 min`);
       }
@@ -847,12 +852,8 @@ test.describe('Held time after a booking (M18-S10)', () => {
       await switchToDayView(page);
       await checkResources(page, [held.room.name, held.equipment.name]);
 
-      const roomColumn = page
-        .getByTestId('schedule-resource-column')
-        .filter({ hasText: held.room.name });
-      const equipmentColumn = page
-        .getByTestId('schedule-resource-column')
-        .filter({ hasText: held.equipment.name });
+      const roomColumn = columnOf(page, held.room.name);
+      const equipmentColumn = columnOf(page, held.equipment.name);
       await expect(roomColumn.getByRole('note')).toContainText(`${held.room.name} · até 12:00`);
       await expect(roomColumn.getByRole('note')).toContainText('Virada do recurso · 30 min');
       // The equipment is already free at the end of the booking: no held segment at all.
