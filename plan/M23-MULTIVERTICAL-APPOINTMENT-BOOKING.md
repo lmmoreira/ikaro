@@ -24,7 +24,7 @@
 | 2 | M23-S02 | Variable-duration reservations + versioned intake/attendees (UC-067, UC-068) |
 | 2 | M23-S03 | Reschedule extension — resource/bundle/leg-aware, quote revisions (UC-069) |
 | 2 | M23-S04 | `RecurringBookingSchedule` aggregate — create/skip/reschedule/end, backend + BFF (UC-070, minus approval/generation; Pause shipped here and was removed by M23-S20) |
-| 2 | M23-S07 | Availability-alert matching worker (UC-072 step 3) |
+| 2 | M23-S07 | Availability-alert matching — capacity-release handlers (cancel, reject, reschedule) and a daily sweep on `cron-reminders` that notifies when a date becomes selectable (UC-072 step 3) |
 | 2 | M23-S29 | Public booking-flow read APIs for the frontend — resource options, duration quote, requirement-aware availability, public service shape |
 | 2 | M23-S23 | Notifications for the future-commitment worklist — manager alert on a raised entry, customer message on a reassign (UC-073, UC-077) |
 | 2 | M23-S24 | Drop the retired `recurring_booking_schedule_exceptions` table — the contract step of S08's removal, after S08 is deployed everywhere |
@@ -432,43 +432,82 @@ Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s
 
 ---
 
-### M23-S07 — Availability-alert matching worker
+### M23-S07 — Availability-alert matching: capacity-release handlers and a daily sweep
 
 **Agent:** `backend-ts`
-**Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-072 step 3, `docs/02-DOMAIN_MODEL.md` § `AvailabilityAlert.recordNotificationAttempt`, `docs/13-DATABASE_SCHEMA.md` § `availability_alert_notification_attempts`, `docs/03-DOMAIN_EVENTS.md` § `AvailabilityAlertMatched`
-**Dependencies:** M23-S06 (`AvailabilityAlert` aggregate must exist)
-**Pattern:** Event-driven consumer — subscribes to whatever already publishes "a resource/window became free" (a booking cancellation/rejection, a schedule-closure removal) and cross-checks against `ACTIVE` alerts.
+**Complexity:** L
+**Docs to load:** `docs/04-USE_CASES.md` UC-072 step 3, `docs/02-DOMAIN_MODEL.md` § `AvailabilityAlert.recordNotificationAttempt`, `docs/13-DATABASE_SCHEMA.md` § `availability_alert_notification_attempts`, `docs/03-DOMAIN_EVENTS.md` § `AvailabilityAlertMatched`, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Booking Settings (`maxBookingAdvanceDays`), `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers and § Choosing a race-condition primitive, `infra/terraform/README.md` § New-resource PR-sequencing playbook
+**Dependencies:** M23-S06 (✅ Done — the `AvailabilityAlert` aggregate, its repository and the expiry job this story's sweep sits beside)
+**Pattern:** plain composition. One use case, `MatchAvailabilityAlertsUseCase`, fed by two kinds of trigger: event handlers for a freed booking window (the fast path) and a cron-driven sweep (the slow path). Neither trigger holds domain logic.
 
 **Description:**
-Every capacity-releasing event in the Booking context (booking cancelled/rejected, closure removed) triggers a match check: does any `ACTIVE` `AvailabilityAlert` for the affected `serviceId` (and, if set, `preferredResourceId`) match the newly-freed window against its criteria (`ONE_TIME_RANGE` overlap or `WEEKLY_PREFERENCE` weekday+local-time match)? On a match, record one deduplicated `availability_alert_notification_attempts` row (`UNIQUE (tenant_id, alert_id, matching_window, channel)`), transition the alert to `NOTIFIED`, publish `AvailabilityAlertMatched`. An alert is never auto-cancelled just because a different channel met the same need (UC-076's own postcondition) — this worker only ever adds notification history, never cancels.
+An alert exists so a customer can be told when a slot they want becomes **bookable**. A slot becomes bookable in two ways, and this story covers both:
 
-**Added at M23-S06's `/story-discovery` (2026-10-05):** S06 creates both tables but writes only the alert entity/repository. This story owns the `AvailabilityAlertNotificationAttempt` entity (+ builder, `integration-global-setup.ts` registration), its repository methods and `recordNotificationAttempt`. It also adds the audit-log subscriber for `AvailabilityAlertMatched` — `docs/ANTI_PATTERNS.md` § A domain event is drained: no event ships without a real consumer (extend S06's `availability-alert-events.handler.ts`; the Notification-context consumer for the email/in-app message is a separate, later story).
+1. **A booking releases it** — a booking is cancelled, rejected, or rescheduled away from the window. Handled by event handlers, immediately.
+2. **It enters what the customer can select** — the booking window rolls forward a day, or a manager extends hours, adds an opening or adds/reactivates a resource. No booking event fires for any of these, so a daily sweep re-checks every `ACTIVE` alert.
+
+On a match the use case records one deduplicated `availability_alert_notification_attempts` row (`UNIQUE (tenant_id, alert_id, matching_window, channel)`), moves the alert `ACTIVE → NOTIFIED`, and publishes `AvailabilityAlertMatched`, all in one transaction. A `NOTIFIED` alert is never matched again, so a customer gets **one** notification per alert; a second need means a new alert. The worker never cancels an alert (UC-076's postcondition) and never holds capacity.
+
+**Added at M23-S06's `/story-discovery` (2026-10-05):** S06 creates both tables but writes only the alert entity and repository. This story owns the `AvailabilityAlertNotificationAttempt` entity (+ builder, `integration-global-setup.ts` registration), its repository methods and `recordNotificationAttempt`. It also adds the audit-log subscriber for `AvailabilityAlertMatched` — `docs/ANTI_PATTERNS.md` § A domain event is drained: no event ships without a real consumer (extend S06's `availability-alert-events.handler.ts`). The Notification-context consumer that sends the email is a separate, later story.
+
+**Decisions locked at this story's `/story-discovery` (2026-10-05):**
+
+1. **Triggers.** New Booking-context handlers for `BookingCancelled`, `BookingRejected` and `BookingRescheduled` (the old window is the freed one). Today each of these topics has only the `notification` consumer, so these are **new handlers and new subscriptions**, not modifications of an existing handler. Each handler class name must be unique across the codebase (the Pub/Sub generator keys by bare class name). **Closure-removed is dropped as a trigger:** no such event exists, and the sweep covers it.
+2. **The sweep.** A new trigger handler, consumer name `availability-alert-sweep`, subscribes to the existing `cron-reminders` trigger (a fifth consumer beside `availability-alert-expiry`, `booking-admin-schedule-reminder`, `booking-reminder` and `recurring-schedule-approval-expiry`) — no new topic and no new Cloud Scheduler job. The trigger fires every 30 minutes, so the job gates itself to a local morning window of **06:30–06:59 in each tenant's timezone** (after `booking-reminder`'s 06:00–06:29 window, which is the precedent to copy), giving one run per tenant per day. It iterates active tenants, loads each tenant's `ACTIVE` alerts through the `(tenant_id, service_id, status)` index, **groups them by service, computes availability once per service over the look-ahead horizon**, and matches in memory. It never runs one availability query per alert.
+3. **The look-ahead horizon is what the customer can actually select, not what the booking rules allow.** In carousel mode it is `min(carouselDays, maxBookingAdvanceDays)`; in calendar mode it is `maxBookingAdvanceDays`. The public booking page defaults to `datePickerType = 'carousel'` and `carouselDays = 14` when the hotsite module sets neither (`app/[slug]/booking/page.tsx`); the sweep applies the same defaults. A slot the customer cannot pick on the screen must never trigger an email. The values are read through a **new method on the existing `IBookingPlatformPort`** (`booking-platform.adapter.ts`) — no new cross-context port. The platform already validates `carouselDays ≤ maxBookingAdvanceDays` when the hotsite is saved. The event handlers apply the same horizon to a freed window: a window beyond it is skipped now and picked up by the sweep when it enters the horizon.
+4. **The per-service `maxBookingAdvanceDaysOverride` is not used.** It is stored and editable in the dashboard but no availability or booking code reads it, so the tenant value is the real limit today. A follow-up story (`/create-story`) records that gap; it is out of scope here.
+5. **Match rules.** A freed or newly bookable window matches an `ACTIVE` alert only if it fits the alert's criteria: `ONE_TIME_RANGE` overlap or `WEEKLY_PREFERENCE` weekday + local-time match (tenant timezone), the alert's `preferredResourceId` when set, and the service duration and participant criteria — an alert is never notified about a slot that could not hold the booking.
+6. **Channel and outcome.** `EMAIL` only (the `CHECK` also allows `IN_APP`, unused here). The attempt row is written with a *pending* outcome (`outcome` is `VARCHAR(20)` with no `CHECK`; the exact value is fixed at implementation and documented in `docs/13`), so a later Notification story can update it once the email is really sent. `NOTIFIED` therefore means "a match was found and handed off", not "an email was delivered".
+7. **Concurrency.** The alert row exists and is read, then written: lock it with `findByIdForUpdate()` inside `txManager.run()` (`docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive), so an event handler and the sweep matching the same alert cannot both notify. The `UNIQUE` dedup key is the second line of defence. The attempt insert uses a conflict no-op, never check-then-insert.
+8. **Alert lifetime cap raised from 90 to 365 days.** `ALERT_MAX_EXPIRY_DAYS` (`availability-alert-criteria.helpers.ts`) is only the validation ceiling in `resolveExpiry` for a requested `expiresAt`; it has no part in expiry or deletion (S06's expiry job owns those). It is raised to 365 — the highest value `maxBookingAdvanceDays` can take — so an alert for a date outside a short booking window can outlive the wait. `ALERT_DEFAULT_EXPIRY_DAYS` stays 30, and a `ONE_TIME_RANGE` alert still expires at its range end. S06's retention job is unchanged.
 
 **Backend use case steps:**
-1. **`MatchAvailabilityAlertsUseCase`**: given `(tenantId, serviceId, freedWindow, resourceId?)`, queries `ACTIVE` alerts for that service, filters by criteria match, for each match calls `recordNotificationAttempt` + transitions to `NOTIFIED`.
-2. New consumer(s) in the Booking context subscribing to whichever existing cancellation/rejection events already fire — grep `apps/backend/src/contexts/booking/infrastructure/events/` first for the real existing shape before adding a new subscription; call the use case, zero domain logic in the handler, rethrow on failure (`docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers).
+1. **`MatchAvailabilityAlertsUseCase`**: input `(tenantId, serviceId, window, resourceId?)`. Loads `ACTIVE` alerts for the service (tenant-scoped), applies the horizon and the match rules, and for each match — inside `txManager.run()`, with the alert locked — calls `recordNotificationAttempt`, moves the alert to `NOTIFIED` and publishes `AvailabilityAlertMatched` through the outbox.
+2. **Event handlers** (`BookingCancelled`, `BookingRejected`, `BookingRescheduled`): `handle()` calls exactly one use case, passes `event.correlationId`, rethrows on failure, zero domain logic (`docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers).
+3. **`AvailabilityAlertSweepJob`** + trigger handler on `cron-reminders`: per tenant, applies the morning-window gate, reads the horizon through `IBookingPlatformPort`, computes availability per service with the existing availability helpers (`GetAvailabilitySummaryUseCase`'s `buildAvailabilityLines`/summary helpers — reuse, do not re-implement slot generation), and calls the use case for each service's bookable windows. A failure for one tenant is logged and does not stop the others; the trigger handler rethrows so the subscription retries.
 
-**Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/match-availability-alerts.use-case.ts` (+ `.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/infrastructure/events/<existing-cancellation-event>.handler.ts` (modify — add the alert-matching call; verify the real existing handler file name at implementation time, don't guess)
-- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-availability-alert.repository.ts` (+ `.spec.ts`) (modify — matching query)
+**Files to create/modify (paths verified; confirm any new name against the codebase at implementation):**
+- `apps/backend/src/contexts/booking/application/use-cases/match-availability-alerts.use-case.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/application/jobs/availability-alert-sweep.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/infrastructure/events/availability-alert-sweep-trigger.handler.ts` (+ spec) (new)
+- `apps/backend/src/contexts/booking/infrastructure/events/` — one new handler per freed-window event (+ specs) (new; uniquely named)
+- `apps/backend/src/contexts/booking/infrastructure/events/availability-alert-events.handler.ts` (+ spec) (modify — audit-log subscriber for `AvailabilityAlertMatched`)
+- `apps/backend/src/contexts/booking/domain/availability-alert.aggregate.ts` and `availability-alert-criteria.helpers.ts` (+ specs) (modify — `recordNotificationAttempt`, `ALERT_MAX_EXPIRY_DAYS = 365`)
+- the new `AvailabilityAlertNotificationAttempt` entity, builder under `src/test/builders/booking/`, and `integration-global-setup.ts` registration (new/modify)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-availability-alert.repository.ts` (+ spec) (modify — matching query, attempt insert, `findByIdForUpdate`) and `application/ports/availability-alert-repository.port.ts`
+- `apps/backend/src/contexts/booking/application/ports/booking-platform.port.ts` and `infrastructure/cross-context/booking-platform.adapter.ts` (+ spec) (modify — one method returning the look-ahead inputs)
+- `apps/backend/src/contexts/booking/infrastructure/events/cron-trigger-names.constants.ts` is unchanged (the sweep reuses `CRON_REMINDERS_TRIGGER`)
+
+**Infra / PR sequencing (`infra/terraform/README.md` § New-resource PR-sequencing playbook):** no new topic and no new scheduler job. The change is new **subscriptions** on existing topics: `BookingCancelled`, `BookingRejected`, `BookingRescheduled` and `cron-reminders` each gain a consumer in `infra/terraform/pubsub-catalog.json`. The catalog edit is part of the code PR. After it merges, **apply Foundation** (dispatch `foundation-deploy.yml` with `apply=true` from `main`, review the two plans, approve the `staging-foundation` and `production-foundation` Environments), then confirm each topic's IAM policy and the new subscriptions exist in both projects. Nothing in CI fails if this step is skipped.
+
+**Out of scope:** the email itself (a later Notification story), any UI, auto-cancelling an alert, enforcing the per-service booking-window override (follow-up story), and the customer-facing alert-entry screen (M23-S31 — which must account for a carousel-mode customer being unable to pick a date past `carouselDays`).
 
 **Acceptance criteria — product:**
-- [ ] Customer with a matching alert receives exactly one notification when a matching slot frees up.
-- [ ] An alert already notified for a given window is never notified twice for the same window/channel.
+- [ ] A customer with a matching alert receives exactly one notification when a matching slot is freed by a cancellation, rejection or reschedule.
+- [ ] A customer with an alert for a date beyond the booking window is notified when that date enters what they can select (not before), and a carousel-mode customer is never notified about a date the carousel cannot show.
+- [ ] A notified alert is never notified again, for the same or any later window.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `ONE_TIME_RANGE` overlap match logic; `WEEKLY_PREFERENCE` weekday+local-time match logic (including timezone conversion)
-  - [ ] Deduplication: a second match on the same `(alertId, matchingWindow, channel)` is a no-op
+  - [ ] `ONE_TIME_RANGE` overlap and `WEEKLY_PREFERENCE` weekday + local-time matching, including timezone conversion and a midnight-crossing window
+  - [ ] Duration/participant fit: a window too short for the service never matches
+  - [ ] Horizon: carousel mode uses `min(carouselDays, maxBookingAdvanceDays)`, calendar mode uses `maxBookingAdvanceDays`, unset values fall back to carousel/14; a window beyond the horizon is skipped
+  - [ ] Dedup: a second match on the same `(alertId, matchingWindow, channel)` is a no-op
+  - [ ] Sweep morning-window gate: runs only 06:30–06:59 tenant-local, across two timezones
+  - [ ] `ALERT_MAX_EXPIRY_DAYS = 365` accepted, 366 rejected with `expires-beyond-max`
 - Integration:
-  - [ ] End-to-end: cancel a booking that frees a slot matching a real seeded alert, assert `AvailabilityAlertMatched` fires and the notification row is recorded
+  - [ ] Cancel a booking that frees a slot matching a real seeded alert: `AvailabilityAlertMatched` fires, the attempt row is recorded, the alert is `NOTIFIED`
+  - [ ] The same for a rejected booking and for a reschedule (old window)
+  - [ ] Sweep: a seeded alert for a date just outside the horizon is not matched; moving the clock/horizon so the date is inside matches it exactly once
+  - [ ] Event handler and sweep racing on the same alert produce exactly one attempt row and one event
+  - [ ] Re-running the sweep and replaying the cancellation event are both no-ops after the first match
 - Tenant isolation:
-  - [ ] Matching never crosses tenant boundary (query scoped by `tenantId` throughout)
+  - [ ] An event for Tenant A never matches Tenant B's alerts; the sweep never reads another tenant's alerts or availability (every query scoped by `tenantId`)
 - E2E: none — background worker, no UI surface
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+**Docs to update in the same PR:** `docs/03-DOMAIN_EVENTS.md` (`AvailabilityAlertMatched` triggers and consumers), `docs/13-DATABASE_SCHEMA.md` (attempt `outcome` values; the 365-day cap), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (a Booking section for the matching algorithm: the two triggers, the horizon rule and the single-notification rule, with a diagram), and any journey/use-case text that states the 90-day alert limit (grep `docs/`, `plan/journey/` and `plan/M23-*.md` for it).
 
 ---
 
