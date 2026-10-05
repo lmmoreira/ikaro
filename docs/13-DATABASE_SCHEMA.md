@@ -782,7 +782,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 
 ### `booking.booking_status_transitions` (M23 Cluster 3)
 
-Append-only audit of a booking's status changes — who moved it, from what, to what, why, when. `bookings` itself keeps only the latest actor and time per transition type (`approved_by`, `completed_by`, …), so a no-show followed by a correction would otherwise leave no history. M23-S09 writes the no-show (`APPROVED → NO_SHOW`) and its correction (`NO_SHOW → COMPLETED`); M23-S26 makes every other transition append to it too (no backfill), so until S26 ships the table is **partial**. Same shape as M24's `class_session_booking_transitions`.
+Append-only audit of a booking's status changes — who moved it, from what, to what, why, when. `bookings` itself keeps only the latest actor and time per transition type (`approved_by`, `completed_by`, …), so a no-show followed by a correction would otherwise leave no history. M23-S09 writes the no-show (`APPROVED → NO_SHOW`) and its correction (`NO_SHOW → COMPLETED`); M23-S26 makes every other transition append to it too, so the table is **complete for every transition from M23-S26 onward** (no backfill — bookings that changed status before it shipped have no rows). Same shape as M24's `class_session_booking_transitions`.
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -790,7 +790,7 @@ Append-only audit of a booking's status changes — who moved it, from what, to 
 | tenant_id | UUID | NOT NULL |
 | booking_id | UUID | NOT NULL — FK (tenant_id, booking_id) → `bookings` |
 | from_status / to_status | VARCHAR(30) | NOT NULL |
-| reason | VARCHAR(500) | NULLABLE |
+| reason | TEXT | NULLABLE — widened from `VARCHAR(500)` by M23-S26: the reject and cancel reasons are uncapped and the booking's own `rejection_reason` / `cancellation_reason` are `TEXT` |
 | actor_type | VARCHAR(20) | NOT NULL |
 | actor_id | UUID | NULLABLE |
 | occurred_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |

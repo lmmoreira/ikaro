@@ -1959,7 +1959,7 @@ A correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not a new
 **Complexity:** M
 **Docs to load:** `docs/13-DATABASE_SCHEMA.md` § `booking_status_transitions`, `docs/02-DOMAIN_MODEL.md` § `Booking`, `.copilot/context.md` §5, `docs/ENGINEERING_RULES_BACKEND.md` § Transactions and § Event Handlers, `docs/ENGINEERING_RULES_TESTING.md`, `docs/AGENT_PATTERNS.md`
 **Dependencies:** M23-S09 (creates the table, its entity, repository port and builder, and writes the `NO_SHOW` rows). Touches the same `Booking` aggregate and booking use cases as M23-S05, so run it after S05 has merged to avoid file overlap.
-**Pattern:** to be locked at `/story-discovery` between two candidates — **(a)** the aggregate records each transition (`from`, `to`, actor, reason, `correlationId`) beside its domain events and `TypeOrmBookingRepository.save()` persists them in the same DB transaction, so every current and future status-changing path is covered with no per-use-case code; **(b)** each use case appends through `IBookingStatusTransitionRepository` as S09's two do. Recommendation: (a), and fold S09's two direct appends into it so there is one mechanism. (b) needs about nine edits and any new status-changing use case silently forgets it.
+**Pattern (locked at `/story-discovery`, 2026-10-05):** the `Booking` aggregate records each transition (`from`, `to`, actor, reason, `correlationId`) beside its domain events, and `TypeOrmBookingRepository.save()` persists them in the same DB transaction; S09's two direct appends are folded into it so there is one mechanism. Discovery found the call-site counts of the two candidates are equal (about 12 either way — the aggregate does not know the actor type, so every status-changing method needs an actor argument), so the deciding reason is that a **required `BookingActor` parameter makes a future status-changing method fail to compile if it forgets to record**, where per-use-case appends (b) would forget silently.
 
 **Discovered:** 2026-09-30, in M23-S09's `/story-discovery`. `bookings` keeps only the latest actor and time per transition type (`approved_by`, `completed_by`, …) and the outbox is trickle-deleted after delivery, so today no transition has a history. S09 creates the audit table for the no-show correction; this story makes the rest of the state machine use it.
 
@@ -1969,32 +1969,37 @@ Every change of an existing booking's status appends one row to `booking.booking
 **Decisions already made (state as fact, do not re-derive):**
 1. **No backfill.** Bookings that changed status before this ships have no rows. `docs/13`'s note that the table is partial is replaced by "complete for every transition from M23-S26 onward".
 2. **Creation is not a transition.** A new booking's initial status, including one created directly as `APPROVED` by M23-S05's materialization, writes no row (`from_status` is `NOT NULL`).
-3. **Reschedule writes a row only if it changes status.** Today's aggregate has no status assignment in a reschedule, so none is expected; confirm at discovery.
-4. **Status-changing paths in scope today:** approve, reject, request-more-info, submit-booking-info, submit-guest-booking-info, complete, cancel-as-customer, cancel-as-admin, the cancel inside `ResolveFutureCommitmentExceptionsUseCase`, and the cancel of future occurrences in `EndRecurringBookingScheduleUseCase`. Re-grep for any new one S05 ships (a system actor such as an expiry job gets `actor_type = 'SYSTEM'`).
+3. **Reschedule writes a row only if it changes status.** Confirmed at discovery: no reschedule path assigns a status, so none is written. Approving a reschedule is still `PENDING → APPROVED` and is covered by `approve`.
+4. **Status-changing paths in scope today (verified by grep at discovery — every `Booking` status assignment is in the aggregate):** approve, reject, request-more-info, submit-booking-info, submit-guest-booking-info, complete, cancel-as-customer, cancel-as-admin, the cancel inside `ResolveFutureCommitmentExceptionsUseCase`, the cancel of future occurrences in `EndRecurringBookingScheduleUseCase`, and S09's `markNoShow`/`correctNoShow`. No cron or expiry job changes a booking's status today, so no `SYSTEM` row is written yet; re-grep for any new one before merge (a system actor gets `actor_type = 'SYSTEM'`).
 5. **Actor types:** `STAFF`, `MANAGER`, `CUSTOMER`, `GUEST` (no `actor_id`), `SYSTEM`.
 6. **Retention and partitioning:** unchanged — never delete; revisit monthly partitioning as a TD past roughly 100M rows (`docs/13`).
-
-**Decisions left for `/story-discovery`:**
-- The pattern above, (a) or (b).
-- `reason` is `VARCHAR(500)`: confirm the cancel and reject reason limits in their DTOs fit, or widen the column in a migration. Whether a request-more-info message is stored as the reason (it lives on the booking already).
-- Whether the `Booking` test builder and the in-memory repository need a recording seam.
+7. **Actor is an explicit aggregate argument.** Each status-changing method takes a `BookingActor` (`{ type, id }`) in place of the bare `staffId` / `cancelledBy` string. Staff-facing use cases build it from `ctx.actorRole` (`STAFF` or `MANAGER`), threaded through the use case input as S09's no-show already does; `cancel-as-customer` and an authenticated customer reply use `CUSTOMER` with the customer id; a guest reply uses `GUEST` with a null id; `EndRecurringBookingScheduleUseCase` uses its existing `actorType`/`isBusiness` inputs.
+8. **`reason` becomes `TEXT`.** The reject and cancel DTOs have no length cap and the booking's own `rejection_reason` / `cancellation_reason` are `TEXT`, so a `VARCHAR(500)` audit column would fail the insert (a 500 after the domain work) for a long reason. One expand-only migration widens it (`varchar(n)` → `text` is metadata-only in PostgreSQL); the DTOs are not capped, so existing API validation is unchanged. S09's own 500-character cap on the no-show DTOs stays.
+9. **What goes in `reason`:** request-more-info stores the staff message (`bookings.info_request_message` keeps only the latest, so a second round would overwrite the first — the history gap this table fills); reject and cancel store the supplied reason; approve, complete and a customer or guest reply store `null` (a reply is free text that stays on the booking).
+10. **Repository wiring.** `TypeOrmBookingRepository` injects the existing `BOOKING_STATUS_TRANSITION_REPOSITORY` port and gains `saveAll(transitions)`, called inside `persistBooking` on the ambient transaction (the booking's own insert/update runs first, so the composite FK is satisfied); it is the only writer. S09's two no-show use cases drop their `transitionRepo` dependency. S27 later adds `findByBooking` to the same port.
+11. **Test doubles.** `InMemoryBookingRepository` takes an optional `InMemoryBookingStatusTransitionRepository` and saves drained transitions into it, mirroring the real flow, so use-case specs assert real rows; the `Booking` builder needs no seam.
+12. **Ordering.** Rows from one save are ordered by `occurred_at`, with the time-ordered UUIDv7 `id` as the tiebreak (S27's reader must use the same order).
 
 **Backend use case steps:**
-1. Pattern (a): `Booking` records a pending transition in every status-changing method (`approve`, `reject`, `requestMoreInfo`, `submitInformation`, `complete`, `cancel`, plus S09's `markNoShow` and correction) and exposes them for the repository to drain, like domain events.
-2. `TypeOrmBookingRepository.save()` inserts the pending transitions with the booking in the same transaction, then clears them. The `transactional-save` detector needs `save()` textually inside each use case's `txManager.run()`, which is unchanged.
-3. S09's `MarkBookingNoShowUseCase` and `CorrectBookingNoShowUseCase` drop their direct appends in favour of this (pattern (a) only).
+1. `Booking` records a pending transition in every status-changing method (`approve`, `reject`, `requestMoreInfo`, `submitInformation`, `complete`, `cancel`, plus S09's `markNoShow` and `correctNoShow`), taking a required `BookingActor`, and exposes them for the repository to drain like domain events. Creation and `Booking.materializeRecurringOccurrence()` record none; `insertMany` persists none.
+2. `TypeOrmBookingRepository.save()` persists the pending transitions through the port's `saveAll` in the same transaction, then clears them. The `transactional-save` detector needs `save()` textually inside each use case's `txManager.run()`, which is unchanged.
+3. Every status-changing use case builds the `BookingActor` and passes it to the aggregate (decision 7); the controllers that lack `actorRole` in the use case input add it from `RequestContext`.
+4. S09's `MarkBookingNoShowUseCase` and `CorrectBookingNoShowUseCase` drop their direct appends and the `transitionRepo` dependency.
 
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
-**New migration / i18n keys / env vars / feature flags:** none expected (the table exists); a migration only if the discovery widens `reason`.
+**New migration / i18n keys / env vars / feature flags:** one migration widening `booking_status_transitions.reason` to `TEXT` (decision 8); no i18n keys, env vars or feature flags.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ spec), `booking.types.ts` (modify — recorded transition type and the recording in each status-changing method)
-- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts` (+ spec, + `.integration.spec.ts`) (modify — persist the pending transitions in `save()`)
-- `apps/backend/src/test/repositories/booking/in-memory-booking.repository.ts` (modify — mirror the behavior)
-- `apps/backend/src/contexts/booking/application/use-cases/mark-booking-no-show.use-case.ts`, `correct-booking-no-show.use-case.ts` (+ specs) (modify — S09's files, remove the direct append)
-- `apps/backend/src/test/builders/booking/booking.builder.ts` (modify if a seam is needed)
-- `docs/13-DATABASE_SCHEMA.md` (modify — replace the "partial until S26" note), `docs/02-DOMAIN_MODEL.md` (modify — the `Booking` transition record, if the aggregate changes)
+- `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ spec), `booking.types.ts` (modify — `BookingActor`, the pending-transition list and its drain, and the recording in each status-changing method)
+- `apps/backend/src/contexts/booking/domain/booking-status-transition.ts` (modify — the header comment still says the record is kept out of the aggregate and that S26 appends it from every use case)
+- `apps/backend/src/contexts/booking/application/ports/booking-status-transition-repository.port.ts`, `infrastructure/repositories/typeorm-booking-status-transition.repository.ts` (+ spec, + `.integration.spec.ts`) (modify — `saveAll`)
+- `apps/backend/src/contexts/booking/infrastructure/entities/booking-status-transition.entity.ts` and `infrastructure/migrations/<next-timestamp>-WidenBookingStatusTransitionReasonToText.ts` (modify / new — `reason` to `TEXT`); `integration-global-setup.ts` needs no change (the entity is already registered)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts` (+ spec, + `.integration.spec.ts`) (modify — inject the port, persist the pending transitions in `persistBooking`)
+- `apps/backend/src/test/repositories/booking/in-memory-booking.repository.ts` and `in-memory-booking-status-transition.repository.ts` (modify — mirror the behavior)
+- Use cases (+ specs) (modify — build the `BookingActor`): `approve-booking`, `reject-booking`, `request-more-info`, `complete-booking`, `cancel-booking-as-admin`, `cancel-booking-as-customer`, `submit-booking-info`, `submit-guest-booking-info`, `resolve-future-commitment-exceptions`, `end-recurring-booking-schedule`, and S09's `mark-booking-no-show` and `correct-booking-no-show` (also drop `transitionRepo`)
+- The booking controllers that call those use cases (+ specs) (modify — pass `actorRole` from `RequestContext` where the input lacks it)
+- `docs/13-DATABASE_SCHEMA.md` (modify — replace the "partial until S26" note and widen `reason`), `docs/02-DOMAIN_MODEL.md` (modify — the `Booking` transition record). `docs/27-BUSINESS_LOGIC_REFERENCE.md` needs no change: no algorithm spans aggregates here.
 
 **Acceptance criteria — product:**
 - [ ] Every approval, rejection, information request and reply, cancellation and completion of a booking leaves one audit row with from-status, to-status, actor, reason (where given) and time.
@@ -2005,10 +2010,14 @@ Every change of an existing booking's status appends one row to `booking.booking
   - [ ] Each status-changing aggregate method records exactly one transition with the right from/to and actor; a rejected transition records none
   - [ ] Creating a booking, including directly as `APPROVED`, records none
   - [ ] Cancel from each of `PENDING`, `INFO_REQUESTED`, `APPROVED` records the matching from-status
-- Integration:
+  - [ ] `markNoShow` and `correctNoShow` record their rows; a guest reply records `GUEST` with a null actor id and an authenticated reply `CUSTOMER`
+  - [ ] Each updated use case passes the actor type it should (`STAFF` vs `MANAGER` from the input role; `CUSTOMER` for cancel-as-customer); the two no-show use cases no longer depend on the transition port
+- Integration (`typeorm-booking.repository.integration.spec.ts`):
   - [ ] Saving a booking after each transition persists exactly one row in the same transaction; a rolled-back save persists none
   - [ ] A full lifecycle (request → info requested → submitted → approved → completed) yields four ordered rows
   - [ ] The future-commitment cancel and the recurring-schedule end each write their rows
+  - [ ] A reject or cancel reason longer than 500 characters persists (the migration applied)
+  - [ ] A request-more-info row carries the staff message as its reason
 - Tenant isolation:
   - [ ] Rows are written and read scoped by `(tenant_id, booking_id)`; Tenant A's booking never produces a Tenant B row
 - E2E: none — backend-only, no UI
