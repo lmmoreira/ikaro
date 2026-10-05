@@ -54,7 +54,9 @@ function renderBookingTimelineEvent(
   // has an assigned resource, unchanged from Story 4: Week view's own resource-filter feature
   // (TD44 Story 1/2) depends on this line being visible to show which resource a booking matched.
   const showResourceLine = event.resourceNames.length > 0;
-  const extraLineCount = Number(showResourceLine) + 1;
+  // A booking sharing its time with another is laid out in a narrower lane, where the status badge
+  // wraps under the client name (TimelineBlockShell) — one more line the block must have room for.
+  const extraLineCount = Number(showResourceLine) + 1 + Number(event.laneCount > 1);
   // Content-fit floor, decoupled from the grid's own coordinate unit (TD44 Story 4) — lets this
   // block render visually taller than its own slot when its content needs it, without affecting
   // slotHeight/top for any other block.

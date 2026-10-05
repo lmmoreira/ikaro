@@ -89,6 +89,37 @@ describe('renderTimelineEvent', () => {
     expect(screen.getByText('Aprovado')).toBeInTheDocument();
   });
 
+  it('gives a booking in a shared (narrow) lane one more line of minimum height for the wrapped badge', () => {
+    const makeEvent = (laneCount: number): TimelineEvent => ({
+      kind: 'booking',
+      id: `booking-${laneCount}`,
+      startMinutes: 540,
+      endMinutes: 570,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: [],
+      laneIndex: 0,
+      laneCount,
+      booking: {
+        bookingId: `booking-${laneCount}`,
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 30,
+      } as never,
+    });
+    const minHeightOf = (laneCount: number): number => {
+      const { unmount } = renderWithIntl(<Host event={makeEvent(laneCount)} props={baseProps()} />);
+      const value = Number.parseInt(screen.getByRole('link').style.minHeight, 10);
+      unmount();
+      return value;
+    };
+
+    expect(minHeightOf(2)).toBeGreaterThan(minHeightOf(1));
+  });
+
   it("composes the booking link's own accessible name from contactName + every matched resource (TD44 Story 2 round 3)", () => {
     const baseEvent = {
       kind: 'booking' as const,

@@ -110,4 +110,26 @@ describe('TimelineBlockShell', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
+
+  it('lets the trailing badge wrap under the title instead of squeezing the title out of a narrow block', () => {
+    render(
+      <TimelineBlockShell
+        compact={false}
+        className="test-class"
+        style={{ width: '50%' }}
+        href="/dashboard/bookings/abc"
+        title="Camila Duarte"
+        subtitle="Lavagem completa"
+        trailing={<span data-testid="status-badge">Aprovado</span>}
+      />,
+    );
+
+    const header = screen.getByTestId('status-badge').parentElement!;
+    const titleGroup = screen.getByText('Camila Duarte').closest('div.min-w-0')!.parentElement!;
+    // jsdom has no layout, so assert the classes that produce it: a wrapping header, and a title
+    // group that reserves its own basis and grows into free space (it never collapses below it).
+    expect(header).toHaveClass('flex-wrap');
+    expect(titleGroup).toHaveClass('flex-1', 'basis-20', 'min-w-0');
+    expect(screen.getByTestId('status-badge')).toBeInTheDocument();
+  });
 });
