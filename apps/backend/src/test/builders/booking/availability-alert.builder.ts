@@ -20,18 +20,18 @@ export class AvailabilityAlertBuilder {
   private serviceId = uuidv7();
   private customerId = uuidv7();
   private preferredResourceId: string | null = null;
-  private timezone = Timezone.create('America/Sao_Paulo');
+  private readonly timezone = Timezone.create('America/Sao_Paulo');
   private criteria: AvailabilityAlertCriteria = {
     criteriaType: 'ONE_TIME_RANGE',
     acceptableStartAt: new Date(Date.now() + 2 * DAY_MS),
     acceptableEndAt: new Date(Date.now() + 2 * DAY_MS + 4 * 3_600_000),
   };
-  private durationMinutes: number | null = null;
-  private participantCount: number | null = null;
+  private readonly durationMinutes: number | null = null;
+  private readonly participantCount: number | null = null;
   private status: AvailabilityAlertStatus = 'ACTIVE';
   private expiresAt = new Date(Date.now() + 7 * DAY_MS);
   private createdAt = new Date();
-  private version = 1;
+  private readonly version = 1;
 
   withId(id: string): this {
     this.id = id;

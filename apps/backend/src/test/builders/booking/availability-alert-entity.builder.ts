@@ -18,14 +18,14 @@ export class AvailabilityAlertEntityBuilder {
   private customerId = uuidv7();
   private preferredResourceId: string | null = null;
   private criteriaType: AvailabilityAlertCriteriaType = 'ONE_TIME_RANGE';
-  private timezone = 'America/Sao_Paulo';
+  private readonly timezone = 'America/Sao_Paulo';
   private acceptableStartAt: Date | null = new Date(Date.now() + 2 * DAY_MS);
   private acceptableEndAt: Date | null = new Date(Date.now() + 2 * DAY_MS + 4 * 3_600_000);
   private weekdays: WeekDayName[] | null = null;
   private localStartTime: string | null = null;
   private localEndTime: string | null = null;
-  private durationMinutes: number | null = null;
-  private participantCount: number | null = null;
+  private readonly durationMinutes: number | null = null;
+  private readonly participantCount: number | null = null;
   private status: AvailabilityAlertStatus = 'ACTIVE';
   private expiresAt = new Date(Date.now() + 7 * DAY_MS);
   private readonly createdAt = new Date();
