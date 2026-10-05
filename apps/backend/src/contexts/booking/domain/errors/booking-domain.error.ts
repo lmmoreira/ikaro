@@ -43,3 +43,4 @@ export * from './booking-lifecycle.error';
 export * from './resource.error';
 export * from './recurring-booking-schedule.error';
 export * from './future-commitment-exception.error';
+export * from './availability-alert.error';

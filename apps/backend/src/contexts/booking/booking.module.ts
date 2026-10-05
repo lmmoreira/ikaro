@@ -31,6 +31,7 @@ import { BookingStatusTransitionEntity } from './infrastructure/entities/booking
 import { RecurringBookingScheduleEntity } from './infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from './infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
 import { FutureCommitmentExceptionEntity } from './infrastructure/entities/future-commitment-exception.entity';
+import { AvailabilityAlertEntity } from './infrastructure/entities/availability-alert.entity';
 import { BookingAttendeeEntity } from './infrastructure/entities/booking-attendee.entity';
 import { ResourceEntity } from './infrastructure/entities/resource.entity';
 import { BookingLineResourceAssignmentEntity } from './infrastructure/entities/booking-line-resource-assignment.entity';
@@ -42,6 +43,7 @@ import { CronBookingController } from './infrastructure/controllers/cron-booking
 import { ResourceController } from './infrastructure/controllers/resource.controller';
 import { RecurringBookingScheduleController } from './infrastructure/controllers/recurring-booking-schedule.controller';
 import { SchedulingExceptionController } from './infrastructure/controllers/scheduling-exception.controller';
+import { AvailabilityAlertController } from './infrastructure/controllers/availability-alert.controller';
 import { ScheduleAvailabilityController } from './infrastructure/controllers/schedule-availability.controller';
 import { ScheduleAvailabilitySummaryController } from './infrastructure/controllers/schedule-availability-summary.controller';
 import { ScheduleDayGridController } from './infrastructure/controllers/schedule-day-grid.controller';
@@ -76,6 +78,7 @@ import { bookingModuleProviders } from './booking.module-providers';
       RecurringBookingScheduleEntity,
       RecurringBookingScheduleResourceAssignmentEntity,
       FutureCommitmentExceptionEntity,
+      AvailabilityAlertEntity,
     ]),
     EventBusModule,
     RequestModule,
@@ -102,6 +105,7 @@ import { bookingModuleProviders } from './booking.module-providers';
     CronBookingController,
     RecurringBookingScheduleController,
     SchedulingExceptionController,
+    AvailabilityAlertController,
   ],
   providers: bookingModuleProviders,
   exports: [GetBookingByIdUseCase, GetServicesUseCase],

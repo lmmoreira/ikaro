@@ -366,6 +366,57 @@ export const ListRecurringBookingSchedulesQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+// M23-S06 (UC-072, UC-076) — the availability-alert bodies are identical in the backend DTOs and
+// the BFF schemas (no per-app deviation), so they live here once (bad-smell-audit BFF-5). The
+// timezone is never part of the body: it is always the tenant's. `expiresAt` is optional — the
+// aggregate defaults, caps and clamps it. Cross-field rules (range order, which fields belong to
+// which criteria type) are enforced by the aggregate, which also covers the PATCH merge.
+const AlertWeekdaySchema = z.enum([
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]);
+
+const alertCriteriaShape = {
+  acceptableStartAt: z.iso.datetime({ offset: true }).optional(),
+  acceptableEndAt: z.iso.datetime({ offset: true }).optional(),
+  weekdays: z.array(AlertWeekdaySchema).min(1).optional(),
+  localStartTime: timeOfDayField().optional(),
+  localEndTime: timeOfDayField().optional(),
+};
+
+const alertMatchingShape = {
+  preferredResourceId: z.uuid().nullable().optional(),
+  durationMinutes: z.number().int().positive().nullable().optional(),
+  participantCount: z.number().int().positive().nullable().optional(),
+  expiresAt: z.iso.datetime({ offset: true }).optional(),
+};
+
+const AlertCriteriaTypeSchema = z.enum(['ONE_TIME_RANGE', 'WEEKLY_PREFERENCE']);
+
+export const CreateAvailabilityAlertBodySchema = z.object({
+  serviceId: z.uuid(),
+  criteriaType: AlertCriteriaTypeSchema,
+  ...alertCriteriaShape,
+  ...alertMatchingShape,
+});
+
+// Every field optional: a PATCH that carries any criteria field is re-validated as a whole by the
+// aggregate against the alert's current values (UC-076).
+export const UpdateAvailabilityAlertBodySchema = z
+  .object({
+    criteriaType: AlertCriteriaTypeSchema.optional(),
+    ...alertCriteriaShape,
+    ...alertMatchingShape,
+  })
+  .refine((body) => Object.values(body).some((value) => value !== undefined), {
+    message: 'At least one field is required',
+  });
+
 // M23-S09 (UC-074) — the no-show request bodies are identical in the backend DTOs and the BFF
 // body schemas (no per-app deviation), so they live here once (bad-smell-audit BFF-5). The mark
 // reason is an optional internal note; the correction accepts COMPLETED only and requires a

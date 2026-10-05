@@ -4,6 +4,7 @@ import { mapSharedAddressError } from '../../../../shared/http/address-validatio
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
 import { ProblemDetail } from '@ikaro/types/protocol/errors';
 import { mapRecurringScheduleProblem } from './recurring-schedule-problem.mapper';
+import { AVAILABILITY_ALERT_ERROR_GROUPS } from './availability-alert-error-groups';
 import {
   AvailabilityDateInPastError,
   AvailabilityRangeInvalidError,
@@ -94,6 +95,7 @@ type BookingDomainErrorCtor = new (...args: never[]) => BookingDomainError;
 // (mirrors the original if-chain's order). Kept as a data table rather than a long if-chain so
 // mapBookingError() itself stays under docs/CODE_STANDARDS.md's function-length limit.
 const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
+  ...AVAILABILITY_ALERT_ERROR_GROUPS,
   [[BookingForbiddenError, RecurringBookingScheduleForbiddenError], HttpStatus.FORBIDDEN],
   [
     [

@@ -1,0 +1,140 @@
+# Booking — Availability Alerts (M23-S06, UC-072 / UC-076)
+# TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
+# CUSTOMER only — STAFF, MANAGER and guests get 403. Every route acts on the caller's own alerts;
+# another customer's alert (same tenant) and another tenant's alert both answer 404.
+# An alert is an intent only: it reserves nothing and never books. Its timezone is always the
+# tenant's. It expires 30 days after creation unless "expiresAt" is sent (at most 90 days after
+# creation; for a ONE_TIME_RANGE it is clamped to "acceptableEndAt"). At most 10 ACTIVE alerts per
+# customer (409 BOOKING_ALERT_CAP_REACHED); the service must have availabilityAlertEligible = true
+# (422 BOOKING_ALERT_INELIGIBLE_SERVICE).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+@alertId = {{createWeeklyAlert.response.body.id}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — create, list, edit, cancel
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Create a weekly-preference alert ("Tuesdays and Thursdays, 18:00–20:00")
+# @name createWeeklyAlert
+POST {{baseUrl}}/availability-alerts
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "criteriaType": "WEEKLY_PREFERENCE",
+  "weekdays": ["tuesday", "thursday"],
+  "localStartTime": "18:00",
+  "localEndTime": "20:00",
+  "durationMinutes": 120,
+  "participantCount": 2
+}
+
+###
+
+### Create a one-time-range alert for a preferred resource
+POST {{baseUrl}}/availability-alerts
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "preferredResourceId": "{{resourceId}}",
+  "criteriaType": "ONE_TIME_RANGE",
+  "acceptableStartAt": "2026-10-12T14:00:00.000Z",
+  "acceptableEndAt": "2026-10-12T18:00:00.000Z"
+}
+
+###
+
+### List my alerts (newest first, history included)
+GET {{baseUrl}}/availability-alerts
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+
+###
+
+### Edit an alert — change only the weekdays (merged over the current criteria)
+PATCH {{baseUrl}}/availability-alerts/{{alertId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "weekdays": ["friday"]
+}
+
+###
+
+### Edit an alert — switch to a one-time range (the full new set is required)
+PATCH {{baseUrl}}/availability-alerts/{{alertId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "criteriaType": "ONE_TIME_RANGE",
+  "acceptableStartAt": "2026-10-14T14:00:00.000Z",
+  "acceptableEndAt": "2026-10-14T18:00:00.000Z"
+}
+
+###
+
+### Cancel an alert (idempotent; a notified or expired alert answers 409)
+DELETE {{baseUrl}}/availability-alerts/{{alertId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 422 — both criteria representations (range fields on a weekly alert)
+POST {{baseUrl}}/availability-alerts
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "criteriaType": "WEEKLY_PREFERENCE",
+  "weekdays": ["monday"],
+  "localStartTime": "09:00",
+  "localEndTime": "10:00",
+  "acceptableStartAt": "2026-10-12T14:00:00.000Z"
+}
+
+###
+
+### 403 — a STAFF actor cannot use alerts
+GET {{baseUrl}}/availability-alerts
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF

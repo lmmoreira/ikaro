@@ -6,6 +6,7 @@ import { BookingsAttachmentsController } from './bookings-attachments.controller
 import { BookingsNoShowController } from './bookings-no-show.controller';
 import { RecurringBookingSchedulesController } from './recurring-booking-schedules.controller';
 import { SchedulingExceptionsController } from './scheduling-exceptions.controller';
+import { AvailabilityAlertsController } from './availability-alerts.controller';
 
 @Module({
   imports: [BackendHttpModule],
@@ -16,6 +17,7 @@ import { SchedulingExceptionsController } from './scheduling-exceptions.controll
     BookingsNoShowController,
     RecurringBookingSchedulesController,
     SchedulingExceptionsController,
+    AvailabilityAlertsController,
   ],
 })
 export class BookingsModule {}

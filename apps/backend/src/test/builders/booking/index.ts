@@ -40,3 +40,9 @@ export { BookingCompletedEventBuilder } from './booking-completed-event.builder'
 export { BookingReminderDueCommandBuilder } from './booking-reminder-due-command.builder';
 export { BookingReminderDueTodayCommandBuilder } from './booking-reminder-due-today-command.builder';
 export { AdminDailyScheduleReminderCommandBuilder } from './admin-daily-schedule-reminder-command.builder';
+export { AvailabilityAlertBuilder } from './availability-alert.builder';
+export { AvailabilityAlertEntityBuilder } from './availability-alert-entity.builder';
+export { AvailabilityAlertCreatedEventBuilder } from './availability-alert-created-event.builder';
+export { AvailabilityAlertUpdatedEventBuilder } from './availability-alert-updated-event.builder';
+export { AvailabilityAlertCancelledEventBuilder } from './availability-alert-cancelled-event.builder';
+export { AvailabilityAlertExpiredEventBuilder } from './availability-alert-expired-event.builder';

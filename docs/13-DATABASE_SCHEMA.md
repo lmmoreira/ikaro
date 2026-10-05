@@ -713,9 +713,15 @@ Generated ordinary bookings link through nullable `recurring_schedule_id` on `bo
 | participant_count | INT | NULLABLE CHECK > 0 |
 | status | VARCHAR(20) | NOT NULL DEFAULT 'ACTIVE' — CHECK IN ('ACTIVE', 'NOTIFIED', 'CANCELLED', 'EXPIRED') |
 | expires_at | TIMESTAMPTZ | NOT NULL |
-| created_at | TIMESTAMPTZ | DEFAULT now() |
-| **CHECK** | exactly one criteria representation populated | |
-| **INDEX** | (tenant_id, service_id, status) | Matched by the release-time scan |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| version | INTEGER | NOT NULL DEFAULT 1 — optimistic-concurrency token (a customer's edit/cancel racing the expiry job) |
+| **UNIQUE** | (tenant_id, id) | Target of the attempts table's composite FK |
+| **CHECK** | exactly one criteria representation populated (`CHK_booking_availability_alerts_one_criteria`): the range pair set with `acceptable_end_at > acceptable_start_at`, or weekdays + local times set with `local_end_time > local_start_time`, never both | |
+| **INDEX** | (tenant_id, service_id, status) | Matched by the release-time scan (M23-S07) |
+| **INDEX** | (tenant_id, customer_id, status) | "My alerts" and the per-customer active-alert cap (10) |
+| **INDEX** | (tenant_id, status, expires_at) | The expiry job's per-tenant scan |
+
+Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together with the attempts table below; M23-S07 writes the attempts. **Retention:** the alert-expiry job (`cron-reminders`) hard-deletes every non-`ACTIVE` alert whose `expires_at` is more than 90 days in the past, together with its attempts rows (M23-S06). `timezone` is always the tenant's timezone, never client-supplied.
 
 `availability_alert_notification_attempts`:
 

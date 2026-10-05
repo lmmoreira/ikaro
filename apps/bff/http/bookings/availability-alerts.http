@@ -1,0 +1,123 @@
+# BFF — Availability alerts (M23-S06, UC-072, UC-076)
+# CUSTOMER only (STAFF and MANAGER get 403). A pass-through to the backend: every ownership
+# decision (own alerts only) is made there. An alert reserves nothing; its timezone is always the
+# tenant's; it expires after 30 days unless "expiresAt" is sent (at most 90 days after creation).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#   5. pnpm --filter @ikaro/bff run dev
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@customerToken = {{customerLogin.response.body.accessToken}}
+@staffToken    = {{staffLogin.response.body.accessToken}}
+@alertId       = {{createWeeklyAlert.response.body.id}}
+
+###
+# @name customerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "cliente@email.com.br", "tenantSlug": "{{tenantSlug}}", "type": "customer" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "staff@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — create, list, edit, cancel
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Create a weekly-preference alert → 201
+# @name createWeeklyAlert
+POST {{bffUrl}}/v1/availability-alerts
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "criteriaType": "WEEKLY_PREFERENCE",
+  "weekdays": ["tuesday", "thursday"],
+  "localStartTime": "18:00",
+  "localEndTime": "20:00",
+  "durationMinutes": 120,
+  "participantCount": 2
+}
+
+###
+
+### Create a one-time-range alert → 201
+POST {{bffUrl}}/v1/availability-alerts
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "criteriaType": "ONE_TIME_RANGE",
+  "acceptableStartAt": "2026-10-12T14:00:00.000Z",
+  "acceptableEndAt": "2026-10-12T18:00:00.000Z"
+}
+
+###
+
+### My alerts → 200 { items }
+GET {{bffUrl}}/v1/availability-alerts
+Authorization: Bearer {{customerToken}}
+
+###
+
+### Edit — change only the weekdays → 200
+PATCH {{bffUrl}}/v1/availability-alerts/{{alertId}}
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{ "weekdays": ["friday"] }
+
+###
+
+### Cancel → 200 { id, status: "CANCELLED" } (idempotent)
+DELETE {{bffUrl}}/v1/availability-alerts/{{alertId}}
+Authorization: Bearer {{customerToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### ERROR — empty weekday list → 400
+POST {{bffUrl}}/v1/availability-alerts
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "criteriaType": "WEEKLY_PREFERENCE",
+  "weekdays": [],
+  "localStartTime": "18:00",
+  "localEndTime": "20:00"
+}
+
+###
+
+### ERROR — empty PATCH body → 400
+PATCH {{bffUrl}}/v1/availability-alerts/{{alertId}}
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{}
+
+###
+
+### ERROR — STAFF token → 403
+GET {{bffUrl}}/v1/availability-alerts
+Authorization: Bearer {{staffToken}}

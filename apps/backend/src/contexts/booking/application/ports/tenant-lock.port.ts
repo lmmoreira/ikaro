@@ -31,4 +31,11 @@ export interface ITenantLockPort {
   // MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE cap check against a concurrent request
   // for the same service. Brand-new key, free to namespace.
   lockService(tenantId: string, serviceId: string): Promise<void>;
+
+  // Acquires a transaction-scoped advisory lock scoped to (tenantId, customerId)'s availability
+  // alerts. Same contract as lockService — inside an active ITransactionManager.run() block,
+  // released on commit/rollback. No alert row exists yet at create time, so this is the
+  // primitive that serializes the per-customer active-alert cap's count-then-insert against a
+  // concurrent create by the same customer (M23-S06). Brand-new key, free to namespace.
+  lockCustomerAlerts(tenantId: string, customerId: string): Promise<void>;
 }
