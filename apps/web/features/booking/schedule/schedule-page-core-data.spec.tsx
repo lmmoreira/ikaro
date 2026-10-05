@@ -198,6 +198,55 @@ describe('useScheduleCoreData', () => {
     expect(result.current.scheduleFetchError).toBeInstanceOf(Error);
   });
 
+  describe('selected-day day-grid failure (held-time strips)', () => {
+    const failedGrid = { data: undefined, isError: true, error: new Error('grid boom') };
+
+    it('surfaces it as a schedule fetch error in the merged Day view', () => {
+      mockMatchMedia(false);
+      scheduleHooks.useScheduleDayGrid.mockReturnValue(failedGrid);
+      const { result } = renderHook(() => useScheduleCoreData(baseProps()), { wrapper });
+      expect(result.current.scheduleViewMode).toBe('day');
+      expect(result.current.scheduleFetchError).toBe(failedGrid.error);
+    });
+
+    it("does not duplicate the columns board's own error when resources are checked", async () => {
+      mockMatchMedia(false);
+      scheduleHooks.useScheduleDayGrid.mockReturnValue(failedGrid);
+      window.localStorage.setItem(
+        'ikaro:schedule',
+        JSON.stringify({
+          'selectedResourceIds:tenant-x': { selectedResourceIds: ['res-active'] },
+        }),
+      );
+      selectableResourcesHooks.useSelectableResources.mockReturnValue({
+        resources: [makeResource({ id: 'res-active' })],
+        isLoading: false,
+        isError: false,
+      });
+      const managerRole = 'MANAGER' as const;
+      function managerWrapper({ children }: { readonly children: React.ReactNode }) {
+        return (
+          <TenantProvider tenantId="tenant-x" tenantSlug="tenant-x" role={managerRole}>
+            {wrapper({ children })}
+          </TenantProvider>
+        );
+      }
+      const { result } = renderHook(() => useScheduleCoreData(baseProps()), {
+        wrapper: managerWrapper,
+      });
+      expect(result.current.selectedResourceIdSet.size).toBe(1);
+      expect(result.current.scheduleFetchError).toBeNull();
+    });
+
+    it('leaves Week view to its own fan-out error state', () => {
+      mockMatchMedia(true);
+      scheduleHooks.useScheduleDayGrid.mockReturnValue(failedGrid);
+      const { result } = renderHook(() => useScheduleCoreData(baseProps()), { wrapper });
+      expect(result.current.scheduleViewMode).toBe('week');
+      expect(result.current.scheduleFetchError).toBeNull();
+    });
+  });
+
   it("drops a persisted resource id that's no longer in the active resource list (MANAGER only)", async () => {
     window.localStorage.setItem(
       'ikaro:schedule',

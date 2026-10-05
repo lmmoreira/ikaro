@@ -55,8 +55,8 @@ interface ScheduleTimelineDerivedInput {
   readonly bookingResourceIdsById: ReadonlyMap<string, readonly string[]>;
   // M18-S10 — the day-grids behind the held-time strips of the merged Day timeline (selected day)
   // and the Week day-cards (the whole week). Undefined while loading, and always for STAFF.
-  readonly selectedDayGrid?: DayGridResponse | undefined;
-  readonly weekDayGrids?: readonly DayGridResponse[] | undefined;
+  readonly selectedDayGrid?: DayGridResponse;
+  readonly weekDayGrids?: readonly DayGridResponse[];
 }
 
 function useScheduleWeekDayDerived(input: ScheduleTimelineDerivedInput): {

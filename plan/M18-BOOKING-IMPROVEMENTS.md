@@ -1367,7 +1367,7 @@ Make the Day-view resource columns board show, in every checked resource's colum
 - [ ] With only one resource checked (e.g. Walace), the segment still reads "Walace · até HH:MM" plus the correct origin.
 - [ ] A booking made before this change (no recorded origin) still shows the blocked time, with "Origem não registrada" instead of a guessed cause.
 - [ ] The visible free space in a column matches what availability will offer (Oct 8 example: 15:00–16:00 reads as held/short, not free for a 3h window).
-- [ ] The merged timeline and Week view are unchanged; both locales render every string with no hardcoded copy.
+- [ ] With no resource checked (merged Day timeline) and in Week view, a MANAGER sees one held-time strip per booking — it runs to the longest hold, names every resource held until then and gives the cause (a service buffer wins a tie); STAFF views are unchanged. Both locales render every string with no hardcoded copy.
 
 **Acceptance criteria — technical:**
 - Unit:
