@@ -343,7 +343,7 @@ A bundle/leg reschedule re-validates the whole chain atomically on both paths (U
 
 ---
 
-### M23-S06 — `AvailabilityAlert` aggregate — backend CRUD + BFF
+### M23-S06 — `AvailabilityAlert` aggregate — backend CRUD + BFF ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
