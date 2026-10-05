@@ -1278,7 +1278,7 @@ Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at disc
 
 ---
 
-## M18-S10 — Manager schedule columns board: show who is held after each booking and why (buffer/turnover origin), persisted at booking time
+## M18-S10 — Manager schedule columns board: show who is held after each booking and why (buffer/turnover origin), persisted at booking time ✅ Done
 
 **Agent:** `backend-ts` (plus `bff-ts` for the response type pass-through and `web-ts` for the columns board)
 **Complexity:** L
