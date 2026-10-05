@@ -278,7 +278,7 @@ Owned by: **Booking Context** (`src/contexts/booking/`)
 | name | VARCHAR(255) | NOT NULL |
 | description | TEXT | |
 | price_amount | NUMERIC(10,2) | NOT NULL |
-| duration_minutes | INTEGER | NOT NULL |
+| duration_minutes | INTEGER | NOT NULL. For a service with legs it is always the legs' span (sum of leg durations + every transition gap except the last leg's) — written by `Service.setLegs()`, recomputed by `Service.update()`, backfilled by migration `1748500000024` (M23-S11b); existing `booking_lines.duration_mins_at_booking` snapshots are unchanged |
 | loyalty_points_value | INTEGER | NOT NULL DEFAULT 0 |
 | requires_pickup_address | BOOLEAN | NOT NULL DEFAULT false |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |

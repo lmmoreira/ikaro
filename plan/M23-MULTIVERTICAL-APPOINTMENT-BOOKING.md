@@ -951,8 +951,8 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 
 ### M23-S11b — Guest/customer booking flow frontend, part 2 — bundle and journey confirmation, variable duration
 
-**Agent:** `frontend-ts`
-**Complexity:** M
+**Agent:** `backend-ts` + `frontend-ts` (a small backend prerequisite lands first, as its own commit)
+**Complexity:** L
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Booking Requests (extended) + the endpoints and availability params M23-S29 adds, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components, `docs/ENGINEERING_RULES_TESTING.md` (E2E shared-tenant rules), `docs/08-TESTING_STRATEGY.md` § apps/web
 **Dependencies:** **M23-S11a** (the step engine, `ResourcePicker`, the extended availability components, the quote fetcher and `BookingSubmittedDetails` this story plugs into), M23-S01, M23-S02, M23-S03, **M23-S29** (✅ Done)
 **Pattern:** plain composition — two new step components that register with S11a's `resolveBookingSteps()`; no new engine work. `LegItineraryStep` is a variant of the Confirmation step (not an extra step); `VariableDurationStep` is a duration-only step ahead of the shared availability step.
@@ -966,10 +966,12 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 
 **Out of scope (moved to M23-S30):** the customer reschedule quote preview carried here by the original S11 — there is no customer reschedule screen yet.
 
-**Backend/BFF:** none. `apps/web` consumes `@ikaro/types` only.
+**Backend prerequisite (found at implementation 2026-10-04, decided with the product owner — fixed in this story/branch, backend commit first):** `Service.setLegs()` returned the legs' span but never wrote it to `service.durationMinutes`, which is an independent Details-tab value; yet every booking line copies `durationMinutes` (`booking-request.mapper.ts`) and the availability/occupancy cursor advances by it between the lines of one booking, while the legs' own windows come from the legs alone. So a legged line's persisted length could disagree with its own itinerary, and in a mixed basket the next line would overlap or leave a gap. Fix: (1) `setLegs()` writes the span into `durationMinutes`; (2) `Service.update()` **recomputes** a legged service's duration from its legs instead of taking the caller's value (a rename never moves it, no `409`); (3) migration `1748500000024-BackfillLeggedServiceDurationToSpan` corrects **every** existing legged service (data-only; existing bookings keep their persisted durations); (4) the dashboard Detalhes duration field is read-only for a legged service and follows a legs save in the same session. With this invariant the frontend uses `service.durationMinutes` as every line's length (identical to the server) and the legs only for the leg timeline. No BFF change. `apps/web` otherwise consumes `@ikaro/types` only.
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/public/LegItineraryStep.tsx`, `VariableDurationStep.tsx` (+ specs) (new)
+- **Backend prerequisite:** `apps/backend/src/contexts/booking/domain/service.aggregate.ts` (+ `service.spec.ts`), `.../infrastructure/migrations/1748500000024-BackfillLeggedServiceDurationToSpan.ts`, `apps/backend/src/test/integration-global-setup.ts` + `apps/backend/eslint.config.js` (register the migration), `booking.controller.integration.spec.ts` + `service.controller.integration.spec.ts` (span persisted; mixed-basket cursor), `docs/02-DOMAIN_MODEL.md` § Service (modify/new)
+- **Dashboard:** `ServicePriceDurationFields.tsx`, `ServiceFormFields.tsx`, `ServiceEditDetailsTab.tsx`, `ServiceEditPage.tsx`, `ServiceEditConfigTabPanels.tsx`, `ServiceResourceRequirementsPanel.tsx` (+ specs) and `dashboard.servicesPage.durationLegsLockedHint` in both locales (modify — read-only legged duration, follows a legs save)
 - `apps/web/features/booking/hooks/useBookingFlow.ts`, `useBookingFormController.ts` (+ specs) (modify — hold the chosen `durationMinutes`; clear it when the basket changes; clear the slot when the duration changes; feed the leg review its start cursor)
 - `apps/web/features/booking/model/booking-steps.ts` (+ spec) (modify — register the duration step and the journey confirmation variant)
 - `apps/web/features/booking/components/public/BookingSubmittedDetails.tsx`, `ConfirmationStep.tsx`, `BookingForm.tsx` (+ specs) (modify — itinerary timeline; render `LegItineraryStep` as the final step for a legged service)
@@ -987,6 +989,10 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 - [ ] Every new screen paints `--ba-background`/`--ba-text` per the hotsite full-page-component invariant, and error text on `--ba-secondary` uses `#b91c1c`.
 
 **Acceptance criteria — technical:**
+- Backend prerequisite:
+  - [x] `Service.setLegs()` persists the span as `durationMinutes`; `Service.update()` recomputes it for a legged service whatever the caller sends (unit)
+  - [x] Integration: a legged booking's `durationMinsAtBooking` and `totalDurationMins` equal the span, not the Details duration; a legged service booked after a fixed line starts its first leg where that line ends; `PATCH` of a legged service keeps `durationMinutes` at the span
+  - [x] Migration backfills every legged service to its span; both locales + dashboard field read-only (specs)
 - Unit:
   - [ ] `LegItineraryStep`: times, durations and transitions computed from `service.legs` + the slot; names only for own picks or fixed resources; automatic legs show their type; the total
   - [ ] `VariableDurationStep`: options from min/max/increment; quote loading, error (blocks Próximo) and success states; a changed duration re-requests the quote; `OUT_OF_RANGE` state

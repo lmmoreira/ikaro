@@ -63,6 +63,20 @@ function journey(choicesPerLeg: ('STAFF' | 'ROOM' | 'EQUIPMENT')[][]): HotsiteSe
   });
 }
 
+const variableDuration = makeHotsiteService({
+  id: '00000000-0000-0000-0000-0000000000a5',
+  bookingPolicy: {
+    ...makeHotsiteService().bookingPolicy,
+    durationPolicy: 'CUSTOMER_SELECTED',
+    durationMinMinutes: 60,
+    durationMaxMinutes: 120,
+    durationIncrementMinutes: 30,
+    pricingPolicy: 'PER_TIME_INCREMENT',
+    pricingIncrementMinutes: 60,
+    pricePerIncrementAmount: 50,
+  },
+});
+
 const steps = (...services: HotsiteServiceResponse[]) => ({ services, hasIntake: false });
 
 describe('resolveBookingSteps', () => {
@@ -116,6 +130,51 @@ describe('resolveBookingSteps', () => {
       7,
     );
     expect(resolveBookingSteps(steps(journey([[], [], []])))).toHaveLength(4);
+  });
+
+  it('adds the duration step for a customer-selected duration (5), 6 with intake', () => {
+    expect(resolveBookingSteps(steps(variableDuration))).toEqual([
+      'services',
+      'duration',
+      'availability',
+      'personal',
+      'confirmation',
+    ]);
+    expect(resolveBookingSteps({ services: [variableDuration], hasIntake: true })).toHaveLength(6);
+  });
+
+  it('puts every picker step before the duration step (chosen staff + duration = 6)', () => {
+    const ids = resolveBookingSteps(steps(chosenStaff, variableDuration));
+
+    expect(ids).toEqual([
+      'services',
+      `picker:${pickerUnitKey(STAFF_ID, null)}`,
+      'duration',
+      'availability',
+      'personal',
+      'confirmation',
+    ]);
+  });
+
+  it('adds one duration step even when a duration service sits beside fixed ones', () => {
+    expect(resolveBookingSteps(steps(makeHotsiteService(), variableDuration))).toHaveLength(5);
+  });
+
+  it('lays a journey with choices on legs 2 and 3 out as 6 steps (the review replaces the summary)', () => {
+    expect(resolveBookingSteps(steps(journey([[], ['STAFF'], ['EQUIPMENT']])))).toEqual([
+      'services',
+      `picker:${pickerUnitKey(JOURNEY_ID, 1)}`,
+      `picker:${pickerUnitKey(JOURNEY_ID, 2)}`,
+      'availability',
+      'personal',
+      'confirmation',
+    ]);
+  });
+
+  it('is 7 steps for a journey with choices on two legs plus a duration service', () => {
+    expect(
+      resolveBookingSteps(steps(journey([[], ['STAFF'], ['EQUIPMENT']]), variableDuration)),
+    ).toHaveLength(7);
   });
 });
 
@@ -187,6 +246,18 @@ describe('resolveErrorStep', () => {
     expect(resolveErrorStep({ ...route, code: 'X' }, list, 'pt-BR', null)).toEqual({
       kind: 'step',
       stepId: 'availability',
+      message: 'm',
+      code: 'X',
+    });
+  });
+
+  it('returns the duration step when the basket has one (BOOKING_DURATION_OUT_OF_RANGE)', () => {
+    const withDuration: BookingStepId[] = ['services', 'duration', 'availability', 'confirmation'];
+    const route = { target: 'duration' as const, message: 'm', code: 'X' };
+
+    expect(resolveErrorStep(route, withDuration, 'pt-BR', null)).toEqual({
+      kind: 'step',
+      stepId: 'duration',
       message: 'm',
       code: 'X',
     });

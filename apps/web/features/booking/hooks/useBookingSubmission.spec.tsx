@@ -151,6 +151,30 @@ describe('useBookingSubmission', () => {
     expect(createAuthenticatedBooking).toHaveBeenCalledWith(expected);
   });
 
+  it('sends durationMinutes on both paths when a duration was chosen, and omits it otherwise', async () => {
+    vi.mocked(createBooking).mockResolvedValue(BOOKING);
+    vi.mocked(createAuthenticatedBooking).mockResolvedValue(BOOKING);
+    const guest = renderHook(() => useBookingSubmission(baseParams({ durationMinutes: 90 })));
+    const customer = renderHook(() =>
+      useBookingSubmission(baseParams({ durationMinutes: 90, customerProfile: PROFILE })),
+    );
+    const plain = renderHook(() => useBookingSubmission(baseParams()));
+
+    await act(() => guest.result.current.handleSubmit());
+    await act(() => customer.result.current.handleSubmit());
+    expect(createBooking).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      expect.objectContaining({ durationMinutes: 90 }),
+    );
+    expect(createAuthenticatedBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ durationMinutes: 90 }),
+    );
+
+    vi.mocked(createBooking).mockClear();
+    await act(() => plain.result.current.handleSubmit());
+    expect(vi.mocked(createBooking).mock.calls[0]?.[1]).not.toHaveProperty('durationMinutes');
+  });
+
   it('fetches the customer profile when it is still unknown and reports it', async () => {
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(PROFILE);
     vi.mocked(createAuthenticatedBooking).mockResolvedValue(BOOKING);

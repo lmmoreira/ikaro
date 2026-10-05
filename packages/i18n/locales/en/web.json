@@ -239,6 +239,32 @@
     "submitted": {
       "heading": "Your request details",
       "total": "Total"
+    },
+    "duration": {
+      "heading": "For how long?",
+      "label": "Duration",
+      "choose": "Choose a duration",
+      "rangeHint": "From {min} to {max}, in blocks of {step}.",
+      "rateHint": "{rate} · minimum {min}",
+      "total": "Total: {amount}",
+      "priceRecorded": "The price is recorded with the booking.",
+      "quoteLoading": "Calculating the total…",
+      "quoteError": "We couldn't calculate the total.",
+      "unavailable": "No durations are available for this service."
+    },
+    "legs": {
+      "confirmHeading": "Confirm your journey",
+      "timelineLabel": "Journey stages",
+      "transitionAfter": "+ {minutes} min transition before the next stage",
+      "chosen": "with {name} (your choice)",
+      "autoAssigned": {
+        "STAFF": "Staff member assigned automatically",
+        "ROOM": "Room assigned automatically",
+        "EQUIPMENT": "Equipment assigned automatically"
+      },
+      "reserved": "{service} of service + {transition} of transition = {total} reserved ({start}–{end})",
+      "reservedNoTransition": "{total} reserved ({start}–{end})",
+      "stagesList": "{count} stages: {names}"
     }
   },
   "hotsite": {
@@ -1189,6 +1215,7 @@
       "createPriceLabel": "Price",
       "createPricePlaceholder": "0.00",
       "createDurationLabel": "Duration",
+      "durationLegsLockedHint": "Calculated from the stages (stage durations + transitions) — edit it in the Resources tab.",
       "createDurationPlaceholder": "60",
       "createPointsLabel": "Loyalty points",
       "createPointsPlaceholder": "0",

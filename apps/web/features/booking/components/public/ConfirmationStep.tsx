@@ -9,11 +9,11 @@ import type {
   HotsiteServiceResponse,
   ResourceSelectionItem,
 } from '@ikaro/types';
-import { summarizeSelection } from '@/features/booking/model/selection-totals';
+import { composeBasket, type ChosenDuration } from '@/features/booking/model/basket-lines';
+import { BasketLines, useBasketTotalText } from './BasketLines';
 import { BookingSubmittedDetails } from './BookingSubmittedDetails';
 import { ErrorAlert } from './ErrorAlert';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { formatDuration } from '@/shared/lib/formatting/format-duration';
 
 export type BookingSubmissionStatus = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -28,6 +28,8 @@ interface ConfirmationStepProps {
   readonly booking: BookingResponse | null;
   readonly picks: readonly ResourceSelectionItem[];
   readonly requirements: readonly HotsiteServiceResourceOptionsRequirement[];
+  /** The customer-selected duration (with its quote), when the basket has such a service. */
+  readonly duration?: ChosenDuration | null;
   readonly onSubmit: () => void;
   readonly onBack: () => void;
 }
@@ -50,14 +52,22 @@ export function ConfirmationStep({
   booking,
   picks,
   requirements,
+  duration = null,
   onSubmit,
   onBack,
 }: ConfirmationStepProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
-  const { formatMoney, formatDateLong, formatTime } = useFormatting();
-  const selected = services.filter((service) => selectedServiceIds.includes(service.id));
-  const { amount, durationMinutes, isFloor } = summarizeSelection(selected);
+  const { formatDateLong, formatTime } = useFormatting();
+  const basket = composeBasket({
+    services,
+    serviceIds: selectedServiceIds,
+    picks,
+    requirements,
+    duration,
+    slotStart: new Date(selectedSlot.startsAt),
+  });
+  const totalText = useBasketTotalText(basket);
 
   if (status === 'success') {
     return (
@@ -94,27 +104,17 @@ export function ConfirmationStep({
   return (
     <div>
       <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
-        {t('confirmation.heading')}
+        {basket.hasJourney ? t('legs.confirmHeading') : t('confirmation.heading')}
       </h2>
 
-      <ul className="mb-4 flex flex-col gap-1">
-        {selected.map((service) => (
-          <li
-            key={service.id}
-            className="flex justify-between text-sm"
-            style={{ color: 'var(--ba-text)' }}
-          >
-            <span>{service.name}</span>
-            <span>{service.price.formatted}</span>
-          </li>
-        ))}
-      </ul>
+      <BasketLines basket={basket} variant="confirmation" />
 
-      <p className="mb-2 font-semibold" style={{ color: 'var(--ba-text)' }}>
-        Total:{' '}
-        {isFloor
-          ? `${t('summary.fromAmount', { amount: formatMoney(amount) })} — ${t('summary.durationToChoose')}`
-          : `${formatMoney(amount)} — ${formatDuration(durationMinutes)}`}
+      <p
+        className="mb-2 font-semibold"
+        style={{ color: 'var(--ba-text)' }}
+        data-testid="confirmation-total"
+      >
+        Total: {totalText}
       </p>
 
       <p data-testid="confirmation-datetime" style={{ color: 'var(--ba-text)' }}>

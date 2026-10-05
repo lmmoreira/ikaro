@@ -9,6 +9,8 @@ interface ServicePriceDurationFieldsProps {
   readonly durationMinutes: string;
   readonly priceError: string | undefined;
   readonly durationError: string | undefined;
+  /** A legged service's duration is its legs' span, computed by the backend: shown, never edited. */
+  readonly durationLocked?: boolean;
   readonly onPriceAmountChange: (value: string) => void;
   readonly onDurationMinutesChange: (value: string) => void;
 }
@@ -20,11 +22,15 @@ export function ServicePriceDurationFields({
   durationMinutes,
   priceError,
   durationError,
+  durationLocked = false,
   onPriceAmountChange,
   onDurationMinutesChange,
 }: ServicePriceDurationFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const { currencySymbol } = useFormatting();
+  let describedBy: string | undefined;
+  if (durationError) describedBy = 'service-duration-error';
+  else if (durationLocked) describedBy = 'service-duration-locked-hint';
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -86,9 +92,11 @@ export function ServicePriceDurationFields({
             min="1"
             step="1"
             value={durationMinutes}
+            readOnly={durationLocked}
+            aria-readonly={durationLocked || undefined}
             onChange={(event) => onDurationMinutesChange(event.target.value)}
             aria-invalid={Boolean(durationError)}
-            aria-describedby={durationError ? 'service-duration-error' : undefined}
+            aria-describedby={describedBy}
             placeholder={t('createDurationPlaceholder')}
             className="w-full rounded-md border border-border bg-white py-2.5 pl-3 pr-12 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50"
           />
@@ -96,6 +104,15 @@ export function ServicePriceDurationFields({
             min
           </span>
         </div>
+        {durationLocked && (
+          <p
+            id="service-duration-locked-hint"
+            data-testid="service-duration-locked-hint"
+            className="mt-1.5 text-sm text-gray-500"
+          >
+            {t('durationLegsLockedHint')}
+          </p>
+        )}
         {durationError && (
           <p
             id="service-duration-error"

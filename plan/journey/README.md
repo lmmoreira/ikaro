@@ -703,10 +703,10 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 
 | Journey | Folder | Prototype | Status |
 |---|---|---|---|
-| GUEST — Book a Service | `guest/book-a-service.md` | `guest/prototypes/book-a-service/` | Reviewed (M23 extension: ❓ Gap — `M23-S11b`, incl. combined-basket screens) |
+| GUEST — Book a Service | `guest/book-a-service.md` | `guest/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`, incl. combined-basket screens) |
 | GUEST — Responder à Solicitação de Informação | `guest/submit-info.md` | `guest/prototypes/submit-info/` | Reviewed |
 | GUEST — Ask Chatbot | `guest/ask-chatbot.md` | `guest/prototypes/ask-chatbot/` | Draft |
-| CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed (M23 extension: ❓ Gap — `M23-S11b`) |
+| CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`) |
 | CUSTOMER — Login & Tenant Selection | `customer/login.md` | `customer/prototypes/login/` | Reviewed |
 | STAFF — Login & First Access | `staff/login.md` | `staff/prototypes/login/` | Reviewed |
 | STAFF — Agenda (Booking Queue & Lifecycle Management) | `staff/agenda.md` | `staff/prototypes/agenda/` | Reviewed |

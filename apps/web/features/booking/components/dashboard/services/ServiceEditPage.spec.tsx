@@ -120,6 +120,44 @@ describe('ServiceEditPage', () => {
     expect(mockSetServiceStatus).toHaveBeenCalledWith('ACTIVE');
   });
 
+  it('shows a legged service duration as read-only, computed from its legs', () => {
+    renderWithIntl(
+      <ServiceEditPage
+        service={{
+          ...service,
+          durationMinutes: 80,
+          legs: [
+            {
+              legIndex: 0,
+              name: 'Sauna',
+              durationMinutes: 20,
+              resourceRequirements: [],
+              transitionGapAfterMinutes: 10,
+            },
+            {
+              legIndex: 1,
+              name: 'Massagem',
+              durationMinutes: 50,
+              resourceRequirements: [],
+              transitionGapAfterMinutes: 0,
+            },
+          ],
+        }}
+        intakeSchema={intakeSchema}
+      />,
+    );
+
+    expect(screen.getByTestId('service-duration-input')).toHaveDisplayValue('80');
+    expect(screen.getByTestId('service-duration-input')).toHaveAttribute('readonly');
+    expect(screen.getByTestId('service-duration-locked-hint')).toBeInTheDocument();
+  });
+
+  it('keeps a flat service duration editable', () => {
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    expect(screen.getByTestId('service-duration-input')).not.toHaveAttribute('readonly');
+  });
+
   it('hides the danger zone for inactive services', () => {
     renderWithIntl(
       <ServiceEditPage

@@ -443,6 +443,16 @@ describe('ServiceController (integration)', () => {
         .expect(200);
       expect(fetched.legs).toHaveLength(2);
       expect(fetched.resourceRequirements).toEqual([]);
+      // The span is the service's persisted duration, and a later Details edit cannot move it.
+      expect(fetched.durationMinutes).toBe(80);
+
+      const { body: renamed } = await request(app.getHttpServer())
+        .patch(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ name: 'Jornada Renomeada', durationMinutes: 999 })
+        .expect(200);
+      expect(renamed.name).toBe('Jornada Renomeada');
+      expect(renamed.durationMinutes).toBe(80);
     });
 
     it('returns 422 for fewer than 2 legs (UC-052 A1)', async () => {

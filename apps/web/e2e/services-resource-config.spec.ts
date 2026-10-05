@@ -104,6 +104,16 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
 
     await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+
+    // A legged service's duration is its legs' span (M23-S11b): the Detalhes field follows the
+    // save in the same session, read-only — and still does after a reload.
+    await page.getByRole('tab', { name: 'Detalhes' }).click();
+    await expect(page.getByTestId('service-duration-input')).toHaveValue('70');
+    await expect(page.getByTestId('service-duration-input')).toHaveAttribute('readonly', '');
+    await expect(page.getByTestId('service-duration-locked-hint')).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId('service-duration-input')).toHaveValue('70');
+    await expect(page.getByTestId('service-duration-input')).toHaveAttribute('readonly', '');
   });
 
   test('changes a booking-policy field, saves, reloads, sees it persisted', async ({ page }) => {

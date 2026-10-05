@@ -377,6 +377,19 @@ describe('Service', () => {
         .build();
     });
 
+    it("keeps a legged service's durationMinutes equal to its legs span, ignoring the caller's value", () => {
+      const legged = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withDurationMinutes(DURATION)
+        .build();
+      legged.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+
+      legged.update('Jornada Renomeada', null, PRICE, 999, POINTS, false);
+
+      expect(legged.name).toBe('Jornada Renomeada');
+      expect(legged.durationMinutes).toBe(45);
+    });
+
     it('updates all mutable fields', () => {
       const newPrice = Money.from(200, 'BRL');
       service.update('Lavagem Premium', 'Nova desc', newPrice, 90, 20, true);
@@ -570,6 +583,12 @@ describe('Service', () => {
         BookingServiceLegsCustomDurationConflictError,
       );
       expect(customDuration.legs).toBeNull();
+    });
+
+    it('persists the legs span as the service durationMinutes (every booking line and the line cursor read it)', () => {
+      service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+      // 20 + 20 + 5 (leg 0's gap only)
+      expect(service.durationMinutes).toBe(45);
     });
 
     it('clears resourceRequirements and bufferAfterMinutes when legs is set (mutual exclusivity)', () => {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { useBookingFormController } from '@/features/booking/hooks/useBookingFormController';
 import { pickerStepId, resolvePickerUnits } from '@/features/booking/model/booking-steps';
+import { findVariableDurationService } from '@/features/booking/model/duration-options';
 import { AvailabilityStep } from './AvailabilityStep';
 import { ConfirmationStep } from './ConfirmationStep';
 import { ErrorAlert } from './ErrorAlert';
@@ -12,6 +13,7 @@ import { IntakeAnswersStep } from './IntakeAnswersStep';
 import { PersonalInfoStep } from './PersonalInfoStep';
 import { ResourcePickerStep } from './ResourcePickerStep';
 import { ServiceSelectionStep } from './ServiceSelectionStep';
+import { VariableDurationStep } from './VariableDurationStep';
 
 interface BookingFormProps {
   readonly slug: string;
@@ -42,6 +44,7 @@ export function BookingForm({
     (unit) => pickerStepId(unit) === stepId,
   );
   const pickerService = selectedServices.find((service) => service.id === pickerUnit?.serviceId);
+  const durationService = findVariableDurationService(selectedServices);
 
   return (
     <main
@@ -86,6 +89,19 @@ export function BookingForm({
           />
         )}
 
+        {stepId === 'duration' && durationService && (
+          <VariableDurationStep
+            slug={slug}
+            service={durationService}
+            duration={selections.duration}
+            error={flow.errors.duration ?? null}
+            onChooseDuration={c.chooseDuration}
+            onQuoted={selections.setQuotedAmount}
+            onBack={flow.goBack}
+            onNext={flow.goNext}
+          />
+        )}
+
         {stepId === 'availability' && (
           <AvailabilityStep
             slug={slug}
@@ -98,6 +114,7 @@ export function BookingForm({
             onSelectDate={c.selectDate}
             onSelectSlot={c.selectSlot}
             resourceSelections={c.resourceSelections}
+            durationMinutes={selections.duration?.minutes}
             error={flow.errors.availability ?? null}
             onBack={flow.goBack}
             onNext={flow.goNext}
@@ -117,6 +134,9 @@ export function BookingForm({
               phonePrefix={phonePrefix}
               addressSpec={addressSpec}
               hideContactFields={c.isAuthenticatedCustomer}
+              picks={selections.picks}
+              requirements={formData.requirements}
+              duration={selections.duration}
               onNext={flow.goNext}
               onBack={flow.goBack}
             />
@@ -151,6 +171,7 @@ export function BookingForm({
             booking={submission.booking}
             picks={selections.picks}
             requirements={formData.requirements}
+            duration={selections.duration}
             onSubmit={submission.handleSubmit}
             onBack={flow.goBack}
           />

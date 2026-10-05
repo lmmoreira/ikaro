@@ -58,6 +58,45 @@ describe('useBookingSelections', () => {
     expect(result.current.selectedSlot).toBeNull();
   });
 
+  it('choosing a duration drops its quote and the date and slot searched with the old one', () => {
+    const { result } = renderHook(() => useBookingSelections([a]));
+    act(() => result.current.selectDate('2026-06-15'));
+    act(() => result.current.selectSlot(slot));
+    act(() => result.current.chooseDuration(60));
+    act(() => result.current.setQuotedAmount(60, 50));
+    expect(result.current.duration).toEqual({ minutes: 60, quotedAmount: 50 });
+
+    act(() => result.current.chooseDuration(90));
+
+    expect(result.current.duration).toEqual({ minutes: 90, quotedAmount: null });
+    expect(result.current.selectedDate).toBeNull();
+    expect(result.current.selectedSlot).toBeNull();
+  });
+
+  it('ignores a quote that arrives for a duration the customer has since replaced', () => {
+    const { result } = renderHook(() => useBookingSelections([a]));
+    act(() => result.current.chooseDuration(60));
+    act(() => result.current.chooseDuration(90));
+
+    act(() => result.current.setQuotedAmount(60, 50));
+
+    expect(result.current.duration).toEqual({ minutes: 90, quotedAmount: null });
+  });
+
+  it('clearing the duration also clears the slot, and a services change clears the duration', () => {
+    const { result } = renderHook(() => useBookingSelections([a, b]));
+    act(() => result.current.chooseDuration(60));
+    act(() => result.current.selectSlot(slot));
+
+    act(() => result.current.clearDuration());
+    expect(result.current.duration).toBeNull();
+    expect(result.current.selectedSlot).toBeNull();
+
+    act(() => result.current.chooseDuration(60));
+    act(() => result.current.toggleService('a'));
+    expect(result.current.duration).toBeNull();
+  });
+
   it('clears only the slot', () => {
     const { result } = renderHook(() => useBookingSelections([a]));
     act(() => result.current.selectDate('2026-06-15'));

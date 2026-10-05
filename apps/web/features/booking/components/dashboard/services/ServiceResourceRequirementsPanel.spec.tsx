@@ -233,6 +233,41 @@ describe('ServiceResourceRequirementsPanel', () => {
     expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
   });
 
+  it('reports the saved legs span so the Detalhes duration can follow it', async () => {
+    const user = userEvent.setup();
+    legsMutateAsync.mockResolvedValueOnce({ id: 'svc-1', legs: [], totalSpanMinutes: 80 });
+    const onLegsSaved = vi.fn();
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={[
+          {
+            legIndex: 0,
+            name: 'Sauna',
+            durationMinutes: 20,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 10,
+          },
+          {
+            legIndex: 1,
+            name: 'Massagem',
+            durationMinutes: 50,
+            resourceRequirements: [],
+            transitionGapAfterMinutes: 0,
+          },
+        ]}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+        onLegsSaved={onLegsSaved}
+      />,
+    );
+
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(onLegsSaved).toHaveBeenCalledWith(80);
+  });
+
   it('disables save in legs mode with fewer than 2 legs, matching the backend minimum', async () => {
     const user = userEvent.setup();
     renderWithIntl(

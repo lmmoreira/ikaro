@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderWithIntl, hotsiteServiceBookingDefaults } from '@/test-utils';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { AvailableSlot, BookingResponse, HotsiteServiceResponse } from '@ikaro/types';
@@ -51,6 +51,101 @@ describe('ConfirmationStep', () => {
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
     expect(screen.getByText('Total: R$ 150,00 — 1h')).toBeInTheDocument();
     expect(screen.getByText('Segunda-feira, 15 de junho às 09:00')).toBeInTheDocument();
+  });
+
+  it('fixed + variable duration: one row per line, the chosen duration and quoted amount on the variable one', () => {
+    const fixed = makeService({
+      id: '00000000-0000-0000-0000-000000000010',
+      name: 'Avaliação',
+      price: { amount: 80, currency: 'BRL', formatted: 'R$ 80,00' },
+      durationMinutes: 30,
+    });
+    const variable = makeService({
+      id: '00000000-0000-0000-0000-000000000011',
+      name: 'Alongamento',
+      price: { amount: 0, currency: 'BRL', formatted: 'R$ 0,00' },
+      durationMinutes: 60,
+      bookingPolicy: {
+        ...hotsiteServiceBookingDefaults.bookingPolicy,
+        durationPolicy: 'CUSTOMER_SELECTED',
+        durationMinMinutes: 60,
+        durationMaxMinutes: 120,
+        durationIncrementMinutes: 30,
+        pricingPolicy: 'PER_TIME_INCREMENT',
+        pricingIncrementMinutes: 60,
+        pricePerIncrementAmount: 50,
+      },
+    });
+
+    renderWithIntl(
+      <ConfirmationStep
+        slug="lavacar-beloauto"
+        services={[fixed, variable]}
+        selectedServiceIds={[fixed.id, variable.id]}
+        selectedDate="2026-06-15"
+        selectedSlot={slot}
+        status="idle"
+        errorMessage={null}
+        booking={null}
+        picks={[]}
+        requirements={[]}
+        duration={{ minutes: 90, quotedAmount: 75 }}
+        onSubmit={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('basket-line');
+    expect(rows[0]).toHaveTextContent('AvaliaçãoR$ 80,00');
+    expect(rows[1]).toHaveTextContent('AlongamentoR$ 75,00');
+    expect(within(rows[1]!).getByTestId('line-chosen-duration')).toHaveTextContent('1h 30min');
+    expect(screen.getByTestId('confirmation-total')).toHaveTextContent('Total: R$ 155,00 — 2h');
+  });
+
+  it("bundle + fixed: the customer's own pick is named, the automatic room never is", () => {
+    const bundle = makeService({
+      id: '00000000-0000-0000-0000-000000000012',
+      name: 'Massagem com sala',
+      price: { amount: 180, currency: 'BRL', formatted: 'R$ 180,00' },
+      resourceRequirements: [
+        { type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE', requiredQuantity: 1 },
+        { type: 'ROOM', selectionMode: 'AUTO_ANY', requiredQuantity: 1 },
+      ],
+    });
+    const fixed = makeService();
+
+    renderWithIntl(
+      <ConfirmationStep
+        slug="lavacar-beloauto"
+        services={[bundle, fixed]}
+        selectedServiceIds={[bundle.id, fixed.id]}
+        selectedDate="2026-06-15"
+        selectedSlot={slot}
+        status="idle"
+        errorMessage={null}
+        booking={null}
+        picks={[{ serviceId: bundle.id, legIndex: null, resourceType: 'STAFF', resourceId: 's1' }]}
+        requirements={[
+          {
+            serviceId: bundle.id,
+            legIndex: null,
+            resourceType: 'STAFF',
+            selectionMode: 'CUSTOMER_CHOICE',
+            requiredQuantity: 1,
+            options: [{ resourceId: 's1', name: 'Renata Souza' }],
+          },
+        ]}
+        onSubmit={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('basket-line');
+    expect(within(rows[0]!).getByTestId('line-own-pick')).toHaveTextContent(
+      'com Renata Souza (sua escolha)',
+    );
+    expect(screen.queryByText(/atribuíd/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('confirmation-total')).toHaveTextContent('Total: R$ 330,00 — 2h');
   });
 
   it('calls onBack when the "Voltar" button is clicked', async () => {

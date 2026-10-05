@@ -38,6 +38,8 @@ interface UseBookingSubmissionParams {
   readonly personalInfo: PersonalInfoValue;
   readonly addressSpec: HotsiteAddressSpec;
   readonly resourcePicks: readonly ResourceSelectionItem[];
+  /** The customer-selected duration; undefined when no service in the basket has one. */
+  readonly durationMinutes?: number;
   readonly intakeFields: BookingFlowRequestFields | null;
   readonly locale: SupportedLocale;
   readonly steps: readonly BookingStepId[];
@@ -76,6 +78,7 @@ function payloadSelections(
     pickupAddress: params.pickupAddress,
     requiresPickupAddress: params.requiresPickupAddress,
     resourcePicks: params.resourcePicks,
+    durationMinutes: params.durationMinutes,
     intakeFields: params.intakeFields,
   };
 }

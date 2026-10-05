@@ -500,6 +500,44 @@ describe('BookingController (integration)', () => {
       expect(body.lines[0].itinerary[0].legIndex).toBe(0);
       expect(body.lines[0].itinerary[1].legIndex).toBe(1);
     });
+
+    it('legged service: the persisted line and booking duration equal the legs span, not the Details duration', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(27)}T13:00:00.000Z`,
+          serviceIds: [leggedServiceId],
+        })
+        .expect(201);
+
+      // 15 + 20 (the service was created with a 30 min Details duration)
+      expect(body.lines[0].durationMinsAtBooking).toBe(35);
+      expect(body.totalDurationMins).toBe(35);
+    });
+
+    it('a legged service after another line starts where that line ends (back-to-back cursor)', async () => {
+      const start = `${futureDate(26)}T13:00:00.000Z`;
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          scheduledAt: start,
+          serviceIds: [autoAnyServiceId, leggedServiceId],
+        })
+        .expect(201);
+
+      const fixedMinutes = body.lines[0].durationMinsAtBooking as number;
+      const [first, second] = body.lines[1].itinerary as { legIndex: number; startsAt: string }[];
+      expect(new Date(first.startsAt).getTime()).toBe(
+        new Date(start).getTime() + fixedMinutes * 60_000,
+      );
+      expect(first.legIndex).toBe(0);
+      expect(second.legIndex).toBe(1);
+      expect(body.totalDurationMins).toBe(fixedMinutes + 35);
+    });
   });
 
   describe('POST /bookings — variable duration + intake (M23-S02)', () => {

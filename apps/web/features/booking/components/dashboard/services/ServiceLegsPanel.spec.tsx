@@ -51,7 +51,23 @@ describe('ServiceLegsPanel', () => {
       <ServiceLegsPanel legs={LEGS} availableResourcesByType={() => []} onChange={vi.fn()} />,
     );
 
-    // sum(durations) + sum(transition gaps) = (20 + 50) + (10 + 0) = 80
+    // sum(durations) + gaps between legs = (20 + 50) + 10 = 80
+    expect(screen.getByTestId('legs-total-span')).toHaveTextContent('80');
+  });
+
+  it("does not count the last leg's transition gap in the total span", () => {
+    const withTrailingGap = LEGS.map((leg, index) =>
+      index === LEGS.length - 1 ? { ...leg, transitionGapAfterMinutes: 25 } : leg,
+    );
+
+    renderWithIntl(
+      <ServiceLegsPanel
+        legs={withTrailingGap}
+        availableResourcesByType={() => []}
+        onChange={vi.fn()}
+      />,
+    );
+
     expect(screen.getByTestId('legs-total-span')).toHaveTextContent('80');
   });
 

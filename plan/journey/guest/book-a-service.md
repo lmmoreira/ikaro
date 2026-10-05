@@ -2,8 +2,8 @@
 
 **Actor(s):** GUEST  
 **Goal:** Submit a booking request on a tenant's public hotsite without authentication  
-**UCs covered:** UC-001, UC-011 (✅ Reviewed) · UC-061, UC-062, UC-063, UC-064 (flat bundle picks), UC-066, UC-068 (✅ Built — `M23-S11a`) · UC-065 (picker per leg ✅ `M23-S11a`; the itinerary confirmation ❓ Gap `M23-S11b`) · UC-067 (per-time card ✅ `M23-S11a`; the duration step ❓ Gap `M23-S11b`); backend/BFF for UC-061–068 shipped in M23-S01–S03 and `M23-S29`; UC-066 = the picker flow, the staff directory is deferred  
-**Status:** Base flow reviewed — M23 Cluster 3 extension built by `M23-S11a` (step engine, service cards, resource picker, intake, details box); `M23-S11b` (bundle/journey confirmation, variable duration) still ❓ GAP, see `dev-notes.md`
+**UCs covered:** UC-001, UC-011 (✅ Reviewed) · UC-061, UC-062, UC-063, UC-064 (flat bundle picks), UC-066, UC-068 (✅ Built — `M23-S11a`) · UC-065 (picker per leg ✅ `M23-S11a`; the itinerary confirmation ✅ `M23-S11b`) · UC-067 (per-time card ✅ `M23-S11a`; the duration step ✅ `M23-S11b`); backend/BFF for UC-061–068 shipped in M23-S01–S03 and `M23-S29`; UC-066 = the picker flow, the staff directory is deferred  
+**Status:** Base flow reviewed — M23 Cluster 3 extension built by `M23-S11a` (step engine, service cards, resource picker, intake, details box); `M23-S11b` (bundle/journey confirmation, variable duration, combined baskets) ✅ built too, see `dev-notes.md`
 
 ## Flow
 
@@ -50,7 +50,7 @@ flowchart TD
 - UC-005 (A2) — guest submits admin-requested info: backend complete (`PATCH /bookings/:id/submit-info/guest?token=`), but frontend page `/[slug]/bookings/:id/submit-info` does not exist. Tracked in `guest/use-cases.md`. Out of scope for this journey.
 - When a session is full or an appointment has no matching availability, a guest cannot create a waitlist entry or availability alert. Preserve the selected session/criteria through login/account creation, then return the authenticated customer to the action.
 
-## M23 — Multi-Vertical Scheduling, Cluster 3 extension (✅ `M23-S11a` built · ❓ `M23-S11b` not yet built)
+## M23 — Multi-Vertical Scheduling, Cluster 3 extension (✅ `M23-S11a` built · ✅ `M23-S11b` built)
 
 > Promoted from `docs/discovery/multivertical-booking/`. Step 1 ("Select Services") now decides which extra steps the flow has. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 >
@@ -65,7 +65,7 @@ flowchart TD
     HasChoice -- "no (auto staff / pool / auto room: nothing shown)" --> HasDuration
     Picker -->|"next leg that has a choice"| Picker
     Picker --> HasDuration{"durationPolicy =<br/>CUSTOMER_SELECTED?"}
-    HasDuration -- "yes" --> Duration["❓ GAP: duration + Total<br/>(12, 12b–12d)<br/>GET /public/services/:id/quote"]
+    HasDuration -- "yes" --> Duration["✅ duration + Total<br/>(12, 12b–12d)<br/>GET /public/services/:id/quote"]
     HasDuration -- "no" --> Availability
     Duration --> Availability["✅ shared availability step<br/>(existing 02 — no UI change; resourceSelections + durationMinutes are optional query params)"]
 
@@ -81,7 +81,7 @@ flowchart TD
     BackAvail --> Availability
 ```
 
-**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `02` (the existing date/time step, no UI change), `09b`, `10`, `10b`, `12`–`12d`, `13`–`13c`, the success variants `04d`/`04f` and the **combined-basket variants** `03e`, `04g`, `04h`, `04i`, `10c` (❓ Gap `M23-S11b`) (`15-login-required.html` is out of M23-S11a/S11b's scope — availability alerts; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
+**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `02` (the existing date/time step, no UI change), `09b`, `10`, `10b`, `12`–`12d`, `13`–`13c`, the success variants `04d`/`04f` and the **combined-basket variants** `03e`, `04g`, `04h`, `04i`, `10c` (✅ `M23-S11b`) (`15-login-required.html` is out of M23-S11a/S11b's scope — availability alerts; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
 
 **Combined baskets (decided 2026-10-03, `M23-S11b`).** A basket can mix fixed-price services, one variable-duration service, a bundle and one or more journeys; the only restriction is one `CUSTOMER_SELECTED` service per basket. The summary card (`03e`), the Confirmation / journey review (`04g`, `10c`, `04i`) and the success box (`04h`) compose **one row per line** and show **one total**: fixed prices + the quoted amount; duration = the sum of the line durations, where a journey counts its legs plus the transitions between them. Lines run back-to-back from the chosen slot in basket order (the backend's cursor), so a journey that is not the first line starts when the previous lines end. **Per-line time ranges appear only when the basket contains a journey** (its timeline already shows times, so the other lines need ranges to be read in sequence); other multi-line baskets keep today's single start time. Before booking, a bundle or journey names only the customer's own picks; after booking, `04h` names every assigned resource from the response (`assignedResourceName` / `itinerary`), a fungible pool never. Pure single-service baskets render exactly as `03`/`04`/`10`/`04d`/`04f`.
 

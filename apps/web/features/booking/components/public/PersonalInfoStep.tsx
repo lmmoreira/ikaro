@@ -4,7 +4,14 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import { z } from 'zod';
-import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
+import type {
+  AvailableSlot,
+  HotsiteAddressSpec,
+  HotsiteServiceResourceOptionsRequirement,
+  HotsiteServiceResponse,
+  ResourceSelectionItem,
+} from '@ikaro/types';
+import type { ChosenDuration } from '@/features/booking/model/basket-lines';
 import type { PersonalInfoValue } from '@/features/booking/model/personal-info';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
@@ -23,6 +30,10 @@ interface PersonalInfoStepProps {
   readonly phonePrefix: string;
   readonly addressSpec: HotsiteAddressSpec;
   readonly hideContactFields?: boolean;
+  /** Feed the summary card: the customer's picks, the options they were picked from, the duration. */
+  readonly picks?: readonly ResourceSelectionItem[];
+  readonly requirements?: readonly HotsiteServiceResourceOptionsRequirement[];
+  readonly duration?: ChosenDuration | null;
   readonly onNext: () => void;
   readonly onBack: () => void;
 }
@@ -47,6 +58,9 @@ export function PersonalInfoStep({
   phonePrefix,
   addressSpec,
   hideContactFields = false,
+  picks,
+  requirements,
+  duration,
   onNext,
   onBack,
 }: PersonalInfoStepProps): React.JSX.Element {
@@ -143,6 +157,9 @@ export function PersonalInfoStep({
         selectedServiceIds={selectedServiceIds}
         selectedDate={selectedDate}
         selectedSlot={selectedSlot}
+        picks={picks}
+        requirements={requirements}
+        duration={duration}
       />
 
       <div className="mt-6">
