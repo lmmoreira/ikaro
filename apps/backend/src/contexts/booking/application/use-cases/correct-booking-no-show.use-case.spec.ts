@@ -36,13 +36,9 @@ describe('CorrectBookingNoShowUseCase', () => {
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    bookingRepo = new InMemoryBookingRepository(eventBus);
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
-    useCase = new CorrectBookingNoShowUseCase(
-      bookingRepo,
-      transitionRepo,
-      new InMemoryTransactionManager(),
-    );
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
+    useCase = new CorrectBookingNoShowUseCase(bookingRepo, new InMemoryTransactionManager());
   });
 
   it('completes the no-show, records the correction row and publishes BookingCompleted only', async () => {

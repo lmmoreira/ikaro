@@ -16,6 +16,7 @@ export type CancelBookingAsAdminUseCaseInput = CancelBookingAsAdminDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
+  actorRole: 'STAFF' | 'MANAGER';
   correlationId: string;
 };
 
@@ -41,7 +42,7 @@ export class CancelBookingAsAdminUseCase {
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
 
-    booking.cancel(staffId, true, correlationId, input.reason);
+    booking.cancel({ type: input.actorRole, id: staffId }, correlationId, input.reason);
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);

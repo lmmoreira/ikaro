@@ -33,6 +33,7 @@ export type ApproveBookingUseCaseInput = ApproveBookingDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
+  actorRole: 'STAFF' | 'MANAGER';
   correlationId: string;
   timezone: string;
 };
@@ -78,7 +79,11 @@ export class ApproveBookingUseCase {
         input.timezone,
       );
 
-      booking.approve(staffId, correlationId, isRescheduling ? scheduledAt : undefined);
+      booking.approve(
+        { type: input.actorRole, id: staffId },
+        correlationId,
+        isRescheduling ? scheduledAt : undefined,
+      );
       await this.bookingRepo.save(booking);
 
       await this.applyOccupancy(candidatesByLine, tenantId);

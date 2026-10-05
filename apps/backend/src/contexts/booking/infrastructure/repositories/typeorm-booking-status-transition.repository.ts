@@ -13,11 +13,15 @@ export class TypeOrmBookingStatusTransitionRepository implements IBookingStatusT
     private readonly repo: Repository<BookingStatusTransitionEntity>,
   ) {}
 
-  // Always called inside the caller's own txManager.run(), next to the booking's save() —
-  // architecture-check's transactional-save detector enforces this stays textually true.
-  async save(transition: BookingStatusTransition): Promise<void> {
+  // Called from TypeOrmBookingRepository.save() on the booking's own manager, after the booking row
+  // is written — the composite FK to bookings needs it to exist.
+  async saveAll(transitions: BookingStatusTransition[]): Promise<void> {
+    if (!transitions.length) return;
     const manager = getActiveEntityManager() ?? this.repo.manager;
-    await manager.insert(BookingStatusTransitionEntity, this.toEntity(transition));
+    await manager.insert(
+      BookingStatusTransitionEntity,
+      transitions.map((t) => this.toEntity(t)),
+    );
   }
 
   private toEntity(transition: BookingStatusTransition): BookingStatusTransitionEntity {

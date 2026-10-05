@@ -41,11 +41,10 @@ describe('TypeOrmBookingStatusTransitionRepository', () => {
       correlationId: CORRELATION_ID,
     });
 
-    await repo.save(transition);
+    await repo.saveAll([transition]);
 
     expect(ormRepo.manager.insert).toHaveBeenCalledTimes(1);
-    expect(ormRepo.manager.insert).toHaveBeenCalledWith(
-      BookingStatusTransitionEntity,
+    expect(ormRepo.manager.insert).toHaveBeenCalledWith(BookingStatusTransitionEntity, [
       expect.objectContaining({
         tenantId: TENANT,
         id: transition.id,
@@ -58,7 +57,7 @@ describe('TypeOrmBookingStatusTransitionRepository', () => {
         occurredAt: transition.occurredAt,
         correlationId: CORRELATION_ID,
       }),
-    );
+    ]);
   });
 
   it('stores a null reason when none was given', async () => {
@@ -72,11 +71,37 @@ describe('TypeOrmBookingStatusTransitionRepository', () => {
       correlationId: CORRELATION_ID,
     });
 
-    await repo.save(transition);
+    await repo.saveAll([transition]);
 
-    expect(ormRepo.manager.insert).toHaveBeenCalledWith(
-      BookingStatusTransitionEntity,
+    expect(ormRepo.manager.insert).toHaveBeenCalledWith(BookingStatusTransitionEntity, [
       expect.objectContaining({ reason: null }),
-    );
+    ]);
+  });
+
+  it('inserts several transitions in one statement', async () => {
+    const make = (toStatus: string) =>
+      BookingStatusTransition.record({
+        tenantId: TENANT,
+        bookingId: BOOKING_ID,
+        fromStatus: 'PENDING',
+        toStatus,
+        actorType: 'STAFF',
+        actorId: ACTOR_ID,
+        correlationId: CORRELATION_ID,
+      });
+
+    await repo.saveAll([make('INFO_REQUESTED'), make('APPROVED')]);
+
+    expect(ormRepo.manager.insert).toHaveBeenCalledTimes(1);
+    expect(ormRepo.manager.insert).toHaveBeenCalledWith(BookingStatusTransitionEntity, [
+      expect.objectContaining({ toStatus: 'INFO_REQUESTED' }),
+      expect.objectContaining({ toStatus: 'APPROVED' }),
+    ]);
+  });
+
+  it('does nothing when there are no transitions', async () => {
+    await repo.saveAll([]);
+
+    expect(ormRepo.manager.insert).not.toHaveBeenCalled();
   });
 });

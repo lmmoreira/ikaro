@@ -53,7 +53,7 @@ export class CancelBookingAsCustomerUseCase {
       }
     }
 
-    booking.cancel(customerId, false, correlationId);
+    booking.cancel({ type: 'CUSTOMER', id: customerId }, correlationId);
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);

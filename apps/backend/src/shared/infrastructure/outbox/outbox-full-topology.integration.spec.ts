@@ -9,6 +9,7 @@ import { actorHeaders } from '../../../test/utils/actor-headers';
 import { BookingModule } from '../../../contexts/booking/booking.module';
 import { BookingEntity } from '../../../contexts/booking/infrastructure/entities/booking.entity';
 import { BookingLineEntity } from '../../../contexts/booking/infrastructure/entities/booking-line.entity';
+import { BookingStatusTransitionEntity } from '../../../contexts/booking/infrastructure/entities/booking-status-transition.entity';
 import { ScheduleClosureEntity } from '../../../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../../../contexts/booking/infrastructure/entities/service.entity';
@@ -41,6 +42,7 @@ const PLATFORM_KEY = 'outbox-full-topology-test-key-xxxxxx';
 const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
+  BookingStatusTransitionEntity,
   ServiceEntity,
   ServiceResourceRequirementEntity,
   ServiceResourceRequirementPoolEntity,

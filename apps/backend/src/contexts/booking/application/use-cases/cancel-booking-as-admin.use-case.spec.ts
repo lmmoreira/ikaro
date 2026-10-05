@@ -2,6 +2,7 @@ import { InMemoryResourceOccupancyRepository } from '../../../../test/repositori
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceType } from '../../domain/resource.types';
@@ -16,17 +17,24 @@ const TENANT_B = '10000000-0000-4000-8000-000000000402';
 const STAFF_ID = '20000000-0000-4000-8000-000000000401';
 const CORRELATION_ID = 'corr-cancel-admin-test';
 
-const ctx = { tenantId: TENANT_A, staffId: STAFF_ID, correlationId: CORRELATION_ID };
+const ctx = {
+  tenantId: TENANT_A,
+  staffId: STAFF_ID,
+  actorRole: 'STAFF' as const,
+  correlationId: CORRELATION_ID,
+};
 
 describe('CancelBookingAsAdminUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
   let useCase: CancelBookingAsAdminUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    bookingRepo = new InMemoryBookingRepository(eventBus);
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     useCase = new CancelBookingAsAdminUseCase(
       bookingRepo,
@@ -62,6 +70,29 @@ describe('CancelBookingAsAdminUseCase', () => {
       },
     ]);
     expect(conflicting).toEqual([]);
+  });
+
+  it('records the cancellation as one audit row for the acting manager, with its reason', async () => {
+    const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({
+      bookingId: booking.id,
+      ...ctx,
+      actorRole: 'MANAGER',
+      reason: 'Cliente pediu para cancelar',
+    });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        fromStatus: 'PENDING',
+        toStatus: 'CANCELLED',
+        actorType: 'MANAGER',
+        actorId: STAFF_ID,
+        reason: 'Cliente pediu para cancelar',
+      },
+    ]);
   });
 
   describe('cancelling a PENDING booking', () => {

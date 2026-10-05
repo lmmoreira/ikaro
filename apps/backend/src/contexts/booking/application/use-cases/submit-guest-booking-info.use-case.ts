@@ -51,6 +51,7 @@ export class SubmitGuestBookingInfoUseCase {
       input.contactEmail,
       { notes: input.response },
       correlationId,
+      { type: 'GUEST', id: null },
       photoUrls,
     );
 

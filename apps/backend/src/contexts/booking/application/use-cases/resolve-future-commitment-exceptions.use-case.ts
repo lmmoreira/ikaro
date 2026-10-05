@@ -51,6 +51,7 @@ import { mapSequentially } from '../../../../shared/utils/sequential';
 export interface ResolveFutureCommitmentExceptionsUseCaseInput {
   tenantId: string;
   staffId: string;
+  actorRole: 'STAFF' | 'MANAGER';
   correlationId: string;
   timezone: string;
   exceptionIds: string[];
@@ -137,7 +138,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
         const booking = await this.loadBookingFor(exception, resolutionType, tenantId);
 
         if (resolutionType === 'CANCEL') {
-          booking!.cancel(staffId, true, correlationId, input.reason);
+          booking!.cancel({ type: input.actorRole, id: staffId }, correlationId, input.reason);
           await this.bookingRepo.save(booking!);
           await releaseBookingOccupancy(
             this.occupancyRepo,

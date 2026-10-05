@@ -4,7 +4,7 @@ export function actorHeaders(
   tenantId: string,
   actorId: string,
   role: ActorRole = 'MANAGER',
-  correlationId = 'test-correlation-id',
+  correlationId = '01980000-0000-7000-8000-0000000000c0',
 ): Record<string, string> {
   return {
     'x-tenant-id': tenantId,

@@ -9,7 +9,10 @@ import {
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
+import { BOOKING_STATUS_TRANSITION_REPOSITORY } from '../../application/ports/booking-status-transition-repository.port';
+import { StaffBookingActor } from '../../domain/booking-status-transition';
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Money } from '../../../../shared/value-objects/money';
@@ -25,6 +28,9 @@ import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ResourceType } from '../../domain/resource.types';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
+
+const STAFF: StaffBookingActor = { type: 'STAFF', id: '00000000-0000-7000-8000-0000000000a1' };
+const CORRELATION_ID = '00000000-0000-7000-8000-0000000000a2';
 
 describe('TypeOrmBookingRepository', () => {
   let repo: TypeOrmBookingRepository;
@@ -114,6 +120,10 @@ describe('TypeOrmBookingRepository', () => {
         },
         { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
         { provide: OUTBOX_PUBLISHER, useValue: new InMemoryEventBus() },
+        {
+          provide: BOOKING_STATUS_TRANSITION_REPOSITORY,
+          useValue: new InMemoryBookingStatusTransitionRepository(),
+        },
       ],
     }).compile();
 
@@ -552,7 +562,12 @@ describe('TypeOrmBookingRepository', () => {
       mockTx.find.mockResolvedValue([lineEntity1, lineEntity2]);
 
       const aggregate = await repo.findById(BOOKING_ID, 'tenant-1');
-      aggregate!.complete('staff-id', new Map([[LINE_ID_1, Money.from(120, 'BRL')]]), [], 'corr-1');
+      aggregate!.complete(
+        STAFF,
+        new Map([[LINE_ID_1, Money.from(120, 'BRL')]]),
+        [],
+        CORRELATION_ID,
+      );
       aggregate!.clearDomainEvents();
       await repo.save(aggregate!);
 
@@ -584,7 +599,7 @@ describe('TypeOrmBookingRepository', () => {
       mockTx.find.mockResolvedValue([lineEntity]);
 
       const aggregate = await repo.findById('00000000-0000-7000-8000-000000000022', 'tenant-1');
-      aggregate!.complete('staff-id', new Map([[LINE_ID, Money.from(100, 'BRL')]]), [], 'corr-1');
+      aggregate!.complete(STAFF, new Map([[LINE_ID, Money.from(100, 'BRL')]]), [], CORRELATION_ID);
       aggregate!.clearDomainEvents();
       await repo.save(aggregate!);
 

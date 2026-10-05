@@ -4,6 +4,7 @@ import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-te
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import {
   BookingBuilder,
   BookingLineBuilder,
@@ -34,11 +35,18 @@ const TZ = 'America/Sao_Paulo';
 
 const scheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
 
-const ctx = { tenantId: TENANT_A, staffId: STAFF_ID, correlationId: CORRELATION_ID, timezone: TZ };
+const ctx = {
+  tenantId: TENANT_A,
+  staffId: STAFF_ID,
+  actorRole: 'STAFF' as const,
+  correlationId: CORRELATION_ID,
+  timezone: TZ,
+};
 
 describe('ApproveBookingUseCase', () => {
   describe('approve()', () => {
     let bookingRepo: InMemoryBookingRepository;
+    let transitionRepo: InMemoryBookingStatusTransitionRepository;
     let eventBus: InMemoryEventBus;
     let fixtures: ReturnType<typeof createAutoBookingResourceFixtures>;
     let occupancyRepo: InMemoryResourceOccupancyRepository;
@@ -46,7 +54,8 @@ describe('ApproveBookingUseCase', () => {
 
     beforeEach(() => {
       eventBus = new InMemoryEventBus();
-      bookingRepo = new InMemoryBookingRepository(eventBus);
+      transitionRepo = new InMemoryBookingStatusTransitionRepository();
+      bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
       fixtures = createAutoBookingResourceFixtures();
       occupancyRepo = new InMemoryResourceOccupancyRepository();
       useCase = new ApproveBookingUseCase(
@@ -596,6 +605,27 @@ describe('ApproveBookingUseCase', () => {
       await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         BookingNotFoundError,
       );
+    });
+
+    it('records the approval as one audit row for the acting manager', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+
+      await useCase.execute({ bookingId: booking.id, ...ctx, actorRole: 'MANAGER' });
+
+      expect(transitionRepo.all()).toMatchObject([
+        {
+          bookingId: booking.id,
+          fromStatus: 'PENDING',
+          toStatus: 'APPROVED',
+          actorType: 'MANAGER',
+          actorId: STAFF_ID,
+          reason: null,
+        },
+      ]);
     });
 
     it('logs "Booking approved" with tenantId, bookingId, and staffId', async () => {

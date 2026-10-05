@@ -50,8 +50,8 @@ export class SubmitBookingInfoUseCase {
       booking.contactEmail.address,
       { notes: input.response },
       correlationId,
+      { type: 'CUSTOMER', id: customerId },
       photoUrls,
-      customerId,
     );
 
     await this.txManager.run(async () => {

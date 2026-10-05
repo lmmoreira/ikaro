@@ -28,7 +28,7 @@ const STAFF_ID = '20000000-0000-4000-8000-000000000002';
 const scheduledAt = `${futureDate(2)}T13:00:00.000Z`;
 
 function guestHeaders(tenantId: string) {
-  return { 'x-tenant-id': tenantId, 'x-correlation-id': 'test-corr-id' };
+  return { 'x-tenant-id': tenantId, 'x-correlation-id': '01980000-0000-7000-8000-0000000000c1' };
 }
 
 describe('BookingController (integration)', () => {

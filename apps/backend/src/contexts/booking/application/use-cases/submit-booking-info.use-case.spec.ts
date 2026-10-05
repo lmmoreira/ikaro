@@ -2,6 +2,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -25,13 +26,15 @@ const scheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
 
 describe('SubmitBookingInfoUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let eventBus: InMemoryEventBus;
   let storageService: InMemoryStorageService;
   let useCase: SubmitBookingInfoUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    bookingRepo = new InMemoryBookingRepository(eventBus);
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     storageService = new InMemoryStorageService();
     useCase = new SubmitBookingInfoUseCase(
       bookingRepo,
@@ -60,6 +63,35 @@ describe('SubmitBookingInfoUseCase', () => {
     expect(result.status).toBe(BookingStatus.PENDING);
     expect(result.bookingId).toBe(booking.id);
     expect(result.infoSubmittedAt).toBeDefined();
+  });
+
+  it('records the reply as one audit row for the customer, without the free-text reply', async () => {
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withCustomerId(CUSTOMER_ID)
+      .withStatus(BookingStatus.INFO_REQUESTED)
+      .withScheduledAt(scheduledAt)
+      .build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({
+      bookingId: booking.id,
+      response: VALID_RESPONSE,
+      tenantId: TENANT_A,
+      customerId: CUSTOMER_ID,
+      correlationId: CORRELATION_ID,
+    });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        fromStatus: 'INFO_REQUESTED',
+        toStatus: 'PENDING',
+        actorType: 'CUSTOMER',
+        actorId: CUSTOMER_ID,
+        reason: null,
+      },
+    ]);
   });
 
   it('persists infoResponseMessage and infoSubmittedAt', async () => {

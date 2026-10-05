@@ -2,6 +2,7 @@ import { InMemoryResourceOccupancyRepository } from '../../../../test/repositori
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -29,19 +30,44 @@ const ctx = {
 
 describe('CancelBookingAsCustomerUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
   let useCase: CancelBookingAsCustomerUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    bookingRepo = new InMemoryBookingRepository(eventBus);
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     useCase = new CancelBookingAsCustomerUseCase(
       bookingRepo,
       occupancyRepo,
       new InMemoryTransactionManager(),
     );
+  });
+
+  it('records the cancellation as one audit row for the customer', async () => {
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withCustomerId(CUSTOMER_ID)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(new Date(`${futureDate(10)}T13:00:00.000Z`))
+      .build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({ bookingId: booking.id, ...ctx });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        fromStatus: 'APPROVED',
+        toStatus: 'CANCELLED',
+        actorType: 'CUSTOMER',
+        actorId: CUSTOMER_ID,
+        reason: null,
+      },
+    ]);
   });
 
   it('releases the booking line(s) occupancy row(s) on cancellation (M22-S03)', async () => {

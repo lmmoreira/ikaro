@@ -32,6 +32,7 @@ import {
   ResolveFutureCommitmentExceptionsUseCaseResult,
 } from '../../application/use-cases/resolve-future-commitment-exceptions.use-case';
 import { mapBookingError } from '../http/booking-error.mapper';
+import { staffActorRole } from './staff-actor-role';
 
 // UC-073/UC-077 — the manager's worklist of bookings a resource deactivation left needing a
 // decision. Bulk-only: a single entry is a list of one.
@@ -60,11 +61,12 @@ export class SchedulingExceptionController {
     @Body(new ZodValidationPipe(ResolveSchedulingExceptionsSchema))
     body: ResolveSchedulingExceptionsDto,
   ): Promise<ResolveFutureCommitmentExceptionsUseCaseResult> {
-    const { tenantId, actorId, correlationId, settings } = this.ctx;
+    const { tenantId, actorId, actorRole, correlationId, settings } = this.ctx;
     return this.resolveExceptions
       .execute({
         tenantId,
         staffId: actorId!,
+        actorRole: staffActorRole(actorRole),
         correlationId,
         timezone: settings.businessHours.timezone,
         exceptionIds: body.exceptionIds,

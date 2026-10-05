@@ -4,8 +4,8 @@ import { BookingStatusTransition } from '../../../contexts/booking/domain/bookin
 export class InMemoryBookingStatusTransitionRepository implements IBookingStatusTransitionRepository {
   private readonly store: BookingStatusTransition[] = [];
 
-  save(transition: BookingStatusTransition): Promise<void> {
-    this.store.push(transition);
+  saveAll(transitions: BookingStatusTransition[]): Promise<void> {
+    this.store.push(...transitions);
     return Promise.resolve();
   }
 

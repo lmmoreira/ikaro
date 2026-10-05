@@ -10,6 +10,7 @@ import { ServiceEntityBuilder } from '../../../../test/builders/booking/service-
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';
 import { BookingEntity } from '../../../booking/infrastructure/entities/booking.entity';
 import { BookingLineEntity } from '../../../booking/infrastructure/entities/booking-line.entity';
+import { BookingStatusTransitionEntity } from '../../../booking/infrastructure/entities/booking-status-transition.entity';
 import { ServiceEntity } from '../../../booking/infrastructure/entities/service.entity';
 import {
   ServiceResourceRequirementEntity,
@@ -47,6 +48,7 @@ const PLATFORM_KEY = 'full-workflow-notif-key-xxxxxxxxxx';
 const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
+  BookingStatusTransitionEntity,
   ServiceEntity,
   ServiceResourceRequirementEntity,
   ServiceResourceRequirementPoolEntity,
@@ -155,6 +157,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     const { body: b1 } = await request(app.getHttpServer())
       .post('/bookings/authenticated')
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', customerId)
       .set('X-Actor-Type', 'CUSTOMER')
       .set('X-Actor-Role', 'CUSTOMER')
@@ -167,6 +170,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking1Id}/request-info`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -177,6 +181,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking1Id}/submit-info`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', customerId)
       .set('X-Actor-Type', 'CUSTOMER')
       .set('X-Actor-Role', 'CUSTOMER')
@@ -187,6 +192,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking1Id}/approve`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -197,6 +203,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     const { body: b2 } = await request(app.getHttpServer())
       .post('/bookings')
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .send({
         contactEmail,
         contactName: 'Ana Costa',
@@ -212,6 +219,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking2Id}/reject`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -222,6 +230,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking1Id}/cancel-admin`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -233,6 +242,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     const { body: b3 } = await request(app.getHttpServer())
       .post('/bookings')
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .send({
         contactEmail: booking3GuestEmail,
         contactName: 'Pedro Santos',
@@ -247,6 +257,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking3Id}/approve`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -256,6 +267,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking3Id}/reschedule-admin`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -267,6 +279,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     const { body: b4 } = await request(app.getHttpServer())
       .post('/bookings/authenticated')
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', customerId)
       .set('X-Actor-Type', 'CUSTOMER')
       .set('X-Actor-Role', 'CUSTOMER')
@@ -277,6 +290,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking4Id}/approve`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -285,6 +299,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     const { body: bk4 } = await request(app.getHttpServer())
       .get(`/bookings/${booking4Id}`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -293,6 +308,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     await request(app.getHttpServer())
       .patch(`/bookings/${booking4Id}/complete`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')

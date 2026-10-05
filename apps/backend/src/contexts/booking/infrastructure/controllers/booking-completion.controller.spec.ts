@@ -42,7 +42,8 @@ describe('BookingCompletionController', () => {
   let storageService: InMemoryStorageService;
 
   beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    bookingRepo = new InMemoryBookingRepository(undefined, transitionRepo);
     storageService = new InMemoryStorageService();
     const staffCtx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
@@ -60,7 +61,6 @@ describe('BookingCompletionController', () => {
     const fixtures = createAutoBookingResourceFixtures();
     const occupancyRepo = new InMemoryResourceOccupancyRepository();
     const quoteRevisionRepo = new InMemoryBookingQuoteRevisionRepository();
-    transitionRepo = new InMemoryBookingStatusTransitionRepository();
 
     const buildController = (ctx: typeof staffCtx) =>
       new BookingCompletionController(
@@ -102,12 +102,8 @@ describe('BookingCompletionController', () => {
           new InMemoryTransactionManager(),
           new PhotoExistenceService(storageService),
         ),
-        new MarkBookingNoShowUseCase(bookingRepo, transitionRepo, new InMemoryTransactionManager()),
-        new CorrectBookingNoShowUseCase(
-          bookingRepo,
-          transitionRepo,
-          new InMemoryTransactionManager(),
-        ),
+        new MarkBookingNoShowUseCase(bookingRepo, new InMemoryTransactionManager()),
+        new CorrectBookingNoShowUseCase(bookingRepo, new InMemoryTransactionManager()),
       );
 
     controller = buildController(staffCtx);

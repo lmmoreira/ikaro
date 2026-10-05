@@ -40,6 +40,7 @@ import {
 } from '../../application/use-cases/submit-guest-booking-info.use-case';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
+import { staffActorRole } from './staff-actor-role';
 
 // Split from booking.controller.ts (read + creation) — same 'bookings' route prefix — to satisfy
 // docs/CODE_STANDARDS.md's file-length limit. Approve/reject/info-exchange endpoints live here;
@@ -63,13 +64,14 @@ export class BookingLifecycleController {
     @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(ApproveBookingSchema)) body: ApproveBookingDto,
   ): Promise<ApproveBookingUseCaseResult> {
-    const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
+    const { tenantId, actorId: staffId, actorRole, correlationId, settings } = this.ctx;
     return this.approveBooking
       .execute({
         bookingId: id,
         ...(body.scheduledAt ? { scheduledAt: body.scheduledAt } : {}),
         tenantId,
         staffId: staffId!,
+        actorRole: staffActorRole(actorRole),
         correlationId,
         timezone: settings.businessHours.timezone,
       })
@@ -83,9 +85,16 @@ export class BookingLifecycleController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(RejectBookingSchema)) body: RejectBookingDto,
   ): Promise<RejectBookingUseCaseResult> {
-    const { tenantId, actorId: staffId, correlationId } = this.ctx;
+    const { tenantId, actorId: staffId, actorRole, correlationId } = this.ctx;
     return this.rejectBooking
-      .execute({ bookingId: id, reason: body.reason, tenantId, staffId: staffId!, correlationId })
+      .execute({
+        bookingId: id,
+        reason: body.reason,
+        tenantId,
+        staffId: staffId!,
+        actorRole: staffActorRole(actorRole),
+        correlationId,
+      })
       .catch(mapBookingError);
   }
 
@@ -97,9 +106,16 @@ export class BookingLifecycleController {
     @Body(new ZodValidationPipe(RequestMoreInfoBodySchema.omit({ bookingId: true })))
     body: Omit<RequestMoreInfoDto, 'bookingId'>,
   ): Promise<RequestMoreInfoUseCaseResult> {
-    const { tenantId, actorId: staffId, correlationId } = this.ctx;
+    const { tenantId, actorId: staffId, actorRole, correlationId } = this.ctx;
     return this.requestMoreInfo
-      .execute({ bookingId: id, message: body.message, tenantId, staffId: staffId!, correlationId })
+      .execute({
+        bookingId: id,
+        message: body.message,
+        tenantId,
+        staffId: staffId!,
+        actorRole: staffActorRole(actorRole),
+        correlationId,
+      })
       .catch(mapBookingError);
   }
 

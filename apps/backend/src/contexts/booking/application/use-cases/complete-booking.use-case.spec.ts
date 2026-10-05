@@ -2,6 +2,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -30,6 +31,7 @@ const LINE_ID_2 = '30000000-0000-4000-8000-000000000302';
 const baseCtx = {
   tenantId: TENANT_A,
   staffId: STAFF_ID,
+  actorRole: 'STAFF' as const,
   correlationId: CORRELATION_ID,
   currency: 'BRL',
   pointsPerCurrencyUnit: 0,
@@ -55,19 +57,39 @@ function makeDto(
 
 describe('CompleteBookingUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let eventBus: InMemoryEventBus;
   let storageService: InMemoryStorageService;
   let useCase: CompleteBookingUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    bookingRepo = new InMemoryBookingRepository(eventBus);
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     storageService = new InMemoryStorageService();
     useCase = new CompleteBookingUseCase(
       bookingRepo,
       new InMemoryTransactionManager(),
       new PhotoExistenceService(storageService),
     );
+  });
+
+  it('records the completion as one audit row for the acting staff member', async () => {
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({ ...makeDto(booking.id), ...baseCtx });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        fromStatus: 'APPROVED',
+        toStatus: 'COMPLETED',
+        actorType: 'STAFF',
+        actorId: STAFF_ID,
+        reason: null,
+      },
+    ]);
   });
 
   it('transitions APPROVED → COMPLETED and returns result', async () => {

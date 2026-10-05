@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { ActorRole } from '@ikaro/types/protocol/actor';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -23,7 +24,7 @@ export interface EndRecurringBookingScheduleUseCaseInput {
   correlationId: string;
   actorType: RecurringBookingScheduleActorType;
   actorId: string;
-  isBusiness: boolean;
+  actorRole: ActorRole;
 }
 
 export interface EndRecurringBookingScheduleUseCaseResult {
@@ -61,7 +62,7 @@ export class EndRecurringBookingScheduleUseCase {
       );
 
       for (const booking of futureBookings) {
-        booking.cancel(input.actorId, input.isBusiness, input.correlationId);
+        booking.cancel({ type: input.actorRole, id: input.actorId }, input.correlationId);
         await this.bookingRepo.save(booking);
         await releaseBookingOccupancy(
           this.occupancyRepo,

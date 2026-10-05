@@ -14,6 +14,7 @@ import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform/t
 import { LoyaltyBalanceEntityBuilder } from '../../../../test/builders/loyalty/index';
 import { BookingEntity } from '../../../booking/infrastructure/entities/booking.entity';
 import { BookingLineEntity } from '../../../booking/infrastructure/entities/booking-line.entity';
+import { BookingStatusTransitionEntity } from '../../../booking/infrastructure/entities/booking-status-transition.entity';
 import { ServiceEntity } from '../../../booking/infrastructure/entities/service.entity';
 import {
   ServiceResourceRequirementEntity,
@@ -51,6 +52,7 @@ const PLATFORM_KEY = 'discount-completion-integ-key-xxxxx';
 const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
+  BookingStatusTransitionEntity,
   ServiceEntity,
   ServiceResourceRequirementEntity,
   ServiceResourceRequirementPoolEntity,
@@ -167,6 +169,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
     const { body: created } = await request(app.getHttpServer())
       .post('/bookings/authenticated')
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', customerId)
       .set('X-Actor-Type', 'CUSTOMER')
       .set('X-Actor-Role', 'CUSTOMER')
@@ -177,6 +180,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
     await request(app.getHttpServer())
       .patch(`/bookings/${bookingId}/approve`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -185,6 +189,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
     const { body: bk } = await request(app.getHttpServer())
       .get(`/bookings/${bookingId}`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
@@ -197,6 +202,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
     const response = await request(app.getHttpServer())
       .patch(`/bookings/${bookingId}/complete`)
       .set('X-Tenant-ID', tenantId)
+      .set('X-Correlation-ID', '01980000-0000-7000-8000-0000000000c2')
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')

@@ -55,6 +55,7 @@ import { CreateBookingStatusTransitions1748500000023 } from '../contexts/booking
 import { BackfillLeggedServiceDurationToSpan1748500000024 } from '../contexts/booking/infrastructure/migrations/1748500000024-BackfillLeggedServiceDurationToSpan';
 import { AddGapToResourceOccupancy1748500000025 } from '../contexts/booking/infrastructure/migrations/1748500000025-AddGapToResourceOccupancy';
 import { CreateAvailabilityAlerts1748500000026 } from '../contexts/booking/infrastructure/migrations/1748500000026-CreateAvailabilityAlerts';
+import { WidenBookingStatusTransitionReasonToText1748500000027 } from '../contexts/booking/infrastructure/migrations/1748500000027-WidenBookingStatusTransitionReasonToText';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -229,6 +230,7 @@ export default async function globalSetup(): Promise<void> {
       BackfillLeggedServiceDurationToSpan1748500000024,
       AddGapToResourceOccupancy1748500000025,
       CreateAvailabilityAlerts1748500000026,
+      WidenBookingStatusTransitionReasonToText1748500000027,
     ],
     synchronize: false,
     migrationsRun: false,
