@@ -370,7 +370,7 @@ Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s
 2. **`ListAvailabilityAlertsUseCase`** (UC-076): `findByCustomer(tenantId, customerId)`.
 3. **`UpdateAvailabilityAlertUseCase`** (UC-076): re-validates criteria shape, rejects edit on an already-`NOTIFIED`/`EXPIRED` alert (UC-076 A1).
 4. **`CancelAvailabilityAlertUseCase`** (UC-072 A2 / UC-076): sets `status = CANCELLED`, publishes `AvailabilityAlertCancelled`. Idempotent on an already-`CANCELLED` alert; `409` `BOOKING_ALERT_NOT_EDITABLE` on `NOTIFIED`/`EXPIRED` (a state conflict, like `BOOKING_RECURRING_SCHEDULE_NOT_ACTIVE`).
-5. **`ExpireAvailabilityAlertsJob`** (scheduled; shape of `ExpireRecurringBookingScheduleApprovalsJob`): one pass over active tenants, each alert in its own transaction with failures logged and retried next run, "now" taken against `expiresAt` (a UTC instant). Finds `ACTIVE` alerts past `expiresAt`, transitions to `EXPIRED`, publishes `AvailabilityAlertExpired` per alert. Triggered by a new `ExpireAvailabilityAlertsTriggerHandler` registered on the existing `CRON_REMINDERS_TRIGGER` — **no new Cloud Scheduler job**.
+5. **`ExpireAvailabilityAlertsJob`** (scheduled; shape of `ExpireRecurringBookingScheduleApprovalsJob`): one pass over active tenants, each alert in its own transaction with failures logged and retried next run, "now" taken against `expiresAt` (a UTC instant). Finds `ACTIVE` alerts past `expiresAt`, transitions to `EXPIRED`, publishes `AvailabilityAlertExpired` per alert. Triggered by a new `ExpireAvailabilityAlertsTriggerHandler` registered on the existing `CRON_REMINDERS_TRIGGER` — **no new Cloud Scheduler job**. **Retention purge (added at the PR review, 2026-10-05, decided with the product owner):** after the expiry step, the same pass hard-deletes the tenant's finished alerts (`EXPIRED`/`CANCELLED`/`NOTIFIED`, never `ACTIVE`) whose `expiresAt` is more than **90 days** old (`AVAILABILITY_ALERT_RETENTION_DAYS`), together with their `availability_alert_notification_attempts` rows, in one transaction (`IAvailabilityAlertRepository.deleteFinishedExpiredBefore`). A cancelled alert keeps its original `expiresAt`, so it lingers until then plus 90 days (at most 180 days after creation). A purge failure is logged and retried on the next run and never blocks other tenants; no event is published.
 6. **`LogAvailabilityAlertEventUseCase`** + `availability-alert-events.handler.ts`: audit-log-only subscriber for the four events. `UpdateAvailabilityAlertUseCase` publishes `AvailabilityAlertUpdated`.
 
 **Backend HTTP surface:** new controller — `POST /availability-alerts`, `GET /availability-alerts`, `PATCH /availability-alerts/:id`, `DELETE /availability-alerts/:id`. JWT + Customer only (`403` for STAFF/MANAGER/guest).
@@ -402,6 +402,7 @@ Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s
 - [ ] Authenticated customer creates an alert with either a one-time range or weekly preference (never both).
 - [ ] Customer views, edits, and cancels their own active alerts; an already-notified/expired alert is read-only history.
 - [ ] Expired alerts stop counting as active without any manual step.
+- [ ] Finished alerts older than the 90-day retention window are deleted automatically, with their notification attempts; an `ACTIVE` alert and a finished one still inside the window are never touched.
 - [ ] A service that does not permit alerts cannot get one (`422`); a customer cannot hold more than 10 active alerts (`409`).
 
 **Acceptance criteria — technical:**
@@ -409,11 +410,13 @@ Create the `AvailabilityAlert` aggregate exactly per `docs/02-DOMAIN_MODEL.md`'s
   - [ ] Aggregate rejects both/neither criteria representation set
   - [ ] Update rejects when `status` is `NOTIFIED`/`EXPIRED`
   - [ ] Expiry job transitions only past-`expiresAt` `ACTIVE` alerts, and one failing row does not block the rest
+  - [ ] Retention purge: each finished status past the cutoff is deleted and counted, one inside the window is kept, the cutoff is `now − 90 days`, each tenant is purged on its own, and a failing purge is logged without blocking the other tenants
   - [ ] Range start before end; weekly set has ≥ 1 weekday and local start before local end; `expiresAt` default 30 days, max 90, clamped to `acceptableEndAt`
   - [ ] Update may switch `criteriaType` but never leaves both or neither set; Update publishes `AvailabilityAlertUpdated`; cancel is idempotent on `CANCELLED`
   - [ ] Create rejects an ineligible service, an inactive/foreign/ineligible `preferredResourceId`, and the 11th active alert
 - Integration:
   - [ ] `POST /availability-alerts` persists and is retrievable via `GET`
+  - [ ] Purge against real rows: finished alerts past the window go with their attempts rows, other tenants' and in-window and `ACTIVE` rows stay
   - [ ] Expiry job integration test against real seeded rows
 - Tenant isolation:
   - [ ] `GET/PATCH/DELETE /availability-alerts/:id` never crosses tenant or customer boundary — another tenant's alert **and** another customer's alert in the same tenant both return `404`

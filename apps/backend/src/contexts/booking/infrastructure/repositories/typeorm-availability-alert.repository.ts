@@ -50,6 +50,35 @@ export class TypeOrmAvailabilityAlertRepository implements IAvailabilityAlertRep
     return entities.map(toDomain);
   }
 
+  // The attempts go first (their composite FK points at the alert); both deletes share one
+  // transaction, whether the caller opened one or not. Tenant-scoped, served by the
+  // (tenant_id, status, expires_at) index.
+  async deleteFinishedExpiredBefore(tenantId: string, cutoff: Date): Promise<number> {
+    const manager = getActiveEntityManager();
+    if (manager) return this.purge(manager, tenantId, cutoff);
+    return runInNewTransaction(this.repo.manager, (tx) => this.purge(tx, tenantId, cutoff));
+  }
+
+  private async purge(manager: EntityManager, tenantId: string, cutoff: Date): Promise<number> {
+    await manager.query(
+      `DELETE FROM "booking"."availability_alert_notification_attempts"
+       WHERE "tenant_id" = $1 AND "alert_id" IN (
+         SELECT "id" FROM "booking"."availability_alerts"
+         WHERE "tenant_id" = $1 AND "status" <> 'ACTIVE' AND "expires_at" < $2
+       )`,
+      [tenantId, cutoff],
+    );
+    const result = await manager
+      .getRepository(AvailabilityAlertEntity)
+      .createQueryBuilder()
+      .delete()
+      .where('tenant_id = :tenantId', { tenantId })
+      .andWhere("status <> 'ACTIVE'")
+      .andWhere('expires_at < :cutoff', { cutoff })
+      .execute();
+    return result.affected ?? 0;
+  }
+
   async save(alert: AvailabilityAlert): Promise<void> {
     const manager = getActiveEntityManager();
     if (manager) {

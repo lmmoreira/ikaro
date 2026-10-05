@@ -47,6 +47,14 @@ export class InMemoryAvailabilityAlertRepository implements IAvailabilityAlertRe
     );
   }
 
+  deleteFinishedExpiredBefore(tenantId: string, cutoff: Date): Promise<number> {
+    const doomed = Array.from(this.store.values()).filter(
+      (a) => a.tenantId === tenantId && a.status !== 'ACTIVE' && a.expiresAt < cutoff,
+    );
+    for (const alert of doomed) this.store.delete(alert.id);
+    return Promise.resolve(doomed.length);
+  }
+
   async save(alert: AvailabilityAlert): Promise<void> {
     this.store.set(alert.id, alert);
     await drainDomainEvents(alert, this.outboxPublisher);

@@ -13,5 +13,9 @@ export interface IAvailabilityAlertRepository {
   // The expiry job's read: ACTIVE alerts whose expiresAt has passed, oldest first, tenant-scoped
   // (the (tenant_id, status, expires_at) index serves it).
   findActiveExpired(tenantId: string, now: Date): Promise<AvailabilityAlert[]>;
+  // Retention purge: hard-deletes the tenant's finished alerts (any status but ACTIVE) whose
+  // expiresAt is before `cutoff`, together with their notification attempts, in one transaction.
+  // Returns how many alerts were deleted. An ACTIVE alert is never touched.
+  deleteFinishedExpiredBefore(tenantId: string, cutoff: Date): Promise<number>;
   save(alert: AvailabilityAlert): Promise<void>;
 }

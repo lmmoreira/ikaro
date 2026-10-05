@@ -1285,7 +1285,7 @@ Returns:
   2. Customer edits matching criteria or expiry, or cancels an alert.
   3. System expires alerts automatically and sends at most one deduplicated notification per matching availability window.
 - **Alternative Flows:**
-  - **A1: Alert already notified or expired** → Remains visible as history but cannot be edited/reactivated; customer creates a new alert instead.
+  - **A1: Alert already notified or expired** → Remains visible as history but cannot be edited/reactivated; customer creates a new alert instead. Finished alerts (notified, expired, cancelled) are deleted automatically 90 days after their expiry date (M23-S06).
 - **Postconditions:** Alerts remain non-reserving customer intent; every notification attempt is auditable. An alert is never auto-cancelled just because the customer's underlying need was met through a different channel — independent intents by design.
 - **Events Triggered:** `AvailabilityAlertUpdated`/`AvailabilityAlertCancelled`/`AvailabilityAlertExpired`.
 

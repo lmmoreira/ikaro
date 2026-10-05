@@ -718,7 +718,7 @@ Generated ordinary bookings link through nullable `recurring_schedule_id` on `bo
 | **INDEX** | (tenant_id, customer_id, status) | "My alerts" and the per-customer active-alert cap (10) |
 | **INDEX** | (tenant_id, status, expires_at) | The expiry job's per-tenant scan |
 
-Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together with the attempts table below; M23-S07 writes the attempts. `timezone` is always the tenant's timezone, never client-supplied.
+Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together with the attempts table below; M23-S07 writes the attempts. **Retention:** the alert-expiry job (`cron-reminders`) hard-deletes every non-`ACTIVE` alert whose `expires_at` is more than 90 days in the past, together with its attempts rows (M23-S06). `timezone` is always the tenant's timezone, never client-supplied.
 
 `availability_alert_notification_attempts`:
 

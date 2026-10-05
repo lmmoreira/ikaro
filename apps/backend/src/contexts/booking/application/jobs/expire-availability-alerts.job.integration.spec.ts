@@ -16,7 +16,10 @@ import { BookingConcurrentModificationError } from '../../domain/errors/booking-
 import { AvailabilityAlertEntity } from '../../infrastructure/entities/availability-alert.entity';
 import { ServiceEntity } from '../../infrastructure/entities/service.entity';
 import { TypeOrmAvailabilityAlertRepository } from '../../infrastructure/repositories/typeorm-availability-alert.repository';
-import { ExpireAvailabilityAlertsJob } from './expire-availability-alerts.job';
+import {
+  AVAILABILITY_ALERT_RETENTION_DAYS,
+  ExpireAvailabilityAlertsJob,
+} from './expire-availability-alerts.job';
 
 const HOUR_MS = 3_600_000;
 
@@ -70,7 +73,7 @@ describe('ExpireAvailabilityAlertsJob (integration)', () => {
   const seedAlert = async (
     tenantId: string,
     expiresAt: Date,
-    status: 'ACTIVE' | 'NOTIFIED' = 'ACTIVE',
+    status: 'ACTIVE' | 'NOTIFIED' | 'CANCELLED' = 'ACTIVE',
   ): Promise<string> => {
     const entity = new AvailabilityAlertEntityBuilder()
       .withTenantId(tenantId)
@@ -124,6 +127,41 @@ describe('ExpireAvailabilityAlertsJob (integration)', () => {
     const outbox = await ds.getRepository(OutboxEventEntity).find({ where: { tenantId: tenantB } });
     expect(outbox.filter((row) => row.payload['alertId'] === id)).toEqual([]);
     expect((await job.run()).expired).toBe(0);
+  });
+
+  it('purges finished alerts past the retention window with their attempts, and nothing else', async () => {
+    const old = new Date(Date.now() - (AVAILABILITY_ALERT_RETENTION_DAYS + 1) * 86_400_000);
+    const oldCancelled = await seedAlert(tenantA, old, 'CANCELLED');
+    const oldNotified = await seedAlert(tenantA, old, 'NOTIFIED');
+    const oldOtherTenant = await seedAlert(tenantB, old, 'CANCELLED');
+    const recentCancelled = await seedAlert(
+      tenantA,
+      new Date(Date.now() - 86_400_000),
+      'CANCELLED',
+    );
+    const activeFuture = await seedAlert(tenantA, new Date(Date.now() + 86_400_000));
+    await ds.query(
+      `INSERT INTO "booking"."availability_alert_notification_attempts"
+         ("id", "tenant_id", "alert_id", "matching_window", "channel", "outcome")
+       VALUES ($1, $2, $3, tstzrange(now(), now() + interval '1 hour'), 'EMAIL', 'SENT')`,
+      [uuidv7(), tenantA, oldNotified],
+    );
+
+    const result = await job.run();
+
+    expect(result.purged).toBe(3);
+    const exists = (tenantId: string, id: string) =>
+      ds.getRepository(AvailabilityAlertEntity).existsBy({ tenantId, id });
+    expect(await exists(tenantA, oldCancelled)).toBe(false);
+    expect(await exists(tenantA, oldNotified)).toBe(false);
+    expect(await exists(tenantB, oldOtherTenant)).toBe(false);
+    expect(await exists(tenantA, recentCancelled)).toBe(true);
+    expect(await exists(tenantA, activeFuture)).toBe(true);
+    const attempts: unknown[] = await ds.query(
+      `SELECT 1 FROM "booking"."availability_alert_notification_attempts" WHERE "alert_id" = $1`,
+      [oldNotified],
+    );
+    expect(attempts).toHaveLength(0);
   });
 
   it('is a no-op on a second run (nothing left to expire)', async () => {
