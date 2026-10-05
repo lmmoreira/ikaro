@@ -32,6 +32,7 @@ import { BookingReminderTriggerHandler } from './infrastructure/events/booking-r
 import { ExpireRecurringScheduleApprovalsTriggerHandler } from './infrastructure/events/expire-recurring-schedule-approvals-trigger.handler';
 import { ExpireAvailabilityAlertsTriggerHandler } from './infrastructure/events/expire-availability-alerts-trigger.handler';
 import { AvailabilityAlertEventsHandler } from './infrastructure/events/availability-alert-events.handler';
+import { availabilityAlertMatchingProviders } from './availability-alert-matching.module-providers';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
 import { ResourceOccupancyRetentionPurgeTriggerHandler } from './infrastructure/events/resource-occupancy-retention-purge-trigger.handler';
 import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
@@ -235,6 +236,7 @@ export const bookingModuleProviders: Provider[] = [
   CancelAvailabilityAlertUseCase,
   LogAvailabilityAlertEventUseCase,
   AvailabilityAlertEventsHandler,
+  ...availabilityAlertMatchingProviders,
   RaiseFutureCommitmentExceptionsForResourceUseCase,
   ListFutureCommitmentExceptionsUseCase,
   ResolveFutureCommitmentExceptionsUseCase,

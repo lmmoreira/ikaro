@@ -237,7 +237,7 @@ describe('AvailabilityAlert', () => {
         expect(alert.expiresAt).toEqual(at(ALERT_MAX_EXPIRY_DAYS * DAY_MS));
       });
 
-      it('rejects a requested expiry beyond 90 days', () => {
+      it('rejects a requested expiry beyond the maximum lifetime', () => {
         expect(
           reasonOf(() =>
             AvailabilityAlert.create(
@@ -349,7 +349,7 @@ describe('AvailabilityAlert', () => {
       expect(alert.expiresAt).toEqual(at(DAY_MS + 2 * HOUR_MS));
     });
 
-    it('measures the 90-day maximum from creation, not from the edit', () => {
+    it('measures the maximum lifetime from creation, not from the edit', () => {
       const createdAt = at(-60 * DAY_MS);
       const alert = new AvailabilityAlertBuilder()
         .withWeeklyPreference(['monday'], '09:00', '10:00')
@@ -357,11 +357,13 @@ describe('AvailabilityAlert', () => {
         .withExpiresAt(at(10 * DAY_MS))
         .build();
 
-      expect(reasonOf(() => alert.update({ expiresAt: at(31 * DAY_MS) }, 'corr-2', NOW))).toBe(
+      // Created 60 days ago, so the last allowed expiry is (maximum − 60) days from now.
+      const remaining = (ALERT_MAX_EXPIRY_DAYS - 60) * DAY_MS;
+      expect(reasonOf(() => alert.update({ expiresAt: at(remaining + 1) }, 'corr-2', NOW))).toBe(
         'expires-beyond-max',
       );
-      alert.update({ expiresAt: at(30 * DAY_MS) }, 'corr-2', NOW);
-      expect(alert.expiresAt).toEqual(at(30 * DAY_MS));
+      alert.update({ expiresAt: at(remaining) }, 'corr-2', NOW);
+      expect(alert.expiresAt).toEqual(at(remaining));
     });
 
     it.each(['NOTIFIED', 'EXPIRED', 'CANCELLED'] as const)(
@@ -422,6 +424,80 @@ describe('AvailabilityAlert', () => {
       const alert = new AvailabilityAlertBuilder().withStatus(status).build();
 
       expect(() => alert.cancel('corr-3')).toThrow(AvailabilityAlertNotEditableError);
+    });
+  });
+
+  describe('recordNotificationAttempt()', () => {
+    const window = {
+      startsAt: new Date('2026-10-20T13:00:00.000Z'),
+      endsAt: new Date('2026-10-20T14:00:00.000Z'),
+    };
+
+    it('moves an ACTIVE alert to NOTIFIED, queues one PENDING attempt and raises the event', () => {
+      const alert = new AvailabilityAlertBuilder().withPreferredResourceId('resource-1').build();
+
+      const recorded = alert.recordNotificationAttempt(window, 'EMAIL', 'corr-9', NOW);
+
+      expect(recorded).toBe(true);
+      expect(alert.status).toBe('NOTIFIED');
+      const attempt = alert.takePendingAttempt();
+      expect(attempt).toMatchObject({
+        tenantId: alert.tenantId,
+        alertId: alert.id,
+        matchingWindow: window,
+        channel: 'EMAIL',
+        outcome: 'PENDING',
+        attemptedAt: NOW,
+      });
+      expect(alert.takePendingAttempt()).toBeNull();
+      const [event] = alert.domainEvents;
+      expect(event).toMatchObject({
+        eventName: 'AvailabilityAlertMatched',
+        tenantId: alert.tenantId,
+        correlationId: 'corr-9',
+        data: {
+          alertId: alert.id,
+          customerId: alert.customerId,
+          serviceId: alert.serviceId,
+          matchingWindowStart: '2026-10-20T13:00:00.000Z',
+          matchingWindowEnd: '2026-10-20T14:00:00.000Z',
+          resourceId: 'resource-1',
+        },
+      });
+    });
+
+    it('carries a null resourceId when the alert has no preferred resource', () => {
+      const alert = new AvailabilityAlertBuilder().build();
+      alert.recordNotificationAttempt(window, 'EMAIL', 'corr-9', NOW);
+      expect(alert.domainEvents[0].data).toMatchObject({ resourceId: null });
+    });
+
+    it.each(['NOTIFIED', 'CANCELLED', 'EXPIRED'] as const)(
+      'is a no-op on a %s alert — no attempt, no event, nothing notified twice',
+      (status) => {
+        const alert = new AvailabilityAlertBuilder().withStatus(status).build();
+
+        expect(alert.recordNotificationAttempt(window, 'EMAIL', 'corr-9', NOW)).toBe(false);
+
+        expect(alert.status).toBe(status);
+        expect(alert.takePendingAttempt()).toBeNull();
+        expect(alert.domainEvents).toEqual([]);
+      },
+    );
+
+    it('is a no-op on an ACTIVE alert already past its expiry (the expiry job has not run yet)', () => {
+      const alert = new AvailabilityAlertBuilder().withExpiresAt(at(-1)).build();
+
+      expect(alert.recordNotificationAttempt(window, 'EMAIL', 'corr-9', NOW)).toBe(false);
+      expect(alert.status).toBe('ACTIVE');
+      expect(alert.domainEvents).toEqual([]);
+    });
+
+    it('records at most one attempt: a second call after the first is a no-op', () => {
+      const alert = new AvailabilityAlertBuilder().build();
+      expect(alert.recordNotificationAttempt(window, 'EMAIL', 'corr-9', NOW)).toBe(true);
+      expect(alert.recordNotificationAttempt(window, 'EMAIL', 'corr-9', NOW)).toBe(false);
+      expect(alert.domainEvents).toHaveLength(1);
     });
   });
 

@@ -218,6 +218,11 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     UpdateHotsiteContentUseCase,
     UpdateTenantSettingsUseCase,
   ],
-  exports: [GetTenantByIdUseCase, GetTenantsUseCase, TENANT_SETTINGS_PORT],
+  exports: [
+    GetTenantByIdUseCase,
+    GetTenantsUseCase,
+    GetHotsiteContentUseCase,
+    TENANT_SETTINGS_PORT,
+  ],
 })
 export class PlatformModule {}

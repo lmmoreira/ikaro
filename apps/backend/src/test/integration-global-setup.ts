@@ -28,6 +28,7 @@ import { RecurringBookingScheduleEntity } from '../contexts/booking/infrastructu
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
 import { FutureCommitmentExceptionEntity } from '../contexts/booking/infrastructure/entities/future-commitment-exception.entity';
 import { AvailabilityAlertEntity } from '../contexts/booking/infrastructure/entities/availability-alert.entity';
+import { AvailabilityAlertNotificationAttemptEntity } from '../contexts/booking/infrastructure/entities/availability-alert-notification-attempt.entity';
 import { BookingAttendeeEntity } from '../contexts/booking/infrastructure/entities/booking-attendee.entity';
 import { BookingLineResourceAssignmentEntity } from '../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../contexts/booking/infrastructure/entities/resource-occupancy.entity';
@@ -170,6 +171,7 @@ export default async function globalSetup(): Promise<void> {
       RecurringBookingScheduleResourceAssignmentEntity,
       FutureCommitmentExceptionEntity,
       AvailabilityAlertEntity,
+      AvailabilityAlertNotificationAttemptEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,

@@ -10,11 +10,11 @@ export interface LogAvailabilityAlertEventUseCaseInput {
   correlationId: string;
 }
 
-// Exists solely to give each AvailabilityAlert{Created,Updated,Cancelled,Expired} event a real
+// Exists solely to give each AvailabilityAlert{Created,Updated,Cancelled,Expired,Matched} event a real
 // eventBus.subscribe() call site, so packages/infra-scripts/src/pubsub-catalog.ts provisions its
 // Pub/Sub topic — without a real subscriber, the outbox permanently fails to publish once
 // deployed (docs/ANTI_PATTERNS.md § A domain event is drained, LeadFormSubmissionReceived
-// precedent). Same shape as LogRecurringBookingScheduleEventUseCase; M23-S07 extends it to
+// precedent). Same shape as LogRecurringBookingScheduleEventUseCase; M23-S07 extended it to
 // AvailabilityAlertMatched.
 @Injectable()
 export class LogAvailabilityAlertEventUseCase {

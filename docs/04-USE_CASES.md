@@ -1215,7 +1215,7 @@ Returns:
 - **Main Flow:**
   1. Customer selects service, optional preferred resource, duration/participant criteria, and either a finite absolute range or a weekly local-time preference.
   2. System stores an expiring alert attached to that customer without reserving anything.
-  3. When a released slot matches, system records one deduplicated email/in-app notification attempt for that alert/window.
+  3. When a bookable slot that the customer can actually select on the booking page starts inside the alert's acceptable window, system records one deduplicated email notification attempt for that alert/window and marks the alert notified (M23-S07). A slot is found two ways: right away when a booking is cancelled, rejected or rescheduled, and by a daily sweep for capacity that opens with no booking event (the booking window reaching a date, a manager extending hours or adding a resource). An alert for a date beyond the booking window waits and is matched the day the date becomes selectable, so an alert may live up to 365 days.
 - **Alternative Flows:**
   - **A1: Unauthenticated visitor** → Directed to login/account creation before an alert can be saved; chosen criteria return with them after authentication.
   - **A2: Alert expires, is cancelled, or was already notified for the matching window** → No new notification is sent and no capacity is held.

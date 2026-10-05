@@ -2,6 +2,7 @@ import {
   AvailabilityAlertCancelledEventBuilder,
   AvailabilityAlertCreatedEventBuilder,
   AvailabilityAlertExpiredEventBuilder,
+  AvailabilityAlertMatchedEventBuilder,
   AvailabilityAlertUpdatedEventBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -25,7 +26,7 @@ describe('AvailabilityAlertEventsHandler', () => {
     );
   });
 
-  it('subscribes to all 4 event types with the audit-log consumer name on init', () => {
+  it('subscribes to all 5 event types with the audit-log consumer name on init', () => {
     const spy = jest.spyOn(eventBus, 'subscribe');
 
     handler.onModuleInit();
@@ -35,6 +36,7 @@ describe('AvailabilityAlertEventsHandler', () => {
       'AvailabilityAlertUpdated',
       'AvailabilityAlertCancelled',
       'AvailabilityAlertExpired',
+      'AvailabilityAlertMatched',
     ]) {
       expect(spy).toHaveBeenCalledWith(
         eventName,
@@ -42,7 +44,7 @@ describe('AvailabilityAlertEventsHandler', () => {
         LogAvailabilityAlertEventUseCase.CONSUMER_NAME,
       );
     }
-    expect(spy).toHaveBeenCalledTimes(4);
+    expect(spy).toHaveBeenCalledTimes(5);
   });
 
   it('calls the log use case exactly once with the correct DTO for AvailabilityAlertCreated', async () => {
@@ -67,6 +69,7 @@ describe('AvailabilityAlertEventsHandler', () => {
     ['AvailabilityAlertUpdated', () => new AvailabilityAlertUpdatedEventBuilder().build()],
     ['AvailabilityAlertCancelled', () => new AvailabilityAlertCancelledEventBuilder().build()],
     ['AvailabilityAlertExpired', () => new AvailabilityAlertExpiredEventBuilder().build()],
+    ['AvailabilityAlertMatched', () => new AvailabilityAlertMatchedEventBuilder().build()],
   ])('handles %s', async (eventName, build) => {
     await handler.handle(build());
 

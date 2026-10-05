@@ -6,6 +6,29 @@ import { Timezone } from '../../../shared/value-objects/timezone.vo';
 export type AvailabilityAlertCriteriaType = 'ONE_TIME_RANGE' | 'WEEKLY_PREFERENCE';
 export type AvailabilityAlertStatus = 'ACTIVE' | 'NOTIFIED' | 'CANCELLED' | 'EXPIRED';
 
+// docs/13-DATABASE_SCHEMA.md § availability_alert_notification_attempts. EMAIL is the only channel
+// M23-S07 writes (the CHECK also allows IN_APP). PENDING means "a match was found and handed off to
+// the Notification context" — a later story updates the outcome once the message is really sent.
+export type AvailabilityAlertAttemptChannel = 'EMAIL' | 'IN_APP';
+export type AvailabilityAlertAttemptOutcome = 'PENDING';
+
+// The slot that satisfied the alert — a half-open [startsAt, endsAt) UTC interval, stored as the
+// attempt's `matching_window` and the deduplication key together with the channel.
+export interface AvailabilityAlertMatchingWindow {
+  startsAt: Date;
+  endsAt: Date;
+}
+
+export interface AvailabilityAlertNotificationAttempt {
+  id: string;
+  tenantId: string;
+  alertId: string;
+  matchingWindow: AvailabilityAlertMatchingWindow;
+  channel: AvailabilityAlertAttemptChannel;
+  outcome: AvailabilityAlertAttemptOutcome;
+  attemptedAt: Date;
+}
+
 // Exactly one criteria representation (the domain invariant, also a DB CHECK): a finite absolute
 // range, or a weekly local-time preference interpreted in the alert's own timezone.
 export type AvailabilityAlertCriteria =

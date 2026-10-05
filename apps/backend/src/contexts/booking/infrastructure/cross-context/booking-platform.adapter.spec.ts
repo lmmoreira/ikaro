@@ -1,10 +1,17 @@
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import {
+  HotsiteConfigBuilder,
   TenantBuilder,
   TenantSettingsPropsBuilder,
 } from '../../../../test/builders/platform/index';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import { HotsiteModule } from '../../../platform/domain/hotsite-config.aggregate';
+import { HotsiteImageUrlResolver } from '../../../platform/domain/services/hotsite-image-url-resolver.service';
+import { HotsiteContentReader } from '../../../platform/application/services/hotsite-content-reader.service';
+import { GetHotsiteContentUseCase } from '../../../platform/application/use-cases/get-hotsite-content.use-case';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
 import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
@@ -12,16 +19,24 @@ import { BookingPlatformAdapter } from './booking-platform.adapter';
 
 describe('BookingPlatformAdapter', () => {
   let repo: InMemoryTenantRepository;
+  let hotsiteRepo: InMemoryHotsiteConfigRepository;
   let revalidation: InMemoryFrontendRevalidationPort;
   let adapter: BookingPlatformAdapter;
 
   beforeEach(() => {
     repo = new InMemoryTenantRepository();
+    hotsiteRepo = new InMemoryHotsiteConfigRepository();
     revalidation = new InMemoryFrontendRevalidationPort();
+    const hotsiteReader = new HotsiteContentReader(
+      hotsiteRepo,
+      new InMemoryStorageService(),
+      new HotsiteImageUrlResolver(),
+    );
     adapter = new BookingPlatformAdapter(
       new GetTenantsUseCase(repo),
       new GetTenantByIdUseCase(repo),
       new GetTenantBusinessHoursForUpdateUseCase(repo),
+      new GetHotsiteContentUseCase(hotsiteReader),
       revalidation,
     );
   });
@@ -108,6 +123,116 @@ describe('BookingPlatformAdapter', () => {
       const result = await adapter.getAutoApproveEnabled(tenant.id);
 
       expect(result).toBe(true);
+    });
+  });
+
+  describe('getAvailabilityAlertContext', () => {
+    async function seedTenant(maxBookingAdvanceDays: number) {
+      const tenant = new TenantBuilder()
+        .withSettings(
+          TenantSettings.create(
+            new TenantSettingsPropsBuilder().withBooking({ maxBookingAdvanceDays }).build(),
+          ),
+        )
+        .build();
+      await repo.save(tenant);
+      return tenant;
+    }
+
+    // `picker` null = a hotsite with no BOOKING_CTA module at all.
+    async function seedPicker(
+      tenantId: string,
+      picker: { datePickerType?: 'carousel' | 'calendar'; carouselDays?: number } | null,
+      maxBookingAdvanceDays: number,
+    ) {
+      const layout: HotsiteModule[] = [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: {
+            variant: 'centered',
+            title: 'Titulo',
+            ctaLabel: 'Agendar',
+            ctaTarget: 'booking-form',
+          },
+        },
+      ];
+      if (picker) {
+        layout.push({
+          type: 'BOOKING_CTA',
+          enabled: true,
+          data: { title: 'Agende já', ctaLabel: 'Agendar', ...picker },
+        });
+      }
+      await hotsiteRepo.save(
+        new HotsiteConfigBuilder()
+          .withTenantId(tenantId)
+          .withMaxBookingAdvanceDays(maxBookingAdvanceDays)
+          .buildWithContent(undefined, layout),
+      );
+    }
+
+    it('carousel mode: the selectable window is carouselDays, and the tenant availability inputs pass through', async () => {
+      const tenant = await seedTenant(90);
+      await seedPicker(tenant.id, { datePickerType: 'carousel', carouselDays: 14 }, 90);
+
+      const result = await adapter.getAvailabilityAlertContext(tenant.id);
+
+      expect(result.selectableDays).toBe(14);
+      expect(result.businessHours).toEqual(tenant.settings.businessHours);
+      expect(result.slotGranularityMinutes).toBe(tenant.settings.booking.slotGranularityMinutes);
+      expect(result.serviceBufferMinutes).toBe(tenant.settings.booking.serviceBufferMinutes);
+    });
+
+    it('calendar mode: the selectable window is maxBookingAdvanceDays, whatever carouselDays says', async () => {
+      const tenant = await seedTenant(90);
+      await seedPicker(tenant.id, { datePickerType: 'calendar', carouselDays: 14 }, 90);
+
+      expect((await adapter.getAvailabilityAlertContext(tenant.id)).selectableDays).toBe(90);
+    });
+
+    it('carousel mode never exceeds maxBookingAdvanceDays', async () => {
+      const tenant = await seedTenant(7);
+      await seedPicker(tenant.id, { datePickerType: 'carousel', carouselDays: 7 }, 7);
+
+      expect((await adapter.getAvailabilityAlertContext(tenant.id)).selectableDays).toBe(7);
+    });
+
+    it('falls back to a 14-day carousel when the BOOKING_CTA module sets no picker', async () => {
+      const tenant = await seedTenant(90);
+      await seedPicker(tenant.id, {}, 90);
+
+      expect((await adapter.getAvailabilityAlertContext(tenant.id)).selectableDays).toBe(14);
+    });
+
+    it('falls back to a 14-day carousel when the hotsite has no BOOKING_CTA module', async () => {
+      const tenant = await seedTenant(90);
+      await seedPicker(tenant.id, null, 90);
+
+      expect((await adapter.getAvailabilityAlertContext(tenant.id)).selectableDays).toBe(14);
+    });
+
+    it('falls back to a 14-day carousel when the tenant has no hotsite config at all', async () => {
+      const tenant = await seedTenant(90);
+
+      expect((await adapter.getAvailabilityAlertContext(tenant.id)).selectableDays).toBe(14);
+    });
+
+    it('caps the default carousel at a short maxBookingAdvanceDays', async () => {
+      const tenant = await seedTenant(5);
+
+      expect((await adapter.getAvailabilityAlertContext(tenant.id)).selectableDays).toBe(5);
+    });
+
+    it('tenant isolation: reads the picker of the requested tenant only', async () => {
+      const tenantA = await seedTenant(90);
+      const tenantB = new TenantBuilder().withSlug('tenant-b').build();
+      await repo.save(tenantB);
+      await seedPicker(tenantA.id, { datePickerType: 'calendar' }, 90);
+      await seedPicker(tenantB.id, { datePickerType: 'carousel', carouselDays: 7 }, 90);
+
+      expect((await adapter.getAvailabilityAlertContext(tenantA.id)).selectableDays).toBe(90);
+      expect((await adapter.getAvailabilityAlertContext(tenantB.id)).selectableDays).toBe(7);
     });
   });
 });

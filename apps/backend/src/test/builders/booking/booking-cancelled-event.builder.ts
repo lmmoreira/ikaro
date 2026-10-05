@@ -7,7 +7,7 @@ export class BookingCancelledEventBuilder {
   private customerId: string | null = null;
   private contactEmail = 'joao@example.com';
   private readonly contactName = 'João Silva';
-  private readonly lineSummary = [
+  private lineSummary = [
     {
       serviceId: 'ffffffff-0001-4000-8000-000000000001',
       serviceNameAtBooking: 'Lavagem Completa',
@@ -18,7 +18,18 @@ export class BookingCancelledEventBuilder {
   private cancelledBy = 'staffid-0000-4000-8000-000000000001';
   private isBusiness = true;
   private reason: string | null = null;
-  private readonly scheduledAt = '2026-07-01T10:00:00.000Z';
+  private scheduledAt = '2026-07-01T10:00:00.000Z';
+
+  withScheduledAt(scheduledAt: Date): this {
+    this.scheduledAt = scheduledAt.toISOString();
+    return this;
+  }
+
+  // Replaces the single default line's service.
+  withServiceId(serviceId: string): this {
+    this.lineSummary = this.lineSummary.map((line) => ({ ...line, serviceId }));
+    return this;
+  }
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;

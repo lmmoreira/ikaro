@@ -1,5 +1,6 @@
 import {
   ActiveTenantInfo,
+  AvailabilityAlertTenantContext,
   IBookingPlatformPort,
   TenantBusinessHoursAndLocale,
 } from '../../contexts/booking/application/ports/booking-platform.port';
@@ -10,6 +11,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   readonly revalidatedTenantIds: string[] = [];
   private readonly businessHoursAndLocaleByTenant = new Map<string, TenantBusinessHoursAndLocale>();
   private readonly autoApproveEnabledByTenant = new Map<string, boolean>();
+  private readonly alertContextByTenant = new Map<string, AvailabilityAlertTenantContext>();
 
   seed(tenants: ActiveTenantInfo[]): void {
     this.tenants.push(...tenants);
@@ -23,10 +25,15 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     this.autoApproveEnabledByTenant.set(tenantId, value);
   }
 
+  seedAvailabilityAlertContext(tenantId: string, value: AvailabilityAlertTenantContext): void {
+    this.alertContextByTenant.set(tenantId, value);
+  }
+
   clear(): void {
     this.tenants.length = 0;
     this.businessHoursAndLocaleByTenant.clear();
     this.autoApproveEnabledByTenant.clear();
+    this.alertContextByTenant.clear();
   }
 
   async findAllActive(): Promise<ActiveTenantInfo[]> {
@@ -62,5 +69,16 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
 
   async getAutoApproveEnabled(tenantId: string): Promise<boolean> {
     return this.autoApproveEnabledByTenant.get(tenantId) ?? false;
+  }
+
+  async getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {
+    return (
+      this.alertContextByTenant.get(tenantId) ?? {
+        businessHours: FULL_WEEK_BUSINESS_HOURS,
+        slotGranularityMinutes: 30,
+        serviceBufferMinutes: 0,
+        selectableDays: 14,
+      }
+    );
   }
 }

@@ -42,7 +42,9 @@ export { BookingReminderDueTodayCommandBuilder } from './booking-reminder-due-to
 export { AdminDailyScheduleReminderCommandBuilder } from './admin-daily-schedule-reminder-command.builder';
 export { AvailabilityAlertBuilder } from './availability-alert.builder';
 export { AvailabilityAlertEntityBuilder } from './availability-alert-entity.builder';
+export { AvailabilityAlertNotificationAttemptEntityBuilder } from './availability-alert-notification-attempt-entity.builder';
 export { AvailabilityAlertCreatedEventBuilder } from './availability-alert-created-event.builder';
 export { AvailabilityAlertUpdatedEventBuilder } from './availability-alert-updated-event.builder';
 export { AvailabilityAlertCancelledEventBuilder } from './availability-alert-cancelled-event.builder';
 export { AvailabilityAlertExpiredEventBuilder } from './availability-alert-expired-event.builder';
+export { AvailabilityAlertMatchedEventBuilder } from './availability-alert-matched-event.builder';

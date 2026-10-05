@@ -279,6 +279,69 @@ A booking whose resolver read the resource as active just before its deactivatio
 
 ---
 
+## Booking — Availability Alerts (M23-S06, M23-S07)
+
+### Why this exists
+
+An `AvailabilityAlert` is an expiring, non-reserving intent: "tell me when something I can book matches this". Capacity can open up in two different ways, and a notification is only useful when the customer can **act on it**, so the matching has three rules that are easy to get subtly wrong: what counts as "bookable", which dates a customer can actually select, and how a customer is kept from being told twice. The aggregate (`docs/02-DOMAIN_MODEL.md` § `AvailabilityAlert`), the table (`docs/13-DATABASE_SCHEMA.md`) and the event (`docs/03-DOMAIN_EVENTS.md` § `AvailabilityAlertMatched`) are canonical; this section is the algorithm that connects them.
+
+### Two triggers, one use case
+
+```mermaid
+flowchart TD
+  A["BookingCancelled / BookingRejected / BookingRescheduled"] --> B["handler: services + the freed day"]
+  S["cron-reminders tick, tenant-local 06:30-06:59"] --> T["AvailabilityAlertSweepJob: every service with an ACTIVE alert, the whole selectable window"]
+  B --> M["MatchAvailabilityAlertsUseCase"]
+  T --> M
+  M --> C["platform port: selectable days, business hours, granularity, buffer"]
+  C --> D["per service: ACTIVE, unexpired alerts, grouped by preferred resource + duration"]
+  D --> E["per group, per date: GetAvailabilityUseCase, keep slots that start after now"]
+  E --> F["per alert: earliest slot whose START is inside its acceptable window"]
+  F --> G{"match?"}
+  G -- no --> H[alert stays ACTIVE]
+  G -- yes --> I["own transaction: recordNotificationAttempt, save alert (version-checked) + attempt row, AvailabilityAlertMatched to the outbox"]
+```
+
+- **Fast path (event handlers).** A cancelled, rejected or rescheduled booking released a slot, so the handler re-checks only **that tenant-local day** for **that booking's services**. `BookingCancelled` carries `scheduledAt` and the line services; `BookingRescheduled` carries `previousSlot.startTime` (an ISO instant, whatever its name suggests); `BookingRejected` carries neither, so its handler resolves the booking and delegates (`MatchAvailabilityAlertsForBookingUseCase`). A freed day outside the selectable window is skipped — the sweep picks it up when the date enters the window.
+- **Slow path (daily sweep).** Capacity can also appear with **no booking event at all**: the booking window rolls forward a day, a manager extends hours, adds an opening, or adds or reactivates a resource. Once a day per tenant the sweep re-checks every service that has an `ACTIVE` alert over the whole selectable window. It rides the existing 30-minute `cron-reminders` trigger as its own consumer (`availability-alert-sweep`) and gates itself to the tenant-local 06:30–06:59 window (after `booking-reminder`'s 06:00–06:29), so exactly one tick per day lands in it and no "last run" state is stored.
+- **Cost.** Alerts of one service that share a preferred resource and a duration share one availability read per day; the sweep never runs one availability query per alert. The `(tenant_id, service_id, status)` index serves the alert read.
+
+### What "bookable" means
+
+The use case does not compare an alert with a raw "freed window". It asks the **real availability engine** (`GetAvailabilityUseCase` — working hours, closures, openings, occupancy, resource rules — see § Availability computation algorithm) for the service on the date, optionally scoped to the alert's preferred resource and, for a `CUSTOMER_SELECTED` service, its chosen duration. A slot that has **already started** (the read still lists the earlier slots of today) is dropped. A domain error from the read (service or resource deactivated, duration no longer valid) means "nothing bookable"; it ends that group's read after one warning and never fails the run.
+
+### What the customer can actually select
+
+Only dates a customer can pick on the public booking page are considered, so an email is never sent about something the screen would not let them choose:
+
+| Hotsite `BOOKING_CTA` date picker | Selectable window (days ahead, today included) |
+|---|---|
+| carousel (the default) | `min(carouselDays, maxBookingAdvanceDays)` — `carouselDays` defaults to 14 |
+| calendar | `maxBookingAdvanceDays` |
+
+The hotsite's `BOOKING_CTA` module is read whether or not it is enabled (the public page does the same), and a tenant with no hotsite config gets the carousel/14 default. The per-service `maxBookingAdvanceDaysOverride` is **not** used: it is stored and editable but no availability or booking code reads it, so the tenant value is the real limit. An alert for a date beyond the window simply waits — the sweep matches it the day it enters the window, which is why an alert may live up to 365 days (`ALERT_MAX_EXPIRY_DAYS`, the highest value `maxBookingAdvanceDays` can take; the default stays 30).
+
+### Criteria matching
+
+The customer states when they can **start**, so the slot's *start* is what is compared (a slot's own end includes the service buffer, which is not the customer's concern):
+
+- `ONE_TIME_RANGE` — `acceptableStartAt <= slot start < acceptableEndAt`.
+- `WEEKLY_PREFERENCE` — the slot's start date **in the alert's timezone** (always the tenant's) is one of the weekdays, and its local start time is in `[localStartTime, localEndTime)`.
+
+Of the slots that match, the **earliest** becomes the alert's `matching_window`. `participantCount` is stored on the alert but is not part of matching: the availability engine has no notion of participants.
+
+### One notification per alert
+
+`recordNotificationAttempt()` moves the alert `ACTIVE → NOTIFIED`, so a notified alert is never matched again — one notification per alert, however many triggers see the same slot. The aggregate also refuses an alert that is cancelled, expired or already past its `expiresAt` (the expiry job runs on a coarse schedule). Two triggers racing on the same alert are serialized by the aggregate's **optimistic version check**: the loser gets `BookingConcurrentModificationError`, which the use case treats as "already handled" — the same primitive and outcome as `ExpireAvailabilityAlertsJob`, so no row lock is needed. The attempt row is inserted `ON CONFLICT (tenant_id, alert_id, matching_window, channel) DO NOTHING` in the same transaction as the status change and the outbox event, so a replayed event is a no-op. `outcome` is written as `PENDING`: `NOTIFIED` means "a match was found and handed off", not "an email was delivered" — the Notification-context consumer (a later story) updates it.
+
+### Known limitations
+
+- A booking window shortened *after* an alert was created never un-notifies anything; an alert simply waits for the new, smaller window.
+- Participant criteria are not matched (see above).
+- The sweep checks availability, not the booking window the backend enforces — nothing on the backend enforces `maxBookingAdvanceDays` / `minBookingAdvanceHours` today (tracked as M23-S33), so "selectable" is the UI's rule.
+
+---
+
 ## Other bounded contexts
 
 Not yet written. Add a section here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.
