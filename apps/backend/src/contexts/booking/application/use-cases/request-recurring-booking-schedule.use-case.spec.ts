@@ -235,6 +235,8 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       quantityPosition: null,
       selectionMode: 'CUSTOMER_CHOICE',
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt: conflictStart,
       endsAt: new Date(conflictStart.getTime() + 60 * 60_000),
     });
@@ -699,6 +701,8 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           quantityPosition: null,
           selectionMode: 'CUSTOMER_CHOICE',
           isBundleMember: false,
+          gapMinutes: null,
+          gapSource: null,
           startsAt: bookedStart,
           endsAt: new Date(bookedStart.getTime() + 60 * 60_000),
         });

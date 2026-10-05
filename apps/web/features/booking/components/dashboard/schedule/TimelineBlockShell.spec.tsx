@@ -92,4 +92,44 @@ describe('TimelineBlockShell', () => {
 
     expect(screen.getByTestId('schedule-closure-block-abc')).toBeInTheDocument();
   });
+
+  it('renders a non-interactive note (no button, no link) when neither href nor onClick is given', () => {
+    render(
+      <TimelineBlockShell
+        compact={false}
+        className="test-class"
+        style={{}}
+        title="Walace · até 10:00"
+        subtitle="Virada do recurso · 30 min"
+        tooltip="Virada do recurso Walace (30 min): só Walace fica bloqueado(a) até 10:00."
+      />,
+    );
+
+    const note = screen.getByRole('note', { name: /Virada do recurso Walace/ });
+    expect(note).toHaveAttribute('title', expect.stringContaining('Walace'));
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('lets the trailing badge wrap under the title instead of squeezing the title out of a narrow block', () => {
+    render(
+      <TimelineBlockShell
+        compact={false}
+        className="test-class"
+        style={{ width: '50%' }}
+        href="/dashboard/bookings/abc"
+        title="Camila Duarte"
+        subtitle="Lavagem completa"
+        trailing={<span data-testid="status-badge">Aprovado</span>}
+      />,
+    );
+
+    const header = screen.getByTestId('status-badge').parentElement!;
+    const titleGroup = screen.getByText('Camila Duarte').closest('div.min-w-0')!.parentElement!;
+    // jsdom has no layout, so assert the classes that produce it: a wrapping header, and a title
+    // group that reserves its own basis and grows into free space (it never collapses below it).
+    expect(header).toHaveClass('flex-wrap');
+    expect(titleGroup).toHaveClass('flex-1', 'basis-20', 'min-w-0');
+    expect(screen.getByTestId('status-badge')).toBeInTheDocument();
+  });
 });

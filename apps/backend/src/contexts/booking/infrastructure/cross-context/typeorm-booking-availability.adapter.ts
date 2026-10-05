@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { localDateRangeBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { IBookingAvailabilityPort } from '../../application/ports/booking-availability.port';
+import { ResourceGapSource } from '../../domain/resource-gap-source';
 import { ResourceOccupiedSlot } from '../../domain/resource-occupied-slot';
 import { DayGridOccupancyBlock } from '../../domain/day-grid-occupancy-block';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
@@ -77,14 +78,7 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
         'bl',
         'bl.lineId = blra.bookingLineId AND bl.tenantId = ro.tenantId',
       )
-      .select([
-        'ro.resourceId AS "resourceId"',
-        'ro.startsAt AS "startsAt"',
-        'ro.endsAt AS "endsAt"',
-        'ro.sourceType AS "sourceType"',
-        'bl.bookingId AS "bookingId"',
-        'ro.classSessionId AS "classSessionId"',
-      ])
+      .select(DAY_GRID_COLUMNS)
       .where('ro.tenantId = :tenantId', { tenantId })
       .andWhere('ro.resourceId IN (:...resourceIds)', { resourceIds })
       // Unlike findOccupancyByTenantAndResource above, includes REQUESTED — see this method's
@@ -98,6 +92,18 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
   }
 }
 
+const DAY_GRID_COLUMNS = [
+  'ro.resourceId AS "resourceId"',
+  'ro.startsAt AS "startsAt"',
+  'ro.endsAt AS "endsAt"',
+  'ro.sourceType AS "sourceType"',
+  'bl.bookingId AS "bookingId"',
+  'ro.classSessionId AS "classSessionId"',
+  'ro.gapMinutes AS "gapMinutes"',
+  'ro.gapSource AS "gapSource"',
+  'bl.serviceNameAtBooking AS "serviceName"',
+];
+
 interface DayGridOccupancyRow {
   resourceId: string;
   startsAt: Date;
@@ -105,6 +111,9 @@ interface DayGridOccupancyRow {
   sourceType: 'BOOKING_LINE' | 'CLASS_SESSION';
   bookingId: string | null;
   classSessionId: string | null;
+  gapMinutes: number | null;
+  gapSource: ResourceGapSource | null;
+  serviceName: string | null;
 }
 
 // Invariant: a BOOKING_LINE row's booking_line_resource_assignment_id always resolves to a real
@@ -118,5 +127,13 @@ function toDayGridOccupancyBlock(row: DayGridOccupancyRow): DayGridOccupancyBloc
     endsAt: new Date(row.endsAt),
     kind: isClassSession ? 'CLASS_SESSION' : 'BOOKING',
     refId: (isClassSession ? row.classSessionId : row.bookingId) as string,
+    gap:
+      !isClassSession && row.gapSource !== null && row.gapMinutes !== null
+        ? {
+            source: row.gapSource,
+            minutes: row.gapMinutes,
+            serviceName: row.gapSource === 'SERVICE_BUFFER' ? row.serviceName : null,
+          }
+        : null,
   };
 }

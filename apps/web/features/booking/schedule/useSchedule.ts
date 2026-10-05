@@ -154,14 +154,16 @@ export function useWeekBookings(from: string, to: string, initialData?: StaffBoo
 
 // The response doesn't vary by which resources are checked (it always covers every active
 // resource for the date), so the query key never includes resourceIds — only `enabled` does.
-// Never fetched for STAFF: resourceIds is always empty for STAFF, and the day-grid BFF route is
-// itself MANAGER-only, so this simply never fires rather than hitting a 403.
+// Fetched when at least one resource is checked (the columns board) or for a MANAGER with none
+// checked (the merged Day / Week held-time strips, M18-S10, which need every resource's block).
+// Never for STAFF: the day-grid BFF route is MANAGER-only, so this simply never fires rather than
+// hitting a 403.
 export function useScheduleDayGrid(date: string, resourceIds: readonly string[]) {
-  const { tenantId } = useTenant();
+  const { tenantId, role } = useTenant();
   return useQuery({
     queryKey: ['schedule', 'day-grid', tenantId, date],
     queryFn: () => getScheduleDayGrid(date),
-    enabled: Boolean(date) && resourceIds.length > 0,
+    enabled: Boolean(date) && (resourceIds.length > 0 || role === 'MANAGER'),
   });
 }
 
@@ -188,13 +190,13 @@ function combineWeekDayGrid(queries: readonly UseQueryResult<DayGridResponse>[])
 // GET /schedule/day-grid call per visible day, sharing the exact query key useScheduleDayGrid
 // already uses (so Day view's single-date query and Week view's 7-date fan-out share one cache
 // entry for whichever date the two happen to overlap on). Gated the same way: never fires for
-// STAFF or when zero resources are checked.
+// STAFF.
 export function useScheduleWeekDayGrid(
   dateKeys: readonly string[],
   resourceIds: readonly string[],
 ) {
-  const { tenantId } = useTenant();
-  const enabled = resourceIds.length > 0;
+  const { tenantId, role } = useTenant();
+  const enabled = resourceIds.length > 0 || role === 'MANAGER';
   return useQueries({
     queries: dateKeys.map((date) => ({
       queryKey: ['schedule', 'day-grid', tenantId, date],

@@ -5,6 +5,7 @@ import {
   utcDateToLocalHHMM,
 } from '../../../../shared/utils/calendar-date';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
+import { resolveGap } from '../resource-gap-source';
 import { ResourceOccupiedSlot } from '../resource-occupied-slot';
 import { Resource } from '../resource.aggregate';
 import { ScheduleClosure } from '../schedule-closure.aggregate';
@@ -246,12 +247,14 @@ export class AvailabilityService {
     return aStart < bEnd && bStart < aEnd;
   }
 
-  // UC-059 step 1 — the effective gap before the next booking on a resource, for a flat
-  // (non-legged) service, is whichever is larger: the service's own cleanup buffer, or the
-  // resource's own turnover. A1: both 0 collapses to today's exact single-number buffer model.
+  // UC-059 step 1 — a flat service's effective gap is the larger of its cleanup buffer and the
+  // resource's turnover (resolveGap). A1: both 0 collapses to today's single-number buffer model.
   effectiveFlatGapMinutes(bufferAfterMinutes: number, turnoverMinutes: number): number {
-    return Math.max(bufferAfterMinutes, turnoverMinutes);
+    return this.resolveFlatGap(bufferAfterMinutes, turnoverMinutes)?.minutes ?? 0;
   }
+
+  // The same rule with its origin (M18-S10): { minutes, source }, or null when both are 0.
+  readonly resolveFlatGap = resolveGap;
 
   // The hours-and-closures half of isWindowFree(), with the reason a window is refused: CLOSED —
   // the whole day is closed (a full-day closure, or a normally-closed weekday with no opening) or

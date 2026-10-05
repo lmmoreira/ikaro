@@ -1,4 +1,9 @@
-import type { ScheduleClosure, ScheduleOpening, StaffBookingCardResponse } from '@ikaro/types';
+import type {
+  DayGridBlockGap,
+  ScheduleClosure,
+  ScheduleOpening,
+  StaffBookingCardResponse,
+} from '@ikaro/types';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { getLocalTimeKey, overlaps, timeToMinutes } from '@/features/booking/schedule/date-utils';
 import { compareResourceAssignmentsByTypePriority } from '@/features/booking/schedule/schedule-resource-priority';
@@ -44,7 +49,53 @@ export interface OpeningTimelineEvent extends TimelineEventBase {
   readonly resourceName: string | null;
 }
 
-export type TimelineEvent = BookingTimelineEvent | ClosureTimelineEvent | OpeningTimelineEvent;
+// M18-S10 — the time a booking keeps ONE resource blocked after the booking itself ends
+// (service buffer or resource turnover), drawn directly below the booking in that resource's
+// column. Purely informational: never clickable, never takes a lane from a booking (it is built
+// after lane assignment and always spans the full column width), drawn beneath any other event.
+export interface BufferTimelineEvent extends TimelineEventBase {
+  readonly kind: 'buffer';
+  readonly resourceName: string;
+  readonly releasesAtLocalTime: string; // "HH:MM" in tenant timezone — the block's own endsAt
+  // Why the resource is held; null when the origin was not recorded (a row written before the gap
+  // columns existed) — rendered as "Origem não registrada", never a guessed cause.
+  readonly gap: DayGridBlockGap | null;
+  // The service name shown for a SERVICE_BUFFER: the gap's own snapshot, falling back to the
+  // booking's service names so the label is never blank.
+  readonly serviceName: string;
+}
+
+export type TimelineEvent =
+  BookingTimelineEvent | ClosureTimelineEvent | OpeningTimelineEvent | BufferTimelineEvent;
+
+// The input to buildBufferTimelineEvent — one per booking that has a held tail on this column's
+// resource, resolved from the day-grid block by schedule-resource-columns.ts.
+export interface BufferTail {
+  readonly bookingId: string;
+  readonly startMinutes: number;
+  readonly endMinutes: number;
+  readonly resourceName: string;
+  readonly releasesAtLocalTime: string;
+  readonly gap: DayGridBlockGap | null;
+  readonly serviceName: string;
+}
+
+export function buildBufferTimelineEvent(tail: BufferTail): BufferTimelineEvent {
+  return {
+    kind: 'buffer',
+    id: `buffer-${tail.bookingId}`,
+    startMinutes: tail.startMinutes,
+    endMinutes: tail.endMinutes,
+    title: tail.resourceName,
+    subtitle: '',
+    resourceName: tail.resourceName,
+    releasesAtLocalTime: tail.releasesAtLocalTime,
+    gap: tail.gap,
+    serviceName: tail.serviceName,
+    laneIndex: 0,
+    laneCount: 1,
+  };
+}
 
 export function getBookingTimeKey(
   booking: StaffBookingCardResponse,

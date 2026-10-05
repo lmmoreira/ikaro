@@ -1,5 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { ResourceType } from '../../domain/resource.types';
+import { ResourceGapSource } from '../../domain/resource-gap-source';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
 
 export type ResourceOccupancySourceType = 'BOOKING_LINE' | 'CLASS_SESSION';
@@ -52,6 +53,14 @@ export class ResourceOccupancyEntity {
 
   @Column({ name: 'hold_expires_at', type: 'timestamptz', nullable: true })
   holdExpiresAt!: Date | null;
+
+  // Why (and for how long) this row's ends_at extends past the booking line's own end — M18-S10.
+  // Both NULL = no gap, or a row written before the columns existed.
+  @Column({ name: 'gap_minutes', type: 'int', nullable: true })
+  gapMinutes!: number | null;
+
+  @Column({ name: 'gap_source', type: 'varchar', length: 20, nullable: true })
+  gapSource!: ResourceGapSource | null;
 
   @Column({ name: 'created_at', type: 'timestamptz', update: false })
   createdAt!: Date;

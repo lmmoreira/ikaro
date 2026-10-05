@@ -178,6 +178,8 @@ describe('assertPatternConflictFree', () => {
       quantityPosition: null,
       selectionMode: 'CUSTOMER_CHOICE' as const,
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt,
       endsAt: new Date(startsAt.getTime() + minutes * 60_000),
     };

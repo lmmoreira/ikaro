@@ -21,6 +21,7 @@ import {
 } from '@/features/booking/schedule/schedule-timeline';
 import { TimelineBlockShell } from './TimelineBlockShell';
 import { BookingResourceSummaryLine } from './BookingResourceSummaryLine';
+import { ScheduleBufferBlock } from './ScheduleBufferBlock';
 
 export interface ScheduleTimelineRenderProps {
   readonly slotGranularityMinutes: number;
@@ -53,7 +54,9 @@ function renderBookingTimelineEvent(
   // has an assigned resource, unchanged from Story 4: Week view's own resource-filter feature
   // (TD44 Story 1/2) depends on this line being visible to show which resource a booking matched.
   const showResourceLine = event.resourceNames.length > 0;
-  const extraLineCount = Number(showResourceLine) + 1;
+  // A booking sharing its time with another is laid out in a narrower lane, where the status badge
+  // wraps under the client name (TimelineBlockShell) — one more line the block must have room for.
+  const extraLineCount = Number(showResourceLine) + 1 + Number(event.laneCount > 1);
   // Content-fit floor, decoupled from the grid's own coordinate unit (TD44 Story 4) — lets this
   // block render visually taller than its own slot when its content needs it, without affecting
   // slotHeight/top for any other block.
@@ -142,6 +145,15 @@ function ResourceNameBadge({
   );
 }
 
+// A resource-scoped block in a shared lane is narrow enough for its trailing resource badge to wrap
+// under the title (TimelineBlockShell), which needs one more line of minimum height.
+function wrappedBadgeLines(event: {
+  readonly resourceName: string | null;
+  readonly laneCount: number;
+}): number {
+  return Number(event.resourceName !== null && event.laneCount > 1);
+}
+
 function renderOpeningTimelineEvent(
   event: OpeningTimelineEvent,
   compact: boolean,
@@ -163,9 +175,9 @@ function renderOpeningTimelineEvent(
   // findTenantWideOpening's note in schedule-timeline.ts) — a higher z-index keeps it readable
   // on top of that full-width backdrop instead of blending into it.
   const isResourceScoped = event.resourceName !== null;
-  // Opening blocks never render a footer (only title/subtitle + the trailing resource badge) — 0
-  // extra lines, same content shape regardless of duration.
-  const minHeight = `${getBlockMinHeightPx(compact, 0)}px`;
+  // Opening blocks never render a footer (only title/subtitle + the trailing resource badge). In a
+  // shared (narrow) lane that badge wraps under the title, so it needs one more line of room.
+  const minHeight = `${getBlockMinHeightPx(compact, wrappedBadgeLines(event))}px`;
 
   return (
     <TimelineBlockShell
@@ -206,7 +218,7 @@ function renderClosureTimelineEvent(
   const laneWidth = 100 / event.laneCount;
   const laneLeft = laneWidth * event.laneIndex;
   // Closure blocks never render a footer either — same reasoning as the opening block above.
-  const minHeight = `${getBlockMinHeightPx(compact, 0)}px`;
+  const minHeight = `${getBlockMinHeightPx(compact, wrappedBadgeLines(event))}px`;
 
   return (
     <TimelineBlockShell
@@ -251,6 +263,18 @@ export function renderTimelineEvent(
 
   if (event.kind === 'opening') {
     return renderOpeningTimelineEvent(event, compact, timeline, props, t);
+  }
+
+  if (event.kind === 'buffer') {
+    return (
+      <ScheduleBufferBlock
+        key={event.id}
+        event={event}
+        compact={compact}
+        timeline={timeline}
+        slotGranularityMinutes={props.slotGranularityMinutes}
+      />
+    );
   }
 
   return renderClosureTimelineEvent(event, compact, timeline, props, t);

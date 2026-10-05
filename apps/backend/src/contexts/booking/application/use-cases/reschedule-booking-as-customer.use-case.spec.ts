@@ -230,6 +230,8 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
         quantityPosition: null,
         selectionMode: 'NONE' as const,
         isBundleMember: false,
+        gapMinutes: null,
+        gapSource: null,
         startsAt: conflictAt,
         endsAt: new Date(conflictAt.getTime() + 60 * 60_000),
       });

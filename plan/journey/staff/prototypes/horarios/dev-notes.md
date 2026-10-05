@@ -302,7 +302,7 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 
 - **`TD44` Story 5 (`/story-discovery` 2026-09-27) — restored the time-range line at every duration, raised the base slot height:** live product feedback reconsidering Story 4's own minimum-granularity trade-off, now that scroll-to-now and the decoupled per-block `minHeight` (both Story 4) make a modestly taller calendar comfortable to navigate. The time-range line (`data-testid="timeline-block-time-range"`) now always renders, in every board — the `isMinimumGranularity`/`showTimeRangeLine` special case is removed entirely; `extraLineCount` is simply `Number(showResourceLine) + 1`. To keep a minimum-granularity block's rendered height from looking disproportionate next to its real duration, `getSlotHeight`'s base multiplier was raised from 48 to **72** (picked via a live comparison of 60/64/72 against the running app, across Day and Week view, during story-discovery) — an 18-slot (9-hour) business day now renders at ≈1296px, still comfortably navigable with scroll-to-now already in place. Files: `ScheduleTimelineEventRenderer.tsx`, `schedule-timeline-formatting.ts`. Full detail: `docs/archive/td/TD44-RESOURCE-COLUMNS-BOARD-SELECTION-CAP.md` Story 5.
 
-## ❌ Gap — M18-S10: who is held after each booking, and why (prototypes `09-colunas-buffer.html`, `09b-so-walace.html`)
+## ✅ Done — M18-S10: who is held after each booking, and why (prototypes `09-colunas-buffer.html`, `09b-so-walace.html`)
 
 **Story:** `plan/M18-BOOKING-IMPROVEMENTS.md` § M18-S10 (backend-ts + bff-ts + web-ts, size L). **Problem:** `ScheduleResourceColumnsBoard` draws a matched booking as `scheduledAt + totalDurationMins` (`schedule-timeline-events.ts`), ignoring the day-grid block's `endsAt`, which already includes the effective gap `max(service buffer, resource turnover)`. A manager sees free-looking time the availability engine will refuse — and nothing records *why* the time is held, so the origin cannot be shown.
 
@@ -316,19 +316,19 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 - Service buffer → same label in every resource column of the booking. Resource turnover → only the causing resource's column (see 09:30 in `09-colunas-buffer.html`: only Walace is held, the Localização is free).
 - `max(buffer, turnover)`; a tie goes to the service; both 0 → no segment. Only the booking's last line carries the service buffer; a legged line's gap is turnover only.
 - Tail geometry = `block.endsAt − booking end` (positive only); `gap` only supplies the label. Multi-line → one tail; unmatched "Ocupado" placeholder → none; tail crossing midnight → TD43's fixed banner.
-- Day-view columns board only; merged timeline and Week view unchanged.
+- Columns board: one strip per held resource. Merged Day timeline (no resource checked) and Week day-cards: one strip per booking — runs to the longest hold, names every resource held until then, cause = service buffer if any of them has it, else the turnover, else "Origem não registrada". MANAGER only; with resources checked in Week view only those are considered. These two views are not drawn in the prototype.
 
-**Data:** `resource_occupancy` gains nullable `gap_minutes` + `gap_source` (`SERVICE_BUFFER` | `RESOURCE_TURNOVER`), written with the row at booking time by the same `gapFor` the availability pre-filter already uses; `GET /schedule/day-grid` blocks gain `gap: { source, minutes, serviceName | null } | null` (`serviceName` = the booking line's `service_name_at_booking`, joined already). No new endpoint. Legacy rows stay NULL (no backfill).
+**Data:** `resource_occupancy` gains nullable `gap_minutes` + `gap_source` (`SERVICE_BUFFER` | `RESOURCE_TURNOVER`), written with the row at booking time by the same `gapFor` the availability pre-filter already uses (create, reschedule, recurring materialization); a resource reassignment recomputes it from the target resource; `GET /schedule/day-grid` blocks gain `gap: { source, minutes, serviceName | null } | null` (`serviceName` = the booking line's `service_name_at_booking`, joined already). No new endpoint. Legacy rows stay NULL (no backfill).
 
-**Planned file map (not yet implemented):**
+**File map (implemented):**
 
 | Layer | Files |
 |---|---|
-| Domain | `availability.service.ts` (`resolveFlatGap`), `resource-gap-source.ts` (new), `day-grid-occupancy-block.ts` |
-| Application | `resource-occupancy-candidate-builders.helpers.ts`, `resource-occupancy-repository.port.ts`, `get-schedule-day-grid.use-case.ts` |
+| Domain | `availability.service.ts` (`resolveFlatGap`), `resource-gap-source.ts` (new — `resolveGap`, the single rule), `day-grid-occupancy-block.ts` |
+| Application | `resource-occupancy-candidate-builders.helpers.ts`, `resource-reassignment.helpers.ts`, `materialize-recurring-schedule-occurrences.helpers.ts`, `resource-occupancy-repository.port.ts`, `get-schedule-day-grid.use-case.ts` |
 | Infrastructure | `resource-occupancy.entity.ts`, `typeorm-resource-occupancy.write-queries.ts`, `typeorm-booking-availability.adapter.ts`, new migration `AddGapToResourceOccupancy` |
 | Types/BFF | `packages/types/src/schedule.dto.ts`, `apps/bff/src/features/booking/schedule.types.ts` (both `DayGridBlock`) |
-| Web | `schedule-resource-columns.ts`, `schedule-timeline-events.ts`, `schedule-timeline.ts`, `schedule-timeline-event-list.ts`, `ScheduleTimelineEventRenderer.tsx`, `TimelineBlockShell.tsx`, `ScheduleResourceColumnsBoard.tsx` |
+| Web | `schedule-resource-columns.ts`, `schedule-timeline-events.ts`, `schedule-timeline.ts`, `schedule-timeline-event-list.ts`, `ScheduleTimelineEventRenderer.tsx`, `ScheduleBufferBlock.tsx` (new), `TimelineBlockShell.tsx`, `ScheduleResourceColumnsBoard.tsx` |
 | i18n | `packages/i18n/locales/{pt-BR,en}/web.json` — `dayGridBuffer*` keys |
 
 **Prototype notes:** both files are built from `08-visao-geral-manager.html` using the real Oct 8 Lavacar BeloAuto occupancy (bookings 11:00/13:00/16:00 → held until 12:30/15:00/17:30) plus an illustrative 09:00 Lavagem rápida with a 30-min Walace turnover (not Walace's real turnover, which is 5 min) to contrast the two origins. `09b-so-walace.html` is the one-resource-checked case. Free cells are tinted green only in the prototype so gaps are readable; the real board does not tint free time. Nav links point at real, existing screens (`../turmas/01-turmas-proximas.html`).

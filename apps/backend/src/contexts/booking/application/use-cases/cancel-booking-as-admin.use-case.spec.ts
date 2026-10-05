@@ -46,6 +46,8 @@ describe('CancelBookingAsAdminUseCase', () => {
       quantityPosition: null,
       selectionMode: 'NONE' as const,
       isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
       startsAt: new Date('2026-06-01T13:00:00.000Z'),
       endsAt: new Date('2026-06-01T13:30:00.000Z'),
     });

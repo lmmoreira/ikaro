@@ -15,6 +15,7 @@ import {
   type ScheduleUiState,
 } from '@/features/booking/schedule/schedule-page-ui-state';
 import { useScheduleQueryData } from '@/features/booking/schedule/schedule-page-query-data';
+import { useScheduleDayGrid } from '@/features/booking/schedule/useSchedule';
 import { useScheduleTimelineDerived } from '@/features/booking/schedule/schedule-page-timeline-derived';
 import type { SchedulePageControllerInput } from '@/features/booking/schedule/schedule-page-controller-types';
 import { RESOURCE_FILTER_MAX_SELECTED } from '@/features/booking/schedule/schedule-page-interaction-handlers';
@@ -187,6 +188,29 @@ function useScheduleVisibleData(props: SchedulePageControllerInput, ui: Schedule
   };
 }
 
+// The merged Day timeline's held-time strips need every resource's block for the selected day
+// (MANAGER only; shares its cache entry with the Week fan-out and the columns board).
+function useSelectedDayGrid(
+  selectedDateKey: string,
+  visible: ReturnType<typeof useScheduleVisibleData>,
+) {
+  const result = useScheduleDayGrid(
+    selectedDateKey,
+    visible.selectedResourceIdSet.size > 0
+      ? [...visible.selectedResourceIdSet]
+      : EMPTY_RESOURCE_IDS,
+  );
+  // Only the merged Day timeline consumes this query for the page itself (the columns board renders
+  // its own error for the same query, and Week view's fan-out is already folded into
+  // scheduleFetchError): a failed fetch there must read as an error, not as bookings that simply
+  // have no held time.
+  const selectedDayGridError =
+    visible.scheduleViewMode === 'day' && visible.selectedResourceIdSet.size === 0 && result.isError
+      ? result.error
+      : null;
+  return { selectedDayGrid: result.data, selectedDayGridError };
+}
+
 // Extracted from SchedulePage (TD37-S5A) — composes the page's UI state, the week's server data
 // (filtered by the selected status set), and the derived per-day timeline into one object; the
 // single seam the top-level controller (useSchedulePageController) builds labels/handlers on top of.
@@ -202,6 +226,7 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
   const { formatDateLong, timezone } = useFormatting();
   const ui = useScheduleUiState(todayKey, initialWeekStartKey, initialSelectedDateKey);
   const visible = useScheduleVisibleData(props, ui);
+  const { selectedDayGrid, selectedDayGridError } = useSelectedDayGrid(ui.selectedDateKey, visible);
 
   const timelineDerived = useScheduleTimelineDerived({
     weekDates: visible.weekDates,
@@ -215,6 +240,8 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     resourceNameById: visible.resourceNameById,
     selectedResourceIdSet: visible.selectedResourceIdSet,
     bookingResourceIdsById: visible.bookingResourceIdsById,
+    selectedDayGrid,
+    weekDayGrids: visible.weekDayGrids,
   });
 
   return {
@@ -223,6 +250,7 @@ export function useScheduleCoreData(props: SchedulePageControllerInput) {
     formatDateLong,
     ...visible,
     ...timelineDerived,
+    scheduleFetchError: visible.scheduleFetchError ?? selectedDayGridError,
   };
 }
 

@@ -9,7 +9,15 @@ const mockResponse: DayGridResponse = {
       resourceId: '00000000-0000-4000-8000-000000000001',
       name: 'Estúdio 1',
       type: 'ROOM',
-      blocks: [],
+      blocks: [
+        {
+          startsAt: '2026-06-01T13:00:00.000Z',
+          endsAt: '2026-06-01T15:00:00.000Z',
+          kind: 'BOOKING',
+          refId: '00000000-0000-4000-8000-0000000000b1',
+          gap: { source: 'SERVICE_BUFFER', minutes: 60, serviceName: 'Polimento' },
+        },
+      ],
     },
   ],
 };

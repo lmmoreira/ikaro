@@ -297,4 +297,70 @@ describe('useScheduleTimelineDerived', () => {
       expect(tuesday.isOverriddenByOpening).toBe(true);
     });
   });
+
+  describe('held-time strips (M18-S10)', () => {
+    const gap = { source: 'SERVICE_BUFFER', minutes: 30, serviceName: 'Lavagem completa' } as const;
+    const dayGrid = (date: string) => ({
+      date,
+      columns: [
+        {
+          resourceId: 'res-walace',
+          name: 'Walace',
+          type: 'STAFF' as const,
+          blocks: [
+            {
+              startsAt: `${date}T12:00:00.000Z`,
+              endsAt: `${date}T13:00:00.000Z`,
+              kind: 'BOOKING' as const,
+              refId: 'booking-1',
+              gap,
+            },
+          ],
+        },
+      ],
+    });
+    const bufferEvents = (events: readonly TimelineEvent[]) =>
+      events.filter((event) => event.kind === 'buffer');
+
+    it('adds one strip under the booking in the merged Day timeline when the day-grid is available', () => {
+      const { result } = renderHook(() =>
+        useScheduleTimelineDerived(
+          baseInput({
+            visibleBookings: [makeBooking()],
+            selectedDayGrid: dayGrid('2026-08-17'),
+          }),
+        ),
+      );
+
+      const strips = bufferEvents(result.current.selectedDayTimeline.events);
+      expect(strips).toHaveLength(1);
+      expect(strips[0]).toMatchObject({ resourceName: 'Walace', releasesAtLocalTime: '10:00' });
+    });
+
+    it('adds nothing without a day-grid (STAFF, or still loading)', () => {
+      const { result } = renderHook(() =>
+        useScheduleTimelineDerived(baseInput({ visibleBookings: [makeBooking()] })),
+      );
+
+      expect(bufferEvents(result.current.selectedDayTimeline.events)).toHaveLength(0);
+      for (const card of result.current.weekTimelineCards) {
+        expect(bufferEvents(card.events)).toHaveLength(0);
+      }
+    });
+
+    it("adds the strip to the booking's own Week day-card only", () => {
+      const { result } = renderHook(() =>
+        useScheduleTimelineDerived(
+          baseInput({
+            visibleBookings: [makeBooking()],
+            weekDayGrids: [dayGrid('2026-08-17'), { date: '2026-08-18', columns: [] }],
+          }),
+        ),
+      );
+
+      const [monday, tuesday] = result.current.weekTimelineCards;
+      expect(bufferEvents(monday.events)).toHaveLength(1);
+      expect(bufferEvents(tuesday.events)).toHaveLength(0);
+    });
+  });
 });
