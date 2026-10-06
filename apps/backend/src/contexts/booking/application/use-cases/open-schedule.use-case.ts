@@ -23,7 +23,7 @@ import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repo
 import { IBookingPlatformPort, BOOKING_PLATFORM_PORT } from '../ports/booking-platform.port';
 import {
   getUtcWeekDayName,
-  todayUTC,
+  todayInTimezone,
   type WeekDayName,
 } from '../../../../shared/utils/calendar-date';
 import { OpenScheduleDto } from '../dtos/open-schedule.dto';
@@ -62,7 +62,7 @@ export class OpenScheduleUseCase {
   async execute(input: OpenScheduleUseCaseInput): Promise<OpenScheduleUseCaseResult> {
     const { tenantId, createdBy, resourceId } = input;
 
-    const today = todayUTC();
+    const today = todayInTimezone(input.businessHours.timezone);
     if (input.date < today) throw new OpeningDateInPastError();
 
     const resource =

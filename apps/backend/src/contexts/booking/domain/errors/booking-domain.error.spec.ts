@@ -18,6 +18,8 @@ import {
   BookingRejectionReasonTooShortError,
   BookingScheduledAtInvalidError,
   BookingScheduledInPastError,
+  BookingTooFarAheadError,
+  BookingTooSoonError,
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
   BookingSlotUnavailableError,
@@ -218,6 +220,16 @@ describe('booking domain error subclasses', () => {
       label: 'BookingScheduledInPastError',
       build: () => new BookingScheduledInPastError(),
       code: BookingErrorCode.SCHEDULED_IN_PAST,
+    },
+    {
+      label: 'BookingTooSoonError',
+      build: () => new BookingTooSoonError(24),
+      code: BookingErrorCode.TOO_SOON,
+    },
+    {
+      label: 'BookingTooFarAheadError',
+      build: () => new BookingTooFarAheadError(90),
+      code: BookingErrorCode.TOO_FAR_AHEAD,
     },
     {
       label: 'BookingScheduledAtInvalidError',

@@ -335,9 +335,12 @@ export interface HotsiteServiceLeg {
   transitionGapAfterMinutes: number;
 }
 
-// The subset of the service's booking policy the booking flow reads — no override, approval,
-// hold, availability-alert or class-slot fields.
+// The subset of the service's booking policy the booking flow reads — no raw override, approval,
+// hold, availability-alert or class-slot fields. The effective booking window is the service's own
+// override already clamped to the tenant window, so the page never recomputes it.
 export interface HotsiteServiceBookingPolicy {
+  effectiveMinBookingAdvanceHours: number;
+  effectiveMaxBookingAdvanceDays: number;
   durationPolicy: ServiceDurationPolicy;
   durationMinMinutes: number | null;
   durationMaxMinutes: number | null;

@@ -5,6 +5,8 @@ export class HotsiteServiceBuilder {
   private name = 'Lavagem Completa';
   private isActive = true;
   private bookingPolicy: HotsiteServiceBookingPolicy = {
+    effectiveMinBookingAdvanceHours: 0,
+    effectiveMaxBookingAdvanceDays: 90,
     durationPolicy: 'FIXED',
     durationMinMinutes: null,
     durationMaxMinutes: null,

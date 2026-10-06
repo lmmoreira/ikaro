@@ -76,8 +76,8 @@ Controls booking lifecycle and rules.
 |-----|------|---------|-----|-----|-------------|
 | `cancellationWindowHours` | integer | 48 | 0 | 720 | Hours before appointment when customer can still cancel (0 = no self-cancellation) |
 | `autoApproveEnabled` | boolean | false | — | — | Tenant-wide default approval mode for appointment bookings — inherited by `Service.defaultApprovalMode` when left `null` (UC-055, consumed starting M22-S02). Editable via dashboard Configurações → Booking since earlier; this is the first consumer. |
-| `minBookingAdvanceHours` | integer | 0 | 0 | 8760 | Minimum hours in advance customer must book (0 = can book same day) |
-| `maxBookingAdvanceDays` | integer | 90 | 1 | 365 | Maximum days in advance customer can book |
+| `minBookingAdvanceHours` | integer | 0 | 0 | 8760 | Minimum hours in advance customer must book (0 = can book same day). Enforced by the backend on booking creation and customer reschedule (M23-S33); a service's `minBookingAdvanceHoursOverride` can only raise it. |
+| `maxBookingAdvanceDays` | integer | 90 | 1 | 365 | Maximum days in advance customer can book. The last bookable day is `today + maxBookingAdvanceDays − 1` in the tenant timezone. Enforced by the backend on booking creation and customer reschedule (M23-S33); a service's `maxBookingAdvanceDaysOverride` can only lower it. |
 | `serviceBufferMinutes` | integer | 60 | 0 | 120 | Buffer time between service end and next booking (cleaning, prep time) |
 | `slotGranularityMinutes` | integer | 30 | 15 | 60 | Calendar slot unit in minutes. Valid values: 15, 30, 60. Controls granularity of available start times shown in UC-011. |
 | `welcomeStaffScreenDays` | integer | 14 | 1 | 90 | (`M13-S17`) Size of the configurable date window shown/filtered on the staff booking queue's day-strip navigator (`/dashboard/bookings`). |
@@ -109,11 +109,13 @@ Controls booking lifecycle and rules.
 
 **Validation Rules:**
 - `cancellationWindowHours` must be 0–720 (0–30 days)
-- `minBookingAdvanceHours` must be ≥ 0, documented ceiling 8760 (1 year)
-- `maxBookingAdvanceDays` must be ≥ 1, documented ceiling 365
-- `minBookingAdvanceHours` / 24 must be < `maxBookingAdvanceDays`
+- `minBookingAdvanceHours` must be 0–8760 (1 year)
+- `maxBookingAdvanceDays` must be 1–365
+- `minBookingAdvanceHours` / 24 must be < `maxBookingAdvanceDays` (the minimum notice must leave at least one bookable day, so the two ceilings can only be reached together up to `8759` hours / `365` days)
 
-> **Not yet enforced (found via `/docs-audit` 2026-09-17):** none of the three rules above — the two upper bounds or the cross-field rule — are actually checked in `booking-settings.validator.ts` or the Zod schema (`packages/validation/src/tenant-settings.ts`) today; only the lower bounds (`≥ 0`, `≥ 1`) are. Documented as the intended ceiling for a future validation pass, not a currently-enforced constraint.
+Enforced since M23-S33 in `booking-settings.validator.ts` (domain) and the Zod schema (`packages/validation/src/tenant-settings.ts`, the two ceilings only — the cross-field rule needs the merged settings, so it lives in the validator and the dashboard form).
+
+**Effective window per service (M23-S33).** The tenant window is the ceiling for every service: `effective max days = min(service override, tenant max)` and `effective min hours = max(service override, tenant min)`, each field independently. A basket takes the smallest maximum and the largest minimum across its lines. See `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking window.
 - `slotGranularityMinutes` must be one of: 15, 30, 60
 - `classCancellationWindowHours`/`classSkipWindowHours` must be 0–720 when set (M24 Cluster 4)
 - `classRescheduleWindowDays` must be ≥ 1 when `classAllowsReschedule = true` (M24 Cluster 4)

@@ -577,6 +577,67 @@ X-Correlation-ID: test-corr-006
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ERROR — start in the past → 422 BOOKING_SCHEDULED_IN_PAST (M23-S33)
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Correlation-ID: test-corr-006a
+
+{
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
+  "scheduledAt": "2020-01-06T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — start beyond the booking window → 422 BOOKING_TOO_FAR_AHEAD (M23-S33)
+# The last bookable day is today + maxBookingAdvanceDays − 1 (tenant timezone), tightened by the
+# service's own maxBookingAdvanceDaysOverride. Use a date past that.
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Correlation-ID: test-corr-006b
+
+{
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
+  "scheduledAt": "2099-01-06T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — start inside the minimum notice → 422 BOOKING_TOO_SOON (M23-S33)
+# Needs a minBookingAdvanceHours (tenant setting, or the service's override) greater than the
+# hours from now to scheduledAt — set it first, then book a start sooner than that.
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Correlation-ID: test-corr-006c
+
+{
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
+  "scheduledAt": "2026-12-01T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — authenticated customer booking (UC-002)
 # X-Actor-ID is forwarded by BFF from JWT sub claim
 # ─────────────────────────────────────────────────────────────────────────────

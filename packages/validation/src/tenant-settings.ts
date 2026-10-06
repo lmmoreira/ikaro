@@ -32,8 +32,8 @@ export const BookingSettingsSchema = z
   .object({
     cancellationWindowHours: z.number().int().min(0).max(720),
     autoApproveEnabled: z.boolean(),
-    minBookingAdvanceHours: z.number().int().min(0),
-    maxBookingAdvanceDays: z.number().int().min(1),
+    minBookingAdvanceHours: z.number().int().min(0).max(8760),
+    maxBookingAdvanceDays: z.number().int().min(1).max(365),
     serviceBufferMinutes: z.number().int().min(0).max(120),
     slotGranularityMinutes: z.union([z.literal(15), z.literal(30), z.literal(60)]),
     welcomeStaffScreenDays: z.number().int().min(1).max(90),

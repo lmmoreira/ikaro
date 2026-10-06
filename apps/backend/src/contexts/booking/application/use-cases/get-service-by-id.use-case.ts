@@ -25,6 +25,7 @@ export class GetServiceByIdUseCase {
     if (!service) throw new ServiceNotFoundError(id);
 
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(tenantId);
-    return toServiceResult(service, locale, autoApproveEnabled);
+    const tenantWindow = await this.bookingPlatform.getTenantBookingWindow(tenantId);
+    return toServiceResult(service, locale, autoApproveEnabled, tenantWindow);
   }
 }

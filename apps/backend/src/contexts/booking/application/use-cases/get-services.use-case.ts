@@ -33,6 +33,9 @@ export class GetServicesUseCase {
     const locale = input.locale ?? 'pt-BR';
     // One fetch for the whole list — not per service — since it's the same tenant-wide default.
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(input.tenantId);
-    return { items: services.map((s) => toServiceResult(s, locale, autoApproveEnabled)) };
+    const tenantWindow = await this.bookingPlatform.getTenantBookingWindow(input.tenantId);
+    return {
+      items: services.map((s) => toServiceResult(s, locale, autoApproveEnabled, tenantWindow)),
+    };
   }
 }

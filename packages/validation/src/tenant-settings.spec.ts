@@ -1,6 +1,7 @@
 import type { core } from 'zod';
 import { PlatformErrorCode } from '@ikaro/types';
 import {
+  BookingSettingsSchema,
   BusinessHoursSettingsSchema,
   BusinessInfoSettingsSchema,
   LeadFormSettingsSchema,
@@ -28,6 +29,24 @@ describe('LoyaltySettingsSchema', () => {
 
   it('rejects a non-integer pointsPerCurrencyUnit', () => {
     expect(LoyaltySettingsSchema.safeParse({ pointsPerCurrencyUnit: 1.5 }).success).toBe(false);
+  });
+});
+
+describe('BookingSettingsSchema', () => {
+  it('accepts the documented ceilings', () => {
+    expect(
+      BookingSettingsSchema.safeParse({ minBookingAdvanceHours: 8760, maxBookingAdvanceDays: 365 })
+        .success,
+    ).toBe(true);
+  });
+
+  it.each([
+    ['minBookingAdvanceHours', 8761],
+    ['maxBookingAdvanceDays', 366],
+    ['minBookingAdvanceHours', -1],
+    ['maxBookingAdvanceDays', 0],
+  ])('rejects %s = %d', (field, value) => {
+    expect(BookingSettingsSchema.safeParse({ [field]: value }).success).toBe(false);
   });
 });
 

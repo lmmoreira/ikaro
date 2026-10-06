@@ -115,6 +115,137 @@ describe('UpdateServiceBookingPolicyUseCase', () => {
     ).rejects.toThrow(ServiceDurationPolicyRequiresPricingError);
   });
 
+  describe('booking window overrides (M23-S33)', () => {
+    beforeEach(() => {
+      bookingPlatform.seedTenantBookingWindow(TENANT_A, {
+        minBookingAdvanceHours: 2,
+        maxBookingAdvanceDays: 90,
+      });
+    });
+
+    async function saved() {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(service);
+      return service;
+    }
+
+    it('accepts overrides that tighten the tenant window', async () => {
+      const service = await saved();
+
+      const result = await useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        minBookingAdvanceHoursOverride: 24,
+        maxBookingAdvanceDaysOverride: 30,
+      });
+
+      expect(result.bookingPolicy.minBookingAdvanceHoursOverride).toBe(24);
+      expect(result.bookingPolicy.maxBookingAdvanceDaysOverride).toBe(30);
+    });
+
+    it('rejects a maximum above the tenant maximum (422)', async () => {
+      const service = await saved();
+
+      await expect(
+        useCase.execute({
+          id: service.id,
+          tenantId: TENANT_A,
+          maxBookingAdvanceDaysOverride: 120,
+        }),
+      ).rejects.toMatchObject({
+        name: 'ServiceBookingPolicyInvalidError',
+        field: 'maxBookingAdvanceDaysOverride',
+      });
+    });
+
+    it('rejects a minimum notice below the tenant minimum (422)', async () => {
+      const service = await saved();
+
+      await expect(
+        useCase.execute({
+          id: service.id,
+          tenantId: TENANT_A,
+          minBookingAdvanceHoursOverride: 1,
+        }),
+      ).rejects.toMatchObject({
+        name: 'ServiceBookingPolicyInvalidError',
+        field: 'minBookingAdvanceHoursOverride',
+      });
+    });
+
+    it('rejects a minimum notice that leaves no bookable day, checked against the tenant side', async () => {
+      const service = await saved();
+      bookingPlatform.seedTenantBookingWindow(TENANT_A, {
+        minBookingAdvanceHours: 0,
+        maxBookingAdvanceDays: 7,
+      });
+
+      await expect(
+        useCase.execute({
+          id: service.id,
+          tenantId: TENANT_A,
+          minBookingAdvanceHoursOverride: 24 * 10,
+        }),
+      ).rejects.toMatchObject({ name: 'ServiceBookingPolicyInvalidError' });
+    });
+
+    it('does not block an unrelated edit when an earlier override has gone stale', async () => {
+      const service = await saved();
+      await useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        maxBookingAdvanceDaysOverride: 80,
+      });
+      bookingPlatform.seedTenantBookingWindow(TENANT_A, {
+        minBookingAdvanceHours: 2,
+        maxBookingAdvanceDays: 30,
+      });
+
+      const result = await useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        manualHoldMinutes: 45,
+      });
+
+      expect(result.bookingPolicy.manualHoldMinutes).toBe(45);
+    });
+
+    it('does not block re-sending a stale override unchanged along with other fields', async () => {
+      const service = await saved();
+      await useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        maxBookingAdvanceDaysOverride: 80,
+      });
+      bookingPlatform.seedTenantBookingWindow(TENANT_A, {
+        minBookingAdvanceHours: 2,
+        maxBookingAdvanceDays: 30,
+      });
+
+      const result = await useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        maxBookingAdvanceDaysOverride: 80,
+        manualHoldMinutes: 45,
+      });
+
+      expect(result.bookingPolicy.manualHoldMinutes).toBe(45);
+      expect(result.bookingPolicy.effectiveMaxBookingAdvanceDays).toBe(30);
+    });
+
+    it('clearing an override with null is always allowed', async () => {
+      const service = await saved();
+
+      const result = await useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        maxBookingAdvanceDaysOverride: null,
+      });
+
+      expect(result.bookingPolicy.maxBookingAdvanceDaysOverride).toBeNull();
+    });
+  });
+
   it('rejects on a SESSION service (409)', async () => {
     const sessionService = new ServiceBuilder()
       .withTenantId(TENANT_A)

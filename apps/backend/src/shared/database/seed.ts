@@ -63,7 +63,9 @@ const TENANT_SETTINGS_BR = {
     cancellationWindowHours: 48,
     autoApproveEnabled: false,
     minBookingAdvanceHours: 0,
-    maxBookingAdvanceDays: 90,
+    // Wide enough for the E2E schedule specs, which book up to ~165 days ahead so their slots never
+    // collide with other specs' — the backend now enforces this window on every booking.
+    maxBookingAdvanceDays: 200,
     serviceBufferMinutes: 60,
     slotGranularityMinutes: 30,
   },

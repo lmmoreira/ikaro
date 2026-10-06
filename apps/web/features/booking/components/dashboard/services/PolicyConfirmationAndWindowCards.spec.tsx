@@ -17,6 +17,8 @@ const BASE_POLICY: ServiceBookingPolicyItem = {
   rescheduleWindowHoursOverride: null,
   minBookingAdvanceHoursOverride: null,
   maxBookingAdvanceDaysOverride: null,
+  effectiveMinBookingAdvanceHours: 0,
+  effectiveMaxBookingAdvanceDays: 90,
   recurrenceEligible: false,
   recurringHorizonDays: null,
   availabilityAlertEligible: false,

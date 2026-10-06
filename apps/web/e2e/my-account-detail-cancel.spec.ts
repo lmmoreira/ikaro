@@ -67,9 +67,10 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
     page,
   }) => {
     const customerEmail = uniqueTestEmail('detail-cancel-outside-window');
-    // daysAhead: 0 schedules today, always inside the 48h cancellationWindowHours setting —
-    // i.e. already outside the window a customer is allowed to self-cancel from.
-    const setup = await createFreshApprovedBooking(page, 0, STAFF_EMAIL, {
+    // daysAhead: 1 schedules tomorrow (the backend rejects a start in the past), always inside the
+    // 48h cancellationWindowHours setting — i.e. already outside the window a customer is allowed
+    // to self-cancel from.
+    const setup = await createFreshApprovedBooking(page, 1, STAFF_EMAIL, {
       contactEmail: customerEmail,
     });
     await loginAsCustomer(page, customerEmail, TENANT_SLUG);

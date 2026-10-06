@@ -2,10 +2,21 @@
 import { renderWithIntl } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AvailabilityResponse } from '@ikaro/types';
 import { fetchAvailability } from '@/features/platform/hotsite/api/schedule';
 import { SlotPicker } from './SlotPicker';
+
+// The fixtures use fixed 2026-06-15 slots; the picker hides a slot that has already started, so the
+// clock is pinned to the morning of that day.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-15T08:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 vi.mock('@/features/platform/hotsite/api/schedule', () => ({
   fetchAvailabilitySummary: vi.fn(),
@@ -192,5 +203,55 @@ describe('SlotPicker', () => {
     rerender(element('r-2'));
 
     await vi.waitFor(() => expect(fetchAvailability).toHaveBeenCalledTimes(2));
+  });
+
+  it('hides a slot that starts inside the minimum notice', async () => {
+    vi.mocked(fetchAvailability).mockResolvedValue({
+      date: '2026-06-15',
+      available: true,
+      slots: [
+        { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' },
+        { startsAt: '2026-06-15T14:00:00.000Z', endsAt: '2026-06-15T15:00:00.000Z' },
+      ],
+    });
+
+    // 08:00Z + 5h = 13:00Z: the 12:00Z slot is too soon, the 14:00Z one is not.
+    renderWithIntl(
+      <SlotPicker
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        date="2026-06-15"
+        selectedSlot={null}
+        onSelectSlot={vi.fn()}
+        minBookingAdvanceHours={5}
+      />,
+    );
+
+    expect(await screen.findByText('11:00–12:00')).toBeInTheDocument();
+    expect(screen.queryByText('09:00–10:00')).not.toBeInTheDocument();
+  });
+
+  it('hides a slot that has already started', async () => {
+    vi.mocked(fetchAvailability).mockResolvedValue({
+      date: '2026-06-15',
+      available: true,
+      slots: [
+        { startsAt: '2026-06-15T07:00:00.000Z', endsAt: '2026-06-15T08:00:00.000Z' },
+        { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' },
+      ],
+    });
+
+    renderWithIntl(
+      <SlotPicker
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        date="2026-06-15"
+        selectedSlot={null}
+        onSelectSlot={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('09:00–10:00')).toBeInTheDocument();
+    expect(screen.queryByText('04:00–05:00')).not.toBeInTheDocument();
   });
 });

@@ -64,6 +64,7 @@ UC-XXX: [Use Case Name]
   - **A6: Wrong tenant URL** → Guest sees only that tenant's services/calendar.
   - **A7: Pickup service selected but address missing** → System blocks submission: "Endereço de coleta obrigatório para o serviço selecionado."
   - **A8: Guest removes pickup service from basket** → Address field hides; previously entered address is discarded.
+  - **A9: The chosen start is outside the booking window (M23-S33)** — a start in the past → `422 BOOKING_SCHEDULED_IN_PAST`; inside the minimum notice → `422 BOOKING_TOO_SOON`; after the last bookable day → `422 BOOKING_TOO_FAR_AHEAD`. The window is the tenant's `minBookingAdvanceHours` / `maxBookingAdvanceDays`, tightened by each selected service's own overrides (the strictest across the basket applies), and the last bookable day is `today + maxBookingAdvanceDays − 1` in the tenant timezone. The booking page never offers such a date or slot, so this only answers a direct API call or a stale page. UC-002 follows the same rule.
 
 - **Postconditions:** Booking exists in PENDING with ≥ 1 lines (and `pickupAddress` if applicable), scoped to tenant. Admin notified. Guest receives confirmation email listing services, total price, and pickup address if relevant.
 - **Events Triggered:** `BookingRequested` (envelope: `tenantId`; `data.lines[]` ≥ 1; `data.pickupAddress` if applicable).
@@ -574,7 +575,7 @@ Backend loads ScheduleClosures, ScheduleOpenings, and APPROVED bookings for the 
 ]
 ```
 
-Constraints: `from ≤ to`; range ≤ 90 days (tenant's `maxBookingAdvanceDays`). Past dates return `available: false, slotCount: 0` without an error.
+Constraints: `from ≤ to`; range ≤ 90 days (tenant's `maxBookingAdvanceDays`). "Today" is the tenant-local calendar day (M23-S33; it was the UTC date before). Past dates return `available: false, slotCount: 0` without an error. The availability reads are **not** trimmed to the booking window — staff use them too, and a booking outside the window is rejected at creation (UC-061/UC-069, `BOOKING_TOO_FAR_AHEAD` / `BOOKING_TOO_SOON`); the public booking page hides what the backend would reject.
 
 **Phase 2 — Day Detail (user clicks a specific day)**
 
@@ -881,7 +882,7 @@ Returns:
 - **Trigger:** Admin edits the service's booking policy.
 - **Main Flow:**
   1. Admin sets approval mode (`AUTO_CONFIRM`/`MANUAL_APPROVAL`, inheriting the tenant default when left blank) and, if `MANUAL_APPROVAL`, the hold duration.
-  2. Admin sets the cancellation window, minimum notice, and maximum advance (all inheriting tenant defaults when left blank).
+  2. Admin sets the cancellation window, minimum notice, and maximum advance (all inheriting tenant defaults when left blank). The tenant's booking window is the **ceiling**: the minimum notice can only be raised and the maximum advance only lowered, and the effective minimum notice (in whole days) must be shorter than the effective maximum advance (M23-S33, A5).
   3. Admin toggles whether the service allows recurring private reservations and availability alerts (Cluster 3). When recurrence is on, admin may also set the maximum term of a recurring schedule for this service (`recurringHorizonDays`, 1–180 days; blank inherits the 90-day platform default) — it caps every recurring schedule for the service, whether a customer or staff creates it (UC-070).
   4. If the service has `durationPolicy = CUSTOMER_SELECTED`, admin also sets minimum/maximum/increment duration, the per-increment price, and optional minimum charge.
   5. System saves the policy on `Service`; every subsequent booking snapshots the effective values at submission time.
@@ -890,6 +891,7 @@ Returns:
   - **A2: Admin sets `durationPolicy = CUSTOMER_SELECTED` without a `pricingPolicy`** → `422 Unprocessable` — a variable-duration service must declare how it prices.
   - **A3: Admin sets `recurringHorizonDays` outside 1–180** → rejected: the dashboard shows an inline range error and blocks the save; a direct API call gets `400` (request validation). The ceiling bounds how many occurrences one schedule can materialize at creation.
   - **A4: Admin sets `durationPolicy = CUSTOMER_SELECTED` on a service that has `legs`** → `409 Conflict` (`BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT`) — see UC-052 A2; the dashboard disables the "Cliente escolhe" option (with an explanatory hint) for a legged service so a manager never reaches this error from the UI.
+  - **A5: Admin sets a minimum notice below the tenant's, a maximum advance above the tenant's, or a pair that leaves no bookable day (M23-S33)** → `422 BOOKING_SERVICE_BOOKING_POLICY_INVALID`, naming the field. An override that merely went stale after the tenant shrank its own window is clamped on read and does not block saving the rest of the policy.
 - **Postconditions:** The service has a complete, self-contained booking policy; no field silently falls back to an undocumented default.
 - **Events Triggered:** None.
 
@@ -1154,6 +1156,7 @@ Returns:
 - **Alternative Flows:**
   - **A1: Replacement is no longer available** → Original remains intact; customer selects another option.
   - **A2: Bundle/journey** → Every resource/leg revalidated as one atomic change; no partial move possible.
+  - **A4: The new start is outside the booking window (M23-S33), customer path only** → `422 BOOKING_SCHEDULED_IN_PAST` / `BOOKING_TOO_SOON` / `BOOKING_TOO_FAR_AHEAD`, by the same rule as UC-001 A9; the original booking is untouched. A staff reschedule (A3) is exempt, like the reschedule-window check.
   - **A3: Staff policy override** → Staff records reason and actor, but never bypasses capacity, verification, or resource exclusivity, and never runs the reschedule-window eligibility check (staff acts outside that customer-facing guardrail, same as the existing cancellation-window override).
 - **Postconditions:** Customer never loses the original slot merely because a replacement submit races.
 - **Events Triggered:** `BookingRescheduled`.

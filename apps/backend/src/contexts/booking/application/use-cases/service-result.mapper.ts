@@ -3,6 +3,8 @@ import { ResourceRequirementProps } from '../../domain/resource-requirement';
 import { Service, ServiceBookingModel } from '../../domain/service.aggregate';
 import { ServiceLegReconstituteProps } from '../../domain/service-leg';
 import { ServiceBookingPolicyProps } from '../../domain/service.types';
+import { TenantBookingWindow } from '../ports/booking-platform.port';
+import { resolveEffectiveBookingWindow } from './booking-window.helpers';
 
 // Shared by CreateServiceUseCase and UpdateServiceUseCase — both return the same fully-resolved
 // Service shape (docs/CODE_STANDARDS.md's "extract once a second real caller exists").
@@ -21,8 +23,16 @@ export interface ServiceUseCaseResult {
   bufferAfterMinutes: number | null;
   legs: ServiceLegReconstituteProps[] | null;
   classResourceSlots: ReturnType<ClassResourceSlot['toJSON']>[] | null;
-  bookingPolicy: ServiceBookingPolicyProps;
+  bookingPolicy: ServiceBookingPolicyResult;
 }
+
+// The saved policy plus the booking window the service really has: its own override clamped to the
+// tenant window (M23-S33). Resolved on every read, never persisted, so a tenant-settings change is
+// reflected immediately — the same contract as the inherited approval mode below.
+export type ServiceBookingPolicyResult = ServiceBookingPolicyProps & {
+  effectiveMinBookingAdvanceHours: number;
+  effectiveMaxBookingAdvanceDays: number;
+};
 
 // M22-S02: a null bookingPolicy.defaultApprovalMode means "inherit the tenant default" — resolved
 // here, on every read, from settings.booking.autoApproveEnabled (never persisted onto the service
@@ -39,10 +49,24 @@ export function resolveApprovalMode(
   };
 }
 
+export function resolveBookingPolicyResult(
+  service: Service,
+  autoApproveEnabled: boolean,
+  tenantWindow: TenantBookingWindow,
+): ServiceBookingPolicyResult {
+  const window = resolveEffectiveBookingWindow(tenantWindow, [service]);
+  return {
+    ...resolveApprovalMode(service.bookingPolicy, autoApproveEnabled),
+    effectiveMinBookingAdvanceHours: window.minAdvanceHours,
+    effectiveMaxBookingAdvanceDays: window.maxAdvanceDays,
+  };
+}
+
 export function toServiceResult(
   service: Service,
   locale: string,
   autoApproveEnabled: boolean,
+  tenantWindow: TenantBookingWindow,
 ): ServiceUseCaseResult {
   return {
     id: service.id,
@@ -65,6 +89,6 @@ export function toServiceResult(
     classResourceSlots: service.classResourceSlots
       ? service.classResourceSlots.map((s) => s.toJSON())
       : null,
-    bookingPolicy: resolveApprovalMode(service.bookingPolicy, autoApproveEnabled),
+    bookingPolicy: resolveBookingPolicyResult(service, autoApproveEnabled, tenantWindow),
   };
 }

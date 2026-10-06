@@ -56,6 +56,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
         // manifest.booking is optional (see @ikaro/types) — falls back to the documented tenant
         // settings default (docs/21-TENANTS_SETTINGS_SCHEMA.md) rather than dereferencing unconditionally.
         maxBookingAdvanceDays={manifest.booking?.maxBookingAdvanceDays ?? 90}
+        timezone={manifest.localization.timezone}
         phonePrefix={manifest.localization.phonePrefix}
         addressSpec={manifest.localization.address}
       />

@@ -471,8 +471,8 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 | manual_hold_minutes | INT | NULLABLE — null inherits platform default (30) |
 | cancellation_window_hours_override | INT | NULLABLE — null inherits tenant `cancellationWindowHours` |
 | reschedule_window_hours_override | INT | NULLABLE — null inherits the same effective value as `cancellation_window_hours_override` |
-| min_booking_advance_hours_override | INT | NULLABLE — null inherits tenant `minBookingAdvanceHours` |
-| max_booking_advance_days_override | INT | NULLABLE — null inherits tenant `maxBookingAdvanceDays` |
+| min_booking_advance_hours_override | INT | NULLABLE — null inherits tenant `minBookingAdvanceHours`; a value can only raise it (clamped on read, M23-S33) |
+| max_booking_advance_days_override | INT | NULLABLE — null inherits tenant `maxBookingAdvanceDays`; a value can only lower it (clamped on read, M23-S33) |
 | recurrence_eligible | BOOLEAN | NOT NULL DEFAULT false |
 | recurring_horizon_days | INT | NULLABLE — null inherits platform default (90); the maximum term of a recurring schedule — `endsOn` may not be later than `startsOn` + this many days (added by M23-S04's migration) |
 | availability_alert_eligible | BOOLEAN | NOT NULL DEFAULT false |

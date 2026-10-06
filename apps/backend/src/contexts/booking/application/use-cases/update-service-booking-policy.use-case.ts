@@ -8,7 +8,8 @@ import { ServiceBookingPolicyProps } from '../../domain/service.types';
 import { UpdateServiceBookingPolicyDto } from '../dtos/update-service-booking-policy.dto';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
-import { resolveApprovalMode } from './service-result.mapper';
+import { assertBookingWindowOverridesValid } from './booking-window.helpers';
+import { resolveBookingPolicyResult, ServiceBookingPolicyResult } from './service-result.mapper';
 
 export type UpdateServiceBookingPolicyUseCaseInput = UpdateServiceBookingPolicyDto & {
   id: string;
@@ -17,7 +18,7 @@ export type UpdateServiceBookingPolicyUseCaseInput = UpdateServiceBookingPolicyD
 
 export interface UpdateServiceBookingPolicyUseCaseResult {
   id: string;
-  bookingPolicy: ServiceBookingPolicyProps;
+  bookingPolicy: ServiceBookingPolicyResult;
 }
 
 // Every override/duration/pricing field is independently PATCH-resolved: omitted (undefined) in
@@ -40,6 +41,9 @@ export class UpdateServiceBookingPolicyUseCase {
   ): Promise<UpdateServiceBookingPolicyUseCaseResult> {
     const { id, tenantId } = input;
 
+    // Read before the transaction opens — it is a platform read, not part of the service write.
+    const tenantWindow = await this.bookingPlatform.getTenantBookingWindow(tenantId);
+
     const service = await this.txManager.run(async () => {
       // findByIdForUpdate — closes the lost-update race between two concurrent Service
       // configuration writes (see update-service-resource-requirements.use-case.ts's identical
@@ -47,7 +51,17 @@ export class UpdateServiceBookingPolicyUseCase {
       const current = await this.serviceRepo.findByIdForUpdate(id, tenantId);
       if (!current) throw new ServiceNotFoundError(id);
 
-      current.setBookingPolicy(this.resolvePolicy(current.bookingPolicy, input));
+      const policy = this.resolvePolicy(current.bookingPolicy, input);
+      // Only when an override actually changes: one that went stale after the tenant shrank its own
+      // window must not block saving the rest of the policy (the dashboard re-sends all of it).
+      if (
+        policy.minBookingAdvanceHoursOverride !==
+          current.bookingPolicy.minBookingAdvanceHoursOverride ||
+        policy.maxBookingAdvanceDaysOverride !== current.bookingPolicy.maxBookingAdvanceDaysOverride
+      ) {
+        assertBookingWindowOverridesValid(policy, tenantWindow);
+      }
+      current.setBookingPolicy(policy);
       await this.serviceRepo.save(current);
       return current;
     });
@@ -59,7 +73,7 @@ export class UpdateServiceBookingPolicyUseCase {
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(tenantId);
     return {
       id: service.id,
-      bookingPolicy: resolveApprovalMode(service.bookingPolicy, autoApproveEnabled),
+      bookingPolicy: resolveBookingPolicyResult(service, autoApproveEnabled, tenantWindow),
     };
   }
 

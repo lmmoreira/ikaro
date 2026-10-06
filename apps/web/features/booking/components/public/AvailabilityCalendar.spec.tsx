@@ -20,6 +20,7 @@ function renderCalendar(overrides?: Partial<Parameters<typeof AvailabilityCalend
       selectedDate={null}
       onSelectDate={vi.fn()}
       maxBookingAdvanceDays={90}
+      timezone="UTC"
       {...overrides}
     />,
   );
@@ -309,6 +310,7 @@ describe('AvailabilityCalendar', () => {
         selectedDate={null}
         onSelectDate={vi.fn()}
         maxBookingAdvanceDays={90}
+        timezone="UTC"
       />,
       { locale: 'en' },
     );
@@ -340,6 +342,7 @@ describe('AvailabilityCalendar', () => {
         selectedDate={null}
         onSelectDate={vi.fn()}
         maxBookingAdvanceDays={90}
+        timezone="UTC"
         resourceSelections={pick('r-2')}
         durationMinutes={90}
       />,
@@ -354,5 +357,38 @@ describe('AvailabilityCalendar', () => {
         { resourceSelections: pick('r-2'), durationMinutes: 90 },
       ),
     );
+  });
+
+  it("fetches from the tenant's calendar day, not the UTC day", async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    // 12:00Z on the 15th is already 02:00 on the 16th at UTC+14.
+    renderCalendar({ timezone: 'Pacific/Kiritimati' });
+    await screen.findAllByTestId('calendar-day');
+
+    expect(fetchAvailabilitySummary).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      '2026-06-16',
+      expect.any(String),
+      ['svc-1'],
+      expect.anything(),
+    );
+  });
+
+  it('starts the fetch at the first day the minimum notice leaves and disables the days before it', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    // 12:00Z + 36h is 00:00Z on the 17th.
+    renderCalendar({ minBookingAdvanceHours: 36 });
+    await screen.findAllByTestId('calendar-day');
+
+    expect(fetchAvailabilitySummary).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      '2026-06-17',
+      expect.any(String),
+      ['svc-1'],
+      expect.anything(),
+    );
+    expect(getCalendarDay('2026-06-16')).toBeDisabled();
   });
 });

@@ -17,6 +17,8 @@ import {
   BookingNotFoundError,
   BookingScheduledInPastError,
   BookingSlotUnavailableError,
+  BookingTooFarAheadError,
+  BookingTooSoonError,
   RescheduleWindowExpiredError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
@@ -69,6 +71,7 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
       correlationId: CORRELATION_ID,
       timezone: 'America/Sao_Paulo',
       tenantDefaultRescheduleWindowHours: DEFAULT_WINDOW_HOURS,
+      tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
       ...overrides,
     });
   }
@@ -240,6 +243,60 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
       expect(saved!.scheduledAt.toISOString()).toBe(new Date(futureSlot).toISOString());
+    });
+  });
+
+  describe('booking window (M23-S33)', () => {
+    async function saveApprovedBooking(lines?: ReturnType<BookingLineBuilder['build']>[]) {
+      const builder = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .withCustomerId(CUSTOMER_ID);
+      const booking = (lines ? builder.withLines(lines) : builder).build();
+      await bookingRepo.save(booking);
+      return booking;
+    }
+
+    it('throws BookingTooFarAheadError for a new start beyond the tenant maximum', async () => {
+      const booking = await saveApprovedBooking();
+
+      await expect(
+        execute({ bookingId: booking.id, scheduledAt: `${futureDate(120)}T10:00:00.000Z` }),
+      ).rejects.toThrow(BookingTooFarAheadError);
+    });
+
+    it('throws BookingTooSoonError for a new start inside the minimum notice', async () => {
+      const booking = await saveApprovedBooking();
+
+      await expect(
+        execute({
+          bookingId: booking.id,
+          tenantBookingWindow: { minBookingAdvanceHours: 24 * 10, maxBookingAdvanceDays: 90 },
+        }),
+      ).rejects.toThrow(BookingTooSoonError);
+    });
+
+    it('honours a per-service maximum tighter than the tenant maximum', async () => {
+      const serviceId = '30000000-0000-4000-8000-000000000602';
+      await fixtures.serviceRepo.save(
+        new ServiceBuilder()
+          .withId(serviceId)
+          .withTenantId(TENANT_A)
+          .withBookingPolicy({ maxBookingAdvanceDaysOverride: 3 })
+          .build(),
+      );
+      const booking = await saveApprovedBooking([
+        new BookingLineBuilder().withServiceId(serviceId).build(),
+      ]);
+
+      await expect(execute({ bookingId: booking.id })).rejects.toThrow(BookingTooFarAheadError);
+    });
+
+    it('allows a new start inside the window', async () => {
+      const booking = await saveApprovedBooking();
+
+      await expect(execute({ bookingId: booking.id })).resolves.toBeDefined();
     });
   });
 

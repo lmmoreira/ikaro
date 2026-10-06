@@ -181,6 +181,49 @@ describe('GetAvailabilityUseCase', () => {
     ).rejects.toMatchObject({ name: 'AvailabilityDateInPastError' });
   });
 
+  describe('tenant-local today', () => {
+    afterEach(() => jest.useRealTimers());
+
+    function freezeAt(iso: string): void {
+      jest.useFakeTimers({
+        now: new Date(iso),
+        doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'queueMicrotask'],
+      });
+    }
+
+    function readDay(serviceId: string, date: string) {
+      return useCase.execute({
+        date,
+        serviceIds: [serviceId],
+        tenantId: TENANT_ID,
+        businessHours: { ...settings.businessHours, timezone: 'America/Sao_Paulo' },
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      });
+    }
+
+    it("does not reject the tenant's own today while the UTC date has already moved on", async () => {
+      // 23:00 on 2026-06-09 in São Paulo is already 2026-06-10 in UTC.
+      freezeAt('2026-06-10T02:00:00.000Z');
+      const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
+      await serviceRepo.save(service);
+
+      await expect(readDay(service.id, '2026-06-09')).resolves.toMatchObject({
+        date: '2026-06-09',
+      });
+    });
+
+    it("rejects the tenant's yesterday", async () => {
+      freezeAt('2026-06-10T02:00:00.000Z');
+      const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
+      await serviceRepo.save(service);
+
+      await expect(readDay(service.id, '2026-06-08')).rejects.toMatchObject({
+        name: 'AvailabilityDateInPastError',
+      });
+    });
+  });
+
   it('throws ServiceNotFoundError (404) when a serviceId does not belong to tenant', async () => {
     const unknownId = '00000000-0000-7000-8000-000000000099';
 

@@ -30,6 +30,7 @@ export default async function BookingRescheduleRoute({
       booking={booking}
       tenantSlug={tenantSlug}
       maxBookingAdvanceDays={settings?.settings.booking.maxBookingAdvanceDays ?? 90}
+      timezone={settings?.settings.businessHours.timezone ?? 'America/Sao_Paulo'}
       backHref={appendReturnTo(`/dashboard/bookings/${id}`, returnHref)}
       agendaHref={agendaHref}
     />

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AvailabilityResponse, DaySummary } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import {
@@ -9,6 +9,17 @@ import {
   fetchAvailabilitySummary,
 } from '@/features/platform/hotsite/api/schedule';
 import { AvailabilityStep } from './AvailabilityStep';
+
+// The fixtures use fixed 2026-06-15 slots; the picker hides a slot that has already started, so the
+// clock is pinned to the morning of that day.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-15T08:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 vi.mock('@/features/platform/hotsite/api/schedule', () => ({
   fetchAvailabilitySummary: vi.fn(),
@@ -27,6 +38,8 @@ function baseProps() {
     selectedSlot: null,
     carouselDays: 14,
     maxBookingAdvanceDays: 30,
+    minBookingAdvanceHours: 0,
+    timezone: 'UTC',
     onSelectDate: vi.fn(),
     onSelectSlot: vi.fn(),
     error: null,

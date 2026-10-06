@@ -16,6 +16,8 @@ interface AvailabilityStepProps {
   readonly selectedSlot: AvailableSlot | null;
   readonly carouselDays: number;
   readonly maxBookingAdvanceDays: number;
+  readonly minBookingAdvanceHours: number;
+  readonly timezone: string;
   readonly onSelectDate: (date: string) => void;
   readonly onSelectSlot: (slot: AvailableSlot) => void;
   readonly resourceSelections?: readonly ResourceSelectionItem[];
@@ -35,6 +37,8 @@ export function AvailabilityStep({
   selectedSlot,
   carouselDays,
   maxBookingAdvanceDays,
+  minBookingAdvanceHours,
+  timezone,
   onSelectDate,
   onSelectSlot,
   resourceSelections,
@@ -59,6 +63,8 @@ export function AvailabilityStep({
           selectedDate={selectedDate}
           onSelectDate={onSelectDate}
           maxBookingAdvanceDays={maxBookingAdvanceDays}
+          minBookingAdvanceHours={minBookingAdvanceHours}
+          timezone={timezone}
           resourceSelections={resourceSelections}
           durationMinutes={durationMinutes}
         />
@@ -70,6 +76,8 @@ export function AvailabilityStep({
           onSelectDate={onSelectDate}
           carouselDays={carouselDays}
           maxBookingAdvanceDays={maxBookingAdvanceDays}
+          minBookingAdvanceHours={minBookingAdvanceHours}
+          timezone={timezone}
           resourceSelections={resourceSelections}
           durationMinutes={durationMinutes}
         />
@@ -85,6 +93,7 @@ export function AvailabilityStep({
             onSelectSlot={onSelectSlot}
             resourceSelections={resourceSelections}
             durationMinutes={durationMinutes}
+            minBookingAdvanceHours={minBookingAdvanceHours}
           />
         </div>
       )}

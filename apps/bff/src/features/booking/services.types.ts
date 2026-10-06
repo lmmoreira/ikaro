@@ -33,6 +33,8 @@ export interface ServiceBookingPolicyDetail {
   rescheduleWindowHoursOverride: number | null;
   minBookingAdvanceHoursOverride: number | null;
   maxBookingAdvanceDaysOverride: number | null;
+  effectiveMinBookingAdvanceHours: number;
+  effectiveMaxBookingAdvanceDays: number;
   recurrenceEligible: boolean;
   recurringHorizonDays: number | null;
   availabilityAlertEligible: boolean;

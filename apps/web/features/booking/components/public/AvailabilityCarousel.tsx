@@ -7,11 +7,11 @@ import { ErrorAlert } from './ErrorAlert';
 import type { DaySummary, ResourceSelectionItem } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
 import {
-  addDays,
-  dayCarouselLabel,
-  dayNumber,
-  toISODate,
-} from '@/shared/lib/formatting/date-utils';
+  addIsoDays,
+  earliestBookableDate,
+  tenantToday,
+} from '@/features/booking/model/booking-window';
+import { dayCarouselLabel, dayNumber } from '@/shared/lib/formatting/date-utils';
 
 interface AvailabilityCarouselProps {
   readonly slug: string;
@@ -20,6 +20,8 @@ interface AvailabilityCarouselProps {
   readonly onSelectDate: (date: string) => void;
   readonly carouselDays: number;
   readonly maxBookingAdvanceDays: number;
+  readonly minBookingAdvanceHours?: number;
+  readonly timezone: string;
   readonly resourceSelections?: readonly ResourceSelectionItem[];
   readonly durationMinutes?: number;
   readonly variant?: 'hotsite' | 'dashboard';
@@ -35,6 +37,8 @@ export function AvailabilityCarousel({
   onSelectDate,
   carouselDays,
   maxBookingAdvanceDays,
+  minBookingAdvanceHours = 0,
+  timezone,
   resourceSelections,
   durationMinutes,
   variant = 'hotsite',
@@ -49,13 +53,19 @@ export function AvailabilityCarousel({
   useEffect(() => {
     let cancelled = false;
 
-    const today = new Date();
-    const from = toISODate(today);
-    const to = toISODate(addDays(today, Math.min(carouselDays, maxBookingAdvanceDays) - 1));
+    // The tenant's calendar day, the same boundary the backend's booking-window rule uses. A day
+    // that falls before the first one the minimum notice leaves stays in the strip (the labels
+    // are positional, "today" first) but is shown unavailable.
+    const now = new Date();
+    const from = tenantToday(now, timezone);
+    const to = addIsoDays(from, Math.min(carouselDays, maxBookingAdvanceDays) - 1);
+    const earliest = earliestBookableDate(now, minBookingAdvanceHours, timezone);
 
     fetchAvailabilitySummary(slug, from, to, serviceIds, { resourceSelections, durationMinutes })
       .then((result) => {
-        if (!cancelled) setDays(result);
+        if (!cancelled) {
+          setDays(result.map((day) => (day.date < earliest ? { ...day, available: false } : day)));
+        }
       })
       .catch(() => {
         if (!cancelled) setError(true);
@@ -71,6 +81,8 @@ export function AvailabilityCarousel({
     durationMinutes,
     carouselDays,
     maxBookingAdvanceDays,
+    minBookingAdvanceHours,
+    timezone,
     retryCount,
   ]);
 

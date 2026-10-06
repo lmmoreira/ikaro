@@ -4,11 +4,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import {
-  addDaysUTC,
-  utcDateString,
-  utcDateToLocalDate,
-} from '../../../../shared/utils/calendar-date';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
 import { findFirstMatchingSlot } from '../../domain/availability-alert-matching.helpers';
@@ -27,6 +22,9 @@ import {
   BOOKING_PLATFORM_PORT,
   IBookingPlatformPort,
 } from '../ports/booking-platform.port';
+import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { alertDatesToCheck, earliestBookableStartMs } from './availability-alert-window.helpers';
+import { BookingWindow, resolveEffectiveBookingWindow } from './booking-window.helpers';
 import { GetAvailabilityUseCase } from './get-availability.use-case';
 
 export interface MatchAvailabilityAlertsUseCaseInput {
@@ -69,12 +67,6 @@ function groupAlerts(alerts: AvailabilityAlert[]): Map<string, AlertGroupEntry> 
   return groups;
 }
 
-// The tenant's availability inputs plus the dates to evaluate this run.
-interface MatchScope {
-  context: AvailabilityAlertTenantContext;
-  dates: string[];
-}
-
 // UC-072 step 3 (M23-S07). Matches ACTIVE availability alerts against what is *really bookable*:
 // it asks the availability engine (GetAvailabilityUseCase — hours, closures, openings, occupancy and
 // resource rules) for the affected service/day(s) and records one notification for every alert
@@ -82,9 +74,10 @@ interface MatchScope {
 // capacity-release handlers (cancel/reject/reschedule, one day) and the daily sweep (the whole
 // window) — so a slot is found the same way however it opened.
 //
-// Only dates a customer can actually select are considered (`selectableDays`, resolved from the
-// tenant's booking window and hotsite date picker): an alert is never notified about a date the
-// booking page would not let the customer pick.
+// Only what a customer can actually book is considered: the dates are clamped to the tenant's
+// selectable days (booking window and hotsite date picker) and to the service's own effective
+// window, and a slot inside the service's minimum notice is dropped (M23-S33) — an alert is never
+// notified about a slot the booking page would not let the customer pick or booking would reject.
 //
 // One notification per alert: recordNotificationAttempt() moves ACTIVE → NOTIFIED, so an alert is
 // never matched again; a racing handler/sweep loses on the aggregate's version check
@@ -98,6 +91,7 @@ export class MatchAvailabilityAlertsUseCase {
     private readonly alertRepo: IAvailabilityAlertRepository,
     @Inject(BOOKING_PLATFORM_PORT) private readonly platformPort: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     private readonly getAvailability: GetAvailabilityUseCase,
   ) {}
 
@@ -113,60 +107,43 @@ export class MatchAvailabilityAlertsUseCase {
     // The tenant context (a tenant + hotsite read) is only needed once an alert exists, and almost
     // every cancelled booking's service has none — so it is resolved lazily, once per run, and a
     // service with no ACTIVE alert costs a single indexed query.
-    let scope: Promise<MatchScope> | null = null;
-    const getScope = (): Promise<MatchScope> => (scope ??= this.resolveScope(input, now));
+    let context: Promise<AvailabilityAlertTenantContext> | null = null;
+    const getContext = (): Promise<AvailabilityAlertTenantContext> =>
+      (context ??= this.platformPort.getAvailabilityAlertContext(tenantId));
 
     const perService = await mapSequentially([...new Set(serviceIds)], (serviceId) =>
-      this.matchService({ tenantId, correlationId, serviceId, getScope, now }),
+      this.matchService({
+        tenantId,
+        correlationId,
+        serviceId,
+        getContext,
+        around: input.around,
+        now,
+      }),
     );
     return { notified: perService.reduce((sum, count) => sum + count, 0) };
-  }
-
-  private async resolveScope(
-    input: MatchAvailabilityAlertsUseCaseInput,
-    now: Date,
-  ): Promise<MatchScope> {
-    const context = await this.platformPort.getAvailabilityAlertContext(input.tenantId);
-    return { context, dates: this.datesToCheck(input.around, context, now) };
-  }
-
-  // The calendar days to evaluate, clamped to [today, today + selectableDays − 1] where "today" is
-  // the UTC date — the contract of the availability read itself (it rejects a date before
-  // todayUTC()) and of the public calendar, so the two never disagree about what is selectable. A
-  // freed booking contributes the tenant-local day it was on, which is the day its slot is listed
-  // under; if that day is already behind the window it is simply not selectable any more.
-  private datesToCheck(
-    around: Date | null,
-    context: AvailabilityAlertTenantContext,
-    now: Date,
-  ): string[] {
-    const today = utcDateString(now);
-    const lastDate = addDaysUTC(today, context.selectableDays - 1);
-
-    if (around) {
-      const date = utcDateToLocalDate(around, context.businessHours.timezone);
-      return date >= today && date <= lastDate ? [date] : [];
-    }
-    const dates: string[] = [];
-    for (let date = today; date <= lastDate; date = addDaysUTC(date, 1)) dates.push(date);
-    return dates;
   }
 
   private async matchService(args: {
     tenantId: string;
     correlationId: string;
     serviceId: string;
-    getScope: () => Promise<MatchScope>;
+    getContext: () => Promise<AvailabilityAlertTenantContext>;
+    around: Date | null;
     now: Date;
   }): Promise<number> {
-    const { tenantId, correlationId, serviceId, getScope, now } = args;
+    const { tenantId, correlationId, serviceId, getContext, around, now } = args;
     const alerts = await this.alertRepo.findActiveByService(tenantId, serviceId, now);
     if (alerts.length === 0) return 0;
-    const { context, dates } = await getScope();
+    const service = await this.serviceRepo.findById(serviceId, tenantId);
+    if (!service) return 0;
+    const context = await getContext();
+    const window = resolveEffectiveBookingWindow(context.bookingWindow, [service]);
+    const dates = alertDatesToCheck({ around, context, window, now });
     if (dates.length === 0) return 0;
 
     const perGroup = await mapSequentially([...groupAlerts(alerts).values()], (entry) =>
-      this.matchGroup({ tenantId, correlationId, serviceId, entry, dates, context, now }),
+      this.matchGroup({ tenantId, correlationId, serviceId, entry, dates, context, window, now }),
     );
     return perGroup.reduce((sum, count) => sum + count, 0);
   }
@@ -178,15 +155,17 @@ export class MatchAvailabilityAlertsUseCase {
     entry: AlertGroupEntry;
     dates: string[];
     context: AvailabilityAlertTenantContext;
+    window: BookingWindow;
     now: Date;
   }): Promise<number> {
-    const { tenantId, correlationId, serviceId, entry, dates, context, now } = args;
+    const { tenantId, correlationId, serviceId, entry, dates, context, window, now } = args;
     const slots = await this.collectSlots({
       tenantId,
       serviceId,
       group: entry.group,
       dates,
       context,
+      window,
       now,
     });
     if (slots.length === 0) return 0;
@@ -210,6 +189,7 @@ export class MatchAvailabilityAlertsUseCase {
     group: AlertGroup;
     dates: string[];
     context: AvailabilityAlertTenantContext;
+    window: BookingWindow;
     now: Date;
   }): Promise<AvailabilityAlertMatchingWindow[]> {
     const read = { stopped: false };
@@ -223,6 +203,7 @@ export class MatchAvailabilityAlertsUseCase {
       serviceId: string;
       group: AlertGroup;
       context: AvailabilityAlertTenantContext;
+      window: BookingWindow;
       now: Date;
     },
     date: string,
@@ -255,11 +236,12 @@ export class MatchAvailabilityAlertsUseCase {
       serviceId: string;
       group: AlertGroup;
       context: AvailabilityAlertTenantContext;
+      window: BookingWindow;
       now: Date;
     },
     date: string,
   ): Promise<AvailabilityAlertMatchingWindow[]> {
-    const { tenantId, serviceId, group, context, now } = args;
+    const { tenantId, serviceId, group, context, window, now } = args;
     const request = {
       tenantId,
       date,
@@ -279,11 +261,13 @@ export class MatchAvailabilityAlertsUseCase {
       const freeStarts = new Set(onResource.slots.map((slot) => slot.startsAt));
       bookable = slots.filter((slot) => freeStarts.has(slot.startsAt));
     }
-    // The read still lists the earlier slots of today: one that has already started is not
-    // something a customer can book, so it never satisfies an alert.
+    // The read still lists the earlier slots of today: one that has already started, or that starts
+    // inside the service's minimum notice, is not something a customer can book, so it never
+    // satisfies an alert.
+    const earliest = earliestBookableStartMs(now, window);
     return bookable
       .map((slot) => ({ startsAt: new Date(slot.startsAt), endsAt: new Date(slot.endsAt) }))
-      .filter((slot) => slot.startsAt > now);
+      .filter((slot) => slot.startsAt > now && slot.startsAt.getTime() >= earliest);
   }
 
   // Own transaction per alert, so one alert changing never blocks another. A version conflict

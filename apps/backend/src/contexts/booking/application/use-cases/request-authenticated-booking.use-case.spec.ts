@@ -17,7 +17,7 @@ import { InMemoryServiceRepository } from '../../../../test/repositories/booking
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { AddressErrorCode } from '@ikaro/types';
 import {
   BookingAddressValidationError,
@@ -28,6 +28,9 @@ import {
   BookingServiceSessionNotBookableError,
   BookingSlotUnavailableError,
   CustomerPhoneNotSetError,
+  BookingScheduledInPastError,
+  BookingTooFarAheadError,
+  BookingTooSoonError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { RequestAuthenticatedBookingUseCase } from './request-authenticated-booking.use-case';
@@ -103,6 +106,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     customerId: CUSTOMER_ID,
     countryCode: 'BR',
     timezone: 'America/Sao_Paulo',
+    tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
   });
 
   it('creates a PENDING CUSTOMER booking with customerId set', async () => {
@@ -392,6 +396,53 @@ describe('RequestAuthenticatedBookingUseCase', () => {
           durationMinutes: 90,
         }),
       ).rejects.toBeInstanceOf(BookingInvalidMultipleVariableServicesError);
+    });
+  });
+
+  describe('booking window (M23-S33)', () => {
+    it('rejects a start in the past with BookingScheduledInPastError', async () => {
+      await expect(
+        useCase.execute({ ...baseInput(), scheduledAt: `${pastDate(1)}T10:00:00.000Z` }),
+      ).rejects.toBeInstanceOf(BookingScheduledInPastError);
+    });
+
+    it('rejects a start beyond the tenant maximum with BookingTooFarAheadError', async () => {
+      await expect(
+        useCase.execute({ ...baseInput(), scheduledAt: `${futureDate(120)}T10:00:00.000Z` }),
+      ).rejects.toBeInstanceOf(BookingTooFarAheadError);
+    });
+
+    it('rejects a start inside the minimum notice with BookingTooSoonError', async () => {
+      await expect(
+        useCase.execute({
+          ...baseInput(),
+          tenantBookingWindow: { minBookingAdvanceHours: 24 * 10, maxBookingAdvanceDays: 90 },
+        }),
+      ).rejects.toBeInstanceOf(BookingTooSoonError);
+    });
+
+    it('honours a per-service maximum tighter than the tenant maximum', async () => {
+      const shortWindow = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingPolicy({ maxBookingAdvanceDaysOverride: 1 })
+        .build();
+      await serviceRepo.save(shortWindow);
+
+      await expect(
+        useCase.execute({
+          ...baseInput(),
+          serviceIds: [shortWindow.id],
+          scheduledAt: `${futureDate(5)}T10:00:00.000Z`,
+        }),
+      ).rejects.toBeInstanceOf(BookingTooFarAheadError);
+    });
+
+    it('does not create a booking when the window check fails', async () => {
+      await useCase
+        .execute({ ...baseInput(), scheduledAt: `${futureDate(120)}T10:00:00.000Z` })
+        .catch(() => undefined);
+
+      expect(eventBus.published).toHaveLength(0);
     });
   });
 });

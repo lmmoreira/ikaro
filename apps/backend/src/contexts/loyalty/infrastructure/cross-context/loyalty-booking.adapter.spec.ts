@@ -41,7 +41,11 @@ describe('LoyaltyBookingAdapter', () => {
           bufferAfterMinutes: 60,
           legs: null,
           classResourceSlots: null,
-          bookingPolicy: defaultServiceBookingPolicyProps(),
+          bookingPolicy: {
+            ...defaultServiceBookingPolicyProps(),
+            effectiveMinBookingAdvanceHours: 0,
+            effectiveMaxBookingAdvanceDays: 90,
+          },
         },
       ],
     });

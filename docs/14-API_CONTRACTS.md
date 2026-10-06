@@ -429,13 +429,14 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
     "resourceRequirements": [{ "type": "STAFF", "selectionMode": "CUSTOMER_CHOICE", "requiredQuantity": 1 }],
     "legs": null,
     "bookingPolicy": {
+      "effectiveMinBookingAdvanceHours": 0, "effectiveMaxBookingAdvanceDays": 90,
       "durationPolicy": "FIXED", "durationMinMinutes": null, "durationMaxMinutes": null, "durationIncrementMinutes": null,
       "pricingPolicy": "FIXED", "pricingIncrementMinutes": null, "pricePerIncrementAmount": null, "minimumChargeAmount": null,
       "recurrenceEligible": false, "recurringHorizonDays": null
     }
   }
   ```
-  Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket. **Whitelisted (M23-S29):** the BFF maps the backend result through `toPublicServiceResponse` (`services.mapper.ts`) naming every field explicitly — never an object spread. `resourceRequirements`/`legs[].resourceRequirements` carry `type`, `selectionMode`, `requiredQuantity` only (no `resourcePoolIds` — which resources a requirement is restricted to is not public; see `resource-options` below); `legs[]` carry `legIndex`, `name`, `durationMinutes`, `transitionGapAfterMinutes`; `bookingPolicy` carries only the duration/pricing fields plus `recurrenceEligible`/`recurringHorizonDays` (read by the recurring-booking client-side service filter). Never sent publicly: every `*Override`, `availabilityAlertEligible` (until M23-S31 exposes it for the booking flow's alert button), `defaultApprovalMode`, `manualHoldMinutes`, `classResourceSlots`, `bufferAfterMinutes`.
+  Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket. **Whitelisted (M23-S29):** the BFF maps the backend result through `toPublicServiceResponse` (`services.mapper.ts`) naming every field explicitly — never an object spread. `resourceRequirements`/`legs[].resourceRequirements` carry `type`, `selectionMode`, `requiredQuantity` only (no `resourcePoolIds` — which resources a requirement is restricted to is not public; see `resource-options` below); `legs[]` carry `legIndex`, `name`, `durationMinutes`, `transitionGapAfterMinutes`; `bookingPolicy` carries only the duration/pricing fields, `recurrenceEligible`/`recurringHorizonDays` (read by the recurring-booking client-side service filter) and the service's **effective booking window** — `effectiveMinBookingAdvanceHours` / `effectiveMaxBookingAdvanceDays` (M23-S33: its own override clamped to the tenant window, resolved by the backend on every read; the booking page takes the smallest maximum and largest minimum across the basket). Never sent publicly: every raw `*Override`, `availabilityAlertEligible` (until M23-S31 exposes it for the booking flow's alert button), `defaultApprovalMode`, `manualHoldMinutes`, `classResourceSlots`, `bufferAfterMinutes`.
 - `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Returns `{ items: [...], total: number }` (`StaffServiceListResponse`) — each item uses `serviceId` (not `id`) and `price: { amount, currency }` (no `formatted`); see `StaffServiceResponse` in `service.dto.ts`. Lives on the bare `/services` path — see `docs/24-BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
 - `GET /services/:id` -> Single service by id, active or inactive (STAFF|MANAGER). `StaffServiceResponse`. `404` if not found or wrong tenant.
 - `GET /services/:id/edit-view` -> The Serviços edit page's composite read (STAFF|MANAGER; added M22-S04): `{ service: StaffServiceResponse, intakeSchema: ServiceIntakeSchemaResponse }` (`StaffServiceEditViewResponse`). BFF-only — it fans out to backend `GET /services/:id` and `GET /services/:id/intake-schema` so `apps/web` consumes one contract (`docs/24-BFF_ARCHITECTURE.md` § composite views). `404` if the service is not found or belongs to another tenant.
@@ -525,7 +526,9 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   }
   ```
   - `recurringHorizonDays`: integer 1–180 or `null` — the maximum term of a recurring schedule for this service; `null` inherits the 90-day platform default (UC-055 step 3)
+  - `minBookingAdvanceHoursOverride` / `maxBookingAdvanceDaysOverride` (M23-S33): the tenant window is the ceiling — an override can only tighten it. `200` responses (and every service read) also carry the resolved `effectiveMinBookingAdvanceHours` / `effectiveMaxBookingAdvanceDays` (`max(override, tenant min)` / `min(override, tenant max)`); they are response-only and ignored in a request
   - `200` on success
+  - `422` `BOOKING_SERVICE_BOOKING_POLICY_INVALID` (M23-S33) if a changed override is looser than the tenant window (a maximum above the tenant maximum, a minimum below the tenant minimum), or the effective minimum notice (in whole days) is not shorter than the effective maximum — the response names the offending field. An override that merely went stale after the tenant shrank its own window does not block saving the rest of the policy; it is clamped on read
   - `422` if `durationPolicy = CUSTOMER_SELECTED` with no `pricingPolicy` (UC-055 A2)
   - `409` `BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT` if `durationPolicy = CUSTOMER_SELECTED` on a service that has `legs` (UC-055 A4)
   - `400` (request validation, `violations[]`, no error `code`) if `recurringHorizonDays` is outside 1–180 or not an integer (UC-055 A3); the dashboard validates the same bounds inline so it never sends one
@@ -706,6 +709,9 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   - `422 duration-out-of-range` (M23-S02, UC-067) — `durationMinutes` missing (for a `CUSTOMER_SELECTED` service), or outside the service's min/max/increment rules.
   - `422 intake-answer-missing` (M23-S02, UC-068 A3) — a required intake question or the consent checkbox was left unanswered; the response names the missing field(s).
   - `422 invalid-multiple-variable-services` (M23-S02, UC-067 A4/UC-068 A4) — more than one `CUSTOMER_SELECTED`/intake-bearing service in the same basket.
+  - `422 BOOKING_SCHEDULED_IN_PAST` (M23-S33) — `scheduledAt` is not after now.
+  - `422 BOOKING_TOO_SOON` (M23-S33) — `scheduledAt` starts inside the minimum notice: before `now + effectiveMinBookingAdvanceHours`, where the effective value is the strictest across the basket's services (each service's own override, never looser than the tenant's `minBookingAdvanceHours`).
+  - `422 BOOKING_TOO_FAR_AHEAD` (M23-S33) — `scheduledAt` falls after the last bookable day, `today + effectiveMaxBookingAdvanceDays − 1` in the tenant timezone, with the same strictest-service rule. Existing bookings are never re-checked; only a new booking or a reschedule's new start is.
 
 #### **Authenticated Customer Booking (UC-002) — `POST /bookings/authenticated`**
 
@@ -814,6 +820,7 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 - **Validation:**
   - New window must be free for every required resource. Returns `409 slot-unavailable` if not (UC-069 A1). A bundle/journey revalidates every resource/leg as one atomic change (UC-069 A2).
   - `reschedule-customer` only: `422 reschedule-window-expired` if the booking is no longer within its effective `rescheduleWindowHoursOverride` (`Service.rescheduleWindowHoursOverride ?? tenant cancellationWindowHours default`, per `docs/02-DOMAIN_MODEL.md`).
+  - `reschedule-customer` only (M23-S33): `422 BOOKING_SCHEDULED_IN_PAST` / `BOOKING_TOO_SOON` / `BOOKING_TOO_FAR_AHEAD` if the new `scheduledAt` is outside the booking window of its services (same rule as `POST /bookings`). `reschedule-admin` (and the M23-S08 worklist reschedule) is exempt from the window, like it is from the reschedule-window check.
 - **Response, M23 Cluster 3 addition:** if the reschedule changes the price (e.g. a variable-duration service), a `booking_quote_revisions` row is recorded and the response includes `{ "quoteRevision": { "revisionNo": number, "amount": {...} } }`.
 - **Event:** Publishes `BookingRescheduled` (extended scope, see `docs/03-DOMAIN_EVENTS.md`) → Notification sends customer email.
 
@@ -889,7 +896,7 @@ Response `200`:
 Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
 - `404` — `resourceId` set and does not exist or belongs to another tenant
-- `422` — `from > to`, or range exceeds `maxBookingAdvanceDays` (default 90 days)
+- `422` — `from > to`, or range exceeds `maxBookingAdvanceDays` (default 90 days). The reads are not trimmed to the booking window itself (M23-S33): a day beyond it still returns its real availability, and `POST /bookings` rejects it.
 
 Constraints: past dates return `{ available: false, slotCount: 0 }` without an error (for seamless calendar rendering).
 

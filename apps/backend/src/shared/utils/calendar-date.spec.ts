@@ -1,4 +1,5 @@
 import {
+  todayInTimezone,
   addDaysUTC,
   addMonthsUTC,
   endOfDayUTC,
@@ -20,6 +21,22 @@ describe('todayUTC', () => {
 
   it('matches the UTC date of new Date()', () => {
     expect(todayUTC()).toBe(new Date().toISOString().slice(0, 10));
+  });
+});
+
+describe('todayInTimezone', () => {
+  it("returns the timezone's calendar day, which can trail the UTC day", () => {
+    // 02:00Z on 06-10 is 23:00 on 06-09 in São Paulo (UTC−3).
+    const now = new Date('2026-06-10T02:00:00.000Z');
+
+    expect(todayInTimezone('America/Sao_Paulo', now)).toBe('2026-06-09');
+    expect(todayInTimezone('UTC', now)).toBe('2026-06-10');
+  });
+
+  it("returns the timezone's calendar day, which can lead the UTC day", () => {
+    const now = new Date('2026-06-10T20:00:00.000Z');
+
+    expect(todayInTimezone('Asia/Tokyo', now)).toBe('2026-06-11');
   });
 });
 

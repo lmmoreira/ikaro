@@ -2,10 +2,21 @@
 import { renderWithIntl } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
+
+// The fixtures use fixed 2026-06-15 slots; the picker hides a slot that has already started, so the
+// clock is pinned to the morning of that day.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-15T08:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 vi.mock('@/features/platform/hotsite/api/schedule', () => ({
   fetchAvailabilitySummary: vi.fn(),
@@ -21,6 +32,7 @@ function renderCarousel(overrides?: Partial<Parameters<typeof AvailabilityCarous
       onSelectDate={vi.fn()}
       carouselDays={14}
       maxBookingAdvanceDays={90}
+      timezone="UTC"
       {...overrides}
     />,
   );
@@ -217,6 +229,7 @@ describe('AvailabilityCarousel', () => {
         onSelectDate={vi.fn()}
         carouselDays={14}
         maxBookingAdvanceDays={90}
+        timezone="UTC"
         resourceSelections={pick(resourceId)}
         durationMinutes={90}
       />
@@ -235,5 +248,33 @@ describe('AvailabilityCarousel', () => {
     rerender(element('r-2'));
 
     await vi.waitFor(() => expect(fetchAvailabilitySummary).toHaveBeenCalledTimes(2));
+  });
+
+  it('shows a day before the first one the minimum notice leaves as unavailable', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([
+      { date: '2026-06-15', available: true, slotCount: 5 },
+      { date: '2026-06-16', available: true, slotCount: 3 },
+    ]);
+
+    // 08:00Z + 30h is 14:00Z on the 16th: the 15th can no longer hold a bookable slot.
+    renderCarousel({ minBookingAdvanceHours: 30 });
+
+    await screen.findAllByTestId('day-option');
+    expect(getDayOption('2026-06-15')).toBeDisabled();
+    expect(getDayOption('2026-06-16')).toBeEnabled();
+  });
+
+  it("requests the window from the tenant's calendar day, not the UTC day", async () => {
+    vi.setSystemTime(new Date('2026-06-15T20:00:00.000Z'));
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([]);
+
+    // 20:00Z is already 05:00 on the 16th in Tokyo.
+    renderCarousel({ timezone: 'Asia/Tokyo', carouselDays: 3 });
+
+    await vi.waitFor(() => {
+      expect(fetchAvailabilitySummary).toHaveBeenCalled();
+    });
+    const [, from, to] = vi.mocked(fetchAvailabilitySummary).mock.calls[0];
+    expect([from, to]).toEqual(['2026-06-16', '2026-06-18']);
   });
 });
