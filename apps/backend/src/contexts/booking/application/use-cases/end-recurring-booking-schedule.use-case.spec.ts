@@ -2,6 +2,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
@@ -53,6 +54,7 @@ function activeSchedule(tenantId = TENANT): RecurringBookingSchedule {
 describe('EndRecurringBookingScheduleUseCase', () => {
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
   let bookingRepo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
   let useCase: EndRecurringBookingScheduleUseCase;
@@ -60,7 +62,8 @@ describe('EndRecurringBookingScheduleUseCase', () => {
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
     scheduleRepo = new InMemoryRecurringBookingScheduleRepository(eventBus);
-    bookingRepo = new InMemoryBookingRepository(eventBus);
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     useCase = new EndRecurringBookingScheduleUseCase(
       scheduleRepo,
@@ -78,9 +81,8 @@ describe('EndRecurringBookingScheduleUseCase', () => {
       scheduleId: schedule.id,
       tenantId: TENANT,
       correlationId: CORRELATION_ID,
-      actorType: 'CUSTOMER',
       actorId: 'customer-1',
-      isBusiness: false,
+      actorRole: 'CUSTOMER',
     });
 
     expect(result.status).toBe('CANCELLED');
@@ -105,14 +107,42 @@ describe('EndRecurringBookingScheduleUseCase', () => {
       scheduleId: schedule.id,
       tenantId: TENANT,
       correlationId: CORRELATION_ID,
-      actorType: 'CUSTOMER',
       actorId: 'customer-1',
-      isBusiness: false,
+      actorRole: 'CUSTOMER',
     });
 
     expect(result.cancelledBookingIds).toEqual([booking.id]);
     const cancelled = await bookingRepo.findById(booking.id, TENANT);
     expect(cancelled?.status).toBe(BookingStatus.CANCELLED);
+  });
+
+  it('records each cancelled occurrence as one audit row for the ending actor', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(new Date(`${futureDate(7)}T13:00:00.000Z`))
+      .withRecurringScheduleId(schedule.id)
+      .build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({
+      scheduleId: schedule.id,
+      tenantId: TENANT,
+      correlationId: CORRELATION_ID,
+      actorId: 'customer-1',
+      actorRole: 'CUSTOMER',
+    });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        fromStatus: 'APPROVED',
+        toStatus: 'CANCELLED',
+        actorId: 'customer-1',
+      },
+    ]);
   });
 
   it('throws when the schedule does not exist', async () => {
@@ -121,9 +151,8 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         scheduleId: 'missing',
         tenantId: TENANT,
         correlationId: CORRELATION_ID,
-        actorType: 'CUSTOMER',
         actorId: 'customer-1',
-        isBusiness: false,
+        actorRole: 'CUSTOMER',
       }),
     ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
   });
@@ -137,11 +166,39 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         scheduleId: schedule.id,
         tenantId: TENANT,
         correlationId: CORRELATION_ID,
-        actorType: 'CUSTOMER',
         actorId: 'customer-1',
-        isBusiness: false,
+        actorRole: 'CUSTOMER',
       }),
     ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+  });
+
+  it('lets a MANAGER end any customer schedule, recording the manager as the audit actor', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(new Date(`${futureDate(7)}T13:00:00.000Z`))
+      .withRecurringScheduleId(schedule.id)
+      .build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({
+      scheduleId: schedule.id,
+      tenantId: TENANT,
+      correlationId: CORRELATION_ID,
+      actorId: 'manager-1',
+      actorRole: 'MANAGER',
+    });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        toStatus: 'CANCELLED',
+        actorType: 'MANAGER',
+        actorId: 'manager-1',
+      },
+    ]);
   });
 
   it('rejects a CUSTOMER actor ending a schedule that belongs to another customer', async () => {
@@ -153,9 +210,8 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         scheduleId: schedule.id,
         tenantId: TENANT,
         correlationId: CORRELATION_ID,
-        actorType: 'CUSTOMER',
         actorId: 'someone-else',
-        isBusiness: false,
+        actorRole: 'CUSTOMER',
       }),
     ).rejects.toThrow(RecurringBookingScheduleForbiddenError);
   });

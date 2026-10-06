@@ -3,6 +3,18 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 export type BookingStatusTransitionActorType =
   'STAFF' | 'MANAGER' | 'CUSTOMER' | 'GUEST' | 'SYSTEM';
 
+export interface StaffBookingActor {
+  type: 'STAFF' | 'MANAGER';
+  id: string;
+}
+
+export interface IdentifiedBookingActor {
+  type: 'STAFF' | 'MANAGER' | 'CUSTOMER';
+  id: string;
+}
+
+export type BookingActor = IdentifiedBookingActor | { type: 'GUEST' | 'SYSTEM'; id: null };
+
 export interface BookingStatusTransitionProps {
   id: string;
   tenantId: string;
@@ -30,10 +42,9 @@ export interface RecordBookingStatusTransitionInput {
 // M23 Cluster 3 (UC-074) — one append-only row per booking status change, written in the same
 // transaction as the booking's own save. Same shape as BookingQuoteRevision: an immutable audit
 // record with its own repository (rows are never edited or deleted — docs/13-DATABASE_SCHEMA.md
-// § booking_status_transitions), kept out of the Booking aggregate so a Booking read never loads
+// § booking_status_transitions). The Booking aggregate records each new transition beside its
+// domain events and TypeOrmBookingRepository.save() drains them, so a Booking read never loads
 // its history. It has no behavior, invariants or domain events, so it extends no base class.
-// M23-S09 records the no-show and its correction; M23-S26 makes every other transition append here
-// too, so until then the table is deliberately partial.
 export class BookingStatusTransition {
   private readonly props: BookingStatusTransitionProps;
 

@@ -2,6 +2,7 @@ import { InMemoryResourceOccupancyRepository } from '../../../../test/repositori
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -23,13 +24,15 @@ const scheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
 
 describe('RejectBookingUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
   let useCase: RejectBookingUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    bookingRepo = new InMemoryBookingRepository(eventBus);
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     useCase = new RejectBookingUseCase(
       bookingRepo,
@@ -63,6 +66,7 @@ describe('RejectBookingUseCase', () => {
       reason: VALID_REASON,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -74,6 +78,34 @@ describe('RejectBookingUseCase', () => {
       },
     ]);
     expect(conflicting).toEqual([]);
+  });
+
+  it('records the rejection reason as one audit row for the acting staff member', async () => {
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withScheduledAt(scheduledAt)
+      .build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({
+      bookingId: booking.id,
+      reason: VALID_REASON,
+      tenantId: TENANT_A,
+      staffId: STAFF_ID,
+      actorRole: 'STAFF',
+      correlationId: CORRELATION_ID,
+    });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        fromStatus: 'PENDING',
+        toStatus: 'REJECTED',
+        actorType: 'STAFF',
+        actorId: STAFF_ID,
+        reason: VALID_REASON,
+      },
+    ]);
   });
 
   it('transitions PENDING → REJECTED and returns result with rejectedAt', async () => {
@@ -88,6 +120,7 @@ describe('RejectBookingUseCase', () => {
       reason: VALID_REASON,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -109,6 +142,7 @@ describe('RejectBookingUseCase', () => {
       reason: VALID_REASON,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -127,6 +161,7 @@ describe('RejectBookingUseCase', () => {
       reason: VALID_REASON,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -148,6 +183,7 @@ describe('RejectBookingUseCase', () => {
       reason: VALID_REASON,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -171,6 +207,7 @@ describe('RejectBookingUseCase', () => {
         reason: 'short',
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingRejectionReasonTooShortError);
@@ -189,6 +226,7 @@ describe('RejectBookingUseCase', () => {
         reason: '',
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingRejectionReasonTooShortError);
@@ -201,6 +239,7 @@ describe('RejectBookingUseCase', () => {
         reason: VALID_REASON,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingNotFoundError);
@@ -220,6 +259,7 @@ describe('RejectBookingUseCase', () => {
         reason: VALID_REASON,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -239,6 +279,7 @@ describe('RejectBookingUseCase', () => {
         reason: VALID_REASON,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -258,6 +299,7 @@ describe('RejectBookingUseCase', () => {
         reason: VALID_REASON,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -277,6 +319,7 @@ describe('RejectBookingUseCase', () => {
         reason: VALID_REASON,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -295,6 +338,7 @@ describe('RejectBookingUseCase', () => {
         reason: VALID_REASON,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingNotFoundError);

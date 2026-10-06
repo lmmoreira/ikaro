@@ -21,6 +21,7 @@ export type CompleteBookingUseCaseInput = CompleteBookingDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
+  actorRole: 'STAFF' | 'MANAGER';
   correlationId: string;
   currency: string;
   pointsPerCurrencyUnit: number;
@@ -62,7 +63,7 @@ export class CompleteBookingUseCase {
     );
 
     booking.complete(
-      staffId,
+      { type: input.actorRole, id: staffId },
       lineActualPrices,
       afterServicePhotoUrls,
       correlationId,

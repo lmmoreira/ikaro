@@ -101,15 +101,14 @@ export class RecurringBookingScheduleController {
   end(
     @Param('id', CanonicalParseUUIDPipe) id: string,
   ): Promise<EndRecurringBookingScheduleUseCaseResult> {
-    const { tenantId, correlationId, actorType, actorId } = this.ctx;
+    const { tenantId, correlationId, actorId, actorRole } = this.ctx;
     return this.endSchedule
       .execute({
         scheduleId: id,
         tenantId,
         correlationId,
-        actorType: actorType!,
         actorId: actorId!,
-        isBusiness: actorType === 'STAFF',
+        actorRole: actorRole!,
       })
       .catch(mapBookingError);
   }

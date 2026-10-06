@@ -21,7 +21,7 @@ export class BookingStatusTransitionEntity {
   @Column({ name: 'to_status', type: 'varchar', length: 30 })
   toStatus!: string;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ type: 'text', nullable: true })
   reason!: string | null;
 
   @Column({ name: 'actor_type', type: 'varchar', length: 20 })

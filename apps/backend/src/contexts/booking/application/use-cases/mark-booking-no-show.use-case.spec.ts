@@ -41,13 +41,9 @@ describe('MarkBookingNoShowUseCase', () => {
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    bookingRepo = new InMemoryBookingRepository(eventBus);
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
-    useCase = new MarkBookingNoShowUseCase(
-      bookingRepo,
-      transitionRepo,
-      new InMemoryTransactionManager(),
-    );
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
+    useCase = new MarkBookingNoShowUseCase(bookingRepo, new InMemoryTransactionManager());
   });
 
   it('marks an ended APPROVED booking as NO_SHOW, records the audit row and publishes BookingNoShow', async () => {

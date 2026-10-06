@@ -1,6 +1,7 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -21,13 +22,43 @@ const scheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
 
 describe('RequestMoreInfoUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let eventBus: InMemoryEventBus;
   let useCase: RequestMoreInfoUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    bookingRepo = new InMemoryBookingRepository(eventBus);
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     useCase = new RequestMoreInfoUseCase(bookingRepo, new InMemoryTransactionManager());
+  });
+
+  it('records the staff message as the reason of one audit row', async () => {
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withScheduledAt(scheduledAt)
+      .build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({
+      bookingId: booking.id,
+      message: VALID_MESSAGE,
+      tenantId: TENANT_A,
+      staffId: STAFF_ID,
+      actorRole: 'MANAGER',
+      correlationId: CORRELATION_ID,
+    });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        fromStatus: 'PENDING',
+        toStatus: 'INFO_REQUESTED',
+        actorType: 'MANAGER',
+        actorId: STAFF_ID,
+        reason: VALID_MESSAGE,
+      },
+    ]);
   });
 
   it('transitions PENDING → INFO_REQUESTED and returns result with infoRequestedAt', async () => {
@@ -42,6 +73,7 @@ describe('RequestMoreInfoUseCase', () => {
       message: VALID_MESSAGE,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -62,6 +94,7 @@ describe('RequestMoreInfoUseCase', () => {
       message: VALID_MESSAGE,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -83,6 +116,7 @@ describe('RequestMoreInfoUseCase', () => {
       message: VALID_MESSAGE,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -108,6 +142,7 @@ describe('RequestMoreInfoUseCase', () => {
       message: `  ${VALID_MESSAGE}  `,
       tenantId: TENANT_A,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
     });
 
@@ -128,6 +163,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: 'Too short',
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingInfoMessageTooShortError);
@@ -146,6 +182,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: '',
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingInfoMessageTooShortError);
@@ -165,6 +202,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: 'short',
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingInfoMessageTooShortError);
@@ -177,6 +215,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: VALID_MESSAGE,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingNotFoundError);
@@ -196,6 +235,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: VALID_MESSAGE,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -215,6 +255,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: VALID_MESSAGE,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -234,6 +275,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: VALID_MESSAGE,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -253,6 +295,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: VALID_MESSAGE,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -272,6 +315,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: VALID_MESSAGE,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(InvalidBookingTransitionError);
@@ -290,6 +334,7 @@ describe('RequestMoreInfoUseCase', () => {
         message: VALID_MESSAGE,
         tenantId: TENANT_A,
         staffId: STAFF_ID,
+        actorRole: 'STAFF',
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingNotFoundError);

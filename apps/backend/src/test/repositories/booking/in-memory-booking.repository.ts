@@ -7,7 +7,9 @@ import {
   BookingResourceAssignmentSummary,
   IBookingRepository,
 } from '../../../contexts/booking/application/ports/booking-repository.port';
+import { IBookingStatusTransitionRepository } from '../../../contexts/booking/application/ports/booking-status-transition-repository.port';
 import { Booking } from '../../../contexts/booking/domain/booking.aggregate';
+import { InMemoryBookingStatusTransitionRepository } from './in-memory-booking-status-transition.repository';
 
 export class InMemoryBookingRepository implements IBookingRepository {
   private readonly store = new Map<string, Booking>();
@@ -16,7 +18,10 @@ export class InMemoryBookingRepository implements IBookingRepository {
     BookingResourceAssignmentSummary[]
   >();
 
-  constructor(private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} }) {}
+  constructor(
+    private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} },
+    private readonly transitionRepo: IBookingStatusTransitionRepository = new InMemoryBookingStatusTransitionRepository(),
+  ) {}
 
   // Test-only seeding hook — the real repository derives this from booking_line_resource_
   // assignments; this double has no such table, so a test that needs assignedResources populated
@@ -83,6 +88,7 @@ export class InMemoryBookingRepository implements IBookingRepository {
 
   async save(booking: Booking): Promise<void> {
     this.store.set(booking.id, booking);
+    await this.transitionRepo.saveAll(booking.drainStatusTransitions());
     await drainDomainEvents(booking, this.outboxPublisher);
   }
 

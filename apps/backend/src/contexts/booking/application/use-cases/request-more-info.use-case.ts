@@ -10,6 +10,7 @@ import { RequestMoreInfoDto } from '../dtos/request-more-info.dto';
 export type RequestMoreInfoUseCaseInput = RequestMoreInfoDto & {
   tenantId: string;
   staffId: string;
+  actorRole: 'STAFF' | 'MANAGER';
   correlationId: string;
 };
 
@@ -32,7 +33,7 @@ export class RequestMoreInfoUseCase {
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
 
-    booking.requestMoreInfo(staffId, input.message, correlationId);
+    booking.requestMoreInfo({ type: input.actorRole, id: staffId }, input.message, correlationId);
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);

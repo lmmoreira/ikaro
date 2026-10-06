@@ -23,6 +23,8 @@ import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
+import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
+import { TypeOrmBookingStatusTransitionRepository } from './typeorm-booking-status-transition.repository';
 
 // TD24-S02 — proves the cutover wiring (repo.save() → drainDomainEvents() → OutboxPublisher)
 // carries the same delivery guarantees S01 already proved at the OutboxPublisher/OutboxRelayService
@@ -38,7 +40,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
   const TENANT_ID = uuidv7();
   const SERVICE_ID = uuidv7();
   const STAFF_ID = '20000000-0000-4000-8000-000000009001';
-  const CORRELATION_ID = 'corr-outbox-cutover-test';
+  const CORRELATION_ID = uuidv7();
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
@@ -53,6 +55,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
   });
 
   beforeEach(async () => {
+    await dataSource.getRepository(BookingStatusTransitionEntity).delete({ tenantId: TENANT_ID });
     await dataSource.getRepository(BookingLineEntity).delete({ tenantId: TENANT_ID });
     await dataSource.getRepository(BookingEntity).delete({ tenantId: TENANT_ID });
     await outboxRepo.delete({ tenantId: TENANT_ID });
@@ -70,6 +73,9 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
       dataSource.getRepository(BookingLineResourceAssignmentEntity),
       settingsPort,
       outboxPublisher,
+      new TypeOrmBookingStatusTransitionRepository(
+        dataSource.getRepository(BookingStatusTransitionEntity),
+      ),
     );
   }
 
@@ -100,7 +106,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
     const repo = makeRepo(outboxPublisher);
 
     const booking = await seedPendingBooking(repo);
-    booking.approve(STAFF_ID, CORRELATION_ID);
+    booking.approve({ type: 'STAFF', id: STAFF_ID }, CORRELATION_ID);
     const pendingEventId = booking.domainEvents[0].eventId;
     await repo.save(booking);
 
@@ -134,7 +140,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
     const repo = makeRepo(outboxPublisher);
 
     const booking = await seedPendingBooking(repo);
-    booking.approve(STAFF_ID, CORRELATION_ID);
+    booking.approve({ type: 'STAFF', id: STAFF_ID }, CORRELATION_ID);
     const pendingEventId = booking.domainEvents[0].eventId;
 
     // Inline dispatch error is swallowed inside the after-commit callback — save() (standing in
@@ -183,7 +189,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
     const repo = makeRepo(outboxPublisher);
 
     const booking = await seedPendingBooking(repo);
-    booking.approve(STAFF_ID, CORRELATION_ID);
+    booking.approve({ type: 'STAFF', id: STAFF_ID }, CORRELATION_ID);
     const pendingEventId = booking.domainEvents[0].eventId;
     await repo.save(booking); // inline disabled — row stays unpublished after this commit
 

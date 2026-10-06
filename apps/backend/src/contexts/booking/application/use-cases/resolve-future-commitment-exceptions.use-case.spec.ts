@@ -80,6 +80,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
     useCase.execute({
       tenantId: TENANT_ID,
       staffId: STAFF_ID,
+      actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
       timezone: 'America/Sao_Paulo',
       ...overrides,
@@ -150,7 +151,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       const booking = await world.addBooking({ service, resource: source });
       const [entryId] = await raiseFor(source.id);
       const stored = (await world.bookingRepo.findById(booking.id, TENANT_ID))!;
-      stored.cancel(STAFF_ID, true, CORRELATION_ID);
+      stored.cancel({ type: 'STAFF', id: STAFF_ID }, CORRELATION_ID);
       await world.bookingRepo.save(stored);
 
       const { results } = await resolve({ exceptionIds: [entryId], resolutionType: 'CANCEL' });

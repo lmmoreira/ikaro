@@ -1,7 +1,8 @@
 import { EntityManager, In } from 'typeorm';
 import { Booking } from '../../domain/booking.aggregate';
+import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
-import { toLineEntity } from './typeorm-booking.mapper';
+import { toAttendeeEntity, toLineEntity } from './typeorm-booking.mapper';
 
 // Split out of typeorm-booking.repository.ts to keep it under the file-length cap — pure
 // manager-scoped line-sync logic, no `this` dependency, so a plain exported function (mirroring
@@ -51,4 +52,17 @@ export async function syncBookingLines(manager: EntityManager, booking: Booking)
   if (lineEntitiesToSave.length) {
     await manager.save(BookingLineEntity, lineEntitiesToSave);
   }
+}
+
+// Attendees are immutable once a booking exists (UC-068 — no edit flow), unlike lines (synced
+// above on every save) — insert-once, on the initial INSERT branch only, never re-synced.
+export async function insertBookingAttendees(
+  manager: EntityManager,
+  booking: Booking,
+): Promise<void> {
+  if (!booking.attendees.length) return;
+  await manager.insert(
+    BookingAttendeeEntity,
+    booking.attendees.map((a) => toAttendeeEntity(a, booking.id, booking.tenantId)),
+  );
 }

@@ -1,4 +1,5 @@
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
@@ -18,6 +19,7 @@ const CORRELATION_ID = 'corr-guest-info-test';
 
 describe('SubmitGuestBookingInfoUseCase', () => {
   let repo: InMemoryBookingRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let txManager: InMemoryTransactionManager;
   let eventBus: InMemoryEventBus;
   let storageService: InMemoryStorageService;
@@ -27,7 +29,8 @@ describe('SubmitGuestBookingInfoUseCase', () => {
   beforeEach(async () => {
     txManager = new InMemoryTransactionManager();
     eventBus = new InMemoryEventBus();
-    repo = new InMemoryBookingRepository(eventBus);
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    repo = new InMemoryBookingRepository(eventBus, transitionRepo);
     storageService = new InMemoryStorageService();
 
     const guestBooking = new BookingBuilder()
@@ -58,6 +61,27 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     expect(result.status).toBe('PENDING');
     expect(result.bookingId).toBe(guestBookingId);
     expect(result.infoSubmittedAt).toBeDefined();
+  });
+
+  it('records the reply as one audit row for a guest, with no actor id', async () => {
+    await useCase.execute({
+      bookingId: guestBookingId,
+      contactEmail: 'joao@example.com',
+      response: 'Segue a foto do carro',
+      tenantId: TENANT_A,
+      correlationId: CORRELATION_ID,
+    });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: guestBookingId,
+        fromStatus: 'INFO_REQUESTED',
+        toStatus: 'PENDING',
+        actorType: 'GUEST',
+        actorId: null,
+        reason: null,
+      },
+    ]);
   });
 
   it('publishes BookingInfoSubmitted event with null customerId', async () => {

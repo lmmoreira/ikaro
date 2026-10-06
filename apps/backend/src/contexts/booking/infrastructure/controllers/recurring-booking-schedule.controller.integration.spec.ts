@@ -24,6 +24,7 @@ import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
+import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import {
@@ -86,6 +87,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
     await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
     await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(BookingLineEntity).delete({ tenantId });
+    await ds.getRepository(BookingStatusTransitionEntity).delete({ tenantId });
     await ds.getRepository(BookingEntity).delete({ tenantId });
     await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
     await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });

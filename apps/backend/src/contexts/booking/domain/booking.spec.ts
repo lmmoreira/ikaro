@@ -4,6 +4,7 @@ import { BookingBuilder } from '../../../test/builders/booking/booking.builder';
 import { BookingLineBuilder } from '../../../test/builders/booking/booking-line.builder';
 import { BookingLineInputBuilder } from '../../../test/builders/booking/booking-line-input.builder';
 import { Booking, BookingStatus, RequestBookingInput } from './booking.aggregate';
+import { BookingActor, StaffBookingActor } from './booking-status-transition';
 import {
   BookingAttendeeNameRequiredError,
   BookingDiscountExceedsTotalError,
@@ -24,6 +25,8 @@ import { BookingRescheduled } from './events/booking-rescheduled.event';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
+const STAFF: StaffBookingActor = { type: 'STAFF', id: STAFF_ID };
+const GUEST: BookingActor = { type: 'GUEST', id: null };
 const CORRELATION_ID = '00000000-0000-7000-8000-000000000003';
 
 const pickupAddr = testAddress();
@@ -114,6 +117,10 @@ describe('Booking.requestBooking()', () => {
     expect((events[0] as BookingRequested).data.requiresPickup).toBe(false);
   });
 
+  it('records no status transition on creation', () => {
+    expect(request({}).drainStatusTransitions()).toEqual([]);
+  });
+
   it('trims and stores notes when provided', () => {
     const booking = request({ notes: '  Favor chegar 10 minutos antes  ' });
     expect(booking.notes).toBe('Favor chegar 10 minutos antes');
@@ -192,7 +199,7 @@ describe('Booking.requestBooking()', () => {
 describe('Booking.approve()', () => {
   it('transitions PENDING → APPROVED and emits BookingApproved', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
-    booking.approve(STAFF_ID, CORRELATION_ID);
+    booking.approve(STAFF, CORRELATION_ID);
 
     expect(booking.status).toBe(BookingStatus.APPROVED);
     expect(booking.approvedBy).toBe(STAFF_ID);
@@ -210,7 +217,7 @@ describe('Booking.approve()', () => {
       .withTotalDurationMins(45)
       .build();
 
-    booking.approve(STAFF_ID, CORRELATION_ID, newScheduledAt);
+    booking.approve(STAFF, CORRELATION_ID, newScheduledAt);
 
     expect(booking.status).toBe(BookingStatus.APPROVED);
     expect(booking.scheduledAt).toBe(newScheduledAt);
@@ -227,28 +234,28 @@ describe('Booking.approve()', () => {
 
   it('transitions INFO_REQUESTED → APPROVED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
-    booking.approve(STAFF_ID, CORRELATION_ID);
+    booking.approve(STAFF, CORRELATION_ID);
     expect(booking.status).toBe(BookingStatus.APPROVED);
   });
 
   it('throws when already APPROVED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.APPROVED).build();
-    expect(() => booking.approve(STAFF_ID, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
+    expect(() => booking.approve(STAFF, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
   });
 
   it('throws when COMPLETED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.COMPLETED).build();
-    expect(() => booking.approve(STAFF_ID, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
+    expect(() => booking.approve(STAFF, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
   });
 
   it('throws when CANCELLED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.CANCELLED).build();
-    expect(() => booking.approve(STAFF_ID, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
+    expect(() => booking.approve(STAFF, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
   });
 
   it('throws when REJECTED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.REJECTED).build();
-    expect(() => booking.approve(STAFF_ID, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
+    expect(() => booking.approve(STAFF, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
   });
 });
 
@@ -257,7 +264,7 @@ describe('Booking.reject()', () => {
 
   it('transitions PENDING → REJECTED and emits BookingRejected', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
-    booking.reject(STAFF_ID, VALID_REASON, CORRELATION_ID);
+    booking.reject(STAFF, VALID_REASON, CORRELATION_ID);
 
     expect(booking.status).toBe(BookingStatus.REJECTED);
     expect(booking.rejectionReason).toBe(VALID_REASON);
@@ -267,20 +274,20 @@ describe('Booking.reject()', () => {
 
   it('transitions INFO_REQUESTED → REJECTED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
-    booking.reject(STAFF_ID, VALID_REASON, CORRELATION_ID);
+    booking.reject(STAFF, VALID_REASON, CORRELATION_ID);
     expect(booking.status).toBe(BookingStatus.REJECTED);
   });
 
   it('throws BookingRejectionReasonTooShortError when reason is too short', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
-    expect(() => booking.reject(STAFF_ID, 'short', CORRELATION_ID)).toThrow(
+    expect(() => booking.reject(STAFF, 'short', CORRELATION_ID)).toThrow(
       BookingRejectionReasonTooShortError,
     );
   });
 
   it('throws when COMPLETED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.COMPLETED).build();
-    expect(() => booking.reject(STAFF_ID, VALID_REASON, CORRELATION_ID)).toThrow(
+    expect(() => booking.reject(STAFF, VALID_REASON, CORRELATION_ID)).toThrow(
       InvalidBookingTransitionError,
     );
   });
@@ -290,7 +297,7 @@ describe('Booking.requestMoreInfo()', () => {
   it('transitions PENDING → INFO_REQUESTED and emits BookingInfoRequested', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
     const before = new Date();
-    booking.requestMoreInfo(STAFF_ID, 'Please send car photos', CORRELATION_ID);
+    booking.requestMoreInfo(STAFF, 'Please send car photos', CORRELATION_ID);
 
     expect(booking.status).toBe(BookingStatus.INFO_REQUESTED);
     expect(booking.infoRequestMessage).toBe('Please send car photos');
@@ -303,7 +310,7 @@ describe('Booking.requestMoreInfo()', () => {
 
   it('throws BookingInfoMessageTooShortError when message is shorter than 20 chars', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
-    expect(() => booking.requestMoreInfo(STAFF_ID, 'Too short', CORRELATION_ID)).toThrow(
+    expect(() => booking.requestMoreInfo(STAFF, 'Too short', CORRELATION_ID)).toThrow(
       BookingInfoMessageTooShortError,
     );
   });
@@ -312,7 +319,7 @@ describe('Booking.requestMoreInfo()', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
     expect(() =>
       booking.requestMoreInfo(
-        STAFF_ID,
+        STAFF,
         'Please provide more details about the vehicle',
         CORRELATION_ID,
       ),
@@ -324,7 +331,12 @@ describe('Booking.submitInformation()', () => {
   it('transitions INFO_REQUESTED → PENDING and emits BookingInfoSubmitted', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
     const before = new Date();
-    booking.submitInformation('guest@test.com', { notes: 'Here are the photos' }, CORRELATION_ID);
+    booking.submitInformation(
+      'guest@test.com',
+      { notes: 'Here are the photos' },
+      CORRELATION_ID,
+      GUEST,
+    );
 
     expect(booking.status).toBe(BookingStatus.PENDING);
     expect(booking.infoResponseMessage).toBe('Here are the photos');
@@ -337,7 +349,7 @@ describe('Booking.submitInformation()', () => {
 
   it('appends photos to beforeServicePhotoUrls when provided', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
-    booking.submitInformation('g@t.com', {}, CORRELATION_ID, ['extra1.jpg', 'extra2.jpg']);
+    booking.submitInformation('g@t.com', {}, CORRELATION_ID, GUEST, ['extra1.jpg', 'extra2.jpg']);
 
     expect(booking.beforeServicePhotoUrls).toEqual(['extra1.jpg', 'extra2.jpg']);
     const event = booking.domainEvents[0] as BookingInfoSubmitted;
@@ -346,13 +358,13 @@ describe('Booking.submitInformation()', () => {
 
   it('does not modify beforeServicePhotoUrls when no photos provided', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
-    booking.submitInformation('g@t.com', {}, CORRELATION_ID);
+    booking.submitInformation('g@t.com', {}, CORRELATION_ID, GUEST);
     expect(booking.beforeServicePhotoUrls).toEqual([]);
   });
 
   it('throws when not INFO_REQUESTED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
-    expect(() => booking.submitInformation('g@t.com', {}, CORRELATION_ID)).toThrow(
+    expect(() => booking.submitInformation('g@t.com', {}, CORRELATION_ID, GUEST)).toThrow(
       InvalidBookingTransitionError,
     );
   });
@@ -369,7 +381,7 @@ describe('Booking.complete()', () => {
       .build();
 
     const actualPrices = new Map([[line.lineId, Money.from(90, 'BRL')]]);
-    booking.complete(STAFF_ID, actualPrices, ['photo.jpg'], CORRELATION_ID);
+    booking.complete(STAFF, actualPrices, ['photo.jpg'], CORRELATION_ID);
 
     expect(booking.status).toBe(BookingStatus.COMPLETED);
     expect(booking.completedBy).toBe(STAFF_ID);
@@ -388,14 +400,14 @@ describe('Booking.complete()', () => {
       .withTotalPrice(Money.from(150, 'BRL'))
       .build();
 
-    booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID);
+    booking.complete(STAFF, new Map(), [], CORRELATION_ID);
 
     expect(booking.totalActualPrice?.amount.toFixed(2)).toBe('150.00');
   });
 
   it('throws when not APPROVED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
-    expect(() => booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID)).toThrow(
+    expect(() => booking.complete(STAFF, new Map(), [], CORRELATION_ID)).toThrow(
       InvalidBookingTransitionError,
     );
   });
@@ -408,7 +420,7 @@ describe('Booking.complete()', () => {
       .withTotalPrice(Money.from(100, 'BRL'))
       .build();
 
-    booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID, undefined, {
+    booking.complete(STAFF, new Map(), [], CORRELATION_ID, undefined, {
       pointsUsed: 200,
       amountDeducted: 20,
     });
@@ -431,7 +443,7 @@ describe('Booking.complete()', () => {
       .withTotalPrice(Money.from(100, 'BRL'))
       .build();
 
-    booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID);
+    booking.complete(STAFF, new Map(), [], CORRELATION_ID);
 
     expect(booking.discountPointsUsed).toBeNull();
     expect(booking.discountAmount).toBeNull();
@@ -448,7 +460,7 @@ describe('Booking.complete()', () => {
       .build();
 
     expect(() =>
-      booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID, undefined, {
+      booking.complete(STAFF, new Map(), [], CORRELATION_ID, undefined, {
         pointsUsed: 2000,
         amountDeducted: 150,
       }),
@@ -459,7 +471,7 @@ describe('Booking.complete()', () => {
 describe('Booking.cancel()', () => {
   it('cancels a PENDING booking and emits BookingCancelled', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
-    booking.cancel(STAFF_ID, true, CORRELATION_ID, 'Admin cancelled');
+    booking.cancel(STAFF, CORRELATION_ID, 'Admin cancelled');
 
     expect(booking.status).toBe(BookingStatus.CANCELLED);
     expect(booking.cancellationReason).toBe('Admin cancelled');
@@ -469,35 +481,29 @@ describe('Booking.cancel()', () => {
 
   it('cancels INFO_REQUESTED booking', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
-    booking.cancel(STAFF_ID, true, CORRELATION_ID);
+    booking.cancel(STAFF, CORRELATION_ID);
     expect(booking.status).toBe(BookingStatus.CANCELLED);
   });
 
   it('cancels APPROVED booking', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.APPROVED).build();
-    booking.cancel(STAFF_ID, true, CORRELATION_ID);
+    booking.cancel(STAFF, CORRELATION_ID);
     expect(booking.status).toBe(BookingStatus.CANCELLED);
   });
 
   it('throws when COMPLETED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.COMPLETED).build();
-    expect(() => booking.cancel(STAFF_ID, false, CORRELATION_ID)).toThrow(
-      InvalidBookingTransitionError,
-    );
+    expect(() => booking.cancel(STAFF, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
   });
 
   it('throws when already CANCELLED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.CANCELLED).build();
-    expect(() => booking.cancel(STAFF_ID, false, CORRELATION_ID)).toThrow(
-      InvalidBookingTransitionError,
-    );
+    expect(() => booking.cancel(STAFF, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
   });
 
   it('throws when REJECTED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.REJECTED).build();
-    expect(() => booking.cancel(STAFF_ID, false, CORRELATION_ID)).toThrow(
-      InvalidBookingTransitionError,
-    );
+    expect(() => booking.cancel(STAFF, CORRELATION_ID)).toThrow(InvalidBookingTransitionError);
   });
 });
 
@@ -676,6 +682,10 @@ describe('Booking.materializeRecurringOccurrence()', () => {
     expect(materialize().domainEvents).toHaveLength(0);
   });
 
+  it('records no status transition, even though it is created APPROVED', () => {
+    expect(materialize().drainStatusTransitions()).toEqual([]);
+  });
+
   it('computes the totals across its lines', () => {
     const booking = materialize({
       lineInputs: [
@@ -700,7 +710,7 @@ describe('Booking.materializeRecurringOccurrence()', () => {
   });
 
   it('is already APPROVED, so approve() refuses it', () => {
-    expect(() => materialize().approve(STAFF_ID, CORRELATION_ID)).toThrow(
+    expect(() => materialize().approve(STAFF, CORRELATION_ID)).toThrow(
       InvalidBookingTransitionError,
     );
   });

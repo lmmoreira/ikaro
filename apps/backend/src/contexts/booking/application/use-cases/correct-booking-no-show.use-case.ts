@@ -4,15 +4,9 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { BookingStatus } from '../../domain/booking.types';
-import { BookingStatusTransition } from '../../domain/booking-status-transition';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { CorrectBookingNoShowDto } from '../dtos/correct-booking-no-show.dto';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
-import {
-  IBookingStatusTransitionRepository,
-  BOOKING_STATUS_TRANSITION_REPOSITORY,
-} from '../ports/booking-status-transition-repository.port';
 
 export type CorrectBookingNoShowUseCaseInput = CorrectBookingNoShowDto & {
   bookingId: string;
@@ -36,8 +30,6 @@ export class CorrectBookingNoShowUseCase {
 
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    @Inject(BOOKING_STATUS_TRANSITION_REPOSITORY)
-    private readonly transitionRepo: IBookingStatusTransitionRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
@@ -49,23 +41,10 @@ export class CorrectBookingNoShowUseCase {
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
 
-    const fromStatus = booking.status;
-    booking.correctNoShow(staffId, correlationId);
+    booking.correctNoShow({ type: 'MANAGER', id: staffId }, correlationId, input.reason);
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
-      await this.transitionRepo.save(
-        BookingStatusTransition.record({
-          tenantId,
-          bookingId: booking.id,
-          fromStatus,
-          toStatus: BookingStatus.COMPLETED,
-          reason: input.reason,
-          actorType: 'MANAGER',
-          actorId: staffId,
-          correlationId,
-        }),
-      );
     });
 
     this.logger.log('No-show corrected to completed', {

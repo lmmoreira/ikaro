@@ -20,6 +20,7 @@ export type RejectBookingUseCaseInput = RejectBookingDto & {
   bookingId: string;
   tenantId: string;
   staffId: string;
+  actorRole: 'STAFF' | 'MANAGER';
   correlationId: string;
 };
 
@@ -51,7 +52,7 @@ export class RejectBookingUseCase {
       throw new InvalidBookingTransitionError(booking.status, BookingStatus.REJECTED);
     }
 
-    booking.reject(staffId, input.reason, correlationId);
+    booking.reject({ type: input.actorRole, id: staffId }, input.reason, correlationId);
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);

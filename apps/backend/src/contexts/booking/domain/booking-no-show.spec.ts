@@ -1,5 +1,6 @@
 import { BookingBuilder } from '../../../test/builders/booking/booking.builder';
 import { BookingStatus } from './booking.aggregate';
+import { StaffBookingActor } from './booking-status-transition';
 import {
   BookingAlreadyTerminalError,
   BookingNotYetEndedError,
@@ -9,6 +10,8 @@ import { BookingCompleted } from './events/booking-completed.event';
 import { BookingNoShow } from './events/booking-no-show.event';
 
 const STAFF_ID = '00000000-0000-7000-8000-000000000002';
+const STAFF: StaffBookingActor = { type: 'STAFF', id: STAFF_ID };
+const MANAGER: StaffBookingActor = { type: 'MANAGER', id: STAFF_ID };
 const CORRELATION_ID = '00000000-0000-7000-8000-000000000003';
 
 // Appointment 13:00–13:30 UTC.
@@ -27,7 +30,7 @@ describe('Booking.markNoShow()', () => {
   it('transitions APPROVED → NO_SHOW after the end time and emits BookingNoShow only', () => {
     const booking = approvedBooking().build();
 
-    booking.markNoShow(STAFF_ID, CORRELATION_ID, undefined, AFTER_END);
+    booking.markNoShow(STAFF, CORRELATION_ID, undefined, AFTER_END);
 
     expect(booking.status).toBe(BookingStatus.NO_SHOW);
     const events = booking.domainEvents;
@@ -43,25 +46,20 @@ describe('Booking.markNoShow()', () => {
 
   it('carries a trimmed reason in the event and drops a blank one', () => {
     const withReason = approvedBooking().build();
-    withReason.markNoShow(
-      STAFF_ID,
-      CORRELATION_ID,
-      '  Cliente não atendeu o telefone.  ',
-      AFTER_END,
-    );
+    withReason.markNoShow(STAFF, CORRELATION_ID, '  Cliente não atendeu o telefone.  ', AFTER_END);
     expect((withReason.domainEvents[0] as BookingNoShow).data.reason).toBe(
       'Cliente não atendeu o telefone.',
     );
 
     const blank = approvedBooking().build();
-    blank.markNoShow(STAFF_ID, CORRELATION_ID, '   ', AFTER_END);
+    blank.markNoShow(STAFF, CORRELATION_ID, '   ', AFTER_END);
     expect((blank.domainEvents[0] as BookingNoShow).data.reason).toBeNull();
   });
 
   it('accepts the exact end instant (the appointment has just ended)', () => {
     const booking = approvedBooking().build();
 
-    booking.markNoShow(STAFF_ID, CORRELATION_ID, undefined, ENDS_AT);
+    booking.markNoShow(STAFF, CORRELATION_ID, undefined, ENDS_AT);
 
     expect(booking.status).toBe(BookingStatus.NO_SHOW);
   });
@@ -70,7 +68,7 @@ describe('Booking.markNoShow()', () => {
     const booking = approvedBooking().build();
     const beforeEnd = new Date(ENDS_AT.getTime() - 1);
 
-    expect(() => booking.markNoShow(STAFF_ID, CORRELATION_ID, undefined, beforeEnd)).toThrow(
+    expect(() => booking.markNoShow(STAFF, CORRELATION_ID, undefined, beforeEnd)).toThrow(
       BookingNotYetEndedError,
     );
     expect(booking.status).toBe(BookingStatus.APPROVED);
@@ -85,7 +83,7 @@ describe('Booking.markNoShow()', () => {
   ])('rejects a %s booking as already terminal', (status) => {
     const booking = approvedBooking().withStatus(status).build();
 
-    expect(() => booking.markNoShow(STAFF_ID, CORRELATION_ID, undefined, AFTER_END)).toThrow(
+    expect(() => booking.markNoShow(STAFF, CORRELATION_ID, undefined, AFTER_END)).toThrow(
       BookingAlreadyTerminalError,
     );
   });
@@ -95,7 +93,7 @@ describe('Booking.markNoShow()', () => {
     (status) => {
       const booking = approvedBooking().withStatus(status).build();
 
-      expect(() => booking.markNoShow(STAFF_ID, CORRELATION_ID, undefined, AFTER_END)).toThrow(
+      expect(() => booking.markNoShow(STAFF, CORRELATION_ID, undefined, AFTER_END)).toThrow(
         InvalidBookingTransitionError,
       );
     },
@@ -105,7 +103,7 @@ describe('Booking.markNoShow()', () => {
     const booking = approvedBooking().withStatus(BookingStatus.COMPLETED).build();
     const beforeEnd = new Date(SCHEDULED_AT.getTime());
 
-    expect(() => booking.markNoShow(STAFF_ID, CORRELATION_ID, undefined, beforeEnd)).toThrow(
+    expect(() => booking.markNoShow(STAFF, CORRELATION_ID, undefined, beforeEnd)).toThrow(
       BookingAlreadyTerminalError,
     );
   });
@@ -115,7 +113,7 @@ describe('Booking.correctNoShow()', () => {
   it('completes a NO_SHOW booking at its booked prices and emits BookingCompleted only', () => {
     const booking = approvedBooking().withStatus(BookingStatus.NO_SHOW).build();
 
-    booking.correctNoShow(STAFF_ID, CORRELATION_ID);
+    booking.correctNoShow(MANAGER, CORRELATION_ID, 'Marked by mistake');
 
     expect(booking.status).toBe(BookingStatus.COMPLETED);
     expect(booking.completedBy).toBe(STAFF_ID);
@@ -143,7 +141,7 @@ describe('Booking.correctNoShow()', () => {
   ])('rejects a %s booking', (status) => {
     const booking = approvedBooking().withStatus(status).build();
 
-    expect(() => booking.correctNoShow(STAFF_ID, CORRELATION_ID)).toThrow(
+    expect(() => booking.correctNoShow(MANAGER, CORRELATION_ID, 'Marked by mistake')).toThrow(
       InvalidBookingTransitionError,
     );
   });

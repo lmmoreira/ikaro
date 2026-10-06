@@ -26,6 +26,10 @@ import {
   IBookingRepository,
 } from '../../application/ports/booking-repository.port';
 import {
+  BOOKING_STATUS_TRANSITION_REPOSITORY,
+  IBookingStatusTransitionRepository,
+} from '../../application/ports/booking-status-transition-repository.port';
+import {
   BookingConcurrentModificationError,
   BookingNotFoundError,
 } from '../../domain/errors/booking-domain.error';
@@ -34,13 +38,13 @@ import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
-import { toAttendeeEntity, toDomain, toEntity, toUpdateSet } from './typeorm-booking.mapper';
+import { toDomain, toEntity, toUpdateSet } from './typeorm-booking.mapper';
 import {
   groupByBookingId,
   groupResourceAssignmentsByBookingId,
   ResourceAssignmentRow,
 } from './typeorm-booking-resource-assignments.helpers';
-import { syncBookingLines } from './typeorm-booking-line-sync.helpers';
+import { insertBookingAttendees, syncBookingLines } from './typeorm-booking-line-sync.helpers';
 import { insertBookingsInBulk } from './typeorm-booking-bulk-insert.helpers';
 
 const EMPTY_RESOURCE_ASSIGNMENTS: ReadonlyMap<string, readonly BookingResourceAssignmentSummary[]> =
@@ -59,6 +63,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     private readonly resourceAssignmentRepo: Repository<BookingLineResourceAssignmentEntity>,
     @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
+    @Inject(BOOKING_STATUS_TRANSITION_REPOSITORY)
+    private readonly transitionRepo: IBookingStatusTransitionRepository,
   ) {}
 
   async findById(id: string, tenantId: string): Promise<Booking | null> {
@@ -257,7 +263,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       // as Record<string, unknown> (intakeAnswers, M22-S02), even though the runtime value is a
       // plain BookingEntity.
       await manager.insert(BookingEntity, bookingEntity as QueryDeepPartialEntity<BookingEntity>);
-      await this.insertAttendeesIfAny(manager, booking);
+      await insertBookingAttendees(manager, booking);
     } else {
       const currentVersion = booking.version;
       const result = await manager
@@ -285,17 +291,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       await syncBookingLines(manager, booking);
     }
 
+    await this.transitionRepo.saveAll(booking.drainStatusTransitions());
     await drainDomainEvents(booking, this.outboxPublisher);
     booking.markPersisted(nextVersion);
-  }
-
-  // Attendees are immutable once a booking exists (UC-068 — no edit flow), unlike lines (synced
-  // above on every save) — insert-once, on the initial INSERT branch only, never re-synced.
-  private async insertAttendeesIfAny(manager: EntityManager, booking: Booking): Promise<void> {
-    if (!booking.attendees.length) return;
-    const attendeeEntities = booking.attendees.map((a) =>
-      toAttendeeEntity(a, booking.id, booking.tenantId),
-    );
-    await manager.insert(BookingAttendeeEntity, attendeeEntities);
   }
 }

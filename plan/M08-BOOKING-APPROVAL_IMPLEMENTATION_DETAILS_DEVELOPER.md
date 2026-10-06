@@ -54,7 +54,7 @@ async execute(dto): Promise<Result> {
     throw new InvalidBookingTransitionError(booking.status, BookingStatus.APPROVED);
   }
 
-  booking.approve(staffId, correlationId);                  // 4. mutate aggregate
+  booking.approve({ type: input.actorRole, id: staffId }, correlationId); // 4. mutate aggregate
 
   await this.txManager.run(async () => {                    // 5. persist inside transaction
     await this.bookingRepo.save(booking);
@@ -199,7 +199,7 @@ return this.backendHttp.patchForPublic(`/bookings/${id}/submit-info/guest`,
 
 ### Backend guest use case
 
-`SubmitGuestBookingInfoUseCase` receives `contactEmail` (renamed from `guestEmail` in `M13-S38`, extracted from token by BFF) and passes it to `booking.submitInformation(contactEmail, { notes: response }, correlationId, photoUrls, null)`. The last argument (`customerId = null`) marks it as a guest submission.
+`SubmitGuestBookingInfoUseCase` receives `contactEmail` (renamed from `guestEmail` in `M13-S38`, extracted from token by BFF) and passes it to `booking.submitInformation(contactEmail, { notes: response }, correlationId, { type: 'GUEST', id: null }, photoUrls)`. The `GUEST` actor (no id) marks it as a guest submission and is what writes the `GUEST` audit row (M23-S26); it replaced the earlier `customerId = null` argument.
 
 **Why contactEmail comes from the token, not the request body:** the guest's email was captured at booking-creation time. The token is proof they received the email at that address. Letting guests supply their own email would allow anyone with the URL to respond as any email address.
 

@@ -225,7 +225,7 @@ BookingLine {
   - Creates booking in `PENDING`.
   - Publishes `BookingRequested`.
 - `approveBooking()` → transitions `PENDING | INFO_REQUESTED → APPROVED`, publishes `BookingApproved` (event carries the line summary).
-- `rejectBooking(staffId, reason)` → transitions `PENDING | INFO_REQUESTED → REJECTED`, publishes `BookingRejected`.
+- `rejectBooking(actor, reason)` → transitions `PENDING | INFO_REQUESTED → REJECTED`, publishes `BookingRejected`.
 - `requestMoreInfo(informationNeeded)` → `PENDING → INFO_REQUESTED`, publishes `BookingInfoRequested`.
 - `submitInformation(payload)` → `INFO_REQUESTED → PENDING`, publishes `BookingInfoSubmitted`.
 - `completeBooking(afterServicePhotoUrls, adminNotes?, actualPrices?: Map<BookingLineId, Money>)`
@@ -234,6 +234,7 @@ BookingLine {
   Computes and caches `totalActualPrice = SUM(lines.actualPriceCharged)`.
   Stores photos. Publishes `BookingCompleted` **with the full line list including `actualPriceCharged`**.
 - `cancelBooking(actor, reason?)` → validates `tenants.settings.booking.cancellationWindowHours` rule, transitions to `CANCELLED`, publishes `BookingCancelled`.
+- Every status-changing method above (and `markNoShow` / `correctNoShow`) takes the acting `BookingActor` (`{ type: STAFF | MANAGER | CUSTOMER | GUEST | SYSTEM, id }`) and records the transition — see *`Booking` — modified (M23 Cluster 3)* below. `BookingCancelled.isBusiness` is derived from the actor (`type !== CUSTOMER`), not passed in.
 - `isEligibleForCancellation(now)` → checks the cancellation-window rule.
 - `uploadBeforeServicePhotos(photoUrls)` → appends to `beforeServicePhotoUrls`.
 - `uploadAfterServicePhotos(photoUrls)` → appends to `afterServicePhotoUrls`.

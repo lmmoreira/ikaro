@@ -15,6 +15,7 @@ import { ResourceType } from '../../contexts/booking/domain/resource.types';
 import { BookingEntity } from '../../contexts/booking/infrastructure/entities/booking.entity';
 import { BookingLineEntity } from '../../contexts/booking/infrastructure/entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
+import { BookingStatusTransitionEntity } from '../../contexts/booking/infrastructure/entities/booking-status-transition.entity';
 import { FutureCommitmentExceptionEntity } from '../../contexts/booking/infrastructure/entities/future-commitment-exception.entity';
 import { RecurringBookingScheduleEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../../contexts/booking/infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
@@ -187,6 +188,7 @@ export async function cleanupFutureCommitmentTenant(
   await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
   await ds.getRepository(BookingLineResourceAssignmentEntity).delete({ tenantId });
   await ds.getRepository(BookingLineEntity).delete({ tenantId });
+  await ds.getRepository(BookingStatusTransitionEntity).delete({ tenantId });
   await ds.getRepository(BookingEntity).delete({ tenantId });
   await ds.getRepository(RecurringBookingScheduleResourceAssignmentEntity).delete({ tenantId });
   await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId });

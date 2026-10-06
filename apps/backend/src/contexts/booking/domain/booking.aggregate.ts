@@ -8,6 +8,12 @@ import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text
 import { BookingAttendee } from './booking-attendee.entity';
 import { BookingLine } from './booking-line.entity';
 import {
+  BookingActor,
+  BookingStatusTransition,
+  IdentifiedBookingActor,
+  StaffBookingActor,
+} from './booking-status-transition';
+import {
   BookingAlreadyTerminalError,
   BookingDiscountExceedsTotalError,
   BookingInfoMessageTooShortError,
@@ -44,10 +50,39 @@ export * from './booking.types';
 export class Booking extends AggregateRoot {
   private readonly props: BookingProps;
   private _linesModified = false;
+  private _pendingStatusTransitions: BookingStatusTransition[] = [];
 
   private constructor(props: BookingProps) {
     super();
     this.props = props;
+  }
+
+  // Mirrors clearDomainEvents(): the repository persists the returned audit rows in the same
+  // transaction as the booking's own save.
+  drainStatusTransitions(): BookingStatusTransition[] {
+    const transitions = this._pendingStatusTransitions;
+    this._pendingStatusTransitions = [];
+    return transitions;
+  }
+
+  private recordStatusTransition(
+    toStatus: BookingStatus,
+    actor: BookingActor,
+    correlationId: string,
+    reason?: string | null,
+  ): void {
+    this._pendingStatusTransitions.push(
+      BookingStatusTransition.record({
+        tenantId: this.props.tenantId,
+        bookingId: this.props.id,
+        fromStatus: this.props.status,
+        toStatus,
+        reason,
+        actorType: actor.type,
+        actorId: actor.id,
+        correlationId,
+      }),
+    );
   }
 
   get linesModified(): boolean {
@@ -388,7 +423,7 @@ export class Booking extends AggregateRoot {
     });
   }
 
-  approve(staffId: string, correlationId: string, scheduledAt?: Date): void {
+  approve(actor: StaffBookingActor, correlationId: string, scheduledAt?: Date): void {
     if (
       this.props.status !== BookingStatus.PENDING &&
       this.props.status !== BookingStatus.INFO_REQUESTED
@@ -400,9 +435,10 @@ export class Booking extends AggregateRoot {
       this.props.scheduledAt = scheduledAt;
     }
 
+    this.recordStatusTransition(BookingStatus.APPROVED, actor, correlationId);
     this.props.status = BookingStatus.APPROVED;
     this.props.approvedAt = new Date();
-    this.props.approvedBy = staffId;
+    this.props.approvedBy = actor.id;
 
     const endTime = new Date(
       this.props.scheduledAt.getTime() + this.props.totalDurationMins * 60_000,
@@ -420,12 +456,12 @@ export class Booking extends AggregateRoot {
         },
         totalPrice: this.totalPricePayload(),
         lineSummary: this.lineSummaryPayload(),
-        approvedBy: staffId,
+        approvedBy: actor.id,
       }),
     );
   }
 
-  reject(staffId: string, reason: string, correlationId: string): void {
+  reject(actor: StaffBookingActor, reason: string, correlationId: string): void {
     const normalizedReason = normalizeText(reason);
     if (normalizedReason.length < 10) {
       throw new BookingRejectionReasonTooShortError();
@@ -437,9 +473,10 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.REJECTED);
     }
 
+    this.recordStatusTransition(BookingStatus.REJECTED, actor, correlationId, normalizedReason);
     this.props.status = BookingStatus.REJECTED;
     this.props.rejectedAt = new Date();
-    this.props.rejectedBy = staffId;
+    this.props.rejectedBy = actor.id;
     this.props.rejectionReason = normalizedReason;
 
     this.addDomainEvent(
@@ -449,12 +486,12 @@ export class Booking extends AggregateRoot {
         contactEmail: this.props.contactEmail.address,
         contactName: this.props.contactName,
         reason: normalizedReason,
-        rejectedBy: staffId,
+        rejectedBy: actor.id,
       }),
     );
   }
 
-  requestMoreInfo(staffId: string, message: string, correlationId: string): void {
+  requestMoreInfo(actor: StaffBookingActor, message: string, correlationId: string): void {
     const normalizedMessage = normalizeText(message);
     if (normalizedMessage.length < 20) {
       throw new BookingInfoMessageTooShortError();
@@ -463,10 +500,16 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.INFO_REQUESTED);
     }
 
+    this.recordStatusTransition(
+      BookingStatus.INFO_REQUESTED,
+      actor,
+      correlationId,
+      normalizedMessage,
+    );
     this.props.status = BookingStatus.INFO_REQUESTED;
     this.props.infoRequestMessage = normalizedMessage;
     this.props.infoRequestedAt = new Date();
-    this.props.infoRequestedBy = staffId;
+    this.props.infoRequestedBy = actor.id;
 
     this.addDomainEvent(
       new BookingInfoRequested(this.props.tenantId, correlationId, {
@@ -475,7 +518,7 @@ export class Booking extends AggregateRoot {
         contactEmail: this.props.contactEmail.address,
         contactName: this.props.contactName,
         informationNeeded: normalizedMessage,
-        requestedBy: staffId,
+        requestedBy: actor.id,
       }),
     );
   }
@@ -484,13 +527,14 @@ export class Booking extends AggregateRoot {
     submittedByEmail: string,
     infoPayload: Record<string, unknown>,
     correlationId: string,
+    actor: BookingActor,
     photoUrls: string[] = [],
-    customerId?: string,
   ): void {
     if (this.props.status !== BookingStatus.INFO_REQUESTED) {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.PENDING);
     }
 
+    this.recordStatusTransition(BookingStatus.PENDING, actor, correlationId);
     this.props.status = BookingStatus.PENDING;
     this.props.infoResponseMessage =
       typeof infoPayload['notes'] === 'string' ? infoPayload['notes'] : null;
@@ -503,7 +547,7 @@ export class Booking extends AggregateRoot {
     this.addDomainEvent(
       new BookingInfoSubmitted(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
-        customerId: customerId ?? null,
+        customerId: actor.type === 'CUSTOMER' ? actor.id : null,
         submittedByEmail,
         infoPayload,
         photoUrls,
@@ -512,7 +556,7 @@ export class Booking extends AggregateRoot {
   }
 
   complete(
-    staffId: string,
+    actor: StaffBookingActor,
     lineActualPrices: Map<string, Money>,
     afterPhotos: string[],
     correlationId: string,
@@ -523,10 +567,11 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.COMPLETED);
     }
     this.applyCompletion(
-      staffId,
+      actor,
       lineActualPrices,
       afterPhotos,
       correlationId,
+      null,
       adminNotes,
       discountByPoints,
     );
@@ -535,11 +580,11 @@ export class Booking extends AggregateRoot {
   // UC-074 A3 — a manager corrects a mistaken no-show. The booking is completed at its booked
   // prices (no photos, notes or points discount), so the resulting BookingCompleted carries a valid
   // payload for Loyalty, which awards the service points exactly once, here.
-  correctNoShow(staffId: string, correlationId: string): void {
+  correctNoShow(actor: StaffBookingActor, correlationId: string, reason: string): void {
     if (this.props.status !== BookingStatus.NO_SHOW) {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.COMPLETED);
     }
-    this.applyCompletion(staffId, new Map(), [], correlationId);
+    this.applyCompletion(actor, new Map(), [], correlationId, reason);
   }
 
   // UC-074 — terminal status reachable only from APPROVED, and only after the appointment's
@@ -547,7 +592,7 @@ export class Booking extends AggregateRoot {
   // not-APPROVED (422), then not-yet-ended (422). No loyalty event; BookingCompleted is only
   // published by a later manager correction.
   markNoShow(
-    staffId: string,
+    actor: StaffBookingActor,
     correlationId: string,
     reason?: string,
     now: Date = new Date(),
@@ -563,12 +608,14 @@ export class Booking extends AggregateRoot {
     );
     if (now.getTime() < endsAt.getTime()) throw new BookingNotYetEndedError(endsAt);
 
+    const normalizedReason = normalizeOptionalText(reason);
+    this.recordStatusTransition(BookingStatus.NO_SHOW, actor, correlationId, normalizedReason);
     this.props.status = BookingStatus.NO_SHOW;
     this.addDomainEvent(
       new BookingNoShow(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
-        actorId: staffId,
-        reason: normalizeOptionalText(reason),
+        actorId: actor.id,
+        reason: normalizedReason,
         occurredAt: now.toISOString(),
       }),
     );
@@ -582,10 +629,11 @@ export class Booking extends AggregateRoot {
   ];
 
   private applyCompletion(
-    staffId: string,
+    actor: StaffBookingActor,
     lineActualPrices: Map<string, Money>,
     afterPhotos: string[],
     correlationId: string,
+    reason: string | null,
     adminNotes?: string,
     discountByPoints?: { pointsUsed: number; amountDeducted: number },
   ): void {
@@ -595,9 +643,10 @@ export class Booking extends AggregateRoot {
     );
 
     this._linesModified = true;
+    this.recordStatusTransition(BookingStatus.COMPLETED, actor, correlationId, reason);
     this.props.status = BookingStatus.COMPLETED;
     this.props.completedAt = new Date();
-    this.props.completedBy = staffId;
+    this.props.completedBy = actor.id;
     this.props.totalActualPrice = totalActualPrice;
     this.props.discountPointsUsed = discountByPoints?.pointsUsed ?? null;
     this.props.discountAmount = discountAmount;
@@ -606,7 +655,7 @@ export class Booking extends AggregateRoot {
 
     this.addDomainEvent(
       this.buildCompletedEvent(
-        staffId,
+        actor.id,
         afterPhotos,
         correlationId,
         totalActualPrice,
@@ -708,7 +757,7 @@ export class Booking extends AggregateRoot {
     };
   }
 
-  cancel(cancelledBy: string, isBusiness: boolean, correlationId: string, reason?: string): void {
+  cancel(actor: IdentifiedBookingActor, correlationId: string, reason?: string): void {
     const cancellable = [
       BookingStatus.PENDING,
       BookingStatus.INFO_REQUESTED,
@@ -718,10 +767,12 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.CANCELLED);
     }
 
+    const normalizedReason = normalizeOptionalText(reason);
+    this.recordStatusTransition(BookingStatus.CANCELLED, actor, correlationId, normalizedReason);
     this.props.status = BookingStatus.CANCELLED;
     this.props.cancelledAt = new Date();
-    this.props.cancelledBy = cancelledBy;
-    this.props.cancellationReason = reason ?? null;
+    this.props.cancelledBy = actor.id;
+    this.props.cancellationReason = normalizedReason;
 
     this.addDomainEvent(
       new BookingCancelled(this.props.tenantId, correlationId, {
@@ -729,9 +780,9 @@ export class Booking extends AggregateRoot {
         customerId: this.props.customerId,
         contactEmail: this.props.contactEmail.address,
         contactName: this.props.contactName,
-        cancelledBy,
-        isBusiness,
-        reason: reason ?? null,
+        cancelledBy: actor.id,
+        isBusiness: actor.type !== 'CUSTOMER',
+        reason: normalizedReason,
         scheduledAt: this.props.scheduledAt.toISOString(),
         lineSummary: this.lineSummaryPayload(),
         totalPrice: this.totalPricePayload(),

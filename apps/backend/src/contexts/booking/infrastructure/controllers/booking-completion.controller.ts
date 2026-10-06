@@ -65,6 +65,7 @@ import {
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
+import { staffActorRole } from './staff-actor-role';
 
 // Split from booking-lifecycle.controller.ts — same 'bookings' route prefix — to satisfy
 // docs/CODE_STANDARDS.md's file-length limit. Cancel/reschedule/complete/no-show endpoints live here.
@@ -105,9 +106,16 @@ export class BookingCompletionController {
     @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CancelBookingAsAdminSchema)) body: CancelBookingAsAdminDto,
   ): Promise<CancelBookingAsAdminUseCaseResult> {
-    const { tenantId, actorId: staffId, correlationId } = this.ctx;
+    const { tenantId, actorId: staffId, actorRole, correlationId } = this.ctx;
     return this.cancelBookingAsAdmin
-      .execute({ bookingId: id, reason: body.reason, tenantId, staffId: staffId!, correlationId })
+      .execute({
+        bookingId: id,
+        reason: body.reason,
+        tenantId,
+        staffId: staffId!,
+        actorRole: staffActorRole(actorRole),
+        correlationId,
+      })
       .catch(mapBookingError);
   }
 
@@ -164,7 +172,7 @@ export class BookingCompletionController {
     @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CompleteBookingSchema)) body: CompleteBookingDto,
   ): Promise<CompleteBookingUseCaseResult> {
-    const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
+    const { tenantId, actorId: staffId, actorRole, correlationId, settings } = this.ctx;
     return this.completeBooking
       .execute({
         bookingId: id,
@@ -174,6 +182,7 @@ export class BookingCompletionController {
         discountByPoints: body.discountByPoints,
         tenantId,
         staffId: staffId!,
+        actorRole: staffActorRole(actorRole),
         correlationId,
         currency: settings.localization.currency,
         pointsPerCurrencyUnit: settings.loyalty.pointsPerCurrencyUnit,
@@ -196,7 +205,7 @@ export class BookingCompletionController {
         reason: body.reason,
         tenantId,
         staffId: staffId!,
-        actorRole: actorRole === 'MANAGER' ? 'MANAGER' : 'STAFF',
+        actorRole: staffActorRole(actorRole),
         correlationId,
       })
       .catch(mapBookingError);

@@ -23,7 +23,7 @@ Implement the core domain layer for `Booking` and `BookingLine`. This is the mos
 **`Booking` aggregate (`apps/backend/src/contexts/booking/domain/`):**
 - Properties: `id` (UUID v7), `tenantId`, `status` (BookingStatus enum), `type` (GUEST | CUSTOMER), `customerId?`, `guestEmail`, `guestName`, `guestPhone` (Phone), `guestAddress?` (Address, optional general address), `pickupAddress?` (Address, required when any line has `requiresPickupAddressAtBooking=true`), `scheduledAt` (UTC), `totalDurationMins` (derived), `totalPrice` (Money, derived), `totalActualPrice?` (Money, null until COMPLETED), `lines` (BookingLine[]), `beforeServicePhotoUrls?[]`, `afterServicePhotoUrls?[]`, `adminNotes?`, `infoRequestMessage?`, `infoResponseMessage?`, `approvedAt?`, `completedAt?`, `cancelledAt?`, `createdAt`
 
-- **State machine methods:**
+- **State machine methods:** *[Superseded by M23-S26 (2026-10-06): the `staffId` / `cancelledBy` / `isBusiness` / `customerId` arguments below became one required `BookingActor` (`{ type, id }`); `isBusiness` is derived from `actor.type`. See `docs/02-DOMAIN_MODEL.md` § `Booking` — modified (M23 Cluster 3).]*
   - `requestBooking(tenantId, guestEmail, guestName, guestPhone, scheduledAt, lines, type, customerId?, guestAddress?, pickupAddress?)` — static factory, status=PENDING, emits `BookingRequested`
   - `approve(staffId)` — PENDING|INFO_REQUESTED → APPROVED, freezes lines, emits `BookingApproved`
   - `reject(staffId, reason)` — PENDING|INFO_REQUESTED → REJECTED, emits `BookingRejected`

@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import {
   BookingBuilder,
@@ -22,6 +23,8 @@ import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
+import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
+import { TypeOrmBookingStatusTransitionRepository } from './typeorm-booking-status-transition.repository';
 
 const TENANT_A = '00000000-0000-7000-8000-000000000060';
 const TENANT_B = '00000000-0000-7000-8000-000000000061';
@@ -46,6 +49,9 @@ describe('TypeOrmBookingRepository (integration)', () => {
       dataSource.getRepository(BookingLineResourceAssignmentEntity),
       settingsPort,
       new InMemoryEventBus(),
+      new TypeOrmBookingStatusTransitionRepository(
+        dataSource.getRepository(BookingStatusTransitionEntity),
+      ),
     );
 
     // Seed a service so booking_lines FK (tenant_id, service_id) → services is satisfied
@@ -187,12 +193,12 @@ describe('TypeOrmBookingRepository (integration)', () => {
 
     // Approve the booking so we can complete it and set actual price
     const found = await repo.findById(booking.id, tenantId);
-    found!.approve('00000000-0000-7000-8000-000000000099', 'corr-1');
+    found!.approve({ type: 'STAFF', id: '00000000-0000-7000-8000-000000000099' }, uuidv7());
     found!.complete(
-      '00000000-0000-7000-8000-000000000099',
+      { type: 'STAFF', id: '00000000-0000-7000-8000-000000000099' },
       new Map([[found!.lines[0].lineId, Money.from(120, 'BRL')]]),
       [],
-      'corr-2',
+      uuidv7(),
     );
     found!.clearDomainEvents();
 
@@ -291,8 +297,8 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(copyA).not.toBeNull();
     expect(copyB).not.toBeNull();
 
-    copyA!.approve('00000000-0000-7000-8000-000000000099', 'corr-a');
-    copyB!.approve('00000000-0000-7000-8000-000000000099', 'corr-b');
+    copyA!.approve({ type: 'STAFF', id: '00000000-0000-7000-8000-000000000099' }, uuidv7());
+    copyB!.approve({ type: 'STAFF', id: '00000000-0000-7000-8000-000000000099' }, uuidv7());
 
     await repo.save(copyA!);
 

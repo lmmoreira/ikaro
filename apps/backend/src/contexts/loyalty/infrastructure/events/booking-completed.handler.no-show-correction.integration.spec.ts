@@ -61,7 +61,7 @@ describe('BookingCompletedHandler — no-show correction (integration, M23-S09)'
       .build();
     const expectedPoints = booking.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0);
 
-    booking.correctNoShow(uuidv7(), uuidv7());
+    booking.correctNoShow({ type: 'MANAGER', id: uuidv7() }, uuidv7(), 'Marked by mistake');
     const event = booking.domainEvents[0] as BookingCompleted;
     await handler.handle(event);
     await handler.handle(event); // at-least-once redelivery must not double-award
