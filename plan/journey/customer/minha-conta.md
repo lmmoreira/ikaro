@@ -135,7 +135,11 @@ Folder: `customer/prototypes/minha-conta/`
 | `07b-avisos-vazio.html` | Meus avisos — vazio (orienta a usar "Avise-me quando abrir" ao agendar) | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `07c-avisos-carregando.html` | Meus avisos — carregando | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `07d-avisos-erro.html` | Meus avisos — erro ao carregar, com "Tentar novamente" | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
-| `07e-aviso-nao-editavel.html` | Aviso já notificado/expirado — cancelar recusado (409 `BOOKING_ALERT_NOT_EDITABLE`) | UC-076 A1 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07e-aviso-nao-editavel.html` | Cancelar recusado porque o aviso já foi notificado/expirou (409 `BOOKING_ALERT_NOT_EDITABLE`) | UC-076 A1 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07f-aviso-detalhe.html` | Detalhe do aviso ativo — detalhe central + painel de ações ("Cancelar aviso"), mesmo padrão de `02-agendamento-detail` | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07g-aviso-detalhe-historico.html` | Detalhe de um aviso já avisado/expirado — somente leitura, sem cancelar | UC-076 A1 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07h-cancelar-aviso.html` | Confirmar o cancelamento do aviso — detalhe central + painel de ações, mesmo padrão de `03-cancel-confirm` | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07i-cancelar-aviso-erro.html` | Falha ao cancelar (rede / 5xx) — o aviso continua ativo, com "Tentar novamente" | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `13-nova-recorrencia.html` | Nova reserva recorrente — padrão (serviço, recurso, dias, horário, período) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
@@ -280,7 +284,7 @@ POST  /recurring-booking-schedules/:id/end       -- end early (the `…/pause` r
 
 ### Availability alerts — management only (UC-076)
 
-"Meus avisos" (`07`) lists the customer's alerts (active first, then notified / expired / cancelled history), and cancels an active one (editing is not in the UI yet — the API supports it, a customer who wants different criteria cancels and creates a new alert). There is **no create button**: an alert is created from the booking flow's calendar step, on a page of that flow in the tenant's branding (`customer/book-a-service.md` § Availability alert page, screens `book-a-service/16*`). When the 10-alert cap is hit, that page links here so the customer can cancel one.
+"Meus avisos" (`07`) lists the customer's alerts (active first, then notified / expired / cancelled history), and opens an alert's detail page, from whose action pane an active one is cancelled through a confirmation page (the same detail → cancel pattern as a booking; editing is not in the UI yet — the API supports it, a customer who wants different criteria cancels and creates a new alert). There is **no create button**: an alert is created from the booking flow's calendar step, on a page of that flow in the tenant's branding (`customer/book-a-service.md` § Availability alert page, screens `book-a-service/16*`). When the 10-alert cap is hit, that page links here so the customer can cancel one.
 
 **Open questions / gaps:**
 - [x] Stories exist: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creation — in the booking flow, see `customer/book-a-service.md`), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload — backend, and it lands before `M23-S05`; `06d` is now the chosen UI for it, built in `M23-S17`). Each still begins with `/story-discovery`.

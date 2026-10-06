@@ -145,6 +145,8 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creatio
 | `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ❓ Gap | M23-S17 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ❓ Gap | M23-S12 |
 | `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane) | M23-S12 |
+| `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ❓ Gap — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S12 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ❓ Gap | M23-S12 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleOccurrenceActions.tsx` | ❓ Gap | M23-S12 |
 | `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result) | ❓ Gap | M23-S17 |
@@ -174,7 +176,11 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creatio
 | `07b-avisos-vazio.html` | Empty state — points the customer to "Avise-me quando abrir" in the booking flow | same, empty | M23-S12 |
 | `07c-avisos-carregando.html` | Loading skeleton | same, loading | M23-S12 |
 | `07d-avisos-erro.html` | `GET /availability-alerts` failed — retry | same, error | M23-S12 |
-| `07e-aviso-nao-editavel.html` | `409 BOOKING_ALERT_NOT_EDITABLE` on cancel (already notified or expired) — the list refreshes, the alert moves to history | same, error | M23-S12 |
+| `07e-aviso-nao-editavel.html` | `409 BOOKING_ALERT_NOT_EDITABLE` on cancel (already notified or expired, reached from `07h`) — the list refreshes, the alert moves to history | same, error | M23-S12 |
+| `07f-aviso-detalhe.html` | Alert detail (ACTIVE) — central detail + action pane with "Cancelar aviso"; same layout as `02-agendamento-detail` | `/{slug}/my-account/alerts/[id]` | M23-S12 |
+| `07g-aviso-detalhe-historico.html` | Alert detail (NOTIFIED / EXPIRED) — read-only, no cancel action | same, history | M23-S12 |
+| `07h-cancelar-aviso.html` | Cancel confirmation — central detail + action pane; same layout as `03-cancel-confirm`, `DELETE /availability-alerts/:id` | `/{slug}/my-account/alerts/[id]/cancel` | M23-S12 |
+| `07i-cancelar-aviso-erro.html` | Cancel failed (network / 5xx) — the alert stays active, retry | same, error | M23-S12 |
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
 

@@ -1290,7 +1290,7 @@ Returns:
 - **Trigger:** Customer opens "Meus avisos."
 - **Main Flow:**
   1. Customer opens "Meus avisos" and views their active alerts.
-  2. Customer cancels an alert. *(Editing criteria or expiry is supported by the API — `PATCH /availability-alerts/:id` — but not offered in the UI yet; to change criteria the customer cancels and creates a new alert from the booking flow, M23-S12.)*
+  2. Customer opens an alert's detail page and cancels it from the action pane, after a confirmation page — the same pattern as cancelling a booking (`bookings/[id]` → `bookings/[id]/cancel`). *(Editing criteria or expiry is supported by the API — `PATCH /availability-alerts/:id` — but not offered in the UI yet; to change criteria the customer cancels and creates a new alert from the booking flow, M23-S12.)*
   3. System expires alerts automatically and sends at most one deduplicated notification per matching availability window.
 - **Alternative Flows:**
   - **A1: Alert already notified or expired** → Remains visible as history but cannot be edited/reactivated; customer creates a new alert instead. Finished alerts (notified, expired, cancelled) are deleted automatically 90 days after their expiry date (M23-S06).

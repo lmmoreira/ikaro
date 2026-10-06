@@ -98,7 +98,7 @@
 
   <!--
     VARIANT OF: 07-availability-alert.html
-    SCENARIO:   409 BOOKING_ALERT_NOT_EDITABLE — a cancel on an alert that was notified or expired in the meantime. The list refreshes and the alert now sits in the history.
+    SCENARIO:   (reached from the confirm page 07h) 409 BOOKING_ALERT_NOT_EDITABLE — a cancel on an alert that was notified or expired in the meantime. The list refreshes and the alert now sits in the history.
     COMPONENT: AvailabilityAlertList  (GAP — M23-S12)
     PAGE:       apps/web/app/[slug]/my-account/alerts/page.tsx  (GAP — M23-S12) — account shell (Tailwind + shadcn in the real app)
     BFF:        GET /availability-alerts  (customer only; at most the 100 most recent, history included)
