@@ -188,7 +188,7 @@ Error routing, step paths and the design decisions: `plan/journey/guest/prototyp
 
 **The button.** `02-calendar-slot.html` shows it for every alert-eligible service (`bookingPolicy.availabilityAlertEligible`), with or without slots, and not while loading or on fetch-error states. It is one shared pattern (same component, label and look in guest `02`/`02d` and here — one button in the nav row between Voltar and Próximo), specified in the guest folder's `dev-notes.md` § Availability-alert entry § Pattern. An authenticated customer goes straight to the alert page below; a guest passes through login first.
 
-**The alert page is a page of the booking flow** — same shell and tenant branding as the booking steps (`--ba-*`), reachable only while logged in, with no use outside a booking attempt. It is **not** a Minha Conta page. "Meus avisos" (`../minha-conta/07-availability-alert.html`) only lists, edits and cancels.
+**The alert page is a page of the booking flow** — same shell and tenant branding as the booking steps (`--ba-*`), reachable only while logged in, with no use outside a booking attempt. It is **not** a Minha Conta page. "Meus avisos" (`../minha-conta/07-availability-alert.html`) only lists and cancels.
 
 | File | Screen / state | Story |
 |---|---|---|

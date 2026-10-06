@@ -100,12 +100,12 @@
 <body>
 
   <!--
-    COMPONENT: AvailabilityAlertList + AvailabilityAlertEditForm  (GAP — M23-S12)
+    COMPONENT: AvailabilityAlertList  (GAP — M23-S12)
     PAGE:       apps/web/app/[slug]/my-account/alerts/page.tsx  (GAP — M23-S12)
-    UC cobertos: UC-076 (list / edit / cancel). There is NO create button: creation always starts from the booking flow's (customer/prototypes/book-a-service/16*, a hotsite-tree page) "Avise-me quando abrir" (M23-S31, screens 16*).
-    BFF:  GET /availability-alerts  ·  PATCH /availability-alerts/:id  ·  DELETE /availability-alerts/:id   (customer only)
-    DATA: items newest first, history included (at most the 100 most recent); ACTIVE alerts are editable/cancellable, NOTIFIED / EXPIRED / CANCELLED are read-only history
-          (finished alerts are deleted automatically 90 days after their expiry). Edit overlays criteria/expiry; 409 BOOKING_ALERT_NOT_EDITABLE for a finished alert.
+    UC cobertos: UC-076 (list / cancel). EDIT IS NOT IN THE UI YET — PATCH /availability-alerts/:id exists in the API (M23-S06) but no screen offers it; a customer who wants different criteria cancels and creates a new alert from the booking flow. There is NO create button: creation always starts from the booking flow's (customer/prototypes/book-a-service/16*, a hotsite-tree page) "Avise-me quando abrir" (M23-S31, screens 16*).
+    BFF:  GET /availability-alerts  ·  DELETE /availability-alerts/:id   (customer only; PATCH exists but is not used by this screen yet)
+    DATA: items newest first, history included (at most the 100 most recent); ACTIVE alerts are cancellable, NOTIFIED / EXPIRED / CANCELLED are read-only history
+          (finished alerts are deleted automatically 90 days after their expiry). 409 BOOKING_ALERT_NOT_EDITABLE on cancelling a finished (notified / expired) alert.
   -->
 
   <!-- Prototype banner -->
@@ -178,14 +178,14 @@
             <div class="rec-body"><div class="rec-name">Massagem relaxante · Carla Menezes<span class="badge badge-ativa">Ativo</span></div>
               <div class="rec-meta">20 out 09:00 – 27 out 18:00 · 60 min · 1 pessoa</div></div></div>
           <div class="rec-footer"><span class="rec-footer-label">Ativo até 05 nov</span>
-            <span><a class="btn-link" href="#editar">Editar</a><a class="btn-link danger" href="#cancelar">Cancelar aviso</a></span></div>
+            <span><a class="btn-link danger" href="#cancelar">Cancelar aviso</a></span></div>
         </div>
         <div class="rec-card">
           <div class="rec-card-header"><div class="rec-accent" style="background:#16a34a"></div>
             <div class="rec-body"><div class="rec-name">Limpeza de pele<span class="badge badge-ativa">Ativo</span></div>
               <div class="rec-meta">Toda ter e qui, 09:00–12:00 · 45 min · 1 pessoa</div></div></div>
           <div class="rec-footer"><span class="rec-footer-label">Ativo até 19 nov</span>
-            <span><a class="btn-link" href="#editar">Editar</a><a class="btn-link danger" href="#cancelar">Cancelar aviso</a></span></div>
+            <span><a class="btn-link danger" href="#cancelar">Cancelar aviso</a></span></div>
         </div>
 
         <p class="section-label" style="margin-top:1.5rem;">Histórico</p>
@@ -200,19 +200,12 @@
               <div class="rec-meta">Toda sex, 14:00–18:00 · expirou em 02 set</div></div></div>
         </div>
 
-        <div id="editar" class="panel card">
-          <p class="section-label">Editar aviso — Massagem relaxante</p>
-          <label class="form-label" for="e-from">De</label><input id="e-from" type="datetime-local" class="form-input" value="2026-10-20T09:00">
-          <label class="form-label" for="e-to" style="margin-top:.75rem;">Até</label><input id="e-to" type="datetime-local" class="form-input" value="2026-10-27T18:00">
-          <label class="form-label" for="e-exp" style="margin-top:.75rem;">Manter o aviso por</label><select id="e-exp" class="form-input"><option>Até 05 nov (atual)</option><option>60 dias</option><option>365 dias</option></select>
-          <div class="nav-buttons"><a class="btn-secondary" href="#">Cancelar</a><a class="btn-primary" href="#" style="text-decoration:none;">Salvar alterações</a></div>
-        </div>
         <div id="cancelar" class="panel card notice-error">
           <strong>Cancelar este aviso?</strong>
           <p style="margin-top:.25rem;font-size:.875rem;">Você deixa de ser avisado sobre vagas para Massagem relaxante. Você pode criar outro aviso depois.</p>
           <div class="nav-buttons"><a class="btn-secondary" href="#">Manter aviso</a><a class="btn-primary" href="#" style="text-decoration:none;background:#dc2626;">Cancelar aviso</a></div>
         </div>
-        <div class="proto-only">Variantes (prototype-only): <a href="#editar">editar</a> <a href="#cancelar">cancelar</a> · Estado vazio: sem avisos, a mesma orientação de "Avise-me quando abrir".</div>
+        <div class="proto-only">Variantes (prototype-only): <a href="#cancelar">cancelar</a> · Estado vazio: sem avisos, a mesma orientação de "Avise-me quando abrir".</div>
 
       </div>
     </main>

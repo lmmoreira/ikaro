@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meus avisos — aviso não editável — Vitta Studio</title>
+  <title>Meus avisos — aviso já encerrado — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     details summary { list-style: none; }
@@ -98,7 +98,7 @@
 
   <!--
     VARIANT OF: 07-availability-alert.html
-    SCENARIO:   409 BOOKING_ALERT_NOT_EDITABLE — an edit or cancel on an alert that was notified, expired or cancelled in the meantime. The list refreshes and the alert now sits in the history.
+    SCENARIO:   409 BOOKING_ALERT_NOT_EDITABLE — a cancel on an alert that was notified or expired in the meantime. The list refreshes and the alert now sits in the history.
     COMPONENT: AvailabilityAlertList  (GAP — M23-S12)
     PAGE:       apps/web/app/[slug]/my-account/alerts/page.tsx  (GAP — M23-S12) — account shell (Tailwind + shadcn in the real app)
     BFF:        GET /availability-alerts  (customer only; at most the 100 most recent, history included)
@@ -167,7 +167,7 @@
         <a class="back-link" href="01-minha-conta.html">← Agendamentos</a>
         <div class="page-head"><h1 class="page-title">Meus avisos</h1></div>
         <div class="notice notice-error" role="alert" style="margin-top:0;">
-          <strong>Este aviso não pode mais ser alterado.</strong>
+          <strong>Este aviso não pode mais ser cancelado.</strong>
           <p style="margin-top:.25rem;font-size:.875rem;">Ele já foi notificado ou expirou. Ele continua no seu histórico; para ser avisado de novo, crie um novo aviso pelo passo de data e horário de um agendamento.</p>
         </div>
         <p class="section-label" style="margin-top:1.5rem;">Histórico</p>
