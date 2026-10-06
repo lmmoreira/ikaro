@@ -42,7 +42,7 @@
 | 4 | M23-S30 | Customer reschedules a booking — "Reagendar" screen in Minha Conta, date and time only (UC-069; needs a prototype-driven discovery of the kept-picks read) |
 | 4 | M23-S31 | Availability-alert creation — "Avise-me quando abrir" button on the booking flow's calendar step and the alert page in the booking flow (UC-072; prototyped) |
 | 2 | M23-S32 | Fungible-pool booking assigns a free unit, not the first eligible one (UC-062); backend-only |
-| 3 | M23-S33 | Enforce the booking window on the backend — min/max advance on booking, reschedule and availability, and honour the per-service override |
+| 3 | M23-S33 | Enforce the booking window on the backend — min/max advance on booking and reschedule, per-service override (never looser than the tenant), tenant-timezone dates, alert sweep and public booking page aligned (full-stack, L) |
 | 3 | M23-S34 | Reject an availability alert on a customer-selected-duration service when no valid duration is chosen (create and update, backend-only) |
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
@@ -2424,68 +2424,83 @@ A pool of N interchangeable units must accept bookings of the same slot until it
 
 ---
 
-### M23-S33 — Enforce the booking window on the backend (min/max advance) and honour the per-service override
+### M23-S33 — Enforce the booking window on the backend (min/max advance), honour the per-service override, and align the public booking page
 
-**Discovered:** 2026-10-05, at M23-S07's `/story-discovery`, while checking what "bookable" means for the availability-alert sweep.
-**Root cause:** nothing on the backend enforces the booking window. `GetAvailabilitySummaryUseCase.validateRange()` (`get-availability-summary.use-case.ts:148-157`) caps only the *span* between `from` and `to`, not the distance from today, so days 300–310 pass. `get-availability.use-case.ts` (one day), `request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts` and `reschedule-booking-as-customer.use-case.ts` never read `maxBookingAdvanceDays` or `minBookingAdvanceHours`; `minBookingAdvanceHours` is read nowhere in `apps/backend` or `apps/bff` except its settings validator. `Service.bookingPolicy.minBookingAdvanceHoursOverride` / `maxBookingAdvanceDaysOverride` (`service.types.ts:26-27`) are stored and editable in the dashboard but no caller reads them. The only limit is in the UI (`AvailabilityCalendar.tsx` last selectable date; the carousel's `min(carouselDays, maxBookingAdvanceDays)`), so a direct API call or a stale tab can book any date.
-**Agent:** `backend-ts`
-**Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-061/UC-062 (booking), UC-069 (reschedule), UC-055 (service booking policy), `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Booking Settings, `docs/14-API_CONTRACTS.md` (booking and availability error codes), `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking
-**Dependencies:** M23-S02 (✅ Done — booking creation), M23-S03 (✅ Done — reschedule). Independent of M23-S07: the alert sweep's horizon is the customer-selectable window by design and does not wait for this story.
-**Pattern:** plain composition — the precedent is `resolveEffectiveRescheduleWindowHours()` (`reschedule-quote.helpers.ts:58`): a pure helper resolves the effective value (service override when non-null, else the tenant setting), the controller passes the tenant's `settings.booking` values into the use-case input (as it already does for `cancellationWindowHours`), and the use case asserts. No named GoF pattern.
+**Discovered:** 2026-10-05, at M23-S07's `/story-discovery`, while checking what "bookable" means for the availability-alert sweep. **Discovery completed:** 2026-10-06 — decisions below are final.
+**Root cause:** nothing on the backend enforces the booking window. `GetAvailabilitySummaryUseCase.validateRange()` (`get-availability-summary.use-case.ts:148-157`) caps only the *span* between `from` and `to`, not the distance from today, so days 300–310 pass. `get-availability.use-case.ts` (one day), `request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts` and `reschedule-booking-as-customer.use-case.ts` never read `maxBookingAdvanceDays` or `minBookingAdvanceHours`; `minBookingAdvanceHours` is read nowhere in `apps/backend` or `apps/bff` except its settings validator. `Service.bookingPolicy.minBookingAdvanceHoursOverride` / `maxBookingAdvanceDaysOverride` (`service.types.ts:26-27`) are stored and editable in the dashboard but no caller reads them. Booking creation also has **no past-start check at all** (`BookingScheduledInPastError` is thrown only by the two reschedule use cases). The only limit is in the UI (`AvailabilityCalendar.tsx` last selectable date; the carousel's `min(carouselDays, maxBookingAdvanceDays)`), so a direct API call or a stale tab can book any date. The tenant settings validator and Zod schema also lack the ceilings and the `min/24 < max` rule that `docs/21-TENANTS_SETTINGS_SCHEMA.md` documents. Separately, every availability "today" is `todayUTC()` while slots and jobs use the tenant timezone, so for a UTC−3 tenant "today" flips to tomorrow at 21:00 local.
+**Agent:** `backend-ts` + `web-ts` (full-stack)
+**Complexity:** L
+**Docs to load:** `docs/04-USE_CASES.md` UC-061/UC-062 (booking), UC-069 (reschedule), UC-055 (service booking policy), UC-072 (alerts), `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Booking Settings, `docs/14-API_CONTRACTS.md` (booking and availability error codes), `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking, `docs/24-BFF_ARCHITECTURE.md`
+**Dependencies:** M23-S02 (✅ Done — booking creation), M23-S03 (✅ Done — reschedule), M23-S07 (✅ Done — the alert sweep this story updates), M23-S29 (✅ Done — the whitelisted public service shape this story extends).
+**Prototype references:** none — no new screen. The story changes which dates and slots the existing availability components offer; the copy for the existing out-of-range state (`availability.outOfRangeMessage`) is reused. No `plan/journey/` file changes.
+**Pattern:** plain composition — the precedent is `resolveEffectiveRescheduleWindowHours()` (`reschedule-quote.helpers.ts:58`): a pure helper resolves the effective value, the controller passes the tenant's `settings.booking` values into the use-case input (as it already does for `cancellationWindowHours`), and the use case asserts. No named GoF pattern. The assertion runs in the use case **before** `persistRequestedBooking()`/`txManager.run()` — never inside the transaction, and never in the shared helpers that availability also uses.
 
 **Description:**
-Make the backend the authority for how far ahead and how soon a booking may be made. A new pure helper resolves the *effective* window for a service — `minBookingAdvanceHours` and `maxBookingAdvanceDays`, each the service override when set, else the tenant value — and one assertion is applied at every entry point: `POST /bookings`, `POST /bookings/authenticated`, the customer reschedule (the new date), and both availability reads.
+Make the backend the authority for how far ahead and how soon a booking may be made, make the per-service override take effect, and make the public booking page offer exactly what the backend will accept.
 
-**Decided at creation (not for discovery to re-derive):**
-1. **Semantics match the UI today.** The last bookable date is `today + maxBookingAdvanceDays − 1` in the *tenant timezone* (the same rule `AvailabilityCalendar` uses); a booking must start at or after `now + minBookingAdvanceHours`.
-2. **Errors:** two new `BookingErrorCode`s, `BOOKING_TOO_FAR_AHEAD` and `BOOKING_TOO_SOON`, both `422`, with typed domain errors, a `mapBookingError` branch, and entries in `packages/types` plus **both** `packages/i18n/locales/{pt-BR,en}/errors.json` in the same commit (CI's exhaustiveness test fails otherwise).
-3. **Existing bookings are never touched.** Only a new booking or a reschedule's *new* date is checked.
-4. **Recurring schedules are out of scope.** They have their own cap (`recurringHorizonDays`, M23-S18); this story does not change that path.
-
-**Open for `/story-discovery`:**
-- **Staff exemption.** Default: a staff/admin booking on a customer's behalf and a staff reschedule are *exempt*, mirroring the cancellation/reschedule-window staff override (UC-069 A3). Confirm.
-- **Availability behaviour outside the window.** Default: the one-day read returns no slots and the summary marks days beyond the window unavailable (no error), so the UI never breaks; booking creation returns the `422`. Confirm, or choose an error for availability too.
-- **Telling the web the effective window.** With the override honoured, the public calendar (tenant `maxBookingAdvanceDays` from the manifest) could offer dates the backend now rejects for a service with a shorter override. Default: add the effective window to the public service shape additively and have the calendar/carousel read it; if that makes the story L, split the web part into its own story.
-- **Override sanity.** Whether `update-service-booking-policy.use-case.ts` already bounds an override by the tenant's ceilings (1–365 days, 0–8760 hours); add the missing validation if not.
+**Decided at discovery (not for implementation to re-derive):**
+1. **The tenant window is the ceiling; a service can only tighten it.** `effectiveMaxDays = min(service override ?? ∞, tenant maxBookingAdvanceDays)` and `effectiveMinHours = max(service override ?? 0, tenant minBookingAdvanceHours)`, each field independently. The clamp is applied at **read time**, so a tenant that shrinks its window later needs no cascade or migration. A multi-service booking takes the smallest max days and the largest min hours across its lines (strictest wins) — deliberately different from the MAX-override rule in `resolveEffectiveRescheduleWindowHours`.
+2. **Semantics.** The last bookable date is `today + effectiveMaxDays − 1`; a booking must start at or after `now + effectiveMinHours`; a start at or before `now` is rejected first with the existing `SCHEDULED_IN_PAST` (`BookingScheduledInPastError`), so `BOOKING_TOO_SOON` means only "in the future but inside the minimum notice".
+3. **Timezone.** "Today" and the last bookable date are computed in the **tenant timezone** (`utcDateToLocalDate`). This replaces `todayUTC()` throughout the booking availability stack — `get-availability.use-case.ts`, both uses in `availability-summary.helpers.ts`, `open-schedule.use-case.ts`, and the alert sweep's day window — and, on the web, the UTC clock in `AvailabilityCalendar` and `AvailabilityCarousel` (use `toISODateInTimezone` with the tenant timezone). The minimum notice is an instant comparison and needs no timezone. Chatbot daily-spend dates (platform) are out of scope.
+4. **Where it is enforced:** `POST /bookings`, `POST /bookings/authenticated` and the customer reschedule (the new start). **Availability reads are not trimmed**: staff use the same endpoints, and a throwing availability read would also stop the alert sweep's per-group read (`readDay` stops on any non-past `BookingDomainError`).
+5. **Staff are exempt.** A staff/manager reschedule (`reschedule-booking.use-case.ts`) and the M23-S08 worklist reschedule are never blocked — the same override the cancellation and reschedule windows already have (UC-069 A3). There is no staff-created single-booking path.
+6. **Errors:** two new `BookingErrorCode`s, `BOOKING_TOO_FAR_AHEAD` and `BOOKING_TOO_SOON`, both `422`, with typed domain errors in `booking-lifecycle.error.ts`, a `mapBookingError` entry, and entries in `packages/types` plus **both** `packages/i18n/locales/{pt-BR,en}/errors.json` in the same commit (CI's exhaustiveness test fails otherwise). pt-BR wording: "Esse horário está além do prazo máximo de agendamento" / "Esse horário exige mais antecedência".
+7. **Saving a service policy is validated against the tenant window** (the existing `ServiceBookingPolicyInvalidError` → `422`, no new code): an override looser than the tenant value (max days above the tenant max, min hours below the tenant min), or an effective pair with `effectiveMinHours / 24 ≥ effectiveMaxDays`, is rejected. This needs one new method on the platform port `update-service-booking-policy.use-case.ts` already uses (it returns the tenant's two window values). A pair that becomes contradictory *after* a tenant change is not blocked retroactively — booking returns the `422` from decision 6.
+8. **Tenant settings validation** gains the documented rules: ceilings 8760 hours / 365 days and `minBookingAdvanceHours / 24 < maxBookingAdvanceDays` (`booking-settings.validator.ts`, `packages/validation/src/tenant-settings.ts`).
+9. **Alert sweep:** `MatchAvailabilityAlertsUseCase` uses the same helper — per service, with the tenant timezone — for its day window and to drop slots inside the minimum notice, so an alert is never notified about a slot booking would reject. `getAvailabilityAlertContext()` returns the tenant window values the sweep needs.
+10. **Public service shape and web.** `HotsiteServiceBookingPolicy` gains `effectiveMaxBookingAdvanceDays` and `effectiveMinBookingAdvanceHours` (resolved by the backend, so the web never sees raw overrides or recomputes the tenant clamp). The basket takes the smallest max and the largest min across the selected services. `AvailabilityCalendar`, `AvailabilityCarousel`, `AvailabilityStep` and `BookingForm` use that window instead of the tenant value, and slots that start before `now + effectiveMinHours` are hidden client-side (the UI never used minimum notice before). The staff reschedule page keeps the tenant window — staff are exempt.
+11. **Existing bookings are never touched.** Only a new booking or a reschedule's *new* start is checked.
+12. **Recurring schedules are out of scope** — they have their own cap (`recurringHorizonDays`, M23-S18) and materialize through `Booking.materializeRecurringOccurrence`, which this story does not change.
 
 **Backend use case steps:**
-1. `resolveEffectiveBookingWindow(tenantBooking, servicePolicy)` → `{ minAdvanceHours, maxAdvanceDays }` (new pure helper).
-2. `assertWithinBookingWindow({ startsAt, now, timezone, window })` throws `BookingTooFarAheadError` / `BookingTooSoonError`.
-3. Called by `RequestBookingUseCase` and `RequestAuthenticatedBookingUseCase` (each line's service decides its own window; with several services the strictest window applies), by `RescheduleBookingAsCustomerUseCase` for the new start, and by the two availability use cases to trim out-of-window days.
+1. `resolveEffectiveBookingWindow(tenantBooking, services)` → `{ minAdvanceHours, maxAdvanceDays }` (new pure helper: per-field clamp, strictest across lines).
+2. `assertWithinBookingWindow({ startsAt, now, timezone, window })` throws `BookingScheduledInPastError`, then `BookingTooSoonError`, then `BookingTooFarAheadError`.
+3. Called by `RequestBookingUseCase` and `RequestAuthenticatedBookingUseCase` (before `persistRequestedBooking`) and by `RescheduleBookingAsCustomerUseCase` for the new start; not by the staff reschedule.
+4. `UpdateServiceBookingPolicyUseCase` validates the resolved policy against the tenant window (decision 7); the tenant settings validator enforces decision 8.
+5. The availability use cases, `open-schedule.use-case.ts` and the alert sweep compute "today" in the tenant timezone (decision 3); the sweep applies decision 9.
 
-**Backend HTTP surface:** none new — `POST /bookings`, `POST /bookings/authenticated`, the customer reschedule route and `GET` availability/summary gain the `422`; their paths are unchanged.
-**BFF endpoint spec:** passthrough only, unless discovery adds the effective window to the public service shape.
-**New migration / i18n keys / env vars / feature flags:** no migration, no env var, no flag; two error codes with `pt-BR` and `en` entries.
+**Backend HTTP surface:** no new route — `POST /bookings`, `POST /bookings/authenticated` and the customer reschedule route gain the `422` codes; the public service response (`GET /public/services`, `/:id`) gains the two effective fields (additive).
+**BFF endpoint spec:** `toPublicServiceResponse` passes the two effective fields through; everything else is passthrough.
+**New migration / i18n keys / env vars / feature flags:** no migration, no env var, no flag; two error codes with `pt-BR` and `en` entries in `errors.json`; web keys in both `web.json` locales only if the dashboard service form needs copy for the new save rejection (reuse the existing error-code translation first).
 
-**Files to create/modify (paths verified to exist):**
+**Files to create/modify (paths verified to exist unless marked new):**
 - `apps/backend/src/contexts/booking/application/use-cases/booking-window.helpers.ts` (+ `.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts`, `reschedule-booking-as-customer.use-case.ts`, `get-availability.use-case.ts`, `get-availability-summary.use-case.ts` (+ their specs) (modify)
-- `apps/backend/src/contexts/booking/domain/errors/booking-lifecycle.error.ts` (+ spec) (modify — the two typed errors)
-- `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (+ spec) (modify)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.ts`, `booking-lifecycle.controller.ts`, `schedule-availability.controller.ts`, `schedule-availability-summary.controller.ts` (modify — pass `settings.booking` values) and `booking.controller.integration.spec.ts` (modify)
-- `packages/types/src/error-codes.ts`, `packages/i18n/locales/pt-BR/errors.json`, `packages/i18n/locales/en/errors.json` (modify)
-- `docs/04-USE_CASES.md`, `docs/14-API_CONTRACTS.md`, `docs/21-TENANTS_SETTINGS_SCHEMA.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify — the rule, the two codes, and that the service override is now honoured)
+- `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts`, `reschedule-booking-as-customer.use-case.ts`, `update-service-booking-policy.use-case.ts`, `get-availability.use-case.ts`, `availability-summary.helpers.ts`, `open-schedule.use-case.ts`, `match-availability-alerts.use-case.ts` (+ their specs) (modify)
+- `apps/backend/src/contexts/booking/application/ports/booking-platform.port.ts`, `infrastructure/cross-context/booking-platform.adapter.ts`, `apps/backend/src/test/**/in-memory-booking-platform.port.ts` (modify — the tenant window values and the sweep context)
+- `apps/backend/src/contexts/booking/domain/errors/booking-lifecycle.error.ts` (+ spec), `infrastructure/http/booking-error.mapper.ts` (+ spec) (modify)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.ts`, `booking-completion.controller.ts` (modify — pass `settings.booking` window values and the timezone) and `booking.controller.integration.spec.ts` (modify)
+- `apps/backend/src/contexts/platform/domain/value-objects/validators/booking-settings.validator.ts`, `packages/validation/src/tenant-settings.ts` (+ specs) (modify)
+- `packages/types/src/error-codes.ts` (or the protocol errors file `BookingErrorCode` lives in), `packages/types/src/hotsite.ts`, `packages/i18n/locales/pt-BR/errors.json`, `packages/i18n/locales/en/errors.json` (modify)
+- `apps/bff/src/features/booking/services.mapper.ts` (+ spec), `apps/bff/src/test/builders/hotsite-service.builder.ts` (modify)
+- `apps/web/features/booking/components/public/AvailabilityCalendar.tsx`, `AvailabilityCarousel.tsx`, `AvailabilityStep.tsx`, `BookingForm.tsx` (+ their specs), `apps/web/app/[slug]/booking/page.tsx` (modify), plus the date helper in `apps/web/shared/lib/formatting/date-utils.ts` if a tenant-timezone "today" helper is missing
+- `apps/web/e2e/` booking spec (modify or add one scenario)
+- `docs/04-USE_CASES.md` (`:577`, `:606`), `docs/14-API_CONTRACTS.md` (`:892` and the two new codes), `docs/21-TENANTS_SETTINGS_SCHEMA.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (`:317`, `:324`, `:343` — the rule, the tenant-timezone window, the override now honoured; add the effective-window algorithm to the Booking section) (modify)
 
 **Acceptance criteria — product:**
-- [ ] A customer or guest cannot book a date later than the effective maximum, or sooner than the effective minimum notice, even by calling the API directly; the response is `422` with the matching error.
-- [ ] A service with its own override uses it, and a service without one uses the tenant value.
+- [ ] A customer or guest cannot book a date later than the effective maximum, or sooner than the effective minimum notice, even by calling the API directly; the response is `422` with `BOOKING_TOO_FAR_AHEAD` / `BOOKING_TOO_SOON`. A start in the past is `422` `SCHEDULED_IN_PAST`.
+- [ ] A service with its own override uses it, bounded by the tenant value; a service without one uses the tenant value. In a basket of several services the strictest window applies.
 - [ ] A customer cannot reschedule to a date outside the window; existing bookings are unaffected.
-- [ ] Staff creating or rescheduling on a customer's behalf are not blocked (per the default above).
+- [ ] Staff creating or rescheduling on a customer's behalf are not blocked.
+- [ ] A manager cannot save a service override that is looser than the tenant window, or whose minimum notice is not shorter than its maximum days; the tenant settings form rejects the same contradiction.
+- [ ] The public booking page offers only dates and slots the backend will accept for the selected services, and a tenant at UTC−3 sees "today" and the last date change at local midnight, not at 21:00.
+- [ ] An availability alert is never notified about a slot that booking would reject.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `resolveEffectiveBookingWindow`: override wins, `null` falls back to the tenant value, per field independently
-  - [ ] `assertWithinBookingWindow` on the exact boundaries (last allowed date, one day beyond; exactly `minAdvanceHours`, one minute short) and across a timezone date boundary
-  - [ ] a multi-service booking applies the strictest window
+  - [ ] `resolveEffectiveBookingWindow`: override tightens, a looser override is clamped to the tenant value, `null` falls back to the tenant value, per field independently; a basket takes the smallest max and largest min
+  - [ ] `assertWithinBookingWindow` on the exact boundaries (last allowed date, one day beyond; exactly `minAdvanceHours`, one minute short), a start in the past → `SCHEDULED_IN_PAST`, and across a tenant-timezone date boundary (a UTC−3 tenant at 22:00 local)
+  - [ ] the policy save rejects a looser override and a contradictory pair; the tenant validator enforces the ceilings and `min/24 < max`
+  - [ ] the sweep drops a slot inside the minimum notice and a date beyond a service's own maximum
 - Integration:
-  - [ ] `POST /bookings` and `POST /bookings/authenticated`: a date beyond the maximum and a start inside the minimum notice → `422` with the right codes; a valid date → `201`
-  - [ ] customer reschedule outside the window → `422`; staff reschedule → allowed
-  - [ ] a service override shorter than the tenant maximum is honoured
-  - [ ] availability for a day beyond the window returns no slots
+  - [ ] `POST /bookings` and `POST /bookings/authenticated`: past start, a start inside the minimum notice and a date beyond the maximum → `422` with the right codes; a valid date → `201`
+  - [ ] customer reschedule outside the window → `422`; staff reschedule and the M23-S08 worklist reschedule → allowed
+  - [ ] a service override shorter than the tenant maximum is honoured; one longer is rejected on save
+  - [ ] availability reads are unchanged for a day beyond the window (not trimmed) and still reject a date before the tenant-local today
+  - [ ] the public service response carries the two effective fields
 - Tenant isolation:
-  - [ ] Tenant A's window settings never apply to Tenant B's booking
-- E2E: none — backend rule; the public-calendar alignment, if discovery adds it, gets its own E2E scenario
+  - [ ] Tenant A's window settings and service overrides never apply to Tenant B's booking
+- E2E:
+  - [ ] on the public booking page, a service with a short max override hides dates beyond it, and a service with a minimum notice hides slots that start inside it
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
