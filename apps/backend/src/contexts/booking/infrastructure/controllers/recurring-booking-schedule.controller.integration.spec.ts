@@ -306,7 +306,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const rows = await ds.getRepository(BookingStatusTransitionEntity).find({
         where: { tenantId, bookingId: In(occurrences.map((o) => o.id)) },
       });
-      expect(rows).toHaveLength(occurrences.length);
+      expect(rows.map((r) => r.bookingId).sort()).toEqual(occurrences.map((o) => o.id).sort());
       expect(rows.map((r) => [r.fromStatus, r.toStatus, r.actorType, r.actorId])).toEqual(
         occurrences.map(() => ['APPROVED', 'CANCELLED', 'CUSTOMER', CUSTOMER_ID]),
       );
