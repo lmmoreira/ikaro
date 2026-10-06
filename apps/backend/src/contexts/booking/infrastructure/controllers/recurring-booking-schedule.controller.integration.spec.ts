@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 
 import {
   BookingEntityBuilder,
@@ -289,6 +289,27 @@ describe('RecurringBookingScheduleController (integration)', () => {
         .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
         .expect(200);
       expect(body.status).toBe('CANCELLED');
+    });
+
+    it('ending a schedule writes one CANCELLED audit row per cancelled occurrence, for the ending actor', async () => {
+      const { id } = await createActiveSchedule('16:00');
+      const occurrences = await ds
+        .getRepository(BookingEntity)
+        .find({ where: { tenantId, recurringScheduleId: id } });
+      expect(occurrences.length).toBeGreaterThan(0);
+
+      await request(app.getHttpServer())
+        .post(`/recurring-booking-schedules/${id}/end`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      const rows = await ds.getRepository(BookingStatusTransitionEntity).find({
+        where: { tenantId, bookingId: In(occurrences.map((o) => o.id)) },
+      });
+      expect(rows.map((r) => r.bookingId).sort()).toEqual(occurrences.map((o) => o.id).sort());
+      expect(rows.map((r) => [r.fromStatus, r.toStatus, r.actorType, r.actorId])).toEqual(
+        occurrences.map(() => ['APPROVED', 'CANCELLED', 'CUSTOMER', CUSTOMER_ID]),
+      );
     });
   });
 

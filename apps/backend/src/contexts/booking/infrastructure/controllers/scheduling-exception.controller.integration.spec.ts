@@ -13,6 +13,7 @@ import {
 } from '../../../../test/utils/future-commitment-db-fixture';
 import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
 import { BookingEntity } from '../entities/booking.entity';
+import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
 import { FutureCommitmentExceptionEntity } from '../entities/future-commitment-exception.entity';
 import { ResourceEntity } from '../entities/resource.entity';
 
@@ -241,6 +242,19 @@ describe('SchedulingExceptionController (integration)', () => {
         .findOneByOrFail({ id: seeded.bookingId });
       expect(stored.status).toBe('CANCELLED');
       expect(await occupiedResourceIds(ds, TENANT_A, seeded.bookingId)).toEqual([]);
+      expect(
+        await ds
+          .getRepository(BookingStatusTransitionEntity)
+          .find({ where: { tenantId: TENANT_A, bookingId: seeded.bookingId } }),
+      ).toMatchObject([
+        {
+          fromStatus: 'APPROVED',
+          toStatus: 'CANCELLED',
+          actorType: 'MANAGER',
+          actorId: MANAGER_ID,
+          reason: 'room closed',
+        },
+      ]);
       const closed = await ds
         .getRepository(FutureCommitmentExceptionEntity)
         .findOneByOrFail({ id: entry.id });
