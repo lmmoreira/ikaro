@@ -43,6 +43,7 @@
 | 4 | M23-S31 | Availability-alert creation — "Avise-me quando abrir" button on the booking flow's calendar step and the alert page in Minha Conta (UC-072; needs a prototype pass first) |
 | 2 | M23-S32 | Fungible-pool booking assigns a free unit, not the first eligible one (UC-062); backend-only |
 | 3 | M23-S33 | Enforce the booking window on the backend — min/max advance on booking, reschedule and availability, and honour the per-service override |
+| 3 | M23-S34 | Reject an availability alert on a customer-selected-duration service when no valid duration is chosen (create and update, backend-only) |
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
@@ -2479,5 +2480,60 @@ Make the backend the authority for how far ahead and how soon a booking may be m
 - Tenant isolation:
   - [ ] Tenant A's window settings never apply to Tenant B's booking
 - E2E: none — backend rule; the public-calendar alignment, if discovery adds it, gets its own E2E scenario
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S34 — Reject an availability alert on a customer-selected-duration service when no valid duration is chosen
+
+**Discovered:** 2026-10-06, at M23-S07's `/mark-done`, while writing the real-database duration scenarios for the alert matching.
+**Root cause:** `BookingQuoteService.validateDuration()` (`booking-quote.service.ts:28-47`) deliberately has no fallback to `Service.durationMinutes` for a `CUSTOMER_SELECTED` service (locked at M23-S02), so the availability read throws `BookingDurationOutOfRangeError` unless a valid duration is passed. `CreateAvailabilityAlertUseCase` (`create-availability-alert.use-case.ts:83`) and `UpdateAvailabilityAlertUseCase` (`update-availability-alert.use-case.ts:65`) store `durationMinutes` as given — null, or off the service's min/max/increment — without consulting the service's duration policy, so the alert is accepted but can never match: M23-S07's matching logs one warning per run and skips it. Verified against the current code: neither use case reads `bookingPolicy.durationPolicy`.
+**Agent:** `backend-ts`
+**Complexity:** S
+**Docs to load:** `docs/04-USE_CASES.md` UC-072/UC-076, `docs/14-API_CONTRACTS.md` § availability alerts and the `BOOKING_DURATION_OUT_OF_RANGE` contract, `docs/ENGINEERING_RULES_BACKEND.md` § Transactions, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts
+**Dependencies:** M23-S06 (✅ Done — the create/update use cases), M23-S07 (✅ Done — the matching that cannot serve such an alert), M23-S02 (✅ Done — `BookingQuoteService`). Independent of M23-S31 (the alert-entry UI), which must offer a duration choice for such a service and shows the new `422` otherwise — flagged for its own discovery.
+**Pattern:** plain composition — reuse `BookingQuoteService.quote()` (the same duration rule `POST /bookings` and the availability read already apply) at the alert's create and update boundary; no new rule, no new error code.
+
+**Description:**
+An alert on a `CUSTOMER_SELECTED` service is only meaningful at a chosen duration, because the availability engine needs one. Today it is accepted without one (or with one off the service's min/max/increment) and then silently never matches. The alert's own create and update now apply the same rule booking creation does.
+
+**Decided at creation (not for discovery to re-derive):**
+1. **Reject at the boundary (user decision, 2026-10-06).** On create, and on an update that sets `durationMinutes`, a `CUSTOMER_SELECTED` service requires a duration valid for that service, checked by `BookingQuoteService.quote(service, durationMinutes ?? undefined)`. A missing or out-of-range duration fails with the **existing** `422 BOOKING_DURATION_OUT_OF_RANGE` (`field: durationMinutes`), exactly the documented contract for "missing or out-of-range duration for a `CUSTOMER_SELECTED` service" — no new error code, no new reason, no locale change.
+2. **An update that clears the duration is rejected too** (`durationMinutes: null` on such a service), so a valid alert cannot be made unmatchable later. An update that does not touch `durationMinutes` is not re-validated.
+3. **A `FIXED`-duration service is unchanged:** `durationMinutes` there is ignored by matching and stays accepted as today.
+4. **No backfill.** M23-S06 shipped on 2026-10-05 and the customer entry screen (M23-S31) is not built, so no customer alert can exist yet; the matching's per-run warning remains the safety net if one does.
+5. **Known limitation, out of scope:** a service whose duration policy or min/max/increment is edited after an alert exists can still leave that alert unmatchable (the matching warns and skips it).
+
+**Backend use case steps:**
+1. `CreateAvailabilityAlertUseCase.assertServiceAndResource()` (already loads the service with a row lock, inside the transaction) additionally asserts the duration for the service via the injected `BookingQuoteService`.
+2. `UpdateAvailabilityAlertUseCase`: when `input.durationMinutes !== undefined`, load the alert's service (tenant-scoped) and apply the same assertion with the new value (`null` counts as missing for a `CUSTOMER_SELECTED` service).
+
+**Backend HTTP surface:** none new — `POST /availability-alerts` and `PATCH /availability-alerts/:id` gain a `422 BOOKING_DURATION_OUT_OF_RANGE`; paths and bodies are unchanged.
+**BFF endpoint spec:** passthrough only — the BFF already forwards the backend error code.
+**New migration / i18n keys / env vars / feature flags:** none (the error code and its translations already exist).
+
+**Files to create/modify (paths verified to exist):**
+- `apps/backend/src/contexts/booking/application/use-cases/create-availability-alert.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/update-availability-alert.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/availability-alert-input.helpers.ts` (modify — one shared `assertAlertDuration()` beside `assertPreferredResourceEligible()`, so create and update cannot drift)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/availability-alert.controller.integration.spec.ts` (modify — the cases below)
+- `apps/backend/http/booking/availability-alerts.http` (modify — the new `422` cases)
+- `docs/04-USE_CASES.md`, `docs/14-API_CONTRACTS.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify — the rule and the known limitation)
+
+**Acceptance criteria — product:**
+- [ ] A customer cannot save an alert on a customer-selected-duration service without a valid duration: the form is refused with the same duration error booking uses, instead of the alert silently never matching.
+- [ ] A valid alert on such a service, and any alert on a fixed-duration service, is created and matched exactly as before.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] create: `CUSTOMER_SELECTED` service with no duration, with a duration below min / above max / off the increment → `BookingDurationOutOfRangeError`; with a valid duration → created
+  - [ ] create: `FIXED` service with and without a duration → created (unchanged)
+  - [ ] update: setting a valid duration succeeds; setting an invalid one, or `null`, on a `CUSTOMER_SELECTED` service → `BookingDurationOutOfRangeError`; an update that omits `durationMinutes` does not re-validate
+- Integration:
+  - [ ] `POST /availability-alerts` and `PATCH …/:id` against real rows: `422 BOOKING_DURATION_OUT_OF_RANGE` for the missing/invalid cases, `201`/`200` for the valid one, no alert row written on the refused create
+- Tenant isolation:
+  - [ ] A service of Tenant B referenced from Tenant A is still `404`/refused before any duration check
+- E2E: none — backend rule; the screen that surfaces it is M23-S31
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
