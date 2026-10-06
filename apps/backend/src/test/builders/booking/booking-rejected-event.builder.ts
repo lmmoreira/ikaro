@@ -3,12 +3,17 @@ import { BookingRejected } from '../../../contexts/booking/domain/events/booking
 export class BookingRejectedEventBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000000001';
   private readonly correlationId = 'corr-rejected-1';
-  private readonly bookingId = 'dddddddd-0002-4000-8000-000000000001';
+  private bookingId = 'dddddddd-0002-4000-8000-000000000001';
   private customerId: string | null = null;
   private contactEmail = 'joao@example.com';
   private readonly contactName = 'João Silva';
   private reason = 'Horário indisponível para os serviços selecionados';
   private readonly rejectedBy = 'staffid-0000-4000-8000-000000000001';
+
+  withBookingId(bookingId: string): this {
+    this.bookingId = bookingId;
+    return this;
+  }
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
