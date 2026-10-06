@@ -101,13 +101,12 @@ export class RecurringBookingScheduleController {
   end(
     @Param('id', CanonicalParseUUIDPipe) id: string,
   ): Promise<EndRecurringBookingScheduleUseCaseResult> {
-    const { tenantId, correlationId, actorType, actorId, actorRole } = this.ctx;
+    const { tenantId, correlationId, actorId, actorRole } = this.ctx;
     return this.endSchedule
       .execute({
         scheduleId: id,
         tenantId,
         correlationId,
-        actorType: actorType!,
         actorId: actorId!,
         actorRole: actorRole!,
       })

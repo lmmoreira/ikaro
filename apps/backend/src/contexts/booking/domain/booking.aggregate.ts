@@ -767,11 +767,12 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.CANCELLED);
     }
 
-    this.recordStatusTransition(BookingStatus.CANCELLED, actor, correlationId, reason);
+    const normalizedReason = normalizeOptionalText(reason);
+    this.recordStatusTransition(BookingStatus.CANCELLED, actor, correlationId, normalizedReason);
     this.props.status = BookingStatus.CANCELLED;
     this.props.cancelledAt = new Date();
     this.props.cancelledBy = actor.id;
-    this.props.cancellationReason = reason ?? null;
+    this.props.cancellationReason = normalizedReason;
 
     this.addDomainEvent(
       new BookingCancelled(this.props.tenantId, correlationId, {
@@ -781,7 +782,7 @@ export class Booking extends AggregateRoot {
         contactName: this.props.contactName,
         cancelledBy: actor.id,
         isBusiness: actor.type !== 'CUSTOMER',
-        reason: reason ?? null,
+        reason: normalizedReason,
         scheduledAt: this.props.scheduledAt.toISOString(),
         lineSummary: this.lineSummaryPayload(),
         totalPrice: this.totalPricePayload(),

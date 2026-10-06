@@ -12,10 +12,18 @@ export class WidenBookingStatusTransitionReasonToText1748500000027 implements Mi
     `);
   }
 
+  // The table is an append-only audit record, so a rollback must not silently cut reason text.
   public async down(queryRunner: QueryRunner): Promise<void> {
+    const tooLong: unknown[] = await queryRunner.query(`
+      SELECT 1 FROM "booking"."booking_status_transitions" WHERE char_length("reason") > 500 LIMIT 1
+    `);
+    if (tooLong.length > 0) {
+      throw new Error(
+        'Cannot revert booking_status_transitions.reason to VARCHAR(500): rows hold a longer reason',
+      );
+    }
     await queryRunner.query(`
-      ALTER TABLE "booking"."booking_status_transitions"
-        ALTER COLUMN "reason" TYPE VARCHAR(500) USING LEFT("reason", 500)
+      ALTER TABLE "booking"."booking_status_transitions" ALTER COLUMN "reason" TYPE VARCHAR(500)
     `);
   }
 }

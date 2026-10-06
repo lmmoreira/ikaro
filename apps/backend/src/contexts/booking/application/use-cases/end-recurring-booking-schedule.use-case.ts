@@ -22,7 +22,6 @@ export interface EndRecurringBookingScheduleUseCaseInput {
   scheduleId: string;
   tenantId: string;
   correlationId: string;
-  actorType: RecurringBookingScheduleActorType;
   actorId: string;
   actorRole: ActorRole;
 }
@@ -52,7 +51,9 @@ export class EndRecurringBookingScheduleUseCase {
   ): Promise<EndRecurringBookingScheduleUseCaseResult> {
     const schedule = await this.scheduleRepo.findById(input.scheduleId, input.tenantId);
     if (!schedule) throw new RecurringBookingScheduleNotFoundError(input.scheduleId);
-    assertScheduleOwnership(schedule, input.actorType, input.actorId);
+    const ownerType: RecurringBookingScheduleActorType =
+      input.actorRole === 'CUSTOMER' ? 'CUSTOMER' : 'STAFF';
+    assertScheduleOwnership(schedule, ownerType, input.actorId);
 
     const cancelledBookingIds = await this.txManager.run(async () => {
       const futureBookings = await this.bookingRepo.findFutureActiveByRecurringSchedule(

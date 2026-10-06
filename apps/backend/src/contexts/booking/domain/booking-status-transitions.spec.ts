@@ -162,6 +162,26 @@ describe('Booking — status transition recording', () => {
     },
   );
 
+  it('trims the cancel reason once, so the audit row, the booking and the event agree', () => {
+    const booking = build(BookingStatus.APPROVED);
+
+    booking.cancel(MANAGER, CORRELATION_ID, '  Cliente pediu  ');
+
+    expect(booking.cancellationReason).toBe('Cliente pediu');
+    expect(booking.drainStatusTransitions()).toMatchObject([{ reason: 'Cliente pediu' }]);
+    expect(booking.domainEvents[0]).toMatchObject({ data: { reason: 'Cliente pediu' } });
+  });
+
+  it('treats a blank cancel reason as no reason everywhere', () => {
+    const booking = build(BookingStatus.APPROVED);
+
+    booking.cancel(MANAGER, CORRELATION_ID, '   ');
+
+    expect(booking.cancellationReason).toBeNull();
+    expect(booking.drainStatusTransitions()).toMatchObject([{ reason: null }]);
+    expect(booking.domainEvents[0]).toMatchObject({ data: { reason: null } });
+  });
+
   it('records markNoShow with the normalized reason, then the correction as NO_SHOW → COMPLETED', () => {
     const booking = new BookingBuilder()
       .withTenantId(TENANT_ID)

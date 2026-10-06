@@ -81,7 +81,6 @@ describe('EndRecurringBookingScheduleUseCase', () => {
       scheduleId: schedule.id,
       tenantId: TENANT,
       correlationId: CORRELATION_ID,
-      actorType: 'CUSTOMER',
       actorId: 'customer-1',
       actorRole: 'CUSTOMER',
     });
@@ -108,7 +107,6 @@ describe('EndRecurringBookingScheduleUseCase', () => {
       scheduleId: schedule.id,
       tenantId: TENANT,
       correlationId: CORRELATION_ID,
-      actorType: 'CUSTOMER',
       actorId: 'customer-1',
       actorRole: 'CUSTOMER',
     });
@@ -133,7 +131,6 @@ describe('EndRecurringBookingScheduleUseCase', () => {
       scheduleId: schedule.id,
       tenantId: TENANT,
       correlationId: CORRELATION_ID,
-      actorType: 'CUSTOMER',
       actorId: 'customer-1',
       actorRole: 'CUSTOMER',
     });
@@ -143,7 +140,6 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         bookingId: booking.id,
         fromStatus: 'APPROVED',
         toStatus: 'CANCELLED',
-        actorType: 'CUSTOMER',
         actorId: 'customer-1',
       },
     ]);
@@ -155,7 +151,6 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         scheduleId: 'missing',
         tenantId: TENANT,
         correlationId: CORRELATION_ID,
-        actorType: 'CUSTOMER',
         actorId: 'customer-1',
         actorRole: 'CUSTOMER',
       }),
@@ -171,11 +166,39 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         scheduleId: schedule.id,
         tenantId: TENANT,
         correlationId: CORRELATION_ID,
-        actorType: 'CUSTOMER',
         actorId: 'customer-1',
         actorRole: 'CUSTOMER',
       }),
     ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+  });
+
+  it('lets a MANAGER end any customer schedule, recording the manager as the audit actor', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(new Date(`${futureDate(7)}T13:00:00.000Z`))
+      .withRecurringScheduleId(schedule.id)
+      .build();
+    await bookingRepo.save(booking);
+
+    await useCase.execute({
+      scheduleId: schedule.id,
+      tenantId: TENANT,
+      correlationId: CORRELATION_ID,
+      actorId: 'manager-1',
+      actorRole: 'MANAGER',
+    });
+
+    expect(transitionRepo.all()).toMatchObject([
+      {
+        bookingId: booking.id,
+        toStatus: 'CANCELLED',
+        actorType: 'MANAGER',
+        actorId: 'manager-1',
+      },
+    ]);
   });
 
   it('rejects a CUSTOMER actor ending a schedule that belongs to another customer', async () => {
@@ -187,7 +210,6 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         scheduleId: schedule.id,
         tenantId: TENANT,
         correlationId: CORRELATION_ID,
-        actorType: 'CUSTOMER',
         actorId: 'someone-else',
         actorRole: 'CUSTOMER',
       }),
