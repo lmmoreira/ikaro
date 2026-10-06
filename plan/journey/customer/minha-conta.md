@@ -131,7 +131,11 @@ Folder: `customer/prototypes/minha-conta/`
 | `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (decidido em M23-S18: recusa na criação; a API já devolve a lista) | UC-070 A1 | M23-S17 (constrói a tela) | ❓ Gap (M23 Cluster 3) |
-| `07-availability-alert.html` | Meus avisos — lista, editar e cancelar aviso de disponibilidade (sem botão de criar: a criação sempre parte do fluxo de agendamento) | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07-availability-alert.html` | Meus avisos — lista, editar e cancelar aviso de disponibilidade (sem botão de criar: a criação sempre parte do fluxo de agendamento); entrada: link "Meus avisos" em Agendamentos (`01`) | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07b-avisos-vazio.html` | Meus avisos — vazio (orienta a usar "Avise-me quando abrir" ao agendar) | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07c-avisos-carregando.html` | Meus avisos — carregando | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07d-avisos-erro.html` | Meus avisos — erro ao carregar, com "Tentar novamente" | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07e-aviso-nao-editavel.html` | Aviso já notificado/expirado — editar ou cancelar recusado (409 `BOOKING_ALERT_NOT_EDITABLE`) | UC-076 A1 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `13-nova-recorrencia.html` | Nova reserva recorrente — padrão (serviço, recurso, dias, horário, período) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |

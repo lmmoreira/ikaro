@@ -252,6 +252,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `04h-sucesso-cesta-combinada.html` | Success box of the combined basket — every line, assigned resources named from the response (pools never) | UC-065 / UC-067 | M23-S11b |
 | `04i-confirmacao-pacote-na-cesta.html` | Confirmation of a bundle (staff pick + automatic room) next to a fixed service — only the pick is named | UC-064 | M23-S11b |
 | `15-login-required.html` | A **class-waitlist** login screen (Pilates, "fila de espera") — an M24 screen, **out of M23-S11a/S11b's scope**; it is not the appointment availability-alert entry (see § Availability-alert entry below) | M24 | — |
+| `17-login-aviso.html` | Login prompt for a **guest** who clicked "Avise-me quando abrir" ("Entre para ser avisado") — leads to login / account creation and then to the alert page (`customer/prototypes/book-a-service/16-novo-aviso.html`); ❓ GAP, not built | UC-072 A1 | M23-S31 |
 
 **Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `11-appointment-availability` (2026-10-03 — it redrew the date/time step in a different format; the existing `02-calendar-slot` day-pill carousel + slot buttons stays the single availability step for every flow, extended only by optional `resourceSelections`/`durationMinutes` props — documented in `02`'s header comment); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).
 
@@ -309,7 +310,7 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 
 The calendar step (`02` and `02d`) shows an **"Avise-me quando abrir"** button for every alert-eligible service (`availabilityAlertEligible`, UC-055), whether or not slots are available. It is **not** shown on `02b` (loading), `02c`/`02f` (fetch errors) or `02e` (slot conflict) — after a failed fetch the customer cannot tell whether there is availability to wait for.
 
-The button is a link to the alert page of the booking flow, `/{slug}/booking/availability-alert?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…` (screens `16*` in `customer/prototypes/book-a-service/`; same shell and tenant branding as the booking steps, logged-in only). A logged-in customer lands on it directly; a guest passes through the shared login/account-creation screen and returns to the same URL. Nothing else has to survive the login. The page, its states and "Voltar ao site" are specified in `customer/prototypes/book-a-service/dev-notes.md` (Screens 16–16f). `15-login-required` is unrelated (class waitlist, M24).
+The button is a link to the alert page of the booking flow, `/{slug}/booking/availability-alert?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…` (screens `16*` in `customer/prototypes/book-a-service/`; same shell and tenant branding as the booking steps, logged-in only). A logged-in customer lands on it directly; a guest passes through `17-login-aviso.html` and then login/account creation, and returns to the same URL. Nothing else has to survive the login. The page, its states and "Voltar ao site" are specified in `customer/prototypes/book-a-service/dev-notes.md` (Screens 16–16f). `15-login-required` is unrelated (class waitlist, M24).
 
 **Pattern — one button, one label, every calendar state.** It is one button in the nav row, with no explanatory text. It is the same everywhere it appears (guest `02`, guest `02d`, customer `02`); only the link target differs by login state.
 
@@ -321,10 +322,10 @@ The button is a link to the alert page of the booking flow, `/{slug}/booking/ava
 | Styling | Hotsite tree: `--ba-*` tokens and the booking flow's own button/pill styling (same shape and size as "Voltar" and "Próximo"); not shadcn. The page it links to is also a hotsite-tree page of the booking flow (`customer/prototypes/book-a-service/dev-notes.md` § Screens 16–16f); only "Meus avisos" is an account-shell page |
 | Look | One of three buttons in the existing nav row, in the order **Voltar · Avise-me quando abrir · Próximo**. It is outlined (`btn-secondary` shape) with the brand color for text and border, so it reads as an action without competing with the filled "Próximo". The row wraps on narrow screens |
 | Visibility | Alert-eligible service (`bookingPolicy.availabilityAlertEligible`) **and** the calendar step is in a displayable state: slots, no slots (`02d`). Hidden while loading (`02b`) and on `02c`/`02f`/`02e` |
-| Link | Authenticated: `/{slug}/booking/availability-alert?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…`. Guest: the shared login, returning to that same URL |
+| Link | Authenticated: `/{slug}/booking/availability-alert?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…`. Guest: `17-login-aviso.html` (the login prompt) → login/account creation, returning to that same URL |
 | Test hook | `data-testid="availability-alert-entry"` |
 
-**Drawn in this folder:** the button on `02-calendar-slot.html` and on `02d-fully-booked.html` (`data-testid="availability-alert-entry"`); a guest's click leads to the shared login.
+**Drawn in this folder:** the button on `02-calendar-slot.html` and on `02d-fully-booked.html` (`data-testid="availability-alert-entry"`); a guest's click leads to `17-login-aviso.html`, the login prompt ("Entre para ser avisado"), which stands for the real login page with a return URL and ends on the alert page.
 
 **Open questions / gaps:**
 - [x] Stories: `M23-S11a` then `M23-S11b` (`/story-discovery` each) — `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`. S11a must land first (the step engine S11b plugs into).

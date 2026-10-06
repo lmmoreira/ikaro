@@ -170,7 +170,11 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creatio
 | `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
 | `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, end (no Pause). Since `M23-S08` an occurrence is its linked booking: skip = cancel that booking and reschedule = the ordinary reschedule, both subject to the tenant's cancellation / reschedule windows (the screen needs a window-expired message the prototype does not draw yet) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
 | `06e-pular-fora-do-prazo.html` / `06f-reagendar-fora-do-prazo.html` | Skip / reschedule refused because the tenant's cancellation / reschedule window has passed (same wording as one-off `03b`; the occurrence is a booking, decided in `M23-S08`) | same, error state | M23-S12 |
-| `07-availability-alert.html` | "Meus avisos": list, edit and cancel — no create button (creation is a page of the booking flow, `book-a-service/16*`) | `/{slug}/my-account/alerts` | M23-S12 |
+| `07-availability-alert.html` | "Meus avisos": list, edit and cancel — no create button (creation is a page of the booking flow, `book-a-service/16*`); entered from the "Meus avisos" link on `01-minha-conta.html` | `/{slug}/my-account/alerts` | M23-S12 |
+| `07b-avisos-vazio.html` | Empty state — points the customer to "Avise-me quando abrir" in the booking flow | same, empty | M23-S12 |
+| `07c-avisos-carregando.html` | Loading skeleton | same, loading | M23-S12 |
+| `07d-avisos-erro.html` | `GET /availability-alerts` failed — retry | same, error | M23-S12 |
+| `07e-aviso-nao-editavel.html` | `409 BOOKING_ALERT_NOT_EDITABLE` on edit/cancel (already notified or expired) — the list refreshes, the alert moves to history | same, error | M23-S12 |
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
 

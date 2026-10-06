@@ -71,11 +71,11 @@ flowchart TD
 
     Availability --> S3m["Step: Personal Info<br/>(03-personal-info, existing; 03d on the intake path)"]
     Availability -->|"'Avise-me quando abrir' (alert-eligible service; also on 02d)"| AlertBtn["❓ GAP: alert button on 02 / 02d<br/>(M23-S31)"]
-    AlertBtn -->|"not logged in"| AlertLogin["shared login → returns to the alert page"]
+    AlertBtn -->|"not logged in"| AlertLogin["❓ GAP: 17-login-aviso → login / account creation<br/>→ returns to the alert page"]
     AlertBtn -->|"logged in"| AlertPage["❓ GAP: alert page, prefilled<br/>(customer/book-a-service.md § Availability alert page)"]
     AlertLogin --> AlertPage
     AlertPage -->|"saved"| AlertDone["❓ GAP: confirmation + 'Voltar ao site'"]
-    class AlertBtn,AlertPage,AlertDone gap
+    class AlertBtn,AlertLogin,AlertPage,AlertDone gap
     S3m -->|"service has an active intake schema"| Intake["✅ intake answers + consent<br/>(13, 13b, 13c)<br/>GET /public/services/:id/intake-schema"]
     S3m -->|"no intake schema"| Confirm
     Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation; 04e on the intake path;<br/>10 = journey confirmation with the leg timeline)"]
@@ -87,7 +87,7 @@ flowchart TD
     BackAvail --> Availability
 ```
 
-**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `02` (the existing date/time step — ❓ it gains the "Avise-me quando abrir" button, `M23-S31`; `02d` gains it too), `09b`, `10`, `10b`, `12`–`12d`, `13`–`13c`, the success variants `04d`/`04f` and the **combined-basket variants** `03e`, `04g`, `04h`, `04i`, `10c` (✅ `M23-S11b`) (`15-login-required.html` is a class-waitlist screen, out of M23-S11a/S11b's scope; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
+**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `02` (the existing date/time step — ❓ it gains the "Avise-me quando abrir" button, `M23-S31`; `02d` gains it too; ❓ plus `17-login-aviso`, the guest's login prompt for the alert), `09b`, `10`, `10b`, `12`–`12d`, `13`–`13c`, the success variants `04d`/`04f` and the **combined-basket variants** `03e`, `04g`, `04h`, `04i`, `10c` (✅ `M23-S11b`) (`15-login-required.html` is a class-waitlist screen, out of M23-S11a/S11b's scope; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
 
 **Combined baskets (decided 2026-10-03, `M23-S11b`).** A basket can mix fixed-price services, one variable-duration service, a bundle and one or more journeys; the only restriction is one `CUSTOMER_SELECTED` service per basket. The summary card (`03e`), the Confirmation / journey review (`04g`, `10c`, `04i`) and the success box (`04h`) compose **one row per line** and show **one total**: fixed prices + the quoted amount; duration = the sum of the line durations, where a journey counts its legs plus the transitions between them. Lines run back-to-back from the chosen slot in basket order (the backend's cursor), so a journey that is not the first line starts when the previous lines end. **Per-line time ranges appear only when the basket contains a journey** (its timeline already shows times, so the other lines need ranges to be read in sequence); other multi-line baskets keep today's single start time. Before booking, a bundle or journey names only the customer's own picks; after booking, `04h` names every assigned resource from the response (`assignedResourceName` / `itinerary`), a fungible pool never. Pure single-service baskets render exactly as `03`/`04`/`10`/`04d`/`04f`.
 

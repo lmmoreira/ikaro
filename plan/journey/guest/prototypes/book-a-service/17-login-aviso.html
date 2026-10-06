@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entre para ser avisado — BeloAuto Demo</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+</head>
+<body>
+  <!--
+    SCENARIO:   a GUEST clicked "Avise-me quando abrir" on the calendar step (02 / 02d). An alert needs a logged-in customer
+                (POST /availability-alerts is customer-only), so the guest is sent to login / account creation first.
+    PAGE:       the existing login page with this context — real route /{slug}/login with a return URL to the alert page
+                (/{slug}/booking/availability-alert?serviceId=…&…); the contextual heading below is the only addition. M23-S31 (GAP).
+    RETURN:     after Google sign-in the visitor lands on the alert page, prefilled from the same query parameters — nothing but the
+                destination URL has to survive the login.
+    PROTOTYPE:  "Entrar ou criar conta" stands in for the Google round-trip and goes straight to the alert page (customer folder, 16-novo-aviso).
+    NOT:        15-login-required is a class-waitlist screen (M24).
+  -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
+                  color:white;display:flex;align-items:center;justify-content:center;
+                  font-weight:700;font-size:0.8125rem;">B</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">BeloAuto Demo</span>
+    </div>
+  </div>
+
+  <div class="step-container">
+    <p class="step-indicator">Aviso de disponibilidade</p>
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Entre para ser avisado</h2>
+    <div class="card">
+      <p style="line-height:1.55;color:var(--ba-text);">Os avisos ficam na sua conta, para que possamos avisar você por e-mail quando abrir uma vaga.</p>
+      <p style="font-size:.875rem;opacity:.7;line-height:1.55;margin-top:.75rem;color:var(--ba-text);">Depois de entrar ou criar sua conta, você volta para criar o aviso, com o serviço já preenchido. O aviso não reserva horário.</p>
+    </div>
+    <div class="nav-buttons">
+      <a class="btn-secondary" href="02-calendar-slot.html">Voltar</a>
+      <a class="btn-primary" href="../../../customer/prototypes/book-a-service/16-novo-aviso.html">Entrar ou criar conta</a>
+    </div>
+  </div>
+</body>
+</html>

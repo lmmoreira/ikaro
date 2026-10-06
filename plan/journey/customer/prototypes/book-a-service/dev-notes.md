@@ -192,9 +192,10 @@ Error routing, step paths and the design decisions: `plan/journey/guest/prototyp
 
 | File | Screen / state | Story |
 |---|---|---|
-| `16-novo-aviso.html` | Alert form, prefilled from the button's link | M23-S31 |
+| `16-novo-aviso.html` | Alert form, prefilled from the button's link (the guest arrives here after `../../../guest/prototypes/book-a-service/17-login-aviso.html`) | M23-S31 |
 | `16b-novo-aviso-erro.html` | Validation error (422 `BOOKING_ALERT_CRITERIA_INVALID`) and submit failure | M23-S31 |
 | `16c-novo-aviso-salvando.html` | Saving | M23-S31 |
+| `16g-novo-aviso-erro-semanal.html` | Validation errors in weekly mode — no weekday chosen, end time not after start (422 `BOOKING_ALERT_CRITERIA_INVALID`) | M23-S31 |
 | `16d-novo-aviso-salvo.html` | Aviso criado — confirmation with "Voltar ao site" | M23-S31 |
 | `16e-novo-aviso-limite.html` | 10 active alerts reached (409 `BOOKING_ALERT_CAP_REACHED`) — points to Meus avisos | M23-S31 |
 | `16f-novo-aviso-servico-indisponivel.html` | Service not alert-eligible (422 `BOOKING_ALERT_INELIGIBLE_SERVICE`, e.g. a stale or hand-typed link) | M23-S31 |
@@ -211,7 +212,7 @@ Error routing, step paths and the design decisions: `plan/journey/guest/prototyp
 | Service must be alert-eligible | UC-055 | `422 BOOKING_ALERT_INELIGIBLE_SERVICE` → `16f` |
 | At most 10 active alerts per customer | UC-072 A3 | `409 BOOKING_ALERT_CAP_REACHED` → `16e` |
 
-**State machine:** `16` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16e` / `16f` (errors; `16b` keeps the form editable).
+**State machine:** `16` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16e` / `16f` (errors; `16b` / `16g` keep the form editable — `16b` for the one-time range, `16g` for the weekly preference).
 
 **UI building blocks:** hotsite tree — tenant branding via `--ba-*`, the booking flow's own form styling (as `PersonalInfoStep`); the page is a full-page hotsite component and paints its own `backgroundColor: 'var(--ba-background)'`. Do **not** use dashboard/account patterns here, and do not import shadcn primitives (their colors come from shadcn tokens) unless discovery confirms they can be driven by `--ba-*` (check `calendar`, `time-picker`). Rule: `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components.
 

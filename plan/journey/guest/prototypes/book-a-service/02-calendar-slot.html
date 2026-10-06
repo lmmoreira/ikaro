@@ -146,13 +146,13 @@
     <div class="nav-buttons" style="flex-wrap:wrap;">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
       <!--
-        ALERT ENTRY — M23-S31 (GAP: not built yet). Guest: the button goes to the shared login (existing); after login/account creation the customer lands on the alert page (customer/prototypes/book-a-service/16-novo-aviso.html). An already-authenticated customer goes straight there (see customer/prototypes/book-a-service/02-calendar-slot.html).
+        ALERT ENTRY — M23-S31 (GAP: not built yet). Guest: the button goes to the login prompt (17-login-aviso.html); after login/account creation the customer lands on the alert page (customer/prototypes/book-a-service/16-novo-aviso.html). An already-authenticated customer goes straight there (see customer/prototypes/book-a-service/02-calendar-slot.html).
         One button in the nav row, between Voltar and Próximo — no explanatory text. Shown for every alert-eligible
         service (bookingPolicy.availabilityAlertEligible), with or without slots; NOT shown on the loading (02b),
         fetch-error (02c / 02f) or slot-conflict (02e) states.
         Link: /{slug}/booking/availability-alert?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…
       -->
-      <a class="btn-secondary" data-testid="availability-alert-entry" href="../../../shared/login.html" style="color:var(--ba-primary);border-color:var(--ba-primary);">Avise-me quando abrir</a>
+      <a class="btn-secondary" data-testid="availability-alert-entry" href="17-login-aviso.html" style="color:var(--ba-primary);border-color:var(--ba-primary);">Avise-me quando abrir</a>
       <!-- Disabled state: btn-primary:disabled when selectedSlot === null -->
       <a class="btn-primary" href="03-personal-info.html">Próximo</a>
     </div>

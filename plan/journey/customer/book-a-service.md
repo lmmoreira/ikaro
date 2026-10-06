@@ -77,7 +77,7 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Cal["Calendar step<br/>(guest 02 / 02d, customer 02)"] -->|"'Avise-me quando abrir'<br/>(alert-eligible service)"| Auth{"logged in?"}
-    Auth -->|"no (guest)"| Login["shared login / account creation<br/>(existing) → returns to the alert page"]
+    Auth -->|"no (guest)"| Login["login prompt (guest 17-login-aviso) → login / account creation<br/>→ returns to the alert page"]
     Auth -->|"yes"| Form
     Login --> Form["❓ GAP: /{slug}/booking/availability-alert<br/>16-novo-aviso — prefilled from the link:<br/>service, resource pick, duration, participants"]
     Form -->|"Criar aviso (POST /availability-alerts)"| Saving["❓ GAP: 16c salvando"]
