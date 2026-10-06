@@ -311,15 +311,15 @@ The calendar step (`02` and `02d`) shows an **"Avise-me quando abrir"** button f
 
 The button is a link to the customer-area alert page, `/{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…` (screens `16*` in `customer/prototypes/minha-conta/`). A logged-in customer lands on it directly; a guest passes through the shared login/account-creation screen and returns to the same URL. Nothing else has to survive the login. The page, its states and "Voltar ao site" are specified in `customer/prototypes/minha-conta/dev-notes.md` (Screens 16–16f). `15-login-required` is unrelated (class waitlist, M24).
 
-**Pattern — one component, one copy, every calendar state.** The block is the same everywhere it appears (guest `02`, guest `02d`, customer `02`); only the link target differs by login state.
+**Pattern — one button, one label, every calendar state.** It is one button in the nav row, with no explanatory text. It is the same everywhere it appears (guest `02`, guest `02d`, customer `02`); only the link target differs by login state.
 
 | Aspect | Rule |
 |---|---|
 | Component | `AvailabilityAlertEntry` (expected, `apps/web/features/booking/components/public/`; final path at `/story-discovery`) — rendered once by the calendar step, so the guest and customer flows cannot drift |
 | Props | `serviceId`, `preferredResourceId?`, `durationMinutes?`, `participantCount?`, `isAuthenticated` (picks the link target) |
-| Copy | Text: "Não achou o horário que queria? Avisamos você quando abrir uma vaga." Button: "Avise-me quando abrir" — identical in `02` and `02d`, never reworded per state (i18n keys in both locales, same change) |
-| Styling | Hotsite tree: `--ba-*` tokens and the booking flow's own button/pill styling (the filled button matches "Próximo"); not shadcn. The page it links to is an account-shell page and uses Tailwind + shadcn (`customer/prototypes/minha-conta/dev-notes.md` § Screens 16–16f) |
-| Look | A full-width row below the day pills / slot list and above "Voltar / Próximo": dashed border, white background, text on the left, filled `btn-primary` button on the right (wraps under the text on mobile) |
+| Copy | Button label only: "Avise-me quando abrir" — identical in `02` and `02d`, never reworded per state, and **no explanatory sentence** next to it (the alert page explains what an alert is). i18n key in both locales, same change |
+| Styling | Hotsite tree: `--ba-*` tokens and the booking flow's own button/pill styling (same shape and size as "Voltar" and "Próximo"); not shadcn. The page it links to is an account-shell page and uses Tailwind + shadcn (`customer/prototypes/minha-conta/dev-notes.md` § Screens 16–16f) |
+| Look | One of three buttons in the existing nav row, in the order **Voltar · Avise-me quando abrir · Próximo**. It is outlined (`btn-secondary` shape) with the brand color for text and border, so it reads as an action without competing with the filled "Próximo". The row wraps on narrow screens |
 | Visibility | Alert-eligible service (`bookingPolicy.availabilityAlertEligible`) **and** the calendar step is in a displayable state: slots, no slots (`02d`). Hidden while loading (`02b`) and on `02c`/`02f`/`02e` |
 | Link | Authenticated: `/{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…`. Guest: the shared login, returning to that same URL |
 | Test hook | `data-testid="availability-alert-entry"` |
