@@ -12,6 +12,18 @@ export interface TenantBusinessHoursAndLocale {
   locale: string;
 }
 
+// M23-S07: what the availability-alert matching needs to compute real availability for a tenant.
+export interface AvailabilityAlertTenantContext {
+  businessHours: BusinessHours;
+  slotGranularityMinutes: 15 | 30 | 60;
+  serviceBufferMinutes: number;
+  // How many calendar days ahead (today included) a customer can actually *select* a date on the
+  // public booking page — the carousel's `min(carouselDays, maxBookingAdvanceDays)` or the
+  // calendar's `maxBookingAdvanceDays`. An alert is only ever matched inside this window, so a
+  // customer is never told about a date they cannot pick on the screen.
+  selectableDays: number;
+}
+
 export interface IBookingPlatformPort {
   findAllActive(): Promise<ActiveTenantInfo[]>;
   // Best-effort — never throws (see FrontendRevalidationAdapter). Called after a service
@@ -33,4 +45,8 @@ export interface IBookingPlatformPort {
   // first real consumer). Resolved on every read, never persisted onto the service row, so a
   // later tenant-settings change is picked up immediately without touching every service.
   getAutoApproveEnabled(tenantId: string): Promise<boolean>;
+  // M23-S07: the tenant's availability inputs plus the customer-selectable date window, resolved
+  // from the tenant settings and the hotsite's BOOKING_CTA picker (`datePickerType` defaults to
+  // 'carousel' and `carouselDays` to 14 — the defaults the public booking page itself applies).
+  getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext>;
 }

@@ -403,10 +403,10 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
 
 #### **AvailabilityAlertMatched**
-- **Trigger:** UC-072 step 3 — a released slot matches an `ACTIVE` alert's criteria.
-- **State change:** `status → NOTIFIED`; one `availability_alert_notification_attempts` row inserted for the matching window.
+- **Trigger:** UC-072 step 3 — a bookable slot that a customer can actually select starts inside an `ACTIVE` alert's acceptable window. Two producers, one use case (`MatchAvailabilityAlertsUseCase`): the capacity-release handlers (`BookingCancelled`, `BookingRejected`, `BookingRescheduled` — one day re-checked) and the daily sweep on `cron-reminders` (the whole selectable window). See `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts.
+- **State change:** `status → NOTIFIED`; one `availability_alert_notification_attempts` row (`outcome = PENDING`) inserted for the matching window, in the same transaction as the status change. A `NOTIFIED` alert is never matched again, so the event is raised at most once per alert.
 - **Data:** `{ alertId, customerId, serviceId, matchingWindowStart, matchingWindowEnd, resourceId: string | null }`
-- **Consumers:** Notification Context → deduplicated email/in-app message. M23-S07 ships an audit-log-only subscriber first; the Notification consumer is a later story.
+- **Consumers:** Notification Context → deduplicated email/in-app message. M23-S07 ships an audit-log-only subscriber first (`audit-log`); the Notification consumer — which also updates the attempt's `outcome` once the message is really sent — is a later story.
 
 #### **FutureCommitmentExceptionRaised**
 - **Trigger:** UC-073 — a resource/hours/template/schedule change affects a future commitment nobody explicitly reviewed per-session (excludes a manager-initiated range cancellation, Cluster 4, whose own step is already the explicit resolution). Wired as of M23-S08 for resource deactivation only, from UC-047 and the UC-048 staff-deactivation cascade, once per affected booking.

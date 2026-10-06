@@ -4,11 +4,13 @@ import {
   FRONTEND_REVALIDATION_PORT,
   IFrontendRevalidationPort,
 } from '../../../platform/application/ports/frontend-revalidation.port';
+import { GetHotsiteBookingPickerUseCase } from '../../../platform/application/use-cases/get-hotsite-booking-picker.use-case';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
 import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
 import {
   ActiveTenantInfo,
+  AvailabilityAlertTenantContext,
   IBookingPlatformPort,
   TenantBusinessHoursAndLocale,
 } from '../../application/ports/booking-platform.port';
@@ -21,6 +23,7 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
     private readonly getTenants: GetTenantsUseCase,
     private readonly getTenantById: GetTenantByIdUseCase,
     private readonly getTenantBusinessHoursForUpdate: GetTenantBusinessHoursForUpdateUseCase,
+    private readonly getHotsiteBookingPicker: GetHotsiteBookingPickerUseCase,
     @Inject(FRONTEND_REVALIDATION_PORT)
     private readonly frontendRevalidation: IFrontendRevalidationPort,
   ) {}
@@ -64,5 +67,22 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
   async getAutoApproveEnabled(tenantId: string): Promise<boolean> {
     const tenant = await this.getTenantById.execute({ tenantId });
     return tenant.settings.booking.autoApproveEnabled;
+  }
+
+  async getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {
+    const [tenant, picker] = await Promise.all([
+      this.getTenantById.execute({ tenantId }),
+      this.getHotsiteBookingPicker.execute({ tenantId }),
+    ]);
+    const { booking, businessHours } = tenant.settings;
+    return {
+      businessHours,
+      slotGranularityMinutes: booking.slotGranularityMinutes,
+      serviceBufferMinutes: booking.serviceBufferMinutes,
+      selectableDays:
+        picker.datePickerType === 'calendar'
+          ? booking.maxBookingAdvanceDays
+          : Math.min(picker.carouselDays, booking.maxBookingAdvanceDays),
+    };
   }
 }

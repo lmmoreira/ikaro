@@ -18,7 +18,19 @@ export class BookingCancelledEventBuilder {
   private cancelledBy = 'staffid-0000-4000-8000-000000000001';
   private isBusiness = true;
   private reason: string | null = null;
-  private readonly scheduledAt = '2026-07-01T10:00:00.000Z';
+  private serviceId: string | null = null;
+  private scheduledAt = '2026-07-01T10:00:00.000Z';
+
+  withScheduledAt(scheduledAt: Date): this {
+    this.scheduledAt = scheduledAt.toISOString();
+    return this;
+  }
+
+  // Replaces the service of the single default line.
+  withServiceId(serviceId: string): this {
+    this.serviceId = serviceId;
+    return this;
+  }
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -65,7 +77,10 @@ export class BookingCancelledEventBuilder {
       isBusiness: this.isBusiness,
       reason: this.reason,
       scheduledAt: this.scheduledAt,
-      lineSummary: this.lineSummary,
+      lineSummary: this.lineSummary.map((line) => ({
+        ...line,
+        serviceId: this.serviceId ?? line.serviceId,
+      })),
       totalPrice: this.totalPrice,
     });
   }

@@ -32,6 +32,7 @@ import { RecurringBookingScheduleEntity } from './infrastructure/entities/recurr
 import { RecurringBookingScheduleResourceAssignmentEntity } from './infrastructure/entities/recurring-booking-schedule-resource-assignment.entity';
 import { FutureCommitmentExceptionEntity } from './infrastructure/entities/future-commitment-exception.entity';
 import { AvailabilityAlertEntity } from './infrastructure/entities/availability-alert.entity';
+import { AvailabilityAlertNotificationAttemptEntity } from './infrastructure/entities/availability-alert-notification-attempt.entity';
 import { BookingAttendeeEntity } from './infrastructure/entities/booking-attendee.entity';
 import { ResourceEntity } from './infrastructure/entities/resource.entity';
 import { BookingLineResourceAssignmentEntity } from './infrastructure/entities/booking-line-resource-assignment.entity';
@@ -79,6 +80,7 @@ import { bookingModuleProviders } from './booking.module-providers';
       RecurringBookingScheduleResourceAssignmentEntity,
       FutureCommitmentExceptionEntity,
       AvailabilityAlertEntity,
+      AvailabilityAlertNotificationAttemptEntity,
     ]),
     EventBusModule,
     RequestModule,

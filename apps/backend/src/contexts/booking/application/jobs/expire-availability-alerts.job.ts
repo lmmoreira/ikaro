@@ -22,7 +22,7 @@ export interface ExpireAvailabilityAlertsJobResult {
 // How long a finished alert (EXPIRED, CANCELLED, NOTIFIED) stays visible as read-only history
 // after its expiresAt before the same job deletes it (decided at M23-S06's PR review, 2026-10-05).
 // A cancelled alert keeps its original expiresAt, so it lingers until then plus this window — at
-// most the 90-day maximum lifetime plus 90 days.
+// most the 365-day maximum lifetime plus 90 days.
 export const AVAILABILITY_ALERT_RETENTION_DAYS = 90;
 const DAY_MS = 86_400_000;
 

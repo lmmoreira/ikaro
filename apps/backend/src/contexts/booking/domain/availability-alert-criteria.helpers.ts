@@ -12,9 +12,11 @@ import {
 const DAY_MS = 86_400_000;
 
 // Locked at M23-S06's /story-discovery (2026-10-05): an alert lives 30 days unless the customer
-// asks for another expiry, and never more than 90 days after it was created.
+// asks for another expiry, and never more than 365 days after it was created (raised from 90 at
+// M23-S07: an alert for a date outside a short booking window must outlive the wait — 365 is the
+// highest value maxBookingAdvanceDays can take).
 export const ALERT_DEFAULT_EXPIRY_DAYS = 30;
-export const ALERT_MAX_EXPIRY_DAYS = 90;
+export const ALERT_MAX_EXPIRY_DAYS = 365;
 export const ALERT_ACTIVE_CAP_PER_CUSTOMER = 10;
 
 function invalid(

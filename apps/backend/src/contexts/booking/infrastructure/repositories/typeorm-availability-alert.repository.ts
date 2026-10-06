@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, LessThanOrEqual, Repository } from 'typeorm';
+import { EntityManager, LessThanOrEqual, MoreThan, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -48,6 +48,31 @@ export class TypeOrmAvailabilityAlertRepository implements IAvailabilityAlertRep
       order: { expiresAt: 'ASC', id: 'ASC' },
     });
     return entities.map(toDomain);
+  }
+
+  async findActiveByService(
+    tenantId: string,
+    serviceId: string,
+    now: Date,
+  ): Promise<AvailabilityAlert[]> {
+    const entities = await this.repo.find({
+      where: { tenantId, serviceId, status: 'ACTIVE', expiresAt: MoreThan(now) },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+    return entities.map(toDomain);
+  }
+
+  async findServiceIdsWithActiveAlerts(tenantId: string, now: Date): Promise<string[]> {
+    const rows = await this.repo
+      .createQueryBuilder('alert')
+      .select('alert.service_id', 'serviceId')
+      .where('alert.tenant_id = :tenantId', { tenantId })
+      .andWhere("alert.status = 'ACTIVE'")
+      .andWhere('alert.expires_at > :now', { now })
+      .groupBy('alert.service_id')
+      .orderBy('alert.service_id', 'ASC')
+      .getRawMany<{ serviceId: string }>();
+    return rows.map((row) => row.serviceId);
   }
 
   // The attempts go first (their composite FK points at the alert); both deletes share one
@@ -112,7 +137,32 @@ export class TypeOrmAvailabilityAlertRepository implements IAvailabilityAlertRep
       if (result.affected !== 1) throw new BookingConcurrentModificationError();
     }
 
+    await this.persistPendingAttempt(manager, alert);
     await drainDomainEvents(alert, this.outboxPublisher);
     alert.markPersisted(nextVersion);
+  }
+
+  // M23-S07: the attempt recorded by recordNotificationAttempt() goes in the same transaction as
+  // the NOTIFIED status change. ON CONFLICT DO NOTHING on the (tenant, alert, window, channel)
+  // unique key makes a replay of the same match a no-op rather than a failure.
+  private async persistPendingAttempt(manager: EntityManager, alert: AvailabilityAlert) {
+    const attempt = alert.takePendingAttempt();
+    if (!attempt) return;
+    await manager.query(
+      `INSERT INTO "booking"."availability_alert_notification_attempts"
+         ("id", "tenant_id", "alert_id", "matching_window", "channel", "attempted_at", "outcome")
+       VALUES ($1, $2, $3, tstzrange($4::timestamptz, $5::timestamptz, '[)'), $6, $7, $8)
+       ON CONFLICT ("tenant_id", "alert_id", "matching_window", "channel") DO NOTHING`,
+      [
+        attempt.id,
+        attempt.tenantId,
+        attempt.alertId,
+        attempt.matchingWindow.startsAt,
+        attempt.matchingWindow.endsAt,
+        attempt.channel,
+        attempt.attemptedAt,
+        attempt.outcome,
+      ],
+    );
   }
 }

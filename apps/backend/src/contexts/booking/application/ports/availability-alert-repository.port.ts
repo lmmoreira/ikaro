@@ -13,6 +13,13 @@ export interface IAvailabilityAlertRepository {
   // The expiry job's read: ACTIVE alerts whose expiresAt has passed, oldest first, tenant-scoped
   // (the (tenant_id, status, expires_at) index serves it).
   findActiveExpired(tenantId: string, now: Date): Promise<AvailabilityAlert[]>;
+  // The matching read (M23-S07): the service's ACTIVE alerts that have not reached their expiry,
+  // oldest first, tenant-scoped (the (tenant_id, service_id, status) index serves it).
+  findActiveByService(tenantId: string, serviceId: string, now: Date): Promise<AvailabilityAlert[]>;
+  // The sweep's read: the distinct services of the tenant that have at least one ACTIVE alert not
+  // yet expired — one cheap grouped scan, so the sweep computes availability per service, never
+  // per alert.
+  findServiceIdsWithActiveAlerts(tenantId: string, now: Date): Promise<string[]>;
   // Retention purge: hard-deletes the tenant's finished alerts (any status but ACTIVE) whose
   // expiresAt is before `cutoff`, together with their notification attempts, in one transaction.
   // Returns how many alerts were deleted. An ACTIVE alert is never touched.

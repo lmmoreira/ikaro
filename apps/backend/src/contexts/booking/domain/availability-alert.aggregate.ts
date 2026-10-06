@@ -5,6 +5,7 @@ import { AvailabilityAlertNotEditableError } from './errors/availability-alert.e
 import { AvailabilityAlertCancelled } from './events/availability-alert-cancelled.event';
 import { AvailabilityAlertCreated } from './events/availability-alert-created.event';
 import { AvailabilityAlertExpired } from './events/availability-alert-expired.event';
+import { AvailabilityAlertMatched } from './events/availability-alert-matched.event';
 import { AvailabilityAlertUpdated } from './events/availability-alert-updated.event';
 import {
   buildCriteria,
@@ -12,7 +13,10 @@ import {
   resolveExpiry,
 } from './availability-alert-criteria.helpers';
 import {
+  AvailabilityAlertAttemptChannel,
   AvailabilityAlertCriteria,
+  AvailabilityAlertMatchingWindow,
+  AvailabilityAlertNotificationAttempt,
   AvailabilityAlertProps,
   AvailabilityAlertStatus,
   CreateAvailabilityAlertOptions,
@@ -28,6 +32,9 @@ export {
 
 export class AvailabilityAlert extends AggregateRoot {
   private readonly props: AvailabilityAlertProps;
+  // The attempt recorded by recordNotificationAttempt(), waiting for the repository to persist it
+  // in the same transaction as the status change (like the pending domain events).
+  private pendingAttempt: AvailabilityAlertNotificationAttempt | null = null;
 
   private constructor(props: AvailabilityAlertProps) {
     super();
@@ -172,6 +179,46 @@ export class AvailabilityAlert extends AggregateRoot {
       new AvailabilityAlertCancelled(this.props.tenantId, correlationId, this.refData()),
     );
     return true;
+  }
+
+  // UC-072 step 3 (M23-S07): a bookable slot satisfied this alert's criteria. Records exactly one
+  // notification attempt for the (window, channel), moves the alert ACTIVE → NOTIFIED and raises
+  // AvailabilityAlertMatched. Idempotent: an alert that is no longer ACTIVE — already notified,
+  // cancelled or expired — records nothing and returns false, so a replayed event, a racing sweep
+  // or a second matching slot can never notify twice. Never cancels an alert (UC-076).
+  recordNotificationAttempt(
+    matchingWindow: AvailabilityAlertMatchingWindow,
+    channel: AvailabilityAlertAttemptChannel,
+    correlationId: string,
+    now: Date = new Date(),
+  ): boolean {
+    if (this.props.status !== 'ACTIVE' || this.props.expiresAt <= now) return false;
+    this.props.status = 'NOTIFIED';
+    this.pendingAttempt = {
+      id: uuidv7(),
+      tenantId: this.props.tenantId,
+      alertId: this.props.id,
+      matchingWindow: { ...matchingWindow },
+      channel,
+      outcome: 'PENDING',
+      attemptedAt: now,
+    };
+    this.addDomainEvent(
+      new AvailabilityAlertMatched(this.props.tenantId, correlationId, {
+        ...this.refData(),
+        matchingWindowStart: matchingWindow.startsAt.toISOString(),
+        matchingWindowEnd: matchingWindow.endsAt.toISOString(),
+        resourceId: this.props.preferredResourceId,
+      }),
+    );
+    return true;
+  }
+
+  // Read-and-clear by the repository inside the save transaction.
+  takePendingAttempt(): AvailabilityAlertNotificationAttempt | null {
+    const attempt = this.pendingAttempt;
+    this.pendingAttempt = null;
+    return attempt;
   }
 
   // System: the expiry job moves an ACTIVE alert whose expiresAt has passed to EXPIRED.

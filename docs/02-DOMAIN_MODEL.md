@@ -726,7 +726,7 @@ AvailabilityAlert {
 **Key Methods:**
 - `AvailabilityAlert.create(customerId, serviceId, criteria, expiresAt)` (UC-072)
 - `update(criteria)` / `cancel()` (UC-076/UC-053)
-- `recordNotificationAttempt(matchingWindow, channel, outcome)` — deduplicated on `(alertId, matchingWindow, channel)`.
+- `recordNotificationAttempt(matchingWindow, channel, correlationId, now?)` (M23-S07) — for an `ACTIVE`, unexpired alert: queues one `PENDING` attempt for the `[startsAt, endsAt)` slot, moves the alert `ACTIVE → NOTIFIED` and raises `AvailabilityAlertMatched`; returns `false` and does nothing for an alert that is notified, cancelled, expired or past its `expiresAt`, so it never notifies twice. The repository persists the queued attempt (`takePendingAttempt()`) with the status change, deduplicated on `(alertId, matchingWindow, channel)`.
 
 ---
 
