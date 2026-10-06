@@ -15,10 +15,7 @@ export class BookingRescheduledEventBuilder {
     },
   ];
   private readonly totalPrice = { amount: '150.00', currency: 'BRL' };
-  private readonly previousSlot = {
-    startTime: '2026-07-01T10:00:00.000Z',
-    endTime: '2026-07-01T11:00:00.000Z',
-  };
+  private previousSlotStart = new Date('2026-07-01T10:00:00.000Z');
   private readonly newSlot = {
     startTime: '2026-07-07T10:00:00.000Z',
     endTime: '2026-07-07T11:00:00.000Z',
@@ -26,9 +23,22 @@ export class BookingRescheduledEventBuilder {
   private readonly rescheduledBy = 'staffid-0000-4000-8000-000000000001';
   private isBusiness = true;
   private adminNotes: string | null = null;
+  private serviceId: string | null = null;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
+    return this;
+  }
+
+  // The start of the slot the booking moved away from; the previous slot lasts one hour.
+  withPreviousSlotStart(previousSlotStart: Date): this {
+    this.previousSlotStart = previousSlotStart;
+    return this;
+  }
+
+  // Replaces the service of the single default line.
+  withServiceId(serviceId: string): this {
+    this.serviceId = serviceId;
     return this;
   }
 
@@ -63,12 +73,18 @@ export class BookingRescheduledEventBuilder {
       customerId: this.customerId,
       contactEmail: this.contactEmail,
       contactName: this.contactName,
-      previousSlot: this.previousSlot,
+      previousSlot: {
+        startTime: this.previousSlotStart.toISOString(),
+        endTime: new Date(this.previousSlotStart.getTime() + 3_600_000).toISOString(),
+      },
       newSlot: this.newSlot,
       rescheduledBy: this.rescheduledBy,
       isBusiness: this.isBusiness,
       adminNotes: this.adminNotes,
-      lineSummary: this.lineSummary,
+      lineSummary: this.lineSummary.map((line) => ({
+        ...line,
+        serviceId: this.serviceId ?? line.serviceId,
+      })),
       totalPrice: this.totalPrice,
     });
   }

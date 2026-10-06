@@ -24,7 +24,7 @@ export class AvailabilityAlertEntityBuilder {
   private weekdays: WeekDayName[] | null = null;
   private localStartTime: string | null = null;
   private localEndTime: string | null = null;
-  private readonly durationMinutes: number | null = null;
+  private durationMinutes: number | null = null;
   private readonly participantCount: number | null = null;
   private status: AvailabilityAlertStatus = 'ACTIVE';
   private expiresAt = new Date(Date.now() + 7 * DAY_MS);
@@ -76,6 +76,11 @@ export class AvailabilityAlertEntityBuilder {
     this.weekdays = weekdays;
     this.localStartTime = localStartTime;
     this.localEndTime = localEndTime;
+    return this;
+  }
+
+  withDurationMinutes(durationMinutes: number | null): this {
+    this.durationMinutes = durationMinutes;
     return this;
   }
 
