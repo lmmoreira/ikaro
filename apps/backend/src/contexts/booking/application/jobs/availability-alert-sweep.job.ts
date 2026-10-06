@@ -12,6 +12,12 @@ import { MatchAvailabilityAlertsUseCase } from '../use-cases/match-availability-
 const WINDOW_START = '06:30';
 const WINDOW_END = '06:59';
 
+interface TenantSweepOutcome {
+  tenantId: string;
+  notified: number;
+  failed: boolean;
+}
+
 export interface AvailabilityAlertSweepJobResult {
   tenantsSwept: number;
   notified: number;
@@ -21,8 +27,9 @@ export interface AvailabilityAlertSweepJobResult {
 // window rolls forward a day, a manager extends hours, adds an opening or a resource — so once a
 // day each tenant's ACTIVE alerts are re-checked against real availability over the whole
 // customer-selectable window. The matching and the single-notification rule are the use case's.
-// One tenant failing is logged and never stops the others; the trigger handler still nacks on an
-// unexpected error so the subscription retries (a re-run is a no-op for alerts already notified).
+// One tenant failing never stops the others; after the last tenant the job throws if any failed, so
+// the trigger handler nacks and the subscription retries (a re-run is a no-op for alerts already
+// notified).
 @Injectable()
 export class AvailabilityAlertSweepJob {
   private readonly logger = new AppLogger(AvailabilityAlertSweepJob.name);
@@ -39,14 +46,22 @@ export class AvailabilityAlertSweepJob {
       return localHHMM >= WINDOW_START && localHHMM <= WINDOW_END;
     });
 
-    const counts = await mapSequentially(due, (tenant) => this.sweepTenant(tenant.id, now));
+    const outcomes = await mapSequentially(due, (tenant) => this.sweepTenant(tenant.id, now));
+    const failed = outcomes.filter((outcome) => outcome.failed).map((outcome) => outcome.tenantId);
+    // Every tenant has been swept by now, so one failure never starves the others. The failure itself
+    // must still reach the subscription: a tenant is only swept inside its 06:30–06:59 window, so a
+    // swallowed error would wait a whole day. Throwing nacks the message and Pub/Sub redelivers it —
+    // still inside the window — and a re-run is a no-op for every alert already notified.
+    if (failed.length > 0) {
+      throw new Error(`Availability alert sweep failed for tenant(s): ${failed.join(', ')}`);
+    }
     return {
       tenantsSwept: due.length,
-      notified: counts.reduce((sum, count) => sum + count, 0),
+      notified: outcomes.reduce((sum, outcome) => sum + outcome.notified, 0),
     };
   }
 
-  private async sweepTenant(tenantId: string, now: Date): Promise<number> {
+  private async sweepTenant(tenantId: string, now: Date): Promise<TenantSweepOutcome> {
     try {
       const { notified } = await this.matchAlerts.execute({
         tenantId,
@@ -55,14 +70,14 @@ export class AvailabilityAlertSweepJob {
         around: null,
         now,
       });
-      return notified;
+      return { tenantId, notified, failed: false };
     } catch (err) {
       this.logger.error(
-        'Availability alert sweep failed for a tenant — will retry on the next run',
+        'Availability alert sweep failed for a tenant — the run will be retried',
         err instanceof Error ? err.stack : String(err),
         { tenantId },
       );
-      return 0;
+      return { tenantId, notified: 0, failed: true };
     }
   }
 }

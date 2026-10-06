@@ -76,7 +76,7 @@ export class InMemoryAvailabilityAlertRepository implements IAvailabilityAlertRe
         .filter((a) => a.tenantId === tenantId && a.status === 'ACTIVE' && a.expiresAt > now)
         .map((a) => a.serviceId),
     );
-    return Promise.resolve([...ids].sort());
+    return Promise.resolve([...ids].sort((a, b) => a.localeCompare(b)));
   }
 
   deleteFinishedExpiredBefore(tenantId: string, cutoff: Date): Promise<number> {

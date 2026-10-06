@@ -4,7 +4,11 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import {
+  addDaysUTC,
+  utcDateString,
+  utcDateToLocalDate,
+} from '../../../../shared/utils/calendar-date';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
 import { findFirstMatchingSlot } from '../../domain/availability-alert-matching.helpers';
@@ -43,7 +47,29 @@ export interface MatchAvailabilityAlertsUseCaseResult {
 
 type AlertGroup = { preferredResourceId: string | null; durationMinutes: number | null };
 
-// The tenant's availability inputs plus the tenant-local dates to evaluate this run.
+interface AlertGroupEntry {
+  group: AlertGroup;
+  alerts: AvailabilityAlert[];
+}
+
+// Availability depends only on the preferred resource and the chosen duration, so alerts that share
+// both share one read per day — never one availability query per alert.
+function groupAlerts(alerts: AvailabilityAlert[]): Map<string, AlertGroupEntry> {
+  const groups = new Map<string, AlertGroupEntry>();
+  for (const alert of alerts) {
+    const group = {
+      preferredResourceId: alert.preferredResourceId,
+      durationMinutes: alert.durationMinutes,
+    };
+    const key = `${group.preferredResourceId ?? ''}|${group.durationMinutes ?? ''}`;
+    const entry = groups.get(key) ?? { group, alerts: [] };
+    entry.alerts.push(alert);
+    groups.set(key, entry);
+  }
+  return groups;
+}
+
+// The tenant's availability inputs plus the dates to evaluate this run.
 interface MatchScope {
   context: AvailabilityAlertTenantContext;
   dates: string[];
@@ -104,18 +130,21 @@ export class MatchAvailabilityAlertsUseCase {
     return { context, dates: this.datesToCheck(input.around, context, now) };
   }
 
-  // The tenant-local calendar days to evaluate, clamped to [today, today + selectableDays − 1].
+  // The calendar days to evaluate, clamped to [today, today + selectableDays − 1] where "today" is
+  // the UTC date — the contract of the availability read itself (it rejects a date before
+  // todayUTC()) and of the public calendar, so the two never disagree about what is selectable. A
+  // freed booking contributes the tenant-local day it was on, which is the day its slot is listed
+  // under; if that day is already behind the window it is simply not selectable any more.
   private datesToCheck(
     around: Date | null,
     context: AvailabilityAlertTenantContext,
     now: Date,
   ): string[] {
-    const timezone = context.businessHours.timezone;
-    const today = utcDateToLocalDate(now, timezone);
+    const today = utcDateString(now);
     const lastDate = addDaysUTC(today, context.selectableDays - 1);
 
     if (around) {
-      const date = utcDateToLocalDate(around, timezone);
+      const date = utcDateToLocalDate(around, context.businessHours.timezone);
       return date >= today && date <= lastDate ? [date] : [];
     }
     const dates: string[] = [];
@@ -136,38 +165,45 @@ export class MatchAvailabilityAlertsUseCase {
     const { context, dates } = await getScope();
     if (dates.length === 0) return 0;
 
-    // Availability depends only on the preferred resource and the chosen duration, so alerts that
-    // share both share one computation per day — never one availability query per alert.
-    const groups = new Map<string, { group: AlertGroup; alerts: AvailabilityAlert[] }>();
-    for (const alert of alerts) {
-      const group = {
-        preferredResourceId: alert.preferredResourceId,
-        durationMinutes: alert.durationMinutes,
-      };
-      const key = `${group.preferredResourceId ?? ''}|${group.durationMinutes ?? ''}`;
-      const entry = groups.get(key) ?? { group, alerts: [] };
-      entry.alerts.push(alert);
-      groups.set(key, entry);
-    }
-
-    let notified = 0;
-    for (const { group, alerts: groupAlerts } of groups.values()) {
-      const slots = await this.collectSlots({ tenantId, serviceId, group, dates, context, now });
-      if (slots.length === 0) continue;
-      for (const alert of groupAlerts) {
-        const slot = findFirstMatchingSlot(alert.criteria, alert.timezone, slots);
-        if (slot && (await this.notify(alert, slot, correlationId, now))) notified += 1;
-      }
-    }
-    return notified;
+    const perGroup = await mapSequentially([...groupAlerts(alerts).values()], (entry) =>
+      this.matchGroup({ tenantId, correlationId, serviceId, entry, dates, context, now }),
+    );
+    return perGroup.reduce((sum, count) => sum + count, 0);
   }
 
-  // The bookable slots of one service (optionally on one resource / at one duration) across the
-  // dates, keeping only those that start after `now`. A domain error from the availability read
-  // is "nothing bookable here", never a failure of the whole run: a day already past in UTC just
-  // skips that day (expected near midnight), while any other (the service or resource was
-  // deactivated, the duration is no longer valid) is not date-specific, so it ends this group's
-  // read after one warning instead of one per remaining date.
+  private async matchGroup(args: {
+    tenantId: string;
+    correlationId: string;
+    serviceId: string;
+    entry: AlertGroupEntry;
+    dates: string[];
+    context: AvailabilityAlertTenantContext;
+    now: Date;
+  }): Promise<number> {
+    const { tenantId, correlationId, serviceId, entry, dates, context, now } = args;
+    const slots = await this.collectSlots({
+      tenantId,
+      serviceId,
+      group: entry.group,
+      dates,
+      context,
+      now,
+    });
+    if (slots.length === 0) return 0;
+
+    const notified = await mapSequentially(entry.alerts, async (alert) => {
+      const slot = findFirstMatchingSlot(alert.criteria, alert.timezone, slots);
+      return slot ? this.notify(alert, slot, correlationId, now) : false;
+    });
+    return notified.filter(Boolean).length;
+  }
+
+  // The bookable slots of one service (optionally for one preferred resource / at one duration)
+  // across the dates, keeping only those that start after `now`. A domain error from the availability
+  // read is "nothing bookable here", never a failure of the whole run: a day already past in UTC just
+  // skips that day, while any other (the service or resource was deactivated, the duration is no
+  // longer valid) is not date-specific, so it ends this group's read after one warning instead of one
+  // per remaining date.
   private async collectSlots(args: {
     tenantId: string;
     serviceId: string;
@@ -176,38 +212,78 @@ export class MatchAvailabilityAlertsUseCase {
     context: AvailabilityAlertTenantContext;
     now: Date;
   }): Promise<AvailabilityAlertMatchingWindow[]> {
-    const { tenantId, serviceId, group, dates, context, now } = args;
-    const slots: AvailabilityAlertMatchingWindow[] = [];
-    for (const date of dates) {
-      try {
-        const result = await this.getAvailability.execute({
-          tenantId,
-          date,
-          serviceIds: [serviceId],
-          ...(group.preferredResourceId ? { resourceId: group.preferredResourceId } : {}),
-          ...(group.durationMinutes ? { durationMinutes: group.durationMinutes } : {}),
-          businessHours: context.businessHours,
-          slotGranularityMinutes: context.slotGranularityMinutes,
-          serviceBufferMinutes: context.serviceBufferMinutes,
-        });
-        for (const slot of result.slots) {
-          const startsAt = new Date(slot.startsAt);
-          // The availability read still lists the earlier slots of today: one that has already
-          // started is not something a customer can book, so it never satisfies an alert.
-          if (startsAt > now) slots.push({ startsAt, endsAt: new Date(slot.endsAt) });
-        }
-      } catch (err) {
-        if (!(err instanceof BookingDomainError)) throw err;
-        if (err instanceof AvailabilityDateInPastError) continue;
-        this.logger.warn(`Availability unavailable for alert matching (${err.code})`, {
-          tenantId,
-          serviceId,
-          resourceId: group.preferredResourceId,
-        });
-        return slots;
-      }
+    const read = { stopped: false };
+    const perDate = await mapSequentially(args.dates, (date) => this.readDay(args, date, read));
+    return perDate.flat();
+  }
+
+  private async readDay(
+    args: {
+      tenantId: string;
+      serviceId: string;
+      group: AlertGroup;
+      context: AvailabilityAlertTenantContext;
+      now: Date;
+    },
+    date: string,
+    read: { stopped: boolean },
+  ): Promise<AvailabilityAlertMatchingWindow[]> {
+    if (read.stopped) return [];
+    try {
+      return await this.bookableSlots(args, date);
+    } catch (err) {
+      if (!(err instanceof BookingDomainError)) throw err;
+      if (err instanceof AvailabilityDateInPastError) return [];
+      read.stopped = true;
+      this.logger.warn(`Availability unavailable for alert matching (${err.code})`, {
+        tenantId: args.tenantId,
+        serviceId: args.serviceId,
+        resourceId: args.group.preferredResourceId,
+      });
+      return [];
     }
-    return slots;
+  }
+
+  // What can really be booked that day. The service-level read applies every requirement of the
+  // service (bundle, legs, pools). An alert's preferred resource is then only a further filter on
+  // it — the slot must also be free for that resource — never a replacement for it: the
+  // explicit-resource read ignores the service's other requirements, so used alone it would offer a
+  // slot whose other required resource is occupied.
+  private async bookableSlots(
+    args: {
+      tenantId: string;
+      serviceId: string;
+      group: AlertGroup;
+      context: AvailabilityAlertTenantContext;
+      now: Date;
+    },
+    date: string,
+  ): Promise<AvailabilityAlertMatchingWindow[]> {
+    const { tenantId, serviceId, group, context, now } = args;
+    const request = {
+      tenantId,
+      date,
+      serviceIds: [serviceId],
+      ...(group.durationMinutes ? { durationMinutes: group.durationMinutes } : {}),
+      businessHours: context.businessHours,
+      slotGranularityMinutes: context.slotGranularityMinutes,
+      serviceBufferMinutes: context.serviceBufferMinutes,
+    };
+    const { slots } = await this.getAvailability.execute(request);
+    let bookable = slots;
+    if (group.preferredResourceId && slots.length > 0) {
+      const onResource = await this.getAvailability.execute({
+        ...request,
+        resourceId: group.preferredResourceId,
+      });
+      const freeStarts = new Set(onResource.slots.map((slot) => slot.startsAt));
+      bookable = slots.filter((slot) => freeStarts.has(slot.startsAt));
+    }
+    // The read still lists the earlier slots of today: one that has already started is not
+    // something a customer can book, so it never satisfies an alert.
+    return bookable
+      .map((slot) => ({ startsAt: new Date(slot.startsAt), endsAt: new Date(slot.endsAt) }))
+      .filter((slot) => slot.startsAt > now);
   }
 
   // Own transaction per alert, so one alert changing never blocks another. A version conflict

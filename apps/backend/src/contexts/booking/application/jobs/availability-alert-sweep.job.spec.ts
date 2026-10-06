@@ -72,7 +72,7 @@ describe('AvailabilityAlertSweepJob', () => {
     ).toHaveLength(0);
   });
 
-  it('keeps sweeping the other tenants when one fails, and reports only what was notified', async () => {
+  it('sweeps every tenant even when one fails, then throws so the message is retried', async () => {
     // Put both tenants in the same timezone so both are due at the same instant.
     platformPort.clear();
     platformPort.seed([
@@ -81,10 +81,9 @@ describe('AvailabilityAlertSweepJob', () => {
     ]);
     useCase.execute.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce({ notified: 3 });
 
-    const result = await job.run(new Date('2026-10-06T09:30:00.000Z'));
+    await expect(job.run(new Date('2026-10-06T09:30:00.000Z'))).rejects.toThrow(SAO_PAULO_TENANT);
 
     expect(useCase.execute).toHaveBeenCalledTimes(2);
-    expect(result).toEqual({ tenantsSwept: 2, notified: 3 });
   });
 
   it('does nothing when there are no active tenants', async () => {

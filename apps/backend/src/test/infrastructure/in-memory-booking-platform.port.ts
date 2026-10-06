@@ -71,14 +71,14 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     return this.autoApproveEnabledByTenant.get(tenantId) ?? false;
   }
 
-  async getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {
-    return (
+  getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {
+    return Promise.resolve(
       this.alertContextByTenant.get(tenantId) ?? {
         businessHours: FULL_WEEK_BUSINESS_HOURS,
         slotGranularityMinutes: 30,
         serviceBufferMinutes: 0,
         selectableDays: 14,
-      }
+      },
     );
   }
 }

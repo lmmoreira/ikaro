@@ -20,6 +20,7 @@ import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
+import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { BookingQuoteService } from '../services/booking-quote.service';
@@ -240,6 +241,43 @@ describe('MatchAvailabilityAlertsUseCase', () => {
     });
   });
 
+  describe('the day boundary', () => {
+    it("follows the availability read's UTC date contract: late on a local evening the window already starts on the next UTC date", async () => {
+      // Monday 22:00 in São Paulo is already Tuesday 01:00Z, and the availability read refuses any
+      // date before the UTC today. The window therefore starts on Tuesday: no silent skip, no error.
+      const mondayAlert = alertFor()
+        .withOneTimeRange(at(monday, '10:00'), at(monday, '12:00'))
+        .build();
+      const tuesdayAlert = alertFor()
+        .withOneTimeRange(at(tuesday, '10:00'), at(tuesday, '12:00'))
+        .build();
+      alertRepo.seed(mondayAlert);
+      alertRepo.seed(tuesdayAlert);
+
+      const result = await sweep(at(monday, '22:00'));
+
+      expect(result.notified).toBe(1);
+      expect(mondayAlert.status).toBe('ACTIVE');
+      expect(tuesdayAlert.status).toBe('NOTIFIED');
+    });
+
+    it('a slot freed on a local day that is no longer selectable is left to the next sweep', async () => {
+      const alert = alertFor().withOneTimeRange(at(monday, '10:00'), at(monday, '12:00')).build();
+      alertRepo.seed(alert);
+
+      const result = await useCase.execute({
+        tenantId: TENANT_ID,
+        correlationId: CORRELATION_ID,
+        serviceIds: [serviceId],
+        around: at(monday, '10:00'),
+        now: at(monday, '22:00'),
+      });
+
+      expect(result.notified).toBe(0);
+      expect(alert.status).toBe('ACTIVE');
+    });
+  });
+
   describe('a freed day (capacity-release trigger)', () => {
     it('re-checks only that day for the given services', async () => {
       const mondayAlert = alertFor()
@@ -401,6 +439,71 @@ describe('MatchAvailabilityAlertsUseCase', () => {
 
       expect((await sweep()).notified).toBe(1);
       expect(published[0].data).toMatchObject({ resourceId: locationId });
+    });
+
+    describe('a bundle service (several required resources)', () => {
+      let bundleServiceId: string;
+      let roomId: string;
+      let equipmentId: string;
+
+      beforeEach(async () => {
+        const bundle = new ServiceBuilder()
+          .withTenantId(TENANT_ID)
+          .withDurationMinutes(60)
+          .withResourceRequirements([
+            ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+            ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+          ])
+          .build();
+        await serviceRepo.save(bundle);
+        bundleServiceId = bundle.id;
+        const room = new ResourceBuilder()
+          .withTenantId(TENANT_ID)
+          .withType(ResourceType.ROOM)
+          .build();
+        const equipment = new ResourceBuilder()
+          .withTenantId(TENANT_ID)
+          .withType(ResourceType.EQUIPMENT)
+          .build();
+        await resourceRepo.save(room);
+        await resourceRepo.save(equipment);
+        roomId = room.id;
+        equipmentId = equipment.id;
+      });
+
+      it('never matches on the preferred resource alone: a free preferred resource does not make up for an occupied required room', async () => {
+        bookingPort.setSlots([
+          { resourceId: roomId, startsAt: at(monday, '09:00'), endsAt: at(monday, '18:00') },
+        ]);
+        const alert = alertFor({ serviceId: bundleServiceId, resourceId: equipmentId })
+          .withOneTimeRange(at(monday, '10:00'), at(monday, '12:00'))
+          .build();
+        alertRepo.seed(alert);
+
+        expect((await sweep()).notified).toBe(0);
+        expect(alert.status).toBe('ACTIVE');
+      });
+
+      it('matches when every required resource, the preferred one included, is free', async () => {
+        const alert = alertFor({ serviceId: bundleServiceId, resourceId: equipmentId })
+          .withOneTimeRange(at(monday, '10:00'), at(monday, '12:00'))
+          .build();
+        alertRepo.seed(alert);
+
+        expect((await sweep()).notified).toBe(1);
+      });
+
+      it('does not match when the preferred resource itself is occupied, though the room is free', async () => {
+        bookingPort.setSlots([
+          { resourceId: equipmentId, startsAt: at(monday, '09:00'), endsAt: at(monday, '18:00') },
+        ]);
+        const alert = alertFor({ serviceId: bundleServiceId, resourceId: equipmentId })
+          .withOneTimeRange(at(monday, '10:00'), at(monday, '12:00'))
+          .build();
+        alertRepo.seed(alert);
+
+        expect((await sweep()).notified).toBe(0);
+      });
     });
 
     it('skips an alert whose preferred resource no longer exists, without failing the run', async () => {
