@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meus avisos — Vitta Studio</title>
+  <title>Novo aviso — erro — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     details summary { list-style: none; }
@@ -100,12 +100,17 @@
 <body>
 
   <!--
-    COMPONENT: AvailabilityAlertList + AvailabilityAlertEditForm  (GAP — M23-S12)
-    PAGE:       apps/web/app/[slug]/my-account/alerts/page.tsx  (GAP — M23-S12)
-    UC cobertos: UC-076 (list / edit / cancel). There is NO create button: creation always starts from the booking flow's "Avise-me quando abrir" (M23-S31, screens 16*).
-    BFF:  GET /availability-alerts  ·  PATCH /availability-alerts/:id  ·  DELETE /availability-alerts/:id   (customer only)
-    DATA: items newest first, history included (at most the 100 most recent); ACTIVE alerts are editable/cancellable, NOTIFIED / EXPIRED / CANCELLED are read-only history
-          (finished alerts are deleted automatically 90 days after their expiry). Edit overlays criteria/expiry; 409 BOOKING_ALERT_NOT_EDITABLE for a finished alert.
+    VARIANT OF: 16-novo-aviso.html
+    SCENARIO:   422 BOOKING_ALERT_CRITERIA_INVALID (range end not after start; weekly: no weekday, or end time not after start). Also the submit-failure notice (network / other).
+    PAGE:       apps/web/app/[slug]/my-account/alerts/new/page.tsx  (GAP — M23-S31; thin page — expected path, final at /story-discovery)
+    COMPONENT:  NewAvailabilityAlertForm  (GAP — M23-S31)
+    UC cobertos: UC-072
+    OPENED FROM: the "Avise-me quando abrir" button on the booking flow's calendar step (guest 02 / 02d, customer 02-calendar-slot).
+      A guest passes through the shared login first and returns to this same URL; nothing else has to survive the login.
+    PREFILL (query parameters on the link): serviceId (required), preferredResourceId, durationMinutes, participantCount.
+    BFF: POST /availability-alerts  Body: { serviceId, preferredResourceId?, criteriaType: "ONE_TIME_RANGE"|"WEEKLY_PREFERENCE",
+         acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, participantCount?, expiresAt? }
+         The alert timezone is always the tenant's — never sent.
   -->
 
   <!-- Prototype banner -->
@@ -169,51 +174,66 @@
     <main class="main-content">
       <div class="dashboard-body">
 
-        <a class="back-link" href="01-minha-conta.html">← Agendamentos</a>
-        <div class="page-head"><h1 class="page-title">Meus avisos</h1></div>
-        <p style="opacity:.7;font-size:.875rem;margin-bottom:1rem;">Avisos não reservam horário. Para criar um, use <strong>Avise-me quando abrir</strong> ao escolher data e horário de um agendamento.</p>
+        <a class="back-link" href="../book-a-service/02-calendar-slot.html">← Voltar para data e horário</a>
+        <p class="step-label">Aviso de disponibilidade</p>
+        <h1 class="page-title" style="font-size:1.375rem;margin-bottom:.25rem;">Avise-me quando abrir</h1>
+        <p style="opacity:.7;font-size:.9375rem;margin-bottom:1.25rem;">Este aviso fica salvo na sua conta e <strong>não reserva</strong> horário. Quando abrir uma vaga compatível, enviamos um e-mail para você reservar.</p>
 
-        <div class="rec-card">
-          <div class="rec-card-header"><div class="rec-accent" style="background:#16a34a"></div>
-            <div class="rec-body"><div class="rec-name">Massagem relaxante · Carla Menezes<span class="badge badge-ativa">Ativo</span></div>
-              <div class="rec-meta">20 out 09:00 – 27 out 18:00 · 60 min · 1 pessoa</div></div></div>
-          <div class="rec-footer"><span class="rec-footer-label">Ativo até 05 nov</span>
-            <span><a class="btn-link" href="#editar">Editar</a><a class="btn-link danger" href="#cancelar">Cancelar aviso</a></span></div>
-        </div>
-        <div class="rec-card">
-          <div class="rec-card-header"><div class="rec-accent" style="background:#16a34a"></div>
-            <div class="rec-body"><div class="rec-name">Limpeza de pele<span class="badge badge-ativa">Ativo</span></div>
-              <div class="rec-meta">Toda ter e qui, 09:00–12:00 · 45 min · 1 pessoa</div></div></div>
-          <div class="rec-footer"><span class="rec-footer-label">Ativo até 19 nov</span>
-            <span><a class="btn-link" href="#editar">Editar</a><a class="btn-link danger" href="#cancelar">Cancelar aviso</a></span></div>
-        </div>
+        <form class="card" onsubmit="return false">
+          <p class="section-label">Do seu agendamento</p>
+          <div class="summary-row"><span>Serviço</span><span>Massagem relaxante</span></div>
+          <div class="field" style="margin-top:.75rem;">
+            <label class="form-label" for="alert-resource">Profissional (opcional)</label>
+            <select id="alert-resource" class="form-input"><option>Carla Menezes</option><option>Qualquer profissional</option></select>
+          </div>
+          <div class="summary-row"><span>Duração</span><span>60 min</span></div>
+          <div class="summary-row"><span>Participantes</span><span>1</span></div>
 
-        <p class="section-label" style="margin-top:1.5rem;">Histórico</p>
-        <div class="rec-card">
-          <div class="rec-card-header"><div class="rec-accent" style="background:#2563eb"></div>
-            <div class="rec-body"><div class="rec-name">Massagem relaxante<span class="badge badge-avisado">Avisado</span></div>
-              <div class="rec-meta">12 set 09:00 – 19 set 18:00 · você foi avisado por e-mail em 14 set</div></div></div>
-        </div>
-        <div class="rec-card">
-          <div class="rec-card-header"><div class="rec-accent" style="background:#94a3b8"></div>
-            <div class="rec-body"><div class="rec-name">Limpeza de pele<span class="badge badge-expirado">Expirado</span></div>
-              <div class="rec-meta">Toda sex, 14:00–18:00 · expirou em 02 set</div></div></div>
-        </div>
+          <p class="section-label" style="margin-top:1.25rem;">Quando você quer ser avisado</p>
+          <div class="choice on"><input type="radio" name="crit" id="crit-range" checked><label for="crit-range"><strong>Período específico</strong><br><span class="meta">Entre duas datas e horários</span></label></div>
+          <div class="choice"><input type="radio" name="crit" id="crit-week"><label for="crit-week"><strong>Preferência semanal</strong><br><span class="meta">Certos dias da semana, em um intervalo de horário</span></label></div>
 
-        <div id="editar" class="panel card">
-          <p class="section-label">Editar aviso — Massagem relaxante</p>
-          <label class="form-label" for="e-from">De</label><input id="e-from" type="datetime-local" class="form-input" value="2026-10-20T09:00">
-          <label class="form-label" for="e-to" style="margin-top:.75rem;">Até</label><input id="e-to" type="datetime-local" class="form-input" value="2026-10-27T18:00">
-          <label class="form-label" for="e-exp" style="margin-top:.75rem;">Manter o aviso por</label><select id="e-exp" class="form-input"><option>Até 05 nov (atual)</option><option>60 dias</option><option>365 dias</option></select>
-          <div class="nav-buttons"><a class="btn-secondary" href="#">Cancelar</a><a class="btn-primary" href="#" style="text-decoration:none;">Salvar alterações</a></div>
-        </div>
-        <div id="cancelar" class="panel card notice-error">
-          <strong>Cancelar este aviso?</strong>
-          <p style="margin-top:.25rem;font-size:.875rem;">Você deixa de ser avisado sobre vagas para Massagem relaxante. Você pode criar outro aviso depois.</p>
-          <div class="nav-buttons"><a class="btn-secondary" href="#">Manter aviso</a><a class="btn-primary" href="#" style="text-decoration:none;background:#dc2626;">Cancelar aviso</a></div>
-        </div>
-        <div class="proto-only">Variantes (prototype-only): <a href="#editar">editar</a> <a href="#cancelar">cancelar</a> · Estado vazio: sem avisos, a mesma orientação de "Avise-me quando abrir".</div>
+          <div id="panel-range" class="crit-panel field" style="margin-top:.75rem;">
+            <label class="form-label" for="alert-from">De</label>
+            <input id="alert-from" type="datetime-local" class="form-input" value="2026-10-20T09:00">
+            <label class="form-label" for="alert-to" style="margin-top:.75rem;">Até</label>
+            <input id="alert-to" type="datetime-local" class="form-input invalid" value="2026-10-18T18:00">
+            <p class="field-error" role="alert">O fim do período precisa ser depois do início.</p>
+          </div>
+          <div id="panel-week" class="crit-panel field" style="margin-top:.75rem;" hidden>
+            <p class="form-label">Dias da semana</p>
+            <div class="chips"><span class="chip">Seg</span><span class="chip on">Ter</span><span class="chip">Qua</span><span class="chip on">Qui</span><span class="chip">Sex</span><span class="chip">Sáb</span><span class="chip">Dom</span></div>
+            <label class="form-label" for="alert-wfrom" style="margin-top:.75rem;">Entre</label>
+            <input id="alert-wfrom" type="time" class="form-input" value="09:00">
+            <label class="form-label" for="alert-wto" style="margin-top:.75rem;">E</label>
+            <input id="alert-wto" type="time" class="form-input" value="12:00">
+            <p class="field-hint">Horários no fuso do estabelecimento (America/Sao_Paulo).</p>
+          </div>
 
+          <div class="field" style="margin-top:1.25rem;">
+            <label class="form-label" for="alert-exp">Manter o aviso por</label>
+            <select id="alert-exp" class="form-input"><option>30 dias (padrão)</option><option>60 dias</option><option>90 dias</option><option>180 dias</option><option>365 dias (máximo)</option></select>
+            <p class="field-hint">Num período específico, o aviso termina no máximo ao fim do período.</p>
+          </div>
+          <p class="field-hint">Avisaremos marina@email.com. Você pode editar ou cancelar o aviso em Meus avisos.</p>
+
+          <div class="nav-buttons">
+            <a class="btn-secondary" href="../book-a-service/02-calendar-slot.html">Voltar</a>
+            <a class="btn-primary" href="16d-novo-aviso-salvo.html" style="text-decoration:none;">Criar aviso</a>
+          </div>
+        </form>
+        <div id="falha" class="panel notice notice-error" role="alert">
+          <strong>Não foi possível criar o aviso.</strong>
+          <p style="margin-top:.25rem;font-size:.875rem;">Verifique sua conexão e tente de novo. Nada foi salvo.</p>
+        </div>
+        <div class="proto-only">Variante: <a href="#falha">falha de envio (rede / outros)</a> <a href="#">fechar</a></div>
+        <script>
+          (function(){
+            var r=document.getElementById('crit-range'),w=document.getElementById('crit-week');
+            function sync(){document.getElementById('panel-range').hidden=!r.checked;document.getElementById('panel-week').hidden=!w.checked;}
+            r.addEventListener('change',sync);w.addEventListener('change',sync);
+          })();
+        </script>
       </div>
     </main>
   </div>

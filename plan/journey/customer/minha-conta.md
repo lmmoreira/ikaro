@@ -131,7 +131,13 @@ Folder: `customer/prototypes/minha-conta/`
 | `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (decidido em M23-S18: recusa na criação; a API já devolve a lista) | UC-070 A1 | M23-S17 (constrói a tela) | ❓ Gap (M23 Cluster 3) |
-| `07-availability-alert.html` | Criar/gerenciar aviso de disponibilidade | UC-072, UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `07-availability-alert.html` | Meus avisos — lista, editar e cancelar aviso de disponibilidade (sem botão de criar: a criação sempre parte do fluxo de agendamento) | UC-076 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `16-novo-aviso.html` | Novo aviso — formulário pré-preenchido (serviço, profissional/recurso, duração, participantes) com critério: período único ou preferência semanal | UC-072 | M23-S31 | ❓ Gap (M23 Cluster 3) |
+| `16b-novo-aviso-erro.html` | Novo aviso — erro de validação (período/horário inválido, 422) e falha de envio | UC-072 | M23-S31 | ❓ Gap (M23 Cluster 3) |
+| `16c-novo-aviso-salvando.html` | Novo aviso — salvando | UC-072 | M23-S31 | ❓ Gap (M23 Cluster 3) |
+| `16d-novo-aviso-salvo.html` | Aviso criado — confirmação com "Voltar ao site" | UC-072 | M23-S31 | ❓ Gap (M23 Cluster 3) |
+| `16e-novo-aviso-limite.html` | Erro — limite de 10 avisos ativos (409), com caminho para "Meus avisos" | UC-072 A3 | M23-S31 | ❓ Gap (M23 Cluster 3) |
+| `16f-novo-aviso-servico-indisponivel.html` | Erro — serviço sem aviso de disponibilidade (422, link antigo/manual) | UC-072 A3 | M23-S31 | ❓ Gap (M23 Cluster 3) |
 | `13-nova-recorrencia.html` | Nova reserva recorrente — padrão (serviço, recurso, dias, horário, período) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
@@ -231,7 +237,7 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
 
-> Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation area (UC-070 — **creating** a schedule and **managing** it) and an availability-alerts manager (UC-072/076). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+> Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation area (UC-070 — **creating** a schedule and **managing** it) and availability alerts — "Meus avisos" to manage them (UC-076, `M23-S12`) and the alert-creation page (UC-072, `M23-S31`; see § Availability alerts below). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 >
 > The creation flow (`13`–`13e`, `14`, `14b`, and the re-shelled `06b`/`06c`, plus the proposed `06d`) was added on 2026-09-29 as a deliberately simple first pass, all inside the same account shell `08-turmas-lista.html` uses (Vitta Studio tenant, Agendamentos tab active). Before that, only the post-creation screens existed — nothing collected the pattern itself. Every choice below is a default to be rechecked at story discovery.
 
@@ -274,8 +280,33 @@ PATCH /bookings/:id/reschedule            -- reschedule one occurrence (reschedu
 POST  /recurring-booking-schedules/:id/end       -- end early (the `…/pause` route was removed by `M23-S20`)
 ```
 
+### Availability alerts (UC-072 creation · UC-076 management) — design settled 2026-10-06
+
+Creating an alert always starts in the public booking flow: the calendar step (guest `02`/`02d`, customer's calendar step) shows an "Avise-me quando abrir" button for every alert-eligible service. It opens the **alert page** in Minha Conta; "Meus avisos" (`07`) only lists, edits and cancels what was created.
+
+```mermaid
+flowchart TD
+    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
+
+    Cal["Booking flow — calendar step<br/>(guest/book-a-service 02, 02d)"] -->|"'Avise-me quando abrir'<br/>(alert-eligible service)"| Auth{"logged in?"}
+    Auth -->|"no"| Login["shared login / account creation<br/>(existing) → returns to the alert page"]
+    Auth -->|"yes"| Form
+    Login --> Form["❓ GAP: /{slug}/my-account/alerts/new<br/>16-novo-aviso — prefilled from the link:<br/>service, resource/staff picks, duration, participants"]
+    Form -->|"Salvar (POST /availability-alerts)"| Saving["❓ GAP: 16c salvando"]
+    Saving -->|"201"| Done["❓ GAP: 16d aviso criado<br/>'Voltar ao site'"]
+    Saving -->|"422 criteria"| Err["❓ GAP: 16b erro de validação"]
+    Saving -->|"409 cap (10 ativos)"| Cap["❓ GAP: 16e limite — leva a Meus avisos"]
+    Saving -->|"422 ineligible service"| Inel["❓ GAP: 16f serviço sem aviso"]
+    Cap --> Lista["❓ GAP: /{slug}/my-account/alerts<br/>07 Meus avisos (M23-S12)"]
+    class Form,Saving,Done,Err,Cap,Inel,Lista gap
+```
+
+- The criteria travel as **query parameters on the button's link**, so the only thing a login round-trip must preserve is the destination URL.
+- The page is a protected `my-account` route (customer-only, like the API), not a public hotsite route.
+- Finished alerts (notified, expired, cancelled) stay visible in `07` as read-only history.
+
 **Open questions / gaps:**
-- [x] Stories exist: `M23-S12` (list + manage + alerts), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload — backend, and it lands before `M23-S05`; `06d` is now the chosen UI for it, built in `M23-S17`). Each still begins with `/story-discovery`.
+- [x] Stories exist: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creation: the booking-flow button and the alert page), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload — backend, and it lands before `M23-S05`; `06d` is now the chosen UI for it, built in `M23-S17`). Each still begins with `/story-discovery`.
 - [ ] **Entry point (default drawn here):** a "Reservas recorrentes" link on the Agendamentos page leading to `14`, with the create button on that list. Alternatives to recheck: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is the same open UI decision as before.
 - [x] **Conflict screen content:** `06b` shows the conflicting occurrences, which the API returns since `M23-S18` — one payload, `conflicts: [{ occurrenceStart, reason }]` with `reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS` — and `M23-S17` only renders it. Suggesting an alternative resource, which the original discovery prototype showed, is a much bigger feature and is **not** drawn here.
 - [ ] **Duration:** drawn as read-only, defined by the service. A `durationPolicy = CUSTOMER_SELECTED` service would need the variable-duration control (see `guest/prototypes/book-a-service/12-reserva-por-tempo.html`) — not drawn.

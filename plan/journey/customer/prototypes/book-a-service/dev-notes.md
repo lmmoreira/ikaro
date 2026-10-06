@@ -183,3 +183,7 @@ The authenticated-customer flow uses the **same components and the same screens*
 | Success box | `04d` here (plain, CTA → Agendamentos; the resource-line variants are in the guest `04d`) · `04f` (guest folder) | the primary CTA links to the Agendamentos list |
 
 Error routing, step paths and the design decisions: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § M23 Cluster 3 extension.
+
+## ❓ GAP — "Avise-me quando abrir" on the calendar step (M23-S31, UC-072)
+
+`02-calendar-slot.html` shows the button for every alert-eligible service (`bookingPolicy.availabilityAlertEligible`), with or without slots, and not while loading or on fetch-error states. An authenticated customer goes straight to the alert page — `/{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…` (`../minha-conta/16-novo-aviso.html` and its states `16b`–`16f`). A guest passes through login first (see the guest folder's `dev-notes.md` § Availability-alert entry). Not built yet.

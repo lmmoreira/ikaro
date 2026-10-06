@@ -8,6 +8,8 @@ All use cases operate within a **tenant scope**. When a user (staff or customer)
 
 **Example:** Staff member logs into Tenant A. They can only see/manage Tenant A's bookings, services, and staff. They cannot access Tenant B's data even if they somehow try to manipulate URLs or requests.
 
+**"Admin" in this document** is shorthand for a dashboard user with the `STAFF` or `MANAGER` role (the role guard of each endpoint is stated in its UC; `MANAGER` is a superset). It is not a separate JWT role.
+
 ---
 
 ## Format
@@ -251,7 +253,7 @@ UC-XXX: [Use Case Name]
 - **Preconditions:** Booking is APPROVED, PENDING, or INFO_REQUESTED
 - **Trigger:** Admin clicks "Cancel" or "Reschedule" in dashboard
 - **Endpoint (cancel):** `PATCH /v1/bookings/:id/cancel` — this UC's admin path, but the guard is actually `@Roles('CUSTOMER', 'MANAGER', 'STAFF')` on the same shared endpoint (BFF dispatches to backend `/cancel-admin` for STAFF/MANAGER, `/cancel-customer` for CUSTOMER — see UC-007 for the customer-facing half of this same route)
-- **Endpoint (reschedule — A1):** `PATCH /v1/bookings/:id/reschedule` (STAFF | MANAGER)
+- **Endpoint (reschedule — A1):** `PATCH /v1/bookings/:id/reschedule` — this UC's admin path, but the guard is actually `@Roles('CUSTOMER', 'MANAGER', 'STAFF')` on the same shared endpoint (BFF dispatches to backend `/reschedule-admin` for STAFF/MANAGER, `/reschedule-customer` for CUSTOMER — see UC-069 for the customer path)
 - **Main Flow:**
   1. Admin selects booking
   2. Admin clicks "Cancel Booking"
@@ -1124,7 +1126,7 @@ Returns:
 - **Preconditions:** Service declares intake fields, participant/count rules, or both.
 - **Trigger:** Customer reaches booking review for a service with intake or attendee requirements.
 - **Main Flow:**
-  1. Customer completes the service's current intake schema (`GET /services/:id/intake-schema/public` — active version only, no history; distinct from the staff-facing `GET /services/:id/intake-schema`, M22-S04, which also returns prior versions).
+  1. Customer completes the service's current intake schema (backend `GET /services/:id/intake-schema/public`, exposed by the BFF as `GET /v1/public/services/:id/intake-schema` — active version only, no history; distinct from the staff-facing `GET /services/:id/intake-schema`, M22-S04, which also returns prior versions).
   2. System validates required answers, projects operational values (e.g. pickup address, participant count) into typed booking fields.
   3. System snapshots schema version, answers, consent, and optional named attendees with the submitted booking.
 - **Alternative Flows:**
@@ -1142,7 +1144,7 @@ Returns:
 
 - **Actor:** Customer, or audited staff acting for the customer
 - **Endpoint:** `PATCH /bookings/:id/reschedule` (existing UC-008 endpoint, extended — see `docs/14-API_CONTRACTS.md`). Same customer/staff role-dispatch pattern as UC-007/UC-008's `PATCH /bookings/:id/cancel`: the BFF forwards to the backend's `reschedule-customer` route for a `CUSTOMER`-role JWT, `reschedule-admin` for `STAFF`/`MANAGER` — two backend use cases, one public path.
-- **Preconditions:** Booking is eligible under its snapshotted-effective per-service reschedule policy (`rescheduleWindowHoursOverride ?? tenant default`, UC-055) — customer path only; a staff override (A3) bypasses this check by design, the same way staff already bypasses the cancellation window.
+- **Preconditions:** Booking is eligible under its snapshotted-effective per-service reschedule policy (`rescheduleWindowHoursOverride ?? tenant cancellationWindowHours` — there is no separate tenant-level reschedule default; UC-055) — customer path only; a staff override (A3) bypasses this check by design, the same way staff already bypasses the cancellation window.
 - **Trigger:** Customer chooses "Reagendar" on an eligible future appointment/reservation.
 - **Main Flow:**
   1. System releases the original resource/span and locks the replacement inside one transaction — a losing race (a concurrent booking wins the replacement resource) throws and rolls back the entire attempt, so the release is never actually committed and the booking keeps its original slot (transaction atomicity + the resource_occupancy exclusion constraint's insert-time blocking are what make this safe, not a specific statement order).
@@ -1211,13 +1213,15 @@ Returns:
 - **Actor:** Authenticated customer
 - **Endpoint:** `POST /availability-alerts`
 - **Preconditions:** Service permits alerts (`availabilityAlertEligible`, UC-055) and has availability criteria the customer can express.
-- **Trigger:** Customer sees no suitable appointment/reservation availability.
+- **Trigger:** Customer clicks "Avise-me quando abrir" on the booking flow's calendar step (shown for every alert-eligible service, whether or not slots are currently available), or opens the alert page directly in Minha Conta.
 - **Main Flow:**
-  1. Customer selects service, optional preferred resource, duration/participant criteria, and either a finite absolute range or a weekly local-time preference.
-  2. System stores an expiring alert attached to that customer without reserving anything.
-  3. When a bookable slot that the customer can actually select on the booking page starts inside the alert's acceptable window, system records one deduplicated email notification attempt for that alert/window and marks the alert notified (M23-S07). A slot is found two ways: right away when a booking is cancelled, rejected or rescheduled, and by a daily sweep for capacity that opens with no booking event (the booking window reaching a date, a manager extending hours or adding a resource). An alert for a date beyond the booking window waits and is matched the day the date becomes selectable, so an alert may live up to 365 days.
+  1. System opens the alert page (`/[slug]/my-account/alerts/new`), prefilled from the booking flow — service, preferred resource/staff picks, duration and participant count.
+  2. Customer sets the matching criteria — either a finite absolute range or a weekly local-time preference — and saves.
+  3. System stores an expiring alert attached to that customer without reserving anything, and shows a confirmation with a "Voltar ao site" action.
+  4. When a bookable slot that the customer can actually select on the booking page starts inside the alert's acceptable window, system records one deduplicated email notification attempt for that alert/window and marks the alert notified (M23-S07). A slot is found two ways: right away when a booking is cancelled, rejected or rescheduled, and by a daily sweep for capacity that opens with no booking event (the booking window reaching a date, a manager extending hours or adding a resource). An alert for a date beyond the booking window waits and is matched the day the date becomes selectable, so an alert may live up to 365 days.
 - **Alternative Flows:**
-  - **A1: Unauthenticated visitor** → Directed to login/account creation before an alert can be saved; chosen criteria return with them after authentication.
+  - **A1: Unauthenticated visitor** → The "Avise-me quando abrir" button sends the visitor to login/account creation first; after authenticating they land on the same alert page, prefilled as in the main flow.
+  - **A3: Service not alert-eligible, or the customer already holds 10 active alerts** → The button is not shown for an ineligible service; a customer at the cap sees `BOOKING_ALERT_CAP_REACHED` on save and is pointed to "Meus avisos" to cancel one.
   - **A2: Alert expires, is cancelled, or was already notified for the matching window** → No new notification is sent and no capacity is held.
 - **Postconditions:** Alert is an intent only; customer still books normally after notification.
 - **Events Triggered:** `AvailabilityAlertCreated`, later `AvailabilityAlertMatched`/`Expired`/`Cancelled`.
@@ -1260,7 +1264,7 @@ Returns:
 ### **UC-075: System Bootstraps a New Tenant From a Preset**
 
 - **Actor:** Manager, during tenant onboarding
-- **Endpoint:** `POST /onboarding/bootstrap`
+- **Endpoint:** `POST /onboarding/bootstrap` *(planned — M23-S10; not built yet, no controller exists in the backend or BFF)*
 - **Preconditions:** Tenant has no published scheduling configuration and the manager has supplied every minimum answer for a supported preset.
 - **Trigger:** Manager confirms a business preset and its minimum answers.
 - **Main Flow:**

@@ -29,6 +29,10 @@ flowchart TD
     S2["/[slug]/booking<br/>Step 2: Calendar |UC-011|"] --> DayClick(("Click green day"))
     DayClick --> SlotPicker["SlotPicker"]
     SlotPicker --> S3
+    S2 -->|"'Avise-me quando abrir' (alert-eligible service)"| AlertBtn["❓ GAP: alert button on the calendar step<br/>(M23-S31)"]
+    AlertBtn --> AlertPage["❓ GAP: alert page, prefilled<br/>(customer/minha-conta.md § Availability alerts)"]
+    AlertPage -->|"saved"| AlertDone["❓ GAP: confirmation + 'Voltar ao site'"]
+    class AlertBtn,AlertPage,AlertDone gap
 
     S3["/[slug]/booking<br/>Step 3: Review — PersonalInfoStep (reused)<br/>hideContactFields=true, detected via getHotsiteCustomerProfile(slug)"] -->|"service has an active intake schema"| Intake["✅ Step 4 — IntakeAnswersStep<br/>(03b-intake-answers, M23-S11a / UC-068)<br/>Passo 3 de 5 = 03d-review-confirm-with-intake<br/>Passo 5 de 5 = 04e-confirmation-with-intake"]
     S3 -->|"no intake schema"| S4
@@ -56,7 +60,8 @@ flowchart TD
 | BFF `GET /v1/auth/google/callback` | BFF-only, no Next.js route | M13-S42 | ✅ Existing |
 | ~~`/select-tenant`~~ | ~~New page (multi-tenant picker)~~ | — | ❌ Descoped — see `customer/login.md` |
 | `/[slug]/booking` Step 1 | `ServiceSelectionStep` + `ServiceCard` (extended by M23-S11a: type-aware cards, APPOINTMENT-only list) | M12-S07, M23-S11a | ✅ Existing / ✅ extension |
-| `/[slug]/booking` Step 2 | `AvailabilityCarousel` + `SlotPicker` (extended by M23-S11a/b: `resourceSelections`/`durationMinutes`) | M12-S07, M23-S11a | ✅ Existing / ✅ extension |
+| `/[slug]/booking` Step 2 | `AvailabilityCarousel` + `SlotPicker` (extended by M23-S11a/b: `resourceSelections`/`durationMinutes`; ❓ plus the "Avise-me quando abrir" button — M23-S31) | M12-S07, M23-S11a, M23-S31 | ✅ Existing / ✅ extension / ❓ Gap (alert button) |
+| `/[slug]/my-account/alerts/new` | Availability-alert creation page, opened from the calendar step's button (prefilled with the service and picks) | M23-S31 | ❓ Gap — see `customer/minha-conta.md` § Availability alerts |
 | `/[slug]/booking` Step 3 | `PersonalInfoStep` (reused, `hideContactFields` prop) | M13-S14 | ✅ Existing |
 | `/[slug]/booking` Step 4 (only for intake-bearing services) | `IntakeAnswersStep` (new, shared with the guest path; Confirmation then becomes "Passo 5 de 5") | M23-S11a | ✅ Built |
 | `/[slug]/booking` final step | `ConfirmationStep` (M23-S11a adds the booking-details box on success; M23-S11b the journey confirmation) | M12-S07, M23-S11a | ✅ Existing / ✅ details box / ✅ journey confirmation (S11b) |

@@ -88,6 +88,17 @@
       <span style="font-size: 0.875rem; color: #dc2626; font-weight: 500;">Nenhum horário disponível nos próximos dias. Entre em contato conosco para agendar.</span>
     </div>
 
+    <!--
+      ALERT ENTRY — M23-S31 (GAP: not built yet). Guest: the button goes to the shared login (existing); after login/account creation the customer lands on the alert page (customer/prototypes/minha-conta/16-novo-aviso.html). An already-authenticated customer goes straight there (see customer/prototypes/book-a-service/02-calendar-slot.html).
+      Shown for every alert-eligible service (bookingPolicy.availabilityAlertEligible), with or without slots.
+      NOT shown on the loading (02b), fetch-error (02c / 02f) or slot-conflict (02e) states.
+      Link: /{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…
+    -->
+    <div data-testid="availability-alert-entry" style="margin-top:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;padding:0.875rem 1rem;border:1px dashed var(--ba-secondary);border-radius:var(--ba-radius);background:white;">
+      <span style="font-size:0.875rem;color:var(--ba-text);">Sem horários agora? Avisamos você quando abrir uma vaga.</span>
+      <a class="btn-secondary" href="../../../shared/login.html">Avise-me quando abrir</a>
+    </div>
+
     <div class="nav-buttons">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
       <button class="btn-primary" disabled style="opacity: 0.6; cursor: not-allowed;">Próximo</button>

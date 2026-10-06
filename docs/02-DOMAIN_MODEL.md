@@ -677,7 +677,7 @@ RecurringBookingSchedule {
 - Eligible only for a flat, single-resource-requirement service (`bookingModel = APPOINTMENT`, no `legs`, no multi-resource bundle, `requiresPickupAddress = false` — a request carries no pickup address to snapshot onto the occurrences) — bundle/multi-leg recurrence is out of scope until a future story.
 - `endsOn` is required, must not be before `startsOn` (an equal date is allowed), and must not be later than `startsOn` + the service's maximum term (a reversed range is `RecurringBookingScheduleInvalidDateRangeError`, `422`; a date beyond the term is `RecurringBookingScheduleTermExceededError`, `422`, `BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED`; a missing `endsOn` is rejected as a `400` by the request schema). Once `endsOn` has passed (on the tenant-local calendar date), a scheduled job (M23-S05) moves an `ACTIVE` schedule to `ENDED`, so the caps and the list filter keep using `status = 'ACTIVE'` and an expired schedule never counts against them. The natural end raises no domain event — there is no consumer for one.
 - The maximum term is `Service.bookingPolicy.recurringHorizonDays` (null inherits a 90-day platform default). The creation-time checks and the materialization enumerate the term with one window-enumeration function, so nothing checked at creation can diverge from what is materialized. An occurrence that stops passing between the check and a later materialization (approval) refuses the whole approval with the same `409` conflicts list (UC-071 A3) — nothing is created and the schedule stays `PENDING_APPROVAL`, because a UC-073 worklist entry can only point at an existing booking.
-- Generated bookings link back via a nullable `recurringScheduleId` on `Booking`, with a unique `(tenantId, recurringScheduleId, occurrenceStart)` generation key — same idempotency shape `ClassSessionBooking.seriesId` uses for the session family (Cluster 4).
+- Generated bookings link back via a nullable `recurringScheduleId` on `Booking`, with a unique `(tenantId, recurringScheduleId, scheduledAt)` generation key (there is no `occurrence_start` column on `bookings`) — same idempotency shape `ClassSessionBooking.seriesId` uses for the session family (Cluster 4).
 
 **Key Methods:**
 - `RecurringBookingSchedule.request(customerId, serviceId, recurrence, assignmentPolicy, ...)` — resource-conflict-checks, then branches to `ACTIVE` or `PENDING_APPROVAL` per the service's effective approval mode.
@@ -714,6 +714,7 @@ AvailabilityAlert {
   status:                'ACTIVE' | 'NOTIFIED' | 'CANCELLED' | 'EXPIRED'
   expiresAt:             DateTime
   createdAt:             DateTime
+  version:               int                     -- optimistic-concurrency token (a customer's edit/cancel racing the expiry job)
 }
 ```
 
@@ -721,11 +722,14 @@ AvailabilityAlert {
 - Exactly one criteria representation: `ONE_TIME_RANGE` sets `acceptableStartAt`/`acceptableEndAt` and nulls the weekly fields, or vice versa for `WEEKLY_PREFERENCE`.
 - Never auto-cancelled just because the customer's underlying need was met through a different channel (e.g. a waitlist promotion elsewhere) — an alert is an independent intent, not correlated with other capacity events.
 - An alert never reserves a resource and never auto-books; it only notifies (at most one deduplicated attempt per alert/matching-window).
-- Unauthenticated visitors are routed to login/account creation before an alert can be created; chosen criteria are preserved through that redirect.
+- Unauthenticated visitors are routed to login/account creation before an alert can be created; after authentication they land on the alert-creation page (UC-072 A1), which the booking flow's "Avise-me quando abrir" button links to with the service and picks as query parameters.
+- An alert's `expiresAt` defaults to 30 days after creation (`ALERT_DEFAULT_EXPIRY_DAYS`), is at most 365 days after it (`ALERT_MAX_EXPIRY_DAYS`, the highest value `maxBookingAdvanceDays` can take), and is clamped to `acceptableEndAt` for a range; a customer may hold at most 10 `ACTIVE` alerts (`ALERT_ACTIVE_CAP_PER_CUSTOMER`) — all three in `availability-alert-criteria.helpers.ts`, the cap enforced by `CreateAvailabilityAlertUseCase`.
 
 **Key Methods:**
 - `AvailabilityAlert.create(customerId, serviceId, criteria, expiresAt)` (UC-072)
-- `update(criteria)` / `cancel()` (UC-076/UC-053)
+- `update(changes)` / `cancel()` (UC-076/UC-053) — `changes` is an `UpdateAvailabilityAlertChanges`: the criteria plus `preferredResourceId`, `durationMinutes`, `participantCount` and `expiresAt`
+- `expire(correlationId)` — `ACTIVE → EXPIRED`, called by the alert-expiry job (M23-S06)
+- `markPersisted(version)` — the repository's hook after a successful save, advancing the optimistic-concurrency `version`
 - `recordNotificationAttempt(matchingWindow, channel, correlationId, now?)` (M23-S07) — for an `ACTIVE`, unexpired alert: queues one `PENDING` attempt for the `[startsAt, endsAt)` slot, moves the alert `ACTIVE → NOTIFIED` and raises `AvailabilityAlertMatched`; returns `false` and does nothing for an alert that is notified, cancelled, expired or past its `expiresAt`, so it never notifies twice. The repository persists the queued attempt (`takePendingAttempt()`) with the status change, deduplicated on `(alertId, matchingWindow, channel)`.
 
 ---
@@ -996,7 +1000,7 @@ ClassScheduleTemplateException {
 ---
 
 **`Booking` — modified (M23 Cluster 3):**
-- `+ recurringScheduleId: RecurringBookingScheduleId | null` — set when generated by an active `RecurringBookingSchedule`; unique `(tenantId, recurringScheduleId, occurrenceStart)`.
+- `+ recurringScheduleId: RecurringBookingScheduleId | null` — set when generated by an active `RecurringBookingSchedule`; unique `(tenantId, recurringScheduleId, scheduledAt)`.
 - `+` terminal status `NO_SHOW` added to the state machine: `APPROVED → COMPLETED | CANCELLED | NO_SHOW` (UC-074). A manager may correct a mistaken no-show with an append-only audit transition; loyalty is awarded only if the corrected resulting state is `COMPLETED`. **This changes CLAUDE.md §5's booking state machine — see that file's own update alongside this promotion.**
 - Every status change of an existing booking (M23-S26) records a pending transition — `from`, `to`, a `BookingActor` (`STAFF | MANAGER | CUSTOMER | GUEST | SYSTEM` plus id), reason where one exists, `correlationId` — beside its domain events; `TypeOrmBookingRepository.save()` persists them into `booking.booking_status_transitions` in the same transaction as the booking. Creation, including a recurring occurrence materialized directly as `APPROVED`, records none. A booking's status changes only through the aggregate's private `transitionTo`, which records the transition and assigns the status in one step, and every status-changing method takes the acting `BookingActor` to pass to it. A `Booking` read never loads the history.
 - Reschedule (UC-069) now supports bundles/legs atomically, recalculates the quote, and records an append-only `BookingQuoteRevision` (new child-adjacent table, `docs/13-DATABASE_SCHEMA.md`) linking to the prior arrangement — extends the existing `BookingRescheduled` event's scope rather than introducing a new one.
@@ -1324,7 +1328,7 @@ NO_SHOW         -> (terminal)
 
 > A booking materialized from a `RecurringBookingSchedule` (M23-S05) is created directly in `APPROVED` — the schedule was vetted once when it became `ACTIVE`, so each occurrence skips the `PENDING` review; from `APPROVED` it follows the same transitions as any other booking.
 >
-> `NO_SHOW` is added by M23 — Multi-Vertical Scheduling, Cluster 3 (UC-074, shipped by M23-S09): reachable only from `APPROVED`, terminal, and correctable to `COMPLETED` by a manager only. See `docs/02-DOMAIN_MODEL.md` § Booking Context's own Cluster 3 modification note and `.copilot/context.md` §5 for the same state machine.
+> `NO_SHOW` is added by M23 — Multi-Vertical Scheduling, Cluster 3 (UC-074): reachable only from `APPROVED`, terminal, and correctable to `COMPLETED` by a manager only. See `docs/02-DOMAIN_MODEL.md` § Booking Context's own Cluster 3 modification note and `.copilot/context.md` §5 for the same state machine.
 
 ### **BookingType**
 Enum: `GUEST | CUSTOMER`

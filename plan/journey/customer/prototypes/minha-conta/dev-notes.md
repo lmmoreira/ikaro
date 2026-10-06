@@ -135,7 +135,7 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ### Overview
 
-Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload, backend — it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
+Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creation — the booking-flow button and the `16*` alert page), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload, backend — it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
 
 ### File map (❓ none exist yet)
 
@@ -145,6 +145,8 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a re
 | `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ❓ Gap | M23-S17 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ❓ Gap | M23-S12 |
 | `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/app/[slug]/my-account/alerts/new/page.tsx` (thin; expected — final paths at `/story-discovery`) | ❓ Gap | M23-S31 |
+| `apps/web/features/customer/components/my-account/NewAvailabilityAlertForm.tsx` (+ spec; expected) | ❓ Gap | M23-S31 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ❓ Gap | M23-S12 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleOccurrenceActions.tsx` | ❓ Gap | M23-S12 |
 | `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result) | ❓ Gap | M23-S17 |
@@ -170,7 +172,13 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S17` (creating a re
 | `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
 | `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, end (no Pause). Since `M23-S08` an occurrence is its linked booking: skip = cancel that booking and reschedule = the ordinary reschedule, both subject to the tenant's cancellation / reschedule windows (the screen needs a window-expired message the prototype does not draw yet) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
 | `06e-pular-fora-do-prazo.html` / `06f-reagendar-fora-do-prazo.html` | Skip / reschedule refused because the tenant's cancellation / reschedule window has passed (same wording as one-off `03b`; the occurrence is a booking, decided in `M23-S08`) | same, error state | M23-S12 |
-| `07-availability-alert.html` | Create/manage an availability alert | `/{slug}/my-account/alerts` | M23-S12 |
+| `07-availability-alert.html` | "Meus avisos": list, edit and cancel — no create button (creation starts from the booking flow) | `/{slug}/my-account/alerts` | M23-S12 |
+| `16-novo-aviso.html` | Novo aviso — the alert form, prefilled from the booking flow's link | `/{slug}/my-account/alerts/new` | M23-S31 |
+| `16b-novo-aviso-erro.html` | Validation error (422 `BOOKING_ALERT_CRITERIA_INVALID`) and submit failure | same, error states | M23-S31 |
+| `16c-novo-aviso-salvando.html` | Saving | same, submitting | M23-S31 |
+| `16d-novo-aviso-salvo.html` | Aviso criado — confirmation with "Voltar ao site" | same, success | M23-S31 |
+| `16e-novo-aviso-limite.html` | 10 active alerts reached (409 `BOOKING_ALERT_CAP_REACHED`) — points to "Meus avisos" | same, error state | M23-S31 |
+| `16f-novo-aviso-servico-indisponivel.html` | Service no longer alert-eligible (422 `BOOKING_ALERT_INELIGIBLE_SERVICE`, e.g. a stale or hand-typed link) | same, error state | M23-S31 |
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
 
@@ -224,6 +232,22 @@ POST /recurring-booking-schedules
 - ⚠ **Renewal (`13f`) has no story-level rule for when "Renovar" appears on an active schedule** — drawn for the window of the reminder e-mail (`M23-S21`); to be fixed in `M23-S22`'s `/story-discovery`. The by-id read that `13f` needs is not built yet (`M23-S21`).
 - ⚠ **A bundled service cannot recur**, so the form never shows a multi-resource picker. Tracked in `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
 - ⚠ **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype.
+
+### Screens 16–16f — Novo aviso (`NewAvailabilityAlertForm`, M23-S31)
+
+Opened from the booking flow's "Avise-me quando abrir" button (guest `02`/`02d`, customer calendar step) — never from inside Minha Conta, which only lists (`07`). A guest passes through the shared login first and returns to this URL.
+
+**Prefill (query parameters on the link):** `serviceId` (required — without a valid one the page shows `16f`), `preferredResourceId` (the flow's staff/resource pick; the alert holds **one** preferred resource, so a flow with several picks passes none or the first that applies — decided at `/story-discovery`), `durationMinutes`, `participantCount`.
+
+**Fields:** criteria type — one-time range (`acceptableStartAt`/`acceptableEndAt`) or weekly preference (`weekdays`, `localStartTime`/`localEndTime`, tenant timezone, never sent); optional `expiresAt` (default 30 days, at most 365, clamped to the range end).
+
+| Rule | Source | Error |
+|---|---|---|
+| Range: end after start; weekly: at least one weekday and end time after start time | `docs/14-API_CONTRACTS.md` § Availability Alerts | `422 BOOKING_ALERT_CRITERIA_INVALID` → `16b` |
+| Service must be alert-eligible | UC-055 | `422 BOOKING_ALERT_INELIGIBLE_SERVICE` → `16f` |
+| At most 10 active alerts per customer | UC-072 A3 | `409 BOOKING_ALERT_CAP_REACHED` → `16e` |
+
+**State machine:** `16` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16e` / `16f` (errors; `16b` keeps the form editable).
 
 **BFF calls (whole extension):**
 ```

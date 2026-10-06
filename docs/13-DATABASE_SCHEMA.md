@@ -721,7 +721,7 @@ Generated ordinary bookings link through nullable `recurring_schedule_id` on `bo
 | **INDEX** | (tenant_id, customer_id, status) | "My alerts" and the per-customer active-alert cap (10) |
 | **INDEX** | (tenant_id, status, expires_at) | The expiry job's per-tenant scan |
 
-Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together with the attempts table below; M23-S07 writes the attempts (one `EMAIL` row per matched alert, in the same transaction as the alert's `NOTIFIED` status; the `UNIQUE` key makes a replay a no-op). An alert's `expires_at` may be at most 365 days after creation. **Retention:** the alert-expiry job (`cron-reminders`) hard-deletes every non-`ACTIVE` alert whose `expires_at` is more than 90 days in the past, together with its attempts rows (M23-S06). `timezone` is always the tenant's timezone, never client-supplied.
+Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together with the attempts table below; M23-S07 writes the attempts (one `EMAIL` row per matched alert, in the same transaction as the alert's `NOTIFIED` status; the `UNIQUE` key makes a replay a no-op). An alert's `expires_at` defaults to 30 days after creation and may be at most 365 days after it. **Retention:** the alert-expiry job (`cron-reminders`) hard-deletes every non-`ACTIVE` alert whose `expires_at` is more than 90 days in the past, together with its attempts rows (M23-S06). `timezone` is always the tenant's timezone, never client-supplied.
 
 `availability_alert_notification_attempts`:
 
@@ -782,7 +782,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 
 ### `booking.booking_status_transitions` (M23 Cluster 3)
 
-Append-only audit of a booking's status changes — who moved it, from what, to what, why, when. `bookings` itself keeps only the latest actor and time per transition type (`approved_by`, `completed_by`, …), so a no-show followed by a correction would otherwise leave no history. M23-S09 writes the no-show (`APPROVED → NO_SHOW`) and its correction (`NO_SHOW → COMPLETED`); M23-S26 makes every other transition append to it too, so the table is **complete for every transition from M23-S26 onward** (no backfill — bookings that changed status before it shipped have no rows). Same shape as M24's `class_session_booking_transitions`.
+Append-only audit of a booking's status changes — who moved it, from what, to what, why, when. `bookings` itself keeps only the latest actor and time per transition type (`approved_by`, `completed_by`, …), so a no-show followed by a correction would otherwise leave no history. M23-S09 introduced it for the no-show (`APPROVED → NO_SHOW`) and its correction (`NO_SHOW → COMPLETED`); since M23-S26 the `Booking` aggregate records every transition and `TypeOrmBookingRepository.save()` appends them, so the table is **complete for every transition from M23-S26 onward** (no backfill — bookings that changed status before it shipped have no rows). Same shape as M24's `class_session_booking_transitions`.
 
 | Column | Type | Constraints |
 |---|---|---|

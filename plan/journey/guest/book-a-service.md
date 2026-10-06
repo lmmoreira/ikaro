@@ -48,7 +48,7 @@ flowchart TD
 
 - No open gaps for the guest booking path — fully built as of M12-S07.
 - UC-005 (A2) — guest submits admin-requested info: backend complete (`PATCH /bookings/:id/submit-info/guest?token=`), but frontend page `/[slug]/bookings/:id/submit-info` does not exist. Tracked in `guest/use-cases.md`. Out of scope for this journey.
-- When a session is full or an appointment has no matching availability, a guest cannot create a waitlist entry or availability alert. Preserve the selected session/criteria through login/account creation, then return the authenticated customer to the action.
+- A guest cannot create a class-session waitlist entry (M24) or an availability alert. For appointments, the calendar step offers "Avise-me quando abrir" (M23-S31): a guest who clicks it is sent to login/account creation and then lands on the alert page, prefilled with the service and picks; an already-authenticated customer lands there directly. The page itself is drawn in `customer/minha-conta.md` § Availability alerts.
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (✅ `M23-S11a` built · ✅ `M23-S11b` built)
 
@@ -67,9 +67,15 @@ flowchart TD
     Picker --> HasDuration{"durationPolicy =<br/>CUSTOMER_SELECTED?"}
     HasDuration -- "yes" --> Duration["✅ duration + Total<br/>(12, 12b–12d)<br/>GET /public/services/:id/quote"]
     HasDuration -- "no" --> Availability
-    Duration --> Availability["✅ shared availability step<br/>(existing 02 — no UI change; resourceSelections + durationMinutes are optional query params)"]
+    Duration --> Availability["✅ shared availability step<br/>(existing 02; resourceSelections + durationMinutes are optional query params;<br/>❓ gains the 'Avise-me quando abrir' button — M23-S31)"]
 
     Availability --> S3m["Step: Personal Info<br/>(03-personal-info, existing; 03d on the intake path)"]
+    Availability -->|"'Avise-me quando abrir' (alert-eligible service; also on 02d)"| AlertBtn["❓ GAP: alert button on 02 / 02d<br/>(M23-S31)"]
+    AlertBtn -->|"not logged in"| AlertLogin["shared login → returns to the alert page"]
+    AlertBtn -->|"logged in"| AlertPage["❓ GAP: alert page, prefilled<br/>(customer/minha-conta.md § Availability alerts)"]
+    AlertLogin --> AlertPage
+    AlertPage -->|"saved"| AlertDone["❓ GAP: confirmation + 'Voltar ao site'"]
+    class AlertBtn,AlertPage,AlertDone gap
     S3m -->|"service has an active intake schema"| Intake["✅ intake answers + consent<br/>(13, 13b, 13c)<br/>GET /public/services/:id/intake-schema"]
     S3m -->|"no intake schema"| Confirm
     Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation; 04e on the intake path;<br/>10 = journey confirmation with the leg timeline)"]
@@ -81,7 +87,7 @@ flowchart TD
     BackAvail --> Availability
 ```
 
-**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `02` (the existing date/time step, no UI change), `09b`, `10`, `10b`, `12`–`12d`, `13`–`13c`, the success variants `04d`/`04f` and the **combined-basket variants** `03e`, `04g`, `04h`, `04i`, `10c` (✅ `M23-S11b`) (`15-login-required.html` is out of M23-S11a/S11b's scope — availability alerts; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
+**Prototype:** `guest/prototypes/book-a-service/` — screens `01c`–`01g`, `05`–`05h`, `02` (the existing date/time step — ❓ it gains the "Avise-me quando abrir" button, `M23-S31`; `02d` gains it too), `09b`, `10`, `10b`, `12`–`12d`, `13`–`13c`, the success variants `04d`/`04f` and the **combined-basket variants** `03e`, `04g`, `04h`, `04i`, `10c` (✅ `M23-S11b`) (`15-login-required.html` is a class-waitlist screen, out of M23-S11a/S11b's scope; `06`, `07`, `08`, `09`, `14` and `16` were removed — see `dev-notes.md`).
 
 **Combined baskets (decided 2026-10-03, `M23-S11b`).** A basket can mix fixed-price services, one variable-duration service, a bundle and one or more journeys; the only restriction is one `CUSTOMER_SELECTED` service per basket. The summary card (`03e`), the Confirmation / journey review (`04g`, `10c`, `04i`) and the success box (`04h`) compose **one row per line** and show **one total**: fixed prices + the quoted amount; duration = the sum of the line durations, where a journey counts its legs plus the transitions between them. Lines run back-to-back from the chosen slot in basket order (the backend's cursor), so a journey that is not the first line starts when the previous lines end. **Per-line time ranges appear only when the basket contains a journey** (its timeline already shows times, so the other lines need ranges to be read in sequence); other multi-line baskets keep today's single start time. Before booking, a bundle or journey names only the customer's own picks; after booking, `04h` names every assigned resource from the response (`assignedResourceName` / `itinerary`), a fungible pool never. Pure single-service baskets render exactly as `03`/`04`/`10`/`04d`/`04f`.
 
@@ -92,4 +98,4 @@ flowchart TD
 - [x] No screen for automatic resources; one picker for every resource and service type; duration is a duration-only step; the legs review is the final Confirmation step; customer rescheduling is a separate story (`dev-notes.md` § Design decisions).
 - [x] `06`, `07`, `08`, `09`, `14`, `16` removed.
 - [ ] `15-login-required.html` is a **class-waitlist** screen ("Entre para entrar na fila de espera", Pilates), linked to the Cluster 4 class agenda (`public-02b-class-agenda.html`, not yet promoted) — it belongs to M24 and is **not** the appointment availability-alert entry.
-- [ ] **IA gap (docs audit 2026-10-03): nobody owns the availability-alert entry in the public booking flow** (UC-072 trigger/A1): no "Avise-me quando abrir" action on the no-availability state (`02d` only says "Entre em contato conosco"), no login redirect that preserves the chosen criteria for appointments, no prototype. Needs its own prototype pass and story (depends on `M23-S06` and `M23-S11a`); `M23-S12` is the Minha Conta management surface only.
+- [ ] **Availability-alert entry (`M23-S31`, design settled 2026-10-06 with the owner):** an "Avise-me quando abrir" button always shown on the calendar step (`02` and `02d`, not on `02b`/`02c`/`02e`/`02f`) for alert-eligible services. It opens the alert page in Minha Conta (`customer/minha-conta.md` § Availability alerts), prefilled from the flow; a guest logs in first and lands on the same page. Saved → confirmation with "Voltar ao site". Drawn: the button on `02`/`02d` (this folder) and the alert page with its states `16`–`16f` (`customer/prototypes/minha-conta/`); the story still begins with `/story-discovery`.

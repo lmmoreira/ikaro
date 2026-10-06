@@ -103,6 +103,17 @@
       </div>
     </div>
 
+    <!--
+      ALERT ENTRY — M23-S31 (GAP: not built yet). Authenticated customer: the button goes straight to the alert page (customer/prototypes/minha-conta/16-novo-aviso.html).
+      Shown for every alert-eligible service (bookingPolicy.availabilityAlertEligible), with or without slots.
+      NOT shown on the loading (02b), fetch-error (02c / 02f) or slot-conflict (02e) states.
+      Link: /{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…
+    -->
+    <div data-testid="availability-alert-entry" style="margin-top:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;padding:0.875rem 1rem;border:1px dashed var(--ba-secondary);border-radius:var(--ba-radius);background:white;">
+      <span style="font-size:0.875rem;color:var(--ba-text);">Não achou o horário que queria? Avisamos você quando abrir uma vaga.</span>
+      <a class="btn-secondary" href="../minha-conta/16-novo-aviso.html">Avise-me quando abrir</a>
+    </div>
+
     <div class="nav-buttons">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
       <a class="btn-primary" href="03-review-confirm.html">Próximo</a>

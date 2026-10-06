@@ -43,7 +43,7 @@ None of these are new routes — each is the same component in a different state
 | `01b-pickup-address-error.html` | 1 | Pickup address required, fields empty, "Próximo" clicked | `step1-error` | |
 | `02b-loading.html` | 2 | `fetchAvailabilitySummary()` pending | — | |
 | `02c-availability-error.html` | 2 | `fetchAvailabilitySummary()` rejected | — | No retry button — see Known limitations |
-| `02d-fully-booked.html` | 2 | All days `available: false` | — | No explanatory copy — see Known limitations |
+| `02d-fully-booked.html` | 2 | All days `available: false` | — | No explanatory copy — see Known limitations. ❓ Gains the "Avise-me quando abrir" button (M23-S31) |
 | `02e-slot-conflict.html` | 2 | 409 on submit → back to step 2 | `step2-error` | |
 | `02f-slot-fetch-error.html` | 2 | `SlotPicker` day fetch rejected | — | Retry button shown is a **proposed fix, not yet built** — see Known limitations |
 | `03b-validation-error.html` | 3 | Invalid e-mail, "Próximo" clicked | `personal-info-error` | |
@@ -251,7 +251,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `10c-jornada-com-tempo-variavel.html` | Journey review in a basket that also holds a variable-duration line (chosen duration + quote on its row) | UC-065 / UC-067 | M23-S11b |
 | `04h-sucesso-cesta-combinada.html` | Success box of the combined basket — every line, assigned resources named from the response (pools never) | UC-065 / UC-067 | M23-S11b |
 | `04i-confirmacao-pacote-na-cesta.html` | Confirmation of a bundle (staff pick + automatic room) next to a fixed service — only the pick is named | UC-064 | M23-S11b |
-| `15-login-required.html` | A **class-waitlist** login screen (Pilates, "fila de espera") — an M24 screen, **out of M23-S11a/S11b's scope**; it is not the appointment availability-alert entry (see the IA gap below) | M24 | — |
+| `15-login-required.html` | A **class-waitlist** login screen (Pilates, "fila de espera") — an M24 screen, **out of M23-S11a/S11b's scope**; it is not the appointment availability-alert entry (see § Availability-alert entry below) | M24 | — |
 
 **Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `11-appointment-availability` (2026-10-03 — it redrew the date/time step in a different format; the existing `02-calendar-slot` day-pill carousel + slot buttons stays the single availability step for every flow, extended only by optional `resourceSelections`/`durationMinutes` props — documented in `02`'s header comment); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).
 
@@ -305,9 +305,13 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 5. The variable-duration total reads **"Total"** (the quote is exactly what booking creation persists); "a partir de…" appears only before a duration is chosen.
 6. **Contrast:** error text on a red tint uses `#b91c1c` (5.9:1) — not `#dc2626` (4.41:1); hint text never goes below `opacity: .6` (`.5` is 3.4:1). The shipped legacy screens (`02`, `02e`, customer `02`) still use the old values and are not changed here; fix when those components are next touched.
 
-### IA gap — availability-alert entry in the booking flow (unowned)
+### Availability-alert entry (M23-S31 — design settled 2026-10-06; button drawn, not built)
 
-UC-072's trigger ("Customer sees no suitable availability") has no screen in the public booking flow: `02d-fully-booked` shows only "Entre em contato conosco para agendar", there is no "Avise-me quando abrir" action, and no login redirect that preserves the chosen criteria for **appointments** (`15-login-required` is a class-waitlist screen). It needs its own prototype pass and story (depends on `M23-S06`, `M23-S11a`); `M23-S12` is the Minha Conta management surface (`07-availability-alert`) only.
+The calendar step (`02` and `02d`) shows an **"Avise-me quando abrir"** button for every alert-eligible service (`availabilityAlertEligible`, UC-055), whether or not slots are available. It is **not** shown on `02b` (loading), `02c`/`02f` (fetch errors) or `02e` (slot conflict) — after a failed fetch the customer cannot tell whether there is availability to wait for.
+
+The button is a link to the customer-area alert page, `/{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…` (screens `16*` in `customer/prototypes/minha-conta/`). A logged-in customer lands on it directly; a guest passes through the shared login/account-creation screen and returns to the same URL. Nothing else has to survive the login. The page, its states and "Voltar ao site" are specified in `customer/prototypes/minha-conta/dev-notes.md` (Screens 16–16f). `15-login-required` is unrelated (class waitlist, M24).
+
+**Drawn in this folder:** the button on `02-calendar-slot.html` and on `02d-fully-booked.html` (`data-testid="availability-alert-entry"`); a guest's click leads to the shared login.
 
 **Open questions / gaps:**
 - [x] Stories: `M23-S11a` then `M23-S11b` (`/story-discovery` each) — `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`. S11a must land first (the step engine S11b plugs into).
