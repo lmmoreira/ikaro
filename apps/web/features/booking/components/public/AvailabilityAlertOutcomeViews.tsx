@@ -5,21 +5,12 @@ import Link from 'next/link';
 import type { AvailabilityAlertResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { AvailabilityAlertShell } from './AvailabilityAlertShell';
-
-const primaryBtnStyle: React.CSSProperties = {
-  backgroundColor: 'var(--ba-btn-bg)',
-  color: 'var(--ba-btn-text)',
-  borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
-};
-
-const secondaryBtnStyle: React.CSSProperties = {
-  borderRadius: 'var(--ba-radius)',
-  borderColor: 'var(--ba-secondary)',
-};
-
-const primaryBtnClass = 'border-2 px-8 py-3 font-semibold transition-all hover:opacity-90';
-const secondaryBtnClass = 'cursor-pointer border px-6 py-3';
+import {
+  alertPrimaryButtonClass,
+  alertPrimaryButtonStyle,
+  alertSecondaryButtonClass,
+  alertSecondaryButtonStyle,
+} from './availability-alert-styles';
 
 // "Meus avisos" (M23-S12). The cap message points there; the route resolves once S12 lands.
 export function myAlertsPath(slug: string): string {
@@ -83,8 +74,8 @@ export function AvailabilityAlertSaved({
         <Link
           href={`/${slug}`}
           data-testid="availability-alert-back-to-site"
-          className={primaryBtnClass}
-          style={primaryBtnStyle}
+          className={alertPrimaryButtonClass}
+          style={alertPrimaryButtonStyle}
         >
           {t('availabilityAlert.saved.backToSite')}
         </Link>
@@ -116,16 +107,16 @@ export function AvailabilityAlertCapReached({ slug, onBack }: CapReachedProps): 
         <button
           type="button"
           onClick={onBack}
-          className={secondaryBtnClass}
-          style={secondaryBtnStyle}
+          className={alertSecondaryButtonClass}
+          style={alertSecondaryButtonStyle}
         >
           {t('availabilityAlert.actions.back')}
         </button>
         <Link
           href={myAlertsPath(slug)}
           data-testid="availability-alert-view-alerts"
-          className={primaryBtnClass}
-          style={primaryBtnStyle}
+          className={alertPrimaryButtonClass}
+          style={alertPrimaryButtonStyle}
         >
           {t('availabilityAlert.cap.viewAlerts')}
         </Link>
@@ -154,7 +145,7 @@ export function AvailabilityAlertIneligible({ slug }: IneligibleProps): React.JS
         <p className="leading-relaxed">{t('availabilityAlert.ineligible.body')}</p>
       </div>
       <div className="mt-6">
-        <Link href={`/${slug}`} className={primaryBtnClass} style={primaryBtnStyle}>
+        <Link href={`/${slug}`} className={alertPrimaryButtonClass} style={alertPrimaryButtonStyle}>
           {t('availabilityAlert.ineligible.backToSite')}
         </Link>
       </div>

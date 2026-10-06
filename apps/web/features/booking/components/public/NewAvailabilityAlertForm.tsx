@@ -19,6 +19,12 @@ import {
   AvailabilityAlertSaved,
 } from './AvailabilityAlertOutcomeViews';
 import { AvailabilityAlertShell } from './AvailabilityAlertShell';
+import {
+  alertPrimaryButtonClass,
+  alertPrimaryButtonStyle,
+  alertSecondaryButtonClass,
+  alertSecondaryButtonStyle,
+} from './availability-alert-styles';
 import { ErrorAlert } from './ErrorAlert';
 
 export interface AvailabilityAlertFormService {
@@ -204,8 +210,8 @@ export function NewAvailabilityAlertForm({
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/${slug}/booking`}
-            className="cursor-pointer border px-6 py-3"
-            style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
+            className={alertSecondaryButtonClass}
+            style={alertSecondaryButtonStyle}
           >
             {t('availabilityAlert.actions.back')}
           </Link>
@@ -213,13 +219,8 @@ export function NewAvailabilityAlertForm({
             type="submit"
             disabled={submitting || resource.status === 'loading'}
             data-testid="alert-submit"
-            className="cursor-pointer border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            style={{
-              backgroundColor: 'var(--ba-btn-bg)',
-              color: 'var(--ba-btn-text)',
-              borderColor: 'var(--ba-btn-border)',
-              borderRadius: 'var(--ba-radius)',
-            }}
+            className={`cursor-pointer ${alertPrimaryButtonClass} disabled:cursor-not-allowed disabled:opacity-40`}
+            style={alertPrimaryButtonStyle}
           >
             {submitting
               ? t('availabilityAlert.actions.submitting')

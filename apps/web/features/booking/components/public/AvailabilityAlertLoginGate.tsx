@@ -1,6 +1,12 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { AvailabilityAlertShell } from './AvailabilityAlertShell';
+import {
+  alertPrimaryButtonClass,
+  alertPrimaryButtonStyle,
+  alertSecondaryButtonClass,
+  alertSecondaryButtonStyle,
+} from './availability-alert-styles';
 
 interface AvailabilityAlertLoginGateProps {
   readonly slug: string;
@@ -8,13 +14,6 @@ interface AvailabilityAlertLoginGateProps {
   // the service, resource pick and duration still in the link.
   readonly returnTo: string;
 }
-
-const primaryBtnStyle: React.CSSProperties = {
-  backgroundColor: 'var(--ba-btn-bg)',
-  color: 'var(--ba-btn-text)',
-  borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
-};
 
 // UC-072 A1 — what the alert page shows a visitor with no customer session instead of the form.
 // Same pattern as the lead form's LeadFormLoginRequiredGate (M20-S09): a login-required card
@@ -39,16 +38,16 @@ export function AvailabilityAlertLoginGate({
       <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href={`/${slug}/booking`}
-          className="border px-6 py-3"
-          style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
+          className={alertSecondaryButtonClass}
+          style={alertSecondaryButtonStyle}
         >
           {t('availabilityAlert.gate.back')}
         </Link>
         <Link
           href={`/${slug}/login?returnTo=${encodeURIComponent(returnTo)}`}
           data-testid="availability-alert-login-cta"
-          className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90"
-          style={primaryBtnStyle}
+          className={alertPrimaryButtonClass}
+          style={alertPrimaryButtonStyle}
         >
           {t('availabilityAlert.gate.cta')}
         </Link>
