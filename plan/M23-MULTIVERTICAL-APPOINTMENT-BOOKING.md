@@ -1953,7 +1953,7 @@ A correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not a new
 
 ---
 
-### M23-S26 — Append every booking status transition to `booking_status_transitions`
+### M23-S26 — Append every booking status transition to `booking_status_transitions` ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
