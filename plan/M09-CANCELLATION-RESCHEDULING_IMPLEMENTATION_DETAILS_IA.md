@@ -9,7 +9,7 @@
 | Customer cancel use case | `apps/backend/src/contexts/booking/application/use-cases/cancel-booking-as-customer.use-case.ts` |
 | Admin cancel use case | `apps/backend/src/contexts/booking/application/use-cases/cancel-booking-as-admin.use-case.ts` |
 | Reschedule use case | `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking.use-case.ts` |
-| `Booking.cancel()` method | `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` ~L497 |
+| `Booking.cancel()` method | `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` — `cancel(actor: IdentifiedBookingActor, correlationId, reason?)`; `isBusiness` is derived from `actor.type` and the audit row comes from `transitionTo` (M23-S26) |
 | `Booking.reschedule()` method | `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` ~L528 |
 | `Booking.isEligibleForCancellation()` | `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` ~L602 |
 | BookingCancelled event | `apps/backend/src/contexts/booking/domain/events/booking-cancelled.event.ts` |
