@@ -34,8 +34,12 @@ export class AvailabilityAlertNotificationAttemptEntityBuilder {
     return this;
   }
 
-  withWindow(windowStart: Date, windowEnd: Date): this {
+  withWindowStart(windowStart: Date): this {
     this.windowStart = windowStart;
+    return this;
+  }
+
+  withWindowEnd(windowEnd: Date): this {
     this.windowEnd = windowEnd;
     return this;
   }

@@ -7,7 +7,7 @@ export class BookingCancelledEventBuilder {
   private customerId: string | null = null;
   private contactEmail = 'joao@example.com';
   private readonly contactName = 'João Silva';
-  private lineSummary = [
+  private readonly lineSummary = [
     {
       serviceId: 'ffffffff-0001-4000-8000-000000000001',
       serviceNameAtBooking: 'Lavagem Completa',
@@ -18,6 +18,7 @@ export class BookingCancelledEventBuilder {
   private cancelledBy = 'staffid-0000-4000-8000-000000000001';
   private isBusiness = true;
   private reason: string | null = null;
+  private serviceId: string | null = null;
   private scheduledAt = '2026-07-01T10:00:00.000Z';
 
   withScheduledAt(scheduledAt: Date): this {
@@ -25,9 +26,9 @@ export class BookingCancelledEventBuilder {
     return this;
   }
 
-  // Replaces the single default line's service.
+  // Replaces the service of the single default line.
   withServiceId(serviceId: string): this {
-    this.lineSummary = this.lineSummary.map((line) => ({ ...line, serviceId }));
+    this.serviceId = serviceId;
     return this;
   }
 
@@ -76,7 +77,10 @@ export class BookingCancelledEventBuilder {
       isBusiness: this.isBusiness,
       reason: this.reason,
       scheduledAt: this.scheduledAt,
-      lineSummary: this.lineSummary,
+      lineSummary: this.lineSummary.map((line) => ({
+        ...line,
+        serviceId: this.serviceId ?? line.serviceId,
+      })),
       totalPrice: this.totalPrice,
     });
   }

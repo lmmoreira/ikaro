@@ -1,5 +1,4 @@
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
-import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import {
@@ -9,9 +8,7 @@ import {
 } from '../../../../test/builders/platform/index';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { HotsiteModule } from '../../../platform/domain/hotsite-config.aggregate';
-import { HotsiteImageUrlResolver } from '../../../platform/domain/services/hotsite-image-url-resolver.service';
-import { HotsiteContentReader } from '../../../platform/application/services/hotsite-content-reader.service';
-import { GetHotsiteContentUseCase } from '../../../platform/application/use-cases/get-hotsite-content.use-case';
+import { GetHotsiteBookingPickerUseCase } from '../../../platform/application/use-cases/get-hotsite-booking-picker.use-case';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
 import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
@@ -27,16 +24,11 @@ describe('BookingPlatformAdapter', () => {
     repo = new InMemoryTenantRepository();
     hotsiteRepo = new InMemoryHotsiteConfigRepository();
     revalidation = new InMemoryFrontendRevalidationPort();
-    const hotsiteReader = new HotsiteContentReader(
-      hotsiteRepo,
-      new InMemoryStorageService(),
-      new HotsiteImageUrlResolver(),
-    );
     adapter = new BookingPlatformAdapter(
       new GetTenantsUseCase(repo),
       new GetTenantByIdUseCase(repo),
       new GetTenantBusinessHoursForUpdateUseCase(repo),
-      new GetHotsiteContentUseCase(hotsiteReader),
+      new GetHotsiteBookingPickerUseCase(hotsiteRepo),
       revalidation,
     );
   });

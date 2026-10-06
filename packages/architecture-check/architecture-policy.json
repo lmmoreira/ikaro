@@ -61,10 +61,10 @@
           "apps/backend/src/contexts/platform/application/ports/frontend-revalidation.port.ts",
           "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts",
           "apps/backend/src/contexts/platform/application/use-cases/get-tenants.use-case.ts",
-          "apps/backend/src/contexts/platform/application/use-cases/get-hotsite-content.use-case.ts",
+          "apps/backend/src/contexts/platform/application/use-cases/get-hotsite-booking-picker.use-case.ts",
           "apps/backend/src/contexts/platform/application/use-cases/get-tenant-business-hours-for-update.use-case.ts"
         ],
-        "rationale": "Booking uses platform settings through the existing cross-context adapter; get-tenant-business-hours-for-update.use-case.ts is OpenScheduleUseCase's row-locked, cache-bypassing read of tenant business hours (M21-S03, PR #460 round-7 fix for a stale-cache TOCTOU bug); get-hotsite-content.use-case.ts supplies the BOOKING_CTA date-picker type and carouselDays so availability-alert matching only considers dates a customer can actually select (M23-S07).",
+        "rationale": "Booking uses platform settings through the existing cross-context adapter; get-tenant-business-hours-for-update.use-case.ts is OpenScheduleUseCase's row-locked, cache-bypassing read of tenant business hours (M21-S03, PR #460 round-7 fix for a stale-cache TOCTOU bug); get-hotsite-booking-picker.use-case.ts supplies the BOOKING_CTA date-picker type and carouselDays so availability-alert matching only considers dates a customer can actually select (M23-S07).",
         "owner": "booking",
         "reviewBy": "2027-01-05"
       },
