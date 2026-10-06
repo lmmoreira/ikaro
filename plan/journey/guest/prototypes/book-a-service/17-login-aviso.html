@@ -8,14 +8,14 @@
 </head>
 <body>
   <!--
-    SCENARIO:   a GUEST clicked "Avise-me quando abrir" on the calendar step (02 / 02d). An alert needs a logged-in customer
-                (POST /availability-alerts is customer-only), so the guest is sent to login / account creation first.
-    PAGE:       the existing login page with this context — real route /{slug}/login with a return URL to the alert page
-                (/{slug}/booking/availability-alert?serviceId=…&…); the contextual heading below is the only addition. M23-S31 (GAP).
-    RETURN:     after Google sign-in the visitor lands on the alert page, prefilled from the same query parameters — nothing but the
-                destination URL has to survive the login.
-    PROTOTYPE:  "Entrar ou criar conta" stands in for the Google round-trip and goes straight to the alert page (customer folder, 16-novo-aviso).
-    NOT:        15-login-required is a class-waitlist screen (M24).
+    STATE OF THE ALERT PAGE — not a separate route. This is what the page at /{slug}/booking/availability-alert renders when there is no
+    session: a login-required card (the same pattern as the lead form's LeadFormLoginRequiredGate, M20-S09). Decided at /story-discovery 2026-10-06.
+    FLOW:       a guest clicks "Avise-me quando abrir" on the calendar step; the button links straight to the alert page URL (with its query
+                parameters); with no customer session the page renders this card instead of the form. "Entrar ou criar conta" goes to
+                /{slug}/login?returnTo=<encoded alert page URL with its query string>; after Google sign-in the visitor lands on the alert page
+                with the form, prefilled. The query string survives: the BFF's isValidReturnTo checks only the pathname.
+    PROTOTYPE:  "Entrar ou criar conta" stands in for the Google round-trip and goes straight to the form (customer folder, 16-novo-aviso).
+    NOT:        15-login-required is a class-waitlist screen (M24). M23-S31 (GAP).
   -->
   <div style="background:white;border-bottom:1px solid var(--ba-secondary);
               padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">

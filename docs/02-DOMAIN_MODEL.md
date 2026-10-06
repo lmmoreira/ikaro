@@ -722,7 +722,9 @@ AvailabilityAlert {
 - Exactly one criteria representation: `ONE_TIME_RANGE` sets `acceptableStartAt`/`acceptableEndAt` and nulls the weekly fields, or vice versa for `WEEKLY_PREFERENCE`.
 - Never auto-cancelled just because the customer's underlying need was met through a different channel (e.g. a waitlist promotion elsewhere) — an alert is an independent intent, not correlated with other capacity events.
 - An alert never reserves a resource and never auto-books; it only notifies (at most one deduplicated attempt per alert/matching-window).
-- Unauthenticated visitors are routed to login/account creation before an alert can be created; after authentication they land on the alert-creation page (UC-072 A1), which the booking flow's "Avise-me quando abrir" button links to with the service and picks as query parameters.
+- Unauthenticated visitors cannot create an alert: the alert page shows a login-required card, and after login/account creation they land on the same prefilled page (UC-072 A1). The booking flow's "Avise-me quando abrir" button links to it with the service, the single resource pick (when there is exactly one) and the duration as query parameters.
+- An alert is for exactly one service: a basket of several services has none, because matching evaluates one service's slots (a slot for one line says nothing about the combination). For a legged or bundled service the alert matches when the whole service fits — every leg, bundle member and pool is applied — and its one `preferredResourceId` can only filter that.
+- The `participantCount` field exists but the alert page never sends it and matching ignores it.
 - An alert's `expiresAt` defaults to 30 days after creation (`ALERT_DEFAULT_EXPIRY_DAYS`), is at most 365 days after it (`ALERT_MAX_EXPIRY_DAYS`, the highest value `maxBookingAdvanceDays` can take), and is clamped to `acceptableEndAt` for a range; a customer may hold at most 10 `ACTIVE` alerts (`ALERT_ACTIVE_CAP_PER_CUSTOMER`) — all three in `availability-alert-criteria.helpers.ts`, the cap enforced by `CreateAvailabilityAlertUseCase`.
 
 **Key Methods:**

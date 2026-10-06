@@ -339,7 +339,8 @@ Of the slots that match, the **earliest** becomes the alert's `matching_window`.
 ### Known limitations
 
 - A booking window shortened *after* an alert was created never un-notifies anything; an alert simply waits for the new, smaller window.
-- Participant criteria are not matched (see above).
+- Participant criteria are not matched (see above); the alert page does not send `participantCount` at all (M23-S31).
+- An alert is for **one service**: there is no basket alert, so a multi-service booking attempt cannot create one. A legged or bundled service is matched as a whole (the service-level availability read applies every requirement), and the one `preferredResourceId` is only a further filter on it — an alert cannot carry per-leg resource picks (M23-S31 sends none for such services).
 - The sweep checks availability, not the booking window the backend enforces — nothing on the backend enforces `maxBookingAdvanceDays` / `minBookingAdvanceHours` today (tracked as M23-S33), so "selectable" is the UI's rule.
 
 ---
