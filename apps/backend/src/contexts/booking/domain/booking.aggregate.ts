@@ -65,7 +65,9 @@ export class Booking extends AggregateRoot {
     return transitions;
   }
 
-  private recordStatusTransition(
+  // The only place a booking's status changes: recording the audit row and assigning the status
+  // are one step, so a new status-changing method cannot do one without the other.
+  private transitionTo(
     toStatus: BookingStatus,
     actor: BookingActor,
     correlationId: string,
@@ -83,6 +85,7 @@ export class Booking extends AggregateRoot {
         correlationId,
       }),
     );
+    this.props.status = toStatus;
   }
 
   get linesModified(): boolean {
@@ -435,8 +438,7 @@ export class Booking extends AggregateRoot {
       this.props.scheduledAt = scheduledAt;
     }
 
-    this.recordStatusTransition(BookingStatus.APPROVED, actor, correlationId);
-    this.props.status = BookingStatus.APPROVED;
+    this.transitionTo(BookingStatus.APPROVED, actor, correlationId);
     this.props.approvedAt = new Date();
     this.props.approvedBy = actor.id;
 
@@ -473,8 +475,7 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.REJECTED);
     }
 
-    this.recordStatusTransition(BookingStatus.REJECTED, actor, correlationId, normalizedReason);
-    this.props.status = BookingStatus.REJECTED;
+    this.transitionTo(BookingStatus.REJECTED, actor, correlationId, normalizedReason);
     this.props.rejectedAt = new Date();
     this.props.rejectedBy = actor.id;
     this.props.rejectionReason = normalizedReason;
@@ -500,13 +501,7 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.INFO_REQUESTED);
     }
 
-    this.recordStatusTransition(
-      BookingStatus.INFO_REQUESTED,
-      actor,
-      correlationId,
-      normalizedMessage,
-    );
-    this.props.status = BookingStatus.INFO_REQUESTED;
+    this.transitionTo(BookingStatus.INFO_REQUESTED, actor, correlationId, normalizedMessage);
     this.props.infoRequestMessage = normalizedMessage;
     this.props.infoRequestedAt = new Date();
     this.props.infoRequestedBy = actor.id;
@@ -534,8 +529,7 @@ export class Booking extends AggregateRoot {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.PENDING);
     }
 
-    this.recordStatusTransition(BookingStatus.PENDING, actor, correlationId);
-    this.props.status = BookingStatus.PENDING;
+    this.transitionTo(BookingStatus.PENDING, actor, correlationId);
     this.props.infoResponseMessage =
       typeof infoPayload['notes'] === 'string' ? infoPayload['notes'] : null;
     this.props.infoSubmittedAt = new Date();
@@ -609,8 +603,7 @@ export class Booking extends AggregateRoot {
     if (now.getTime() < endsAt.getTime()) throw new BookingNotYetEndedError(endsAt);
 
     const normalizedReason = normalizeOptionalText(reason);
-    this.recordStatusTransition(BookingStatus.NO_SHOW, actor, correlationId, normalizedReason);
-    this.props.status = BookingStatus.NO_SHOW;
+    this.transitionTo(BookingStatus.NO_SHOW, actor, correlationId, normalizedReason);
     this.addDomainEvent(
       new BookingNoShow(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
@@ -643,8 +636,7 @@ export class Booking extends AggregateRoot {
     );
 
     this._linesModified = true;
-    this.recordStatusTransition(BookingStatus.COMPLETED, actor, correlationId, reason);
-    this.props.status = BookingStatus.COMPLETED;
+    this.transitionTo(BookingStatus.COMPLETED, actor, correlationId, reason);
     this.props.completedAt = new Date();
     this.props.completedBy = actor.id;
     this.props.totalActualPrice = totalActualPrice;
@@ -768,8 +760,7 @@ export class Booking extends AggregateRoot {
     }
 
     const normalizedReason = normalizeOptionalText(reason);
-    this.recordStatusTransition(BookingStatus.CANCELLED, actor, correlationId, normalizedReason);
-    this.props.status = BookingStatus.CANCELLED;
+    this.transitionTo(BookingStatus.CANCELLED, actor, correlationId, normalizedReason);
     this.props.cancelledAt = new Date();
     this.props.cancelledBy = actor.id;
     this.props.cancellationReason = normalizedReason;

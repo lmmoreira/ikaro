@@ -185,3 +185,15 @@ const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
 
 **Confirmed empirically (TD44-S4, PR #516, 2026-09-26):** a scroll-to-now marker div using `scrollIntoView({ block: 'start' })` passed locally and in early CI rounds, then failed a later round with `toBeInViewport()` reporting a 0 ratio on the very first assertion. Switching to `block: 'center'` resolved it.
 
+
+---
+
+## A new table written from existing flows breaks fixtures in three ways the harness registration check does not cover — grep for them before the first full integration run
+
+**When a story makes an existing flow start writing rows into a new table (an audit/history table written by every status change is the canonical case), three kinds of already-green integration fixtures fail, none of them reported by `architecture-check`'s `test-harness-registration` detector (which only covers the shared harness files, not a spec's own setup):**
+
+1. **A spec with its own local `entities:` array.** A spec that builds its own `TypeOrmModule`/`DataSource` instead of using `createBookingIntegrationApp()` / `createTestDataSource()` lists its entities by hand. The new entity is missing, and TypeORM does not say so — `manager.insert(NewEntity, …)` fails with the unhelpful `TypeError: this.subQuery is not a function` (the class is treated as a subquery factory because it has no metadata). Grep `entities: \[` across `*.integration.spec.ts` for a spec that registers the parent entity (e.g. `BookingEntity`) but not the new one.
+2. **A teardown that deletes the parent rows.** A `delete({ tenantId })` on the parent now violates the new table's composite foreign key. Delete the child rows first in every helper that deletes the parent — `afterEach`/`beforeEach` blocks *and* shared fixture helpers such as `src/test/utils/future-commitment-db-fixture.ts`. Same symmetric-teardown principle as the fixed-tenant-UUID rule above.
+3. **A non-UUID or missing correlation id in test headers.** A `NOT NULL UUID` `correlation_id` column rejects `'test-correlation-id'`, and a spec that sends no `x-correlation-id` at all gets `null` (the real `CorrelationMiddleware` always substitutes a UUIDv7, but the test harness does not mount it). Use a real UUID in `actorHeaders()` and in any spec-local header helper.
+
+**Cheapest check:** run the *full* integration project once before opening the PR, not just the specs for the touched context — in M23-S26 the failures were in `loyalty`, `notification` and `shared/outbox` specs far from the changed code, found only because the whole suite ran (76 suites).
