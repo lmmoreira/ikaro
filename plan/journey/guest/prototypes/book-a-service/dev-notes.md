@@ -318,6 +318,7 @@ The button is a link to the customer-area alert page, `/{slug}/my-account/alerts
 | Component | `AvailabilityAlertEntry` (expected, `apps/web/features/booking/components/public/`; final path at `/story-discovery`) — rendered once by the calendar step, so the guest and customer flows cannot drift |
 | Props | `serviceId`, `preferredResourceId?`, `durationMinutes?`, `participantCount?`, `isAuthenticated` (picks the link target) |
 | Copy | Text: "Não achou o horário que queria? Avisamos você quando abrir uma vaga." Button: "Avise-me quando abrir" — identical in `02` and `02d`, never reworded per state (i18n keys in both locales, same change) |
+| Styling | Hotsite tree: `--ba-*` tokens and the booking flow's own button/pill styling (the filled button matches "Próximo"); not shadcn. The page it links to is an account-shell page and uses Tailwind + shadcn (`customer/prototypes/minha-conta/dev-notes.md` § Screens 16–16f) |
 | Look | A full-width row below the day pills / slot list and above "Voltar / Próximo": dashed border, white background, text on the left, filled `btn-primary` button on the right (wraps under the text on mobile) |
 | Visibility | Alert-eligible service (`bookingPolicy.availabilityAlertEligible`) **and** the calendar step is in a displayable state: slots, no slots (`02d`). Hidden while loading (`02b`) and on `02c`/`02f`/`02e` |
 | Link | Authenticated: `/{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…`. Guest: the shared login, returning to that same URL |

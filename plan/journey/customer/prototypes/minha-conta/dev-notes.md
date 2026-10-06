@@ -247,6 +247,8 @@ Opened from the booking flow's "Avise-me quando abrir" button (guest `02`/`02d`,
 | Service must be alert-eligible | UC-055 | `422 BOOKING_ALERT_INELIGIBLE_SERVICE` → `16f` |
 | At most 10 active alerts per customer | UC-072 A3 | `409 BOOKING_ALERT_CAP_REACHED` → `16e` |
 
+**UI building blocks:** this is an account-shell page — Tailwind + shadcn from `apps/web/shared/components/ui/` (`button`, `card`, `select`, `badge`; check `calendar`/`popover`, `time-picker`, `pill-select` for the date, time and weekday inputs at `/story-discovery`), never `--ba-*`. The mockup uses the prototype stylesheet only because prototypes do. Same for `07` (`alert-dialog` for the cancel confirmation). Rule: `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2–§3.
+
 **State machine:** `16` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16e` / `16f` (errors; `16b` keeps the form editable).
 
 **BFF calls (whole extension):**
