@@ -91,7 +91,7 @@
     <div class="nav-buttons" style="flex-wrap:wrap;">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
       <!--
-        ALERT ENTRY — M23-S31 (GAP: not built yet). Guest: the button links to the alert page; with no session the page shows its login-required card (17-login-aviso.html is that state), and after login/account creation the customer lands on the form (customer/prototypes/book-a-service/16-novo-aviso.html). An already-authenticated customer goes straight there (see customer/prototypes/book-a-service/02-calendar-slot.html).
+        ALERT ENTRY — M23-S31 (built). Guest: the button links to the alert page; with no session the page shows its login-required card (17-login-aviso.html is that state), and after login/account creation the customer lands on the form (customer/prototypes/book-a-service/16-novo-aviso.html). An already-authenticated customer goes straight there (see customer/prototypes/book-a-service/02-calendar-slot.html).
         One button in the nav row, between Voltar and Próximo — no explanatory text. Shown when the basket holds exactly ONE service and it is alert-eligible (bookingPolicy.availabilityAlertEligible), in EVERY
         state of the calendar step — with or without slots, while loading, on fetch errors and after a slot conflict (decided at
         /story-discovery 2026-10-06: an alert does not depend on slots having loaded, and hiding it would need status callbacks lifted

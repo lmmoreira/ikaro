@@ -184,7 +184,7 @@ The authenticated-customer flow uses the **same components and the same screens*
 
 Error routing, step paths and the design decisions: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § M23 Cluster 3 extension.
 
-## ❓ GAP — "Avise-me quando abrir": the button and the alert page (M23-S31, UC-072; `/story-discovery` done 2026-10-06, not built yet)
+## ✅ "Avise-me quando abrir": the button and the alert page (M23-S31, UC-072 — built)
 
 **The button.** `02-calendar-slot.html` shows it in every state of the calendar step, only when the basket holds exactly one alert-eligible service (`bookingPolicy.availabilityAlertEligible`; an alert is for one service). It is one shared pattern (same component, label and look in guest `02`/`02d` and here — one button in the nav row between Voltar and Próximo), specified in the guest folder's `dev-notes.md` § Availability-alert entry § Pattern. It always links straight to the alert page; a guest meets the login-required card there.
 

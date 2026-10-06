@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { useBookingFormController } from '@/features/booking/hooks/useBookingFormController';
 import { pickerStepId, resolvePickerUnits } from '@/features/booking/model/booking-steps';
+import { buildAvailabilityAlertLink } from '@/features/booking/model/availability-alert-link';
 import { findVariableDurationService } from '@/features/booking/model/duration-options';
 import { AvailabilityStep } from './AvailabilityStep';
 import { ConfirmationStep } from './ConfirmationStep';
@@ -115,6 +116,12 @@ export function BookingForm({
             onSelectSlot={c.selectSlot}
             resourceSelections={c.resourceSelections}
             durationMinutes={selections.duration?.minutes}
+            alertHref={buildAvailabilityAlertLink({
+              slug,
+              services: selectedServices,
+              resourceSelections: c.resourceSelections,
+              durationMinutes: selections.duration?.minutes,
+            })}
             error={flow.errors.availability ?? null}
             onBack={flow.goBack}
             onNext={flow.goNext}

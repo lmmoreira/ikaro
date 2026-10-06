@@ -43,7 +43,7 @@ None of these are new routes — each is the same component in a different state
 | `01b-pickup-address-error.html` | 1 | Pickup address required, fields empty, "Próximo" clicked | `step1-error` | |
 | `02b-loading.html` | 2 | `fetchAvailabilitySummary()` pending | — | |
 | `02c-availability-error.html` | 2 | `fetchAvailabilitySummary()` rejected | — | No retry button — see Known limitations |
-| `02d-fully-booked.html` | 2 | All days `available: false` | — | No explanatory copy — see Known limitations. ❓ Gains the "Avise-me quando abrir" button (M23-S31) |
+| `02d-fully-booked.html` | 2 | All days `available: false` | — | No explanatory copy — see Known limitations. ✅ Gains the "Avise-me quando abrir" button (M23-S31) |
 | `02e-slot-conflict.html` | 2 | 409 on submit → back to step 2 | `step2-error` | |
 | `02f-slot-fetch-error.html` | 2 | `SlotPicker` day fetch rejected | — | Retry button shown is a **proposed fix, not yet built** — see Known limitations |
 | `03b-validation-error.html` | 3 | Invalid e-mail, "Próximo" clicked | `personal-info-error` | |
@@ -252,7 +252,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `04h-sucesso-cesta-combinada.html` | Success box of the combined basket — every line, assigned resources named from the response (pools never) | UC-065 / UC-067 | M23-S11b |
 | `04i-confirmacao-pacote-na-cesta.html` | Confirmation of a bundle (staff pick + automatic room) next to a fixed service — only the pick is named | UC-064 | M23-S11b |
 | `15-login-required.html` | A **class-waitlist** login screen (Pilates, "fila de espera") — an M24 screen, **out of M23-S11a/S11b's scope**; it is not the appointment availability-alert entry (see § Availability-alert entry below) | M24 | — |
-| `17-login-aviso.html` | The alert page's **login-required state** for a guest (no session): an "Entre para ser avisado" card whose "Entrar ou criar conta" goes to login with `returnTo` = the alert page URL, then back to the form (`customer/prototypes/book-a-service/16-novo-aviso.html`). It is a state of the alert page, not a separate route; ❓ GAP, not built | UC-072 A1 | M23-S31 |
+| `17-login-aviso.html` | The alert page's **login-required state** for a guest (no session): an "Entre para ser avisado" card whose "Entrar ou criar conta" goes to login with `returnTo` = the alert page URL, then back to the form (`customer/prototypes/book-a-service/16-novo-aviso.html`). It is a state of the alert page, not a separate route; ✅ built (`AvailabilityAlertLoginGate`) | UC-072 A1 | M23-S31 |
 
 **Removed:** `06-auto-staff`, `07-fungible-resource`, `09-bundle-booking` (2026-10-03, decisions 1–2); `11-appointment-availability` (2026-10-03 — it redrew the date/time step in a different format; the existing `02-calendar-slot` day-pill carousel + slot buttons stays the single availability step for every flow, extended only by optional `resourceSelections`/`durationMinutes` props — documented in `02`'s header comment); `16-service-type-selector` (2026-10-02, Step 1's list already is the catalogue; class entry is `M24-S20`); `08-staff-calendar` (a public staff-profile page needing data that does not exist; UC-066 is served by the picker flow); `14-pending-approval` (replaced by the booking-details box).
 
@@ -306,7 +306,7 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 5. The variable-duration total reads **"Total"** (the quote is exactly what booking creation persists); "a partir de…" appears only before a duration is chosen.
 6. **Contrast:** error text on a red tint uses `#b91c1c` (5.9:1) — not `#dc2626` (4.41:1); hint text never goes below `opacity: .6` (`.5` is 3.4:1). The shipped legacy screens (`02`, `02e`, customer `02`) still use the old values and are not changed here; fix when those components are next touched.
 
-### Availability-alert entry (M23-S31 — design settled and `/story-discovery` done 2026-10-06; button drawn, not built)
+### Availability-alert entry (M23-S31 — ✅ built)
 
 The calendar step (`02` and `02d`) shows an **"Avise-me quando abrir"** button in **every state of the step** — with or without slots, while loading (`02b`), on fetch errors (`02c`/`02f`) and after a slot conflict (`02e`) — **only when the basket holds exactly one service and that service is alert-eligible** (`availabilityAlertEligible`, UC-055). An alert is for one service (matching evaluates one service's slots), so a multi-service basket never shows it. The button is not hidden on loading or errors: an alert does not depend on slots having loaded, and hiding it would need status callbacks lifted out of the three child components.
 

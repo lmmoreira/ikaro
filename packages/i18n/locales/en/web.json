@@ -265,6 +265,102 @@
       "reserved": "{service} of service + {transition} of transition = {total} reserved ({start}–{end})",
       "reservedNoTransition": "{total} reserved ({start}–{end})",
       "stagesList": "{count} stages: {names}"
+    },
+    "availabilityAlert": {
+      "entry": {
+        "label": "Notify me when a spot opens"
+      },
+      "title": "Notify me when a spot opens",
+      "stepIndicator": "Availability alert",
+      "intro": "We will email you when a matching spot opens up. The alert does not hold a time slot.",
+      "loading": "Loading...",
+      "fromBooking": {
+        "heading": "From your booking",
+        "service": "Service",
+        "resource": "Resource",
+        "duration": "Duration",
+        "minutes": "{minutes} min"
+      },
+      "legged": {
+        "note": "We will notify you when the whole journey fits, with any professional or room."
+      },
+      "criteria": {
+        "heading": "When do you want to be notified"
+      },
+      "range": {
+        "title": "Specific period",
+        "hint": "Between two dates and times",
+        "from": "From",
+        "to": "Until"
+      },
+      "weekly": {
+        "title": "Weekly preference",
+        "hint": "Certain days of the week, within a time range",
+        "weekdays": "Days of the week",
+        "from": "Between",
+        "to": "And",
+        "timezoneHint": "Times in the business's timezone ({timezone})."
+      },
+      "weekdays": {
+        "monday": "Mon",
+        "tuesday": "Tue",
+        "wednesday": "Wed",
+        "thursday": "Thu",
+        "friday": "Fri",
+        "saturday": "Sat",
+        "sunday": "Sun"
+      },
+      "expiry": {
+        "label": "Keep the alert for",
+        "days": "{days} days",
+        "daysDefault": "{days} days (default)",
+        "daysMax": "{days} days (maximum)",
+        "hint": "For a specific period, the alert ends at the end of the period at the latest."
+      },
+      "notice": "We will notify {email}. You can view and cancel the alert in My account › My alerts.",
+      "actions": {
+        "back": "Back",
+        "submit": "Create alert",
+        "submitting": "Creating alert…"
+      },
+      "errors": {
+        "rangeFromRequired": "Enter the start of the period.",
+        "rangeToRequired": "Enter the end of the period.",
+        "rangeEnd": "The end of the period must be after the start.",
+        "rangePast": "The period must end in the future.",
+        "weekdaysEmpty": "Choose at least one day of the week.",
+        "weeklyFromRequired": "Enter the start time.",
+        "weeklyToRequired": "Enter the end time.",
+        "weeklyEnd": "The end time must be after the start time.",
+        "submitFailed": "We could not create the alert.",
+        "submitFailedHint": "Check your connection and try again. Nothing was saved."
+      },
+      "saved": {
+        "title": "Alert created",
+        "body": "When a matching spot opens up, we will email {email} so you can book it.",
+        "noReservation": "No time slot was reserved.",
+        "period": "Period",
+        "weeklySummary": "{days}, {from} – {to}",
+        "activeUntil": "Alert active until",
+        "backToSite": "Back to the site"
+      },
+      "cap": {
+        "title": "You already have 10 active alerts",
+        "body": "Cancel an alert you no longer need and try again.",
+        "viewAlerts": "Go to My alerts"
+      },
+      "ineligible": {
+        "title": "This service does not support alerts",
+        "body": "An availability alert cannot be created for this service. You can look at other times or contact the business.",
+        "backToSite": "Back to the site"
+      },
+      "gate": {
+        "title": "Sign in to be notified",
+        "body": "Alerts live in your account, so we can email you when a spot opens up.",
+        "why": "After you sign in or create your account you come back to create the alert, with the service already filled in. The alert does not hold a time slot.",
+        "cta": "Sign in or create an account",
+        "back": "Back"
+      }
     }
   },
   "hotsite": {

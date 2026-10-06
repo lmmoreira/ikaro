@@ -336,7 +336,8 @@ export interface HotsiteServiceLeg {
 }
 
 // The subset of the service's booking policy the booking flow reads — no override, approval,
-// hold, availability-alert or class-slot fields.
+// hold or class-slot fields. `availabilityAlertEligible` is the one availability-alert field:
+// the calendar step reads it to decide whether to offer "Avise-me quando abrir" (M23-S31).
 export interface HotsiteServiceBookingPolicy {
   durationPolicy: ServiceDurationPolicy;
   durationMinMinutes: number | null;
@@ -348,6 +349,7 @@ export interface HotsiteServiceBookingPolicy {
   minimumChargeAmount: number | null;
   recurrenceEligible: boolean;
   recurringHorizonDays: number | null;
+  availabilityAlertEligible: boolean;
 }
 
 export interface HotsiteServiceResponse {

@@ -31,8 +31,8 @@
   <!--
     VARIANT OF: 16-novo-aviso.html
     SCENARIO:   422 BOOKING_ALERT_INELIGIBLE_SERVICE (or a missing/invalid serviceId) — e.g. a stale or hand-typed link. The booking flow never shows the button for such a service.
-    PAGE:       apps/web/app/[slug]/booking/availability-alert/page.tsx  (GAP — M23-S31; HOTSITE tree, thin page — expected path, final at /story-discovery)
-    COMPONENT:  NewAvailabilityAlertForm  (GAP — M23-S31)
+    PAGE:       apps/web/app/[slug]/booking/availability-alert/page.tsx  (M23-S31 — built; HOTSITE tree, thin page)
+    COMPONENT:  NewAvailabilityAlertForm  (M23-S31 — built)
     UC cobertos: UC-072
     SHELL:      the booking flow's own shell — tenant brand bar + .step-container, branded with --ba-* tokens (applyBranding). NOT the Minha Conta shell.
     LOGIN:      the form is shown only to a logged-in customer; a guest sees the page's login-required card (guest 17-login-aviso) and returns here after login/account creation.
