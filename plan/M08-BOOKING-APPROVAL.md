@@ -24,7 +24,7 @@ Implement the approval use case. Before approving, the system re-checks that the
 1. Load `Booking` by `(id, tenantId)` — must be PENDING or INFO_REQUESTED
 2. Re-run `AvailabilityService` for the booking's `scheduledAt` and service set
 3. If slot unavailable → return `409` with nearest free slots in `details`
-4. Call `booking.approve(staffId)` → transitions to APPROVED, freezes lines
+4. Call `booking.approve(staffId)` → transitions to APPROVED, freezes lines *(Since M23-S26 (2026-10-06), the first argument is a `BookingActor`, not a bare id.)*
 5. Persist via `IBookingRepository.save()` (emits `BookingApproved`)
 
 **BFF endpoint:** `PATCH /v1/bookings/:id/approve`
@@ -55,7 +55,7 @@ Implement the rejection use case. Rejection is a terminal state — the booking 
 
 **Backend use case `RejectBookingUseCase`:**
 1. Load `Booking` by `(id, tenantId)` — must be PENDING or INFO_REQUESTED
-2. Call `booking.reject(staffId, reason)`
+2. Call `booking.reject(staffId, reason)` *(Since M23-S26 (2026-10-06), the first argument is a `BookingActor`, not a bare id.)*
 3. Persist (emits `BookingRejected`)
 
 **BFF endpoint:** `PATCH /v1/bookings/:id/reject`
@@ -85,7 +85,7 @@ Implement the info-request use case: admin sends a message to the customer askin
 
 **Backend use case `RequestMoreInfoUseCase`:**
 1. Load `Booking` — must be PENDING
-2. Call `booking.requestMoreInfo(staffId, message)`
+2. Call `booking.requestMoreInfo(staffId, message)` *(Since M23-S26 (2026-10-06), the first argument is a `BookingActor`, not a bare id.)*
 3. Persist (emits `BookingInfoRequested`)
 
 **BFF endpoint:** `PATCH /v1/bookings/:id/request-info`
@@ -118,7 +118,7 @@ Implement the customer-side response to an info request. The booking transitions
 **Backend use case `SubmitBookingInfoUseCase`:**
 1. Load `Booking` — must be INFO_REQUESTED
 2. For authenticated path: validate `booking.customerId === caller.sub` (customer can only update their own bookings)
-3. Call `booking.submitInformation(submittedBy, response, photoUrls?)`
+3. Call `booking.submitInformation(submittedBy, response, photoUrls?)` *(Since M23-S26 (2026-10-06), it also takes the replying `BookingActor` — `CUSTOMER` or `GUEST` — before `photoUrls`.)*
 4. Appends any `photoUrls` to `booking.beforeServicePhotoUrls`
 5. Sets `infoSubmittedBy` (customerId for authenticated, null for guest)
 6. Persist (emits `BookingInfoSubmitted`)

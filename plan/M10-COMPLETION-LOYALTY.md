@@ -24,7 +24,7 @@ Implement booking completion. The admin sets the `actualPriceCharged` for each l
 1. Load `Booking` — must be APPROVED
 2. Validate: `lineActualPrices` contains an entry for every `line_id` in the booking
 3. Validate: after-photo URLs are valid GCS URLs (pre-uploaded via signed URL)
-4. Call `booking.complete(staffId, lineActualPrices, afterPhotoUrls)`
+4. Call `booking.complete(staffId, lineActualPrices, afterPhotoUrls)` *(Since M23-S26 (2026-10-06), the first argument is a `BookingActor`, not a bare id.)*
 5. Persist (emits `BookingCompleted` with all line data including `actualPriceCharged` per line)
 
 **BFF endpoint:** `PATCH /v1/bookings/:id/complete`

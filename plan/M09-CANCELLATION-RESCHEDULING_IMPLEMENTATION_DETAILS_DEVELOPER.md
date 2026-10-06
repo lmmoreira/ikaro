@@ -71,20 +71,21 @@ Note: the window check only applies to APPROVED bookings. A customer can freely 
 ### What `booking.cancel()` does
 
 ```ts
-cancel(cancelledBy: string, isBusiness: boolean, correlationId: string, reason?: string): void {
+cancel(actor: IdentifiedBookingActor, correlationId: string, reason?: string): void {
   const cancellable = [PENDING, INFO_REQUESTED, APPROVED];
   if (!cancellable.includes(this.props.status)) {
     throw new InvalidBookingTransitionError(this.props.status, CANCELLED);
   }
+  this.recordStatusTransition(CANCELLED, actor, correlationId, reason); // M23-S26 audit row
   this.props.status = CANCELLED;
   this.props.cancelledAt = new Date();
-  this.props.cancelledBy = cancelledBy;
+  this.props.cancelledBy = actor.id;
   this.props.cancellationReason = reason ?? null;
   this.addDomainEvent(new BookingCancelled(...));
 }
 ```
 
-COMPLETED, REJECTED, and CANCELLED are terminal states — the domain error prevents invalid transitions. The `isBusiness` flag flows directly into the event payload so the notification use case can tailor the email copy.
+COMPLETED, REJECTED, and CANCELLED are terminal states — the domain error prevents invalid transitions. `isBusiness` (`actor.type !== 'CUSTOMER'` — derived since M23-S26, no longer a parameter) flows into the event payload so the notification use case can tailor the email copy.
 
 ---
 

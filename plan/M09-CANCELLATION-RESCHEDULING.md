@@ -25,7 +25,7 @@ Implement customer-initiated booking cancellation. The cancellation window is re
 2. Validate `booking.customerId === caller.sub`
 3. Load tenant settings → get `cancellation_window_hours`
 4. Call `booking.isEligibleForCancellation(cancellation_window_hours)` — if false, return `422`
-5. Call `booking.cancel(customerId, isBusiness=false)`
+5. Call `booking.cancel({ type: 'CUSTOMER', id: customerId })` (`isBusiness=false`, derived from the actor since M23-S26 (2026-10-06))
 6. Persist (emits `BookingCancelled`)
 
 **BFF endpoint:** `PATCH /v1/bookings/:id/cancel`
@@ -56,7 +56,7 @@ Implement admin-initiated booking cancellation. Unlike customer cancellation, ad
 
 **Backend use case `CancelBookingAsAdminUseCase`:**
 1. Load `Booking` — must be PENDING, INFO_REQUESTED, or APPROVED
-2. Call `booking.cancel(staffId, isBusiness=true, reason?)`
+2. Call `booking.cancel({ type: role, id: staffId }, reason?)` (`isBusiness=true`, derived from the actor since M23-S26 (2026-10-06))
 3. Persist (emits `BookingCancelled` with `isBusiness=true`)
 
 **BFF endpoint:** `PATCH /v1/bookings/:id/cancel`
