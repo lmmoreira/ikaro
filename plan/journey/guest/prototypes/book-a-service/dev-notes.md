@@ -309,7 +309,7 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 
 The calendar step (`02` and `02d`) shows an **"Avise-me quando abrir"** button for every alert-eligible service (`availabilityAlertEligible`, UC-055), whether or not slots are available. It is **not** shown on `02b` (loading), `02c`/`02f` (fetch errors) or `02e` (slot conflict) — after a failed fetch the customer cannot tell whether there is availability to wait for.
 
-The button is a link to the customer-area alert page, `/{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…` (screens `16*` in `customer/prototypes/minha-conta/`). A logged-in customer lands on it directly; a guest passes through the shared login/account-creation screen and returns to the same URL. Nothing else has to survive the login. The page, its states and "Voltar ao site" are specified in `customer/prototypes/minha-conta/dev-notes.md` (Screens 16–16f). `15-login-required` is unrelated (class waitlist, M24).
+The button is a link to the alert page of the booking flow, `/{slug}/booking/availability-alert?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…` (screens `16*` in `customer/prototypes/book-a-service/`; same shell and tenant branding as the booking steps, logged-in only). A logged-in customer lands on it directly; a guest passes through the shared login/account-creation screen and returns to the same URL. Nothing else has to survive the login. The page, its states and "Voltar ao site" are specified in `customer/prototypes/book-a-service/dev-notes.md` (Screens 16–16f). `15-login-required` is unrelated (class waitlist, M24).
 
 **Pattern — one button, one label, every calendar state.** It is one button in the nav row, with no explanatory text. It is the same everywhere it appears (guest `02`, guest `02d`, customer `02`); only the link target differs by login state.
 
@@ -318,10 +318,10 @@ The button is a link to the customer-area alert page, `/{slug}/my-account/alerts
 | Component | `AvailabilityAlertEntry` (expected, `apps/web/features/booking/components/public/`; final path at `/story-discovery`) — rendered once by the calendar step, so the guest and customer flows cannot drift |
 | Props | `serviceId`, `preferredResourceId?`, `durationMinutes?`, `participantCount?`, `isAuthenticated` (picks the link target) |
 | Copy | Button label only: "Avise-me quando abrir" — identical in `02` and `02d`, never reworded per state, and **no explanatory sentence** next to it (the alert page explains what an alert is). i18n key in both locales, same change |
-| Styling | Hotsite tree: `--ba-*` tokens and the booking flow's own button/pill styling (same shape and size as "Voltar" and "Próximo"); not shadcn. The page it links to is an account-shell page and uses Tailwind + shadcn (`customer/prototypes/minha-conta/dev-notes.md` § Screens 16–16f) |
+| Styling | Hotsite tree: `--ba-*` tokens and the booking flow's own button/pill styling (same shape and size as "Voltar" and "Próximo"); not shadcn. The page it links to is also a hotsite-tree page of the booking flow (`customer/prototypes/book-a-service/dev-notes.md` § Screens 16–16f); only "Meus avisos" is an account-shell page |
 | Look | One of three buttons in the existing nav row, in the order **Voltar · Avise-me quando abrir · Próximo**. It is outlined (`btn-secondary` shape) with the brand color for text and border, so it reads as an action without competing with the filled "Próximo". The row wraps on narrow screens |
 | Visibility | Alert-eligible service (`bookingPolicy.availabilityAlertEligible`) **and** the calendar step is in a displayable state: slots, no slots (`02d`). Hidden while loading (`02b`) and on `02c`/`02f`/`02e` |
-| Link | Authenticated: `/{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…`. Guest: the shared login, returning to that same URL |
+| Link | Authenticated: `/{slug}/booking/availability-alert?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…`. Guest: the shared login, returning to that same URL |
 | Test hook | `data-testid="availability-alert-entry"` |
 
 **Drawn in this folder:** the button on `02-calendar-slot.html` and on `02d-fully-booked.html` (`data-testid="availability-alert-entry"`); a guest's click leads to the shared login.

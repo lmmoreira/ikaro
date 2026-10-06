@@ -1213,9 +1213,9 @@ Returns:
 - **Actor:** Authenticated customer
 - **Endpoint:** `POST /availability-alerts`
 - **Preconditions:** Service permits alerts (`availabilityAlertEligible`, UC-055) and has availability criteria the customer can express.
-- **Trigger:** Customer clicks "Avise-me quando abrir" on the booking flow's calendar step (shown for every alert-eligible service, whether or not slots are currently available), or opens the alert page directly in Minha Conta.
+- **Trigger:** Customer clicks "Avise-me quando abrir" on the booking flow's calendar step (shown for every alert-eligible service, whether or not slots are currently available).
 - **Main Flow:**
-  1. System opens the alert page (`/[slug]/my-account/alerts/new`), prefilled from the booking flow — service, preferred resource/staff picks, duration and participant count.
+  1. System opens the alert page (`/[slug]/booking/availability-alert`) — a page of the booking flow itself, branded like it and reachable only while logged in — prefilled from the flow: service, preferred resource/staff picks, duration and participant count.
   2. Customer sets the matching criteria — either a finite absolute range or a weekly local-time preference — and saves.
   3. System stores an expiring alert attached to that customer without reserving anything, and shows a confirmation with a "Voltar ao site" action.
   4. When a bookable slot that the customer can actually select on the booking page starts inside the alert's acceptable window, system records one deduplicated email notification attempt for that alert/window and marks the alert notified (M23-S07). A slot is found two ways: right away when a booking is cancelled, rejected or rescheduled, and by a daily sweep for capacity that opens with no booking event (the booking window reaching a date, a manager extending hours or adding a resource). An alert for a date beyond the booking window waits and is matched the day the date becomes selectable, so an alert may live up to 365 days.

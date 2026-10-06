@@ -48,7 +48,7 @@ flowchart TD
 
 - No open gaps for the guest booking path — fully built as of M12-S07.
 - UC-005 (A2) — guest submits admin-requested info: backend complete (`PATCH /bookings/:id/submit-info/guest?token=`), but frontend page `/[slug]/bookings/:id/submit-info` does not exist. Tracked in `guest/use-cases.md`. Out of scope for this journey.
-- A guest cannot create a class-session waitlist entry (M24) or an availability alert. For appointments, the calendar step offers "Avise-me quando abrir" (M23-S31): a guest who clicks it is sent to login/account creation and then lands on the alert page, prefilled with the service and picks; an already-authenticated customer lands there directly. The page itself is drawn in `customer/minha-conta.md` § Availability alerts.
+- A guest cannot create a class-session waitlist entry (M24) or an availability alert. For appointments, the calendar step offers "Avise-me quando abrir" (M23-S31): a guest who clicks it is sent to login/account creation and then lands on the alert page, prefilled with the service and picks; an already-authenticated customer lands there directly. The page is a page of the booking flow itself (tenant branding, login-required), drawn in `customer/book-a-service.md` § Availability alert page.
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (✅ `M23-S11a` built · ✅ `M23-S11b` built)
 
@@ -72,7 +72,7 @@ flowchart TD
     Availability --> S3m["Step: Personal Info<br/>(03-personal-info, existing; 03d on the intake path)"]
     Availability -->|"'Avise-me quando abrir' (alert-eligible service; also on 02d)"| AlertBtn["❓ GAP: alert button on 02 / 02d<br/>(M23-S31)"]
     AlertBtn -->|"not logged in"| AlertLogin["shared login → returns to the alert page"]
-    AlertBtn -->|"logged in"| AlertPage["❓ GAP: alert page, prefilled<br/>(customer/minha-conta.md § Availability alerts)"]
+    AlertBtn -->|"logged in"| AlertPage["❓ GAP: alert page, prefilled<br/>(customer/book-a-service.md § Availability alert page)"]
     AlertLogin --> AlertPage
     AlertPage -->|"saved"| AlertDone["❓ GAP: confirmation + 'Voltar ao site'"]
     class AlertBtn,AlertPage,AlertDone gap
@@ -98,4 +98,4 @@ flowchart TD
 - [x] No screen for automatic resources; one picker for every resource and service type; duration is a duration-only step; the legs review is the final Confirmation step; customer rescheduling is a separate story (`dev-notes.md` § Design decisions).
 - [x] `06`, `07`, `08`, `09`, `14`, `16` removed.
 - [ ] `15-login-required.html` is a **class-waitlist** screen ("Entre para entrar na fila de espera", Pilates), linked to the Cluster 4 class agenda (`public-02b-class-agenda.html`, not yet promoted) — it belongs to M24 and is **not** the appointment availability-alert entry.
-- [ ] **Availability-alert entry (`M23-S31`, design settled 2026-10-06 with the owner):** an "Avise-me quando abrir" button always shown on the calendar step (`02` and `02d`, not on `02b`/`02c`/`02e`/`02f`) for alert-eligible services. It opens the alert page in Minha Conta (`customer/minha-conta.md` § Availability alerts), prefilled from the flow; a guest logs in first and lands on the same page. Saved → confirmation with "Voltar ao site". Drawn: the button on `02`/`02d` (this folder) and the alert page with its states `16`–`16f` (`customer/prototypes/minha-conta/`); the story still begins with `/story-discovery`.
+- [ ] **Availability-alert entry (`M23-S31`, design settled 2026-10-06 with the owner):** an "Avise-me quando abrir" button always shown on the calendar step (`02` and `02d`, not on `02b`/`02c`/`02e`/`02f`) for alert-eligible services. It opens the alert page of the booking flow (`customer/book-a-service.md` § Availability alert page; tenant branding, login-required), prefilled from the flow; a guest logs in first and lands on the same page. Saved → confirmation with "Voltar ao site". Drawn: the button on `02`/`02d` (this folder) and the alert page with its states `16`–`16f` (`customer/prototypes/book-a-service/`); the story still begins with `/story-discovery`.

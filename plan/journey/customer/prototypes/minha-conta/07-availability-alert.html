@@ -102,7 +102,7 @@
   <!--
     COMPONENT: AvailabilityAlertList + AvailabilityAlertEditForm  (GAP — M23-S12)
     PAGE:       apps/web/app/[slug]/my-account/alerts/page.tsx  (GAP — M23-S12)
-    UC cobertos: UC-076 (list / edit / cancel). There is NO create button: creation always starts from the booking flow's "Avise-me quando abrir" (M23-S31, screens 16*).
+    UC cobertos: UC-076 (list / edit / cancel). There is NO create button: creation always starts from the booking flow's (customer/prototypes/book-a-service/16*, a hotsite-tree page) "Avise-me quando abrir" (M23-S31, screens 16*).
     BFF:  GET /availability-alerts  ·  PATCH /availability-alerts/:id  ·  DELETE /availability-alerts/:id   (customer only)
     DATA: items newest first, history included (at most the 100 most recent); ACTIVE alerts are editable/cancellable, NOTIFIED / EXPIRED / CANCELLED are read-only history
           (finished alerts are deleted automatically 90 days after their expiry). Edit overlays criteria/expiry; 409 BOOKING_ALERT_NOT_EDITABLE for a finished alert.

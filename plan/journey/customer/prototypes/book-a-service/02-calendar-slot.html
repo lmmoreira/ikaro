@@ -106,13 +106,13 @@
     <div class="nav-buttons" style="flex-wrap:wrap;">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
       <!--
-        ALERT ENTRY — M23-S31 (GAP: not built yet). Authenticated customer: the button goes straight to the alert page (customer/prototypes/minha-conta/16-novo-aviso.html).
+        ALERT ENTRY — M23-S31 (GAP: not built yet). Authenticated customer: the button goes straight to the alert page (16-novo-aviso.html, same folder).
         One button in the nav row, between Voltar and Próximo — no explanatory text. Shown for every alert-eligible
         service (bookingPolicy.availabilityAlertEligible), with or without slots; NOT shown on the loading (02b),
         fetch-error (02c / 02f) or slot-conflict (02e) states.
-        Link: /{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…
+        Link: /{slug}/booking/availability-alert?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…
       -->
-      <a class="btn-secondary" data-testid="availability-alert-entry" href="../minha-conta/16-novo-aviso.html" style="color:var(--ba-primary);border-color:var(--ba-primary);">Avise-me quando abrir</a>
+      <a class="btn-secondary" data-testid="availability-alert-entry" href="16-novo-aviso.html" style="color:var(--ba-primary);border-color:var(--ba-primary);">Avise-me quando abrir</a>
       <a class="btn-primary" href="03-review-confirm.html">Próximo</a>
     </div>
   </div>

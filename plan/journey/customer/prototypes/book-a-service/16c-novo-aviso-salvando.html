@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Avise-me quando abrir — salvando — BeloAuto Demo</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    /* Alert page — hotsite tree: tenant branding only (--ba-* tokens), same shell as the booking steps. */
+    .field { margin-bottom: 1.125rem; }
+    .field-hint { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.25rem; color: var(--ba-text); }
+    .field-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.25rem; }
+    .form-input.invalid { border-color: #dc2626; }
+    .section-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ba-text); opacity: 0.5; margin: 0 0 0.625rem; }
+    .summary-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); font-size: 0.875rem; color: var(--ba-text); }
+    .summary-row:last-child { border: 0; }
+    .summary-row span:first-child { opacity: 0.6; }
+    .choice { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 0.875rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; margin-bottom: 0.5rem; color: var(--ba-text); }
+    .choice.on { border-color: var(--ba-primary); border-width: 2px; }
+    .choice .meta { font-size: 0.8125rem; opacity: 0.65; }
+    .notice { border-radius: var(--ba-radius); padding: 1rem; margin-top: 1rem; border: 1.5px solid; }
+    .notice-error { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+    .notice-ok { background: #f0fdf4; border-color: #86efac; color: var(--ba-text); }
+    .panel { display: none; }
+    .panel:target { display: block; }
+    .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
+    .crit-panel[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <!--
+    VARIANT OF: 16-novo-aviso.html
+    SCENARIO:   POST /availability-alerts in flight — fields and the button are disabled, the button reads "Criando aviso…".
+    PAGE:       apps/web/app/[slug]/booking/availability-alert/page.tsx  (GAP — M23-S31; HOTSITE tree, thin page — expected path, final at /story-discovery)
+    COMPONENT:  NewAvailabilityAlertForm  (GAP — M23-S31)
+    UC cobertos: UC-072
+    SHELL:      the booking flow's own shell — tenant brand bar + .step-container, branded with --ba-* tokens (applyBranding). NOT the Minha Conta shell.
+    LOGIN:      the page is reachable only while logged in; a guest who clicks "Avise-me quando abrir" goes to login first and returns to this URL.
+    OPENED FROM: the "Avise-me quando abrir" button on the calendar step (guest 02 / 02d, customer 02-calendar-slot). The page has no use outside a booking attempt.
+    PREFILL (query parameters on the link): serviceId (required), preferredResourceId, durationMinutes, participantCount (only for group services).
+    BFF: POST /availability-alerts  Body: { serviceId, preferredResourceId?, criteriaType: "ONE_TIME_RANGE"|"WEEKLY_PREFERENCE",
+         acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, participantCount?, expiresAt? }
+         The alert timezone is always the tenant's — never sent.
+  -->
+
+  <!-- AUTH HEADER BAR — logged-in customer; avatar opens Minha conta / Sair dropdown -->
+  <!-- BRAND + AUTH BAR -->
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);
+              padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
+                  color:white;display:flex;align-items:center;justify-content:center;
+                  font-weight:700;font-size:0.8125rem;">B</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">BeloAuto Demo</span>
+    </div>
+    <div style="position: relative;">
+      <details>
+        <summary style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; list-style: none;
+                        color: var(--ba-text); font-size: 0.875rem; font-weight: 500; padding: 0;">
+          <div class="auth-avatar">JS</div>
+          <span>João Silva</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </summary>
+        <div style="
+          position: absolute; right: 0; top: calc(100% + 0.5rem);
+          background: white; border: 1px solid var(--ba-secondary);
+          border-radius: var(--ba-radius); box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+          min-width: 11rem; overflow: hidden; z-index: 50;
+        ">
+          <a href="../../../shared/customer-dashboard.html"
+             style="display: block; padding: 0.625rem 1rem; font-size: 0.875rem;
+                    color: var(--ba-text); text-decoration: none; font-weight: 500;">
+            Minha conta
+          </a>
+          <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 0;">
+          <a href="../../../shared/hotsite.html"
+             style="display: block; padding: 0.625rem 1rem; font-size: 0.875rem;
+                    color: var(--ba-text); text-decoration: none; opacity: 0.6;">
+            Sair
+          </a>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="step-container">
+    <p class="step-indicator">Aviso de disponibilidade</p>
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Avise-me quando abrir</h2>
+    <p style="font-size:.9375rem;opacity:.75;margin-bottom:1.25rem;color:var(--ba-text);">Avisamos você por e-mail quando abrir uma vaga compatível. O aviso <strong>não reserva</strong> horário.</p>
+
+    <form class="card" onsubmit="return false">
+      <p class="section-label">Do seu agendamento</p>
+      <div class="summary-row"><span>Serviço</span><span>Lavagem Simples</span></div>
+      <div class="summary-row"><span>Duração</span><span>30 min</span></div>
+      <div class="field" style="margin-top:.75rem;">
+        <label class="form-label" for="alert-resource">Box (opcional)</label>
+        <select id="alert-resource" class="form-input" disabled><option>Qualquer box</option><option>Box 1</option><option>Box 2</option></select>
+      </div>
+
+      <p class="section-label" style="margin-top:1.25rem;">Quando você quer ser avisado</p>
+      <label class="choice on" for="crit-range"><input type="radio" name="crit" id="crit-range" checked disabled><span><strong>Período específico</strong><br><span class="meta">Entre duas datas e horários</span></span></label>
+      <label class="choice" for="crit-week"><input type="radio" name="crit" id="crit-week" disabled><span><strong>Preferência semanal</strong><br><span class="meta">Certos dias da semana, em um intervalo de horário</span></span></label>
+
+      <div id="panel-range" class="crit-panel field" style="margin-top:.75rem;">
+        <label class="form-label" for="alert-from">De</label>
+        <input id="alert-from" type="datetime-local" class="form-input" value="2026-10-20T09:00" disabled>
+        <label class="form-label" for="alert-to" style="margin-top:.75rem;">Até</label>
+        <input id="alert-to" type="datetime-local" class="form-input" value="2026-10-27T18:00" disabled>
+        
+      </div>
+      <div id="panel-week" class="crit-panel field" style="margin-top:.75rem;" hidden>
+        <p class="form-label">Dias da semana</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;"><button type="button" class="slot-btn">Seg</button><button type="button" class="slot-btn selected">Ter</button><button type="button" class="slot-btn">Qua</button><button type="button" class="slot-btn selected">Qui</button><button type="button" class="slot-btn">Sex</button><button type="button" class="slot-btn">Sáb</button><button type="button" class="slot-btn">Dom</button></div>
+        <label class="form-label" for="alert-wfrom" style="margin-top:.75rem;">Entre</label>
+        <input id="alert-wfrom" type="time" class="form-input" value="09:00" disabled>
+        <label class="form-label" for="alert-wto" style="margin-top:.75rem;">E</label>
+        <input id="alert-wto" type="time" class="form-input" value="12:00" disabled>
+        <p class="field-hint">Horários no fuso do estabelecimento (America/Sao_Paulo).</p>
+      </div>
+
+      <div class="field" style="margin-top:1.25rem;">
+        <label class="form-label" for="alert-exp">Manter o aviso por</label>
+        <select id="alert-exp" class="form-input" disabled><option>30 dias (padrão)</option><option>60 dias</option><option>90 dias</option><option>180 dias</option><option>365 dias (máximo)</option></select>
+        <p class="field-hint">Num período específico, o aviso termina no máximo ao fim do período.</p>
+      </div>
+      <p class="field-hint">Avisaremos joao@email.com. Você pode editar ou cancelar o aviso em Minha conta › Meus avisos.</p>
+    </form>
+
+    <div class="nav-buttons">
+      <a class="btn-secondary" href="02-calendar-slot.html">Voltar</a>
+      <button class="btn-primary" disabled style="opacity:.6;cursor:not-allowed;">Criando aviso…</button>
+    </div>
+    <script>
+      (function(){
+        var r=document.getElementById('crit-range'),w=document.getElementById('crit-week');
+        function sync(){document.getElementById('panel-range').hidden=!r.checked;document.getElementById('panel-week').hidden=!w.checked;}
+        r.addEventListener('change',sync);w.addEventListener('change',sync);
+      })();
+    </script>
+  </div>
+</body>
+</html>

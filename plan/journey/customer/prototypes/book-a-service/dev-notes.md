@@ -184,6 +184,35 @@ The authenticated-customer flow uses the **same components and the same screens*
 
 Error routing, step paths and the design decisions: `plan/journey/guest/prototypes/book-a-service/dev-notes.md` § M23 Cluster 3 extension.
 
-## ❓ GAP — "Avise-me quando abrir" on the calendar step (M23-S31, UC-072)
+## ❓ GAP — "Avise-me quando abrir": the button and the alert page (M23-S31, UC-072; not built yet)
 
-`02-calendar-slot.html` shows the button for every alert-eligible service (`bookingPolicy.availabilityAlertEligible`), with or without slots, and not while loading or on fetch-error states. An authenticated customer goes straight to the alert page — `/{slug}/my-account/alerts/new?serviceId=…&preferredResourceId=…&durationMinutes=…&participantCount=…` (`../minha-conta/16-novo-aviso.html` and its states `16b`–`16f`). A guest passes through login first. The button is one shared pattern (same component, label and look in guest `02`/`02d` and here — one button in the nav row between Voltar and Próximo) — specified in the guest folder's `dev-notes.md` § Availability-alert entry § Pattern. Not built yet.
+**The button.** `02-calendar-slot.html` shows it for every alert-eligible service (`bookingPolicy.availabilityAlertEligible`), with or without slots, and not while loading or on fetch-error states. It is one shared pattern (same component, label and look in guest `02`/`02d` and here — one button in the nav row between Voltar and Próximo), specified in the guest folder's `dev-notes.md` § Availability-alert entry § Pattern. An authenticated customer goes straight to the alert page below; a guest passes through login first.
+
+**The alert page is a page of the booking flow** — same shell and tenant branding as the booking steps (`--ba-*`), reachable only while logged in, with no use outside a booking attempt. It is **not** a Minha Conta page. "Meus avisos" (`../minha-conta/07-availability-alert.html`) only lists, edits and cancels.
+
+| File | Screen / state | Story |
+|---|---|---|
+| `16-novo-aviso.html` | Alert form, prefilled from the button's link | M23-S31 |
+| `16b-novo-aviso-erro.html` | Validation error (422 `BOOKING_ALERT_CRITERIA_INVALID`) and submit failure | M23-S31 |
+| `16c-novo-aviso-salvando.html` | Saving | M23-S31 |
+| `16d-novo-aviso-salvo.html` | Aviso criado — confirmation with "Voltar ao site" | M23-S31 |
+| `16e-novo-aviso-limite.html` | 10 active alerts reached (409 `BOOKING_ALERT_CAP_REACHED`) — points to Meus avisos | M23-S31 |
+| `16f-novo-aviso-servico-indisponivel.html` | Service not alert-eligible (422 `BOOKING_ALERT_INELIGIBLE_SERVICE`, e.g. a stale or hand-typed link) | M23-S31 |
+
+**Route and page:** `/[slug]/booking/availability-alert` (expected; final path at `/story-discovery`), a thin `page.tsx` that requires a logged-in customer (guest → login → back to this URL), with `NewAvailabilityAlertForm` under `apps/web/features/booking/components/public/`.
+
+**Prefill (query parameters on the button's link):** `serviceId` (required — without a valid one the page shows `16f`), `preferredResourceId` (the alert holds **one** preferred resource, so a flow with several picks passes none or the first that applies — decided at `/story-discovery`), `durationMinutes`, `participantCount` (only for group services).
+
+**Fields:** criteria type — one-time range (`acceptableStartAt`/`acceptableEndAt`) or weekly preference (`weekdays`, `localStartTime`/`localEndTime`, tenant timezone, never sent); optional `expiresAt` (default 30 days, at most 365, clamped to the range end).
+
+| Rule | Source | Error |
+|---|---|---|
+| Range: end after start; weekly: at least one weekday and end time after start time | `docs/14-API_CONTRACTS.md` § Availability Alerts | `422 BOOKING_ALERT_CRITERIA_INVALID` → `16b` |
+| Service must be alert-eligible | UC-055 | `422 BOOKING_ALERT_INELIGIBLE_SERVICE` → `16f` |
+| At most 10 active alerts per customer | UC-072 A3 | `409 BOOKING_ALERT_CAP_REACHED` → `16e` |
+
+**State machine:** `16` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16e` / `16f` (errors; `16b` keeps the form editable).
+
+**UI building blocks:** hotsite tree — tenant branding via `--ba-*`, the booking flow's own form styling (as `PersonalInfoStep`); the page is a full-page hotsite component and paints its own `backgroundColor: 'var(--ba-background)'`. Do **not** use dashboard/account patterns here, and do not import shadcn primitives (their colors come from shadcn tokens) unless discovery confirms they can be driven by `--ba-*` (check `calendar`, `time-picker`). Rule: `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components.
+
+**BFF call:** `POST /availability-alerts` (customer-only) — body `{ serviceId, preferredResourceId?, criteriaType, acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, participantCount?, expiresAt? }`.
