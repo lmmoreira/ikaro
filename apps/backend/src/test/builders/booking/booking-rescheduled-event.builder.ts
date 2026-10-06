@@ -15,7 +15,11 @@ export class BookingRescheduledEventBuilder {
     },
   ];
   private readonly totalPrice = { amount: '150.00', currency: 'BRL' };
-  private previousSlotStart = new Date('2026-07-01T10:00:00.000Z');
+  private readonly previousSlot = {
+    startTime: '2026-07-01T10:00:00.000Z',
+    endTime: '2026-07-01T11:00:00.000Z',
+  };
+  private previousSlotStart: Date | null = null;
   private readonly newSlot = {
     startTime: '2026-07-07T10:00:00.000Z',
     endTime: '2026-07-07T11:00:00.000Z',
@@ -30,7 +34,7 @@ export class BookingRescheduledEventBuilder {
     return this;
   }
 
-  // The start of the slot the booking moved away from; the previous slot lasts one hour.
+  // The start of the slot the booking moved away from (one hour long); unset keeps the fixed default slot.
   withPreviousSlotStart(previousSlotStart: Date): this {
     this.previousSlotStart = previousSlotStart;
     return this;
@@ -73,10 +77,12 @@ export class BookingRescheduledEventBuilder {
       customerId: this.customerId,
       contactEmail: this.contactEmail,
       contactName: this.contactName,
-      previousSlot: {
-        startTime: this.previousSlotStart.toISOString(),
-        endTime: new Date(this.previousSlotStart.getTime() + 3_600_000).toISOString(),
-      },
+      previousSlot: this.previousSlotStart
+        ? {
+            startTime: this.previousSlotStart.toISOString(),
+            endTime: new Date(this.previousSlotStart.getTime() + 3_600_000).toISOString(),
+          }
+        : this.previousSlot,
       newSlot: this.newSlot,
       rescheduledBy: this.rescheduledBy,
       isBusiness: this.isBusiness,

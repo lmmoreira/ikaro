@@ -237,30 +237,25 @@ describe('MatchAvailabilityAlerts (integration)', () => {
     expect(await matchedEventsOf(tenantA)).toHaveLength(1);
   });
 
-  it('two triggers racing on the same alert produce exactly one attempt row and one event', async () => {
+  it('a cancellation handler and the daily sweep racing on the same alert produce exactly one attempt row and one event', async () => {
     await seedAlert(tenantA);
+    // Monday 06:40 local: inside the sweep window, on the day the alert is about.
+    const sweepNow = at(monday, '06:40');
 
-    await Promise.allSettled([
-      useCase.execute({
-        tenantId: tenantA,
-        correlationId: 'corr-race-1',
-        serviceIds: null,
-        around: null,
-      }),
-      useCase.execute({
-        tenantId: tenantA,
-        correlationId: 'corr-race-2',
-        serviceIds: [serviceOf.get(tenantA) as string],
-        around: at(monday, '10:00'),
-      }),
+    const settled = await Promise.allSettled([
+      handler.handle(cancelledEvent(tenantA)),
+      new AvailabilityAlertSweepJob(platformPort, useCase).run(sweepNow),
     ]);
 
+    // The loser of the race is a version-check conflict handled inside the use case, not a failure.
+    expect(settled.map((outcome) => outcome.status)).toEqual(['fulfilled', 'fulfilled']);
     expect(await attemptsOf(tenantA)).toHaveLength(1);
     expect(await matchedEventsOf(tenantA)).toHaveLength(1);
     const [alert] = await ds
       .getRepository(AvailabilityAlertEntity)
       .find({ where: { tenantId: tenantA } });
     expect(alert.status).toBe('NOTIFIED');
+    expect(alert.version).toBe(2);
   });
 
   it('does not notify when the slot is not actually free: a booking-occupied resource blocks the match', async () => {
