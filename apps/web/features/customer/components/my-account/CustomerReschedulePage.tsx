@@ -8,21 +8,22 @@ import type {
   CustomerBookingDetailResponse,
 } from '@ikaro/types';
 import { rescheduleBookingAsCustomer } from '@/features/booking/api/customer';
+import {
+  classifyRescheduleFailure,
+  shouldReloadSlots,
+  type RescheduleFailure,
+} from '@/features/booking/model/reschedule-failure';
 import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { appendReturnTo } from '../../booking-navigation';
+import type { BookingWindowFacts } from '../../hooks/useDescribeBookingWindow';
 import { canRescheduleBooking } from '../../booking-sections';
-import {
-  classifyRescheduleFailure,
-  shouldReloadSlots,
-  type RescheduleFailure,
-} from '../../reschedule-failure';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { RescheduleActionPane } from './RescheduleActionPane';
-import { RescheduleBookingFacts, type BookingWindowFacts } from './RescheduleBookingFacts';
+import { RescheduleBookingFacts } from './RescheduleBookingFacts';
 import { RescheduleKeptPicks } from './RescheduleKeptPicks';
 import { ReschedulePicker } from './ReschedulePicker';
 import { RescheduleSuccessView } from './RescheduleSuccessView';

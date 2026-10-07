@@ -26,6 +26,7 @@ import {
   GetBookingByIdUseCase,
   GetBookingByIdUseCaseResult,
 } from '../../application/use-cases/get-booking-by-id.use-case';
+import { TenantBookingWindow } from '../../application/use-cases/booking-window.helpers';
 import { mapBookingError } from '../http/booking-error.mapper';
 
 // Split from the lifecycle-transition endpoints (approve/reject/cancel/reschedule/complete/...)
@@ -66,10 +67,7 @@ export class BookingController {
         tenantId,
         cancellationWindowHours: settings.booking.cancellationWindowHours,
         requestingCustomerId: actorType === 'CUSTOMER' ? actorId : undefined,
-        tenantBookingWindow: {
-          minBookingAdvanceHours: settings.booking.minBookingAdvanceHours,
-          maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
-        },
+        tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);
   }
@@ -87,10 +85,7 @@ export class BookingController {
         correlationId,
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
-        tenantBookingWindow: {
-          minBookingAdvanceHours: settings.booking.minBookingAdvanceHours,
-          maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
-        },
+        tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);
   }
@@ -110,11 +105,16 @@ export class BookingController {
         customerId: customerId!,
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
-        tenantBookingWindow: {
-          minBookingAdvanceHours: settings.booking.minBookingAdvanceHours,
-          maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
-        },
+        tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);
+  }
+
+  private tenantBookingWindow(): TenantBookingWindow {
+    const { booking } = this.ctx.settings;
+    return {
+      minBookingAdvanceHours: booking.minBookingAdvanceHours,
+      maxBookingAdvanceDays: booking.maxBookingAdvanceDays,
+    };
   }
 }

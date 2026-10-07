@@ -10,7 +10,11 @@ interface ErrorAlertProps {
   readonly retryLabel?: string;
   /** Moves keyboard focus to the alert when it appears — used when a flow returns to a step with an error. */
   readonly focusOnMount?: boolean;
+  /** `dashboard` is the unbranded look — it never reads the tenant's `--ba-*` variables. */
+  readonly variant?: 'hotsite' | 'dashboard';
 }
+
+const DASHBOARD_RADIUS = '0.75rem';
 
 export function ErrorAlert({
   children,
@@ -18,7 +22,9 @@ export function ErrorAlert({
   onRetry,
   retryLabel = 'Tentar novamente',
   focusOnMount = false,
+  variant = 'hotsite',
 }: ErrorAlertProps): React.JSX.Element {
+  const borderRadius = variant === 'dashboard' ? DASHBOARD_RADIUS : 'var(--ba-radius)';
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,7 +37,7 @@ export function ErrorAlert({
       role="alert"
       tabIndex={focusOnMount ? -1 : undefined}
       className="border border-red-300 bg-red-50 p-3"
-      style={{ borderRadius: 'var(--ba-radius)' }}
+      style={{ borderRadius }}
     >
       <div className="flex items-start gap-2.5">
         <svg
@@ -60,7 +66,7 @@ export function ErrorAlert({
           type="button"
           onClick={onRetry}
           className="ml-[1.625rem] mt-2.5 border border-red-300 px-3.5 py-1.5 text-sm font-semibold text-red-700"
-          style={{ borderRadius: 'var(--ba-radius)' }}
+          style={{ borderRadius }}
         >
           {retryLabel}
         </button>

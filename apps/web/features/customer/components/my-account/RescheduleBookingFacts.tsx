@@ -3,11 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-
-export interface BookingWindowFacts {
-  readonly start: Date;
-  readonly end: Date;
-}
+import {
+  useDescribeBookingWindow,
+  type BookingWindowFacts,
+} from '../../hooks/useDescribeBookingWindow';
 
 interface RescheduleBookingFactsProps {
   readonly serviceNames: string;
@@ -42,10 +41,8 @@ export function RescheduleBookingFacts({
   before,
 }: RescheduleBookingFactsProps): React.JSX.Element {
   const t = useTranslations('customer.reschedule');
-  const { formatDateLong, formatTime, formatMoney } = useFormatting();
-
-  const describe = ({ start, end }: BookingWindowFacts): string =>
-    `${formatDateLong(start)} · ${formatTime(start)}–${formatTime(end)}`;
+  const { formatMoney } = useFormatting();
+  const describe = useDescribeBookingWindow();
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white px-4 py-2">

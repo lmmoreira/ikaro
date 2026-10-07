@@ -131,6 +131,7 @@ export class GetBookingByIdUseCase {
     const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
     const [services, occupancyRows] = await Promise.all([
       this.serviceRepo.findByIds(serviceIds, input.tenantId),
+      // The occupancy repository only works inside a transaction, reads included.
       this.txManager.run(() =>
         this.occupancyRepo.findOccupancyByBookingLines(
           input.tenantId,

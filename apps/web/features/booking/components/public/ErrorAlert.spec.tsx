@@ -17,6 +17,15 @@ describe('ErrorAlert', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Tente de novo');
   });
 
+  it('reads the tenant radius by default and a fixed one for the dashboard variant', () => {
+    const { rerender } = render(<ErrorAlert>Falhou</ErrorAlert>);
+    expect(screen.getByRole('alert').getAttribute('style')).toContain('var(--ba-radius)');
+
+    rerender(<ErrorAlert variant="dashboard">Falhou</ErrorAlert>);
+    expect(screen.getByRole('alert').getAttribute('style')).not.toContain('--ba-');
+    expect(screen.getByRole('alert')).toHaveStyle({ borderRadius: '0.75rem' });
+  });
+
   it('does not take focus by default', () => {
     render(<ErrorAlert>Falhou</ErrorAlert>);
 

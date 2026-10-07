@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { digitsOnly } from '@/shared/utils/digits-only';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { RescheduleBookingFacts, type BookingWindowFacts } from './RescheduleBookingFacts';
+import type { BookingWindowFacts } from '../../hooks/useDescribeBookingWindow';
+import { RescheduleBookingFacts } from './RescheduleBookingFacts';
 
 interface RescheduleWindowExpiredViewProps {
   readonly serviceNames: string;

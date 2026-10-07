@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import type { BookingWindowFacts } from './RescheduleBookingFacts';
+import {
+  useDescribeBookingWindow,
+  type BookingWindowFacts,
+} from '../../hooks/useDescribeBookingWindow';
 
 interface RescheduleActionPaneProps {
   readonly from: BookingWindowFacts;
@@ -24,9 +27,7 @@ export function RescheduleActionPane({
 }: RescheduleActionPaneProps): React.JSX.Element {
   const t = useTranslations('customer.reschedule');
   const { formatDateLong, formatTime } = useFormatting();
-
-  const describe = ({ start, end }: BookingWindowFacts): string =>
-    `${formatDateLong(start)} · ${formatTime(start)}–${formatTime(end)}`;
+  const describe = useDescribeBookingWindow();
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-4">

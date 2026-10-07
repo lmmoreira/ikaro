@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { RescheduleBookingFacts, type BookingWindowFacts } from './RescheduleBookingFacts';
+import type { BookingWindowFacts } from '../../hooks/useDescribeBookingWindow';
+import { RescheduleBookingFacts } from './RescheduleBookingFacts';
 
 interface RescheduleSuccessViewProps {
   readonly serviceNames: string;

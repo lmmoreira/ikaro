@@ -1,10 +1,10 @@
 import { Booking } from '../../domain/booking.aggregate';
-import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import { BookingLineOccupancyRow } from '../ports/resource-occupancy-repository.port';
 import { ResourceSelectionInput } from './resource-occupancy.helpers';
 import { resolveEffectiveBookingWindow, TenantBookingWindow } from './booking-window.helpers';
+import { findRequirementForAssignment } from './future-commitment-alternatives.helpers';
 import { resolveEffectiveRescheduleWindowHours } from './reschedule-quote.helpers';
 
 export interface BookingRescheduleKeptPickDetail {
@@ -32,15 +32,10 @@ export interface BuildRescheduleOptionsParams {
   tenantBookingWindow: TenantBookingWindow;
 }
 
-function requirementsOf(service: Service, legIndex: number | null): ResourceRequirement[] {
-  if (legIndex === null) return service.resourceRequirements;
-  return service.legs?.find((leg) => leg.legIndex === legIndex)?.resourceRequirements ?? [];
-}
-
 function isCustomerChoicePick(service: Service, row: BookingLineOccupancyRow): boolean {
-  return requirementsOf(service, row.legIndex).some(
-    (requirement) =>
-      requirement.type === row.resourceType && requirement.selectionMode === 'CUSTOMER_CHOICE',
+  return (
+    findRequirementForAssignment(service, row.legIndex, row.resourceType)?.selectionMode ===
+    'CUSTOMER_CHOICE'
   );
 }
 

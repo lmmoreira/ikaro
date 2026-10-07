@@ -85,6 +85,28 @@ describe('SlotPicker', () => {
     expect(await screen.findByText('Nenhum horário disponível')).toBeInTheDocument();
   });
 
+  it('keeps the empty state off the tenant radius in the dashboard variant', async () => {
+    vi.mocked(fetchAvailability).mockResolvedValue({
+      date: '2026-06-15',
+      available: false,
+      slots: [],
+    });
+
+    renderWithIntl(
+      <SlotPicker
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        date="2026-06-15"
+        selectedSlot={null}
+        onSelectSlot={vi.fn()}
+        variant="dashboard"
+      />,
+    );
+
+    const empty = (await screen.findByText('Nenhum horário disponível')).closest('output')!;
+    expect(empty.getAttribute('style')).not.toContain('--ba-');
+  });
+
   it('calls onSelectSlot when a slot button is clicked', async () => {
     const user = userEvent.setup();
     const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };

@@ -76,7 +76,7 @@ export function SlotPicker({
 
   if (errorDate === date) {
     return (
-      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')}>
+      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')} variant={variant}>
         {t('slotPicker.loadError')}
       </ErrorAlert>
     );
@@ -93,7 +93,7 @@ export function SlotPicker({
     return (
       <output
         className="flex items-start gap-2.5 border border-amber-300 bg-amber-50 p-3"
-        style={{ borderRadius: 'var(--ba-radius)' }}
+        style={{ borderRadius: isDashboardVariant ? '0.75rem' : 'var(--ba-radius)' }}
       >
         <svg
           width="16"

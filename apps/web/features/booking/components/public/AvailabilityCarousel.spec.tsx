@@ -121,6 +121,28 @@ describe('AvailabilityCarousel', () => {
     expect(getDayOption('2026-06-15')).toHaveStyle({ borderRadius: '0.75rem' });
   });
 
+  it('never reads a tenant branding variable for the selected day in the dashboard variant', async () => {
+    const days: DaySummary[] = [{ date: '2026-06-15', available: true, slotCount: 5 }];
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue(days);
+
+    renderCarousel({ selectedDate: '2026-06-15', variant: 'dashboard' });
+
+    await screen.findAllByTestId('day-option');
+    const style = getDayOption('2026-06-15').getAttribute('style') ?? '';
+    expect(style).not.toContain('--ba-');
+    expect(getDayOption('2026-06-15')).toHaveStyle({ backgroundColor: 'rgb(37, 99, 235)' });
+  });
+
+  it('keeps the tenant primary colour for the selected day in the hotsite variant', async () => {
+    const days: DaySummary[] = [{ date: '2026-06-15', available: true, slotCount: 5 }];
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue(days);
+
+    renderCarousel({ selectedDate: '2026-06-15' });
+
+    await screen.findAllByTestId('day-option');
+    expect(getDayOption('2026-06-15').getAttribute('style')).toContain('--ba-primary');
+  });
+
   it('shows an error message with a retry button when the fetch fails', async () => {
     vi.mocked(fetchAvailabilitySummary).mockRejectedValue(new Error('network error'));
 
