@@ -11,7 +11,6 @@ import { uniqueTestEmail } from '../auth';
 import { inviteStaff } from '../staff';
 
 export const TENANT_SLUG = 'lavacar-beloauto';
-const TENANT_TIMEZONE = 'America/Sao_Paulo';
 export const MANAGER_EMAIL = 'admin@lavacar.com.br';
 
 export function serviceCard(page: Page, serviceId: string): Locator {
@@ -163,12 +162,15 @@ export interface FoundSlot {
   readonly startsAt: string;
 }
 
-// The first bookable slot from tomorrow on, within the next two weeks, for a service with the given
-// picks pinned, read straight from the public availability API (the same one the booking form
-// calls). Today is skipped on purpose: late in the day only a slot or two is left, and a spec that
-// books the slot it found then finds nothing left to show. The API lists a day's slots untrimmed,
-// including hours already behind the clock; booking one of those is rejected, so only a slot that
-// starts after now qualifies.
+// Booking a slot also blocks the ones its duration and the service buffer overlap, and the specs
+// then expect other slots to remain for the same resource. A day with only the end of its hours
+// left cannot show that, so it is skipped for the next one.
+const MIN_SLOTS_LEFT_ON_DAY = 8;
+
+// The first bookable slot in the next two weeks, on a day with enough of it left, for a service
+// with the given picks pinned, read straight from the public availability API (the same one the
+// booking form calls). The API lists a day's slots untrimmed, including hours already behind the
+// clock; booking one of those is rejected, so only slots that start after now count.
 export async function findFirstSlot(
   page: Page,
   serviceId: string,
@@ -187,16 +189,25 @@ export async function findFirstSlot(
     summaryRes,
     'availability summary',
   );
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE }).format(from);
-  for (const day of days.filter((d) => d.available && d.date > today)) {
+  let roomiest: (FoundSlot & { readonly slotsLeft: number }) | null = null;
+  for (const day of days.filter((d) => d.available)) {
     const res = await page.request.get(
       `${BFF_URL}/schedule/availability?date=${day.date}&serviceIds=${serviceId}${extra}`,
       { headers },
     );
     const body = await readAvailability<AvailabilityResponse>(res, 'availability');
-    const slot = body.slots.find(startsAfterNow);
-    if (slot) return { date: day.date, startsAt: slot.startsAt };
+    const upcoming = body.slots.filter(startsAfterNow);
+    const [slot] = upcoming;
+    if (!slot) continue;
+    if (upcoming.length >= MIN_SLOTS_LEFT_ON_DAY) {
+      return { date: day.date, startsAt: slot.startsAt };
+    }
+    // A long service (a multi-leg journey) never lists that many: settle for the roomiest day.
+    if (!roomiest || upcoming.length > roomiest.slotsLeft) {
+      roomiest = { date: day.date, startsAt: slot.startsAt, slotsLeft: upcoming.length };
+    }
   }
+  if (roomiest) return { date: roomiest.date, startsAt: roomiest.startsAt };
   throw new Error(`no available slot found for service ${serviceId}`);
 }
 

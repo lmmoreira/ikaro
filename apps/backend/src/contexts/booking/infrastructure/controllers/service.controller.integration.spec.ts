@@ -570,6 +570,29 @@ describe('ServiceController (integration)', () => {
       });
     });
 
+    it('returns 422 when an override is looser than the tenant window, and stores nothing', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      // A provisioned tenant defaults to a 90-day maximum, so 365 days is looser than the ceiling.
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${created.id}/booking-policy`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ maxBookingAdvanceDaysOverride: 365 })
+        .expect(422);
+
+      expect(body.code).toBe('BOOKING_SERVICE_BOOKING_POLICY_INVALID');
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+      expect(fetched.bookingPolicy.maxBookingAdvanceDaysOverride).toBeNull();
+    });
+
     it('returns 422 when durationPolicy=CUSTOMER_SELECTED without a non-FIXED pricingPolicy (UC-055 A2)', async () => {
       const isolatedTenant = await provisionTenant();
       const { body: created } = await request(app.getHttpServer())
