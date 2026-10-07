@@ -105,7 +105,7 @@ export interface CustomerBookingListResponse {
 
 Customer area uses `dashboard-topbar` + `dashboard-layout` + `main-content` (same tokens as staff dashboard) — but NO sidebar. The 3-tab bottom nav (Início / Agendamentos / Fidelidade) mirrors mobile navigation.
 
-Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the brand slot. No bottom-nav on detail pages. The same applies to the M23 sub-pages reached from a card on Agendamentos (`07*`, `14*`, `06*`): the back link lives in the topbar (label "Agendamentos" on the two lists, "Reservas recorrentes"/"Meus avisos" on their details), never as a `back-link` inside the content, and a destructive action (end a schedule, cancel an alert) is a dedicated confirmation page, never an inline panel.
+Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the brand slot. No bottom-nav on detail pages. The same applies to the M23 sub-pages reached from a card on Agendamentos (`07*`, `14*`, `06*`, `13*`) — forms and outcome screens too, whose submit/continue buttons sit in the action pane on desktop (`13f`'s "reserva não encontrada" state keeps its buttons inline, being a second state of the same page): the back link lives in the topbar (label "Agendamentos" on the two lists, "Reservas recorrentes"/"Meus avisos" on their details), never as a `back-link` inside the content, and a destructive action (end a schedule, cancel an alert) is a dedicated confirmation page, never an inline panel.
 
 Reference shell: `plan/journey/shared/customer-dashboard.html`
 
