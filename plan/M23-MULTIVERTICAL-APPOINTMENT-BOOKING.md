@@ -39,7 +39,7 @@
 | 3 | M23-S18 | Recurring-schedule fixed term (`endsOn` required and capped), hours-and-closures check and one conflict payload (UC-070) |
 | 3 | M23-S20 | Remove recurring-schedule Pause (shipped pause endpoint, event and `PAUSED` status) — lands before S05 and S12 |
 | 4 | M23-S05 | Recurring-schedule approval (atomic, `409` conflicts list) + one-shot occurrence materialization + approval-expiry/`ENDED` job; removes the S04 overlap layer (UC-071) |
-| 4 | M23-S30 | Customer reschedules a booking — "Reagendar" screen in Minha Conta, date and time only (UC-069; needs a prototype-driven discovery of the kept-picks read) |
+| 4 | M23-S30 | Customer reschedules a booking — "Reagendar" screen in Minha Conta, date and time only (UC-069; adds the `reschedule` block to the customer booking read) |
 | 4 | M23-S31 | Availability-alert creation — "Avise-me quando abrir" button on the booking flow's calendar step and the alert page in the booking flow (UC-072; prototyped) |
 | 2 | M23-S32 | Fungible-pool booking assigns a free unit, not the first eligible one (UC-062); backend-only |
 | 3 | M23-S33 | Enforce the booking window on the backend — min/max advance on booking and reschedule, per-service override (never looser than the tenant), tenant-timezone dates, alert sweep and public booking page aligned (full-stack, L) |
@@ -2304,10 +2304,10 @@ Pre-decided:
 
 **Discovered:** 2026-10-03, while reviewing the M23-S11 prototypes: the customer area has no reschedule screen at all — the only reschedule UI is the staff `RescheduleBookingPage` in the dashboard, and `06-reserva-recorrente` carried an inline slot `<select>` for an occurrence. The backend (`reschedule-customer`, M23-S03) shipped without a customer consumer; the quote-preview item M23-S03 deferred to S11 disappears with decision 2 below.
 **Agent:** `frontend-ts`
-**Complexity:** M (web; plus the backend/BFF read changes listed under Backend/BFF, locked at discovery)
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` § Reschedule (UC-008, extended by M23 Cluster 3 UC-069) + the availability params M23-S29 adds, `docs/04-USE_CASES.md` UC-069, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_TESTING.md` (E2E shared-tenant rules), `docs/08-TESTING_STRATEGY.md` § apps/web
-**Dependencies:** M23-S03 (✅ Done — `PATCH /bookings/:id/reschedule`, `reschedule-customer`), M23-S29 (✅ Done — `resourceSelections`/`durationMinutes` on availability), M23-S11a (the extended availability components). **M23-S12 depends on this story** for the "Reagendar esta ocorrência" action on `06`.
-**Pattern:** plain composition — a new page that reuses the existing `AvailabilityCarousel`/`SlotPicker` (extended by S11a; the date strip and slot grid are those components' real output, never a hand-drawn picker — `variant="dashboard"` as on the staff reschedule; prototypes `15`–`15k` were redrawn to match on 2026-10-07) and the existing reschedule mutation pattern from the dashboard's `RescheduleBookingPage`; no new architectural pattern.
+**Complexity:** L (a new web page plus a backend/BFF read extension — the `reschedule` block under Backend/BFF; the write path already exists)
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` § Reschedule (UC-008, extended by M23 Cluster 3 UC-069) + the availability params M23-S29 adds, `docs/04-USE_CASES.md` UC-069, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_TESTING.md` (E2E shared-tenant rules), `docs/08-TESTING_STRATEGY.md` § apps/web, `docs/REPOSITORY_STRUCTURE.md` § Web placement rules
+**Dependencies:** M23-S03 (✅ Done — `PATCH /bookings/:id/reschedule`, `reschedule-customer`), M23-S29 (✅ Done — `resourceSelections`/`durationMinutes` on availability), M23-S11a (✅ Done — the extended availability components), M23-S33 (✅ Done — the booking-window rule the customer reschedule is now subject to). **M23-S12 depends on this story** for the "Reagendar esta ocorrência" action on `06`.
+**Pattern:** plain composition — a new page that reuses the existing `AvailabilityCarousel`/`SlotPicker` (extended by S11a; the date strip and slot grid are those components' real output, never a hand-drawn picker — `variant="dashboard"` as on the staff reschedule, because the customer shell is Ikaro's own look with no tenant branding; prototypes `15`–`15k` were redrawn to match) and `ErrorAlert`, and the customer cancel flow as the structural precedent (`CancelConfirmPage`, `cancelBookingAsCustomer`). **Placement (decided at discovery):** the page and its parts go in `apps/web/features/customer/components/my-account/` with every other customer-shell page; the fetcher goes in `apps/web/features/booking/api/customer.ts` (transport lives with the owning domain, named `…AsCustomer`). No new architectural pattern.
 **Prototype references:** `plan/journey/customer/minha-conta.md` § M23 — Reagendar + `plan/journey/customer/prototypes/minha-conta/` screens `02-agendamento-detail` ("Reagendar" button), `06-reserva-recorrente` (occurrence entry), `15`, `15b`–`15k` and `dev-notes.md` § Reagendar.
 
 **Description:**
@@ -2317,28 +2317,51 @@ A customer opens "Reagendar" on an `APPROVED` booking (from `02-agendamento-deta
 3. Only an `APPROVED` booking inside the effective reschedule window gets the button (a `PENDING` booking offers only "Cancelar"); the booking stays `APPROVED` and the customer receives the `BookingRescheduled` email.
 The slot list is the booking's services' availability with the kept picks and the kept duration pinned (S29 params). A **"De … Para …" change summary** (current and newly chosen date/time) sits right above "Confirmar novo horário" so the customer sees exactly what will change. States: loading (`15c`), empty (`15d`), fetch error with retry (`15e`), submitting (`15f`), success (`15g`), `409 BOOKING_SLOT_UNAVAILABLE` (`15h`), `409 BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`/`BOOKING_LEG_UNAVAILABLE` (`15i`), `422 BOOKING_RESCHEDULE_WINDOW_EXPIRED` (`15j`) and any other failure (`15k`) — every conflict leaves the original booking intact, clears the chosen slot and re-fetches the list. The page renders inside `CustomerShell` (Tailwind + shadcn, never `--ba-*`).
 
-**Open items carried into `/story-discovery M23-S30`** (found while drawing the prototype; deliberately not decided here): (1) **kept picks are not exposed today** — `BookingLineResponse` returns `assignedResourceName` only for `AUTO_ANY` and `itinerary` for legs, so the customer booking read must return each kept `CUSTOMER_CHOICE` pick (name for `15b`, id to pin availability) — a backend/BFF change; (2) **availability for a reschedule** — the staff page queries by `serviceIds` only, ignoring the booking's own occupancy and picks; decide whether a read-side parameter that ignores the booking's own window is needed; (3) confirm the `BookingRescheduled` customer email and its copy; (4) the exact `15` ↔ `06` wiring for the occurrence entry (the S12 list owns the link, this story owns the page).
+**Decisions locked at `/story-discovery` (2026-10-07):**
+4. **One canonical read, a server-resolved `reschedule` block.** No new endpoint (a duplicate read of the same aggregate is an anti-pattern): the customer response of `GET /bookings/:id` gains `reschedule`, computed server-side with the same helpers the write path replays, so what the page pins is always what the backend will re-validate. Shape under Backend/BFF.
+5. **The booking's own current window shows as unavailable** in the slot list — the availability reads are public (an exclude parameter would leak other bookings' occupancy) and the staff reschedule has the same limitation today. Accepted and documented; the write path itself accepts the move. Not a defect of this story.
+6. **The three S33 window errors** (`422 BOOKING_SCHEDULED_IN_PAST` / `BOOKING_TOO_SOON` / `BOOKING_TOO_FAR_AHEAD`, UC-069 A4) are handled as the `15k` "any other failure" state with their catalogue message, clearing the slot and re-fetching — no new screen, because the picker already hides slots outside the window (it receives the effective window from the `reschedule` block) and only a clock-crossing race reaches them.
+7. **Route behaviour:** `reschedule` is `null` unless the booking is `APPROVED` — the route then redirects to the booking detail. `APPROVED` and `now ≥ eligibleUntil` renders `15j` immediately, without fetching slots. The page accepts `?returnTo=` (resolved like the detail page) so S12's occurrence row can link here; "Voltar ao agendamento" returns to the booking detail. Success (`15g`) is a state of the same route followed by a router refresh.
+8. **The occurrence entry is S12's:** an occurrence is an ordinary booking, so the route works by booking id with no change; the link, its E2E and its AC belong to M23-S12. `BookingRescheduled`'s customer email already exists (`BOOKING_RESCHEDULED_CUSTOMER`, both locales) — nothing to add.
 
-**Backend/BFF:** to be locked at discovery — at minimum the customer booking read exposes the kept picks; possibly an availability read for a reschedule. `apps/web` consumes `@ikaro/types` only.
+**Backend/BFF (locked at discovery):** `GetBookingByIdUseCase`'s result gains `reschedule: BookingRescheduleOptions | null`, non-null only for an `APPROVED` booking:
+```
+reschedule: {
+  eligibleUntil: string,                       // ISO — scheduledAt − the effective reschedule window (same MAX-across-lines helper and assumption as the write path)
+  serviceIds: string[],                        // the availability query
+  resourceSelections: ResourceSelectionItem[], // the kept CUSTOMER_CHOICE picks only (automatic resources are re-resolved, never pinned)
+  durationMinutes: number | null,              // the CUSTOMER_SELECTED line's kept duration, else null
+  window: { minAdvanceHours: number, maxAdvanceDays: number }, // strictest across the services (effective booking window)
+  keptPicks: { serviceName: string, resourceType: ResourceType, legIndex: number | null, resourceName: string }[], // display for 15b
+} | null
+```
+It reuses `resolveEffectiveRescheduleWindowHours`, `deriveResourceSelectionsFromAssignments` and `resolveEffectiveBookingWindow` rather than re-deriving them (the tenant booking window comes from the controller, as in the reschedule controller). The BFF customer mapper exposes it and `@ikaro/types` adds `BookingRescheduleOptions` + `CustomerBookingDetailResponse.reschedule`; the staff response is unchanged. The page takes the timezone from `useFormatting()`. The `PATCH` body is `{ scheduledAt }` only. `apps/web` consumes `@ikaro/types` only. No migration, no new error code (every code used already has both translations).
 
-**Files to create/modify (web; backend/BFF per discovery):**
-- `apps/web/app/[slug]/my-account/bookings/[id]/reschedule/page.tsx` (new, thin)
-- `apps/web/features/booking/components/customer/CustomerReschedulePage.tsx` (+ spec) (new)
-- `apps/web/features/booking/api/` — `rescheduleBookingAsCustomer` fetcher (+ spec) (new); the existing customer booking-detail components (`BookingDetailAsideCard`/`BookingDetailMainBanner` customer equivalents) gain the "Reagendar" button (+ specs)
-- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `reschedule.*` keys under the customer booking namespace; both locales in the same commit)
-- `apps/web/e2e/` — customer reschedule spec and helpers
+**Files to create/modify:**
+- Backend: `apps/backend/src/contexts/booking/application/use-cases/get-booking-by-id.use-case.ts` (+ `.spec.ts`) — the `reschedule` block; a small builder helper beside `reschedule-quote.helpers.ts` (+ spec) if the block's assembly outgrows the use case; the `GET /bookings/:id` controller passes the tenant booking window (+ controller spec)
+- BFF: `apps/bff/src/features/booking/bookings.mapper.ts` (+ `.spec.ts`) and `bookings.types.ts` — customer mapper carries `reschedule`
+- `packages/types/src/booking.dto.ts` — `BookingRescheduleOptions`, `CustomerBookingDetailResponse.reschedule`
+- `apps/web/app/[slug]/my-account/bookings/[id]/reschedule/page.tsx` (new, thin — same shape as `cancel/page.tsx`)
+- `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (+ spec) (new); a kept-picks block and a change-summary block as separate small components if the page grows (+ specs)
+- `apps/web/features/booking/api/customer.ts` — `rescheduleBookingAsCustomer(id, { scheduledAt })` (+ `customer.spec.ts` case) (new export)
+- `apps/web/features/customer/booking-sections.ts` — `canRescheduleBooking({ status, reschedule })` pure helper (+ spec); `BookingDetailPage.tsx` / `CancelAction.tsx` neighbour gains the "Reagendar" link (+ specs)
+- `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.reschedule.*` keys (both locales in the same commit); the kept-pick labels reuse the existing resource-type keys
+- `apps/web/e2e/my-account-reschedule.spec.ts` + helpers under `apps/web/e2e/helpers/customer/` (new; precedent `my-account-detail-cancel.spec.ts`)
+- `docs/14-API_CONTRACTS.md`, `docs/04-USE_CASES.md` UC-069, `docs/REPOSITORY_STRUCTURE.md`, `.copilot/context.md` §11 (modify — done at discovery, listed so the DoD sweep finds them)
 - `plan/journey/customer/minha-conta.md`, `prototypes/minha-conta/dev-notes.md` + `index.html`, `plan/journey/customer/use-cases.md` UC-069 row (modify — flip the `15`–`15k` screens from `❓ GAP` to ✅ in the same commit)
 
 **Acceptance criteria — product:**
 - [ ] A customer with an `APPROVED` booking inside the reschedule window sees "Reagendar", picks a new slot and the booking moves to it, stays `APPROVED`, and the success screen shows old and new date/time; a `PENDING` booking, or one past the window, shows no button.
+- [ ] Opening the route directly for a non-`APPROVED` booking redirects to the booking detail; for an `APPROVED` booking past the window it shows `15j` without loading slots.
 - [ ] A bundle, journey or chosen-staff booking lists only slots where its kept picks are free, shows the kept picks read-only, and cannot change them or the duration.
-- [ ] A lost race, a bundle/leg conflict and an expired window each show their catalogue message, leave the original booking untouched and (for conflicts) re-offer the slot list with the slot cleared.
-- [ ] The occurrence of a recurring schedule reschedules through the same screen.
+- [ ] A lost race, a bundle/leg conflict and an expired window each show their catalogue message, leave the original booking untouched and (for conflicts) re-offer the slot list with the slot cleared; the three S33 window errors show their catalogue message in the `15k` state the same way.
+- [ ] The day strip and slot list are limited to the booking's effective window (min notice, max advance) from the `reschedule` block.
 
 **Acceptance criteria — technical:**
-- Unit: `CustomerReschedulePage` — default, kept-picks, loading, empty, fetch-error, submitting, success, each of the three error states; the payload is `{ scheduledAt }` only; the button visibility rule (status + window) as a pure helper with its own spec.
-- Integration: n/a for `apps/web`; backend/BFF read changes (if any) carry their own integration specs including tenant isolation (Tenant A booking + Tenant B caller → 404).
-- E2E (Playwright, real BFF/backend): customer reschedules an approved booking to another day; a seeded conflict shows `15h`; a booking past the window shows no button; a chosen-staff booking shows the kept pick and only that staff's slots; the occurrence entry (after S12).
+- Unit (web): `CustomerReschedulePage` — default, kept-picks, loading, empty, fetch-error, submitting, success, `409` slot, `409` bundle/leg, `422` window expired, `422` S33 window code (one case per code), generic failure; the `PATCH` payload is `{ scheduledAt }` only; `canRescheduleBooking` (APPROVED/PENDING/other status, before/after `eligibleUntil`, null block) with its own spec; `rescheduleBookingAsCustomer` fetcher; the "Reagendar" link renders only when `canRescheduleBooking` is true.
+- Unit (backend/BFF): `GetBookingByIdUseCase` — `reschedule` is `null` for `PENDING`/`INFO_REQUESTED`/terminal; present for `APPROVED` with `eligibleUntil` honouring a per-service override and the MAX rule for a multi-line booking; `resourceSelections` holds only `CUSTOMER_CHOICE` picks (an `AUTO_ANY` or pooled line is excluded); `durationMinutes` only for a `CUSTOMER_SELECTED` line; `window` is the strictest across services; the BFF customer mapper carries the block and the staff mapper does not.
+- Integration (backend): `GET /bookings/:id` for a bundle with a `CUSTOMER_CHOICE` pick returns the block; tenant isolation — a Tenant A booking requested by a Tenant B caller → 404, and another customer of the same tenant → 404.
+- E2E (Playwright, real BFF/backend, shared-tenant rules: retry-on-conflict fixtures, tenant-timezone "today"): (1) a customer reschedules an approved booking to another day and the detail shows the new date/time; (2) a seeded conflict on the target slot shows `15h`, the original booking is untouched and the slot list reloads; (3) a booking past the window shows no button and the direct URL shows `15j`; (4) a `PENDING` booking shows no button; (5) a chosen-staff booking shows the kept pick and only that staff's slots. The occurrence entry's E2E belongs to M23-S12.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

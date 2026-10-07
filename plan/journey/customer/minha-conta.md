@@ -189,7 +189,7 @@ flowchart TD
 
 **BFF call:** `PATCH /bookings/:id/reschedule` — the BFF dispatches the `CUSTOMER` role to `reschedule-customer`; body `{ scheduledAt }` only. `GET /schedule/availability` for the slot list (with the kept picks and duration pinned — see the open questions).
 
-**Open questions (carried into `/story-discovery M23-S30`):** the customer booking read must expose the kept picks (not returned today); the availability read for a reschedule must pin them and ideally ignore the booking's own window; confirm the `BookingRescheduled` email.
+**Resolved at `/story-discovery M23-S30` (2026-10-07):** the customer booking read carries a server-resolved `reschedule` block (kept picks, availability pins, effective window, `eligibleUntil`) — a backend/BFF change in the same story; the booking's own current window shows as unavailable in the slot list (public availability reads, same as the staff reschedule); the S33 window errors show in `15k`; the `BookingRescheduled` customer email exists. Details: `customer/prototypes/minha-conta/dev-notes.md` § Reagendar.
 
 ## M24 — Multi-Vertical Scheduling, Cluster 4 extension (❓ Gap, not yet built)
 

@@ -43,6 +43,9 @@
     ERROR: network failure or any other non-mapped status on PATCH (including 422 BOOKING_INVALID_TRANSITION / BOOKING_ALREADY_TERMINAL when the booking
     changed state meanwhile — the generic message is shown and the detail page then shows the real state). The booking is untouched; retry is
     simply pressing "Confirmar novo horário" again.
+    ALSO THIS STATE (M23-S33 booking-window errors, UC-069 A4): 422 BOOKING_SCHEDULED_IN_PAST / BOOKING_TOO_SOON / BOOKING_TOO_FAR_AHEAD show their
+    catalogue message here, clear the chosen slot and re-fetch the list — no separate screen, because the day strip and slot list are already limited
+    to the booking's effective window (the reschedule block of GET /bookings/:id); only a clock-crossing race reaches them.
   -->
 
   <div class="dashboard-topbar" style="position:relative;">

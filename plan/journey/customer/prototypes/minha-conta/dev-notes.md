@@ -255,7 +255,7 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 
 ---
 
-## ❓ GAP — M23 Cluster 3 — Reagendar uma reserva (UC-069, story `M23-S30`, not yet built)
+## ❓ GAP — M23 Cluster 3 — Reagendar uma reserva (UC-069, story `M23-S30`, discovered 2026-10-07, not yet built)
 
 The customer area had **no reschedule screen** (only the staff `RescheduleBookingPage` in the dashboard and the recurring-occurrence panel in `06`). This pass adds it; `06`'s inline reschedule panel (a slot `<select>` with "Preço será recalculado") was **removed** — an occurrence is an ordinary booking, so "Reagendar esta ocorrência" opens the same `15-reagendar` screen.
 
@@ -271,14 +271,18 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 | File | Status |
 |---|---|
-| `apps/web/app/[slug]/my-account/bookings/[id]/reschedule/page.tsx` (thin) | ❓ Gap |
-| `apps/web/features/booking/components/customer/CustomerReschedulePage.tsx` | ❓ Gap |
-| `apps/web/features/booking/api/` — `rescheduleBookingAsCustomer` fetcher (`PATCH /bookings/:id/reschedule`) | ❓ Gap |
+| `apps/web/app/[slug]/my-account/bookings/[id]/reschedule/page.tsx` (thin, same shape as `cancel/page.tsx`) | ❓ Gap |
+| `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (with every other customer-shell page, beside `CancelConfirmPage`) | ❓ Gap |
+| `apps/web/features/booking/api/customer.ts` — `rescheduleBookingAsCustomer(id, { scheduledAt })` (`PATCH /bookings/:id/reschedule`; transport lives in the owning slice, like `cancelBookingAsCustomer`) | ❓ Gap |
+| `apps/web/features/customer/booking-sections.ts` — `canRescheduleBooking` (beside `canCancelBooking`) | ❓ Gap |
+| Backend + BFF + `@ikaro/types` — the `reschedule` block on the customer `GET /bookings/:id` response | ❓ Gap |
 
-**To resolve at `/story-discovery M23-S30` (found while drawing — not decided here):**
-- **Kept picks cannot be shown or pinned today.** `BookingLineResponse` exposes `assignedResourceName` only for `AUTO_ANY` and `itinerary` for legs; a `CUSTOMER_CHOICE` pick is not returned by `GET /bookings/:id` for the customer, so `15b`'s read-only list and the pinned availability query both need the customer booking read to expose the kept picks (names for display, ids for `resourceSelections`) — a backend/BFF change.
-- **Availability for a reschedule.** The staff `RescheduleBookingPage` lists slots with `serviceIds` only, ignoring the booking's own occupancy and picks. For resource-scoped bookings the list must pin the kept picks and the kept duration (S29 params), and ideally ignore the booking's own current window (the commit already releases it inside the same transaction) — decide whether a read-side `excludeBookingId`-style parameter is needed.
-- Confirm the `BookingRescheduled` customer email exists and its copy matches "Enviamos a confirmação por email".
+**Resolved at `/story-discovery M23-S30` (2026-10-07):**
+- **The customer booking read carries a server-resolved `reschedule` block** (`eligibleUntil`, `serviceIds`, the kept `CUSTOMER_CHOICE` `resourceSelections`, `durationMinutes`, the effective `window`, and `keptPicks` for `15b`'s read-only list) — non-null only for an `APPROVED` booking. It is the page's whole input: it decides whether "Reagendar" shows, what the carousel/slot list is pinned and limited to, and what `15b` lists. A null block redirects to the booking detail; `now ≥ eligibleUntil` renders `15j` without loading slots.
+- **The booking's own current window shows as unavailable in the slot list** — the availability reads are public (an exclude parameter would leak other bookings), and the staff reschedule has the same limitation. Accepted; the write path accepts such a move. Not drawn.
+- **The three S33 window errors** (`BOOKING_SCHEDULED_IN_PAST` / `BOOKING_TOO_SOON` / `BOOKING_TOO_FAR_AHEAD`, `422`) show as `15k`'s generic state with their catalogue message, clearing the slot and re-fetching — no new screen, because the picker hides slots outside the window; only a clock-crossing race reaches them.
+- **`BookingRescheduled` customer email exists** (`BOOKING_RESCHEDULED_CUSTOMER`, both locales) — nothing to add.
+- **Occurrence entry:** `06`'s "Reagendar esta ocorrência" links to this route by booking id (an occurrence is an ordinary booking); the link, its E2E and AC belong to `M23-S12`. The page supports `?returnTo=` like the detail page.
 
 **Date and slot picker (corrected 2026-10-07):** `15`, `15b`, `15c`, `15d`, `15e`, `15f`, `15h`, `15i`, `15k` draw the picker exactly as the real `AvailabilityCarousel` + `SlotPicker` render it with `variant="dashboard"` — the same pair the staff `RescheduleBookingPage` composes — via `shared/reschedule-picker.css` (NOT the `tokens.css` `.day-pill`/`.slot-btn`, which draw the hotsite look). What that means on screen: a 14-day strip starting at *Hoje* with prev/next chevrons (`sm+`), each chip a weekday + day number, unavailable days disabled; a **"Horários disponíveis"** grid of `start–end` ranges (3 columns, 4 from `sm`), one range per slot; loading = plain *Carregando disponibilidade…* / *Carregando horários…* text (no skeleton); no slots = the strip all disabled + the *Nenhum horário disponível nos próximos dias* alert and the amber *Nenhum horário disponível* note; fetch error = the carousel's and the slot list's own `ErrorAlert` with *Tentar novamente*. Section labels are *Escolha a nova data* and *Horários disponíveis*. The customer shell is Ikaro's own SaaS look (no tenant branding), so the screen uses `variant="dashboard"` exactly as the staff `RescheduleBookingPage` does and always the carousel — `datePickerType` is a hotsite/tenant setting and does not apply here.
 
