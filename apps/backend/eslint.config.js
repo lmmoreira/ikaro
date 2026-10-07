@@ -457,6 +457,38 @@ module.exports = [
     },
   },
 
+  // Test code never loads the developer's gitignored apps/backend/.env: CI's fresh checkout has
+  // none, so a value set there for local dev or Playwright silently changes what a spec
+  // exercises (CHATBOT_LLM_PROVIDER=fake made the chatbot integration spec select the built-in
+  // fake adapter instead of its own double, failing it locally only; M23-S33 follow-up). Test
+  // code builds its config module through testConfigModule() (ignoreEnvFile: true), the one
+  // file allowed to import ConfigModule. The *import* is banned rather than a
+  // `ConfigModule.forRoot(...)` call shape, so an alias (`ConfigModule as CM`), a namespace
+  // import, a re-export and a destructured or computed call are all closed at once (the
+  // bypass classes in docs/ENGINEERING_RULES_SHARED.md are shapes of a call, not of an import).
+  // A dynamic import() or require() is not covered. Repeats Tier 0's patterns, because ESLint
+  // flat config replaces, not merges, a rule's options per matching file.
+  {
+    files: ['src/test/**/*.ts', 'src/**/*.spec.ts'],
+    ignores: ['src/test/utils/test-config-module.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@nestjs/config',
+              importNames: ['ConfigModule'],
+              message:
+                "Test code must not import ConfigModule: ConfigModule.forRoot() reads the developer's gitignored apps/backend/.env, which CI never has. Use testConfigModule() from src/test/utils/test-config-module (docs/ENGINEERING_RULES_TESTING.md).",
+            },
+          ],
+          patterns: [PORTS_BARREL_PATTERN, SHARED_DOMAIN_BARREL_PATTERN, OPENTELEMETRY_PATTERN],
+        },
+      ],
+    },
+  },
+
   // TD37-S15: no .skip()/.only() — a skipped test hides a real regression behind a green CI
   // run, and a focused describe/it silently stops every sibling test in the file from running
   // at all. Scoped to spec files only; zero baseline violations confirmed repo-wide before this
