@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { openFirstDayWithSlots } from '../booking-form';
 
 export interface LocalizationCase {
   readonly slug: string;
@@ -39,10 +40,8 @@ export async function runLocalizationCheck(page: Page, c: LocalizationCase): Pro
   );
   await expect(secondDay).toContainText(expectedWeekday);
 
-  const selectedDay = page.locator('[data-testid="day-option"]:not([disabled])').first();
-  const selectedDayIso = await selectedDay.getAttribute('data-date');
-  expect(selectedDayIso).not.toBeNull();
-  await selectedDay.click();
+  const selectedDayIso = await openFirstDayWithSlots(page);
+  expect(selectedDayIso).not.toBe('');
   await page.locator('[data-testid="time-slot"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 

@@ -10,6 +10,7 @@ import {
   MANAGER_EMAIL,
   nextButton,
   openBooking,
+  openFirstDayWithSlots,
   parseRange,
   pickFirstSlot,
   seedVariableDurationService,
@@ -52,9 +53,7 @@ async function chooseDuration(guest: Page, minutes: number, total: string): Prom
 }
 
 async function openFirstDay(guest: Page): Promise<void> {
-  const day = guest.locator('[data-testid="day-option"]:not([disabled])').first();
-  await expect(day).toBeVisible();
-  await day.click();
+  await openFirstDayWithSlots(guest);
   await expect(guest.getByTestId('time-slot').first()).toBeVisible();
 }
 

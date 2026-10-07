@@ -2,6 +2,7 @@ import { deflateSync } from 'node:zlib';
 import { expect, test } from '@playwright/test';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { loginAsStaff } from './helpers/auth';
+import { openFirstDayWithSlots } from './helpers/booking-form';
 import {
   getHotsiteConfig,
   getPublicManifest,
@@ -909,7 +910,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('calendar-previous-month').click();
     await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
 
-    await page.locator('[data-testid="calendar-day"]:not([disabled])').first().click();
+    await openFirstDayWithSlots(page, 'calendar-day');
     await page.locator('[data-testid="time-slot"]').first().click();
     await page.locator('[data-testid="step-next"]').click();
 
