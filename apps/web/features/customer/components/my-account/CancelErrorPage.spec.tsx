@@ -66,6 +66,7 @@ function makeBooking(): CustomerBookingDetailResponse {
     totalPrice: { amount: 180, currency: 'BRL' },
     notes: null,
     cancellableUntil: '2026-06-18T10:00:00.000Z',
+    reschedule: null,
     infoRequestMessage: null,
     infoResponseMessage: null,
     beforeServicePhotoUrls: [],

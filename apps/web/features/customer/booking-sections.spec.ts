@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { CustomerBookingListItem } from '@ikaro/types';
+import type {
+  BookingRescheduleOptions,
+  CustomerBookingDetailResponse,
+  CustomerBookingListItem,
+} from '@ikaro/types';
 import {
   canCancelBooking,
+  canRescheduleBooking,
   countActiveBookings,
   selectHomePreview,
   splitBookingSections,
@@ -147,5 +152,41 @@ describe('canCancelBooking', () => {
     expect(canCancelBooking(makeItem({ status: 'COMPLETED' }), NOW)).toBe(false);
     expect(canCancelBooking(makeItem({ status: 'CANCELLED' }), NOW)).toBe(false);
     expect(canCancelBooking(makeItem({ status: 'REJECTED' }), NOW)).toBe(false);
+  });
+});
+
+describe('canRescheduleBooking', () => {
+  const reschedule = (eligibleUntil: string): BookingRescheduleOptions => ({
+    eligibleUntil,
+    serviceIds: ['s1'],
+    resourceSelections: [],
+    durationMinutes: null,
+    window: { minAdvanceHours: 0, maxAdvanceDays: 90 },
+    keptPicks: [],
+  });
+  const detail = (
+    status: CustomerBookingDetailResponse['status'],
+    block: BookingRescheduleOptions | null,
+  ) => ({ status, reschedule: block });
+
+  it('allows an APPROVED booking while now is before eligibleUntil', () => {
+    const booking = detail('APPROVED', reschedule('2026-06-19T10:00:00.000Z'));
+    expect(canRescheduleBooking(booking, NOW)).toBe(true);
+  });
+
+  it('blocks an APPROVED booking once eligibleUntil has passed', () => {
+    const booking = detail('APPROVED', reschedule('2026-06-18T10:00:00.000Z'));
+    expect(canRescheduleBooking(booking, NOW)).toBe(false);
+  });
+
+  it('blocks an APPROVED booking with no reschedule block', () => {
+    expect(canRescheduleBooking(detail('APPROVED', null), NOW)).toBe(false);
+  });
+
+  it('blocks every non-APPROVED status even when a block is present', () => {
+    const block = reschedule('2026-06-19T10:00:00.000Z');
+    expect(canRescheduleBooking(detail('PENDING', block), NOW)).toBe(false);
+    expect(canRescheduleBooking(detail('INFO_REQUESTED', block), NOW)).toBe(false);
+    expect(canRescheduleBooking(detail('COMPLETED', block), NOW)).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 export { createAuthenticatedBooking } from './create-booking';
-export { createFreshApprovedBooking } from './approve-booking';
+export { approveBookingAsStaff, createFreshApprovedBooking } from './approve-booking';
+export { createApprovedBookingAt } from './create-booking-at';
 export { createFreshCompletedBooking } from './complete-booking';
 export { createInfoRequestedBooking } from './request-info-booking';
 export { createGuestInfoRequestedBooking } from './create-guest-info-requested-booking';

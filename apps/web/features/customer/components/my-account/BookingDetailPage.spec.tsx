@@ -44,6 +44,8 @@ vi.mock('next-intl', () => ({
         cancelWindowNote: 'Cancelamento gratuito até {date} às {time}',
         cancelButton: 'Cancelar agendamento',
         cancelRequestButton: 'Cancelar solicitação',
+        rescheduleWindowNote: 'Você pode reagendar até {date} às {time}',
+        rescheduleButton: 'Reagendar',
         responseSentConfirmation: 'Resposta enviada! Nossa equipe vai analisar em breve.',
         completedNote: 'Serviço concluído. Pontos já adicionados.',
         noShowTitle: 'Não comparecimento registrado',
@@ -122,6 +124,7 @@ function makeBooking(
     totalPrice: { amount: 180, currency: 'BRL' },
     notes: null,
     cancellableUntil: null,
+    reschedule: null,
     infoRequestMessage: null,
     infoResponseMessage: null,
     beforeServicePhotoUrls: [],
@@ -203,6 +206,72 @@ describe('BookingDetailPage', () => {
     );
 
     expect(screen.queryByRole('link', { name: 'Cancelar agendamento' })).not.toBeInTheDocument();
+  });
+
+  describe('reschedule action (UC-069)', () => {
+    const rescheduleBlock = (eligibleUntil: string) => ({
+      eligibleUntil,
+      serviceIds: ['s1'],
+      resourceSelections: [],
+      durationMinutes: null,
+      window: { minAdvanceHours: 0, maxAdvanceDays: 90 },
+      keptPicks: [],
+    });
+
+    it('APPROVED before eligibleUntil: shows the reschedule link in both action panes', () => {
+      render(
+        <BookingDetailPage
+          booking={makeBooking({
+            status: 'APPROVED',
+            reschedule: rescheduleBlock(new Date(Date.now() + 24 * 3_600_000).toISOString()),
+          })}
+          tenantSlug="lavacar-bh"
+        />,
+      );
+
+      const links = screen.getAllByRole('link', { name: 'Reagendar' });
+      expect(links).toHaveLength(2);
+      expect(links[0]).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b1/reschedule');
+    });
+
+    it('shows the reschedule link even when the cancel window has already closed', () => {
+      render(
+        <BookingDetailPage
+          booking={makeBooking({
+            status: 'APPROVED',
+            cancellableUntil: null,
+            reschedule: rescheduleBlock(new Date(Date.now() + 24 * 3_600_000).toISOString()),
+          })}
+          tenantSlug="lavacar-bh"
+        />,
+      );
+
+      expect(screen.getAllByRole('link', { name: 'Reagendar' })).toHaveLength(2);
+      expect(screen.queryByRole('link', { name: 'Cancelar agendamento' })).not.toBeInTheDocument();
+    });
+
+    it('APPROVED past eligibleUntil: hides the reschedule link', () => {
+      render(
+        <BookingDetailPage
+          booking={makeBooking({
+            status: 'APPROVED',
+            reschedule: rescheduleBlock(new Date(Date.now() - 3_600_000).toISOString()),
+          })}
+          tenantSlug="lavacar-bh"
+        />,
+      );
+
+      expect(screen.queryByRole('link', { name: 'Reagendar' })).not.toBeInTheDocument();
+    });
+
+    it('PENDING: offers only the cancel action', () => {
+      render(
+        <BookingDetailPage booking={makeBooking({ status: 'PENDING' })} tenantSlug="lavacar-bh" />,
+      );
+
+      expect(screen.queryByRole('link', { name: 'Reagendar' })).not.toBeInTheDocument();
+      expect(screen.getAllByRole('link', { name: 'Cancelar solicitação' })).toHaveLength(2);
+    });
   });
 
   it('INFO_REQUESTED with no prior response: shows the info-submit form', () => {

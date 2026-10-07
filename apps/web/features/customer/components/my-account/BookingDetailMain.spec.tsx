@@ -65,6 +65,7 @@ function makeBooking(
     totalPrice: { amount: 180, currency: 'BRL' },
     notes: null,
     cancellableUntil: null,
+    reschedule: null,
     infoRequestMessage: null,
     infoResponseMessage: null,
     beforeServicePhotoUrls: [],

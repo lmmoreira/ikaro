@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { BOOKING_STATUS } from '@ikaro/types';
-import { canCancelBooking } from '../../booking-sections';
+import { canCancelBooking, canRescheduleBooking } from '../../booking-sections';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { BookingDetailMain } from './BookingDetailMain';
 import { CancelAction } from './CancelAction';
 import { InfoSubmitForm } from './InfoSubmitForm';
+import { RescheduleAction } from './RescheduleAction';
 
 interface BookingDetailPageProps {
   readonly booking: CustomerBookingDetailResponse;
@@ -57,11 +58,12 @@ export function BookingDetailPage({
 
   const isInfoRequested = status === BOOKING_STATUS.INFO_REQUESTED;
   const showCancel = canCancelBooking({ status, cancellableUntil: booking.cancellableUntil });
+  const showReschedule = canRescheduleBooking({ status, reschedule: booking.reschedule });
   const showInfoForm =
     isInfoRequested && booking.infoResponseMessage === null && !infoJustSubmitted;
   // Every non-terminal state gets the same two-column layout, with a sticky action pane on
   // desktop — INFO_REQUESTED stacks the response form above the cancel option in that pane.
-  const hasSidebarAction = showCancel || status === BOOKING_STATUS.COMPLETED;
+  const hasSidebarAction = showCancel || showReschedule || status === BOOKING_STATUS.COMPLETED;
 
   useEffect(() => {
     setTopbarBookingStatus?.(status);
@@ -95,6 +97,14 @@ export function BookingDetailPage({
               setStatus(BOOKING_STATUS.PENDING);
               setInfoJustSubmitted(true);
             }}
+          />
+        )}
+        {showReschedule && booking.reschedule !== null && (
+          <RescheduleAction
+            tenantSlug={tenantSlug}
+            bookingId={booking.bookingId}
+            eligibleUntil={booking.reschedule.eligibleUntil}
+            returnTo={returnTo}
           />
         )}
         {showCancel && (

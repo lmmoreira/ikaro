@@ -6,6 +6,15 @@ export async function cancelBookingAsCustomer(bookingId: string): Promise<void> 
   await bffClient.patch(`/bookings/${bookingId}/cancel`);
 }
 
+// UC-069 — 200 → the booking keeps APPROVED at the new time. Only `scheduledAt` is ever sent: the
+// booking's picks and duration are kept server-side.
+export async function rescheduleBookingAsCustomer(
+  bookingId: string,
+  scheduledAt: string,
+): Promise<void> {
+  await bffClient.patch(`/bookings/${bookingId}/reschedule`, { scheduledAt });
+}
+
 // UC-005 A2 — 200 → booking status returns to PENDING
 // Body field is `response` (SubmitBookingInfoBodySchema in the BFF), not `message`.
 // photoUrls get appended to the booking's beforeServicePhotoUrls server-side.

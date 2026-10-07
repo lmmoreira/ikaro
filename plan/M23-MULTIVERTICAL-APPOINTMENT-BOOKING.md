@@ -2332,7 +2332,7 @@ reschedule: {
   resourceSelections: ResourceSelectionItem[], // the kept CUSTOMER_CHOICE picks only (automatic resources are re-resolved, never pinned)
   durationMinutes: number | null,              // the CUSTOMER_SELECTED line's kept duration, else null
   window: { minAdvanceHours: number, maxAdvanceDays: number }, // strictest across the services (effective booking window)
-  keptPicks: { serviceName: string, resourceType: ResourceType, legIndex: number | null, resourceName: string }[], // display for 15b
+  keptPicks: { serviceName: string, legName: string | null, legIndex: number | null, resourceType: ResourceType, resourceName: string }[], // display for 15b — legName names a journey leg, null for a flat service
 } | null
 ```
 It reuses `resolveEffectiveRescheduleWindowHours`, `deriveResourceSelectionsFromAssignments` and `resolveEffectiveBookingWindow` rather than re-deriving them (the tenant booking window comes from the controller, as in the reschedule controller). The BFF customer mapper exposes it and `@ikaro/types` adds `BookingRescheduleOptions` + `CustomerBookingDetailResponse.reschedule`; the staff response is unchanged. The page takes the timezone from `useFormatting()`. The `PATCH` body is `{ scheduledAt }` only. `apps/web` consumes `@ikaro/types` only. No migration, no new error code (every code used already has both translations).

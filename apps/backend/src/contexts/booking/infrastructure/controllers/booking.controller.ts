@@ -66,6 +66,10 @@ export class BookingController {
         tenantId,
         cancellationWindowHours: settings.booking.cancellationWindowHours,
         requestingCustomerId: actorType === 'CUSTOMER' ? actorId : undefined,
+        tenantBookingWindow: {
+          minBookingAdvanceHours: settings.booking.minBookingAdvanceHours,
+          maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+        },
       })
       .catch(mapBookingError);
   }

@@ -255,7 +255,7 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 
 ---
 
-## ❓ GAP — M23 Cluster 3 — Reagendar uma reserva (UC-069, story `M23-S30`, discovered 2026-10-07, not yet built)
+## ✅ Done — M23 Cluster 3 — Reagendar uma reserva (UC-069, story `M23-S30`)
 
 The customer area had **no reschedule screen** (only the staff `RescheduleBookingPage` in the dashboard and the recurring-occurrence panel in `06`). This pass adds it; `06`'s inline reschedule panel (a slot `<select>` with "Preço será recalculado") was **removed** — an occurrence is an ordinary booking, so "Reagendar esta ocorrência" opens the same `15-reagendar` screen.
 
@@ -267,15 +267,15 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 **Screens:** `15` default · `15b` kept picks (journey) · `15c` loading · `15d` no slots · `15e` fetch error · `15f` submitting · `15g` success · `15h` `409 BOOKING_SLOT_UNAVAILABLE` · `15i` `409 BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`/`BOOKING_LEG_UNAVAILABLE` · `15j` `422 BOOKING_RESCHEDULE_WINDOW_EXPIRED` · `15k` network/other (incl. `BOOKING_INVALID_TRANSITION`/`BOOKING_ALREADY_TERMINAL`). Entry: `02-agendamento-detail` ("Reagendar") and `06-reserva-recorrente` (each occurrence row).
 
-**File map (❓ none exist yet — M23-S30):**
+**File map (M23-S30):**
 
 | File | Status |
 |---|---|
-| `apps/web/app/[slug]/my-account/bookings/[id]/reschedule/page.tsx` (thin, same shape as `cancel/page.tsx`) | ❓ Gap |
-| `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (with every other customer-shell page, beside `CancelConfirmPage`) | ❓ Gap |
-| `apps/web/features/booking/api/customer.ts` — `rescheduleBookingAsCustomer(id, { scheduledAt })` (`PATCH /bookings/:id/reschedule`; transport lives in the owning slice, like `cancelBookingAsCustomer`) | ❓ Gap |
-| `apps/web/features/customer/booking-sections.ts` — `canRescheduleBooking` (beside `canCancelBooking`) | ❓ Gap |
-| Backend + BFF + `@ikaro/types` — the `reschedule` block on the customer `GET /bookings/:id` response | ❓ Gap |
+| `apps/web/app/[slug]/my-account/bookings/[id]/reschedule/page.tsx` (thin, same shape as `cancel/page.tsx`) | ✅ Done |
+| `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (with every other customer-shell page, beside `CancelConfirmPage`) | ✅ Done |
+| `apps/web/features/booking/api/customer.ts` — `rescheduleBookingAsCustomer(id, { scheduledAt })` (`PATCH /bookings/:id/reschedule`; transport lives in the owning slice, like `cancelBookingAsCustomer`) | ✅ Done |
+| `apps/web/features/customer/booking-sections.ts` — `canRescheduleBooking` (beside `canCancelBooking`) | ✅ Done |
+| Backend + BFF + `@ikaro/types` — the `reschedule` block on the customer `GET /bookings/:id` response | ✅ Done |
 
 **Resolved at `/story-discovery M23-S30` (2026-10-07):**
 - **The customer booking read carries a server-resolved `reschedule` block** (`eligibleUntil`, `serviceIds`, the kept `CUSTOMER_CHOICE` `resourceSelections`, `durationMinutes`, the effective `window`, and `keptPicks` for `15b`'s read-only list) — non-null only for an `APPROVED` booking. It is the page's whole input: it decides whether "Reagendar" shows, what the carousel/slot list is pinned and limited to, and what `15b` lists. A null block redirects to the booking detail; `now ≥ eligibleUntil` renders `15j` without loading slots.

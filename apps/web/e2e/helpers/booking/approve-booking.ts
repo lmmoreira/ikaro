@@ -6,7 +6,7 @@ import { createAuthenticatedBooking, type AuthenticatedBookingSetup } from './cr
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
 const STAFF_TENANT_SLUG = 'lavacar-beloauto';
 
-async function approveBookingAsStaff(
+export async function approveBookingAsStaff(
   page: Page,
   bookingId: string,
   staffEmail: string,

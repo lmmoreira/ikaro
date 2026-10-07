@@ -104,6 +104,7 @@ describe('LoyaltyBookingAdapter', () => {
       rejectionReason: null,
       createdAt: '2026-01-01T10:00:00.000Z',
       cancellableUntil: null,
+      reschedule: null,
       pointsEarned: null,
     });
 

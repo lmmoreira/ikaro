@@ -1,9 +1,23 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
+import {
+  ITransactionManager,
+  TRANSACTION_MANAGER,
+} from '../../../../shared/ports/transaction-manager.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
+import {
+  IResourceOccupancyRepository,
+  RESOURCE_OCCUPANCY_REPOSITORY,
+} from '../ports/resource-occupancy-repository.port';
+import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { TenantBookingWindow } from './booking-window.helpers';
+import {
+  BookingRescheduleOptionsDetail,
+  buildRescheduleOptions,
+} from './booking-reschedule-options.helpers';
 
 type MoneyDetail = { amount: number; currency: string };
 
@@ -12,6 +26,7 @@ export type GetBookingByIdUseCaseInput = {
   tenantId: string;
   cancellationWindowHours: number;
   requestingCustomerId?: string;
+  tenantBookingWindow?: TenantBookingWindow;
 };
 
 export interface BookingLineDetail {
@@ -67,6 +82,9 @@ export interface GetBookingByIdUseCaseResult {
   createdAt: string;
   // Customer self-cancellation deadline (UC-007) — non-null only for APPROVED bookings.
   cancellableUntil: string | null;
+  // UC-069 — the customer reschedule screen's input; non-null only for a customer reading their own
+  // APPROVED booking.
+  reschedule: BookingRescheduleOptionsDetail | null;
   // Sum of lines' pointsValueAtBooking — non-null only once COMPLETED.
   pointsEarned: number | null;
 }
@@ -76,6 +94,10 @@ export class GetBookingByIdUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
+    @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
+    private readonly occupancyRepo: IResourceOccupancyRepository,
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async execute(input: GetBookingByIdUseCaseInput): Promise<GetBookingByIdUseCaseResult> {
@@ -91,7 +113,39 @@ export class GetBookingByIdUseCase {
       throw new BookingNotFoundError(input.bookingId);
     }
 
-    return this.toResult(booking, cancellationWindowHours);
+    const reschedule =
+      requestingCustomerId !== undefined && input.tenantBookingWindow
+        ? await this.resolveRescheduleOptions(booking, input, input.tenantBookingWindow)
+        : null;
+
+    return this.toResult(booking, cancellationWindowHours, reschedule);
+  }
+
+  private async resolveRescheduleOptions(
+    booking: Booking,
+    input: GetBookingByIdUseCaseInput,
+    tenantBookingWindow: TenantBookingWindow,
+  ): Promise<BookingRescheduleOptionsDetail | null> {
+    if (booking.status !== BookingStatus.APPROVED) return null;
+
+    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
+    const [services, occupancyRows] = await Promise.all([
+      this.serviceRepo.findByIds(serviceIds, input.tenantId),
+      this.txManager.run(() =>
+        this.occupancyRepo.findOccupancyByBookingLines(
+          input.tenantId,
+          booking.lines.map((line) => line.lineId),
+        ),
+      ),
+    ]);
+
+    return buildRescheduleOptions({
+      booking,
+      serviceMap: new Map(services.map((service) => [service.id, service])),
+      occupancyRows,
+      tenantDefaultRescheduleWindowHours: input.cancellationWindowHours,
+      tenantBookingWindow,
+    });
   }
 
   private toAddressDetail(address: Booking['contactAddress']): BookingAddressDetail | null {
@@ -141,22 +195,26 @@ export class GetBookingByIdUseCase {
   private async toResult(
     booking: Booking,
     cancellationWindowHours: number,
+    reschedule: BookingRescheduleOptionsDetail | null,
   ): Promise<GetBookingByIdUseCaseResult> {
     const [beforeServicePhotoUrls, afterServicePhotoUrls] = await Promise.all([
       this.signPhotoUrls(booking.beforeServicePhotoUrls),
       this.signPhotoUrls(booking.afterServicePhotoUrls),
     ]);
 
-    return this.buildResult(booking, cancellationWindowHours, {
-      beforeServicePhotoUrls,
-      afterServicePhotoUrls,
-    });
+    return this.buildResult(
+      booking,
+      cancellationWindowHours,
+      { beforeServicePhotoUrls, afterServicePhotoUrls },
+      reschedule,
+    );
   }
 
   private buildResult(
     booking: Booking,
     cancellationWindowHours: number,
     signedPhotoUrls: { beforeServicePhotoUrls: string[]; afterServicePhotoUrls: string[] },
+    reschedule: BookingRescheduleOptionsDetail | null,
   ): GetBookingByIdUseCaseResult {
     return {
       id: booking.id,
@@ -188,6 +246,7 @@ export class GetBookingByIdUseCase {
       rejectionReason: booking.rejectionReason,
       createdAt: booking.createdAt.toISOString(),
       cancellableUntil: booking.cancellableUntilIso(cancellationWindowHours),
+      reschedule,
       pointsEarned: booking.status === BookingStatus.COMPLETED ? booking.pointsEarned() : null,
     };
   }
