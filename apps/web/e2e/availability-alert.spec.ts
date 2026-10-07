@@ -11,7 +11,17 @@ import {
   seedAlertEligibleService,
 } from './helpers/availability-alert';
 import { completeCustomerProfile } from './helpers/customer';
-import { MANAGER_EMAIL, seedFixedService, TENANT_SLUG } from './helpers/booking-form';
+import {
+  MANAGER_EMAIL,
+  nextButton,
+  openBooking,
+  seedChoiceService,
+  seedFixedService,
+  selectService,
+  TENANT_SLUG,
+} from './helpers/booking-form';
+import { seedBundle, seedVariableDurationService } from './helpers/booking-form/seeds';
+import { setBookingPolicy } from './helpers/services';
 
 // M23-S31 — UC-072: the calendar step offers "Avise-me quando abrir", which opens the alert page
 // of the booking flow. A logged-in customer fills the criteria and saves; a guest meets a login
@@ -178,6 +188,121 @@ test.describe('M23-S31 — availability alert entry', () => {
         'href',
         `/${TENANT_SLUG}/my-account/alerts`,
       );
+    } finally {
+      await customer.close();
+    }
+  });
+
+  test('a resource picked in the booking flow is shown read-only and saved as the preferred resource', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const service = await seedChoiceService(page);
+    await setBookingPolicy(page, service.serviceId, { availabilityAlertEligible: true });
+    const pickedResourceId = service.resourceIds[0];
+    const customer = await newLoggedInCustomerPage(browser);
+
+    try {
+      await customer.page.goto(
+        `${ALERT_PAGE}?serviceId=${service.serviceId}&preferredResourceId=${pickedResourceId}`,
+      );
+      await expect(customer.page.getByTestId('availability-alert-form')).toBeVisible();
+      await expect(customer.page.getByTestId('alert-resource')).toBeVisible({ timeout: 20_000 });
+      await expect(customer.page.getByTestId('alert-composite-note')).toHaveCount(0);
+
+      await fillAlertRange(customer.page, futureDate(2), futureDate(9));
+      await customer.page.getByTestId('alert-submit').click();
+
+      await expect(customer.page.getByTestId('availability-alert-saved')).toBeVisible({
+        timeout: 20_000,
+      });
+      const saved = (await listMyAlerts(customer.page)).filter(
+        (alert) => alert.serviceId === service.serviceId,
+      );
+      expect(saved).toHaveLength(1);
+      expect(saved[0]?.preferredResourceId).toBe(pickedResourceId);
+    } finally {
+      await customer.close();
+    }
+  });
+
+  test('the duration chosen for a customer-selected service is carried to the alert and saved', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const { service } = await seedVariableDurationService(page);
+    await setBookingPolicy(page, service.serviceId, { availabilityAlertEligible: true });
+    const customer = await newLoggedInCustomerPage(browser);
+
+    try {
+      await customer.page.goto(`${ALERT_PAGE}?serviceId=${service.serviceId}&durationMinutes=120`);
+      await expect(customer.page.getByTestId('availability-alert-form')).toBeVisible();
+
+      await fillAlertRange(customer.page, futureDate(2), futureDate(9));
+      await customer.page.getByTestId('alert-submit').click();
+
+      await expect(customer.page.getByTestId('availability-alert-saved')).toBeVisible({
+        timeout: 20_000,
+      });
+      const saved = (await listMyAlerts(customer.page)).filter(
+        (alert) => alert.serviceId === service.serviceId,
+      );
+      expect(saved).toHaveLength(1);
+      expect(saved[0]?.durationMinutes).toBe(120);
+    } finally {
+      await customer.close();
+    }
+  });
+
+  test('a bundle shows the composite note, offers no resource and saves without a preferred resource', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const { service } = await seedBundle(page);
+    await setBookingPolicy(page, service.serviceId, { availabilityAlertEligible: true });
+    const customer = await newLoggedInCustomerPage(browser);
+
+    try {
+      await customer.page.goto(`${ALERT_PAGE}?serviceId=${service.serviceId}`);
+      await expect(customer.page.getByTestId('availability-alert-form')).toBeVisible();
+      await expect(customer.page.getByTestId('alert-composite-note')).toBeVisible();
+      await expect(customer.page.getByTestId('alert-resource')).toHaveCount(0);
+
+      await fillAlertRange(customer.page, futureDate(2), futureDate(9));
+      await customer.page.getByTestId('alert-submit').click();
+
+      await expect(customer.page.getByTestId('availability-alert-saved')).toBeVisible({
+        timeout: 20_000,
+      });
+      const saved = (await listMyAlerts(customer.page)).filter(
+        (alert) => alert.serviceId === service.serviceId,
+      );
+      expect(saved).toHaveLength(1);
+      expect(saved[0]?.preferredResourceId).toBeNull();
+    } finally {
+      await customer.close();
+    }
+  });
+
+  test('a basket with two services offers no alert button', async ({ page, browser }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const first = await seedAlertEligibleService(page);
+    const second = await seedAlertEligibleService(page);
+    const customer = await newLoggedInCustomerPage(browser);
+
+    try {
+      await openBooking(customer.page);
+      await selectService(customer.page, first.serviceId);
+      await selectService(customer.page, second.serviceId);
+      await nextButton(customer.page).click();
+
+      await expect(customer.page.locator('[data-testid="day-option"]').first()).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(customer.page.getByTestId('availability-alert-entry')).toHaveCount(0);
     } finally {
       await customer.close();
     }
