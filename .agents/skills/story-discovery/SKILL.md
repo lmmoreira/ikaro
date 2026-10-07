@@ -214,6 +214,12 @@ If this story replaces or removes an existing flow/mechanism (an auth pattern, a
 ### 4r. Business-logic reference doc (`docs/27-BUSINESS_LOGIC_REFERENCE.md`)
 Does this story introduce or change an algorithm, state machine, or formula that spans multiple use cases or aggregates within its bounded context — the kind of logic a future dev/agent would otherwise have to re-derive from scattered prose across `docs/02`/`docs/04`/`docs/13`? If so, flag as a RISK that the story's own scope should include adding or updating that context's section in `docs/27-BUSINESS_LOGIC_REFERENCE.md` (a permanent, mermaid-diagrammed reference, additive by bounded context — read its own header before writing). A context with no section yet is normal; a story that meaningfully *changes* an existing section's algorithm without touching the doc is the actual gap to catch here. Not every story needs this — only genuinely complex, cross-cutting logic, not a single new field or endpoint.
 
+### 4s. UI reuse inventory (frontend stories only)
+For every interactive control the story's UI needs (a calendar, a date or time picker, a select, a popover, a dialog, a switch, a badge, a card, a button), name the existing primitive in `apps/web/shared/components/ui/` and one real usage to copy — `ls` the directory and grep, don't answer from memory (`docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives has the starting inventory). Record the mapping in the story spec at Step 7.
+- A control with an existing primitive → note which one; the implementation composes it.
+- A control with **no** primitive → **RISK**: the story must say so and plan to port the reference source into `shared/components/ui/` with a spec — never a one-off inside the feature.
+- A story or prototype that describes a control as bespoke markup (a custom grid, a styled `<input type="date">`) where a primitive exists → **RISK**, raise it in Step 6's questions.
+
 ---
 
 ## Step 5 — Print findings
