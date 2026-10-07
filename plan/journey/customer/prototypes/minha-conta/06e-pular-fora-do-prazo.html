@@ -9,24 +9,11 @@
     details summary { list-style: none; }
     details summary::-webkit-details-marker { display: none; }
 
-    .customer-nav {
-      display: none; background: white;
-      border-bottom: 1px solid var(--ba-secondary);
-      padding: 0 1.5rem; position: sticky; top: 3.375rem; z-index: 5;
-    }
-    .customer-nav-item {
-      display: inline-flex; align-items: center; gap: 0.375rem;
-      padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 500;
-      color: var(--ba-text); text-decoration: none;
-      border-bottom: 2px solid transparent; opacity: 0.5;
-    }
-    .customer-nav-item.active { color: var(--ba-primary); border-bottom-color: var(--ba-primary); opacity: 1; }
 
     .section-label {
       font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
       text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 0 0 0.625rem;
     }
-    .back-link { display: inline-block; font-size: 0.8125rem; color: var(--ba-text); opacity: 0.6; text-decoration: none; margin-bottom: 0.75rem; }
     .page-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
     .page-title { font-size: 1.125rem; font-weight: 700; color: var(--ba-text); margin: 0; }
 
@@ -87,7 +74,6 @@
       .topbar-brand { display: flex !important; }
       .desktop-only { display: inline-flex !important; }
       .mobile-only  { display: none !important; }
-      .customer-nav { display: flex; }
       .topbar-user-name { display: inline !important; }
     }
   
@@ -104,16 +90,10 @@
 <body>
 
   <!--
-    COMPONENT: RecurringScheduleDetail
-    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx  (GAP — M23-S12)
-    UC cobertos: UC-070 A2 (pular / reagendar uma ocorrência, encerrar) — não existe "pausar" (removido em 2026-09-29: com o prazo fixo todas as reservas já existem)
-    DATA:
-      GET   /recurring-booking-schedules  (lista, filtrada pelo id)
-      PATCH /bookings/:id/cancel  (pular — a ocorrência é a própria reserva; sujeita à janela de cancelamento)
-      PATCH /bookings/:id/reschedule  (reagendar — o mesmo fluxo de qualquer reserva)
-      GET   /bookings?recurringScheduleId=  (lista as ocorrências da recorrência)
-      POST  /recurring-booking-schedules/:id/end
-      A recorrência tem prazo fixo (endsOn obrigatório, máx. 90 dias por padrão); "Renovar" abre 13f. Mostrado quando o prazo termina em breve (regra a fechar no /story-discovery de M23-S22).
+    COMPONENT: SkipOccurrenceRefusedPage  (GAP — M23-S12)
+    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx — estado de erro da página de detalhe (06)
+    SCENARIO:   Pular uma ocorrência recusada fora do prazo de cancelamento — o mesmo cancelamento de uma reserva avulsa (03b), mostrado com o contexto da recorrência
+    DATA:       PATCH /bookings/:id/cancel → 422 fora do prazo de cancelamento do tenant (a ocorrência é a própria reserva — M23-S08). Chega aqui a partir de 06 → 03-cancel-confirm; "Voltar" leva à recorrência (06).
   -->
 
   <!-- TOP BAR — drill-down pattern: back link replaces the brand slot (CustomerTopbar backHrefOverride), no tab nav / bottom nav -->
