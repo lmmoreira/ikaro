@@ -224,6 +224,12 @@ It is called by `POST /bookings`, `POST /bookings/authenticated` and the **custo
 
 `UpdateServiceBookingPolicyUseCase` rejects (`422 BOOKING_SERVICE_BOOKING_POLICY_INVALID`, field named) a *changed* override that is looser than the tenant window, and one that leaves `effective min hours / 24 >= effective max days` (nothing bookable). An override left unchanged is not re-validated, so one that went stale after the tenant shrank its window does not block saving the rest of the policy. The tenant settings validator enforces the same cross-field rule on the tenant's own two values (`minBookingAdvanceHours / 24 < maxBookingAdvanceDays`, ceilings 8760 h / 365 days).
 
+
+### Known limitations
+
+- **After business hours the tenant's today stays an enabled day with no slots left.** The summary marks a day available when the business hours leave slots, without looking at the clock, and the availability read is deliberately untrimmed (above), so the carousel and calendar show today enabled; the page then hides every elapsed slot and says there is none. Decided on 2026-10-07 to leave it, and to make the E2E helpers clock-aware instead (`docs/ENGINEERING_RULES_TESTING.md`): trimming the read would change what staff and the alert sweep see.
+- **Recurring schedules are not window-checked yet.** `RequestRecurringBookingScheduleUseCase` validates only the term length (`assertValidTerm`), so a schedule's `startsOn` can be in the past, inside the minimum notice or beyond the maximum days, and approval creates every occurrence, including ones already past. Tracked as M23-S35, which also settles that a renewal is, in the backend, an ordinary create request.
+
 ---
 
 ## Booking — Recurring Reservations (M23-S04, M23-S05)
