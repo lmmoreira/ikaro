@@ -49,6 +49,7 @@ export const hotsiteServiceBookingDefaults: Pick<
     minimumChargeAmount: null,
     recurrenceEligible: false,
     recurringHorizonDays: null,
+    availabilityAlertEligible: false,
   },
 };
 

@@ -1,5 +1,5 @@
 import { makeBackendHttp } from '../../test/backend-http.mock';
-import { AvailabilityAlertResponse } from './availability-alerts.types';
+import { AvailabilityAlertResponse } from '@ikaro/types';
 import { AvailabilityAlertsController } from './availability-alerts.controller';
 
 const ALERT_ID = '00000000-0000-4000-8000-000000000001';

@@ -183,6 +183,7 @@ export function toPublicServiceResponse(service: ServiceDetail): HotsiteServiceR
       minimumChargeAmount: policy.minimumChargeAmount,
       recurrenceEligible: policy.recurrenceEligible,
       recurringHorizonDays: policy.recurringHorizonDays,
+      availabilityAlertEligible: policy.availabilityAlertEligible,
     },
   };
 }

@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import type { AvailableSlot, ResourceSelectionItem } from '@ikaro/types';
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
+import { AvailabilityAlertEntry } from './AvailabilityAlertEntry';
 import { AvailabilityCalendar } from './AvailabilityCalendar';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
 import { ErrorAlert } from './ErrorAlert';
@@ -22,6 +23,8 @@ interface AvailabilityStepProps {
   readonly onSelectSlot: (slot: AvailableSlot) => void;
   readonly resourceSelections?: readonly ResourceSelectionItem[];
   readonly durationMinutes?: number;
+  // The "Avise-me quando abrir" link (M23-S31), or null/absent when no alert can be offered.
+  readonly alertHref?: string | null;
   readonly error: StepError | null;
   readonly onBack: () => void;
   readonly onNext: () => void;
@@ -43,6 +46,7 @@ export function AvailabilityStep({
   onSelectSlot,
   resourceSelections,
   durationMinutes,
+  alertHref = null,
   error,
   onBack,
   onNext,
@@ -104,7 +108,7 @@ export function AvailabilityStep({
         </div>
       )}
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
           onClick={onBack}
@@ -117,6 +121,7 @@ export function AvailabilityStep({
         >
           {tc('back')}
         </button>
+        <AvailabilityAlertEntry href={alertHref} />
         <button
           type="button"
           disabled={!selectedSlot}

@@ -17,6 +17,7 @@ export class HotsiteServiceBuilder {
     minimumChargeAmount: null,
     recurrenceEligible: false,
     recurringHorizonDays: null,
+    availabilityAlertEligible: false,
   };
 
   withId(id: string): this {
