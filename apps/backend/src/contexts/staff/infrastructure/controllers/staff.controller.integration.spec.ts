@@ -1,7 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
-import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -21,6 +20,7 @@ import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { StaffEntity } from '../entities/staff.entity';
 import { StaffModule } from '../../staff.module';
+import { testConfigModule } from '../../../../test/utils/test-config-module';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000100';
 const TENANT_B = '10000000-0000-4000-8000-000000000101';
@@ -34,7 +34,7 @@ describe('StaffController (integration) — management endpoints', () => {
     const routingBus = new RoutingInMemoryEventBus();
     const moduleRef = await Test.createTestingModule({
       imports: [
-        ConfigModule.forRoot({ isGlobal: true }),
+        testConfigModule(),
         TypeOrmModule.forRoot({
           type: 'postgres',
           url: process.env['TEST_DATABASE_URL'],
