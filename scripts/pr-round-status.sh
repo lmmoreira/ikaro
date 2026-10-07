@@ -42,8 +42,11 @@
 #
 # Exit code reflects CI only (0 = all CI checks passed, 1 = at least one
 # failed) — Codex/CodeRabbit/Sonar findings are information for the caller to
-# triage, not a script failure. Polls every 30s with no total timeout
-# (same blocking design as the script it replaces); Ctrl-C to abort.
+# triage, not a script failure. The one other code is 3: --wait-codex was set, no
+# `codex exec` process for this PR is running any more, and no review comment has
+# appeared (the reviewer died without posting — see CODEX_GONE_POLLS below). Polls
+# every 30s with no total timeout (same blocking design as the script it replaces);
+# Ctrl-C to abort.
 #
 # Usage (inside Claude):  ! bash scripts/pr-round-status.sh
 # Worktree note: unlike `codex exec` or the Monitor tool, a plain
@@ -67,6 +70,30 @@ GATE_NAME="${GATE_NAME:-All Checks Passed}"
 # Fallback for a PR whose workflow never produces the gate row: accept the check list as final
 # once it has stopped growing (and nothing is pending) for this many consecutive polls.
 STABLE_POLLS="${STABLE_POLLS:-6}"
+# --wait-codex used to block forever when the headless `codex exec` exited without posting: on a
+# PR naming no story/TD ID it stops to ask for one and ends (PR #569, 2026-10-07), and the
+# script kept waiting for a comment that could never arrive. If no `codex exec ... PR #<N>`
+# process is running and no review has appeared for CODEX_GONE_POLLS consecutive polls (default
+# 3 — a grace window for a finished Codex's comment to become visible), exit 3 instead of
+# waiting. CODEX_LIVENESS_CHECK=0 turns it off when Codex runs somewhere this host cannot see.
+# CODEX_LOG_DIR (default /tmp) is where /pre-pr's dispatch writes pr-<N>-codex-review*.log.
+CODEX_GONE_POLLS="${CODEX_GONE_POLLS:-3}"
+CODEX_LIVENESS_CHECK="${CODEX_LIVENESS_CHECK:-1}"
+CODEX_LOG_DIR="${CODEX_LOG_DIR:-/tmp}"
+CODEX_GONE_COUNT=0
+
+codex_gone_exit() {
+  echo "❌ Codex is no longer running for PR #${PR_NUMBER} and has posted no review since ${SINCE}." >&2
+  echo "   It most likely exited without posting — typically because the PR names no story/TD ID and the headless run stopped to ask for one (state it in the PR body and in the dispatch prompt: /pre-pr Step 5b)." >&2
+  local latest_log
+  latest_log=$(ls -t "${CODEX_LOG_DIR}"/pr-"${PR_NUMBER}"-codex-review*.log 2>/dev/null | head -1)
+  if [ -n "$latest_log" ]; then
+    echo "   Tail of ${latest_log}:" >&2
+    tail -n 6 "$latest_log" 2>/dev/null | sed 's/^/     /' >&2
+  fi
+  echo "   Re-dispatch it, then run this script again with a fresh --since. (CODEX_LIVENESS_CHECK=0 if Codex runs on another machine.)" >&2
+  exit 3
+}
 
 PR_NUMBER=""
 SINCE=""
@@ -190,6 +217,15 @@ while true; do
       [.comments[] | select(.createdAt >= $since)
        | select(.body | test("Automated review via `?/pr-review`?.*Codex") or test("\\*\\*Reviewed by:\\*\\* Codex"))]
       | sort_by(.createdAt) | last | .url // empty')
+
+    if [ -z "$CODEX_URL" ] && [ "$CODEX_LIVENESS_CHECK" = "1" ] && command -v pgrep >/dev/null 2>&1; then
+      if pgrep -f "codex exec.*PR #${PR_NUMBER}([^0-9]|\$)" >/dev/null 2>&1; then
+        CODEX_GONE_COUNT=0
+      else
+        CODEX_GONE_COUNT=$((CODEX_GONE_COUNT + 1))
+      fi
+      [ "$CODEX_GONE_COUNT" -lt "$CODEX_GONE_POLLS" ] || codex_gone_exit
+    fi
   fi
 
   if [ "$WAIT_CODERABBIT" -eq 1 ]; then
