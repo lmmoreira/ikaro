@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reagendar — João Silva — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/reschedule-picker.css">
   <style>
     .bottom-nav { display: none !important; }
 
@@ -43,9 +44,9 @@
     ROUTE:      reached from 03-booking-detail-approved.html "Reagendar" button
     AUTH:       JWT cookie, STAFF or MANAGER role
 
-    Reuses the SAME AvailabilityCalendar
-    component as UC-011 (guest/customer booking flow, see customer/prototypes/book-a-service/02-calendar-slot.html),
-    since the underlying GET /v1/schedule/availability endpoint and day-pill/slot-btn UI are identical.
+    Composes the SAME AvailabilityCarousel + SlotPicker as the UC-011 booking flow (apps/web/features/booking/components/public/),
+    rendered with variant="dashboard" — see shared/reschedule-picker.css (14-day strip starting at "Hoje" with chevrons,
+    start–end slot grid). NOT the tokens.css .day-pill/.slot-btn (hotsite look).
     Difference from the booking flow: no basket/duration recompute — duration is frozen at
     booking.totalDurationMins from the original approved booking.
 
@@ -177,38 +178,10 @@
             </div>
 
             <p class="detail-section-label">Escolha o novo dia</p>
-            <div style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
-              <div class="day-pill unavailable">
-                <p style="font-size: 0.7rem; font-weight: 600;">SEG</p>
-                <p style="font-weight: 700; font-size: 0.9375rem;">16</p>
-              </div>
-              <div class="day-pill available">
-                <p style="font-size: 0.7rem; font-weight: 600;">TER</p>
-                <p style="font-weight: 700; font-size: 0.9375rem;">17</p>
-              </div>
-              <div class="day-pill selected">
-                <p style="font-size: 0.7rem; font-weight: 600;">QUA</p>
-                <p style="font-weight: 700; font-size: 0.9375rem;">18</p>
-              </div>
-              <div class="day-pill available">
-                <p style="font-size: 0.7rem; font-weight: 600;">QUI</p>
-                <p style="font-weight: 700; font-size: 0.9375rem;">19</p>
-              </div>
-              <div class="day-pill unavailable">
-                <p style="font-size: 0.7rem; font-weight: 600;">SEX</p>
-                <p style="font-weight: 700; font-size: 0.9375rem;">20</p>
-              </div>
-            </div>
+            <div class="avc-row" data-testid="reschedule-days"><button type="button" class="avc-chev" aria-label="Dias anteriores"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="avc-scroll"><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-14" aria-pressed="false" disabled><span class="wd">Hoje</span><span class="dn">14</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-15" aria-pressed="false" disabled><span class="wd">Dom</span><span class="dn">15</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-16" aria-pressed="false" disabled><span class="wd">Seg</span><span class="dn">16</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-17" aria-pressed="false"><span class="wd">Ter</span><span class="dn">17</span></button><button type="button" class="avc-day selected" data-testid="day-option" data-date="2025-06-18" aria-pressed="true"><span class="wd">Qua</span><span class="dn">18</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-19" aria-pressed="false"><span class="wd">Qui</span><span class="dn">19</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-20" aria-pressed="false" disabled><span class="wd">Sex</span><span class="dn">20</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-21" aria-pressed="false"><span class="wd">Sáb</span><span class="dn">21</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-22" aria-pressed="false" disabled><span class="wd">Dom</span><span class="dn">22</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-23" aria-pressed="false"><span class="wd">Seg</span><span class="dn">23</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-24" aria-pressed="false"><span class="wd">Ter</span><span class="dn">24</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-25" aria-pressed="false"><span class="wd">Qua</span><span class="dn">25</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-26" aria-pressed="false"><span class="wd">Qui</span><span class="dn">26</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2025-06-27" aria-pressed="false"><span class="wd">Sex</span><span class="dn">27</span></button></div><button type="button" class="avc-chev" aria-label="Próximos dias"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div>
 
-            <p class="detail-section-label">Horários disponíveis — Qua, 18 de junho (30 min)</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem;">
-              <button class="slot-btn" onclick="selectSlot(this, '08:00', '08:30')">08:00</button>
-              <button class="slot-btn" onclick="selectSlot(this, '09:00', '09:30')">09:00</button>
-              <button class="slot-btn selected" onclick="selectSlot(this, '10:00', '10:30')">10:00</button>
-              <button class="slot-btn" onclick="selectSlot(this, '11:00', '11:30')">11:00</button>
-              <button class="slot-btn" onclick="selectSlot(this, '14:00', '14:30')">14:00</button>
-              <button class="slot-btn" onclick="selectSlot(this, '15:00', '15:30')">15:00</button>
-            </div>
+            <p class="detail-section-label">Horários disponíveis</p>
+            <div class="slotp-grid" data-testid="reschedule-slots"><button type="button" class="slotp" data-testid="time-slot" aria-pressed="false" onclick="selectSlot(this, '08:00', '08:30')">08:00–08:30</button><button type="button" class="slotp" data-testid="time-slot" aria-pressed="false" onclick="selectSlot(this, '09:00', '09:30')">09:00–09:30</button><button type="button" class="slotp selected" data-testid="time-slot" aria-pressed="true" onclick="selectSlot(this, '10:00', '10:30')">10:00–10:30</button><button type="button" class="slotp" data-testid="time-slot" aria-pressed="false" onclick="selectSlot(this, '11:00', '11:30')">11:00–11:30</button><button type="button" class="slotp" data-testid="time-slot" aria-pressed="false" onclick="selectSlot(this, '14:00', '14:30')">14:00–14:30</button><button type="button" class="slotp" data-testid="time-slot" aria-pressed="false" onclick="selectSlot(this, '15:00', '15:30')">15:00–15:30</button></div>
 
             <p class="detail-section-label">Notas (opcional)</p>
             <textarea
@@ -285,7 +258,7 @@
 
   <script>
     function selectSlot(btn, startsAt, endsAt) {
-      document.querySelectorAll('.slot-btn').forEach(function (b) { b.classList.remove('selected'); });
+      document.querySelectorAll('.slotp').forEach(function (b) { b.classList.remove('selected'); });
       btn.classList.add('selected');
       document.getElementById('new-slot-summary').textContent =
         'Quarta, 18 de junho · ' + startsAt + '–' + endsAt;

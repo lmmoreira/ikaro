@@ -186,6 +186,7 @@ Currently shared:
 | `shared/staff-login.html` | Google OAuth login screen (staff/manager) — referenced by all staff-side journeys; links out to the canonical error states in `staff/prototypes/login/` rather than duplicating their copy |
 | `shared/customer-dashboard.html` | "Início" tab of `/{slug}/minha-conta` — overview stats + upcoming/history preview; cross-links to the Agendamentos (`customer/prototypes/minha-conta/01-minha-conta.html`) and Fidelidade tabs |
 | `shared/dashboard-shell.html` | Generic staff/manager dashboard master template (sidebar + bottom-nav + bottom-sheet). NOT a finished page — copy the shell when building a new staff page; `staff/prototypes/agenda/00-agenda.html` is the validated reference implementation, not this file |
+| `shared/reschedule-picker.css` | The date strip + slot grid + loading/empty/error alerts exactly as `AvailabilityCarousel`/`SlotPicker`/`ErrorAlert` render with `variant="dashboard"` — link it from any dashboard/account-shell prototype that picks a date and time (staff reschedule, customer reschedule) |
 | `shared/entry.html` | Prototype-only actor picker (Sou cliente / Sou funcionário) — lets a reviewer start from one URL; has no production equivalent |
 
 **Path convention from a step file to shared/:** Step files live at `<actor>/prototypes/<journey>/`, so shared/ is three levels up then back into shared/:
@@ -235,6 +236,8 @@ Always copy the **exact default values** from `hotsite-config.aggregate.ts` (`DE
 ```
 
 Also define reusable classes: `.btn-primary`, `.btn-secondary`, `.card`, `.card.selected`, `.step-container`, `.step-indicator`, `.form-label`, `.form-input`, `.nav-buttons`, `.slot-btn`, `.day-pill`, `.upload-area`, `.auth-bar`, `.auth-avatar`. See existing `tokens.css` files for the full list.
+
+> **`.slot-btn` / `.day-pill` draw the hotsite look only** (`--ba-*` colours, green "available" border). They are for hotsite/guest prototypes. A prototype for a dashboard or account (customer-area) screen must **not** use them for a date/slot picker: that control already exists in code (`AvailabilityCarousel` + `SlotPicker`, `variant="dashboard"` — see `RescheduleBookingPage`), so draw its real output with `shared/reschedule-picker.css`. General rule: **before drawing a control, find the component the screen will actually reuse and mirror what it renders** — never a bespoke look — and name the component and variant in the prototype's header comment.
 
 ### Brand + auth bar pattern (mandatory on every public screen)
 

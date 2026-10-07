@@ -42,7 +42,7 @@ The prototype uses plain HTML + `tokens.css`. Production uses shadcn/ui componen
 | Avatar initials (`.auth-avatar`) | `Avatar`, `AvatarFallback` | |
 | Inline alert banners (green/red/blue) | `Alert`, `AlertDescription` with `variant` | |
 | Slot conflict error | custom `Alert` + slot picker pills | shadcn `Alert variant="destructive"` + `Button variant="outline"` pills |
-| Reschedule calendar (`.day-pill` / `.slot-btn`) | Same `AvailabilityCalendar` component as the UC-011 booking flow — no new shadcn mapping needed | Confirm the component accepts a `mode: 'booking' \| 'reschedule'` prop, or extract its pure rendering from the basket-aware wrapper |
+| Reschedule date strip + slot grid | `AvailabilityCarousel` + `SlotPicker` (the UC-011 booking flow's components) with `variant="dashboard"` — no new shadcn mapping needed; the prototype draws them with `shared/reschedule-picker.css`, not the hotsite `.day-pill`/`.slot-btn` | Already shipped in `RescheduleBookingPage` (duration frozen at `totalDurationMins`) |
 | Per-line price editor (`.price-line` / `.price-input`) | shadcn `Input type="number"` per row, pre-filled with `priceAtBooking` | Client-side recompute of the displayed total on every keystroke (no BFF round-trip) |
 
 ---
@@ -94,9 +94,9 @@ type ActionState =
 |---|---|---|---|
 | `idle` | Click "Marcar concluído" | — | Navigates to `MarkCompleteSheet` (full screen/route — too much content for a bottom sheet) |
 | `MarkCompleteSheet` confirm | `PATCH .../complete` → 200 | `completed` | Green banner with cotado-vs-cobrado summary; no further actions (terminal) |
-| `idle` | Click "Reagendar" | — | Navigates to `RescheduleBookingCalendar` (full screen/route) |
-| `RescheduleBookingCalendar` confirm | `PATCH .../reschedule` → 200 | `rescheduled` | Green banner with old/new slot; **status stays APPROVED — action buttons return** (not terminal, unlike approve/reject/complete/cancel) |
-| `RescheduleBookingCalendar` confirm | `PATCH .../reschedule` → 409 | `reschedule-conflict` | Inline error + adjacent slot suggestions, same pattern as `slot-conflict` |
+| `idle` | Click "Reagendar" | — | Navigates to `RescheduleBookingPage` (full screen/route) |
+| `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 200 | `rescheduled` | Green banner with old/new slot; **status stays APPROVED — action buttons return** (not terminal, unlike approve/reject/complete/cancel) |
+| `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 409 | `reschedule-conflict` | Inline error + adjacent slot suggestions, same pattern as `slot-conflict` |
 | `idle` | Click "Cancelar" | — | Opens `AdminCancelBookingSheet` (no state change yet) |
 | `AdminCancelBookingSheet` confirm | `PATCH .../cancel-admin` → 200 | `cancelled` | Red banner; no further actions (terminal) |
 
@@ -392,7 +392,7 @@ export interface CompleteBookingResponse {
 - Triage endpoints (`GET /v1/bookings`, `GET /v1/bookings/:id`, `PATCH .../approve|reject|request-info`) — all implemented, `M125-S02`/`S04`/`S05`.
 - Lifecycle endpoints (`cancel`, `reschedule`, `complete`) — all implemented, `M13-S19`/`S20`, with `.http` coverage.
 - `MarkCompleteBookingPage` and `RescheduleBookingPage` are dedicated nested routes (`/dashboard/bookings/[id]/complete`, `/dashboard/bookings/[id]/reschedule`), not modals/sheets over `[id]`.
-- The reschedule flow reuses the UC-011 `AvailabilityCalendar` with duration frozen at the existing booking's `totalDurationMins` (no basket/duration recompute).
+- The reschedule flow reuses the UC-011 `AvailabilityCarousel` + `SlotPicker` (`variant="dashboard"`) with duration frozen at the existing booking's `totalDurationMins` (no basket/duration recompute).
 
 ---
 

@@ -1,5 +1,5 @@
 /*
-  Reagendar (M23-S30) — date strip + slot list, mirroring the REAL components the screen reuses:
+  Reagendar (staff 05-reschedule and customer M23-S30 15-series) — date strip + slot list, mirroring the REAL components the screen reuses:
     AvailabilityCarousel (apps/web/features/booking/components/public/AvailabilityCarousel.tsx)
     SlotPicker           (apps/web/features/booking/components/public/SlotPicker.tsx)
     ErrorAlert           (apps/web/features/booking/components/public/ErrorAlert.tsx)

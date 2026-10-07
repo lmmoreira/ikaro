@@ -144,6 +144,7 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | A button | `ui/button` | `DiscardChangesDialog` |
 | A colour or font choice | `ui/color-picker`, `ui/font-picker` | `BrandingColorsSection`, `BrandingTab` |
 | A weekday-with-hours row | `ui/week-day-row` | `ResourceWorkingHoursEditor`, `SettingsHoursSection` |
+| A booking date + time-slot picker (a day strip, then the day's slots) | `AvailabilityCarousel` + `SlotPicker` (`features/booking/components/public/`) with `variant="dashboard"` in the account and dashboard shells (`hotsite` is the tenant-branded look, never used there) | `RescheduleBookingPage` |
 
 Treat this table as a starting point, not the full list — `ls apps/web/shared/components/ui/` is the source of truth, and a feature-level component (a shared form field, a date helper in `shared/lib/formatting/`) may already do the job.
 
