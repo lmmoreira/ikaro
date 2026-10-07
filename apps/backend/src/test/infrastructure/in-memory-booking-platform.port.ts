@@ -78,12 +78,12 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     return this.autoApproveEnabledByTenant.get(tenantId) ?? false;
   }
 
-  async getTenantBookingWindow(tenantId: string): Promise<TenantBookingWindow> {
-    return (
+  getTenantBookingWindow(tenantId: string): Promise<TenantBookingWindow> {
+    return Promise.resolve(
       this.bookingWindowByTenant.get(tenantId) ?? {
         minBookingAdvanceHours: 0,
         maxBookingAdvanceDays: 90,
-      }
+      },
     );
   }
 

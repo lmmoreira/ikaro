@@ -3,8 +3,8 @@ import {
   BookingScheduledInPastError,
   BookingTooFarAheadError,
   BookingTooSoonError,
+  ServiceBookingPolicyInvalidError,
 } from '../../domain/errors/booking-domain.error';
-import { ServiceBookingPolicyInvalidError } from '../../domain/errors/booking-domain.error';
 import { Service } from '../../domain/service.aggregate';
 import type { ServiceBookingPolicyProps } from '../../domain/service.types';
 import type { TenantBookingWindow } from '../ports/booking-platform.port';

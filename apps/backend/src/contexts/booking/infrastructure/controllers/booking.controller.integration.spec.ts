@@ -2572,11 +2572,13 @@ describe('BookingController (integration)', () => {
     it("tenant isolation: tenant A's service window never applies to tenant B's booking", async () => {
       // 10 days ahead is beyond tenant A's short-window service, but tenant B's own service has no
       // override and the tenant default allows it.
-      await guestBooking(tenantBId, {
+      const { body } = await guestBooking(tenantBId, {
         ...validBody(),
         serviceIds: [tenantBServiceId],
         scheduledAt: `${futureDate(10)}T15:00:00.000Z`,
       }).expect(201);
+
+      expect(body.bookingId).toEqual(expect.any(String));
     });
   });
 });
