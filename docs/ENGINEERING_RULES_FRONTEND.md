@@ -125,4 +125,32 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 
 ---
 
+## Reuse the repo's UI primitives — never hand-roll a control that already exists
 
+**Before writing any interactive control (a calendar, a date or time picker, a select, a popover, a dialog, a switch, a badge, a card), list `apps/web/shared/components/ui/` and grep the app for an existing usage — and build on that.** Writing the control from raw HTML or Tailwind (a hand-built month grid, a bare `<input type="date">`, a homemade popover or modal, a `<div>` styled as a button) when a primitive already exists is a defect, whatever the story's prototype looks like: the prototype shows the *result*, the repo already knows how to build it. A hand-rolled control also forfeits what the primitive carries for free — keyboard handling, focus management, WCAG 2.1 AA, the fixed shadcn palette, and a layout that has already been verified in a real browser (jsdom cannot catch broken layout or hit-testing, which is how M18-S01's calendar shipped three bugs).
+
+**The inventory (account and dashboard shells — Tailwind + shadcn; hotsite pages have their own `--ba-*` building blocks, see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`):**
+
+| Need | Use | A real usage to copy |
+|---|---|---|
+| A day (single or range) | `ui/calendar` inside `ui/popover` | `LeadFormDateRangeControl`, `ScheduleDateTimeRangeSheet`, `AvailabilityAlertPickers` |
+| A time of day | `ui/time-picker` | `AvailabilityAlertPickers`, `ResourceWorkingHoursEditor` |
+| A choice from a list | `ui/select`, or `ui/pill-select` for a few short options | `TimeSelectField`, `BrandingTab` |
+| An on/off setting | `ui/switch-field` | `ResourceWorkingHoursEditor`, `LayoutTab` |
+| A confirm / destructive prompt | `ui/alert-dialog` (or a dedicated confirmation page where the journey says so) | `DiscardChangesDialog` |
+| Multi-line text | `ui/textarea` | `ManifestTab` |
+| A status or count chip | `ui/badge` | `Topbar`, `LoyaltySearchResults` |
+| A grouped surface | `ui/card`, `ui/section-card` | `CustomerLoyaltyPage`, `BrandingTab` |
+| A button | `ui/button` | `DiscardChangesDialog` |
+| A colour or font choice | `ui/color-picker`, `ui/font-picker` | `BrandingColorsSection`, `BrandingTab` |
+| A weekday-with-hours row | `ui/week-day-row` | `ResourceWorkingHoursEditor`, `SettingsHoursSection` |
+
+Treat this table as a starting point, not the full list — `ls apps/web/shared/components/ui/` is the source of truth, and a feature-level component (a shared form field, a date helper in `shared/lib/formatting/`) may already do the job.
+
+**Procedure:**
+1. For each control the UI needs, name the existing primitive and one real usage *before* writing it (a story's discovery records this — `/story-discovery` § 4s).
+2. If a primitive exists, compose it. Swap only colours/branding, never the structural classes.
+3. If none exists, say so explicitly, then fetch the library's or shadcn's current reference source and port it wholesale (`docs/ANTI_PATTERNS.md`, the "reconstructed from memory" row; the M21-S04 hand-rolled toggle that duplicated `SwitchField` is the same defect), add it under `shared/components/ui/` with its spec so the next story reuses it — never a one-off inside a feature.
+4. A deliberate deviation (the primitive cannot do what the story needs) is recorded in the story with the reason; it is never silent.
+
+---

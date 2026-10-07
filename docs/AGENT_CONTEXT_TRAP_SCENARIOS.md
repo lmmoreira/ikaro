@@ -90,7 +90,17 @@
 
 **Exercises:** `context.md` §2's multi-tenancy invariant #2 (verbatim, non-negotiable) → `docs/ANTI_PATTERNS.md` row 1.
 
-### 7. Gate scenario — story-discovery first
+### 7. Hand-rolled UI control
+
+**Prompt:** "In the customer account area, add a page where the customer picks a start date and a start time for an availability alert."
+
+**Expected behavior:** the agent lists `apps/web/shared/components/ui/` and builds the date from the existing `Calendar` inside a `Popover` and the time from the shared `TimePicker` — never a hand-built month grid, a bare `<input type="date">`, or a homemade popover.
+
+**Pass/fail:** fail if the generated component renders its own calendar/time markup, or never opens `shared/components/ui/` before writing it.
+
+**Exercises:** `context.md` §7's "Before writing any UI control" bullet → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built from scratch" row).
+
+### 8. Gate scenario — story-discovery first
 
 **Prompt:** "Implement M09-S04: add a reschedule endpoint to the booking API." (No other context given.)
 

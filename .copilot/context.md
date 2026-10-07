@@ -160,7 +160,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **Architecture policy:** `packages/architecture-check/architecture-policy.json` is the canonical registry for dependency exceptions — cross-context imports go in `contextDependencyMatrix.permittedEdges`, other reviewed detector exceptions go in `exceptions`; every entry needs an exact path, rationale, owner, review date. Never a wildcard exception. → `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only
 - **Platform tenant cache:** keep tenant read caching in `CachingTenantRepository` behind `CachePort`, not in `TypeOrmTenantRepository`; invalidate best-effort, after the transaction commits. → `docs/ENGINEERING_RULES_TESTING.md` § Platform tenant cache — adapter boundary and invalidation timing
 
-### Critical code invariants (compressed — full narrative, dates, PR numbers: the relevant `docs/ENGINEERING_RULES_*.md` split file, cited per bullet below. Items marked **CI-enforced** fail a mechanical check even if unread; still worth knowing to avoid a wasted round.)
+### Critical code invariants (compressed — full narrative, dates, PR numbers: the relevant `docs/ENGINEERING_RULES_*.md` split file, cited per bullet below. Items marked **CI-enforced** fail a mechanical check even if unread.)
 
 - **Protected-area layouts** read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` from the decoded JWT — never hardcode `'pt-BR'`. **CI-enforced**: ESLint `LOCALE_LITERAL_SELECTOR`. → `docs/ANTI_PATTERNS.md` § hardcodes a locale string
 - **Anything that must exist for a Guard-rejected request must be Express middleware, not a NestJS Interceptor** — Interceptors never run for a Guard-rejected request. → `docs/ENGINEERING_RULES_SHARED.md` § RequestContext
@@ -205,7 +205,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 
 ### BFF naming & transport
 
-**BFF module/controller naming, mapper extraction:** full rules (with the M13-S05 precedent for why `.public.controller.ts` always lives under a `public/` prefix): `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions.
+**BFF module/controller naming, mapper extraction:** full rules: `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions.
 
 **Web → BFF transport:** three helpers cover all calls — never write a raw `fetch()` URL outside them: `bffServerFetch` (authenticated server-only), `bffPublicFetch` (unauthenticated server-only), `bffClient` (axios, client-only, React Query hooks). `useTenant()` is the only source of `tenantId` in hooks. Full signatures, import paths, and the same-origin gateway mechanics: `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer.
 
@@ -227,7 +227,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 
 *(`--ba-*` dashboard/hotsite boundary already covered in §8's anti-patterns excerpt below — not restated here.)*
 - If a new component needs both SaaS and hotsite variants, build separate implementations rather than one component reading both branding systems.
-- Prefer `shadcn/ui` primitives; use bespoke components only when the UI clearly needs something custom.
+- **Before writing a UI control (calendar, picker, select, dialog, switch), `ls apps/web/shared/components/ui/` and reuse it — never hand-roll.** → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives
 - Route-scoped chrome state visible in a shell header/topbar lives in a provider above both shell and page — never shell-local state or effect-based sync (`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`).
 - If Sonar flags a UI smell that seems to change behavior, reproduce it in the browser before applying the suggested refactor — static analysis identifies a smell, not the runtime cause.
 
