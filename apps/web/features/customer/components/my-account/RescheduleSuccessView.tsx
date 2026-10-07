@@ -15,6 +15,10 @@ interface RescheduleSuccessViewProps {
   readonly bookingsHref: string;
 }
 
+function renderStrong(chunks: React.ReactNode): React.JSX.Element {
+  return <strong>{chunks}</strong>;
+}
+
 export function RescheduleSuccessView({
   serviceNames,
   when,
@@ -28,16 +32,15 @@ export function RescheduleSuccessView({
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div
-        role="status"
+      <output
         data-testid="reschedule-success"
-        className="rounded-xl border border-green-200 bg-green-50 p-4"
+        className="block rounded-xl border border-green-200 bg-green-50 p-4"
       >
         <p className="mb-2 text-base font-extrabold text-green-700">{t('successTitle')}</p>
         <p className="text-sm leading-relaxed text-green-900">
-          {t.rich('successBody', { strong: (chunks) => <strong>{chunks}</strong> })}
+          {t.rich('successBody', { strong: renderStrong })}
         </p>
-      </div>
+      </output>
 
       <div>
         <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">

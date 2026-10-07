@@ -167,18 +167,20 @@ describe('GET /bookings/:id — reschedule block (integration)', () => {
   it('tenant isolation: a Tenant B caller gets 404 for a Tenant A booking', async () => {
     const bookingId = await createApprovedBooking(43);
 
-    await request(app.getHttpServer())
+    const { status } = await request(app.getHttpServer())
       .get(`/bookings/${bookingId}`)
-      .set(actorHeaders(tenantBId, customerId, 'CUSTOMER'))
-      .expect(404);
+      .set(actorHeaders(tenantBId, customerId, 'CUSTOMER'));
+
+    expect(status).toBe(404);
   });
 
   it('another customer of the same tenant gets 404', async () => {
     const bookingId = await createApprovedBooking(44);
 
-    await request(app.getHttpServer())
+    const { status } = await request(app.getHttpServer())
       .get(`/bookings/${bookingId}`)
-      .set(actorHeaders(tenantAId, otherCustomerId, 'CUSTOMER'))
-      .expect(404);
+      .set(actorHeaders(tenantAId, otherCustomerId, 'CUSTOMER'));
+
+    expect(status).toBe(404);
   });
 });

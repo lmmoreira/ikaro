@@ -295,7 +295,7 @@ describe('CustomerReschedulePage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível reagendar.');
     expect(screen.getAllByRole('button', { name: 'Confirmar novo horário' })[0]).toBeEnabled();
-    expect(pickerMounts.mock.calls.length).toBe(mountsBefore);
+    expect(pickerMounts.mock.calls).toHaveLength(mountsBefore);
   });
 
   it('opened past the deadline it shows the deadline screen without the slot picker', () => {
