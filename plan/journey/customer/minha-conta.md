@@ -52,7 +52,8 @@ flowchart TD
 |---|---|---|---|
 | `/{slug}` (hotsite, logged-in nav) | `HotsiteLayout` logged-in state | M12 | ✅ Existente |
 | `/{slug}/booking` (post-booking CTA) | `BookingForm` / confirmation | M12-S07 | ✅ Existente |
-| `/{slug}/my-account` | `MinhaContaPage` | M13-S27 | ✅ Existente |
+| `/{slug}/my-account` (Início tab) | `HomeDashboard` | M13-S27 | ✅ Existente |
+| `/{slug}/my-account/bookings` (Agendamentos tab — the booking list prototyped as `01-minha-conta.html`) | `BookingsList` | M13-S27 | ✅ Existente |
 | `/{slug}/my-account/bookings/[id]` | `AgendamentoDetailPage` | M13-S28 | ✅ Existente |
 | Cancel confirmation — full page, not a sheet | dedicated `.../bookings/[id]/cancel` page | M13-S28 | ✅ Existente |
 | Info submit form (UC-005 A2) | inline section on detail page (customer auth path) | M13-S28 | ✅ Existente |
@@ -247,11 +248,18 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Agendamentos["/{slug}/my-account<br/>Agendamentos (real, shipped)"] -->|"Link 'Reservas recorrentes'"| Lista["❓ GAP: /{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
+    Agendamentos["/{slug}/my-account/bookings<br/>Agendamentos (real, shipped)"] -->|"Card 'Meus avisos'"| Avisos["❓ GAP: /{slug}/my-account/alerts<br/>Meus avisos (07 / 07b–07e)"]
+    Avisos -->|"Toca um aviso"| AvisoDetalhe["❓ GAP: .../alerts/[id]<br/>Detalhe (07f / 07g histórico)"]
+    AvisoDetalhe -->|"'Cancelar aviso' (ativo)"| AvisoCancelar["❓ GAP: .../alerts/[id]/cancel<br/>Confirmação (07h / 07i erro)"]
+    Agendamentos -->|"Card 'Reservas recorrentes'"| Lista["❓ GAP: /{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
     Lista -->|"'+ Nova reserva recorrente'"| Padrao["❓ GAP: .../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
     Lista -->|"'Renovar' (encerrada ou terminando) ou link do e-mail de aviso"| Renovar["❓ GAP: .../recurring-schedules/new?renewFrom=id<br/>Pré-preenchido (13f-renovar-recorrencia)"]
     Renovar -->|"'Revisar'"| Revisar
-    Lista -->|"Clica em uma reserva"| Gerenciar["❓ GAP: .../recurring-schedules/[id]<br/>Gerenciar (06-reserva-recorrente)"]
+    Lista -->|"Clica em uma reserva"| Gerenciar["❓ GAP: .../recurring-schedules/[id]<br/>Detalhe + painel de ações (06-reserva-recorrente)"]
+    Gerenciar -->|"'Encerrar recorrência'"| Encerrar["❓ GAP: .../recurring-schedules/[id]/end<br/>Confirmação (06g-encerrar-recorrencia)"]
+    Encerrar -->|"Confirma"| Lista
+    Gerenciar -->|"'Pular esta ocorrência'"| PularOcc["Cancelar a reserva da ocorrência<br/>(03-cancel-confirm; recusa fora do prazo = 03b / 06e)"]
+    Gerenciar -->|"'Reagendar esta ocorrência'"| ReagOcc["Reagendar a reserva da ocorrência<br/>(15-reagendar, M23-S30; recusa = 06f)"]
 
     Padrao -->|"'Revisar'"| Revisar["❓ GAP: mesma rota, passo 2<br/>Revisar (13b-nova-recorrencia-revisar)"]
     Padrao -->|"validação 400"| ErroForm["❓ GAP: mesma rota, erro<br/>(13e-nova-recorrencia-erro)"]

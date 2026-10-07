@@ -105,7 +105,7 @@ export interface CustomerBookingListResponse {
 
 Customer area uses `dashboard-topbar` + `dashboard-layout` + `main-content` (same tokens as staff dashboard) — but NO sidebar. The 3-tab bottom nav (Início / Agendamentos / Fidelidade) mirrors mobile navigation.
 
-Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the brand slot. No bottom-nav on detail pages.
+Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the brand slot. No bottom-nav on detail pages. The same applies to the M23 sub-pages reached from a card on Agendamentos (`07*`, `14*`, `06*`): the back link lives in the topbar (label "Agendamentos" on the two lists, "Reservas recorrentes"/"Meus avisos" on their details), never as a `back-link` inside the content, and a destructive action (end a schedule, cancel an alert) is a dedicated confirmation page, never an inline panel.
 
 Reference shell: `plan/journey/shared/customer-dashboard.html`
 
@@ -143,7 +143,8 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creatio
 |---|---|---|
 | `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` | ❓ Gap | M23-S12 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ❓ Gap | M23-S17 |
-| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane, same pattern as `bookings/[id]/page.tsx`) | M23-S12 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` | ❓ Gap — end confirmation page (same pattern as `bookings/[id]/cancel` and `alerts/[id]/cancel`; **not** an inline panel) | M23-S12 |
 | `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S12 |
 | `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane) | M23-S12 |
 | `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ❓ Gap — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S12 |
@@ -170,7 +171,8 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creatio
 | `13f-renovar-recorrencia.html` | Renewal: the form pre-filled from an ended/ending schedule (state A) and the not-found fallback (state B) | `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>` | M23-S22 |
 | `13d-nova-recorrencia-limite.html` | `409` active-schedule cap reached | same, error state | M23-S17 |
 | `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
-| `06-reserva-recorrente.html` | Manage: skip / reschedule occurrence, end (no Pause). Since `M23-S08` an occurrence is its linked booking: skip = cancel that booking and reschedule = the ordinary reschedule, both subject to the tenant's cancellation / reschedule windows (the screen needs a window-expired message the prototype does not draw yet) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
+| `06-reserva-recorrente.html` | Detail (central detail + action pane, back link in the topbar, status badge in the topbar): skip / reschedule occurrence, end (no Pause). "Pular" opens the ordinary one-off cancel confirmation `03-cancel-confirm`; "Reagendar" opens `15-reagendar`; "Encerrar recorrência" opens `06g`. Since `M23-S08` an occurrence is its linked booking: skip = cancel that booking and reschedule = the ordinary reschedule, both subject to the tenant's cancellation / reschedule windows (the screen needs a window-expired message the prototype does not draw yet) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
+| `06g-encerrar-recorrencia.html` | End confirmation page — central detail + action pane; `POST /recurring-booking-schedules/:id/end` → back to the list (failure states not drawn — define at `/story-discovery M23-S12`) | `/{slug}/my-account/recurring-schedules/[id]/end` | M23-S12 |
 | `06e-pular-fora-do-prazo.html` / `06f-reagendar-fora-do-prazo.html` | Skip / reschedule refused because the tenant's cancellation / reschedule window has passed (same wording as one-off `03b`; the occurrence is a booking, decided in `M23-S08`) | same, error state | M23-S12 |
 | `07-availability-alert.html` | "Meus avisos": list and cancel — no create button, no edit yet (creation is a page of the booking flow, `book-a-service/16*`); entered from the "Meus avisos" link on `01-minha-conta.html` | `/{slug}/my-account/alerts` | M23-S12 |
 | `07b-avisos-vazio.html` | Empty state — points the customer to "Avise-me quando abrir" in the booking flow | same, empty | M23-S12 |
