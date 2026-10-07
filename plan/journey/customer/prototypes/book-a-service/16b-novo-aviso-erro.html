@@ -35,11 +35,11 @@
     COMPONENT:  NewAvailabilityAlertForm  (GAP — M23-S31)
     UC cobertos: UC-072
     SHELL:      the booking flow's own shell — tenant brand bar + .step-container, branded with --ba-* tokens (applyBranding). NOT the Minha Conta shell.
-    LOGIN:      the page is reachable only while logged in; a guest who clicks "Avise-me quando abrir" goes to login first and returns to this URL.
+    LOGIN:      the form is shown only to a logged-in customer; a guest sees the page's login-required card (guest 17-login-aviso) and returns here after login/account creation.
     OPENED FROM: the "Avise-me quando abrir" button on the calendar step (guest 02 / 02d, customer 02-calendar-slot). The page has no use outside a booking attempt.
-    PREFILL (query parameters on the link): serviceId (required), preferredResourceId, durationMinutes, participantCount (only for group services).
+    PREFILL (query parameters on the link): serviceId (required), preferredResourceId (only when a flat service has exactly one resource pick), durationMinutes. No participantCount: dropped at /story-discovery 2026-10-06 — matching ignores it and it is only known after the calendar step.
     BFF: POST /availability-alerts  Body: { serviceId, preferredResourceId?, criteriaType: "ONE_TIME_RANGE"|"WEEKLY_PREFERENCE",
-         acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, participantCount?, expiresAt? }
+         acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, expiresAt? }   (participantCount exists in the API but this page never sends it)
          The alert timezone is always the tenant's — never sent.
   -->
 
@@ -95,10 +95,7 @@
       <p class="section-label">Do seu agendamento</p>
       <div class="summary-row"><span>Serviço</span><span>Lavagem Simples</span></div>
       <div class="summary-row"><span>Duração</span><span>30 min</span></div>
-      <div class="field" style="margin-top:.75rem;">
-        <label class="form-label" for="alert-resource">Box (opcional)</label>
-        <select id="alert-resource" class="form-input"><option>Qualquer box</option><option>Box 1</option><option>Box 2</option></select>
-      </div>
+      <div class="summary-row"><span>Box</span><span>Box 2</span></div>
 
       <p class="section-label" style="margin-top:1.25rem;">Quando você quer ser avisado</p>
       <label class="choice on" for="crit-range"><input type="radio" name="crit" id="crit-range" checked><span><strong>Período específico</strong><br><span class="meta">Entre duas datas e horários</span></span></label>

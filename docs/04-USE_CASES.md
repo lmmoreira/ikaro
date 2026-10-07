@@ -1216,15 +1216,16 @@ Returns:
 - **Actor:** Authenticated customer
 - **Endpoint:** `POST /availability-alerts`
 - **Preconditions:** Service permits alerts (`availabilityAlertEligible`, UC-055) and has availability criteria the customer can express.
-- **Trigger:** Customer clicks "Avise-me quando abrir" on the booking flow's calendar step (shown for every alert-eligible service, whether or not slots are currently available).
+- **Trigger:** Customer clicks "Avise-me quando abrir" on the booking flow's calendar step (shown whenever the basket holds exactly one service and that service is alert-eligible, in every state of the step — with or without slots, while loading, after an error).
 - **Main Flow:**
-  1. System opens the alert page (`/[slug]/booking/availability-alert`) — a page of the booking flow itself, branded like it and reachable only while logged in — prefilled from the flow: service, preferred resource/staff picks, duration and participant count.
+  1. System opens the alert page (`/[slug]/booking/availability-alert`) — a page of the booking flow itself, branded like it, whose form is shown only to a logged-in customer (a guest sees a login-required card) — prefilled from the flow: the service, the resource pick (shown read-only, and only for a flat service with exactly one pick) and the duration. No participant count is carried — matching ignores it, and it is only known after the calendar step.
   2. Customer sets the matching criteria — either a finite absolute range or a weekly local-time preference — and saves.
   3. System stores an expiring alert attached to that customer without reserving anything, and shows a confirmation with a "Voltar ao site" action.
   4. When a bookable slot that the customer can actually select on the booking page starts inside the alert's acceptable window, system records one deduplicated email notification attempt for that alert/window and marks the alert notified (M23-S07). A slot is found two ways: right away when a booking is cancelled, rejected or rescheduled, and by a daily sweep for capacity that opens with no booking event (the booking window reaching a date, a manager extending hours or adding a resource). An alert for a date beyond the booking window waits and is matched the day the date becomes selectable, so an alert may live up to 365 days.
 - **Alternative Flows:**
-  - **A1: Unauthenticated visitor** → The "Avise-me quando abrir" button sends the visitor to login/account creation first; after authenticating they land on the same alert page, prefilled as in the main flow.
-  - **A3: Service not alert-eligible, or the customer already holds 10 active alerts** → The button is not shown for an ineligible service; a customer at the cap sees `BOOKING_ALERT_CAP_REACHED` on save and is pointed to "Meus avisos" to cancel one.
+  - **A1: Unauthenticated visitor** → The "Avise-me quando abrir" button links to the alert page; with no session the page shows a login-required card instead of the form, and after login/account creation the visitor lands on the same alert page, prefilled as in the main flow.
+  - **A3: Service not alert-eligible, a basket of several services, or the customer already holds 10 active alerts** → The button is not shown for an ineligible service or for a basket of more than one service (an alert is for exactly one service); a customer at the cap sees `BOOKING_ALERT_CAP_REACHED` on save and is pointed to "Meus avisos" to cancel one. A range that ends in the past is refused (`BOOKING_ALERT_CRITERIA_INVALID`).
+  - **A4: Legged, bundled or multi-pick service** → The alert page shows no resource field and a note; nothing is sent as `preferredResourceId`, so the alert matches when the whole journey or bundle fits with any resources (an alert holds one preferred resource and a journey has one per leg).
   - **A2: Alert expires, is cancelled, or was already notified for the matching window** → No new notification is sent and no capacity is held.
 - **Postconditions:** Alert is an intent only; customer still books normally after notification.
 - **Events Triggered:** `AvailabilityAlertCreated`, later `AvailabilityAlertMatched`/`Expired`/`Cancelled`.

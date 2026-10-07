@@ -237,7 +237,7 @@ POST /recurring-booking-schedules
 
 ### Alert creation is not in this folder
 
-The "Avise-me quando abrir" alert page is a page of the booking flow (tenant branding, login-required), so its screens (`16`–`16f`) live in `customer/prototypes/book-a-service/` and are specified in that folder's `dev-notes.md` § Screens 16–16f. This folder holds only "Meus avisos" (`07`, M23-S12): list and cancel (no edit yet).
+The "Avise-me quando abrir" alert page is a page of the booking flow (tenant branding, login-required), so its screens (`16`–`16i`) live in `customer/prototypes/book-a-service/` and are specified in that folder's `dev-notes.md` § "Avise-me quando abrir": the button and the alert page. This folder holds only "Meus avisos" (`07`, M23-S12): list and cancel (no edit yet).
 
 **BFF calls (whole extension):**
 ```

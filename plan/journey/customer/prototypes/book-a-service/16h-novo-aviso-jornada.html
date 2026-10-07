@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aviso criado — BeloAuto Demo</title>
+  <title>Avise-me quando abrir — BeloAuto Demo</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     /* Alert page — hotsite tree: tenant branding only (--ba-* tokens), same shell as the booking steps. */
@@ -29,8 +29,7 @@
 </head>
 <body>
   <!--
-    VARIANT OF: 16-novo-aviso.html
-    SCENARIO:   201 Created. Confirmation with a single action, "Voltar ao site". Nothing is reserved.
+    SCENARIO:   Alert page for a LEGGED service (a journey): no resource area — an alert holds one preferred resource and a journey has one per leg, so it means "when the whole journey fits, with any professional or room". Nothing is sent as preferredResourceId.
     PAGE:       apps/web/app/[slug]/booking/availability-alert/page.tsx  (GAP — M23-S31; HOTSITE tree, thin page — expected path, final at /story-discovery)
     COMPONENT:  NewAvailabilityAlertForm  (GAP — M23-S31)
     UC cobertos: UC-072
@@ -41,7 +40,8 @@
     BFF: POST /availability-alerts  Body: { serviceId, preferredResourceId?, criteriaType: "ONE_TIME_RANGE"|"WEEKLY_PREFERENCE",
          acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, expiresAt? }   (participantCount exists in the API but this page never sends it)
          The alert timezone is always the tenant's — never sent.
-    NOTE:       listing / cancelling is "Meus avisos" (minha-conta/07, M23-S12) — reached from Minha Conta, not offered here.
+    CRITERIA:   one-time range (acceptableStartAt/acceptableEndAt) OR weekly preference (weekdays + localStartTime/localEndTime) — the radio swaps the fields.
+    VARIANTS:   16b validation/submit error · 16c saving · 16d saved · 16e cap reached · 16f service not eligible.
   -->
 
   <!-- AUTH HEADER BAR — logged-in customer; avatar opens Minha conta / Sair dropdown -->
@@ -89,19 +89,56 @@
 
   <div class="step-container">
     <p class="step-indicator">Aviso de disponibilidade</p>
-    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Aviso criado</h2>
-    <div class="notice notice-ok" style="margin-top:0;">
-      <p style="font-weight:600;">Lavagem Simples</p>
-      <p style="margin-top:.5rem;line-height:1.55;font-size:.9375rem;">Quando abrir uma vaga compatível, enviaremos um e-mail para joao@email.com para você reservar. <strong>Nenhum horário foi reservado.</strong></p>
-      <div style="margin-top:.75rem;">
-        <div class="summary-row"><span>Período</span><span>20 out 09:00 – 27 out 18:00</span></div>
-        <div class="summary-row"><span>Duração</span><span>30 min</span></div>
-        <div class="summary-row"><span>Aviso ativo até</span><span>05 nov</span></div>
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Avise-me quando abrir</h2>
+    <p style="font-size:.9375rem;opacity:.75;margin-bottom:1.25rem;color:var(--ba-text);">Avisamos você por e-mail quando abrir uma vaga compatível. O aviso <strong>não reserva</strong> horário.</p>
+
+    <form class="card" onsubmit="return false">
+      <p class="section-label">Do seu agendamento</p>
+      <div class="summary-row"><span>Serviço</span><span>Pacote Lavagem + Polimento</span></div>
+      <div class="summary-row"><span>Etapas</span><span>Lavagem → Polimento</span></div>
+      <div class="summary-row"><span>Duração</span><span>90 min</span></div>
+      <p class="field-hint" style="margin-top:.5rem;">Avisaremos quando a jornada inteira couber, com qualquer profissional ou sala.</p>
+
+      <p class="section-label" style="margin-top:1.25rem;">Quando você quer ser avisado</p>
+      <label class="choice on" for="crit-range"><input type="radio" name="crit" id="crit-range" checked><span><strong>Período específico</strong><br><span class="meta">Entre duas datas e horários</span></span></label>
+      <label class="choice" for="crit-week"><input type="radio" name="crit" id="crit-week"><span><strong>Preferência semanal</strong><br><span class="meta">Certos dias da semana, em um intervalo de horário</span></span></label>
+
+      <div id="panel-range" class="crit-panel field" style="margin-top:.75rem;">
+        <label class="form-label" for="alert-from">De</label>
+        <input id="alert-from" type="datetime-local" class="form-input" value="2026-10-20T09:00">
+        <label class="form-label" for="alert-to" style="margin-top:.75rem;">Até</label>
+        <input id="alert-to" type="datetime-local" class="form-input" value="2026-10-27T18:00">
+        
       </div>
-    </div>
+      <div id="panel-week" class="crit-panel field" style="margin-top:.75rem;" hidden>
+        <p class="form-label">Dias da semana</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;"><button type="button" class="slot-btn">Seg</button><button type="button" class="slot-btn selected">Ter</button><button type="button" class="slot-btn">Qua</button><button type="button" class="slot-btn selected">Qui</button><button type="button" class="slot-btn">Sex</button><button type="button" class="slot-btn">Sáb</button><button type="button" class="slot-btn">Dom</button></div>
+        <label class="form-label" for="alert-wfrom" style="margin-top:.75rem;">Entre</label>
+        <input id="alert-wfrom" type="time" class="form-input" value="09:00">
+        <label class="form-label" for="alert-wto" style="margin-top:.75rem;">E</label>
+        <input id="alert-wto" type="time" class="form-input" value="12:00">
+        <p class="field-hint">Horários no fuso do estabelecimento (America/Sao_Paulo).</p>
+      </div>
+
+      <div class="field" style="margin-top:1.25rem;">
+        <label class="form-label" for="alert-exp">Manter o aviso por</label>
+        <select id="alert-exp" class="form-input"><option>30 dias (padrão)</option><option>60 dias</option><option>90 dias</option><option>180 dias</option><option>365 dias (máximo)</option></select>
+        <p class="field-hint">Num período específico, o aviso termina no máximo ao fim do período.</p>
+      </div>
+      <p class="field-hint">Avisaremos joao@email.com. Você pode ver e cancelar o aviso em Minha conta › Meus avisos.</p>
+    </form>
+
     <div class="nav-buttons">
-      <a class="btn-primary" href="../../../shared/hotsite-logged-in.html">Voltar ao site</a>
+      <a class="btn-secondary" href="02-calendar-slot.html">Voltar</a>
+      <a class="btn-primary" href="16d-novo-aviso-salvo.html">Criar aviso</a>
     </div>
+    <script>
+      (function(){
+        var r=document.getElementById('crit-range'),w=document.getElementById('crit-week');
+        function sync(){document.getElementById('panel-range').hidden=!r.checked;document.getElementById('panel-week').hidden=!w.checked;}
+        r.addEventListener('change',sync);w.addEventListener('change',sync);
+      })();
+    </script>
   </div>
 </body>
 </html>
