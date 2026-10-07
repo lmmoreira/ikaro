@@ -47,17 +47,34 @@ export async function openCalendarStep(page: Page, serviceId: string): Promise<v
   });
 }
 
-// "YYYY-MM-DDTHH:mm" for an <input type="datetime-local">, `daysAhead` days from now on the
-// TENANT's calendar (docs/ENGINEERING_RULES_TESTING.md § An E2E test that computes "today") — the
-// runner's own clock and zone diverge from it for hours every day. A couple of days of margin keeps
-// "ends in the future" true across that gap.
+// "YYYY-MM-DD" for `daysAhead` days from now on the TENANT's calendar
+// (docs/ENGINEERING_RULES_TESTING.md § An E2E test that computes "today") — the runner's own clock
+// and zone diverge from it for hours every day. A couple of days of margin keeps "ends in the
+// future" true across that gap, and the calendar popover shows two months, so +2/+9 days are
+// always on screen.
 const TENANT_TIMEZONE = 'America/Sao_Paulo';
 
-export function futureWallTime(daysAhead: number, time: string): string {
-  const day = new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE }).format(
+export function futureDate(daysAhead: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE }).format(
     new Date(Date.now() + daysAhead * 86_400_000),
   );
-  return `${day}T${time}`;
+}
+
+// A day is picked from the shadcn Calendar popover (same as the leads date range): open the row's
+// trigger, click the day cell by its data-day.
+export async function pickAlertDay(
+  page: Page,
+  row: 'rangeFrom' | 'rangeTo',
+  isoDate: string,
+): Promise<void> {
+  await page.locator(`[data-testid="alert-date"][data-row-key="${row}"]`).click();
+  await page.locator(`[data-day="${isoDate}"] button`).click();
+}
+
+// The one-time range's two days; the hours keep the form's defaults (09:00 → 18:00).
+export async function fillAlertRange(page: Page, from: string, to: string): Promise<void> {
+  await pickAlertDay(page, 'rangeFrom', from);
+  await pickAlertDay(page, 'rangeTo', to);
 }
 
 // The signed-in customer's own alerts, read through the same-origin /v1 gateway.

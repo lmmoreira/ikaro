@@ -2,25 +2,13 @@
 
 import { useTranslations } from 'next-intl';
 import type { AvailabilityAlertWeekday } from '@ikaro/types';
-import {
-  ALERT_DEFAULT_EXPIRY_DAYS,
-  ALERT_EXPIRY_DAYS_OPTIONS,
-  ALERT_WEEKDAYS,
-} from '@/features/booking/model/availability-alert-form';
+import { ALERT_WEEKDAYS } from '@/features/booking/model/availability-alert-form';
 import { cn } from '@/shared/utils/cn';
 
-// The small building blocks of the alert form — plain Tailwind plus inline --ba-* styles, the way
-// the booking flow's own fields (ContactInfoFields) are built. No shadcn: it takes its colours from
-// shadcn tokens, which do not exist under the hotsite tree.
-
-export function fieldStyle(isInvalid: boolean): React.CSSProperties {
-  return {
-    borderRadius: 'var(--ba-radius)',
-    borderColor: isInvalid ? '#dc2626' : 'var(--ba-secondary)',
-    backgroundColor: 'var(--ba-secondary)',
-    color: 'var(--ba-text)',
-  };
-}
+// The small building blocks of the alert form that have no shadcn/ui equivalent: summary rows,
+// the criteria radio cards and the weekday pills, in plain Tailwind plus inline --ba-* styles like
+// the booking flow's own fields. The date, time and duration controls are the shared shadcn/ui
+// primitives — see AvailabilityAlertPickers.
 
 const UNSELECTED_CHIP =
   'border-[var(--ba-secondary,rgb(191,219,254))] bg-[var(--ba-secondary,rgb(239,246,255))] text-[var(--ba-primary,#1d4ed8)] hover:bg-blue-50';
@@ -108,50 +96,6 @@ export function CriteriaChoice({
   );
 }
 
-interface LabeledInputProps {
-  readonly id: string;
-  // A key under booking.availabilityAlert (e.g. "range.from"), resolved here so the <label> text is
-  // a translation call the accessibility lint rule can see.
-  readonly labelKey: string;
-  readonly type: 'datetime-local' | 'time';
-  readonly value: string;
-  readonly disabled: boolean;
-  readonly error: string | null;
-  readonly onChange: (value: string) => void;
-}
-
-export function LabeledInput({
-  id,
-  labelKey,
-  type,
-  value,
-  disabled,
-  error,
-  onChange,
-}: LabeledInputProps): React.JSX.Element {
-  const t = useTranslations('booking');
-
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium">
-        {t(`availabilityAlert.${labelKey}`)}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        disabled={disabled}
-        aria-invalid={error !== null}
-        data-testid={id}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full border px-3 py-2"
-        style={fieldStyle(error !== null)}
-      />
-      <FieldError message={error} />
-    </div>
-  );
-}
-
 interface WeekdayPickerProps {
   readonly selected: readonly AvailabilityAlertWeekday[];
   readonly disabled: boolean;
@@ -196,49 +140,6 @@ export function WeekdayPicker({
         })}
       </div>
       <FieldError message={error} />
-    </div>
-  );
-}
-
-interface ExpirySelectProps {
-  readonly value: number;
-  readonly disabled: boolean;
-  readonly onChange: (days: number) => void;
-}
-
-function expiryOptionLabel(t: ReturnType<typeof useTranslations>, days: number): string {
-  if (days === ALERT_DEFAULT_EXPIRY_DAYS)
-    return t('availabilityAlert.expiry.daysDefault', { days });
-  if (days === ALERT_EXPIRY_DAYS_OPTIONS.at(-1)) {
-    return t('availabilityAlert.expiry.daysMax', { days });
-  }
-  return t('availabilityAlert.expiry.days', { days });
-}
-
-export function ExpirySelect({ value, disabled, onChange }: ExpirySelectProps): React.JSX.Element {
-  const t = useTranslations('booking');
-
-  return (
-    <div>
-      <label htmlFor="alert-expiry" className="mb-1 block text-sm font-medium">
-        {t('availabilityAlert.expiry.label')}
-      </label>
-      <select
-        id="alert-expiry"
-        data-testid="alert-expiry"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full border px-3 py-2"
-        style={fieldStyle(false)}
-      >
-        {ALERT_EXPIRY_DAYS_OPTIONS.map((days) => (
-          <option key={days} value={days}>
-            {expiryOptionLabel(t, days)}
-          </option>
-        ))}
-      </select>
-      <p className="mt-1 text-xs opacity-60">{t('availabilityAlert.expiry.hint')}</p>
     </div>
   );
 }

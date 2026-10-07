@@ -363,7 +363,15 @@
         "cta": "Entrar ou criar conta",
         "back": "Voltar"
       },
-      "resourceError": "Não foi possível carregar o recurso escolhido."
+      "resourceError": "Não foi possível carregar o recurso escolhido.",
+      "date": {
+        "placeholder": "Escolha a data"
+      },
+      "time": {
+        "hour": "{label}: hora",
+        "minute": "{label}: minuto",
+        "period": "{label}: período"
+      }
     }
   },
   "hotsite": {

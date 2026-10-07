@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import {
   createAlertViaApi,
-  futureWallTime,
+  fillAlertRange,
+  futureDate,
   listMyAlerts,
   newContextPage,
   newLoggedInCustomerPage,
@@ -37,8 +38,7 @@ test.describe('M23-S31 — availability alert entry', () => {
       await expect(customer.page.getByTestId('availability-alert-form')).toBeVisible();
       await expect(customer.page.getByTestId('alert-service')).toContainText(service.name);
 
-      await customer.page.getByTestId('alert-range-from').fill(futureWallTime(2, '09:00'));
-      await customer.page.getByTestId('alert-range-to').fill(futureWallTime(9, '18:00'));
+      await fillAlertRange(customer.page, futureDate(2), futureDate(9));
       await customer.page.getByTestId('alert-submit').click();
 
       await expect(customer.page.getByTestId('availability-alert-saved')).toBeVisible({
@@ -121,8 +121,7 @@ test.describe('M23-S31 — availability alert entry', () => {
 
       await expect(guest.page.getByTestId('availability-alert-form')).toBeVisible();
       await expect(guest.page.getByTestId('alert-service')).toContainText(service.name);
-      await guest.page.getByTestId('alert-range-from').fill(futureWallTime(2, '09:00'));
-      await guest.page.getByTestId('alert-range-to').fill(futureWallTime(9, '18:00'));
+      await fillAlertRange(guest.page, futureDate(2), futureDate(9));
       await guest.page.getByTestId('alert-submit').click();
 
       await expect(guest.page.getByTestId('availability-alert-saved')).toBeVisible({
@@ -169,8 +168,7 @@ test.describe('M23-S31 — availability alert entry', () => {
       }
 
       await customer.page.goto(`${ALERT_PAGE}?serviceId=${service.serviceId}`);
-      await customer.page.getByTestId('alert-range-from').fill(futureWallTime(2, '09:00'));
-      await customer.page.getByTestId('alert-range-to').fill(futureWallTime(9, '18:00'));
+      await fillAlertRange(customer.page, futureDate(2), futureDate(9));
       await customer.page.getByTestId('alert-submit').click();
 
       await expect(customer.page.getByTestId('availability-alert-cap-reached')).toBeVisible({

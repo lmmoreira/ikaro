@@ -16,8 +16,10 @@ const range = (
 ): AvailabilityAlertFormState => ({
   ...initialAvailabilityAlertForm,
   criteriaType: 'ONE_TIME_RANGE',
-  rangeFrom: '2026-10-20T09:00',
-  rangeTo: '2026-10-27T18:00',
+  rangeFromDate: '2026-10-20',
+  rangeFromTime: '09:00',
+  rangeToDate: '2026-10-27',
+  rangeToTime: '18:00',
   ...overrides,
 });
 
@@ -38,19 +40,31 @@ describe('validateAvailabilityAlertForm() — one-time range', () => {
   });
 
   it('asks for both ends', () => {
-    expect(validateAvailabilityAlertForm(range({ rangeFrom: '' }), TZ, NOW)).toEqual({
+    expect(validateAvailabilityAlertForm(range({ rangeFromDate: '' }), TZ, NOW)).toEqual({
       rangeFrom: 'rangeFromRequired',
     });
-    expect(validateAvailabilityAlertForm(range({ rangeTo: '' }), TZ, NOW)).toEqual({
+    expect(validateAvailabilityAlertForm(range({ rangeToDate: '' }), TZ, NOW)).toEqual({
       rangeTo: 'rangeToRequired',
     });
   });
 
   it('rejects an end that is not after the start', () => {
-    expect(validateAvailabilityAlertForm(range({ rangeTo: '2026-10-18T18:00' }), TZ, NOW)).toEqual({
+    expect(
+      validateAvailabilityAlertForm(
+        range({ rangeToDate: '2026-10-18', rangeToTime: '18:00' }),
+        TZ,
+        NOW,
+      ),
+    ).toEqual({
       rangeTo: 'rangeEnd',
     });
-    expect(validateAvailabilityAlertForm(range({ rangeTo: '2026-10-20T09:00' }), TZ, NOW)).toEqual({
+    expect(
+      validateAvailabilityAlertForm(
+        range({ rangeToDate: '2026-10-20', rangeToTime: '09:00' }),
+        TZ,
+        NOW,
+      ),
+    ).toEqual({
       rangeTo: 'rangeEnd',
     });
   });
@@ -60,14 +74,24 @@ describe('validateAvailabilityAlertForm() — one-time range', () => {
 
     expect(
       validateAvailabilityAlertForm(
-        range({ rangeFrom: '2026-03-08T02:30', rangeTo: '2026-03-09T10:00' }),
+        range({
+          rangeFromDate: '2026-03-08',
+          rangeFromTime: '02:30',
+          rangeToDate: '2026-03-09',
+          rangeToTime: '10:00',
+        }),
         'America/New_York',
         early,
       ),
     ).toEqual({ rangeFrom: 'rangeFromInvalid' });
     expect(
       validateAvailabilityAlertForm(
-        range({ rangeFrom: '2026-03-07T10:00', rangeTo: '2026-03-08T02:30' }),
+        range({
+          rangeFromDate: '2026-03-07',
+          rangeFromTime: '10:00',
+          rangeToDate: '2026-03-08',
+          rangeToTime: '02:30',
+        }),
         'America/New_York',
         early,
       ),
@@ -77,7 +101,12 @@ describe('validateAvailabilityAlertForm() — one-time range', () => {
   it('rejects a range that ends in the past, in the tenant timezone', () => {
     expect(
       validateAvailabilityAlertForm(
-        range({ rangeFrom: '2026-09-28T09:00', rangeTo: '2026-10-01T18:00' }),
+        range({
+          rangeFromDate: '2026-09-28',
+          rangeFromTime: '09:00',
+          rangeToDate: '2026-10-01',
+          rangeToTime: '18:00',
+        }),
         TZ,
         NOW,
       ),
@@ -86,14 +115,22 @@ describe('validateAvailabilityAlertForm() — one-time range', () => {
 
   it('judges "past" by the tenant wall clock, not the browser — 12:00 local is 15:00Z', () => {
     // NOW is 12:00 in Sao Paulo: an end of 11:59 today is already past, 12:01 is not.
-    const sameDay = { rangeFrom: '2026-10-06T08:00' };
+    const sameDay = { rangeFromDate: '2026-10-06', rangeFromTime: '08:00' };
     expect(
-      validateAvailabilityAlertForm(range({ ...sameDay, rangeTo: '2026-10-06T11:59' }), TZ, NOW),
+      validateAvailabilityAlertForm(
+        range({ ...sameDay, rangeToDate: '2026-10-06', rangeToTime: '11:59' }),
+        TZ,
+        NOW,
+      ),
     ).toEqual({
       rangeTo: 'rangePast',
     });
     expect(
-      validateAvailabilityAlertForm(range({ ...sameDay, rangeTo: '2026-10-06T12:01' }), TZ, NOW),
+      validateAvailabilityAlertForm(
+        range({ ...sameDay, rangeToDate: '2026-10-06', rangeToTime: '12:01' }),
+        TZ,
+        NOW,
+      ),
     ).toEqual({});
   });
 });

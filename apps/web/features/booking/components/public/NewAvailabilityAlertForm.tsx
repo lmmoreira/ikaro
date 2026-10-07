@@ -6,13 +6,8 @@ import { useAvailabilityAlertForm } from '@/features/booking/hooks/useAvailabili
 import { useResolvedAlertResource } from '@/features/booking/hooks/useResolvedAlertResource';
 import type { AvailabilityAlertFieldKey } from '@/features/booking/model/availability-alert-form';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import {
-  CriteriaChoice,
-  ExpirySelect,
-  LabeledInput,
-  SummaryRow,
-  WeekdayPicker,
-} from './AvailabilityAlertFields';
+import { CriteriaChoice, SummaryRow, WeekdayPicker } from './AvailabilityAlertFields';
+import { DateTimeField, ExpirySelect, TimeField } from './AvailabilityAlertPickers';
 import {
   AvailabilityAlertCapReached,
   AvailabilityAlertIneligible,
@@ -153,23 +148,25 @@ export function NewAvailabilityAlertForm({
 
         {isRange ? (
           <div className="space-y-4">
-            <LabeledInput
-              id="alert-range-from"
+            <DateTimeField
+              rowKey="rangeFrom"
               labelKey="range.from"
-              type="datetime-local"
-              value={form.rangeFrom}
+              date={form.rangeFromDate}
+              time={form.rangeFromTime}
               disabled={submitting}
               error={errorText('rangeFrom')}
-              onChange={(value) => state.update({ rangeFrom: value })}
+              onDateChange={(value) => state.update({ rangeFromDate: value })}
+              onTimeChange={(value) => state.update({ rangeFromTime: value })}
             />
-            <LabeledInput
-              id="alert-range-to"
+            <DateTimeField
+              rowKey="rangeTo"
               labelKey="range.to"
-              type="datetime-local"
-              value={form.rangeTo}
+              date={form.rangeToDate}
+              time={form.rangeToTime}
               disabled={submitting}
               error={errorText('rangeTo')}
-              onChange={(value) => state.update({ rangeTo: value })}
+              onDateChange={(value) => state.update({ rangeToDate: value })}
+              onTimeChange={(value) => state.update({ rangeToTime: value })}
             />
           </div>
         ) : (
@@ -180,19 +177,17 @@ export function NewAvailabilityAlertForm({
               error={errorText('weekdays')}
               onToggle={state.toggleWeekday}
             />
-            <LabeledInput
-              id="alert-weekly-from"
+            <TimeField
+              rowKey="weeklyFrom"
               labelKey="weekly.from"
-              type="time"
               value={form.weeklyFrom}
               disabled={submitting}
               error={errorText('weeklyFrom')}
               onChange={(value) => state.update({ weeklyFrom: value })}
             />
-            <LabeledInput
-              id="alert-weekly-to"
+            <TimeField
+              rowKey="weeklyTo"
               labelKey="weekly.to"
-              type="time"
               value={form.weeklyTo}
               disabled={submitting}
               error={errorText('weeklyTo')}

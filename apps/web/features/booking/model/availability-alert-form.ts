@@ -26,11 +26,14 @@ const DAY_MS = 86_400_000;
 
 export interface AvailabilityAlertFormState {
   readonly criteriaType: AvailabilityAlertCriteriaType;
-  // <input type="datetime-local"> values: wall-clock time in the TENANT's timezone.
-  readonly rangeFrom: string;
-  readonly rangeTo: string;
+  // The one-time range: a calendar day ("YYYY-MM-DD", empty until picked) and a wall-clock time
+  // ("HH:MM") for each end, both read in the TENANT's timezone.
+  readonly rangeFromDate: string;
+  readonly rangeFromTime: string;
+  readonly rangeToDate: string;
+  readonly rangeToTime: string;
   readonly weekdays: readonly AvailabilityAlertWeekday[];
-  // <input type="time"> values, "HH:MM".
+  // The weekly window, "HH:MM" — the shared TimePicker's own value format.
   readonly weeklyFrom: string;
   readonly weeklyTo: string;
   readonly expiryDays: number;
@@ -61,24 +64,31 @@ export type AvailabilityAlertFormErrors = Partial<
 
 export const initialAvailabilityAlertForm: AvailabilityAlertFormState = {
   criteriaType: 'ONE_TIME_RANGE',
-  rangeFrom: '',
-  rangeTo: '',
+  rangeFromDate: '',
+  rangeFromTime: '09:00',
+  rangeToDate: '',
+  rangeToTime: '18:00',
   weekdays: [],
   weeklyFrom: '09:00',
   weeklyTo: '12:00',
   expiryDays: ALERT_DEFAULT_EXPIRY_DAYS,
 };
 
+// "YYYY-MM-DDTHH:mm" for a picked day and time; empty while no day is picked.
+function wallTime(date: string, time: string): string {
+  return date ? `${date}T${time}` : '';
+}
+
 function validateRange(
   state: AvailabilityAlertFormState,
   timeZone: string,
   now: Date,
 ): AvailabilityAlertFormErrors {
-  if (!state.rangeFrom) return { rangeFrom: 'rangeFromRequired' };
-  const from = wallTimeToOffsetIso(state.rangeFrom, timeZone);
+  if (!state.rangeFromDate) return { rangeFrom: 'rangeFromRequired' };
+  const from = wallTimeToOffsetIso(wallTime(state.rangeFromDate, state.rangeFromTime), timeZone);
   if (!from) return { rangeFrom: 'rangeFromInvalid' };
-  if (!state.rangeTo) return { rangeTo: 'rangeToRequired' };
-  const to = wallTimeToOffsetIso(state.rangeTo, timeZone);
+  if (!state.rangeToDate) return { rangeTo: 'rangeToRequired' };
+  const to = wallTimeToOffsetIso(wallTime(state.rangeToDate, state.rangeToTime), timeZone);
   if (!to) return { rangeTo: 'rangeToInvalid' };
   if (new Date(to).getTime() <= new Date(from).getTime()) return { rangeTo: 'rangeEnd' };
   if (new Date(to).getTime() <= now.getTime()) return { rangeTo: 'rangePast' };
@@ -127,8 +137,11 @@ export function buildAvailabilityAlertRequest(
     return {
       ...common,
       criteriaType: 'ONE_TIME_RANGE',
-      acceptableStartAt: wallTimeToOffsetIso(state.rangeFrom, timeZone) ?? undefined,
-      acceptableEndAt: wallTimeToOffsetIso(state.rangeTo, timeZone) ?? undefined,
+      acceptableStartAt:
+        wallTimeToOffsetIso(wallTime(state.rangeFromDate, state.rangeFromTime), timeZone) ??
+        undefined,
+      acceptableEndAt:
+        wallTimeToOffsetIso(wallTime(state.rangeToDate, state.rangeToTime), timeZone) ?? undefined,
     };
   }
   return {

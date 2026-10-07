@@ -1,25 +1,10 @@
 // @vitest-environment jsdom
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { axe } from '@/axe-helper';
 import { renderWithIntl } from '@/test-utils';
-import {
-  CriteriaChoice,
-  ExpirySelect,
-  FieldError,
-  LabeledInput,
-  SummaryRow,
-  WeekdayPicker,
-  fieldStyle,
-} from './AvailabilityAlertFields';
-
-describe('fieldStyle', () => {
-  it('uses the tenant secondary colour normally and red when invalid', () => {
-    expect(fieldStyle(false).borderColor).toBe('var(--ba-secondary)');
-    expect(fieldStyle(true).borderColor).toBe('#dc2626');
-  });
-});
+import { CriteriaChoice, FieldError, SummaryRow, WeekdayPicker } from './AvailabilityAlertFields';
 
 describe('SummaryRow', () => {
   it('shows the label and value and carries its test id', () => {
@@ -93,44 +78,6 @@ describe('CriteriaChoice', () => {
   });
 });
 
-describe('LabeledInput', () => {
-  it('labels the field with the translated key and reports edits', () => {
-    const onChange = vi.fn();
-    renderWithIntl(
-      <LabeledInput
-        id="alert-range-from"
-        labelKey="range.from"
-        type="datetime-local"
-        value=""
-        disabled={false}
-        error={null}
-        onChange={onChange}
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText('De'), { target: { value: '2099-10-20T09:00' } });
-
-    expect(onChange).toHaveBeenCalledWith('2099-10-20T09:00');
-  });
-
-  it('flags the field invalid and shows the error', () => {
-    renderWithIntl(
-      <LabeledInput
-        id="alert-range-to"
-        labelKey="range.to"
-        type="datetime-local"
-        value=""
-        disabled={false}
-        error="O fim do período precisa ser depois do início."
-        onChange={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByLabelText('Até')).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByRole('alert')).toHaveTextContent('O fim do período');
-  });
-});
-
 describe('WeekdayPicker', () => {
   it('draws the seven days Monday first, with a static test id and the day in data-day', () => {
     renderWithIntl(
@@ -186,45 +133,12 @@ describe('WeekdayPicker', () => {
   });
 });
 
-describe('ExpirySelect', () => {
-  it('lists the five durations, marking the default and the maximum', () => {
-    renderWithIntl(<ExpirySelect value={30} disabled={false} onChange={vi.fn()} />);
-
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
-      '30 dias (padrão)',
-      '60 dias',
-      '90 dias',
-      '180 dias',
-      '365 dias (máximo)',
-    ]);
-  });
-
-  it('reports the chosen number of days', async () => {
-    const onChange = vi.fn();
-    renderWithIntl(<ExpirySelect value={30} disabled={false} onChange={onChange} />);
-
-    await userEvent.selectOptions(screen.getByTestId('alert-expiry'), '180');
-
-    expect(onChange).toHaveBeenCalledWith(180);
-  });
-});
-
 describe('accessibility', () => {
-  it('the field primitives have no violations together', async () => {
+  it('the field building blocks have no violations together', async () => {
     const { container } = renderWithIntl(
       <form>
         <CriteriaChoice id="c" checked disabled={false} kind="range" onSelect={vi.fn()} />
-        <LabeledInput
-          id="i"
-          labelKey="range.from"
-          type="datetime-local"
-          value=""
-          disabled={false}
-          error={null}
-          onChange={vi.fn()}
-        />
         <WeekdayPicker selected={[]} disabled={false} error={null} onToggle={vi.fn()} />
-        <ExpirySelect value={30} disabled={false} onChange={vi.fn()} />
       </form>,
     );
 

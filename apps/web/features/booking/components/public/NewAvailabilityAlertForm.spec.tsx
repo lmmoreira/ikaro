@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AvailabilityAlertResponse,
   HotsiteServiceResourceOptionsResponse,
@@ -86,15 +86,46 @@ function weekday(day: string): HTMLElement {
   return pill;
 }
 
-function fillRange(from = '2099-10-20T09:00', to = '2099-10-27T18:00') {
-  fireEvent.change(screen.getByTestId('alert-range-from'), { target: { value: from } });
-  fireEvent.change(screen.getByTestId('alert-range-to'), { target: { value: to } });
+type RangeRow = 'rangeFrom' | 'rangeTo';
+type TimeRow = RangeRow | 'weeklyFrom' | 'weeklyTo';
+
+function byRow(testId: string, row: string): HTMLElement {
+  const found = document.querySelector<HTMLElement>(
+    `[data-testid="${testId}"][data-row-key="${row}"]`,
+  );
+  if (!found) throw new Error(`${testId} for ${row} not found`);
+  return found;
+}
+
+// A day is picked from the shadcn Calendar popover, exactly as the leads date range does.
+async function pickDate(row: RangeRow, isoDate: string): Promise<void> {
+  await userEvent.click(byRow('alert-date', row));
+  const cell = document.querySelector(`[data-day="${isoDate}"] button`);
+  if (!cell) throw new Error(`day cell for ${isoDate} not found`);
+  fireEvent.click(cell);
+}
+
+// An hour or minute is picked from the shared TimePicker's Radix select.
+async function pickTime(row: TimeRow, part: 'hour' | 'minute', option: string): Promise<void> {
+  await userEvent.click(byRow(`alert-time-${part}`, row));
+  await userEvent.click(screen.getByRole('option', { name: option }));
+}
+
+async function fillRange(from = '2026-10-20', to = '2026-10-27'): Promise<void> {
+  await pickDate('rangeFrom', from);
+  await pickDate('rangeTo', to);
 }
 
 describe('NewAvailabilityAlertForm', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-06T15:00:00.000Z'));
     vi.mocked(createAvailabilityAlert).mockReset();
     vi.mocked(fetchServiceResourceOptions).mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('what it shows from the booking flow', () => {
@@ -128,7 +159,7 @@ describe('NewAvailabilityAlertForm', () => {
       renderForm({ preferredResourceId: '20000000-0000-4000-8000-0000000000ff' });
       await waitFor(() => expect(screen.getByTestId('alert-submit')).toBeEnabled());
 
-      fillRange();
+      await fillRange();
       await userEvent.click(screen.getByTestId('alert-submit'));
 
       await waitFor(() => expect(createAvailabilityAlert).toHaveBeenCalled());
@@ -160,7 +191,7 @@ describe('NewAvailabilityAlertForm', () => {
 
       expect(await screen.findByTestId('alert-resource')).toHaveTextContent('Box 2');
       expect(screen.queryByTestId('alert-resource-error')).not.toBeInTheDocument();
-      fillRange();
+      await fillRange();
       await userEvent.click(screen.getByTestId('alert-submit'));
       await waitFor(() =>
         expect(createAvailabilityAlert).toHaveBeenCalledWith(
@@ -208,7 +239,7 @@ describe('NewAvailabilityAlertForm', () => {
 
     it('rejects an end that is before the start', async () => {
       renderForm();
-      fillRange('2099-10-27T18:00', '2099-10-20T09:00');
+      await fillRange('2026-10-27', '2026-10-20');
 
       await userEvent.click(screen.getByTestId('alert-submit'));
 
@@ -218,9 +249,12 @@ describe('NewAvailabilityAlertForm', () => {
       expect(createAvailabilityAlert).not.toHaveBeenCalled();
     });
 
-    it('rejects a period that ends in the past', async () => {
+    it('rejects a period that ends earlier today — the Calendar never offers a past day', async () => {
       renderForm();
-      fillRange('2001-01-01T09:00', '2001-01-02T09:00');
+      await pickDate('rangeFrom', '2026-10-06');
+      await pickDate('rangeTo', '2026-10-06');
+      // Now is 12:00 in the tenant zone; the default 09:00 start, 11:00 end is already over.
+      await pickTime('rangeTo', 'hour', '11');
 
       await userEvent.click(screen.getByTestId('alert-submit'));
 
@@ -231,8 +265,8 @@ describe('NewAvailabilityAlertForm', () => {
     it('asks for a weekday and a later end time in weekly mode', async () => {
       renderForm();
       await userEvent.click(screen.getByTestId('criteria-weekly'));
-      fireEvent.change(screen.getByTestId('alert-weekly-from'), { target: { value: '12:00' } });
-      fireEvent.change(screen.getByTestId('alert-weekly-to'), { target: { value: '09:00' } });
+      await pickTime('weeklyFrom', 'hour', '12');
+      await pickTime('weeklyTo', 'hour', '09');
 
       await userEvent.click(screen.getByTestId('alert-submit'));
 
@@ -248,7 +282,7 @@ describe('NewAvailabilityAlertForm', () => {
       await userEvent.click(screen.getByTestId('alert-submit'));
       await screen.findByText('Informe o início do período.');
 
-      fillRange();
+      await fillRange();
 
       expect(screen.queryByText('Informe o início do período.')).not.toBeInTheDocument();
     });
@@ -260,7 +294,7 @@ describe('NewAvailabilityAlertForm', () => {
       vi.mocked(createAvailabilityAlert).mockResolvedValue(created);
       renderForm({ preferredResourceId: RESOURCE_ID, durationMinutes: 60 });
       await screen.findByTestId('alert-resource');
-      fillRange();
+      await fillRange();
 
       await userEvent.click(screen.getByTestId('alert-submit'));
 
@@ -270,8 +304,8 @@ describe('NewAvailabilityAlertForm', () => {
           preferredResourceId: RESOURCE_ID,
           durationMinutes: 60,
           criteriaType: 'ONE_TIME_RANGE',
-          acceptableStartAt: '2099-10-20T09:00:00-03:00',
-          acceptableEndAt: '2099-10-27T18:00:00-03:00',
+          acceptableStartAt: '2026-10-20T09:00:00-03:00',
+          acceptableEndAt: '2026-10-27T18:00:00-03:00',
         }),
       );
       expect(await screen.findByRole('heading', { name: 'Aviso criado' })).toBeInTheDocument();
@@ -284,7 +318,7 @@ describe('NewAvailabilityAlertForm', () => {
     it('never sends a participant count or a timezone', async () => {
       vi.mocked(createAvailabilityAlert).mockResolvedValue(created);
       renderForm();
-      fillRange();
+      await fillRange();
 
       await userEvent.click(screen.getByTestId('alert-submit'));
 
@@ -337,8 +371,9 @@ describe('NewAvailabilityAlertForm', () => {
     it('sends an expiry only when a non-default one is picked', async () => {
       vi.mocked(createAvailabilityAlert).mockResolvedValue(created);
       renderForm();
-      fillRange();
-      await userEvent.selectOptions(screen.getByTestId('alert-expiry'), '90');
+      await fillRange();
+      await userEvent.click(screen.getByTestId('alert-expiry'));
+      await userEvent.click(screen.getByRole('option', { name: '90 dias' }));
 
       await userEvent.click(screen.getByTestId('alert-submit'));
 
@@ -351,12 +386,12 @@ describe('NewAvailabilityAlertForm', () => {
     it('disables the form and shows the progress label while saving', async () => {
       vi.mocked(createAvailabilityAlert).mockReturnValue(new Promise(() => undefined));
       renderForm();
-      fillRange();
+      await fillRange();
 
       await userEvent.click(screen.getByTestId('alert-submit'));
 
       expect(await screen.findByRole('button', { name: 'Criando aviso…' })).toBeDisabled();
-      expect(screen.getByTestId('alert-range-from')).toBeDisabled();
+      expect(byRow('alert-date', 'rangeFrom')).toBeDisabled();
     });
   });
 
@@ -364,7 +399,7 @@ describe('NewAvailabilityAlertForm', () => {
     async function submitWith(error: unknown) {
       vi.mocked(createAvailabilityAlert).mockRejectedValue(error);
       renderForm();
-      fillRange();
+      await fillRange();
       await userEvent.click(screen.getByTestId('alert-submit'));
     }
 

@@ -363,7 +363,15 @@
         "cta": "Sign in or create an account",
         "back": "Back"
       },
-      "resourceError": "We could not load the resource you picked."
+      "resourceError": "We could not load the resource you picked.",
+      "date": {
+        "placeholder": "Choose a date"
+      },
+      "time": {
+        "hour": "{label}: hour",
+        "minute": "{label}: minute",
+        "period": "{label}: period"
+      }
     }
   },
   "hotsite": {
