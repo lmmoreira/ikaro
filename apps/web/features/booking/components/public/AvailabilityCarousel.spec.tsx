@@ -121,6 +121,20 @@ describe('AvailabilityCarousel', () => {
     expect(getDayOption('2026-06-15')).toHaveStyle({ borderRadius: '0.75rem' });
   });
 
+  it('centers the day strip in the dashboard variant and leaves the hotsite strip start-aligned', async () => {
+    const days: DaySummary[] = [{ date: '2026-06-15', available: true, slotCount: 5 }];
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue(days);
+
+    const { unmount } = renderCarousel({ selectedDate: '2026-06-15', variant: 'dashboard' });
+    await screen.findAllByTestId('day-option');
+    expect(screen.getByTestId('day-strip')).toHaveClass('justify-center');
+    unmount();
+
+    renderCarousel({ selectedDate: '2026-06-15' });
+    await screen.findAllByTestId('day-option');
+    expect(screen.getByTestId('day-strip')).not.toHaveClass('justify-center');
+  });
+
   it('never reads a tenant branding variable for the selected day in the dashboard variant', async () => {
     const days: DaySummary[] = [{ date: '2026-06-15', available: true, slotCount: 5 }];
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue(days);

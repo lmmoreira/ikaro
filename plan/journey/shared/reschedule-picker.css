@@ -6,7 +6,7 @@
   rendered with the dashboard look (white chips, blue-200 border, blue-700 text; selected = solid blue-600) — the same look as the
   staff RescheduleBookingPage. NOT the tokens.css .day-pill / .slot-btn (those draw the hotsite look, green "available" border).
 */
-.avc-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:1.25rem; }
+.avc-row { display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-bottom:1.25rem; }
 .avc-scroll { display:flex; flex:1; gap:0.5rem; overflow-x:auto; padding:0.25rem 0; scroll-behavior:smooth; }
 .avc-chev { display:none; flex-shrink:0; background:none; border:0; padding:0; cursor:pointer; color:var(--ba-text); }
 @media (min-width:640px) { .avc-chev { display:block; } }

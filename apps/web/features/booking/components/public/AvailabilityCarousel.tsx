@@ -114,7 +114,12 @@ export function AvailabilityCarousel({
 
   return (
     <div>
-      <div className="flex items-center gap-2">
+      <div
+        data-testid="day-strip"
+        className={
+          isDashboardVariant ? 'flex items-center justify-center gap-2' : 'flex items-center gap-2'
+        }
+      >
         <button
           type="button"
           aria-label={t('availability.previousDays')}
