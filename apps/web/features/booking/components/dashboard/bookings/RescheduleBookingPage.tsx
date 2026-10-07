@@ -28,6 +28,7 @@ interface RescheduleBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
   readonly tenantSlug: string;
   readonly maxBookingAdvanceDays: number;
+  readonly timezone: string;
   readonly backHref: string;
   readonly agendaHref: string;
 }
@@ -36,6 +37,7 @@ export function RescheduleBookingPage({
   booking,
   tenantSlug,
   maxBookingAdvanceDays,
+  timezone,
   backHref,
   agendaHref,
 }: RescheduleBookingPageProps): React.JSX.Element {
@@ -181,6 +183,7 @@ export function RescheduleBookingPage({
               }}
               carouselDays={14}
               maxBookingAdvanceDays={maxBookingAdvanceDays}
+              timezone={timezone}
               variant="dashboard"
             />
           </section>

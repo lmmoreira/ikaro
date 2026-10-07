@@ -2417,4 +2417,168 @@ describe('BookingController (integration)', () => {
       expect(body.status).toBe(404);
     });
   });
+
+  describe('booking window (M23-S33)', () => {
+    let windowCustomerId: string;
+    let shortMaxServiceId: string;
+    let noticeServiceId: string;
+    let tenantBServiceId: string;
+
+    beforeAll(async () => {
+      const customer = new CustomerEntityBuilder()
+        .withTenantId(tenantAId)
+        .withGoogleOAuthId('google-sub-booking-window')
+        .withEmail('window@booking.test')
+        .withName('Window Customer')
+        .withPhone('+5531944444444')
+        .build();
+      await ds.getRepository(CustomerEntity).save(customer);
+      windowCustomerId = customer.id;
+
+      const shortMax = new ServiceEntityBuilder()
+        .withTenantId(tenantAId)
+        .withName('Janela Curta')
+        .withDurationMinutes(30)
+        .withMaxBookingAdvanceDaysOverride(3)
+        .build();
+      const notice = new ServiceEntityBuilder()
+        .withTenantId(tenantAId)
+        .withName('Aviso Prévio')
+        .withDurationMinutes(30)
+        .withMinBookingAdvanceHoursOverride(24 * 5)
+        .build();
+      const tenantBService = new ServiceEntityBuilder()
+        .withTenantId(tenantBId)
+        .withName('Servico Tenant B')
+        .withDurationMinutes(30)
+        .build();
+      await ds.getRepository(ServiceEntity).save([shortMax, notice, tenantBService]);
+      shortMaxServiceId = shortMax.id;
+      noticeServiceId = notice.id;
+      tenantBServiceId = tenantBService.id;
+    });
+
+    const guestBooking = (tenantId: string, body: Record<string, unknown>) =>
+      request(app.getHttpServer()).post('/bookings').set(guestHeaders(tenantId)).send(body);
+
+    it('rejects a start in the past with 422 BOOKING_SCHEDULED_IN_PAST', async () => {
+      const { body } = await guestBooking(tenantAId, {
+        ...validBody(),
+        scheduledAt: '2020-01-06T13:00:00.000Z',
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_SCHEDULED_IN_PAST');
+    });
+
+    it('rejects a start beyond the tenant maximum with 422 BOOKING_TOO_FAR_AHEAD', async () => {
+      const { body } = await guestBooking(tenantAId, {
+        ...validBody(),
+        scheduledAt: `${futureDate(120)}T13:00:00.000Z`,
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+    });
+
+    it("honours a service's own shorter maximum, and accepts a date inside it", async () => {
+      const { body } = await guestBooking(tenantAId, {
+        ...validBody(),
+        serviceIds: [shortMaxServiceId],
+        scheduledAt: `${futureDate(10)}T15:00:00.000Z`,
+      }).expect(422);
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+
+      await guestBooking(tenantAId, {
+        ...validBody(),
+        serviceIds: [shortMaxServiceId],
+        scheduledAt: `${futureDate(1)}T15:00:00.000Z`,
+      }).expect(201);
+    });
+
+    it("honours a service's own minimum notice with 422 BOOKING_TOO_SOON, and accepts a later start", async () => {
+      const { body } = await guestBooking(tenantAId, {
+        ...validBody(),
+        serviceIds: [noticeServiceId],
+        scheduledAt: `${futureDate(2)}T16:00:00.000Z`,
+      }).expect(422);
+      expect(body.code).toBe('BOOKING_TOO_SOON');
+
+      await guestBooking(tenantAId, {
+        ...validBody(),
+        serviceIds: [noticeServiceId],
+        scheduledAt: `${futureDate(8)}T16:00:00.000Z`,
+      }).expect(201);
+    });
+
+    it('applies the strictest window of a multi-service basket', async () => {
+      const { body } = await guestBooking(tenantAId, {
+        ...validBody(),
+        serviceIds: [serviceId, shortMaxServiceId],
+        scheduledAt: `${futureDate(10)}T17:00:00.000Z`,
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+    });
+
+    it('POST /bookings/authenticated applies the same window', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, windowCustomerId, 'CUSTOMER'))
+        .send({ serviceIds: [serviceId], scheduledAt: `${futureDate(120)}T13:00:00.000Z` })
+        .expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+    });
+
+    async function createApprovedWindowBooking(daysAhead: number): Promise<string> {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, windowCustomerId, 'CUSTOMER'))
+        .send({ serviceIds: [serviceId], scheduledAt: `${futureDate(daysAhead)}T11:00:00.000Z` })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+      return created.bookingId as string;
+    }
+
+    it('rejects a customer reschedule to a date beyond the window with 422', async () => {
+      const bookingId = await createApprovedWindowBooking(60);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/reschedule-customer`)
+        .set(actorHeaders(tenantAId, windowCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(120)}T11:00:00.000Z` })
+        .expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+    });
+
+    it('lets staff reschedule beyond the window, and leaves the existing booking untouched', async () => {
+      const bookingId = await createApprovedWindowBooking(61);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/reschedule-admin`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({ scheduledAt: `${futureDate(120)}T11:00:00.000Z` })
+        .expect(200);
+
+      const row = await ds
+        .getRepository(BookingEntity)
+        .findOneByOrFail({ id: bookingId, tenantId: tenantAId });
+      expect(row.scheduledAt.toISOString()).toBe(`${futureDate(120)}T11:00:00.000Z`);
+    });
+
+    it("tenant isolation: tenant A's service window never applies to tenant B's booking", async () => {
+      // 10 days ahead is beyond tenant A's short-window service, but tenant B's own service has no
+      // override and the tenant default allows it.
+      const { body } = await guestBooking(tenantBId, {
+        ...validBody(),
+        serviceIds: [tenantBServiceId],
+        scheduledAt: `${futureDate(10)}T15:00:00.000Z`,
+      }).expect(201);
+
+      expect(body.bookingId).toEqual(expect.any(String));
+    });
+  });
 });

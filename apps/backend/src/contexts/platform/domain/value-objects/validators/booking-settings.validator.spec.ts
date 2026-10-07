@@ -50,6 +50,47 @@ describe('BookingSettingsValidator', () => {
     );
   });
 
+  it('rejects minBookingAdvanceHours above the 8760-hour ceiling', () => {
+    expectCode(
+      { ...VALID, minBookingAdvanceHours: 8761, maxBookingAdvanceDays: 365 },
+      PlatformErrorCode.SETTINGS_BOOKING_MIN_ADVANCE_HOURS_INVALID,
+    );
+  });
+
+  it('rejects maxBookingAdvanceDays above the 365-day ceiling', () => {
+    expectCode(
+      { ...VALID, maxBookingAdvanceDays: 366 },
+      PlatformErrorCode.SETTINGS_BOOKING_MAX_ADVANCE_DAYS_INVALID,
+    );
+  });
+
+  it('accepts the largest values the ceilings allow together', () => {
+    expect(() =>
+      BookingSettingsValidator.validate({
+        ...VALID,
+        minBookingAdvanceHours: 8759,
+        maxBookingAdvanceDays: 365,
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects a minimum notice that is not shorter than the maximum advance, in whole days', () => {
+    expectCode(
+      { ...VALID, minBookingAdvanceHours: 24 * 7, maxBookingAdvanceDays: 7 },
+      PlatformErrorCode.SETTINGS_BOOKING_MIN_ADVANCE_HOURS_INVALID,
+    );
+  });
+
+  it('accepts a minimum notice just under the maximum advance', () => {
+    expect(() =>
+      BookingSettingsValidator.validate({
+        ...VALID,
+        minBookingAdvanceHours: 24 * 7 - 1,
+        maxBookingAdvanceDays: 7,
+      }),
+    ).not.toThrow();
+  });
+
   it('rejects serviceBufferMinutes outside 0-120', () => {
     expectCode(
       { ...VALID, serviceBufferMinutes: 121 },

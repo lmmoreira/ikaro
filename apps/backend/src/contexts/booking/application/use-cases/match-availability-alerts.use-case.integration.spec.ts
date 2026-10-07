@@ -110,11 +110,12 @@ describe('MatchAvailabilityAlerts (integration)', () => {
       ds.getRepository(AvailabilityAlertEntity),
       makeRealOutboxPublisher(outboxRepo, new InMemoryEventBus()),
     );
+    const serviceRepo = new TypeOrmServiceRepository(
+      ds.getRepository(ServiceEntity),
+      new InMemoryTenantSettingsPort(),
+    );
     const getAvailability = new GetAvailabilityUseCase(
-      new TypeOrmServiceRepository(
-        ds.getRepository(ServiceEntity),
-        new InMemoryTenantSettingsPort(),
-      ),
+      serviceRepo,
       new TypeOrmScheduleClosureRepository(ds.getRepository(ScheduleClosureEntity)),
       new TypeOrmScheduleOpeningRepository(ds.getRepository(ScheduleOpeningEntity)),
       new TypeOrmResourceRepository(ds.getRepository(ResourceEntity)),
@@ -126,6 +127,7 @@ describe('MatchAvailabilityAlerts (integration)', () => {
       alertRepo,
       platformPort,
       new TypeOrmTransactionManager(ds),
+      serviceRepo,
       getAvailability,
     );
     handler = new BookingCancelledAvailabilityAlertHandler(useCase, new InMemoryEventBus());
@@ -505,6 +507,7 @@ describe('MatchAvailabilityAlerts (integration)', () => {
         slotGranularityMinutes: 30 as const,
         serviceBufferMinutes: 0,
         selectableDays,
+        bookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
       });
       const statusNow = async () =>
         (await ds.getRepository(AvailabilityAlertEntity).findOneByOrFail({ id: alertId })).status;

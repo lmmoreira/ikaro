@@ -336,9 +336,9 @@ describe('ScheduleAvailabilityController (integration)', () => {
 
   describe('GET /schedule/availability — validation errors', () => {
     it('returns 422 for a past date', async () => {
-      const yesterday = new Date();
-      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-      const past = yesterday.toISOString().slice(0, 10);
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setUTCDate(twoDaysAgo.getUTCDate() - 2);
+      const past = twoDaysAgo.toISOString().slice(0, 10);
 
       const { body } = await request(app.getHttpServer())
         .get(`/schedule/availability?date=${past}&serviceIds=${serviceId}`)

@@ -161,7 +161,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
       .set('X-Actor-ID', customerId)
       .set('X-Actor-Type', 'CUSTOMER')
       .set('X-Actor-Role', 'CUSTOMER')
-      .send({ scheduledAt: '2026-07-01T10:00:00.000Z', serviceIds: [serviceId] })
+      .send({ scheduledAt: `${futureDate(4)}T10:00:00.000Z`, serviceIds: [serviceId] })
       .expect(201);
 
     const booking1Id = b1.bookingId as string;

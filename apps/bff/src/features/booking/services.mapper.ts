@@ -171,6 +171,8 @@ export function toPublicServiceResponse(service: ServiceDetail): HotsiteServiceR
     resourceRequirements: service.resourceRequirements.map(toHotsiteResourceRequirement),
     legs: service.legs ? service.legs.map(toHotsiteServiceLeg) : null,
     bookingPolicy: {
+      effectiveMinBookingAdvanceHours: policy.effectiveMinBookingAdvanceHours,
+      effectiveMaxBookingAdvanceDays: policy.effectiveMaxBookingAdvanceDays,
       durationPolicy: policy.durationPolicy,
       durationMinMinutes: policy.durationMinMinutes,
       durationMaxMinutes: policy.durationMaxMinutes,

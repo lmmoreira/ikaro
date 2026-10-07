@@ -335,10 +335,14 @@ export interface HotsiteServiceLeg {
   transitionGapAfterMinutes: number;
 }
 
-// The subset of the service's booking policy the booking flow reads — no override, approval,
-// hold or class-slot fields. `availabilityAlertEligible` is the one availability-alert field:
-// the calendar step reads it to decide whether to offer "Avise-me quando abrir" (M23-S31).
+// The subset of the service's booking policy the booking flow reads — no raw override, approval,
+// hold or class-slot fields. The effective booking window is the service's own override already
+// clamped to the tenant window, so the page never recomputes it. `availabilityAlertEligible` is the
+// one availability-alert field: the calendar step reads it to decide whether to offer "Avise-me
+// quando abrir" (M23-S31).
 export interface HotsiteServiceBookingPolicy {
+  effectiveMinBookingAdvanceHours: number;
+  effectiveMaxBookingAdvanceDays: number;
   durationPolicy: ServiceDurationPolicy;
   durationMinMinutes: number | null;
   durationMaxMinutes: number | null;

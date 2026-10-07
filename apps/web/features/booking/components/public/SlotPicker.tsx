@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { AvailableSlot, ResourceSelectionItem } from '@ikaro/types';
+import { isSlotBookable } from '@/features/booking/model/booking-window';
 import { fetchAvailability } from '@/features/platform/hotsite/api/schedule';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { cn } from '@/shared/utils/cn';
@@ -16,6 +17,7 @@ interface SlotPickerProps {
   readonly onSelectSlot: (slot: AvailableSlot) => void;
   readonly resourceSelections?: readonly ResourceSelectionItem[];
   readonly durationMinutes?: number;
+  readonly minBookingAdvanceHours?: number;
   readonly variant?: 'hotsite' | 'dashboard';
 }
 
@@ -27,6 +29,7 @@ export function SlotPicker({
   onSelectSlot,
   resourceSelections,
   durationMinutes,
+  minBookingAdvanceHours = 0,
   variant = 'hotsite',
 }: SlotPickerProps): React.JSX.Element {
   const t = useTranslations('booking');
@@ -40,7 +43,13 @@ export function SlotPicker({
 
     fetchAvailability(slug, date, serviceIds, { resourceSelections, durationMinutes })
       .then((response) => {
-        if (!cancelled) setResult({ date, slots: response.slots });
+        // A slot inside the minimum notice is not bookable — the backend would reject it — so it
+        // is never offered.
+        const now = new Date();
+        const slots = response.slots.filter((slot) =>
+          isSlotBookable(slot.startsAt, now, minBookingAdvanceHours),
+        );
+        if (!cancelled) setResult({ date, slots });
       })
       .catch(() => {
         if (!cancelled) setErrorDate(date);
@@ -49,7 +58,15 @@ export function SlotPicker({
     return () => {
       cancelled = true;
     };
-  }, [slug, date, serviceIds, resourceSelections, durationMinutes, retryCount]);
+  }, [
+    slug,
+    date,
+    serviceIds,
+    resourceSelections,
+    durationMinutes,
+    minBookingAdvanceHours,
+    retryCount,
+  ]);
 
   const handleRetry = useCallback(() => {
     setErrorDate(null);

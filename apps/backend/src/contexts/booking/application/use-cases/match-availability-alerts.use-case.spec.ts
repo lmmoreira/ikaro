@@ -65,6 +65,7 @@ describe('MatchAvailabilityAlertsUseCase', () => {
       repo,
       platformPort,
       new InMemoryTransactionManager(),
+      serviceRepo,
       new GetAvailabilityUseCase(
         serviceRepo,
         new InMemoryScheduleClosureRepository(),
@@ -207,6 +208,72 @@ describe('MatchAvailabilityAlertsUseCase', () => {
     });
   });
 
+  describe('the service booking window (M23-S33)', () => {
+    const context = (selectableDays: number) => ({
+      businessHours: FULL_WEEK_BUSINESS_HOURS,
+      slotGranularityMinutes: 30 as const,
+      serviceBufferMinutes: 0,
+      selectableDays,
+      bookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
+    });
+
+    async function saveServiceWithPolicy(
+      policy: Parameters<ServiceBuilder['withBookingPolicy']>[0],
+    ): Promise<string> {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withBookingPolicy(policy)
+        .build();
+      await serviceRepo.save(service);
+      return service.id;
+    }
+
+    it("never matches a date beyond the service's own maximum, even inside the tenant window", async () => {
+      platformPort.seedAvailabilityAlertContext(TENANT_ID, context(60));
+      const shortWindowId = await saveServiceWithPolicy({ maxBookingAdvanceDaysOverride: 7 });
+      const alert = alertFor({ serviceId: shortWindowId })
+        .withOneTimeRange(at(farMonday, '10:00'), at(farMonday, '12:00'))
+        .build();
+      alertRepo.seed(alert);
+
+      expect((await sweep()).notified).toBe(0);
+      expect(alert.status).toBe('ACTIVE');
+    });
+
+    it("drops a slot that starts inside the service's minimum notice", async () => {
+      platformPort.seedAvailabilityAlertContext(TENANT_ID, context(60));
+      const noticeId = await saveServiceWithPolicy({ minBookingAdvanceHoursOverride: 24 * 14 });
+      const alert = alertFor({ serviceId: noticeId })
+        .withOneTimeRange(at(monday, '10:00'), at(monday, '12:00'))
+        .build();
+      alertRepo.seed(alert);
+
+      expect((await sweep()).notified).toBe(0);
+      expect(alert.status).toBe('ACTIVE');
+    });
+
+    it('applies the tenant minimum notice to a service without an override', async () => {
+      platformPort.seedAvailabilityAlertContext(TENANT_ID, {
+        ...context(60),
+        bookingWindow: { minBookingAdvanceHours: 24 * 14, maxBookingAdvanceDays: 90 },
+      });
+      const alert = alertFor().withOneTimeRange(at(monday, '10:00'), at(monday, '12:00')).build();
+      alertRepo.seed(alert);
+
+      expect((await sweep()).notified).toBe(0);
+    });
+
+    it('skips an alert whose service no longer exists', async () => {
+      const alert = alertFor({ serviceId: '30000000-0000-4000-8000-0000000000ff' })
+        .withOneTimeRange(at(monday, '10:00'), at(monday, '12:00'))
+        .build();
+      alertRepo.seed(alert);
+
+      expect((await sweep()).notified).toBe(0);
+    });
+  });
+
   describe('the customer-selectable window', () => {
     it('never matches a date beyond what the booking page lets a customer pick', async () => {
       platformPort.seedAvailabilityAlertContext(TENANT_ID, {
@@ -214,6 +281,7 @@ describe('MatchAvailabilityAlertsUseCase', () => {
         slotGranularityMinutes: 30,
         serviceBufferMinutes: 0,
         selectableDays: 14,
+        bookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
       });
       const alert = alertFor()
         .withOneTimeRange(at(farMonday, '10:00'), at(farMonday, '12:00'))
@@ -230,6 +298,7 @@ describe('MatchAvailabilityAlertsUseCase', () => {
         slotGranularityMinutes: 30,
         serviceBufferMinutes: 0,
         selectableDays: 60,
+        bookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
       });
       const alert = alertFor()
         .withOneTimeRange(at(farMonday, '10:00'), at(farMonday, '12:00'))

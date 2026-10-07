@@ -216,6 +216,28 @@ describe('validateSettingsForm', () => {
     expect(errors.name).toBeUndefined();
   });
 
+  it('rejects a minimum notice that is not shorter than the maximum advance', () => {
+    const { errors, normalized } = validateSettingsForm(
+      validValues({ minBookingAdvanceHours: '168', maxBookingAdvanceDays: '7' }),
+      BR,
+      t,
+    );
+
+    expect(errors.minBookingAdvanceHours).toBe('errors.minBookingAdvanceHoursInvalid');
+    expect(normalized).toBeNull();
+  });
+
+  it('rejects the advance window fields above their ceilings', () => {
+    const { errors } = validateSettingsForm(
+      validValues({ minBookingAdvanceHours: '8761', maxBookingAdvanceDays: '366' }),
+      BR,
+      t,
+    );
+
+    expect(errors.minBookingAdvanceHours).toBe('errors.minBookingAdvanceHoursInvalid');
+    expect(errors.maxBookingAdvanceDays).toBe('errors.maxBookingAdvanceDaysInvalid');
+  });
+
   it('rejects non-numeric numeric fields with the same field message', () => {
     const { errors } = validateSettingsForm(validValues({ serviceBufferMinutes: 'abc' }), BR, t);
 

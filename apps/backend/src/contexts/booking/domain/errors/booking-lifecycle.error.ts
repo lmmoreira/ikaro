@@ -224,6 +224,26 @@ export class BookingScheduledInPastError extends BookingDomainError {
   }
 }
 
+export class BookingTooSoonError extends BookingDomainError {
+  constructor(minAdvanceHours: number) {
+    super(
+      `A booking must start at least ${minAdvanceHours} hours from now`,
+      BookingErrorCode.TOO_SOON,
+    );
+    this.name = 'BookingTooSoonError';
+  }
+}
+
+export class BookingTooFarAheadError extends BookingDomainError {
+  constructor(maxAdvanceDays: number) {
+    super(
+      `A booking cannot be made more than ${maxAdvanceDays} days ahead`,
+      BookingErrorCode.TOO_FAR_AHEAD,
+    );
+    this.name = 'BookingTooFarAheadError';
+  }
+}
+
 export class BookingScheduledAtInvalidError extends BookingDomainError {
   constructor() {
     super('Scheduled time must be a valid date', BookingErrorCode.SCHEDULED_AT_INVALID);

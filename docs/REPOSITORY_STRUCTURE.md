@@ -75,7 +75,7 @@ apps/backend/src/shared/
 ├── ports/            # IEventBus, IRepository<T> — no barrel index.ts (ESLint enforced)
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject base classes — no barrel index.ts
 ├── value-objects/    # Email, PhoneNumber, Address, HexColor, Timezone, TimeOfDay, Slug, CountryCode, SeoTitle, SeoDescription
-├── utils/            # deepMerge, startOfDayUTC, endOfDayUTC, todayUTC, localDateTimeToUTCIso,
+├── utils/            # deepMerge, startOfDayUTC, endOfDayUTC, todayUTC, todayInTimezone, localDateTimeToUTCIso,
 │                     # utcDateToLocalDate, utcDateToLocalHHMM, getUtcWeekDayName
 ├── request/          # RequestContext (request-scoped), RequestInterceptor
 ├── observability/    # Logger, OTel tracer, structured log helpers

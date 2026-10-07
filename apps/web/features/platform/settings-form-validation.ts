@@ -24,23 +24,30 @@ import { buildBusinessHours, parseIntStrict, trimmedOrNull } from './settings-fo
 // Mirrors the BFF's UpdateTenantSettingsBodySchema ranges exactly
 // (apps/bff/src/features/platform/tenant-settings.controller.ts).
 // pointsPerCurrencyUnit additionally enforces int, per the story spec.
-export const SettingsFormSchema = z.object({
-  name: z.string().trim().min(1),
-  cancellationWindowHours: z.number().int().min(0).max(720),
-  serviceBufferMinutes: z.number().int().min(0).max(120),
-  minBookingAdvanceHours: z.number().int().min(0),
-  maxBookingAdvanceDays: z.number().int().min(1),
-  slotGranularityMinutes: z.union([z.literal(15), z.literal(30), z.literal(60)]),
-  welcomeStaffScreenDays: z.number().int().min(1).max(90),
-  loyaltyExpiryDays: z.number().int().min(1).max(3650),
-  loyaltyExpiryWarningDays: z.number().int().min(1).max(90),
-  loyaltyNotificationMinPoints: z.number().int().min(0).max(10000),
-  pointsPerCurrencyUnit: z.number().int().min(0).max(10000),
-  email: z.email().nullable(),
-  retentionMonths: z.number().int().min(1).max(24),
-  maxSubmissionsPerDay: z.number().int().min(1).max(1000),
-  maxSubmissionsPerIpPerDay: z.number().int().min(1).max(100),
-});
+export const SettingsFormSchema = z
+  .object({
+    name: z.string().trim().min(1),
+    cancellationWindowHours: z.number().int().min(0).max(720),
+    serviceBufferMinutes: z.number().int().min(0).max(120),
+    minBookingAdvanceHours: z.number().int().min(0).max(8760),
+    maxBookingAdvanceDays: z.number().int().min(1).max(365),
+    slotGranularityMinutes: z.union([z.literal(15), z.literal(30), z.literal(60)]),
+    welcomeStaffScreenDays: z.number().int().min(1).max(90),
+    loyaltyExpiryDays: z.number().int().min(1).max(3650),
+    loyaltyExpiryWarningDays: z.number().int().min(1).max(90),
+    loyaltyNotificationMinPoints: z.number().int().min(0).max(10000),
+    pointsPerCurrencyUnit: z.number().int().min(0).max(10000),
+    email: z.email().nullable(),
+    retentionMonths: z.number().int().min(1).max(24),
+    maxSubmissionsPerDay: z.number().int().min(1).max(1000),
+    maxSubmissionsPerIpPerDay: z.number().int().min(1).max(100),
+  })
+  .superRefine((value, ctx) => {
+    // The minimum notice must leave at least one bookable day — the backend validator's own rule.
+    if (value.minBookingAdvanceHours / 24 >= value.maxBookingAdvanceDays) {
+      ctx.addIssue({ code: 'custom', path: ['minBookingAdvanceHours'], message: 'min/max window' });
+    }
+  });
 
 type SchemaField = keyof z.infer<typeof SettingsFormSchema>;
 

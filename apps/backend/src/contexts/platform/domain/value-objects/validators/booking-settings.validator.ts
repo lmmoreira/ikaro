@@ -2,6 +2,10 @@ import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import type { BookingSettings } from '../../../../../shared/value-objects/tenant-settings-data';
 import { TenantSettingsValidationError } from '../../errors/platform-domain.error';
 
+const MAX_MIN_BOOKING_ADVANCE_HOURS = 8760;
+const MAX_BOOKING_ADVANCE_DAYS = 365;
+const HOURS_PER_DAY = 24;
+
 export class BookingSettingsValidator {
   static validate(booking: BookingSettings): void {
     BookingSettingsValidator.validateCancellationWindow(booking);
@@ -22,18 +26,27 @@ export class BookingSettingsValidator {
   }
 
   private static validateAdvanceNotice(booking: BookingSettings): void {
-    if (booking.minBookingAdvanceHours < 0) {
+    const { minBookingAdvanceHours: minHours, maxBookingAdvanceDays: maxDays } = booking;
+    if (minHours < 0 || minHours > MAX_MIN_BOOKING_ADVANCE_HOURS) {
       throw new TenantSettingsValidationError(
-        'booking.minBookingAdvanceHours must be >= 0',
+        `booking.minBookingAdvanceHours must be between 0 and ${MAX_MIN_BOOKING_ADVANCE_HOURS}`,
         PlatformErrorCode.SETTINGS_BOOKING_MIN_ADVANCE_HOURS_INVALID,
         'booking.minBookingAdvanceHours',
       );
     }
-    if (booking.maxBookingAdvanceDays < 1) {
+    if (maxDays < 1 || maxDays > MAX_BOOKING_ADVANCE_DAYS) {
       throw new TenantSettingsValidationError(
-        'booking.maxBookingAdvanceDays must be >= 1',
+        `booking.maxBookingAdvanceDays must be between 1 and ${MAX_BOOKING_ADVANCE_DAYS}`,
         PlatformErrorCode.SETTINGS_BOOKING_MAX_ADVANCE_DAYS_INVALID,
         'booking.maxBookingAdvanceDays',
+      );
+    }
+    // The minimum notice must leave at least one bookable day.
+    if (minHours / HOURS_PER_DAY >= maxDays) {
+      throw new TenantSettingsValidationError(
+        'booking.minBookingAdvanceHours must be shorter than booking.maxBookingAdvanceDays',
+        PlatformErrorCode.SETTINGS_BOOKING_MIN_ADVANCE_HOURS_INVALID,
+        'booking.minBookingAdvanceHours',
       );
     }
   }

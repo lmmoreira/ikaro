@@ -300,8 +300,9 @@ Service {
   rescheduleWindowHoursOverride:   int | null                                -- null inherits the same effective value as
                                                                               -- cancellationWindowHoursOverride (no separate
                                                                               -- tenant-level reschedule default exists today)
-  minBookingAdvanceHoursOverride:  int | null                                -- null inherits tenant `minBookingAdvanceHours`
-  maxBookingAdvanceDaysOverride:   int | null                                -- null inherits tenant `maxBookingAdvanceDays`
+  minBookingAdvanceHoursOverride:  int | null                                -- null inherits tenant `minBookingAdvanceHours`; a value can only raise it
+  maxBookingAdvanceDaysOverride:   int | null                                -- null inherits tenant `maxBookingAdvanceDays`; a value can only lower it
+                                                                              -- (effective = clamped to the tenant window on every read, M23-S33)
   recurrenceEligible:              Boolean                                  -- default false; gates CAND-45 (Cluster 3)
   recurringHorizonDays:            int | null                                -- null inherits platform default (90 days); the maximum term of a recurring schedule (M23-S04 creation checks, M23-S05 materialization)
   availabilityAlertEligible:       Boolean                                  -- default false; gates CAND-46 (Cluster 3)

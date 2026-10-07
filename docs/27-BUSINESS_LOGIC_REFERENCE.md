@@ -185,6 +185,47 @@ M22-S03 (PR #483, merged 2026-09-17) executed the documented expand → backfill
 
 ---
 
+## Booking — Booking Window (M23-S33)
+
+### Why this exists
+
+How far ahead and how soon a booking may be made used to be a UI rule only: the calendar hid dates and nothing on the backend read `maxBookingAdvanceDays` or `minBookingAdvanceHours`, so a direct API call booked any date. The backend is now the authority, and a service can tighten the tenant's window with its own overrides.
+
+### The effective window
+
+The tenant window (`settings.booking`) is the **ceiling** for every service. A service override can only tighten it:
+
+```mermaid
+flowchart LR
+  T["tenant minBookingAdvanceHours / maxBookingAdvanceDays"] --> R
+  S["service minBookingAdvanceHoursOverride / maxBookingAdvanceDaysOverride (nullable)"] --> R
+  R["per service:<br/>min hours = max(override, tenant min)<br/>max days = min(override, tenant max)"] --> B["basket (several services):<br/>smallest max days, largest min hours"]
+```
+
+The clamp is applied on **every read**, never persisted, so a tenant that shrinks its window later wins over a stale looser override with no cascade or migration (`resolveEffectiveBookingWindow()`). The same resolved values ride on every service read (`bookingPolicy.effectiveMinBookingAdvanceHours` / `effectiveMaxBookingAdvanceDays`) so the booking page never recomputes them. This is deliberately **not** the MAX-override rule of `resolveEffectiveRescheduleWindowHours()`: a basket's window is the strictest of its services.
+
+### The check
+
+`assertWithinBookingWindow()` runs, in this order, on the requested start:
+
+1. `startsAt <= now` → `422 BOOKING_SCHEDULED_IN_PAST` (the creation path had no past check before this).
+2. `startsAt < now + minAdvanceHours` → `422 BOOKING_TOO_SOON` (an instant comparison — no timezone).
+3. tenant-local date of `startsAt` `> today + maxAdvanceDays − 1` (today also tenant-local) → `422 BOOKING_TOO_FAR_AHEAD`.
+
+It is called by `POST /bookings`, `POST /bookings/authenticated` and the **customer** reschedule (the new start), before any transaction opens. Staff and manager reschedules (including the M23-S08 worklist) are exempt, like they are from the cancellation and reschedule windows (UC-069 A3). Existing bookings are never re-checked. Recurring schedules are out of scope — they are bounded by their own `recurringHorizonDays`.
+
+**Availability reads are deliberately not trimmed.** Staff use the same endpoints, and a read that threw would also stop the alert sweep's per-group read. The public booking page instead hides what the backend would reject: its calendar and carousel use the basket's effective maximum and disable the days before the first one the minimum notice leaves, and the slot picker hides a slot that has already started or starts inside the minimum notice.
+
+### Tenant-local "today"
+
+"Today" for the availability reads (`GetAvailabilityUseCase`, `GetAvailabilitySummaryUseCase`), `OpenScheduleUseCase`, the alert sweep and the public calendar/carousel is the **tenant-local calendar day** — the same boundary as the window rule. It was the UTC date before M23-S33, which for a UTC−3 tenant flipped "today" to tomorrow at 21:00 local.
+
+### Saving a service policy
+
+`UpdateServiceBookingPolicyUseCase` rejects (`422 BOOKING_SERVICE_BOOKING_POLICY_INVALID`, field named) a *changed* override that is looser than the tenant window, and one that leaves `effective min hours / 24 >= effective max days` (nothing bookable). An override left unchanged is not re-validated, so one that went stale after the tenant shrank its window does not block saving the rest of the policy. The tenant settings validator enforces the same cross-field rule on the tenant's own two values (`minBookingAdvanceHours / 24 < maxBookingAdvanceDays`, ceilings 8760 h / 365 days).
+
+---
+
 ## Booking — Recurring Reservations (M23-S04, M23-S05)
 
 ### Why this exists
@@ -314,14 +355,14 @@ The use case does not compare an alert with a raw "freed window". It asks the **
 
 Only dates a customer can pick on the public booking page are considered, so an email is never sent about something the screen would not let them choose:
 
-The window starts on the **UTC date** of the run and is `selectableDays` long — the contract of the availability read itself (it rejects any date before `todayUTC()`) and of the public calendar, so the three never disagree. A freed booking contributes the tenant-local day its slot is listed under; if that day is already behind the window it is left to the next sweep.
+The window starts on the **tenant-local date** of the run (M23-S33; it was the UTC date before) and is at most `selectableDays` long — the contract of the availability read itself (it rejects any date before the tenant's today) and of the public calendar, so the three never disagree. Each service's own effective window narrows it further (see *Booking — Booking Window*): the sweep never looks past the service's own maximum, and it drops a slot that starts inside the service's minimum notice. A freed booking contributes the tenant-local day its slot is listed under; if that day is already behind the window it is left to the next sweep.
 
 | Hotsite `BOOKING_CTA` date picker | Selectable window (days ahead, today included) |
 |---|---|
 | carousel (the default) | `min(carouselDays, maxBookingAdvanceDays)` — `carouselDays` defaults to 14 |
 | calendar | `maxBookingAdvanceDays` |
 
-The hotsite's `BOOKING_CTA` module is read whether or not it is enabled (the public page does the same), and a tenant with no hotsite config gets the carousel/14 default. The per-service `maxBookingAdvanceDaysOverride` is **not** used: it is stored and editable but no availability or booking code reads it, so the tenant value is the real limit. An alert for a date beyond the window simply waits — the sweep matches it the day it enters the window, which is why an alert may live up to 365 days (`ALERT_MAX_EXPIRY_DAYS`, the highest value `maxBookingAdvanceDays` can take; the default stays 30).
+The hotsite's `BOOKING_CTA` module is read whether or not it is enabled (the public page does the same), and a tenant with no hotsite config gets the carousel/14 default. The per-service `maxBookingAdvanceDaysOverride` narrows it for that service's alerts, as it does for booking (M23-S33). An alert for a date beyond the window simply waits — the sweep matches it the day it enters the window, which is why an alert may live up to 365 days (`ALERT_MAX_EXPIRY_DAYS`, the highest value `maxBookingAdvanceDays` can take; the default stays 30).
 
 ### Criteria matching
 
@@ -341,7 +382,7 @@ Of the slots that match, the **earliest** becomes the alert's `matching_window`.
 - A booking window shortened *after* an alert was created never un-notifies anything; an alert simply waits for the new, smaller window.
 - Participant criteria are not matched (see above); the alert page does not send `participantCount` at all (M23-S31).
 - An alert is for **one service**: there is no basket alert, so a multi-service booking attempt cannot create one. A legged or bundled service is matched as a whole (the service-level availability read applies every requirement), and the one `preferredResourceId` is only a further filter on it — an alert cannot carry per-leg resource picks (M23-S31 sends none for such services).
-- The sweep checks availability, not the booking window the backend enforces — nothing on the backend enforces `maxBookingAdvanceDays` / `minBookingAdvanceHours` today (tracked as M23-S33), so "selectable" is the UI's rule.
+- The sweep applies the same effective window the backend enforces on booking (M23-S33), so it never notifies about a slot booking would reject.
 
 ---
 

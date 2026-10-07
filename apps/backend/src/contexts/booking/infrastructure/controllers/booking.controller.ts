@@ -83,6 +83,10 @@ export class BookingController {
         correlationId,
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
+        tenantBookingWindow: {
+          minBookingAdvanceHours: settings.booking.minBookingAdvanceHours,
+          maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+        },
       })
       .catch(mapBookingError);
   }
@@ -102,6 +106,10 @@ export class BookingController {
         customerId: customerId!,
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
+        tenantBookingWindow: {
+          minBookingAdvanceHours: settings.booking.minBookingAdvanceHours,
+          maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+        },
       })
       .catch(mapBookingError);
   }

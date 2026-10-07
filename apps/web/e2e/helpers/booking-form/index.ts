@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { completeCustomerProfile } from '../customer';
 import { loginAsCustomer, uniqueTestEmail } from '../auth';
+import { openFirstDayWithSlots } from './flow';
 
 export async function navigateToStep3(page: Page, tenantSlug = 'ikaro'): Promise<void> {
   await page.goto(`/${tenantSlug}/booking`);
@@ -9,7 +10,7 @@ export async function navigateToStep3(page: Page, tenantSlug = 'ikaro'): Promise
   await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 
-  await page.locator('[data-testid="day-option"]:not([disabled])').first().click();
+  await openFirstDayWithSlots(page);
   await page.locator('[data-testid="time-slot"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 
@@ -25,7 +26,7 @@ export async function navigateToCalendarStep3(page: Page, tenantSlug = 'ikaro'):
   await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 
-  await page.locator('[data-testid="calendar-day"]:not([disabled])').first().click();
+  await openFirstDayWithSlots(page, 'calendar-day');
   await page.locator('[data-testid="time-slot"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 
@@ -45,7 +46,7 @@ export async function navigateToAuthenticatedStep3(
   await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 
-  await page.locator('[data-testid="day-option"]:not([disabled])').first().click();
+  await openFirstDayWithSlots(page);
   await page.locator('[data-testid="time-slot"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 }

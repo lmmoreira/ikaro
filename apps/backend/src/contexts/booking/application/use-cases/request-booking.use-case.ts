@@ -42,13 +42,14 @@ import {
 } from './booking-request.helpers';
 import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
+import { assertWithinEffectiveBookingWindow, BookingWindowRequest } from './booking-window.helpers';
 
-export type RequestBookingUseCaseInput = RequestBookingDto & {
-  tenantId: string;
-  correlationId: string;
-  countryCode: string;
-  timezone: string;
-};
+export type RequestBookingUseCaseInput = RequestBookingDto &
+  BookingWindowRequest & {
+    tenantId: string;
+    correlationId: string;
+    countryCode: string;
+  };
 
 export type RequestBookingUseCaseResult = BookingRequestResult;
 
@@ -76,6 +77,7 @@ export class RequestBookingUseCase {
     const { tenantId } = input;
 
     const serviceMap = await this.resolveServices(input.serviceIds, tenantId);
+    assertWithinEffectiveBookingWindow(input, serviceMap.values());
     const { contactAddress, pickupAddress } = this.resolveAddresses(input);
     const variableResolution = await resolveVariableServiceInputs(
       {

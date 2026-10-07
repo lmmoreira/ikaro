@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { navigateToStep3 } from './helpers/booking-form';
+import { navigateToStep3, openFirstDayWithSlots } from './helpers/booking-form';
 
 test.describe('UC-001 — Guest booking golden path', () => {
   test('guest navigates from hotsite to booking form and submits successfully', async ({
@@ -22,7 +22,7 @@ test.describe('UC-001 — Guest booking golden path', () => {
     await page.locator('[data-testid="step-next"]').click();
 
     // Step 2 — pick first available day then first slot
-    await page.locator('[data-testid="day-option"]:not([disabled])').first().click();
+    await openFirstDayWithSlots(page);
     await page.locator('[data-testid="time-slot"]').first().click();
     await page.locator('[data-testid="step-next"]').click();
 

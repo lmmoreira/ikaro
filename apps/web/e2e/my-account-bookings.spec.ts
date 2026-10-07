@@ -74,8 +74,9 @@ test.describe('customer my-account: home + bookings list', () => {
     page,
   }) => {
     const customerEmail = uniqueTestEmail('my-account-window-closed');
-    // daysAhead: 0 schedules today, always inside the 48h cancellationWindowHours setting.
-    const setup = await createFreshApprovedBooking(page, 0, STAFF_EMAIL, {
+    // daysAhead: 1 schedules tomorrow (the backend rejects a start in the past), always inside the
+    // 48h cancellationWindowHours setting.
+    const setup = await createFreshApprovedBooking(page, 1, STAFF_EMAIL, {
       contactEmail: customerEmail,
     });
     await loginAsCustomer(page, customerEmail, TENANT_SLUG);

@@ -48,14 +48,15 @@ import {
 } from './booking-request.helpers';
 import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
+import { assertWithinEffectiveBookingWindow, BookingWindowRequest } from './booking-window.helpers';
 
-export type RequestAuthenticatedBookingUseCaseInput = RequestAuthenticatedBookingDto & {
-  tenantId: string;
-  correlationId: string;
-  customerId: string;
-  countryCode: string;
-  timezone: string;
-};
+export type RequestAuthenticatedBookingUseCaseInput = RequestAuthenticatedBookingDto &
+  BookingWindowRequest & {
+    tenantId: string;
+    correlationId: string;
+    customerId: string;
+    countryCode: string;
+  };
 
 export type RequestAuthenticatedBookingUseCaseResult = BookingRequestResult;
 
@@ -84,7 +85,7 @@ export class RequestAuthenticatedBookingUseCase {
     const { tenantId, customerId, countryCode } = input;
 
     const customer = await this.findCustomerWithPhone(customerId, tenantId);
-    const serviceMap = await this.resolveServices(input.serviceIds, tenantId);
+    const serviceMap = await this.resolveBookableServices(input);
     const pickupAddress = this.resolvePickupAddress(input, customer, countryCode, serviceMap);
     const variableResolution = await resolveVariableServiceInputs(
       {
@@ -223,13 +224,14 @@ export class RequestAuthenticatedBookingUseCase {
     return customer as CustomerProfileDto & { phone: string };
   }
 
-  private async resolveServices(
-    serviceIds: string[],
-    tenantId: string,
+  // The services must exist, be active appointment services, and the requested start must fit the
+  // booking window they allow together.
+  private async resolveBookableServices(
+    input: RequestAuthenticatedBookingUseCaseInput,
   ): Promise<Map<string, Service>> {
-    const services = await this.serviceRepo.findByIds(serviceIds, tenantId);
+    const services = await this.serviceRepo.findByIds(input.serviceIds, input.tenantId);
     const serviceMap = new Map(services.map((s) => [s.id, s]));
-    for (const serviceId of new Set(serviceIds)) {
+    for (const serviceId of new Set(input.serviceIds)) {
       const service = serviceMap.get(serviceId);
       if (!service) throw new BookingServiceNotInTenantError(serviceId);
       if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
@@ -237,6 +239,7 @@ export class RequestAuthenticatedBookingUseCase {
         throw new BookingServiceSessionNotBookableError(serviceId);
       }
     }
+    assertWithinEffectiveBookingWindow(input, serviceMap.values());
     return serviceMap;
   }
 

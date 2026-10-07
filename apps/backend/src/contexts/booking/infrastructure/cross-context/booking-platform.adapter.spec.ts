@@ -174,6 +174,19 @@ describe('BookingPlatformAdapter', () => {
       expect(result.businessHours).toEqual(tenant.settings.businessHours);
       expect(result.slotGranularityMinutes).toBe(tenant.settings.booking.slotGranularityMinutes);
       expect(result.serviceBufferMinutes).toBe(tenant.settings.booking.serviceBufferMinutes);
+      expect(result.bookingWindow).toEqual({
+        minBookingAdvanceHours: tenant.settings.booking.minBookingAdvanceHours,
+        maxBookingAdvanceDays: 90,
+      });
+    });
+
+    it('getTenantBookingWindow returns the tenant minimum notice and maximum advance', async () => {
+      const tenant = await seedTenant(45);
+
+      expect(await adapter.getTenantBookingWindow(tenant.id)).toEqual({
+        minBookingAdvanceHours: tenant.settings.booking.minBookingAdvanceHours,
+        maxBookingAdvanceDays: 45,
+      });
     });
 
     it('calendar mode: the selectable window is maxBookingAdvanceDays, whatever carouselDays says', async () => {

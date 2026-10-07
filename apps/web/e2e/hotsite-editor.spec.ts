@@ -2,6 +2,7 @@ import { deflateSync } from 'node:zlib';
 import { expect, test } from '@playwright/test';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { loginAsStaff } from './helpers/auth';
+import { openFirstDayWithSlots } from './helpers/booking-form';
 import {
   getHotsiteConfig,
   getPublicManifest,
@@ -97,6 +98,8 @@ const CROPPABLE_PNG_BUFFER = makeSolidPng(120, 63);
 // guard (450px, checked post-compression) still applies — this exact ratio is the one the 450px
 // threshold was derived against (compresses to ≈493px, clearing the floor with only a small
 // margin), so using it here actually exercises that coupling instead of a ratio far from it.
+// The seeded tenant's timezone (apps/backend/src/shared/database/seed.ts).
+const TENANT_TIMEZONE = 'America/Sao_Paulo';
 const HERO_PNG_BUFFER = makeSolidPng(1604, 494);
 
 // .serial: every test here mutates autospa-premium's shared hotsite-config/settings rows and
@@ -907,7 +910,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('calendar-previous-month').click();
     await expect(page.locator('[data-testid="calendar-day"]').first()).toBeVisible();
 
-    await page.locator('[data-testid="calendar-day"]:not([disabled])').first().click();
+    await openFirstDayWithSlots(page, 'calendar-day');
     await page.locator('[data-testid="time-slot"]').first().click();
     await page.locator('[data-testid="step-next"]').click();
 
@@ -925,9 +928,14 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     // the current month. The one day that isn't true — today is itself the last day of the
     // month — bumps it to 2 so the boundary falls on day 1 of *next* month instead (never a
     // month-end itself), and the test advances the calendar forward once to reach it.
-    const today = new Date();
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const isLastDayOfMonth = today.getDate() === daysInMonth;
+    // "Today" is the tenant's calendar day (the seeded tenant's timezone), the same day the
+    // booking window uses — the runner's own clock can be a day apart for hours every day.
+    const [year, month, day] = new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE })
+      .format(new Date())
+      .split('-')
+      .map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const isLastDayOfMonth = day === daysInMonth;
     const maxBookingAdvanceDays = isLastDayOfMonth ? 2 : 1;
 
     await updateTenantSettings(page, {

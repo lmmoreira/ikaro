@@ -12,6 +12,7 @@ import {
   ActiveTenantInfo,
   AvailabilityAlertTenantContext,
   IBookingPlatformPort,
+  TenantBookingWindow,
   TenantBusinessHoursAndLocale,
 } from '../../application/ports/booking-platform.port';
 
@@ -69,6 +70,12 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
     return tenant.settings.booking.autoApproveEnabled;
   }
 
+  async getTenantBookingWindow(tenantId: string): Promise<TenantBookingWindow> {
+    const tenant = await this.getTenantById.execute({ tenantId });
+    const { minBookingAdvanceHours, maxBookingAdvanceDays } = tenant.settings.booking;
+    return { minBookingAdvanceHours, maxBookingAdvanceDays };
+  }
+
   async getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {
     const [tenant, picker] = await Promise.all([
       this.getTenantById.execute({ tenantId }),
@@ -83,6 +90,10 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
         picker.datePickerType === 'calendar'
           ? booking.maxBookingAdvanceDays
           : Math.min(picker.carouselDays, booking.maxBookingAdvanceDays),
+      bookingWindow: {
+        minBookingAdvanceHours: booking.minBookingAdvanceHours,
+        maxBookingAdvanceDays: booking.maxBookingAdvanceDays,
+      },
     };
   }
 }

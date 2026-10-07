@@ -62,7 +62,7 @@ describe('ScheduleAvailabilityController', () => {
     await serviceRepo.save(service);
 
     const err = await controller
-      .get({ date: pastDate(1), serviceIds: [service.id] })
+      .get({ date: pastDate(2), serviceIds: [service.id] })
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(HttpException);

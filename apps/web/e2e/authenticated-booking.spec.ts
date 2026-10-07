@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openFirstDayWithSlots } from './helpers/booking-form';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
 const WEB_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
@@ -92,7 +93,7 @@ async function navigateToAuthenticatedStep3(
     .click();
   await page.locator('[data-testid="step-next"]').click();
 
-  await page.locator('[data-testid="day-option"]:not([disabled])').first().click();
+  await openFirstDayWithSlots(page);
   await page.locator('[data-testid="time-slot"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 }

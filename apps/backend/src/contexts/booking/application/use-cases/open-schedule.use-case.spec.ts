@@ -83,7 +83,7 @@ describe('OpenScheduleUseCase', () => {
   it('throws OpeningDateInPastError for a past date', async () => {
     await expect(
       useCase.execute({
-        date: pastDate(1),
+        date: pastDate(2),
         startTime: '09:00',
         endTime: '14:00',
         tenantId: TENANT_ID,

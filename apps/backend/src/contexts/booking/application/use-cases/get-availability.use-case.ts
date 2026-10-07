@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { todayUTC } from '../../../../shared/utils/calendar-date';
+import { todayInTimezone } from '../../../../shared/utils/calendar-date';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { AvailabilityService, AvailableSlot } from '../../domain/services/availability.service';
 import { Resource } from '../../domain/resource.aggregate';
@@ -76,7 +76,7 @@ export class GetAvailabilityUseCase {
   async execute(input: GetAvailabilityUseCaseInput): Promise<GetAvailabilityUseCaseResult> {
     const { tenantId } = input;
 
-    const today = todayUTC();
+    const today = todayInTimezone(input.businessHours.timezone);
     if (input.date < today) throw new AvailabilityDateInPastError();
 
     const services = await this.findAndValidateServices(input.serviceIds, tenantId);

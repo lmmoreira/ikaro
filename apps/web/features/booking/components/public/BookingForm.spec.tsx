@@ -26,6 +26,17 @@ import {
 } from '@/features/platform/hotsite/api/schedule';
 import { BookingForm } from './BookingForm';
 
+// The fixtures use fixed 2026-06-15 slots; the picker hides a slot that has already started, so the
+// clock is pinned to the morning of that day.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-15T08:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 const BR_ADDRESS_SPEC: HotsiteAddressSpec = {
   postalLabel: 'CEP',
   postalPlaceholder: '00000-000',
@@ -131,6 +142,7 @@ async function advanceToStep3(
       carouselDays={14}
       datePickerType="carousel"
       maxBookingAdvanceDays={90}
+      timezone="UTC"
       phonePrefix="+55"
       addressSpec={BR_ADDRESS_SPEC}
     />,
@@ -183,6 +195,7 @@ describe('BookingForm', () => {
         carouselDays={14}
         datePickerType="carousel"
         maxBookingAdvanceDays={90}
+        timezone="UTC"
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,
@@ -190,6 +203,48 @@ describe('BookingForm', () => {
 
     expect(screen.getByText('Escolha os serviços')).toBeInTheDocument();
     expect(screen.getByText('Passo 1 de 4')).toBeInTheDocument();
+  });
+
+  it('offers only the window the selected services allow — the strictest of their effective windows', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+    const withWindow = (id: string, name: string, minHours: number, maxDays: number) =>
+      makeService({
+        id,
+        name,
+        bookingPolicy: {
+          ...hotsiteServiceBookingDefaults.bookingPolicy,
+          effectiveMinBookingAdvanceHours: minHours,
+          effectiveMaxBookingAdvanceDays: maxDays,
+        },
+      });
+
+    renderWithIntl(
+      <BookingForm
+        slug="lavacar-beloauto"
+        services={[
+          withWindow('svc-1', 'Lavagem Completa', 2, 60),
+          withWindow('svc-2', 'Polimento', 24, 7),
+        ]}
+        carouselDays={14}
+        datePickerType="carousel"
+        maxBookingAdvanceDays={90}
+        timezone="UTC"
+        phonePrefix="+55"
+        addressSpec={BR_ADDRESS_SPEC}
+      />,
+    );
+
+    await user.click(screen.getAllByRole('checkbox')[0]);
+    await user.click(screen.getAllByRole('checkbox')[1]);
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+    // 7 days is the smaller maximum, so the 14-day carousel is clamped to it.
+    await vi.waitFor(() => {
+      expect(fetchAvailabilitySummary).toHaveBeenCalled();
+    });
+    const [, from, to] = vi.mocked(fetchAvailabilitySummary).mock.calls[0];
+    expect([from, to]).toEqual(['2026-06-15', '2026-06-21']);
   });
 
   it('moves to Step 2 after selecting a service', async () => {
@@ -203,6 +258,7 @@ describe('BookingForm', () => {
         carouselDays={14}
         datePickerType="carousel"
         maxBookingAdvanceDays={90}
+        timezone="UTC"
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,
@@ -226,6 +282,7 @@ describe('BookingForm', () => {
         carouselDays={14}
         datePickerType="carousel"
         maxBookingAdvanceDays={90}
+        timezone="UTC"
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,
@@ -249,6 +306,7 @@ describe('BookingForm', () => {
         carouselDays={14}
         datePickerType="calendar"
         maxBookingAdvanceDays={90}
+        timezone="UTC"
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,
@@ -302,6 +360,7 @@ describe('BookingForm', () => {
         carouselDays={14}
         datePickerType="carousel"
         maxBookingAdvanceDays={90}
+        timezone="UTC"
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,
@@ -348,6 +407,7 @@ describe('BookingForm', () => {
         carouselDays={14}
         datePickerType="carousel"
         maxBookingAdvanceDays={90}
+        timezone="UTC"
         phonePrefix="+55"
         addressSpec={BR_ADDRESS_SPEC}
       />,

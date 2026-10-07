@@ -1,4 +1,4 @@
-import { localDateRangeBoundsUTC, todayUTC } from '../../../../shared/utils/calendar-date';
+import { localDateRangeBoundsUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { AvailabilityService, AvailableSlot } from '../../domain/services/availability.service';
 import { Resource } from '../../domain/resource.aggregate';
@@ -135,7 +135,7 @@ export function buildDaySummaries(
   scheduleRange: ScheduleRangeContext,
   occupancy: ResourceOccupiedSlot[],
 ): DaySummary[] {
-  const today = todayUTC();
+  const today = todayInTimezone(request.businessHours.timezone);
   const results: DaySummary[] = [];
 
   for (const date of dateRange(request.from, request.to)) {
@@ -178,7 +178,7 @@ export async function buildResourceScopedSummary(
   tenantId: string,
   lines: AvailabilityLine[],
 ): Promise<DaySummary[]> {
-  const today = todayUTC();
+  const today = todayInTimezone(request.businessHours.timezone);
   const rangeCache = new Map<string, Promise<ResourceRangeData>>();
 
   const loadRangeData = makeRangeDataLoader(deps, tenantId, request, rangeCache);

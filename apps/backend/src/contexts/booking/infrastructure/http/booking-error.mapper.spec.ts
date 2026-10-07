@@ -35,6 +35,8 @@ import {
   BookingServiceResourceTypeUnavailableError,
   BookingServiceSessionNotBookableError,
   BookingSlotUnavailableError,
+  BookingTooFarAheadError,
+  BookingTooSoonError,
   ClassResourceSlotBookingModelMismatchError,
   ClassResourceSlotDuplicateTypeError,
   ClassResourceSlotEmptyPoolError,
@@ -200,6 +202,18 @@ describe('mapBookingError', () => {
     const err = call(new BookingServiceConcurrentModificationError('service-1'));
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingTooSoonError to 422', () => {
+    const err = call(new BookingTooSoonError(24));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps BookingTooFarAheadError to 422', () => {
+    const err = call(new BookingTooFarAheadError(90));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
   it('maps BookingServiceLegsTooFewError to 422', () => {

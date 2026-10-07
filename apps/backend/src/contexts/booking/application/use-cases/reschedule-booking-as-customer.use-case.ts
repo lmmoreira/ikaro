@@ -36,6 +36,7 @@ import {
   resolveRescheduleCandidates,
   resolveRescheduleDurationChange,
 } from './reschedule-quote.helpers';
+import { assertWithinEffectiveBookingWindow, TenantBookingWindow } from './booking-window.helpers';
 
 export type RescheduleBookingAsCustomerUseCaseInput = RescheduleBookingAsCustomerDto & {
   bookingId: string;
@@ -44,6 +45,7 @@ export type RescheduleBookingAsCustomerUseCaseInput = RescheduleBookingAsCustome
   correlationId: string;
   timezone: string;
   tenantDefaultRescheduleWindowHours: number;
+  tenantBookingWindow: TenantBookingWindow;
 };
 
 export interface RescheduleBookingAsCustomerUseCaseResult {
@@ -87,6 +89,7 @@ export class RescheduleBookingAsCustomerUseCase {
 
     const serviceMap = await this.loadServiceMap(booking, tenantId);
     this.assertEligible(booking, serviceMap, input.tenantDefaultRescheduleWindowHours);
+    assertWithinEffectiveBookingWindow(input, serviceMap.values());
 
     const durationChange = resolveRescheduleDurationChange(
       booking,

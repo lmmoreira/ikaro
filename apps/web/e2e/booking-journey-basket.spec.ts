@@ -13,6 +13,7 @@ import {
   MANAGER_EMAIL,
   nextButton,
   openBooking,
+  openFirstDayWithSlots,
   parseRange,
   seedBundle,
   seedFixedService,
@@ -49,9 +50,7 @@ async function cleanup(page: Page, serviceIds: readonly string[], resourceIds: r
 
 // Picks the first bookable day's first slot and returns its start in minutes since midnight.
 async function pickSlotAndRead(guest: Page): Promise<number> {
-  const day = guest.locator('[data-testid="day-option"]:not([disabled])').first();
-  await expect(day).toBeVisible();
-  await day.click();
+  await openFirstDayWithSlots(guest);
   const slot = guest.getByTestId('time-slot').first();
   await expect(slot).toBeVisible();
   const { start } = parseRange((await slot.textContent()) ?? '');

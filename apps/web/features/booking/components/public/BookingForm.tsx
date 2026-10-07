@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { useBookingFormController } from '@/features/booking/hooks/useBookingFormController';
 import { pickerStepId, resolvePickerUnits } from '@/features/booking/model/booking-steps';
+import { resolveBasketBookingWindow } from '@/features/booking/model/booking-window';
 import { buildAvailabilityAlertLink } from '@/features/booking/model/availability-alert-link';
 import { findVariableDurationService } from '@/features/booking/model/duration-options';
 import { AvailabilityStep } from './AvailabilityStep';
@@ -22,6 +23,7 @@ interface BookingFormProps {
   readonly carouselDays: number;
   readonly datePickerType: 'carousel' | 'calendar';
   readonly maxBookingAdvanceDays: number;
+  readonly timezone: string;
   readonly phonePrefix: string;
   readonly addressSpec: HotsiteAddressSpec;
 }
@@ -32,6 +34,7 @@ export function BookingForm({
   carouselDays,
   datePickerType,
   maxBookingAdvanceDays,
+  timezone,
   phonePrefix,
   addressSpec,
 }: BookingFormProps): React.JSX.Element {
@@ -46,6 +49,7 @@ export function BookingForm({
   );
   const pickerService = selectedServices.find((service) => service.id === pickerUnit?.serviceId);
   const durationService = findVariableDurationService(selectedServices);
+  const bookingWindow = resolveBasketBookingWindow(selectedServices, maxBookingAdvanceDays);
 
   return (
     <main
@@ -111,7 +115,9 @@ export function BookingForm({
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
             carouselDays={carouselDays}
-            maxBookingAdvanceDays={maxBookingAdvanceDays}
+            maxBookingAdvanceDays={bookingWindow.maxAdvanceDays}
+            minBookingAdvanceHours={bookingWindow.minAdvanceHours}
+            timezone={timezone}
             onSelectDate={c.selectDate}
             onSelectSlot={c.selectSlot}
             resourceSelections={c.resourceSelections}

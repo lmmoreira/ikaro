@@ -37,7 +37,10 @@ type ServiceBookingPolicyInvalidReason =
   | 'duration-range-invalid'
   | 'pricing-increment-details-required'
   | 'custom-duration-details-required'
-  | 'per-time-increment-requires-custom-duration';
+  | 'per-time-increment-requires-custom-duration'
+  | 'max-advance-exceeds-tenant'
+  | 'min-advance-below-tenant'
+  | 'booking-window-empty';
 
 const SERVICE_BOOKING_POLICY_INVALID_MESSAGES: Record<ServiceBookingPolicyInvalidReason, string> = {
   'duration-range-invalid': 'durationMaxMinutes must be >= durationMinMinutes',
@@ -47,6 +50,10 @@ const SERVICE_BOOKING_POLICY_INVALID_MESSAGES: Record<ServiceBookingPolicyInvali
     'durationPolicy=CUSTOMER_SELECTED requires durationMinMinutes, durationMaxMinutes, and durationIncrementMinutes',
   'per-time-increment-requires-custom-duration':
     'pricingPolicy=PER_TIME_INCREMENT requires durationPolicy=CUSTOMER_SELECTED',
+  'max-advance-exceeds-tenant': 'maxBookingAdvanceDaysOverride cannot exceed the tenant maximum',
+  'min-advance-below-tenant': 'minBookingAdvanceHoursOverride cannot be below the tenant minimum',
+  'booking-window-empty':
+    'The minimum notice must be shorter than the maximum advance, in whole days',
 };
 
 const SERVICE_BOOKING_POLICY_INVALID_FIELDS: Record<ServiceBookingPolicyInvalidReason, string> = {
@@ -54,6 +61,9 @@ const SERVICE_BOOKING_POLICY_INVALID_FIELDS: Record<ServiceBookingPolicyInvalidR
   'pricing-increment-details-required': 'pricingIncrementMinutes',
   'custom-duration-details-required': 'durationMinMinutes',
   'per-time-increment-requires-custom-duration': 'durationPolicy',
+  'max-advance-exceeds-tenant': 'maxBookingAdvanceDaysOverride',
+  'min-advance-below-tenant': 'minBookingAdvanceHoursOverride',
+  'booking-window-empty': 'minBookingAdvanceHoursOverride',
 };
 
 // PATCH semantics resolve the request against the current policy before this aggregate ever

@@ -45,7 +45,13 @@ export interface UpdateServiceLegsRequest {
   legs: ServiceLegRequestItem[];
 }
 
-export type UpdateServiceBookingPolicyRequest = Partial<ServiceBookingPolicyItem>;
+// The effective window is resolved by the backend on read — never part of a request.
+export type UpdateServiceBookingPolicyRequest = Partial<
+  Omit<
+    ServiceBookingPolicyItem,
+    'effectiveMinBookingAdvanceHours' | 'effectiveMaxBookingAdvanceDays'
+  >
+>;
 
 export interface ClassResourceSlotItem {
   type: ResourceType;
@@ -71,6 +77,10 @@ export interface ServiceBookingPolicyItem {
   rescheduleWindowHoursOverride: number | null;
   minBookingAdvanceHoursOverride: number | null;
   maxBookingAdvanceDaysOverride: number | null;
+  // The window the service really has: its override clamped to the tenant window, resolved on
+  // every read by the backend (never persisted).
+  effectiveMinBookingAdvanceHours: number;
+  effectiveMaxBookingAdvanceDays: number;
   recurrenceEligible: boolean;
   recurringHorizonDays: number | null;
   availabilityAlertEligible: boolean;

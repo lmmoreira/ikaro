@@ -37,6 +37,8 @@ export const hotsiteServiceBookingDefaults: Pick<
   resourceRequirements: [{ type: 'LOCATION', selectionMode: 'NONE', requiredQuantity: 1 }],
   legs: null,
   bookingPolicy: {
+    effectiveMinBookingAdvanceHours: 0,
+    effectiveMaxBookingAdvanceDays: 90,
     durationPolicy: 'FIXED',
     durationMinMinutes: null,
     durationMaxMinutes: null,

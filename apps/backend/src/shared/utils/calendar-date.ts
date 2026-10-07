@@ -68,6 +68,11 @@ export function utcDateToLocalDate(utcDate: Date, timezone: string): string {
   return DateTime.fromJSDate(utcDate, { zone: 'utc' }).setZone(timezone).toISODate()!;
 }
 
+/** Returns today's date as a YYYY-MM-DD string in the given IANA timezone (the tenant's calendar day). */
+export function todayInTimezone(timezone: string, now: Date = new Date()): string {
+  return utcDateToLocalDate(now, timezone);
+}
+
 /** Returns the ISO-8601 UTC start-of-day boundary for a YYYY-MM-DD string (00:00:00.000Z). */
 export function startOfDayUTC(date: string): string {
   return `${date}T00:00:00.000Z`;

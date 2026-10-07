@@ -26,6 +26,17 @@ import {
 } from '@/features/platform/hotsite/api/schedule';
 import { BookingForm } from './BookingForm';
 
+// The fixtures use fixed 2026-06-15 slots; the picker hides a slot that has already started, so the
+// clock is pinned to the morning of that day.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-15T08:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 vi.mock('@/features/booking/api/public', async (importOriginal) => {
@@ -205,6 +216,7 @@ function renderForm(services: HotsiteServiceResponse[]) {
       carouselDays={14}
       datePickerType="carousel"
       maxBookingAdvanceDays={90}
+      timezone="UTC"
       phonePrefix="+55"
       addressSpec={ADDRESS_SPEC}
     />,

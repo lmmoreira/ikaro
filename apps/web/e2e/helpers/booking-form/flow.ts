@@ -32,12 +32,39 @@ export function stepIndicator(page: Page, step: number, total: number): Locator 
   return page.getByText(`Passo ${step} de ${total}`, { exact: true });
 }
 
+const MAX_DAYS_TRIED = 14;
+const SLOTS_LOAD_TIMEOUT_MS = 5_000;
+
+// Opens the first enabled day that lists at least one slot and returns it (YYYY-MM-DD). The first
+// enabled day is not enough: the tenant's today stays enabled after the business hours have passed,
+// with every slot already behind it, and the booking page hides those.
+export async function openFirstDayWithSlots(
+  page: Page,
+  dayTestId: 'day-option' | 'calendar-day' = 'day-option',
+): Promise<string> {
+  const days = page.locator(`[data-testid="${dayTestId}"]:not([disabled])`);
+  await expect(days.first()).toBeVisible();
+  const tried = Math.min(await days.count(), MAX_DAYS_TRIED);
+  for (let index = 0; index < tried; index += 1) {
+    const day = days.nth(index);
+    const date = (await day.getAttribute('data-date')) ?? '';
+    await day.click();
+    const hasSlot = await page
+      .getByTestId('time-slot')
+      .first()
+      .waitFor({ state: 'visible', timeout: SLOTS_LOAD_TIMEOUT_MS })
+      .then(
+        () => true,
+        () => false,
+      );
+    if (hasSlot) return date;
+  }
+  throw new Error(`none of the first ${tried} enabled days lists a bookable slot`);
+}
+
 // Picks the first bookable day then its first slot; returns the day (YYYY-MM-DD).
 export async function pickFirstSlot(page: Page): Promise<string> {
-  const day = page.locator('[data-testid="day-option"]:not([disabled])').first();
-  await expect(day).toBeVisible();
-  const date = (await day.getAttribute('data-date')) ?? '';
-  await day.click();
+  const date = await openFirstDayWithSlots(page);
   await page.getByTestId('time-slot').first().click();
   return date;
 }
@@ -127,13 +154,18 @@ async function readAvailability<T>(res: APIResponse, action: string): Promise<T>
   return (await res.json()) as T;
 }
 
+const startsAfterNow = (slot: { readonly startsAt: string }): boolean =>
+  Date.parse(slot.startsAt) > Date.now();
+
 export interface FoundSlot {
   readonly date: string;
   readonly startsAt: string;
 }
 
 // The first bookable slot in the next two weeks for a service with the given picks pinned,
-// read straight from the public availability API (the same one the booking form calls).
+// read straight from the public availability API (the same one the booking form calls). The API
+// lists a day's slots untrimmed, including hours already behind the clock; booking one of those is
+// rejected, so only a slot that starts after now qualifies.
 export async function findFirstSlot(
   page: Page,
   serviceId: string,
@@ -158,12 +190,14 @@ export async function findFirstSlot(
       { headers },
     );
     const body = await readAvailability<AvailabilityResponse>(res, 'availability');
-    const slot = body.slots[0];
+    const slot = body.slots.find(startsAfterNow);
     if (slot) return { date: day.date, startsAt: slot.startsAt };
   }
   throw new Error(`no available slot found for service ${serviceId}`);
 }
 
+// The slots the booking page offers on a day: the availability API lists today's hours that are
+// already behind the clock too, and the page hides them.
 export async function slotsOnDate(
   page: Page,
   serviceId: string,
@@ -175,7 +209,9 @@ export async function slotsOnDate(
     `${BFF_URL}/schedule/availability?date=${date}&serviceIds=${serviceId}${extra}`,
     { headers: { 'X-Tenant-Slug': TENANT_SLUG, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! } },
   );
-  return (await readAvailability<AvailabilityResponse>(res, 'availability')).slots;
+  return (await readAvailability<AvailabilityResponse>(res, 'availability')).slots.filter(
+    startsAfterNow,
+  );
 }
 
 // Books a slot directly as a guest through the BFF (test setup for conflicts); returns the status.

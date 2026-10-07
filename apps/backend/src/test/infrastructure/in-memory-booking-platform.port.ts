@@ -2,6 +2,7 @@ import {
   ActiveTenantInfo,
   AvailabilityAlertTenantContext,
   IBookingPlatformPort,
+  TenantBookingWindow,
   TenantBusinessHoursAndLocale,
 } from '../../contexts/booking/application/ports/booking-platform.port';
 import { FULL_WEEK_BUSINESS_HOURS } from '../utils/business-hours-fixtures';
@@ -11,6 +12,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   readonly revalidatedTenantIds: string[] = [];
   private readonly businessHoursAndLocaleByTenant = new Map<string, TenantBusinessHoursAndLocale>();
   private readonly autoApproveEnabledByTenant = new Map<string, boolean>();
+  private readonly bookingWindowByTenant = new Map<string, TenantBookingWindow>();
   private readonly alertContextByTenant = new Map<string, AvailabilityAlertTenantContext>();
 
   seed(tenants: ActiveTenantInfo[]): void {
@@ -25,6 +27,10 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     this.autoApproveEnabledByTenant.set(tenantId, value);
   }
 
+  seedTenantBookingWindow(tenantId: string, value: TenantBookingWindow): void {
+    this.bookingWindowByTenant.set(tenantId, value);
+  }
+
   seedAvailabilityAlertContext(tenantId: string, value: AvailabilityAlertTenantContext): void {
     this.alertContextByTenant.set(tenantId, value);
   }
@@ -34,6 +40,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     this.businessHoursAndLocaleByTenant.clear();
     this.autoApproveEnabledByTenant.clear();
     this.alertContextByTenant.clear();
+    this.bookingWindowByTenant.clear();
   }
 
   async findAllActive(): Promise<ActiveTenantInfo[]> {
@@ -71,6 +78,15 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     return this.autoApproveEnabledByTenant.get(tenantId) ?? false;
   }
 
+  getTenantBookingWindow(tenantId: string): Promise<TenantBookingWindow> {
+    return Promise.resolve(
+      this.bookingWindowByTenant.get(tenantId) ?? {
+        minBookingAdvanceHours: 0,
+        maxBookingAdvanceDays: 90,
+      },
+    );
+  }
+
   getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {
     return Promise.resolve(
       this.alertContextByTenant.get(tenantId) ?? {
@@ -78,6 +94,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
         slotGranularityMinutes: 30,
         serviceBufferMinutes: 0,
         selectableDays: 14,
+        bookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
       },
     );
   }
