@@ -427,7 +427,7 @@ Three slice types, consistent across all three apps:
 
 - `schedule`/`services` live inside `booking`; `hotsite`-specific logic lives inside `platform` — never a standalone top-level domain.
 - `shared/` (any app) is cross-cutting only — a helper used by exactly one domain belongs in that domain's slice, not in `shared/`.
-- **Actor-scoped view of another domain's aggregate** (e.g. a Customer reading/mutating their own Booking or Loyalty data): the fetchers and domain logic live in the *owning* domain's slice (`booking`/`loyalty`), never the actor's slice (`customer`) — matches the existing Staff-facing pattern, where Staff-facing Booking operations already live in `booking`, not `staff`. Scope the export names to make the actor obvious (e.g. `cancelBookingAsCustomer`), don't just drop an unqualified function into the owning slice. The customer-shell *pages* (`my-account` list/detail/cancel/reschedule) live together in `features/customer/components/my-account/` and import those fetchers. → `docs/REPOSITORY_STRUCTURE.md` § Web placement rules
+- **Actor-scoped view of another domain's aggregate** (e.g. a Customer's own Booking or Loyalty data): fetchers and domain logic live in the *owning* slice (`booking`/`loyalty`), never `customer` — like the Staff-facing pattern; scope export names to the actor (e.g. `cancelBookingAsCustomer`). The customer-shell *pages* (`my-account/**`) live together in `features/customer/components/my-account/` and import those fetchers. → `docs/REPOSITORY_STRUCTURE.md` § Web placement rules
 - Web additionally has `shells/<surface>/` (route composition for `dashboard`/`hotsite` — no business policy) and `app/` (Next.js routes/layouts only, thin).
 - Test helpers: `apps/backend/src/test/utils/` + `src/test/infrastructure/`.
 
