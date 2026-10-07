@@ -1,4 +1,8 @@
-import { BOOKING_STATUS, type CustomerBookingListItem } from '@ikaro/types';
+import {
+  BOOKING_STATUS,
+  type CustomerBookingDetailResponse,
+  type CustomerBookingListItem,
+} from '@ikaro/types';
 
 export interface BookingSections {
   readonly upcoming: CustomerBookingListItem[];
@@ -74,4 +78,16 @@ export function canCancelBooking(
   }
   if (item.status !== BOOKING_STATUS.APPROVED) return false;
   return item.cancellableUntil !== null && now < new Date(item.cancellableUntil);
+}
+
+/**
+ * UC-069 — the server resolves `reschedule` only for an APPROVED booking; the action is offered
+ * while now is before its `eligibleUntil`.
+ */
+export function canRescheduleBooking(
+  booking: Pick<CustomerBookingDetailResponse, 'status' | 'reschedule'>,
+  now: Date = new Date(),
+): boolean {
+  if (booking.status !== BOOKING_STATUS.APPROVED || booking.reschedule === null) return false;
+  return now < new Date(booking.reschedule.eligibleUntil);
 }

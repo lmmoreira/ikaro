@@ -2,7 +2,7 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
-**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (❓ Gap — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070, UC-076 (❓ Gap — M23 Cluster 3, recurring private reservation creation and management + availability alerts) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
+**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070, UC-076 (❓ Gap — M23 Cluster 3, recurring private reservation creation and management + availability alerts) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
 **Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 and M24 Cluster 4 extensions not yet built, see the ❓ GAP sections in `dev-notes.md`.
 
 ## Flow
@@ -118,17 +118,17 @@ Folder: `customer/prototypes/minha-conta/`
 | `06-reserva-recorrente.html` | Gerenciar reserva recorrente (pular/reagendar/encerrar — sem pausar) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `06e-pular-fora-do-prazo.html` | Erro — pular uma ocorrência fora do prazo de cancelamento (decidido em M23-S08: a ocorrência é uma reserva) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `06f-reagendar-fora-do-prazo.html` | Erro — reagendar uma ocorrência fora do prazo de reagendamento | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
-| `15-reagendar.html` | Reagendar: escolher o novo horário (data e hora; duração e escolhas mantidas) | UC-069 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15b-reagendar-escolhas-mantidas.html` | Reagendar: pacote / jornada / profissional escolhido (escolhas mostradas só para leitura) | UC-069 A2 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15c-carregando-horarios.html` | Carregando horários | UC-069 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15d-sem-horarios.html` | Sem horários disponíveis | UC-069 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15e-erro-horarios.html` | Erro ao carregar horários | UC-069 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15f-enviando.html` | Enviando (Reagendando…) | UC-069 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15g-reagendado.html` | Reagendado (continua aprovado) | UC-069 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15h-conflito-horario.html` | Erro: horário indisponível (409) | UC-069 A1 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15i-conflito-pacote-jornada.html` | Erro: parte do pacote / etapa indisponível (409) | UC-069 A2 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15j-fora-do-prazo.html` | Erro: reagendamento fora do prazo (422) | UC-069 | M23-S30 | ❓ Gap (M23 Cluster 3) |
-| `15k-erro-envio.html` | Erro ao enviar (rede / outros) | UC-069 | M23-S30 | ❓ Gap (M23 Cluster 3) |
+| `15-reagendar.html` | Reagendar: escolher o novo horário (data e hora; duração e escolhas mantidas) | UC-069 | M23-S30 | ✅ Criado |
+| `15b-reagendar-escolhas-mantidas.html` | Reagendar: pacote / jornada / profissional escolhido (escolhas mostradas só para leitura) | UC-069 A2 | M23-S30 | ✅ Criado |
+| `15c-carregando-horarios.html` | Carregando horários | UC-069 | M23-S30 | ✅ Criado |
+| `15d-sem-horarios.html` | Sem horários disponíveis | UC-069 | M23-S30 | ✅ Criado |
+| `15e-erro-horarios.html` | Erro ao carregar horários | UC-069 | M23-S30 | ✅ Criado |
+| `15f-enviando.html` | Enviando (Reagendando…) | UC-069 | M23-S30 | ✅ Criado |
+| `15g-reagendado.html` | Reagendado (continua aprovado) | UC-069 | M23-S30 | ✅ Criado |
+| `15h-conflito-horario.html` | Erro: horário indisponível (409) | UC-069 A1 | M23-S30 | ✅ Criado |
+| `15i-conflito-pacote-jornada.html` | Erro: parte do pacote / etapa indisponível (409) | UC-069 A2 | M23-S30 | ✅ Criado |
+| `15j-fora-do-prazo.html` | Erro: reagendamento fora do prazo (422) | UC-069 | M23-S30 | ✅ Criado |
+| `15k-erro-envio.html` | Erro ao enviar (rede / outros) | UC-069 | M23-S30 | ✅ Criado |
 | `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (decidido em M23-S18: recusa na criação; a API já devolve a lista) | UC-070 A1 | M23-S17 (constrói a tela) | ❓ Gap (M23 Cluster 3) |
@@ -163,28 +163,25 @@ Folder: `customer/prototypes/minha-conta/`
 | `12b-waitlist-confirmed.html` | Oferta aceita — confirmação | UC-091 | — | ❓ Gap (M24 Cluster 4) |
 | `dev-notes.md` | Implementation handoff | — | M13-S27–M13-S30 | ✅ Criado |
 
-## M23 — Reagendar uma reserva (UC-069, ❓ Gap, story `M23-S30`)
+## M23 — Reagendar uma reserva (UC-069, ✅ Done, story `M23-S30`)
 
 > The customer area had no reschedule screen. Decisions (2026-10-03): the customer changes **only the date and time** — the chosen staff/room/equipment and the duration are **kept** (shown read-only for a bundle/journey), so there is no picker, no duration control and no quote preview; only an `APPROVED` booking inside the reschedule window can be rescheduled, and it stays `APPROVED`. Full handoff detail in `prototypes/minha-conta/dev-notes.md` § Reagendar.
 
 ```mermaid
 flowchart TD
-    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
-
     Detail["Detalhe do agendamento (02)<br/>APPROVED + dentro do prazo"] -->|"Reagendar"| Page
     Occ["Reserva recorrente (06)<br/>ocorrência = reserva comum"] -->|"Reagendar esta ocorrência"| Page
-    Page["❓ GAP: Reagendar (15 / 15b)<br/>só data e horário"] --> Load{"horários"}
+    Page["Reagendar (15 / 15b)<br/>só data e horário"] --> Load{"horários"}
     Load -->|"carregando"| L["15c"]
     Load -->|"vazio"| E["15d"]
     Load -->|"erro"| F["15e"]
     Load -->|"ok"| Pick(("escolhe horário"))
     Pick -->|"Confirmar novo horário"| Sub["15f enviando<br/>PATCH /bookings/:id/reschedule { scheduledAt }"]
-    Sub -->|"200"| Ok["❓ GAP: 15g reagendado (continua APPROVED)"]
+    Sub -->|"200"| Ok["15g reagendado (continua APPROVED)"]
     Sub -->|"409 slot"| C1["15h → volta aos horários, horário limpo"]
     Sub -->|"409 pacote / etapa"| C2["15i → volta aos horários, horário limpo"]
     Sub -->|"422 prazo"| W["15j fora do prazo"]
     Sub -->|"rede / outros"| X["15k erro, tentar de novo"]
-    class Page,Ok,C1,C2,W,X,L,E,F gap
 ```
 
 **BFF call:** `PATCH /bookings/:id/reschedule` — the BFF dispatches the `CUSTOMER` role to `reschedule-customer`; body `{ scheduledAt }` only. `GET /schedule/availability` for the slot list (with the kept picks and duration pinned — see the open questions).

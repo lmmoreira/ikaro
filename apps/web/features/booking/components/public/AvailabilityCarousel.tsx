@@ -29,6 +29,7 @@ interface AvailabilityCarouselProps {
 
 const SCROLL_AMOUNT_PX = 240;
 const DASHBOARD_DAY_RADIUS = '0.75rem';
+const DASHBOARD_SELECTED_BLUE = '#2563eb';
 
 export function AvailabilityCarousel({
   slug,
@@ -98,7 +99,7 @@ export function AvailabilityCarousel({
 
   if (error) {
     return (
-      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')}>
+      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')} variant={variant}>
         {t('availability.loadError')}
       </ErrorAlert>
     );
@@ -113,7 +114,12 @@ export function AvailabilityCarousel({
 
   return (
     <div>
-      <div className="flex items-center gap-2">
+      <div
+        data-testid="day-strip"
+        className={
+          isDashboardVariant ? 'flex items-center justify-center gap-2' : 'flex items-center gap-2'
+        }
+      >
         <button
           type="button"
           aria-label={t('availability.previousDays')}
@@ -165,7 +171,7 @@ export function AvailabilityCarousel({
 
       {fullyBooked && (
         <div className="mt-3" data-testid="fully-booked-message">
-          <ErrorAlert>{t('availability.noSlots')}</ErrorAlert>
+          <ErrorAlert variant={variant}>{t('availability.noSlots')}</ErrorAlert>
         </div>
       )}
     </div>
@@ -174,7 +180,7 @@ export function AvailabilityCarousel({
 
 function getDayBackgroundColor(isSelected: boolean, isDashboardVariant: boolean): string {
   if (isSelected) {
-    return 'var(--ba-primary, #2563eb)';
+    return isDashboardVariant ? DASHBOARD_SELECTED_BLUE : 'var(--ba-primary, #2563eb)';
   }
 
   return isDashboardVariant ? '#ffffff' : 'var(--ba-secondary, rgb(239 246 255))';
@@ -182,7 +188,7 @@ function getDayBackgroundColor(isSelected: boolean, isDashboardVariant: boolean)
 
 function getDayBorderColor(isSelected: boolean, isDashboardVariant: boolean): string {
   if (isSelected) {
-    return 'var(--ba-primary, #2563eb)';
+    return isDashboardVariant ? DASHBOARD_SELECTED_BLUE : 'var(--ba-primary, #2563eb)';
   }
 
   return isDashboardVariant ? 'rgb(191 219 254)' : 'var(--ba-secondary, rgb(191 219 254))';
@@ -190,7 +196,7 @@ function getDayBorderColor(isSelected: boolean, isDashboardVariant: boolean): st
 
 function getDayTextColor(isSelected: boolean, isDashboardVariant: boolean): string {
   if (isSelected) {
-    return 'var(--ba-btn-text, #ffffff)';
+    return isDashboardVariant ? '#ffffff' : 'var(--ba-btn-text, #ffffff)';
   }
 
   return isDashboardVariant ? 'rgb(29 78 216)' : 'var(--ba-primary, #1d4ed8)';

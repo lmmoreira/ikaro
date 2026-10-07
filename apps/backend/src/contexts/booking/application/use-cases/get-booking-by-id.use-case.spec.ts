@@ -4,7 +4,13 @@ import { Money } from '../../../../shared/value-objects/money';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceRequirement } from '../../domain/resource-requirement';
+import { ResourceType } from '../../domain/resource.types';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { GetBookingByIdUseCase } from './get-booking-by-id.use-case';
 
@@ -16,12 +22,22 @@ const STAFF_ID = '20000000-0000-4000-8000-000000000124';
 describe('GetBookingByIdUseCase', () => {
   let repo: InMemoryBookingRepository;
   let storageService: InMemoryStorageService;
+  let serviceRepo: InMemoryServiceRepository;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let useCase: GetBookingByIdUseCase;
 
   beforeEach(() => {
     repo = new InMemoryBookingRepository();
     storageService = new InMemoryStorageService();
-    useCase = new GetBookingByIdUseCase(repo, storageService);
+    serviceRepo = new InMemoryServiceRepository();
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
+    useCase = new GetBookingByIdUseCase(
+      repo,
+      storageService,
+      serviceRepo,
+      occupancyRepo,
+      new InMemoryTransactionManager(),
+    );
   });
 
   describe('STAFF/MANAGER role', () => {
@@ -350,6 +366,143 @@ describe('GetBookingByIdUseCase', () => {
           tenantId: TENANT_A,
           cancellationWindowHours: 48,
           requestingCustomerId: '',
+        }),
+      ).rejects.toBeInstanceOf(BookingNotFoundError);
+    });
+  });
+
+  describe('reschedule block (UC-069)', () => {
+    const SCHEDULED_AT = new Date('2030-06-20T13:00:00.000Z');
+    const TENANT_WINDOW = { minBookingAdvanceHours: 2, maxBookingAdvanceDays: 90 };
+
+    async function approvedBookingWithStaffPick() {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.STAFF,
+            selectionMode: 'CUSTOMER_CHOICE',
+          }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+      const line = new BookingLineBuilder()
+        .withServiceId(service.id)
+        .withServiceNameAtBooking(service.name)
+        .build();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(SCHEDULED_AT)
+        .withLines([line])
+        .build();
+      await repo.save(booking);
+      occupancyRepo.seed(TENANT_A, line.lineId, {
+        resourceId: STAFF_ID,
+        resourceType: ResourceType.STAFF,
+        resourceName: 'Renata Souza',
+        legIndex: null,
+        quantityPosition: null,
+        selectionMode: 'CUSTOMER_CHOICE',
+        isBundleMember: false,
+        gapMinutes: null,
+        gapSource: null,
+        startsAt: SCHEDULED_AT,
+        endsAt: new Date(SCHEDULED_AT.getTime() + 3_600_000),
+      });
+      return { booking, service };
+    }
+
+    const customerRead = (bookingId: string) =>
+      useCase.execute({
+        bookingId,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+        requestingCustomerId: CUSTOMER_ID,
+        tenantBookingWindow: TENANT_WINDOW,
+      });
+
+    it('returns the kept pick, the pinned availability inputs and the deadline for the owner', async () => {
+      const { booking, service } = await approvedBookingWithStaffPick();
+
+      const result = await customerRead(booking.id);
+
+      expect(result.reschedule).toEqual({
+        eligibleUntil: new Date(SCHEDULED_AT.getTime() - 48 * 3_600_000).toISOString(),
+        serviceIds: [service.id],
+        resourceSelections: [
+          {
+            serviceId: service.id,
+            legIndex: null,
+            resourceType: ResourceType.STAFF,
+            resourceId: STAFF_ID,
+          },
+        ],
+        durationMinutes: null,
+        window: { minAdvanceHours: 2, maxAdvanceDays: 90 },
+        keptPicks: [
+          {
+            serviceName: service.name,
+            legName: null,
+            legIndex: null,
+            resourceType: ResourceType.STAFF,
+            resourceName: 'Renata Souza',
+          },
+        ],
+      });
+    });
+
+    it.each([BookingStatus.PENDING, BookingStatus.INFO_REQUESTED, BookingStatus.CANCELLED])(
+      'is null for a %s booking',
+      async (status) => {
+        const booking = new BookingBuilder()
+          .withTenantId(TENANT_A)
+          .withCustomerId(CUSTOMER_ID)
+          .withStatus(status)
+          .build();
+        await repo.save(booking);
+
+        expect((await customerRead(booking.id)).reschedule).toBeNull();
+      },
+    );
+
+    it('is null for a staff read, which never supplies a requesting customer', async () => {
+      const { booking } = await approvedBookingWithStaffPick();
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+        tenantBookingWindow: TENANT_WINDOW,
+      });
+
+      expect(result.reschedule).toBeNull();
+    });
+
+    it('is null when the caller supplies no tenant booking window', async () => {
+      const { booking } = await approvedBookingWithStaffPick();
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+        requestingCustomerId: CUSTOMER_ID,
+      });
+
+      expect(result.reschedule).toBeNull();
+    });
+
+    it("never reads another tenant's booking", async () => {
+      const { booking } = await approvedBookingWithStaffPick();
+
+      await expect(
+        useCase.execute({
+          bookingId: booking.id,
+          tenantId: TENANT_B,
+          cancellationWindowHours: 48,
+          requestingCustomerId: CUSTOMER_ID,
+          tenantBookingWindow: TENANT_WINDOW,
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });

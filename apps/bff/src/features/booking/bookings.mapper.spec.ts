@@ -205,6 +205,7 @@ describe('toStaffBookingDetail()', () => {
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
+    reschedule: null,
     pointsEarned: null,
   };
 
@@ -464,6 +465,7 @@ describe('toCustomerBookingDetail()', () => {
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
+    reschedule: null,
     pointsEarned: null,
   };
 
@@ -478,6 +480,7 @@ describe('toCustomerBookingDetail()', () => {
       totalPrice: { amount: 100, currency: 'BRL' },
       notes: null,
       cancellableUntil: null,
+      reschedule: null,
       infoRequestMessage: null,
       infoResponseMessage: null,
       beforeServicePhotoUrls: [],
@@ -488,6 +491,42 @@ describe('toCustomerBookingDetail()', () => {
       discountAmount: null,
       pointsEarned: null,
     });
+  });
+
+  it('passes through the reschedule block of the customer read', () => {
+    const reschedule = {
+      eligibleUntil: '2026-06-13T10:00:00.000Z',
+      serviceIds: ['4f0c8f5e-0000-4000-8000-000000000001'],
+      resourceSelections: [
+        {
+          serviceId: '4f0c8f5e-0000-4000-8000-000000000001',
+          legIndex: null,
+          resourceType: 'STAFF' as const,
+          resourceId: '4f0c8f5e-0000-4000-8000-000000000002',
+        },
+      ],
+      durationMinutes: null,
+      window: { minAdvanceHours: 2, maxAdvanceDays: 90 },
+      keptPicks: [
+        {
+          serviceName: 'Massagem',
+          legName: null,
+          legIndex: null,
+          resourceType: 'STAFF' as const,
+          resourceName: 'Renata Souza',
+        },
+      ],
+    };
+
+    const result = toCustomerBookingDetail({ ...backendDetail, status: 'APPROVED', reschedule });
+
+    expect(result.reschedule).toEqual(reschedule);
+  });
+
+  it('keeps the reschedule block out of the staff detail', () => {
+    const result = toStaffBookingDetail(backendDetail, null);
+
+    expect(result).not.toHaveProperty('reschedule');
   });
 
   it('passes through cancellableUntil for an APPROVED booking', () => {
@@ -672,6 +711,7 @@ describe('toGuestBookingRead()', () => {
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
+    reschedule: null,
     pointsEarned: null,
   };
 

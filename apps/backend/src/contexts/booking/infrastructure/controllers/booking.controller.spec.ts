@@ -102,7 +102,13 @@ describe('BookingController', () => {
         new InMemoryTransactionManager(),
       ),
       listBookings: new ListBookingsUseCase(repo),
-      getBooking: new GetBookingByIdUseCase(repo, storageService),
+      getBooking: new GetBookingByIdUseCase(
+        repo,
+        storageService,
+        new InMemoryServiceRepository(),
+        new InMemoryResourceOccupancyRepository(),
+        new InMemoryTransactionManager(),
+      ),
     });
 
     const uc = makeUseCases(bookingRepo);
@@ -211,7 +217,13 @@ describe('BookingController', () => {
           new InMemoryTransactionManager(),
         ),
         new ListBookingsUseCase(repoB),
-        new GetBookingByIdUseCase(repoB, storageService),
+        new GetBookingByIdUseCase(
+          repoB,
+          storageService,
+          new InMemoryServiceRepository(),
+          new InMemoryResourceOccupancyRepository(),
+          new InMemoryTransactionManager(),
+        ),
       );
       const err = await ctrl
         .create({ ...validBody(), serviceIds: [locationService.id] })
@@ -288,7 +300,13 @@ describe('BookingController', () => {
           new InMemoryTransactionManager(),
         ),
         new ListBookingsUseCase(repoC),
-        new GetBookingByIdUseCase(repoC, storageService),
+        new GetBookingByIdUseCase(
+          repoC,
+          storageService,
+          new InMemoryServiceRepository(),
+          new InMemoryResourceOccupancyRepository(),
+          new InMemoryTransactionManager(),
+        ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);

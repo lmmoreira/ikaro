@@ -2332,7 +2332,7 @@ reschedule: {
   resourceSelections: ResourceSelectionItem[], // the kept CUSTOMER_CHOICE picks only (automatic resources are re-resolved, never pinned)
   durationMinutes: number | null,              // the CUSTOMER_SELECTED line's kept duration, else null
   window: { minAdvanceHours: number, maxAdvanceDays: number }, // strictest across the services (effective booking window)
-  keptPicks: { serviceName: string, resourceType: ResourceType, legIndex: number | null, resourceName: string }[], // display for 15b
+  keptPicks: { serviceName: string, legName: string | null, legIndex: number | null, resourceType: ResourceType, resourceName: string }[], // display for 15b — legName names a journey leg, null for a flat service
 } | null
 ```
 It reuses `resolveEffectiveRescheduleWindowHours`, `deriveResourceSelectionsFromAssignments` and `resolveEffectiveBookingWindow` rather than re-deriving them (the tenant booking window comes from the controller, as in the reschedule controller). The BFF customer mapper exposes it and `@ikaro/types` adds `BookingRescheduleOptions` + `CustomerBookingDetailResponse.reschedule`; the staff response is unchanged. The page takes the timezone from `useFormatting()`. The `PATCH` body is `{ scheduledAt }` only. `apps/web` consumes `@ikaro/types` only. No migration, no new error code (every code used already has both translations).
@@ -2345,6 +2345,8 @@ It reuses `resolveEffectiveRescheduleWindowHours`, `deriveResourceSelectionsFrom
 - `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (+ spec) (new); a kept-picks block and a change-summary block as separate small components if the page grows (+ specs)
 - `apps/web/features/booking/api/customer.ts` — `rescheduleBookingAsCustomer(id, { scheduledAt })` (+ `customer.spec.ts` case) (new export)
 - `apps/web/features/customer/booking-sections.ts` — `canRescheduleBooking({ status, reschedule })` pure helper (+ spec); `BookingDetailPage.tsx` / `CancelAction.tsx` neighbour gains the "Reagendar" link (+ specs)
+- `apps/web/features/booking/model/reschedule-failure.ts` — `classifyRescheduleFailure`/`shouldReloadSlots`, the booking-domain mapping of the reschedule error codes to a UI failure kind (+ spec); `apps/web/features/customer/hooks/useDescribeBookingWindow.ts` — the shared "long date · start–end" formatter (+ spec)
+- `apps/web/features/booking/components/public/AvailabilityCarousel.tsx`, `SlotPicker.tsx`, `ErrorAlert.tsx` (modify, + specs) — the `dashboard` variant no longer reads a tenant `--ba-*` variable (the selected day chip, the empty-state radius, the alert radius): inside `app/[slug]/` those variables are defined with the tenant's branding, which the customer shell must never show
 - `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.reschedule.*` keys (both locales in the same commit); the kept-pick labels reuse the existing resource-type keys
 - `apps/web/e2e/my-account-reschedule.spec.ts` + helpers under `apps/web/e2e/helpers/customer/` (new; precedent `my-account-detail-cancel.spec.ts`)
 - `docs/14-API_CONTRACTS.md`, `docs/04-USE_CASES.md` UC-069, `docs/REPOSITORY_STRUCTURE.md`, `.copilot/context.md` §11 (modify — done at discovery, listed so the DoD sweep finds them)

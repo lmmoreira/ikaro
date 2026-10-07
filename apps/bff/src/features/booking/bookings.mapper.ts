@@ -93,6 +93,7 @@ export function toCustomerBookingDetail(
     totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
     notes: detail.notes,
     cancellableUntil: detail.cancellableUntil,
+    reschedule: detail.reschedule,
     infoRequestMessage: detail.infoRequestMessage,
     infoResponseMessage: detail.infoResponseMessage,
     beforeServicePhotoUrls: detail.beforeServicePhotoUrls,

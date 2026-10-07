@@ -227,6 +227,25 @@ export interface StaffBookingDetailResponse {
   rejectionReason: string | null;
 }
 
+export interface BookingRescheduleKeptPick {
+  serviceName: string;
+  legName: string | null;
+  legIndex: number | null;
+  resourceType: ResourceType;
+  resourceName: string;
+}
+
+// UC-069 — the whole input of the customer reschedule screen, resolved server-side with the same
+// helpers the reschedule write path replays.
+export interface BookingRescheduleOptions {
+  eligibleUntil: string;
+  serviceIds: string[];
+  resourceSelections: ResourceSelectionItem[];
+  durationMinutes: number | null;
+  window: { minAdvanceHours: number; maxAdvanceDays: number };
+  keptPicks: BookingRescheduleKeptPick[];
+}
+
 export interface CustomerBookingDetailResponse {
   bookingId: string;
   status: BookingStatus;
@@ -237,6 +256,9 @@ export interface CustomerBookingDetailResponse {
 
   // Self-cancellation deadline (UC-007), same semantics as CustomerBookingListItem.
   cancellableUntil: string | null;
+
+  // UC-069 — non-null only for an APPROVED booking.
+  reschedule: BookingRescheduleOptions | null;
 
   // UC-005 A2 — present when status is INFO_REQUESTED or beyond
   infoRequestMessage: string | null; // what the admin asked
