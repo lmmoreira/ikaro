@@ -1,7 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import type { Provider } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -31,6 +30,7 @@ import { InMemoryFrontendRevalidationPort } from '../infrastructure/in-memory-fr
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { testCacheModule } from './test-cache-module';
+import { testConfigModule } from './test-config-module';
 
 export interface PlatformIntegrationAppOptions {
   extraProviders?: Provider[];
@@ -53,7 +53,7 @@ export async function createPlatformIntegrationApp(
 
   let builder = Test.createTestingModule({
     imports: [
-      ConfigModule.forRoot({ isGlobal: true }),
+      testConfigModule(),
       testCacheModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',

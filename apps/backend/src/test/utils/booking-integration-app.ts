@@ -1,6 +1,5 @@
 import { INestApplication } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -54,6 +53,7 @@ import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-s
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { testCacheModule } from './test-cache-module';
+import { testConfigModule } from './test-config-module';
 
 export interface BookingIntegrationAppOptions {
   extraModules?: NonNullable<ModuleMetadata['imports']>;
@@ -74,7 +74,7 @@ export async function createBookingIntegrationApp(
 
   let builder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
-      ConfigModule.forRoot({ isGlobal: true }),
+      testConfigModule(),
       testCacheModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',

@@ -1,6 +1,5 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -21,6 +20,7 @@ import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.e
 import { PlatformModule } from '../../../platform/platform.module';
 import { StaffModule } from '../../staff.module';
 import { StaffEntity } from '../entities/staff.entity';
+import { testConfigModule } from '../../../../test/utils/test-config-module';
 
 const PLATFORM_KEY = 'story-test-key-story-test-key-xx';
 
@@ -34,7 +34,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
     const routingBus = new RoutingInMemoryEventBus();
     const moduleRef = await Test.createTestingModule({
       imports: [
-        ConfigModule.forRoot({ isGlobal: true }),
+        testConfigModule(),
         testCacheModule(),
         TypeOrmModule.forRoot({
           type: 'postgres',

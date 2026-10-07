@@ -1,16 +1,16 @@
 import { INestApplication } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { TerminusModule } from '@nestjs/terminus';
 import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { HealthController } from './health.controller';
+import { testConfigModule } from '../test/utils/test-config-module';
 
 function buildHealthAppModule(): TestingModuleBuilder {
   return Test.createTestingModule({
     imports: [
-      ConfigModule.forRoot({ isGlobal: true }),
+      testConfigModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],

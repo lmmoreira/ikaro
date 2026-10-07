@@ -1,12 +1,12 @@
 import { Controller, Get, INestApplication, UseGuards } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
 import { InternalApiGuard } from '../guards/internal-api.guard';
 import { CorrelationMiddleware } from '../request/correlation.middleware';
 import { ErrorFilter } from './error.filter';
+import { testConfigModule } from '../../test/utils/test-config-module';
 
 const INTERNAL_KEY = 'integ-error-filter-key-integ-error-filter-key';
 
@@ -29,7 +29,7 @@ describe('ErrorFilter (integration — guard rejection + unhandled error)', () =
     process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
 
     const moduleRef = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true })],
+      imports: [testConfigModule()],
       controllers: [TestController],
       providers: [
         { provide: APP_FILTER, useClass: ErrorFilter },

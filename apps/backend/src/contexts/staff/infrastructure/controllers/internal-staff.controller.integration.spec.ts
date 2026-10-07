@@ -1,7 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -17,6 +16,7 @@ import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../entities/staff.entity';
 import { StaffModule } from '../../staff.module';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
+import { testConfigModule } from '../../../../test/utils/test-config-module';
 
 const INTERNAL_KEY = 'integ-staff-key-integ-staff-key-x'; // 33 chars (≥32)
 
@@ -30,7 +30,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
     const routingBus = new RoutingInMemoryEventBus();
     const moduleRef = await Test.createTestingModule({
       imports: [
-        ConfigModule.forRoot({ isGlobal: true }),
+        testConfigModule(),
         TypeOrmModule.forRoot({
           type: 'postgres',
           url: process.env['TEST_DATABASE_URL'],

@@ -1,6 +1,5 @@
 import { INestApplication } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { ModuleMetadata } from '@nestjs/common';
@@ -31,6 +30,7 @@ import { InMemoryStorageService } from '../infrastructure/in-memory-storage.serv
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { testCacheModule } from './test-cache-module';
+import { testConfigModule } from './test-config-module';
 
 type EntityClass = abstract new (...args: unknown[]) => unknown;
 
@@ -65,7 +65,7 @@ export async function createNotificationIntegrationApp(
 
   let builder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
-      ConfigModule.forRoot({ isGlobal: true }),
+      testConfigModule(),
       testCacheModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
