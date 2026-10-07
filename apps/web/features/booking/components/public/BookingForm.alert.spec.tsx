@@ -65,6 +65,7 @@ async function openCalendarStep(
       carouselDays={14}
       datePickerType="carousel"
       maxBookingAdvanceDays={90}
+      timezone="UTC"
       phonePrefix="+55"
       addressSpec={ADDRESS_SPEC}
     />,

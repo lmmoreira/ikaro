@@ -154,6 +154,9 @@ async function readAvailability<T>(res: APIResponse, action: string): Promise<T>
   return (await res.json()) as T;
 }
 
+const startsAfterNow = (slot: { readonly startsAt: string }): boolean =>
+  Date.parse(slot.startsAt) > Date.now();
+
 export interface FoundSlot {
   readonly date: string;
   readonly startsAt: string;
@@ -187,12 +190,14 @@ export async function findFirstSlot(
       { headers },
     );
     const body = await readAvailability<AvailabilityResponse>(res, 'availability');
-    const slot = body.slots.find((candidate) => Date.parse(candidate.startsAt) > Date.now());
+    const slot = body.slots.find(startsAfterNow);
     if (slot) return { date: day.date, startsAt: slot.startsAt };
   }
   throw new Error(`no available slot found for service ${serviceId}`);
 }
 
+// The slots the booking page offers on a day: the availability API lists today's hours that are
+// already behind the clock too, and the page hides them.
 export async function slotsOnDate(
   page: Page,
   serviceId: string,
@@ -204,7 +209,9 @@ export async function slotsOnDate(
     `${BFF_URL}/schedule/availability?date=${date}&serviceIds=${serviceId}${extra}`,
     { headers: { 'X-Tenant-Slug': TENANT_SLUG, 'X-Web-Internal-Key': WEB_INTERNAL_KEY! } },
   );
-  return (await readAvailability<AvailabilityResponse>(res, 'availability')).slots;
+  return (await readAvailability<AvailabilityResponse>(res, 'availability')).slots.filter(
+    startsAfterNow,
+  );
 }
 
 // Books a slot directly as a guest through the BFF (test setup for conflicts); returns the status.

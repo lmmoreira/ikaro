@@ -575,7 +575,7 @@ Backend loads ScheduleClosures, ScheduleOpenings, and APPROVED bookings for the 
 ]
 ```
 
-Constraints: `from ≤ to`; range ≤ 90 days (tenant's `maxBookingAdvanceDays`). "Today" is the tenant-local calendar day (M23-S33; it was the UTC date before). Past dates return `available: false, slotCount: 0` without an error. The availability reads are **not** trimmed to the booking window — staff use them too, and a booking outside the window is rejected at creation (UC-061/UC-069, `BOOKING_TOO_FAR_AHEAD` / `BOOKING_TOO_SOON`); the public booking page hides what the backend would reject.
+Constraints: `from ≤ to`; range ≤ the tenant's `maxBookingAdvanceDays` (a cap on the span between `from` and `to`, not on the distance from today). "Today" is the tenant-local calendar day (M23-S33; it was the UTC date before). Past dates return `available: false, slotCount: 0` without an error. The availability reads are **not** trimmed to the booking window — staff use them too, and a booking outside the window is rejected at creation (UC-061/UC-069, `BOOKING_TOO_FAR_AHEAD` / `BOOKING_TOO_SOON`); the public booking page hides what the backend would reject.
 
 **Phase 2 — Day Detail (user clicks a specific day)**
 
@@ -604,7 +604,7 @@ Returns:
    - **A1: Entire week is grey** → Calendar shows no available days; user presses `>` to try next week.
    - **A2: User clicks a day but no slots are available** → Phase 2 returns `{ available: false, slots: [] }`. Frontend re-greys the day and shows message.
    - **A3: User changes basket after opening Phase 2** → Frontend invalidates the slot list and calls Phase 2 again with updated `serviceIds`.
-   - **A4: Range > 90 days** → 422 error; frontend should cap requests to `maxBookingAdvanceDays`.
+   - **A4: Range > `maxBookingAdvanceDays`** → 422 error; frontend should cap requests to `maxBookingAdvanceDays`.
 
 - **Postconditions:** User has selected a date/time with start slot = available start time, duration = calculated booking duration.
 - **Events Triggered:** None (read operation).
