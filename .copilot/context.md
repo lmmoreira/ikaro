@@ -416,19 +416,18 @@ Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/11-ARCHITECTURE.m
 
 Three slice types, consistent across all three apps:
 - **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`
-- **Shell slices** (web only — route composition, zero business policy): `dashboard`, `hotsite`
+- **Shell slices** (web only — route composition, zero business policy; `app/` holds Next.js routes/layouts only, kept thin): `dashboard`, `hotsite`
 - **Technical slices** (not bounded contexts — never treat as domains): `auth`, `uploads`
 
 | App | Domain slice shape |
 |---|---|
 | Backend | `contexts/<domain>/{domain,application,infrastructure}/` |
-| BFF | `features/<domain>/<domain>.controller.ts` + `<domain>.public.controller.ts` + `<domain>.mapper.ts` + `<domain>.types.ts` (flat — no `presentation/application/infrastructure` subfolders; corrected 2026-07-23 per TD31 Story 12, confirming the flat shape is the real, intended architecture, not drift) |
+| BFF | `features/<domain>/<domain>.controller.ts` + `<domain>.public.controller.ts` + `<domain>.mapper.ts` + `<domain>.types.ts` (flat — no `presentation/application/infrastructure` subfolders) |
 | Web | `features/<domain>/{api,components,hooks,model,utils}/` |
 
 - `schedule`/`services` live inside `booking`; `hotsite`-specific logic lives inside `platform` — never a standalone top-level domain.
 - `shared/` (any app) is cross-cutting only — a helper used by exactly one domain belongs in that domain's slice, not in `shared/`.
-- **Actor-scoped view of another domain's aggregate** (e.g. a Customer's own Booking or Loyalty data): fetchers and domain logic live in the *owning* slice (`booking`/`loyalty`), never `customer` — like the Staff-facing pattern; scope export names to the actor (e.g. `cancelBookingAsCustomer`). The customer-shell *pages* (`my-account/**`) live together in `features/customer/components/my-account/` and import those fetchers. → `docs/REPOSITORY_STRUCTURE.md` § Web placement rules
-- Web additionally has `shells/<surface>/` (route composition for `dashboard`/`hotsite` — no business policy) and `app/` (Next.js routes/layouts only, thin).
+- **Actor-scoped view of another domain's aggregate** (e.g. a Customer reading/mutating their own Booking or Loyalty data): fetchers and domain logic live in the *owning* domain's slice (`booking`/`loyalty`), never the actor's (`customer`); scope export names to the actor (e.g. `cancelBookingAsCustomer`). The `my-account` pages stay together in `features/customer/components/my-account/`. → `docs/REPOSITORY_STRUCTURE.md` § Web placement rules
 - Test helpers: `apps/backend/src/test/utils/` + `src/test/infrastructure/`.
 
 ---
