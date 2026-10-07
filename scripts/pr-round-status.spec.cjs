@@ -51,6 +51,22 @@ exit 0
   fs.writeFileSync(path.join(dir, 'curl'), `#!/usr/bin/env bash\necho '{"issues":[]}'\n`, {
     mode: 0o755,
   });
+  // A fake `pgrep` standing in for "is the headless Codex for this PR still running": alive for
+  // the first `codexAliveCalls` calls, gone afterwards (default: alive forever, i.e. the
+  // pre-existing behaviour). `codexLog` is what the dead Codex left in its log.
+  const aliveCalls = opts.codexAliveCalls === undefined ? 1e9 : opts.codexAliveCalls;
+  fs.writeFileSync(path.join(dir, 'pgrep-count'), '0');
+  fs.writeFileSync(
+    path.join(dir, 'pgrep'),
+    `#!/usr/bin/env bash
+n=$(($(cat "${dir}/pgrep-count") + 1)); echo "$n" > "${dir}/pgrep-count"
+[ "$n" -le ${aliveCalls} ]
+`,
+    { mode: 0o755 },
+  );
+  if (opts.codexLog) {
+    fs.writeFileSync(path.join(dir, 'pr-491-codex-review-spec.log'), opts.codexLog);
+  }
 
   const result = spawnSync('bash', [script, '491', ...(opts.extraArgs || [])], {
     env: {
@@ -58,14 +74,16 @@ exit 0
       PATH: `${dir}:${process.env.PATH}`,
       POLL_INTERVAL: '0',
       STABLE_POLLS: '3',
+      CODEX_LOG_DIR: dir,
       ...env,
     },
     encoding: 'utf8',
     timeout: opts.timeout || 20000,
   });
   const polls = Number(fs.readFileSync(path.join(dir, 'count'), 'utf8'));
+  const pgrepCalls = Number(fs.readFileSync(path.join(dir, 'pgrep-count'), 'utf8'));
   fs.rmSync(dir, { recursive: true, force: true });
-  return { ...result, polls };
+  return { ...result, polls, pgrepCalls };
 }
 
 const row = (name, bucket) => [name, bucket, '10s', `https://example.test/${name}`];
@@ -191,4 +209,87 @@ test('does not treat a review signed by someone else as the Codex review', () =>
 
   assert.equal(result.error && result.error.code, 'ETIMEDOUT');
   assert.doesNotMatch(result.stdout || '', /Codex review:/);
+});
+
+// PR #569 regression, 2026-10-07: the headless Codex found no story/TD ID in the PR, asked for
+// one and exited without posting. The script then waited forever for a comment that could never
+// arrive, with CI, SonarCloud and CodeRabbit all finished.
+test('gives up with exit code 3 once Codex is no longer running and has posted nothing', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [done],
+    { CODEX_GONE_POLLS: '2' },
+    {
+      extraArgs: ['--wait-codex', '--since', '2026-01-01T00:00:00Z'],
+      codexAliveCalls: 0,
+      codexLog:
+        'PR #569 has no resolvable story/TD ID in its body.\nPlease provide the relevant ID.',
+    },
+  );
+
+  assert.equal(result.status, 3);
+  assert.match(result.stderr, /Codex is no longer running for PR #491/);
+  assert.match(result.stderr, /no resolvable story\/TD ID/, "the dead run's own log tail is shown");
+  assert.equal(result.pgrepCalls, 2, 'gave up after exactly CODEX_GONE_POLLS polls');
+});
+
+test('keeps waiting while a Codex process for the PR is still running', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [done],
+    { CODEX_GONE_POLLS: '2' },
+    {
+      extraArgs: ['--wait-codex', '--since', '2026-01-01T00:00:00Z'],
+      codexAliveCalls: 3,
+    },
+  );
+
+  assert.equal(result.status, 3);
+  assert.equal(result.pgrepCalls, 5, '3 polls with Codex alive, then 2 without');
+});
+
+test('a posted review wins over a missing Codex process', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [done],
+    {},
+    {
+      extraArgs: ['--wait-codex', '--since', '2026-01-01T00:00:00Z'],
+      codexAliveCalls: 0,
+      comments: [
+        {
+          createdAt: '2026-01-01T00:05:00Z',
+          url: 'https://example.test/codex-comment',
+          body: '## PR Review\n\n**Reviewed by:** Codex',
+        },
+      ],
+    },
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Codex review: https:\/\/example\.test\/codex-comment/);
+});
+
+test('CODEX_LIVENESS_CHECK=0 restores waiting indefinitely, for a Codex this host cannot see', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [done],
+    { CODEX_LIVENESS_CHECK: '0', CODEX_GONE_POLLS: '1', POLL_INTERVAL: '0.1' },
+    {
+      extraArgs: ['--wait-codex', '--since', '2026-01-01T00:00:00Z'],
+      codexAliveCalls: 0,
+      timeout: 2000,
+    },
+  );
+
+  assert.equal(
+    result.error && result.error.code,
+    'ETIMEDOUT',
+    'still polling when the timeout hit',
+  );
+  assert.equal(result.pgrepCalls, 0, 'the process is never probed');
 });
