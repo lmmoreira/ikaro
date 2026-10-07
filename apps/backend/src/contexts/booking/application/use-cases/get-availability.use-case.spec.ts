@@ -171,7 +171,7 @@ describe('GetAvailabilityUseCase', () => {
 
     await expect(
       useCase.execute({
-        date: pastDate(1),
+        date: pastDate(2),
         serviceIds: [service.id],
         tenantId: TENANT_ID,
         businessHours: settings.businessHours,
