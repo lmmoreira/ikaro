@@ -331,11 +331,21 @@ describe('toPublicServiceResponse() (M23-S29)', () => {
         minimumChargeAmount: 80,
         recurrenceEligible: true,
         recurringHorizonDays: 90,
+        availabilityAlertEligible: true,
       },
     });
   });
 
-  it('never exposes pool ids, overrides, alert/approval policy, hold, class slots or buffer', () => {
+  it('maps availabilityAlertEligible as-is so the booking flow can offer the alert button (M23-S31)', () => {
+    expect(toPublicServiceResponse(privateService).bookingPolicy.availabilityAlertEligible).toBe(
+      true,
+    );
+    expect(toPublicServiceResponse(serviceDetail).bookingPolicy.availabilityAlertEligible).toBe(
+      false,
+    );
+  });
+
+  it('never exposes pool ids, overrides, approval policy, hold, class slots or buffer', () => {
     const serialized = JSON.stringify(toPublicServiceResponse(privateService));
 
     for (const leaked of [
@@ -343,7 +353,6 @@ describe('toPublicServiceResponse() (M23-S29)', () => {
       'pool-1',
       'room-1',
       'Override',
-      'availabilityAlertEligible',
       'defaultApprovalMode',
       'manualHoldMinutes',
       'classResourceSlots',

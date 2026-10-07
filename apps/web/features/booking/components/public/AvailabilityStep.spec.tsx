@@ -112,6 +112,78 @@ describe('AvailabilityStep', () => {
     expect(onBack).toHaveBeenCalled();
   });
 
+  describe('"Avise-me quando abrir" (M23-S31)', () => {
+    const HREF = '/lavacar-beloauto/booking/availability-alert?serviceId=svc-1';
+
+    it('puts the alert button in the nav row between Voltar and Próximo', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+      renderWithIntl(
+        <AvailabilityStep {...baseProps()} datePickerType="carousel" alertHref={HREF} />,
+      );
+      await screen.findAllByTestId('day-option');
+
+      const back = screen.getByRole('button', { name: 'Voltar' });
+      const alert = screen.getByTestId('availability-alert-entry');
+      const next = screen.getByTestId('step-next');
+
+      expect(alert).toHaveAttribute('href', HREF);
+      expect(back.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(alert.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('renders no alert button when no alert can be offered', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+      renderWithIntl(
+        <AvailabilityStep {...baseProps()} datePickerType="carousel" alertHref={null} />,
+      );
+      await screen.findAllByTestId('day-option');
+
+      expect(screen.queryByTestId('availability-alert-entry')).not.toBeInTheDocument();
+    });
+
+    it('stays visible while the availability is still loading', () => {
+      vi.mocked(fetchAvailabilitySummary).mockReturnValue(new Promise(() => undefined));
+      renderWithIntl(
+        <AvailabilityStep {...baseProps()} datePickerType="carousel" alertHref={HREF} />,
+      );
+
+      expect(screen.getByTestId('availability-alert-entry')).toBeInTheDocument();
+    });
+
+    it('stays visible when the availability fails to load', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockRejectedValue(new Error('boom'));
+      renderWithIntl(
+        <AvailabilityStep {...baseProps()} datePickerType="carousel" alertHref={HREF} />,
+      );
+
+      await screen.findByRole('alert');
+      expect(screen.getByTestId('availability-alert-entry')).toBeInTheDocument();
+    });
+
+    it('stays visible after a slot conflict sends the customer back to this step', () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+      renderWithIntl(
+        <AvailabilityStep
+          {...baseProps()}
+          datePickerType="carousel"
+          alertHref={HREF}
+          error={{ message: 'Horário indisponível' }}
+        />,
+      );
+
+      expect(screen.getByTestId('availability-alert-entry')).toBeInTheDocument();
+    });
+
+    it('also shows in the calendar date picker', () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+      renderWithIntl(
+        <AvailabilityStep {...baseProps()} datePickerType="calendar" alertHref={HREF} />,
+      );
+
+      expect(screen.getByTestId('availability-alert-entry')).toBeInTheDocument();
+    });
+  });
+
   it('forwards the resource picks and the duration to the summary and the slot queries', async () => {
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
     vi.mocked(fetchAvailability).mockResolvedValue(availability);

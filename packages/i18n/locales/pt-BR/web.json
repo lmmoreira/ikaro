@@ -265,6 +265,113 @@
       "reserved": "{service} de serviço + {transition} de transição = {total} reservados ({start}–{end})",
       "reservedNoTransition": "{total} reservados ({start}–{end})",
       "stagesList": "{count} etapas: {names}"
+    },
+    "availabilityAlert": {
+      "entry": {
+        "label": "Avise-me quando abrir"
+      },
+      "title": "Avise-me quando abrir",
+      "stepIndicator": "Aviso de disponibilidade",
+      "intro": "Avisamos você por e-mail quando abrir uma vaga compatível. O aviso não reserva horário.",
+      "loading": "Carregando...",
+      "fromBooking": {
+        "heading": "Do seu agendamento",
+        "service": "Serviço",
+        "resource": "Recurso",
+        "duration": "Duração",
+        "minutes": "{minutes} min"
+      },
+      "legged": {
+        "note": "Avisaremos quando a jornada inteira couber, com qualquer profissional ou sala."
+      },
+      "criteria": {
+        "heading": "Quando você quer ser avisado"
+      },
+      "range": {
+        "title": "Período específico",
+        "hint": "Entre duas datas e horários",
+        "from": "De",
+        "to": "Até"
+      },
+      "weekly": {
+        "title": "Preferência semanal",
+        "hint": "Certos dias da semana, em um intervalo de horário",
+        "weekdays": "Dias da semana",
+        "from": "Entre",
+        "to": "E",
+        "timezoneHint": "Horários no fuso do estabelecimento ({timezone})."
+      },
+      "weekdays": {
+        "monday": "Seg",
+        "tuesday": "Ter",
+        "wednesday": "Qua",
+        "thursday": "Qui",
+        "friday": "Sex",
+        "saturday": "Sáb",
+        "sunday": "Dom"
+      },
+      "expiry": {
+        "label": "Manter o aviso por",
+        "days": "{days} dias",
+        "daysDefault": "{days} dias (padrão)",
+        "daysMax": "{days} dias (máximo)",
+        "hint": "Num período específico, o aviso termina no máximo ao fim do período."
+      },
+      "notice": "Avisaremos {email}. Você pode ver e cancelar o aviso em Minha conta › Meus avisos.",
+      "actions": {
+        "back": "Voltar",
+        "submit": "Criar aviso",
+        "submitting": "Criando aviso…"
+      },
+      "errors": {
+        "rangeFromRequired": "Informe o início do período.",
+        "rangeToRequired": "Informe o fim do período.",
+        "rangeEnd": "O fim do período precisa ser depois do início.",
+        "rangePast": "O período precisa terminar no futuro.",
+        "weekdaysEmpty": "Escolha pelo menos um dia da semana.",
+        "weeklyFromRequired": "Informe o horário inicial.",
+        "weeklyToRequired": "Informe o horário final.",
+        "weeklyEnd": "O horário final precisa ser depois do inicial.",
+        "submitFailed": "Não foi possível criar o aviso.",
+        "submitFailedHint": "Verifique sua conexão e tente de novo. Nada foi salvo.",
+        "rangeFromInvalid": "Esse horário não existe nessa data. Escolha outro.",
+        "rangeToInvalid": "Esse horário não existe nessa data. Escolha outro."
+      },
+      "saved": {
+        "title": "Aviso criado",
+        "body": "Quando abrir uma vaga compatível, enviaremos um e-mail para {email} para você reservar.",
+        "noReservation": "Nenhum horário foi reservado.",
+        "period": "Período",
+        "weeklySummary": "{days}, {from} – {to}",
+        "activeUntil": "Aviso ativo até",
+        "backToSite": "Voltar ao site"
+      },
+      "cap": {
+        "title": "Você já tem 10 avisos ativos",
+        "body": "Cancele um aviso que não precisa mais e tente de novo.",
+        "viewAlerts": "Ir para Meus avisos"
+      },
+      "ineligible": {
+        "title": "Este serviço não aceita avisos",
+        "body": "Não é possível criar um aviso de disponibilidade para este serviço. Você pode ver outros horários ou falar com o estabelecimento.",
+        "backToSite": "Voltar ao site"
+      },
+      "gate": {
+        "title": "Entre para ser avisado",
+        "body": "Os avisos ficam na sua conta, para que possamos avisar você por e-mail quando abrir uma vaga.",
+        "why": "Depois de entrar ou criar sua conta, você volta para criar o aviso, com o serviço já preenchido. O aviso não reserva horário.",
+        "cta": "Entrar ou criar conta",
+        "back": "Voltar"
+      },
+      "resourceError": "Não foi possível carregar o recurso escolhido.",
+      "date": {
+        "placeholder": "Escolha a data"
+      },
+      "time": {
+        "hour": "{label}: hora",
+        "minute": "{label}: minuto",
+        "period": "{label}: período"
+      }
     }
   },
   "hotsite": {

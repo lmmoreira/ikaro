@@ -10,6 +10,11 @@ import {
   Post,
 } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  AvailabilityAlertListResponse,
+  AvailabilityAlertResponse,
+  CancelAvailabilityAlertResponse,
+} from '@ikaro/types';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -18,11 +23,6 @@ import {
   UpdateAvailabilityAlertBody,
   UpdateAvailabilityAlertBodySchema,
 } from './availability-alerts.schemas';
-import {
-  AvailabilityAlertListResponse,
-  AvailabilityAlertResponse,
-  CancelAvailabilityAlertResponse,
-} from './availability-alerts.types';
 
 // Thin proxy (UC-072, UC-076) — authenticated customers only; the backend derives the customer
 // from the forwarded actor headers and every ownership decision (own alerts only) is made there,
