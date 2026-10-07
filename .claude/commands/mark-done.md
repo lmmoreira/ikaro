@@ -60,7 +60,7 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    Commit: <hash>
    ```
 
-8a. **If a worktree was used for this story, clean it up now — no need to ask** (CLAUDE.md §9 Step 11 authorizes this automatically as part of the same chain the story's READY verdict already authorized). If this session is currently inside that worktree, use `ExitWorktree` with `action: "remove"`. If already back in the main checkout with the worktree directory still present, remove it directly:
+8a. **If a worktree was used for this story, clean it up now — no need to ask** (CLAUDE.md §9 Step 11 authorizes this automatically as part of the same chain the story's READY verdict already authorized). If this session is currently inside that worktree, use `ExitWorktree` with `action: "remove"`. `ExitWorktree` only acts on a worktree this session created with `EnterWorktree`; for one made with `git worktree add`, or by an earlier session, it is a no-op, so remove it from the main checkout with the commands below and run later commands from there (a shell standing inside a removed worktree breaks). If already back in the main checkout with the worktree directory still present, remove it directly:
    ```bash
    git worktree remove .claude/worktrees/<name> --force
    git branch -D <branch-name>
