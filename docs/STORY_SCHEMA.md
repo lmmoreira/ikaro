@@ -98,6 +98,8 @@ State every DEFERRABLE assumption the story's scope touches as an explicit crite
 
 Named per tier, not "at least one test" — this is what `/story-discovery`'s 4q lock-in and `/discovery-to-milestone`'s 5a dry-run actually check for. Per `docs/08-TESTING_STRATEGY.md` rule #1: every UC needs a unit test, an integration test, and a tenant-isolation test (backend/BFF); web stories get unit (Vitest, jsdom/node) + E2E only.
 
+**An AC phrased as a negative guarantee — "X is exempt", "X is not blocked", "X is not trimmed", "an invalid Y is rejected on save" — gets its own named test at the tier that proves it.** These hold by construction (a new check is simply never called from that path), so no positive test exercises them and nothing fails if a later change breaks them. M23-S33's mark-done audit found three such lines with no pinning test after green CI and four bot rounds: a worklist reschedule beyond the window, an availability read for a day beyond it, and a looser-than-tenant override rejected through the HTTP endpoint.
+
 For **devops** stories, replace the Unit/Integration/Tenant-isolation/E2E sub-bullets with:
 
 ```
