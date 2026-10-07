@@ -126,7 +126,9 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
     });
     // The fixture helper moves to a later day when every slot of tomorrow is taken; a booking that
     // drifted past the 48h window would make this scenario assert nothing.
-    expect(Date.parse(setup.scheduledAt) - Date.now()).toBeLessThan(48 * 60 * 60 * 1000);
+    const msUntilStart = Date.parse(setup.scheduledAt) - Date.now();
+    expect(msUntilStart).toBeGreaterThan(0);
+    expect(msUntilStart).toBeLessThan(48 * 60 * 60 * 1000);
     await loginAsCustomer(page, customerEmail, TENANT_SLUG);
 
     await page.goto(detailUrl(setup.bookingId));
