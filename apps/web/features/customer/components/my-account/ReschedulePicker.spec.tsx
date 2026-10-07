@@ -33,12 +33,15 @@ const RESCHEDULE: BookingRescheduleOptions = {
   keptPicks: [],
 };
 
-function renderPicker(reschedule: BookingRescheduleOptions = RESCHEDULE) {
+function renderPicker(
+  reschedule: BookingRescheduleOptions = RESCHEDULE,
+  selectedDate: string | null = '2030-06-20',
+) {
   renderWithIntl(
     <ReschedulePicker
       tenantSlug="lavacar-bh"
       reschedule={reschedule}
-      selectedDate="2030-06-20"
+      selectedDate={selectedDate}
       selectedSlot={null}
       onSelectDate={vi.fn()}
       onSelectSlot={vi.fn()}
@@ -77,6 +80,14 @@ describe('ReschedulePicker', () => {
 
     expect(slotPickerProps.mock.calls[0]![0].resourceSelections).toBeUndefined();
     expect(slotPickerProps.mock.calls[0]![0].durationMinutes).toBeUndefined();
+  });
+
+  it('offers no slot list until a day is chosen', () => {
+    renderPicker(RESCHEDULE, null);
+
+    expect(screen.getByTestId('carousel')).toBeInTheDocument();
+    expect(screen.queryByTestId('slot-picker')).not.toBeInTheDocument();
+    expect(screen.queryByText('Horários disponíveis')).not.toBeInTheDocument();
   });
 
   it('labels the date and slot sections and notes the duration and price are unchanged', () => {

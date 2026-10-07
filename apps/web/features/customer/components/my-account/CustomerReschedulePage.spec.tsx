@@ -29,13 +29,13 @@ vi.mock('./ReschedulePicker', () => ({
     selectedDate,
   }: {
     onSelectSlot: (slot: AvailableSlot) => void;
-    selectedDate: string;
+    selectedDate: string | null;
   }) => {
     useEffect(() => {
       pickerMounts();
     }, []);
     return (
-      <div data-testid="picker" data-date={selectedDate}>
+      <div data-testid="picker" data-date={selectedDate ?? ''}>
         <button
           type="button"
           onClick={() =>
@@ -53,6 +53,10 @@ vi.mock('./ReschedulePicker', () => ({
 }));
 
 const NEW_START = '2030-06-23T13:00:00.000Z';
+const DAY_MS = 24 * 60 * 60 * 1000;
+const daysFromNow = (days: number): string => new Date(Date.now() + days * DAY_MS).toISOString();
+const tenantDay = (iso: string): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(iso));
 
 function topbarProbe(): React.JSX.Element {
   function Probe(): React.JSX.Element {
@@ -80,6 +84,8 @@ function makeReschedule(
   };
 }
 
+const SCHEDULED_AT = daysFromNow(5);
+
 function makeBooking(
   reschedule: BookingRescheduleOptions,
   overrides: Partial<CustomerBookingDetailResponse> = {},
@@ -87,7 +93,7 @@ function makeBooking(
   return {
     bookingId: 'b1',
     status: 'APPROVED',
-    scheduledAt: '2030-06-20T13:00:00.000Z',
+    scheduledAt: SCHEDULED_AT,
     lines: [
       {
         lineId: 'l1',
@@ -114,14 +120,18 @@ function makeBooking(
   };
 }
 
-function renderPage(reschedule = makeReschedule(), returnTo: string | null = null) {
+function renderPage(
+  reschedule = makeReschedule(),
+  returnTo: string | null = null,
+  scheduledAt = SCHEDULED_AT,
+) {
   return renderWithIntl(
     <CustomerTopbarStatusProvider>
       {topbarProbe()}
       <CustomerReschedulePage
-        booking={makeBooking(reschedule)}
+        booking={makeBooking(reschedule, { scheduledAt })}
         reschedule={reschedule}
-        scheduledAt="2030-06-20T13:00:00.000Z"
+        scheduledAt={scheduledAt}
         tenantSlug="lavacar-bh"
         whatsapp="+55 11 99999-0000"
         returnTo={returnTo}
@@ -151,10 +161,26 @@ describe('CustomerReschedulePage', () => {
 
     expect(screen.getByRole('heading', { name: 'Reagendar agendamento' })).toBeInTheDocument();
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
-    expect(screen.getByTestId('picker')).toHaveAttribute('data-date', '2030-06-20');
+    expect(screen.getByTestId('picker')).toHaveAttribute('data-date', tenantDay(SCHEDULED_AT));
     for (const button of screen.getAllByRole('button', { name: 'Confirmar novo horário' })) {
       expect(button).toBeDisabled();
     }
+  });
+
+  it('preselects no day when the booking is beyond the date strip, so no slot list opens', () => {
+    renderPage(makeReschedule(), null, daysFromNow(30));
+
+    expect(screen.getByTestId('picker')).toHaveAttribute('data-date', '');
+  });
+
+  it('preselects no day when the booking is beyond the effective maximum advance', () => {
+    renderPage(
+      makeReschedule({ window: { minAdvanceHours: 0, maxAdvanceDays: 3 } }),
+      null,
+      daysFromNow(5),
+    );
+
+    expect(screen.getByTestId('picker')).toHaveAttribute('data-date', '');
   });
 
   it('lists the kept picks read-only when the booking has any', () => {

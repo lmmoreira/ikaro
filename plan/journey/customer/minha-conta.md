@@ -169,8 +169,6 @@ Folder: `customer/prototypes/minha-conta/`
 
 ```mermaid
 flowchart TD
-    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
-
     Detail["Detalhe do agendamento (02)<br/>APPROVED + dentro do prazo"] -->|"Reagendar"| Page
     Occ["Reserva recorrente (06)<br/>ocorrência = reserva comum"] -->|"Reagendar esta ocorrência"| Page
     Page["Reagendar (15 / 15b)<br/>só data e horário"] --> Load{"horários"}
@@ -184,7 +182,6 @@ flowchart TD
     Sub -->|"409 pacote / etapa"| C2["15i → volta aos horários, horário limpo"]
     Sub -->|"422 prazo"| W["15j fora do prazo"]
     Sub -->|"rede / outros"| X["15k erro, tentar de novo"]
-    class Page,Ok,C1,C2,W,X,L,E,F gap
 ```
 
 **BFF call:** `PATCH /bookings/:id/reschedule` — the BFF dispatches the `CUSTOMER` role to `reschedule-customer`; body `{ scheduledAt }` only. `GET /schedule/availability` for the slot list (with the kept picks and duration pinned — see the open questions).

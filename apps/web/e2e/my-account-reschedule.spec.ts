@@ -57,7 +57,7 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
     await expect(slot).toBeVisible();
     const slotText = (await slot.textContent())!.trim();
     await slot.click();
-    await expect(page.getByTestId('reschedule-change-summary').first()).toBeVisible();
+    await expect(desktopPane(page).getByTestId('reschedule-change-summary')).toBeVisible();
     await desktopPane(page).getByRole('button', { name: 'Confirmar novo horário' }).click();
 
     await expect(page.getByTestId('reschedule-success')).toBeVisible();
@@ -124,6 +124,9 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
     const setup = await createFreshApprovedBooking(page, 1, STAFF_EMAIL, {
       contactEmail: customerEmail,
     });
+    // The fixture helper moves to a later day when every slot of tomorrow is taken; a booking that
+    // drifted past the 48h window would make this scenario assert nothing.
+    expect(Date.parse(setup.scheduledAt) - Date.now()).toBeLessThan(48 * 60 * 60 * 1000);
     await loginAsCustomer(page, customerEmail, TENANT_SLUG);
 
     await page.goto(detailUrl(setup.bookingId));

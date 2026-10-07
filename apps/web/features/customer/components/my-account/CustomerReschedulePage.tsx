@@ -8,13 +8,13 @@ import type {
   CustomerBookingDetailResponse,
 } from '@ikaro/types';
 import { rescheduleBookingAsCustomer } from '@/features/booking/api/customer';
+import { initialRescheduleDate } from '@/features/booking/model/reschedule-date';
 import {
   classifyRescheduleFailure,
   shouldReloadSlots,
   type RescheduleFailure,
 } from '@/features/booking/model/reschedule-failure';
 import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
-import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -75,7 +75,14 @@ export function CustomerReschedulePage({
     returnTo,
   );
 
-  const [selectedDate, setSelectedDate] = useState(() => toISODateInTimezone(start, timezone));
+  const [selectedDate, setSelectedDate] = useState<string | null>(() =>
+    initialRescheduleDate({
+      currentStart: start,
+      now: new Date(),
+      timezone,
+      window: reschedule.window,
+    }),
+  );
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState<FailureNotice | null>(null);
@@ -184,7 +191,7 @@ export function CustomerReschedulePage({
 
           {notice !== null && (
             <div data-testid="reschedule-error">
-              <ErrorAlert hint={notice.hint} focusOnMount>
+              <ErrorAlert hint={notice.hint} focusOnMount variant="dashboard">
                 {notice.title}
               </ErrorAlert>
             </div>

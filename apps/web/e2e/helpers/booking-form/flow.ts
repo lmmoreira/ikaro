@@ -11,6 +11,7 @@ import { uniqueTestEmail } from '../auth';
 import { inviteStaff } from '../staff';
 
 export const TENANT_SLUG = 'lavacar-beloauto';
+const TENANT_TIMEZONE = 'America/Sao_Paulo';
 export const MANAGER_EMAIL = 'admin@lavacar.com.br';
 
 export function serviceCard(page: Page, serviceId: string): Locator {
@@ -162,10 +163,12 @@ export interface FoundSlot {
   readonly startsAt: string;
 }
 
-// The first bookable slot in the next two weeks for a service with the given picks pinned,
-// read straight from the public availability API (the same one the booking form calls). The API
-// lists a day's slots untrimmed, including hours already behind the clock; booking one of those is
-// rejected, so only a slot that starts after now qualifies.
+// The first bookable slot from tomorrow on, within the next two weeks, for a service with the given
+// picks pinned, read straight from the public availability API (the same one the booking form
+// calls). Today is skipped on purpose: late in the day only a slot or two is left, and a spec that
+// books the slot it found then finds nothing left to show. The API lists a day's slots untrimmed,
+// including hours already behind the clock; booking one of those is rejected, so only a slot that
+// starts after now qualifies.
 export async function findFirstSlot(
   page: Page,
   serviceId: string,
@@ -184,7 +187,8 @@ export async function findFirstSlot(
     summaryRes,
     'availability summary',
   );
-  for (const day of days.filter((d) => d.available)) {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE }).format(from);
+  for (const day of days.filter((d) => d.available && d.date > today)) {
     const res = await page.request.get(
       `${BFF_URL}/schedule/availability?date=${day.date}&serviceIds=${serviceId}${extra}`,
       { headers },
