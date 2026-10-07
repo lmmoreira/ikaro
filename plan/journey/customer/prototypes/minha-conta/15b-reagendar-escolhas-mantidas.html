@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reagendar — escolhas mantidas</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="reschedule-picker.css">
   <style>
     .section-label { font-size:0.6875rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(17,24,39,0.4); margin:0 0 0.625rem; }
     .error-box { background:#fef2f2; border:2px solid #fca5a5; border-radius:var(--ba-radius); padding:1.125rem 1rem; margin-bottom:1.25rem; }
@@ -35,7 +36,7 @@
     ENDPOINT:   PATCH /bookings/:id/reschedule  (BFF dispatches the CUSTOMER role to backend reschedule-customer)
                 body { scheduledAt }  — the customer NEVER sends resourceSelections or durationMinutes from this screen: picks and duration are KEPT
                 (decision 2026-10-03). Changing a pick or a duration = cancel and rebook.
-    SLOTS:      the same AvailabilityCarousel + SlotPicker as the booking flow (variant for the customer area), queried for the booking's
+    SLOTS:      the same AvailabilityCarousel + SlotPicker as the booking flow (dashboard look — see reschedule-picker.css; same chips/slots as the staff RescheduleBookingPage), queried for the booking's
                 services with the kept picks pinned (resourceSelections) and the kept duration (durationMinutes) — see dev-notes § Reschedule.
     ELIGIBILITY: customer path only — outside the effective reschedule window (Service.rescheduleWindowHoursOverride ?? tenant default) the backend
                 answers 422 BOOKING_RESCHEDULE_WINDOW_EXPIRED (15j). The booking stays APPROVED after a reschedule (no re-approval).
@@ -65,7 +66,7 @@
             <p class="section-label">Agendamento atual</p>
             <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
               <div class="kv"><span class="k">Serviço</span><span>Jornada Spa Vitta</span></div>
-              <div class="kv"><span class="k">Data e horário</span><span>Segunda, 18 ago 2026 · 13h00–14h45</span></div>
+              <div class="kv"><span class="k">Data e horário</span><span>Terça, 18 ago 2026 · 13h00–14h45</span></div>
               <div class="kv"><span class="k">Duração · valor</span><span>105 min · R$ 260,00</span></div>
             </div>
             <p class="section-label">Mantido no novo horário</p>
@@ -74,13 +75,13 @@
               <div class="kv"><span class="k">Relaxamento · Equipamento</span><span>Poltrona de relaxamento 1</span></div>
               <p style="font-size:.8125rem;opacity:.6;color:var(--ba-text);padding:0 0 .75rem;">Para trocar de profissional ou equipamento, cancele este agendamento e faça uma nova reserva. Salas atribuídas automaticamente podem mudar.</p>
             </div>
-            <p class="section-label">Novo horário</p>
-            <div style="display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.5rem"><button class="day-pill unavailable" disabled><span>SEX</span><strong>15</strong></button><button class="day-pill available"><span>SEG</span><strong>18</strong></button><button class="day-pill selected"><span>TER</span><strong>19</strong></button><button class="day-pill available"><span>QUA</span><strong>20</strong></button></div>
-            <p style="font-size:.875rem;opacity:.75;margin:1rem 0 .75rem;color:var(--ba-text);">Horários disponíveis — Ter, 19 de agosto</p>
-            <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;"><button class="slot-btn">09:00</button><button class="slot-btn selected">13:00</button><button class="slot-btn">15:00</button></div>
+            <p class="section-label">Escolha a nova data</p>
+            <div class="avc-row" data-testid="reschedule-days"><button type="button" class="avc-chev" aria-label="Dias anteriores"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="avc-scroll"><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-14" aria-pressed="false"><span class="wd">Hoje</span><span class="dn">14</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-15" aria-pressed="false" disabled><span class="wd">Sáb</span><span class="dn">15</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-16" aria-pressed="false" disabled><span class="wd">Dom</span><span class="dn">16</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-17" aria-pressed="false"><span class="wd">Seg</span><span class="dn">17</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-18" aria-pressed="false"><span class="wd">Ter</span><span class="dn">18</span></button><button type="button" class="avc-day selected" data-testid="day-option" data-date="2026-08-19" aria-pressed="true"><span class="wd">Qua</span><span class="dn">19</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-20" aria-pressed="false"><span class="wd">Qui</span><span class="dn">20</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-21" aria-pressed="false"><span class="wd">Sex</span><span class="dn">21</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-22" aria-pressed="false"><span class="wd">Sáb</span><span class="dn">22</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-23" aria-pressed="false"><span class="wd">Dom</span><span class="dn">23</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-24" aria-pressed="false"><span class="wd">Seg</span><span class="dn">24</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-25" aria-pressed="false"><span class="wd">Ter</span><span class="dn">25</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-26" aria-pressed="false"><span class="wd">Qua</span><span class="dn">26</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-08-27" aria-pressed="false"><span class="wd">Qui</span><span class="dn">27</span></button></div><button type="button" class="avc-chev" aria-label="Próximos dias"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div>
+            <p class="section-label">Horários disponíveis</p>
+            <div class="slotp-grid" data-testid="reschedule-slots"><button type="button" class="slotp" data-testid="time-slot" aria-pressed="false">09:00–10:45</button><button type="button" class="slotp" data-testid="time-slot" aria-pressed="false">11:00–12:45</button><button type="button" class="slotp selected" data-testid="time-slot" aria-pressed="true">13:00–14:45</button><button type="button" class="slotp" data-testid="time-slot" aria-pressed="false">15:00–16:45</button></div>
             <p class="help-box" style="margin-top:0;">Seu serviço continua com a mesma duração e o mesmo valor.</p>
             <div class="mobile-actions">
-              <div class="help-box" style="margin-bottom:.75rem;" data-testid="reschedule-change-summary"><strong style="display:block;margin-bottom:.25rem;">O que vai mudar</strong>De: Segunda, 18 ago 2026 · 13h00–14h45<br>Para: <strong>Terça, 19 ago 2026 · 13h00–14h45</strong></div>
+              <div class="help-box" style="margin-bottom:.75rem;" data-testid="reschedule-change-summary"><strong style="display:block;margin-bottom:.25rem;">O que vai mudar</strong>De: Terça, 18 ago 2026 · 13h00–14h45<br>Para: <strong>Quarta, 19 ago 2026 · 13h00–14h45</strong></div>
               <a href="15g-reagendado.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Confirmar novo horário</a>
               <a href="02-agendamento-detail.html" class="btn-secondary" style="display:block;text-align:center;">Voltar ao agendamento</a>
               <p style="font-size:.8125rem;opacity:.6;color:var(--ba-text);text-align:center;margin-top:.625rem;">Você pode reagendar até <strong>16 ago 2026 às 13h00</strong></p>
@@ -89,7 +90,7 @@
           <div class="detail-aside">
             <div class="card">
               <p style="font-size:.875rem;opacity:.6;color:var(--ba-text);margin-bottom:1rem;line-height:1.5;">Escolha o novo horário. O agendamento continua aprovado e você receberá a confirmação por email.</p>
-              <div class="help-box" style="margin-bottom:.75rem;" data-testid="reschedule-change-summary"><strong style="display:block;margin-bottom:.25rem;">O que vai mudar</strong>De: Segunda, 18 ago 2026 · 13h00–14h45<br>Para: <strong>Terça, 19 ago 2026 · 13h00–14h45</strong></div>
+              <div class="help-box" style="margin-bottom:.75rem;" data-testid="reschedule-change-summary"><strong style="display:block;margin-bottom:.25rem;">O que vai mudar</strong>De: Terça, 18 ago 2026 · 13h00–14h45<br>Para: <strong>Quarta, 19 ago 2026 · 13h00–14h45</strong></div>
               <a href="15g-reagendado.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Confirmar novo horário</a>
               <a href="02-agendamento-detail.html" class="btn-secondary" style="display:block;text-align:center;">Voltar ao agendamento</a>
               <p style="font-size:.8125rem;opacity:.6;color:var(--ba-text);text-align:center;margin-top:.625rem;">Você pode reagendar até <strong>16 ago 2026 às 13h00</strong></p>

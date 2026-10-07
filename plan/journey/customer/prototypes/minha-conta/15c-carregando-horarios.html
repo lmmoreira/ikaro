@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reagendar — carregando horários</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="reschedule-picker.css">
   <style>
     .section-label { font-size:0.6875rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(17,24,39,0.4); margin:0 0 0.625rem; }
     .error-box { background:#fef2f2; border:2px solid #fca5a5; border-radius:var(--ba-radius); padding:1.125rem 1rem; margin-bottom:1.25rem; }
@@ -35,7 +36,7 @@
     ENDPOINT:   PATCH /bookings/:id/reschedule  (BFF dispatches the CUSTOMER role to backend reschedule-customer)
                 body { scheduledAt }  — the customer NEVER sends resourceSelections or durationMinutes from this screen: picks and duration are KEPT
                 (decision 2026-10-03). Changing a pick or a duration = cancel and rebook.
-    SLOTS:      the same AvailabilityCarousel + SlotPicker as the booking flow (variant for the customer area), queried for the booking's
+    SLOTS:      the same AvailabilityCarousel + SlotPicker as the booking flow (dashboard look — see reschedule-picker.css; same chips/slots as the staff RescheduleBookingPage), queried for the booking's
                 services with the kept picks pinned (resourceSelections) and the kept duration (durationMinutes) — see dev-notes § Reschedule.
     ELIGIBILITY: customer path only — outside the effective reschedule window (Service.rescheduleWindowHoursOverride ?? tenant default) the backend
                 answers 422 BOOKING_RESCHEDULE_WINDOW_EXPIRED (15j). The booking stays APPROVED after a reschedule (no re-approval).
@@ -66,8 +67,10 @@
               <div class="kv"><span class="k">Data e horário</span><span>Sábado, 20 jun 2026 · 10h00</span></div>
               <div class="kv"><span class="k">Duração · valor</span><span>60 min · R$ 180,00</span></div>
             </div>
-            <p class="section-label">Novo horário</p>
-            <div aria-busy="true" aria-live="polite" data-testid="reschedule-loading"><div class="skeleton" style="margin-bottom:.5rem;"></div><div class="skeleton" style="width:70%;"></div></div>
+            <p class="section-label">Escolha a nova data</p>
+            <p class="pk-loading" aria-busy="true" aria-live="polite" data-testid="reschedule-loading">Carregando disponibilidade...</p>
+            <p class="section-label">Horários disponíveis</p>
+            <p class="pk-loading">Carregando horários...</p>
             <div class="mobile-actions">
               <button class="btn-primary btn-disabled" disabled aria-disabled="true" style="display:block;width:100%;margin-bottom:.625rem;">Confirmar novo horário</button>
               <a href="02-agendamento-detail.html" class="btn-secondary" style="display:block;text-align:center;">Voltar ao agendamento</a>

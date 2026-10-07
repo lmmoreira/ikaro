@@ -1,0 +1,31 @@
+/*
+  Reagendar (M23-S30) — date strip + slot list, mirroring the REAL components the screen reuses:
+    AvailabilityCarousel (apps/web/features/booking/components/public/AvailabilityCarousel.tsx)
+    SlotPicker           (apps/web/features/booking/components/public/SlotPicker.tsx)
+    ErrorAlert           (apps/web/features/booking/components/public/ErrorAlert.tsx)
+  rendered with the dashboard look (white chips, blue-200 border, blue-700 text; selected = solid blue-600) — the same look as the
+  staff RescheduleBookingPage. NOT the tokens.css .day-pill / .slot-btn (those draw the hotsite look, green "available" border).
+*/
+.avc-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:1.25rem; }
+.avc-scroll { display:flex; flex:1; gap:0.5rem; overflow-x:auto; padding:0.25rem 0; scroll-behavior:smooth; }
+.avc-chev { display:none; flex-shrink:0; background:none; border:0; padding:0; cursor:pointer; color:var(--ba-text); }
+@media (min-width:640px) { .avc-chev { display:block; } }
+.avc-day { display:flex; flex-shrink:0; flex-direction:column; align-items:center; padding:0.5rem 1rem; border:1px solid #bfdbfe; border-radius:0.75rem; background:#ffffff; color:#1d4ed8; box-shadow:0 1px 2px rgba(15,23,42,0.04); font-family:inherit; cursor:pointer; transition:background-color .15s; }
+.avc-day .wd { font-size:0.75rem; }
+.avc-day .dn { font-size:1.125rem; font-weight:600; }
+.avc-day.selected { background:#2563eb; border-color:#2563eb; color:#ffffff; box-shadow:0 1px 2px rgba(37,99,235,0.18); }
+.avc-day:disabled { opacity:0.4; cursor:not-allowed; }
+.slotp-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.5rem; margin-bottom:1.25rem; }
+@media (min-width:640px) { .slotp-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.slotp { width:100%; padding:0.5rem 0; border:1px solid #bfdbfe; border-radius:0.75rem; background:#ffffff; color:#1d4ed8; font-family:inherit; font-size:0.875rem; font-weight:500; text-align:center; cursor:pointer; transition:background-color .15s; }
+.slotp:hover { background:#eff6ff; }
+.slotp.selected { background:#2563eb; border-color:#2563eb; color:#ffffff; box-shadow:0 1px 2px rgba(37,99,235,0.18); }
+.pk-loading { margin:0 0 1.25rem; font-size:0.9375rem; color:var(--ba-text); }
+.pk-alert { display:block; margin-bottom:1.25rem; padding:0.75rem; border:1px solid #fca5a5; border-radius:var(--ba-radius); background:#fef2f2; }
+.pk-alert.amber { border-color:#fcd34d; background:#fffbeb; }
+.pk-alert .row { display:flex; align-items:flex-start; gap:0.625rem; }
+.pk-alert svg { flex-shrink:0; margin-top:0.125rem; color:#dc2626; }
+.pk-alert.amber svg { color:#d97706; }
+.pk-alert .msg { font-size:0.875rem; font-weight:500; color:#b91c1c; }
+.pk-alert.amber .msg { color:#b45309; }
+.pk-alert .retry { margin:0.625rem 0 0 1.625rem; padding:0.375rem 0.875rem; border:1px solid #fca5a5; border-radius:var(--ba-radius); background:transparent; color:#b91c1c; font-family:inherit; font-size:0.875rem; font-weight:600; cursor:pointer; }

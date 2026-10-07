@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reagendar — erro ao carregar</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="reschedule-picker.css">
   <style>
     .section-label { font-size:0.6875rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(17,24,39,0.4); margin:0 0 0.625rem; }
     .error-box { background:#fef2f2; border:2px solid #fca5a5; border-radius:var(--ba-radius); padding:1.125rem 1rem; margin-bottom:1.25rem; }
@@ -35,7 +36,7 @@
     ENDPOINT:   PATCH /bookings/:id/reschedule  (BFF dispatches the CUSTOMER role to backend reschedule-customer)
                 body { scheduledAt }  — the customer NEVER sends resourceSelections or durationMinutes from this screen: picks and duration are KEPT
                 (decision 2026-10-03). Changing a pick or a duration = cancel and rebook.
-    SLOTS:      the same AvailabilityCarousel + SlotPicker as the booking flow (variant for the customer area), queried for the booking's
+    SLOTS:      the same AvailabilityCarousel + SlotPicker as the booking flow (dashboard look — see reschedule-picker.css; same chips/slots as the staff RescheduleBookingPage), queried for the booking's
                 services with the kept picks pinned (resourceSelections) and the kept duration (durationMinutes) — see dev-notes § Reschedule.
     ELIGIBILITY: customer path only — outside the effective reschedule window (Service.rescheduleWindowHoursOverride ?? tenant default) the backend
                 answers 422 BOOKING_RESCHEDULE_WINDOW_EXPIRED (15j). The booking stays APPROVED after a reschedule (no re-approval).
@@ -66,9 +67,10 @@
               <div class="kv"><span class="k">Data e horário</span><span>Sábado, 20 jun 2026 · 10h00</span></div>
               <div class="kv"><span class="k">Duração · valor</span><span>60 min · R$ 180,00</span></div>
             </div>
-            <p class="section-label">Novo horário</p>
-            <div class="error-box" role="alert" data-testid="reschedule-fetch-error"><div style="font-weight:800;color:#b91c1c;margin-bottom:.375rem;">Não foi possível carregar os horários.</div><div style="font-size:.875rem;color:#7f1d1d;">Verifique sua conexão e tente novamente.</div></div>
-            <button class="btn-secondary" data-testid="reschedule-retry">Tentar novamente</button>
+            <p class="section-label">Escolha a nova data</p>
+            <div class="pk-alert" role="alert" data-testid="reschedule-fetch-error"><div class="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="msg">Não foi possível carregar a disponibilidade</span></div><button type="button" class="retry" data-testid="reschedule-retry">Tentar novamente</button></div>
+            <p class="section-label">Horários disponíveis</p>
+            <div class="pk-alert" role="alert"><div class="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="msg">Não foi possível carregar os horários para este dia.</span></div><button type="button" class="retry" data-testid="reschedule-retry">Tentar novamente</button></div>
             <div class="mobile-actions">
               <button class="btn-primary btn-disabled" disabled aria-disabled="true" style="display:block;width:100%;margin-bottom:.625rem;">Confirmar novo horário</button>
               <a href="02-agendamento-detail.html" class="btn-secondary" style="display:block;text-align:center;">Voltar ao agendamento</a>
