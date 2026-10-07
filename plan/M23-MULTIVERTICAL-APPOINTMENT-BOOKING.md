@@ -2341,7 +2341,7 @@ The slot list is the booking's services' availability with the kept picks and th
 
 ---
 
-### M23-S31 — Availability-alert creation: "Avise-me quando abrir" on the calendar step and the alert page in the booking flow
+### M23-S31 — Availability-alert creation: "Avise-me quando abrir" on the calendar step and the alert page in the booking flow ✅ Done
 
 **Discovered:** 2026-10-03, docs audit of the M23-S11 prototypes: UC-072's trigger had no screen — `02d-fully-booked` only says "Entre em contato conosco para agendar"; `15-login-required` is a class-waitlist screen (M24), not the appointment entry; M23-S12 owns only the Minha Conta management surface. **Design redirected 2026-10-06** (docs audit with the owner): the entry is a button on the calendar step, opening a dedicated alert page that lives in the booking flow, in the tenant's branding, where only a logged-in customer sees the form (it has no use outside a booking attempt) — not a state-dependent action carrying half-filled criteria through login, and not a Minha Conta dashboard page.
 **Agent:** `frontend-ts`
@@ -2397,6 +2397,7 @@ On the booking flow's calendar (date and time) step, when the basket holds exact
 - [ ] A one-time range that ends in the past, an end before the start, a weekly preference with no weekday or an end time not after the start each show their own field error and nothing is sent.
 - [ ] A customer at the 10-active-alert cap sees a clear message on save and is pointed to "Meus avisos".
 - [ ] A saved alert appears in M23-S12's "Meus avisos" (cross-check once S12 lands).
+  - ⚠️ Cross-check deferred: "Meus avisos" does not exist until M23-S12 — verify there that a saved alert appears, 2026-10-07
 
 **Acceptance criteria — technical:**
 - Unit: the link builder (flow state → alert-page URL; null for a multi-service basket, an ineligible service or a legged service's resource); the button's visibility in every step state; the form's payload conversion from tenant-local to offset ISO and each validation error; each server error mapping (422 criteria, 422 ineligible, 409 cap, generic); the login gate's `returnTo` link keeps the query string; the confirmation's "Voltar ao site" target; an axe check that the page paints `--ba-background`.
