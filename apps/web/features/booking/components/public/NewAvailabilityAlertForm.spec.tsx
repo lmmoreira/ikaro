@@ -26,7 +26,7 @@ const flatService: AvailabilityAlertFormService = {
   id: SERVICE_ID,
   name: 'Lavagem Simples',
   durationMinutes: 30,
-  hasLegs: false,
+  isComposite: false,
 };
 
 const resourceOptions: HotsiteServiceResourceOptionsResponse = {
@@ -137,12 +137,36 @@ describe('NewAvailabilityAlertForm', () => {
       );
     });
 
-    it('drops the resource when the options cannot be read', async () => {
+    it('fails closed when the options cannot be read: an error with a retry, and submit stays disabled', async () => {
       vi.mocked(fetchServiceResourceOptions).mockRejectedValue(new Error('boom'));
       renderForm({ preferredResourceId: RESOURCE_ID });
 
-      await waitFor(() => expect(screen.getByTestId('alert-submit')).toBeEnabled());
+      expect(await screen.findByTestId('alert-resource-error')).toHaveTextContent(
+        'Não foi possível carregar o recurso escolhido.',
+      );
+      expect(screen.getByTestId('alert-submit')).toBeDisabled();
       expect(screen.queryByTestId('alert-resource')).not.toBeInTheDocument();
+    });
+
+    it('lets the customer retry the resource lookup, then submit with the verified pick', async () => {
+      vi.mocked(fetchServiceResourceOptions)
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce(resourceOptions);
+      vi.mocked(createAvailabilityAlert).mockResolvedValue(created);
+      renderForm({ preferredResourceId: RESOURCE_ID });
+      await screen.findByTestId('alert-resource-error');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+      expect(await screen.findByTestId('alert-resource')).toHaveTextContent('Box 2');
+      expect(screen.queryByTestId('alert-resource-error')).not.toBeInTheDocument();
+      fillRange();
+      await userEvent.click(screen.getByTestId('alert-submit'));
+      await waitFor(() =>
+        expect(createAvailabilityAlert).toHaveBeenCalledWith(
+          expect.objectContaining({ preferredResourceId: RESOURCE_ID }),
+        ),
+      );
     });
 
     it('keeps submit disabled while the resource name is still loading', () => {
@@ -152,13 +176,13 @@ describe('NewAvailabilityAlertForm', () => {
       expect(screen.getByTestId('alert-submit')).toBeDisabled();
     });
 
-    it('shows no resource and the journey note for a legged service, and never asks for options', () => {
+    it('shows no resource and the note for a legged service, and never asks for options', () => {
       renderForm({
-        service: { ...flatService, hasLegs: true },
+        service: { ...flatService, isComposite: true },
         preferredResourceId: RESOURCE_ID,
       });
 
-      expect(screen.getByTestId('alert-legged-note')).toHaveTextContent(
+      expect(screen.getByTestId('alert-composite-note')).toHaveTextContent(
         'Avisaremos quando a jornada inteira couber, com qualquer profissional ou sala.',
       );
       expect(screen.queryByTestId('alert-resource')).not.toBeInTheDocument();

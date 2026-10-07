@@ -209,7 +209,7 @@ interface ExpirySelectProps {
 function expiryOptionLabel(t: ReturnType<typeof useTranslations>, days: number): string {
   if (days === ALERT_DEFAULT_EXPIRY_DAYS)
     return t('availabilityAlert.expiry.daysDefault', { days });
-  if (days === ALERT_EXPIRY_DAYS_OPTIONS[ALERT_EXPIRY_DAYS_OPTIONS.length - 1]) {
+  if (days === ALERT_EXPIRY_DAYS_OPTIONS.at(-1)) {
     return t('availabilityAlert.expiry.daysMax', { days });
   }
   return t('availabilityAlert.expiry.days', { days });

@@ -55,6 +55,25 @@ describe('validateAvailabilityAlertForm() — one-time range', () => {
     });
   });
 
+  it('says a time does not exist when it falls in a spring-forward gap, instead of calling it empty', () => {
+    const early = new Date('2026-01-01T00:00:00.000Z');
+
+    expect(
+      validateAvailabilityAlertForm(
+        range({ rangeFrom: '2026-03-08T02:30', rangeTo: '2026-03-09T10:00' }),
+        'America/New_York',
+        early,
+      ),
+    ).toEqual({ rangeFrom: 'rangeFromInvalid' });
+    expect(
+      validateAvailabilityAlertForm(
+        range({ rangeFrom: '2026-03-07T10:00', rangeTo: '2026-03-08T02:30' }),
+        'America/New_York',
+        early,
+      ),
+    ).toEqual({ rangeTo: 'rangeToInvalid' });
+  });
+
   it('rejects a range that ends in the past, in the tenant timezone', () => {
     expect(
       validateAvailabilityAlertForm(

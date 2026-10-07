@@ -47,12 +47,17 @@ export async function openCalendarStep(page: Page, serviceId: string): Promise<v
   });
 }
 
-// "YYYY-MM-DDTHH:mm" for an <input type="datetime-local">, `daysAhead` days from now. A couple of
-// days of margin keeps "ends in the future" true whatever the runner's offset from the tenant.
+// "YYYY-MM-DDTHH:mm" for an <input type="datetime-local">, `daysAhead` days from now on the
+// TENANT's calendar (docs/ENGINEERING_RULES_TESTING.md § An E2E test that computes "today") — the
+// runner's own clock and zone diverge from it for hours every day. A couple of days of margin keeps
+// "ends in the future" true across that gap.
+const TENANT_TIMEZONE = 'America/Sao_Paulo';
+
 export function futureWallTime(daysAhead: number, time: string): string {
-  const day = new Date(Date.now() + daysAhead * 86_400_000);
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${time}`;
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE }).format(
+    new Date(Date.now() + daysAhead * 86_400_000),
+  );
+  return `${day}T${time}`;
 }
 
 // The signed-in customer's own alerts, read through the same-origin /v1 gateway.

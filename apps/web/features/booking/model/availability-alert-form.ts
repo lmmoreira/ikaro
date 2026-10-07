@@ -45,7 +45,9 @@ export type AvailabilityAlertFieldKey =
 // authoritative — a 422 BOOKING_ALERT_CRITERIA_INVALID is still handled by the form.
 export type AvailabilityAlertErrorKey =
   | 'rangeFromRequired'
+  | 'rangeFromInvalid'
   | 'rangeToRequired'
+  | 'rangeToInvalid'
   | 'rangeEnd'
   | 'rangePast'
   | 'weekdaysEmpty'
@@ -72,10 +74,12 @@ function validateRange(
   timeZone: string,
   now: Date,
 ): AvailabilityAlertFormErrors {
+  if (!state.rangeFrom) return { rangeFrom: 'rangeFromRequired' };
   const from = wallTimeToOffsetIso(state.rangeFrom, timeZone);
+  if (!from) return { rangeFrom: 'rangeFromInvalid' };
+  if (!state.rangeTo) return { rangeTo: 'rangeToRequired' };
   const to = wallTimeToOffsetIso(state.rangeTo, timeZone);
-  if (!from) return { rangeFrom: 'rangeFromRequired' };
-  if (!to) return { rangeTo: 'rangeToRequired' };
+  if (!to) return { rangeTo: 'rangeToInvalid' };
   if (new Date(to).getTime() <= new Date(from).getTime()) return { rangeTo: 'rangeEnd' };
   if (new Date(to).getTime() <= now.getTime()) return { rangeTo: 'rangePast' };
   return {};

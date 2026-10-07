@@ -6,6 +6,7 @@ import { AvailabilityAlertPage } from '@/features/booking/components/public/Avai
 import type { AvailabilityAlertFormService } from '@/features/booking/components/public/NewAvailabilityAlertForm';
 import {
   availabilityAlertPagePath,
+  isCompositeService,
   parseAvailabilityAlertParams,
 } from '@/features/booking/model/availability-alert-link';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
@@ -63,7 +64,7 @@ export default async function AvailabilityAlertRoute({
         id: found.id,
         name: found.name,
         durationMinutes: found.durationMinutes,
-        hasLegs: found.legs !== null && found.legs.length > 0,
+        isComposite: isCompositeService(found),
       }
     : null;
 

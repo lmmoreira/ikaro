@@ -17,14 +17,23 @@ export interface AvailabilityAlertParams {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// A legged service or a bundle (more than one resource requirement, docs/02 § Service) — its
+// resource picks cannot be represented by an alert's single preferred resource.
+export function isCompositeService(service: HotsiteServiceResponse): boolean {
+  return (
+    (service.legs !== null && service.legs.length > 0) || service.resourceRequirements.length > 1
+  );
+}
+
 // An alert holds exactly one preferred resource, so only a flat service with exactly one pick
-// has one to carry. A legged or bundled service has one pick per leg/requirement — it passes none
-// and the alert means "when the whole journey fits, with any resources" (docs/27 § Availability Alerts).
+// has one to carry. A legged service has one pick per leg and a bundle (more than one resource
+// requirement) one per requirement — both pass none, and the alert means "when the whole service
+// fits, with any resources" (docs/27 § Availability Alerts).
 function singleResourcePick(
   service: HotsiteServiceResponse,
   resourceSelections: readonly ResourceSelectionItem[],
 ): string | null {
-  if (service.legs !== null && service.legs.length > 0) return null;
+  if (isCompositeService(service)) return null;
   const own = resourceSelections.filter((pick) => pick.serviceId === service.id);
   return own.length === 1 ? own[0].resourceId : null;
 }

@@ -35,7 +35,12 @@ function renderPage(service: React.ComponentProps<typeof AvailabilityAlertPage>[
   );
 }
 
-const eligible = { id: SERVICE_ID, name: 'Lavagem Simples', durationMinutes: 30, hasLegs: false };
+const eligible = {
+  id: SERVICE_ID,
+  name: 'Lavagem Simples',
+  durationMinutes: 30,
+  isComposite: false,
+};
 
 describe('AvailabilityAlertPage', () => {
   beforeEach(() => {

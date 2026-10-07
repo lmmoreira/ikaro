@@ -333,7 +333,9 @@
         "weeklyToRequired": "Enter the end time.",
         "weeklyEnd": "The end time must be after the start time.",
         "submitFailed": "We could not create the alert.",
-        "submitFailedHint": "Check your connection and try again. Nothing was saved."
+        "submitFailedHint": "Check your connection and try again. Nothing was saved.",
+        "rangeFromInvalid": "That time does not exist on that date. Choose another.",
+        "rangeToInvalid": "That time does not exist on that date. Choose another."
       },
       "saved": {
         "title": "Alert created",
@@ -360,7 +362,8 @@
         "why": "After you sign in or create your account you come back to create the alert, with the service already filled in. The alert does not hold a time slot.",
         "cta": "Sign in or create an account",
         "back": "Back"
-      }
+      },
+      "resourceError": "We could not load the resource you picked."
     }
   },
   "hotsite": {

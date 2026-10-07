@@ -49,10 +49,9 @@ export function AvailabilityAlertSaved({
   return (
     <AvailabilityAlertShell testId="availability-alert-saved">
       <h1 className="mb-4 text-2xl font-bold">{t('availabilityAlert.saved.title')}</h1>
-      <div
-        className="border border-green-300 bg-green-50 p-6 text-green-900"
+      <output
+        className="block border border-green-300 bg-green-50 p-6 text-green-900"
         style={{ borderRadius: 'var(--ba-radius)' }}
-        role="status"
       >
         <p className="font-semibold">{serviceName}</p>
         <p className="mt-2 leading-relaxed">
@@ -69,7 +68,7 @@ export function AvailabilityAlertSaved({
             <dd>{formatDate(new Date(alert.expiresAt))}</dd>
           </div>
         </dl>
-      </div>
+      </output>
       <div className="mt-6">
         <Link
           href={`/${slug}`}

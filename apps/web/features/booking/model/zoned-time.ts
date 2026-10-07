@@ -34,7 +34,9 @@ function formatOffset(minutes: number): string {
 // Converts a wall-clock "YYYY-MM-DDTHH:mm" (what an <input type="datetime-local"> holds) read in
 // `timeZone` — the TENANT's timezone, never the browser's — into an ISO string with that zone's
 // offset, which is what POST /availability-alerts expects. Two passes settle a wall time near a
-// DST change. Returns null for a malformed value.
+// DST change. Returns null for a malformed value or a time that does not exist in the zone (the
+// skipped hour of a spring-forward change); an ambiguous time (the repeated hour of a fall-back
+// change) resolves to one of its two valid readings.
 export function wallTimeToOffsetIso(wall: string, timeZone: string): string | null {
   const match = WALL_TIME.exec(wall);
   if (!match) return null;
@@ -46,6 +48,9 @@ export function wallTimeToOffsetIso(wall: string, timeZone: string): string | nu
   if (settled !== offset) offset = settled;
 
   const instant = asIfUtc - offset * 60_000;
+  // A wall time inside a spring-forward gap never happens in that zone: the instant computed above
+  // then has a different real offset than the one assumed. Reject it rather than guess an hour.
+  if (zoneOffsetMinutes(instant, timeZone) !== offset) return null;
   const localWall = new Date(instant + offset * 60_000).toISOString().slice(0, 19);
   return `${localWall}${formatOffset(offset)}`;
 }

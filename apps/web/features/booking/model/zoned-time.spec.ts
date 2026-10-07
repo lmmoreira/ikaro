@@ -36,6 +36,24 @@ describe('wallTimeToOffsetIso()', () => {
     );
   });
 
+  it('rejects a wall time that does not exist — the skipped hour of a spring-forward change', () => {
+    // New York jumps from 02:00 to 03:00 on 2026-03-08: 02:30 never happens there.
+    expect(wallTimeToOffsetIso('2026-03-08T02:30', 'America/New_York')).toBeNull();
+    expect(wallTimeToOffsetIso('2026-03-08T01:59', 'America/New_York')).toBe(
+      '2026-03-08T01:59:00-05:00',
+    );
+    expect(wallTimeToOffsetIso('2026-03-08T03:00', 'America/New_York')).toBe(
+      '2026-03-08T03:00:00-04:00',
+    );
+  });
+
+  it('accepts an ambiguous time — the repeated hour of a fall-back change — as one of its two readings', () => {
+    // New York repeats 01:00-02:00 on 2026-11-01 (first -04:00, then -05:00).
+    const iso = wallTimeToOffsetIso('2026-11-01T01:30', 'America/New_York');
+
+    expect(['2026-11-01T01:30:00-04:00', '2026-11-01T01:30:00-05:00']).toContain(iso);
+  });
+
   it('describes the same instant as the equivalent UTC time', () => {
     const iso = wallTimeToOffsetIso('2026-10-20T09:00', 'America/Sao_Paulo') ?? '';
 

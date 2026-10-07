@@ -4,6 +4,7 @@ import { choiceRequirement, hotsiteServiceBookingDefaults, makeHotsiteService } 
 import {
   availabilityAlertPagePath,
   buildAvailabilityAlertLink,
+  isCompositeService,
   parseAvailabilityAlertParams,
 } from './availability-alert-link';
 
@@ -110,6 +111,23 @@ describe('buildAvailabilityAlertLink()', () => {
     expect(link).toBe(`/acme/booking/availability-alert?serviceId=${SERVICE_ID}`);
   });
 
+  it('carries no resource for a bundle (several resource requirements) even with one pick', () => {
+    const link = buildAvailabilityAlertLink({
+      slug: 'acme',
+      services: [
+        eligibleService({
+          resourceRequirements: [
+            choiceRequirement('STAFF'),
+            { type: 'ROOM', selectionMode: 'AUTO_ANY', requiredQuantity: 1 },
+          ],
+        }),
+      ],
+      resourceSelections: [pick(SERVICE_ID, RESOURCE_ID)],
+    });
+
+    expect(link).toBe(`/acme/booking/availability-alert?serviceId=${SERVICE_ID}`);
+  });
+
   it('ignores a pick that belongs to another service', () => {
     const link = buildAvailabilityAlertLink({
       slug: 'acme',
@@ -142,6 +160,43 @@ describe('buildAvailabilityAlertLink()', () => {
     });
 
     expect(link).not.toContain('participant');
+  });
+});
+
+describe('isCompositeService()', () => {
+  it('is false for a flat single-requirement service', () => {
+    expect(isCompositeService(eligibleService())).toBe(false);
+  });
+
+  it('is true for a legged service', () => {
+    expect(
+      isCompositeService(
+        eligibleService({
+          legs: [
+            {
+              legIndex: 0,
+              name: 'Lavagem',
+              durationMinutes: 30,
+              resourceRequirements: [],
+              transitionGapAfterMinutes: 0,
+            },
+          ],
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('is true for a bundle — more than one resource requirement', () => {
+    expect(
+      isCompositeService(
+        eligibleService({
+          resourceRequirements: [
+            choiceRequirement('STAFF'),
+            { type: 'ROOM', selectionMode: 'AUTO_ANY', requiredQuantity: 1 },
+          ],
+        }),
+      ),
+    ).toBe(true);
   });
 });
 

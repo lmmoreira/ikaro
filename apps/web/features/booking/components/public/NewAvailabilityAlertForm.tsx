@@ -31,9 +31,10 @@ export interface AvailabilityAlertFormService {
   readonly id: string;
   readonly name: string;
   readonly durationMinutes: number;
-  // A legged service has one resource requirement per leg; an alert holds one preferred resource,
-  // so it shows no resource field and means "when the whole journey fits, with any resources".
-  readonly hasLegs: boolean;
+  // A legged service has one resource requirement per leg and a bundle one per requirement; an
+  // alert holds one preferred resource, so it shows no resource field and means "when the whole
+  // service fits, with any resources".
+  readonly isComposite: boolean;
 }
 
 interface NewAvailabilityAlertFormProps {
@@ -53,7 +54,12 @@ export function NewAvailabilityAlertForm({
 }: NewAvailabilityAlertFormProps): React.JSX.Element {
   const t = useTranslations('booking');
   const { timezone } = useFormatting();
-  const resource = useResolvedAlertResource(slug, service.id, preferredResourceId, service.hasLegs);
+  const { resource, retry: retryResource } = useResolvedAlertResource(
+    slug,
+    service.id,
+    preferredResourceId,
+    service.isComposite,
+  );
   const state = useAvailabilityAlertForm({ serviceId: service.id, resource, durationMinutes });
   const { form, errors, submitting, view } = state;
 
@@ -111,8 +117,15 @@ export function NewAvailabilityAlertForm({
               })}
             />
           </dl>
-          {service.hasLegs && (
-            <p className="mt-2 text-sm opacity-75" data-testid="alert-legged-note">
+          {resource.status === 'error' && (
+            <div className="mt-2" data-testid="alert-resource-error">
+              <ErrorAlert onRetry={retryResource} retryLabel={t('errors.tryAgain')}>
+                {t('availabilityAlert.resourceError')}
+              </ErrorAlert>
+            </div>
+          )}
+          {service.isComposite && (
+            <p className="mt-2 text-sm opacity-75" data-testid="alert-composite-note">
               {t('availabilityAlert.legged.note')}
             </p>
           )}
@@ -217,7 +230,7 @@ export function NewAvailabilityAlertForm({
           </Link>
           <button
             type="submit"
-            disabled={submitting || resource.status === 'loading'}
+            disabled={submitting || resource.status === 'loading' || resource.status === 'error'}
             data-testid="alert-submit"
             className={`cursor-pointer ${alertPrimaryButtonClass} disabled:cursor-not-allowed disabled:opacity-40`}
             style={alertPrimaryButtonStyle}

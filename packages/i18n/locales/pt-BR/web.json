@@ -333,7 +333,9 @@
         "weeklyToRequired": "Informe o horário final.",
         "weeklyEnd": "O horário final precisa ser depois do inicial.",
         "submitFailed": "Não foi possível criar o aviso.",
-        "submitFailedHint": "Verifique sua conexão e tente de novo. Nada foi salvo."
+        "submitFailedHint": "Verifique sua conexão e tente de novo. Nada foi salvo.",
+        "rangeFromInvalid": "Esse horário não existe nessa data. Escolha outro.",
+        "rangeToInvalid": "Esse horário não existe nessa data. Escolha outro."
       },
       "saved": {
         "title": "Aviso criado",
@@ -360,7 +362,8 @@
         "why": "Depois de entrar ou criar sua conta, você volta para criar o aviso, com o serviço já preenchido. O aviso não reserva horário.",
         "cta": "Entrar ou criar conta",
         "back": "Voltar"
-      }
+      },
+      "resourceError": "Não foi possível carregar o recurso escolhido."
     }
   },
   "hotsite": {
