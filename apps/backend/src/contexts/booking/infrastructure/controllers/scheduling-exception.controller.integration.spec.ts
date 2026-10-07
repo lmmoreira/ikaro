@@ -289,6 +289,36 @@ describe('SchedulingExceptionController (integration)', () => {
       expect(await occupiedResourceIds(ds, TENANT_A, seeded.bookingId)).toEqual([replacement.id]);
     });
 
+    it('RESCHEDULE is not held to the booking window — a manager may move a booking past the tenant maximum', async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      const replacement = await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      const seeded = await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: source,
+        startsInHours: 24,
+      });
+      await deactivate(source.id);
+      const [entry] = await openEntries();
+      // 400 days ahead is past the highest tenant maximum (365 days), where a customer's own
+      // reschedule is refused; the worklist is staff-side and exempt.
+      const newTime = new Date(Date.now() + 400 * 24 * 3_600_000).toISOString();
+
+      const { body } = await resolve({
+        exceptionIds: [entry.id],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: newTime,
+      }).expect(200);
+
+      expect(body.results).toEqual([{ exceptionId: entry.id, outcome: 'RESOLVED' }]);
+      const stored = await ds
+        .getRepository(BookingEntity)
+        .findOneByOrFail({ id: seeded.bookingId });
+      expect(stored.scheduledAt.toISOString()).toBe(newTime);
+      expect(await occupiedResourceIds(ds, TENANT_A, seeded.bookingId)).toEqual([replacement.id]);
+    });
+
     it('RESCHEDULE refuses a PENDING booking and keeps the entry OPEN', async () => {
       const source = await seedResource(ds, TENANT_A, 'Sala 1');
       await seedResource(ds, TENANT_A, 'Sala 2');

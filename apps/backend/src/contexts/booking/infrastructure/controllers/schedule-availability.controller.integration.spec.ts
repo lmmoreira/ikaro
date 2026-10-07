@@ -90,6 +90,20 @@ describe('ScheduleAvailabilityController (integration)', () => {
       });
     });
 
+    it('does not trim a day beyond the booking window — only booking it is refused', async () => {
+      // 60 weeks ahead is past the highest tenant maximum (365 days): staff and the alert sweep read
+      // the same endpoint, so the read still lists the day.
+      const farMonday = nextWeekday(1, 60);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/schedule/availability?date=${farMonday}&serviceIds=${serviceId}`)
+        .set(tenantHeader(tenantAId))
+        .expect(200);
+
+      expect(body.available).toBe(true);
+      expect(body.slots.length).toBeGreaterThan(0);
+    });
+
     it('returns empty slots for a normally-closed day (Sunday)', async () => {
       const { body } = await request(app.getHttpServer())
         .get(`/schedule/availability?date=${SUNDAY}&serviceIds=${serviceId}`)
