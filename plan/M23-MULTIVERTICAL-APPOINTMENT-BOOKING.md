@@ -44,6 +44,7 @@
 | 2 | M23-S32 | Fungible-pool booking assigns a free unit, not the first eligible one (UC-062); backend-only |
 | 3 | M23-S33 | Enforce the booking window on the backend — min/max advance on booking and reschedule, per-service override (never looser than the tenant), tenant-timezone dates, alert sweep and public booking page aligned (full-stack, L) |
 | 3 | M23-S34 | Reject an availability alert on a customer-selected-duration service when no valid duration is chosen (create and update, backend-only) |
+| 4 | M23-S35 | Apply the booking window to a recurring schedule's first occurrence and never create a past occurrence — new schedules and pattern-changing renewals checked, pure renewals exempt via `renewsScheduleId` (UC-070, UC-071); backend-only |
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
@@ -2588,5 +2589,73 @@ An alert on a `CUSTOMER_SELECTED` service is only meaningful at a chosen duratio
 - Tenant isolation:
   - [ ] A service of Tenant B referenced from Tenant A is still `404`/refused before any duration check
 - E2E: none — backend rule; the screen that surfaces it is M23-S31
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S35 — Apply the booking window to a recurring schedule's first occurrence, and never create a past occurrence
+
+**Discovered:** 2026-10-07, in the M23-S33 review (PR #566), asking whether recurring schedules should respect the tenant and service booking window. M23-S33 decision 12 deliberately left them out of scope.
+**Root cause:** `RequestRecurringBookingScheduleUseCase.execute()` (`request-recurring-booking-schedule.use-case.ts:159-162`) validates only the term length (`assertValidTerm`), never where the term starts: `startsOn` is unchecked against the past, the minimum notice and the maximum days ahead, and an `AUTO_CONFIRM` schedule materializes its whole term in the same transaction (`:131-133`). `ApproveRecurringBookingScheduleUseCase.execute()` (`approve-recurring-booking-schedule.use-case.ts:93-110`) re-enumerates the whole term from the stored `startsOn` and creates every occurrence, including ones already in the past by approval time (nothing in `materialize-recurring-schedule-occurrences.helpers.ts` filters them). There is also no backend notion of a renewal: M23-S21 links to `…/new?renewFrom=<id>` and M23-S22 (not built) submits an ordinary create request, so the backend cannot tell a renewal from a new schedule.
+**Agent:** `backend-ts`
+**Complexity:** M
+**Docs to load:** `docs/04-USE_CASES.md` UC-070 (create, A-flows) and UC-071 (approval), `docs/14-API_CONTRACTS.md` (`/recurring-booking-schedules`), `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — the effective-window algorithm (M23-S33) and recurring schedules, `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Schema-level enforcement, `docs/24-BFF_ARCHITECTURE.md`
+**Dependencies:** M23-S33 (merged in PR #566; supplies `resolveEffectiveBookingWindow` and `assertWithinBookingWindow`), M23-S04 (✅ Done — the aggregate), M23-S18 (✅ Done — the fixed term this story leaves unchanged). Consumers, not dependencies: M23-S17 (the create form) gets the check without change; M23-S22 (the "Renovar" form) must send `renewsScheduleId`.
+**Pattern:** plain composition — the precedent is M23-S33: a pure helper resolves the effective window, the controller passes the tenant's `settings.booking` values into the use-case input, and the use case asserts before `txManager.run()`, never inside it. The renewal test is one small pure predicate. No named GoF pattern.
+
+**Description:**
+Make the booking window apply to where a recurring schedule starts, let a genuine renewal keep going without it, and stop approval and creation from ever producing a booking in the past.
+
+**Decided at creation (agreed with the user on 2026-10-07; not for discovery to re-derive):**
+1. **First occurrence only.** For a new schedule, the first occurrence is checked as an instant — the first start `enumerateRecurrenceOccurrences(recurrence, startsOn, endsOn, timezone)` returns, never the `startsOn` date — with M23-S33's `assertWithinBookingWindow` and the effective window (the tenant is the ceiling, the service override can only tighten it). It throws `SCHEDULED_IN_PAST`, then `BOOKING_TOO_SOON`, then `BOOKING_TOO_FAR_AHEAD`. Later occurrences are not window-checked.
+2. **The term cap is unchanged:** `endsOn ≤ startsOn + recurringHorizonDays` (default 90). It is not capped by the tenant or service maximum days — that would defeat recurrence.
+3. **Renewal is explicit.** `RequestRecurringBookingScheduleBodySchema` (shared in `packages/validation/src/booking.ts`) gains an optional `renewsScheduleId` (uuid). A request is a renewal only when that schedule exists in the tenant, belongs to the same customer, and the new request keeps the same pattern: same `serviceId`, same `daysOfWeek` (as a set), same `startTime` and same `durationMinutes`. A renewal skips the minimum-notice and maximum-days checks (it continues the customer's routine) but never the past check (decision 4). A pattern that differs is not an error: the request is simply treated as a new schedule. A reference to another customer's schedule or one outside the tenant is `404 RecurringBookingScheduleNotFoundError`, reusing `assertScheduleOwnership`. The field is not persisted (no migration).
+4. **Never create a past booking.** Occurrences that start at or before now are skipped when an `AUTO_CONFIRM` request materializes its term and when UC-071 approval materializes it. Approval does not re-run the window check (the manager's decision is theirs). If no future occurrence remains, the request or the approval fails with `422 SCHEDULED_IN_PAST` and the schedule stays as it was.
+5. **Staff and managers are exempt** from the window check on behalf of a customer, as in M23-S33 decision 5. The past rule still applies.
+6. **Error codes are reused:** `SCHEDULED_IN_PAST`, `BOOKING_TOO_SOON`, `BOOKING_TOO_FAR_AHEAD` (all `422`). No new code, no locale change.
+
+**Open for `/story-discovery` (proposed, not decided):**
+- **Continuity of a renewal.** As written, a customer could cite an old schedule in `renewsScheduleId` and start far in the future, exempt from the maximum days ahead. Proposal: a renewal's `startsOn` must be no later than the referenced schedule's `endsOn` plus one day; otherwise it is treated as a new schedule.
+- **Persisting `renewsScheduleId`.** The story does not, to avoid a migration; recording "renewed from" would help the future BI layer but needs a column.
+- **Term entirely in the past at approval:** the story refuses with `422 SCHEDULED_IN_PAST` and keeps the schedule pending; confirm that default.
+- **M23-S22** must be told to send `renewsScheduleId` in its own discovery.
+
+**Backend use case steps:**
+1. `RequestRecurringBookingScheduleUseCase`: load the renewal reference when `renewsScheduleId` is present and decide renewal vs new, resolve the effective window, assert the first occurrence (new) or the past rule (renewal), then `assertValidTerm` as today. All of it before `txManager.run()`.
+2. The materialization drops occurrences at or before `now`.
+3. `ApproveRecurringBookingScheduleUseCase`: enumerate the term, drop past occurrences, fail with `BookingScheduledInPastError` when none are left, otherwise materialize as today.
+
+**Backend HTTP surface:** `POST /recurring-booking-schedules` gains the optional `renewsScheduleId` field and the `422` codes above; `POST /recurring-booking-schedules/:id/approve` gains `422 SCHEDULED_IN_PAST`. Paths otherwise unchanged.
+**BFF endpoint spec:** none — the BFF validates with the shared schema and forwards the body unchanged.
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify (paths verified to exist unless marked new):**
+- `packages/validation/src/booking.ts` (+ `booking.spec.ts`) (modify — `renewsScheduleId`)
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-window.helpers.ts` (+ `.spec.ts`) (new — first-occurrence start, same-pattern predicate, the assertion)
+- `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/approve-recurring-booking-schedule.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/materialize-recurring-schedule-occurrences.helpers.ts` (+ `.spec.ts`) (modify — skip past occurrences)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ `.integration.spec.ts`, `recurring-booking-schedule-approval.controller.integration.spec.ts`) (modify — pass the tenant window values)
+- `apps/backend/http/booking/recurring-booking-schedules.http` (modify — the new `422` cases and a renewal)
+- `docs/04-USE_CASES.md` (UC-070, UC-071), `docs/14-API_CONTRACTS.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify)
+
+**Acceptance criteria — product:**
+- [ ] A customer cannot create a recurring schedule whose first occurrence is in the past, inside the minimum notice or beyond the maximum days ahead; the response is `422` with the matching code, even by calling the API directly.
+- [ ] A customer renewing the same routine early is not blocked by the maximum days ahead; one who changes the weekday, time, duration or service is treated as new.
+- [ ] A late renewal or a late approval creates only future bookings.
+- [ ] Staff creating a schedule on a customer's behalf are not blocked by the window.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] the helper: first occurrence taken as an instant (a `startsOn` before the first matching weekday); same-pattern predicate (each of the four fields changing); the assertion on the boundaries
+  - [ ] request: new schedule rejected past, too soon, too far; renewal with the same pattern accepted beyond the maximum; renewal with a changed field treated as new; staff exempt from the window but not the past rule
+  - [ ] approval and materialization skip past occurrences; none left → `BookingScheduledInPastError`
+- Integration:
+  - [ ] `POST /recurring-booking-schedules` real rows: the three `422` codes, a valid new schedule `201`, a valid renewal `201`
+  - [ ] approval of a `PENDING_APPROVAL` schedule whose first occurrence has passed creates only the future bookings
+- Tenant isolation:
+  - [ ] a `renewsScheduleId` from another tenant or another customer is `404`, never an exemption
+- E2E: none — backend rule; the form that surfaces it is M23-S17, and M23-S22 sends the field
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
