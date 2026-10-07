@@ -2300,7 +2300,7 @@ Pre-decided:
 
 ---
 
-### M23-S30 — Customer reschedules a booking — "Reagendar" screen in Minha Conta (date and time only)
+### M23-S30 — Customer reschedules a booking — "Reagendar" screen in Minha Conta (date and time only) ✅ Done
 
 **Discovered:** 2026-10-03, while reviewing the M23-S11 prototypes: the customer area has no reschedule screen at all — the only reschedule UI is the staff `RescheduleBookingPage` in the dashboard, and `06-reserva-recorrente` carried an inline slot `<select>` for an occurrence. The backend (`reschedule-customer`, M23-S03) shipped without a customer consumer; the quote-preview item M23-S03 deferred to S11 disappears with decision 2 below.
 **Agent:** `frontend-ts`
