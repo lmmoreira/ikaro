@@ -2490,7 +2490,7 @@ describe('BookingController (integration)', () => {
       await guestBooking(tenantAId, {
         ...validBody(),
         serviceIds: [shortMaxServiceId],
-        scheduledAt: `${futureDate(2)}T15:00:00.000Z`,
+        scheduledAt: `${futureDate(1)}T15:00:00.000Z`,
       }).expect(201);
     });
 
