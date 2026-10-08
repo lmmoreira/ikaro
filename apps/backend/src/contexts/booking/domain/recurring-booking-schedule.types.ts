@@ -9,7 +9,7 @@ export type RecurringBookingScheduleStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'CA
 export type RecurringBookingScheduleAssignmentPolicy =
   'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
 export type RecurringBookingScheduleCancellationReason =
-  'CUSTOMER_CANCELLED' | 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED';
+  'CUSTOMER_CANCELLED' | 'STAFF_CANCELLED' | 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED';
 export type RecurringBookingScheduleActorType = 'CUSTOMER' | 'STAFF';
 
 export interface RecurringBookingScheduleResourceAssignmentProps {

@@ -251,7 +251,7 @@ describe('RecurringBookingSchedule.reassignResource', () => {
 
   it('rejects a non-ACTIVE schedule', () => {
     const schedule = activeSchedule();
-    schedule.end(CORRELATION_ID, []);
+    schedule.end(CORRELATION_ID, [], 'CUSTOMER');
 
     expect(() => schedule.reassignResource('res-1', 'res-2')).toThrow(
       RecurringBookingScheduleNotActiveError,
@@ -264,7 +264,7 @@ describe('RecurringBookingSchedule.end', () => {
     const schedule = RecurringBookingSchedule.request(requestOptions());
     schedule.clearDomainEvents();
 
-    schedule.end(CORRELATION_ID, ['booking-1', 'booking-2']);
+    schedule.end(CORRELATION_ID, ['booking-1', 'booking-2'], 'CUSTOMER');
 
     expect(schedule.status).toBe('CANCELLED');
     expect(schedule.cancellationReason).toBe('CUSTOMER_CANCELLED');
@@ -275,13 +275,26 @@ describe('RecurringBookingSchedule.end', () => {
       'booking-1',
       'booking-2',
     ]);
+    expect((events[0] as RecurringBookingScheduleEnded).data.endedBy).toBe('CUSTOMER');
+  });
+
+  it('records STAFF_CANCELLED and endedBy STAFF when staff end the schedule', () => {
+    const schedule = RecurringBookingSchedule.request(requestOptions());
+    schedule.clearDomainEvents();
+
+    schedule.end(CORRELATION_ID, [], 'STAFF');
+
+    expect(schedule.cancellationReason).toBe('STAFF_CANCELLED');
+    expect((schedule.domainEvents[0] as RecurringBookingScheduleEnded).data.endedBy).toBe('STAFF');
   });
 
   it('rejects ending a non-ACTIVE schedule (e.g. already ended)', () => {
     const schedule = RecurringBookingSchedule.request(requestOptions());
-    schedule.end(CORRELATION_ID, []);
+    schedule.end(CORRELATION_ID, [], 'CUSTOMER');
 
-    expect(() => schedule.end(CORRELATION_ID, [])).toThrow(RecurringBookingScheduleNotActiveError);
+    expect(() => schedule.end(CORRELATION_ID, [], 'CUSTOMER')).toThrow(
+      RecurringBookingScheduleNotActiveError,
+    );
   });
 });
 
@@ -312,7 +325,7 @@ describe('RecurringBookingSchedule.approve', () => {
 
   it.each(['ACTIVE', 'CANCELLED', 'ENDED'] as const)('refuses a %s schedule', (status) => {
     const schedule = RecurringBookingSchedule.request(requestOptions());
-    if (status === 'CANCELLED') schedule.end(CORRELATION_ID, []);
+    if (status === 'CANCELLED') schedule.end(CORRELATION_ID, [], 'CUSTOMER');
     if (status === 'ENDED') schedule.markEnded();
 
     expect(() => schedule.approve('staff-1', CORRELATION_ID)).toThrow(

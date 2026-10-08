@@ -663,7 +663,7 @@ RecurringBookingSchedule {
   approvalHoldExpiresAt:    DateTime | null          -- required iff status = PENDING_APPROVAL
   approvedByStaffId:        StaffId | null
   approvedAt:               DateTime | null
-  cancellationReason:       'CUSTOMER_CANCELLED' | 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED' | null
+  cancellationReason:       'CUSTOMER_CANCELLED' | 'STAFF_CANCELLED' | 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED' | null
   createdByStaffId:         StaffId | null           -- set when staff creates it on the customer's behalf
   createdAt / updatedAt:    DateTime
 }

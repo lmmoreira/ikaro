@@ -7,6 +7,7 @@ import {
   confirmBooking,
   fillGuestContact,
   findFirstSlot,
+  firstSlotOnDate,
   MANAGER_EMAIL,
   nextButton,
   openBooking,
@@ -284,8 +285,8 @@ test.describe('M23-S11a — chosen resource', () => {
       await guest.page.locator(`[data-resource-id="${staff.id}"]`).click();
       await guest.page.locator(`[data-resource-id="${room.id}"]`).click();
       await nextButton(guest.page).click();
-      await pickFirstSlot(guest.page);
-      const chosen = await findFirstSlot(page, service.serviceId, [
+      const date = await pickFirstSlot(guest.page);
+      const chosen = await firstSlotOnDate(page, service.serviceId, date, [
         staffPick(service.serviceId, staff.id),
         { serviceId: service.serviceId, legIndex: null, resourceType: 'ROOM', resourceId: room.id },
       ]);

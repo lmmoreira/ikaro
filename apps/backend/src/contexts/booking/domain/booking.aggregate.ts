@@ -749,7 +749,12 @@ export class Booking extends AggregateRoot {
     };
   }
 
-  cancel(actor: IdentifiedBookingActor, correlationId: string, reason?: string): void {
+  cancel(
+    actor: IdentifiedBookingActor,
+    correlationId: string,
+    reason?: string,
+    cancelledByScheduleEnd = false,
+  ): void {
     const cancellable = [
       BookingStatus.PENDING,
       BookingStatus.INFO_REQUESTED,
@@ -777,6 +782,7 @@ export class Booking extends AggregateRoot {
         scheduledAt: this.props.scheduledAt.toISOString(),
         lineSummary: this.lineSummaryPayload(),
         totalPrice: this.totalPricePayload(),
+        cancelledByScheduleEnd,
       }),
     );
   }

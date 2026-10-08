@@ -278,6 +278,46 @@
         "reviewBy": "2026-09-30"
       },
       {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/recurring-schedule-created.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/recurring-booking-schedule-created.event.ts"
+        ],
+        "rationale": "Notification reacts to the recurring-booking-schedule-created domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-11-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/recurring-schedule-approval-requested.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/recurring-booking-schedule-approval-requested.event.ts"
+        ],
+        "rationale": "Notification reacts to the recurring-booking-schedule-approval-requested domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-11-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/recurring-schedule-rejected.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/recurring-booking-schedule-rejected.event.ts"
+        ],
+        "rationale": "Notification reacts to the recurring-booking-schedule-rejected domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-11-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/recurring-schedule-ended.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/recurring-booking-schedule-ended.event.ts"
+        ],
+        "rationale": "Notification reacts to the recurring-booking-schedule-ended domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-11-30"
+      },
+      {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-approved.handler.ts",
         "target": "booking",
         "targetPaths": [

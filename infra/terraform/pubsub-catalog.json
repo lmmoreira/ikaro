@@ -145,25 +145,29 @@
   {
     "event": "RecurringBookingScheduleApprovalRequested",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "notification"
     ]
   },
   {
     "event": "RecurringBookingScheduleCreated",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "notification"
     ]
   },
   {
     "event": "RecurringBookingScheduleEnded",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "notification"
     ]
   },
   {
     "event": "RecurringBookingScheduleRejected",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "notification"
     ]
   },
   {

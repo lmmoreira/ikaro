@@ -40,6 +40,7 @@ export interface SendBookingCancelledNotificationUseCaseInput extends BaseContac
   scheduledAt: SendBookingCancelledNotificationDto['scheduledAt'];
   lineSummary: SendBookingCancelledNotificationDto['lineSummary'];
   totalPrice: SendBookingCancelledNotificationDto['totalPrice'];
+  cancelledByScheduleEnd: SendBookingCancelledNotificationDto['cancelledByScheduleEnd'];
 }
 
 export interface SendBookingCancelledNotificationUseCaseResult {
@@ -66,6 +67,17 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
   async execute(
     input: SendBookingCancelledNotificationUseCaseInput,
   ): Promise<SendBookingCancelledNotificationUseCaseResult> {
+    // An occurrence cancelled because its recurring schedule was ended sends nothing of its own:
+    // the schedule's single RecurringBookingScheduleEnded email replaces one email per occurrence
+    // (M23-S28, docs/03-DOMAIN_EVENTS.md § BookingCancelled).
+    if (input.cancelledByScheduleEnd) {
+      this.logger.log('Skipping — occurrence cancelled by its recurring schedule ending', {
+        tenantId: input.tenantId,
+        correlationId: input.correlationId,
+      });
+      return { customerEmailSent: false, adminEmailSent: false };
+    }
+
     const ctx = await this.resolveDisplayContext(input);
     const [customerTemplates, adminTemplates] = await this.loadTemplates(input.tenantId);
     this.localizeTemplates(customerTemplates, this.localizationPort, ctx.locale);

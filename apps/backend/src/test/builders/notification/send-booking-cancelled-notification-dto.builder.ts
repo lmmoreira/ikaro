@@ -17,6 +17,7 @@ export class SendBookingCancelledNotificationDtoBuilder {
     },
   ];
   private readonly totalPrice = { amount: '150.00', currency: 'BRL' };
+  private cancelledByScheduleEnd = false;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -43,6 +44,11 @@ export class SendBookingCancelledNotificationDtoBuilder {
     return this;
   }
 
+  withCancelledByScheduleEnd(cancelledByScheduleEnd: boolean): this {
+    this.cancelledByScheduleEnd = cancelledByScheduleEnd;
+    return this;
+  }
+
   build(): SendBookingCancelledNotificationDto {
     return {
       tenantId: this.tenantId,
@@ -56,6 +62,7 @@ export class SendBookingCancelledNotificationDtoBuilder {
       scheduledAt: this.scheduledAt,
       lineSummary: this.lineSummary,
       totalPrice: this.totalPrice,
+      cancelledByScheduleEnd: this.cancelledByScheduleEnd,
     };
   }
 }
