@@ -15,7 +15,9 @@ import {
   AvailabilityAlertCriteriaInvalidError,
   AvailabilityAlertIneligibleServiceError,
 } from '../../domain/errors/availability-alert.error';
+import { BookingQuoteService } from '../services/booking-quote.service';
 import {
+  BookingDurationOutOfRangeError,
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
@@ -96,6 +98,7 @@ describe('CreateAvailabilityAlertUseCase', () => {
       alertRepo,
       new InMemoryTenantLock(),
       new InMemoryTransactionManager(),
+      new BookingQuoteService(),
     );
   });
 
@@ -149,6 +152,65 @@ describe('CreateAvailabilityAlertUseCase', () => {
       expiresAt: expiresAt.toISOString(),
       durationMinutes: 120,
       participantCount: 4,
+    });
+  });
+
+  describe('duration on a customer-selected-duration service', () => {
+    const seedVariableDurationService = async (): Promise<Service> => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingPolicy({
+          availabilityAlertEligible: true,
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 30,
+        })
+        .withResourceRequirements([roomRequirement()])
+        .build();
+      await serviceRepo.save(service);
+      return service;
+    };
+
+    it('creates the alert with a valid duration', async () => {
+      const service = await seedVariableDurationService();
+
+      const result = await useCase.execute(input(service.id, { durationMinutes: 90 }));
+
+      expect(result.durationMinutes).toBe(90);
+    });
+
+    it.each([
+      ['missing', undefined],
+      ['null', null],
+      ['below the minimum', 30],
+      ['above the maximum', 300],
+      ['off the increment', 75],
+    ])('refuses a duration that is %s and writes no alert', async (_label, durationMinutes) => {
+      const service = await seedVariableDurationService();
+
+      await expect(useCase.execute(input(service.id, { durationMinutes }))).rejects.toThrow(
+        BookingDurationOutOfRangeError,
+      );
+      expect(await alertRepo.countActiveByCustomer(TENANT, CUSTOMER)).toBe(0);
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('creates an alert on a FIXED-duration service with or without a duration', async () => {
+      const service = await seedService();
+
+      await expect(useCase.execute(input(service.id))).resolves.toBeDefined();
+      await expect(
+        useCase.execute(input(service.id, { durationMinutes: 45 })),
+      ).resolves.toBeDefined();
+    });
+
+    it("reads another tenant's service as not found before any duration check", async () => {
+      const service = await seedVariableDurationService();
+
+      await expect(useCase.execute(input(service.id, { tenantId: OTHER_TENANT }))).rejects.toThrow(
+        BookingServiceNotInTenantError,
+      );
     });
   });
 

@@ -8,6 +8,7 @@ import { InMemoryAvailabilityAlertRepository } from '../../../../test/repositori
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import { BookingQuoteService } from '../../application/services/booking-quote.service';
 import { CancelAvailabilityAlertUseCase } from '../../application/use-cases/cancel-availability-alert.use-case';
 import { CreateAvailabilityAlertUseCase } from '../../application/use-cases/create-availability-alert.use-case';
 import { ListAvailabilityAlertsUseCase } from '../../application/use-cases/list-availability-alerts.use-case';
@@ -56,9 +57,16 @@ describe('AvailabilityAlertController', () => {
         alertRepo,
         new InMemoryTenantLock(),
         tx,
+        new BookingQuoteService(),
       ),
       new ListAvailabilityAlertsUseCase(alertRepo),
-      new UpdateAvailabilityAlertUseCase(alertRepo, serviceRepo, resourceRepo, tx),
+      new UpdateAvailabilityAlertUseCase(
+        alertRepo,
+        serviceRepo,
+        resourceRepo,
+        tx,
+        new BookingQuoteService(),
+      ),
       new CancelAvailabilityAlertUseCase(alertRepo, tx),
     );
   };
@@ -127,7 +135,10 @@ describe('AvailabilityAlertController', () => {
 
   describe('update()', () => {
     it("changes the caller's own alert", async () => {
-      const own = new AvailabilityAlertBuilder().withCustomerId(CUSTOMER_ID).build();
+      const own = new AvailabilityAlertBuilder()
+        .withCustomerId(CUSTOMER_ID)
+        .withServiceId(eligibleServiceId)
+        .build();
       alertRepo.seed(own);
 
       const result = await controller.update(own.id, { durationMinutes: 45 });
@@ -145,6 +156,7 @@ describe('AvailabilityAlertController', () => {
     it('maps a read-only (notified) alert to 409', async () => {
       const notified = new AvailabilityAlertBuilder()
         .withCustomerId(CUSTOMER_ID)
+        .withServiceId(eligibleServiceId)
         .withStatus('NOTIFIED')
         .build();
       alertRepo.seed(notified);

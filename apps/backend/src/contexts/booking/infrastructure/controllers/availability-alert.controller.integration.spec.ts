@@ -34,6 +34,7 @@ describe('AvailabilityAlertController (integration)', () => {
   let ineligibleServiceA: string;
   let roomA: string;
   let serviceB: string;
+  let variableServiceA: string;
 
   const createTenant = async (slug: string): Promise<string> => {
     const { body } = await request(app.getHttpServer())
@@ -49,14 +50,17 @@ describe('AvailabilityAlertController (integration)', () => {
     return body.tenantId as string;
   };
 
-  const seedService = async (tenantId: string, eligible: boolean): Promise<string> => {
+  const seedService = async (
+    tenantId: string,
+    eligible: boolean,
+    configure: (builder: ServiceEntityBuilder) => ServiceEntityBuilder = (builder) => builder,
+  ): Promise<string> => {
     const service = await ds
       .getRepository(ServiceEntity)
       .save(
-        new ServiceEntityBuilder()
-          .withTenantId(tenantId)
-          .withAvailabilityAlertEligible(eligible)
-          .build(),
+        configure(
+          new ServiceEntityBuilder().withTenantId(tenantId).withAvailabilityAlertEligible(eligible),
+        ).build(),
       );
     await ds
       .getRepository(ServiceResourceRequirementEntity)
@@ -111,6 +115,13 @@ describe('AvailabilityAlertController (integration)', () => {
     serviceA = await seedService(tenantA, true);
     ineligibleServiceA = await seedService(tenantA, false);
     serviceB = await seedService(tenantB, true);
+    variableServiceA = await seedService(tenantA, true, (builder) =>
+      builder
+        .withDurationPolicy('CUSTOMER_SELECTED')
+        .withDurationMinMinutes(30)
+        .withDurationMaxMinutes(120)
+        .withDurationIncrementMinutes(30),
+    );
     const room = await ds
       .getRepository(ResourceEntity)
       .save(new ResourceEntityBuilder().withTenantId(tenantA).withType(ResourceType.ROOM).build());
@@ -244,6 +255,89 @@ describe('AvailabilityAlertController (integration)', () => {
     expect(
       await ds.getRepository(AvailabilityAlertEntity).count({ where: { tenantId: tenantA } }),
     ).toBe(0);
+  });
+
+  describe('duration on a customer-selected-duration service', () => {
+    const post = (body: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .post('/availability-alerts')
+        .set(as(tenantA, CUSTOMER_A))
+        .send(body);
+    const alertCount = () =>
+      ds.getRepository(AvailabilityAlertEntity).count({ where: { tenantId: tenantA } });
+
+    it.each([
+      ['missing', undefined],
+      ['null', null],
+      ['below the minimum', 15],
+      ['above the maximum', 150],
+      ['off the increment', 45],
+    ])('POST refuses a duration that is %s with 422 and writes no row', async (_label, value) => {
+      // `undefined` is dropped by JSON serialisation, so the 'missing' case sends no key at all.
+      const { body } = await post({
+        ...weeklyBody(variableServiceA),
+        durationMinutes: value,
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_DURATION_OUT_OF_RANGE');
+      expect(await alertCount()).toBe(0);
+    });
+
+    it('POST accepts a valid duration, and PATCH validates a changed one against the service', async () => {
+      const { body: created } = await post({
+        ...weeklyBody(variableServiceA),
+        durationMinutes: 60,
+      }).expect(201);
+      const url = `/availability-alerts/${created.id as string}`;
+      const patch = (payload: Record<string, unknown>) =>
+        request(app.getHttpServer()).patch(url).set(as(tenantA, CUSTOMER_A)).send(payload);
+
+      await patch({ durationMinutes: 90 }).expect(200);
+      await patch({ durationMinutes: 45 }).expect(422);
+      const { body: cleared } = await patch({ durationMinutes: null }).expect(422);
+      expect(cleared.code).toBe('BOOKING_DURATION_OUT_OF_RANGE');
+      await patch({ participantCount: 3 }).expect(200);
+
+      const row = await ds
+        .getRepository(AvailabilityAlertEntity)
+        .findOneByOrFail({ tenantId: tenantA, id: created.id as string });
+      expect(row.durationMinutes).toBe(90);
+    });
+
+    it('keeps a FIXED-duration service accepting any duration, and another tenant is refused first', async () => {
+      await post({ ...weeklyBody(serviceA), durationMinutes: 45 }).expect(201);
+      expect(await alertCount()).toBe(1);
+
+      await request(app.getHttpServer())
+        .post('/availability-alerts')
+        .set(as(tenantB, CUSTOMER_B))
+        .send({ ...weeklyBody(variableServiceA), durationMinutes: 45 })
+        .expect(400);
+      expect(
+        await ds.getRepository(AvailabilityAlertEntity).count({ where: { tenantId: tenantB } }),
+      ).toBe(0);
+    });
+
+    it.each(['NOTIFIED', 'CANCELLED'] as const)(
+      'PATCH answers 409, not the duration error, for a %s alert',
+      async (status) => {
+        const { body: created } = await post({
+          ...weeklyBody(variableServiceA),
+          durationMinutes: 60,
+        }).expect(201);
+        await ds
+          .getRepository(AvailabilityAlertEntity)
+          .update({ tenantId: tenantA, id: created.id as string }, { status });
+
+        const { body } = await request(app.getHttpServer())
+          .patch(`/availability-alerts/${created.id as string}`)
+          .set(as(tenantA, CUSTOMER_A))
+          .send({ durationMinutes: 45 })
+          .expect(409);
+
+        expect(body.code).toBe('BOOKING_ALERT_NOT_EDITABLE');
+      },
+    );
   });
 
   it('rejects the 11th active alert with 409 and still allows another customer', async () => {
