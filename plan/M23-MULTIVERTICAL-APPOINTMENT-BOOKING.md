@@ -2606,7 +2606,7 @@ Make the backend the authority for how far ahead and how soon a booking may be m
 
 ---
 
-### M23-S34 — Reject an availability alert on a customer-selected-duration service when no valid duration is chosen
+### M23-S34 — Reject an availability alert on a customer-selected-duration service when no valid duration is chosen ✅ Done
 
 **Discovered:** 2026-10-06, at M23-S07's `/mark-done`, while writing the real-database duration scenarios for the alert matching.
 **Root cause:** `BookingQuoteService.validateDuration()` (`booking-quote.service.ts:28-47`) deliberately has no fallback to `Service.durationMinutes` for a `CUSTOMER_SELECTED` service (locked at M23-S02), so the availability read throws `BookingDurationOutOfRangeError` unless a valid duration is passed. `CreateAvailabilityAlertUseCase` (`create-availability-alert.use-case.ts:83`) and `UpdateAvailabilityAlertUseCase` (`update-availability-alert.use-case.ts:65`) store `durationMinutes` as given — null, or off the service's min/max/increment — without consulting the service's duration policy, so the alert is accepted but can never match: M23-S07's matching logs one warning per run and skips it. Verified against the current code: neither use case reads `bookingPolicy.durationPolicy`.
