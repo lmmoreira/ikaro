@@ -29,6 +29,32 @@ describe('resource-requirement-resolution.helpers', () => {
     return room;
   };
 
+  // Seeds one existing occupancy row for a resource, bypassing assign().
+  const seedOccupancy = (
+    repo: InMemoryResourceOccupancyRepository,
+    resource: Resource,
+    options: {
+      tenantId?: string;
+      startsAt?: Date;
+      endsAt?: Date;
+      selectionMode?: 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL';
+    } = {},
+  ): void => {
+    repo.seed(options.tenantId ?? TENANT_A, `line-${options.tenantId ?? TENANT_A}-${resource.id}`, {
+      resourceId: resource.id,
+      startsAt: options.startsAt ?? START,
+      endsAt: options.endsAt ?? END,
+      resourceType: ResourceType.ROOM,
+      resourceName: resource.name,
+      legIndex: null,
+      quantityPosition: null,
+      gapMinutes: null,
+      gapSource: null,
+      selectionMode: options.selectionMode ?? 'AUTO_FUNGIBLE_POOL',
+      isBundleMember: false,
+    });
+  };
+
   const newContext = (): ResolutionContext => ({
     resourceRepo,
     availabilityService: new AvailabilityService(),
@@ -205,21 +231,8 @@ describe('resource-requirement-resolution.helpers', () => {
     });
 
     describe('AUTO_FUNGIBLE_POOL narrows to units free for the window (M23-S32, UC-062)', () => {
-      const occupy = (resource: Resource, startsAt = START, endsAt = END): void => {
-        occupancyRepo.seed(TENANT_A, `line-${resource.id}`, {
-          resourceId: resource.id,
-          startsAt,
-          endsAt,
-          resourceType: ResourceType.ROOM,
-          resourceName: resource.name,
-          legIndex: null,
-          quantityPosition: null,
-          gapMinutes: null,
-          gapSource: null,
-          selectionMode: 'AUTO_FUNGIBLE_POOL',
-          isBundleMember: false,
-        });
-      };
+      const occupy = (resource: Resource, startsAt = START, endsAt = END): void =>
+        seedOccupancy(occupancyRepo, resource, { startsAt, endsAt });
       const sortedIds = (rooms: Resource[]): string[] => rooms.map((r) => r.id).sort();
 
       let occupancyRepo: InMemoryResourceOccupancyRepository;
@@ -303,18 +316,8 @@ describe('resource-requirement-resolution.helpers', () => {
       it("does not count another tenant's occupancy of the same resource id as busy", async () => {
         const rooms = [await seedRoom(), await seedRoom()];
         const [first] = sortedIds(rooms);
-        occupancyRepo.seed(TENANT_B, 'line-foreign', {
-          resourceId: first,
-          startsAt: START,
-          endsAt: END,
-          resourceType: ResourceType.ROOM,
-          resourceName: 'foreign',
-          legIndex: null,
-          quantityPosition: null,
-          gapMinutes: null,
-          gapSource: null,
-          selectionMode: 'AUTO_FUNGIBLE_POOL',
-          isBundleMember: false,
+        seedOccupancy(occupancyRepo, rooms.find((r) => r.id === first) as Resource, {
+          tenantId: TENANT_B,
         });
 
         const result = await resolve(requirement('AUTO_FUNGIBLE_POOL'), [], ctx);
@@ -342,18 +345,8 @@ describe('resource-requirement-resolution.helpers', () => {
       const busy = await seedRoom();
       const free = await seedRoom();
       const ctx = newContext();
-      (ctx.occupancyRepo as InMemoryResourceOccupancyRepository).seed(TENANT_A, 'line-busy', {
-        resourceId: busy.id,
-        startsAt: START,
-        endsAt: END,
-        resourceType: ResourceType.ROOM,
-        resourceName: busy.name,
-        legIndex: null,
-        quantityPosition: null,
-        gapMinutes: null,
-        gapSource: null,
+      seedOccupancy(ctx.occupancyRepo as InMemoryResourceOccupancyRepository, busy, {
         selectionMode: 'AUTO_ANY',
-        isBundleMember: false,
       });
 
       const result = await resolve(requirement('AUTO_ANY'), [], ctx);
