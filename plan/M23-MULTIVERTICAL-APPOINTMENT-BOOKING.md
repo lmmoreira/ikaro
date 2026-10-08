@@ -50,6 +50,7 @@
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
 | 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
+| 5 | M23-S37 | The manager's cancellation and new-request emails show who cancelled, why, and the pickup address (three template placeholders no code supplied); backend-only |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
 | 7 | M23-S22 | Customer renews an ending recurring schedule — "Renovar" pre-filled form (UC-070) |
 | 7 | M23-S19 | Staff creates a recurring private reservation on a customer's behalf (UC-070) |
@@ -91,6 +92,7 @@ graph TD
   S05 --> S28
   S28 --> S12
   S36 --> S28
+  S28 --> S37
   S05 --> S13
   S05 --> S17
   S12 --> S17
@@ -2817,3 +2819,75 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 **Post-merge status (2026-10-08):** merged to `main` as `18a49aa7` (PR #572), with all 55 CI checks green and SonarCloud's gate OK. **Not done yet** — the live-verification check above has not run: the `foundation-deploy.yml` apply (`apply=true`, both plans reviewed, `staging-foundation` then `production-foundation` approved) and the `gcloud pubsub subscriptions get-iam-policy ikaro-<Event>-audit-log` / `topics get-iam-policy ikaro-StaffActivated` checks in `ikaro-staging` and `ikaro-prod`. The PR's own Terraform plans read `40 to add, 0 to change, 0 to destroy` in both environments, which is exactly 13 new subscriptions × 3 resources (subscription, DLQ topic, DLQ-inspect subscription) plus the new `StaffActivated` topic. Mark ✅ Done only after that check.
 
 **What differs from the design above (found by `/pre-pr` and `/pr-land`):** (1) `AuditLogModule` is a plain module that each of the four context modules imports, not `@Global()` — an `AppModule`-only global made 42 integration suites fail at startup; (2) the shared `AuditLogHandlerBase`; (3) each handler spec drives every subscription with its own event's builder, because the backend's global function-coverage gate (85%) otherwise failed; (4) `scripts/pre-pr.sh` check 15 now searches every `*.module.ts` / `*.module-providers.ts` in a context instead of the first module found.
+
+---
+
+### M23-S37 — The manager's cancellation and new-request emails show who cancelled, why, and the pickup address
+
+**Agent:** `backend-ts`
+**Complexity:** M
+**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § `BookingCancelled` and § `BookingRequested`, `docs/04-USE_CASES.md` UC-001, UC-007, UC-008, `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type (including the wording-variants gotcha), `docs/ENGINEERING_RULES_SHARED.md` § Static locale/config files in workspace packages, `docs/AGENT_PATTERNS.md` § Notification Context Patterns, `docs/CODE_STANDARDS.md`
+**Dependencies:** M23-S28 (✅ Done — its `cancelledByScheduleEnd` early return is the first statement of `SendBookingCancelledNotificationUseCase.execute()` and stays first; this story only adds variables after it)
+**Pattern:** plain composition — the existing use cases supply the missing template variables, and the localized fragments come from the label catalog the daily-schedule email already uses (`ILocalizationPort.getEmailTableHeaders`). No new port, no new template key.
+
+**Discovered:** 2026-10-08, while delivering M23-S28: checking which shipped templates reference variables no code supplies. A placeholder-by-placeholder survey of `notifications.json` against the use cases found exactly three, in two templates.
+**Root cause:**
+- `BookingCancelled.admin` ends `<p>{{cancelledByLine}}</p>{{reasonLine}}` (both locales), but `SendBookingCancelledNotificationUseCase.buildVariables()` (`send-booking-cancelled-notification.use-case.ts:139-152`) supplies `cancelledBy` (an id), `isBusiness` (`"true"`/`"false"`) and `reason`, never `cancelledByLine` or `reasonLine`.
+- `BookingRequested.admin` ends `{{pickupAddressLine}}`, but `SendBookingRequestedNotificationUseCase` (`send-booking-requested-notification.use-case.ts:127`) supplies `pickupAddress` as a `JSON.stringify(...)` string that no template references.
+- `NotificationTemplate.render()` (`notification-template.aggregate.ts:69-71`) turns an unsupplied variable into `''`, so nothing fails or logs; the email just ends early. The use-case specs use hand-typed template stand-ins, so none rendered the shipped copy.
+
+**Description:**
+Today a manager is told a booking was cancelled but not by whom or why, and is told a new request arrived without the pickup address — the one thing a mobile-service tenant needs to act on it. `docs/03-DOMAIN_EVENTS.md` already specifies the cancelled email as carrying "who cancelled, reason if provided, booking summary".
+
+**Decisions already made (state as fact, do not re-derive):**
+1. Scope is these three placeholders plus a guard against the same class of bug; the customer emails are unchanged.
+2. The cancelled email says whether the **customer** or the **business** cancelled (from `isBusiness`) and, when a reason was given, the reason. The requested email shows the formatted pickup address when the booking has one and nothing when it has none (no empty label).
+3. No name lookup: `cancelledBy` is an id (customer id, guest email or staff id), so no new port; the distinction is customer vs business.
+4. The reason is typed by whoever cancels and the address by the guest, and `render()` interpolates raw: both are HTML-escaped before they go into the body.
+5. The address is formatted with the existing `Address.format()` (`shared/value-objects/address.ts:127`), not a new formatter.
+6. The tenant's locale, as both use cases already use. No migration, no new template key, no Pub/Sub change: a template row's `subject`/`body` are never read (the copy is overlaid from `notifications.json` at send time), so nothing per tenant changes.
+
+**Decisions left for `/story-discovery`:**
+- **Where the localized fragments live.** Proposal: the existing label catalog (`email-tables.json`, read through `getEmailTableHeaders`, which already holds sentences such as `emptyState`) under a new key with `cancelledByCustomer`, `cancelledByBusiness`, `reasonLabel`, `pickupAddressLabel`. The alternative — separate template keys per variant (customer/business × reason/none) — needs S28-style migrations and existing-tenant copies for a one-line difference, so it is the proposal's rejected option.
+- **Exact pt-BR and en wording** (for example "Cancelado pelo cliente." / "Cancelado pelo estabelecimento." / "Motivo: …" / "Endereço de retirada: …").
+- **The guard.** Options: (a) a spec that renders each affected template through the real catalog and fails on an unresolved placeholder; (b) `render()` reporting unresolved names, logged as a `warn` at dispatch in production and failing in unit specs that use the real catalog. Proposal: (b).
+- **Broader HTML escaping.** `render()` interpolates every variable raw, so customer-typed values such as `contactName` are also unescaped. This story escapes only its own fragments; a blanket escape in `render()` would break `AdminDailyScheduleReminder`'s intentionally HTML `bookingsSummary`. Decide whether to audit per variable inside this story or open a TD.
+
+**Backend use case steps:**
+1. `SendBookingCancelledNotificationUseCase`: after the schedule-end early return, add `cancelledByLine` (customer vs business) and `reasonLine` (only when a non-empty reason exists, escaped) to the variables, from the catalog in the tenant locale.
+2. `SendBookingRequestedNotificationUseCase`: add `pickupAddressLine` (only when the booking has an address, via `Address.format()`, escaped); remove the unused JSON `pickupAddress` variable.
+3. The guard chosen at discovery.
+
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** catalog entries in `packages/i18n/locales/{pt-BR,en}/email-tables.json`; no migration, no env var, no feature flag.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/notification/application/use-cases/send-booking-cancelled-notification/send-booking-cancelled-notification.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/notification/application/use-cases/send-booking-requested-notification/send-booking-requested-notification.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/notification/domain/notification-template.aggregate.ts` (+ `.spec.ts`) (modify — only if the guard is option b)
+- `packages/i18n/locales/{pt-BR,en}/email-tables.json` (modify)
+- `apps/backend/src/contexts/notification/infrastructure/events/booking-manager-emails.handler.integration.spec.ts` (new)
+- `docs/03-DOMAIN_EVENTS.md` (modify only if its `BookingRequested` consumers line omits the pickup address), `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type (modify — the guard, if added)
+
+**Acceptance criteria — product:**
+- [ ] A manager receiving a cancellation email sees whether the customer or the business cancelled and, when a reason was given, the reason; with no reason there is no empty reason line.
+- [ ] A manager receiving a new request for a booking with a pickup address sees that address formatted; a booking without one shows no empty label.
+- [ ] Both emails are in the tenant's language (pt-BR and en).
+- [ ] A reason or address containing markup appears as text, not as markup.
+- [ ] The customer cancellation email is unchanged, and ending a recurring schedule still sends no per-occurrence cancellation email.
+
+**Acceptance criteria — technical:**
+- Unit (real `JsonLocalizationAdapter`, so the shipped copy is asserted):
+  - [ ] Cancelled: by the customer and by the business, each with and without a reason, in pt-BR and en
+  - [ ] Requested: with and without a pickup address, in pt-BR and en
+  - [ ] A reason of `<b>x</b>` and an address containing `<script>` are escaped (negative guarantee, pinned by a test)
+  - [ ] A `cancelledByScheduleEnd` event still dispatches nothing (negative guarantee; the S28 spec stays green)
+  - [ ] The guard reports an unsupplied placeholder in a fixture template and passes for the shipped templates
+- Integration:
+  - [ ] `BookingCancelled` (customer-initiated and business-initiated with a reason) and `BookingRequested` with an address, published through the event bus, produce a manager body containing the expected lines
+- Tenant isolation:
+  - [ ] An event of Tenant A never uses Tenant B's data and writes no log row under Tenant B
+- E2E: none — server-side email
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
