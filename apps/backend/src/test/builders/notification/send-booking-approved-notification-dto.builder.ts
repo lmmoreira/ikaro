@@ -5,7 +5,7 @@ export class SendBookingApprovedNotificationDtoBuilder {
   private eventId = 'cccccccc-0001-4000-8000-000000000001';
   private readonly correlationId = 'corr-approved-1';
   private contactEmail = 'joao@example.com';
-  private readonly contactName = 'João Silva';
+  private contactName = 'João Silva';
   private readonly approvedSlot = {
     startTime: '2026-06-15T16:00:00.000Z',
     endTime: '2026-06-15T17:00:00.000Z',
@@ -31,6 +31,11 @@ export class SendBookingApprovedNotificationDtoBuilder {
 
   withContactEmail(contactEmail: string): this {
     this.contactEmail = contactEmail;
+    return this;
+  }
+
+  withContactName(contactName: string): this {
+    this.contactName = contactName;
     return this;
   }
 

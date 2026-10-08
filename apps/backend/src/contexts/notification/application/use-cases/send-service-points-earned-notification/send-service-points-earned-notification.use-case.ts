@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -20,10 +21,6 @@ import {
 } from '../../ports/notification-log-repository.port';
 import { IInboxRepository, INBOX_REPOSITORY } from '../../../../../shared/ports/inbox.port';
 import {
-  INotificationBookingPort,
-  NOTIFICATION_BOOKING_PORT,
-} from '../../ports/notification-booking.port';
-import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
@@ -33,6 +30,7 @@ import {
 } from '../../ports/notification-platform.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.SERVICE_POINTS_EARNED;
@@ -57,7 +55,6 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
     @Inject(INBOX_REPOSITORY) inboxRepo: IInboxRepository,
     @Inject(NOTIFICATION_DISPATCHER) dispatcher: INotificationDispatcher,
     @Inject(NOTIFICATION_CUSTOMER_PORT) private readonly customerPort: INotificationCustomerPort,
-    @Inject(NOTIFICATION_BOOKING_PORT) private readonly servicePort: INotificationBookingPort,
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
@@ -86,19 +83,12 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
-    const serviceIds = input.lines.map((l) => l.serviceId);
-    const serviceInfos = await this.servicePort.findServicesByIds(input.tenantId, serviceIds);
-    const nameById = new Map(serviceInfos.map((s) => [s.serviceId, s.serviceName]));
-    const serviceNames = input.lines
-      .map((l) => nameById.get(l.serviceId) ?? l.serviceId)
-      .join(', ');
-
-    const emailSent = await this.dispatchTemplates(templates, input, customer.email, {
-      customerName: customer.name,
+    const variables: TemplateVariables<typeof TRIGGER> = {
+      customerName: escapeHtml(customer.name),
       totalPointsEarned: String(input.totalPointsEarned),
-      serviceNames,
       currentBalance: String(input.currentBalance),
-    });
+    };
+    const emailSent = await this.dispatchTemplates(templates, input, customer.email, variables);
     return { emailSent };
   }
 }

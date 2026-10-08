@@ -1,4 +1,4 @@
-import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../shared/utils/calendar-date';
+import { escapeHtml } from '../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { IInboxRepository } from '../../../../shared/ports/inbox.port';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
@@ -8,7 +8,13 @@ import { INotificationLogRepository } from '../ports/notification-log-repository
 import { INotificationPlatformPort } from '../ports/notification-platform.port';
 import { INotificationTemplateRepository } from '../ports/notification-template-repository.port';
 import { ILocalizationPort } from '../ports/localization.port';
-import { DEFAULT_LOCALE } from '../../domain/notification-locale.constants';
+import {
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_LOCALE,
+  DEFAULT_TIME_FORMAT,
+} from '../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../domain/notification-template-key.mapping';
+import { formatEmailInstant } from './notification-email-format.helpers';
 import { BaseNotificationUseCase } from './base-notification.use-case';
 
 export type BookingReminderNotificationUseCaseInput = SendBookingReminderDueNotificationDto;
@@ -51,17 +57,27 @@ export abstract class BaseBookingReminderNotificationUseCase extends BaseNotific
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
-    const start = new Date(input.scheduledAt);
-    const localDate = utcDateToLocalDate(start, timezone);
-    const localTime = utcDateToLocalHHMM(start, timezone);
-    const serviceNames = input.lines.map((l) => l.serviceName).join(', ');
-
-    const emailSent = await this.dispatchTemplates(templates, input, input.recipientEmail, {
-      customerName: input.customerName,
-      localDate,
-      localTime,
-      serviceNames,
+    const { date, time } = formatEmailInstant(input.scheduledAt, timezone, {
+      dateFormat: tenantInfo?.dateFormat ?? DEFAULT_DATE_FORMAT,
+      timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
     });
+    // One object serves both reminder templates; the day-of one simply ignores localDate.
+    const variables: TemplateVariables<
+      | typeof NotificationTemplateKey.BOOKING_REMINDER_DUE
+      | typeof NotificationTemplateKey.BOOKING_REMINDER_DUE_TODAY
+    > = {
+      contactName: escapeHtml(input.customerName),
+      localDate: date,
+      localTime: time,
+      serviceNames: input.lines.map((l) => escapeHtml(l.serviceName)).join(', '),
+    };
+
+    const emailSent = await this.dispatchTemplates(
+      templates,
+      input,
+      input.recipientEmail,
+      variables,
+    );
     return { emailSent };
   }
 }

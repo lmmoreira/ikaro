@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -27,7 +28,13 @@ import {
   NOTIFICATION_PLATFORM_PORT,
 } from '../../ports/notification-platform.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
-import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import {
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_LOCALE,
+  DEFAULT_TIME_FORMAT,
+} from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
+import { formatEmailInstant } from '../notification-email-format.helpers';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.POINTS_EXPIRING_SOON;
@@ -80,11 +87,17 @@ export class SendPointsExpiringSoonNotificationUseCase extends BaseNotificationU
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
-    const emailSent = await this.dispatchTemplates(templates, input, customer.email, {
-      customerName: customer.name,
-      pointsExpiringSoon: String(input.pointsExpiringSoon),
-      earliestExpiresAt: input.earliestExpiresAt,
+    // The expiry is an instant; the customer reads it as the calendar day it falls on locally.
+    const { date } = formatEmailInstant(input.earliestExpiresAt, tenantInfo?.timezone ?? 'UTC', {
+      dateFormat: tenantInfo?.dateFormat ?? DEFAULT_DATE_FORMAT,
+      timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
     });
+    const variables: TemplateVariables<typeof TRIGGER> = {
+      customerName: escapeHtml(customer.name),
+      pointsExpiringSoon: String(input.pointsExpiringSoon),
+      earliestExpiresAt: date,
+    };
+    const emailSent = await this.dispatchTemplates(templates, input, customer.email, variables);
     return { emailSent };
   }
 }

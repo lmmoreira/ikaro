@@ -4,6 +4,7 @@ export interface SendBookingRescheduledNotificationDto extends BaseContactNotifi
   newSlot: { startTime: string; endTime: string };
   previousSlot: { startTime: string; endTime: string };
   rescheduledBy: string;
+  isBusiness: boolean;
   adminNotes: string | null;
   lineSummary: Array<{
     serviceNameAtBooking: string;

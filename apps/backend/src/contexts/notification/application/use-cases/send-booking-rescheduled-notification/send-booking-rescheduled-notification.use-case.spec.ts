@@ -4,7 +4,7 @@ import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-m
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingRescheduledNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -42,6 +42,8 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
       replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     templateRepo = new InMemoryNotificationTemplateRepository();
     templateRepo.seed(
@@ -64,15 +66,7 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    const localizationPort = new InMemoryLocalizationPort();
-    localizationPort.setTemplate('BookingRescheduled:customer', {
-      subject: 'Seu agendamento foi reagendado',
-      body: '<p>Olá, {{contactName}}! Anterior: {{previousLocalDate}} {{previousLocalTime}} Novo: {{newLocalDate}} {{newLocalTime}}</p>',
-    });
-    localizationPort.setTemplate('BookingRescheduled:admin', {
-      subject: 'Agendamento reagendado',
-      body: '<p>Cliente: {{contactName}}</p>',
-    });
+    const localizationPort = new JsonLocalizationAdapter();
     useCase = new SendBookingRescheduledNotificationUseCase(
       logRepo,
       inboxRepo,
@@ -112,8 +106,10 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
     await useCase.execute(dto);
     const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
     // previousLocalDate and newLocalDate should differ (different timestamps in dto builder)
-    expect(customerMsg!.body).toContain('Anterior:');
-    expect(customerMsg!.body).toContain('Novo:');
+    expect(customerMsg!.body).toContain('<strong>Data anterior:</strong> 01/07/2026 às 10:00');
+    expect(customerMsg!.body).toContain('<strong>Nova data:</strong> 07/07/2026 às 10:00');
+    expect(customerMsg!.body).not.toContain('2026-07-01');
+    expect(customerMsg!.body).not.toContain('{{');
   });
 
   it('skips admin email gracefully when no managers exist', async () => {
@@ -177,5 +173,58 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
       .build();
 
     await expect(useCase.execute(unknownTenantDto)).resolves.not.toThrow();
+  });
+
+  it('tells the manager the business rescheduled', async () => {
+    await useCase.execute(dto);
+
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    expect(adminMsg!.body).toContain('Reagendado pelo estabelecimento.');
+    expect(adminMsg!.body).not.toContain('{{');
+  });
+
+  it('tells the manager the customer rescheduled', async () => {
+    const byCustomer = new SendBookingRescheduledNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId(EVENT_ID)
+      .withIsBusiness(false)
+      .build();
+
+    await useCase.execute(byCustomer);
+
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
+    expect(adminMsg!.body).toContain('Reagendado pelo cliente.');
+    expect(customerMsg!.body).not.toContain('Reagendado pelo');
+  });
+
+  it('writes the English copy with US dates and a 12-hour clock for an en tenant', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava Car',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'en',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    expect(adminMsg!.body).toContain('07/01/2026');
+    expect(adminMsg!.body).toContain('10:00 AM');
+    expect(adminMsg!.body).toContain('Rescheduled by the business.');
+  });
+
+  it('escapes the customer name', async () => {
+    const hostile = new SendBookingRescheduledNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId(EVENT_ID)
+      .withContactName('<img src=x>')
+      .build();
+
+    await useCase.execute(hostile);
+
+    for (const msg of dispatcher.dispatched) expect(msg.body).not.toContain('<img');
   });
 });

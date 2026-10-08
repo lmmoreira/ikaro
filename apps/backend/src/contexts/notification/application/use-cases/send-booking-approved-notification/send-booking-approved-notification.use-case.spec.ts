@@ -3,7 +3,7 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingApprovedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -24,7 +24,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
   let dispatcher: InMemoryNotificationDispatcher;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
-  let localizationPort: InMemoryLocalizationPort;
+  let localizationPort: JsonLocalizationAdapter;
   let useCase: SendBookingApprovedNotificationUseCase;
 
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
     dispatcher = new InMemoryNotificationDispatcher();
     tenantPort = new InMemoryNotificationPlatformPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
-    localizationPort = new InMemoryLocalizationPort();
+    localizationPort = new JsonLocalizationAdapter();
 
     tenantPort.setTenantInfo(TENANT_ID, {
       id: TENANT_ID,
@@ -42,6 +42,8 @@ describe('SendBookingApprovedNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
       replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     templateRepo.seed(
       NotificationTemplate.create({
@@ -53,10 +55,6 @@ describe('SendBookingApprovedNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    localizationPort.setTemplate('BookingApproved:customer', {
-      subject: 'Seu agendamento foi confirmado!',
-      body: '<p>Olá, {{contactName}}! Data: {{localDate}} Horário: {{localTime}}</p>',
-    });
 
     useCase = new SendBookingApprovedNotificationUseCase(
       logRepo,
@@ -80,8 +78,10 @@ describe('SendBookingApprovedNotificationUseCase', () => {
     expect(msg.subject).toBe('Seu agendamento foi confirmado!');
     expect(msg.channel).toBe('EMAIL');
     // 2026-06-15T16:00:00Z in America/Sao_Paulo (UTC-3) = 13:00
-    expect(msg.body).toContain('13:00');
-    expect(msg.body).toContain('2026-06-15');
+    expect(msg.body).toContain('<strong>Horário:</strong> 13:00');
+    expect(msg.body).toContain('<strong>Data:</strong> 15/06/2026');
+    expect(msg.body).not.toContain('2026-06-15');
+    expect(msg.body).not.toContain('{{');
 
     const logs = logRepo.all;
     expect(logs).toHaveLength(1);
@@ -150,5 +150,35 @@ describe('SendBookingApprovedNotificationUseCase', () => {
     expect(logs[0].errorMessage).toContain('SMTP timeout');
     const isDup = await inboxRepo.hasBeenProcessed(EVENT_ID, 'booking-approved-customer:EMAIL');
     expect(isDup).toBe(false);
+  });
+
+  it('writes the English copy, US date and 12-hour clock for an en tenant', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava Car',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'en',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    const msg = dispatcher.dispatched[0];
+    expect(msg.body).toContain('<strong>Date:</strong> 06/15/2026');
+    expect(msg.body).toContain('<strong>Time:</strong> 1:00 PM');
+  });
+
+  it('escapes the customer name', async () => {
+    const hostile = new SendBookingApprovedNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId('cccccccc-0001-4000-8000-0000000000aa')
+      .withContactName('<img src=x>')
+      .build();
+
+    await useCase.execute(hostile);
+
+    expect(dispatcher.dispatched[0].body).not.toContain('<img');
+    expect(dispatcher.dispatched[0].body).toContain('&lt;img src=x&gt;');
   });
 });

@@ -2,10 +2,9 @@ import { InMemoryNotificationCustomerPort } from '../../../../../test/infrastruc
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
-import { InMemoryNotificationBookingPort } from '../../../../../test/infrastructure/in-memory-notification-booking.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendServicePointsEarnedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -14,8 +13,6 @@ import { SendServicePointsEarnedNotificationUseCase } from './send-service-point
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const CUSTOMER_ID = 'cccccccc-0000-4000-8000-000000000001';
-const SERVICE_ID_1 = 'ssssssss-0000-4000-8000-000000000001';
-const SERVICE_ID_2 = 'ssssssss-0000-4000-8000-000000000002';
 const EVENT_ID = 'eeeeeeee-0000-4000-8000-000000000001';
 
 const dto = new SendServicePointsEarnedNotificationDtoBuilder()
@@ -30,7 +27,6 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
   let inboxRepo: InMemoryInboxRepository;
   let customerPort: InMemoryNotificationCustomerPort;
-  let servicePort: InMemoryNotificationBookingPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
 
   beforeEach(() => {
@@ -38,15 +34,12 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
     logRepo = new InMemoryNotificationLogRepository();
     inboxRepo = new InMemoryInboxRepository();
     customerPort = new InMemoryNotificationCustomerPort();
-    servicePort = new InMemoryNotificationBookingPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
 
     customerPort.setCustomer(TENANT_ID, CUSTOMER_ID, {
       email: 'maria@example.com',
       name: 'Maria Silva',
     });
-    servicePort.setService(TENANT_ID, { serviceId: SERVICE_ID_1, serviceName: 'Lavagem Premium' });
-    servicePort.setService(TENANT_ID, { serviceId: SERVICE_ID_2, serviceName: 'Enceramento' });
     templateRepo.seed(
       NotificationTemplate.create({
         tenantId: TENANT_ID,
@@ -57,22 +50,15 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    const localizationPort = new InMemoryLocalizationPort();
-    localizationPort.setTemplate('ServicePointsEarned:customer', {
-      subject: 'Lavagem concluída! Você ganhou {{totalPointsEarned}} pontos',
-      body: '<p>{{customerName}} — saldo: {{currentBalance}}</p>',
-    });
-
     useCase = new SendServicePointsEarnedNotificationUseCase(
       logRepo,
       inboxRepo,
       dispatcher,
       customerPort,
-      servicePort,
       new InMemoryTransactionManager(),
       templateRepo,
       new InMemoryNotificationPlatformPort(),
-      localizationPort,
+      new JsonLocalizationAdapter(),
     );
   });
 
@@ -86,9 +72,10 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
 
     const msg = dispatcher.dispatched[0];
     expect(msg.to).toBe('maria@example.com');
-    expect(msg.subject).toContain('15 pontos');
-    expect(msg.body).toContain('Maria Silva');
+    expect(msg.subject).toBe('Você ganhou pontos de fidelidade!');
     expect(msg.body).toContain('15');
+    expect(msg.body).toContain('Maria Silva');
+    expect(msg.body).not.toContain('{{');
   });
 
   it('saves a notification log entry', async () => {
@@ -118,5 +105,17 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
 
     expect(result.emailSent).toBe(false);
     expect(dispatcher.dispatched).toHaveLength(0);
+  });
+
+  it('escapes the customer name', async () => {
+    customerPort.setCustomer(TENANT_ID, CUSTOMER_ID, {
+      email: 'maria@example.com',
+      name: '<img src=x>',
+    });
+
+    await useCase.execute(dto);
+
+    expect(dispatcher.dispatched[0].body).not.toContain('<img');
+    expect(dispatcher.dispatched[0].body).toContain('&lt;img src=x&gt;');
   });
 });

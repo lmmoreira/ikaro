@@ -5,14 +5,14 @@ export class SendBookingRequestedNotificationDtoBuilder {
   private eventId = 'cccccccc-0000-4000-8000-000000000001';
   private readonly correlationId = 'corr-1';
   private readonly contactEmail = 'joao@example.com';
-  private readonly contactName = 'João Silva';
+  private contactName = 'João Silva';
   private readonly scheduledAt = '2026-06-15T13:00:00.000Z';
   private readonly totalPrice = { amount: '150.00', currency: 'BRL' };
   private readonly lines = [
     { serviceNameAtBooking: 'Lavagem Completa' },
     { serviceNameAtBooking: 'Polimento' },
   ];
-  private readonly pickupAddress = null;
+  private pickupAddress: SendBookingRequestedNotificationDto['pickupAddress'] = null;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -21,6 +21,16 @@ export class SendBookingRequestedNotificationDtoBuilder {
 
   withEventId(eventId: string): this {
     this.eventId = eventId;
+    return this;
+  }
+
+  withContactName(contactName: string): this {
+    this.contactName = contactName;
+    return this;
+  }
+
+  withPickupAddress(pickupAddress: SendBookingRequestedNotificationDto['pickupAddress']): this {
+    this.pickupAddress = pickupAddress;
     return this;
   }
 

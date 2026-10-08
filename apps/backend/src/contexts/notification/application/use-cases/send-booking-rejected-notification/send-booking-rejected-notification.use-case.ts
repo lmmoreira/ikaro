@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -25,6 +26,7 @@ import {
 } from '../../ports/notification-template-repository.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER;
@@ -68,10 +70,11 @@ export class SendBookingRejectedNotificationUseCase extends BaseNotificationUseC
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
-    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, {
-      contactName: input.contactName,
-      reason: input.reason,
-    });
+    const variables: TemplateVariables<typeof TRIGGER> = {
+      contactName: escapeHtml(input.contactName),
+      reason: escapeHtml(input.reason),
+    };
+    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, variables);
     return { emailSent };
   }
 }

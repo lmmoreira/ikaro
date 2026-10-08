@@ -3,6 +3,7 @@ import {
   APPLICATION_CONFIG,
   IApplicationConfig,
 } from '../../../../../shared/ports/application-config.port';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -33,6 +34,7 @@ import {
 } from '../../ports/notification-template-repository.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.STAFF_INVITATION;
@@ -82,11 +84,13 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
 
     const activationLink = `${this.config.getOrThrow('FRONTEND_URL')}/dashboard/login?tenantSlug=${encodeURIComponent(tenant.slug)}`;
 
-    const sent = await this.dispatchTemplates(templates, input, staff.email, {
-      staffName: staff.name ?? staff.email,
+    // tenantName stays raw: the subject is plain text and the tenant name is set by the owner.
+    const variables: TemplateVariables<typeof TRIGGER> = {
+      staffName: escapeHtml(staff.name ?? staff.email),
       tenantName: tenant.name,
       activationLink,
-    });
+    };
+    const sent = await this.dispatchTemplates(templates, input, staff.email, variables);
     return { sent };
   }
 }

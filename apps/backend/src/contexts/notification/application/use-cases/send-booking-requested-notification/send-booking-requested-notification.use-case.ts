@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { formatMoney } from '../../../../../shared/utils/money-format';
-import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
+import { Address } from '../../../../../shared/value-objects/address';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -30,8 +31,18 @@ import {
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
-import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import {
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_LOCALE,
+  DEFAULT_TIME_FORMAT,
+} from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
+import { formatEmailDateTime, labelledLine } from '../notification-email-format.helpers';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
+
+const ADMIN_TRIGGER = NotificationTemplateKey.BOOKING_REQUESTED_ADMIN;
+const CUSTOMER_TRIGGER = NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER;
+const LINES_KEY = 'managerEmailLines';
 
 export interface SendBookingRequestedNotificationUseCaseInput extends BaseContactNotificationDto {
   scheduledAt: SendBookingRequestedNotificationDto['scheduledAt'];
@@ -64,7 +75,7 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
   async execute(
     input: SendBookingRequestedNotificationUseCaseInput,
   ): Promise<SendBookingRequestedNotificationUseCaseResult> {
-    const serviceNames = input.lines.map((l) => l.serviceNameAtBooking).join(', ');
+    const serviceNames = input.lines.map((l) => escapeHtml(l.serviceNameAtBooking)).join(', ');
     const { adminTemplates, customerTemplates, managerEmails, tenantInfo } = await this.loadContext(
       input.tenantId,
     );
@@ -72,18 +83,32 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(adminTemplates, this.localizationPort, locale);
     this.localizeTemplates(customerTemplates, this.localizationPort, locale);
-    const variables = this.buildVariables(input, tenantInfo, serviceNames);
+    const shared = this.buildVariables(input, tenantInfo, serviceNames);
+    const adminVariables: TemplateVariables<typeof ADMIN_TRIGGER> = {
+      contactName: shared.contactName,
+      scheduledAt: shared.scheduledAt,
+      serviceNames: shared.serviceNames,
+      totalPrice: shared.totalPrice,
+      pickupAddressLine: this.buildPickupAddressLine(input, locale),
+    };
+    const customerVariables: TemplateVariables<typeof CUSTOMER_TRIGGER> = {
+      contactName: shared.contactName,
+      scheduledAt: shared.scheduledAt,
+      serviceNames: shared.serviceNames,
+      totalPrice: shared.totalPrice,
+      tenantName: tenantInfo?.name ?? '',
+    };
 
     const adminEmailSent =
       managerEmails.length > 0
-        ? await this.dispatchTemplatesToMany(adminTemplates, input, managerEmails, variables)
+        ? await this.dispatchTemplatesToMany(adminTemplates, input, managerEmails, adminVariables)
         : false;
 
     const customerEmailSent = await this.dispatchTemplates(
       customerTemplates,
       input,
       input.contactEmail,
-      variables,
+      customerVariables,
     );
 
     return { adminEmailSent, customerEmailSent };
@@ -91,14 +116,8 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
 
   private async loadContext(tenantId: string) {
     const [adminTemplates, customerTemplates, managerEmails, tenantInfo] = await Promise.all([
-      this.templateRepo.findAllByTriggerEvent(
-        tenantId,
-        NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
-      ),
-      this.templateRepo.findAllByTriggerEvent(
-        tenantId,
-        NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
-      ),
+      this.templateRepo.findAllByTriggerEvent(tenantId, ADMIN_TRIGGER),
+      this.templateRepo.findAllByTriggerEvent(tenantId, CUSTOMER_TRIGGER),
       this.staffPort.getManagerEmails(tenantId),
       this.tenantPort.getTenantInfo(tenantId),
     ]);
@@ -109,23 +128,36 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
     input: SendBookingRequestedNotificationUseCaseInput,
     tenantInfo: Awaited<ReturnType<INotificationPlatformPort['getTenantInfo']>>,
     serviceNames: string,
-  ): Record<string, string> {
-    const timezone = tenantInfo?.timezone ?? 'UTC';
+  ): { contactName: string; scheduledAt: string; serviceNames: string; totalPrice: string } {
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
-    const formattedPrice = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
-    const scheduledDate = new Date(input.scheduledAt);
-    const localDate = utcDateToLocalDate(scheduledDate, timezone);
-    const localTime = utcDateToLocalHHMM(scheduledDate, timezone);
-    const [year, month, day] = localDate.split('-') as [string, string, string];
-    const formattedScheduledAt = `${day}/${month}/${year} às ${localTime}`;
-
     return {
-      contactName: input.contactName,
-      scheduledAt: formattedScheduledAt,
+      contactName: escapeHtml(input.contactName),
+      scheduledAt: formatEmailDateTime(input.scheduledAt, tenantInfo?.timezone ?? 'UTC', {
+        dateFormat: tenantInfo?.dateFormat ?? DEFAULT_DATE_FORMAT,
+        timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
+      }),
       serviceNames,
-      totalPrice: formattedPrice,
-      pickupAddress: input.pickupAddress ? JSON.stringify(input.pickupAddress) : '',
-      tenantName: tenantInfo?.name ?? '',
+      totalPrice: formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency),
     };
+  }
+
+  // The manager needs to know where to go for a pickup; a booking without one has no such line.
+  private buildPickupAddressLine(
+    input: SendBookingRequestedNotificationUseCaseInput,
+    locale: string,
+  ): string {
+    const pickup = input.pickupAddress;
+    if (!pickup) return '';
+    const address = Address.reconstitute({
+      street: pickup.street,
+      number: pickup.number,
+      complement: pickup.complement ?? undefined,
+      neighborhood: pickup.neighborhood ?? undefined,
+      city: pickup.city,
+      state: pickup.state,
+      zipCode: pickup.zipCode,
+    });
+    const label = this.localizationPort.getEmailTableHeaders(LINES_KEY, locale).pickupAddressLabel;
+    return labelledLine(label ?? '', address.format());
   }
 }

@@ -4,7 +4,7 @@ import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-m
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingRequestedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -26,7 +26,6 @@ describe('SendBookingRequestedNotificationUseCase', () => {
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
-  let localizationPort: InMemoryLocalizationPort;
   let useCase: SendBookingRequestedNotificationUseCase;
 
   beforeEach(() => {
@@ -43,6 +42,8 @@ describe('SendBookingRequestedNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
       replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     templateRepo = new InMemoryNotificationTemplateRepository();
     templateRepo.seed(
@@ -65,16 +66,6 @@ describe('SendBookingRequestedNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    localizationPort = new InMemoryLocalizationPort();
-    localizationPort.setTemplate('BookingRequested:admin', {
-      subject: 'Nova solicitação — {{serviceNames}}',
-      body: '<p>Cliente: {{contactName}}</p>',
-    });
-    localizationPort.setTemplate('BookingRequested:customer', {
-      subject: 'Agendamento recebido em {{tenantName}}',
-      body: '<p>Olá, {{contactName}}!</p>',
-    });
-
     useCase = new SendBookingRequestedNotificationUseCase(
       logRepo,
       inboxRepo,
@@ -83,7 +74,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
-      localizationPort,
+      new JsonLocalizationAdapter(),
     );
   });
 
@@ -96,12 +87,14 @@ describe('SendBookingRequestedNotificationUseCase', () => {
 
     const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
     expect(adminMsg).toBeDefined();
-    expect(adminMsg!.subject).toContain('Lavagem Completa');
+    expect(adminMsg!.body).toContain('Lavagem Completa');
+    expect(adminMsg!.body).not.toContain('{{');
     expect(adminMsg!.channel).toBe('EMAIL');
 
     const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
     expect(customerMsg).toBeDefined();
-    expect(customerMsg!.subject).toContain('Lava Car');
+    expect(customerMsg!.body).toContain('Lava Car');
+    expect(customerMsg!.body).not.toContain('{{');
 
     const logs = logRepo.all;
     expect(logs).toHaveLength(2);
@@ -155,5 +148,58 @@ describe('SendBookingRequestedNotificationUseCase', () => {
   it('tenant isolation: log rows are scoped to the correct tenantId', async () => {
     await useCase.execute(dto);
     expect(logRepo.all.every((l) => l.tenantId === TENANT_ID)).toBe(true);
+  });
+
+  it('writes the scheduled time in the tenant timezone and format, with no hardcoded connector', async () => {
+    await useCase.execute(dto);
+
+    const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
+    expect(customerMsg!.body).toContain('15/06/2026 10:00');
+    expect(customerMsg!.body).not.toContain(' às ');
+  });
+
+  it('gives the manager the pickup address when the booking has one', async () => {
+    const withPickup = new SendBookingRequestedNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId(EVENT_ID)
+      .withPickupAddress({
+        street: 'Rua das Flores',
+        number: '10',
+        complement: null,
+        neighborhood: 'Centro',
+        city: 'Belo Horizonte',
+        state: 'MG',
+        zipCode: '30110-000',
+      })
+      .build();
+
+    await useCase.execute(withPickup);
+
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
+    expect(adminMsg!.body).toContain(
+      '<strong>Endereço de retirada:</strong> Rua das Flores, 10, Centro, Belo Horizonte - MG, 30110-000',
+    );
+    expect(adminMsg!.body).not.toContain('{"street"');
+    expect(customerMsg!.body).not.toContain('Rua das Flores');
+  });
+
+  it('leaves the pickup line out when the booking has no pickup address', async () => {
+    await useCase.execute(dto);
+
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    expect(adminMsg!.body).not.toContain('Endereço de retirada');
+  });
+
+  it('escapes the customer name', async () => {
+    const hostile = new SendBookingRequestedNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId(EVENT_ID)
+      .withContactName('<img src=x onerror=1>')
+      .build();
+
+    await useCase.execute(hostile);
+
+    for (const msg of dispatcher.dispatched) expect(msg.body).not.toContain('<img');
   });
 });

@@ -5,7 +5,7 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingInfoRequestedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -15,6 +15,7 @@ import { SendBookingInfoRequestedNotificationUseCase } from './send-booking-info
 const TENANT_ID = 'aaaaaaaa-0003-4000-8000-000000000001';
 const EVENT_ID = 'cccccccc-0003-4000-8000-000000000001';
 const BOOKING_ID = 'bbbbbbbb-0003-4000-8000-000000000001';
+const PT_BR_SUBJECT = 'Precisamos de mais informações sobre seu agendamento';
 
 const configService = {
   getOrThrow: (key: string): string => {
@@ -63,11 +64,7 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    const localizationPort = new InMemoryLocalizationPort();
-    localizationPort.setTemplate('BookingInfoRequested:customer', {
-      subject: 'Precisamos de mais informações sobre seu agendamento',
-      body: '<p>{{contactName}} — {{informationNeeded}} — <a href="{{respondLink}}">Responder</a></p>',
-    });
+    const localizationPort = new JsonLocalizationAdapter();
     platformPort = new InMemoryNotificationPlatformPort();
     platformPort.setTenantInfo(TENANT_ID, {
       id: TENANT_ID,
@@ -76,6 +73,8 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
       replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     useCase = new SendBookingInfoRequestedNotificationUseCase(
       logRepo,
@@ -97,7 +96,7 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
 
     const msg = dispatcher.dispatched[0];
     expect(msg.to).toBe('joao@example.com');
-    expect(msg.subject).toBe('Precisamos de mais informações sobre seu agendamento');
+    expect(msg.subject).toBe(PT_BR_SUBJECT);
     expect(msg.body).toContain(guestDto.informationNeeded);
     expect(msg.body).toContain(`/bookings/${BOOKING_ID}/submit-info?token=`);
     expect(msg.body).not.toContain('/responder');
@@ -111,12 +110,46 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
     expect(logRepo.all[0].notificationType).toBe('booking-info-requested-customer');
   });
 
-  it('dispatches info-request email to authenticated customer with dashboard link in body', async () => {
+  it('links an authenticated customer to their own booking page, not the staff dashboard', async () => {
     await useCase.execute(customerDto);
 
     const msg = dispatcher.dispatched[0];
-    expect(msg.body).toContain(`http://localhost:3000/dashboard/bookings/${BOOKING_ID}`);
+    expect(msg.body).toContain(
+      `http://localhost:3000/lava-car-test/my-account/bookings/${BOOKING_ID}`,
+    );
+    expect(msg.body).not.toContain('/dashboard/');
     expect(msg.body).not.toContain('token=');
+  });
+
+  it('escapes the customer name and the information the manager typed', async () => {
+    await useCase.execute({
+      ...customerDto,
+      contactName: 'Ana <b>X</b>',
+      informationNeeded: 'Send <script>alert(1)</script> photo',
+    });
+
+    const msg = dispatcher.dispatched[0];
+    expect(msg.body).toContain('Ana &lt;b&gt;X&lt;/b&gt;');
+    expect(msg.body).toContain('Send &lt;script&gt;alert(1)&lt;/script&gt; photo');
+    expect(msg.body).not.toContain('<script>');
+  });
+
+  it('sends nothing to a customer whose tenant can no longer be found', async () => {
+    const orphanUseCase = new SendBookingInfoRequestedNotificationUseCase(
+      logRepo,
+      inboxRepo,
+      dispatcher,
+      new InMemoryTransactionManager(),
+      templateRepo,
+      new InMemoryNotificationPlatformPort(),
+      new JsonLocalizationAdapter(),
+      configService,
+    );
+
+    const result = await orphanUseCase.execute(customerDto);
+
+    expect(result.emailSent).toBe(false);
+    expect(dispatcher.dispatched).toHaveLength(0);
   });
 
   it('is idempotent: second call with same eventId sends no email', async () => {
