@@ -80,8 +80,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   }
   ```
 - **Consumers:**
-  - **Notification Context** → admin email: subject `"Nova solicitação de agendamento — [service names joined by ', ']"`; body includes customer name, date/time, services, total price formatted as `R$ 1.234,56`
-  - **Notification Context** → customer/guest email: subject `"Seu agendamento foi recebido"`; body includes booking details + "aguarde aprovação"
+  - **Notification Context** → admin email: subject `"Novo agendamento recebido"`; body includes customer name, date/time (the tenant's date and time format), services, total price formatted for the tenant, and the pickup address when the booking has one
+  - **Notification Context** → customer/guest email: subject `"Solicitação de agendamento recebida"`; body includes booking details + "entraremos em contato para confirmar"
 
 > Loyalty Context does NOT consume this event. Loyalty only reacts to `BookingCompleted` — points are awarded after the visit, not on request or approval.
 
@@ -209,7 +209,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   }
   ```
 - **Consumers:**
-  - **Notification Context** → email to customer summarising all services completed, showing both quoted and actual prices where they differ, plus total points earned.
+  - **Notification Context** → no consumer today: a customer with an account receives the `ServicePointsEarned` email (Loyalty); a guest receives nothing. A completion summary email (all services completed, quoted versus actual prices) is not implemented.
   - **Loyalty Context** → if `customerId != null`, iterate `lines`: insert one `LoyaltyEntry` per line using `pointsValueAtBooking` (loyalty is **not** affected by `actualPriceCharged`); increment `LoyaltyBalance.current_points` by the total points across all lines; publish one `ServicePointsEarned` event containing the earned lines summary. If `discountByPoints` is present: also decrement `LoyaltyBalance.current_points` by `pointsUsed` and record a `LoyaltyRedemption` linked to `bookingId`. Earning and redemption commit together in a single transaction, deduplicated via one `shared.inbox` row keyed on `(eventId, consumerName)`.
 
 ---
@@ -240,8 +240,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   }
   ```
 - **Consumers:**
-  - **Notification Context** → email to customer: `"Seu agendamento foi cancelado"` — booking details (date/time, services, total)
-  - **Notification Context** → email to admin: `"Agendamento cancelado"` — who cancelled, reason if provided, booking summary
+  - **Notification Context** → email to customer: `"Seu agendamento foi cancelado"` — booking details (date/time, services, total), plus the reason when the business cancelled and gave one
+  - **Notification Context** → email to admin: `"Agendamento cancelado"` — whether the customer or the business cancelled, the reason when the business gave one (a customer's own cancellation carries none), booking summary
   - Neither email is sent when `cancelledByScheduleEnd = true`: ending a recurring schedule sends the one `RecurringBookingScheduleEnded` email instead of one cancellation email per occurrence (M23-S28). The audit-log consumer still records every occurrence cancel.
 
 > Loyalty Context does NOT consume this event. A booking cannot reach `COMPLETED` and then be cancelled (the state machine forbids it), so no `LoyaltyEntry` rows are ever affected by a cancellation.
@@ -275,7 +275,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   ```
 - **Consumers:**
   - **Notification Context** → email to customer/guest: `"Seu agendamento foi reagendado"` — old date/time, new date/time, services, total
-  - **Notification Context** → email to admin: `"Agendamento reagendado"` — booking summary with old and new slot
+  - **Notification Context** → email to admin: `"Agendamento reagendado"` — booking summary with old and new slot, and whether the customer or the business rescheduled (`isBusiness`)
 
 > Loyalty Context does NOT consume this event — loyalty is unaffected by rescheduling.
 
