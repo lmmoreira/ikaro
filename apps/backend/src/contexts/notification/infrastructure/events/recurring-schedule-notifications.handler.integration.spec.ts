@@ -357,6 +357,28 @@ describe('Story: recurring-schedule events → Notification emails (integration)
       expect(await newKeyRows(tenantB.tenantId)).toHaveLength(NEW_KEYS.length);
     });
 
+    it('gives a tenant whose language tag the catalog does not ship the pt-BR rows, like the render-time fallback', async () => {
+      await ds
+        .createQueryBuilder()
+        .delete()
+        .from(NotificationTemplateEntity)
+        .where('tenant_id = :tenantId AND trigger_event IN (:...keys)', {
+          tenantId: tenantB.tenantId,
+          keys: NEW_KEYS,
+        })
+        .execute();
+      await ds.query(
+        `UPDATE platform.tenants SET settings = jsonb_set(settings, '{localization,language}', '"en-US"') WHERE id = $1`,
+        [tenantB.tenantId],
+      );
+
+      await runMigration();
+
+      const copied = await newKeyRows(tenantB.tenantId);
+      expect(copied).toHaveLength(NEW_KEYS.length);
+      expect(copied.every((r) => r.locale === 'pt-BR')).toBe(true);
+    });
+
     it('seeds the six global defaults in both locales', async () => {
       const globals = await ds
         .getRepository(NotificationTemplateEntity)

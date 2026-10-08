@@ -19,10 +19,12 @@ import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from '../../domain/notification-tem
 //     (docs/ENGINEERING_RULES_BACKEND.md § Adding a new notification type).
 //
 // Per-tenant rows are one per (tenant_id, trigger_event, channel) — the unique index is not
-// locale-scoped — so each tenant takes the global row in its own locale, read from
-// platform.tenants.settings.localization.language (the same value getTenantInfo().locale
-// returns), falling back to pt-BR the way DEFAULT_LOCALE does. The cross-schema read is confined to
-// this one-off migration; no runtime code joins across contexts.
+// locale-scoped — so each tenant takes ONE global row. Its language is read from
+// platform.tenants.settings.localization.language (the value getTenantInfo().locale returns); a
+// language the catalog does not ship (a free-form BCP-47 tag such as en-US) takes the pt-BR row,
+// the same fallback JsonLocalizationAdapter applies at render time, so the row's presence — the
+// only thing findAllByTriggerEvent needs — never depends on the exact tag. The cross-schema read is
+// confined to this one-off migration; no runtime code joins across contexts.
 const SEED_LOCALES = ['pt-BR', 'en'] as const;
 
 const NEW_KEYS: NotificationTemplateKey[] = [
@@ -106,16 +108,22 @@ export class AddRecurringScheduleTemplates1748500000029 implements MigrationInte
          JOIN "notification"."notification_templates" g
            ON g."tenant_id" IS NULL
           AND g."trigger_event" = ANY($1::text[])
-          AND g."locale" = COALESCE(t."settings"->'localization'->>'language', 'pt-BR')
+          AND g."locale" = CASE
+                WHEN t."settings"->'localization'->>'language' = ANY($2::text[])
+                  THEN t."settings"->'localization'->>'language'
+                ELSE 'pt-BR'
+              END
        ON CONFLICT DO NOTHING`,
-      [NEW_KEYS],
+      [NEW_KEYS, SEED_LOCALES],
     );
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DELETE FROM "notification"."notification_templates" WHERE "trigger_event" = ANY($1::text[])`,
-      [NEW_KEYS],
-    );
+  // Deliberately a no-op. On a database built from scratch the global rows were seeded by
+  // CreateNotificationTemplates1748100000010 (its seeding iterates every NotificationTemplateKey),
+  // so this migration does not own them, and deleting them — or the per-tenant copies made since —
+  // on a rollback would silently stop these emails until something re-seeded the rows. Leftover
+  // rows are harmless to code that no longer knows the keys.
+  public async down(): Promise<void> {
+    // intentionally empty
   }
 }

@@ -2175,7 +2175,7 @@ None of the four events carries an email address, a name or a service name, and 
 
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
-**New migration / i18n keys / env vars / feature flags:** a notification-context migration inserting the six global default template rows (idempotently) and copying them to every existing tenant in that tenant's locale (decision 11; the "existing tenants don't automatically get new template rows" gotcha in `docs/ENGINEERING_RULES_BACKEND.md`); `packages/i18n/locales/{pt-BR,en}/notifications.json` entries for `RecurringBookingScheduleCreated.customer`, `RecurringBookingScheduleApprovalRequested.admin`, the two `RecurringBookingScheduleRejected` customer templates and `RecurringBookingScheduleEnded.customer` (`{subject,body}` each); no env var, no feature flag.
+**New migration / i18n keys / env vars / feature flags:** a notification-context migration inserting the six global default template rows (idempotently) and copying them to every existing tenant in that tenant's locale (decision 11; the "existing tenants don't automatically get new template rows" gotcha in `docs/ENGINEERING_RULES_BACKEND.md`); `packages/i18n/locales/{pt-BR,en}/notifications.json` entries for `RecurringBookingScheduleCreated.customer`, `RecurringBookingScheduleApprovalRequested.admin`, the two `RecurringBookingScheduleRejected` customer templates and `RecurringBookingScheduleEnded.customer` and `RecurringBookingScheduleEnded.customerEndedByStaff` (`{subject,body}` each); no env var, no feature flag.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/notification/domain/notification-template-key.enum.ts`, `notification-template-key.mapping.ts` (+ `.mapping.spec.ts`) (modify — six keys)
