@@ -7,7 +7,7 @@ import {
   bookAsGuest,
   confirmBooking,
   fillGuestContact,
-  findFirstSlot,
+  firstSlotOnDate,
   MANAGER_EMAIL,
   nextButton,
   openBooking,
@@ -60,14 +60,16 @@ function problemRoute(status: number, code: string) {
   };
 }
 
-async function reachConfirmation(guest: Page, serviceId: string): Promise<void> {
+// Walks to the confirmation step and returns the day whose first slot the guest took.
+async function reachConfirmation(guest: Page, serviceId: string): Promise<string> {
   await openBooking(guest);
   await selectService(guest, serviceId);
   await nextButton(guest).click();
-  await pickFirstSlot(guest);
+  const date = await pickFirstSlot(guest);
   await nextButton(guest).click();
   await fillGuestContact(guest);
   await nextButton(guest).click();
+  return date;
 }
 
 test.describe('M23-S11a — submit routing and details', () => {
@@ -77,11 +79,11 @@ test.describe('M23-S11a — submit routing and details', () => {
   }) => {
     await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
     const { service, room } = await seedSingleRoomService(page, 'e2e-conflict');
-    const slot = await findFirstSlot(page, service.serviceId);
     const guest = await newGuestPage(browser);
 
     try {
-      await reachConfirmation(guest.page, service.serviceId);
+      const date = await reachConfirmation(guest.page, service.serviceId);
+      const slot = await firstSlotOnDate(page, service.serviceId, date);
       expect(
         await bookAsGuest(page, { serviceIds: [service.serviceId], scheduledAt: slot.startsAt }),
       ).toBe(201);

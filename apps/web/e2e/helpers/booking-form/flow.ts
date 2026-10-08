@@ -229,6 +229,22 @@ export async function slotsOnDate(
   );
 }
 
+// The slot the booking page selects when it takes the first slot of `date`: the same day, read
+// from the availability API the page calls, with the slots already behind the clock dropped as the
+// page does. A spec that books "the guest's slot" from outside the page must use this, not
+// findFirstSlot(): that one skips a day with too little of it left, so late in the tenant's day it
+// names tomorrow while the page still offers today.
+export async function firstSlotOnDate(
+  page: Page,
+  serviceId: string,
+  date: string,
+  picks: readonly ResourceSelectionItem[] = [],
+): Promise<FoundSlot> {
+  const [slot] = await slotsOnDate(page, serviceId, date, picks);
+  if (!slot) throw new Error(`no upcoming slot on ${date} for service ${serviceId}`);
+  return { date, startsAt: slot.startsAt };
+}
+
 // Books a slot directly as a guest through the BFF (test setup for conflicts); returns the status.
 export async function bookAsGuest(
   page: Page,
