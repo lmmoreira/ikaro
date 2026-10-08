@@ -30,42 +30,46 @@ function hrefOf(tag: string): string | null {
   return /href="([^"]*)"/.exec(tag)?.[1] ?? null;
 }
 
+interface LinkState {
+  href: string | null;
+  labelStart: number;
+}
+
+function emitTag(out: string[], link: LinkState, tag: string): void {
+  const name = tagName(tag);
+  const closing = tag.startsWith('/');
+
+  if (name === 'a') {
+    if (!closing) {
+      link.href = hrefOf(tag);
+      link.labelStart = out.length;
+    } else if (link.href !== null) {
+      // The address follows its label, unless the label already is the address.
+      if (out.slice(link.labelStart).join('').trim() !== link.href) out.push(` (${link.href})`);
+      link.href = null;
+    }
+  } else if (name === 'br' || (closing && BLOCK_END_TAGS.has(name))) {
+    out.push('\n');
+  } else if (closing && CELL_END_TAGS.has(name)) {
+    out.push('\t');
+  }
+}
+
 function stripTags(html: string): string {
   const out: string[] = [];
-  let href: string | null = null;
-  let labelStart = 0;
+  const link: LinkState = { href: null, labelStart: 0 };
   let index = 0;
 
   while (index < html.length) {
     const open = html.indexOf('<', index);
-    if (open === -1) {
+    const close = open === -1 ? -1 : html.indexOf('>', open);
+    if (close === -1) {
+      // No more complete tags: what is left is text (an unterminated tag is kept as written).
       out.push(html.slice(index));
       break;
     }
     out.push(html.slice(index, open));
-    const close = html.indexOf('>', open);
-    if (close === -1) {
-      out.push(html.slice(open));
-      break;
-    }
-    const tag = html.slice(open + 1, close);
-    const name = tagName(tag);
-    const closing = tag.startsWith('/');
-
-    if (name === 'a' && !closing) {
-      href = hrefOf(tag);
-      labelStart = out.length;
-    } else if (name === 'a' && href !== null) {
-      // The address follows its label, unless the label already is the address.
-      if (out.slice(labelStart).join('').trim() !== href) out.push(` (${href})`);
-      href = null;
-    } else if (name === 'br') {
-      out.push('\n');
-    } else if (closing && BLOCK_END_TAGS.has(name)) {
-      out.push('\n');
-    } else if (closing && CELL_END_TAGS.has(name)) {
-      out.push('\t');
-    }
+    emitTag(out, link, html.slice(open + 1, close));
     index = close + 1;
   }
   return out.join('');
@@ -73,7 +77,7 @@ function stripTags(html: string): string {
 
 function tidyLine(line: string): string {
   const cells = line.split('\t').map((cell) => cell.trim());
-  while (cells.length > 1 && cells[cells.length - 1] === '') cells.pop();
+  while (cells.length > 1 && cells.at(-1) === '') cells.pop();
   return cells.join(' | ').trim();
 }
 
