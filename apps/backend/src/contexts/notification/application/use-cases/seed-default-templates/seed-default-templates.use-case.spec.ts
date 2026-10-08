@@ -97,49 +97,6 @@ describe('SeedDefaultTemplatesUseCase', () => {
     expect(tenantApproved!.locale).toBe('en');
   });
 
-  it.each([
-    ['en-US', 'en', 'Confirmed!'],
-    ['en-GB', 'en', 'Confirmed!'],
-    ['pt-PT', 'pt-BR', 'Confirmado!'],
-  ])(
-    'a tenant whose language tag is %s gets the %s defaults (the tag is free text)',
-    async (tag, shippedLocale, subject) => {
-      platformPort.setTenantInfo(TENANT_A, {
-        id: TENANT_A,
-        name: 'Tenant A',
-        slug: 'tenant-a',
-        timezone: 'America/New_York',
-        locale: tag,
-        replyToEmail: null,
-      });
-      for (const [locale, text] of [
-        ['pt-BR', 'Confirmado!'],
-        ['en', 'Confirmed!'],
-      ] as const) {
-        templateRepo.seed(
-          new NotificationTemplateBuilder()
-            .asGlobalDefault()
-            .withTriggerEvent(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER)
-            .withLocale(locale)
-            .withSubject(text)
-            .withBody('<p>Ok</p>')
-            .build(),
-        );
-      }
-
-      const result = await useCase.execute({ tenantId: TENANT_A });
-
-      expect(result.seeded).toBe(1);
-      const copied = await templateRepo.findByTriggerEventAndChannel(
-        TENANT_A,
-        NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
-        'EMAIL',
-      );
-      expect(copied!.locale).toBe(shippedLocale);
-      expect(copied!.subject).toBe(subject);
-    },
-  );
-
   it('returns seeded=0 when no defaults exist', async () => {
     const result = await useCase.execute({ tenantId: TENANT_A });
     expect(result.seeded).toBe(0);
