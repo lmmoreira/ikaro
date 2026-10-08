@@ -24,6 +24,30 @@ describe('JsonLocalizationAdapter', () => {
       expect(result.subject).toBe('Seu agendamento foi confirmado!');
     });
 
+    it.each(['en-US', 'en-GB', 'EN-us'])(
+      'resolves the region-qualified tag %s to the English copy, not the pt-BR default',
+      (tag) => {
+        const result = adapter.getNotificationTemplate('BookingApproved', 'customer', tag);
+        expect(result.subject).toBe('Your booking is confirmed!');
+      },
+    );
+
+    it('serves the recurring-schedule templates in English for an en-US tenant', () => {
+      for (const [eventName, recipientType] of [
+        ['RecurringBookingScheduleCreated', 'customer'],
+        ['RecurringBookingScheduleApprovalRequested', 'admin'],
+        ['RecurringBookingScheduleRejected', 'customer'],
+        ['RecurringBookingScheduleRejected', 'customerExpired'],
+        ['RecurringBookingScheduleEnded', 'customer'],
+        ['RecurringBookingScheduleEnded', 'customerEndedByStaff'],
+      ] as const) {
+        const english = adapter.getNotificationTemplate(eventName, recipientType, 'en');
+        const portuguese = adapter.getNotificationTemplate(eventName, recipientType, 'pt-BR');
+        expect(adapter.getNotificationTemplate(eventName, recipientType, 'en-US')).toEqual(english);
+        expect(english.subject).not.toBe(portuguese.subject);
+      }
+    });
+
     it('throws including the resolved locale when the event/recipient combination does not exist', () => {
       expect(() => adapter.getNotificationTemplate('UnknownEvent', 'customer', 'pt-BR')).toThrow(
         /locale "pt-BR"/,
@@ -82,6 +106,10 @@ describe('JsonLocalizationAdapter', () => {
     it('falls back to pt-BR when the locale is unknown', () => {
       const headers = adapter.getEmailTableHeaders('adminDailySchedule', 'fr');
       expect(headers.time).toBe('Horário');
+    });
+
+    it('resolves a region-qualified English tag to the en column headers', () => {
+      expect(adapter.getEmailTableHeaders('adminDailySchedule', 'en-US').time).toBe('Time');
     });
 
     it('throws including the resolved locale when the table key does not exist', () => {

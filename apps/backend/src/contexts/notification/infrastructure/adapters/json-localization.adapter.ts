@@ -1,13 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { Injectable } from '@nestjs/common';
+import { SUPPORTED_LOCALES, resolveSupportedLocale } from '@ikaro/i18n';
 import {
   ILocalizationPort,
   LocalizedNotificationTemplate,
 } from '../../application/ports/localization.port';
-
-const SUPPORTED_LOCALES = ['pt-BR', 'en'] as const;
-const DEFAULT_LOCALE = 'pt-BR';
 
 type NotificationsFile = Record<string, Record<string, LocalizedNotificationTemplate>>;
 type EmailTablesFile = Record<string, Record<string, string>>;
@@ -45,7 +43,7 @@ export class JsonLocalizationAdapter implements ILocalizationPort {
     recipientType: string,
     locale: string,
   ): LocalizedNotificationTemplate {
-    const resolvedLocale = this.notifications.has(locale) ? locale : DEFAULT_LOCALE;
+    const resolvedLocale = resolveSupportedLocale(locale);
     const template = this.notifications.get(resolvedLocale)![eventName]?.[recipientType];
     if (!template) {
       throw new Error(
@@ -56,7 +54,7 @@ export class JsonLocalizationAdapter implements ILocalizationPort {
   }
 
   getEmailTableHeaders(tableKey: string, locale: string): Record<string, string> {
-    const resolvedLocale = this.emailTables.has(locale) ? locale : DEFAULT_LOCALE;
+    const resolvedLocale = resolveSupportedLocale(locale);
     const headers = this.emailTables.get(resolvedLocale)![tableKey];
     if (!headers) {
       throw new Error(`No email table headers for key "${tableKey}" / locale "${resolvedLocale}"`);

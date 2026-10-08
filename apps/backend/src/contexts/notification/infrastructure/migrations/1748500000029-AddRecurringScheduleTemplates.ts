@@ -19,11 +19,11 @@ import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from '../../domain/notification-tem
 //     (docs/ENGINEERING_RULES_BACKEND.md § Adding a new notification type).
 //
 // Per-tenant rows are one per (tenant_id, trigger_event, channel) — the unique index is not
-// locale-scoped — so each tenant takes ONE global row. Its language is read from
-// platform.tenants.settings.localization.language (the value getTenantInfo().locale returns); a
-// language the catalog does not ship (a free-form BCP-47 tag such as en-US) takes the pt-BR row,
-// the same fallback JsonLocalizationAdapter applies at render time, so the row's presence — the
-// only thing findAllByTriggerEvent needs — never depends on the exact tag. The cross-schema read is
+// locale-scoped — so each tenant takes ONE global row, in its own language. A tenant's language is
+// set once, at provisioning, from its country (pt-BR or en — packages/i18n country-defaults) and
+// is read-only in the settings screen, so it is always one of the two shipped languages: it is read
+// from platform.tenants.settings.localization.language (the value getTenantInfo().locale returns)
+// and anything else falls back to pt-BR, the way DEFAULT_LOCALE does. The cross-schema read is
 // confined to this one-off migration; no runtime code joins across contexts.
 const SEED_LOCALES = ['pt-BR', 'en'] as const;
 

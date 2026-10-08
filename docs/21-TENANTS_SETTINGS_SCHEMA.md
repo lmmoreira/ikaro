@@ -212,12 +212,14 @@ Country, currency, language, and regional preferences.
 
 > **Updated (`TD02-LOCALIZATION`, merged 2026-06-21, before M13 started):** Ikaro is no longer Brazil-only. `countryCode` is the primary field — a `CountrySpec` registry (`packages/i18n/src/country-defaults.ts`) derives sensible defaults for `currency`/`language`/`decimalPlaces`/address format/phone prefix from it per tenant, overridable individually. This is what M13-S14's phone-mask and address-spec work (`InformationCompletionPrompt`, `shared/utils/phone-format.ts`) consumes directly.
 
+> **Who actually sets these (verified against the code, 2026-10-08):** the country is chosen once, at provisioning — `POST /internal/tenants` takes `country_code` and no language — and `currency`/`language`/`decimalPlaces` come from its `CountrySpec`. The Settings screen shows country, currency and language **read-only** (`SettingsLocalizationSection`, `ReadOnlyField`). The update API's schema (`LocalizationSettingsFieldsSchema`) would accept other strings, but no screen sends them. Treat these values as fixed per tenant; a permissive schema is not evidence that users can enter other values, so do not design for them (no region tags, no backfills).
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `countryCode` | string | — | ISO 3166-1 alpha-2 country code (e.g. `"BR"`, `"US"`). Drives the `CountrySpec` defaults below. |
 | `currency` | string | "BRL" | ISO 4217 currency code. Defaults from `countryCode`'s `CountrySpec`; overridable per tenant. |
 | `currencySymbol` | string | *(none — see note)* | Display symbol (used in UI). `TenantSettings.default()` does not set this field at all; it stays `undefined` unless explicitly configured. `useFormatting()` (`apps/web/shared/lib/formatting/use-formatting.ts`) falls back to `formatCurrencySymbol(locale, currency)` at display time when unset — for a BR tenant this computes to "R$", but that's a runtime derivation, not a stored settings default. |
-| `language` | string | "pt-BR" | BCP-47 language tag. Defaults from `countryCode`'s `CountrySpec`; overridable per tenant. |
+| `language` | string | "pt-BR" | Set at provisioning from `countryCode`'s `CountrySpec` and read-only in Settings: `pt-BR` or `en`, the two languages with shipped copy (`packages/i18n/locales/`). The web app and the notification copy and template rows are chosen from it through `resolveSupportedLocale()` (`@ikaro/i18n`), which also maps an `en-*` tag to `en` and anything else to `pt-BR` defensively. |
 | `decimalPlaces` | integer | 2 | Decimal precision for money display |
 
 **Example:**
@@ -237,7 +239,7 @@ Country, currency, language, and regional preferences.
 - `countryCode` must be a 2-letter alpha code (case-insensitive)
 - `currency` must be a valid ISO 4217 code
 - `currencySymbol` must be 1–3 characters
-- `language` must be a BCP-47 language tag (e.g. `pt-BR`, not bare ISO 639-1 `pt`)
+- `language` must be a non-empty string (the backend validates nothing more; the shipped values are `pt-BR` and `en`)
 - `decimalPlaces` must be 0–8
 
 ---
