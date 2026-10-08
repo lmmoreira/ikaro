@@ -18,7 +18,7 @@ import {
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
-import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
+import { addDays, futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
@@ -108,18 +108,24 @@ describe('RecurringBookingScheduleController (integration)', () => {
       resourceType?: ResourceType;
       poolResourceIds?: string[];
       bufferAfterMinutes?: number;
+      minBookingAdvanceHoursOverride?: number;
+      maxBookingAdvanceDaysOverride?: number;
+      forTenantId?: string;
     } = {},
   ): Promise<string> {
+    const ownerTenantId = options.forTenantId ?? tenantId;
     const service = new ServiceEntityBuilder()
-      .withTenantId(tenantId)
+      .withTenantId(ownerTenantId)
       .withName('Sala Aurora — reserva')
       .withRecurrenceEligible(true)
       .withDefaultApprovalMode(defaultApprovalMode)
       .withBufferAfterMinutes(options.bufferAfterMinutes ?? 60)
+      .withMinBookingAdvanceHoursOverride(options.minBookingAdvanceHoursOverride ?? null)
+      .withMaxBookingAdvanceDaysOverride(options.maxBookingAdvanceDaysOverride ?? null)
       .build();
     const saved = await ds.getRepository(ServiceEntity).save(service);
     const requirement = new ServiceResourceRequirementEntityBuilder()
-      .withTenantId(tenantId)
+      .withTenantId(ownerTenantId)
       .withServiceId(saved.id)
       .withResourceType(options.resourceType ?? ResourceType.ROOM)
       .withSelectionMode(selectionMode)
@@ -1301,6 +1307,244 @@ describe('RecurringBookingScheduleController (integration)', () => {
       await expect(ds.getRepository(RecurringBookingScheduleEntity).save(entity)).rejects.toThrow(
         /ends_on/,
       );
+    });
+  });
+
+  // M23-S35 — where a schedule starts. The tenant's own window is the platform default (no
+  // minimum notice, 90 days ahead), so each refusal is driven by the service's tighter override.
+  describe('where the schedule starts (M23-S35)', () => {
+    const TUESDAY_10 = {
+      frequency: 'WEEKLY',
+      daysOfWeek: ['tuesday'],
+      startTime: '10:00',
+      durationMinutes: 120,
+    };
+    const EVERY_DAY = {
+      ...TUESDAY_10,
+      daysOfWeek: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+    };
+
+    function post(body: Record<string, unknown>, customerId = CUSTOMER_ID) {
+      return request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, customerId, 'CUSTOMER'))
+        .send(body);
+    }
+
+    // A second room, so a created schedule never collides with the other tests' Tuesday slots.
+    async function seedOwnResource(): Promise<string> {
+      const resource = new ResourceEntityBuilder()
+        .withTenantId(tenantId)
+        .withType(ResourceType.ROOM)
+        .withName(`Sala S35 ${uuidv7()}`)
+        .build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      return resource.id;
+    }
+
+    it('answers 422 BOOKING_TOO_SOON when the first occurrence is inside the service minimum notice', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        minBookingAdvanceHoursOverride: 24 * 30,
+      });
+
+      const { body } = await post({
+        serviceId,
+        recurrence: TUESDAY_10,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        startsOn: nextWeekday(2),
+        endsOn: addDays(nextWeekday(2), 28),
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_SOON');
+    });
+
+    it('answers 422 BOOKING_TOO_FAR_AHEAD when the first occurrence is beyond the service maximum days', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+        maxBookingAdvanceDaysOverride: 1,
+      });
+
+      const { body } = await post({
+        serviceId,
+        recurrence: TUESDAY_10,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        startsOn: nextWeekday(2),
+        endsOn: addDays(nextWeekday(2), 28),
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+    });
+
+    it('answers 422 BOOKING_SCHEDULED_IN_PAST when the first occurrence has already started, creating nothing', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const before = await ds
+        .getRepository(RecurringBookingScheduleEntity)
+        .count({ where: { tenantId } });
+
+      const { body } = await post({
+        serviceId,
+        recurrence: EVERY_DAY,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        startsOn: pastDate(5),
+        endsOn: futureDate(10),
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_SCHEDULED_IN_PAST');
+      expect(
+        await ds.getRepository(RecurringBookingScheduleEntity).count({ where: { tenantId } }),
+      ).toBe(before);
+    });
+
+    it('answers 422 BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES when no chosen weekday occurs in the term', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const wednesday = nextWeekday(3);
+
+      const { body } = await post({
+        serviceId,
+        recurrence: TUESDAY_10,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        startsOn: wednesday,
+        endsOn: wednesday,
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES');
+    });
+
+    describe('renewal', () => {
+      async function seedPrevious(
+        serviceId: string,
+        customerId = CUSTOMER_ID,
+        forTenantId = tenantId,
+      ) {
+        return ds
+          .getRepository(RecurringBookingScheduleEntity)
+          .save(
+            new RecurringBookingScheduleEntityBuilder()
+              .withTenantId(forTenantId)
+              .withCustomerId(customerId)
+              .withServiceId(serviceId)
+              .build(),
+          );
+      }
+
+      it('is created inside the service minimum notice when it keeps the routine of the customer’s previous schedule', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+          minBookingAdvanceHoursOverride: 24 * 30,
+        });
+        const previous = await seedPrevious(serviceId);
+        const ownResourceId = await seedOwnResource();
+        const body = {
+          serviceId,
+          recurrence: TUESDAY_10,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [ownResourceId],
+          startsOn: nextWeekday(2),
+          endsOn: addDays(nextWeekday(2), 28),
+        };
+
+        // The same request is refused as a new schedule, and accepted once it names the renewal.
+        await post(body).expect(422);
+        const created = await post({ ...body, renewsScheduleId: previous.id }).expect(201);
+
+        expect(created.body.status).toBe('ACTIVE');
+        const bookings = await ds
+          .getRepository(BookingEntity)
+          .find({ where: { tenantId, recurringScheduleId: created.body.id as string } });
+        expect(bookings).toHaveLength(5);
+      });
+
+      it('answers 404 for another customer’s schedule, never granting the exemption', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+          minBookingAdvanceHoursOverride: 24 * 30,
+        });
+        const otherCustomerId = '20000000-0000-4000-8000-000000000603';
+        await ds
+          .getRepository(CustomerEntity)
+          .save(
+            new CustomerEntityBuilder()
+              .withTenantId(tenantId)
+              .withId(otherCustomerId)
+              .withGoogleOAuthId('google-sub-recurring-s35-other')
+              .withEmail('other-s35@recurring.test')
+              .withName('Outro Cliente S35')
+              .withPhone('+5531977777777')
+              .build(),
+          );
+        const previous = await seedPrevious(serviceId, otherCustomerId);
+
+        const { body } = await post({
+          serviceId,
+          recurrence: TUESDAY_10,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [resourceId],
+          startsOn: nextWeekday(2),
+          endsOn: addDays(nextWeekday(2), 28),
+          renewsScheduleId: previous.id,
+        }).expect(404);
+
+        expect(body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_FOUND');
+      });
+
+      it('answers 404 for a schedule of another tenant and for one that does not exist', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+          minBookingAdvanceHoursOverride: 24 * 30,
+        });
+        const { body: otherTenant } = await request(app.getHttpServer())
+          .post('/internal/tenants')
+          .set('X-Platform-Admin-Key', TEST_KEY)
+          .send({
+            name: 'Recurring Tenant B',
+            slug: 'recurring-tenant-b',
+            adminEmail: 'b@recurring.test',
+            country_code: 'BR',
+          })
+          .expect(201);
+        const otherTenantId = otherTenant.tenantId as string;
+        const tenantBCustomerId = '20000000-0000-4000-8000-000000000604';
+        const otherServiceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+          forTenantId: otherTenantId,
+        });
+        await ds
+          .getRepository(CustomerEntity)
+          .save(
+            new CustomerEntityBuilder()
+              .withTenantId(otherTenantId)
+              .withId(tenantBCustomerId)
+              .withGoogleOAuthId('google-sub-recurring-s35-tenant-b')
+              .withEmail('ana-b@recurring.test')
+              .withName('Ana Souza B')
+              .withPhone('+5531966666666')
+              .build(),
+          );
+        const foreign = await seedPrevious(otherServiceId, tenantBCustomerId, otherTenantId);
+        const body = {
+          serviceId,
+          recurrence: TUESDAY_10,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [resourceId],
+          startsOn: nextWeekday(2),
+          endsOn: addDays(nextWeekday(2), 28),
+        };
+
+        const crossTenant = await post({ ...body, renewsScheduleId: foreign.id }).expect(404);
+        const missing = await post({
+          ...body,
+          renewsScheduleId: '00000000-0000-4000-8000-00000000dead',
+        }).expect(404);
+
+        expect(crossTenant.body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_FOUND');
+        expect(missing.body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_FOUND');
+
+        await ds.getRepository(RecurringBookingScheduleEntity).delete({ tenantId: otherTenantId });
+        await ds
+          .getRepository(ServiceResourceRequirementEntity)
+          .delete({ tenantId: otherTenantId });
+        await ds.getRepository(ServiceEntity).delete({ tenantId: otherTenantId });
+        await ds.getRepository(CustomerEntity).delete({ tenantId: otherTenantId });
+      });
     });
   });
 });

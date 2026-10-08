@@ -3,7 +3,10 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
+import {
+  BookingScheduledInPastError,
+  BookingServiceNotInTenantError,
+} from '../../domain/errors/booking-domain.error';
 import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
 import {
   enumerateRecurrenceOccurrences,
@@ -37,6 +40,7 @@ import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-reposit
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { materializeRecurringScheduleOccurrences } from './materialize-recurring-schedule-occurrences.helpers';
 import { assertPatternConflictFree } from './recurring-booking-schedule-request.helpers';
+import { dropPastOccurrences } from './recurring-booking-schedule-window.helpers';
 
 export interface ApproveRecurringBookingScheduleUseCaseInput {
   scheduleId: string;
@@ -90,12 +94,20 @@ export class ApproveRecurringBookingScheduleUseCase {
 
       const service = await this.serviceRepo.findById(schedule.serviceId, input.tenantId);
       if (!service) throw new BookingServiceNotInTenantError(schedule.serviceId);
-      const occurrences = enumerateRecurrenceOccurrences(
-        schedule.recurrence,
-        schedule.startsOn,
-        schedule.endsOn,
-        input.timezone,
+      // M23-S35 — occurrences that started while the request waited are never booked. They are
+      // dropped before the conflict check, so a past slot on a since-closed day cannot refuse the
+      // whole approval, and the resource plan stays aligned with what is materialized. The booking
+      // window is not re-checked: the manager's decision is theirs.
+      const occurrences = dropPastOccurrences(
+        enumerateRecurrenceOccurrences(
+          schedule.recurrence,
+          schedule.startsOn,
+          schedule.endsOn,
+          input.timezone,
+        ),
+        new Date(),
       );
+      if (occurrences.length === 0) throw new BookingScheduledInPastError();
       const resources = await this.assertTermStillHonorable(schedule, service, occurrences, input);
 
       await this.scheduleRepo.save(schedule);

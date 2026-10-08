@@ -61,6 +61,7 @@ import {
   FutureCommitmentExceptionReassignTargetInvalidError,
   RecurringBookingScheduleForbiddenError,
   RecurringBookingScheduleInvalidDateRangeError,
+  RecurringBookingScheduleNoOccurrencesError,
   RecurringBookingScheduleTermExceededError,
 } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from './booking-error.mapper';
@@ -445,6 +446,14 @@ describe('mapBookingError', () => {
     expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
     expect(err.getResponse()).toMatchObject({
       code: BookingErrorCode.RECURRING_SCHEDULE_INVALID_DATE_RANGE,
+    });
+  });
+
+  it('maps RecurringBookingScheduleNoOccurrencesError to 422', () => {
+    const err = call(new RecurringBookingScheduleNoOccurrencesError());
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(err.getResponse()).toMatchObject({
+      code: BookingErrorCode.RECURRING_SCHEDULE_NO_OCCURRENCES,
     });
   });
 

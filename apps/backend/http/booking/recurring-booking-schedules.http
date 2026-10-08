@@ -316,6 +316,162 @@ Content-Type: application/json
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# WHERE THE SCHEDULE STARTS (M23-S35) — only the FIRST occurrence meets the booking window
+# (tenant settings.booking min/max advance, a service override can only tighten it); later
+# occurrences are bounded by the maximum term alone. Nothing is created on any of these.
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 422 BOOKING_TOO_SOON — the first occurrence is inside the minimum notice (customer actors only)
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-13",
+  "endsOn": "2026-11-10"
+}
+
+###
+
+### 422 BOOKING_TOO_FAR_AHEAD — the first occurrence is beyond the maximum days ahead (customer actors only)
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2027-06-01",
+  "endsOn": "2027-06-29"
+}
+
+###
+
+### 422 BOOKING_SCHEDULED_IN_PAST — the first occurrence has already started (staff get this one too)
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"],
+    "startTime": "10:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2020-01-01",
+  "endsOn": "2020-01-10"
+}
+
+###
+
+### 422 BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES — no chosen weekday falls inside the term
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-14",
+  "endsOn": "2026-10-14"
+}
+
+###
+
+# A renewal: the customer's own previous schedule, the same service/weekdays/time/duration, starting
+# no later than the day after that schedule ends. It skips the minimum notice and the maximum days
+# ahead, and books only the occurrences that have not started. Anything else is a new schedule.
+### Renew the previous schedule — 201 even inside the minimum notice
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-13",
+  "endsOn": "2026-11-10",
+  "renewsScheduleId": "{{scheduleId}}"
+}
+
+###
+
+### 404 BOOKING_RECURRING_SCHEDULE_NOT_FOUND — renewsScheduleId is unknown, in another tenant, or another customer's
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{serviceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 120
+  },
+  "assignmentPolicy": "FIXED_ASSIGNMENT",
+  "resourceIds": ["{{resourceId}}"],
+  "startsOn": "2026-10-13",
+  "endsOn": "2026-11-10",
+  "renewsScheduleId": "00000000-0000-4000-8000-00000000dead"
+}
+
+###
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # APPROVE / REJECT — staff resolves a PENDING_APPROVAL request (UC-071, M23-S05)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -349,6 +505,16 @@ X-Actor-Role: STAFF
 ### 409 BOOKING_RECURRING_SCHEDULE_CONFLICT — a closure or booking appeared while the request waited;
 ### the body lists every affected occurrence, nothing is created and the request stays pending
 POST {{baseUrl}}/recurring-booking-schedules/{{pendingScheduleWithClosureId}}/approve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### 422 BOOKING_SCHEDULED_IN_PAST — every occurrence of the term started while the request waited;
+### occurrences that started are otherwise skipped (never booked). Nothing is created, the request stays pending
+POST {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}/approve
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
 X-Actor-Type: STAFF

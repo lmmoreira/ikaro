@@ -110,6 +110,16 @@ export class RecurringBookingScheduleInvalidDateRangeError extends BookingDomain
   }
 }
 
+export class RecurringBookingScheduleNoOccurrencesError extends BookingDomainError {
+  constructor() {
+    super(
+      'none of the chosen weekdays falls between startsOn and endsOn',
+      BookingErrorCode.RECURRING_SCHEDULE_NO_OCCURRENCES,
+    );
+    this.name = 'RecurringBookingScheduleNoOccurrencesError';
+  }
+}
+
 export class RecurringBookingScheduleTermExceededError extends BookingDomainError {
   // Interpolated by the client into the translated message (errors.json uses {maxTermDays});
   // latestEndsOn stays available to the UI for formatting.

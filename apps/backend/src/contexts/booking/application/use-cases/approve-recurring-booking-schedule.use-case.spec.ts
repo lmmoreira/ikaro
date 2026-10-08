@@ -20,6 +20,7 @@ import { testAddress } from '../../../../test/utils/address-helpers';
 import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
+  BookingScheduledInPastError,
   BookingServiceNotInTenantError,
   CustomerPhoneNotSetError,
 } from '../../domain/errors/booking-domain.error';
@@ -332,6 +333,75 @@ describe('ApproveRecurringBookingScheduleUseCase', () => {
       );
 
       await expect(approve(schedule.id)).rejects.toThrow(BookingServiceNotInTenantError);
+    });
+  });
+
+  // M23-S35 — a request can wait for staff past some of its own occurrences; approval never books
+  // one that has already started. The term is five Tuesdays (10:00 local = 13:00Z).
+  describe('occurrences that started while the request waited', () => {
+    const tuesday = (index: number) => addDaysUTC(STARTS_ON, 7 * index);
+    const startOf = (index: number) => new Date(`${tuesday(index)}T13:00:00.000Z`);
+
+    function freezeAt(now: Date): void {
+      jest.useFakeTimers({ now, doNotFake: ['nextTick'] });
+    }
+
+    afterEach(() => jest.useRealTimers());
+
+    it('books only the occurrences still ahead, dropping the one starting exactly now', async () => {
+      freezeAt(startOf(1));
+      const schedule = pendingSchedule();
+
+      const result = await approve(schedule.id);
+
+      expect(result.occurrenceCount).toBe(3);
+      const bookings = await bookingRepo.findAllByTenant(TENANT);
+      expect(bookings.map((b) => b.scheduledAt.toISOString()).sort()).toEqual([
+        startOf(2).toISOString(),
+        startOf(3).toISOString(),
+        startOf(4).toISOString(),
+      ]);
+      expect((await scheduleRepo.findById(schedule.id, TENANT))?.status).toBe('ACTIVE');
+    });
+
+    it('does not let a past occurrence on a since-closed day refuse the approval', async () => {
+      // The closure was added while its day was still ahead; only then does the day pass.
+      await closureRepo.save(
+        new ScheduleClosureBuilder().withTenantId(TENANT).withDate(tuesday(0)).build(),
+      );
+      freezeAt(new Date(startOf(1).getTime() + 3_600_000));
+      const schedule = pendingSchedule();
+
+      const result = await approve(schedule.id);
+
+      expect(result.occurrenceCount).toBe(3);
+    });
+
+    it('holds a booking on the resource for each remaining occurrence, none for the dropped ones', async () => {
+      freezeAt(new Date(startOf(0).getTime() + 3_600_000));
+      const schedule = pendingSchedule();
+
+      await approve(schedule.id);
+
+      const bookings = await bookingRepo.findAllByTenant(TENANT);
+      expect(bookings).toHaveLength(4);
+      const held = await occupancyRepo.findActiveWindows(
+        TENANT,
+        [resourceId],
+        new Date(startOf(0).getTime() - 86_400_000),
+        new Date(startOf(4).getTime() + 86_400_000),
+      );
+      expect(held).toHaveLength(4);
+    });
+
+    it('refuses with BookingScheduledInPastError when every occurrence has started, leaving the request pending', async () => {
+      freezeAt(new Date(startOf(4).getTime() + 3_600_000));
+      const schedule = pendingSchedule();
+
+      await expect(approve(schedule.id)).rejects.toThrow(BookingScheduledInPastError);
+
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+      expect(eventBus.published).toHaveLength(0);
     });
   });
 });
