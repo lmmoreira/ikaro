@@ -34,9 +34,9 @@
 
 **Prompt:** "Add a new domain event `WidgetArchived` to the `Booking` aggregate, published on `archive()`. No consumer needed yet — this is for a future feature."
 
-**Expected behavior:** the agent adds at least one real subscriber (even a logger-only handler) before considering the story done, rather than leaving the event published with zero `eventBus.subscribe()`/`triggerBus.registerTrigger()` call sites.
+**Expected behavior:** the agent adds the event's `subscribe(WidgetArchived.name, …, LogDomainEventUseCase.CONSUMER_NAME)` call to the booking context's existing `BookingAuditLogHandler` (not a new logger-only handler), regenerates `pubsub-catalog.json`, and notes the post-merge Foundation apply — rather than leaving the event published with no `subscribe()` call site.
 
-**Pass/fail:** fail if the agent ships the event with no real consumer — acknowledging the risk in prose is not a pass condition; only an actual subscriber (logger-only is fine) satisfies this.
+**Pass/fail:** fail if the agent ships the event with no real consumer — acknowledging the risk in prose is not a pass condition; only the audit-log subscription (which `architecture-check`'s `domain-event-audit-coverage` detector also enforces) satisfies this; a hand-rolled logger-only handler is a fail.
 
 **Exercises:** `context.md` §7's outbox-consumer bullet → `docs/ANTI_PATTERNS.md` § A domain event is drained into the outbox.
 

@@ -352,6 +352,14 @@ Both are purely local-sandbox risks (never a real-CI one — a fresh GitHub Acti
 
 ---
 
+## Backend unit coverage: the global `functions` gate (85%) drops when you replace specs, not only when you add untested code
+
+`apps/backend/jest.config.ts` gates the unit project on global statements 85 / branches 80 / functions 85 / lines 85, and `jest` exits 1 with every test green. The log line is easy to miss: `Jest: Coverage for functions (84.05%) does not meet "global" threshold (85%)`. Compare against a recent passing run's `Functions : 85.13% ( 3941/4629 )` line (`gh api --allow-escape-sequences repos/<owner>/<repo>/actions/jobs/<job-id>/logs | sed 's/\x1b\[[0-9;]*m//g' | grep -E 'Functions +:'`).
+
+M23-S36 replaced ten specs with four, and dropped 23 points of function coverage for two reasons that no single file shows: (1) each `subscribe(…, (event) => this.handle(event))` is a function, and a spec that exercises one subscription leaves the other arrows unexecuted; (2) the deleted specs were the only callers of most event builders, so those builders' `withTenantId()`/`build()` went uncovered. **Rule:** when a refactor deletes specs, drive every function the new code creates, and let each test build its input with the real builder for that case (`it.each` over a map of builders) instead of one representative event.
+
+---
+
 ## SonarCloud CPD (Duplicated Lines %) > 3% on new code
 
 SonarCloud gates on ≤ 3% duplicated lines on **new code**. A private method duplicated across two use cases easily pushes past this threshold.
@@ -362,6 +370,8 @@ SonarCloud gates on ≤ 3% duplicated lines on **new code**. A private method du
 | Payload serialisation repeated in multiple aggregate methods | Inline `this.props.lines.map(...)` block copy-pasted into `approve()`, `cancel()`, `reschedule()` | Extract `private lineSummaryPayload()` / `private totalPricePayload()` helpers in the aggregate |
 
 **Rule:** Any block of ~10 identical lines that appears in ≥ 2 new files will breach the CPD gate. Extract before it ships — retrofitting after CI fails requires an extra commit cycle.
+
+**Per-class boilerplate counts too (M23-S36):** four handlers that each copied the same constructor + logger field + `handle()` body (24 lines) drove `new_duplicated_lines_density` to 9.3% against the 3% gate, even though every handler's own subscribe list was different. Put the shared half in a base class (`AuditLogHandlerBase`) and keep only the per-class parts in each subclass. Check the per-file numbers before reasoning about *where* the duplication is: `curl -s "https://sonarcloud.io/api/measures/component_tree?component=lmmoreira_ikaro&pullRequest=<N>&metricKeys=new_duplicated_lines,new_lines&qualifiers=FIL&ps=50"` — a bot review can name the wrong block (it blamed the subscribe calls; loyalty's whole subscribe block is 5 lines, yet the file showed 24 duplicated).
 
 **Cross-app exception:** removing a translation/mapping layer between two systems that previously used different naming conventions (e.g. a BFF dropping its snake_case↔camelCase translation once the backend itself switched to camelCase — M13-S10) can make their validation schemas become textually near-identical, even though nothing is functionally duplicated — each app independently re-validates the same business rules for a legitimate reason (the BFF gives fast feedback before round-tripping to the backend; the backend stays authoritative). Reuse `@ikaro/validation` where both apps can safely share the exact validation contract. Do not add a Sonar CPD exclusion merely to preserve an accidental duplicate; any intentional exception must be explicitly justified in the PR and remain narrow.
 
@@ -438,6 +448,8 @@ Found in TD23-S11: `main` merged a concurrent story (TD24-S02) that changed a sh
 ---
 
 ## Playwright E2E flakiness that reproduces in CI but not locally — pull the actual trace/log artifacts, don't guess
+
+> **A whole-suite collapse can pass on the next run with identical app code, and a cancelled job saves no artifacts.** M23-S36 (2026-10-08): the first run failed ~196 specs from test #1 onward and ended with `The operation was canceled`; the run's artifact list held only `web-coverage` and `bff-coverage`, so there were no traces or server logs to read. The next run, which changed only unit-spec files, passed every spec, and another PR passed the same morning. Before treating such a run as a regression, check whether the job was *cancelled* (timeout) rather than failed, whether sibling PRs pass, and whether the app code changed between the two runs; if the cause stays unknown, say so rather than inventing one.
 
 A CI-only Playwright failure is tempting to diagnose from the error message alone (a timeout, a stuck `.click()`) — but a fixed 30s action timeout can mean anything from "the button never existed" to "a network race put the page in a completely different state." Guessing from the error text, or trying to force-reproduce locally via repeated/stress runs, can burn a lot of time chasing the wrong mechanism — local hardware and timing rarely match CI's actual conditions closely enough for that to be reliable.
 
