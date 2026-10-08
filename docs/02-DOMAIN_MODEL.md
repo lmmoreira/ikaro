@@ -156,6 +156,7 @@ Booking {
   -- Audit & state tracking (UC-003, 004, 005, 007, 008, 009)
   approvedAt:           DateTime | null
   approvedBy:           StaffId  | null
+  createdByStaffId:     StaffId  | null  (UC-108 — set only when staff created the booking on the customer's behalf; null for every self-service booking)
   completedAt:          DateTime | null
   completedBy:          StaffId  | null
   cancelledAt:          DateTime | null
@@ -216,6 +217,7 @@ BookingLine {
 
 **Key Methods (on the Booking aggregate root — `BookingLine` itself has no behaviour):**
 - `materializeRecurringOccurrence(...)` (M23-S05) — builds one occurrence of an `ACTIVE` `RecurringBookingSchedule` directly in `APPROVED` (an entry state `requestBooking()` never produces), with `recurringScheduleId` set, the line snapshot taken from the service and the contact snapshot from the customer; `approvedBy` is the approving staff member, or `null` when the schedule auto-confirmed. Raises **no** `BookingRequested` and **no** `BookingApproved` — those drive per-booking customer emails, and one schedule would otherwise send one pair per occurrence.
+- `createByStaff(...)` (UC-108, M23-S39) — builds a one-off booking a staff member creates for a customer who phoned or walked in, directly in `APPROVED` (the second entry state `requestBooking()` never produces): `approvedAt = now`, `approvedBy` and `createdByStaffId` = the acting staff member, `type = CUSTOMER` (contact snapshot from the `Customer`) or `GUEST` (the contact staff entered). Raises `BookingApproved` and **no** `BookingRequested` — the customer gets the confirmation email, no manager is asked to decide.
 - `requestBooking(actor, scheduledAt, serviceIds[], contactAddress?: Address, pickupAddress?: Address)`
   - Loads each `Service`, snapshots `price`/`durationMinutes`/`loyaltyPointsValue`/`requiresPickupAddress` into a new `BookingLine`.
   - Validates pickup invariant: if any line has `requiresPickupAddressAtBooking = true` and `pickupAddress` is absent → reject.

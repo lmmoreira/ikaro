@@ -329,8 +329,7 @@
 
         <!-- Single "+ Novo" entry point: staff creating something on a customer's behalf (a phone call, a walk-in message).
              Both options open the same customer picker (09) and the same two-column form layout.
-             "Recorrência" = UC-070 staff variant (M23-S19). "Agendamento" = one-off booking on a customer's behalf:
-             NO use case or story exists yet — drawn as a gap so the entry point is designed once (see agenda.md). -->
+             "Recorrência" = UC-070 staff variant (M23-S19). "Agendamento" = one-off booking on a customer's behalf (UC-108, M23-S39/S40). -->
         <div class="queue-toolbar">
           <div style="position:relative;">
             <button type="button" class="btn-primary" id="new-btn" aria-haspopup="menu" aria-expanded="false" onclick="toggleNew()" style="font-size:0.8125rem;padding:0.4375rem 0.875rem;display:inline-flex;align-items:center;gap:0.375rem;">
@@ -338,11 +337,11 @@
               <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="new-menu" id="new-menu" role="menu">
-              <a class="new-menu-item" role="menuitem" href="09-nova-recorrencia-cliente.html#recentes">
+              <a class="new-menu-item" role="menuitem" href="09-escolher-cliente.html?tipo=agendamento#recentes">
                 <strong>Agendamento</strong>
-                <span>Uma reserva avulsa para um cliente que ligou ou mandou mensagem <em class="gap-tag">ainda sem caso de uso</em></span>
+                <span>Uma reserva avulsa para um cliente que ligou, mandou mensagem ou chegou sem marcar</span>
               </a>
-              <a class="new-menu-item" role="menuitem" href="09-nova-recorrencia-cliente.html#recentes">
+              <a class="new-menu-item" role="menuitem" href="09-escolher-cliente.html?tipo=recorrencia#recentes">
                 <strong>Recorrência</strong>
                 <span>Uma reserva que se repete toda semana, em nome de um cliente</span>
               </a>

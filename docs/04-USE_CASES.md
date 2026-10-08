@@ -1864,6 +1864,33 @@ Returns:
 - **Postconditions:** Attendance and the minimal operational charge record are independently auditable. Payment processing, invoicing, and reconciliation remain out of scope.
 - **Events Triggered:** `InPersonPaymentRecorded` / `InPersonPaymentReversed`.
 
+### **UC-108: Staff Creates a One-Off Booking on a Customer's Behalf**
+
+> Promoted 2026-10-08 (M23, Cluster 3). The one-off sibling of UC-070's staff variant and the appointment sibling of UC-104 (class enrollments): a customer phones, messages or walks in, and staff books for them.
+
+- **Actor:** STAFF | MANAGER
+- **Endpoint:** `POST /bookings/staff`; customer lookup `GET /customers?search=`
+- **Preconditions:** The service is an `APPOINTMENT` service (`bookingModel`); class sessions are UC-104.
+- **Trigger:** Staff chooses "+ Novo → Agendamento" on the Agenda.
+- **Main Flow:**
+  1. Staff identifies the person. Either searches the tenant's customers by name, email or phone and picks one (a **customer booking**), or enters the contact of someone who is not in the system — **name, phone and email, all required** (a **guest booking**, same contact rules as UC-001).
+  2. Staff goes through the same booking steps as the public flow — services, resource choices, duration, date and time, intake answers — shown in the dashboard skin.
+  3. System applies the same checks as UC-001/UC-002, atomically: availability, closures, resource resolution and conflicts. The booking window differs in one way: a start in the past is refused and the tenant's maximum advance still applies, but the **minimum notice is not applied**, so a same-day phone booking is possible.
+  4. System creates the `Booking` directly in `APPROVED` (an entry state, like UC-070's occurrences): `approvedBy` and `createdByStaffId` are the acting staff member; `type = CUSTOMER` with the contact snapshot taken from the `Customer`, or `type = GUEST` with the entered contact. Nothing waits for approval — the staff member is the approver.
+  5. System publishes `BookingApproved` (and no `BookingRequested`). Notification sends the customer or guest the booking-confirmed email; no manager alert is sent, since a manager is not being asked to decide anything.
+  6. Staff sees the booking details and a link to its detail page.
+- **Alternative Flows:**
+  - **A1: The slot is taken between choosing and submitting** → `409` `BOOKING_SLOT_UNAVAILABLE`; staff picks another slot with everything else kept.
+  - **A2: The start is in the past or beyond the maximum advance** → the same window errors as UC-001 (M23-S33).
+  - **A3: The chosen customer has no phone** → `422` `BOOKING_CUSTOMER_PHONE_NOT_SET`.
+  - **A4: `customerId` unknown in this tenant** → `404` `BOOKING_CUSTOMER_NOT_FOUND`.
+  - **A5: The service is not an `APPOINTMENT` service** → the same `422` UC-001 returns.
+  - **A6: A recurrence for someone not in the system** → not offered: UC-070 requires an account, so the customer chooser disables the "new contact" option for "Recorrência".
+- **Postconditions:** An `APPROVED` booking exists and occupies its resources. A customer booking earns loyalty points at completion like any other; a guest booking earns none (UC-001 A4). A guest booking is not linked to an account that is created later (same as UC-001 today).
+- **Events Triggered:** `BookingApproved`.
+
+---
+
 ---
 
 ## Authentication & User Management Use Cases
@@ -2721,3 +2748,4 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 | UC-105 | Customer edits a group reservation's attendees | Customer | Attendee removed; `quantity`/quote adjusted |
 | UC-106 | System expires a waitlist offer | System | `PROMOTION_PENDING` → `CANCELLED`; next entry promoted |
 | UC-107 | Staff records a manually reported charge at session close-out | STAFF \| MANAGER | `class_session_payments` row created |
+| UC-108 | Staff creates a one-off booking on a customer's behalf | STAFF \| MANAGER | `Booking` created directly `APPROVED`, `type = CUSTOMER` or `GUEST` |

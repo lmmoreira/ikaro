@@ -405,7 +405,21 @@ export interface CompleteBookingResponse {
 - `08-recurring-schedule-approval.html` — rebuilt on `01-booking-detail.html`'s `detail-layout` (details centred, action panel right on desktop, fixed action bar on mobile, bottom nav hidden). Approve and reject each open a confirmation sheet. Reject has **no reason field** — `POST …/reject` takes no body.
 - `08b-recurring-approval-result.html` — the detail page in its decided/failed states (`#aprovada`, `#recusada`, `#conflito`, `#expirada`, `#telefone`, `#falha`) — result banner on top of the centre column, the request data kept visible, the right-hand action panel (mobile bar) swapped to "Voltar à agenda" or, when the request is still pending, to retry/reject. Same convention as `01c`/`04b`/`05c`. `09` and `09b` follow the create-form convention of `servicos/02` (form in the centre, action panel on the right, fixed action bar on mobile), and `09c` follows the inline-state convention too: the staff-creation outcomes are banners over a recap of the pattern with an action panel, not a separate result page.
 
-**"+ Novo" menu (added 2026-10-08):** one button above the queue (`00-agenda.html`) opening a menu — *Agendamento* (gap: no UC/story, see `../../agenda.md`) and *Recorrência* (UC-070, M23-S19). Both link to the shared customer picker `09`; the one-off form (step 2) is not prototyped until its use case exists.
+**"+ Novo" menu (added 2026-10-08):** one button above the queue (`00-agenda.html`) opening a menu — *Agendamento* (UC-108, M23-S39/S40) and *Recorrência* (UC-070, M23-S19). Both start at the shared customer chooser `09-escolher-cliente.html?tipo=agendamento|recorrencia`.
+
+### Staff creates a booking on a customer's behalf — `09`, `10`, `10b` (UC-108, M23-S39 backend/BFF + M23-S40 frontend)
+
+| File | Screen | Route (proposed) |
+|---|---|---|
+| `09-escolher-cliente.html` | Who is it for: *Cliente cadastrado* (search) or *Novo contato* (guest) — shared with the recurrence flow | `/dashboard/bookings/new?tipo=…` |
+| `10-novo-agendamento.html` | The booking steps in the dashboard skin; summary + actions in the right pane | `/dashboard/bookings/new/booking` |
+| `10b-novo-agendamento-resultado.html` | Inline outcomes (`#criado`, `#ocupado`, `#janela`, `#telefone`, `#cliente`, `#falha`) | same route, result states |
+
+**BFF calls:** `GET /customers?search=&limit=` (name, e-mail or **phone**, ≥5 characters; result items carry `phone`), then the same public reads the customer flow uses (services, resource options, duration quote, availability), then `POST /bookings/staff` with either `customerId` or `contactName`+`contactPhone`+`contactEmail` (never both).
+
+**Rules the screen shows:** the booking is created `APPROVED` (no waiting state, no manager alert, the customer or guest gets the confirmation e-mail); slots inside the tenant's minimum notice are offered (marked with a dot) because the backend skips that one rule for staff, while past dates and dates beyond the maximum advance stay blocked; the guest option is disabled for a recurrence because a recurrence needs an account.
+
+**Reuse and the styling boundary:** the step list and error routing are the public flow's own (`resolveBookingSteps()`, `resolveBookingSubmitErrorRoute()`); only the presentation is the dashboard's — the public step components use the business's `--ba-*` tokens and the dashboard must not. Precedent: `variant="dashboard"` on `AvailabilityCarousel` / `SlotPicker` (staff reschedule). Which components take a variant and which get a separate dashboard version is decided at M23-S40's discovery.
 
 **Synced component:** the balloon reuses the shape of `ScheduleStatusFilterMenu.tsx` / `ResourceFilterMenu.tsx` (`apps/web/features/booking/components/dashboard/schedule/`). Prefer extracting a shared floating-filter shell over a third copy.
 
@@ -440,7 +454,7 @@ Added 2026-09-29 as a deliberately small first pass in the same staff dashboard 
 
 | File | Screen | Route (proposed) |
 |---|---|---|
-| `09-nova-recorrencia-cliente.html` | Step 1 — pick the customer | `/dashboard/bookings/recurring/new` |
+| `09-escolher-cliente.html` | Step 1 — pick the customer | `/dashboard/bookings/recurring/new` |
 | `09b-nova-recorrencia-padrao.html` | Step 2 — the pattern, for the chosen customer | same route, step 2 |
 | `09c-nova-recorrencia-resultado.html` | Outcomes (one panel each) | same route, result states |
 

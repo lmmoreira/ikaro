@@ -745,6 +745,19 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
   - `403 Forbidden` — JWT role is not `CUSTOMER`.
   - `422 customer-phone-not-set` — the customer has not set a phone number on their profile; update via `PATCH /customers/me` before booking.
 
+#### **Staff Booking on a Customer's Behalf (UC-108) — `POST /bookings/staff`**
+
+`STAFF | MANAGER` only (JWT). The acting staff id comes from the authenticated context (`X-Actor-ID`), never from the body.
+
+- **Body:** exactly the guest booking body (`POST /bookings` above — `serviceIds`, `scheduledAt`, `resourceSelections`, `durationMinutes`, `participantCount`, `intakeSchemaVersion`, `intakeAnswers`, `consentAccepted`, `attendees`, `pickupAddress`), with these differences:
+  - **Who the booking is for — exactly one of:**
+    - `customerId` (uuid) — a customer of this tenant. Contact name, email and phone are taken from the `Customer` row; sending `contactEmail`/`contactName`/`contactPhone` as well is a `400`. Creates `type = CUSTOMER`.
+    - `contactName`, `contactPhone` and `contactEmail`, **all required** — a person not in the system. Creates `type = GUEST`.
+  - `beforeServicePhotoUrls` is not accepted (the staff flow does not collect photos).
+- **Behavior:** the booking is created directly `APPROVED` with `approvedBy` and `createdByStaffId` = the acting staff member. Availability, closures, resource resolution and conflicts are checked exactly as for `POST /bookings`. The booking window rejects a past start and a start beyond the maximum advance, but does **not** apply the minimum notice.
+- **Response (`201 Created`):** the [Shared Response Shape](#shared-booking-201-response-shape), with `status: "APPROVED"`.
+- **Errors:** all errors from `POST /bookings` apply (`400`, `404`, `409 BOOKING_SLOT_UNAVAILABLE`, `422`), plus `400` when both or neither of `customerId` and the contact trio is sent, `404 BOOKING_CUSTOMER_NOT_FOUND` for an unknown `customerId`, `422 BOOKING_CUSTOMER_PHONE_NOT_SET` for a chosen customer without a phone, `401`, and `403` when the role is `CUSTOMER`.
+
 #### **Shared Booking `201` Response Shape** {#shared-booking-201-response-shape}
 
 ```json
@@ -1136,16 +1149,16 @@ Auth: JWT + MANAGER only.
 ## 5. Customer & Loyalty
 
 ### **Customer Management (UC-002, UC-006, UC-007)**
-- `GET /customers?search=&limit=20` -> (Admin) Search customers in tenant by name or email.
+- `GET /customers?search=&limit=20` -> (Admin) Search customers in tenant by name, email or phone.
   - Requires JWT with `MANAGER|STAFF` role.
   - Query params:
-    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name` and `email`. When omitted, returns all customers up to `limit`.
+    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name`, `email` and `phone` (a phone term is matched on its digits, so "(31) 99999-9999" and "31999999999" find the same customer — M23-S39; the wildcard characters in the term are escaped). When omitted, returns all customers up to `limit`.
     - `limit` (optional, integer, default 20) — max results to return.
   - Response:
     ```json
     {
       "items": [
-        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "currentPoints": 150 }
+        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "phone": "31999999999", "currentPoints": 150 }
       ],
       "total": 1
     }

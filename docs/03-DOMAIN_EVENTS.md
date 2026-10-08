@@ -88,8 +88,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 ---
 
 #### **BookingApproved**
-- **Trigger:** Admin approves a booking that is in `PENDING` or `INFO_REQUESTED`
-- **State change:** `PENDING | INFO_REQUESTED` → `APPROVED`. After this, the line collection is frozen.
+- **Trigger:** Admin approves a booking that is in `PENDING` or `INFO_REQUESTED`, **or** staff create a booking directly in `APPROVED` on a customer's behalf (UC-108, M23-S39 — the only event that creation raises; `BookingRequested` is not raised)
+- **State change:** `PENDING | INFO_REQUESTED` → `APPROVED`, or none for a UC-108 booking (it starts `APPROVED`). After this, the line collection is frozen.
 - **Data:**
   ```
   {
