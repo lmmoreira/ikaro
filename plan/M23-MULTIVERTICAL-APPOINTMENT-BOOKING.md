@@ -2624,6 +2624,12 @@ An alert on a `CUSTOMER_SELECTED` service is only meaningful at a chosen duratio
 4. **No backfill.** M23-S06 shipped on 2026-10-05 and the customer entry screen (M23-S31) is not built, so no customer alert can exist yet; the matching's per-run warning remains the safety net if one does.
 5. **Known limitation, out of scope:** a service whose duration policy or min/max/increment is edited after an alert exists can still leave that alert unmatchable (the matching warns and skips it).
 
+**Locked at `/story-discovery` (2026-10-08):**
+- **Create check order:** service exists (tenant-scoped) → active → alert-eligible → **duration** → preferred resource, so another tenant's service is `404` before any duration error.
+- **Update loads the service once** (plain `findById`, no row lock) when either `durationMinutes` or `preferredResourceId` is sent; only the duration is validated — the service's `isActive` is not re-checked on update, as today.
+- **Both use cases gain a `BookingQuoteService` constructor parameter**; their specs use a real instance (stateless, pure), never a `jest.fn()` stub.
+- **First step in the worktree:** `git fetch --unshallow origin` (the clone is shallow).
+
 **Backend use case steps:**
 1. `CreateAvailabilityAlertUseCase.assertServiceAndResource()` (already loads the service with a row lock, inside the transaction) additionally asserts the duration for the service via the injected `BookingQuoteService`.
 2. `UpdateAvailabilityAlertUseCase`: when `input.durationMinutes !== undefined`, load the alert's service (tenant-scoped) and apply the same assertion with the new value (`null` counts as missing for a `CUSTOMER_SELECTED` service).
