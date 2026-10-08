@@ -2444,7 +2444,8 @@ On the booking flow's calendar (date and time) step, when the basket holds exact
 **Discovered:** 2026-10-03, writing the M23-S11a E2E (PR #548): a 2-unit `AUTO_FUNGIBLE_POOL` service booked twice at the same slot returned `409 BOOKING_SLOT_UNAVAILABLE` on the second booking although the availability read still offered the slot and the second unit was free. The E2E works around it by occupying each unit through its own single-unit service.
 **Root cause:** `resolveCandidateIds()` (`apps/backend/src/contexts/booking/application/use-cases/resource-requirement-resolution.helpers.ts`) narrows `AUTO_ANY` candidates to those free for the exact window (`preferFreeResources()`) but returns `eligible.map((r) => r.id)` unchanged for `AUTO_FUNGIBLE_POOL`/`NONE` — "the original deterministic first-eligible pick". The booking then tries to lock the first unit, finds it taken, and fails, while `AvailabilityService` treats a pool as open when any unit is free.
 **Agent:** `backend-ts`
-**Complexity:** S
+**Complexity:** S (raised scope at discovery, 2026-10-08: the recurring-schedule path is aligned in this story)
+**Discovery completed:** 2026-10-08 — decisions below are final.
 **Docs to load:** `docs/04-USE_CASES.md` UC-062, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability, `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive, `docs/08-TESTING_STRATEGY.md`
 **Dependencies:** M23-S01 (✅ Done — owns `resolveCandidateIds` and the selection-mode-aware resolution). Touches the same helper file as no other open M23 story.
 **Pattern:** plain composition — extend the existing `preferFreeResources()` narrowing from `AUTO_ANY` to `AUTO_FUNGIBLE_POOL`; no new pattern. The race primitive is unchanged: the chosen unit is still locked and checked by the existing `assertSlotFree()` in the same transaction, so two concurrent bookings of the last free unit still resolve to one winner and one `409`.
@@ -2452,7 +2453,11 @@ On the booking flow's calendar (date and time) step, when the basket holds exact
 **Description:**
 A pool of N interchangeable units must accept bookings of the same slot until its units are exhausted, each booking taking a distinct free unit. Today the second booking always targets the first eligible unit and fails. Fix `resolveCandidateIds()` so `AUTO_FUNGIBLE_POOL` narrows to units free for the requested window (including each unit's own trailing buffer/turnover gap) before taking `requiredQuantity` of them, falling back to the full list when every unit looks busy so the existing `assertSlotFree()` still produces the correct `409` (the same fallback `AUTO_ANY` has). `NONE` (a plain `LOCATION`) is unchanged. No identity reveal: the customer-facing response still names no pool unit (UC-062).
 **Decided at creation (not for discovery to re-derive):** keep the pool's tie-break deterministic (`resourceId` ascending among free units) — UC-062 specifies no workload balancing, and AUTO_ANY's least-workload sort stays AUTO_ANY-only.
-**Open for `/story-discovery`:** the recurring-schedule conflict check (M23-S18, TD49) and its occurrence resource plan currently treat a pool as "the first eligible resource must be open". Default: align them to "any free unit" in this story so a one-off booking and a recurring occurrence agree; if the recurring path turns out to need more than a rule change, split it into its own story rather than leave the two inconsistent silently.
+**Decided at discovery (2026-10-08, not for implementation to re-derive):**
+1. **The fallback is quantity-aware.** `preferFreeResources()` takes the requirement's `requiredQuantity` and falls back to the full eligible list when *fewer than `requiredQuantity`* units are free, not only when none are. Without this, a 3-unit pool needing 2 with one unit left would return 1 candidate and fail with `BookingServiceResourceTypeUnavailableError` (`422`) instead of the `409 BOOKING_SLOT_UNAVAILABLE` from `assertSlotFree()`. The change sits in the shared helper, so `AUTO_ANY` with `requiredQuantity > 1` gets the same fix; nothing changes when `requiredQuantity` is 1.
+2. **Pool order is explicit.** The free units are sorted by `resourceId` ascending (`localeCompare`, as `AUTO_ANY`'s tie-break does) before `requiredQuantity` are taken, because `resolveEligibleResources()` guarantees no order. No workload query for a pool.
+3. **The recurring path is aligned here** (a one-off booking and a recurring occurrence must agree). In `recurring-booking-schedule-request.helpers.ts`, `resolveConsideredResources()` considers every eligible unit for `AUTO_FUNGIBLE_POOL` (as for `AUTO_ANY`) and `anyFreeResourceSuffices` is true for both modes, so an occurrence is refused only when every unit is busy or closed. In `recurring-occurrence-resource-plan.helpers.ts`, `AUTO_FUNGIBLE_POOL` plans, per occurrence, the first unit by `resourceId` that is open and free at that window (no day-load sort; `AUTO_ANY` keeps its least-loaded pick). The recurring path only accepts `requiredQuantity === 1`, so no quantity logic is needed there. The comment in `recurring-booking-schedule-hours.helpers.ts` is updated.
+4. **Docs (`docs/27-BUSINESS_LOGIC_REFERENCE.md`):** replace the "Write path vs. read path divergence … accepted, not a bug" paragraph, the `AUTO_FUNGIBLE_POOL / NONE` branch of the resolution flowchart, and the recurring rules in § Recurring (`assertPatternConflictFree`, the working-hours per-policy list and materialization's resource plan). `docs/04-USE_CASES.md` UC-062 already says "whichever pool resource is free" and is unchanged.
 
 **Backend HTTP surface:** none — `POST /bookings`, `POST /bookings/authenticated` and the recurring endpoints are unchanged.
 **New migration / i18n keys / env vars / feature flags:** none.
@@ -2460,21 +2465,25 @@ A pool of N interchangeable units must accept bookings of the same slot until it
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/application/use-cases/resource-requirement-resolution.helpers.ts` (+ `.spec.ts`) (modify — pool narrowing)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.integration.spec.ts` (modify — the two-customers cases below)
-- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts` and `recurring-occurrence-resource-plan.helpers.ts` (+ specs) (modify — only if discovery confirms aligning the recurring path)
-- `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify — the pool rule, and the M23-S18/TD49 wording if aligned)
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts` and `recurring-occurrence-resource-plan.helpers.ts` (+ specs) (modify — pool counts as "any free unit", per decision 3), plus the doc comment in `recurring-booking-schedule-hours.helpers.ts`
+- `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify — the pool rule and the M23-S18/TD49 wording, per decision 4)
 - `apps/web/e2e/booking-auto-journey.spec.ts` (modify — the pool test can book the same slot twice directly instead of occupying units through single-unit services)
 
 **Acceptance criteria — product:**
 - [ ] With a pool of 2 units, two customers can book the same slot; each gets a distinct unit and neither sees a unit name.
 - [ ] A third booking of that slot is rejected with `409 BOOKING_SLOT_UNAVAILABLE`, and the availability read no longer offers the slot — the two always agree.
-- [ ] A pool needing `requiredQuantity = 2` out of 3 units books the first customer on 2 units and rejects a second whose slot would need 2 of the 1 remaining.
+- [ ] A pool needing `requiredQuantity = 2` out of 3 units books the first customer on 2 units and rejects a second whose slot would need 2 of the 1 remaining — with `409 BOOKING_SLOT_UNAVAILABLE`, not a `422`.
+- [ ] A recurring term on a pool is accepted when any unit is open and free for every occurrence (the first unit being busy does not refuse it), and is refused only when every unit is busy or closed for an occurrence; each occurrence is assigned the first free open unit by `resourceId`.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `resolveCandidateIds()` for `AUTO_FUNGIBLE_POOL`: picks a free unit when the first is busy; falls back to the full list when all are busy; honours each unit's own trailing gap; takes `requiredQuantity` distinct units; `AUTO_ANY` and `NONE` behaviour unchanged
+  - [ ] `resolveCandidateIds()` for `AUTO_FUNGIBLE_POOL`: picks a free unit when the first is busy; falls back to the full list when all are busy; honours each unit's own trailing gap; takes `requiredQuantity` distinct units in `resourceId` order; falls back to the full list when fewer than `requiredQuantity` units are free; `NONE` unchanged; `AUTO_ANY` with `requiredQuantity = 1` unchanged (negative guarantees pinned by their own cases)
+  - [ ] `planOccurrenceResources()` and `assertPatternConflictFree()` for `AUTO_FUNGIBLE_POOL`: the first unit busy or closed on one occurrence and the second free → accepted and planned on the second; every unit busy → refused; `AUTO_ANY` plan unchanged
 - Integration:
   - [ ] pool of 2, same slot booked by two customers → both `201`, distinct `resource_occupancy` units; third → `409`; two concurrent bookings of the last free unit → one `201`, one `409`
   - [ ] `requiredQuantity = 2` of a 3-unit pool, then a second booking → `409`
+  - [ ] the `201` response of a pool booking names no unit (the existing identity case stays green)
+  - [ ] a recurring schedule on a pool whose first unit is booked at one occurrence, second free → created, and that occurrence's booking sits on the second unit
 - Tenant isolation:
   - [ ] a pool unit booked in Tenant A never counts as busy for Tenant B's pool
 - E2E:
