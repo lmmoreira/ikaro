@@ -48,7 +48,9 @@ export async function lockCandidateResources(params: {
 function distinctRequirements(requirements: ResourceRequirement[]): ResourceRequirement[] {
   const byKey = new Map<string, ResourceRequirement>();
   for (const requirement of requirements) {
-    const pool = [...(requirement.resourcePoolIds ?? [])].sort().join(',');
+    const pool = [...(requirement.resourcePoolIds ?? [])]
+      .sort((a, b) => a.localeCompare(b))
+      .join(',');
     byKey.set(`${requirement.type}|${pool}`, requirement);
   }
   return [...byKey.values()];
