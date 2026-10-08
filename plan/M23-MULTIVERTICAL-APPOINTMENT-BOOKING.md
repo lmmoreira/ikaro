@@ -3115,7 +3115,12 @@ Add the server side of UC-108. A staff member books a one-off appointment for so
 **Complexity:** L
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Staff Booking on a Customer's Behalf and § Customers search, `docs/04-USE_CASES.md` UC-108, `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
 **Dependencies:** M23-S39 (the endpoint and the phone search), M23-S11a and M23-S11b (✅ Done — the step engine this flow reuses), M23-S29 (✅ Done — the read APIs). **Coordinated with M23-S19:** the "+ Novo" menu and the customer chooser belong to this story; S19 consumes them for "Recorrência". Whichever lands first builds the chooser once.
-**Pattern:** plain composition. The step logic is **shared, not copied**: `resolveBookingSteps()`, `resolveBookingSubmitErrorRoute()` and the quote/availability/resource-option fetchers in `features/booking/model|api/` are reused as-is. Presentation is **dashboard-skinned**: the public step components style themselves with the business's `--ba-*` tokens and the repo forbids a component that reads both branding systems (`.copilot/context.md` § Web styling boundary), so each step the public flow shows gets a dashboard presentation where it uses `--ba-*` — the precedent is `variant="dashboard"` on `AvailabilityCarousel`/`SlotPicker`, already used by staff reschedule. Which components take a variant and which get a separate dashboard version is decided per component at discovery.
+**Pattern:** plain composition with **maximum reuse of the public booking flow — a requirement of this story, not a preference.** Decided 2026-10-08:
+- **Logic is shared, never copied.** `resolveBookingSteps()`, `resolveBookingSubmitErrorRoute()`, the quote/availability/resource-option fetchers, the submission hook and every pure helper in `features/booking/model|api/` are used as they are. A step whose logic (state, validation, effects) is still tangled into a public component is first split into a presentation-neutral container or hook plus views, in the same PR, so both flows call one implementation.
+- **Only the presentation differs.** The public step components style themselves with the business's `--ba-*` tokens, and the dashboard must not read them (`.copilot/context.md` § Web styling boundary). So each step has a hotsite view and a dashboard view over the same logic. Two allowed mechanisms, picked per component: a `variant: 'hotsite' | 'dashboard'` prop for a small purely presentational component (the precedent: `AvailabilityCarousel`, `SlotPicker` and `ErrorAlert`, already used by staff reschedule), or a logic/view split for a component with real behaviour (the resource picker, the intake step, the contact fields, the variable-duration step).
+- **Rejected:** copying a public component into the dashboard and editing it; and wrapping the staff page in a container that defines `--ba-*` as dashboard colours (it would make a public component read both branding systems, which the boundary forbids).
+- **The hotsite must not change.** Every existing public-flow spec, including the booking-flow Playwright tests, passes unmodified; that is the regression guard for the refactor.
+- **`/story-discovery` produces the table** — one row per public step component: its `--ba-*` references, the chosen mechanism (variant or split) and why. The table is the plan; no component is skinned without a row.
 **Prototype references:** `plan/journey/staff/agenda.md` (M23 section — "+ Novo") and `plan/journey/staff/prototypes/agenda/` screens `00-agenda` ("+ Novo" menu), `09` (customer chooser), `10-novo-agendamento.html` (the booking steps) and `10b-novo-agendamento-resultado.html` (outcomes), `dev-notes.md`.
 
 **Description:**
@@ -3127,14 +3132,14 @@ Give staff one place to create something for a customer who phoned or messaged.
 - **Outcomes, inline.** Created (booking details and "Ver agendamento" / "Criar outro" / "Voltar à agenda"), slot taken (`409`, back to the date step with everything kept), outside the window, customer without phone, customer not found, network/5xx. Same convention as `04b`: a banner over the kept data and the action panel swapped.
 - **Route (default, confirm at discovery):** chooser at `/dashboard/bookings/new` with the kind chosen from the menu, booking steps at `/dashboard/bookings/new/booking`; S19 owns `/dashboard/bookings/recurring/new`.
 
-**Open for `/story-discovery`:** which public step components take a `variant` and which get a separate dashboard version; whether the chooser's pick travels in the URL or in state; how the calendar learns that the minimum notice does not apply (a request flag on the availability read vs. computing it client-side from the tenant settings); and whether the Horários "click an empty slot" shortcut is a later story.
+**Open for `/story-discovery`:** the reuse table above; whether the chooser's pick travels in the URL or in state; how the calendar learns that the minimum notice does not apply (a request flag on the availability read vs. computing it client-side from the tenant settings); and whether the Horários "click an empty slot" shortcut is a later story.
 
 **New migration / i18n keys / env vars / feature flags:** i18n keys in both `pt-BR` and `en` for the menu, chooser, steps' dashboard labels, summary and outcomes; no migration, env var or flag.
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (+ spec) (modify — the "+ Novo" menu in place of any create button)
 - `apps/web/features/booking/components/dashboard/bookings/NewMenu.tsx`, `CustomerChooserStep.tsx`, `NewBookingForStaffPage.tsx`, `NewBookingSummaryCard.tsx`, `NewBookingOutcome.tsx` (+ specs) (new)
-- the dashboard presentation of the shared steps — new `*Dashboard.tsx` files or a `variant` on the existing public components (+ specs), per the discovery decision above
+- `apps/web/features/booking/components/public/*.tsx` step components (+ their specs) (modify — a `variant` prop or a logic/view split, per the discovery table; public behaviour unchanged), and the dashboard views and shared containers they need (new, under `apps/web/features/booking/components/dashboard/bookings/` or a shared folder the discovery picks)
 - `apps/web/features/booking/api/staff-bookings.ts` (+ spec) (new — `createBookingByStaff` through `bffClient`); the customer search fetcher in `@/features/customer/api` (modify — `phone` in the result item)
 - `apps/web/app/dashboard/bookings/new/page.tsx`, `apps/web/app/dashboard/bookings/new/booking/page.tsx` (new — thin routes)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify)
@@ -3148,15 +3153,18 @@ Give staff one place to create something for a customer who phoned or messaged.
 - [ ] A same-day slot inside the minimum notice can be chosen; a past date cannot.
 - [ ] Each failure (slot taken, outside the window, customer without phone, customer not found, network) shows its message and keeps what staff entered.
 - [ ] The screens follow the dashboard layout (centre + right action panel, bottom bar on mobile) and use no `--ba-*` variable.
+- [ ] The public booking page looks and behaves exactly as before.
 
 **Acceptance criteria — technical:**
 - Unit (Vitest):
   - [ ] `NewMenu`, `CustomerChooserStep` (modes, disabled guest option for recurrence, empty/no-result/error states, minimum search length), the summary card, the outcome views
-  - [ ] **Negative guarantee, own test:** no component under the new files reads a `--ba-*` variable
+  - [ ] **Negative guarantee, own test:** no dashboard view or new dashboard file reads a `--ba-*` variable
+  - [ ] **Negative guarantee, own test:** the public flow is unchanged — every existing public-flow spec passes without edits to its assertions, and a step's logic exists once (the dashboard and hotsite views call the same container or hook)
   - [ ] The page submits `customerId` for a registered customer and the contact trio for a guest, never both
   - [ ] Error routing: each backend code lands on the right step/outcome (reuses `resolveBookingSubmitErrorRoute()`; a test pins the staff-only additions)
 - E2E:
   - [ ] Playwright: staff opens "+ Novo → Agendamento", picks a seeded customer, books a seeded service in a free slot, and sees the booking `APPROVED` in the Agenda
   - [ ] Playwright: the guest path with a typed contact
+  - [ ] The existing public booking-flow Playwright specs still pass unmodified
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
