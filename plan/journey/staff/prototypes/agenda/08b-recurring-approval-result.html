@@ -3,213 +3,328 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pedido de recorrência — resultado — Vitta Studio</title>
+  <title>Pedido de recorrência — resultado — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
-    .row { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 0; border-bottom: 1px solid var(--ba-secondary); text-decoration: none; color: var(--ba-text); }
-    .row:last-child { border: 0; }
-    .meta { font-size: 0.8rem; opacity: 0.6; margin-top: 0.15rem; }
-    .section-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 1.25rem 0 0.5rem; }
-    .step-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.5; margin: 0 0 0.25rem; }
-    .field { margin-bottom: 1.125rem; }
-    .field-hint { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.25rem; }
-    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .chip { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.4375rem 0.75rem; border: 1px solid var(--ba-secondary); border-radius: 999px; font-size: 0.875rem; background: white; cursor: pointer; }
-    .chip.on { border-color: var(--ba-primary); background: #eff6ff; }
-    .choice { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 0.875rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; margin-bottom: 0.5rem; cursor: pointer; }
-    .choice.on { border-color: var(--ba-primary); background: #eff6ff; }
-    .readonly-value { padding: 0.625rem 0.75rem; border: 1px dashed var(--ba-secondary); border-radius: var(--ba-radius); background: #fafafa; font-size: 0.875rem; }
-    .notice { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--ba-radius); padding: 1rem; margin-top: 1rem; }
-    .notice-error { background: #fef2f2; border-color: #fca5a5; }
-    .notice-ok { background: #f0fdf4; border-color: #86efac; }
-    .customer-chip { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; }
-    .panel { display: none; }
-    .panel:target { display: block; }
-    .panels:not(:has(.panel:target)) #aprovada { display: block; }
-    .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
-    .proto-only a { margin-right: 0.75rem; }
-    .state-tag { display: inline-block; font-size: 0.6875rem; font-weight: 700; background: #ede9fe; color: #5b21b6; padding: 0.1875rem 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; }
+    /* Hide bottom nav — detail is a drill-down; back arrow replaces tab nav on mobile */
+    .bottom-nav { display: none !important; }
+
+    /* Desktop two-column layout inside main content */
+    .detail-layout {
+      display: block;
+    }
+    .detail-main  { }
+    .detail-aside { display: none; }
+
+    @media (min-width: 1024px) {
+      .detail-layout {
+        display: grid;
+        grid-template-columns: 1fr 22rem;
+        gap: 1.5rem;
+        align-items: start;
+      }
+      .detail-aside {
+        display: block;
+        position: sticky;
+        top: 1.5rem;
+      }
+      /* Action bar only on mobile */
+      .mobile-action-bar { display: none !important; }
+    }
+
+    /* Section header inside detail */
+    .detail-section-label {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: rgba(17,24,39,0.4);
+      margin-bottom: 0.625rem;
+    }
+
+    /* Service line rows */
+    .service-line {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--ba-secondary);
+    }
+    .service-line:last-child { border-bottom: none; }
+    .service-line-name { flex: 1; font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .service-line-meta { text-align: right; font-size: 0.8125rem; color: var(--ba-text); }
+    .service-line-price { font-weight: 700; color: var(--ba-primary); }
+    .service-line-pts   { font-size: 0.75rem; opacity: 0.55; margin-top: 0.125rem; }
+
+    /* Photo grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+    }
+    .photo-thumb {
+      aspect-ratio: 1;
+      background: var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; opacity: 0.5; color: var(--ba-text);
+      overflow: hidden;
+    }
+
+    .badge-recurring { background: #ccfbf1; color: #0f766e; }
+    .kv { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); font-size: 0.9375rem; }
+    .kv:last-child { border-bottom: none; }
+    .kv span:first-child { opacity: 0.6; }
+    .kv span:last-child { font-weight: 600; text-align: right; }
+
+    .when { display: none; }
+    body[data-state="aprovada"] .when-aprovada, body[data-state="recusada"] .when-recusada,
+    body[data-state="conflito"] .when-conflito, body[data-state="telefone"] .when-telefone,
+    body[data-state="falha"] .when-falha, body[data-state="expirada"] .when-expirada { display: block; }
+    .banner { border-radius: var(--ba-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid; }
+    .banner-ok { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+    .banner-neutral { background: #f9fafb; border-color: #d1d5db; color: #374151; }
+    .banner-error { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+    .banner p.t { font-weight: 700; font-size: 1rem; margin-bottom: 0.375rem; }
+    .banner p.d { font-size: 0.875rem; line-height: 1.5; }
+    .conflict-row { padding: 0.5rem 0; border-top: 1px solid #fecaca; font-size: 0.875rem; }
+
+    /* Bottom sheet overrides */
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+
   </style>
 </head>
-<body>
+<body data-state="aprovada">
 
   <!--
-    COMPONENT: RecurringScheduleApprovalDetail — estados de resultado (❓ Gap — M23-S13)
-    UC cobertos: UC-071
-    DATA:
-      Um painel por desfecho de POST /recurring-booking-schedules/:id/approve|reject (sem hash, mostra #aprovada).
-      Na produção o resultado aparece inline na própria página de detalhe (mesma convenção de 02/01c/03b/04b/05c);
-      aqui são painéis separados só para o protótipo.
-        #aprovada   200 approve — as reservas do período foram criadas; a cliente recebe e-mail (M23-S28)
-        #recusada   200 reject  — nada foi criado; a cliente recebe e-mail (M23-S28, APPROVAL_REJECTED)
-        #conflito   409 BOOKING_RECURRING_SCHEDULE_CONFLICT (approve, A3) — corpo traz conflicts[{ occurrenceStart, reason: OCCUPIED|CLOSED|OUTSIDE_HOURS }];
-                    nada é criado e o pedido continua PENDING_APPROVAL
-        #expirada   409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL (A1/A2) — já decidido por outra pessoa ou o prazo de 30 min acabou
-        #telefone   422 BOOKING_CUSTOMER_PHONE_NOT_SET (approve) — a cliente não tem telefone para as reservas
-        #falha      erro de rede / 5xx — nada mudou, tentar novamente
+    COMPONENT: RecurringScheduleApprovalDetail — estados inline após a decisão (❓ Gap — M23-S13)
+    Mesma convenção de 01c / 02 / 03b / 04b / 05c: na produção NÃO há navegação — a página de detalhe continua,
+    o banner de resultado aparece no topo da coluna central, os dados do pedido ficam visíveis e o painel de
+    ações à direita é trocado (desktop) / a barra fixa de baixo é trocada (mobile).
+    Estados (hash do protótipo; padrão #aprovada):
+      #aprovada   200 approve  — banner verde, painel: só "Voltar à agenda"
+      #recusada   200 reject   — banner cinza, painel: só "Voltar à agenda"
+      #conflito   409 BOOKING_RECURRING_SCHEDULE_CONFLICT — banner vermelho + lista de datas; o pedido segue pendente
+      #telefone   422 BOOKING_CUSTOMER_PHONE_NOT_SET — banner vermelho; o pedido segue pendente
+      #falha      rede / 5xx — banner vermelho; nada mudou
+      #expirada   409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL — já decidido / prazo de 30 min acabou; só "Voltar à agenda"
   -->
 
-  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo — UC-071 — resultado da decisão sobre um pedido de recorrência
+  <!-- Prototype banner -->
+  <div style="
+    background: #fef3c7; border-bottom: 1px solid #d97706;
+    padding: 0.375rem 1rem; font-size: 0.8125rem;
+    text-align: center; color: #92400e;
+  ">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px).
+    Estado inline após a decisão. <span id="proto-nav"></span>
   </div>
 
+  <!-- TOP BAR — back arrow replaces brand on mobile -->
   <div class="dashboard-topbar">
-    <a href="00-agenda.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      <span class="topbar-brand" style="font-weight:600;">Agenda</span>
+    <!-- Mobile: back arrow -->
+    <a href="00-agenda.html" style="
+      display: flex; align-items: center; gap: 0.375rem;
+      color: var(--ba-text); text-decoration: none; font-size: 0.9375rem; font-weight: 500;
+    ">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      <span class="topbar-brand" style="font-weight: 600;">Agenda</span>
     </a>
+
+    <!-- Desktop: page title -->
     <h1 class="topbar-page-title">Pedido de recorrência</h1>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
-      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">CD</a>
-      <span class="topbar-date">Hoje, 11 de agosto de 2026</span>
+
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+      <span class="status-badge badge-recurring" style="font-size: 0.75rem;">Recorrência</span>
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 16 de junho de 2026</span>
     </div>
   </div>
 
+  <!-- LAYOUT -->
   <div class="dashboard-layout">
+
+    <!-- Sidebar — desktop only (same as 00-agenda.html) -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">V</div>
-        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+        <div class="sidebar-logo">B</div>
+        <div>
+          <p class="sidebar-tenant-name">BeloAuto Demo</p>
+          <p class="sidebar-tenant-slug">@beloauto</p>
+        </div>
       </div>
-      <nav class="sidebar-nav" style="margin-top:0.5rem;">
-        <a class="sidebar-nav-item active" href="00-agenda.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <nav class="sidebar-nav" style="margin-top: 0.5rem;">
+        <a class="sidebar-nav-item active" href="../agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
           Agenda
         </a>
         <a class="sidebar-nav-item" href="../horarios/00-schedule.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
           Horários
         </a>
         <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
           Serviços
         </a>
-        <a class="sidebar-nav-item" href="../turmas/01-turmas-proximas.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
-          Turmas
-        </a>
         <a class="sidebar-nav-item" href="../fidelidade/00-customer-search.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
           Fidelidade
         </a>
       </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          Hotsite
+        </a>
+      </nav>
       <div class="sidebar-footer">
-        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">CD</div>
-        <div style="min-width:0;"><p class="sidebar-user-name">Camila Duarte</p><span class="role-badge role-badge-staff">Equipe</span></div>
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div style="min-width: 0;">
+          <p class="sidebar-user-name">Ana Pereira</p>
+          <span class="role-badge role-badge-manager">Gerente</span>
+        </div>
         <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
         </a>
       </div>
     </aside>
 
-    <main class="main-content">
+    <!-- MAIN CONTENT -->
+    <main class="main-content" style="padding-bottom: 8rem;">
       <div class="dashboard-body">
+        <div class="detail-layout">
 
-        <div class="panels" style="margin-top:0.5rem;">
+          <!-- ── LEFT: request detail ───────────────────────────── -->
+          <div class="detail-main">
 
-          <section id="aprovada" class="panel">
-            <div class="card notice-ok">
-              <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
-              <h1 style="font-size:1.25rem;margin:0;">Recorrência aprovada</h1>
-              <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">Criamos as 13 reservas de 19 ago a 11 nov, todas já confirmadas e na agenda. Ana Costa recebe um e-mail avisando.</p>
+            <!-- INLINE RESULT BANNERS (one per state) -->
+            <div class="banner banner-ok when when-aprovada">
+              <p class="t">Recorrência aprovada</p>
+              <p class="d">Criamos as 13 reservas de 19 ago a 11 nov, todas já confirmadas e na agenda. Ana Costa recebe um e-mail avisando.</p>
             </div>
-            <div class="nav-buttons">
-              <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Voltar à agenda</a>
+            <div class="banner banner-neutral when when-recusada">
+              <p class="t">Recorrência recusada</p>
+              <p class="d">Nenhuma reserva foi criada. Ana Costa recebe um e-mail avisando e pode enviar um novo pedido quando quiser.</p>
             </div>
-          </section>
+            <div class="banner banner-error when when-conflito">
+              <p class="t">Não foi possível aprovar esta recorrência</p>
+              <p class="d">Pelo menos uma data deixou de estar disponível desde o pedido. Nada foi criado e o pedido continua aguardando decisão.</p>
+              <div style="margin-top:0.625rem;">
+                <div class="conflict-row"><strong>25 de agosto · 10:00–12:00</strong> — Já reservado <span style="opacity:.6">(OCCUPIED)</span></div>
+                <div class="conflict-row"><strong>22 de setembro · 10:00–12:00</strong> — Fechado <span style="opacity:.6">(CLOSED)</span></div>
+              </div>
+            </div>
+            <div class="banner banner-error when when-telefone">
+              <p class="t">Ana Costa não tem telefone cadastrado</p>
+              <p class="d">As reservas precisam de um telefone de contato, então nada foi criado e o pedido continua aguardando decisão. Peça à cliente para cadastrar o telefone e aprove de novo antes das 09:30, ou recuse o pedido.</p>
+            </div>
+            <div class="banner banner-error when when-falha">
+              <p class="t">Não foi possível concluir a decisão</p>
+              <p class="d">Nada mudou. Verifique sua conexão e tente novamente.</p>
+            </div>
+            <div class="banner banner-error when when-expirada">
+              <p class="t">Este pedido não está mais aguardando decisão</p>
+              <p class="d">Outra pessoa da equipe já decidiu, ou o prazo de 30 minutos terminou e o pedido expirou. Nenhuma ação foi aplicada.</p>
+            </div>
 
-          <section id="recusada" class="panel">
-            <div class="card" style="background:#f9fafb;">
-              <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
-              <h1 style="font-size:1.25rem;margin:0;">Recorrência recusada</h1>
-              <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">Nenhuma reserva foi criada. Ana Costa recebe um e-mail avisando e pode enviar um novo pedido quando quiser.</p>
+            <p class="detail-section-label" style="margin-top: 0;">Cliente</p>
+            <div class="card" style="display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1.25rem;">
+              <div class="list-avatar" style="width: 2.75rem; height: 2.75rem; font-size: 1rem; flex-shrink: 0; background: #0f766e;">AC</div>
+              <div style="flex:1;">
+                <p style="font-weight:600;">Ana Costa</p>
+                <p style="font-size:0.875rem;opacity:0.6;">ana@email.com · cliente autenticada</p>
+              </div>
             </div>
-            <div class="nav-buttons">
-              <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Voltar à agenda</a>
-            </div>
-          </section>
 
-          <section id="conflito" class="panel">
-            <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível aprovar esta recorrência</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Pelo menos uma data deixou de estar disponível desde o pedido. Nada foi criado e o pedido continua aguardando decisão.</p>
+            <p class="detail-section-label">Recorrência pedida</p>
+            <div class="card" style="padding: 0.25rem 1rem; margin-bottom: 1.25rem;">
+              <div class="kv"><span>Serviço</span><span>Reserva de sala</span></div>
+              <div class="kv"><span>Recurso</span><span>Sala Aurora</span></div>
+              <div class="kv"><span>Padrão</span><span>Toda terça · 10:00–12:00</span></div>
+              <div class="kv"><span>Período</span><span>19 ago → 11 nov</span></div>
+              <div class="kv"><span>Reservas</span><span>13</span></div>
+              <div class="kv"><span>Solicitado</span><span>Hoje às 09:00</span></div>
             </div>
-            <div class="card" style="margin-top:1rem;padding:0 1rem;">
-              <div class="row" style="display:block;"><strong>25 de agosto · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Já reservado</span><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva. (<code>reason = OCCUPIED</code>)</p></div>
-              <div class="row" style="display:block;"><strong>22 de setembro · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Fechado</span><p class="meta">A Sala Aurora estará fechada neste dia. (<code>reason = CLOSED</code>)</p></div>
-            </div>
-            <div class="nav-buttons">
-              <a class="btn-secondary" href="08-recurring-schedule-approval.html">Voltar ao pedido</a>
-              <a class="btn-primary" href="08-recurring-schedule-approval.html" style="text-decoration:none;">Recusar o pedido</a>
-            </div>
-          </section>
 
-          <section id="expirada" class="panel">
-            <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Este pedido não está mais aguardando decisão</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Outra pessoa da equipe já decidiu, ou o prazo de 30 minutos terminou e o pedido expirou. Nenhuma ação foi aplicada.</p>
+            <p class="detail-section-label">O que acontece</p>
+            <div class="card" style="font-size:0.875rem;line-height:1.55;margin-bottom:1.25rem;">
+              <p><strong>Nenhuma reserva foi criada ainda.</strong> A decisão vale para o padrão inteiro, não por semana.</p>
+              <p style="margin-top:0.5rem;"><strong>Aprovar</strong> repete a verificação de horário e ocupação e cria as 13 reservas de uma vez, já confirmadas. Se alguma deixou de ser possível, nada é criado e a lista de datas em conflito aparece aqui.</p>
+              <p style="margin-top:0.5rem;"><strong>Recusar</strong> não cria nada e não pode ser desfeito. Ana pode enviar um novo pedido quando quiser.</p>
+              <p style="margin-top:0.5rem;opacity:0.65;">Ana recebe um email com o resultado.</p>
             </div>
-            <div class="nav-buttons">
-              <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Voltar à agenda</a>
-            </div>
-          </section>
 
-          <section id="telefone" class="panel">
-            <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Ana Costa não tem telefone cadastrado</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">As reservas precisam de um telefone de contato, então nada foi criado e o pedido continua aguardando decisão.</p>
-            </div>
-            <div class="notice"><strong>O que fazer agora</strong><p class="meta">Peça à cliente para cadastrar o telefone na conta dela e aprove de novo antes das 09:30, ou recuse o pedido.</p></div>
-            <div class="nav-buttons">
-              <a class="btn-primary" href="08-recurring-schedule-approval.html" style="text-decoration:none;">Voltar ao pedido</a>
-            </div>
-          </section>
+          </div><!-- /.detail-main -->
 
-          <section id="falha" class="panel">
-            <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível concluir a decisão</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Nada mudou. Verifique sua conexão e tente novamente.</p>
+          <!-- ── RIGHT: action panel (desktop only) ─────────────── -->
+          <div class="detail-aside">
+            <!-- decided: no more actions -->
+            <div class="card when when-aprovada when-recusada when-expirada">
+              <p style="font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); margin-bottom: 1rem; line-height: 1.5;">Este pedido não tem mais ações disponíveis.</p>
+              <a href="00-agenda.html" class="btn-primary" style="display: block; text-align: center;">Voltar à agenda</a>
             </div>
-            <div class="nav-buttons">
-              <a class="btn-secondary" href="00-agenda.html">Voltar à agenda</a>
-              <a class="btn-primary" href="08-recurring-schedule-approval.html" style="text-decoration:none;">Tentar novamente</a>
+            <!-- still pending: actions stay -->
+            <div class="card when when-conflito when-telefone when-falha" style="padding: 1.25rem;">
+              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Ações</p>
+              <a href="08-recurring-schedule-approval.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Tentar aprovar de novo</a>
+              <a href="08-recurring-schedule-approval.html" class="btn-secondary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Recusar</a>
+              <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
             </div>
-          </section>
+          </div>
 
-        </div>
-
-        <div class="proto-only">
-          <strong>Navegar pelos desfechos (só no protótipo):</strong><br>
-          <a href="#aprovada">Aprovada</a> <a href="#recusada">Recusada</a> <a href="#conflito">Conflito</a>
-          <a href="#expirada">Já decidido / expirado</a> <a href="#telefone">Sem telefone</a> <a href="#falha">Falha</a>
-        </div>
-
+        </div><!-- /.detail-layout -->
       </div>
     </main>
+
+  </div><!-- /.dashboard-layout -->
+
+  <!-- MOBILE ACTION BAR — swapped per state, like 04b -->
+  <div class="mobile-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--ba-secondary); padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0)); z-index: 20; box-shadow: 0 -2px 8px rgba(0,0,0,0.06);">
+    <div class="when when-aprovada when-recusada when-expirada">
+      <a href="00-agenda.html" class="btn-primary" style="display: block; text-align: center;">Voltar à agenda</a>
+    </div>
+    <div class="when when-conflito when-telefone when-falha">
+      <a href="08-recurring-schedule-approval.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Tentar aprovar de novo</a>
+      <div style="display: flex; gap: 0.625rem;">
+        <a href="08-recurring-schedule-approval.html" class="btn-secondary" style="flex: 1; text-align: center;">Recusar</a>
+        <a href="00-agenda.html" class="btn-secondary" style="flex: 1; text-align: center;">Voltar à agenda</a>
+      </div>
+    </div>
   </div>
 
-  <nav class="bottom-nav">
-    <a class="bottom-nav-item active" href="00-agenda.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      Agenda
-    </a>
-    <a class="bottom-nav-item" href="../horarios/00-schedule.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      Horários
-    </a>
-    <a class="bottom-nav-item" href="../servicos/01-servicos-list.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      Serviços
-    </a>
-    <a class="bottom-nav-item" href="../turmas/01-turmas-proximas.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
-      Turmas
-    </a>
-    <a class="bottom-nav-item" href="../fidelidade/00-customer-search.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      Fidelidade
-    </a>
-  </nav>
+  <script>
+    var STATES = ['aprovada','recusada','conflito','telefone','falha','expirada'];
+    function applyState() {
+      var h = location.hash.replace('#','');
+      document.body.dataset.state = STATES.indexOf(h) >= 0 ? h : 'aprovada';
+    }
+    window.addEventListener('hashchange', applyState); applyState();
+    document.getElementById('proto-nav').innerHTML = STATES.map(function (x) { return '<a href="#' + x + '">' + x + '</a>'; }).join(' · ');
+  </script>
 
 </body>
 </html>

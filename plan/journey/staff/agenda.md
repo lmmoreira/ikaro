@@ -132,7 +132,7 @@ Folder: `staff/prototypes/agenda/`
 | `05b-reschedule-conflict.html` | Reschedule Alt A2 — new slot became unavailable on confirm | UC-008 Alt A2 | — | ✅ Criado |
 | `05c-reschedule-success.html` | Reschedule confirmed inline state | UC-008 Alt A1 | — | ✅ Criado |
 | `08-recurring-schedule-approval.html` | Detail of a recurring-schedule request — details centred, action panel on the right (desktop) / bottom action bar (mobile), approve and reject confirmation sheets. Same shell as `01-booking-detail.html` | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
-| `08b-recurring-approval-result.html` | Outcomes: approved, rejected, 409 conflict list, 409 already decided/expired, 422 customer has no phone, network/5xx | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
+| `08b-recurring-approval-result.html` | Inline result states of the detail page (banner on top, data kept, action panel swapped, as in `04b`): approved, rejected, 409 conflict list, 409 already decided/expired, 422 customer has no phone, network/5xx | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
 | `09-nova-recorrencia-cliente.html` | Nova recorrência em nome de um cliente — escolher o cliente (busca, recentes, sem resultado, erro de busca) | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recurso, dias, horário, período) para o cliente escolhido | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09c-nova-recorrencia-resultado.html` | Desfechos: criada, aguardando aprovação, conflito, limite, falha, cliente não encontrado | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |

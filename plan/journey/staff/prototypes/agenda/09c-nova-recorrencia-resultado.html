@@ -3,214 +3,331 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nova recorrência — resultado — Vitta Studio</title>
+  <title>Nova recorrência — resultado — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
-    .row { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 0; border-bottom: 1px solid var(--ba-secondary); text-decoration: none; color: var(--ba-text); }
-    .row:last-child { border: 0; }
-    .meta { font-size: 0.8rem; opacity: 0.6; margin-top: 0.15rem; }
-    .section-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 1.25rem 0 0.5rem; }
-    .step-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.5; margin: 0 0 0.25rem; }
-    .field { margin-bottom: 1.125rem; }
-    .field-hint { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.25rem; }
-    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .chip { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.4375rem 0.75rem; border: 1px solid var(--ba-secondary); border-radius: 999px; font-size: 0.875rem; background: white; cursor: pointer; }
-    .chip.on { border-color: var(--ba-primary); background: #eff6ff; }
-    .choice { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 0.875rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; margin-bottom: 0.5rem; cursor: pointer; }
-    .choice.on { border-color: var(--ba-primary); background: #eff6ff; }
-    .readonly-value { padding: 0.625rem 0.75rem; border: 1px dashed var(--ba-secondary); border-radius: var(--ba-radius); background: #fafafa; font-size: 0.875rem; }
-    .notice { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--ba-radius); padding: 1rem; margin-top: 1rem; }
-    .notice-error { background: #fef2f2; border-color: #fca5a5; }
-    .notice-ok { background: #f0fdf4; border-color: #86efac; }
-    .customer-chip { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; }
-    .panel { display: none; }
-    .panel:target { display: block; }
-    .panels:not(:has(.panel:target)) #criada { display: block; }
-    .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
-    .proto-only a { margin-right: 0.75rem; }
-    .state-tag { display: inline-block; font-size: 0.6875rem; font-weight: 700; background: #ede9fe; color: #5b21b6; padding: 0.1875rem 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; }
+    /* Hide bottom nav — detail is a drill-down; back arrow replaces tab nav on mobile */
+    .bottom-nav { display: none !important; }
+
+    /* Desktop two-column layout inside main content */
+    .detail-layout {
+      display: block;
+    }
+    .detail-main  { }
+    .detail-aside { display: none; }
+
+    @media (min-width: 1024px) {
+      .detail-layout {
+        display: grid;
+        grid-template-columns: 1fr 22rem;
+        gap: 1.5rem;
+        align-items: start;
+      }
+      .detail-aside {
+        display: block;
+        position: sticky;
+        top: 1.5rem;
+      }
+      /* Action bar only on mobile */
+      .mobile-action-bar { display: none !important; }
+    }
+
+    /* Section header inside detail */
+    .detail-section-label {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: rgba(17,24,39,0.4);
+      margin-bottom: 0.625rem;
+    }
+
+    /* Service line rows */
+    .service-line {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--ba-secondary);
+    }
+    .service-line:last-child { border-bottom: none; }
+    .service-line-name { flex: 1; font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .service-line-meta { text-align: right; font-size: 0.8125rem; color: var(--ba-text); }
+    .service-line-price { font-weight: 700; color: var(--ba-primary); }
+    .service-line-pts   { font-size: 0.75rem; opacity: 0.55; margin-top: 0.125rem; }
+
+    /* Photo grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+    }
+    .photo-thumb {
+      aspect-ratio: 1;
+      background: var(--ba-secondary);
+      border-radius: var(--ba-radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; opacity: 0.5; color: var(--ba-text);
+      overflow: hidden;
+    }
+
+    .badge-recurring { background: #ccfbf1; color: #0f766e; }
+    .kv { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); font-size: 0.9375rem; }
+    .kv:last-child { border-bottom: none; }
+    .kv span:first-child { opacity: 0.6; }
+    .kv span:last-child { font-weight: 600; text-align: right; }
+
+    .when { display: none; }
+    body[data-state="criada"] .when-criada, body[data-state="aguardando"] .when-aguardando,
+    body[data-state="conflito"] .when-conflito, body[data-state="limite"] .when-limite,
+    body[data-state="cliente"] .when-cliente, body[data-state="falha"] .when-falha { display: block; }
+    .banner { border-radius: var(--ba-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid; }
+    .banner-ok { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+    .banner-warn { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+    .banner-neutral { background: #f9fafb; border-color: #d1d5db; color: #374151; }
+    .banner-error { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+    .banner p.t { font-weight: 700; font-size: 1rem; margin-bottom: 0.375rem; }
+    .banner p.d { font-size: 0.875rem; line-height: 1.5; }
+    .conflict-row { padding: 0.5rem 0; border-top: 1px solid #fecaca; font-size: 0.875rem; }
+
+    /* Bottom sheet overrides */
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+
   </style>
 </head>
-<body>
+<body data-state="criada">
 
   <!--
-    COMPONENT: NewRecurringScheduleForStaffResult
-    PAGE:       apps/web/app/dashboard/bookings/recurring/new/page.tsx  (GAP — M23-S19, rota proposta) — estados do resultado
+    COMPONENT: NewRecurringScheduleForStaffResult  (❓ Gap — M23-S19)
+    ROUTE:      /dashboard/bookings/recurring/new  (proposed) — estados do resultado
     UC cobertos: UC-070 (staff variant), UC-071
-    DATA:
-      Um painel por desfecho de POST /recurring-booking-schedules (sem hash, mostra #criada):
-        #criada        201 ACTIVE
-        #aguardando    201 PENDING_APPROVAL — HOJE uma recorrência criada pela equipe para um serviço com aprovação manual também
-                       fica pendente (a equipe aprovaria o próprio pedido); pular a aprovação é uma decisão de M23-S19
-        #conflito      409 BOOKING_RECURRING_SCHEDULE_CONFLICT (a lista de ocorrências vem do campo conflicts do 409, decidido em M23-S18: reason = OCCUPIED | CLOSED | OUTSIDE_HOURS, tudo na mesma lista)
-        #limite        409 BOOKING_RECURRING_SCHEDULE_CAP_REACHED
-        #cliente       404 BOOKING_CUSTOMER_NOT_FOUND (customerId ausente, desconhecido, ou autor não é equipe ativa)
-        #falha         erro de rede / 5xx — o padrão digitado é preservado
-      E-mails (M23-S28, já entregue): a cliente recebe um e-mail quando a recorrência fica ATIVA (na criação automática ou na aprovação), quando é recusada e quando o pedido expira; os gerentes recebem um alerta quando um pedido fica aguardando aprovação. Esta tela não precisa prometer nada além disso.
+    Mesma convenção dos formulários de criação (servicos 02b/02c) e dos estados inline (01c/04b): NÃO há página
+    de resultado separada — o banner aparece no topo da coluna central, o resumo do que foi montado continua
+    visível (o padrão digitado é preservado) e o painel de ações à direita (barra fixa no mobile) é trocado.
+    Um estado por desfecho de POST /recurring-booking-schedules (hash do protótipo; padrão #criada):
+      #criada      201 ACTIVE
+      #aguardando  201 PENDING_APPROVAL — HOJE uma recorrência criada pela equipe para um serviço com aprovação manual também
+                   fica pendente (a equipe aprovaria o próprio pedido); pular a aprovação é uma decisão de M23-S19
+      #conflito    409 BOOKING_RECURRING_SCHEDULE_CONFLICT (lista conflicts[{ occurrenceStart, reason: OCCUPIED|CLOSED|OUTSIDE_HOURS }], M23-S18)
+      #limite      409 BOOKING_RECURRING_SCHEDULE_CAP_REACHED
+      #cliente     404 BOOKING_CUSTOMER_NOT_FOUND (customerId ausente, desconhecido, ou autor não é equipe ativa)
+      #falha       erro de rede / 5xx — o padrão digitado é preservado
+    E-mails (M23-S28, já entregue): a cliente recebe e-mail quando a recorrência fica ATIVA (criação automática ou aprovação),
+    quando é recusada e quando o pedido expira; os gerentes recebem um alerta quando um pedido fica aguardando aprovação.
   -->
 
-  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo — UC-070 — recorrência criada pela equipe em nome de um cliente
+  <!-- Prototype banner -->
+  <div style="
+    background: #fef3c7; border-bottom: 1px solid #d97706;
+    padding: 0.375rem 1rem; font-size: 0.8125rem;
+    text-align: center; color: #92400e;
+  ">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px).
+    UC-070 — estado inline após criar a recorrência. <span id="proto-nav"></span>
   </div>
 
+  <!-- TOP BAR — back arrow replaces brand on mobile -->
   <div class="dashboard-topbar">
-    <a href="00-agenda.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      <span class="topbar-brand" style="font-weight:600;">Agenda</span>
+    <!-- Mobile: back arrow -->
+    <a href="00-agenda.html" style="
+      display: flex; align-items: center; gap: 0.375rem;
+      color: var(--ba-text); text-decoration: none; font-size: 0.9375rem; font-weight: 500;
+    ">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      <span class="topbar-brand" style="font-weight: 600;">Agenda</span>
     </a>
+
+    <!-- Desktop: page title -->
     <h1 class="topbar-page-title">Nova recorrência</h1>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
-      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">CD</a>
-      <span class="topbar-date">Hoje, 11 de agosto de 2026</span>
+
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+      <span class="status-badge badge-recurring" style="font-size: 0.75rem;">Recorrência</span>
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 16 de junho de 2026</span>
     </div>
   </div>
 
+  <!-- LAYOUT -->
   <div class="dashboard-layout">
+
+    <!-- Sidebar — desktop only (same as 00-agenda.html) -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">V</div>
-        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+        <div class="sidebar-logo">B</div>
+        <div>
+          <p class="sidebar-tenant-name">BeloAuto Demo</p>
+          <p class="sidebar-tenant-slug">@beloauto</p>
+        </div>
       </div>
-      <nav class="sidebar-nav" style="margin-top:0.5rem;">
-        <a class="sidebar-nav-item active" href="00-agenda.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <nav class="sidebar-nav" style="margin-top: 0.5rem;">
+        <a class="sidebar-nav-item active" href="../agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
           Agenda
         </a>
         <a class="sidebar-nav-item" href="../horarios/00-schedule.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
           Horários
         </a>
         <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
           Serviços
         </a>
-        <a class="sidebar-nav-item" href="../turmas/01-turmas-proximas.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
-          Turmas
-        </a>
         <a class="sidebar-nav-item" href="../fidelidade/00-customer-search.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
           Fidelidade
         </a>
       </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          Hotsite
+        </a>
+      </nav>
       <div class="sidebar-footer">
-        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">CD</div>
-        <div style="min-width:0;"><p class="sidebar-user-name">Camila Duarte</p><span class="role-badge role-badge-staff">Equipe</span></div>
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div style="min-width: 0;">
+          <p class="sidebar-user-name">Ana Pereira</p>
+          <span class="role-badge role-badge-manager">Gerente</span>
+        </div>
         <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
         </a>
       </div>
     </aside>
 
-    <main class="main-content">
+    <!-- MAIN CONTENT -->
+    <main class="main-content" style="padding-bottom: 8rem;">
       <div class="dashboard-body">
+        <div class="detail-layout">
 
-        <div class="panels" style="margin-top:0.5rem;">
+          <!-- ── LEFT: request detail ───────────────────────────── -->
+          <div class="detail-main">
 
-          <section id="criada" class="panel">
-            <div class="card notice-ok">
-              <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
-              <h1 style="font-size:1.25rem;margin:0;">Recorrência criada para Ana Costa</h1>
-              <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">Criamos as 13 reservas de 19 ago a 11 nov, e todas já aparecem na agenda. A recorrência já está na conta de Ana Costa.</p>
+            <!-- INLINE RESULT BANNERS (one per state) -->
+            <div class="banner banner-ok when when-criada">
+              <p class="t">Recorrência criada para Ana Costa</p>
+              <p class="d">Criamos as 13 reservas de 19 ago a 11 nov, e todas já aparecem na agenda. A recorrência já está na conta de Ana Costa, que recebe um e-mail de confirmação.</p>
             </div>
-            <div class="nav-buttons">
-              <a class="btn-secondary" href="09-nova-recorrencia-cliente.html">Criar outra</a>
-              <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Voltar à agenda</a>
+            <div class="banner banner-warn when when-aguardando">
+              <p class="t">Recorrência criada, aguardando aprovação</p>
+              <p class="d">Este serviço exige aprovação manual, então o pedido de Ana Costa entra em <strong>Precisa de ação</strong> na Agenda, marcado como Recorrência — uma decisão única para toda a série. O horário fica protegido até <strong>09:30</strong>.</p>
             </div>
-          </section>
+            <div class="banner banner-error when when-conflito">
+              <p class="t">Não foi possível criar esta recorrência</p>
+              <p class="d">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — nada foi criado.</p>
+              <div style="margin-top:0.625rem;">
+                <div class="conflict-row"><strong>25 de agosto · 10:00–12:00</strong> — Já reservado <span style="opacity:.6">(OCCUPIED)</span></div>
+                <div class="conflict-row"><strong>22 de setembro · 10:00–12:00</strong> — Fechado <span style="opacity:.6">(CLOSED)</span></div>
+              </div>
+            </div>
+            <div class="banner banner-error when when-limite">
+              <p class="t">Limite de reservas recorrentes atingido</p>
+              <p class="d">O limite de 50 recorrências ativas para a Sala Aurora foi atingido, então nada foi criado. Encerre uma recorrência ativa desta sala, ou escolha outro recurso para este padrão.</p>
+            </div>
+            <div class="banner banner-error when when-cliente">
+              <p class="t">Cliente não encontrado</p>
+              <p class="d">Não encontramos este cliente neste negócio, então nada foi criado.</p>
+            </div>
+            <div class="banner banner-error when when-falha">
+              <p class="t">Não foi possível criar a recorrência</p>
+              <p class="d">Nada foi criado. Verifique sua conexão e tente novamente — o padrão que você montou foi mantido.</p>
+            </div>
 
-          <section id="aguardando" class="panel">
-            <div class="card" style="border-color:#fbbf24;background:#fffbeb;">
-              <p class="step-label">Sala de reunião · toda quinta · 14:00–15:00</p>
-              <h1 style="font-size:1.25rem;margin:0;">Recorrência criada, aguardando aprovação</h1>
-              <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">Este serviço exige aprovação manual, então a recorrência de Ana Costa entra em <strong>Precisa de ação</strong> na Agenda, marcada como Recorrência — uma decisão única para toda a série. O horário fica protegido até <strong>09:30</strong>.</p>
+            <!-- Recap of what was built (preserved on every state) -->
+            <p class="detail-section-label" style="margin-top: 0;">Cliente</p>
+            <div class="card" style="display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1.25rem;">
+              <div class="list-avatar" style="width: 2.75rem; height: 2.75rem; font-size: 1rem; flex-shrink: 0; background: #0f766e;">AC</div>
+              <div style="flex:1;">
+                <p style="font-weight:600;">Ana Costa</p>
+                <p style="font-size:0.875rem;opacity:0.6;">ana@email.com · a recorrência é criada em nome dela</p>
+              </div>
             </div>
-            <div class="nav-buttons">
-              <a class="btn-secondary" href="09-nova-recorrencia-cliente.html">Criar outra</a>
-              <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Ver na agenda</a>
-            </div>
-          </section>
 
-          <section id="conflito" class="panel">
-            <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar esta recorrência</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — nada foi criado.</p>
+            <p class="detail-section-label">Recorrência</p>
+            <div class="card" style="padding: 0.25rem 1rem; margin-bottom: 1.25rem;">
+              <div class="kv"><span>Serviço</span><span>Reserva de sala</span></div>
+              <div class="kv"><span>Recurso</span><span>Sala Aurora</span></div>
+              <div class="kv"><span>Padrão</span><span>Toda terça · 10:00–12:00</span></div>
+              <div class="kv"><span>Período</span><span>19 ago → 11 nov</span></div>
+              <div class="kv"><span>Reservas</span><span>13</span></div>
             </div>
-            <div class="card" style="margin-top:1rem;padding:0 1rem;">
-              <div class="row" style="display:block;"><strong>25 de agosto · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Já reservado</span><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva. (<code>reason: OCCUPIED</code>)</p></div>
-              <div class="row" style="display:block;"><strong>22 de setembro · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Fechado</span><p class="meta">A Sala Aurora estará fechada neste dia. Mesma lista, motivo diferente. (<code>reason: CLOSED</code>)</p></div>
-            </div>
-            <div class="nav-buttons">
-              <a class="btn-primary" href="09b-nova-recorrencia-padrao.html" style="text-decoration:none;">Alterar padrão</a>
-            </div>
-          </section>
 
-          <section id="limite" class="panel">
-            <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Limite de reservas recorrentes atingido</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">O limite de 50 recorrências ativas para a Sala Aurora foi atingido, então nada foi criado.</p>
-            </div>
-            <div class="notice"><strong>O que fazer agora</strong><p class="meta">Encerre uma recorrência ativa desta sala, ou escolha outro recurso para este padrão.</p></div>
-            <div class="nav-buttons">
-              <a class="btn-primary" href="09b-nova-recorrencia-padrao.html" style="text-decoration:none;">Alterar padrão</a>
-            </div>
-          </section>
+          </div><!-- /.detail-main -->
 
-          <section id="cliente" class="panel">
-            <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Cliente não encontrado</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Não encontramos este cliente neste negócio, então nada foi criado.</p>
+          <!-- ── RIGHT: action panel (desktop only) ─────────────── -->
+          <div class="detail-aside">
+            <div class="card when when-criada when-aguardando">
+              <p style="font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); margin-bottom: 1rem; line-height: 1.5;">A recorrência foi registrada. Não há mais ações neste pedido.</p>
+              <a href="00-agenda.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Voltar à agenda</a>
+              <a href="09-nova-recorrencia-cliente.html" class="btn-secondary" style="display: block; text-align: center;">Criar outra</a>
             </div>
-            <div class="nav-buttons">
-              <a class="btn-primary" href="09-nova-recorrencia-cliente.html" style="text-decoration:none;">Escolher outro cliente</a>
+            <div class="card when when-conflito when-limite when-falha" style="padding: 1.25rem;">
+              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Ações</p>
+              <a href="09b-nova-recorrencia-padrao.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Alterar padrão</a>
+              <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
             </div>
-          </section>
-
-          <section id="falha" class="panel">
-            <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar a recorrência</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Nada foi criado. Verifique sua conexão e tente novamente — o padrão que você montou foi mantido.</p>
+            <div class="card when when-cliente" style="padding: 1.25rem;">
+              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Ações</p>
+              <a href="09-nova-recorrencia-cliente.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Escolher outro cliente</a>
+              <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
             </div>
-            <div class="nav-buttons">
-              <a class="btn-secondary" href="09b-nova-recorrencia-padrao.html">Voltar ao padrão</a>
-              <a class="btn-primary" href="09c-nova-recorrencia-resultado.html#criada" style="text-decoration:none;">Tentar novamente</a>
-            </div>
-          </section>
+          </div>
 
-        </div>
-
-        <div class="proto-only">
-          <strong>Navegar pelos desfechos (só no protótipo):</strong><br>
-          <a href="#criada">Criada</a> <a href="#aguardando">Aguardando aprovação</a> <a href="#conflito">Conflito</a>
-          <a href="#limite">Limite</a> <a href="#cliente">Cliente não encontrado</a> <a href="#falha">Falha</a>
-        </div>
-
+        </div><!-- /.detail-layout -->
       </div>
     </main>
+
+  </div><!-- /.dashboard-layout -->
+
+  <!-- MOBILE ACTION BAR — swapped per state -->
+  <div class="mobile-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--ba-secondary); padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0)); z-index: 20; box-shadow: 0 -2px 8px rgba(0,0,0,0.06);">
+    <div class="when when-criada when-aguardando">
+      <a href="00-agenda.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Voltar à agenda</a>
+      <a href="09-nova-recorrencia-cliente.html" class="btn-secondary" style="display: block; text-align: center;">Criar outra</a>
+    </div>
+    <div class="when when-conflito when-limite when-falha">
+      <a href="09b-nova-recorrencia-padrao.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Alterar padrão</a>
+      <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
+    </div>
+    <div class="when when-cliente">
+      <a href="09-nova-recorrencia-cliente.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Escolher outro cliente</a>
+      <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
+    </div>
   </div>
 
-  <nav class="bottom-nav">
-    <a class="bottom-nav-item active" href="00-agenda.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      Agenda
-    </a>
-    <a class="bottom-nav-item" href="../horarios/00-schedule.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      Horários
-    </a>
-    <a class="bottom-nav-item" href="../servicos/01-servicos-list.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      Serviços
-    </a>
-    <a class="bottom-nav-item" href="../turmas/01-turmas-proximas.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
-      Turmas
-    </a>
-    <a class="bottom-nav-item" href="../fidelidade/00-customer-search.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      Fidelidade
-    </a>
-  </nav>
+  <script>
+    var STATES = ['criada','aguardando','conflito','limite','cliente','falha'];
+    function applyState() {
+      var h = location.hash.replace('#','');
+      document.body.dataset.state = STATES.indexOf(h) >= 0 ? h : 'criada';
+    }
+    window.addEventListener('hashchange', applyState); applyState();
+    document.getElementById('proto-nav').innerHTML = STATES.map(function (x) { return '<a href="#' + x + '">' + x + '</a>'; }).join(' · ');
+  </script>
 
 </body>
 </html>
