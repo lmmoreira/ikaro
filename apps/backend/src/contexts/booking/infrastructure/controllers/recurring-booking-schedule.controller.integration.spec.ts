@@ -730,6 +730,29 @@ describe('RecurringBookingScheduleController (integration)', () => {
       expect(await scheduleCount(serviceId)).toBe(1);
     });
 
+    it('AUTO_FUNGIBLE_POOL: any free unit suffices — refused only when every pool member is busy (M23-S32)', async () => {
+      const poolA = await saveResource(ResourceType.ROOM);
+      const poolB = await saveResource(ResourceType.ROOM);
+      const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_FUNGIBLE_POOL', {
+        poolResourceIds: [poolA, poolB],
+      });
+      await seedOccupancy(poolA, fridayOccurrence(2));
+      await seedOccupancy(poolB, fridayOccurrence(2));
+
+      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
+        409,
+      );
+      expect(await scheduleCount(serviceId)).toBe(0);
+
+      // Whichever unit is left free, the term is accepted — it no longer depends on the lowest id.
+      await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId, resourceId: poolA });
+      await postFridayPattern({
+        serviceId,
+        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+      }).expect(201);
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
     it('FIXED_ASSIGNMENT with a deactivated resource is rejected as unavailable (422), not as a conflict', async () => {
       const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
         resourceType: ResourceType.STAFF,

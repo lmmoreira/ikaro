@@ -41,7 +41,7 @@ describe('resource-requirement-resolution.helpers', () => {
   });
 
   const requirement = (
-    selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL',
+    selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL' | 'NONE',
     extra: { resourcePoolIds?: string[] | null; requiredQuantity?: number } = {},
   ) => ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode, ...extra });
 
@@ -202,6 +202,163 @@ describe('resource-requirement-resolution.helpers', () => {
       await expect(
         resolve(requirement('AUTO_FUNGIBLE_POOL', { requiredQuantity: 2 }), []),
       ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
+    });
+
+    describe('AUTO_FUNGIBLE_POOL narrows to units free for the window (M23-S32, UC-062)', () => {
+      const occupy = (resource: Resource, startsAt = START, endsAt = END): void => {
+        occupancyRepo.seed(TENANT_A, `line-${resource.id}`, {
+          resourceId: resource.id,
+          startsAt,
+          endsAt,
+          resourceType: ResourceType.ROOM,
+          resourceName: resource.name,
+          legIndex: null,
+          quantityPosition: null,
+          gapMinutes: null,
+          gapSource: null,
+          selectionMode: 'AUTO_FUNGIBLE_POOL',
+          isBundleMember: false,
+        });
+      };
+      const sortedIds = (rooms: Resource[]): string[] => rooms.map((r) => r.id).sort();
+
+      let occupancyRepo: InMemoryResourceOccupancyRepository;
+      let ctx: ResolutionContext;
+
+      beforeEach(() => {
+        occupancyRepo = new InMemoryResourceOccupancyRepository();
+        ctx = { ...newContext(), occupancyRepo };
+      });
+
+      it('picks a free unit when the first one is busy', async () => {
+        const rooms = [await seedRoom(), await seedRoom()];
+        const [first, second] = sortedIds(rooms);
+        occupy(rooms.find((r) => r.id === first) as Resource);
+
+        const result = await resolve(requirement('AUTO_FUNGIBLE_POOL'), [], ctx);
+
+        expect(result.map((r) => r.id)).toEqual([second]);
+      });
+
+      it('takes the free units in resourceId order, whatever order they were loaded in', async () => {
+        const rooms = [await seedRoom(), await seedRoom(), await seedRoom()];
+
+        const result = await resolve(
+          requirement('AUTO_FUNGIBLE_POOL', { requiredQuantity: 2 }),
+          [],
+          ctx,
+        );
+
+        expect(result.map((r) => r.id)).toEqual(sortedIds(rooms).slice(0, 2));
+      });
+
+      it('skips a unit busy only inside its own trailing gap', async () => {
+        const rooms = [await seedRoom(), await seedRoom()];
+        const [first, second] = sortedIds(rooms);
+        // Busy right after the requested window ends; free against the raw window alone.
+        occupy(
+          rooms.find((r) => r.id === first) as Resource,
+          END,
+          new Date(END.getTime() + 30 * 60_000),
+        );
+
+        const result = await resolveRequirementResources(
+          requirement('AUTO_FUNGIBLE_POOL'),
+          ctx,
+          [],
+          START,
+          END,
+          () => 15,
+        );
+
+        expect(result.map((r) => r.id)).toEqual([second]);
+      });
+
+      it('falls back to the full list when every unit is busy, so assertSlotFree still reports the 409', async () => {
+        const rooms = [await seedRoom(), await seedRoom()];
+        rooms.forEach((room) => occupy(room));
+
+        const result = await resolve(requirement('AUTO_FUNGIBLE_POOL'), [], ctx);
+
+        expect(result.map((r) => r.id)).toEqual(sortedIds(rooms).slice(0, 1));
+      });
+
+      it('falls back to the full list when fewer units are free than requiredQuantity', async () => {
+        const rooms = [await seedRoom(), await seedRoom(), await seedRoom()];
+        const [busyA, busyB] = sortedIds(rooms);
+        occupy(rooms.find((r) => r.id === busyA) as Resource);
+        occupy(rooms.find((r) => r.id === busyB) as Resource);
+
+        // Resolves to the full list (not a short one that would fail as "type unavailable"), so the
+        // booking proceeds to assertSlotFree, which rejects the busy units with the 409.
+        const result = await resolve(
+          requirement('AUTO_FUNGIBLE_POOL', { requiredQuantity: 2 }),
+          [],
+          ctx,
+        );
+
+        expect(result.map((r) => r.id)).toEqual(sortedIds(rooms).slice(0, 2));
+      });
+
+      it("does not count another tenant's occupancy of the same resource id as busy", async () => {
+        const rooms = [await seedRoom(), await seedRoom()];
+        const [first] = sortedIds(rooms);
+        occupancyRepo.seed(TENANT_B, 'line-foreign', {
+          resourceId: first,
+          startsAt: START,
+          endsAt: END,
+          resourceType: ResourceType.ROOM,
+          resourceName: 'foreign',
+          legIndex: null,
+          quantityPosition: null,
+          gapMinutes: null,
+          gapSource: null,
+          selectionMode: 'AUTO_FUNGIBLE_POOL',
+          isBundleMember: false,
+        });
+
+        const result = await resolve(requirement('AUTO_FUNGIBLE_POOL'), [], ctx);
+
+        expect(result.map((r) => r.id)).toEqual([first]);
+      });
+    });
+
+    it('NONE keeps the first eligible resource without looking at occupancy', async () => {
+      const findConflicting = jest.spyOn(
+        InMemoryResourceOccupancyRepository.prototype,
+        'findConflictingResourceIds',
+      );
+      await seedRoom();
+      await seedRoom();
+
+      const result = await resolve(requirement('NONE'), []);
+
+      expect(result).toHaveLength(1);
+      expect(findConflicting).not.toHaveBeenCalled();
+      findConflicting.mockRestore();
+    });
+
+    it('AUTO_ANY with requiredQuantity 1 still prefers the free resource', async () => {
+      const busy = await seedRoom();
+      const free = await seedRoom();
+      const ctx = newContext();
+      (ctx.occupancyRepo as InMemoryResourceOccupancyRepository).seed(TENANT_A, 'line-busy', {
+        resourceId: busy.id,
+        startsAt: START,
+        endsAt: END,
+        resourceType: ResourceType.ROOM,
+        resourceName: busy.name,
+        legIndex: null,
+        quantityPosition: null,
+        gapMinutes: null,
+        gapSource: null,
+        selectionMode: 'AUTO_ANY',
+        isBundleMember: false,
+      });
+
+      const result = await resolve(requirement('AUTO_ANY'), [], ctx);
+
+      expect(result.map((r) => r.id)).toEqual([free.id]);
     });
 
     it('AUTO_ANY resolves one eligible resource', async () => {

@@ -98,30 +98,21 @@ test.describe('M23-S11a — automatic resources', () => {
         requiredQuantity: 1,
       },
     ]);
-    // The pool's write path assigns its first eligible unit, so each unit is taken through its own
-    // single-unit service: occupancy is per resource, whichever service booked it.
-    const takerIds: string[] = [];
     const slot = await findFirstSlot(page, service.serviceId);
     const guest = await newGuestPage(browser);
 
     try {
-      for (const room of [roomA, roomB]) {
-        const taker = await seedService(page, 'e2e-pool-taker');
-        takerIds.push(taker.serviceId);
-        await setResourceRequirements(page, taker.serviceId, [
-          { type: 'ROOM', selectionMode: 'AUTO_FUNGIBLE_POOL', resourcePoolIds: [room.id] },
-        ]);
-      }
-      const [takerA, takerB] = takerIds as [string, string];
-      expect(await bookAsGuest(page, { serviceIds: [takerA], scheduledAt: slot.startsAt })).toBe(
-        201,
-      );
+      // M23-S32: the pool's write path assigns a free unit, so the same service books the same
+      // slot once per unit.
+      expect(
+        await bookAsGuest(page, { serviceIds: [service.serviceId], scheduledAt: slot.startsAt }),
+      ).toBe(201);
       const afterOne = await slotsOnDate(page, service.serviceId, slot.date);
       expect(afterOne.some((s) => s.startsAt === slot.startsAt)).toBe(true);
 
-      expect(await bookAsGuest(page, { serviceIds: [takerB], scheduledAt: slot.startsAt })).toBe(
-        201,
-      );
+      expect(
+        await bookAsGuest(page, { serviceIds: [service.serviceId], scheduledAt: slot.startsAt }),
+      ).toBe(201);
       const afterBoth = await slotsOnDate(page, service.serviceId, slot.date);
       expect(afterBoth.some((s) => s.startsAt === slot.startsAt)).toBe(false);
 
@@ -144,7 +135,6 @@ test.describe('M23-S11a — automatic resources', () => {
     } finally {
       await guest.close();
       await deactivateService(page, service.serviceId);
-      for (const id of takerIds) await deactivateService(page, id);
       await deactivateResource(page, roomA.id);
       await deactivateResource(page, roomB.id);
     }

@@ -142,7 +142,7 @@ export async function assertPatternConflictFree(
     params.tenantId,
     resources.map((resource) => resource.id),
   );
-  const anyFreeResourceSuffices = requirement.selectionMode === 'AUTO_ANY';
+  const anyFreeResourceSuffices = requirement.selectionMode !== 'CUSTOMER_CHOICE';
   const hours = await findHoursRefusals(deps, params, resources, anyFreeResourceSuffices);
   const occupancy = await findOccupiedRefusals({
     occupancyRepo: deps.occupancyRepo,
@@ -212,9 +212,9 @@ function mergeConflicts(
 }
 
 // The resources whose availability decides an occurrence. FIXED_ASSIGNMENT: the caller's pick,
-// validated by the same rules a one-off booking applies. AUTO_ANY: every eligible resource, since
-// any free one satisfies the occurrence. AUTO_FUNGIBLE_POOL: only the first eligible one, because
-// resolveRequirementResources assigns that one without looking at availability.
+// validated by the same rules a one-off booking applies. AUTO_ANY and AUTO_FUNGIBLE_POOL: every
+// eligible resource, since any free one satisfies the occurrence (resolveRequirementResources
+// narrows a pool to its free units, M23-S32, exactly as it does for AUTO_ANY).
 async function resolveConsideredResources(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
@@ -243,5 +243,5 @@ async function resolveConsideredResources(
   if (eligible.length === 0) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
-  return requirement.selectionMode === 'AUTO_ANY' ? eligible : eligible.slice(0, 1);
+  return eligible;
 }

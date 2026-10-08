@@ -290,20 +290,35 @@ describe('assertPatternConflictFree', () => {
   });
 
   describe('AUTO_FUNGIBLE_POOL', () => {
-    it('rejects when the first eligible resource is busy even though another one is free', async () => {
+    it('accepts when one unit is busy but another is free, and plans the free one (M23-S32)', async () => {
       await seedResources(2);
-      const [first] = await resourceRepo.findByTenant(TENANT, {
+      const [first, second] = (
+        await resourceRepo.findByTenant(TENANT, { type: ResourceType.ROOM, isActive: true })
+      ).sort((a, b) => a.id.localeCompare(b.id));
+      occupy(first, occurrenceStart(1));
+      const lockSpy = jest.spyOn(tenantLock, 'lockResources');
+
+      const plan = await assertPatternConflictFree(
+        deps,
+        buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3),
+      );
+
+      // The busy occurrence takes the free unit; the others take the lowest id.
+      expect(plan.map((resource) => resource.id)).toEqual([first.id, second.id, first.id]);
+      expect(lockSpy).toHaveBeenCalledWith(TENANT, expect.arrayContaining([first.id, second.id]));
+    });
+
+    it('rejects an occurrence only when every unit is busy', async () => {
+      await seedResources(2);
+      const rooms = await resourceRepo.findByTenant(TENANT, {
         type: ResourceType.ROOM,
         isActive: true,
       });
-      occupy(first, occurrenceStart(1));
-      const lockSpy = jest.spyOn(tenantLock, 'lockResources');
+      rooms.forEach((room) => occupy(room, occurrenceStart(1)));
 
       await expect(
         assertPatternConflictFree(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3)),
       ).rejects.toThrow(RecurringBookingScheduleConflictError);
-
-      expect(lockSpy).toHaveBeenCalledWith(TENANT, [first.id]);
     });
 
     it('accepts when the first eligible resource is free even though another one is busy', async () => {
@@ -462,21 +477,18 @@ describe('assertPatternConflictFree', () => {
       );
     });
 
-    it('AUTO_FUNGIBLE_POOL checks only the first eligible pool member', async () => {
+    it('AUTO_FUNGIBLE_POOL considers every pool member and never one outside the pool', async () => {
       const rooms = await seedResources(3);
       const poolIds = [rooms[1].id, rooms[2].id];
       const service = buildService('AUTO_FUNGIBLE_POOL', null, { resourcePoolIds: poolIds });
-      const [firstEligible] = (
-        await resourceRepo.findByTenant(TENANT, { type: ResourceType.ROOM, isActive: true })
-      ).filter((resource) => poolIds.includes(resource.id));
-      occupy(firstEligible, occurrenceStart(1));
       const lockSpy = jest.spyOn(tenantLock, 'lockResources');
 
-      await expect(assertPatternConflictFree(deps, buildParams(service, 3))).rejects.toThrow(
-        RecurringBookingScheduleConflictError,
+      await expect(assertPatternConflictFree(deps, buildParams(service, 3))).resolves.toEqual(
+        expect.any(Array),
       );
 
-      expect(lockSpy).toHaveBeenCalledWith(TENANT, [firstEligible.id]);
+      expect(lockSpy).toHaveBeenCalledWith(TENANT, expect.arrayContaining(poolIds));
+      expect(lockSpy.mock.calls[0][1]).toHaveLength(2);
     });
   });
 
@@ -898,7 +910,7 @@ describe('assertPatternConflictFree', () => {
         ]);
       });
 
-      it('AUTO_FUNGIBLE_POOL considers only the first eligible resource', async () => {
+      it('AUTO_FUNGIBLE_POOL is refused only when every unit is closed', async () => {
         await seedResources(2);
         const [first, second] = await resourceRepo.findByTenant(TENANT, {
           type: ResourceType.ROOM,
