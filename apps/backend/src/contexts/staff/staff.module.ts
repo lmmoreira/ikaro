@@ -19,9 +19,10 @@ import { StaffEntity } from './infrastructure/entities/staff.entity';
 import { TenantProvisionedHandler } from './infrastructure/events/tenant-provisioned.handler';
 import { TypeOrmStaffRepository } from './infrastructure/repositories/typeorm-staff.repository';
 import { StaffAuditLogHandler } from './infrastructure/events/staff-audit-log.handler';
+import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([StaffEntity]), RequestModule],
+  imports: [TypeOrmModule.forFeature([StaffEntity]), RequestModule, AuditLogModule],
   controllers: [InternalStaffController, StaffController],
   providers: [
     { provide: STAFF_REPOSITORY, useClass: TypeOrmStaffRepository },

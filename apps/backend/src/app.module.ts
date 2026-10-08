@@ -25,7 +25,6 @@ import { validateEnv } from './config/env.validation';
 import { PubSubPushController } from './shared/infrastructure/event-bus/pubsub-push.controller';
 import { GoogleOidcTokenVerifier } from './shared/infrastructure/google-oidc-token-verifier.adapter';
 import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
-import { AuditLogModule } from './shared/infrastructure/audit-log/audit-log.module';
 import {
   CloudSqlConnectorShutdownHook,
   getCloudSqlConnectorExtra,
@@ -80,7 +79,6 @@ import {
     EventBusModule,
     OutboxModule,
     InboxModule,
-    AuditLogModule,
     TransactionManagerModule,
     RequestModule,
     PlatformModule,

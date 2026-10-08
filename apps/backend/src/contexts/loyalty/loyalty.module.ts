@@ -41,9 +41,11 @@ import { TypeOrmLoyaltyBalanceRepository } from './infrastructure/repositories/t
 import { TypeOrmLoyaltyEntryRepository } from './infrastructure/repositories/typeorm-loyalty-entry.repository';
 import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositories/typeorm-loyalty-redemption.repository';
 import { LoyaltyAuditLogHandler } from './infrastructure/events/loyalty-audit-log.handler';
+import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 
 @Module({
   imports: [
+    AuditLogModule,
     TypeOrmModule.forFeature([
       LoyaltyEntryEntity,
       LoyaltyBalanceEntity,

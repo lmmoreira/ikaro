@@ -2720,7 +2720,7 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 **Decisions already made (state as fact, do not re-derive):**
 1. **Consumer name stays `audit-log`.** `LogDomainEventUseCase.CONSUMER_NAME = 'audit-log'`, declared on the use case because it is also the inbox dedup key; the four handlers reference it from there (`docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers — a use case never imports a handler).
 2. **One thin handler per context, subscribing with `<Event>.name`.** No string literals (the ESLint `SUBSCRIBE_REGISTER_TRIGGER_LITERAL_SELECTOR` forbids them), no import of another context's event classes (`docs/05-BOUNDED_CONTEXTS.md` § Rule 2) and no `architecture-policy.json` entry. A single handler importing all 27 classes, or one using literals with an ESLint exemption, were both rejected as exceptions to CI-enforced rules.
-3. **The shared use case lives in `apps/backend/src/shared/application/use-cases/`**, with a one-line carve-out in `docs/REPOSITORY_STRUCTURE.md` (which says `src/shared/` never holds use cases) for this cross-cutting audit use case. A `@Global()` module exports it and lists it in `exports:`.
+3. **The shared use case lives in `apps/backend/src/shared/application/use-cases/`**, with a one-line carve-out in `docs/REPOSITORY_STRUCTURE.md` (which says `src/shared/` never holds use cases) for this cross-cutting audit use case. A plain (non-`@Global()`) `AuditLogModule` exports it, and each of the four context modules imports it — a global registered only in `AppModule` is invisible to the ~40 integration/component harnesses that compose a context module without `AppModule` (found by `/pre-pr`'s integration run, 2026-10-08).
 4. **Domain events only.** Anything extending `Command` is excluded, as are cron topics and `dead-letter`.
 5. **`audit-log` is never a business consumer.** Real consumers (`notification`, loyalty, `availability-alert-matching` and so on) are untouched.
 6. **Handler class names are unique across the codebase** (the Pub/Sub generator keys by bare class name): `BookingAuditLogHandler`, `LoyaltyAuditLogHandler`, `StaffAuditLogHandler`, `PlatformAuditLogHandler`, each in `<context>/infrastructure/events/<context>-audit-log.handler.ts`. Each `handle()` calls exactly one use case with `event.correlationId` and rethrows on failure.
@@ -2741,7 +2741,7 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 
 **Files to create/modify:**
 - `apps/backend/src/shared/application/use-cases/log-domain-event.use-case.ts` (+ spec) (new)
-- `apps/backend/src/shared/infrastructure/audit-log/audit-log.module.ts` (new, `@Global()`, exports the use case); `apps/backend/src/app.module.ts` (modify)
+- `apps/backend/src/shared/infrastructure/audit-log/audit-log.module.ts` (new, exports the use case; imported by the booking, loyalty, staff and platform context modules)
 - `apps/backend/src/contexts/{booking,loyalty,staff,platform}/infrastructure/events/{booking,loyalty,staff,platform}-audit-log.handler.ts` (+ specs) (new — four); the four context modules (modify)
 - `packages/architecture-check/src/detectors/domain-event-audit-coverage.ts` (+ spec) (new), registered the way a sibling detector is (check how `checkTransactionalSaves` is wired); `packages/architecture-check/src/index.ts` (modify)
 - the ten deleted files listed in the clean-up phase, plus their specs (delete)

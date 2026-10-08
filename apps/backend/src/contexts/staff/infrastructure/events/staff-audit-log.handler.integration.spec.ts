@@ -2,7 +2,6 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { AuditLogModule } from '../../../../shared/infrastructure/audit-log/audit-log.module';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus/event-bus.module';
 import { InboxModule } from '../../../../shared/infrastructure/inbox/inbox.module';
 import { InboxRecordEntity } from '../../../../shared/infrastructure/inbox/inbox-record.entity';
@@ -47,7 +46,6 @@ describe('StaffAuditLogHandler (integration)', () => {
         EventBusModule,
         OutboxModule,
         InboxModule,
-        AuditLogModule,
         TransactionManagerModule,
         StaffModule,
       ],

@@ -100,9 +100,11 @@ import { TypeOrmLeadFormConfigRepository } from './infrastructure/repositories/t
 import { TypeOrmLeadFormSubmissionRepository } from './infrastructure/repositories/typeorm-lead-form-submission.repository';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
 import { PlatformAuditLogHandler } from './infrastructure/events/platform-audit-log.handler';
+import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 
 @Module({
   imports: [
+    AuditLogModule,
     TypeOrmModule.forFeature([
       TenantEntity,
       HotsiteConfigEntity,
