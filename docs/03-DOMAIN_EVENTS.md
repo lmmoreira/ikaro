@@ -236,11 +236,13 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
       }
     ]
     totalPrice:       { amount: number, currency: string }
+    cancelledByScheduleEnd: boolean   // additive (M23-S28), false by default; true only for the occurrences cancelled when a recurring schedule is ended
   }
   ```
 - **Consumers:**
   - **Notification Context** → email to customer: `"Seu agendamento foi cancelado"` — booking details (date/time, services, total)
   - **Notification Context** → email to admin: `"Agendamento cancelado"` — who cancelled, reason if provided, booking summary
+  - Neither email is sent when `cancelledByScheduleEnd = true`: ending a recurring schedule sends the one `RecurringBookingScheduleEnded` email instead of one cancellation email per occurrence (M23-S28). The audit-log consumer still records every occurrence cancel.
 
 > Loyalty Context does NOT consume this event. A booking cannot reach `COMPLETED` and then be cancelled (the state machine forbids it), so no `LoyaltyEntry` rows are ever affected by a cancellation.
 
@@ -358,25 +360,25 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Trigger:** UC-070 confirms a recurring pattern on an `AUTO_CONFIRM` service, or UC-071 approves a `PENDING_APPROVAL` request on a `MANUAL_APPROVAL` service.
 - **State change:** `RecurringBookingSchedule.status → ACTIVE`; every occurrence of the term is materialized as a linked booking in the same transaction (there is no rolling generation).
 - **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds: string[], assignmentPolicy, recurrence, startsOn, endsOn }`
-- **Consumers:** audit-log only for now; the confirmation email is a separate later story. The materialized occurrence bookings raise no `BookingRequested`/`BookingApproved` of their own (M23-S05), so one schedule never produces one email per occurrence.
+- **Consumers:** audit-log; Notification Context → customer confirmation email (M23-S28: service, weekdays and time, first and last date; sent at creation and at approval alike, to the schedule's customer even when staff created it). The materialized occurrence bookings raise no `BookingRequested`/`BookingApproved` of their own (M23-S05), so one schedule never produces one email per occurrence.
 
 #### **RecurringBookingScheduleApprovalRequested**
 - **Trigger:** UC-070 confirms a recurring pattern on a `MANUAL_APPROVAL` service.
 - **State change:** `RecurringBookingSchedule` created `PENDING_APPROVAL`, `approvalHoldExpiresAt` set. No occurrences are materialized until staff approve (UC-071).
 - **Data:** `{ recurringScheduleId, customerId, serviceId, resourceIds, assignmentPolicy, recurrence, startsOn, endsOn, approvalHoldExpiresAt }`
-- **Consumers:** audit-log only for now; alerting staff (the role `BookingRequested` plays for a manual-approval appointment) is a separate later story.
+- **Consumers:** audit-log; Notification Context → email to the tenant's managers (M23-S28, the role `BookingRequested` plays for a manual-approval appointment). The customer gets no email for this event; the outcome reaches them through `Created` or `Rejected`.
 
 #### **RecurringBookingScheduleRejected**
 - **Trigger:** UC-071 (staff rejects) or its hold-expiry worker (unresolved past `approvalHoldExpiresAt`).
 - **State change:** `RecurringBookingSchedule.status → CANCELLED`, `cancellationReason = APPROVAL_REJECTED | APPROVAL_EXPIRED`.
 - **Data:** `{ recurringScheduleId, customerId, serviceId, reason }`
-- **Consumers:** audit-log only for now (M23-S05, the same as the other schedule events); the customer email for a rejected or expired request is a separate later story.
+- **Consumers:** audit-log; Notification Context → customer email (M23-S28), with different wording per `reason`: `APPROVAL_REJECTED` (staff decided no) and `APPROVAL_EXPIRED` (nobody decided in time; nothing was booked and the customer may request again).
 
 #### **RecurringBookingScheduleEnded**
-- **Trigger:** UC-070 A2 (customer ends entirely).
-- **State change:** `status → CANCELLED`; future materialized occurrences cancelled, releasing their `resource_occupancy` rows.
-- **Data:** `{ recurringScheduleId, customerId, serviceId, cancelledBookingIds: string[] }`
-- **Consumers:** Notification Context → customer email.
+- **Trigger:** UC-070 A2 (the customer, or staff on their behalf, ends the schedule entirely).
+- **State change:** `status → CANCELLED`; future materialized occurrences cancelled, releasing their `resource_occupancy` rows. Each of those occurrences raises its own `BookingCancelled` with `cancelledByScheduleEnd = true`, which sends no email.
+- **Data:** `{ recurringScheduleId, customerId, serviceId, cancelledBookingIds: string[], endedBy: 'CUSTOMER' | 'STAFF' }` (`endedBy` added by M23-S28, additive, no `eventVersion` bump)
+- **Consumers:** audit-log; Notification Context → one customer email in both cases (M23-S28), worded "you ended it" for `CUSTOMER` and "the business ended it" for `STAFF`. No staff name or booking id appears in it.
 - **Not emitted for a natural end:** when a schedule's term is over, the M23-S05 job moves it `ACTIVE → ENDED` without an event — nothing was cancelled and no consumer needs one (an event with no consumer must not ship).
 
 #### **AvailabilityAlertCreated**
