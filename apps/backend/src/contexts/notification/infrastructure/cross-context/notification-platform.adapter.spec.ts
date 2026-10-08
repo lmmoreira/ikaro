@@ -50,6 +50,8 @@ describe('NotificationPlatformAdapter', () => {
       timezone: tenantResult.settings.businessHours.timezone,
       locale: tenantResult.settings.localization.language,
       replyToEmail: 'hello@ikaro.example',
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     expect(getTenantById.execute).toHaveBeenCalledWith({ tenantId: TENANT_ID });
   });

@@ -4,7 +4,12 @@ import {
   BaseRecurringScheduleCustomerNotificationUseCase,
   RecurringScheduleCustomerNotificationUseCaseResult,
 } from '../base-recurring-schedule-customer-notification.use-case';
-import { RecurringScheduleNotificationInput } from '../recurring-schedule-notification.helpers';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
+import {
+  customerVariables,
+  RecurringScheduleNotificationContext,
+  RecurringScheduleNotificationInput,
+} from '../recurring-schedule-notification.helpers';
 
 export interface SendRecurringScheduleEndedNotificationUseCaseInput extends RecurringScheduleNotificationInput {
   endedBy: 'CUSTOMER' | 'STAFF';
@@ -24,5 +29,15 @@ export class SendRecurringScheduleEndedNotificationUseCase extends BaseRecurring
     return input.endedBy === 'STAFF'
       ? NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER
       : NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_CUSTOMER;
+  }
+
+  protected variablesFor(
+    _input: SendRecurringScheduleEndedNotificationUseCaseInput,
+    context: RecurringScheduleNotificationContext,
+  ): TemplateVariables<
+    | NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_CUSTOMER
+    | NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER
+  > {
+    return { ...customerVariables(context), tenantName: context.tenantName };
   }
 }

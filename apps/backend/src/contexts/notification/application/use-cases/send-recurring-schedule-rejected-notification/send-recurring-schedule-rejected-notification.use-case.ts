@@ -4,7 +4,12 @@ import {
   BaseRecurringScheduleCustomerNotificationUseCase,
   RecurringScheduleCustomerNotificationUseCaseResult,
 } from '../base-recurring-schedule-customer-notification.use-case';
-import { RecurringScheduleNotificationInput } from '../recurring-schedule-notification.helpers';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
+import {
+  customerVariables,
+  RecurringScheduleNotificationContext,
+  RecurringScheduleNotificationInput,
+} from '../recurring-schedule-notification.helpers';
 
 export interface SendRecurringScheduleRejectedNotificationUseCaseInput extends RecurringScheduleNotificationInput {
   // APPROVAL_REJECTED: staff decided no. APPROVAL_EXPIRED: nobody decided in time.
@@ -25,5 +30,15 @@ export class SendRecurringScheduleRejectedNotificationUseCase extends BaseRecurr
     return input.reason === 'APPROVAL_EXPIRED'
       ? NotificationTemplateKey.RECURRING_SCHEDULE_EXPIRED_CUSTOMER
       : NotificationTemplateKey.RECURRING_SCHEDULE_REJECTED_CUSTOMER;
+  }
+
+  protected variablesFor(
+    _input: SendRecurringScheduleRejectedNotificationUseCaseInput,
+    context: RecurringScheduleNotificationContext,
+  ): TemplateVariables<
+    | NotificationTemplateKey.RECURRING_SCHEDULE_REJECTED_CUSTOMER
+    | NotificationTemplateKey.RECURRING_SCHEDULE_EXPIRED_CUSTOMER
+  > {
+    return customerVariables(context);
   }
 }

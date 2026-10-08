@@ -36,7 +36,7 @@
   "BookingCancelled": {
     "customer": {
       "subject": "Your booking has been cancelled",
-      "body": "<p>Hello, {{contactName}}!</p><p>Your booking has been cancelled.</p><p><strong>Date:</strong> {{localDate}}</p><p><strong>Time:</strong> {{localTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Feel free to make a new booking on our website.</p>"
+      "body": "<p>Hello, {{contactName}}!</p><p>Your booking has been cancelled.</p>{{reasonLine}}<p><strong>Date:</strong> {{localDate}}</p><p><strong>Time:</strong> {{localTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Feel free to make a new booking on our website.</p>"
     },
     "admin": {
       "subject": "Booking cancelled",
@@ -50,7 +50,7 @@
     },
     "admin": {
       "subject": "Booking rescheduled",
-      "body": "<p>Booking rescheduled.</p><p><strong>Customer:</strong> {{contactName}}</p><p><strong>Previous date:</strong> {{previousLocalDate}} at {{previousLocalTime}}</p><p><strong>New date:</strong> {{newLocalDate}} at {{newLocalTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>"
+      "body": "<p>Booking rescheduled.</p><p><strong>Customer:</strong> {{contactName}}</p><p><strong>Previous date:</strong> {{previousLocalDate}} at {{previousLocalTime}}</p><p><strong>New date:</strong> {{newLocalDate}} at {{newLocalTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{rescheduledByLine}}</p>"
     }
   },
   "BookingReminderDue": {
@@ -68,7 +68,7 @@
   "AdminDailyScheduleReminder": {
     "admin": {
       "subject": "Today's schedule",
-      "body": "<p>Hello!</p><p>Here is today's schedule, <strong>{{localDate}}</strong>:</p><p>{{bookingsSummary}}</p>"
+      "body": "<p>Hello!</p><p>Here is today's schedule, <strong>{{localDate}}</strong>:</p>{{bookingsSummary}}"
     }
   },
   "ServicePointsEarned": {

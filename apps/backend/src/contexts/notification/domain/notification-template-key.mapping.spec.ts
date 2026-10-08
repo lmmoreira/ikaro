@@ -70,3 +70,64 @@ describe('NOTIFICATION_TEMPLATE_KEY_MAPPING <-> notifications.json key parity (T
     },
   );
 });
+
+// The variable contract (M23-S37): render() turns a placeholder nobody supplied into '', so the
+// mapping lists the variables each template uses and use cases type their variables against it.
+// This is the half of the contract that ties the list to the shipped copy.
+interface ShippedTemplate {
+  subject: string;
+  body: string;
+}
+
+function placeholdersOf(template: ShippedTemplate): string[] {
+  const found = `${template.subject} ${template.body}`.matchAll(/\{\{(\w+)\}\}/g);
+  return [...new Set([...found].map((m) => m[1] as string))].sort((a, b) => a.localeCompare(b));
+}
+
+function contractViolations(
+  listed: readonly string[],
+  template: ShippedTemplate,
+): { unlisted: string[]; unused: string[] } {
+  const used = placeholdersOf(template);
+  return {
+    unlisted: used.filter((name) => !listed.includes(name)),
+    unused: listed.filter((name) => !used.includes(name)),
+  };
+}
+
+describe('NOTIFICATION_TEMPLATE_KEY_MAPPING variable contract (M23-S37)', () => {
+  it.each(SUPPORTED_LOCALES)(
+    'every entry lists exactly the placeholders its template uses in %s',
+    (locale) => {
+      const notifications = readNotificationsFile(locale);
+      const violations: string[] = [];
+      for (const [key, mapping] of Object.entries(NOTIFICATION_TEMPLATE_KEY_MAPPING)) {
+        const template = notifications[mapping.eventName]?.[mapping.recipientType];
+        const { unlisted, unused } = contractViolations(mapping.variables, template!);
+        if (unlisted.length > 0) violations.push(`${key}: not listed -> ${unlisted.join(', ')}`);
+        if (unused.length > 0) violations.push(`${key}: listed but unused -> ${unused.join(', ')}`);
+      }
+      expect(violations).toEqual([]);
+    },
+  );
+
+  it('keeps every entry free of duplicate variable names', () => {
+    for (const mapping of Object.values(NOTIFICATION_TEMPLATE_KEY_MAPPING)) {
+      expect(new Set(mapping.variables).size).toBe(mapping.variables.length);
+    }
+  });
+
+  it('reports a placeholder the entry does not list, and a listed variable the template does not use', () => {
+    const template = { subject: 'Hi {{name}}', body: '<p>{{name}} {{orderRef}}</p>' };
+
+    expect(contractViolations(['name'], template)).toEqual({ unlisted: ['orderRef'], unused: [] });
+    expect(contractViolations(['name', 'orderRef', 'ghost'], template)).toEqual({
+      unlisted: [],
+      unused: ['ghost'],
+    });
+    expect(contractViolations(['name', 'orderRef'], template)).toEqual({
+      unlisted: [],
+      unused: [],
+    });
+  });
+});

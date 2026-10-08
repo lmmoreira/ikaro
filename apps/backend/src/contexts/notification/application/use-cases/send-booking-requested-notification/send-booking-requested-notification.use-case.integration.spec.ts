@@ -29,6 +29,8 @@ const DEFAULT_TENANT_INFO: NotificationTenantInfo = {
   timezone: 'America/Sao_Paulo',
   locale: 'pt-BR',
   replyToEmail: null,
+  dateFormat: 'DD/MM/YYYY',
+  timeFormat: '24h',
 };
 
 // Fails dispatch for a fixed set of recipients regardless of call order — deterministic proof of

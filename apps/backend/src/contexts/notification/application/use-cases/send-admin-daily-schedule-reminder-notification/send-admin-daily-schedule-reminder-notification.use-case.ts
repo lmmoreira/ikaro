@@ -30,7 +30,17 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
-import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import {
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_LOCALE,
+  DEFAULT_TIME_FORMAT,
+} from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
+import {
+  formatEmailDate,
+  formatEmailTime,
+  TenantEmailFormats,
+} from '../notification-email-format.helpers';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.ADMIN_DAILY_SCHEDULE_REMINDER;
@@ -83,21 +93,30 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
     const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
+    const formats: TenantEmailFormats = {
+      dateFormat: tenantInfo?.dateFormat ?? DEFAULT_DATE_FORMAT,
+      timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
+    };
     this.localizeTemplates(templates, this.localizationPort, locale);
     const headers = this.localizationPort.getEmailTableHeaders(TABLE_KEY, locale);
-    const bookingsHtml = this.buildBookingsHtml(input.bookingsToday, timezone, headers);
+    const variables: TemplateVariables<typeof TRIGGER> = {
+      localDate: formatEmailDate(input.localDate, formats.dateFormat),
+      bookingsSummary: this.buildBookingsHtml(input.bookingsToday, timezone, formats, headers),
+    };
 
-    const emailSent = await this.dispatchTemplatesToMany(templates, input, managerEmails, {
-      localDate: input.localDate,
-      totalBookingsToday: String(input.totalBookingsToday),
-      bookingsHtml,
-    });
+    const emailSent = await this.dispatchTemplatesToMany(
+      templates,
+      input,
+      managerEmails,
+      variables,
+    );
     return { emailSent, recipientCount: emailSent ? managerEmails.length : 0 };
   }
 
   private buildBookingsHtml(
     bookingsToday: SendAdminDailyScheduleReminderNotificationUseCaseInput['bookingsToday'],
     timezone: string,
+    formats: TenantEmailFormats,
     headers: Record<string, string>,
   ): string {
     if (bookingsToday.length === 0) {
@@ -108,7 +127,10 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
       .map((b) => {
         const startDate = new Date(b.appointmentSlot.startTime);
         const endDate = new Date(b.appointmentSlot.endTime);
-        const localTime = utcDateToLocalHHMM(startDate, timezone);
+        const localTime = formatEmailTime(
+          utcDateToLocalHHMM(startDate, timezone),
+          formats.timeFormat,
+        );
         const durationMin = Math.round((endDate.getTime() - startDate.getTime()) / 60000);
         const serviceNames = b.lines.map((l) => escapeHtml(l.serviceName)).join(', ');
         const phone = b.customerPhone ? escapeHtml(b.customerPhone) : '-';

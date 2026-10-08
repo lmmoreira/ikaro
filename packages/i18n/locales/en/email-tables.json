@@ -7,5 +7,13 @@
     "duration": "Duration",
     "notes": "Notes",
     "emptyState": "No bookings for today"
+  },
+  "managerEmailLines": {
+    "cancelledByCustomer": "Cancelled by the customer.",
+    "cancelledByBusiness": "Cancelled by the business.",
+    "reasonLabel": "Reason:",
+    "pickupAddressLabel": "Pickup address:",
+    "rescheduledByCustomer": "Rescheduled by the customer.",
+    "rescheduledByBusiness": "Rescheduled by the business."
   }
 }

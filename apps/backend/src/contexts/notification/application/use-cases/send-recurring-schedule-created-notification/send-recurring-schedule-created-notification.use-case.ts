@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import {
   BaseRecurringScheduleCustomerNotificationUseCase,
   RecurringScheduleCustomerNotificationUseCaseResult,
 } from '../base-recurring-schedule-customer-notification.use-case';
 import {
   buildScheduleSummaryVariables,
+  customerVariables,
   RecurringScheduleNotificationContext,
   RecurringScheduleNotificationInput,
   RecurringScheduleSummaryInput,
@@ -25,10 +27,14 @@ export class SendRecurringScheduleCreatedNotificationUseCase extends BaseRecurri
     return NotificationTemplateKey.RECURRING_SCHEDULE_CREATED_CUSTOMER;
   }
 
-  protected override extraVariables(
+  protected variablesFor(
     input: SendRecurringScheduleCreatedNotificationUseCaseInput,
     context: RecurringScheduleNotificationContext,
-  ): Record<string, string> {
-    return buildScheduleSummaryVariables(input, context.locale);
+  ): TemplateVariables<NotificationTemplateKey.RECURRING_SCHEDULE_CREATED_CUSTOMER> {
+    return {
+      ...customerVariables(context),
+      tenantName: context.tenantName,
+      ...buildScheduleSummaryVariables(input, context),
+    };
   }
 }

@@ -7,5 +7,13 @@
     "duration": "Duração",
     "notes": "Notas",
     "emptyState": "Nenhum agendamento para hoje"
+  },
+  "managerEmailLines": {
+    "cancelledByCustomer": "Cancelado pelo cliente.",
+    "cancelledByBusiness": "Cancelado pelo estabelecimento.",
+    "reasonLabel": "Motivo:",
+    "pickupAddressLabel": "Endereço de retirada:",
+    "rescheduledByCustomer": "Reagendado pelo cliente.",
+    "rescheduledByBusiness": "Reagendado pelo estabelecimento."
   }
 }
