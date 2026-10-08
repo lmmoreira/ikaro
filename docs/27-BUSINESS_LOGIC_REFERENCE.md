@@ -390,6 +390,7 @@ Of the slots that match, the **earliest** becomes the alert's `matching_window`.
 - Participant criteria are not matched (see above); the alert page does not send `participantCount` at all (M23-S31).
 - An alert is for **one service**: there is no basket alert, so a multi-service booking attempt cannot create one. A legged or bundled service is matched as a whole (the service-level availability read applies every requirement), and the one `preferredResourceId` is only a further filter on it — an alert cannot carry per-leg resource picks (M23-S31 sends none for such services).
 - The sweep applies the same effective window the backend enforces on booking (M23-S33), so it never notifies about a slot booking would reject.
+- **A duration is required on a customer-selected-duration service (M23-S34).** Create and update apply `BookingQuoteService`'s rule — the same one `POST /bookings` and the availability read use, with no fallback to `Service.durationMinutes` — so a `CUSTOMER_SELECTED` alert is only ever stored with a duration inside the service's min/max/increment (`422 BOOKING_DURATION_OUT_OF_RANGE` otherwise, also when an update clears it). Not covered: a service whose duration policy or min/max/increment is edited *after* an alert exists can leave that alert unmatchable; the matching logs one warning per run and skips it.
 
 ---
 

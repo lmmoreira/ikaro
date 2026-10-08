@@ -7,6 +7,7 @@ import {
 import { AvailabilityAlertCriteriaInvalidError } from '../../domain/errors/availability-alert.error';
 import { Resource } from '../../domain/resource.aggregate';
 import { Service } from '../../domain/service.aggregate';
+import { BookingQuoteService } from '../services/booking-quote.service';
 import { isInResourcePool } from './resource-pool.helpers';
 
 // The criteria fields exactly as they arrive over HTTP (instants as ISO strings, validated by the
@@ -60,6 +61,18 @@ export function assertPreferredResourceEligible(service: Service, resource: Reso
     if (eligible) return;
   }
   throw new AvailabilityAlertCriteriaInvalidError('resource-not-eligible', 'preferredResourceId');
+}
+
+// A customer-selected-duration service needs a duration inside its own min/max/increment before
+// the availability engine can serve the alert at all; a missing one is as unmatchable as an
+// off-range one. The rule is BookingQuoteService's, the same one POST /bookings applies, so it
+// throws BookingDurationOutOfRangeError (422). A FIXED-duration service passes through unchanged.
+export function assertAlertDuration(
+  quoteService: BookingQuoteService,
+  service: Service,
+  durationMinutes: number | null | undefined,
+): void {
+  quoteService.quote(service, durationMinutes ?? undefined);
 }
 
 export interface AvailabilityAlertResult {

@@ -22,7 +22,9 @@ import {
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
+import { BookingQuoteService } from '../services/booking-quote.service';
 import {
+  assertAlertDuration,
   assertPreferredResourceEligible,
   AvailabilityAlertCriteriaFields,
   AvailabilityAlertResult,
@@ -56,6 +58,7 @@ export class CreateAvailabilityAlertUseCase {
     private readonly alertRepo: IAvailabilityAlertRepository,
     @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    private readonly quoteService: BookingQuoteService,
   ) {}
 
   async execute(
@@ -100,6 +103,7 @@ export class CreateAvailabilityAlertUseCase {
     if (!service.bookingPolicy.availabilityAlertEligible) {
       throw new AvailabilityAlertIneligibleServiceError();
     }
+    assertAlertDuration(this.quoteService, service, input.durationMinutes);
     if (input.preferredResourceId) {
       const resource = await this.resourceRepo.findById(input.preferredResourceId, input.tenantId);
       assertPreferredResourceEligible(service, resource);

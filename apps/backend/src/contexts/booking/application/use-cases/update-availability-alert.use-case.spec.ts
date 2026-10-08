@@ -9,6 +9,7 @@ import { InMemoryAvailabilityAlertRepository } from '../../../../test/repositori
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
+import { Service } from '../../domain/service.aggregate';
 import {
   AvailabilityAlertCriteriaInvalidError,
   AvailabilityAlertNotEditableError,
@@ -16,6 +17,11 @@ import {
 } from '../../domain/errors/availability-alert.error';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
+import {
+  BookingDurationOutOfRangeError,
+  BookingServiceNotInTenantError,
+} from '../../domain/errors/booking-domain.error';
+import { BookingQuoteService } from '../services/booking-quote.service';
 import { UpdateAvailabilityAlertUseCase } from './update-availability-alert.use-case';
 
 const TENANT = '00000000-0000-7000-8000-000000000001';
@@ -23,6 +29,7 @@ const OTHER_TENANT = '00000000-0000-7000-8000-000000000002';
 const CUSTOMER = '00000000-0000-7000-8000-0000000000c1';
 const OTHER_CUSTOMER = '00000000-0000-7000-8000-0000000000c2';
 const DAY_MS = 86_400_000;
+const OTHER_TENANT_SERVICE = '00000000-0000-7000-8000-0000000000f2';
 
 describe('UpdateAvailabilityAlertUseCase', () => {
   let alertRepo: InMemoryAvailabilityAlertRepository;
@@ -31,12 +38,33 @@ describe('UpdateAvailabilityAlertUseCase', () => {
   let eventBus: InMemoryEventBus;
   let useCase: UpdateAvailabilityAlertUseCase;
 
+  // Every alert is bound to a seeded FIXED-duration service by default, because an update that
+  // sends a duration reads its service.
+  let defaultService: Service;
+
   const seedAlert = (
     build: (b: AvailabilityAlertBuilder) => AvailabilityAlertBuilder = (b) => b,
   ) => {
-    const alert = build(new AvailabilityAlertBuilder().withCustomerId(CUSTOMER)).build();
+    const alert = build(
+      new AvailabilityAlertBuilder().withCustomerId(CUSTOMER).withServiceId(defaultService.id),
+    ).build();
     alertRepo.seed(alert);
     return alert;
+  };
+
+  const seedVariableDurationAlert = async () => {
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT)
+      .withBookingPolicy({
+        availabilityAlertEligible: true,
+        durationPolicy: 'CUSTOMER_SELECTED',
+        durationMinMinutes: 60,
+        durationMaxMinutes: 240,
+        durationIncrementMinutes: 30,
+      })
+      .build();
+    await serviceRepo.save(service);
+    return seedAlert((b) => b.withServiceId(service.id).withDurationMinutes(90));
   };
 
   const run = (
@@ -52,7 +80,7 @@ describe('UpdateAvailabilityAlertUseCase', () => {
       ...changes,
     });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     eventBus = new InMemoryEventBus();
     alertRepo = new InMemoryAvailabilityAlertRepository(eventBus);
     serviceRepo = new InMemoryServiceRepository();
@@ -62,7 +90,10 @@ describe('UpdateAvailabilityAlertUseCase', () => {
       serviceRepo,
       resourceRepo,
       new InMemoryTransactionManager(),
+      new BookingQuoteService(),
     );
+    defaultService = new ServiceBuilder().withTenantId(TENANT).build();
+    await serviceRepo.save(defaultService);
   });
 
   it('updates the numeric criteria, saves and publishes AvailabilityAlertUpdated', async () => {
@@ -144,6 +175,52 @@ describe('UpdateAvailabilityAlertUseCase', () => {
     await expect(run(alert, { durationMinutes: 30 }, { tenantId: OTHER_TENANT })).rejects.toThrow(
       AvailabilityAlertNotFoundError,
     );
+  });
+
+  describe('duration on a customer-selected-duration service', () => {
+    it('accepts a valid duration', async () => {
+      const alert = await seedVariableDurationAlert();
+
+      const result = await run(alert, { durationMinutes: 120 });
+
+      expect(result.durationMinutes).toBe(120);
+    });
+
+    it.each([
+      ['below the minimum', 30],
+      ['above the maximum', 300],
+      ['off the increment', 75],
+      ['cleared with null', null],
+    ])('refuses a duration %s and leaves the alert untouched', async (_label, durationMinutes) => {
+      const alert = await seedVariableDurationAlert();
+
+      await expect(run(alert, { durationMinutes })).rejects.toThrow(BookingDurationOutOfRangeError);
+      expect((await alertRepo.findById(alert.id, TENANT))?.durationMinutes).toBe(90);
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('does not re-validate an update that leaves the duration alone', async () => {
+      const alert = await seedVariableDurationAlert();
+
+      const result = await run(alert, { participantCount: 2 });
+
+      expect(result).toMatchObject({ durationMinutes: 90, participantCount: 2 });
+    });
+
+    it('still accepts any duration, or none, on a FIXED-duration service', async () => {
+      const alert = seedAlert();
+
+      expect((await run(alert, { durationMinutes: 45 })).durationMinutes).toBe(45);
+      expect((await run(alert, { durationMinutes: null })).durationMinutes).toBeNull();
+    });
+
+    it("reads another tenant's service as not found before any duration check", async () => {
+      const alert = seedAlert((b) => b.withServiceId(OTHER_TENANT_SERVICE));
+
+      await expect(run(alert, { durationMinutes: 45 })).rejects.toThrow(
+        BookingServiceNotInTenantError,
+      );
+    });
   });
 
   describe('preferred resource', () => {

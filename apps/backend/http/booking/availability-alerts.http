@@ -132,6 +132,37 @@ Content-Type: application/json
 
 ###
 
+### 422 BOOKING_DURATION_OUT_OF_RANGE — customer-selected-duration service with no valid duration
+# {{variableServiceId}} is a service with durationPolicy CUSTOMER_SELECTED; omit durationMinutes or send one off its min/max/increment.
+POST {{baseUrl}}/availability-alerts
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{variableServiceId}}",
+  "criteriaType": "WEEKLY_PREFERENCE",
+  "weekdays": ["monday"],
+  "localStartTime": "09:00",
+  "localEndTime": "10:00"
+}
+
+###
+
+### 422 BOOKING_DURATION_OUT_OF_RANGE — PATCH clearing the duration of such an alert
+PATCH {{baseUrl}}/availability-alerts/{{alertId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{ "durationMinutes": null }
+
+###
+
 ### 403 — a STAFF actor cannot use alerts
 GET {{baseUrl}}/availability-alerts
 X-Tenant-ID: {{tenantId}}

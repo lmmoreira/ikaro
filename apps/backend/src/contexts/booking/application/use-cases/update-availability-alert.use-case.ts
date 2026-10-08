@@ -12,7 +12,9 @@ import {
 } from '../ports/availability-alert-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { BookingQuoteService } from '../services/booking-quote.service';
 import {
+  assertAlertDuration,
   assertPreferredResourceEligible,
   AvailabilityAlertCriteriaFields,
   AvailabilityAlertResult,
@@ -44,6 +46,7 @@ export class UpdateAvailabilityAlertUseCase {
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    private readonly quoteService: BookingQuoteService,
   ) {}
 
   async execute(
@@ -54,7 +57,7 @@ export class UpdateAvailabilityAlertUseCase {
     if (alert?.customerId !== input.customerId) {
       throw new AvailabilityAlertNotFoundError(input.alertId);
     }
-    await this.assertPreferredResource(alert, input);
+    await this.assertAgainstService(alert, input);
 
     alert.update(
       {
@@ -72,14 +75,21 @@ export class UpdateAvailabilityAlertUseCase {
     return toAvailabilityAlertResult(alert);
   }
 
-  private async assertPreferredResource(
+  // The alert's service is loaded once, and only when the request touches something it governs:
+  // a sent duration (null counts as missing for a customer-selected-duration service) or a
+  // preferred resource. An update that sends neither is not re-validated.
+  private async assertAgainstService(
     alert: AvailabilityAlert,
     input: UpdateAvailabilityAlertUseCaseInput,
   ): Promise<void> {
-    if (!input.preferredResourceId) return;
+    const checksDuration = input.durationMinutes !== undefined;
+    if (!checksDuration && !input.preferredResourceId) return;
     const service = await this.serviceRepo.findById(alert.serviceId, input.tenantId);
     if (!service) throw new BookingServiceNotInTenantError(alert.serviceId);
-    const resource = await this.resourceRepo.findById(input.preferredResourceId, input.tenantId);
-    assertPreferredResourceEligible(service, resource);
+    if (checksDuration) assertAlertDuration(this.quoteService, service, input.durationMinutes);
+    if (input.preferredResourceId) {
+      const resource = await this.resourceRepo.findById(input.preferredResourceId, input.tenantId);
+      assertPreferredResourceEligible(service, resource);
+    }
   }
 }
