@@ -503,7 +503,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 ### **Loyalty Events** (Loyalty Context)
 
 #### **ServicePointsEarned**
-- **Trigger:** Loyalty Context inserted a `LoyaltyEntry` after consuming `BookingCompleted`. One event is published **per inserted entry** — a booking with 3 lines produces 3 `ServicePointsEarned` events. **Extended by M24 Cluster 4:** also fires after consuming `ClassSessionBookingCompleted` — exactly one event per class-session completion (no "lines" concept for that family; `loyalty_entries.class_session_booking_id` is set instead of `booking_id`/`booking_line_id`, per `CHK_loyalty_entries_source_exclusive`, `docs/13-DATABASE_SCHEMA.md`).
+- **Trigger:** Loyalty Context inserted a `LoyaltyEntry` after consuming `BookingCompleted`. One event is published **per booking** — a booking with 3 lines inserts 3 entries and produces one `ServicePointsEarned` event listing all 3. **Extended by M24 Cluster 4:** also fires after consuming `ClassSessionBookingCompleted` — exactly one event per class-session completion (no "lines" concept for that family; `loyalty_entries.class_session_booking_id` is set instead of `booking_id`/`booking_line_id`, per `CHK_loyalty_entries_source_exclusive`, `docs/13-DATABASE_SCHEMA.md`).
 - **State change:** new row in `loyalty_entries` + `loyalty_balances.current_points` incremented. Both writes are in one transaction. Idempotent against replay via `shared.inbox` (early-exit) + `UNIQUE(tenant_id, booking_line_id)` (appointment) or `UNIQUE(tenant_id, class_session_booking_id)` (class, M24 Cluster 4) as the hard guard on the entry insert.
 - **Data (booking-scoped — one event per booking, not per line):**
   ```
@@ -582,7 +582,7 @@ Staff marks complete
         ▼
 BookingCompleted ───► Loyalty (if customerId != null:
                                   insert ONE LoyaltyEntry PER LINE
-                                  publish ONE ServicePointsEarned PER LINE)
+                                  publish ONE ServicePointsEarned PER BOOKING)
                                                   │
                                                   ▼
                                   Notification may batch per booking:
