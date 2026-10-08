@@ -145,6 +145,41 @@ describe('EndRecurringBookingScheduleUseCase', () => {
     ]);
   });
 
+  it('cancels every occurrence with cancelledByScheduleEnd and reports who ended the schedule', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+    const bookings = [7, 14, 21].map((days) =>
+      new BookingBuilder()
+        .withTenantId(TENANT)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(`${futureDate(days)}T13:00:00.000Z`))
+        .withRecurringScheduleId(schedule.id)
+        .build(),
+    );
+    for (const booking of bookings) await bookingRepo.save(booking);
+
+    await useCase.execute({
+      scheduleId: schedule.id,
+      tenantId: TENANT,
+      correlationId: CORRELATION_ID,
+      actorId: 'manager-1',
+      actorRole: 'MANAGER',
+    });
+
+    const cancelled = eventBus.published.filter((e) => e.eventName === 'BookingCancelled');
+    expect(cancelled).toHaveLength(3);
+    expect(
+      cancelled.every(
+        (e) => (e.data as { cancelledByScheduleEnd: boolean }).cancelledByScheduleEnd,
+      ),
+    ).toBe(true);
+    const ended = eventBus.published.filter((e) => e.eventName === 'RecurringBookingScheduleEnded');
+    expect(ended).toHaveLength(1);
+    expect((ended[0].data as { endedBy: string }).endedBy).toBe('STAFF');
+    const saved = await scheduleRepo.findById(schedule.id, TENANT);
+    expect(saved?.cancellationReason).toBe('STAFF_CANCELLED');
+  });
+
   it('throws when the schedule does not exist', async () => {
     await expect(
       useCase.execute({

@@ -57,6 +57,14 @@ import { NotificationTemplateEntity } from './infrastructure/entities/notificati
 import { NOTIFICATION_TEMPLATE_REPOSITORY } from './application/ports/notification-template-repository.port';
 import { SeedDefaultTemplatesUseCase } from './application/use-cases/seed-default-templates/seed-default-templates.use-case';
 import { TenantProvisionedNotificationHandler } from './infrastructure/events/tenant-provisioned.handler';
+import { SendRecurringScheduleCreatedNotificationUseCase } from './application/use-cases/send-recurring-schedule-created-notification/send-recurring-schedule-created-notification.use-case';
+import { SendRecurringScheduleApprovalRequestedNotificationUseCase } from './application/use-cases/send-recurring-schedule-approval-requested-notification/send-recurring-schedule-approval-requested-notification.use-case';
+import { SendRecurringScheduleRejectedNotificationUseCase } from './application/use-cases/send-recurring-schedule-rejected-notification/send-recurring-schedule-rejected-notification.use-case';
+import { SendRecurringScheduleEndedNotificationUseCase } from './application/use-cases/send-recurring-schedule-ended-notification/send-recurring-schedule-ended-notification.use-case';
+import { RecurringScheduleCreatedNotificationHandler } from './infrastructure/events/recurring-schedule-created.handler';
+import { RecurringScheduleApprovalRequestedNotificationHandler } from './infrastructure/events/recurring-schedule-approval-requested.handler';
+import { RecurringScheduleRejectedNotificationHandler } from './infrastructure/events/recurring-schedule-rejected.handler';
+import { RecurringScheduleEndedNotificationHandler } from './infrastructure/events/recurring-schedule-ended.handler';
 import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
 
 @Module({
@@ -110,6 +118,10 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendBookingReminderDueTodayNotificationUseCase,
     SendAdminDailyScheduleReminderNotificationUseCase,
     SendPointsExpiringSoonNotificationUseCase,
+    SendRecurringScheduleCreatedNotificationUseCase,
+    SendRecurringScheduleApprovalRequestedNotificationUseCase,
+    SendRecurringScheduleRejectedNotificationUseCase,
+    SendRecurringScheduleEndedNotificationUseCase,
     StaffInvitedHandler,
     BookingRequestedHandler,
     BookingApprovedHandler,
@@ -122,6 +134,10 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     BookingReminderHandler,
     AdminDailyScheduleReminderHandler,
     PointsExpiringSoonHandler,
+    RecurringScheduleCreatedNotificationHandler,
+    RecurringScheduleApprovalRequestedNotificationHandler,
+    RecurringScheduleRejectedNotificationHandler,
+    RecurringScheduleEndedNotificationHandler,
     DeadLetterHandler,
   ],
 })

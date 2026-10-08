@@ -8,6 +8,7 @@ export class RecurringBookingScheduleEndedEventBuilder {
   private readonly customerId = uuidv7();
   private readonly serviceId = uuidv7();
   private cancelledBookingIds: string[] = [];
+  private endedBy: 'CUSTOMER' | 'STAFF' = 'CUSTOMER';
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -29,12 +30,18 @@ export class RecurringBookingScheduleEndedEventBuilder {
     return this;
   }
 
+  withEndedBy(endedBy: 'CUSTOMER' | 'STAFF'): this {
+    this.endedBy = endedBy;
+    return this;
+  }
+
   build(): RecurringBookingScheduleEnded {
     return new RecurringBookingScheduleEnded(this.tenantId, this.correlationId, {
       recurringScheduleId: this.recurringScheduleId,
       customerId: this.customerId,
       serviceId: this.serviceId,
       cancelledBookingIds: this.cancelledBookingIds,
+      endedBy: this.endedBy,
     });
   }
 }

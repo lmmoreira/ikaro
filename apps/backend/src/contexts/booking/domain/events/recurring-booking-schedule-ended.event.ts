@@ -5,6 +5,8 @@ interface RecurringBookingScheduleEndedData extends Record<string, unknown> {
   customerId: string;
   serviceId: string;
   cancelledBookingIds: string[];
+  // Who ended the schedule — drives the wording of the customer email (M23-S28).
+  endedBy: 'CUSTOMER' | 'STAFF';
 }
 
 // docs/03-DOMAIN_EVENTS.md § RecurringBookingScheduleEnded (UC-070 A2) — Notification Context

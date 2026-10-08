@@ -10,4 +10,5 @@ export interface SendBookingCancelledNotificationDto extends BaseContactNotifica
     priceAtBooking: { amount: string; currency: string };
   }>;
   totalPrice: { amount: string; currency: string };
+  cancelledByScheduleEnd: boolean;
 }

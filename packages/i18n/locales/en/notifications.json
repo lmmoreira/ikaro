@@ -88,5 +88,37 @@
       "subject": "Invitation to join Ikaro",
       "body": "<p>Hello, {{staffName}}!</p><p>You have been invited to join the <strong>{{tenantName}}</strong> team on the Ikaro platform.</p><p><a href=\"{{activationLink}}\">Click here to accept the invitation and access your account.</a></p><p>If you were not expecting this invitation, please ignore this email.</p>"
     }
+  },
+  "RecurringBookingScheduleCreated": {
+    "customer": {
+      "subject": "Your recurring schedule is confirmed",
+      "body": "<p>Hello, {{contactName}}!</p><p>Your recurring schedule at <strong>{{tenantName}}</strong> is confirmed.</p><p><strong>Service:</strong> {{serviceName}}</p><p><strong>Days:</strong> {{weekdays}} at {{localTime}}</p><p><strong>Period:</strong> {{startsOn}} to {{endsOn}}</p><p>Every appointment is already on the calendar.</p>"
+    }
+  },
+  "RecurringBookingScheduleApprovalRequested": {
+    "admin": {
+      "subject": "New recurring schedule awaiting approval",
+      "body": "<p>A recurring schedule request is waiting for a decision.</p><p><strong>Customer:</strong> {{contactName}}</p><p><strong>Service:</strong> {{serviceName}}</p><p><strong>Days:</strong> {{weekdays}} at {{localTime}}</p><p><strong>Period:</strong> {{startsOn}} to {{endsOn}}</p><p><strong>Respond by:</strong> {{holdExpiresAt}}</p>"
+    }
+  },
+  "RecurringBookingScheduleRejected": {
+    "customer": {
+      "subject": "Your recurring schedule request was not accepted",
+      "body": "<p>Hello, {{contactName}}!</p><p>Unfortunately we could not confirm your recurring schedule for {{serviceName}}. Nothing was booked.</p><p>Feel free to make a new request on our website.</p>"
+    },
+    "customerExpired": {
+      "subject": "Your recurring schedule request expired",
+      "body": "<p>Hello, {{contactName}}!</p><p>Your recurring schedule request for {{serviceName}} was not answered in time and has expired. Nothing was booked.</p><p>You can request it again on our website.</p>"
+    }
+  },
+  "RecurringBookingScheduleEnded": {
+    "customer": {
+      "subject": "Your recurring schedule was ended",
+      "body": "<p>Hello, {{contactName}}!</p><p>You ended your recurring schedule for {{serviceName}}.</p><p>The future appointments were cancelled.</p>"
+    },
+    "customerEndedByStaff": {
+      "subject": "Your recurring schedule was ended by {{tenantName}}",
+      "body": "<p>Hello, {{contactName}}!</p><p>Your recurring schedule for {{serviceName}} was ended by <strong>{{tenantName}}</strong>.</p><p>The future appointments were cancelled.</p>"
+    }
   }
 }

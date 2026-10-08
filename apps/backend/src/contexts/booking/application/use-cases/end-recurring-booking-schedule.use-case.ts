@@ -33,8 +33,9 @@ export interface EndRecurringBookingScheduleUseCaseResult {
 }
 
 // UC-070 A2 (end) — cancels every future, still-active occurrence already materialized by this
-// schedule (M23-S05's generation job) and releases their resource_occupancy rows; empty before
-// that job exists, which is fine — nothing to release yet.
+// schedule and releases their resource_occupancy rows. Each occurrence is cancelled with
+// cancelledByScheduleEnd = true so it sends no cancellation email of its own: the schedule's
+// single RecurringBookingScheduleEnded email replaces them (M23-S28).
 @Injectable()
 export class EndRecurringBookingScheduleUseCase {
   constructor(
@@ -63,7 +64,12 @@ export class EndRecurringBookingScheduleUseCase {
       );
 
       for (const booking of futureBookings) {
-        booking.cancel({ type: input.actorRole, id: input.actorId }, input.correlationId);
+        booking.cancel(
+          { type: input.actorRole, id: input.actorId },
+          input.correlationId,
+          undefined,
+          true,
+        );
         await this.bookingRepo.save(booking);
         await releaseBookingOccupancy(
           this.occupancyRepo,
@@ -75,6 +81,7 @@ export class EndRecurringBookingScheduleUseCase {
       schedule.end(
         input.correlationId,
         futureBookings.map((b) => b.id),
+        ownerType,
       );
       await this.scheduleRepo.save(schedule);
       return futureBookings.map((b) => b.id);

@@ -138,7 +138,7 @@ describe('syncRecurringScheduleAssignments', () => {
 
   it('ignores a schedule that is no longer ACTIVE', async () => {
     const schedule = fixedSchedule();
-    schedule.end('corr-sync-1', []);
+    schedule.end('corr-sync-1', [], 'CUSTOMER');
 
     await sync([
       { recurringScheduleId: schedule.id, fromResourceId: source.id, toResourceId: target.id },

@@ -9,7 +9,7 @@ import {
   bookAsGuest,
   confirmBooking,
   fillGuestContact,
-  findFirstSlot,
+  firstSlotOnDate,
   MANAGER_EMAIL,
   nextButton,
   openBooking,
@@ -48,22 +48,36 @@ async function cleanup(page: Page, serviceIds: readonly string[], resourceIds: r
   for (const id of resourceIds) await deactivateResource(page, id);
 }
 
-// Picks the first bookable day's first slot and returns its start in minutes since midnight.
-async function pickSlotAndRead(guest: Page): Promise<number> {
-  await openFirstDayWithSlots(guest);
+// Picks the first bookable day's first slot and returns the day and the slot's start in minutes
+// since midnight.
+async function pickSlotAndReadOnDay(
+  guest: Page,
+): Promise<{ readonly date: string; readonly start: number }> {
+  const date = await openFirstDayWithSlots(guest);
   const slot = guest.getByTestId('time-slot').first();
   await expect(slot).toBeVisible();
   const { start } = parseRange((await slot.textContent()) ?? '');
   await slot.click();
-  return start;
+  return { date, start };
 }
 
-async function toConfirmation(guest: Page): Promise<number> {
-  const slotStart = await pickSlotAndRead(guest);
+async function pickSlotAndRead(guest: Page): Promise<number> {
+  return (await pickSlotAndReadOnDay(guest)).start;
+}
+
+// Walks to the confirmation step and returns the day the guest picked as well as the slot start.
+async function toConfirmationOnDay(
+  guest: Page,
+): Promise<{ readonly date: string; readonly slotStart: number }> {
+  const { date, start } = await pickSlotAndReadOnDay(guest);
   await nextButton(guest).click();
   await fillGuestContact(guest);
   await nextButton(guest).click();
-  return slotStart;
+  return { date, slotStart: start };
+}
+
+async function toConfirmation(guest: Page): Promise<number> {
+  return (await toConfirmationOnDay(guest)).slotStart;
 }
 
 async function pickJourneyChoices(guest: Page, journey: SeededJourney): Promise<void> {
@@ -166,8 +180,8 @@ test.describe('M23-S11b — bundle', () => {
       await guest.page.locator(`[data-resource-id="${staff.id}"]`).click();
       await guest.page.locator(`[data-resource-id="${room.id}"]`).click();
       await nextButton(guest.page).click();
-      await toConfirmation(guest.page);
-      const chosen = await findFirstSlot(page, service.serviceId, picks);
+      const { date } = await toConfirmationOnDay(guest.page);
+      const chosen = await firstSlotOnDate(page, service.serviceId, date, picks);
 
       // Another customer takes the bundle's room for the slot the guest is about to submit.
       expect(
@@ -269,8 +283,13 @@ test.describe('M23-S11b — journey', () => {
       await selectService(guest.page, journey.service.serviceId);
       await nextButton(guest.page).click();
       await pickJourneyChoices(guest.page, journey);
-      await toConfirmation(guest.page);
-      const chosen = await findFirstSlot(page, journey.service.serviceId, journeyPicks(journey));
+      const { date } = await toConfirmationOnDay(guest.page);
+      const chosen = await firstSlotOnDate(
+        page,
+        journey.service.serviceId,
+        date,
+        journeyPicks(journey),
+      );
 
       // The Sauna room is booked by someone else for the slot the guest is about to submit.
       expect(

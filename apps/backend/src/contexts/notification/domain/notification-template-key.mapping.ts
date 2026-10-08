@@ -78,4 +78,31 @@ export const NOTIFICATION_TEMPLATE_KEY_MAPPING: Record<
     eventName: 'StaffInvited',
     recipientType: 'staff',
   },
+  [NotificationTemplateKey.RECURRING_SCHEDULE_CREATED_CUSTOMER]: {
+    eventName: 'RecurringBookingScheduleCreated',
+    recipientType: 'customer',
+  },
+  [NotificationTemplateKey.RECURRING_SCHEDULE_APPROVAL_REQUESTED_ADMIN]: {
+    eventName: 'RecurringBookingScheduleApprovalRequested',
+    recipientType: 'admin',
+  },
+  [NotificationTemplateKey.RECURRING_SCHEDULE_REJECTED_CUSTOMER]: {
+    eventName: 'RecurringBookingScheduleRejected',
+    recipientType: 'customer',
+  },
+  // Same event as the rejected template, told apart by recipientType (the persisted trigger_event
+  // is the enum value, so the two never collide) — the copy for an expired request differs.
+  [NotificationTemplateKey.RECURRING_SCHEDULE_EXPIRED_CUSTOMER]: {
+    eventName: 'RecurringBookingScheduleRejected',
+    recipientType: 'customerExpired',
+  },
+  [NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_CUSTOMER]: {
+    eventName: 'RecurringBookingScheduleEnded',
+    recipientType: 'customer',
+  },
+  // Same event, told apart by recipientType: the wording differs when staff ended the schedule.
+  [NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER]: {
+    eventName: 'RecurringBookingScheduleEnded',
+    recipientType: 'customerEndedByStaff',
+  },
 };

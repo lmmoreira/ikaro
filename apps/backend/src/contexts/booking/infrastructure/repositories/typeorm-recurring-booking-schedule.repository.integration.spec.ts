@@ -72,12 +72,24 @@ describe('TypeOrmRecurringBookingScheduleRepository (integration)', () => {
     await repo.save(schedule);
     expect(schedule.version).toBe(1);
 
-    schedule.end(CORRELATION_ID, []);
+    schedule.end(CORRELATION_ID, [], 'CUSTOMER');
     await repo.save(schedule);
     expect(schedule.version).toBe(2);
 
     const reloaded = await repo.findById(schedule.id, TENANT_ID);
     expect(reloaded?.version).toBe(2);
+  });
+
+  it('persists STAFF_CANCELLED when staff end the schedule (cancellation-reason constraint)', async () => {
+    const schedule = activeSchedule();
+    await repo.save(schedule);
+
+    schedule.end(CORRELATION_ID, [], 'STAFF');
+    await repo.save(schedule);
+
+    const reloaded = await repo.findById(schedule.id, TENANT_ID);
+    expect(reloaded?.status).toBe('CANCELLED');
+    expect(reloaded?.cancellationReason).toBe('STAFF_CANCELLED');
   });
 
   it('throws BookingConcurrentModificationError when saving a stale loaded aggregate', async () => {
@@ -89,8 +101,8 @@ describe('TypeOrmRecurringBookingScheduleRepository (integration)', () => {
     expect(copyA).not.toBeNull();
     expect(copyB).not.toBeNull();
 
-    copyA!.end(CORRELATION_ID, []);
-    copyB!.end(CORRELATION_ID, []);
+    copyA!.end(CORRELATION_ID, [], 'CUSTOMER');
+    copyB!.end(CORRELATION_ID, [], 'CUSTOMER');
 
     await repo.save(copyA!);
 
@@ -168,7 +180,7 @@ describe('TypeOrmRecurringBookingScheduleRepository (integration)', () => {
 
       const loaded = (await repo.findById(schedule.id, TENANT_ID))!;
       expect(loaded.resourceAssignmentsModified).toBe(false);
-      loaded.end(CORRELATION_ID, []);
+      loaded.end(CORRELATION_ID, [], 'CUSTOMER');
       await repo.save(loaded);
 
       const reloaded = (await repo.findById(schedule.id, TENANT_ID))!;
