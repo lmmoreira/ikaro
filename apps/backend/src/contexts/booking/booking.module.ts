@@ -54,9 +54,11 @@ import { ServiceController } from './infrastructure/controllers/service.controll
 import { ServicePublicController } from './infrastructure/controllers/service-public.controller';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { bookingModuleProviders } from './booking.module-providers';
+import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 
 @Module({
   imports: [
+    AuditLogModule,
     TypeOrmModule.forFeature([
       ServiceEntity,
       ServiceResourceRequirementEntity,

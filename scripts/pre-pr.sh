@@ -159,13 +159,13 @@ while IFS= read -r f; do
   [ -z "$cls" ] && continue
   ctx_path=$(echo "$f" | grep -oE 'apps/backend/src/contexts/[^/]+' | head -1 || true)
   [ -z "$ctx_path" ] && continue
-  mod=$(find "$ctx_path" -name "*.module.ts" 2>/dev/null | head -1 || true)
-  # A module may keep its providers in sibling *.module-providers.ts files (booking does, split by
-  # concern to stay under the file-length cap) — registration in any of them counts.
-  mod_dir=$(dirname "$mod" 2>/dev/null)
-  if [ -n "$mod" ] && ! grep -q "$cls" "$mod" 2>/dev/null \
-    && ! grep -qs "$cls" "$mod_dir"/*.module-providers.ts 2>/dev/null; then
-    printf "%s not registered in %s\n" "$cls" "$mod" >> "$TMP"
+  # A context can have more than one module (platform has platform.module.ts and
+  # platform-settings.module.ts) and a module may keep its providers in sibling
+  # *.module-providers.ts files (booking does, split by concern to stay under the file-length
+  # cap) — registration in any of them counts, so search them all, not just the first module found.
+  if [ -n "$(find "$ctx_path" -name "*.module.ts" 2>/dev/null | head -1)" ] \
+    && ! grep -rqs --include='*.module.ts' --include='*.module-providers.ts' "$cls" "$ctx_path"; then
+    printf "%s not registered in any *.module.ts / *.module-providers.ts under %s\n" "$cls" "$ctx_path" >> "$TMP"
   fi
 done <<< "$ts_new_prod"
 run_check "15. All new @Injectable() classes registered in module"

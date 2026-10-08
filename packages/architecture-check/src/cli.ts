@@ -7,6 +7,7 @@ import {
   checkAggregatePropsUseSharedValueObjects,
   checkBffTypesLiveInModuleFiles,
   checkClosedEnumRegistry,
+  checkDomainEventsHaveAuditLogSubscription,
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
   checkGlobalModuleExportPairing,
@@ -161,6 +162,7 @@ const results = [
   checkEntityBuilderPrimaryKeyDefaults(backend),
   checkTestDataHarnessRegistrations(backend, testDataHarnessRegistrations),
   checkNoJestFnForRepositoryOrPortMocks(backend),
+  checkDomainEventsHaveAuditLogSubscription(backend),
   checkAggregatePropsUseSharedValueObjects(
     backend,
     aggregateValueObjectRegistry,

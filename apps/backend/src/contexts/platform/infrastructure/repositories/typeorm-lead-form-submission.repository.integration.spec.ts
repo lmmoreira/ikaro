@@ -19,9 +19,8 @@ import { LeadFormConfigEntityBuilder } from '../../../../test/builders/platform/
 import { LeadFormSubmissionBuilder } from '../../../../test/builders/platform/lead-form-submission.builder';
 import { LeadFormSubmissionEntityBuilder } from '../../../../test/builders/platform/lead-form-submission-entity.builder';
 import { LeadFormSubmission } from '../../domain/lead-form-submission.aggregate';
-import { LeadFormSubmissionReceived } from '../../domain/events/lead-form-submission-received.event';
-import { LogLeadFormSubmissionReceivedUseCase } from '../../application/use-cases/log-lead-form-submission-received.use-case';
-import { LeadFormSubmissionReceivedHandler } from '../events/lead-form-submission-received.handler';
+import { LogDomainEventUseCase } from '../../../../shared/application/use-cases/log-domain-event.use-case';
+import { PlatformAuditLogHandler } from '../events/platform-audit-log.handler';
 import { TenantEntity } from '../entities/tenant.entity';
 import { LeadFormConfigEntity } from '../entities/lead-form-config.entity';
 import { LeadFormSubmissionEntity } from '../entities/lead-form-submission.entity';
@@ -173,10 +172,10 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
   // incident). RoutingInMemoryEventBus (unlike the plain InMemoryEventBus every other test in this
   // file uses) actually dispatches to registered handlers, mirroring
   // tenant-provisioned.handler.integration.spec.ts's own real-consumer proof.
-  it('round-trips a saved submission through a real subscribed consumer (LeadFormSubmissionReceivedHandler)', async () => {
+  it('round-trips a saved submission through a real subscribed consumer (PlatformAuditLogHandler)', async () => {
     const routingBus = new RoutingInMemoryEventBus();
-    const handler = new LeadFormSubmissionReceivedHandler(
-      new LogLeadFormSubmissionReceivedUseCase(new InMemoryInboxRepository()),
+    const handler = new PlatformAuditLogHandler(
+      new LogDomainEventUseCase(new InMemoryInboxRepository()),
       routingBus,
     );
     handler.onModuleInit();
@@ -193,17 +192,16 @@ describe('TypeOrmLeadFormSubmissionRepository (integration)', () => {
     expect(logSpy).toHaveBeenCalledWith(
       'LeadFormSubmissionReceived received',
       expect.objectContaining({
-        submissionId: submission.id,
+        eventId: publishedEvent.eventId,
         tenantId: TENANT_A,
-        customerId: null,
       }),
     );
     expect(logSpy).toHaveBeenCalledTimes(1);
 
     // Redelivery (Pub/Sub is at-least-once) of the identical event must not produce a second
     // audit-log effect — proves the handler's real inbox wiring, not just the mapped-fields spy
-    // coverage in log-lead-form-submission-received.use-case.spec.ts.
-    await handler.handle(publishedEvent as LeadFormSubmissionReceived);
+    // coverage in log-domain-event.use-case.spec.ts.
+    await handler.handle(publishedEvent);
     expect(logSpy).toHaveBeenCalledTimes(1);
   });
 

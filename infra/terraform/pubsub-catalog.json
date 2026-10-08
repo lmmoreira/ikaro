@@ -38,12 +38,14 @@
   {
     "event": "BookingApproved",
     "consumers": [
+      "audit-log",
       "notification"
     ]
   },
   {
     "event": "BookingCancelled",
     "consumers": [
+      "audit-log",
       "availability-alert-matching",
       "notification"
     ]
@@ -51,18 +53,21 @@
   {
     "event": "BookingCompleted",
     "consumers": [
+      "audit-log",
       "complete-booking-loyalty-effects"
     ]
   },
   {
     "event": "BookingInfoRequested",
     "consumers": [
+      "audit-log",
       "notification"
     ]
   },
   {
     "event": "BookingInfoSubmitted",
     "consumers": [
+      "audit-log",
       "notification"
     ]
   },
@@ -75,6 +80,7 @@
   {
     "event": "BookingRejected",
     "consumers": [
+      "audit-log",
       "availability-alert-matching",
       "notification"
     ]
@@ -94,12 +100,14 @@
   {
     "event": "BookingRequested",
     "consumers": [
+      "audit-log",
       "notification"
     ]
   },
   {
     "event": "BookingRescheduled",
     "consumers": [
+      "audit-log",
       "availability-alert-matching",
       "notification"
     ]
@@ -161,24 +169,34 @@
   {
     "event": "ServicePointsEarned",
     "consumers": [
+      "audit-log",
       "notification"
+    ]
+  },
+  {
+    "event": "StaffActivated",
+    "consumers": [
+      "audit-log"
     ]
   },
   {
     "event": "StaffDeactivated",
     "consumers": [
+      "audit-log",
       "cascade-staff-deactivation"
     ]
   },
   {
     "event": "StaffInvited",
     "consumers": [
+      "audit-log",
       "notification"
     ]
   },
   {
     "event": "TenantProvisioned",
     "consumers": [
+      "audit-log",
       "booking",
       "notification-template-seed",
       "staff"

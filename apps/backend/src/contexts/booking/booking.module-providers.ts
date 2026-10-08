@@ -20,8 +20,6 @@ import { RaiseFutureCommitmentExceptionsForResourceUseCase } from './application
 import { ListFutureCommitmentExceptionsUseCase } from './application/use-cases/list-future-commitment-exceptions.use-case';
 import { ResolveFutureCommitmentExceptionsUseCase } from './application/use-cases/resolve-future-commitment-exceptions.use-case';
 import { DismissFutureCommitmentExceptionsUseCase } from './application/use-cases/dismiss-future-commitment-exceptions.use-case';
-import { LogFutureCommitmentExceptionEventUseCase } from './application/use-cases/log-future-commitment-exception-event.use-case';
-import { FutureCommitmentExceptionEventsHandler } from './infrastructure/events/future-commitment-exception-events.handler';
 import { TypeOrmFutureCommitmentExceptionRepository } from './infrastructure/repositories/typeorm-future-commitment-exception.repository';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
@@ -31,13 +29,11 @@ import { ResourceOccupancyRetentionPurgeJob } from './application/jobs/resource-
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
 import { ExpireRecurringScheduleApprovalsTriggerHandler } from './infrastructure/events/expire-recurring-schedule-approvals-trigger.handler';
 import { ExpireAvailabilityAlertsTriggerHandler } from './infrastructure/events/expire-availability-alerts-trigger.handler';
-import { AvailabilityAlertEventsHandler } from './infrastructure/events/availability-alert-events.handler';
 import { availabilityAlertMatchingProviders } from './availability-alert-matching.module-providers';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
 import { ResourceOccupancyRetentionPurgeTriggerHandler } from './infrastructure/events/resource-occupancy-retention-purge-trigger.handler';
 import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
 import { TenantProvisionedBookingHandler } from './infrastructure/events/tenant-provisioned.handler';
-import { RecurringBookingScheduleEventsHandler } from './infrastructure/events/recurring-booking-schedule-events.handler';
 import { CreateTenantLocationResourceUseCase } from './application/use-cases/create-tenant-location-resource.use-case';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
 import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
@@ -84,8 +80,6 @@ import { RescheduleBookingAsCustomerUseCase } from './application/use-cases/resc
 import { CompleteBookingUseCase } from './application/use-cases/complete-booking.use-case';
 import { MarkBookingNoShowUseCase } from './application/use-cases/mark-booking-no-show.use-case';
 import { CorrectBookingNoShowUseCase } from './application/use-cases/correct-booking-no-show.use-case';
-import { LogBookingNoShowEventUseCase } from './application/use-cases/log-booking-no-show-event.use-case';
-import { BookingNoShowEventsHandler } from './infrastructure/events/booking-no-show-events.handler';
 import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/generate-attachment-signed-url.use-case';
 import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
 import { RequestRecurringBookingScheduleUseCase } from './application/use-cases/request-recurring-booking-schedule.use-case';
@@ -93,12 +87,10 @@ import { EndRecurringBookingScheduleUseCase } from './application/use-cases/end-
 import { ApproveRecurringBookingScheduleUseCase } from './application/use-cases/approve-recurring-booking-schedule.use-case';
 import { RejectRecurringBookingScheduleUseCase } from './application/use-cases/reject-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from './application/use-cases/list-recurring-booking-schedules.use-case';
-import { LogRecurringBookingScheduleEventUseCase } from './application/use-cases/log-recurring-booking-schedule-event.use-case';
 import { CreateAvailabilityAlertUseCase } from './application/use-cases/create-availability-alert.use-case';
 import { ListAvailabilityAlertsUseCase } from './application/use-cases/list-availability-alerts.use-case';
 import { UpdateAvailabilityAlertUseCase } from './application/use-cases/update-availability-alert.use-case';
 import { CancelAvailabilityAlertUseCase } from './application/use-cases/cancel-availability-alert.use-case';
-import { LogAvailabilityAlertEventUseCase } from './application/use-cases/log-availability-alert-event.use-case';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
 import { BookingQuoteService } from './application/services/booking-quote.service';
 import { BookingIntakeValidationService } from './application/services/booking-intake-validation.service';
@@ -121,6 +113,7 @@ import { TypeOrmBookingStatusTransitionRepository } from './infrastructure/repos
 import { TypeOrmRecurringBookingScheduleRepository } from './infrastructure/repositories/typeorm-recurring-booking-schedule.repository';
 import { TypeOrmAvailabilityAlertRepository } from './infrastructure/repositories/typeorm-availability-alert.repository';
 import { AvailabilityService } from './domain/services/availability.service';
+import { BookingAuditLogHandler } from './infrastructure/events/booking-audit-log.handler';
 
 // Split out of booking.module.ts to stay under docs/CODE_STANDARDS.md's file-length limit — a
 // plain data array, no logic, so the split carries no behavioral risk (mirrors the *.types.ts
@@ -209,8 +202,6 @@ export const bookingModuleProviders: Provider[] = [
   CompleteBookingUseCase,
   MarkBookingNoShowUseCase,
   CorrectBookingNoShowUseCase,
-  LogBookingNoShowEventUseCase,
-  BookingNoShowEventsHandler,
   GenerateAttachmentSignedUrlUseCase,
   CreateResourceUseCase,
   GetResourceByIdUseCase,
@@ -228,19 +219,14 @@ export const bookingModuleProviders: Provider[] = [
   ApproveRecurringBookingScheduleUseCase,
   RejectRecurringBookingScheduleUseCase,
   ListRecurringBookingSchedulesUseCase,
-  LogRecurringBookingScheduleEventUseCase,
-  RecurringBookingScheduleEventsHandler,
   CreateAvailabilityAlertUseCase,
   ListAvailabilityAlertsUseCase,
   UpdateAvailabilityAlertUseCase,
   CancelAvailabilityAlertUseCase,
-  LogAvailabilityAlertEventUseCase,
-  AvailabilityAlertEventsHandler,
   ...availabilityAlertMatchingProviders,
   RaiseFutureCommitmentExceptionsForResourceUseCase,
   ListFutureCommitmentExceptionsUseCase,
   ResolveFutureCommitmentExceptionsUseCase,
   DismissFutureCommitmentExceptionsUseCase,
-  LogFutureCommitmentExceptionEventUseCase,
-  FutureCommitmentExceptionEventsHandler,
+  BookingAuditLogHandler,
 ];
