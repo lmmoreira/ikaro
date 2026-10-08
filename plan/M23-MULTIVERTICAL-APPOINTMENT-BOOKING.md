@@ -47,7 +47,7 @@
 | 4 | M23-S35 | Apply the booking window to a recurring schedule's first occurrence and never create a past occurrence — new schedules and pattern-changing renewals checked, pure renewals exempt via `renewsScheduleId` (UC-070, UC-071); backend-only |
 | 4 | M23-S36 | One shared `LogDomainEventUseCase` and one thin `audit-log` handler per context replace every log-only consumer and cover every domain event (13 new subscriptions, a new `StaffActivated` topic, a coverage detector, clean-up of the replaced code); backend-only, lands before S28 |
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
-| 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
+| 5 | M23-S13 | Staff Agenda extension — recurrence requests in the "Precisa de ação" queue, "Filtrar agenda" balloon, approval detail screen (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
 | 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
 | 5 | M23-S37 | Make every shipped notification email correct — a blank daily schedule, nameless reminders, a customer link into the staff dashboard, unescaped user text, unformatted dates, missing who/why/pickup lines — and a guard that renders the real copy; backend-only |
@@ -1223,31 +1223,39 @@ Add "Meus agendamentos recorrentes" (list/skip/reschedule-occurrence/end a `Recu
 
 ---
 
-### M23-S13 — Staff Agenda extension: recurring-schedule approval queue
+### M23-S13 — Staff Agenda extension: recurrence requests in the "Precisa de ação" queue, "Filtrar agenda" balloon and approval detail screen
 
 **Agent:** `frontend-ts`
-**Complexity:** S
+**Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules (approve/reject)
 **Dependencies:** M23-S05 (BFF approve/reject endpoints)
-**Pattern:** plain composition — extends the existing Agenda queue (same surface pattern as the manual-approval-appointment queue); no new pattern.
-**Prototype references:** `plan/journey/staff/agenda.md` (M23 Cluster 3 extension section) + `plan/journey/staff/prototypes/agenda/08-recurring-schedule-approval.html`, `dev-notes.md`
+**Pattern:** plain composition — extends the existing `BookingQueuePage` queue; the filter balloon reuses the shape of Horários' `ScheduleStatusFilterMenu` / `ResourceFilterMenu` (prefer extracting a shared floating-filter shell over a third copy); no new named pattern.
+**Prototype references:** `plan/journey/staff/agenda.md` (M23 Cluster 3 extension section) + `plan/journey/staff/prototypes/agenda/00-agenda.html` (recurrence card + "Filtrar agenda" balloon), `08-recurring-schedule-approval.html` (detail), `08b-recurring-approval-result.html` (outcomes), `dev-notes.md`. *Revised 2026-10-08: the prototypes were redone so the requests live in the existing "Precisa de ação" block instead of a separate tab.*
 
 **Description:**
-Add a "Solicitações recorrentes" tab/filter to the existing Agenda queue surfacing `PENDING_APPROVAL` recurring schedules, with approve/reject actions, per the relocated prototype. Fetches pending requests with `GET /recurring-booking-schedules?status=PENDING_APPROVAL` (TD45 Story 1) rather than filtering client-side, and pages through `pagination.hasMore`.
+Surface `PENDING_APPROVAL` recurring schedules inside the Agenda's existing **"Precisa de ação"** block — the hot list staff see first — and let staff approve or reject them. Decided 2026-10-08 (replaces the earlier "separate tab" idea): a recurrence request needs a staff decision now, exactly like a pending booking, so it belongs in the same list.
+
+- **Card.** A recurrence card sorts with the bookings by urgency (its 30-minute approval hold usually puts it first). It differs from a booking card by a teal **"Recorrência"** badge and left border, the pattern as its title (weekday, time, period, number of reservations), a "Decidir até HH:mm" line, and one **"Ver pedido"** button. There is **no quick "Aprovar"** on the card: one decision creates every occurrence of the term, so it always goes through the detail screen.
+- **Filter balloon "Filtrar agenda".** A floating balloon, same trigger + popover shape as Horários' filters, with *Precisa de ação* → Agendamentos, Recorrências and *Confirmados* → Hoje, Próximos dias. Default all visible; "Padrão" resets; the trigger shows how many options are hidden; hiding everything shows an empty state with "Limpar filtro"; the block header count follows the filter ("4 agendamentos · 1 recorrência").
+- **Detail screen.** `/dashboard/bookings/recurring/:scheduleId`, on the shared detail pattern (details centred, action panel on the right, bottom action bar on mobile). Approve and reject each open a confirmation sheet; reject has **no reason field** (the endpoint takes no body). Outcomes (`08b`): approved, rejected, `409 …CONFLICT` with the dates list, `409 …NOT_PENDING_APPROVAL`, `422 BOOKING_CUSTOMER_PHONE_NOT_SET`, network/5xx.
+- **Data.** Pending requests come from `GET /recurring-booking-schedules?status=PENDING_APPROVAL` (TD45 Story 1), not filtered client-side, paged through `pagination.hasMore`; bookings come from `GET /bookings`. How the two lists are merged and sorted, whether the filter is remembered between visits, and the week-strip fallback when "Hoje"/"Próximos dias" are hidden are locked at `/story-discovery`.
 
 **Files to create/modify:**
-- `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` (+ spec) (new)
-- `apps/web/features/booking/components/dashboard/agenda/AgendaPage.tsx` (modify — new tab/filter; verify the exact current component name at implementation time)
+- `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (+ spec) (modify — recurrence cards in "Precisa de ação", the filter state; the Agenda page's real folder is `dashboard/bookings/`, there is no `agenda/` folder)
+- `apps/web/features/booking/components/dashboard/bookings/RecurringScheduleCard.tsx`, `RecurringScheduleApprovalDetail.tsx`, `AgendaFilterMenu.tsx` (+ specs) (new)
+- `apps/web/app/dashboard/bookings/recurring/[id]/page.tsx` (new — thin route)
 - `apps/web/features/booking/api/recurring-booking-schedules.ts` (modify — approve/reject hooks)
-- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — Agenda's existing namespace gains the new tab copy)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — Agenda's existing namespace gains the card, filter and detail copy)
 
 **Acceptance criteria — product:**
-- [ ] Staff sees pending recurring-schedule requests in the Agenda queue and can approve/reject each.
-- [ ] When approval is refused because the schedule can no longer be honored in full (M23-S05 decision A: `409 BOOKING_RECURRING_SCHEDULE_CONFLICT` with `conflicts`), staff sees the affected dates with their reasons, the request stays in the queue as pending, and rejecting it remains available. **Discovery of this story must check whether `08-recurring-schedule-approval.html` already draws this state; if it does not, the prototype and `plan/journey/staff/agenda.md` get a new screen first (CLAUDE.md §15).** The same screen handles `409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` (already resolved or expired: the row disappears with a short message).
+- [ ] Staff sees pending recurring-schedule requests in the Agenda's "Precisa de ação" block, visibly marked as recurrences, and can approve/reject each from its detail screen (no quick approve on the card).
+- [ ] The "Filtrar agenda" balloon shows/hides Agendamentos, Recorrências, Hoje and Próximos dias; "Padrão" resets; hiding everything shows the empty state.
+- [ ] When approval is refused because the schedule can no longer be honored in full (M23-S05 decision A: `409 BOOKING_RECURRING_SCHEDULE_CONFLICT` with `conflicts`), staff sees the affected dates with their reasons, the request stays in the queue as pending, and rejecting it remains available. This state is drawn in `08b-recurring-approval-result.html#conflito` (added 2026-10-08). The same screen handles `409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` (already resolved or expired: the row disappears with a short message).
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] Approval queue renders pending requests and submits the correct action
+  - [ ] The queue renders recurrence cards with the badge and no quick approve; the filter balloon shows/hides each block and updates the count
+  - [ ] The detail screen submits the correct approve/reject action
   - [ ] A `409` conflicts response renders the date list and leaves the row pending; a `409` not-pending response removes the row
 - Integration: n/a
 - Tenant isolation: n/a — client-side
@@ -1503,7 +1511,7 @@ Make creating a recurring schedule aware of the same rule availability uses, so 
 **Agent:** frontend-ts
 **Complexity:** M
 **Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md, docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
-**Dependencies:** M23-S17 (the pattern rules, service filter, request builder and outcome mapping this story reuses), M23-S13 (the Agenda's recurring-requests tab, and the recurring fetcher module), M23-S05 (approval and materialization)
+**Dependencies:** M23-S17 (the pattern rules, service filter, request builder and outcome mapping this story reuses), M23-S13 (the Agenda's recurrence cards in "Precisa de ação", and the recurring fetcher module), M23-S05 (approval and materialization)
 **Pattern:** plain composition — reuses M23-S17's pure logic (service filter, request-body builder, outcome mapper, validation rules) and adds only a customer step and the dashboard shell; no new named pattern.
 
 **Discovered:** 2026-09-29, while closing the gaps around M23-S17. UC-070 allows staff to create a recurring schedule on a customer's behalf, and `POST /recurring-booking-schedules` already accepts it (`@Roles('CUSTOMER', 'MANAGER', 'STAFF')`, body `customerId`), but no story and no prototype builds a staff-facing UI for it, and the staff dashboard has no create-on-behalf flow of any kind (`apps/web/app/dashboard/bookings/` holds only the queue and the detail page).
@@ -1520,7 +1528,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
    | Outcome | Panel (`09c`) |
    |---|---|
    | `201` `ACTIVE` | `#criada` |
-   | `201` `PENDING_APPROVAL` | `#aguardando` — links to M23-S13's recurring-requests tab |
+   | `201` `PENDING_APPROVAL` | `#aguardando` — links to the Agenda, where the request is a card in "Precisa de ação" (M23-S13) |
    | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `#conflito` |
    | `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `#limite` |
    | `404` `BOOKING_CUSTOMER_NOT_FOUND` | `#cliente` — back to the customer step |
@@ -1531,7 +1539,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
 
 **Decisions left for this story's `/story-discovery`:**
 - **A. Approval on a staff-created schedule (a business rule).** Today `createdByStaffId` is only stored: the status still comes from the service's approval policy, so a staff-created schedule for a manual-approval service lands in `PENDING_APPROVAL` and staff would approve their own request. `09c #aguardando` draws that behavior. If staff creation should skip approval, this story gains a small backend change (the request use case and aggregate, plus `docs/02` and `docs/04`); if not, no backend work.
-- **B. Customer notification.** Nothing notifies a customer when a recurring schedule is created or decided — the backend event handler writes an audit log only, and no M23 story lists the notification work. A schedule created for a customer is therefore silent to them. Decide whether that is acceptable, or whether a notification is added here or in its own story (`docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type).
+- **B. Customer notification.** *(Updated 2026-10-08.)* M23-S28 (✅ Done) now e-mails the customer when a schedule becomes `ACTIVE` (including a staff-created one), when it is rejected or expires, and when it ends, and alerts managers about a waiting request. So a staff-created schedule is no longer silent; the only decision left here is whether `09b`/`09c` should tell staff "a cliente receberá um e-mail".
 - **C. Entry point and route.** Default drawn: a "+ Nova recorrência" button in the Agenda header, route `/dashboard/bookings/recurring/new` (a static segment next to `[id]`). M23-S13 puts recurring requests in a tab inside the Agenda page, so there is no queue route of its own; alternatives are a button inside that tab or an entry under a customer. A new dashboard route must be registered wherever its siblings are: the Topbar title resolver `apps/web/shells/dashboard/model/topbar-route.ts`, `BottomNav.tsx`'s hide-on-drilldown matcher, and — only for a brand-new section — `Sidebar.tsx` and the `MANAGER_ONLY_ROUTES` list in `apps/web/proxy.ts`. Two traps, both verified in code: `matchBookingDetailRoute()` (`shells/dashboard/model/booking-route.ts`, used by the Topbar and by `BottomNav`) reads `/dashboard/bookings/<one segment>` as a booking id, so the route must keep two segments after `/dashboard/bookings/` (as `recurring/new` does) — a single-segment route such as `/dashboard/bookings/recurring` would be treated as booking `recurring`; and `PAGE_TITLE_KEYS` matches by prefix in order, so a title entry for the new route has to come before the `/dashboard/bookings` entry or the page shows the generic Bookings title.
 - **D. Where the shared pure logic lives.** M23-S17 places its components in `features/customer/components/my-account/`; the shared logic (decision 4) should live once, in the owning domain slice (`apps/web/features/booking/model/`, per `CLAUDE.md` §11) and be imported by both stories. Confirm at discovery, and move it there if S17 shipped it elsewhere.
 - **E. Conflict list.** `#conflito` renders the `409` occurrence list that M23-S18 owns (`{ occurrenceStart, reason }`, reasons `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`), falling back to the translated generic message when the body has none; no backend work here.
@@ -1574,7 +1582,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
   - [ ] Playwright, route `/dashboard/bookings`: the "+ Nova recorrência" button opens the customer step
   - [ ] Playwright, route `/dashboard/bookings/recurring/new`: staff finds a seeded customer, creates a recurring schedule for a real seeded auto-confirm service, and sees the created state; the same customer then sees it in their own list
   - [ ] Playwright, same route: a pattern that collides with seeded occupancy shows the conflict state with nothing created, and "Alterar padrão" returns to the pattern with everything preserved
-  - [ ] Playwright, same route: a manual-approval service shows the waiting-for-approval state, and its link opens M23-S13's recurring-requests tab with the request in it
+  - [ ] Playwright, same route: a manual-approval service shows the waiting-for-approval state, and its link opens the Agenda, where the request is a recurrence card in "Precisa de ação" (M23-S13)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

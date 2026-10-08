@@ -400,13 +400,20 @@ export interface CompleteBookingResponse {
 
 > Everything above this line is shipped. Everything below is new, unimplemented scope. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
 
-**New prototype screen:** `08-recurring-schedule-approval.html` (relocated from `staff-07-recurring-schedule-approval.html`) — mirrors `01-booking-detail.html`'s approve/reject shape, scoped to the whole standing schedule request rather than one booking.
+**Prototype screens (revised 2026-10-08):**
+- `00-agenda.html` (extended) — the recurrence-request card in "Precisa de ação" and the floating **"Filtrar agenda"** balloon. Card: teal `Recorrência` badge, teal left border, pattern as title, "Decidir até HH:mm", one **"Ver pedido"** button (no quick approve — one decision creates the whole term). Balloon: checkboxes grouped *Precisa de ação* (Agendamentos, Recorrências) and *Confirmados* (Hoje, Próximos dias); default all on; "Padrão" resets; a count badge on the trigger shows how many are hidden; empty state "Limpar filtro". The header count is computed from what is visible.
+- `08-recurring-schedule-approval.html` — rebuilt on `01-booking-detail.html`'s `detail-layout` (details centred, action panel right on desktop, fixed action bar on mobile, bottom nav hidden). Approve and reject each open a confirmation sheet. Reject has **no reason field** — `POST …/reject` takes no body.
+- `08b-recurring-approval-result.html` — one panel per outcome (`#aprovada`, `#recusada`, `#conflito`, `#expirada`, `#telefone`, `#falha`); in production these are inline states on the detail page, like `02`/`01c`/`03b`/`04b`/`05c`.
+
+**Synced component:** the balloon reuses the shape of `ScheduleStatusFilterMenu.tsx` / `ResourceFilterMenu.tsx` (`apps/web/features/booking/components/dashboard/schedule/`). Prefer extracting a shared floating-filter shell over a third copy.
+
+**Error → screen map (`POST /recurring-booking-schedules/:id/approve|reject`):** `409 BOOKING_RECURRING_SCHEDULE_CONFLICT` (approve) → `#conflito`, with the same `conflicts[{ occurrenceStart, reason }]` list creation returns; `409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` → `#expirada`; `422 BOOKING_CUSTOMER_PHONE_NOT_SET` (approve) → `#telefone`; network/5xx → `#falha`.
 
 **File map (❓ none exist yet):**
 
 | File | Status |
 |---|---|
-| `apps/web/features/booking/components/dashboard/agenda/RecurringScheduleApprovalQueue.tsx` | ❓ Gap — M23-S13 |
+| `apps/web/features/booking/components/dashboard/bookings/` — recurrence card in `BookingQueuePage.tsx`, a `RecurringScheduleCard`, a `RecurringScheduleApprovalDetail` page, the "Filtrar agenda" balloon, and `apps/web/app/dashboard/bookings/recurring/[id]/page.tsx` | ❓ Gap — M23-S13 (the real folder is `dashboard/bookings/`; the plan's old `agenda/` folder does not exist) |
 | `03-booking-detail-approved.html`'s no-show action (+ `03c`–`03g`) | ❓ Gap — extend existing `BookingDetailPage` / `BookingActionPanel`, no new route. Prototype screens added 2026-09-30 (see "UC-074 — Não comparecimento" below). **Owner: M23-S27, not M23-S09** (S09 ships the backend/BFF and the minimal `NO_SHOW` status display only) |
 | `apps/web/app/dashboard/bookings/recurring/new/page.tsx` | ❓ Gap — M23-S19 (route proposed; see the route question below) |
 | `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleCustomerStep.tsx`, `NewRecurringScheduleForStaff.tsx`, `NewRecurringScheduleForStaffResult.tsx` | ❓ Gap — M23-S19 (the Agenda page's real folder is `dashboard/bookings/`, next to `BookingQueuePage.tsx`; `M23-S13`'s plan cites an `agenda/` folder that does not exist) |
@@ -423,7 +430,7 @@ POST /bookings/:id/no-show/correct                             -- UC-074 A3 (MAN
 
 **Open questions / gaps:**
 - [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are M23-S27), `M23-S19` (staff creating on a customer's behalf) — each still begins with `/story-discovery`.
-- [ ] Whether the recurring-schedule approval queue is a separate list or folds into `00-agenda.html`'s existing queue is a UI decision for `M23-S13` (its plan says a tab inside the Agenda page).
+- [x] **Queue placement — decided 2026-10-08:** recurrence requests fold into "Precisa de ação" (badge + filter balloon), not a tab. Open for `M23-S13`'s discovery: filter persistence, how the two endpoints are merged and paged, and the week-strip fallback — see `../../agenda.md`.
 
 ### Staff creating a recurring schedule on a customer's behalf — `09`, `09b`, `09c` (M23-S19)
 

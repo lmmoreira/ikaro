@@ -98,7 +98,7 @@ flowchart TD
 
 - [x] **Success state UX** — **Resolved.** The admin stays on the detail page after approval; production renders the inline success banner in place (no navigation). The prototype shows `02-approve-success.html` as a separate page only for review clarity — see its `STATE`/`PROTOTYPE` HTML comment, which states "same page, no navigation" explicitly. The aside panel's only action is "Voltar à agenda", a manual back-link, not an auto-redirect.
 - [x] **Reject/info success** — **Resolved.** Same pattern as approval: after REJECTED or INFO_REQUESTED, the admin stays on the detail page with an inline banner (`01c-reject-success.html`, `01d-info-success.html`) and a manual "Voltar à agenda" link — no auto-navigate. The same pattern is also used for cancel (`03b-cancel-success.html`), complete (`04b-complete-success.html`), and reschedule (`05c-reschedule-success.html`), confirming this is the system-wide convention for every booking-lifecycle action, not just approve.
-- [x] **Queue scope** — **Resolved 2026-06-16.** Grouped by urgency, not by date: "Precisa de ação" (ALL PENDING + INFO_REQUESTED, any date, sorted by `scheduledAt`) → "Hoje" (today's APPROVED, actionable) → "Próximos dias" (future APPROVED, read-only glance, no quick actions). The previous date-first grouping split same-kind triage work across day sections (a PENDING booking for tomorrow was separated from today's PENDING items). Decorative filter tabs (Pendentes/Info solicitada/Confirmados/Todos) were removed — the sections themselves are the filter now.
+- [x] **Queue scope** — **Resolved 2026-06-16; the filter sentence below was superseded 2026-10-08 by M23-S13 (see the M23 section).** Grouped by urgency, not by date: "Precisa de ação" (ALL PENDING + INFO_REQUESTED, any date, sorted by `scheduledAt`) → "Hoje" (today's APPROVED, actionable) → "Próximos dias" (future APPROVED, read-only glance, no quick actions). The previous date-first grouping split same-kind triage work across day sections (a PENDING booking for tomorrow was separated from today's PENDING items). Decorative filter tabs (Pendentes/Info solicitada/Confirmados/Todos) were removed — the sections themselves were the filter. *(2026-10-08: once recurrence requests join "Precisa de ação" the sections can no longer tell the two kinds apart, so M23-S13 adds one real, floating "Filtrar agenda" balloon — not tabs — that shows or hides the four blocks.)*
 - [ ] **Queue real-time updates** — polling interval or WebSocket? Two staff members might be viewing the same booking simultaneously.
 - [ ] **Slot conflict suggestion count** — prototype shows 3 adjacent free slots. Is 3 the right number? What if all remaining slots in the day are taken?
 - [ ] **Notification on approve** — `BookingApproved` event triggers email to customer. Confirm the "email enviado" note in the success banner is accurate for the MVP notification flow.
@@ -117,7 +117,7 @@ Folder: `staff/prototypes/agenda/`
 | File | Screen | UC | Story | Status |
 |---|---|---|---|---|
 | `index.html` | Navigation hub + validation checklist | — | — | ✅ Criado |
-| `00-agenda.html` | Booking queue (today's PENDING + INFO_REQUESTED) | — | M125-S03 | ✅ Criado |
+| `00-agenda.html` | Booking queue — "Precisa de ação" (PENDING + INFO_REQUESTED, any date) → "Hoje" → "Próximos dias". **M23-S13 extends it:** recurrence-request cards in "Precisa de ação" + the floating "Filtrar agenda" balloon + "+ Nova recorrência" | UC-071, UC-070 | M125-S03 · M23-S13 · M23-S19 | ✅ Criado (base) · ❓ Gap (M23 extension) |
 | `01-booking-detail.html` | Booking detail + inline Reject/Info bottom sheets | UC-003, UC-004, UC-005 | M125-S05 | ✅ Criado |
 | `01b-slot-conflict.html` | Slot conflict error + adjacent slot picker | UC-003 Alt A1 | M125-S05 | ✅ Criado |
 | `01c-reject-success.html` | Reject success inline state (actionState = 'rejected') | UC-004 | M125-S05 | ✅ Criado |
@@ -131,7 +131,8 @@ Folder: `staff/prototypes/agenda/`
 | `05-reschedule.html` | Reschedule flow | UC-008 Alt A1 | — | ✅ Criado |
 | `05b-reschedule-conflict.html` | Reschedule Alt A2 — new slot became unavailable on confirm | UC-008 Alt A2 | — | ✅ Criado |
 | `05c-reschedule-success.html` | Reschedule confirmed inline state | UC-008 Alt A1 | — | ✅ Criado |
-| `08-recurring-schedule-approval.html` | Approve/reject a `RecurringBookingSchedule` request | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
+| `08-recurring-schedule-approval.html` | Detail of a recurring-schedule request — details centred, action panel on the right (desktop) / bottom action bar (mobile), approve and reject confirmation sheets. Same shell as `01-booking-detail.html` | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
+| `08b-recurring-approval-result.html` | Outcomes: approved, rejected, 409 conflict list, 409 already decided/expired, 422 customer has no phone, network/5xx | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
 | `09-nova-recorrencia-cliente.html` | Nova recorrência em nome de um cliente — escolher o cliente (busca, recentes, sem resultado, erro de busca) | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recurso, dias, horário, período) para o cliente escolhido | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09c-nova-recorrencia-resultado.html` | Desfechos: criada, aguardando aprovação, conflito, limite, falha, cliente não encontrado | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
@@ -146,9 +147,32 @@ Folder: `staff/prototypes/agenda/`
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
 
-> Promoted from `docs/discovery/multivertical-booking/`. UC-071's approval queue mirrors this journey's existing manual-approval-appointment queue shape. UC-074 (no-show) extends `03-booking-detail-approved.html`'s existing Cancel/Complete/Reschedule action set with a new "Marcar não compareceu" action — same route and component, no new page; the prototype adds its states as `03c`–`03g` (added 2026-09-30 after the M23-S09 discovery; the UI itself is a future frontend story, M23-S09 ships the backend/BFF only). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+> Promoted from `docs/discovery/multivertical-booking/`. **UC-071's approval queue lives inside the existing "Precisa de ação" block of the Agenda (decided 2026-10-08)** — a recurrence request is something that needs a staff decision now, exactly like a pending booking, so it sits in the same hot list instead of a separate tab. See "Recurrence requests in the Agenda" below. UC-074 (no-show) extends `03-booking-detail-approved.html`'s existing Cancel/Complete/Reschedule action set with a new "Marcar não compareceu" action — same route and component, no new page; the prototype adds its states as `03c`–`03g` (added 2026-09-30 after the M23-S09 discovery; the UI itself is a future frontend story, M23-S09 ships the backend/BFF only). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 
 > **Staff creating a recurring schedule on a customer's behalf** (UC-070 allows it, and `POST /recurring-booking-schedules` already accepts a `customerId` from `STAFF|MANAGER`) was added on 2026-09-29 as a deliberately small first pass (`09`, `09b`, `09c`), in the same staff dashboard shell as `08`. Every choice is a default to recheck at `M23-S19`'s story-discovery.
+
+**Recurrence requests in the Agenda (M23-S13, decided 2026-10-08):**
+
+- **Same queue, clearly marked.** A `PENDING_APPROVAL` recurring schedule is a card in "Precisa de ação", sorted with the bookings by urgency (it carries a 30-minute hold, so it usually sorts first). It differs from a booking card by a teal **"Recorrência"** badge, the pattern as its title ("toda terça · 10:00–12:00", period, number of reservations), a "Decidir até HH:mm" line, a teal left border, and a single **"Ver pedido"** button — **no quick "Aprovar"**, because one decision creates every occurrence of the term and must go through the detail screen.
+- **Filter balloon.** The floating "Filtrar agenda" balloon (same trigger + popover shape as Horários' `ResourceFilterMenu` / `ScheduleStatusFilterMenu`) has two groups: *Precisa de ação* → Agendamentos, Recorrências; *Confirmados* → Hoje, Próximos dias. Default = all visible; "Padrão" resets; a badge on the trigger counts hidden options; hiding everything shows an empty state with "Limpar filtro". The header count follows the filter ("4 agendamentos · 1 recorrência").
+- **Detail screen `08`** follows the shared detail pattern (details centred, action panel on the right, bottom action bar on mobile). Approve and reject each open a confirmation sheet; reject has **no reason field** (the endpoint takes no body). Outcomes are in `08b`.
+
+```mermaid
+flowchart TD
+    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
+
+    Fila["/dashboard/bookings<br/>Agenda — 'Precisa de ação'<br/>cards 'Recorrência' + balão 'Filtrar agenda'<br/>(00-agenda)"] -->|"'Ver pedido'"| Pedido["❓ GAP: detalhe do pedido<br/>(08-recurring-schedule-approval)"]
+    Pedido -->|"'Aprovar recorrência' → confirmar"| ApAprova(("POST …/approve"))
+    Pedido -->|"'Recusar' → confirmar"| ApRecusa(("POST …/reject"))
+    ApAprova -->|"200"| R1["❓ GAP: aprovada (08b #aprovada)"]
+    ApAprova -->|"409 conflito (A3)"| R3["❓ GAP: lista de datas (08b #conflito)"]
+    ApAprova -->|"409 já decidido / expirou (A1/A2)"| R4["❓ GAP: (08b #expirada)"]
+    ApAprova -->|"422 cliente sem telefone"| R5["❓ GAP: (08b #telefone)"]
+    ApAprova -->|"rede/5xx"| R6["❓ GAP: (08b #falha)"]
+    ApRecusa -->|"200"| R2["❓ GAP: recusada (08b #recusada)"]
+    ApRecusa -->|"409 / rede"| R4
+    R3 -->|"'Voltar ao pedido'"| Pedido
+```
 
 ```mermaid
 flowchart TD
@@ -166,7 +190,7 @@ flowchart TD
     Envio -->|"404 cliente não encontrado"| ClienteNaoEncontrado["❓ GAP: (09c #cliente)"]
     Envio -->|"erro rede/5xx"| Falha["❓ GAP: (09c #falha)"]
 
-    Aguardando -->|"'Abrir solicitações recorrentes'"| Aprovar["❓ GAP: 08-recurring-schedule-approval"]
+    Aguardando -->|"'Ver na agenda' (cartão em Precisa de ação)"| Aprovar["❓ GAP: fila da Agenda → 08-recurring-schedule-approval"]
     Conflito -->|"'Alterar padrão'"| Padrao
     Limite -->|"'Alterar padrão'"| Padrao
     ClienteNaoEncontrado -->|"'Escolher outro cliente'"| Cliente
@@ -197,10 +221,13 @@ flowchart TD
 
 **Open questions / gaps:**
 - [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are M23-S27) and `M23-S19` (staff creating on a customer's behalf). Each still begins with `/story-discovery`.
-- [ ] **Entry point (default drawn):** a "+ Nova recorrência" button in the Agenda header. `M23-S13` adds recurring requests as a tab inside the existing Agenda page, so there is no queue route of its own to hang a create button on. Alternatives: a button inside that tab, or an entry under a customer.
-- [ ] Whether the recurring-schedule approval queue is a separate list or folds into the existing booking queue (`00-agenda.html`) is a UI decision for `M23-S13`.
+- [ ] **Entry point (default drawn):** a "+ Nova recorrência" button in the Agenda header, above the queue (drawn in `00-agenda.html` since 2026-10-08). Alternatives: an entry under a customer.
+- [x] **Recurring queue placement — decided 2026-10-08:** recurrence requests fold into the existing "Precisa de ação" block (not a tab, not a separate route), distinguished by badge and filterable through the "Filtrar agenda" balloon. The detail route is proposed as `/dashboard/bookings/recurring/:scheduleId`.
+- [ ] **Filter persistence.** Reset on reload (drawn) or remembered per user — decide at `M23-S13`'s `/story-discovery`, following whatever Horários' filters do.
+- [ ] **Merged-queue paging.** Bookings and recurrence requests come from two endpoints (`GET /bookings` and the paginated `GET /recurring-booking-schedules?status=PENDING_APPROVAL`); how they are merged and sorted, and whether recurrences page through `pagination.hasMore`, is locked at `M23-S13`'s discovery.
+- [ ] **Week strip.** Its day links jump to "Hoje" / "Próximos dias"; when those blocks are filtered out the links need a fallback (do nothing, or switch the block back on).
 - [ ] **Approval on a staff-created schedule.** Today a schedule created by staff for a service that requires manual approval still lands in `PENDING_APPROVAL`, so staff would approve their own request. Should staff creation skip approval? (`09c #aguardando` draws today's behavior.)
-- [ ] **The customer is not notified.** No notification is sent when a recurring schedule is created or decided — the backend handler writes an audit log only, and no story lists notification work for these events. `09b` therefore never promises an e-mail. The schedule does appear in the customer's own list (`M23-S12`).
+- [x] **Customer and manager e-mails — shipped in `M23-S28` (corrected 2026-10-08; this bullet used to say nobody is notified).** The customer is e-mailed when a schedule becomes `ACTIVE` (at creation for an `AUTO_CONFIRM` service, at approval otherwise), when it is rejected, when the request expires, and when it is ended. Managers get an alert when a `MANUAL_APPROVAL` request is waiting. `08` and `08b` therefore say "Ana recebe um e-mail". `09b` still never promises one — revisit at `M23-S19`.
 - [ ] **Route.** Proposed `/dashboard/bookings/recurring/new`; a brand-new dashboard section would also need registering in the sidebar, the proxy role list, the bottom nav and the topbar titles.
 - [x] **The conflict list** in `09c #conflito` is the `409` occurrence-list payload that `M23-S18` owns (reasons `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`, occupancy and hours merged into one list); no backend work in `M23-S19`.
 - [x] **Fixed term — decided 2026-09-29; prototypes `08`, `09b`, `09c` updated in the same-day prototype pass:** a recurring schedule always has an end date, chosen up to the service's maximum term (90 days by default); every occurrence is checked at creation and created once (immediately, or when staff approve). `09b` therefore needs an end-date field with a "máx. N dias" hint and no "sem data final" copy; `09c` needs its "geradas… até 90 dias à frente" success copy replaced (the whole term appears at once) and `#conflito` needs the reason labels; and `08` should show the requested term ("até dd/mm") instead of "sem data de término", with a note that approving creates every occurrence of the term at once (after the checks re-run — an occurrence that no longer passes is not created and goes to the exception worklist).

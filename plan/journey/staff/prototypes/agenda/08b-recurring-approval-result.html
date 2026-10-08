@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nova recorrência — resultado — Vitta Studio</title>
+  <title>Pedido de recorrência — resultado — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     .row { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 0; border-bottom: 1px solid var(--ba-secondary); text-decoration: none; color: var(--ba-text); }
@@ -25,7 +25,7 @@
     .customer-chip { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; }
     .panel { display: none; }
     .panel:target { display: block; }
-    .panels:not(:has(.panel:target)) #criada { display: block; }
+    .panels:not(:has(.panel:target)) #aprovada { display: block; }
     .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
     .proto-only a { margin-right: 0.75rem; }
     .state-tag { display: inline-block; font-size: 0.6875rem; font-weight: 700; background: #ede9fe; color: #5b21b6; padding: 0.1875rem 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; }
@@ -34,23 +34,23 @@
 <body>
 
   <!--
-    COMPONENT: NewRecurringScheduleForStaffResult
-    PAGE:       apps/web/app/dashboard/bookings/recurring/new/page.tsx  (GAP — M23-S19, rota proposta) — estados do resultado
-    UC cobertos: UC-070 (staff variant), UC-071
+    COMPONENT: RecurringScheduleApprovalDetail — estados de resultado (❓ Gap — M23-S13)
+    UC cobertos: UC-071
     DATA:
-      Um painel por desfecho de POST /recurring-booking-schedules (sem hash, mostra #criada):
-        #criada        201 ACTIVE
-        #aguardando    201 PENDING_APPROVAL — HOJE uma recorrência criada pela equipe para um serviço com aprovação manual também
-                       fica pendente (a equipe aprovaria o próprio pedido); pular a aprovação é uma decisão de M23-S19
-        #conflito      409 BOOKING_RECURRING_SCHEDULE_CONFLICT (a lista de ocorrências vem do campo conflicts do 409, decidido em M23-S18: reason = OCCUPIED | CLOSED | OUTSIDE_HOURS, tudo na mesma lista)
-        #limite        409 BOOKING_RECURRING_SCHEDULE_CAP_REACHED
-        #cliente       404 BOOKING_CUSTOMER_NOT_FOUND (customerId ausente, desconhecido, ou autor não é equipe ativa)
-        #falha         erro de rede / 5xx — o padrão digitado é preservado
-      E-mails (M23-S28, já entregue): a cliente recebe um e-mail quando a recorrência fica ATIVA (na criação automática ou na aprovação), quando é recusada e quando o pedido expira; os gerentes recebem um alerta quando um pedido fica aguardando aprovação. Esta tela não precisa prometer nada além disso.
+      Um painel por desfecho de POST /recurring-booking-schedules/:id/approve|reject (sem hash, mostra #aprovada).
+      Na produção o resultado aparece inline na própria página de detalhe (mesma convenção de 02/01c/03b/04b/05c);
+      aqui são painéis separados só para o protótipo.
+        #aprovada   200 approve — as reservas do período foram criadas; a cliente recebe e-mail (M23-S28)
+        #recusada   200 reject  — nada foi criado; a cliente recebe e-mail (M23-S28, APPROVAL_REJECTED)
+        #conflito   409 BOOKING_RECURRING_SCHEDULE_CONFLICT (approve, A3) — corpo traz conflicts[{ occurrenceStart, reason: OCCUPIED|CLOSED|OUTSIDE_HOURS }];
+                    nada é criado e o pedido continua PENDING_APPROVAL
+        #expirada   409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL (A1/A2) — já decidido por outra pessoa ou o prazo de 30 min acabou
+        #telefone   422 BOOKING_CUSTOMER_PHONE_NOT_SET (approve) — a cliente não tem telefone para as reservas
+        #falha      erro de rede / 5xx — nada mudou, tentar novamente
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo — UC-070 — recorrência criada pela equipe em nome de um cliente
+    Protótipo — UC-071 — resultado da decisão sobre um pedido de recorrência
   </div>
 
   <div class="dashboard-topbar">
@@ -58,7 +58,7 @@
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       <span class="topbar-brand" style="font-weight:600;">Agenda</span>
     </a>
-    <h1 class="topbar-page-title">Nova recorrência</h1>
+    <h1 class="topbar-page-title">Pedido de recorrência</h1>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
       <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">CD</a>
       <span class="topbar-date">Hoje, 11 de agosto de 2026</span>
@@ -107,73 +107,72 @@
 
         <div class="panels" style="margin-top:0.5rem;">
 
-          <section id="criada" class="panel">
+          <section id="aprovada" class="panel">
             <div class="card notice-ok">
               <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
-              <h1 style="font-size:1.25rem;margin:0;">Recorrência criada para Ana Costa</h1>
-              <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">Criamos as 13 reservas de 19 ago a 11 nov, e todas já aparecem na agenda. A recorrência já está na conta de Ana Costa.</p>
+              <h1 style="font-size:1.25rem;margin:0;">Recorrência aprovada</h1>
+              <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">Criamos as 13 reservas de 19 ago a 11 nov, todas já confirmadas e na agenda. Ana Costa recebe um e-mail avisando.</p>
             </div>
             <div class="nav-buttons">
-              <a class="btn-secondary" href="09-nova-recorrencia-cliente.html">Criar outra</a>
               <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Voltar à agenda</a>
             </div>
           </section>
 
-          <section id="aguardando" class="panel">
-            <div class="card" style="border-color:#fbbf24;background:#fffbeb;">
-              <p class="step-label">Sala de reunião · toda quinta · 14:00–15:00</p>
-              <h1 style="font-size:1.25rem;margin:0;">Recorrência criada, aguardando aprovação</h1>
-              <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">Este serviço exige aprovação manual, então a recorrência de Ana Costa entra em <strong>Precisa de ação</strong> na Agenda, marcada como Recorrência — uma decisão única para toda a série. O horário fica protegido até <strong>09:30</strong>.</p>
+          <section id="recusada" class="panel">
+            <div class="card" style="background:#f9fafb;">
+              <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
+              <h1 style="font-size:1.25rem;margin:0;">Recorrência recusada</h1>
+              <p style="margin-top:.75rem;line-height:1.55;font-size:.9375rem;">Nenhuma reserva foi criada. Ana Costa recebe um e-mail avisando e pode enviar um novo pedido quando quiser.</p>
             </div>
             <div class="nav-buttons">
-              <a class="btn-secondary" href="09-nova-recorrencia-cliente.html">Criar outra</a>
-              <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Ver na agenda</a>
+              <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Voltar à agenda</a>
             </div>
           </section>
 
           <section id="conflito" class="panel">
             <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar esta recorrência</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — nada foi criado.</p>
+              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível aprovar esta recorrência</h1>
+              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Pelo menos uma data deixou de estar disponível desde o pedido. Nada foi criado e o pedido continua aguardando decisão.</p>
             </div>
             <div class="card" style="margin-top:1rem;padding:0 1rem;">
-              <div class="row" style="display:block;"><strong>25 de agosto · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Já reservado</span><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva. (<code>reason: OCCUPIED</code>)</p></div>
-              <div class="row" style="display:block;"><strong>22 de setembro · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Fechado</span><p class="meta">A Sala Aurora estará fechada neste dia. Mesma lista, motivo diferente. (<code>reason: CLOSED</code>)</p></div>
+              <div class="row" style="display:block;"><strong>25 de agosto · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Já reservado</span><p class="meta">Sala Aurora já está comprometida neste horário com outra reserva. (<code>reason = OCCUPIED</code>)</p></div>
+              <div class="row" style="display:block;"><strong>22 de setembro · 10:00–12:00</strong> <span class="meta" style="font-weight:600">Fechado</span><p class="meta">A Sala Aurora estará fechada neste dia. (<code>reason = CLOSED</code>)</p></div>
             </div>
             <div class="nav-buttons">
-              <a class="btn-primary" href="09b-nova-recorrencia-padrao.html" style="text-decoration:none;">Alterar padrão</a>
+              <a class="btn-secondary" href="08-recurring-schedule-approval.html">Voltar ao pedido</a>
+              <a class="btn-primary" href="08-recurring-schedule-approval.html" style="text-decoration:none;">Recusar o pedido</a>
             </div>
           </section>
 
-          <section id="limite" class="panel">
+          <section id="expirada" class="panel">
             <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Limite de reservas recorrentes atingido</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">O limite de 50 recorrências ativas para a Sala Aurora foi atingido, então nada foi criado.</p>
+              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Este pedido não está mais aguardando decisão</h1>
+              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Outra pessoa da equipe já decidiu, ou o prazo de 30 minutos terminou e o pedido expirou. Nenhuma ação foi aplicada.</p>
             </div>
-            <div class="notice"><strong>O que fazer agora</strong><p class="meta">Encerre uma recorrência ativa desta sala, ou escolha outro recurso para este padrão.</p></div>
             <div class="nav-buttons">
-              <a class="btn-primary" href="09b-nova-recorrencia-padrao.html" style="text-decoration:none;">Alterar padrão</a>
+              <a class="btn-primary" href="00-agenda.html" style="text-decoration:none;">Voltar à agenda</a>
             </div>
           </section>
 
-          <section id="cliente" class="panel">
+          <section id="telefone" class="panel">
             <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Cliente não encontrado</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Não encontramos este cliente neste negócio, então nada foi criado.</p>
+              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Ana Costa não tem telefone cadastrado</h1>
+              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">As reservas precisam de um telefone de contato, então nada foi criado e o pedido continua aguardando decisão.</p>
             </div>
+            <div class="notice"><strong>O que fazer agora</strong><p class="meta">Peça à cliente para cadastrar o telefone na conta dela e aprove de novo antes das 09:30, ou recuse o pedido.</p></div>
             <div class="nav-buttons">
-              <a class="btn-primary" href="09-nova-recorrencia-cliente.html" style="text-decoration:none;">Escolher outro cliente</a>
+              <a class="btn-primary" href="08-recurring-schedule-approval.html" style="text-decoration:none;">Voltar ao pedido</a>
             </div>
           </section>
 
           <section id="falha" class="panel">
             <div class="card notice-error">
-              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível criar a recorrência</h1>
-              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Nada foi criado. Verifique sua conexão e tente novamente — o padrão que você montou foi mantido.</p>
+              <h1 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível concluir a decisão</h1>
+              <p style="font-size:.875rem;color:#dc2626;margin-top:.4rem;">Nada mudou. Verifique sua conexão e tente novamente.</p>
             </div>
             <div class="nav-buttons">
-              <a class="btn-secondary" href="09b-nova-recorrencia-padrao.html">Voltar ao padrão</a>
-              <a class="btn-primary" href="09c-nova-recorrencia-resultado.html#criada" style="text-decoration:none;">Tentar novamente</a>
+              <a class="btn-secondary" href="00-agenda.html">Voltar à agenda</a>
+              <a class="btn-primary" href="08-recurring-schedule-approval.html" style="text-decoration:none;">Tentar novamente</a>
             </div>
           </section>
 
@@ -181,8 +180,8 @@
 
         <div class="proto-only">
           <strong>Navegar pelos desfechos (só no protótipo):</strong><br>
-          <a href="#criada">Criada</a> <a href="#aguardando">Aguardando aprovação</a> <a href="#conflito">Conflito</a>
-          <a href="#limite">Limite</a> <a href="#cliente">Cliente não encontrado</a> <a href="#falha">Falha</a>
+          <a href="#aprovada">Aprovada</a> <a href="#recusada">Recusada</a> <a href="#conflito">Conflito</a>
+          <a href="#expirada">Já decidido / expirado</a> <a href="#telefone">Sem telefone</a> <a href="#falha">Falha</a>
         </div>
 
       </div>
