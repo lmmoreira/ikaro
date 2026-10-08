@@ -382,6 +382,9 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
     opacity: 1;
   }
   .bottom-sheet-handle { display: none; }
+  /* A closed sheet is only transparent here, not off-screen: without this it still sits over the centre and
+     swallows clicks meant for an open sheet that comes earlier in the DOM. */
+  .bottom-sheet:not(.open) { pointer-events: none; visibility: hidden; }
 }
 
 /* Sidebar — hidden on mobile, shown on desktop */
