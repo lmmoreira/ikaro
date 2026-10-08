@@ -76,3 +76,27 @@ function blockedOccurrenceStarts(
     })
     .map(({ occurrenceStart }) => occurrenceStart);
 }
+
+// When one free resource is enough, the hours check and the occupancy check each look for it on
+// their own: resource A closed (but free) satisfies the occupancy check, resource B busy (but open)
+// satisfies the hours check, and neither reports the occurrence although no resource is both open
+// and free. This is the combined verdict — an occurrence is refused when every considered resource
+// is closed or busy in it, whichever mix of the two.
+export function findCombinedRefusals(input: {
+  occurrences: RecurrenceOccurrence[];
+  resources: Resource[];
+  // Busy windows from the occupancy query plus closed / outside-hours windows from the hours check.
+  unavailable: ResourceOccupancyWindow[];
+}): RecurringScheduleOccurrenceConflict[] {
+  const unavailableByStart = new Map<number, Set<string>>();
+  for (const { resourceId, startsAt } of input.unavailable) {
+    const key = startsAt.getTime();
+    unavailableByStart.set(key, (unavailableByStart.get(key) ?? new Set<string>()).add(resourceId));
+  }
+  return input.occurrences
+    .filter(({ occurrenceStart }) => {
+      const unavailable = unavailableByStart.get(occurrenceStart.getTime());
+      return unavailable !== undefined && input.resources.every((r) => unavailable.has(r.id));
+    })
+    .map(({ occurrenceStart }) => ({ occurrenceStart, reason: 'OCCUPIED' as const }));
+}

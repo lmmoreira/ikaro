@@ -42,6 +42,12 @@ export class BookingSlotConflictService {
     private readonly tenantLock: ITenantLockPort,
   ) {}
 
+  // Takes the lock on resources a caller is about to choose among, before it reads occupancy —
+  // see resource-candidate-locking.helpers.ts.
+  async lockResources(tenantId: string, resourceIds: string[]): Promise<void> {
+    await this.tenantLock.lockResources(tenantId, resourceIds);
+  }
+
   async assertSlotFree(
     tenantId: string,
     candidates: ResourceOccupancyCandidate[],

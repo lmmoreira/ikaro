@@ -30,7 +30,7 @@ interface PerLegResource {
 // by, so it falls back to the tenant's LOCATION resource — same degenerate-service reasoning as
 // availability-resource-scope.helpers.ts's isDegenerateService(), applied here on the write path
 // so a not-yet-configured service still gets real exclusivity protection instead of none at all.
-const DEGENERATE_LOCATION_REQUIREMENT = ResourceRequirement.create({
+export const DEGENERATE_LOCATION_REQUIREMENT = ResourceRequirement.create({
   type: ResourceType.LOCATION,
   selectionMode: 'NONE',
 });

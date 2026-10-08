@@ -160,6 +160,7 @@ export class ApproveBookingUseCase {
       lines: lineInputs,
       serviceMap,
       resourceSelections,
+      lockResources: (resourceIds) => this.slotConflictService.lockResources(tenantId, resourceIds),
     });
     const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
     await this.slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);

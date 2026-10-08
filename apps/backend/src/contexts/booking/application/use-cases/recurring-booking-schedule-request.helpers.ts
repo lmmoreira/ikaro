@@ -26,7 +26,10 @@ import {
   resolveEligibleResources,
   resolveRequirementResources,
 } from './resource-requirement-resolution.helpers';
-import { findOccupiedRefusals } from './recurring-occurrence-occupancy.helpers';
+import {
+  findCombinedRefusals,
+  findOccupiedRefusals,
+} from './recurring-occurrence-occupancy.helpers';
 import { planOccurrenceResources } from './recurring-occurrence-resource-plan.helpers';
 import { ResolutionContext } from './resource-resolution-context.helpers';
 
@@ -142,19 +145,21 @@ export async function assertPatternConflictFree(
     params.tenantId,
     resources.map((resource) => resource.id),
   );
-  const anyFreeResourceSuffices = requirement.selectionMode === 'AUTO_ANY';
+  const anyFreeResourceSuffices = requirement.selectionMode !== 'CUSTOMER_CHOICE';
   const hours = await findHoursRefusals(deps, params, resources, anyFreeResourceSuffices);
-  const occupancy = await findOccupiedRefusals({
-    occupancyRepo: deps.occupancyRepo,
-    availabilityService: deps.availabilityService,
-    tenantId: params.tenantId,
-    occurrences: params.occurrences,
-    durationMinutes: params.recurrence.durationMinutes,
-    bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
-    resources,
-    anyFreeResourceSuffices,
-  });
-  const conflicts = mergeConflicts(hours.conflicts, occupancy.refusals);
+  const occupancy = await findOccupancyRefusals(deps, params, resources, anyFreeResourceSuffices);
+  // Busy, closed or outside hours: none of these (resource, occurrence) pairs may be assigned.
+  const unavailableWindows = [...occupancy.conflictingWindows, ...hours.unavailable];
+  const conflicts = mergeConflicts(hours.conflicts, [
+    ...occupancy.refusals,
+    ...(anyFreeResourceSuffices
+      ? findCombinedRefusals({
+          occurrences: params.occurrences,
+          resources,
+          unavailable: unavailableWindows,
+        })
+      : []),
+  ]);
   if (conflicts.length > 0) throw new RecurringBookingScheduleConflictError(conflicts);
 
   // The same pass that accepted the term also decides which resource each occurrence gets, so the
@@ -165,8 +170,25 @@ export async function assertPatternConflictFree(
     selectionMode: requirement.selectionMode,
     resources,
     occurrences: params.occurrences,
-    // Busy, closed or outside hours: none of these (resource, occurrence) pairs may be assigned.
-    unavailableWindows: [...occupancy.conflictingWindows, ...hours.unavailable],
+    unavailableWindows,
+  });
+}
+
+function findOccupancyRefusals(
+  deps: ConflictCheckDeps,
+  params: ConflictCheckParams,
+  resources: Resource[],
+  anyFreeResourceSuffices: boolean,
+): ReturnType<typeof findOccupiedRefusals> {
+  return findOccupiedRefusals({
+    occupancyRepo: deps.occupancyRepo,
+    availabilityService: deps.availabilityService,
+    tenantId: params.tenantId,
+    occurrences: params.occurrences,
+    durationMinutes: params.recurrence.durationMinutes,
+    bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
+    resources,
+    anyFreeResourceSuffices,
   });
 }
 
@@ -212,9 +234,9 @@ function mergeConflicts(
 }
 
 // The resources whose availability decides an occurrence. FIXED_ASSIGNMENT: the caller's pick,
-// validated by the same rules a one-off booking applies. AUTO_ANY: every eligible resource, since
-// any free one satisfies the occurrence. AUTO_FUNGIBLE_POOL: only the first eligible one, because
-// resolveRequirementResources assigns that one without looking at availability.
+// validated by the same rules a one-off booking applies. AUTO_ANY and AUTO_FUNGIBLE_POOL: every
+// eligible resource, since any free one satisfies the occurrence (resolveRequirementResources
+// narrows a pool to its free units, exactly as it does for AUTO_ANY).
 async function resolveConsideredResources(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
@@ -243,5 +265,5 @@ async function resolveConsideredResources(
   if (eligible.length === 0) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
-  return requirement.selectionMode === 'AUTO_ANY' ? eligible : eligible.slice(0, 1);
+  return eligible;
 }

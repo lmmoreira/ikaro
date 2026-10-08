@@ -78,12 +78,55 @@ describe('planOccurrenceResources', () => {
     expect(windowsSpy).not.toHaveBeenCalled();
   });
 
-  it('assigns the first eligible resource to every occurrence for AUTO_FUNGIBLE_POOL', async () => {
-    resources = orderedResources(1);
+  describe('AUTO_FUNGIBLE_POOL', () => {
+    beforeEach(() => {
+      resources = orderedResources(3);
+    });
 
-    const result = await plan('AUTO_FUNGIBLE_POOL');
+    it('assigns the lowest resource id to every occurrence when all are free', async () => {
+      const result = await plan('AUTO_FUNGIBLE_POOL');
 
-    expect(result.map((r) => r.id)).toEqual(Array(3).fill(resources[0].id));
+      expect(result.map((r) => r.id)).toEqual(Array(3).fill(resources[0].id));
+    });
+
+    it('takes the first unit by id that is free at each occurrence', async () => {
+      const unavailable = [
+        busyWindow(resources[0].id, OCCURRENCES[0].occurrenceStart),
+        busyWindow(resources[0].id, OCCURRENCES[1].occurrenceStart),
+        busyWindow(resources[1].id, OCCURRENCES[1].occurrenceStart),
+      ];
+
+      const result = await plan('AUTO_FUNGIBLE_POOL', unavailable);
+
+      expect(result.map((r) => r.id)).toEqual([resources[1].id, resources[2].id, resources[0].id]);
+    });
+
+    it('ignores the day load, so a busier lower id still wins', async () => {
+      occupy(resources[0].id, new Date(Date.UTC(2026, 9, 1, 17)));
+      const windowsSpy = jest.spyOn(occupancyRepo, 'findActiveWindows');
+
+      const result = await plan('AUTO_FUNGIBLE_POOL');
+
+      expect(result[0].id).toBe(resources[0].id);
+      expect(windowsSpy).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the lowest id when every unit looks unavailable', async () => {
+      const unavailable = resources.map((r) => busyWindow(r.id, OCCURRENCES[0].occurrenceStart));
+
+      const result = await plan('AUTO_FUNGIBLE_POOL', unavailable);
+
+      expect(result[0].id).toBe(resources[0].id);
+    });
+
+    it('does not depend on the order the resources were loaded in', async () => {
+      const lowest = resources[0];
+      resources = [...resources].reverse();
+
+      const result = await plan('AUTO_FUNGIBLE_POOL');
+
+      expect(result.map((r) => r.id)).toEqual(Array(3).fill(lowest.id));
+    });
   });
 
   it('plans AUTO_ANY with a single eligible resource without querying the load', async () => {

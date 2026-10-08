@@ -69,9 +69,8 @@ export interface HoursCheckInput {
   schedule: HoursScheduleData;
   // The resources that decide each occurrence — the same ones the occupancy check considers.
   resources: Resource[];
-  // true (AUTO_ANY): one open resource is enough. false (FIXED_ASSIGNMENT, and
-  // AUTO_FUNGIBLE_POOL which considers only its first eligible resource): every considered
-  // resource must be open.
+  // true (AUTO_ANY and AUTO_FUNGIBLE_POOL): one open resource is enough. false (FIXED_ASSIGNMENT):
+  // every considered resource must be open.
   anyOpenResourceSuffices: boolean;
   occurrences: RecurrenceOccurrence[];
   durationMinutes: number;

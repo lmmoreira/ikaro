@@ -3,7 +3,10 @@ import { ResourceBuilder } from '../../../../test/builders/booking/index';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import { findOccupiedRefusals } from './recurring-occurrence-occupancy.helpers';
+import {
+  findCombinedRefusals,
+  findOccupiedRefusals,
+} from './recurring-occurrence-occupancy.helpers';
 
 const TENANT = '10000000-0000-4000-8000-000000000800';
 
@@ -163,5 +166,53 @@ describe('findOccupiedRefusals', () => {
     const result = await check([a]);
 
     expect(result.refusals).toEqual([]);
+  });
+});
+
+describe('findCombinedRefusals', () => {
+  const resource = (name: string): Resource =>
+    new ResourceBuilder().withTenantId(TENANT).withType(ResourceType.ROOM).withName(name).build();
+  const window = (r: Resource, index: number) => ({
+    resourceId: r.id,
+    startsAt: OCCURRENCES[index].occurrenceStart,
+    endsAt: new Date(OCCURRENCES[index].occurrenceStart.getTime() + 3_600_000),
+  });
+
+  it('refuses an occurrence where one resource is busy and the other is closed', () => {
+    const [closed, busy] = [resource('A'), resource('B')];
+
+    const result = findCombinedRefusals({
+      occurrences: OCCURRENCES,
+      resources: [closed, busy],
+      unavailable: [window(closed, 1), window(busy, 1)],
+    });
+
+    expect(result).toEqual([
+      { occurrenceStart: OCCURRENCES[1].occurrenceStart, reason: 'OCCUPIED' },
+    ]);
+  });
+
+  it('refuses nothing while some resource is both open and free', () => {
+    const [closed, free] = [resource('A'), resource('B')];
+
+    const result = findCombinedRefusals({
+      occurrences: OCCURRENCES,
+      resources: [closed, free],
+      unavailable: [window(closed, 0), window(closed, 1), window(closed, 2)],
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it('does not treat a resource unavailable on a different occurrence as unavailable here', () => {
+    const [a, b] = [resource('A'), resource('B')];
+
+    const result = findCombinedRefusals({
+      occurrences: OCCURRENCES,
+      resources: [a, b],
+      unavailable: [window(a, 0), window(b, 1)],
+    });
+
+    expect(result).toEqual([]);
   });
 });

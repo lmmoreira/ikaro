@@ -53,8 +53,9 @@ export async function resolveRequirementResources(
 // window (when known) before sorting by least already-locked workload on the tenant-local day,
 // resourceId as stable secondary sort (UC-063 A1 — the tie-break only applies "among candidates
 // already free for the chosen slot," not as a substitute for checking availability at all);
-// AUTO_FUNGIBLE_POOL/NONE keep the original deterministic first-eligible pick (no identity
-// reveal, no tie-break rule specified for a pool).
+// AUTO_FUNGIBLE_POOL (UC-062) narrows the same way but takes the free units in resourceId
+// order — a pool of interchangeable units has no workload balancing, and the customer never sees
+// which one was taken; NONE keeps the original deterministic first-eligible pick.
 async function resolveCandidateIds(
   requirement: ResourceRequirement,
   ctx: ResolutionContext,
@@ -67,15 +68,21 @@ async function resolveCandidateIds(
     return resolveCustomerChoiceCandidateIds(requirement, chosenResourceIds);
   }
   const eligible = await resolveEligibleResources(requirement, ctx);
-  if (requirement.selectionMode === 'AUTO_ANY') {
+  if (
+    requirement.selectionMode === 'AUTO_ANY' ||
+    requirement.selectionMode === 'AUTO_FUNGIBLE_POOL'
+  ) {
     const free = await preferFreeResources(
       eligible,
       ctx,
       windowStart,
       windowEnd,
       effectiveGapMinutes,
+      requirement.requiredQuantity,
     );
-    return sortResourcesByLeastWorkload(free, ctx, windowStart);
+    return requirement.selectionMode === 'AUTO_ANY'
+      ? sortResourcesByLeastWorkload(free, ctx, windowStart)
+      : sortResourcesById(free);
   }
   return eligible.map((resource) => resource.id);
 }
@@ -88,9 +95,12 @@ async function resolveCandidateIds(
 // eligible staff member is free"; UC-065's chained itinerary needs the identical treatment per
 // leg). windowEnd === null or a single candidate skips the filter entirely — see
 // resolveRequirementResources' own doc comment for why null still occurs for some callers. Falls
-// back to the full resource list when every one of them appears busy, so the caller's
-// requiredQuantity/assertSlotFree checks still run and produce the correct "unavailable" error,
-// rather than this function returning [] and misreporting via a wrong error path. Takes already-
+// back to the full resource list when fewer than requiredQuantity of them are free (none at all,
+// or a multi-unit requirement with only some units left) — a shortened list would fail the
+// caller's length check with a "type unavailable" 422 instead of the 409 assertSlotFree gives, so
+// the caller's requiredQuantity/assertSlotFree checks still run and produce the correct
+// "unavailable" error, rather than this function returning a short list and misreporting via a
+// wrong error path. Takes already-
 // resolved Resource objects (from resolveEligibleResources) rather than bare ids — no per-candidate
 // findById() here.
 async function preferFreeResources(
@@ -99,6 +109,7 @@ async function preferFreeResources(
   windowStart: Date,
   windowEnd: Date | null,
   effectiveGapMinutes: (resource: Resource) => number,
+  requiredQuantity: number,
 ): Promise<Resource[]> {
   if (windowEnd === null || resources.length <= 1) return resources;
   const windows = resources.map((resource) => ({
@@ -114,7 +125,7 @@ async function preferFreeResources(
     ),
   );
   const free = resources.filter((resource) => !conflicting.has(resource.id));
-  return free.length > 0 ? free : resources;
+  return free.length >= requiredQuantity ? free : resources;
 }
 
 // requiredQuantity > 1 combined with CUSTOMER_CHOICE has no named UC example (the "several
@@ -168,6 +179,10 @@ export async function resolveEligibleResources(
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }
   return activeOfType;
+}
+
+function sortResourcesById(resources: Resource[]): string[] {
+  return resources.map((r) => r.id).sort((a, b) => a.localeCompare(b));
 }
 
 // UC-063 A1 — "least already-locked workload on the tenant-local day, resourceId as stable
