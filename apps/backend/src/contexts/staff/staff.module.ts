@@ -18,6 +18,7 @@ import { StaffController } from './infrastructure/controllers/staff.controller';
 import { StaffEntity } from './infrastructure/entities/staff.entity';
 import { TenantProvisionedHandler } from './infrastructure/events/tenant-provisioned.handler';
 import { TypeOrmStaffRepository } from './infrastructure/repositories/typeorm-staff.repository';
+import { StaffAuditLogHandler } from './infrastructure/events/staff-audit-log.handler';
 
 @Module({
   imports: [TypeOrmModule.forFeature([StaffEntity]), RequestModule],
@@ -36,6 +37,7 @@ import { TypeOrmStaffRepository } from './infrastructure/repositories/typeorm-st
     ActivateStaffUseCase,
     CreateInitialManagerUseCase,
     TenantProvisionedHandler,
+    StaffAuditLogHandler,
   ],
   // DeactivateStaffUseCase is exported alongside the two read use cases so the Booking
   // context's StaffDeactivatedHandler integration test (M21-S01, UC-048) can trigger a real

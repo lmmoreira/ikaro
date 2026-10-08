@@ -40,6 +40,7 @@ import { TypeOrmBalanceExpiryLogRepository } from './infrastructure/repositories
 import { TypeOrmLoyaltyBalanceRepository } from './infrastructure/repositories/typeorm-loyalty-balance.repository';
 import { TypeOrmLoyaltyEntryRepository } from './infrastructure/repositories/typeorm-loyalty-entry.repository';
 import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositories/typeorm-loyalty-redemption.repository';
+import { LoyaltyAuditLogHandler } from './infrastructure/events/loyalty-audit-log.handler';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositorie
     BookingCompletedHandler,
     ExpirePointsTriggerHandler,
     NotifyExpiringPointsTriggerHandler,
+    LoyaltyAuditLogHandler,
   ],
   exports: [
     LOYALTY_ENTRY_REPOSITORY,

@@ -68,11 +68,12 @@ apps/backend/src/
 
 ### Shared folder (`apps/backend/src/shared/`)
 
-Cross-cutting concerns ONLY. Domain objects, use cases, and repositories are NEVER here.
+Cross-cutting concerns ONLY. Domain objects and repositories are NEVER here, and neither are use cases — with one carve-out: `application/use-cases/log-domain-event.use-case.ts`, the cross-cutting `audit-log` consumer every context's `<Context>AuditLogHandler` calls (M23-S36).
 
 ```text
 apps/backend/src/shared/
 ├── ports/            # IEventBus, IRepository<T> — no barrel index.ts (ESLint enforced)
+├── application/      # use-cases/log-domain-event.use-case.ts only — the shared audit-log consumer (M23-S36)
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject base classes — no barrel index.ts
 ├── value-objects/    # Email, PhoneNumber, Address, HexColor, Timezone, TimeOfDay, Slug, CountryCode, SeoTitle, SeoDescription
 ├── utils/            # deepMerge, startOfDayUTC, endOfDayUTC, todayUTC, todayInTimezone, localDateTimeToUTCIso,
