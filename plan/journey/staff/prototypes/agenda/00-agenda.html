@@ -101,6 +101,14 @@
     /* ── Recorrência row + floating filter balloon (synced to horarios/08 + ScheduleStatusFilterMenu.tsx) ── */
     .badge-recurring { background: #ccfbf1; color: #0f766e; display: inline-flex; align-items: center; gap: 0.25rem; }
     .recurring-expiry { font-size: 0.75rem; font-weight: 600; color: #92400e; margin-top: 0.25rem; }
+    .new-menu { display: none; position: absolute; right: 0; top: calc(100% + 0.375rem); width: 17rem; background: white; border: 1px solid var(--ba-secondary); border-radius: 0.75rem; box-shadow: 0 12px 30px rgba(0,0,0,0.15); z-index: 35; overflow: hidden; }
+    .new-menu.open { display: block; }
+    .new-menu-item { display: block; padding: 0.75rem 1rem; text-decoration: none; color: var(--ba-text); }
+    .new-menu-item + .new-menu-item { border-top: 1px solid #f3f4f6; }
+    .new-menu-item:hover { background: #f9fafb; }
+    .new-menu-item strong { display: block; font-size: 0.875rem; }
+    .new-menu-item span { display: block; font-size: 0.75rem; opacity: 0.65; margin-top: 0.125rem; line-height: 1.35; }
+    .gap-tag { font-style: normal; font-weight: 700; color: #b91c1c; opacity: 1; }
     .queue-toolbar { display: flex; justify-content: flex-end; padding: 0.75rem 0 0; }
     .queue-empty { display: none; text-align: center; padding: 2rem 1rem; color: var(--ba-text); }
     .queue-empty p { opacity: 0.6; font-size: 0.875rem; margin-bottom: 0.75rem; }
@@ -319,9 +327,26 @@
           </a>
         </div>
 
-        <!-- UC-070 staff variant (M23-S19): entry point to create a recurrence on a customer's behalf -->
+        <!-- Single "+ Novo" entry point: staff creating something on a customer's behalf (a phone call, a walk-in message).
+             Both options open the same customer picker (09) and the same two-column form layout.
+             "Recorrência" = UC-070 staff variant (M23-S19). "Agendamento" = one-off booking on a customer's behalf (UC-108, M23-S39/S40). -->
         <div class="queue-toolbar">
-          <a href="09-nova-recorrencia-cliente.html" class="btn-secondary" style="font-size:0.8125rem;padding:0.4375rem 0.875rem;">+ Nova recorrência</a>
+          <div style="position:relative;">
+            <button type="button" class="btn-primary" id="new-btn" aria-haspopup="menu" aria-expanded="false" onclick="toggleNew()" style="font-size:0.8125rem;padding:0.4375rem 0.875rem;display:inline-flex;align-items:center;gap:0.375rem;">
+              + Novo
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="new-menu" id="new-menu" role="menu">
+              <a class="new-menu-item" role="menuitem" href="09-escolher-cliente.html?tipo=agendamento#recentes">
+                <strong>Agendamento</strong>
+                <span>Uma reserva avulsa para um cliente que ligou, mandou mensagem ou chegou sem marcar</span>
+              </a>
+              <a class="new-menu-item" role="menuitem" href="09-escolher-cliente.html?tipo=recorrencia#recentes">
+                <strong>Recorrência</strong>
+                <span>Uma reserva que se repete toda semana, em nome de um cliente</span>
+              </a>
+            </div>
+          </div>
         </div>
 
         <!--
@@ -608,6 +633,13 @@
   </div>
 
   <script>
+    function toggleNew(force) {
+      var m = document.getElementById('new-menu');
+      var open = typeof force === 'boolean' ? force : !m.classList.contains('open');
+      m.classList.toggle('open', open);
+      document.getElementById('new-btn').setAttribute('aria-expanded', open);
+    }
+    document.addEventListener('click', function (e) { if (!e.target.closest('#new-btn') && !e.target.closest('#new-menu')) toggleNew(false); });
     var boxes = document.querySelectorAll('[data-filter]');
     function toggleFilter(force) {
       var pop = document.getElementById('filter-popover');

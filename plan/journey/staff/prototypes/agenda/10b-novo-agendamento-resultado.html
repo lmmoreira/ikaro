@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nova recorrência — padrão — BeloAuto</title>
+  <title>Novo agendamento — resultado — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     /* Hide bottom nav — detail is a drill-down; back arrow replaces tab nav on mobile */
@@ -111,27 +111,34 @@
     .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
     .proto-only a { margin-right: 0.75rem; }
     .row.selected { background: #eff6ff; }
+    .seg { display: inline-flex; border: 1px solid var(--ba-secondary); border-radius: 9999px; padding: 0.1875rem; margin-bottom: 1rem; background: white; }
+    .seg-btn { border: none; background: none; padding: 0.4375rem 0.875rem; border-radius: 9999px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; color: var(--ba-text); }
+    .seg-btn.on { background: #2563eb; color: white; }
+    .seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .state { display: none; }
     body[data-state="recentes"] .st-recentes, body[data-state="sem-resultado"] .st-sem-resultado, body[data-state="falha"] .st-falha { display: block; }
+      .when { display: none; }
+    body[data-state="criado"] .when-criado, body[data-state="ocupado"] .when-ocupado, body[data-state="janela"] .when-janela,
+    body[data-state="telefone"] .when-telefone, body[data-state="cliente"] .when-cliente, body[data-state="falha"] .when-falha { display: block; }
+    .banner { border-radius: var(--ba-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid; }
+    .banner-ok { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+    .banner-error { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+    .banner p.t { font-weight: 700; font-size: 1rem; margin-bottom: 0.375rem; }
+    .banner p.d { font-size: 0.875rem; line-height: 1.5; }
   </style>
 </head>
 <body data-state="aprovada">
 
   <!--
-    COMPONENT: NewRecurringScheduleForStaff
-    PAGE:       apps/web/app/dashboard/bookings/recurring/new/page.tsx  (GAP — M23-S19, rota proposta)
-    UC cobertos: UC-070 (staff variant)
-    DATA:
-      Lista de serviços: endpoint já existente do BFF (booking/services). NÃO há filtro no servidor por recorrência — o cliente filtra por
-        recurrenceEligible = true, bookingModel = APPOINTMENT, sem legs e com exatamente 1 resourceRequirement (replica assertServiceEligible).
-      POST /recurring-booking-schedules
-        Body: { customerId, serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
-                assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid] (exatamente 1 se FIXED), startsOn, endsOn }  — endsOn OBRIGATÓRIO, no máximo startsOn + prazo máximo do serviço (90 dias por padrão); todas as reservas do período são verificadas e criadas de uma vez
-        customerId é obrigatório quando o autor é STAFF|MANAGER (o backend responde 404 BOOKING_CUSTOMER_NOT_FOUND se faltar ou não existir).
-        Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
-      Os campos e as regras são os mesmos do fluxo do cliente (customer/prototypes/minha-conta/13-nova-recorrencia.html).
-      O campo "Recurso" só aparece quando o serviço exige escolha (CUSTOMER_CHOICE → FIXED_ASSIGNMENT); duração é somente leitura.
-    Estrutura: formulário no centro, painel de ações à direita (barra fixa no mobile), como servicos/02.
+    COMPONENT: NewBookingForStaffPage — estados inline após enviar (❓ Gap — M23-S40)
+    UC cobertos: UC-108.  Mesma convenção de 04b / 08b / 09c: banner no topo da coluna central, resumo mantido, painel de ações trocado.
+    Estados (hash; padrão #criado):
+      #criado      201 APPROVED — "Ver agendamento" (detalhe), "Criar outro", "Voltar à agenda"
+      #ocupado     409 BOOKING_SLOT_UNAVAILABLE — volta ao passo de data e horário com tudo mantido
+      #janela      422 fora do prazo: no passado ou além do prazo máximo (o aviso mínimo NÃO vale para a equipe)
+      #telefone    422 BOOKING_CUSTOMER_PHONE_NOT_SET — o cliente escolhido não tem telefone
+      #cliente     404 BOOKING_CUSTOMER_NOT_FOUND
+      #falha       rede / 5xx — nada foi criado
   -->
 
   <!-- Prototype banner -->
@@ -140,7 +147,7 @@
     padding: 0.375rem 1rem; font-size: 0.8125rem;
     text-align: center; color: #92400e;
   ">
-    Protótipo — UC-070 — recorrência criada pela equipe em nome de um cliente. 
+    Resultado do envio. <span id="proto-nav"></span>
   </div>
 
   <!-- TOP BAR — back arrow replaces brand on mobile -->
@@ -158,7 +165,7 @@
     </a>
 
     <!-- Desktop: page title -->
-    <h1 class="topbar-page-title">Nova recorrência</h1>
+    <h1 class="topbar-page-title">Novo agendamento</h1>
 
     <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
       
@@ -246,90 +253,46 @@
         <div class="detail-layout">
 
           <div class="detail-main">
-            <p class="step-label">Passo 2 de 2 · Padrão</p>
-            <h2 style="font-size:1.25rem;margin:0.25rem 0 0.5rem;">Nova reserva recorrente</h2>
+            <div class="banner banner-ok when when-criado"><p class="t">Agendamento criado</p><p class="d">Lavagem Simples, hoje às 14:30. Já está aprovado e ocupa o horário. Ana Costa recebe um e-mail de confirmação.</p></div>
+            <div class="banner banner-error when when-ocupado"><p class="t">Esse horário acabou de ser ocupado</p><p class="d">Outra reserva ficou com o horário das 14:30. Escolha outro horário — o cliente e os serviços foram mantidos.</p></div>
+            <div class="banner banner-error when when-janela"><p class="t">Data fora do prazo permitido</p><p class="d">A data está no passado ou além do prazo máximo de 90 dias. Escolha outra data.</p></div>
+            <div class="banner banner-error when when-telefone"><p class="t">Ana Costa não tem telefone cadastrado</p><p class="d">A reserva precisa de um telefone de contato. Peça à cliente para cadastrá-lo, ou registre-a como novo contato.</p></div>
+            <div class="banner banner-error when when-cliente"><p class="t">Cliente não encontrado</p><p class="d">Não encontramos este cliente neste negócio, então nada foi criado.</p></div>
+            <div class="banner banner-error when when-falha"><p class="t">Não foi possível criar o agendamento</p><p class="d">Nada foi criado. Verifique sua conexão e tente novamente — o que você escolheu foi mantido.</p></div>
 
-          <div class="card customer-chip" style="margin-top:1rem;">
-            <div class="list-avatar">AC</div>
-            <div style="flex:1;"><strong>Ana Costa</strong><p class="meta">ana@email.com · a recorrência será criada em nome dela</p></div>
-            <a href="09-escolher-cliente.html" style="font-size:0.8125rem;">Trocar cliente</a>
-          </div>
-
-          <div class="card" style="margin-top:1rem;">
-            <div class="field">
-              <label class="form-label" for="service">Serviço</label>
-              <select class="form-input" id="service">
-                <option>Sala Aurora — 2 horas · R$ 100,00</option>
-                <option>Sala de reunião — 1 hora · R$ 60,00 (requer aprovação)</option>
-              </select>
-              <p class="field-hint">Só aparecem serviços que permitem reserva recorrente.</p>
+            <p class="detail-section-label" style="margin-top:0;">Cliente</p>
+            <div class="card" style="display:flex;align-items:center;gap:0.875rem;margin-bottom:1.25rem;">
+              <div class="list-avatar" style="width:2.75rem;height:2.75rem;font-size:1rem;flex-shrink:0;background:#0f766e;">AC</div>
+              <div style="flex:1;"><p style="font-weight:600;">Ana Costa</p><p style="font-size:0.875rem;opacity:0.6;">ana@email.com · (31) 99999-1111</p></div>
             </div>
-
-            <div class="field">
-              <span class="form-label">Recurso</span>
-              <label class="choice on"><input type="radio" name="resource" checked> Sala Aurora</label>
-              <label class="choice"><input type="radio" name="resource"> Sala Horizonte</label>
-              <p class="field-hint">Este é o recurso que ficará reservado toda semana.</p>
-            </div>
-
-            <div class="field">
-              <span class="form-label">Dias da semana</span>
-              <div class="chips">
-                <label class="chip"><input type="checkbox"> Seg</label>
-                <label class="chip on"><input type="checkbox" checked> Ter</label>
-                <label class="chip"><input type="checkbox"> Qua</label>
-                <label class="chip"><input type="checkbox"> Qui</label>
-                <label class="chip"><input type="checkbox"> Sex</label>
-                <label class="chip"><input type="checkbox"> Sáb</label>
-                <label class="chip"><input type="checkbox"> Dom</label>
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="form-label" for="start-time">Horário de início</label>
-              <input class="form-input" id="start-time" type="time" value="10:00">
-            </div>
-
-            <div class="field">
-              <span class="form-label">Duração</span>
-              <div class="readonly-value">2 horas — definida pelo serviço</div>
-            </div>
-
-            <div class="field">
-              <label class="form-label" for="starts-on">Começa em</label>
-              <input class="form-input" id="starts-on" type="date" value="2026-08-18">
-            </div>
-
-            <div class="field" style="margin-bottom:0;">
-              <label class="form-label" for="ends-on">Termina em</label>
-              <input class="form-input" id="ends-on" type="date" value="2026-11-11" min="2026-08-18" max="2026-11-16" required>
-              <p class="field-hint">Escolha até quando a reserva se repete — no máximo 90 dias, até 16 nov. Depois disso a cliente pode renovar.</p>
-            </div>
-          </div>
-
-          <div class="notice">
-            <strong>Como funciona</strong>
-            <p class="meta">Verificamos todas as ocorrências do período (horário de funcionamento, fechamentos e outras reservas); se alguma não estiver disponível, nada é criado. A recorrência fica na conta de Ana Costa, que poderá pular, reagendar ou encerrar.</p>
-          </div>
-
-
-            <div class="proto-only">
-              <strong>Simular resultado (só no protótipo):</strong><br>
-              <a href="09c-nova-recorrencia-resultado.html#criada">Criada</a>
-              <a href="09c-nova-recorrencia-resultado.html#aguardando">Aguardando aprovação</a>
-              <a href="09c-nova-recorrencia-resultado.html#conflito">Conflito</a>
-              <a href="09c-nova-recorrencia-resultado.html#limite">Limite</a>
-              <a href="09c-nova-recorrencia-resultado.html#cliente">Cliente não encontrado</a>
-              <a href="09c-nova-recorrencia-resultado.html#falha">Falha</a>
+            <p class="detail-section-label">Agendamento</p>
+            <div class="card" style="padding:0.25rem 1rem;margin-bottom:1.25rem;">
+              <div class="kv"><span>Serviços</span><span>Lavagem Simples</span></div>
+              <div class="kv"><span>Data e hora</span><span>Hoje, 11 ago · 14:30</span></div>
+              <div class="kv"><span>Total</span><span>R$ 60,00 · 30 min</span></div>
             </div>
           </div><!-- /.detail-main -->
 
           <div class="detail-aside">
-            <div class="card" style="padding:1.25rem;">
-              <a href="09c-nova-recorrencia-resultado.html#criada" class="btn-primary" style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">Criar recorrência</a>
-              <a href="09-escolher-cliente.html" class="btn-secondary" style="display:block;text-align:center;padding:0.75rem;">Voltar</a>
-              <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:1rem 0;">
-              <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);line-height:1.5;">Verificamos todas as ocorrências do período antes de criar; se alguma não estiver disponível, nada é criado.</p>
+            <div class="card when when-criado" style="padding:1.25rem;">
+              <a href="03-booking-detail-approved.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:0.625rem;">Ver agendamento</a>
+              <a href="09-escolher-cliente.html?tipo=agendamento" class="btn-secondary" style="display:block;text-align:center;margin-bottom:0.625rem;">Criar outro</a>
+              <a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Voltar à agenda</a>
+            </div>
+            <div class="card when when-ocupado when-janela" style="padding:1.25rem;">
+              <p style="font-size:0.8125rem;font-weight:700;margin-bottom:1rem;">Ações</p>
+              <a href="10-novo-agendamento.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:0.625rem;">Escolher outra data</a>
+              <a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Voltar à agenda</a>
+            </div>
+            <div class="card when when-telefone when-cliente" style="padding:1.25rem;">
+              <p style="font-size:0.8125rem;font-weight:700;margin-bottom:1rem;">Ações</p>
+              <a href="09-escolher-cliente.html?tipo=agendamento" class="btn-primary" style="display:block;text-align:center;margin-bottom:0.625rem;">Escolher outro cliente</a>
+              <a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Voltar à agenda</a>
+            </div>
+            <div class="card when when-falha" style="padding:1.25rem;">
+              <p style="font-size:0.8125rem;font-weight:700;margin-bottom:1rem;">Ações</p>
+              <a href="10-novo-agendamento.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:0.625rem;">Tentar novamente</a>
+              <a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Voltar à agenda</a>
             </div>
           </div>
         </div><!-- /.detail-layout -->
@@ -339,9 +302,18 @@
   </div><!-- /.dashboard-layout -->
 
   <div class="mobile-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--ba-secondary); padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0)); z-index: 20; box-shadow: 0 -2px 8px rgba(0,0,0,0.06);">
-    <a href="09c-nova-recorrencia-resultado.html#criada" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Criar recorrência</a>
-    <a href="09-escolher-cliente.html" class="btn-secondary" style="display:block;text-align:center;">Voltar</a>
+    <div class="when when-criado"><a href="03-booking-detail-approved.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Ver agendamento</a><a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Voltar à agenda</a></div>
+    <div class="when when-ocupado when-janela"><a href="10-novo-agendamento.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Escolher outra data</a><a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Voltar à agenda</a></div>
+    <div class="when when-telefone when-cliente"><a href="09-escolher-cliente.html?tipo=agendamento" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Escolher outro cliente</a><a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Voltar à agenda</a></div>
+    <div class="when when-falha"><a href="10-novo-agendamento.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Tentar novamente</a><a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Voltar à agenda</a></div>
   </div>
+
+  <script>
+    var STATES = ['criado','ocupado','janela','telefone','cliente','falha'];
+    function applyState() { var h = location.hash.replace('#',''); document.body.dataset.state = STATES.indexOf(h) >= 0 ? h : 'criado'; }
+    window.addEventListener('hashchange', applyState); applyState();
+    document.getElementById('proto-nav').innerHTML = STATES.map(function (x) { return '<a href="#' + x + '">' + x + '</a>'; }).join(' · ');
+  </script>
 
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nova recorrência — cliente — BeloAuto</title>
+  <title>Novo agendamento — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     /* Hide bottom nav — detail is a drill-down; back arrow replaces tab nav on mobile */
@@ -111,23 +111,41 @@
     .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
     .proto-only a { margin-right: 0.75rem; }
     .row.selected { background: #eff6ff; }
+    .seg { display: inline-flex; border: 1px solid var(--ba-secondary); border-radius: 9999px; padding: 0.1875rem; margin-bottom: 1rem; background: white; }
+    .seg-btn { border: none; background: none; padding: 0.4375rem 0.875rem; border-radius: 9999px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; color: var(--ba-text); }
+    .seg-btn.on { background: #2563eb; color: white; }
+    .seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .state { display: none; }
     body[data-state="recentes"] .st-recentes, body[data-state="sem-resultado"] .st-sem-resultado, body[data-state="falha"] .st-falha { display: block; }
+      .step { display: none; }
+    body[data-step="1"] .step-1, body[data-step="2"] .step-2, body[data-step="3"] .step-3 { display: block; }
+    .svc { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; margin-bottom: 0.5rem; cursor: pointer; }
+    .svc.on { border-color: #2563eb; background: #eff6ff; }
+    .svc input { width: 1rem; height: 1rem; accent-color: #2563eb; }
+    .days { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+    .day { min-width: 3.75rem; text-align: center; padding: 0.5rem 0.25rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; cursor: pointer; font-size: 0.75rem; }
+    .day strong { display: block; font-size: 1rem; }
+    .day.on { background: #2563eb; color: white; border-color: #2563eb; }
+    .day.off { opacity: 0.35; cursor: not-allowed; }
+    .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap: 0.5rem; }
+    .slot { padding: 0.5rem; text-align: center; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; font-size: 0.875rem; cursor: pointer; }
+    .slot.on { background: #2563eb; color: white; border-color: #2563eb; }
+    .slot.short::after { content: "•"; color: #d97706; margin-left: 0.25rem; }
+    .slot.on.short::after { color: #fde68a; }
+    .person { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 1.25rem; }
   </style>
 </head>
 <body data-state="aprovada">
 
   <!--
-    COMPONENT: NewRecurringScheduleCustomerStep  (❓ Gap — M23-S19)
-    ROUTE:      /dashboard/bookings/recurring/new  (proposta)
-    UC cobertos: UC-070 (staff variant)
-    Mesma estrutura das telas de criação (servicos/02): formulário no centro, painel de ações à direita (barra fixa no mobile).
-    DATA:
-      GET /customers?search=&limit=   (STAFF | MANAGER — o mesmo endpoint da busca de Fidelidade; sem termo, devolve os recentes)
-        Response: { items: [{ customerId, name, email, currentPoints }], total }   (currentPoints não é exibido aqui)
-      Selecionar um cliente habilita "Continuar"; guarda customerId e segue para o passo 2 (09b). A busca é debounced, como em LoyaltySearchPage.
-      Só clientes com conta neste negócio existem na busca; um convidado nunca pode ter recorrência (docs/02).
-    Estados (hash do protótipo; padrão #recentes): #recentes · #sem-resultado · #falha
+    COMPONENT: NewBookingForStaffPage  (❓ Gap — M23-S40)   ROUTE: /dashboard/bookings/new/booking (proposta)
+    UC cobertos: UC-108.   POST /bookings/staff  (STAFF | MANAGER)
+    São os MESMOS passos que o fluxo público calcula para os serviços escolhidos (resolveBookingSteps(): serviço, recurso, duração,
+    data e horário, dados extras) — só a apresentação é do dashboard (formulário no centro, resumo + ações à direita, barra fixa no mobile),
+    porque o fluxo público usa os tokens --ba-* do negócio e o dashboard não pode usá-los. Aqui: 3 passos de exemplo.
+    Regras que a equipe tem e o cliente não: horários dentro do aviso mínimo aparecem (uma reserva para hoje, por telefone);
+    datas passadas e além do prazo máximo continuam bloqueadas. A reserva nasce APROVADA — não há "aguardando".
+    O envio vai para 10b-novo-agendamento-resultado.html (estados inline).
   -->
 
   <!-- Prototype banner -->
@@ -136,7 +154,7 @@
     padding: 0.375rem 1rem; font-size: 0.8125rem;
     text-align: center; color: #92400e;
   ">
-    Protótipo — UC-070 — recorrência criada pela equipe em nome de um cliente. <span id="proto-nav"></span>
+    Protótipo — UC-108 — agendamento criado pela equipe. <a href="09-escolher-cliente.html?tipo=agendamento">← escolher cliente</a>
   </div>
 
   <!-- TOP BAR — back arrow replaces brand on mobile -->
@@ -154,7 +172,7 @@
     </a>
 
     <!-- Desktop: page title -->
-    <h1 class="topbar-page-title">Pedido de recorrência</h1>
+    <h1 class="topbar-page-title">Novo agendamento</h1>
 
     <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
       
@@ -242,44 +260,64 @@
         <div class="detail-layout">
 
           <div class="detail-main">
-            <p class="step-label">Passo 1 de 2 · Cliente</p>
-            <h2 style="font-size:1.25rem;margin:0.25rem 0 0.25rem;">Nova reserva recorrente</h2>
-            <p style="font-size:0.875rem;opacity:0.65;margin:0.5rem 0 1rem;">Escolha o cliente em nome de quem a recorrência será criada.</p>
+            <div class="card person">
+              <div class="list-avatar" style="background:#0f766e;">AC</div>
+              <div style="flex:1;"><strong>Ana Costa</strong><p class="meta">ana@email.com · (31) 99999-1111 · cliente cadastrada</p></div>
+              <a href="09-escolher-cliente.html?tipo=agendamento" style="font-size:0.8125rem;">Trocar</a>
+            </div>
+            <p class="step-label" id="step-label">Passo 1 de 3 · Serviço</p>
 
-            <div class="field">
-              <label class="form-label" for="search">Buscar cliente</label>
-              <input class="form-input" id="search" type="search" placeholder="Nome ou e-mail">
+            <!-- Passo 1 -->
+            <div class="step step-1">
+              <h2 style="font-size:1.25rem;margin:0.25rem 0 0.75rem;">Quais serviços?</h2>
+              <label class="svc on" onclick="toggleSvc(this)"><input type="checkbox" checked data-name="Lavagem Simples" data-price="60" data-min="30"><div style="flex:1;"><strong>Lavagem Simples</strong><p class="meta">30 min</p></div><strong>R$ 60,00</strong></label>
+              <label class="svc" onclick="toggleSvc(this)"><input type="checkbox" data-name="Lavagem Completa" data-price="120" data-min="60"><div style="flex:1;"><strong>Lavagem Completa</strong><p class="meta">1 h</p></div><strong>R$ 120,00</strong></label>
+              <label class="svc" onclick="toggleSvc(this)"><input type="checkbox" data-name="Polimento Completo" data-price="250" data-min="120"><div style="flex:1;"><strong>Polimento Completo</strong><p class="meta">2 h</p></div><strong>R$ 250,00</strong></label>
+              <p class="field-hint">Só aparecem serviços de agendamento (aulas e turmas têm fluxo próprio). Quando um serviço exige escolher um recurso, um passo a mais aparece aqui — o mesmo do fluxo público.</p>
             </div>
 
-            <div class="state st-recentes">
-              <p class="section-label">Clientes recentes</p>
-              <div class="card" style="padding:0 1rem;">
-            <div class="row cust" onclick="pick(this)" style="cursor:pointer;"><div class="list-avatar">AC</div><div style="flex:1;"><strong>Ana Costa</strong><p class="meta">ana@email.com</p></div></div>
-            <div class="row cust" onclick="pick(this)" style="cursor:pointer;"><div class="list-avatar">BL</div><div style="flex:1;"><strong>Bruno Lima</strong><p class="meta">bruno@email.com</p></div></div>
-            <div class="row cust" onclick="pick(this)" style="cursor:pointer;"><div class="list-avatar">CN</div><div style="flex:1;"><strong>Carla Nunes</strong><p class="meta">carla@email.com</p></div></div>
-            <div class="row cust" onclick="pick(this)" style="cursor:pointer;"><div class="list-avatar">DA</div><div style="flex:1;"><strong>Diego Alves</strong><p class="meta">diego@email.com</p></div></div>
+            <!-- Passo 2 -->
+            <div class="step step-2">
+              <h2 style="font-size:1.25rem;margin:0.25rem 0 0.75rem;">Data e horário</h2>
+              <div class="days">
+                <div class="day off"><span>Ter</span><strong>10</strong></div>
+                <div class="day on" onclick="pickDay(this)"><span>Hoje</span><strong>11</strong></div>
+                <div class="day" onclick="pickDay(this)"><span>Qui</span><strong>12</strong></div>
+                <div class="day" onclick="pickDay(this)"><span>Sex</span><strong>13</strong></div>
+                <div class="day" onclick="pickDay(this)"><span>Sáb</span><strong>14</strong></div>
               </div>
+              <div class="slots">
+                <div class="slot short" onclick="pickSlot(this)">14:30</div>
+                <div class="slot short" onclick="pickSlot(this)">15:00</div>
+                <div class="slot short" onclick="pickSlot(this)">16:00</div>
+                <div class="slot" onclick="pickSlot(this)">17:00</div>
+                <div class="slot" onclick="pickSlot(this)">17:30</div>
+              </div>
+              <p class="field-hint" style="margin-top:0.75rem;"><span style="color:#d97706;">•</span> Dentro do aviso mínimo do negócio (2 h). Só a equipe pode marcar esses horários; um cliente não os vê. Datas passadas e além do prazo máximo (90 dias) ficam bloqueadas.</p>
             </div>
-            <div class="state st-sem-resultado">
-              <div class="notice">
-                <p style="font-weight:600;">Nenhum cliente encontrado para “marin”.</p>
-                <p class="meta">Só clientes com conta neste negócio podem ter uma recorrência.</p>
+
+            <!-- Passo 3 -->
+            <div class="step step-3">
+              <h2 style="font-size:1.25rem;margin:0.25rem 0 0.75rem;">Confirmar</h2>
+              <div class="card" style="padding:0.25rem 1rem;">
+                <div class="kv"><span>Cliente</span><span>Ana Costa</span></div>
+                <div class="kv"><span>Serviços</span><span id="c-svc">—</span></div>
+                <div class="kv"><span>Data e hora</span><span id="c-when">—</span></div>
+                <div class="kv"><span>Total</span><span id="c-total">—</span></div>
               </div>
-            </div>
-            <div class="state st-falha">
-              <div class="notice notice-error">
-                <p style="font-weight:600;">Não foi possível buscar clientes.</p>
-                <p class="meta">Verifique sua conexão e tente novamente.</p>
-              </div>
+              <div class="notice" style="margin-top:1rem;"><strong>O que acontece</strong><p class="meta">A reserva é criada já <strong>aprovada</strong> e ocupa o horário. Ana Costa recebe um e-mail de confirmação. Se ela for convidada (sem cadastro), o e-mail informado recebe a confirmação.</p></div>
             </div>
           </div><!-- /.detail-main -->
 
           <div class="detail-aside">
             <div class="card" style="padding:1.25rem;">
-              <a href="09b-nova-recorrencia-padrao.html" id="go" class="btn-primary" style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;opacity:.4;pointer-events:none;">Continuar</a>
-              <a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;padding:0.75rem;">Cancelar</a>
+              <p style="font-size:0.8125rem;font-weight:700;margin-bottom:0.75rem;">Resumo</p>
+              <p style="font-size:0.875rem;" id="s-svc">Lavagem Simples</p>
+              <p class="meta" id="s-when">Escolha a data e o horário</p>
+              <p style="margin-top:0.5rem;font-weight:700;" id="s-total">R$ 60,00 · 30 min</p>
               <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:1rem 0;">
-              <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);line-height:1.5;">Só clientes com conta neste negócio aparecem na busca. No próximo passo você monta o padrão da recorrência.</p>
+              <button class="btn-primary" id="next-btn" onclick="nextStep()" style="display:block;width:100%;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">Continuar</button>
+              <button class="btn-secondary" onclick="prevStep()" style="display:block;width:100%;text-align:center;padding:0.75rem;">Voltar</button>
             </div>
           </div>
         </div><!-- /.detail-layout -->
@@ -289,23 +327,40 @@
   </div><!-- /.dashboard-layout -->
 
   <div class="mobile-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--ba-secondary); padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0)); z-index: 20; box-shadow: 0 -2px 8px rgba(0,0,0,0.06);">
-    <a href="09b-nova-recorrencia-padrao.html" class="btn-primary" id="go-m" style="display:block;text-align:center;margin-bottom:.625rem;opacity:.4;pointer-events:none;">Continuar</a>
-    <a href="00-agenda.html" class="btn-secondary" style="display:block;text-align:center;">Cancelar</a>
+    <button class="btn-primary" id="next-btn-m" onclick="nextStep()" style="display:block;width:100%;text-align:center;margin-bottom:.625rem;">Continuar</button>
+    <button class="btn-secondary" onclick="prevStep()" style="display:block;width:100%;text-align:center;">Voltar</button>
   </div>
 
   <script>
-    var STATES = ['recentes','sem-resultado','falha'];
-    function applyState() {
-      var h = location.hash.replace('#','');
-      document.body.dataset.state = STATES.indexOf(h) >= 0 ? h : 'recentes';
+    var step = 1, when = null, day = 'Hoje, 11 ago';
+    var LABELS = ['Serviço', 'Data e horário', 'Confirmar'];
+    function money(n) { return 'R$ ' + n.toFixed(2).replace('.', ','); }
+    function selected() { return Array.prototype.filter.call(document.querySelectorAll('.svc input'), function (i) { return i.checked; }); }
+    function refresh() {
+      var sel = selected(), total = 0, mins = 0, names = [];
+      sel.forEach(function (i) { total += +i.dataset.price; mins += +i.dataset.min; names.push(i.dataset.name); });
+      var txt = names.length ? names.join(' + ') : 'Nenhum serviço';
+      document.getElementById('s-svc').textContent = txt;
+      document.getElementById('s-total').textContent = money(total) + ' · ' + mins + ' min';
+      document.getElementById('s-when').textContent = when ? day + ' · ' + when : 'Escolha a data e o horário';
+      document.getElementById('c-svc').textContent = txt;
+      document.getElementById('c-when').textContent = when ? day + ' · ' + when : '—';
+      document.getElementById('c-total').textContent = money(total);
+      document.body.dataset.step = step;
+      document.getElementById('step-label').textContent = 'Passo ' + step + ' de 3 · ' + LABELS[step - 1];
+      var ok = step === 1 ? sel.length > 0 : step === 2 ? !!when : true;
+      ['next-btn', 'next-btn-m'].forEach(function (id) {
+        var b = document.getElementById(id);
+        b.textContent = step === 3 ? 'Criar agendamento' : 'Continuar';
+        b.style.opacity = ok ? '1' : '.4'; b.style.pointerEvents = ok ? 'auto' : 'none';
+      });
     }
-    window.addEventListener('hashchange', applyState); applyState();
-    document.getElementById('proto-nav').innerHTML = STATES.map(function (x) { return '<a href="#' + x + '">' + x + '</a>'; }).join(' · ');
-    function pick(el) {
-      document.querySelectorAll('.cust').forEach(function (r) { r.classList.remove('selected'); });
-      el.classList.add('selected');
-      ['go','go-m'].forEach(function (id) { var b = document.getElementById(id); b.style.opacity = '1'; b.style.pointerEvents = 'auto'; });
-    }
+    function toggleSvc(label) { setTimeout(function () { label.classList.toggle('on', label.querySelector('input').checked); refresh(); }, 0); }
+    function pickDay(el) { document.querySelectorAll('.day').forEach(function (d) { d.classList.remove('on'); }); el.classList.add('on'); day = el.firstElementChild.textContent + ' ' + el.lastElementChild.textContent + ' ago'; }
+    function pickSlot(el) { document.querySelectorAll('.slot').forEach(function (d) { d.classList.remove('on'); }); el.classList.add('on'); when = el.textContent; refresh(); }
+    function nextStep() { if (step < 3) { step++; refresh(); } else { location.href = '10b-novo-agendamento-resultado.html#criado'; } }
+    function prevStep() { if (step > 1) { step--; refresh(); } else { location.href = '09-escolher-cliente.html?tipo=agendamento'; } }
+    refresh();
   </script>
 
 </body>

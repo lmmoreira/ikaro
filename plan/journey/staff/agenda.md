@@ -2,7 +2,7 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Review the daily booking queue, action each request — approve, reject, or request more information — and manage an approved booking through to completion, cancellation, or reschedule  
-**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating on a customer's behalf), UC-071, UC-074 (❓ Gap — M23 Cluster 3, recurring-schedule creation on behalf + approval + appointment no-show)  
+**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating a recurrence on a customer's behalf), UC-071, UC-074, UC-108 (staff creating a one-off booking on a customer's behalf) (❓ Gap — M23 Cluster 3, recurring-schedule creation on behalf + approval + appointment no-show)  
 **Status:** Draft
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
@@ -133,7 +133,9 @@ Folder: `staff/prototypes/agenda/`
 | `05c-reschedule-success.html` | Reschedule confirmed inline state | UC-008 Alt A1 | — | ✅ Criado |
 | `08-recurring-schedule-approval.html` | Detail of a recurring-schedule request — details centred, action panel on the right (desktop) / bottom action bar (mobile), approve and reject confirmation sheets. Same shell as `01-booking-detail.html` | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
 | `08b-recurring-approval-result.html` | Inline result states of the detail page (banner on top, data kept, action panel swapped, as in `04b`): approved, rejected, 409 conflict list, 409 already decided/expired, 422 customer has no phone, network/5xx | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
-| `09-nova-recorrencia-cliente.html` | Nova recorrência em nome de um cliente — escolher o cliente (busca, recentes, sem resultado, erro de busca) | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
+| `09-escolher-cliente.html` | **Shared customer chooser** for everything staff creates on a customer's behalf (`?tipo=agendamento` or `recorrencia`): *Cliente cadastrado* (search by name, e-mail or phone; recent; no result; search error) and *Novo contato* (name, phone, e-mail, all required → guest booking; disabled for a recurrence) | UC-108, UC-070 | M23-S40 · M23-S19 | ❓ Gap (M23 Cluster 3) |
+| `10-novo-agendamento.html` | Novo agendamento — the public flow's steps in the dashboard skin (service → date/time → confirm), summary and actions in the right pane; staff see slots inside the minimum notice | UC-108 | M23-S40 | ❓ Gap (M23 Cluster 3) |
+| `10b-novo-agendamento-resultado.html` | Inline outcomes: created `APPROVED`, 409 slot taken, outside the window, customer without phone, customer not found, network/5xx | UC-108 | M23-S40 | ❓ Gap (M23 Cluster 3) |
 | `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recurso, dias, horário, período) para o cliente escolhido | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09c-nova-recorrencia-resultado.html` | Desfechos: criada, aguardando aprovação, conflito, limite, falha, cliente não encontrado | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `03-booking-detail-approved.html` — "Marcar não compareceu" (extended) | Nova ação + bottom sheet (motivo opcional) no detalhe de um agendamento aprovado | UC-074 | M23-S09 (backend/BFF) · M23-S27 | ❓ Gap (M23 Cluster 3) |
@@ -178,7 +180,7 @@ flowchart TD
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Agenda["/dashboard/bookings<br/>Agenda (real, shipped)"] -->|"'+ Nova recorrência' (cabeçalho)"| Cliente["❓ GAP: escolher cliente<br/>(09-nova-recorrencia-cliente)"]
+    Agenda["/dashboard/bookings<br/>Agenda (real, shipped)"] -->|"'+ Nova recorrência' (cabeçalho)"| Cliente["❓ GAP: escolher cliente<br/>(09-escolher-cliente)"]
     Cliente -->|"busca e seleciona"| Padrao["❓ GAP: padrão para o cliente<br/>(09b-nova-recorrencia-padrao)"]
     Padrao -->|"'Trocar cliente'"| Cliente
     Padrao -->|"'Criar recorrência'"| Envio(("POST /recurring-booking-schedules<br/>com customerId"))
@@ -195,6 +197,26 @@ flowchart TD
     Limite -->|"'Alterar padrão'"| Padrao
     ClienteNaoEncontrado -->|"'Escolher outro cliente'"| Cliente
     Falha -->|"'Tentar novamente'"| Padrao
+```
+
+**UC-108 — Staff creates a booking on a customer's behalf (added 2026-10-08):**
+
+```mermaid
+flowchart TD
+    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
+
+    Agenda["/dashboard/bookings<br/>Agenda — botão '+ Novo'<br/>(00-agenda)"] -->|"menu: Agendamento"| Quem["❓ GAP: escolher o cliente<br/>Cliente cadastrado | Novo contato<br/>(09-escolher-cliente)"]
+    Agenda -->|"menu: Recorrência"| Quem
+    Quem -->|"Agendamento + continuar"| Passos["❓ GAP: passos do fluxo público no dashboard<br/>(10-novo-agendamento)"]
+    Quem -->|"Recorrência + continuar (só cliente cadastrado)"| Padrao["❓ GAP: padrão da recorrência<br/>(09b)"]
+    Passos -->|"'Criar agendamento'"| Envio(("POST /bookings/staff"))
+    Envio -->|"201 APPROVED"| Ok["❓ GAP: (10b #criado)"]
+    Envio -->|"409 horário ocupado"| Oc["❓ GAP: (10b #ocupado)"]
+    Envio -->|"422 fora do prazo"| Jan["❓ GAP: (10b #janela)"]
+    Envio -->|"422 sem telefone / 404 cliente"| Cli["❓ GAP: (10b #telefone, #cliente)"]
+    Envio -->|"rede/5xx"| Fal["❓ GAP: (10b #falha)"]
+    Oc -->|"'Escolher outra data'"| Passos
+    Jan -->|"'Escolher outra data'"| Passos
 ```
 
 **UC-074 — Não comparecimento (added 2026-09-30):**
@@ -221,7 +243,8 @@ flowchart TD
 
 **Open questions / gaps:**
 - [x] Stories exist: `M23-S13` (approval queue, UC-071), `M23-S09` (no-show backend/BFF, UC-074 — the button and correction UI are M23-S27) and `M23-S19` (staff creating on a customer's behalf). Each still begins with `/story-discovery`.
-- [ ] **Entry point (default drawn):** a "+ Nova recorrência" button in the Agenda header, above the queue (drawn in `00-agenda.html` since 2026-10-08). Alternatives: an entry under a customer.
+- [x] **Entry point — decided 2026-10-08:** a single **"+ Novo"** button above the Agenda queue opens a small menu with **Agendamento** and **Recorrência**; both start at the same customer picker (`09`) and use the same two-column form layout. A second button is never added for the next kind of "create on a customer's behalf". "Recorrência" is UC-070 (staff variant, `M23-S19`).
+- [x] **Staff creates a one-off booking for someone who calls or messages — decided 2026-10-08, now UC-108 with stories `M23-S39` (backend/BFF, `POST /bookings/staff`) and `M23-S40` (frontend).** Locked: (1) a person who is not in the system is booked as a **guest** (name, phone and e-mail all required) because a `Customer` needs a Google account — no model change; (2) the booking is created **directly `APPROVED`**, `createdByStaffId` recorded, no manager alert, the customer gets the confirmation e-mail; (3) availability, closures and conflicts are enforced as for a customer, the **minimum notice is not** (a same-day phone booking works; past dates and the maximum advance still are); (4) one shared **customer chooser** (`09`) is the first step of both "Agendamento" and "Recorrência"; (5) the booking steps are the public flow's step engine in a dashboard skin (the public steps use the business's `--ba-*` tokens, which the dashboard may not). Still open for discovery: a click-on-an-empty-slot shortcut in Horários, pre-registering a customer without a Google account (a bigger model change), the guest cancel link.
 - [x] **Recurring queue placement — decided 2026-10-08:** recurrence requests fold into the existing "Precisa de ação" block (not a tab, not a separate route), distinguished by badge and filterable through the "Filtrar agenda" balloon. The detail route is proposed as `/dashboard/bookings/recurring/:scheduleId`.
 - [ ] **Filter persistence.** Reset on reload (drawn) or remembered per user — decide at `M23-S13`'s `/story-discovery`, following whatever Horários' filters do.
 - [ ] **Merged-queue paging.** Bookings and recurrence requests come from two endpoints (`GET /bookings` and the paginated `GET /recurring-booking-schedules?status=PENDING_APPROVAL`); how they are merged and sorted, and whether recurrences page through `pagination.hasMore`, is locked at `M23-S13`'s discovery.

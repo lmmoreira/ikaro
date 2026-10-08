@@ -805,6 +805,7 @@ Append-only audit of a booking's status changes — who moved it, from what, to 
 | New column | Type | Constraints |
 |---|---|---|
 | recurring_schedule_id | UUID | NULLABLE — FK (tenant_id, recurring_schedule_id) → `recurring_booking_schedules` |
+| created_by_staff_id | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`); set only when staff created the booking on the customer's behalf (UC-108, M23-S39). Additive, no backfill: every existing row is correctly `NULL` |
 | status (existing column) | — | **No schema change.** `bookings.status` is an unconstrained `VARCHAR(30)` (no status CHECK exists in any migration), so `'NO_SHOW'` — new terminal state, `APPROVED → NO_SHOW` (UC-074) — needs no constraint change; the correction and the no-show itself are recorded in `booking_status_transitions` below |
 | **UNIQUE** | (tenant_id, recurring_schedule_id, scheduled_at) WHERE recurring_schedule_id IS NOT NULL | Materialization idempotency key — reuses `scheduled_at` directly (no separate `occurrence_start` column exists); a schedule's term is materialized exactly once, so a re-run hits this key and is a no-op |
 

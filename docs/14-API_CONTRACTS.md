@@ -745,6 +745,19 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
   - `403 Forbidden` — JWT role is not `CUSTOMER`.
   - `422 customer-phone-not-set` — the customer has not set a phone number on their profile; update via `PATCH /customers/me` before booking.
 
+#### **Staff Booking on a Customer's Behalf (UC-108) — `POST /bookings/staff`**
+
+`STAFF | MANAGER` only (JWT). The acting staff id comes from the authenticated context (`X-Actor-ID`), never from the body.
+
+- **Body:** exactly the guest booking body (`POST /bookings` above — `serviceIds`, `scheduledAt`, `resourceSelections`, `durationMinutes`, `participantCount`, `intakeSchemaVersion`, `intakeAnswers`, `consentAccepted`, `attendees`, `pickupAddress`), with these differences:
+  - **Who the booking is for — exactly one of:**
+    - `customerId` (uuid) — a customer of this tenant. Contact name, email and phone are taken from the `Customer` row; sending `contactEmail`/`contactName`/`contactPhone` as well is a `400`. Creates `type = CUSTOMER`.
+    - `contactName`, `contactPhone` and `contactEmail`, **all required** — a person not in the system. Creates `type = GUEST`.
+  - `beforeServicePhotoUrls` is not accepted (the staff flow does not collect photos).
+- **Behavior:** the booking is created directly `APPROVED` with `approvedBy` and `createdByStaffId` = the acting staff member. Availability, closures, resource resolution and conflicts are checked exactly as for `POST /bookings`. The booking window rejects a past start and a start beyond the maximum advance, but does **not** apply the minimum notice.
+- **Response (`201 Created`):** the [Shared Response Shape](#shared-booking-201-response-shape), with `status: "APPROVED"`.
+- **Errors:** all errors from `POST /bookings` apply (`400`, `404`, `409 BOOKING_SLOT_UNAVAILABLE`, `422`), plus `400` when both or neither of `customerId` and the contact trio is sent, `404 BOOKING_CUSTOMER_NOT_FOUND` for an unknown `customerId`, `422 BOOKING_CUSTOMER_PHONE_NOT_SET` for a chosen customer without a phone, `401`, and `403` when the role is `CUSTOMER`.
+
 #### **Shared Booking `201` Response Shape** {#shared-booking-201-response-shape}
 
 ```json
@@ -1030,17 +1043,18 @@ Auth: JWT + `MANAGER` only on every endpoint — a deliberate, self-consistent r
 
 Auth: JWT + Customer (create/manage own) or STAFF|MANAGER (approve/reject, or create on a customer's behalf).
 
-- `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": { "frequency": "WEEKLY", "daysOfWeek": string[], "startTime", "durationMinutes" }, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn", "customerId"? }`. `endsOn` is required and may not be later than `startsOn` + the service's maximum term (`Service.bookingPolicy.recurringHorizonDays`, 90-day default). `resourceIds` is required, with exactly one entry, when `assignmentPolicy` is `FIXED_ASSIGNMENT`; `customerId` is accepted only from STAFF|MANAGER acting on a customer's behalf.
+- `POST /recurring-booking-schedules` → create (UC-070). Body: `{ "serviceId", "recurrence": { "frequency": "WEEKLY", "daysOfWeek": string[], "startTime", "durationMinutes" }, "assignmentPolicy": "FIXED_ASSIGNMENT"|"RESOLVE_PER_OCCURRENCE", "resourceIds"?: string[], "startsOn", "endsOn", "customerId"?, "renewsScheduleId"? }`. `endsOn` is required and may not be later than `startsOn` + the service's maximum term (`Service.bookingPolicy.recurringHorizonDays`, 90-day default). `resourceIds` is required, with exactly one entry, when `assignmentPolicy` is `FIXED_ASSIGNMENT`; `customerId` is accepted only from STAFF|MANAGER acting on a customer's behalf. `renewsScheduleId` (uuid, optional, not stored) names the customer's previous schedule: when the request keeps its service, weekdays, start time and duration and starts no later than the day after its `endsOn`, it is a renewal — exempt from the minimum notice and maximum days ahead, and past occurrences are dropped; otherwise it is an ordinary new schedule (M23-S35).
   - `201` — `{ "id", "status": "ACTIVE", "approvalHoldExpiresAt": null }` (AUTO_CONFIRM) or `{ "id", "status": "PENDING_APPROVAL", "approvalHoldExpiresAt": "..." }` (MANUAL_APPROVAL)
   - `400` on request-schema validation (e.g. no weekday, a `resourceIds` count other than one for `FIXED_ASSIGNMENT`)
-  - `404` when a STAFF|MANAGER caller's `customerId` is missing, unknown in the tenant, or the caller is not an active staff member (A8)
+  - `404` when a STAFF|MANAGER caller's `customerId` is missing, unknown in the tenant, or the caller is not an active staff member (A8); `404` `BOOKING_RECURRING_SCHEDULE_NOT_FOUND` when `renewsScheduleId` is unknown in the tenant or belongs to another customer (A11)
   - `409` when an occurrence of the term cannot be honored (A1) or at the `MAX_ACTIVE_*` cap (A4). An A1 refusal has code `BOOKING_RECURRING_SCHEDULE_CONFLICT` and carries `conflicts: [{ "occurrenceStart": "<ISO-8601 UTC>", "reason": "OCCUPIED"|"CLOSED"|"OUTSIDE_HOURS" }]` — every affected occurrence, occupancy and hours violations together
-  - `422` when `endsOn` is before `startsOn` (`BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE`), later than `startsOn` + the maximum term (`BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED`, with `params: { maxTermDays, latestEndsOn }`) (A6), or the service is not eligible for recurrence (A7); a missing `endsOn` is a `400` like any other schema violation
+  - `422` when `endsOn` is before `startsOn` (`BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE`), later than `startsOn` + the maximum term (`BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED`, with `params: { maxTermDays, latestEndsOn }`) (A6), or the service is not eligible for recurrence (A7); a missing `endsOn` is a `400` like any other schema violation. Also `422` `BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES` when no chosen weekday occurs in the term (A9), and, for the first occurrence of a new schedule, `BOOKING_SCHEDULED_IN_PAST` / `BOOKING_TOO_SOON` / `BOOKING_TOO_FAR_AHEAD` (A10; customers only, except the past rule which applies to staff too)
 - `GET /recurring-booking-schedules?limit=&offset=&status=` → list the caller's own (Customer) or all for the tenant (STAFF|MANAGER, approval queue). Offset-paginated, Pattern A: `{ "items": [...], "pagination": { "limit", "offset", "total", "hasMore" } }`, newest first. `limit` 1–100 (default 25), `offset` ≥ 0 (default 0), optional `status` (`PENDING_APPROVAL`|`ACTIVE`|`CANCELLED`|`ENDED` — `ENDED` is set by the M23-S05 job once `endsOn` has passed; omitted = all statuses). `400` on out-of-range params.
 - *(Removed by M23-S08.)* There is no per-occurrence route: an occurrence is its linked booking, so skip is `PATCH /bookings/:id/cancel` and reschedule is `PATCH /bookings/:id/reschedule` (UC-070 A2), subject to the tenant's cancellation and reschedule windows for a customer. List a schedule's occurrences with `GET /bookings?recurringScheduleId=<id>`.
 - `POST /recurring-booking-schedules/:id/end`
 - `POST /recurring-booking-schedules/:id/approve` / `POST /recurring-booking-schedules/:id/reject` → UC-071. STAFF|MANAGER only.
   - No request body. `200` on success.
+  - Approve also answers `422` `BOOKING_SCHEDULED_IN_PAST` when every occurrence has already started (UC-071 A4); occurrences that started while the request waited are skipped, not booked.
   - `404` unknown schedule in this tenant.
   - `409` `BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` if already resolved (A1) or past `approvalHoldExpiresAt` (A2)
   - `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` (approve only, A3) when an occurrence no longer passes the working-hours-and-closures or occupancy check; the body carries the same `conflicts: [{ occurrenceStart, reason }]` list as creation, nothing is created and the schedule stays `PENDING_APPROVAL`
@@ -1136,16 +1150,16 @@ Auth: JWT + MANAGER only.
 ## 5. Customer & Loyalty
 
 ### **Customer Management (UC-002, UC-006, UC-007)**
-- `GET /customers?search=&limit=20` -> (Admin) Search customers in tenant by name or email.
+- `GET /customers?search=&limit=20` -> (Admin) Search customers in tenant by name, email or phone.
   - Requires JWT with `MANAGER|STAFF` role.
   - Query params:
-    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name` and `email`. When omitted, returns all customers up to `limit`.
+    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name`, `email` and `phone` (a phone term is matched on its digits, so "(31) 99999-9999" and "31999999999" find the same customer — M23-S39; the wildcard characters in the term are escaped). When omitted, returns all customers up to `limit`.
     - `limit` (optional, integer, default 20) — max results to return.
   - Response:
     ```json
     {
       "items": [
-        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "currentPoints": 150 }
+        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "phone": "31999999999", "currentPoints": 150 }
       ],
       "total": 1
     }

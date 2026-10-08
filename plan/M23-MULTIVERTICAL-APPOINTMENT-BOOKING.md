@@ -52,6 +52,8 @@
 | 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
 | 5 | M23-S37 | Make every shipped notification email correct — a blank daily schedule, nameless reminders, a customer link into the staff dashboard, unescaped user text, unformatted dates, missing who/why/pickup lines — and a guard that renders the real copy; backend-only |
 | 5 | M23-S38 | Email the customer when an availability alert matches (`AvailabilityAlertMatched` → Notification; records the attempt outcome); the alert flow shipped without it |
+| 5 | M23-S39 | Staff creates a one-off booking on a customer's behalf — `POST /bookings/staff` (created `APPROVED`, customer or guest), customer search by phone; backend + BFF (UC-108) |
+| 6 | M23-S40 | Staff "+ Novo" menu on the Agenda, shared customer chooser and the dashboard "Novo agendamento" flow (UC-108); S19 reuses the chooser |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
 | 7 | M23-S22 | Customer renews an ending recurring schedule — "Renovar" pre-filled form (UC-070) |
 | 7 | M23-S19 | Staff creates a recurring private reservation on a customer's behalf (UC-070) |
@@ -1332,6 +1334,7 @@ Add `recurringHorizonDays: number | null` to both type declarations (no runtime/
 **Complexity:** L
 **Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md (customer-account equivalent), docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
 **Dependencies:** M23-S04 (`POST /recurring-booking-schedules`, already ✅ Done), M23-S12 (the `recurring-schedules` route tree, list page and data hook this story extends), M23-S05 (the success copy describes its one-shot materialization; the `PENDING_APPROVAL` branch resolves through it and M23-S13), M23-S18 (owns the single `409` occurrence-list payload that `06b` and `06d` render, so this story has no backend or BFF work), **M23-S29** (the whitelisted public service shape that keeps `recurrenceEligible`/`recurringHorizonDays`, and `GET /public/services/:id/resource-options` for the fixed-assignment control)
+**Note (M23-S35, 2026-10-08):** once S35 lands, `POST /recurring-booking-schedules` also answers `422` `BOOKING_SCHEDULED_IN_PAST`, `BOOKING_TOO_SOON`, `BOOKING_TOO_FAR_AHEAD` (the first occurrence outside the booking window) and `BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES` (no chosen weekday occurs in the term). The form's error mapping must render all four through the `errors.json` entries (they exist in both locales once S35 is merged); the pattern builder should also keep the first occurrence inside the window so these stay a backstop.
 **Pattern:** plain composition — a form, a review step and one result component driven by a discriminated-union outcome type (one variant per HTTP outcome), extending S12's my-account components; no new named pattern.
 
 **Discovered:** 2026-09-29, while implementing TD45-S0 (PR #532), by asking whether any customer-side UI creates a recurring schedule. Verified by searching every M23 frontend story, every prototype and the web code: none does. M23-S11 (booking flow) has no recurrence screen, M23-S12 is explicitly "the management surface only", M23-S13 is the staff approval queue, the prototypes `06b`/`06c` showed only the *results* of a creation (no screen collected the pattern), and no web code calls `POST /recurring-booking-schedules`.
@@ -1511,7 +1514,8 @@ Make creating a recurring schedule aware of the same rule availability uses, so 
 **Agent:** frontend-ts
 **Complexity:** M
 **Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md, docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
-**Dependencies:** M23-S17 (the pattern rules, service filter, request builder and outcome mapping this story reuses), M23-S13 (the Agenda's recurrence cards in "Precisa de ação", and the recurring fetcher module), M23-S05 (approval and materialization)
+**Dependencies:** **M23-S40 (2026-10-08: the "+ Novo" menu on the Agenda and the shared customer chooser — `09`/`CustomerChooserStep` — are owned by M23-S40; this story consumes them for "Recorrência" instead of building its own customer step, and whichever of the two lands first builds the chooser once)**, M23-S17 (the pattern rules, service filter, request builder and outcome mapping this story reuses), M23-S13 (the Agenda's recurrence cards in "Precisa de ação", and the recurring fetcher module), M23-S05 (approval and materialization)
+**Note (M23-S35, 2026-10-08):** staff are exempt from the minimum-notice and maximum-days checks but not from the past rule, so this form can still receive `422` `BOOKING_SCHEDULED_IN_PAST` and `BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES`; both must render through `errors.json`.
 **Pattern:** plain composition — reuses M23-S17's pure logic (service filter, request-body builder, outcome mapper, validation rules) and adds only a customer step and the dashboard shell; no new named pattern.
 
 **Discovered:** 2026-09-29, while closing the gaps around M23-S17. UC-070 allows staff to create a recurring schedule on a customer's behalf, and `POST /recurring-booking-schedules` already accepts it (`@Roles('CUSTOMER', 'MANAGER', 'STAFF')`, body `customerId`), but no story and no prototype builds a staff-facing UI for it, and the staff dashboard has no create-on-behalf flow of any kind (`apps/web/app/dashboard/bookings/` holds only the queue and the detail page).
@@ -1547,7 +1551,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
 **Backend use case steps:** none — reuses M23-S04's `RequestRecurringBookingScheduleUseCase`. Conditional on decision A only.
 **Backend HTTP surface:** reuses `POST /recurring-booking-schedules` and `GET /customers`, unchanged.
 **BFF endpoint spec:** none — both routes exist; the BFF stays a thin proxy.
-**Prototype references:** `plan/journey/staff/agenda.md` (M23 Cluster 3 extension) + `plan/journey/staff/prototypes/agenda/09-nova-recorrencia-cliente.html`, `09b-nova-recorrencia-padrao.html`, `09c-nova-recorrencia-resultado.html`, `08-recurring-schedule-approval.html`, `dev-notes.md`
+**Prototype references:** `plan/journey/staff/agenda.md` (M23 Cluster 3 extension) + `plan/journey/staff/prototypes/agenda/09-escolher-cliente.html`, `09b-nova-recorrencia-padrao.html`, `09c-nova-recorrencia-resultado.html`, `08-recurring-schedule-approval.html`, `dev-notes.md`
 **New migration / i18n keys / env vars / feature flags:** no migration, env var or feature flag. i18n keys: a new group in both `packages/i18n/locales/{pt-BR,en}/web.json` under the dashboard's existing bookings namespace (the button, the two steps, the customer step's states, the per-outcome result copy), verified against the file's real shape at implementation time. No new error-code translations: every code above is already present in both `errors.json` files.
 
 **Files to create/modify:**
@@ -1736,6 +1740,7 @@ A fixed-term recurring schedule ends by itself, and a customer who still wants t
 **Complexity:** M
 **Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md (customer-account equivalent), docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
 **Dependencies:** M23-S17 (the creation route, form, validation and outcome mapping this story pre-fills), M23-S12 (the recurring-schedules list this story adds the button to), M23-S21 (the email deep link and the by-id read), M23-S05 (the `ENDED` status the list shows)
+**Note (M23-S35, 2026-10-08):** the "Renovar" form must send `renewsScheduleId` (the schedule being renewed) with the same service, weekdays, start time and duration, and a `startsOn` no later than that schedule's `endsOn` plus one day; only then does the backend skip the minimum-notice and maximum-days checks. A renewal made after the old term started books only the future occurrences (S35 decision 5), and a request that does not qualify is simply treated as a new schedule, so the form must not rely on the exemption for correctness.
 **Pattern:** plain composition — a pure pre-fill mapper feeding S17's existing form, plus one button; no new pattern.
 
 **Description:**
@@ -2685,65 +2690,62 @@ An alert on a `CUSTOMER_SELECTED` service is only meaningful at a chosen duratio
 ### M23-S35 — Apply the booking window to a recurring schedule's first occurrence, and never create a past occurrence
 
 **Discovered:** 2026-10-07, in the M23-S33 review (PR #566), asking whether recurring schedules should respect the tenant and service booking window. M23-S33 decision 12 deliberately left them out of scope.
-**Root cause:** `RequestRecurringBookingScheduleUseCase.execute()` (`request-recurring-booking-schedule.use-case.ts:159-162`) validates only the term length (`assertValidTerm`), never where the term starts: `startsOn` is unchecked against the past, the minimum notice and the maximum days ahead, and an `AUTO_CONFIRM` schedule materializes its whole term in the same transaction (`:131-133`). `ApproveRecurringBookingScheduleUseCase.execute()` (`approve-recurring-booking-schedule.use-case.ts:93-110`) re-enumerates the whole term from the stored `startsOn` and creates every occurrence, including ones already in the past by approval time (nothing in `materialize-recurring-schedule-occurrences.helpers.ts` filters them). There is also no backend notion of a renewal: M23-S21 links to `…/new?renewFrom=<id>` and M23-S22 (not built) submits an ordinary create request, so the backend cannot tell a renewal from a new schedule.
+**Root cause:** `RequestRecurringBookingScheduleUseCase.execute()` (`request-recurring-booking-schedule.use-case.ts`) validates only the term length (`assertValidTerm`), never where the term starts: `startsOn` is unchecked against the past, the minimum notice and the maximum days ahead, and an `AUTO_CONFIRM` schedule materializes its whole term in the same transaction. `ApproveRecurringBookingScheduleUseCase.execute()` re-enumerates the whole term from the stored `startsOn` and creates every occurrence, including ones already in the past by approval time (nothing in `materialize-recurring-schedule-occurrences.helpers.ts` filters them). A term whose weekdays never occur inside it enumerates to zero occurrences and today creates a schedule with no bookings. There is also no backend notion of a renewal: M23-S21 links to `…/new?renewFrom=<id>` and M23-S22 (not built) submits an ordinary create request, so the backend cannot tell a renewal from a new schedule.
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-070 (create, A-flows) and UC-071 (approval), `docs/14-API_CONTRACTS.md` (`/recurring-booking-schedules`), `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — the effective-window algorithm (M23-S33) and recurring schedules, `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Schema-level enforcement, `docs/24-BFF_ARCHITECTURE.md`
-**Dependencies:** M23-S33 (merged in PR #566; supplies `resolveEffectiveBookingWindow` and `assertWithinBookingWindow`), M23-S04 (✅ Done — the aggregate), M23-S18 (✅ Done — the fixed term this story leaves unchanged). Consumers, not dependencies: M23-S17 (the create form) gets the check without change; M23-S22 (the "Renovar" form) must send `renewsScheduleId`.
-**Pattern:** plain composition — the precedent is M23-S33: a pure helper resolves the effective window, the controller passes the tenant's `settings.booking` values into the use-case input, and the use case asserts before `txManager.run()`, never inside it. The renewal test is one small pure predicate. No named GoF pattern.
+**Docs to load:** `docs/04-USE_CASES.md` UC-070 (create, A-flows) and UC-071 (approval), `docs/14-API_CONTRACTS.md` (`/recurring-booking-schedules`), `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — the effective-window algorithm (M23-S33) and recurring schedules, `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Schema-level enforcement and § Adding a new error — checklist, `docs/24-BFF_ARCHITECTURE.md`
+**Dependencies:** M23-S33 (✅ merged in PR #566; supplies `resolveEffectiveBookingWindow` and `assertWithinBookingWindow`), M23-S04 (✅ Done — the aggregate), M23-S18 (✅ Done — the fixed term this story leaves unchanged). Consumers, not dependencies: M23-S17 (the create form) and M23-S19 (the staff form) now see the window errors and the new no-occurrence error on create; M23-S22 (the "Renovar" form) must send `renewsScheduleId`.
+**Pattern:** plain composition — the precedent is M23-S33: a pure helper resolves the effective window, the controller passes the tenant's `settings.booking` values into the use-case input, and the use case asserts. No named GoF pattern. The assertion runs **inside** `prepareRequest()`, right after `findByIdForUpdate()` loads the service: the effective window needs that service's overrides, and reading it under the row lock is what keeps the policy read from going stale. It is pure computation (no network I/O), so it does not breach the no-I/O-in-`txManager.run()` rule.
 
 **Description:**
-Make the booking window apply to where a recurring schedule starts, let a genuine renewal keep going without it, and stop approval and creation from ever producing a booking in the past.
+Make the booking window apply to where a recurring schedule starts, let a genuine renewal keep going without it, and stop approval and renewal from ever producing a booking in the past.
 
-**Decided at creation (agreed with the user on 2026-10-07; not for discovery to re-derive):**
-1. **First occurrence only.** For a new schedule, the first occurrence is checked as an instant — the first start `enumerateRecurrenceOccurrences(recurrence, startsOn, endsOn, timezone)` returns, never the `startsOn` date — with M23-S33's `assertWithinBookingWindow` and the effective window (the tenant is the ceiling, the service override can only tighten it). It throws `BOOKING_SCHEDULED_IN_PAST`, then `BOOKING_TOO_SOON`, then `BOOKING_TOO_FAR_AHEAD`. Later occurrences are not window-checked.
-2. **The term cap is unchanged:** `endsOn ≤ startsOn + recurringHorizonDays` (default 90). It is not capped by the tenant or service maximum days — that would defeat recurrence.
-3. **Renewal is explicit.** `RequestRecurringBookingScheduleBodySchema` (shared in `packages/validation/src/booking.ts`) gains an optional `renewsScheduleId` (uuid). A request is a renewal only when that schedule exists in the tenant, belongs to the same customer, and the new request keeps the same pattern: same `serviceId`, same `daysOfWeek` (as a set), same `startTime` and same `durationMinutes`. A renewal skips the minimum-notice and maximum-days checks (it continues the customer's routine) but never the past check (decision 4). A pattern that differs is not an error: the request is simply treated as a new schedule. A reference to another customer's schedule or one outside the tenant is `404 RecurringBookingScheduleNotFoundError`, reusing `assertScheduleOwnership`. The field is not persisted (no migration).
-4. **Never create a past booking.** Occurrences that start at or before now are skipped when an `AUTO_CONFIRM` request materializes its term and when UC-071 approval materializes it. Approval does not re-run the window check (the manager's decision is theirs). If no future occurrence remains, the request or the approval fails with `422 BOOKING_SCHEDULED_IN_PAST` and the schedule stays as it was.
-5. **Staff and managers are exempt** from the window check on behalf of a customer, as in M23-S33 decision 5. The past rule still applies.
-6. **Error codes are reused:** `BOOKING_SCHEDULED_IN_PAST`, `BOOKING_TOO_SOON`, `BOOKING_TOO_FAR_AHEAD` (all `422`). No new code, no locale change.
-
-**Open for `/story-discovery` (proposed, not decided):**
-- **Continuity of a renewal.** As written, a customer could cite an old schedule in `renewsScheduleId` and start far in the future, exempt from the maximum days ahead. Proposal: a renewal's `startsOn` must be no later than the referenced schedule's `endsOn` plus one day; otherwise it is treated as a new schedule.
-- **Persisting `renewsScheduleId`.** The story does not, to avoid a migration; recording "renewed from" would help the future BI layer but needs a column.
-- **Term entirely in the past at approval:** the story refuses with `422 BOOKING_SCHEDULED_IN_PAST` and keeps the schedule pending; confirm that default.
-- **M23-S22** must be told to send `renewsScheduleId` in its own discovery.
+**Decided (agreed with the user on 2026-10-07 and at `/story-discovery` on 2026-10-08; not for implementation to re-derive):**
+1. **First occurrence only, for a new schedule.** The first occurrence is checked as an instant — the first start `enumerateRecurrenceOccurrences(recurrence, startsOn, endsOn, timezone)` returns, never the `startsOn` date — with M23-S33's `assertWithinBookingWindow` and the effective window (the tenant is the ceiling, the service override can only tighten it). It throws `BOOKING_SCHEDULED_IN_PAST`, then `BOOKING_TOO_SOON`, then `BOOKING_TOO_FAR_AHEAD`. Later occurrences are not window-checked.
+2. **The term cap is unchanged:** `endsOn ≤ startsOn + recurringHorizonDays` (default 90). It is not capped by the tenant or service maximum days ahead — that would defeat recurrence.
+3. **A term with no occurrence is refused.** When the enumeration returns nothing (no listed weekday falls inside `startsOn..endsOn`), the request fails with `422 BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES` (a **new** error code), before any window check. A schedule with no bookings is useless, and without a first occurrence there is nothing to window-check. It applies to new schedules and renewals alike.
+4. **Renewal is explicit.** `RequestRecurringBookingScheduleBodySchema` (shared in `packages/validation/src/booking.ts`) gains an optional `renewsScheduleId` (uuid). The referenced schedule must exist in the tenant and belong to the **same customer as the new request** (the resolved `customerId`, so a staff member creating on a customer's behalf works); otherwise `404 BOOKING_RECURRING_SCHEDULE_NOT_FOUND` for every actor. `assertScheduleOwnership` is **not** used for this: it throws a `403` and only guards CUSTOMER actors, and a `403` would confirm the schedule exists. The request is a renewal only when, in addition, it keeps the same pattern (same `serviceId`, same `daysOfWeek` as a set, same `startTime`, same `durationMinutes`) **and** its `startsOn` is no later than the referenced schedule's `endsOn` plus one day (continuity). A request that differs in any of these is not an error: it is treated as a new schedule. A renewal skips the minimum-notice and maximum-days checks (it continues the customer's routine). The field is not persisted (no migration); recording "renewed from" is left for a future story if the BI layer needs it.
+5. **Never create a past booking.** One `now` is read per request. Occurrences that start at or before it are dropped (a) from a **renewal's** term at creation (so a renewal made a day late books only the future occurrences) and (b) from the term at **UC-071 approval**, **before** the conflict check, so a past occurrence on a since-closed day or an old booking cannot refuse the approval, and the resource plan stays aligned with the occurrences it is indexed by. A **new** schedule whose first occurrence is past is refused by decision 1, so nothing needs dropping there. If nothing is left, the request or the approval fails with `422 BOOKING_SCHEDULED_IN_PAST` and the schedule stays as it was (`PENDING_APPROVAL` at approval). Approval does not re-run the window check (the manager's decision is theirs). The stored `startsOn`/`endsOn` are never rewritten.
+6. **Staff and managers are exempt** from the window check (minimum notice, maximum days) on behalf of a customer, as in M23-S33 decision 5. The past rule still applies to them.
+7. **Error codes:** `BOOKING_SCHEDULED_IN_PAST`, `BOOKING_TOO_SOON`, `BOOKING_TOO_FAR_AHEAD` (all `422`, reused — their locale entries exist) and the new `BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES` (`422`; domain error `RecurringBookingScheduleNoOccurrencesError`, key `RECURRING_SCHEDULE_NO_OCCURRENCES` in `packages/types/src/error-codes.ts`, an entry in **both** `packages/i18n/locales/{pt-BR,en}/errors.json`).
 
 **Backend use case steps:**
-1. `RequestRecurringBookingScheduleUseCase`: load the renewal reference when `renewsScheduleId` is present and decide renewal vs new, resolve the effective window, assert the first occurrence (new) or the past rule (renewal), then `assertValidTerm` as today. All of it before `txManager.run()`.
-2. The materialization drops occurrences at or before `now`.
-3. `ApproveRecurringBookingScheduleUseCase`: enumerate the term, drop past occurrences, fail with `BookingScheduledInPastError` when none are left, otherwise materialize as today.
+1. `RequestRecurringBookingScheduleUseCase.prepareRequest()`, after the service load and `assertValidTerm` and the enumeration: refuse an empty enumeration (decision 3); load the renewal reference when `renewsScheduleId` is present (404 rule, decision 4) and decide renewal vs new; for a new schedule from a CUSTOMER actor, resolve the effective window from the input's `tenantBookingWindow` and the service and assert the first occurrence; for a new schedule from STAFF, assert only the past rule; for a renewal, drop past occurrences and refuse when none remain.
+2. `ApproveRecurringBookingScheduleUseCase`: enumerate the term, drop past occurrences, fail with `BookingScheduledInPastError` when none are left, then run `assertTermStillHonorable` and materialize with the filtered list.
+3. `materializeRecurringScheduleOccurrences` is unchanged (it receives an already-filtered list).
 
-**Backend HTTP surface:** `POST /recurring-booking-schedules` gains the optional `renewsScheduleId` field and the `422` codes above; `POST /recurring-booking-schedules/:id/approve` gains `422 BOOKING_SCHEDULED_IN_PAST`. Paths otherwise unchanged.
+**Backend HTTP surface:** `POST /recurring-booking-schedules` gains the optional `renewsScheduleId` field and the `422` codes above (and `404` for a bad renewal reference); `POST /recurring-booking-schedules/:id/approve` gains `422 BOOKING_SCHEDULED_IN_PAST`. Paths otherwise unchanged.
 **BFF endpoint spec:** none — the BFF validates with the shared schema and forwards the body unchanged.
-**New migration / i18n keys / env vars / feature flags:** none.
+**New migration / i18n keys / env vars / feature flags:** no migration, env var or flag. One new error code with its `errors.json` entry in both locales.
 
 **Files to create/modify (paths verified to exist unless marked new):**
 - `packages/validation/src/booking.ts` (+ `booking.spec.ts`) (modify — `renewsScheduleId`)
-- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-window.helpers.ts` (+ `.spec.ts`) (new — first-occurrence start, same-pattern predicate, the assertion)
-- `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.ts` (+ `.spec.ts`) (modify)
+- `packages/types/src/error-codes.ts`, `packages/i18n/locales/{pt-BR,en}/errors.json` (modify — `RECURRING_SCHEDULE_NO_OCCURRENCES`)
+- `apps/backend/src/contexts/booking/domain/errors/recurring-booking-schedule.error.ts` (+ spec) and `infrastructure/http/booking-error.mapper.ts` (+ spec) (modify — `RecurringBookingScheduleNoOccurrencesError`, `422`)
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-window.helpers.ts` (+ `.spec.ts`) (new — first-occurrence assertion, same-pattern + continuity predicate, `dropPastOccurrences`)
+- `apps/backend/src/contexts/booking/application/use-cases/request-recurring-booking-schedule.use-case.ts` (+ `.spec.ts`) (modify — `tenantBookingWindow` in the input)
 - `apps/backend/src/contexts/booking/application/use-cases/approve-recurring-booking-schedule.use-case.ts` (+ `.spec.ts`) (modify)
-- `apps/backend/src/contexts/booking/application/use-cases/materialize-recurring-schedule-occurrences.helpers.ts` (+ `.spec.ts`) (modify — skip past occurrences)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ `.integration.spec.ts`, `recurring-booking-schedule-approval.controller.integration.spec.ts`) (modify — pass the tenant window values)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.ts` (+ `.integration.spec.ts`, `recurring-booking-schedule-approval.controller.integration.spec.ts`) (modify — pass `settings.booking`'s window and `renewsScheduleId`)
 - `apps/backend/http/booking/recurring-booking-schedules.http` (modify — the new `422` cases and a renewal)
-- `docs/04-USE_CASES.md` (UC-070, UC-071), `docs/14-API_CONTRACTS.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify)
+- `docs/04-USE_CASES.md` (UC-070, UC-071), `docs/14-API_CONTRACTS.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md`, `docs/21-TENANTS_SETTINGS_SCHEMA.md` (modify — done at discovery, 2026-10-08; verify at implementation)
 
 **Acceptance criteria — product:**
 - [ ] A customer cannot create a recurring schedule whose first occurrence is in the past, inside the minimum notice or beyond the maximum days ahead; the response is `422` with the matching code, even by calling the API directly.
-- [ ] A customer renewing the same routine early is not blocked by the maximum days ahead; one who changes the weekday, time, duration or service is treated as new.
-- [ ] A late renewal or a late approval creates only future bookings.
-- [ ] Staff creating a schedule on a customer's behalf are not blocked by the window.
+- [ ] A term in which none of the chosen weekdays occurs is refused with `422 BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES`; no empty schedule is created.
+- [ ] A customer renewing the same routine early is not blocked by the minimum notice or maximum days ahead; one who changes the weekday, time, duration or service, or starts after the old schedule's end plus one day, is treated as new.
+- [ ] A renewal made after the old term started books only the future occurrences, and a late approval books only the future occurrences.
+- [ ] Staff creating a schedule on a customer's behalf are not blocked by the window, but cannot start one in the past.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] the helper: first occurrence taken as an instant (a `startsOn` before the first matching weekday); same-pattern predicate (each of the four fields changing); the assertion on the boundaries
-  - [ ] request: new schedule rejected past, too soon, too far; renewal with the same pattern accepted beyond the maximum; renewal with a changed field treated as new; staff exempt from the window but not the past rule
-  - [ ] approval and materialization skip past occurrences; none left → `BookingScheduledInPastError`
+  - [ ] the helper: first occurrence taken as an instant (a `startsOn` before the first matching weekday); the assertion on the boundaries (exactly now, exactly the minimum notice, the last bookable day); same-pattern predicate (each of the four fields changing, weekday order irrelevant); continuity (end + 1 day accepted, + 2 days treated as new); `dropPastOccurrences` at the exact `now`
+  - [ ] request: new schedule rejected past, too soon, too far; zero occurrences rejected before the window; renewal with the same pattern accepted beyond the maximum and inside the minimum notice; renewal with a changed field or late continuity treated as new (and window-checked); a late renewal books only future occurrences and fails with the past error when none remain; staff exempt from the window but not the past rule
+  - [ ] approval: past occurrences skipped before the conflict check (a past occurrence on a closure does not refuse approval); none left → `BookingScheduledInPastError` and the schedule stays `PENDING_APPROVAL`; the materialized list and the resource plan stay aligned
 - Integration:
-  - [ ] `POST /recurring-booking-schedules` real rows: the three `422` codes, a valid new schedule `201`, a valid renewal `201`
-  - [ ] approval of a `PENDING_APPROVAL` schedule whose first occurrence has passed creates only the future bookings
+  - [ ] `POST /recurring-booking-schedules` real rows: the three window `422` codes, the no-occurrence `422`, a valid new schedule `201`, a valid renewal `201` that starts inside the minimum notice
+  - [ ] approval of a `PENDING_APPROVAL` schedule whose first occurrence has passed creates only the future bookings, and one whose whole term has passed answers `422` and stays pending
 - Tenant isolation:
-  - [ ] a `renewsScheduleId` from another tenant or another customer is `404`, never an exemption
+  - [ ] a `renewsScheduleId` from another tenant, or belonging to another customer, is `404`, never an exemption and never a `403`
 - E2E: none — backend rule; the form that surfaces it is M23-S17, and M23-S22 sends the field
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
@@ -3025,3 +3027,144 @@ Send the customer one email when their alert matches: the service, the window th
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 - [ ] **Live-verification check (devops step above):** `gcloud pubsub subscriptions get-iam-policy projects/<project>/subscriptions/ikaro-AvailabilityAlertMatched-notification` shows `roles/pubsub.subscriber` for the project's Pub/Sub service agent, and `gcloud pubsub topics get-iam-policy projects/<project>/topics/ikaro-AvailabilityAlertMatched-notification-dlq` shows `roles/pubsub.publisher` for it, in both `ikaro-staging` and `ikaro-prod`.
+
+---
+
+### M23-S39 — Staff creates a one-off booking on a customer's behalf — `POST /bookings/staff` (created `APPROVED`, customer or guest) and customer search by phone, backend + BFF
+
+**Agent:** `backend-ts` + `bff-ts`
+**Complexity:** L
+**Docs to load:** `docs/04-USE_CASES.md` UC-108 (and UC-001, UC-002 for the rules it shares), `docs/02-DOMAIN_MODEL.md` § `Booking` (Key Methods — `createByStaff`, `materializeRecurringOccurrence` as the precedent), `docs/03-DOMAIN_EVENTS.md` § `BookingApproved`, `docs/13-DATABASE_SCHEMA.md` § `booking.bookings` — modified (M23 Cluster 3), `docs/14-API_CONTRACTS.md` § Booking Requests (guest, authenticated, **Staff Booking on a Customer's Behalf**) and § Customers search, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — the effective booking window (M23-S33), `docs/ENGINEERING_RULES_BACKEND.md` (§ Transactions, § Event Handlers, § Migration backfills), `docs/ENGINEERING_RULES_SHARED.md` § Schema-level enforcement, `docs/24-BFF_ARCHITECTURE.md`, `docs/ANTI_PATTERNS.md` § A user-supplied search term is wrapped
+**Dependencies:** M23-S01 (resource resolution), M23-S02 (variable duration, intake), M23-S33 (✅ Done — `resolveEffectiveBookingWindow`, `assertWithinBookingWindow`), M23-S26 (✅ Done — the aggregate records every status transition, so the entry state needs a rule), M23-S29 (✅ Done — the public read APIs the staff flow will reuse)
+**Pattern:** plain composition — a new `CreateBookingByStaffUseCase` and a new `Booking.createByStaff()` factory, modelled on `materializeRecurringOccurrence()` (M23-S05, the first direct-`APPROVED` entry). The service, resource, duration and intake steps of `RequestBookingUseCase` / `RequestAuthenticatedBookingUseCase` are **shared helpers called by all three use cases, not copied**; any step that is still private to one of them is extracted first. No named GoF pattern.
+
+**Discovered:** 2026-10-08, while reviewing the staff Agenda prototypes: a customer phoning or messaging to book is a core daily flow, and the only "staff books for a customer" paths that exist are a recurrence (UC-070) and a class enrollment (UC-104). A one-off appointment has none — `BookingType` is `GUEST | CUSTOMER` and `Booking` has no creator field.
+
+**Description:**
+Add the server side of UC-108. A staff member books a one-off appointment for someone who contacted the business, either for an existing customer of the tenant or for a person who is not in the system.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. **Not in the system → a guest booking.** A `Customer` requires a Google account, so staff cannot create one from an email. The person is booked as a `GUEST` with `contactName`, `contactPhone` and `contactEmail`, **all required**, exactly the UC-001 contact rules. No `Customer` row is created and no model change is made. A guest booking earns no loyalty (UC-001 A4) and is not linked to an account created later.
+2. **Created `APPROVED`.** `Booking.createByStaff()` builds the booking directly in `APPROVED` with `approvedAt = now`, `approvedBy` = the acting staff id and a new `createdByStaffId` = the same id. Staff are the approvers, so there is nothing to wait for; the service's `MANUAL_APPROVAL` setting is not consulted. The entry state is recorded in `docs/02-DOMAIN_MODEL.md` (both `BookingStatus` locations) and not in `.copilot/context.md` §5, which is at its size budget.
+3. **Events.** The booking raises `BookingApproved` and **not** `BookingRequested`. The customer or guest gets the existing booking-confirmed email; no manager alert is sent (no one is asked to decide). `BookingAuditLogHandler` already subscribes to `BookingApproved`, so no new event, topic or subscription is added.
+4. **Scheduling rules.** Availability, closures, resource resolution and conflicts run exactly as for a customer booking, in the same transaction and against the same exclusion constraint. The booking window rejects a start in the past and a start beyond the maximum advance, but **does not apply the minimum notice**, so a same-day phone booking works. The skip is a parameter of the existing M23-S33 helper (not a copied check), and the rest of the system keeps enforcing the minimum notice for customers.
+5. **Two shapes of caller input, exactly one at a time:** `customerId`, or the full contact trio. Both or neither is a `400`. With `customerId` the contact snapshot comes from the `Customer` row; a customer without a phone is `422 BOOKING_CUSTOMER_PHONE_NOT_SET` (code already exists, UC-071). Whether the pickup address falls back to `Customer.defaultAddress` follows UC-002.
+6. **Identity.** `createdByStaffId` and `approvedBy` come from the request context (`X-Actor-ID`), never from the body. `@Roles('STAFF','MANAGER')`; a `CUSTOMER` token is `403`.
+7. **Only `APPOINTMENT` services** (the same `422` as `POST /bookings`); class sessions are UC-104. The staff flow does not collect before-service photos, so `beforeServicePhotoUrls` is not accepted.
+8. **No idempotency key.** A double submit for the same slot meets the exclusion constraint and returns `409 BOOKING_SLOT_UNAVAILABLE`.
+9. **Customer search.** `GET /customers?search=` matches `phone` as well as `name` and `email`, comparing the term's digits with the stored phone's digits, with `escapeLikePattern()` on every wrapped term (`docs/ANTI_PATTERNS.md`). The result item gains `phone`. The existing 5-character minimum for a term stays.
+10. **Migration.** `booking.bookings.created_by_staff_id UUID NULL`, no FK (cross-context), no backfill — every existing row is correctly `NULL`. A plain nullable `ADD COLUMN` takes no long lock.
+
+**Open for `/story-discovery`:** whether `BookingStatusTransition` gets a first row for an entry state (what S26 did for `materializeRecurringOccurrence`); whether the existing `BookingApproved` email wording suits a booking nobody requested; whether a guest booking needs a `guestToken` for a later cancel link; and whether `createdByStaffId` should appear in the staff booking detail response.
+
+**Backend use case steps (`CreateBookingByStaffUseCase`):**
+1. Resolve the services and effective booking window (min-advance skipped), then the addresses, variable-duration/intake inputs and resource selections, through the shared helpers.
+2. Resolve the person: with `customerId` load the `Customer` (tenant-scoped; `404`/`422` per above) through the existing customer-lookup port; otherwise validate the contact trio.
+3. Build the booking with `Booking.createByStaff()` and persist it with the same `persistRequestedBooking` path (slot-conflict service, occupancy rows, resource assignments) inside `ITransactionManager.run()`.
+4. Publish `BookingApproved` after commit; return the shared 201 shape with `status: 'APPROVED'`.
+
+**Backend HTTP surface:** new `POST /bookings/staff` on the existing `BookingController` (`@Roles('STAFF','MANAGER')`); `GET /customers?search=` extended (existing route, existing `SearchCustomersUseCase`).
+
+**BFF endpoint spec:** `POST /bookings/staff` — `STAFF|MANAGER`, forwards `X-Actor-*`, request body = `CreateBookingByStaffRequest`, response = the shared booking 201 shape; Zod schema in `bookings.schemas.ts` enforcing "exactly one of `customerId` or the contact trio" at the request boundary. `GET /customers?search=` passes `phone` through `customers.mapper.ts`.
+
+**New migration / i18n keys / env vars / feature flags:** one migration (`created_by_staff_id`); no i18n keys (every error code already exists in both `errors.json`); no env vars; no feature flag.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ `.spec.ts`) and `booking.types.ts` (modify — `createByStaff()`, `createdByStaffId` prop)
+- `apps/backend/src/contexts/booking/application/use-cases/create-booking-by-staff.use-case.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new), and the helper extractions it needs from `request-booking.use-case.ts` / `request-authenticated-booking.use-case.ts` / `booking-request.helpers.ts` / `booking-window.helpers.ts` (modify, with their specs)
+- `apps/backend/src/contexts/booking/application/dtos/create-booking-by-staff.dto.ts` (+ spec) (new)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.ts` (+ spec) (modify — the route)
+- `apps/backend/src/contexts/booking/infrastructure/entities/booking.entity.ts`, the booking entity↔domain mapper, `infrastructure/migrations/<next-timestamp>-AddBookingCreatedByStaffId.ts` (new), `apps/backend/src/test/builders/booking/booking-entity.builder.ts` and the `Booking` aggregate builder (modify — `withCreatedByStaffId`)
+- `apps/backend/src/contexts/customer/application/use-cases/search-customers.use-case.ts`, `application/ports/customer-repository.port.ts`, `infrastructure/repositories/typeorm-customer.repository.ts`, `infrastructure/controllers/customer.controller.ts` (+ specs, + integration spec) (modify — phone match, `phone` in the item)
+- `apps/bff/src/features/booking/bookings.controller.ts`, `bookings.schemas.ts`, `bookings.mapper.ts`, `bookings.types.ts` (+ specs) (modify); `apps/bff/src/features/customer/customers.controller.ts`, `customers.mapper.ts`, `customers.schemas.ts`, `customers.types.ts` (+ specs) (modify — `phone`)
+- `packages/types/src/booking.dto.ts` (modify — `CreateBookingByStaffRequest`), the customer search item type (modify — `phone`)
+- `apps/backend/http/booking/bookings.http`, `apps/bff/http/booking/bookings.http`, and the customers `.http` files (modify)
+- Docs (already updated 2026-10-08 with the UC-108 promotion; the story re-checks them): `docs/04-USE_CASES.md`, `docs/02-DOMAIN_MODEL.md`, `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`
+
+**Acceptance criteria — product:**
+- [ ] A staff member can book an appointment for an existing customer; the booking is `APPROVED` at once and the customer receives the confirmation email.
+- [ ] A staff member can book for a person who is not in the system by giving name, phone and email; it is a guest booking, `APPROVED` at once, and that person receives the confirmation email.
+- [ ] A same-day booking inside the tenant's minimum-notice window succeeds when staff create it, and the same slot is still refused to a customer.
+- [ ] A start in the past, or beyond the maximum advance, is refused.
+- [ ] A slot another booking already occupies, or a closed day, is refused with the same errors a customer sees.
+- [ ] Staff can find a customer by typing part of their phone number, in any format.
+- [ ] The booking shows no manager "new request" alert and no "waiting for approval" state.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `Booking.createByStaff()`: starts `APPROVED`, sets `approvedBy`/`createdByStaffId`, raises `BookingApproved` and no `BookingRequested`, for both `CUSTOMER` and `GUEST`
+  - [ ] The use case: customer shape, guest shape, both-or-neither → rejected, customer without phone, unknown customer, non-appointment service
+  - [ ] **Negative guarantee, own test:** the minimum notice is *not* applied to the staff path while a start in the past and a start beyond the maximum advance are still rejected; and the customer path still applies the minimum notice after the helper change
+  - [ ] **Negative guarantee, own test:** `createdByStaffId` and `approvedBy` come from the context, and a body field of the same name is ignored/rejected
+  - [ ] The search term's digits match a differently formatted stored phone; `%` and `_` in the term are escaped
+- Integration:
+  - [ ] `POST /bookings/staff` persists the booking `APPROVED` with its resource assignments and occupancy rows, for a customer and for a guest
+  - [ ] Two concurrent staff requests for one slot: exactly one succeeds, the other is `409`
+  - [ ] The phone search against a real database
+- Tenant isolation:
+  - [ ] Tenant A's staff cannot book for Tenant B's `customerId` (`404`); the customer search never returns Tenant B's customers; the created booking carries Tenant A's `tenant_id`
+- E2E: none — server-side; the UI story (M23-S40) owns the browser scenario
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S40 — Staff "+ Novo" menu on the Agenda, the shared customer chooser and the dashboard "Novo agendamento" flow (UC-108)
+
+**Agent:** `frontend-ts`
+**Complexity:** L
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Staff Booking on a Customer's Behalf and § Customers search, `docs/04-USE_CASES.md` UC-108, `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
+**Dependencies:** M23-S39 (the endpoint and the phone search), M23-S11a and M23-S11b (✅ Done — the step engine this flow reuses), M23-S29 (✅ Done — the read APIs). **Coordinated with M23-S19:** the "+ Novo" menu and the customer chooser belong to this story; S19 consumes them for "Recorrência". Whichever lands first builds the chooser once.
+**Pattern:** plain composition with **maximum reuse of the public booking flow — a requirement of this story, not a preference.** Decided 2026-10-08:
+- **Logic is shared, never copied.** `resolveBookingSteps()`, `resolveBookingSubmitErrorRoute()`, the quote/availability/resource-option fetchers, the submission hook and every pure helper in `features/booking/model|api/` are used as they are. A step whose logic (state, validation, effects) is still tangled into a public component is first split into a presentation-neutral container or hook plus views, in the same PR, so both flows call one implementation.
+- **Only the presentation differs.** The public step components style themselves with the business's `--ba-*` tokens, and the dashboard must not read them (`.copilot/context.md` § Web styling boundary). So each step has a hotsite view and a dashboard view over the same logic. Two allowed mechanisms, picked per component: a `variant: 'hotsite' | 'dashboard'` prop for a small purely presentational component (the precedent: `AvailabilityCarousel`, `SlotPicker` and `ErrorAlert`, already used by staff reschedule), or a logic/view split for a component with real behaviour (the resource picker, the intake step, the contact fields, the variable-duration step).
+- **Rejected:** copying a public component into the dashboard and editing it; and wrapping the staff page in a container that defines `--ba-*` as dashboard colours (it would make a public component read both branding systems, which the boundary forbids).
+- **The hotsite must not change.** Every existing public-flow spec, including the booking-flow Playwright tests, passes unmodified; that is the regression guard for the refactor.
+- **`/story-discovery` produces the table** — one row per public step component: its `--ba-*` references, the chosen mechanism (variant or split) and why. The table is the plan; no component is skinned without a row.
+**Prototype references:** `plan/journey/staff/agenda.md` (M23 section — "+ Novo") and `plan/journey/staff/prototypes/agenda/` screens `00-agenda` ("+ Novo" menu), `09` (customer chooser), `10-novo-agendamento.html` (the booking steps) and `10b-novo-agendamento-resultado.html` (outcomes), `dev-notes.md`.
+
+**Description:**
+Give staff one place to create something for a customer who phoned or messaged.
+
+- **"+ Novo" menu.** One button above the Agenda queue opens a small menu: **Agendamento** (this story) and **Recorrência** (M23-S19). A future kind of "create on a customer's behalf" is a new menu item, never a second button.
+- **Customer chooser (`CustomerChooserStep`).** Shared first step, two modes: **Cliente cadastrado** — search by name, email or phone (debounced, minimum 5 characters, recent customers when empty), pick a row, "Continuar"; and **Novo contato** — name, phone and email, all required, which makes a guest booking. For "Recorrência" the *Novo contato* mode is disabled with the reason (a recurrence needs an account, UC-070). States: recent list, no result, search failed.
+- **Booking steps (`/dashboard/bookings/new`).** The same steps the public flow computes for the chosen services — services, resource picker, duration, date and time, intake — in the dashboard layout: the form in the centre, a **summary card and the actions on the right**, a bottom action bar on mobile ("Criar agendamento", "Voltar"). The chosen person stays visible at the top with a "Trocar" link. The calendar offers dates inside the minimum-notice window (the backend allows them for staff), and never past dates or dates beyond the maximum advance.
+- **Outcomes, inline.** Created (booking details and "Ver agendamento" / "Criar outro" / "Voltar à agenda"), slot taken (`409`, back to the date step with everything kept), outside the window, customer without phone, customer not found, network/5xx. Same convention as `04b`: a banner over the kept data and the action panel swapped.
+- **Route (default, confirm at discovery):** chooser at `/dashboard/bookings/new` with the kind chosen from the menu, booking steps at `/dashboard/bookings/new/booking`; S19 owns `/dashboard/bookings/recurring/new`.
+
+**Open for `/story-discovery`:** the reuse table above; whether the chooser's pick travels in the URL or in state; how the calendar learns that the minimum notice does not apply (a request flag on the availability read vs. computing it client-side from the tenant settings); and whether the Horários "click an empty slot" shortcut is a later story.
+
+**New migration / i18n keys / env vars / feature flags:** i18n keys in both `pt-BR` and `en` for the menu, chooser, steps' dashboard labels, summary and outcomes; no migration, env var or flag.
+
+**Files to create/modify:**
+- `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (+ spec) (modify — the "+ Novo" menu in place of any create button)
+- `apps/web/features/booking/components/dashboard/bookings/NewMenu.tsx`, `CustomerChooserStep.tsx`, `NewBookingForStaffPage.tsx`, `NewBookingSummaryCard.tsx`, `NewBookingOutcome.tsx` (+ specs) (new)
+- `apps/web/features/booking/components/public/*.tsx` step components (+ their specs) (modify — a `variant` prop or a logic/view split, per the discovery table; public behaviour unchanged), and the dashboard views and shared containers they need (new, under `apps/web/features/booking/components/dashboard/bookings/` or a shared folder the discovery picks)
+- `apps/web/features/booking/api/staff-bookings.ts` (+ spec) (new — `createBookingByStaff` through `bffClient`); the customer search fetcher in `@/features/customer/api` (modify — `phone` in the result item)
+- `apps/web/app/dashboard/bookings/new/page.tsx`, `apps/web/app/dashboard/bookings/new/booking/page.tsx` (new — thin routes)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify)
+- `apps/web/e2e/` helper under `helpers/booking/` and one spec (new)
+
+**Acceptance criteria — product:**
+- [ ] The Agenda shows one "+ Novo" button whose menu offers Agendamento and Recorrência.
+- [ ] Staff can find an existing customer by name, email or phone and continue; the guest option takes name, phone and email, all required.
+- [ ] After choosing "Recorrência", the guest option is disabled with a reason.
+- [ ] Staff complete the same steps a customer would (services, resource, duration, date and time, intake) and the booking is created `APPROVED`; the confirmation shows the booking details.
+- [ ] A same-day slot inside the minimum notice can be chosen; a past date cannot.
+- [ ] Each failure (slot taken, outside the window, customer without phone, customer not found, network) shows its message and keeps what staff entered.
+- [ ] The screens follow the dashboard layout (centre + right action panel, bottom bar on mobile) and use no `--ba-*` variable.
+- [ ] The public booking page looks and behaves exactly as before.
+
+**Acceptance criteria — technical:**
+- Unit (Vitest):
+  - [ ] `NewMenu`, `CustomerChooserStep` (modes, disabled guest option for recurrence, empty/no-result/error states, minimum search length), the summary card, the outcome views
+  - [ ] **Negative guarantee, own test:** no dashboard view or new dashboard file reads a `--ba-*` variable
+  - [ ] **Negative guarantee, own test:** the public flow is unchanged — every existing public-flow spec passes without edits to its assertions, and a step's logic exists once (the dashboard and hotsite views call the same container or hook)
+  - [ ] The page submits `customerId` for a registered customer and the contact trio for a guest, never both
+  - [ ] Error routing: each backend code lands on the right step/outcome (reuses `resolveBookingSubmitErrorRoute()`; a test pins the staff-only additions)
+- E2E:
+  - [ ] Playwright: staff opens "+ Novo → Agendamento", picks a seeded customer, books a seeded service in a free slot, and sees the booking `APPROVED` in the Agenda
+  - [ ] Playwright: the guest path with a typed contact
+  - [ ] The existing public booking-flow Playwright specs still pass unmodified
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
