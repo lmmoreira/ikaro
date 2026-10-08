@@ -20,11 +20,13 @@ import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from '../../domain/notification-tem
 //
 // Per-tenant rows are one per (tenant_id, trigger_event, channel) — the unique index is not
 // locale-scoped — so each tenant takes ONE global row. Its language is read from
-// platform.tenants.settings.localization.language (the value getTenantInfo().locale returns); a
-// language the catalog does not ship (a free-form BCP-47 tag such as en-US) takes the pt-BR row,
-// the same fallback JsonLocalizationAdapter applies at render time, so the row's presence — the
-// only thing findAllByTriggerEvent needs — never depends on the exact tag. The cross-schema read is
-// confined to this one-off migration; no runtime code joins across contexts.
+// platform.tenants.settings.localization.language (the value getTenantInfo().locale returns). This
+// migration matches the tag as pt-BR/en exactly and gives anything else the pt-BR row, which is
+// wrong for a region-qualified English tag such as en-US: 1748500000030 corrects that for every
+// tenant and template using @ikaro/i18n's resolveSupportedLocale(), and rows this migration
+// created for such a tenant are harmless (their subject/body are never read — the copy is
+// overlaid from notifications.json at send time). The cross-schema read is confined to this
+// one-off migration; no runtime code joins across contexts.
 const SEED_LOCALES = ['pt-BR', 'en'] as const;
 
 const NEW_KEYS: NotificationTemplateKey[] = [

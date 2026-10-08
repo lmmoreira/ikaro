@@ -1,17 +1,10 @@
+import { resolveSupportedLocale } from '@ikaro/i18n';
 import type { AbstractIntlMessages } from 'next-intl';
 
-export const SUPPORTED_LOCALES = ['pt-BR', 'en'] as const;
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
-const FALLBACK: SupportedLocale = 'pt-BR';
-
-export function resolveSupportedLocale(locale: string): SupportedLocale {
-  if ((SUPPORTED_LOCALES as readonly string[]).includes(locale)) {
-    return locale as SupportedLocale;
-  }
-  // Region-qualified tags (e.g. 'en-US', 'en-GB') should resolve by primary
-  // subtag rather than falling back to the pt-BR default.
-  return locale.split('-')[0] === 'en' ? 'en' : FALLBACK;
-}
+// The locale rule is shared with the backend's notification copy and template rows, so it lives in
+// @ikaro/i18n; re-exported here because every web import goes through this module.
+export { SUPPORTED_LOCALES, resolveSupportedLocale } from '@ikaro/i18n';
+export type { SupportedLocale } from '@ikaro/i18n';
 
 export async function getMessages(locale: string): Promise<AbstractIntlMessages> {
   const resolved = resolveSupportedLocale(locale);

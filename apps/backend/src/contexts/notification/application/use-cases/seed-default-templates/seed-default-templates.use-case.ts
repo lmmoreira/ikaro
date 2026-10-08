@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { resolveSupportedLocale } from '@ikaro/i18n';
 import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
@@ -30,7 +31,9 @@ export class SeedDefaultTemplatesUseCase {
     input: SeedDefaultTemplatesUseCaseInput,
   ): Promise<SeedDefaultTemplatesUseCaseResult> {
     const tenantInfo = await this.platformPort.getTenantInfo(input.tenantId);
-    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
+    // The tenant's language is free text (en-US, en-GB...); the global rows exist per shipped
+    // language, so reduce it the same way the copy is chosen at send time.
+    const locale = resolveSupportedLocale(tenantInfo?.locale ?? DEFAULT_LOCALE);
     const seeded = await this.templateRepo.copyGlobalDefaultsForTenant(input.tenantId, locale);
     return { seeded };
   }
