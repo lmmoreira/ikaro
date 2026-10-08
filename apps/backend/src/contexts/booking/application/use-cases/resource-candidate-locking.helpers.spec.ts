@@ -180,10 +180,14 @@ describe('lockCandidateResources', () => {
       ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_FUNGIBLE_POOL' }),
     );
 
+    const findByTenant = jest.spyOn(resourceRepo, 'findByTenant');
+
     await lock(new Map([['service-1', service]]), [], [LINE, { ...LINE, lineId: 'line-2' }]);
 
     expect(locked).toHaveLength(1);
     expect([...locked[0]].sort()).toEqual(rooms.map((room) => room.id).sort());
+    // Two lines of one service load the room type once, not once per line.
+    expect(findByTenant).toHaveBeenCalledTimes(1);
   });
 
   it('leaves an unknown service to the resolution loop and locks nothing', async () => {

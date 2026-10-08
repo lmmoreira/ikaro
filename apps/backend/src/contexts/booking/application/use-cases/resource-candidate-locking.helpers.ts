@@ -33,12 +33,25 @@ export async function lockCandidateResources(params: {
   if (automatic.length === 0) return;
 
   const resourceIds = new Set(resourceSelections.map((selection) => selection.resourceId));
-  for (const requirement of automatic) {
-    for (const resource of await resolveEligibleResources(requirement, ctx)) {
-      resourceIds.add(resource.id);
-    }
-  }
+  const eligible = await Promise.all(
+    distinctRequirements(automatic).map((requirement) =>
+      resolveEligibleResources(requirement, ctx),
+    ),
+  );
+  for (const resource of eligible.flat()) resourceIds.add(resource.id);
   await params.lockResources([...resourceIds]);
+}
+
+// Two lines of the same service (or two services with the same pool) would resolve the same
+// eligible set twice; resolving them concurrently would also miss ctx's per-type cache and query
+// the same type twice.
+function distinctRequirements(requirements: ResourceRequirement[]): ResourceRequirement[] {
+  const byKey = new Map<string, ResourceRequirement>();
+  for (const requirement of requirements) {
+    const pool = [...(requirement.resourcePoolIds ?? [])].sort().join(',');
+    byKey.set(`${requirement.type}|${pool}`, requirement);
+  }
+  return [...byKey.values()];
 }
 
 // An unknown service is left for the resolution loop to report (BookingServiceNotInTenantError); a
