@@ -1,8 +1,6 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { LogDomainEventUseCase } from '../../../../shared/application/use-cases/log-domain-event.use-case';
-import { Envelope } from '../../../../shared/domain/envelope';
-import { AppLogger } from '../../../../shared/observability/app-logger';
-import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
+import { AuditLogHandlerBase } from '../../../../shared/infrastructure/audit-log/audit-log-handler.base';
 import { AvailabilityAlertCancelled } from '../../domain/events/availability-alert-cancelled.event';
 import { AvailabilityAlertCreated } from '../../domain/events/availability-alert-created.event';
 import { AvailabilityAlertExpired } from '../../domain/events/availability-alert-expired.event';
@@ -34,14 +32,7 @@ import { RecurringBookingScheduleRejected } from '../../domain/events/recurring-
 // (packages/infra-scripts/src/pubsub-catalog.ts) and the detector both read the literal call-site
 // shape, so a loop over an array would hide the events from both.
 @Injectable()
-export class BookingAuditLogHandler implements OnModuleInit {
-  private readonly logger = new AppLogger(BookingAuditLogHandler.name);
-
-  constructor(
-    private readonly logUseCase: LogDomainEventUseCase,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-  ) {}
-
+export class BookingAuditLogHandler extends AuditLogHandlerBase {
   onModuleInit(): void {
     this.subscribeBookingRequestEvents();
     this.subscribeBookingOutcomeEvents();
@@ -168,24 +159,5 @@ export class BookingAuditLogHandler implements OnModuleInit {
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
     );
-  }
-
-  async handle(event: Envelope): Promise<void> {
-    try {
-      await this.logUseCase.execute({
-        eventId: event.eventId,
-        eventName: event.eventName,
-        tenantId: event.tenantId,
-        occurredAt: event.occurredAt,
-        correlationId: event.correlationId,
-      });
-    } catch (err) {
-      this.logger.error(
-        'BookingAuditLogHandler failed — will nack for retry',
-        err instanceof Error ? err.stack : String(err),
-        { tenantId: event.tenantId, correlationId: event.correlationId },
-      );
-      throw err;
-    }
   }
 }
