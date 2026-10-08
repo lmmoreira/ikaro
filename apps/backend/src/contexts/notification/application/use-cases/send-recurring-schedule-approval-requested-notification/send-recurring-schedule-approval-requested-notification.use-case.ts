@@ -38,6 +38,7 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 import {
   buildScheduleSummaryVariables,
   customerVariables,
+  RecurringScheduleNotificationContext,
   RecurringScheduleNotificationInput,
   RecurringScheduleSummaryInput,
   resolveRecurringScheduleContext,
@@ -112,18 +113,23 @@ export class SendRecurringScheduleApprovalRequestedNotificationUseCase extends B
     if (managerEmails.length === 0) return { adminEmailSent: false };
 
     this.localizeTemplates(templates, this.localizationPort, ctx.locale);
-    const variables: TemplateVariables<NotificationTemplateKey.RECURRING_SCHEDULE_APPROVAL_REQUESTED_ADMIN> =
-      {
-        ...customerVariables(ctx),
-        holdExpiresAt: formatEmailDateTime(input.approvalHoldExpiresAt, ctx.timezone, ctx),
-        ...buildScheduleSummaryVariables(input, ctx),
-      };
     const adminEmailSent = await this.dispatchTemplatesToMany(
       templates,
       input,
       managerEmails,
-      variables,
+      this.variablesFor(input, ctx),
     );
     return { adminEmailSent };
+  }
+
+  private variablesFor(
+    input: SendRecurringScheduleApprovalRequestedNotificationUseCaseInput,
+    ctx: RecurringScheduleNotificationContext,
+  ): TemplateVariables<typeof TRIGGER> {
+    return {
+      ...customerVariables(ctx),
+      holdExpiresAt: formatEmailDateTime(input.approvalHoldExpiresAt, ctx.timezone, ctx),
+      ...buildScheduleSummaryVariables(input, ctx),
+    };
   }
 }

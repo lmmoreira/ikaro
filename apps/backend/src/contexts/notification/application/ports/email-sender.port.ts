@@ -6,7 +6,10 @@ export interface EmailSendOptions {
   fromName?: string;
   replyTo?: string;
   subject: string;
+  /** Body fragment (catalog HTML); the transport wraps it in a document and derives the text part. */
   html: string;
+  /** Language of the body (the tenant locale), written to the document's lang attribute. */
+  lang?: string;
 }
 
 export const EMAIL_SENDER = Symbol('IEmailSender');
