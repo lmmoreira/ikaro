@@ -53,7 +53,7 @@ export async function resolveRequirementResources(
 // window (when known) before sorting by least already-locked workload on the tenant-local day,
 // resourceId as stable secondary sort (UC-063 A1 — the tie-break only applies "among candidates
 // already free for the chosen slot," not as a substitute for checking availability at all);
-// AUTO_FUNGIBLE_POOL (M23-S32, UC-062) narrows the same way but takes the free units in resourceId
+// AUTO_FUNGIBLE_POOL (UC-062) narrows the same way but takes the free units in resourceId
 // order — a pool of interchangeable units has no workload balancing, and the customer never sees
 // which one was taken; NONE keeps the original deterministic first-eligible pick.
 async function resolveCandidateIds(

@@ -145,6 +145,7 @@ export async function resolveRescheduleCandidates(
     lines: rescheduleLineInputs(booking, durationChange),
     serviceMap,
     resourceSelections,
+    lockResources: (resourceIds) => slotConflictService.lockResources(tenantId, resourceIds),
   });
 
   const allCandidates: ResourceOccupancyCandidate[] = [...candidatesByLine.values()].flatMap(

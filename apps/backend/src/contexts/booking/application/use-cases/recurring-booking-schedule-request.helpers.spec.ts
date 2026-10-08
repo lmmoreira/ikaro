@@ -290,7 +290,7 @@ describe('assertPatternConflictFree', () => {
   });
 
   describe('AUTO_FUNGIBLE_POOL', () => {
-    it('accepts when one unit is busy but another is free, and plans the free one (M23-S32)', async () => {
+    it('accepts when one unit is busy but another is free, and plans the free one', async () => {
       await seedResources(2);
       const [first, second] = (
         await resourceRepo.findByTenant(TENANT, { type: ResourceType.ROOM, isActive: true })
@@ -613,6 +613,7 @@ describe('assertPatternConflictFree', () => {
             lines: [{ lineId, serviceId: service.id, durationMinsAtBooking: DURATION_MINUTES }],
             serviceMap: new Map([[service.id, service]]),
             resourceSelections,
+            lockResources: (resourceIds) => tenantLock.lockResources(TENANT, resourceIds),
           });
           await slotConflictService.assertSlotFree(TENANT, resolved.get(lineId)!.candidates);
         }
@@ -909,6 +910,23 @@ describe('assertPatternConflictFree', () => {
           { occurrenceStart: occurrenceStart(1), reason: 'CLOSED' },
         ]);
       });
+
+      it.each(['AUTO_ANY', 'AUTO_FUNGIBLE_POOL'] as const)(
+        '%s refuses an occurrence where one unit is closed and the other is busy',
+        async (mode) => {
+          await seedResources(2);
+          const [closed, busy] = await resourceRepo.findByTenant(TENANT, {
+            type: ResourceType.ROOM,
+            isActive: true,
+          });
+          await closeFullDay(1, closed);
+          occupy(busy, occurrenceStart(1));
+
+          expect(await conflictsOf(buildParams(buildService(mode), 3))).toEqual([
+            { occurrenceStart: occurrenceStart(1), reason: 'OCCUPIED' },
+          ]);
+        },
+      );
 
       it('AUTO_FUNGIBLE_POOL is refused only when every unit is closed', async () => {
         await seedResources(2);

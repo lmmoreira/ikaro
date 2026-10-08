@@ -44,6 +44,16 @@ describe('BookingSlotConflictService', () => {
     service = new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock());
   });
 
+  it('lockResources takes the lock for the tenant and the given resources', async () => {
+    const tenantLock = new InMemoryTenantLock();
+    const lockSpy = jest.spyOn(tenantLock, 'lockResources');
+    const withLock = new BookingSlotConflictService(occupancyRepo, tenantLock);
+
+    await withLock.lockResources(TENANT_ID, [RESOURCE_ID]);
+
+    expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, [RESOURCE_ID]);
+  });
+
   it('resolves when there are no candidates', async () => {
     await expect(service.assertSlotFree(TENANT_ID, [])).resolves.toBeUndefined();
   });

@@ -230,7 +230,7 @@ describe('resource-requirement-resolution.helpers', () => {
       ).rejects.toBeInstanceOf(BookingServiceResourceTypeUnavailableError);
     });
 
-    describe('AUTO_FUNGIBLE_POOL narrows to units free for the window (M23-S32, UC-062)', () => {
+    describe('AUTO_FUNGIBLE_POOL narrows to units free for the window (UC-062)', () => {
       const occupy = (resource: Resource, startsAt = START, endsAt = END): void =>
         seedOccupancy(occupancyRepo, resource, { startsAt, endsAt });
       const sortedIds = (rooms: Resource[]): string[] => rooms.map((r) => r.id).sort();

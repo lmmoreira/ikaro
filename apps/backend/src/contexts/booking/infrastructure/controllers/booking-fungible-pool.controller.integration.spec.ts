@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource, In } from 'typeorm';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { PlatformModule } from '../../../platform/platform.module';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
@@ -14,8 +14,8 @@ function guestHeaders(tenantId: string) {
   return { 'x-tenant-id': tenantId, 'x-correlation-id': '01980000-0000-7000-8000-0000000000d1' };
 }
 
-// M23-S32 (UC-062): a pool of interchangeable units books the same slot until its units run out,
-// each booking taking a distinct free unit.
+// UC-062: a pool of interchangeable units books the same slot until its units run out, each
+// booking taking a distinct free unit — including when the bookings arrive at the same time.
 describe('BookingController — AUTO_FUNGIBLE_POOL (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
@@ -26,8 +26,11 @@ describe('BookingController — AUTO_FUNGIBLE_POOL (integration)', () => {
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = TEST_KEY;
     ({ app, ds } = await createBookingIntegrationApp({ extraModules: [PlatformModule] }));
-    tenantAId = await createTenant('Pool Tenant A', 'pool-tenant-a', 'a@pool.test');
-    tenantBId = await createTenant('Pool Tenant B', 'pool-tenant-b', 'b@pool.test');
+    // Slugs and emails are unique per run: the tenants are never deleted, and a reused database
+    // would otherwise refuse the second run's fixed slug.
+    const run = Date.now().toString(36);
+    tenantAId = await createTenant('Pool Tenant A', `pool-a-${run}`, `a-${run}@pool.test`);
+    tenantBId = await createTenant('Pool Tenant B', `pool-b-${run}`, `b-${run}@pool.test`);
   });
 
   afterAll(async () => {
@@ -87,8 +90,9 @@ describe('BookingController — AUTO_FUNGIBLE_POOL (integration)', () => {
     return body.id as string;
   }
 
-  // A distinct day per test, so one test's bookings never contend with another's slot.
-  const nextSlot = (): string => `${futureDate(40 + slotCounter++)}T13:00:00.000Z`;
+  // A distinct open weekday (Wednesday, 10:00 local) per test, so one test's bookings never
+  // contend with another's slot.
+  const nextSlot = (): string => `${nextWeekday(3, 3 + slotCounter++)}T13:00:00.000Z`;
 
   const book = (tenantId: string, serviceId: string, scheduledAt: string, email: string) =>
     request(app.getHttpServer())
@@ -101,6 +105,20 @@ describe('BookingController — AUTO_FUNGIBLE_POOL (integration)', () => {
         scheduledAt,
         serviceIds: [serviceId],
       });
+
+  const offersSlot = async (
+    tenantId: string,
+    serviceId: string,
+    scheduledAt: string,
+  ): Promise<boolean> => {
+    const { body } = await request(app.getHttpServer())
+      .get(`/schedule/availability?date=${scheduledAt.slice(0, 10)}&serviceIds=${serviceId}`)
+      .set(guestHeaders(tenantId))
+      .expect(200);
+    return (body.slots as { startsAt: string }[]).some(
+      (slot) => new Date(slot.startsAt).getTime() === new Date(scheduledAt).getTime(),
+    );
+  };
 
   // The resources holding the slot: one occupancy row per unit a booking took.
   const occupiedResourceIds = async (
@@ -121,12 +139,30 @@ describe('BookingController — AUTO_FUNGIBLE_POOL (integration)', () => {
     const scheduledAt = nextSlot();
 
     const first = await book(tenantAId, serviceId, scheduledAt, 'um@pool.test').expect(201);
+    expect(await offersSlot(tenantAId, serviceId, scheduledAt)).toBe(true);
     const second = await book(tenantAId, serviceId, scheduledAt, 'dois@pool.test').expect(201);
     const third = await book(tenantAId, serviceId, scheduledAt, 'tres@pool.test').expect(409);
 
     expect(third.body.code).toBe('BOOKING_SLOT_UNAVAILABLE');
+    expect(await offersSlot(tenantAId, serviceId, scheduledAt)).toBe(false);
     expect(first.body.lines[0].assignedResourceName).toBeUndefined();
     expect(second.body.lines[0].assignedResourceName).toBeUndefined();
+    const units = await occupiedResourceIds(tenantAId, [roomA, roomB], scheduledAt);
+    expect([...units].sort()).toEqual([roomA, roomB].sort());
+  });
+
+  it('two simultaneous bookings of an empty 2-unit pool both succeed, on distinct units', async () => {
+    const roomA = await createRoom(tenantAId, 'Quadra 5');
+    const roomB = await createRoom(tenantAId, 'Quadra 6');
+    const serviceId = await createPoolService(tenantAId, [roomA, roomB]);
+    const scheduledAt = nextSlot();
+
+    const results = await Promise.all([
+      book(tenantAId, serviceId, scheduledAt, 'junto-1@pool.test'),
+      book(tenantAId, serviceId, scheduledAt, 'junto-2@pool.test'),
+    ]);
+
+    expect(results.map((res) => res.status)).toEqual([201, 201]);
     const units = await occupiedResourceIds(tenantAId, [roomA, roomB], scheduledAt);
     expect([...units].sort()).toEqual([roomA, roomB].sort());
   });

@@ -159,6 +159,7 @@ async function resolveAndCheckCandidates(
     })),
     serviceMap,
     resourceSelections,
+    lockResources: (resourceIds) => deps.slotConflictService.lockResources(tenantId, resourceIds),
   });
   const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
   await deps.slotConflictService.assertSlotFree(tenantId, allCandidates);

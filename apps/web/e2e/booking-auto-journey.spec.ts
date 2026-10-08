@@ -102,7 +102,7 @@ test.describe('M23-S11a — automatic resources', () => {
     const guest = await newGuestPage(browser);
 
     try {
-      // M23-S32: the pool's write path assigns a free unit, so the same service books the same
+      // The pool's write path assigns a free unit, so the same service books the same
       // slot once per unit.
       expect(
         await bookAsGuest(page, { serviceIds: [service.serviceId], scheduledAt: slot.startsAt }),

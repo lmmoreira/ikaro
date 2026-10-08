@@ -27,7 +27,7 @@ const windowKey = (resourceId: string, startsAt: Date): string =>
 // occurrence on its own would pick (resolveRequirementResources): a chosen resource
 // (CUSTOMER_CHOICE) is the same for every occurrence; AUTO_FUNGIBLE_POOL takes, per occurrence, the
 // first resource by resourceId that is open and free at that exact window (a pool has no workload
-// balancing, M23-S32); AUTO_ANY takes the least-loaded resource among those open and free at that
+// balancing); AUTO_ANY takes the least-loaded resource among those open and free at that
 // window, resourceId as the stable tie-break, where "load" is the HOLD/COMMITTED occupancy on the
 // tenant-local day of the occurrence.
 //

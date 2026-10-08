@@ -1,5 +1,6 @@
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { AvailabilityService } from '../../domain/services/availability.service';
@@ -41,8 +42,10 @@ describe('resolveBookingLinesResourceCandidates', () => {
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let availabilityService: AvailabilityService;
+  let tenantLock: InMemoryTenantLock;
 
   beforeEach(() => {
+    tenantLock = new InMemoryTenantLock();
     resourceRepo = new InMemoryResourceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     availabilityService = new AvailabilityService();
@@ -64,6 +67,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
       lines,
       serviceMap,
       resourceSelections,
+      lockResources: (resourceIds) => tenantLock.lockResources(TENANT_ID, resourceIds),
     });
   }
 

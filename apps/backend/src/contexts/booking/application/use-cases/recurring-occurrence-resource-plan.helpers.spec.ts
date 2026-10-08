@@ -78,7 +78,7 @@ describe('planOccurrenceResources', () => {
     expect(windowsSpy).not.toHaveBeenCalled();
   });
 
-  describe('AUTO_FUNGIBLE_POOL (M23-S32)', () => {
+  describe('AUTO_FUNGIBLE_POOL', () => {
     beforeEach(() => {
       resources = orderedResources(3);
     });

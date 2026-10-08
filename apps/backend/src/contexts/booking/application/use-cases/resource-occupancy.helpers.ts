@@ -12,6 +12,7 @@ import {
   resolveFlatLineCandidates,
   resolveLeggedLineCandidates,
 } from './resource-occupancy-candidate-builders.helpers';
+import { lockCandidateResources } from './resource-candidate-locking.helpers';
 import { ResolutionContext, selectionKey } from './resource-resolution-context.helpers';
 
 // isDegenerate carries isDegenerateService()'s verdict through to assignment time — see
@@ -64,6 +65,9 @@ export interface ResolveBookingLinesResourceCandidatesParams {
   lines: BookingLineForResolution[];
   serviceMap: Map<string, Service>;
   resourceSelections?: ResourceSelectionInput[];
+  // Locks resources inside the caller's transaction (BookingSlotConflictService.lockResources).
+  // Required, so a caller cannot forget it and silently lose the ordering of automatic selection.
+  lockResources: (resourceIds: string[]) => Promise<void>;
 }
 
 // Resolves every booking line's service resourceRequirements/legs into concrete
@@ -81,21 +85,15 @@ export interface ResolveBookingLinesResourceCandidatesParams {
 export async function resolveBookingLinesResourceCandidates(
   params: ResolveBookingLinesResourceCandidatesParams,
 ): Promise<Map<string, ResolvedLineCandidates>> {
-  const { resourceRepo, availabilityService, occupancyRepo, tenantId, scheduledAt, timezone } =
-    params;
-  const { lines, serviceMap, resourceSelections = [] } = params;
-  const ctx: ResolutionContext = {
-    resourceRepo,
-    availabilityService,
-    occupancyRepo,
-    tenantId,
-    timezone,
-    resourceCache: new Map(),
-    activeResourcesByType: new Map(),
-    // These lines' own pre-existing occupancy (if any — empty at creation, real at
-    // approve/reschedule re-resolution) must never count as AUTO_ANY workload against itself.
-    excludeBookingLineIds: lines.map((line) => line.lineId),
-  };
+  const { scheduledAt, lines, serviceMap, resourceSelections = [] } = params;
+  const ctx = buildResolutionContext(params);
+  await lockCandidateResources({
+    lines,
+    serviceMap,
+    resourceSelections,
+    ctx,
+    lockResources: params.lockResources,
+  });
   const selectionsByKey = buildSelectionsByKey(resourceSelections);
   const result = new Map<string, ResolvedLineCandidates>();
   let cursor = scheduledAt;
@@ -120,6 +118,23 @@ export async function resolveBookingLinesResourceCandidates(
   }
 
   return result;
+}
+
+function buildResolutionContext(
+  params: ResolveBookingLinesResourceCandidatesParams,
+): ResolutionContext {
+  return {
+    resourceRepo: params.resourceRepo,
+    availabilityService: params.availabilityService,
+    occupancyRepo: params.occupancyRepo,
+    tenantId: params.tenantId,
+    timezone: params.timezone,
+    resourceCache: new Map(),
+    activeResourcesByType: new Map(),
+    // These lines' own pre-existing occupancy (if any — empty at creation, real at
+    // approve/reschedule re-resolution) must never count as AUTO_ANY workload against itself.
+    excludeBookingLineIds: params.lines.map((line) => line.lineId),
+  };
 }
 
 async function resolveOneLineCandidates(
