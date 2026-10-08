@@ -50,7 +50,7 @@
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
 | 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
-| 5 | M23-S37 | The manager's cancellation and new-request emails show who cancelled, why, and the pickup address (three template placeholders no code supplied); backend-only |
+| 5 | M23-S37 | Make every shipped notification email correct — a blank daily schedule, nameless reminders, a customer link into the staff dashboard, unescaped user text, unformatted dates, missing who/why/pickup lines — and a guard that renders the real copy; backend-only |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
 | 7 | M23-S22 | Customer renews an ending recurring schedule — "Renovar" pre-filled form (UC-070) |
 | 7 | M23-S19 | Staff creates a recurring private reservation on a customer's behalf (UC-070) |
@@ -2822,70 +2822,95 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 
 ---
 
-### M23-S37 — The manager's cancellation and new-request emails show who cancelled, why, and the pickup address
+### M23-S37 — Make every shipped notification email correct: unsupplied or mismatched variables, a wrong link, raw HTML, unformatted dates, and a guard that renders the real copy
 
 **Agent:** `backend-ts`
-**Complexity:** M
-**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § `BookingCancelled` and § `BookingRequested`, `docs/04-USE_CASES.md` UC-001, UC-007, UC-008, `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type (including the wording-variants gotcha), `docs/ENGINEERING_RULES_SHARED.md` § Static locale/config files in workspace packages, `docs/AGENT_PATTERNS.md` § Notification Context Patterns, `docs/CODE_STANDARDS.md`
-**Dependencies:** M23-S28 (✅ Done — its `cancelledByScheduleEnd` early return is the first statement of `SendBookingCancelledNotificationUseCase.execute()` and stays first; this story only adds variables after it)
-**Pattern:** plain composition — the existing use cases supply the missing template variables, and the localized fragments come from the label catalog the daily-schedule email already uses (`ILocalizationPort.getEmailTableHeaders`). No new port, no new template key.
+**Complexity:** L
+**Docs to load:** `docs/03-DOMAIN_EVENTS.md` (the Notification consumers of every event listed under the findings), `docs/04-USE_CASES.md` UC-001, UC-007, UC-008 and the info-request, reminder and daily-schedule UCs, `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type (including the wording-variants gotcha), `docs/ENGINEERING_RULES_SHARED.md` § Static locale/config files in workspace packages, `docs/AGENT_PATTERNS.md` § Notification Context Patterns (#21–#23), `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Localization Settings, `docs/CI_TRAPS.md` § SonarCloud CPD, `docs/CODE_STANDARDS.md`
+**Dependencies:** M23-S28 (✅ Done — its `cancelledByScheduleEnd` early return is the first statement of `SendBookingCancelledNotificationUseCase.execute()` and stays first; its recurring-schedule emails already format dates by locale and are the model for the fixes below)
+**Pattern:** plain composition — each use case supplies the variables its shipped template uses, with one shared formatting helper (locale dates, escaped text) so the use cases do not each carry their own copy. No new port, no new template key, no Pub/Sub change.
 
-**Discovered:** 2026-10-08, while delivering M23-S28: checking which shipped templates reference variables no code supplies. A placeholder-by-placeholder survey of `notifications.json` against the use cases found exactly three, in two templates.
-**Root cause:**
-- `BookingCancelled.admin` ends `<p>{{cancelledByLine}}</p>{{reasonLine}}` (both locales), but `SendBookingCancelledNotificationUseCase.buildVariables()` (`send-booking-cancelled-notification.use-case.ts:139-152`) supplies `cancelledBy` (an id), `isBusiness` (`"true"`/`"false"`) and `reason`, never `cancelledByLine` or `reasonLine`.
-- `BookingRequested.admin` ends `{{pickupAddressLine}}`, but `SendBookingRequestedNotificationUseCase` (`send-booking-requested-notification.use-case.ts:127`) supplies `pickupAddress` as a `JSON.stringify(...)` string that no template references.
-- `NotificationTemplate.render()` (`notification-template.aggregate.ts:69-71`) turns an unsupplied variable into `''`, so nothing fails or logs; the email just ends early. The use-case specs use hand-typed template stand-ins, so none rendered the shipped copy.
+**Discovered:** 2026-10-08, while delivering M23-S28. A read-only audit of all 22 shipped templates (two languages) against the use cases that fill them and against the event docs found the defects below. The specs that exist for these use cases use hand-typed stand-in templates, so none of them ever rendered the shipped copy; only the M23-S28 specs do.
+**Root cause:** `NotificationTemplate.render()` (`notification-template.aggregate.ts:69-71`) turns any variable nobody supplied into `''`, so a template/code mismatch fails nothing and logs nothing; the email just comes out blank in that place. Traced per finding:
+- **C1 — the manager's daily schedule email shows no bookings.** `AdminDailyScheduleReminder.admin` is `…<p>{{bookingsSummary}}</p>`, but `SendAdminDailyScheduleReminderNotificationUseCase` supplies `localDate`, `totalBookingsToday` and `bookingsHtml` (its `dispatchTemplatesToMany` call); `bookingsSummary` is never supplied. The email says "Here is today's schedule, <date>:" and nothing follows. The table is also wrapped in a `<p>`.
+- **I1 — reminders greet "Olá, !".** `BookingReminderDue.customer` and `BookingReminderDueToday.customer` use `{{contactName}}`; `BaseBookingReminderNotificationUseCase` supplies `customerName`.
+- **I2 — wrong link.** `SendBookingInfoRequestedNotificationUseCase.buildRespondLink()` returns `${FRONTEND_URL}/dashboard/bookings/${bookingId}` (the staff dashboard) for a signed-in customer; customers use `${FRONTEND_URL}/${tenantSlug}/my-account/bookings/${bookingId}` (`apps/web/app/[slug]/my-account/bookings/[id]`).
+- **I3 — the manager's cancellation email says neither who cancelled nor why, and the new-request email omits the pickup address.** `BookingCancelled.admin` ends `<p>{{cancelledByLine}}</p>{{reasonLine}}`, but `buildVariables()` (`send-booking-cancelled-notification.use-case.ts:139-152`) supplies `cancelledBy` (an id), `isBusiness` and `reason`. `BookingRequested.admin` ends `{{pickupAddressLine}}`, but `send-booking-requested-notification.use-case.ts:127` supplies `pickupAddress` as a `JSON.stringify(...)` string no template references. `docs/03-DOMAIN_EVENTS.md` specifies the cancelled email as "who cancelled, reason if provided, booking summary".
+- **I4 — user-typed values go raw into the HTML body.** `contactName` (typed by a guest), the cancellation `reason` (customer or staff), the rejection `reason` and `informationNeeded` (staff), `customerResponse` and `submittedByEmail` (customer), account and staff names, and the tenant and service names. Only the daily table escapes (`escapeHtml`, `shared/utils/escape-html.ts`). A guest can put a link or an image into a manager's inbox.
+- **I5 — the new-request email hardcodes Portuguese in code.** `buildVariables()` in `send-booking-requested-notification.use-case.ts` formats `scheduledAt` as `${day}/${month}/${year} às ${localTime}`, so an English tenant gets "09/10/2026 às 14:00".
+- **I6 — dates print raw.** `utcDateToLocalDate()` returns `YYYY-MM-DD` (`shared/utils/calendar-date.ts:67`) and six templates print it as is (approved, cancelled customer and admin, rescheduled previous/new, both reminders, daily); the points-expiring email prints `earliestExpiresAt` as a raw UTC ISO timestamp (`notify-expiring-points.job.ts`).
+- **Minor:** `docs/03-DOMAIN_EVENTS.md` gives the new-request subjects as "Nova solicitação de agendamento — [service names]" and "Seu agendamento foi recebido" while the shipped ones are "Novo agendamento recebido" and "Solicitação de agendamento recebida". Variables supplied and never used: `lineItems` (approved), `totalBookingsToday` (daily), `bookingId` (info-submitted), `serviceNames` (points earned). `BookingCompleted` is documented as emailing the customer a summary of the completed services, but no handler or template exists and no plan tracks it.
 
 **Description:**
-Today a manager is told a booking was cancelled but not by whom or why, and is told a new request arrived without the pickup address — the one thing a mobile-service tenant needs to act on it. `docs/03-DOMAIN_EVENTS.md` already specifies the cancelled email as carrying "who cancelled, reason if provided, booking summary".
+Fix every defect the audit found so each shipped email says what it was written to say, then make the class of bug impossible to reintroduce unnoticed: a spec renders all 22 shipped templates through the real catalog with the variables their use cases actually supply and fails on any unresolved placeholder. Customer-facing wording changes only where the email was empty or wrong.
 
 **Decisions already made (state as fact, do not re-derive):**
-1. Scope is these three placeholders plus a guard against the same class of bug; the customer emails are unchanged.
-2. The cancelled email says whether the **customer** or the **business** cancelled (from `isBusiness`) and, when a reason was given, the reason. The requested email shows the formatted pickup address when the booking has one and nothing when it has none (no empty label).
-3. No name lookup: `cancelledBy` is an id (customer id, guest email or staff id), so no new port; the distinction is customer vs business.
-4. The reason is typed by whoever cancels and the address by the guest, and `render()` interpolates raw: both are HTML-escaped before they go into the body.
-5. The address is formatted with the existing `Address.format()` (`shared/value-objects/address.ts:127`), not a new formatter.
-6. The tenant's locale, as both use cases already use. No migration, no new template key, no Pub/Sub change: a template row's `subject`/`body` are never read (the copy is overlaid from `notifications.json` at send time), so nothing per tenant changes.
+1. Scope is all 22 shipped templates in both languages; every finding above is in scope except the `BookingCompleted` email, which is a decision (below).
+2. For a name mismatch (C1, I1) the use case changes to supply the placeholder the shipped template uses. The catalog is the shared contract, and both languages already agree on it. Dead variables are removed.
+3. I2: a signed-in customer's link is `${FRONTEND_URL}/${tenantSlug}/my-account/bookings/${bookingId}`; the guest tokenized link and the manager's `/dashboard/bookings/${bookingId}` link in the info-submitted email are unchanged.
+4. I3: the cancelled email says whether the **customer** or the **business** cancelled (from `isBusiness`) and, when a reason was given, the reason, with no empty reason line; the requested email shows the pickup address, formatted with the existing `Address.format()` (`shared/value-objects/address.ts:127`), when the booking has one and no empty label when it has none. No name lookup: `cancelledBy` is an id (customer id, guest email or staff id), so no new port.
+5. I4: every user-typed value placed into an HTML body is escaped with the existing `escapeHtml`; the daily table stays the one intentionally HTML variable and is built from escaped parts, as today. Subjects are plain text and need no escaping.
+6. I5 and I6: no email prints a raw `YYYY-MM-DD` or ISO timestamp, and no email hardcodes a language in code. Dates are formatted for the tenant's locale and timezone, the way `formatCalendarDate` already does in the recurring emails.
+7. The tenant's language is `pt-BR` or `en`, set at provisioning and read-only in Settings (`docs/21-TENANTS_SETTINGS_SCHEMA.md`), so no region-tag handling is needed.
+8. No migration, no new template key, no Pub/Sub change: a template row's `subject`/`body` are never read (the copy is overlaid from `notifications.json` at send time), so nothing per tenant changes.
 
 **Decisions left for `/story-discovery`:**
-- **Where the localized fragments live.** Proposal: the existing label catalog (`email-tables.json`, read through `getEmailTableHeaders`, which already holds sentences such as `emptyState`) under a new key with `cancelledByCustomer`, `cancelledByBusiness`, `reasonLabel`, `pickupAddressLabel`. The alternative — separate template keys per variant (customer/business × reason/none) — needs S28-style migrations and existing-tenant copies for a one-line difference, so it is the proposal's rejected option.
-- **Exact pt-BR and en wording** (for example "Cancelado pelo cliente." / "Cancelado pelo estabelecimento." / "Motivo: …" / "Endereço de retirada: …").
-- **The guard.** Options: (a) a spec that renders each affected template through the real catalog and fails on an unresolved placeholder; (b) `render()` reporting unresolved names, logged as a `warn` at dispatch in production and failing in unit specs that use the real catalog. Proposal: (b).
-- **Broader HTML escaping.** `render()` interpolates every variable raw, so customer-typed values such as `contactName` are also unescaped. This story escapes only its own fragments; a blanket escape in `render()` would break `AdminDailyScheduleReminder`'s intentionally HTML `bookingsSummary`. Decide whether to audit per variable inside this story or open a TD.
+- **Date and time format.** Proposal: the tenant's own `dateFormat`/`timeFormat` settings from its `CountrySpec` (so the email matches the dashboard), through one shared helper; the alternative is a plain `Intl` locale format as the recurring emails use today.
+- **Where escaping happens.** Proposal: at the point each use case supplies the variable, through the shared helper, because `render()` cannot know which variables are intentionally HTML (the daily table). The alternative, escaping everything in `render()` with an explicit trusted-HTML list, is a bigger change to every template.
+- **Where the new localized fragments live** (who cancelled, reason label, pickup label). Proposal: the existing label catalog (`email-tables.json`, read through `getEmailTableHeaders`, which already holds sentences such as `emptyState`). The alternative, separate template keys per variant, needs S28-style migrations and existing-tenant copies for a one-line difference.
+- **Exact pt-BR and en wording** for those fragments (for example "Cancelado pelo cliente." / "Cancelado pelo estabelecimento." / "Motivo: …" / "Endereço de retirada: …").
+- **`BookingCompleted`.** Proposal: correct the docs to today's behaviour here, and if the customer should get a completion email (guests currently get none, since the points email reaches only account holders), track it as its own story; implementing it needs a new template key, a handler and an existing-tenant copy migration.
+- **Subject drift.** Proposal: the docs follow the shipped subjects.
+- **The guard's mechanism.** Proposal: a spec that renders every shipped template with the variables its use case supplies, plus `render()` reporting unresolved names so production logs a `warn` naming the template and variables; the alternative is the spec alone.
+- **PR split.** One story, but discovery may propose two PRs: A for the broken variables, the link, the formats and the dead variables; B for escaping and the guard.
 
 **Backend use case steps:**
-1. `SendBookingCancelledNotificationUseCase`: after the schedule-end early return, add `cancelledByLine` (customer vs business) and `reasonLine` (only when a non-empty reason exists, escaped) to the variables, from the catalog in the tenant locale.
-2. `SendBookingRequestedNotificationUseCase`: add `pickupAddressLine` (only when the booking has an address, via `Address.format()`, escaped); remove the unused JSON `pickupAddress` variable.
-3. The guard chosen at discovery.
+1. `SendAdminDailyScheduleReminderNotificationUseCase`: supply `bookingsSummary` (the table), format the date, drop `totalBookingsToday`; remove the `<p>` around the placeholder in both locales.
+2. `BaseBookingReminderNotificationUseCase`: supply `contactName`; format the date for the "tomorrow" reminder.
+3. `SendBookingInfoRequestedNotificationUseCase`: the customer link per decision 3.
+4. `SendBookingCancelledNotificationUseCase`: after the schedule-end early return, add the who-cancelled and reason lines (decision 4), format the date.
+5. `SendBookingRequestedNotificationUseCase`: add the pickup address line, format `scheduledAt` for the tenant, remove the unused JSON variable and the hardcoded `às`.
+6. `SendBookingApprovedNotificationUseCase`, `SendBookingRescheduledNotificationUseCase`, `SendPointsExpiringSoonNotificationUseCase`: format the dates; remove `lineItems`.
+7. Escape the user-typed values in `SendBookingRejectedNotificationUseCase`, `SendBookingInfoRequestedNotificationUseCase`, `SendBookingInfoSubmittedNotificationUseCase` (drop `bookingId`), the cancelled and requested use cases, `SendServicePointsEarnedNotificationUseCase` (drop `serviceNames`) and `SendStaffInvitationUseCase`.
+8. The guard chosen at discovery.
 
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
-**New migration / i18n keys / env vars / feature flags:** catalog entries in `packages/i18n/locales/{pt-BR,en}/email-tables.json`; no migration, no env var, no feature flag.
+**New migration / i18n keys / env vars / feature flags:** catalog entries in `packages/i18n/locales/{pt-BR,en}/email-tables.json` for the new fragments; the `<p>` wrapper removed from `AdminDailyScheduleReminder.admin` in `notifications.json` (both locales); no migration, no env var, no feature flag.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/notification/application/use-cases/send-booking-cancelled-notification/send-booking-cancelled-notification.use-case.ts` (+ `.spec.ts`) (modify)
-- `apps/backend/src/contexts/notification/application/use-cases/send-booking-requested-notification/send-booking-requested-notification.use-case.ts` (+ `.spec.ts`) (modify)
-- `apps/backend/src/contexts/notification/domain/notification-template.aggregate.ts` (+ `.spec.ts`) (modify — only if the guard is option b)
-- `packages/i18n/locales/{pt-BR,en}/email-tables.json` (modify)
-- `apps/backend/src/contexts/notification/infrastructure/events/booking-manager-emails.handler.integration.spec.ts` (new)
-- `docs/03-DOMAIN_EVENTS.md` (modify only if its `BookingRequested` consumers line omits the pickup address), `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type (modify — the guard, if added)
+- `apps/backend/src/contexts/notification/application/use-cases/send-admin-daily-schedule-reminder-notification/send-admin-daily-schedule-reminder-notification.use-case.ts`, `base-booking-reminder-notification.use-case.ts` (in `use-cases/`), `send-booking-info-requested-notification/…use-case.ts`, `send-booking-info-submitted-notification/…use-case.ts`, `send-booking-cancelled-notification/…use-case.ts`, `send-booking-requested-notification/…use-case.ts`, `send-booking-approved-notification/…use-case.ts`, `send-booking-rescheduled-notification/…use-case.ts`, `send-booking-rejected-notification/…use-case.ts`, `send-points-expiring-soon-notification/…use-case.ts`, `send-service-points-earned-notification/…use-case.ts`, `send-staff-invitation/send-staff-invitation.use-case.ts` (each + its `.spec.ts`) (modify)
+- `apps/backend/src/contexts/notification/application/use-cases/notification-email-format.helpers.ts` (+ `.spec.ts`) (new — the locale date and escaped-text helpers shared by the use cases above)
+- `apps/backend/src/contexts/notification/domain/notification-template.aggregate.ts` (+ `.spec.ts`) (modify — only if the guard reports unresolved names from `render()`)
+- `apps/backend/src/contexts/notification/infrastructure/adapters/shipped-templates.spec.ts` (new — renders all 22 shipped templates through the real catalog)
+- `apps/backend/src/contexts/notification/infrastructure/events/notification-emails.handler.integration.spec.ts` (new)
+- `packages/i18n/locales/{pt-BR,en}/email-tables.json`, `packages/i18n/locales/{pt-BR,en}/notifications.json` (modify)
+- `docs/03-DOMAIN_EVENTS.md` (modify — the new-request subjects, `BookingCompleted`'s consumer line, the cancelled/requested admin email content), `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type (modify — the rule that every template placeholder has a supplier, and the guard)
 
 **Acceptance criteria — product:**
-- [ ] A manager receiving a cancellation email sees whether the customer or the business cancelled and, when a reason was given, the reason; with no reason there is no empty reason line.
-- [ ] A manager receiving a new request for a booking with a pickup address sees that address formatted; a booking without one shows no empty label.
-- [ ] Both emails are in the tenant's language (pt-BR and en).
-- [ ] A reason or address containing markup appears as text, not as markup.
+- [ ] The manager's daily schedule email lists the day's bookings in a table, or the empty-state sentence when there are none, in the tenant's language.
+- [ ] Both reminder emails greet the customer by name.
+- [ ] A signed-in customer asked for more information receives a link to their own booking page; a guest still receives the tokenized link.
+- [ ] A manager receiving a cancellation email sees whether the customer or the business cancelled and, when a reason was given, the reason, with no empty reason line.
+- [ ] A manager receiving a new request for a booking with a pickup address sees it formatted, and no empty label when there is none.
+- [ ] No email shows a raw `YYYY-MM-DD` or ISO timestamp, and the new-request email is entirely in the tenant's language.
+- [ ] A name, reason, address or reply containing markup appears as text in every email, never as markup.
 - [ ] The customer cancellation email is unchanged, and ending a recurring schedule still sends no per-occurrence cancellation email.
 
 **Acceptance criteria — technical:**
 - Unit (real `JsonLocalizationAdapter`, so the shipped copy is asserted):
+  - [ ] `shipped-templates.spec.ts`: all 22 templates, in both languages, render with the variables their use case supplies and contain no `{{`
+  - [ ] Daily schedule: a table with rows, the empty state, in pt-BR and en
+  - [ ] Reminders: the greeting contains the customer's name, "tomorrow" and "today", in pt-BR and en
+  - [ ] Info-requested link: signed-in customer vs guest
   - [ ] Cancelled: by the customer and by the business, each with and without a reason, in pt-BR and en
-  - [ ] Requested: with and without a pickup address, in pt-BR and en
-  - [ ] A reason of `<b>x</b>` and an address containing `<script>` are escaped (negative guarantee, pinned by a test)
-  - [ ] A `cancelledByScheduleEnd` event still dispatches nothing (negative guarantee; the S28 spec stays green)
-  - [ ] The guard reports an unsupplied placeholder in a fixture template and passes for the shipped templates
+  - [ ] Requested: with and without a pickup address, in pt-BR and en, with no `às` in the English email
+  - [ ] Dates in approved, cancelled, rescheduled, reminders and points-expiring are formatted for the tenant, in pt-BR and en
+  - [ ] A value containing `<b>x</b>` or `<script>` is escaped, named per variable: `contactName`, cancellation reason, rejection reason, `informationNeeded`, `customerResponse`, `submittedByEmail`, customer and staff names (negative guarantee, pinned by tests)
+  - [ ] A `cancelledByScheduleEnd` event still dispatches nothing (negative guarantee; the M23-S28 spec stays green)
+  - [ ] The guard reports an unsupplied placeholder in a fixture template
 - Integration:
-  - [ ] `BookingCancelled` (customer-initiated and business-initiated with a reason) and `BookingRequested` with an address, published through the event bus, produce a manager body containing the expected lines
+  - [ ] The daily schedule, a reminder, info-requested (customer and guest), cancelled (customer-initiated and business-initiated with a reason) and requested with a pickup address, published through the event bus, produce dispatched bodies containing the expected content
 - Tenant isolation:
   - [ ] An event of Tenant A never uses Tenant B's data and writes no log row under Tenant B
 - E2E: none — server-side email
