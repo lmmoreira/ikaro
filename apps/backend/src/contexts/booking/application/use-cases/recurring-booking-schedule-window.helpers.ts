@@ -115,7 +115,7 @@ export async function resolveStartableOccurrences(
     const previous = await scheduleRepo.findById(input.renewsScheduleId, input.tenantId);
     // Another customer's schedule is "not found", never a 403: the existence of someone else's
     // schedule is not for this caller to learn.
-    if (!previous || previous.customerId !== customerId) {
+    if (previous?.customerId !== customerId) {
       throw new RecurringBookingScheduleNotFoundError(input.renewsScheduleId);
     }
     if (isRenewalOf(previous, input)) {
