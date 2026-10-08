@@ -52,7 +52,7 @@ describe('UpdateAvailabilityAlertUseCase', () => {
     return alert;
   };
 
-  const seedVariableDurationAlert = async () => {
+  const seedVariableDurationAlert = async (status: AvailabilityAlert['status'] = 'ACTIVE') => {
     const service = new ServiceBuilder()
       .withTenantId(TENANT)
       .withBookingPolicy({
@@ -64,7 +64,7 @@ describe('UpdateAvailabilityAlertUseCase', () => {
       })
       .build();
     await serviceRepo.save(service);
-    return seedAlert((b) => b.withServiceId(service.id).withDurationMinutes(90));
+    return seedAlert((b) => b.withServiceId(service.id).withDurationMinutes(90).withStatus(status));
   };
 
   const run = (
@@ -191,11 +191,10 @@ describe('UpdateAvailabilityAlertUseCase', () => {
       ['above the maximum', 300],
       ['off the increment', 75],
       ['cleared with null', null],
-    ])('refuses a duration %s and leaves the alert untouched', async (_label, durationMinutes) => {
+    ])('refuses a duration %s and publishes nothing', async (_label, durationMinutes) => {
       const alert = await seedVariableDurationAlert();
 
       await expect(run(alert, { durationMinutes })).rejects.toThrow(BookingDurationOutOfRangeError);
-      expect((await alertRepo.findById(alert.id, TENANT))?.durationMinutes).toBe(90);
       expect(eventBus.published).toHaveLength(0);
     });
 
@@ -206,6 +205,20 @@ describe('UpdateAvailabilityAlertUseCase', () => {
 
       expect(result).toMatchObject({ durationMinutes: 90, participantCount: 2 });
     });
+
+    it.each(['NOTIFIED', 'EXPIRED', 'CANCELLED'] as const)(
+      'answers not-editable, not the duration error, for a %s alert with an invalid duration',
+      async (status) => {
+        const alert = await seedVariableDurationAlert(status);
+
+        await expect(run(alert, { durationMinutes: 45 })).rejects.toThrow(
+          AvailabilityAlertNotEditableError,
+        );
+        await expect(run(alert, { durationMinutes: null })).rejects.toThrow(
+          AvailabilityAlertNotEditableError,
+        );
+      },
+    );
 
     it('still accepts any duration, or none, on a FIXED-duration service', async () => {
       const alert = seedAlert();

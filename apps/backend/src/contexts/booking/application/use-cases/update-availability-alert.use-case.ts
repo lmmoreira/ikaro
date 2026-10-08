@@ -57,8 +57,6 @@ export class UpdateAvailabilityAlertUseCase {
     if (alert?.customerId !== input.customerId) {
       throw new AvailabilityAlertNotFoundError(input.alertId);
     }
-    await this.assertAgainstService(alert, input);
-
     alert.update(
       {
         ...(hasCriteriaFields(input) && { criteria: toCriteriaPatch(input) }),
@@ -71,6 +69,10 @@ export class UpdateAvailabilityAlertUseCase {
       },
       input.correlationId,
     );
+    // After alert.update(), never before: the aggregate owns "can this alert still be edited" and
+    // answers 409 for a notified, expired or cancelled one, which must win over a 422 about the
+    // body. Nothing is persisted or published until save(), so a refusal here discards the edit.
+    await this.assertAgainstService(alert, input);
     await this.txManager.run(() => this.alertRepo.save(alert));
     return toAvailabilityAlertResult(alert);
   }

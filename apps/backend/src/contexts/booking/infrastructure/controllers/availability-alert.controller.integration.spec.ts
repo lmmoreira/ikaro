@@ -306,12 +306,38 @@ describe('AvailabilityAlertController (integration)', () => {
 
     it('keeps a FIXED-duration service accepting any duration, and another tenant is refused first', async () => {
       await post({ ...weeklyBody(serviceA), durationMinutes: 45 }).expect(201);
+      expect(await alertCount()).toBe(1);
+
       await request(app.getHttpServer())
         .post('/availability-alerts')
         .set(as(tenantB, CUSTOMER_B))
         .send({ ...weeklyBody(variableServiceA), durationMinutes: 45 })
         .expect(400);
+      expect(
+        await ds.getRepository(AvailabilityAlertEntity).count({ where: { tenantId: tenantB } }),
+      ).toBe(0);
     });
+
+    it.each(['NOTIFIED', 'CANCELLED'] as const)(
+      'PATCH answers 409, not the duration error, for a %s alert',
+      async (status) => {
+        const { body: created } = await post({
+          ...weeklyBody(variableServiceA),
+          durationMinutes: 60,
+        }).expect(201);
+        await ds
+          .getRepository(AvailabilityAlertEntity)
+          .update({ tenantId: tenantA, id: created.id as string }, { status });
+
+        const { body } = await request(app.getHttpServer())
+          .patch(`/availability-alerts/${created.id as string}`)
+          .set(as(tenantA, CUSTOMER_A))
+          .send({ durationMinutes: 45 })
+          .expect(409);
+
+        expect(body.code).toBe('BOOKING_ALERT_NOT_EDITABLE');
+      },
+    );
   });
 
   it('rejects the 11th active alert with 409 and still allows another customer', async () => {

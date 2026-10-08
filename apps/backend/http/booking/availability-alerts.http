@@ -151,8 +151,28 @@ Content-Type: application/json
 
 ###
 
-### 422 BOOKING_DURATION_OUT_OF_RANGE — PATCH clearing the duration of such an alert
-PATCH {{baseUrl}}/availability-alerts/{{alertId}}
+### Create an alert on a customer-selected-duration service with a valid duration (the PATCH below edits it)
+# @name createVariableAlert
+POST {{baseUrl}}/availability-alerts
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{variableServiceId}}",
+  "criteriaType": "WEEKLY_PREFERENCE",
+  "weekdays": ["monday"],
+  "localStartTime": "09:00",
+  "localEndTime": "10:00",
+  "durationMinutes": 60
+}
+
+###
+
+### 422 BOOKING_DURATION_OUT_OF_RANGE — PATCH clearing the duration of that active alert
+PATCH {{baseUrl}}/availability-alerts/{{createVariableAlert.response.body.id}}
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{customerId}}
 X-Actor-Type: CUSTOMER
