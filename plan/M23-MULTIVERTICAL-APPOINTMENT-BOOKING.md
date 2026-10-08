@@ -45,7 +45,7 @@
 | 3 | M23-S33 | Enforce the booking window on the backend — min/max advance on booking and reschedule, per-service override (never looser than the tenant), tenant-timezone dates, alert sweep and public booking page aligned (full-stack, L) |
 | 3 | M23-S34 | Reject an availability alert on a customer-selected-duration service when no valid duration is chosen (create and update, backend-only) |
 | 4 | M23-S35 | Apply the booking window to a recurring schedule's first occurrence and never create a past occurrence — new schedules and pattern-changing renewals checked, pure renewals exempt via `renewsScheduleId` (UC-070, UC-071); backend-only |
-| 4 | M23-S36 | One shared `DomainEventAuditLogHandler` replaces every log-only `audit-log` consumer and covers every domain event (12 new subscriptions, one coverage detector, clean-up of the replaced handlers/use cases/specs); backend-only, lands before S28 |
+| 4 | M23-S36 | One shared `LogDomainEventUseCase` and one thin `audit-log` handler per context replace every log-only consumer and cover every domain event (13 new subscriptions, a new `StaffActivated` topic, a coverage detector, clean-up of the replaced code); backend-only, lands before S28 |
 | 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
 | 5 | M23-S13 | Staff Agenda extension — recurring-schedule approval queue (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
@@ -2143,7 +2143,7 @@ None of the four events carries an email address, a name or a service name, and 
 2. **Template keys** (each follows the 7-step checklist in `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type — enum, `notification-template-key.mapping.ts`, both `notifications.json`, a migration that seeds the global default rows **and** copies them to every existing tenant, the use case extending `BaseNotificationUseCase` with `localizeTemplates()`, the handler, `notification.module.ts`): `RECURRING_SCHEDULE_CREATED_CUSTOMER`, `RECURRING_SCHEDULE_APPROVAL_REQUESTED_ADMIN`, `RECURRING_SCHEDULE_REJECTED_CUSTOMER`, `RECURRING_SCHEDULE_EXPIRED_CUSTOMER` (the second template for the `Rejected` event) and `RECURRING_SCHEDULE_ENDED_CUSTOMER`.
 3. **No internal detail in any email.** No staff id, no `approvedByStaffId`, no cancelled-booking ids.
 4. **One use case and one handler per event**, each handler calling exactly one use case with `event.correlationId` and rethrowing on failure; idempotent on `eventId` through the base class. Handler class names are unique across the codebase (the Pub/Sub generator keys by bare class name), for example `RecurringScheduleCreatedNotificationHandler`, distinct from the booking context's `RecurringBookingScheduleEventsHandler`.
-5. **The `audit-log` consumer is M23-S36's, not this story's.** M23-S36 lands first and replaces `RecurringBookingScheduleEventsHandler` with the shared `DomainEventAuditLogHandler`, which already holds the `audit-log` subscription on all four recurring-schedule topics. This story adds only the `notification` subscriptions and touches nothing of the audit consumer.
+5. **The `audit-log` consumer is M23-S36's, not this story's.** M23-S36 lands first and replaces `RecurringBookingScheduleEventsHandler` with booking's `BookingAuditLogHandler`, which already holds the `audit-log` subscription on all four recurring-schedule topics. This story adds only the `notification` subscriptions and touches nothing of the audit consumer.
 6. **Devops (playbook, "new Pub/Sub topic" row's mechanics):** the four topics already exist and are granted; this story adds four new `subscribe()` call sites with consumer name `notification`, so `pubsub-catalog.json` is regenerated (never hand-edited) and PR1 needs the `infra-app-mix-ok` label plus a PR-body note. After it merges and its `envs/*` apply runs: dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve `staging-foundation` then `production-foundation`, and confirm the new subscriptions' IAM bindings with `gcloud pubsub subscriptions get-iam-policy` in both projects (nothing in CI fails if this is skipped). This story is not done until that check has run.
 
 **Decisions left for `/story-discovery`:**
@@ -2698,45 +2698,42 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 
 ---
 
-### M23-S36 — One shared `DomainEventAuditLogHandler` replaces every log-only `audit-log` consumer and covers every domain event
+### M23-S36 — One shared `LogDomainEventUseCase` and one thin `audit-log` handler per context replace every log-only consumer, and cover every domain event
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/03-DOMAIN_EVENTS.md` (the `audit-log` Consumers lines), `docs/ANTI_PATTERNS.md` § A domain event is drained, `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers, `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only, `docs/CODE_STANDARDS.md`, `docs/REPOSITORY_STRUCTURE.md`, `docs/ENGINEERING_RULES_INFRA.md`, `infra/terraform/README.md` § New-resource PR-sequencing playbook
+**Docs to load:** `docs/03-DOMAIN_EVENTS.md` (the `audit-log` and `StaffActivated` Consumers lines), `docs/ANTI_PATTERNS.md` § A domain event is drained, `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers (Pub/Sub consumers), `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only, `docs/CODE_STANDARDS.md`, `docs/REPOSITORY_STRUCTURE.md` § Shared folder, `docs/ENGINEERING_RULES_INFRA.md`, `infra/terraform/README.md` § New-resource PR-sequencing playbook
 **Dependencies:** M23-S04, M23-S05, M23-S06, M23-S07, M23-S08 and M23-S09 (all ✅ Done — each shipped one of the log-only placeholders this story replaces), M20-S16 (✅ Done — the lead-form placeholder). **Must land before M23-S28**, whose decision 5 is amended to match. Independent of M23-S23 and M23-S25, which add `notification` consumers beside this one without touching it.
-**Pattern:** plain composition — one handler holds the subscriptions and calls one shared use case. No named pattern applies.
+**Pattern:** plain composition — one shared use case holds the claim-and-log logic, and each context's thin handler holds only its own `subscribe()` calls. No named pattern applies.
 
-**Discovered:** 2026-10-08, while scoping M23-S28 decision 5 ("the audit-log consumer stays"). Five near-identical log-only use cases and five handlers exist only so each event gets a real `subscribe()` call site and therefore a Pub/Sub topic. They share the consumer name `audit-log`, which suggests an audit trail they do not write: each claims the `eventId` in the inbox and writes one application log line, nothing else.
+**Discovered:** 2026-10-08, while scoping M23-S28 decision 5 ("the audit-log consumer stays"). Five near-identical log-only use cases and five handlers exist only so each event gets a real `subscribe()` call site and therefore a Pub/Sub topic. They share the consumer name `audit-log`, which suggests an audit trail they do not write: each claims the `eventId` in the inbox and writes one application log line, nothing else. Discovery (2026-10-08) also found that `StaffActivated`, raised by `Staff.activate()`, has no subscriber and no topic at all.
 
 **Description:**
-`LogAvailabilityAlertEventUseCase`, `LogFutureCommitmentExceptionEventUseCase`, `LogBookingNoShowEventUseCase`, `LogRecurringBookingScheduleEventUseCase` (booking context) and `LogLeadFormSubmissionReceivedUseCase` (platform context) differ only in the id field they log. They are replaced by one `LogDomainEventUseCase` and one `DomainEventAuditLogHandler` that subscribes to **every domain event** with the consumer name `audit-log`. The use case keeps what the old ones do: the atomic `inboxRepo.tryClaim`/`unclaim` and one log line.
+`LogAvailabilityAlertEventUseCase`, `LogFutureCommitmentExceptionEventUseCase`, `LogBookingNoShowEventUseCase`, `LogRecurringBookingScheduleEventUseCase` (booking context) and `LogLeadFormSubmissionReceivedUseCase` (platform context) differ only in the id field they log. They are replaced by one `LogDomainEventUseCase` and four thin handlers, one per context that owns domain events — `BookingAuditLogHandler`, `LoyaltyAuditLogHandler`, `StaffAuditLogHandler`, `PlatformAuditLogHandler` — which together subscribe to **every domain event** with the consumer name `audit-log`. The use case keeps what the old ones do: the atomic `inboxRepo.tryClaim`/`unclaim` and one log line.
 
-- **Coverage:** every class extending `DomainEvent` (26 today). Commands (`PointsExpiringSoon`, `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`), the eight `cron-*` topics and `dead-letter` are excluded.
-- **Subscriptions:** the 14 existing `audit-log` subscriptions stay untouched. 12 are new: `BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`, `BookingRescheduled`, `BookingCompleted`, `ServicePointsEarned`, `StaffDeactivated`, `StaffInvited`, `TenantProvisioned`. Terraform changes only through the regenerated `pubsub-catalog.json` (the subscription name is `ikaro-{event}-{consumer}`, so keeping the consumer name means no existing subscription is created or destroyed).
+- **Coverage:** every class extending `DomainEvent` under `contexts/**/domain/events/**` — 27 today: booking 21, loyalty 1 (`ServicePointsEarned`), staff 3 (`StaffInvited`, `StaffActivated`, `StaffDeactivated`), platform 2 (`LeadFormSubmissionReceived`, `TenantProvisioned`). Commands (`PointsExpiringSoon`, `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`), the eight `cron-*` topics and `dead-letter` are excluded.
+- **Subscriptions:** the 14 existing `audit-log` subscriptions stay untouched. **13 are new:** `BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`, `BookingRescheduled`, `BookingCompleted` (booking), `ServicePointsEarned` (loyalty), `StaffInvited`, `StaffActivated`, `StaffDeactivated` (staff) and `TenantProvisioned` (platform). **`StaffActivated` also needs a new topic**, which is what makes this story a "new Pub/Sub topic" playbook row, not subscriptions only. Terraform changes only through the regenerated `pubsub-catalog.json`; the subscription name is `ikaro-{event}-{consumer}`, so keeping the consumer name means no existing subscription is created or destroyed, and the `shared.inbox` key `(event_id, 'audit-log')` stays valid.
 - **Log fields:** envelope fields only — `eventId`, `eventName`, `tenantId`, `occurredAt`, `correlationId`. The per-entity ids today's logs carry (`alertId`, `bookingId`, `recurringScheduleId`, `submissionId`, `exceptionId`) are lost; the events have no common aggregate id. The event `data` is never logged, because some payloads hold customer contact details.
 - **Extra load:** every domain event now causes one more push delivery to the backend.
 - **Still log-only.** A persisted audit table is a separate, later decision (`booking_status_transitions`, appended by the `Booking` aggregate since M23-S26, already covers booking status history).
 
 **Decisions already made (state as fact, do not re-derive):**
-1. **Consumer name stays `audit-log`.**
-2. **No cross-context imports.** Event names are string literals in the handler, and `subscribe<Envelope>` needs no event classes (`docs/05-BOUNDED_CONTEXTS.md` § Rule 2).
-3. **Domain events only.** Anything extending `Command` is excluded, as are cron topics and `dead-letter`.
-4. **`audit-log` is never a business consumer.** Real consumers (`notification`, loyalty, `availability-alert-matching` and so on) are untouched.
-5. **A detector enforces coverage:** every `DomainEvent` class under `apps/backend/src/contexts/**/domain/events/**` must have an `audit-log` subscription in the handler, so a new event cannot ship unaudited. It replaces the "drained event needs a real subscriber" trap for domain events.
-6. **Devops:** same mechanics as M23-S28 decision 6. PR1 regenerates `pubsub-catalog.json` (never hand-edited) and needs the `infra-app-mix-ok` label plus a PR-body note. After it merges and its `envs/*` apply runs, dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve `staging-foundation` then `production-foundation`.
+1. **Consumer name stays `audit-log`.** `LogDomainEventUseCase.CONSUMER_NAME = 'audit-log'`, declared on the use case because it is also the inbox dedup key; the four handlers reference it from there (`docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers — a use case never imports a handler).
+2. **One thin handler per context, subscribing with `<Event>.name`.** No string literals (the ESLint `SUBSCRIBE_REGISTER_TRIGGER_LITERAL_SELECTOR` forbids them), no import of another context's event classes (`docs/05-BOUNDED_CONTEXTS.md` § Rule 2) and no `architecture-policy.json` entry. A single handler importing all 27 classes, or one using literals with an ESLint exemption, were both rejected as exceptions to CI-enforced rules.
+3. **The shared use case lives in `apps/backend/src/shared/application/use-cases/`**, with a one-line carve-out in `docs/REPOSITORY_STRUCTURE.md` (which says `src/shared/` never holds use cases) for this cross-cutting audit use case. A `@Global()` module exports it and lists it in `exports:`.
+4. **Domain events only.** Anything extending `Command` is excluded, as are cron topics and `dead-letter`.
+5. **`audit-log` is never a business consumer.** Real consumers (`notification`, loyalty, `availability-alert-matching` and so on) are untouched.
+6. **Handler class names are unique across the codebase** (the Pub/Sub generator keys by bare class name): `BookingAuditLogHandler`, `LoyaltyAuditLogHandler`, `StaffAuditLogHandler`, `PlatformAuditLogHandler`, each in `<context>/infrastructure/events/<context>-audit-log.handler.ts`. Each `handle()` calls exactly one use case with `event.correlationId` and rethrows on failure.
+7. **A ts-morph coverage detector enforces completeness**, built like its siblings in `packages/architecture-check/src/detectors/`: it collects every `DomainEvent` subclass and every `subscribe(<X>.name, …, LogDomainEventUseCase.CONSUMER_NAME)` call, and fails for any event class with no such call. A new event cannot ship unaudited, and this replaces the "drained event needs a real subscriber" trap for domain events.
+8. **Devops:** same mechanics as M23-S28 decision 6, plus the new `StaffActivated` topic. PR1 regenerates `pubsub-catalog.json` (never hand-edited) and needs the `infra-app-mix-ok` label plus a PR-body note. After it merges and its `envs/*` apply runs, dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve `staging-foundation` then `production-foundation`.
 
-**Decisions left for `/story-discovery`:**
-- **Subscribe call sites.** `packages/infra-scripts/src/pubsub-catalog.ts` resolves only a string literal, `ClassName.name`, or a constant at each call site, so a loop over an array is not discovered. Proposal: 26 explicit `this.eventBus.subscribe('<EventName>', …)` calls, keeping the scanner and the detector simple. The alternative, extending the scanner to resolve a `const` array, adds machinery for no gain.
-- **Use-case location.** `use-case-naming` expects `…/application/use-cases/*.use-case.ts` and `src/shared/` has no `application/` folder. Proposal: `apps/backend/src/shared/application/use-cases/`; confirm against `docs/REPOSITORY_STRUCTURE.md`.
-- **Log-field loss.** Confirm that dropping the per-entity ids from the logs is acceptable.
-
-**Clean-up phase (part of this story, not a follow-up):** delete everything the shared handler replaces, in the same change.
+**Clean-up phase (part of this story, not a follow-up):** delete everything the shared use case and the per-context handlers replace, in the same change.
 - Delete the five use cases and their five specs: `log-availability-alert-event`, `log-future-commitment-exception-event`, `log-booking-no-show-event`, `log-recurring-booking-schedule-event` (booking) and `log-lead-form-submission-received` (platform).
-- Delete the five handlers and their specs: `availability-alert-events`, `future-commitment-exception-events`, `booking-no-show-events`, `recurring-booking-schedule-events` (booking) and `lead-form-submission-received` (platform).
-- Remove their providers from `booking.module-providers.ts` and `platform.module.ts`.
-- Rewrite the round-trip case in `typeorm-lead-form-submission.repository.integration.spec.ts`, which constructs the old handler, to use the shared one.
+- Delete the five old handlers and their specs: `availability-alert-events`, `future-commitment-exception-events`, `booking-no-show-events`, `recurring-booking-schedule-events` (booking) and `lead-form-submission-received` (platform); the platform event is covered by `PlatformAuditLogHandler`.
+- Remove their providers from `booking.module-providers.ts` and `platform.module.ts`, and register the four new handlers in their context modules (`loyalty` and `staff` modules included).
+- Rewrite the round-trip case in `typeorm-lead-form-submission.repository.integration.spec.ts`, which constructs the old handler, to use `PlatformAuditLogHandler`.
 - Sweep `apps`, `packages` and `docs` for the ten deleted class names and confirm zero hits. Historical `plan/M20-*` files stay as written.
-- Update the `audit-log` Consumers lines in `docs/03-DOMAIN_EVENTS.md`, and fix the `docs/ANTI_PATTERNS.md` row that tells people to mirror an existing thin handler so that it points at the shared audit consumer.
+- Update the `audit-log` Consumers lines in `docs/03-DOMAIN_EVENTS.md`, replace `StaffActivated`'s "None in MVP" with the `audit-log` consumer, and fix the `docs/ANTI_PATTERNS.md` row that tells people to mirror an existing thin handler so that it points at the shared use case.
 
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
@@ -2744,15 +2741,17 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 
 **Files to create/modify:**
 - `apps/backend/src/shared/application/use-cases/log-domain-event.use-case.ts` (+ spec) (new)
-- `apps/backend/src/shared/infrastructure/audit-log/domain-event-audit-log.handler.ts` (+ spec) and `audit-log.module.ts` (new); `apps/backend/src/app.module.ts` (modify)
+- `apps/backend/src/shared/infrastructure/audit-log/audit-log.module.ts` (new, `@Global()`, exports the use case); `apps/backend/src/app.module.ts` (modify)
+- `apps/backend/src/contexts/{booking,loyalty,staff,platform}/infrastructure/events/{booking,loyalty,staff,platform}-audit-log.handler.ts` (+ specs) (new — four); the four context modules (modify)
 - `packages/architecture-check/src/detectors/domain-event-audit-coverage.ts` (+ spec) (new), registered the way a sibling detector is (check how `checkTransactionalSaves` is wired); `packages/architecture-check/src/index.ts` (modify)
 - the ten deleted files listed in the clean-up phase, plus their specs (delete)
 - `apps/backend/src/contexts/booking/booking.module-providers.ts`, `apps/backend/src/contexts/platform/platform.module.ts`, `apps/backend/src/contexts/platform/infrastructure/repositories/typeorm-lead-form-submission.repository.integration.spec.ts` (modify)
 - `infra/terraform/pubsub-catalog.json` (regenerated, not hand-edited)
-- `docs/03-DOMAIN_EVENTS.md`, `docs/ANTI_PATTERNS.md`, `docs/REPOSITORY_STRUCTURE.md` (if the new folder needs listing) (modify)
+- `docs/03-DOMAIN_EVENTS.md`, `docs/ANTI_PATTERNS.md`, `docs/REPOSITORY_STRUCTURE.md` (modify)
 
 **Acceptance criteria — product:**
 - [ ] Every domain event leaves one structured log line from the `audit-log` consumer, carrying `tenantId` and `correlationId`.
+- [ ] Reactivating a staff member no longer leaves an outbox row without a topic.
 - [ ] No existing consumer, topic or email behaviour changes.
 
 **Acceptance criteria — technical:**
@@ -2760,18 +2759,19 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
   - [ ] `LogDomainEventUseCase` logs once per `eventId`; a redelivery of the same `eventId` logs nothing (atomic claim)
   - [ ] A failing log call unclaims and rethrows
   - [ ] The log line carries no event `data` (named test for the negative guarantee)
-  - [ ] The handler subscribes to exactly the 26 expected event names with consumer `audit-log`, passes `event.correlationId` through, and rethrows on failure
-  - [ ] The coverage detector fails on a `DomainEvent` class missing from the handler, passes on all 26, and ignores `Command` subclasses
+  - [ ] Each of the four handlers subscribes to exactly its context's events (booking 21, loyalty 1, staff 3, platform 2) with consumer `audit-log`, passes `event.correlationId` through, and rethrows on failure
+  - [ ] The coverage detector fails on a `DomainEvent` class with no `audit-log` subscription, passes on all 27, and ignores `Command` subclasses
 - Integration:
   - [ ] A real event published through the bus produces exactly one inbox claim and one log line (replaces the old lead-form round-trip spec)
+  - [ ] `StaffActivated`, published through the outbox, reaches the audit consumer
 - Tenant isolation:
   - [ ] An event of Tenant A logs Tenant A's `tenantId` and never another tenant's
 - E2E: none — no user-visible behaviour
-- [ ] Regenerating `pubsub-catalog.json` adds exactly 12 `audit-log` consumers and leaves the 14 existing ones unchanged
+- [ ] Regenerating `pubsub-catalog.json` adds exactly 13 `audit-log` consumers and one new `StaffActivated` topic, and leaves the 14 existing consumers unchanged
 - [ ] The sweep for the ten deleted class names returns zero hits in `apps`, `packages` and `docs`
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-**IAM / permissions:** the 12 new subscriptions follow the existing Foundation grants for push subscriptions; nothing new is granted by hand.
-**Live-verification check:** `gcloud pubsub subscriptions get-iam-policy ikaro-<Event>-audit-log` for each of the 12 new subscriptions, in both `ikaro-staging` and `ikaro-prod`, shows the expected binding. Nothing in CI fails if this is skipped; the story is not done until it has run.
-**PR sequence:** as M23-S28 decision 6 — PR1 carries the code, the clean-up and the regenerated catalog (`infra-app-mix-ok` label and a PR-body note); the Foundation apply with both plans reviewed follows after its `envs/*` apply.
+**IAM / permissions:** the 13 new subscriptions and the new `StaffActivated` topic follow the existing Foundation grants derived from the catalog; nothing is granted by hand.
+**Live-verification check:** after the Foundation apply, `gcloud pubsub subscriptions get-iam-policy ikaro-<Event>-audit-log` for each of the 13 new subscriptions, and `gcloud pubsub topics get-iam-policy ikaro-StaffActivated`, in both `ikaro-staging` and `ikaro-prod`, show the expected bindings. Nothing in CI fails if this is skipped; the story is not done until it has run.
+**PR sequence:** playbook row "a new Pub/Sub topic + its app code" — PR1 carries the code, the clean-up and the regenerated catalog (`infra-app-mix-ok` label and a PR-body note), then one Foundation apply with both plans reviewed.
