@@ -201,6 +201,8 @@ Total issues: 0
 
 **If all steps pass**, proceed directly to `gh pr create` (per CLAUDE.md §9) — no permission prompt; this was authorized when `/story-discovery` returned READY. State that all checks passed and the PR is being opened, then open it.
 
+**If the diff touches both `infra/terraform/**` and `apps/**`/`packages/**`** (typically a regenerated `infra/terraform/pubsub-catalog.json` beside app code), pass `--label infra-app-mix-ok` in the same `gh pr create` call and put the playbook's PR-body note in the body. The `no-infra-app-mix` check reads the labels present when the PR event fires, so a label added afterwards does not clear it (`docs/CI_TRAPS.md` § CI workflow configuration traps).
+
 **If any step failed**, list the blocking issues and stop. Do not open the PR.
 
 ---

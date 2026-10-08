@@ -7,6 +7,7 @@ Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 St
 - [ ] All queries filter `tenant_id`; all events include `tenantId`/`eventId`/`correlationId`
 - [ ] Migration is backward-compatible (expand/contract) — see "Migration history" below for the pre-production exception
 - [ ] New/modified migration → `docs/13-DATABASE_SCHEMA.md`'s matching table updated in the same commit (columns, defaults, constraints, indexes) — same discipline as the `integration-global-setup.ts` registration requirement, same silent-drift risk if skipped
+- [ ] New migration file → registered in `apps/backend/src/test/integration-global-setup.ts` **and** listed in `PERSISTENCE_BYPASS_IGNORES` in `apps/backend/eslint.config.js` (the `QueryRunner` import is otherwise a `no-restricted-imports` error); a `NOT VALID` + `VALIDATE CONSTRAINT` pair for any CHECK on an existing table (`docs/ANTI_PATTERNS.md`)
 - [ ] Conventional Commit + PR description links the UC
 - [ ] If this story replaces or removes an existing flow/mechanism, the stale-reference sweep below is done
 - [ ] If this story ships something a `plan/journey/<actor>/<slug>.md` currently marks `❓ GAP` (a screen, a mermaid node, a Prototype-table row), that doc's status is flipped in the same commit — not just `dev-notes.md`. See "Journey GAP-status drift" below.

@@ -437,6 +437,12 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 3. Export the two keys the helpers require, read from `apps/bff/.env` (there is no `.env.playwright.local`): `INTERNAL_API_KEY`, `WEB_INTERNAL_KEY`; then `npx playwright test e2e/<spec>.ts --reporter=list`.
 4. Stop the stack by PID, then **revert what `next dev` generated**: `git checkout apps/web/next-env.d.ts` and delete `apps/web/AGENTS.md` / `apps/web/CLAUDE.md` — never commit them.
 
+**The shared infra is the developer's own dev database.** Step 1's shared Postgres volume holds whatever the developer has been working with, and an E2E run writes tenants' resources, staff, services and bookings into it (the specs deactivate what they create but do not delete it), and applies any new migration to it. When that matters, or when CI parity is the goal, run an isolated, throw-away stack instead:
+1. `docker compose -p ikaro-e2e -f docker/docker-compose.yml up -d` — a different project name gives its own volume, so the dev data is untouched. Ports are shared, so stop the dev stack first.
+2. Use the env of the `e2e` job in `.github/workflows/pr-tests.yml` (its `Seed database` and `Start services and wait for readiness` steps: `DB_*`, `PUBSUB_*`, `GCS_*`, the keys, `ENABLE_DEV_AUTH=true`, `CHATBOT_LLM_PROVIDER=fake`, the Turnstile test keys) in a file you `source`; then `pnpm db:migrate`, `pnpm db:seed`, start the backend (`PORT=3001`), BFF (`PORT=3002`) and web, and wait with `pnpm exec wait-on tcp:localhost:3001 tcp:localhost:3002 tcp:localhost:3000`.
+3. Run one spec at a time with `--workers=1`, selecting by **title** (`-g "…"`): line numbers shift as soon as you edit the file, and `file:line` for a line that is no longer a test start reports "No tests found". Several `file:line` arguments in one call are not accepted either.
+4. Tear down by PID, then `docker compose -p ikaro-e2e -f docker/docker-compose.yml down -v` (removes only this project's volume) and revert what `next dev` generated (step 4 above). In CI-like runs a failing scenario reproduces in seconds, which is the point: use it before theorising (`docs/CI_TRAPS.md` § Two PRs that are each green can be red together).
+
 **MVP E2E scenarios:**
 1. Guest submits a booking request → admin receives notification → booking in PENDING (UC-001 + UC-018)
 2. Admin approves booking → customer receives confirmation email (UC-003)

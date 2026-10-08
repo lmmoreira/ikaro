@@ -177,7 +177,11 @@ const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
 3. **"The first enabled day in the strip" is not "a day with slots".** Today stays enabled after business hours with nothing left in it. Use `openFirstDayWithSlots()` (same file), which opens the first enabled day that actually lists a slot.
 4. **These only reproduce with the real clock.** Moving only the helper's clock forward leaves the page's own clock behind, and the spec passes. When one fails in CI and not locally, download the run's `playwright-traces` and `server-logs` artifacts: each failed test's `error-context.md` is the page snapshot, and `trace.zip`'s `*-trace.network` plus `resources/` hold the exact slot lists the page received (`docs/CI_TRAPS.md`).
 
+5. **A spec that must book the very slot the guest's page picked cannot recompute it.** `findFirstSlot()` skips days with fewer than 8 upcoming slots (consequence 2) while the page opens the first day that lists any slot, so late in the day they name different days: the "other customer" books tomorrow, no conflict arises and the guest's booking succeeds. Derive the slot from the day the page opened, after the guest reached the confirmation step: `firstSlotOnDate(page, serviceId, await pickFirstSlot(guest.page), picks)` (`flow.ts`). Every E2E must pass at any hour of the day; a spec that only passes in the morning has two sources of "now" that disagree.
+
 **Confirmed empirically (M23-S33, PRs #566 and #568, 2026-10-07):** 20+ specs failed in a run at 22:14 São Paulo time (today had nothing left), 7 more at about 10:30 (the helper picked elapsed slots), and 3 at 15:52 (the one remaining slot was consumed by the spec's own booking, leaving none for the same resource) — three facets of one dependency, none visible in a single run.
+
+**Confirmed empirically (M23-S28, 2026-10-08):** four slot-conflict specs (`booking-chosen-resource`, `booking-journey-basket` ×2, `booking-submit-routing`) were green at about 10:00 São Paulo time and red from about 13:00, on `main` as well, until they used `firstSlotOnDate()`.
 
 ## An integration test never reads the developer's `.env` — build its config module with `testConfigModule()`
 

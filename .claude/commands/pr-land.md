@@ -91,6 +91,10 @@ Collect, in one list, from every actor that responded in Step 1:
 
 ---
 
+**A failing CI check in an area your diff does not touch is not yours to fix by guessing.** Compare the failing set with the diff; if it is unrelated, baseline it against `main` (`docs/CI_TRAPS.md` § Two PRs that are each green can be red together on `main`), and if `main` fails the same way reproduce it locally (`docs/08-TESTING_STRATEGY.md` § Layer 5; this needs the explicit yes of CLAUDE.md §0's Local verification gate) and fix it on this branch in its own commit. Likewise, a gate that fails while the SonarCloud issue count is 0 is a gate *condition* (duplication, coverage): read the `project_status` conditions the script prints, not the issue count (`docs/CI_TRAPS.md` § SonarCloud Quality Gate failures).
+
+---
+
 ## Step 3 — Triage the pooled list (bot-finding discipline, CLAUDE.md §9)
 
 For every finding in the pooled list:

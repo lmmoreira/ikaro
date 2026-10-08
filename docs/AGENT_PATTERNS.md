@@ -861,6 +861,42 @@ Canonical example: `apps/backend/src/contexts/notification/infrastructure/delive
 
 ---
 
+### 23. Notification Use Cases sharing one flow — abstract base with template-method hooks
+
+When two or more notification use cases do the same thing and differ only in *which template* and *which extra variables*, they extend one abstract base that holds the flow; each subclass declares its input type and the hooks, with no constructor of its own (Nest reads the base class's parameter metadata, including the `@Inject()` tokens). Precedents: `BaseBookingReminderNotificationUseCase` (explicit subclass constructors) and `BaseRecurringScheduleCustomerNotificationUseCase` (constructor-less subclasses). Copying the flow into siblings breaches the SonarCloud 3% duplication gate (`docs/CI_TRAPS.md`).
+
+```typescript
+@Injectable()
+export abstract class BaseRecurringScheduleCustomerNotificationUseCase<
+  TInput extends RecurringScheduleNotificationInput,
+> extends BaseNotificationUseCase {
+  constructor(/* @Inject(...) ports */) { super(logRepo, inboxRepo, dispatcher, txManager); }
+
+  protected abstract templateKeyFor(input: TInput): NotificationTemplateKey;
+  protected extraVariables(_input: TInput, _context: RecurringScheduleNotificationContext): Record<string, string> {
+    return {};
+  }
+
+  async execute(input: TInput): Promise<{ emailSent: boolean }> {
+    // find template rows -> resolve customer/service/tenant (null -> warn and skip)
+    // -> localizeTemplates() -> dispatchTemplates() with the common + extra variables
+  }
+}
+
+@Injectable()
+export class SendRecurringScheduleEndedNotificationUseCase extends BaseRecurringScheduleCustomerNotificationUseCase<SendRecurringScheduleEndedNotificationUseCaseInput> {
+  protected templateKeyFor(input: SendRecurringScheduleEndedNotificationUseCaseInput) {
+    return input.endedBy === 'STAFF'
+      ? NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER
+      : NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_CUSTOMER;
+  }
+}
+```
+
+**Rules:** the `{ClassName}Input`/`{ClassName}Result` naming detector still applies to each subclass (declare `…UseCaseInput` as an interface and `…UseCaseResult` as a type alias of the base's result). A recipient the flow does not fit (the manager alert dispatches to many and reports `adminEmailSent`) stays a standalone use case. Specs construct the subclass with the same positional ports and use the real `JsonLocalizationAdapter`, so they assert the shipped copy.
+
+---
+
 ## BFF Patterns
 
 ### 17. BFF Module
