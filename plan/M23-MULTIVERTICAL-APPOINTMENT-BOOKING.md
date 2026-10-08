@@ -2439,7 +2439,7 @@ On the booking flow's calendar (date and time) step, when the basket holds exact
 
 ---
 
-### M23-S32 — Fungible-pool booking assigns a free unit, not the first eligible one (UC-062)
+### M23-S32 — Fungible-pool booking assigns a free unit, not the first eligible one (UC-062) ✅ Done
 
 **Discovered:** 2026-10-03, writing the M23-S11a E2E (PR #548): a 2-unit `AUTO_FUNGIBLE_POOL` service booked twice at the same slot returned `409 BOOKING_SLOT_UNAVAILABLE` on the second booking although the availability read still offered the slot and the second unit was free. The E2E works around it by occupying each unit through its own single-unit service.
 **Root cause:** `resolveCandidateIds()` (`apps/backend/src/contexts/booking/application/use-cases/resource-requirement-resolution.helpers.ts`) narrows `AUTO_ANY` candidates to those free for the exact window (`preferFreeResources()`) but returns `eligible.map((r) => r.id)` unchanged for `AUTO_FUNGIBLE_POOL`/`NONE` — "the original deterministic first-eligible pick". The booking then tries to lock the first unit, finds it taken, and fails, while `AvailabilityService` treats a pool as open when any unit is free.
