@@ -147,4 +147,22 @@ describe('SendRecurringScheduleEndedNotificationUseCase', () => {
     expect(fx.dispatcher.dispatched).toHaveLength(0);
     expect(fx.logRepo.all).toHaveLength(0);
   });
+
+  it('escapes the tenant name in the body but keeps the subject plain text', async () => {
+    fx.tenantPort.setTenantInfo(RECURRING_TENANT_ID, {
+      id: RECURRING_TENANT_ID,
+      name: 'Lava & <b>Cia</b>',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
+      replyToEmail: null,
+    });
+
+    await useCase.execute({ ...baseInput, endedBy: 'STAFF' });
+
+    const message = fx.dispatcher.dispatched[0];
+    expect(message.subject).toBe('Sua recorrência foi encerrada por Lava & <b>Cia</b>');
+    expect(message.body).toContain('Lava &amp; &lt;b&gt;Cia&lt;/b&gt;');
+    expect(message.body).not.toContain('<b>Cia');
+  });
 });

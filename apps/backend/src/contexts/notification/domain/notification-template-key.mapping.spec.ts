@@ -103,7 +103,11 @@ describe('NOTIFICATION_TEMPLATE_KEY_MAPPING variable contract (M23-S37)', () => 
       const violations: string[] = [];
       for (const [key, mapping] of Object.entries(NOTIFICATION_TEMPLATE_KEY_MAPPING)) {
         const template = notifications[mapping.eventName]?.[mapping.recipientType];
-        const { unlisted, unused } = contractViolations(mapping.variables, template!);
+        if (!template) {
+          violations.push(`${key}: no ${mapping.eventName}.${mapping.recipientType} template`);
+          continue;
+        }
+        const { unlisted, unused } = contractViolations(mapping.variables, template);
         if (unlisted.length > 0) violations.push(`${key}: not listed -> ${unlisted.join(', ')}`);
         if (unused.length > 0) violations.push(`${key}: listed but unused -> ${unused.join(', ')}`);
       }

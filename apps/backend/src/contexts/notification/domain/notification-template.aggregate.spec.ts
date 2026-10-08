@@ -104,6 +104,17 @@ describe('NotificationTemplate', () => {
       expect(result.subject).toBe('Sem variáveis');
       expect(result.body).toBe('<p>Texto fixo</p>');
     });
+
+    it('keeps escaped values escaped in the body and plain in the subject', () => {
+      const t = NotificationTemplate.create({
+        ...BASE_PROPS,
+        subject: 'Convite de {{tenantName}}',
+        body: '<p>{{tenantName}}</p>',
+      });
+      const result = t.render({ tenantName: 'Lava &amp; Cia &lt;b&gt;' });
+      expect(result.subject).toBe('Convite de Lava & Cia <b>');
+      expect(result.body).toBe('<p>Lava &amp; Cia &lt;b&gt;</p>');
+    });
   });
 
   describe('reconstitute()', () => {

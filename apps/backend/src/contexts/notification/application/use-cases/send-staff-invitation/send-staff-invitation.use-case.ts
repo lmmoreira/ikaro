@@ -84,10 +84,11 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
 
     const activationLink = `${this.config.getOrThrow('FRONTEND_URL')}/dashboard/login?tenantSlug=${encodeURIComponent(tenant.slug)}`;
 
-    // tenantName stays raw: the subject is plain text and the tenant name is set by the owner.
+    // tenantName is typed by the tenant owner, so it is escaped like any other value; render()
+    // unescapes it again for the plain-text subject.
     const variables: TemplateVariables<typeof TRIGGER> = {
       staffName: escapeHtml(staff.name ?? staff.email),
-      tenantName: tenant.name,
+      tenantName: escapeHtml(tenant.name),
       activationLink,
     };
     const sent = await this.dispatchTemplates(templates, input, staff.email, variables);

@@ -149,4 +149,20 @@ describe('SendStaffInvitationUseCase', () => {
     expect(dispatcher.dispatched[0].body).not.toContain('<img');
     expect(dispatcher.dispatched[0].body).toContain('&lt;img src=x&gt;');
   });
+
+  it('escapes the tenant name in the body and leaves the subject plain', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava <b>& Cia</b>',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    expect(dispatcher.dispatched[0].body).toContain('Lava &lt;b&gt;&amp; Cia&lt;/b&gt;');
+    expect(dispatcher.dispatched[0].body).not.toContain('<b>& Cia');
+  });
 });

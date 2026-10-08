@@ -202,4 +202,21 @@ describe('SendBookingRequestedNotificationUseCase', () => {
 
     for (const msg of dispatcher.dispatched) expect(msg.body).not.toContain('<img');
   });
+
+  it('escapes the tenant name in the customer email', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava <img src=x>',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
+    expect(customerMsg!.body).not.toContain('<img');
+    expect(customerMsg!.body).toContain('Lava &lt;img src=x&gt;');
+  });
 });

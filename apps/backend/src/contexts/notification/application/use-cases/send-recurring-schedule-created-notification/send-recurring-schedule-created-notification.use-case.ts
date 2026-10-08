@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { Injectable } from '@nestjs/common';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
@@ -33,7 +34,7 @@ export class SendRecurringScheduleCreatedNotificationUseCase extends BaseRecurri
   ): TemplateVariables<NotificationTemplateKey.RECURRING_SCHEDULE_CREATED_CUSTOMER> {
     return {
       ...customerVariables(context),
-      tenantName: context.tenantName,
+      tenantName: escapeHtml(context.tenantName),
       ...buildScheduleSummaryVariables(input, context),
     };
   }

@@ -26,12 +26,22 @@ describe('htmlToText', () => {
   });
 
   it('decodes the entities escapeHtml produces, ampersand last', () => {
-    expect(htmlToText('<p>&lt;b&gt; &amp;lt; &quot;x&quot; &#39;y&#39;</p>')).toBe(
+    expect(htmlToText('<p>&lt;b&gt; &amp;lt; &quot;x&quot; &#x27;y&#x27;</p>')).toBe(
       '<b> &lt; "x" \'y\'',
     );
   });
 
   it('collapses runs of blank lines', () => {
     expect(htmlToText('<p>A</p><br><br><br><p>B</p>')).toBe('A\n\nB');
+  });
+
+  it('keeps the address of a link whose label has formatting inside', () => {
+    expect(htmlToText('<a href="https://a.example/x"><strong>Responder</strong> agora</a>')).toBe(
+      'Responder agora (https://a.example/x)',
+    );
+  });
+
+  it('copes with an unterminated tag without throwing', () => {
+    expect(htmlToText('<p>ok</p><p broken')).toBe('ok\n<p broken');
   });
 });

@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { Injectable } from '@nestjs/common';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
@@ -38,6 +39,6 @@ export class SendRecurringScheduleEndedNotificationUseCase extends BaseRecurring
     | NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_CUSTOMER
     | NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER
   > {
-    return { ...customerVariables(context), tenantName: context.tenantName };
+    return { ...customerVariables(context), tenantName: escapeHtml(context.tenantName) };
   }
 }

@@ -1,4 +1,5 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
+import { unescapeHtml } from '../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from './notification-template-key.enum';
 
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'WHATSAPP';
@@ -66,12 +67,17 @@ export class NotificationTemplate {
     this._body = body;
   }
 
+  // Variables arrive HTML-escaped, ready for the body. The subject is plain text, so it gets the
+  // same values unescaped: "Lava & Cia" must not read "Lava &amp; Cia" in an inbox list.
   render(variables: Record<string, string>): RenderedTemplate {
-    const interpolate = (template: string): string =>
-      template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => variables[key] ?? '');
+    const interpolate = (template: string, plain: boolean): string =>
+      template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+        const value = variables[key] ?? '';
+        return plain ? unescapeHtml(value) : value;
+      });
     return {
-      subject: interpolate(this._subject),
-      body: interpolate(this._body),
+      subject: interpolate(this._subject, true),
+      body: interpolate(this._body, false),
     };
   }
 }

@@ -96,7 +96,7 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
       scheduledAt: shared.scheduledAt,
       serviceNames: shared.serviceNames,
       totalPrice: shared.totalPrice,
-      tenantName: tenantInfo?.name ?? '',
+      tenantName: escapeHtml(tenantInfo?.name ?? ''),
     };
 
     const adminEmailSent =
