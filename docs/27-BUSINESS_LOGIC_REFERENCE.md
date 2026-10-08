@@ -285,6 +285,32 @@ flowchart TD
 
 **Expiry and end of term share one job** on the existing 30-minute `cron-reminders` trigger. It iterates active tenants and queries each tenant-scoped (the `(tenant_id, status, approval_hold_expires_at)` index is enough; there is no cross-tenant index). Step 1 cancels `PENDING_APPROVAL` schedules past their hold (`APPROVAL_EXPIRED`), one transaction per schedule. Step 2 moves `ACTIVE` schedules whose `endsOn` is before the tenant-local date to `ENDED`, which is what keeps the `status = 'ACTIVE'` caps and list filter from counting an expired schedule; it raises no event and touches no booking. The 30-minute granularity affects only when cleanup happens: approve itself refuses a request whose hold has passed.
 
+### Ending a schedule and the emails around it (M23-S28)
+
+```mermaid
+flowchart TD
+  E[End: the customer, or staff on their behalf] --> A{schedule ACTIVE?}
+  A -- no --> X[refused: a PENDING_APPROVAL request is withdrawn outright and sends nothing]
+  A -- yes --> C[cancel every future occurrence: BookingCancelled with cancelledByScheduleEnd = true, occupancy released]
+  C --> S[schedule CANCELLED: CUSTOMER_CANCELLED, or STAFF_CANCELLED when staff ended it]
+  S --> V[RecurringBookingScheduleEnded with endedBy]
+  V --> N[one customer email, template chosen by endedBy]
+  C --> Q[Notification skips these BookingCancelled: no per-occurrence emails]
+```
+
+Ending is one transaction in `EndRecurringBookingScheduleUseCase`: the occurrences are cancelled through the same `Booking.cancel()` as any cancellation (so the audit rows and the availability-alert handler still see them), with `cancelledByScheduleEnd` set, and the schedule's `end()` raises the single `Ended` event. `SendBookingCancelledNotificationUseCase` returns before sending anything when that flag is set (the skip is in the use case, not the handler, so the handler stays one call). A single occurrence cancelled on its own is an ordinary cancellation and still emails the customer and the managers.
+
+| Event | Recipient | Template (`NotificationTemplateKey`) |
+| --- | --- | --- |
+| `RecurringBookingScheduleCreated` (at creation for `AUTO_CONFIRM`, at approval for `MANUAL_APPROVAL`) | the schedule's customer, also when staff created it | `RECURRING_SCHEDULE_CREATED_CUSTOMER` |
+| `RecurringBookingScheduleApprovalRequested` | the tenant's managers, never the customer | `RECURRING_SCHEDULE_APPROVAL_REQUESTED_ADMIN` |
+| `RecurringBookingScheduleRejected`, `APPROVAL_REJECTED` | the customer | `RECURRING_SCHEDULE_REJECTED_CUSTOMER` |
+| `RecurringBookingScheduleRejected`, `APPROVAL_EXPIRED` | the customer | `RECURRING_SCHEDULE_EXPIRED_CUSTOMER` |
+| `RecurringBookingScheduleEnded`, `endedBy = CUSTOMER` | the customer | `RECURRING_SCHEDULE_ENDED_CUSTOMER` |
+| `RecurringBookingScheduleEnded`, `endedBy = STAFF` | the customer | `RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER` |
+
+Two templates share an event when the copy differs (rejected/expired, ended by whom): `trigger_event` stores the enum value, so they are told apart by the `recipientType` label in `notifications.json`. The language is the tenant's (`settings.localization.language`), never the customer's. A tenant's template rows are one per `(tenant_id, trigger_event, channel)` in that one language, so the migration that introduced these keys copied them to existing tenants in each tenant's own language, and a tenant whose language tag the catalog does not ship (a free-form tag such as `en-US`) takes the pt-BR rows, the same fallback the localization adapter applies when rendering. No email carries a staff name or an internal id; a customer or service that no longer exists is skipped with a warning, never retried.
+
 ---
 
 ## Booking — Future-Commitment Worklist (M23-S08)

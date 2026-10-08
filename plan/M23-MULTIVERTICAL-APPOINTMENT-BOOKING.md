@@ -2118,7 +2118,7 @@ Give staff and managers the UI for UC-074, on the existing booking detail route 
 
 ---
 
-### M23-S28 — Customer and staff emails for the recurring-schedule lifecycle (`Created`, `ApprovalRequested`, `Rejected`, `Ended` → Notification)
+### M23-S28 — Customer and staff emails for the recurring-schedule lifecycle (`Created`, `ApprovalRequested`, `Rejected`, `Ended` → Notification) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
