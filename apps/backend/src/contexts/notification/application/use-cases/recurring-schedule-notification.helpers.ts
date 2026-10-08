@@ -1,4 +1,8 @@
-import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../shared/utils/calendar-date';
+import {
+  addDaysUTC,
+  utcDateToLocalDate,
+  utcDateToLocalHHMM,
+} from '../../../../shared/utils/calendar-date';
 import { DEFAULT_LOCALE } from '../../domain/notification-locale.constants';
 import { BaseNotificationDto } from '../dtos/base-notification.dto';
 import { INotificationBookingPort } from '../ports/notification-booking.port';
@@ -62,8 +66,9 @@ export async function resolveRecurringScheduleContext(
   };
 }
 
-// A Sunday: indexing from it gives the date of each weekday, formatted in the tenant's locale.
-const REFERENCE_SUNDAY_UTC = Date.UTC(2024, 0, 7);
+// A Monday: stepping from it with the shared addDaysUTC() gives a date for each weekday, which
+// Intl then names in the tenant's locale.
+const REFERENCE_MONDAY = '2024-01-01';
 const WEEKDAY_ORDER = [
   'monday',
   'tuesday',
@@ -77,22 +82,25 @@ const WEEKDAY_ORDER = [
 export function formatWeekdays(daysOfWeek: string[], locale: string): string {
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' });
   const names = WEEKDAY_ORDER.filter((day) => daysOfWeek.includes(day)).map((day) =>
-    weekday.format(
-      new Date(REFERENCE_SUNDAY_UTC + ((WEEKDAY_ORDER.indexOf(day) + 1) % 7) * 86_400_000),
-    ),
+    weekday.format(utcDateOf(addDaysUTC(REFERENCE_MONDAY, WEEKDAY_ORDER.indexOf(day)))),
   );
   return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(names);
 }
 
-// YYYY-MM-DD → the locale's numeric date (UTC-anchored: a calendar date has no timezone).
-export function formatCalendarDate(date: string, locale: string): string {
+// A calendar date has no timezone: anchor it at UTC midnight so Intl cannot shift the day.
+function utcDateOf(date: string): Date {
   const [year, month, day] = date.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+// YYYY-MM-DD → the locale's numeric date.
+export function formatCalendarDate(date: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(new Date(Date.UTC(year, month - 1, day)));
+  }).format(utcDateOf(date));
 }
 
 export function buildScheduleSummaryVariables(
