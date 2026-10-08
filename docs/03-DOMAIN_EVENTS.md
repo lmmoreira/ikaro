@@ -580,8 +580,7 @@ BookingApproved  ───► Notification (customer "confirmed" — lists every
 Staff marks complete
         │
         ▼
-BookingCompleted ───► Notification (customer "thanks" — summary of all services)
-                 └──► Loyalty (if customerId != null:
+BookingCompleted ───► Loyalty (if customerId != null:
                                   insert ONE LoyaltyEntry PER LINE
                                   publish ONE ServicePointsEarned PER LINE)
                                                   │
