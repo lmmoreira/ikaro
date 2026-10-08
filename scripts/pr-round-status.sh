@@ -33,6 +33,10 @@
 # precedent, 2026-08-26: two Sonar issues from the first commit went
 # unflagged for 3 rounds this way).
 #
+# It also prints the quality gate's failing conditions (project_status API). Duplication and
+# new-code coverage are gate conditions, not issues, so the issue count can be 0 while the gate
+# fails (M23-S28). Both lines are informational; the exit status follows CI only.
+#
 # CI counts as finished only when the aggregate gate row ("All Checks Passed", override with
 # GATE_NAME) exists and is terminal — jobs gated by `needs:` (SonarCloud analysis, the gate
 # itself) are created lazily, so "nothing pending" alone can be true too early. If the PR's
@@ -350,6 +354,21 @@ if [ "$SONAR_COUNT" -gt 0 ] 2>/dev/null; then
   printf '%s' "$SONAR_OPEN" | jq -r '.[] | "  [\(.severity)] \(.rule): \(.message) — \(.component | split(":")[1]):\(.line // "?")"'
 else
   echo "✅ No open SonarCloud issues on PR #${PR_NUMBER}."
+fi
+
+# The quality gate has conditions the issues API never shows — duplicated lines on new code,
+# new-code coverage — so "0 open issues" alone can sit next to a failing gate (M23-S28: 5.9%
+# duplication against the 3% limit, with no issue open). Informational like the issue count:
+# it does not change the exit status, which follows CI only. A missing or still-computing gate
+# (no analysis for this commit yet) prints nothing.
+SONAR_GATE=$(curl -sf "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${SONAR_PROJECT}&pullRequest=${PR_NUMBER}" 2>/dev/null || echo '{}')
+SONAR_GATE_STATUS=$(printf '%s' "$SONAR_GATE" | jq -r '.projectStatus.status // empty' 2>/dev/null)
+if [ "$SONAR_GATE_STATUS" = "ERROR" ]; then
+  echo "❌ SonarCloud quality gate FAILED on PR #${PR_NUMBER} — failing condition(s):"
+  printf '%s' "$SONAR_GATE" | jq -r '.projectStatus.conditions[]? | select(.status == "ERROR") | "  \(.metricKey) = \(.actualValue) (fails when \(.comparator) \(.errorThreshold))"'
+  echo "  Triage: docs/CI_TRAPS.md § SonarCloud Quality Gate failures with no useful detail in the scanner log"
+elif [ "$SONAR_GATE_STATUS" = "OK" ]; then
+  echo "✅ SonarCloud quality gate passes on PR #${PR_NUMBER}."
 fi
 
 [ "$CI_FAILED" -eq 0 ]
