@@ -17,6 +17,9 @@ interface BookingCancelledData extends Record<string, unknown> {
   scheduledAt: string;
   lineSummary: BookingCancelledLineSummary[];
   totalPrice: { amount: string; currency: string };
+  // True only for the occurrences cancelled when a recurring schedule is ended (M23-S28): the
+  // schedule's own RecurringBookingScheduleEnded email replaces one cancellation email each.
+  cancelledByScheduleEnd: boolean;
 }
 
 export class BookingCancelled extends DomainEvent<BookingCancelledData> {

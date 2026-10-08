@@ -42,6 +42,7 @@ export class BookingCancelledHandler implements OnModuleInit {
         scheduledAt: event.data.scheduledAt,
         lineSummary: event.data.lineSummary,
         totalPrice: event.data.totalPrice,
+        cancelledByScheduleEnd: event.data.cancelledByScheduleEnd,
       });
     } catch (err) {
       this.logger.error(

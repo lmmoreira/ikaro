@@ -109,6 +109,20 @@ describe('SendBookingCancelledNotificationUseCase', () => {
     expect(types).toContain('booking-cancelled-admin');
   });
 
+  it('dispatches nothing when the occurrence was cancelled by its schedule ending', async () => {
+    const endedWithSchedule = new SendBookingCancelledNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId(EVENT_ID)
+      .withCancelledByScheduleEnd(true)
+      .build();
+
+    const result = await useCase.execute(endedWithSchedule);
+
+    expect(result).toEqual({ customerEmailSent: false, adminEmailSent: false });
+    expect(dispatcher.dispatched).toHaveLength(0);
+    expect(logRepo.all).toHaveLength(0);
+  });
+
   it('skips admin email gracefully when no managers exist', async () => {
     staffPort.setManagerEmails(TENANT_ID, []);
 

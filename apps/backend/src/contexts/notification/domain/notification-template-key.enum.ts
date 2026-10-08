@@ -15,4 +15,10 @@ export enum NotificationTemplateKey {
   SERVICE_POINTS_EARNED = 'service-points-earned',
   POINTS_EXPIRING_SOON = 'points-expiring-soon',
   STAFF_INVITATION = 'staff-invitation',
+  RECURRING_SCHEDULE_CREATED_CUSTOMER = 'recurring-schedule-created-customer',
+  RECURRING_SCHEDULE_APPROVAL_REQUESTED_ADMIN = 'recurring-schedule-approval-requested-admin',
+  RECURRING_SCHEDULE_REJECTED_CUSTOMER = 'recurring-schedule-rejected-customer',
+  RECURRING_SCHEDULE_EXPIRED_CUSTOMER = 'recurring-schedule-expired-customer',
+  RECURRING_SCHEDULE_ENDED_CUSTOMER = 'recurring-schedule-ended-customer',
+  RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER = 'recurring-schedule-ended-by-staff-customer',
 }

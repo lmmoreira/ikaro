@@ -376,7 +376,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 #### **RecurringBookingScheduleEnded**
 - **Trigger:** UC-070 A2 (the customer, or staff on their behalf, ends the schedule entirely).
-- **State change:** `status → CANCELLED`; future materialized occurrences cancelled, releasing their `resource_occupancy` rows. Each of those occurrences raises its own `BookingCancelled` with `cancelledByScheduleEnd = true`, which sends no email.
+- **State change:** `status → CANCELLED` (`cancellationReason = CUSTOMER_CANCELLED` or, when staff ended it, `STAFF_CANCELLED`); future materialized occurrences cancelled, releasing their `resource_occupancy` rows. Each of those occurrences raises its own `BookingCancelled` with `cancelledByScheduleEnd = true`, which sends no email.
 - **Data:** `{ recurringScheduleId, customerId, serviceId, cancelledBookingIds: string[], endedBy: 'CUSTOMER' | 'STAFF' }` (`endedBy` added by M23-S28, additive, no `eventVersion` bump)
 - **Consumers:** audit-log; Notification Context → one customer email in both cases (M23-S28), worded "you ended it" for `CUSTOMER` and "the business ended it" for `STAFF`. No staff name or booking id appears in it.
 - **Not emitted for a natural end:** when a schedule's term is over, the M23-S05 job moves it `ACTIVE → ENDED` without an event — nothing was cancelled and no consumer needs one (an event with no consumer must not ship).

@@ -667,7 +667,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | assignment_policy | VARCHAR(30) | NOT NULL — CHECK IN ('FIXED_ASSIGNMENT', 'RESOLVE_PER_OCCURRENCE') |
 | approval_hold_expires_at | TIMESTAMPTZ | NULLABLE — required iff `status = 'PENDING_APPROVAL'`, so approve, reject and expire all clear it |
 | approved_by_staff_id / approved_at | UUID / TIMESTAMPTZ | NULLABLE — no FK, cross-context |
-| cancellation_reason | VARCHAR(30) | NULLABLE — CHECK IN ('CUSTOMER_CANCELLED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED') when `status = 'CANCELLED'` |
+| cancellation_reason | VARCHAR(30) | NULLABLE — CHECK IN ('CUSTOMER_CANCELLED', 'STAFF_CANCELLED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED') when `status = 'CANCELLED'` — `STAFF_CANCELLED` added by migration `1748500000028` (M23-S28): a schedule ended by staff on the customer's behalf; earlier rows stay `CUSTOMER_CANCELLED` |
 | created_by_staff_id | UUID | NULLABLE — no FK, cross-context; set when staff creates it for the customer |
 | created_at / updated_at | TIMESTAMPTZ | DEFAULT now() |
 | version | INTEGER | NOT NULL DEFAULT 1 — optimistic concurrency; every save() version-checks and increments it (mirrors `bookings.version`) |

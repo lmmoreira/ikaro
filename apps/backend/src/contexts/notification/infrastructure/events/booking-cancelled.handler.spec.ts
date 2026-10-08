@@ -45,6 +45,17 @@ describe('BookingCancelledHandler', () => {
     expect(dto.totalPrice).toEqual({ amount: '150.00', currency: 'BRL' });
   });
 
+  it('passes cancelledByScheduleEnd through to the use case', async () => {
+    const event = new BookingCancelledEventBuilder()
+      .withTenantId(TENANT_ID)
+      .withCancelledByScheduleEnd(true)
+      .build();
+
+    await handler.handle(event);
+
+    expect(useCase.execute.mock.calls[0][0].cancelledByScheduleEnd).toBe(true);
+  });
+
   it('passes isBusiness=false for customer-initiated cancellation', async () => {
     const event = new BookingCancelledEventBuilder()
       .withTenantId(TENANT_ID)

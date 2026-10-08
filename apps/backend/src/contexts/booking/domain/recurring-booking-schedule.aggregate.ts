@@ -11,6 +11,7 @@ import { RecurringBookingScheduleRejected } from './events/recurring-booking-sch
 import { assertValidTerm, RecurrenceRule } from './recurrence-rule.helpers';
 import { buildRequestedEvent } from './recurring-booking-schedule-request-event.helpers';
 import {
+  RecurringBookingScheduleActorType,
   RecurringBookingScheduleAssignmentPolicy,
   RecurringBookingScheduleCancellationReason,
   RecurringBookingScheduleProps,
@@ -253,10 +254,15 @@ export class RecurringBookingSchedule extends AggregateRoot {
   // cancelledBookingIds is supplied by the use case — it's the one that knows which materialized
   // future occurrences exist and released their resource_occupancy rows (the aggregate itself has
   // no visibility into the Booking aggregate).
-  end(correlationId: string, cancelledBookingIds: string[]): void {
+  end(
+    correlationId: string,
+    cancelledBookingIds: string[],
+    endedBy: RecurringBookingScheduleActorType,
+  ): void {
     this.assertActive();
     this.props.status = 'CANCELLED';
-    this.props.cancellationReason = 'CUSTOMER_CANCELLED';
+    this.props.cancellationReason =
+      endedBy === 'CUSTOMER' ? 'CUSTOMER_CANCELLED' : 'STAFF_CANCELLED';
     this.props.updatedAt = new Date();
     this.addDomainEvent(
       new RecurringBookingScheduleEnded(this.props.tenantId, correlationId, {
@@ -264,6 +270,7 @@ export class RecurringBookingSchedule extends AggregateRoot {
         customerId: this.props.customerId,
         serviceId: this.props.serviceId,
         cancelledBookingIds,
+        endedBy,
       }),
     );
   }

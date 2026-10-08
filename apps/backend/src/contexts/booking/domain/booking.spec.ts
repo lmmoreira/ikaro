@@ -477,6 +477,14 @@ describe('Booking.cancel()', () => {
     expect(booking.cancellationReason).toBe('Admin cancelled');
     const events = booking.domainEvents;
     expect(events[0]).toBeInstanceOf(BookingCancelled);
+    expect((events[0] as BookingCancelled).data.cancelledByScheduleEnd).toBe(false);
+  });
+
+  it('marks BookingCancelled as cancelledByScheduleEnd when a recurring schedule is ended', () => {
+    const booking = new BookingBuilder().withStatus(BookingStatus.APPROVED).build();
+    booking.cancel(STAFF, CORRELATION_ID, undefined, true);
+
+    expect((booking.domainEvents[0] as BookingCancelled).data.cancelledByScheduleEnd).toBe(true);
   });
 
   it('cancels INFO_REQUESTED booking', () => {

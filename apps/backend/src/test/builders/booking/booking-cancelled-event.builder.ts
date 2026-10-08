@@ -20,6 +20,7 @@ export class BookingCancelledEventBuilder {
   private reason: string | null = null;
   private serviceId: string | null = null;
   private scheduledAt = '2026-07-01T10:00:00.000Z';
+  private cancelledByScheduleEnd = false;
 
   withScheduledAt(scheduledAt: Date): this {
     this.scheduledAt = scheduledAt.toISOString();
@@ -67,6 +68,11 @@ export class BookingCancelledEventBuilder {
     return this;
   }
 
+  withCancelledByScheduleEnd(cancelledByScheduleEnd: boolean): this {
+    this.cancelledByScheduleEnd = cancelledByScheduleEnd;
+    return this;
+  }
+
   build(): BookingCancelled {
     return new BookingCancelled(this.tenantId, this.correlationId, {
       bookingId: this.bookingId,
@@ -82,6 +88,7 @@ export class BookingCancelledEventBuilder {
         serviceId: this.serviceId ?? line.serviceId,
       })),
       totalPrice: this.totalPrice,
+      cancelledByScheduleEnd: this.cancelledByScheduleEnd,
     });
   }
 }
