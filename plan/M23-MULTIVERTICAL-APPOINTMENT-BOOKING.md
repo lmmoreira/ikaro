@@ -51,6 +51,7 @@
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
 | 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
 | 5 | M23-S37 | Make every shipped notification email correct — a blank daily schedule, nameless reminders, a customer link into the staff dashboard, unescaped user text, unformatted dates, missing who/why/pickup lines — and a guard that renders the real copy; backend-only |
+| 5 | M23-S38 | Email the customer when an availability alert matches (`AvailabilityAlertMatched` → Notification; records the attempt outcome); the alert flow shipped without it |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
 | 7 | M23-S22 | Customer renews an ending recurring schedule — "Renovar" pre-filled form (UC-070) |
 | 7 | M23-S19 | Staff creates a recurring private reservation on a customer's behalf (UC-070) |
@@ -93,6 +94,10 @@ graph TD
   S28 --> S12
   S36 --> S28
   S28 --> S37
+  S07 --> S38
+  S31 --> S38
+  S28 --> S38
+  S37 --> S38
   S05 --> S13
   S05 --> S17
   S12 --> S17
@@ -2839,6 +2844,8 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 - **I4 — user-typed values go raw into the HTML body.** `contactName` (typed by a guest), the cancellation `reason` (customer or staff), the rejection `reason` and `informationNeeded` (staff), `customerResponse` and `submittedByEmail` (customer), account and staff names, and the tenant and service names. Only the daily table escapes (`escapeHtml`, `shared/utils/escape-html.ts`). A guest can put a link or an image into a manager's inbox.
 - **I5 — the new-request email hardcodes Portuguese in code.** `buildVariables()` in `send-booking-requested-notification.use-case.ts` formats `scheduledAt` as `${day}/${month}/${year} às ${localTime}`, so an English tenant gets "09/10/2026 às 14:00".
 - **I6 — dates print raw.** `utcDateToLocalDate()` returns `YYYY-MM-DD` (`shared/utils/calendar-date.ts:67`) and six templates print it as is (approved, cancelled customer and admin, rescheduled previous/new, both reminders, daily); the points-expiring email prints `earliestExpiresAt` as a raw UTC ISO timestamp (`notify-expiring-points.job.ts`).
+- **I7 — the manager's rescheduled email does not say who rescheduled.** `BookingRescheduled` carries `rescheduledBy` and `isBusiness` (`booking-rescheduled.event.ts`: true for a staff/manager reschedule, false for customer self-service), but `booking-rescheduled.handler.ts` passes only `rescheduledBy` (an id) into `SendBookingRescheduledNotificationDto`, and neither the use case nor `BookingRescheduled.admin` uses it. Since customers can reschedule themselves (M23-S30), a manager cannot tell who moved a booking.
+- **I8 — emails are HTML-only fragments.** `toNodemailerMessage()` (`email-message.mapper.ts`) and the Brevo/MailHog adapters send `html` and no plain-text part, and each body is a bare run of `<p>` elements with no document or charset. That costs deliverability and breaks plain-text clients.
 - **Minor:** `docs/03-DOMAIN_EVENTS.md` gives the new-request subjects as "Nova solicitação de agendamento — [service names]" and "Seu agendamento foi recebido" while the shipped ones are "Novo agendamento recebido" and "Solicitação de agendamento recebida". Variables supplied and never used: `lineItems` (approved), `totalBookingsToday` (daily), `bookingId` (info-submitted), `serviceNames` (points earned). `BookingCompleted` is documented as emailing the customer a summary of the completed services, but no handler or template exists and no plan tracks it.
 
 **Description:**
@@ -2853,6 +2860,7 @@ Fix every defect the audit found so each shipped email says what it was written 
 6. I5 and I6: no email prints a raw `YYYY-MM-DD` or ISO timestamp, and no email hardcodes a language in code. Dates are formatted for the tenant's locale and timezone, the way `formatCalendarDate` already does in the recurring emails.
 7. The tenant's language is `pt-BR` or `en`, set at provisioning and read-only in Settings (`docs/21-TENANTS_SETTINGS_SCHEMA.md`), so no region-tag handling is needed.
 8. No migration, no new template key, no Pub/Sub change: a template row's `subject`/`body` are never read (the copy is overlaid from `notifications.json` at send time), so nothing per tenant changes.
+9. I7: the manager's rescheduled email gets the same kind of line as the cancelled one (rescheduled by the customer / by the business, from `isBusiness`), so the handler and DTO pass `isBusiness` through; the customer's email keeps its wording.
 
 **Decisions left for `/story-discovery`:**
 - **Date and time format.** Proposal: the tenant's own `dateFormat`/`timeFormat` settings from its `CountrySpec` (so the email matches the dashboard), through one shared helper; the alternative is a plain `Intl` locale format as the recurring emails use today.
@@ -2862,7 +2870,17 @@ Fix every defect the audit found so each shipped email says what it was written 
 - **`BookingCompleted`.** Proposal: correct the docs to today's behaviour here, and if the customer should get a completion email (guests currently get none, since the points email reaches only account holders), track it as its own story; implementing it needs a new template key, a handler and an existing-tenant copy migration.
 - **Subject drift.** Proposal: the docs follow the shipped subjects.
 - **The guard's mechanism.** Proposal: a spec that renders every shipped template with the variables its use case supplies, plus `render()` reporting unresolved names so production logs a `warn` naming the template and variables; the alternative is the spec alone.
+- **The reason in the customer's cancellation email.** When the business cancels, the customer's email carries no reason today (only the manager will see it after this story). Proposal: show it, escaped, when `isBusiness` is true and a reason exists; a customer's own cancellation never echoes their own reason back.
+- **A plain-text part and a full HTML document (I8).** Proposal: wrap every body in a minimal HTML document with a charset, and derive a plain-text alternative from it in one place (the delivery mapper), with `text` added to `EmailSendOptions` and the Brevo/MailHog adapters; the alternative is to leave deliverability as is and record the decision here.
+- **The daily digest.** It is sent even with zero bookings and lists only `APPROVED` ones. Proposal: skip the email when the day is empty, and list pending requests in a separate section only if the managers ask for it (a product call).
 - **PR split.** One story, but discovery may propose two PRs: A for the broken variables, the link, the formats and the dead variables; B for escaping and the guard.
+
+**Gap register — found by the audit and deliberately not fixed here (so what this story covers is explicit):**
+- **`AvailabilityAlertMatched` has no Notification consumer or template**, so a customer who creates an alert is never emailed. Owned by **M23-S38**.
+- **`BookingCompleted` is documented as emailing the customer** a summary of the completed services; no handler or template exists (decision above).
+- **Auto-approval of one-off bookings is not applied at creation today.** When it is, the new-request email's "we will contact you to confirm" copy must change; track it with that change.
+- **Tracked elsewhere:** the lead-form manager email (a stated M20 fast-follow), the no-show email (M23-S25), the future-commitment alerts (M23-S23), and the missing UCs for failed-notification retry and template management (`CLAUDE.md` §6).
+- **Not verified by reading:** following every link in a browser, duplicate reminders if the cron fires twice in its window, the Brevo adapter's behaviour beyond the fields it sets, and rendering in real mail clients.
 
 **Backend use case steps:**
 1. `SendAdminDailyScheduleReminderNotificationUseCase`: supply `bookingsSummary` (the table), format the date, drop `totalBookingsToday`; remove the `<p>` around the placeholder in both locales.
@@ -2872,7 +2890,9 @@ Fix every defect the audit found so each shipped email says what it was written 
 5. `SendBookingRequestedNotificationUseCase`: add the pickup address line, format `scheduledAt` for the tenant, remove the unused JSON variable and the hardcoded `às`.
 6. `SendBookingApprovedNotificationUseCase`, `SendBookingRescheduledNotificationUseCase`, `SendPointsExpiringSoonNotificationUseCase`: format the dates; remove `lineItems`.
 7. Escape the user-typed values in `SendBookingRejectedNotificationUseCase`, `SendBookingInfoRequestedNotificationUseCase`, `SendBookingInfoSubmittedNotificationUseCase` (drop `bookingId`), the cancelled and requested use cases, `SendServicePointsEarnedNotificationUseCase` (drop `serviceNames`) and `SendStaffInvitationUseCase`.
-8. The guard chosen at discovery.
+8. `booking-rescheduled.handler.ts` and `SendBookingRescheduledNotificationDto`: pass `isBusiness`; `SendBookingRescheduledNotificationUseCase`: add the rescheduled-by line to the admin email (decision 9).
+9. If adopted at discovery: the plain-text part and the HTML document (I8) in the delivery mapper and adapters.
+10. The guard chosen at discovery.
 
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
@@ -2880,6 +2900,8 @@ Fix every defect the audit found so each shipped email says what it was written 
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/notification/application/use-cases/send-admin-daily-schedule-reminder-notification/send-admin-daily-schedule-reminder-notification.use-case.ts`, `base-booking-reminder-notification.use-case.ts` (in `use-cases/`), `send-booking-info-requested-notification/…use-case.ts`, `send-booking-info-submitted-notification/…use-case.ts`, `send-booking-cancelled-notification/…use-case.ts`, `send-booking-requested-notification/…use-case.ts`, `send-booking-approved-notification/…use-case.ts`, `send-booking-rescheduled-notification/…use-case.ts`, `send-booking-rejected-notification/…use-case.ts`, `send-points-expiring-soon-notification/…use-case.ts`, `send-service-points-earned-notification/…use-case.ts`, `send-staff-invitation/send-staff-invitation.use-case.ts` (each + its `.spec.ts`) (modify)
+- `apps/backend/src/contexts/notification/infrastructure/events/booking-rescheduled.handler.ts`, `apps/backend/src/contexts/notification/application/dtos/send-booking-rescheduled-notification.dto.ts` and `apps/backend/src/test/builders/notification/send-booking-rescheduled-notification-dto.builder.ts` (+ the handler spec) (modify)
+- `apps/backend/src/contexts/notification/application/ports/email-sender.port.ts`, `apps/backend/src/contexts/notification/infrastructure/delivery/email-message.mapper.ts`, `brevo-email.adapter.ts` and `mailhog-email.adapter.ts` (+ their specs) (modify — only if the plain-text part is adopted)
 - `apps/backend/src/contexts/notification/application/use-cases/notification-email-format.helpers.ts` (+ `.spec.ts`) (new — the locale date and escaped-text helpers shared by the use cases above)
 - `apps/backend/src/contexts/notification/domain/notification-template.aggregate.ts` (+ `.spec.ts`) (modify — only if the guard reports unresolved names from `render()`)
 - `apps/backend/src/contexts/notification/infrastructure/adapters/shipped-templates.spec.ts` (new — renders all 22 shipped templates through the real catalog)
@@ -2895,7 +2917,9 @@ Fix every defect the audit found so each shipped email says what it was written 
 - [ ] A manager receiving a new request for a booking with a pickup address sees it formatted, and no empty label when there is none.
 - [ ] No email shows a raw `YYYY-MM-DD` or ISO timestamp, and the new-request email is entirely in the tenant's language.
 - [ ] A name, reason, address or reply containing markup appears as text in every email, never as markup.
-- [ ] The customer cancellation email is unchanged, and ending a recurring schedule still sends no per-occurrence cancellation email.
+- [ ] The customer cancellation email is unchanged apart from the reason decision, and ending a recurring schedule still sends no per-occurrence cancellation email.
+- [ ] A manager receiving a rescheduled email sees whether the customer or the business rescheduled.
+- [ ] (If adopted) every email carries a plain-text alternative that reads sensibly and a valid HTML document.
 
 **Acceptance criteria — technical:**
 - Unit (real `JsonLocalizationAdapter`, so the shipped copy is asserted):
@@ -2908,6 +2932,8 @@ Fix every defect the audit found so each shipped email says what it was written 
   - [ ] Dates in approved, cancelled, rescheduled, reminders and points-expiring are formatted for the tenant, in pt-BR and en
   - [ ] A value containing `<b>x</b>` or `<script>` is escaped, named per variable: `contactName`, cancellation reason, rejection reason, `informationNeeded`, `customerResponse`, `submittedByEmail`, customer and staff names (negative guarantee, pinned by tests)
   - [ ] A `cancelledByScheduleEnd` event still dispatches nothing (negative guarantee; the M23-S28 spec stays green)
+  - [ ] Rescheduled: by the customer and by the business, in pt-BR and en; the handler passes `isBusiness` (handler spec)
+  - [ ] (If adopted) the mapper produces `text` and a wrapped `html` for a representative body, and both adapters send the text part
   - [ ] The guard reports an unsupplied placeholder in a fixture template
 - Integration:
   - [ ] The daily schedule, a reminder, info-requested (customer and guest), cancelled (customer-initiated and business-initiated with a reason) and requested with a pickup address, published through the event bus, produce dispatched bodies containing the expected content
@@ -2916,3 +2942,76 @@ Fix every defect the audit found so each shipped email says what it was written 
 - E2E: none — server-side email
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S38 — Email the customer when an availability alert matches (`AvailabilityAlertMatched` → Notification)
+
+**Agent:** `backend-ts`
+**Complexity:** M
+**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § `AvailabilityAlertMatched`, `docs/04-USE_CASES.md` UC-072, `docs/02-DOMAIN_MODEL.md` § `AvailabilityAlert` (`recordNotificationAttempt`), `docs/13-DATABASE_SCHEMA.md` § `availability_alert_notification_attempts`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts, `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type and § Event Handlers, `docs/AGENT_PATTERNS.md` #23, `docs/ENGINEERING_RULES_INFRA.md`, `infra/terraform/README.md` § New-resource PR-sequencing playbook
+**Dependencies:** M23-S07 (✅ Done — ships `AvailabilityAlertMatched` and the `availability_alert_notification_attempts` rows), M23-S31 (✅ Done — the screen that creates alerts), M23-S28 (✅ Done — the customer-email base class and the new-template recipe this story reuses), **M23-S37** (the shared locale-date and escaping helper and the shipped-copy spec, which this story's template must pass)
+**Pattern:** plain composition — a thin handler calls one use case that extends `BaseRecurringScheduleCustomerNotificationUseCase`'s shape (or its generalisation, decided at discovery), with one new template key. No new pattern.
+
+**Discovered:** 2026-10-08, by the notification audit done after M23-S28. `docs/03-DOMAIN_EVENTS.md` says the Notification consumer of `AvailabilityAlertMatched` is "a later story", and no plan story owns it.
+**Root cause:** M23-S07 ships `MatchAvailabilityAlertsUseCase`, which moves an alert `ACTIVE → NOTIFIED`, records one `availability_alert_notification_attempts` row with `outcome = PENDING` and publishes `AvailabilityAlertMatched`, with only an `audit-log` subscriber. Nothing under `apps/backend/src/contexts/notification/` subscribes to the event or holds a template for it. So a customer who presses "Avise-me quando abrir" (M23-S31) is told they will be notified, the alert is marked notified, and no email is ever sent; the attempt row stays `PENDING` forever (`docs/13-DATABASE_SCHEMA.md`: "the Notification consumer (a later story) updates it").
+
+**Description:**
+Send the customer one email when their alert matches: the service, the window that opened, and a link back to the booking calendar for that service. Then record what happened on the attempt row. An alert becomes `NOTIFIED` at most once, so there is one email per alert.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. One email per alert, to the alert's customer, resolved by `customerId` through `INotificationCustomerPort`; the service name through `INotificationBookingPort`; the language is the tenant's. A customer or service that no longer exists is logged and acknowledged, as the other customer emails do.
+2. A new template key, `AVAILABILITY_ALERT_MATCHED_CUSTOMER`, following the recipe in `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type: enum entry, mapping entry, `{subject, body}` in both `notifications.json`, a migration that seeds the global rows **and** copies them to every existing tenant, the use case, the handler, the module registration.
+3. The service name and any user-typed text are HTML-escaped and the window's dates are formatted for the tenant, through the shared helper from M23-S37; the template contains no placeholder the use case does not supply, and it is covered by M23-S37's shipped-copy spec.
+4. The handler is thin: it calls exactly one use case, passes `event.correlationId`, rethrows on failure, and subscribes with consumer name `notification`. Its class name is unique across the codebase (the Pub/Sub generator keys by bare class name).
+5. Devops, playbook row "a new Pub/Sub topic + its app code" minus the topic: the topic exists (M23-S07); this story adds one new `subscribe()` call site, so `pubsub-catalog.json` is regenerated (never hand-edited), the PR is created with `--label infra-app-mix-ok` and a PR-body note, and after it merges and its `envs/*` apply runs the Foundation apply is dispatched (`foundation-deploy.yml`, `apply=true`, from `main`) and the new subscription's and DLQ's IAM bindings are read with `gcloud` in both projects. The story is not done until that has run.
+
+**Decisions left for `/story-discovery`:**
+- **How the attempt row's `outcome` is updated.** It lives in the Booking context. Proposal: the Notification use case publishes a small outcome event (sent / failed) that a Booking handler applies, because cross-context writes go through events first (`CLAUDE.md` §7); a port and adapter is the last resort. Decide the event name and payload, the `outcome` values (`SENT`, `FAILED`), and whether a redelivery re-attempts.
+- **The link target.** Proposal: the booking calendar for the service with the window's first date pre-selected, using the deep-link format M23-S31's screen already reads; confirm it.
+- **Wording**, in pt-BR and en, and whether to include a "manage my alerts" link (the management page is M23-S12's).
+- **Failure behaviour.** Proposal: a failed send marks the attempt `FAILED` and nacks for redelivery like the other emails; the alert stays `NOTIFIED` (it is never matched twice).
+
+**Backend use case steps:**
+1. `SendAvailabilityAlertMatchedNotificationUseCase`: find the tenant's template rows for the new key, resolve the customer, service and tenant, localize, dispatch the escaped, formatted email; return `{ emailSent }`.
+2. `AvailabilityAlertMatchedNotificationHandler`: subscribe to `AvailabilityAlertMatched` with consumer `notification` and call the use case.
+3. Report the outcome to the Booking context by the mechanism decided above, and apply it to the attempt row.
+
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** one notification-context migration seeding the global template rows (both languages) and copying them to every existing tenant in that tenant's language; `AvailabilityAlertMatched.customer` in `packages/i18n/locales/{pt-BR,en}/notifications.json`; no env var, no feature flag.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/notification/domain/notification-template-key.enum.ts`, `notification-template-key.mapping.ts` (+ `.mapping.spec.ts`) (modify)
+- `apps/backend/src/contexts/notification/application/use-cases/send-availability-alert-matched-notification/send-availability-alert-matched-notification.use-case.ts` (+ spec) (new)
+- `apps/backend/src/contexts/notification/infrastructure/events/availability-alert-matched.handler.ts` (+ spec) (new), and `notification.module.ts` (modify)
+- `apps/backend/src/contexts/notification/infrastructure/migrations/<next-timestamp>-AddAvailabilityAlertMatchedTemplate.ts` (new), registered in `apps/backend/src/test/integration-global-setup.ts` and the persistence allowlist in `apps/backend/eslint.config.js`
+- `packages/i18n/locales/{pt-BR,en}/notifications.json` (modify)
+- the Booking-side handler and use case that apply the attempt outcome, and their specs (new — shape decided at discovery)
+- `apps/backend/src/contexts/notification/infrastructure/events/availability-alert-matched-notification.handler.integration.spec.ts` (new)
+- `infra/terraform/pubsub-catalog.json` (regenerated, not hand-edited)
+- `packages/architecture-check/architecture-policy.json` (a `permittedEdges` entry: the handler imports the Booking event class)
+- `docs/03-DOMAIN_EVENTS.md` (modify — the event's Consumers line and the outcome event), `docs/13-DATABASE_SCHEMA.md` (modify — the `outcome` values), `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts (modify — the email and the outcome update)
+
+**Acceptance criteria — product:**
+- [ ] A customer whose availability alert matches receives one email, in the tenant's language, naming the service and the window that opened and linking back to the booking calendar for it.
+- [ ] A second delivery of the same event sends nothing more.
+- [ ] The alert's attempt record ends `SENT` when the email went out and `FAILED` when it could not be sent.
+- [ ] A customer or service that no longer exists produces no email and no error loop.
+
+**Acceptance criteria — technical:**
+- Unit (real `JsonLocalizationAdapter`, so the shipped copy is asserted):
+  - [ ] The use case sends the email in pt-BR and en, escapes the service name, formats the dates, and sends nothing on a second delivery of the same `eventId`
+  - [ ] A missing customer or service is logged and skipped without failing
+  - [ ] The handler calls exactly one use case, passes `event.correlationId`, and rethrows on failure
+  - [ ] The `NotificationTemplateKey` ↔ mapping parity spec covers the new key
+  - [ ] The Booking-side handler sets the attempt to `SENT` or `FAILED` and is idempotent
+- Integration:
+  - [ ] A matching `AvailabilityAlertMatched`, published through the event bus for a tenant migrated with the new template (including the existing-tenant copy), produces exactly one `notification_logs` row and one dispatched email, and the attempt row ends `SENT`
+  - [ ] A dispatch failure ends the attempt `FAILED`
+- Tenant isolation:
+  - [ ] An event of Tenant A never resolves Tenant B's customer, service or template and writes no log row under Tenant B
+- E2E: none — server-side email
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+- [ ] **Live-verification check (devops step above):** `gcloud pubsub subscriptions get-iam-policy projects/<project>/subscriptions/ikaro-AvailabilityAlertMatched-notification` shows `roles/pubsub.subscriber` for the project's Pub/Sub service agent, and `gcloud pubsub topics get-iam-policy projects/<project>/topics/ikaro-AvailabilityAlertMatched-notification-dlq` shows `roles/pubsub.publisher` for it, in both `ikaro-staging` and `ikaro-prod`.
