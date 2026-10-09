@@ -2,11 +2,9 @@
 
 import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { parseBookingDeepLink } from '@ikaro/types';
 import { filterBookableServices } from '@/features/booking/model/bookable-services';
-import {
-  parseBookingDeepLink,
-  resolveBookingDeepLinkSeed,
-} from '@/features/booking/model/booking-deep-link';
+import { resolveBookingDeepLinkSeed } from '@/features/booking/model/booking-deep-link';
 import { BookingForm, type BookingFormProps } from './BookingForm';
 
 // Reading the query string makes everything up to the nearest Suspense boundary render on the

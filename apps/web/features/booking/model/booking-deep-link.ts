@@ -1,9 +1,10 @@
 import type {
+  BookingDeepLink,
   HotsiteServiceResourceOptionsRequirement,
   HotsiteServiceResponse,
   ResourceSelectionItem,
 } from '@ikaro/types';
-import { isCompositeService, isUuid } from './availability-alert-link';
+import { isCompositeService } from './availability-alert-link';
 import {
   earliestBookableDate,
   lastBookableDate,
@@ -11,15 +12,6 @@ import {
 } from './booking-window';
 import { durationOptions, isCustomerSelectedDuration } from './duration-options';
 import { toResourceSelectionItem } from './resource-picks';
-
-// What the availability-alert email's link carries (docs/27 § Availability Alerts). Every piece is
-// untrusted input from a URL: a piece that does not parse is simply absent.
-export interface BookingDeepLinkParams {
-  readonly serviceId: string;
-  readonly date: string | null;
-  readonly durationMinutes: number | null;
-  readonly resourceId: string | null;
-}
 
 // A link's pieces that survived validation against the page's own services and booking window.
 export interface BookingDeepLinkSeed {
@@ -33,41 +25,6 @@ export interface BookingDeepLinkContext {
   readonly maxBookingAdvanceDays: number;
   readonly timezone: string;
   readonly now: Date;
-}
-
-interface QueryReader {
-  get(name: string): string | null;
-}
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-function isCalendarDate(value: string): boolean {
-  if (!ISO_DATE.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
-}
-
-function uuidOrNull(value: string | null): string | null {
-  return value !== null && isUuid(value) ? value : null;
-}
-
-function positiveInteger(value: string | null): number | null {
-  if (value === null || !/^\d+$/.test(value)) return null;
-  const minutes = Number(value);
-  return Number.isSafeInteger(minutes) && minutes > 0 ? minutes : null;
-}
-
-// A link without a usable service is not a deep link at all: there is nothing to pre-select.
-export function parseBookingDeepLink(query: QueryReader): BookingDeepLinkParams | null {
-  const serviceId = uuidOrNull(query.get('serviceId'));
-  if (serviceId === null) return null;
-  const date = query.get('date');
-  return {
-    serviceId,
-    date: date !== null && isCalendarDate(date) ? date : null,
-    durationMinutes: positiveInteger(query.get('durationMinutes')),
-    resourceId: uuidOrNull(query.get('resourceId')),
-  };
 }
 
 function seedDuration(service: HotsiteServiceResponse, minutes: number | null): number | null {
@@ -94,7 +51,7 @@ function seedDate(
 // without a valid duration keeps no date: choosing the duration clears it anyway, and the duration
 // step would open on its minimum.
 export function resolveBookingDeepLinkSeed(
-  params: BookingDeepLinkParams | null,
+  params: BookingDeepLink | null,
   bookable: readonly HotsiteServiceResponse[],
   context: BookingDeepLinkContext,
 ): BookingDeepLinkSeed | null {

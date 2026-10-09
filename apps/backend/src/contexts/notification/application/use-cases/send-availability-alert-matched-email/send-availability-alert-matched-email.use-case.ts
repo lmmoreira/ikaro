@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { buildBookingDeepLinkUrl } from '@ikaro/types';
 import { utcDateToLocalDate } from '../../../../../shared/utils/calendar-date';
 import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
@@ -23,24 +24,6 @@ export interface SendAvailabilityAlertMatchedEmailUseCaseInput extends Recurring
   durationMinutes?: number | null;
 }
 
-// The booking page opened on the alert's service and the day the slot opened; an empty hotsite URL
-// stays empty so the email never carries a relative link. It goes into an href, so the caller
-// escapes it.
-function bookingDeepLink(
-  hotsiteUrl: string,
-  input: SendAvailabilityAlertMatchedEmailUseCaseInput,
-  timezone: string,
-): string {
-  if (!hotsiteUrl) return hotsiteUrl;
-  const query = new URLSearchParams({
-    serviceId: input.serviceId,
-    date: utcDateToLocalDate(new Date(input.matchingWindowStart), timezone),
-  });
-  if (input.durationMinutes) query.set('durationMinutes', String(input.durationMinutes));
-  if (input.resourceId) query.set('resourceId', input.resourceId);
-  return `${hotsiteUrl}/booking?${query.toString()}`;
-}
-
 export type SendAvailabilityAlertMatchedEmailUseCaseResult =
   RecurringScheduleCustomerNotificationUseCaseResult;
 
@@ -60,7 +43,14 @@ export class SendAvailabilityAlertMatchedEmailUseCase extends BaseRecurringSched
     return {
       ...customerVariables(context),
       matchingWindow: formatEmailDateTime(input.matchingWindowStart, context.timezone, context),
-      bookingUrl: escapeHtml(bookingDeepLink(context.hotsiteUrl, input, context.timezone)),
+      bookingUrl: escapeHtml(
+        buildBookingDeepLinkUrl(context.hotsiteUrl, {
+          serviceId: input.serviceId,
+          date: utcDateToLocalDate(new Date(input.matchingWindowStart), context.timezone),
+          durationMinutes: input.durationMinutes,
+          resourceId: input.resourceId,
+        }),
+      ),
     };
   }
 

@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { HotsiteServiceResourceOptionsRequirement } from '@ikaro/types';
+import type { BookingDeepLink, HotsiteServiceResourceOptionsRequirement } from '@ikaro/types';
 import { choiceRequirement, makeHotsiteService } from '@/test-utils';
-import {
-  parseBookingDeepLink,
-  resolveBookingDeepLinkSeed,
-  seededResourcePick,
-  type BookingDeepLinkParams,
-} from './booking-deep-link';
+import { resolveBookingDeepLinkSeed, seededResourcePick } from './booking-deep-link';
 
 const SERVICE_ID = '10000000-0000-4000-8000-000000000001';
 const OTHER_SERVICE_ID = '10000000-0000-4000-8000-000000000002';
@@ -15,8 +10,6 @@ const RESOURCE_ID = '20000000-0000-4000-8000-000000000001';
 // 2026-06-15 12:00 UTC; "today" in America/Sao_Paulo is the same day.
 const NOW = new Date('2026-06-15T12:00:00.000Z');
 const CONTEXT = { maxBookingAdvanceDays: 30, timezone: 'America/Sao_Paulo', now: NOW };
-
-const query = (search: string) => new URLSearchParams(search);
 
 const fixedService = makeHotsiteService({ id: SERVICE_ID });
 const variableService = makeHotsiteService({
@@ -30,66 +23,12 @@ const variableService = makeHotsiteService({
   },
 });
 
-const params = (overrides: Partial<BookingDeepLinkParams> = {}): BookingDeepLinkParams => ({
+const params = (overrides: Partial<BookingDeepLink> = {}): BookingDeepLink => ({
   serviceId: SERVICE_ID,
   date: null,
   durationMinutes: null,
   resourceId: null,
   ...overrides,
-});
-
-describe('parseBookingDeepLink()', () => {
-  it('reads every piece of the alert email’s link', () => {
-    expect(
-      parseBookingDeepLink(
-        query(
-          `serviceId=${SERVICE_ID}&date=2026-06-20&durationMinutes=90&resourceId=${RESOURCE_ID}`,
-        ),
-      ),
-    ).toEqual({
-      serviceId: SERVICE_ID,
-      date: '2026-06-20',
-      durationMinutes: 90,
-      resourceId: RESOURCE_ID,
-    });
-  });
-
-  it('needs only a service: the other pieces are optional', () => {
-    expect(parseBookingDeepLink(query(`serviceId=${SERVICE_ID}`))).toEqual(params());
-  });
-
-  it.each([
-    ['no query at all', ''],
-    ['a service that is not a UUID', 'serviceId=not-a-uuid'],
-    ['an empty service', 'serviceId='],
-    ['only a date', 'date=2026-06-20'],
-  ])('is not a deep link with %s', (_label, search) => {
-    expect(parseBookingDeepLink(query(search))).toBeNull();
-  });
-
-  it.each([
-    ['an impossible date', 'date=2026-02-30'],
-    ['a malformed date', 'date=20-06-2026'],
-    ['a date-time', 'date=2026-06-20T10:00'],
-  ])('drops %s but keeps the service', (_label, extra) => {
-    expect(parseBookingDeepLink(query(`serviceId=${SERVICE_ID}&${extra}`))?.date).toBeNull();
-  });
-
-  it.each(['0', '-30', '1.5', 'abc', '9007199254740993', ''])(
-    'drops the duration %j',
-    (minutes) => {
-      const link = parseBookingDeepLink(
-        query(`serviceId=${SERVICE_ID}&durationMinutes=${minutes}`),
-      );
-      expect(link?.durationMinutes).toBeNull();
-    },
-  );
-
-  it('drops a resource that is not a UUID', () => {
-    expect(
-      parseBookingDeepLink(query(`serviceId=${SERVICE_ID}&resourceId=staff-1`))?.resourceId,
-    ).toBeNull();
-  });
 });
 
 describe('resolveBookingDeepLinkSeed()', () => {
