@@ -26,8 +26,8 @@ export interface RecurringSummary {
 }
 
 /**
- * The Agendamentos tab's "Reservas recorrentes" entry row. Optional by design: any failure
- * resolves to `null` (no row) so the tab itself never breaks on a schedules read.
+ * The Agendamentos tab's "Reservas recorrentes" entry row. Optional by design, so a failed read
+ * resolves to `null` (no row) and the tab itself never breaks on a schedules read.
  */
 export async function fetchRecurringSummary(token: string): Promise<RecurringSummary | null> {
   try {
