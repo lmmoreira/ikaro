@@ -3301,7 +3301,7 @@ The Início tab (`/{slug}/my-account`) shows two tiles today, Pontos and Agendam
 
 ---
 
-### M23-S42 — Account read model: the service name on the schedule list item, and by-id reads for a schedule and an alert
+### M23-S42 — Account read model: the service name on the schedule list item, and by-id reads for a schedule and an alert ✅ Done
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** M
