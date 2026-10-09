@@ -22,7 +22,7 @@ import {
   EMPTY_BUSINESS_HOURS,
   FULL_WEEK_BUSINESS_HOURS,
 } from '../../../../test/utils/business-hours-fixtures';
-import { futureDate, nextWeekday } from '../../../../test/utils/date-helpers';
+import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -32,10 +32,15 @@ import {
   RecurringBookingScheduleConflictError,
   RecurringBookingScheduleIneligibleServiceError,
   RecurringBookingScheduleInvalidDateRangeError,
+  RecurringBookingScheduleNoOccurrencesError,
+  RecurringBookingScheduleNotFoundError,
   RecurringBookingScheduleTermExceededError,
 } from '../../domain/errors/recurring-booking-schedule.error';
 import {
+  BookingScheduledInPastError,
   BookingServiceNotInTenantError,
+  BookingTooFarAheadError,
+  BookingTooSoonError,
   CustomerPhoneNotSetError,
 } from '../../domain/errors/booking-domain.error';
 import { RequestRecurringBookingScheduleUseCase } from './request-recurring-booking-schedule.use-case';
@@ -45,6 +50,8 @@ const CUSTOMER_ID = '20000000-0000-4000-8000-000000000002';
 const STAFF_ID = '30000000-0000-4000-8000-000000000003';
 const CORRELATION_ID = 'corr-recurring-test';
 const TIMEZONE = 'America/Sao_Paulo';
+// Wide open: the platform defaults, so the existing fixtures are not what the window rejects.
+const TENANT_WINDOW = { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 };
 
 // Every fixture recurs every Tuesday, starting on the next real Tuesday from "today" — never a
 // hardcoded calendar date (docs/ENGINEERING_RULES_TESTING.md § Shared test-builder date defaults).
@@ -75,6 +82,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       defaultApprovalMode?: 'AUTO_CONFIRM' | 'MANUAL_APPROVAL';
       recurringHorizonDays?: number | null;
       requiresPickupAddress?: boolean;
+      maxBookingAdvanceDaysOverride?: number;
     } = {},
   ): Promise<string> {
     const service = new ServiceBuilder()
@@ -91,6 +99,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         recurrenceEligible: overrides.recurrenceEligible ?? true,
         defaultApprovalMode: overrides.defaultApprovalMode ?? 'AUTO_CONFIRM',
         recurringHorizonDays: overrides.recurringHorizonDays ?? null,
+        maxBookingAdvanceDaysOverride: overrides.maxBookingAdvanceDaysOverride ?? null,
       })
       .build();
     await serviceRepo.save(service);
@@ -144,6 +153,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: TENANT,
+      tenantBookingWindow: TENANT_WINDOW,
       correlationId: CORRELATION_ID,
       timezone: TIMEZONE,
       serviceId,
@@ -174,6 +184,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: TENANT,
+      tenantBookingWindow: TENANT_WINDOW,
       correlationId: CORRELATION_ID,
       timezone: TIMEZONE,
       serviceId,
@@ -201,6 +212,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: TENANT,
+      tenantBookingWindow: TENANT_WINDOW,
       correlationId: CORRELATION_ID,
       timezone: TIMEZONE,
       serviceId,
@@ -244,6 +256,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId,
@@ -304,6 +317,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId,
@@ -329,6 +343,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId,
@@ -354,6 +369,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId,
@@ -385,6 +401,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId,
@@ -413,6 +430,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: TENANT,
+      tenantBookingWindow: TENANT_WINDOW,
       correlationId: CORRELATION_ID,
       timezone: TIMEZONE,
       serviceId,
@@ -441,6 +459,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     await expect(
       useCase.execute({
         tenantId: '10000000-0000-4000-8000-000000000999',
+        tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId: otherTenantServiceId,
@@ -471,6 +490,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     ) {
       return useCase.execute({
         tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId,
@@ -555,6 +575,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     function request(serviceId: string, overrides: Record<string, unknown> = {}) {
       return useCase.execute({
         tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
         timezone: TIMEZONE,
         serviceId,
@@ -770,6 +791,323 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
           RecurringBookingScheduleConflictError,
         );
         expect(await scheduleCount()).toBe(0);
+      });
+    });
+  });
+
+  // M23-S35 — where a schedule starts: the booking window on the first occurrence, renewals, and
+  // never a booking in the past. The fixtures recur every Tuesday at 10:00 local; STARTS_ON is the
+  // next Tuesday, one to seven days ahead.
+  describe('where the schedule starts', () => {
+    type Input = Parameters<RequestRecurringBookingScheduleUseCase['execute']>[0];
+    const EVERY_DAY = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ] as const;
+    const TUESDAY_10_LOCAL = {
+      frequency: 'WEEKLY' as const,
+      daysOfWeek: ['tuesday' as const],
+      startTime: '10:00',
+      durationMinutes: 120,
+    };
+    const STRICT_NOTICE = { minBookingAdvanceHours: 24 * 10, maxBookingAdvanceDays: 90 };
+    const OTHER_CUSTOMER_ID = '20000000-0000-4000-8000-000000000077';
+
+    function input(serviceId: string, overrides: Partial<Input> = {}): Input {
+      return {
+        tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
+        correlationId: CORRELATION_ID,
+        timezone: TIMEZONE,
+        serviceId,
+        recurrence: TUESDAY_10_LOCAL,
+        startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        actorType: 'CUSTOMER',
+        actorId: CUSTOMER_ID,
+        ...overrides,
+      };
+    }
+
+    // A previous schedule of `customerId` that ended the day before STARTS_ON unless told otherwise.
+    function seedPrevious(
+      serviceId: string,
+      overrides: { customerId?: string; endsOn?: string; durationMinutes?: number } = {},
+    ): string {
+      const previous = RecurringBookingSchedule.request({
+        tenantId: TENANT,
+        customerId: overrides.customerId ?? CUSTOMER_ID,
+        serviceId,
+        recurrence: { ...TUESDAY_10_LOCAL, durationMinutes: overrides.durationMinutes ?? 120 },
+        startsOn: addDaysUTC(STARTS_ON, -28),
+        endsOn: overrides.endsOn ?? addDaysUTC(STARTS_ON, -1),
+        maxTermDays: 90,
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceAssignments: [
+          {
+            resourceId,
+            resourceType: ResourceType.ROOM,
+            requirementId: null,
+            requiredQuantityPosition: null,
+          },
+        ],
+        status: 'ACTIVE',
+        approvalHoldExpiresAt: null,
+        createdByStaffId: null,
+        correlationId: CORRELATION_ID,
+      });
+      previous.clearDomainEvents();
+      scheduleRepo.seed(previous);
+      return previous.id;
+    }
+
+    afterEach(() => jest.useRealTimers());
+
+    it('refuses a term whose chosen weekdays never occur in it, creating nothing', async () => {
+      const serviceId = await seedService();
+      const wednesday = nextWeekday(3);
+
+      await expect(
+        useCase.execute(input(serviceId, { startsOn: wednesday, endsOn: wednesday })),
+      ).rejects.toThrow(RecurringBookingScheduleNoOccurrencesError);
+
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    });
+
+    it('refuses a customer whose first occurrence has already started', async () => {
+      const serviceId = await seedService();
+
+      await expect(
+        useCase.execute(
+          input(serviceId, {
+            recurrence: { ...TUESDAY_10_LOCAL, daysOfWeek: [...EVERY_DAY] },
+            startsOn: pastDate(5),
+            endsOn: futureDate(10),
+          }),
+        ),
+      ).rejects.toThrow(BookingScheduledInPastError);
+    });
+
+    it('refuses a customer whose first occurrence is inside the minimum notice', async () => {
+      const serviceId = await seedService();
+
+      await expect(
+        useCase.execute(input(serviceId, { tenantBookingWindow: STRICT_NOTICE })),
+      ).rejects.toThrow(BookingTooSoonError);
+    });
+
+    it('refuses a customer whose first occurrence is beyond the maximum days ahead', async () => {
+      const serviceId = await seedService();
+
+      await expect(
+        useCase.execute(
+          input(serviceId, {
+            tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 1 },
+          }),
+        ),
+      ).rejects.toThrow(BookingTooFarAheadError);
+    });
+
+    it('lets a later occurrence run past the maximum days ahead — only the first is checked', async () => {
+      const serviceId = await seedService({ recurringHorizonDays: 120 });
+
+      const result = await useCase.execute(
+        input(serviceId, {
+          tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 14 },
+          endsOn: addDaysUTC(STARTS_ON, 90),
+        }),
+      );
+
+      expect(result.status).toBe('ACTIVE');
+    });
+
+    it('applies a service override that is tighter than the tenant window', async () => {
+      const serviceId = await seedService({ maxBookingAdvanceDaysOverride: 1 });
+
+      await expect(useCase.execute(input(serviceId))).rejects.toThrow(BookingTooFarAheadError);
+    });
+
+    it('does not apply the window to staff creating on the customer’s behalf', async () => {
+      const serviceId = await seedService();
+
+      const result = await useCase.execute(
+        input(serviceId, {
+          tenantBookingWindow: STRICT_NOTICE,
+          actorType: 'STAFF',
+          actorId: STAFF_ID,
+          bodyCustomerId: CUSTOMER_ID,
+        }),
+      );
+
+      expect(result.status).toBe('ACTIVE');
+    });
+
+    it('still refuses staff a first occurrence in the past', async () => {
+      const serviceId = await seedService();
+
+      await expect(
+        useCase.execute(
+          input(serviceId, {
+            recurrence: { ...TUESDAY_10_LOCAL, daysOfWeek: [...EVERY_DAY] },
+            startsOn: pastDate(5),
+            endsOn: futureDate(10),
+            actorType: 'STAFF',
+            actorId: STAFF_ID,
+            bodyCustomerId: CUSTOMER_ID,
+          }),
+        ),
+      ).rejects.toThrow(BookingScheduledInPastError);
+    });
+
+    describe('renewal', () => {
+      it('skips the minimum notice and the maximum days ahead for the same routine', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId);
+
+        const result = await useCase.execute(
+          input(serviceId, {
+            tenantBookingWindow: { minBookingAdvanceHours: 24 * 10, maxBookingAdvanceDays: 1 },
+            renewsScheduleId,
+          }),
+        );
+
+        expect(result.status).toBe('ACTIVE');
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(5);
+      });
+
+      it('treats a changed duration as a new schedule and applies the window', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId, { durationMinutes: 60 });
+
+        await expect(
+          useCase.execute(
+            input(serviceId, { tenantBookingWindow: STRICT_NOTICE, renewsScheduleId }),
+          ),
+        ).rejects.toThrow(BookingTooSoonError);
+      });
+
+      it('treats a changed weekday set as a new schedule', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId);
+
+        await expect(
+          useCase.execute(
+            input(serviceId, {
+              tenantBookingWindow: STRICT_NOTICE,
+              renewsScheduleId,
+              recurrence: { ...TUESDAY_10_LOCAL, daysOfWeek: ['tuesday', 'thursday'] },
+            }),
+          ),
+        ).rejects.toThrow(BookingTooSoonError);
+      });
+
+      it('treats a changed start time as a new schedule', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId);
+
+        await expect(
+          useCase.execute(
+            input(serviceId, {
+              tenantBookingWindow: STRICT_NOTICE,
+              renewsScheduleId,
+              recurrence: { ...TUESDAY_10_LOCAL, startTime: '11:00' },
+            }),
+          ),
+        ).rejects.toThrow(BookingTooSoonError);
+      });
+
+      it('treats a start more than a day after the old term ended as a new schedule', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId, { endsOn: addDaysUTC(STARTS_ON, -3) });
+
+        await expect(
+          useCase.execute(
+            input(serviceId, { tenantBookingWindow: STRICT_NOTICE, renewsScheduleId }),
+          ),
+        ).rejects.toThrow(BookingTooSoonError);
+      });
+
+      it('accepts a start exactly one day after the old term ended', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId, { endsOn: addDaysUTC(STARTS_ON, -1) });
+
+        const result = await useCase.execute(
+          input(serviceId, { tenantBookingWindow: STRICT_NOTICE, renewsScheduleId }),
+        );
+
+        expect(result.status).toBe('ACTIVE');
+      });
+
+      it('books only the occurrences still ahead when the renewal is made late', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId);
+        // Second Tuesday, one hour after it started: the first two have passed, three remain.
+        const secondTuesday = new Date(`${addDaysUTC(STARTS_ON, 7)}T14:00:00.000Z`);
+        jest.useFakeTimers({ now: secondTuesday, doNotFake: ['nextTick'] });
+
+        await useCase.execute(input(serviceId, { renewsScheduleId }));
+
+        const bookings = await bookingRepo.findAllByTenant(TENANT);
+        expect(bookings).toHaveLength(3);
+        expect(bookings.every((b) => b.scheduledAt > secondTuesday)).toBe(true);
+      });
+
+      it('refuses a renewal with nothing left ahead', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId);
+        jest.useFakeTimers({
+          now: new Date(`${addDaysUTC(ENDS_ON, 1)}T00:00:00.000Z`),
+          doNotFake: ['nextTick'],
+        });
+
+        await expect(useCase.execute(input(serviceId, { renewsScheduleId }))).rejects.toThrow(
+          BookingScheduledInPastError,
+        );
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+      });
+
+      it('reports a reference that does not exist as not found', async () => {
+        const serviceId = await seedService();
+
+        await expect(
+          useCase.execute(
+            input(serviceId, { renewsScheduleId: '00000000-0000-4000-8000-00000000dead' }),
+          ),
+        ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+      });
+
+      it('reports another customer’s schedule as not found, never as an exemption', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId, { customerId: OTHER_CUSTOMER_ID });
+
+        await expect(
+          useCase.execute(
+            input(serviceId, { tenantBookingWindow: STRICT_NOTICE, renewsScheduleId }),
+          ),
+        ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+      });
+
+      it('checks the reference against the customer the staff member acts for', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId, { customerId: OTHER_CUSTOMER_ID });
+
+        await expect(
+          useCase.execute(
+            input(serviceId, {
+              renewsScheduleId,
+              actorType: 'STAFF',
+              actorId: STAFF_ID,
+              bodyCustomerId: CUSTOMER_ID,
+            }),
+          ),
+        ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
       });
     });
   });

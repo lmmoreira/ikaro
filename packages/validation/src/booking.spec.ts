@@ -3,6 +3,7 @@ import {
   isResourceIdExclusiveOfSelections,
   QuoteServiceDurationQuerySchema,
   ListRecurringBookingSchedulesQuerySchema,
+  RequestRecurringBookingScheduleBodySchema,
   ResourceSelectionsQuerySchema,
   ResourceSelectionsQueryStringSchema,
   ScheduleClosuresRangeQuerySchema,
@@ -214,5 +215,42 @@ describe('DurationMinutesQuerySchema / QuoteServiceDurationQuerySchema', () => {
     expect(QuoteServiceDurationQuerySchema.parse({ durationMinutes: '60' })).toEqual({
       durationMinutes: 60,
     });
+  });
+});
+
+describe('RequestRecurringBookingScheduleBodySchema renewsScheduleId (M23-S35)', () => {
+  const body = {
+    serviceId: '00000000-0000-4000-8000-000000000002',
+    recurrence: {
+      frequency: 'WEEKLY' as const,
+      daysOfWeek: ['tuesday' as const],
+      startTime: '10:00',
+      durationMinutes: 60,
+    },
+    assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' as const,
+    startsOn: '2026-11-03',
+    endsOn: '2026-12-01',
+  };
+
+  it('accepts a body without renewsScheduleId', () => {
+    expect(RequestRecurringBookingScheduleBodySchema.safeParse(body).success).toBe(true);
+  });
+
+  it('accepts and keeps a uuid renewsScheduleId', () => {
+    const renewsScheduleId = '00000000-0000-4000-8000-000000000009';
+    const result = RequestRecurringBookingScheduleBodySchema.safeParse({
+      ...body,
+      renewsScheduleId,
+    });
+    expect(result.success).toBe(true);
+    expect(result.data?.renewsScheduleId).toBe(renewsScheduleId);
+  });
+
+  it('rejects a renewsScheduleId that is not a uuid', () => {
+    const result = RequestRecurringBookingScheduleBodySchema.safeParse({
+      ...body,
+      renewsScheduleId: 'not-a-uuid',
+    });
+    expect(result.success).toBe(false);
   });
 });

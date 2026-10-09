@@ -14,7 +14,6 @@ import {
 import {
   assertValidTerm,
   DEFAULT_RECURRING_HORIZON_DAYS,
-  enumerateRecurrenceOccurrences,
   RecurrenceOccurrence,
   RecurrenceRule,
 } from '../../domain/recurrence-rule.helpers';
@@ -23,7 +22,11 @@ import { AvailabilityService } from '../../domain/services/availability.service'
 import { Service } from '../../domain/service.aggregate';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
+import {
+  BOOKING_PLATFORM_PORT,
+  IBookingPlatformPort,
+  TenantBookingWindow,
+} from '../ports/booking-platform.port';
 import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
 import {
   IRecurringBookingScheduleRepository,
@@ -53,6 +56,7 @@ import {
   buildResourceAssignments,
   resolveApprovalStatus,
 } from './recurring-booking-schedule-request.helpers';
+import { resolveStartableOccurrences } from './recurring-booking-schedule-window.helpers';
 
 interface PreparedRecurringBookingScheduleRequest {
   service: Service;
@@ -79,6 +83,11 @@ export interface RequestRecurringBookingScheduleUseCaseInput {
   actorId: string;
   // Present only when a STAFF actor creates on the customer's behalf.
   bodyCustomerId?: string;
+  // The tenant's booking window (`settings.booking`) — the ceiling the service's own override is
+  // clamped to when the first occurrence is checked (M23-S35).
+  tenantBookingWindow: TenantBookingWindow;
+  // The customer's previous schedule this request may renew (M23-S35). Never stored.
+  renewsScheduleId?: string;
 }
 
 export interface RequestRecurringBookingScheduleUseCaseResult {
@@ -123,7 +132,7 @@ export class RequestRecurringBookingScheduleUseCase {
     // write waits for this transaction, never a stale eligibility/policy read.
     const schedule = await this.txManager.run(async () => {
       await this.lockForCapCheck(input);
-      const prepared = await this.prepareRequest(input);
+      const prepared = await this.prepareRequest(input, customerId);
       await assertUnderCap(this.scheduleRepo, input);
       const resourcePlan = await this.checkPatternConflict(input, prepared);
       const built = this.buildSchedule(input, customerId, prepared);
@@ -147,6 +156,7 @@ export class RequestRecurringBookingScheduleUseCase {
   // requires an active transaction and is what closes the stale-eligibility race described above.
   private async prepareRequest(
     input: RequestRecurringBookingScheduleUseCaseInput,
+    customerId: string,
   ): Promise<PreparedRecurringBookingScheduleRequest> {
     const service = await this.serviceRepo.findByIdForUpdate(input.serviceId, input.tenantId);
     if (!service) throw new BookingServiceNotInTenantError(input.serviceId);
@@ -160,12 +170,11 @@ export class RequestRecurringBookingScheduleUseCase {
     // any per-occurrence work (M23-S18: a schedule is a fixed term, never open-ended).
     const maxTermDays = policy.recurringHorizonDays ?? DEFAULT_RECURRING_HORIZON_DAYS;
     assertValidTerm(input.startsOn, input.endsOn, maxTermDays);
-    const occurrences = enumerateRecurrenceOccurrences(
-      input.recurrence,
-      input.startsOn,
-      input.endsOn,
-      input.timezone,
-    );
+    const occurrences = await resolveStartableOccurrences(this.scheduleRepo, {
+      input,
+      customerId,
+      service,
+    });
     const resourceAssignments = buildResourceAssignments(
       service,
       input.assignmentPolicy,

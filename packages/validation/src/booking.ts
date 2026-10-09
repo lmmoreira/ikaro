@@ -347,6 +347,10 @@ export const RequestRecurringBookingScheduleBodySchema = z
     // Present only when STAFF|MANAGER creates on a customer's behalf — CUSTOMER callers always
     // act on their own customerId (taken from the JWT, never this field).
     customerId: z.uuid().optional(),
+    // M23-S35 — the customer's previous schedule this request continues. Only a hint for the
+    // backend's renewal rules (same pattern, starting by the day after that schedule ends, skips
+    // the booking window); never stored, and a request that does not qualify is a new schedule.
+    renewsScheduleId: z.uuid().optional(),
   })
   .refine(
     (body) => body.assignmentPolicy !== 'FIXED_ASSIGNMENT' || body.resourceIds?.length === 1,

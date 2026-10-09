@@ -5,6 +5,7 @@ import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.ma
 import { ProblemDetail } from '@ikaro/types/protocol/errors';
 import { mapRecurringScheduleProblem } from './recurring-schedule-problem.mapper';
 import { AVAILABILITY_ALERT_ERROR_GROUPS } from './availability-alert-error-groups';
+import { RECURRING_SCHEDULE_REQUEST_ERROR_GROUPS } from './recurring-schedule-error-groups';
 import {
   AvailabilityDateInPastError,
   AvailabilityRangeInvalidError,
@@ -82,10 +83,7 @@ import {
   RecurringBookingScheduleCapReachedError,
   RecurringBookingScheduleNotActiveError,
   RecurringBookingScheduleNotPendingApprovalError,
-  RecurringBookingScheduleIneligibleServiceError,
   RecurringBookingScheduleForbiddenError,
-  RecurringBookingScheduleInvalidDateRangeError,
-  RecurringBookingScheduleTermExceededError,
   FutureCommitmentExceptionNotFoundError,
   FutureCommitmentExceptionAlreadyResolvedError,
   FutureCommitmentExceptionReassignTargetInvalidError,
@@ -98,6 +96,7 @@ type BookingDomainErrorCtor = new (...args: never[]) => BookingDomainError;
 // mapBookingError() itself stays under docs/CODE_STANDARDS.md's function-length limit.
 const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
   ...AVAILABILITY_ALERT_ERROR_GROUPS,
+  ...RECURRING_SCHEDULE_REQUEST_ERROR_GROUPS,
   [[BookingForbiddenError, RecurringBookingScheduleForbiddenError], HttpStatus.FORBIDDEN],
   [
     [
@@ -209,9 +208,6 @@ const STATUS_BY_ERROR_GROUP: [BookingDomainErrorCtor[], HttpStatus][] = [
       ClassResourceSlotBookingModelMismatchError,
       ServiceDurationPolicyRequiresPricingError,
       ServiceBookingPolicyInvalidError,
-      RecurringBookingScheduleIneligibleServiceError,
-      RecurringBookingScheduleInvalidDateRangeError,
-      RecurringBookingScheduleTermExceededError,
     ],
     HttpStatus.UNPROCESSABLE_ENTITY,
   ],

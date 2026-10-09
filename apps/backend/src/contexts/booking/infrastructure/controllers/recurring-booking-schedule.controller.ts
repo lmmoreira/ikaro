@@ -92,6 +92,11 @@ export class RecurringBookingScheduleController {
         actorType: actorType!,
         actorId: actorId!,
         bodyCustomerId: body.customerId,
+        tenantBookingWindow: {
+          minBookingAdvanceHours: settings.booking.minBookingAdvanceHours,
+          maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+        },
+        renewsScheduleId: body.renewsScheduleId,
       })
       .catch(mapBookingError);
   }

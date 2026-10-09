@@ -223,6 +223,50 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
       await ds.getRepository(ScheduleClosureEntity).delete({ tenantId, date: closedDate });
     });
 
+    // M23-S35 — a request can wait past some of its own occurrences; approval never books one that
+    // has already started. The term is moved back after the request, as the passage of time would.
+    it('books only the occurrences that have not started when the term began while the request waited', async () => {
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+      const { body: pending } = await requestSchedule(fixture).expect(201);
+      await ds
+        .getRepository(RecurringBookingScheduleEntity)
+        .update(
+          { id: pending.id, tenantId },
+          { startsOn: addDays(STARTS_ON, -14), endsOn: addDays(STARTS_ON, 14) },
+        );
+      // Tuesdays N-14 .. N+14 at 10:00 São Paulo (13:00Z); N-7 may or may not have started yet.
+      const expected = [-14, -7, 0, 7, 14].filter(
+        (offset) => new Date(`${addDays(STARTS_ON, offset)}T13:00:00.000Z`) > new Date(),
+      ).length;
+
+      const { body } = await decide(pending.id, 'approve').expect(200);
+
+      expect(body.occurrenceCount).toBe(expected);
+      const bookings = await bookingsOf(pending.id);
+      expect(bookings).toHaveLength(expected);
+      expect(bookings.every((b) => b.scheduledAt > new Date())).toBe(true);
+      expect((await scheduleRow(pending.id)).status).toBe('ACTIVE');
+    });
+
+    it('answers 422 BOOKING_SCHEDULED_IN_PAST when the whole term started while it waited, leaving the request pending', async () => {
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+      const { body: pending } = await requestSchedule(fixture).expect(201);
+      await ds
+        .getRepository(RecurringBookingScheduleEntity)
+        .update(
+          { id: pending.id, tenantId },
+          { startsOn: addDays(STARTS_ON, -21), endsOn: addDays(STARTS_ON, -8) },
+        );
+
+      const res = await decide(pending.id, 'approve').expect(422);
+
+      expect(res.body.code).toBe('BOOKING_SCHEDULED_IN_PAST');
+      expect(await bookingsOf(pending.id)).toHaveLength(0);
+      const row = await scheduleRow(pending.id);
+      expect(row.status).toBe('PENDING_APPROVAL');
+      expect(row.approvedByStaffId).toBeNull();
+    });
+
     it('answers 409 NOT_PENDING_APPROVAL when the request was already resolved', async () => {
       const fixture = await seedFixture('MANUAL_APPROVAL');
       const { body: pending } = await requestSchedule(fixture).expect(201);
