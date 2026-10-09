@@ -3013,7 +3013,7 @@ Fix every defect the audit found so each shipped email says what it was written 
 
 ---
 
-### M23-S38 — Email the customer when an availability alert matches (`AvailabilityAlertMatched` → Notification)
+### M23-S38 — Email the customer when an availability alert matches (`AvailabilityAlertMatched` → Notification) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
