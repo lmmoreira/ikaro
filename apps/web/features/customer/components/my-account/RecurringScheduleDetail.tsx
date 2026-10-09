@@ -97,6 +97,9 @@ function ScheduleDetailBody({
   // The schedule item carries no price or booking count, so both come from the loaded bookings.
   const firstPrice = occurrences?.items[0]?.totalPrice.amount;
   const duration = formatDuration(schedule.recurrence.durationMinutes);
+  // A running schedule counts what is still ahead; a finished one counts the whole period.
+  const countKey = terminal ? 'reservationCount' : 'upcomingCount';
+  const periodSub = occurrences === null ? undefined : t(countKey, { count: occurrences.total });
   const dayTimeSub =
     firstPrice === undefined
       ? t('durationOnly', { duration })
@@ -194,13 +197,7 @@ function ScheduleDetailBody({
                   start: formatDateKey(schedule.startsOn),
                   end: formatDateKey(schedule.endsOn),
                 })}
-                sub={
-                  occurrences === null
-                    ? undefined
-                    : t(terminal ? 'reservationCount' : 'upcomingCount', {
-                        count: occurrences.total,
-                      })
-                }
+                sub={periodSub}
               />
             </div>
           </div>
