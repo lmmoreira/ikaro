@@ -52,10 +52,13 @@
     }
       .info-box { display:flex; gap:.625rem; background:#eff6ff; border:1px solid #bfdbfe; border-radius:var(--ba-radius); padding:.875rem; margin-bottom:1.5rem; font-size:.875rem; color:#1e3a8a; line-height:1.55; }
   
-    .only-cancelled { display: none; }
-    body.is-cancelled .only-ended { display: none; }
-    body.is-cancelled .only-cancelled { display: block; }
-    body.is-cancelled span.only-cancelled, body.is-cancelled a.only-cancelled { display: inline-block; }
+    .action-btn { display:block; text-align:center; padding:0.75rem; margin-bottom:0.625rem; text-decoration:none; }
+    .action-btn:last-child { margin-bottom:0; }
+    .mobile-actions .action-btn { padding:0.8125rem; }
+    .action-note { font-size:0.875rem; opacity:0.6; color:var(--ba-text); margin-bottom:1rem; line-height:1.5; }
+    .action-note strong { color:var(--ba-text); opacity:1; }
+    body.is-cancelled .only-ended,
+    body:not(.is-cancelled) .only-cancelled { display:none; }
     .occ-state { font-size: 0.75rem; font-weight: 600; opacity: .6; }
 </style>
 </head>
@@ -119,24 +122,24 @@
             </div>
 
             <div class="mobile-actions">
-              <p class="only-ended" style="font-size:0.875rem;opacity:0.6;color:var(--ba-text);margin-bottom:1rem;line-height:1.5;">Recorrência encerrada em<br><strong style="color:var(--ba-text);opacity:1;">25 de agosto</strong></p>
-              <p class="only-cancelled" style="font-size:0.875rem;opacity:0.6;color:var(--ba-text);margin-bottom:1rem;line-height:1.5;">Recorrência cancelada em<br><strong style="color:var(--ba-text);opacity:1;">12 de agosto</strong></p>
-              <a href="13f-renovar-recorrencia.html" class="btn-primary only-ended" style="display:block;text-align:center;padding:0.8125rem;margin-bottom:0.625rem;text-decoration:none;" data-testid="renew-schedule-button">Renovar</a>
-              <a href="13-nova-recorrencia.html" class="btn-primary only-cancelled" style="display:block;text-align:center;padding:0.8125rem;margin-bottom:0.625rem;text-decoration:none;">Nova reserva recorrente</a>
-              <a href="13-nova-recorrencia.html" class="btn-secondary only-ended" style="display:block;text-align:center;padding:0.8125rem;margin-bottom:0.625rem;text-decoration:none;">Nova reserva recorrente</a>
-              <a href="14-recorrentes-lista.html" class="btn-secondary" style="display:block;text-align:center;padding:0.8125rem;text-decoration:none;">Voltar</a>
+              <p class="action-note only-ended">Recorrência encerrada em<br><strong>25 de agosto</strong></p>
+              <p class="action-note only-cancelled">Recorrência cancelada em<br><strong>12 de agosto</strong></p>
+              <a href="13f-renovar-recorrencia.html" class="action-btn btn-primary only-ended" data-testid="renew-schedule-button">Renovar</a>
+              <a href="13-nova-recorrencia.html" class="action-btn btn-primary only-cancelled">Nova reserva recorrente</a>
+              <a href="13-nova-recorrencia.html" class="action-btn btn-secondary only-ended">Nova reserva recorrente</a>
+              <a href="14-recorrentes-lista.html" class="action-btn btn-secondary">Voltar</a>
 
             </div>
           </div>
 
           <div class="detail-aside">
             <div class="card">
-              <p class="only-ended" style="font-size:0.875rem;opacity:0.6;color:var(--ba-text);margin-bottom:1rem;line-height:1.5;">Recorrência encerrada em<br><strong style="color:var(--ba-text);opacity:1;">25 de agosto</strong></p>
-              <p class="only-cancelled" style="font-size:0.875rem;opacity:0.6;color:var(--ba-text);margin-bottom:1rem;line-height:1.5;">Recorrência cancelada em<br><strong style="color:var(--ba-text);opacity:1;">12 de agosto</strong></p>
-              <a href="13f-renovar-recorrencia.html" class="btn-primary only-ended" style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;text-decoration:none;" data-testid="renew-schedule-button">Renovar</a>
-              <a href="13-nova-recorrencia.html" class="btn-primary only-cancelled" style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;text-decoration:none;">Nova reserva recorrente</a>
-              <a href="13-nova-recorrencia.html" class="btn-secondary only-ended" style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;text-decoration:none;">Nova reserva recorrente</a>
-              <a href="14-recorrentes-lista.html" class="btn-secondary" style="display:block;text-align:center;padding:0.75rem;text-decoration:none;">Voltar</a>
+              <p class="action-note only-ended">Recorrência encerrada em<br><strong>25 de agosto</strong></p>
+              <p class="action-note only-cancelled">Recorrência cancelada em<br><strong>12 de agosto</strong></p>
+              <a href="13f-renovar-recorrencia.html" class="action-btn btn-primary only-ended" data-testid="renew-schedule-button">Renovar</a>
+              <a href="13-nova-recorrencia.html" class="action-btn btn-primary only-cancelled">Nova reserva recorrente</a>
+              <a href="13-nova-recorrencia.html" class="action-btn btn-secondary only-ended">Nova reserva recorrente</a>
+              <a href="14-recorrentes-lista.html" class="action-btn btn-secondary">Voltar</a>
 
             </div>
           </div>
