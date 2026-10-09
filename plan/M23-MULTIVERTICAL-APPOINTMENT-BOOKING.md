@@ -53,7 +53,7 @@
 | 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
 | 5 | M23-S37 | Make every shipped notification email correct — a blank daily schedule, nameless reminders, a customer link into the staff dashboard, unescaped user text, unformatted dates, missing who/why/pickup lines — and a guard that renders the real copy; backend-only |
 | 5 | M23-S38 | Email the customer when an availability alert matches (`AvailabilityAlertMatched` → Notification; records the attempt outcome); the alert flow shipped without it |
-| 5 | M23-S44 | Availability-alert email deep link: the email opens the booking page on the alert's service, with the window's date pre-selected (follow-up to S38) |
+| 5 | M23-S44 | Availability-alert email deep link: the email opens the booking page on the alert's service, with the window's date, duration and preferred resource pre-selected (follow-up to S38) |
 | 5 | M23-S39 | Staff creates a one-off booking on a customer's behalf — `POST /bookings/staff` (created `APPROVED`, customer or guest), customer search by phone; backend + BFF (UC-108) |
 | 6 | M23-S40 | Staff "+ Novo" menu on the Agenda, shared customer chooser and the dashboard "Novo agendamento" flow (UC-108); S19 reuses the chooser |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
@@ -3427,65 +3427,86 @@ The customer sees and cancels their availability alerts (UC-076). The management
 
 ---
 
-### M23-S44 — Availability-alert email deep link: the email opens the booking page on the alert's service, with the window's date pre-selected
+### M23-S44 — Availability-alert email deep link: the email opens the booking page on the alert's service, with the window's date, duration and preferred resource pre-selected
 
 **Agent:** `frontend-ts` + `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts (and § the effective booking window), `docs/04-USE_CASES.md` UC-072 and UC-001, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (public booking flow), `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type
-**Dependencies:** M23-S38 (✅ Done — the email and its `bookingUrl` variable), M23-S31 (✅ Done — `availability-alert-link.ts`, the precedent for a link builder/parser pair), M23-S33 (✅ Done — the booking window the date must respect)
+**Docs to load:** `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts (and § the effective booking window), `docs/03-DOMAIN_EVENTS.md` § `AvailabilityAlertMatched`, `docs/04-USE_CASES.md` UC-072 and UC-001, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (public booking flow), `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type and § Event Handlers
+**Dependencies:** M23-S38 (✅ Done — the email and its `bookingUrl` variable), M23-S31 (✅ Done — `availability-alert-link.ts`, the precedent for a link builder/parser pair, which already carries `durationMinutes`), M23-S33 (✅ Done — the booking window the date must respect), M23-S34 (✅ Done — an alert on a customer-selected-duration service always stores a valid `durationMinutes`)
 **Pattern:** plain composition — one pure builder/parser pair in `features/booking/model/` (modelled on `availability-alert-link.ts`, "the one place that knows the shape"); the parsed result only seeds `useBookingSelections`' initial state. No named pattern.
 
 **Discovered:** 2026-10-09, shipping M23-S38: its email links to the hotsite home, one click short of the booking page.
-**Root cause:** `apps/web/app/[slug]/booking/page.tsx` reads only `params` and is cached (`export const revalidate = 300`); `useBookingSelections` starts with `selectedServiceIds = []` and `selectedDate = null`; nothing in the booking flow reads the URL. The S38 email therefore links to `{hotsiteUrl}` (the home, whose `BOOKING_CTA` links on to `/{slug}/booking` — `BookingCtaModule.tsx:98`) and the customer re-picks everything.
+**Root cause:** `apps/web/app/[slug]/booking/page.tsx` reads only `params` and is cached (`export const revalidate = 300`); `useBookingSelections` starts with `selectedServiceIds = []` and `selectedDate = null`; nothing in the booking flow reads the URL. The S38 email therefore links to `{hotsiteUrl}` (the home, whose `BOOKING_CTA` links on to `/{slug}/booking` — `BookingCtaModule.tsx:98`) and the customer re-picks everything. A second gap: the alert stores `durationMinutes` and `preferredResourceId` (`availability-alert.aggregate.ts`), but the `AvailabilityAlertMatched` event carries only `resourceId`, no duration, and `chooseDuration` clears the date — so without the duration on the event the date cannot survive on a customer-selected-duration service.
 
 **Description:**
-A customer who gets "a slot opened up" lands on the booking page with the alert's service already chosen and the date the slot opened on selected, instead of on the hotsite home.
+A customer who gets "a slot opened up" lands on the booking page with the alert's service already chosen, plus the duration, the preferred resource and the date the slot opened on, instead of on the hotsite home. This is a side entrance: almost every booking starts on the plain page with no parameters, and that path must behave exactly as today.
 
 **Decisions already made (state as fact, do not re-derive):**
-1. Link shape: `/{slug}/booking?serviceId=<uuid>&date=YYYY-MM-DD`. A builder and a parser live in `features/booking/model/booking-deep-link.ts`; the parser accepts only a UUID and a real calendar date, and anything else is "absent".
-2. The email's `bookingUrl` becomes `{hotsiteUrl}/booking?serviceId=…&date=…`, built in `SendAvailabilityAlertMatchedEmailUseCase.variablesFor`; `date` is the tenant-local date of `matchingWindowStart` (the shared calendar helper, the tenant's timezone). No template or mapping change: `bookingUrl` is already a variable.
-3. Bad input never breaks the page: a `serviceId` that is not in the page's bookable (`APPOINTMENT`) services, or a `date` outside today…`maxBookingAdvanceDays`, is ignored and the plain flow shows.
-4. Out of scope: holding the slot, and any change to how alerts are created or matched.
+1. Link shape: `/{slug}/booking?serviceId=<uuid>&date=YYYY-MM-DD[&durationMinutes=<n>][&resourceId=<uuid>]`. A builder and a parser live in `features/booking/model/booking-deep-link.ts`; the parser accepts only a UUID, a real calendar date, a positive integer duration and a UUID resource, and anything else is "absent". `durationMinutes` and `resourceId` are optional, and absent when the alert has none.
+2. The `AvailabilityAlertMatched` event gains `durationMinutes: number | null`, set from the alert's own `durationMinutes` where the event is built (`AvailabilityAlert` aggregate). It is an additive field, so `eventVersion` stays `1`; `docs/03-DOMAIN_EVENTS.md` records it. The notification handler passes it through to the send use case's input, which treats it as optional because events already in flight lack it.
+3. The email's `bookingUrl` becomes the deep link, built in `SendAvailabilityAlertMatchedEmailUseCase.variablesFor`; `date` is the tenant-local date of `matchingWindowStart` (the shared calendar helper, the tenant's timezone). No template or mapping change: `bookingUrl` is already a variable.
+4. **The main path is untouched.** With no parameters the parser returns "absent" and `useBookingSelections` starts exactly as it does today; the page stays cached. A test proves it.
+5. **Cache:** the server page keeps ignoring `searchParams`. The parameters are read on the client (`useSearchParams` under a tight `Suspense` boundary around the form), so `revalidate = 300` is preserved. Confirm in Next 16 at `/story-discovery` and in the build output.
+6. **Seeding:** applied to the initial state of `useBookingSelections`, not by an effect, so the first render is already correct. Order: service → duration → date (`chooseDuration` clears the date, so the date is set last).
+7. **Landing:** the service is ticked on step 1 and the flow does not auto-advance; the customer sees what is chosen.
+8. **A malformed or unusable link is silent.** A `serviceId` that is not in the page's bookable (`APPOINTMENT`) services (unknown, another tenant's, deactivated or removed), a `date` outside today…`maxBookingAdvanceDays`, or an unparseable value is ignored and the plain flow shows, with no error.
+9. **A valid link whose day is no longer available** shows a short message ("that day is no longer available" — "day", not "time", because the link carries only a date), clears the date and leaves the customer in the normal flow from the start. The message is shown only after the availability response arrives with no slots; a loading or failed fetch never shows it (a failed fetch shows the usual error).
+10. **Preferred resource:** seeded when it is still available for the date; if it is not, fall back to "any" when the service offers it, with a one-line note ("your preferred option isn't free that day, showing all"); if the service has no "any" option, the normal picker shows with nothing selected. If nothing is available for the day at all, decision 9 applies.
+11. Out of scope: holding the slot, and any change to how alerts are created or matched.
 
-**Decisions left for `/story-discovery`:**
-- How the params are read without losing the page cache (client-side `useSearchParams` under `Suspense` is the proposal; confirm in Next 16 — reading `searchParams` in the server page would make it dynamic).
-- Landing behaviour: the service ticked on step 1 (proposal: no auto-advance, the customer sees what is chosen) versus jumping to the next step.
-- Preferred resource and duration: the event carries `resourceId` but no duration, and `chooseDuration` clears the date, so the date only survives on a service with no duration choice — decide what a duration or resource-picking service does.
-- Where the pre-selection is applied (initial state of `useBookingSelections` versus an effect).
+**Decisions left for `/story-discovery` (code checks, not product questions):**
+- Does a lone pre-ticked service hit any step-1 bundle or compatibility rule?
+- Is the query string preserved across the login round trip, if the flow can send the customer through login?
+- Does the booking flow keep saved selections (session storage, a draft)? If so the URL wins; confirm.
+- Should the seed clear the parameters so a refresh does not re-apply them?
+- What `matchingWindowStart` means for a multi-day alert window, and whether its date is the day that matched.
+- Which selection modes offer "any" (decision 10), read from the resource picker.
 
 **Backend use case steps:**
-1. `SendAvailabilityAlertMatchedEmailUseCase.variablesFor`: build the deep-link URL from `context.hotsiteUrl`, the input's `serviceId` and the tenant-local date.
+1. `AvailabilityAlert.recordNotificationAttempt()` (the method that builds the event) adds `durationMinutes: this.props.durationMinutes` to the event data.
+2. `AvailabilityAlertMatchedNotificationHandler.handle()` passes `event.data.durationMinutes` (and `resourceId`) into `SendAvailabilityAlertMatchedNotificationUseCase`, which forwards it to the email use case.
+3. `SendAvailabilityAlertMatchedEmailUseCase.variablesFor`: build the deep-link URL from `context.hotsiteUrl`, the input's `serviceId`, the tenant-local date and, when present, `durationMinutes` and `resourceId`.
 
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
-**New migration / i18n keys / env vars / feature flags:** none.
+**New migration / i18n keys / env vars / feature flags:** no migration, env var or flag. i18n: the slot-gone message and the resource-fallback note, in `packages/i18n/locales/{pt-BR,en}/web.json` in the same change.
 
 **Files to create/modify:**
 - `apps/web/features/booking/model/booking-deep-link.ts` (+ spec) (new)
 - `apps/web/app/[slug]/booking/page.tsx`, `apps/web/features/booking/hooks/useBookingSelections.ts`, `apps/web/features/booking/hooks/useBookingFormController.ts`, `apps/web/features/booking/components/public/BookingForm.tsx` (modify, with their specs)
-- `apps/backend/src/contexts/notification/application/use-cases/send-availability-alert-matched-email/send-availability-alert-matched-email.use-case.ts` (+ spec) (modify), and the link assertion in `availability-alert-matched-notification.handler.integration.spec.ts`
+- `apps/backend/src/contexts/booking/domain/events/availability-alert-matched.event.ts` and `availability-alert.aggregate.ts` (+ specs) (modify — the `durationMinutes` field)
+- `apps/backend/src/contexts/notification/infrastructure/events/availability-alert-matched.handler.ts`, `send-availability-alert-matched-notification.use-case.ts` and `send-availability-alert-matched-email.use-case.ts` (+ specs) (modify), and the link assertion in `availability-alert-matched-notification.handler.integration.spec.ts`
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — the two messages)
 - `apps/web/e2e/availability-alert-email-link.spec.ts` (new)
-- `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Availability Alerts (modify — the email's link)
+- `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Availability Alerts (modify — the email's link) and `docs/03-DOMAIN_EVENTS.md` § `AvailabilityAlertMatched` (modify — `durationMinutes`)
 
 **Acceptance criteria — product:**
-- [ ] The alert email links to the booking page with the alert's service and the date it opened.
-- [ ] Opening the link shows the service already chosen and the date selected, where the flow keeps it.
+- [ ] The alert email links to the booking page with the alert's service, the date it opened and, when the alert has them, its duration and preferred resource.
+- [ ] Opening the link shows the service already chosen and the date selected (and the duration and resource, where the flow keeps them).
 - [ ] A link with a missing, unknown or out-of-window service or date shows the normal booking page, with no error.
+- [ ] A valid link whose day has no availability left shows the "day no longer available" message and the normal flow.
+- [ ] A preferred resource that is no longer free falls back to "any" with a note, or to the normal picker when the service has no "any".
+- [ ] The booking page without parameters behaves exactly as before.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The builder/parser round-trips and rejects a bad UUID and an impossible date
-  - [ ] The selections are seeded from a valid link
-  - [ ] The email's link, in pt-BR and en, with the tenant-local date near midnight
+  - [ ] The builder/parser round-trips and rejects a bad UUID, an impossible date, a non-positive duration and a bad resource id
+  - [ ] The selections are seeded from a valid link, in the order service → duration → date
+  - [ ] With no parameters the initial state is identical to today's (the main-path guarantee)
+  - [ ] The email's link, in pt-BR and en, with the tenant-local date near midnight, with and without duration and resource
+  - [ ] The email use case accepts an event without `durationMinutes` (in-flight events)
+  - [ ] The aggregate puts the alert's `durationMinutes` (including `null`) on the event
   - [ ] A `serviceId` not in the bookable list is ignored (negative guarantee)
   - [ ] A `date` outside the booking window is ignored (negative guarantee)
+  - [ ] The slot-gone message appears only on an availability response with no slots, never while loading or on a failed fetch
 - Integration:
-  - [ ] The matched-alert email published through the event bus contains the deep link
+  - [ ] The matched-alert email published through the event bus contains the deep link, including the duration for a customer-selected-duration alert
 - Tenant isolation:
-  - [ ] A `serviceId` of another tenant is ignored on this tenant's booking page
+  - [ ] A `serviceId` or `resourceId` of another tenant is ignored on this tenant's booking page
 - E2E:
-  - [ ] Playwright: the link opens on the chosen service and date
+  - [ ] Playwright: the link opens on the chosen service, duration and date
   - [ ] Playwright: an invalid link shows the plain booking flow
+  - [ ] Playwright: a link to a day with no availability shows the message and the normal flow
 - [ ] The booking page stays cacheable (checked in the build output)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
