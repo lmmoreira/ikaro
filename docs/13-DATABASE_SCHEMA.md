@@ -721,7 +721,7 @@ Generated ordinary bookings link through nullable `recurring_schedule_id` on `bo
 | **INDEX** | (tenant_id, customer_id, status) | "My alerts" and the per-customer active-alert cap (10) |
 | **INDEX** | (tenant_id, status, expires_at) | The expiry job's per-tenant scan |
 
-Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together with the attempts table below; M23-S07 writes the attempts (one `EMAIL` row per matched alert, in the same transaction as the alert's `NOTIFIED` status; the `UNIQUE` key makes a replay a no-op). An alert's `expires_at` defaults to 30 days after creation and may be at most 365 days after it. **Retention:** the alert-expiry job (`cron-reminders`) hard-deletes every non-`ACTIVE` alert whose `expires_at` is more than 90 days in the past, together with its attempts rows (M23-S06). `timezone` is always the tenant's timezone, never client-supplied.
+Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together with the attempts table below; M23-S07 writes the attempts (one `EMAIL` row per matched alert, in the same transaction as the alert's `NOTIFIED` status; the `UNIQUE` key makes a replay a no-op); M23-S38 adds `attempt_count` and `last_error` and updates the row's outcome. An alert's `expires_at` defaults to 30 days after creation and may be at most 365 days after it. **Retention:** the alert-expiry job (`cron-reminders`) hard-deletes every non-`ACTIVE` alert whose `expires_at` is more than 90 days in the past, together with its attempts rows (M23-S06). `timezone` is always the tenant's timezone, never client-supplied.
 
 `availability_alert_notification_attempts`:
 
@@ -733,7 +733,9 @@ Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together
 | matching_window | TSTZRANGE | NOT NULL |
 | channel | VARCHAR(20) | NOT NULL — CHECK IN ('EMAIL', 'IN_APP') |
 | attempted_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
-| outcome | VARCHAR(20) | NOT NULL — `PENDING` when M23-S07 records a match (handed off, not yet delivered); the Notification consumer (a later story) updates it. No CHECK, so adding values needs no migration |
+| outcome | VARCHAR(20) | NOT NULL — `PENDING` when M23-S07 records a match (handed off, nothing tried); the Notification consumer (M23-S38) sets `SENT` or `FAILED` (the last try failed; a later success turns it into `SENT`). No CHECK, so adding values needs no migration |
+| attempt_count | INT | NOT NULL DEFAULT 0 — how many times the email was tried (M23-S38). `FAILED` with a small count is still being retried by Pub/Sub; `FAILED` at the subscription's `max_delivery_attempts` (5) is exhausted and dead-lettered |
+| last_error | VARCHAR(500) | NULLABLE — the last failure reason with email addresses redacted; cleared when the outcome becomes `SENT` (M23-S38) |
 | **UNIQUE** | (tenant_id, alert_id, matching_window, channel) | One notification per alert per matching window per channel |
 
 ### `booking.future_commitment_exceptions` (M23 Cluster 3)

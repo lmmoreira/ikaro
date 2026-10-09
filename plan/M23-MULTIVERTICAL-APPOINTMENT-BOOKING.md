@@ -2963,7 +2963,7 @@ Fix every defect the audit found so each shipped email says what it was written 
 **Complexity:** M
 **Docs to load:** `docs/03-DOMAIN_EVENTS.md` § `AvailabilityAlertMatched`, `docs/04-USE_CASES.md` UC-072, `docs/02-DOMAIN_MODEL.md` § `AvailabilityAlert` (`recordNotificationAttempt`), `docs/13-DATABASE_SCHEMA.md` § `availability_alert_notification_attempts`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts, `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type and § Event Handlers, `docs/AGENT_PATTERNS.md` #23, `docs/ENGINEERING_RULES_INFRA.md`, `infra/terraform/README.md` § New-resource PR-sequencing playbook
 **Dependencies:** M23-S07 (✅ Done — ships `AvailabilityAlertMatched` and the `availability_alert_notification_attempts` rows), M23-S31 (✅ Done — the screen that creates alerts), M23-S28 (✅ Done — the customer-email base class and the new-template recipe this story reuses), **M23-S37** (the shared tenant-format date and escaping helper and the template-variable contract in the mapping, which this story's new key must satisfy)
-**Pattern:** plain composition — a thin handler calls one use case that extends `BaseRecurringScheduleCustomerNotificationUseCase`'s shape (or its generalisation, decided at discovery), with one new template key. No new pattern.
+**Pattern:** plain composition — a thin handler calls one use case that extends `BaseRecurringScheduleCustomerNotificationUseCase`'s shape (or its generalisation: it needs the alert's matching window, which the base's input does not carry, so the use case supplies its own variables), with one new template key. The outcome is written back through a Port + Adapter (decision 6), the one cross-context mechanism that needs no new topic. No named GoF pattern.
 
 **Discovered:** 2026-10-08, by the notification audit done after M23-S28. `docs/03-DOMAIN_EVENTS.md` says the Notification consumer of `AvailabilityAlertMatched` is "a later story", and no plan story owns it.
 **Root cause:** M23-S07 ships `MatchAvailabilityAlertsUseCase`, which moves an alert `ACTIVE → NOTIFIED`, records one `availability_alert_notification_attempts` row with `outcome = PENDING` and publishes `AvailabilityAlertMatched`, with only an `audit-log` subscriber. Nothing under `apps/backend/src/contexts/notification/` subscribes to the event or holds a template for it. So a customer who presses "Avise-me quando abrir" (M23-S31) is told they will be notified, the alert is marked notified, and no email is ever sent; the attempt row stays `PENDING` forever (`docs/13-DATABASE_SCHEMA.md`: "the Notification consumer (a later story) updates it").
@@ -2976,22 +2976,23 @@ Send the customer one email when their alert matches: the service, the window th
 2. A new template key, `AVAILABILITY_ALERT_MATCHED_CUSTOMER`, following the recipe in `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type: enum entry, mapping entry, `{subject, body}` in both `notifications.json`, a migration that seeds the global rows **and** copies them to every existing tenant, the use case, the handler, the module registration.
 3. The service name and any user-typed text are HTML-escaped and the window's dates are formatted for the tenant, through the shared helper from M23-S37; the template contains no placeholder the use case does not supply, and its entry in `NOTIFICATION_TEMPLATE_KEY_MAPPING` lists exactly the variables the template uses (M23-S37's contract).
 4. The handler is thin: it calls exactly one use case, passes `event.correlationId`, rethrows on failure, and subscribes with consumer name `notification`. Its class name is unique across the codebase (the Pub/Sub generator keys by bare class name).
-5. Devops, playbook row "a new Pub/Sub topic + its app code" minus the topic: the topic exists (M23-S07); this story adds one new `subscribe()` call site, so `pubsub-catalog.json` is regenerated (never hand-edited), the PR is created with `--label infra-app-mix-ok` and a PR-body note, and after it merges and its `envs/*` apply runs the Foundation apply is dispatched (`foundation-deploy.yml`, `apply=true`, from `main`) and the new subscription's and DLQ's IAM bindings are read with `gcloud` in both projects. The story is not done until that has run.
+5. Devops, playbook row "a new Pub/Sub topic + its app code" minus the topic: the topic exists (M23-S07); this story adds one new `subscribe()` call site, so `pubsub-catalog.json` is regenerated (never hand-edited), the PR is created with `--label infra-app-mix-ok` and a PR-body note, and after it merges and its `envs/*` apply runs the Foundation apply is dispatched (`foundation-deploy.yml`, `apply=true`, from `main`) and the new subscription's and DLQ's IAM bindings are read with `gcloud` in both projects. The story is not done until that has run. No new topic is created by the outcome write (decision 6).
+6. **The attempt's outcome is written through a port, not an event** (decided at discovery, 2026-10-09). Notification has no domain events and an outcome event would need a new topic, a subscription and the 3-PR sequence to update one column. `SendAvailabilityAlertMatchedNotificationUseCase` depends on a Notification port, `IAvailabilityAlertOutcomePort.recordOutcome({ tenantId, alertId, matchingWindowStart, matchingWindowEnd, outcome, errorMessage? })`, implemented by an adapter in `notification/infrastructure/cross-context/` that calls a new Booking use case, `RecordAvailabilityAlertOutcomeUseCase` (Booking's own transaction; `UPDATE ... WHERE tenant_id = :tenantId AND alert_id = :alertId AND matching_window = :window AND channel = 'EMAIL'`). It is an extension of the existing Notification adapters' pattern, with a `permittedEdges` entry for the adapter.
+7. **Outcome values and attempt tracking.** `outcome` is `PENDING` (handed off, nothing tried), `SENT`, or `FAILED` (the last try failed). The attempts table gains `attempt_count INT NOT NULL DEFAULT 0` and `last_error VARCHAR(500) NULL` (expand-only migration in the Booking context). Every try of the email increments `attempt_count`; a failure sets `FAILED` and a redacted `last_error` (`redactEmailForLogging`), then the use case rethrows so Pub/Sub redelivers; a later success sets `SENT` and clears `last_error`. Pub/Sub allows 5 deliveries with a 10 s to 600 s backoff (`infra/terraform/modules/pubsub/main.tf`) and the application never reads that number: `FAILED` with a small count means still retrying, `FAILED` with a count of 5 means exhausted (dead-lettered). The alert stays `NOTIFIED` throughout (it is never matched twice).
+8. **Only the `EMAIL` channel is handled**; `IN_APP` is out of scope.
+9. **The link** is the hotsite home, `{FRONTEND_URL}/{slug}` (the tenant's slug from `getTenantInfo()`), where the booking CTA lives. No page reads a service or a date from the query string today (the alert page's `?serviceId=` format belongs to the alert page only), so there is no pre-selected date and no "manage my alerts" link. A follow-up story adds the real deep link (the booking flow opening on the service and the window's first date); it is not part of this one.
+10. **Wording and variables.** Subject: pt-BR "Abriu uma vaga para {{serviceName}}", en "A slot opened up for {{serviceName}}". Variables, exactly: `contactName`, `serviceName` (both escaped), `matchingWindow` (the window's start date and time, tenant format and timezone, through the shared helper), `bookingUrl`. The body says a slot opened, names the service and the start, says slots are first come first served and that the alert has now been used, and links to the booking page.
 
-**Decisions left for `/story-discovery`:**
-- **How the attempt row's `outcome` is updated.** It lives in the Booking context. Proposal: the Notification use case publishes a small outcome event (sent / failed) that a Booking handler applies, because cross-context writes go through events first (`CLAUDE.md` §7); a port and adapter is the last resort. Decide the event name and payload, the `outcome` values (`SENT`, `FAILED`), and whether a redelivery re-attempts.
-- **The link target.** Proposal: the booking calendar for the service with the window's first date pre-selected, using the deep-link format M23-S31's screen already reads; confirm it.
-- **Wording**, in pt-BR and en, and whether to include a "manage my alerts" link (the management page is M23-S12's).
-- **Failure behaviour.** Proposal: a failed send marks the attempt `FAILED` and nacks for redelivery like the other emails; the alert stays `NOTIFIED` (it is never matched twice).
+**Decisions left for `/story-discovery`:** none — all resolved in discovery (2026-10-09).
 
 **Backend use case steps:**
 1. `SendAvailabilityAlertMatchedNotificationUseCase`: find the tenant's template rows for the new key, resolve the customer, service and tenant, localize, dispatch the escaped, formatted email; return `{ emailSent }`.
 2. `AvailabilityAlertMatchedNotificationHandler`: subscribe to `AvailabilityAlertMatched` with consumer `notification` and call the use case.
-3. Report the outcome to the Booking context by the mechanism decided above, and apply it to the attempt row.
+3. Report the outcome through `IAvailabilityAlertOutcomePort` (decision 6): `FAILED` with the redacted error before rethrowing, `SENT` after a successful send. `RecordAvailabilityAlertOutcomeUseCase` applies it to the attempt row, incrementing `attempt_count`.
 
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
-**New migration / i18n keys / env vars / feature flags:** one notification-context migration seeding the global template rows (both languages) and copying them to every existing tenant in that tenant's language; `AvailabilityAlertMatched.customer` in `packages/i18n/locales/{pt-BR,en}/notifications.json`; no env var, no feature flag.
+**New migration / i18n keys / env vars / feature flags:** two migrations — a notification-context one seeding the global template rows (both languages) and copying them to every existing tenant in that tenant's language, and a booking-context one adding `attempt_count` and `last_error` to `availability_alert_notification_attempts`; `AvailabilityAlertMatched.customer` in `packages/i18n/locales/{pt-BR,en}/notifications.json`; no env var, no feature flag.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/notification/domain/notification-template-key.enum.ts`, `notification-template-key.mapping.ts` (+ `.mapping.spec.ts`) (modify)
@@ -2999,16 +3000,19 @@ Send the customer one email when their alert matches: the service, the window th
 - `apps/backend/src/contexts/notification/infrastructure/events/availability-alert-matched.handler.ts` (+ spec) (new), and `notification.module.ts` (modify)
 - `apps/backend/src/contexts/notification/infrastructure/migrations/<next-timestamp>-AddAvailabilityAlertMatchedTemplate.ts` (new), registered in `apps/backend/src/test/integration-global-setup.ts` and the persistence allowlist in `apps/backend/eslint.config.js`
 - `packages/i18n/locales/{pt-BR,en}/notifications.json` (modify)
-- the Booking-side handler and use case that apply the attempt outcome, and their specs (new — shape decided at discovery)
+- `apps/backend/src/contexts/notification/application/ports/availability-alert-outcome.port.ts` and `notification/infrastructure/cross-context/notification-availability-alert-outcome.adapter.ts` (+ spec) (new); `notification.module.ts` registers it with `useClass`
+- `apps/backend/src/contexts/booking/application/use-cases/record-availability-alert-outcome.use-case.ts` (+ spec) (new), the repository method it needs (`ITransactionManager.run()`, tenant-scoped), `availability-alert.types.ts` (widen `AvailabilityAlertAttemptOutcome` to `'PENDING' | 'SENT' | 'FAILED'` and add the two fields), the attempt entity and its builder in `src/test/builders/booking/`, and `booking.module.ts` (exports the use case)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/<next-timestamp>-AddAvailabilityAlertAttemptTracking.ts` (new), registered in `integration-global-setup.ts` and the persistence allowlist
+- `availability-alert-matched.event.ts` and `availability-alert.types.ts` comments that say the Notification consumer is "a later story" (modify)
 - `apps/backend/src/contexts/notification/infrastructure/events/availability-alert-matched-notification.handler.integration.spec.ts` (new)
 - `infra/terraform/pubsub-catalog.json` (regenerated, not hand-edited)
-- `packages/architecture-check/architecture-policy.json` (a `permittedEdges` entry: the handler imports the Booking event class)
-- `docs/03-DOMAIN_EVENTS.md` (modify — the event's Consumers line and the outcome event), `docs/13-DATABASE_SCHEMA.md` (modify — the `outcome` values), `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts (modify — the email and the outcome update)
+- `packages/architecture-check/architecture-policy.json` (`permittedEdges` entries: the handler imports the Booking event class; the outcome adapter imports the Booking use case)
+- `docs/03-DOMAIN_EVENTS.md` (modify — the event's Consumers line), `docs/13-DATABASE_SCHEMA.md` (modify — the `outcome` values and the two new columns), `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts (modify — the email and the outcome update)
 
 **Acceptance criteria — product:**
 - [ ] A customer whose availability alert matches receives one email, in the tenant's language, naming the service and the window that opened and linking back to the booking calendar for it.
 - [ ] A second delivery of the same event sends nothing more.
-- [ ] The alert's attempt record ends `SENT` when the email went out and `FAILED` when it could not be sent.
+- [ ] The alert's attempt record ends `SENT` when the email went out and `FAILED` (with how many tries were made and a short reason) when it could not be sent; a retry that succeeds turns a `FAILED` record into `SENT`.
 - [ ] A customer or service that no longer exists produces no email and no error loop.
 
 **Acceptance criteria — technical:**
@@ -3017,10 +3021,13 @@ Send the customer one email when their alert matches: the service, the window th
   - [ ] A missing customer or service is logged and skipped without failing
   - [ ] The handler calls exactly one use case, passes `event.correlationId`, and rethrows on failure
   - [ ] The `NotificationTemplateKey` ↔ mapping parity spec covers the new key
-  - [ ] The Booking-side handler sets the attempt to `SENT` or `FAILED` and is idempotent
+  - [ ] `RecordAvailabilityAlertOutcomeUseCase` sets `SENT` or `FAILED`, increments `attempt_count`, stores the redacted `last_error`, clears it on `SENT`, and scopes every write by `tenant_id`
+  - [ ] A dispatch failure records `FAILED` and rethrows; a following successful delivery of the same event records `SENT` (count 2)
+  - [ ] The alert stays `NOTIFIED` and is never matched again after a failed send (negative guarantee)
+  - [ ] The adapter test: the port call reaches the Booking use case with the tenant, alert and window
 - Integration:
   - [ ] A matching `AvailabilityAlertMatched`, published through the event bus for a tenant migrated with the new template (including the existing-tenant copy), produces exactly one `notification_logs` row and one dispatched email, and the attempt row ends `SENT`
-  - [ ] A dispatch failure ends the attempt `FAILED`
+  - [ ] A dispatch failure ends the attempt `FAILED` with `attempt_count = 1` and a redacted `last_error`
 - Tenant isolation:
   - [ ] An event of Tenant A never resolves Tenant B's customer, service or template and writes no log row under Tenant B
 - E2E: none — server-side email
