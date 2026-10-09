@@ -1,0 +1,35 @@
+import type { Pagination } from './pagination';
+
+export type RecurringScheduleWeekday =
+  'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+export type RecurringScheduleStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'CANCELLED' | 'ENDED';
+export type RecurringScheduleAssignmentPolicy = 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
+
+// WEEKLY only for the MVP — mirrors RecurrenceRuleSchema in @ikaro/validation.
+export interface RecurrenceRule {
+  frequency: 'WEEKLY';
+  daysOfWeek: RecurringScheduleWeekday[];
+  startTime: string; // HH:mm, tenant-local
+  durationMinutes: number;
+}
+
+// One recurring schedule as the backend returns it (UC-070/UC-071): an item of
+// GET /recurring-booking-schedules and the body of GET /recurring-booking-schedules/:id.
+// `serviceName` is the service's current name (the schedule only stores its id).
+export interface RecurringBookingScheduleListItem {
+  id: string;
+  customerId: string;
+  serviceId: string;
+  serviceName: string;
+  recurrence: RecurrenceRule;
+  startsOn: string; // YYYY-MM-DD
+  endsOn: string; // YYYY-MM-DD
+  status: RecurringScheduleStatus;
+  assignmentPolicy: RecurringScheduleAssignmentPolicy;
+  approvalHoldExpiresAt: string | null;
+}
+
+export interface RecurringBookingScheduleListResponse {
+  items: RecurringBookingScheduleListItem[];
+  pagination: Pagination;
+}

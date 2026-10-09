@@ -1547,4 +1547,118 @@ describe('RecurringBookingScheduleController (integration)', () => {
       });
     });
   });
+
+  // M23-S42 — the service name on every item, and the by-id read the customer screens use.
+  describe('the account read model (serviceName, GET /:id)', () => {
+    const OTHER_CUSTOMER_ID = '20000000-0000-4000-8000-000000000605';
+    let serviceId: string;
+    let scheduleId: string;
+
+    beforeAll(async () => {
+      serviceId = await seedService('AUTO_CONFIRM');
+      await ds
+        .getRepository(CustomerEntity)
+        .save(
+          new CustomerEntityBuilder()
+            .withTenantId(tenantId)
+            .withId(OTHER_CUSTOMER_ID)
+            .withGoogleOAuthId('google-sub-recurring-s42-other')
+            .withEmail('other-s42@recurring.test')
+            .withName('Outro Cliente S42')
+            .withPhone('+5531977777777')
+            .build(),
+        );
+      const saved = await ds
+        .getRepository(RecurringBookingScheduleEntity)
+        .save(
+          new RecurringBookingScheduleEntityBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withServiceId(serviceId)
+            .build(),
+        );
+      scheduleId = saved.id;
+    });
+
+    it('GET / carries the current service name on every item', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/recurring-booking-schedules?limit=100')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      const item = body.items.find((i: { id: string }) => i.id === scheduleId);
+      expect(item.serviceName).toBe('Sala Aurora — reserva');
+      expect(
+        body.items.every((i: { serviceName: unknown }) => typeof i.serviceName === 'string'),
+      ).toBe(true);
+    });
+
+    it('GET /:id returns the same item as the list for its owner', async () => {
+      const { body: list } = await request(app.getHttpServer())
+        .get('/recurring-booking-schedules?limit=100')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/recurring-booking-schedules/${scheduleId}`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      expect(body).toEqual(list.items.find((i: { id: string }) => i.id === scheduleId));
+      expect(body).toMatchObject({
+        customerId: CUSTOMER_ID,
+        serviceId,
+        serviceName: expect.any(String),
+      });
+    });
+
+    it('GET /:id lets STAFF and MANAGER read any schedule of the tenant', async () => {
+      for (const role of ['STAFF', 'MANAGER'] as const) {
+        const { body } = await request(app.getHttpServer())
+          .get(`/recurring-booking-schedules/${scheduleId}`)
+          .set(actorHeaders(tenantId, uuidv7(), role))
+          .expect(200);
+        expect(body.id).toBe(scheduleId);
+      }
+    });
+
+    it("GET /:id answers 404 (not 403) for another customer's schedule, while ending it stays 403", async () => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/recurring-booking-schedules/${scheduleId}`)
+        .set(actorHeaders(tenantId, OTHER_CUSTOMER_ID, 'CUSTOMER'))
+        .expect(404);
+      expect(body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_FOUND');
+
+      await request(app.getHttpServer())
+        .post(`/recurring-booking-schedules/${scheduleId}/end`)
+        .set(actorHeaders(tenantId, OTHER_CUSTOMER_ID, 'CUSTOMER'))
+        .expect(403);
+    });
+
+    it('GET /:id answers 404 for an unknown id and for a schedule of another tenant', async () => {
+      const { body: otherTenant } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('X-Platform-Admin-Key', TEST_KEY)
+        .send({
+          name: 'Recurring Tenant C',
+          slug: 'recurring-tenant-c',
+          adminEmail: 'c@recurring.test',
+          country_code: 'BR',
+        })
+        .expect(201);
+      const otherTenantId = otherTenant.tenantId as string;
+
+      const unknown = await request(app.getHttpServer())
+        .get('/recurring-booking-schedules/00000000-0000-4000-8000-00000000dead')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(404);
+      const crossTenant = await request(app.getHttpServer())
+        .get(`/recurring-booking-schedules/${scheduleId}`)
+        .set(actorHeaders(otherTenantId, uuidv7(), 'MANAGER'))
+        .expect(404);
+
+      expect(unknown.body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_FOUND');
+      expect(crossTenant.body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_FOUND');
+    });
+  });
 });

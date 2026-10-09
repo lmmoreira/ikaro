@@ -26,6 +26,33 @@ describe('RecurringBookingSchedulesController', () => {
     expect(result).toEqual(page);
   });
 
+  it('GET /:id forwards to the backend by-id read and returns the item', async () => {
+    const item = {
+      id: mockSchedule.id,
+      customerId: '00000000-0000-4000-8000-0000000000c1',
+      serviceId: '00000000-0000-4000-8000-000000000002',
+      serviceName: 'Sala Aurora',
+      recurrence: {
+        frequency: 'WEEKLY' as const,
+        daysOfWeek: ['tuesday' as const],
+        startTime: '10:00',
+        durationMinutes: 120,
+      },
+      startsOn: '2026-09-01',
+      endsOn: '2026-11-24',
+      status: 'ACTIVE' as const,
+      assignmentPolicy: 'FIXED_ASSIGNMENT' as const,
+      approvalHoldExpiresAt: null,
+    };
+    const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(item) });
+    const controller = new RecurringBookingSchedulesController(backendHttp);
+
+    const result = await controller.get(mockSchedule.id);
+
+    expect(backendHttp.get).toHaveBeenCalledWith(`/recurring-booking-schedules/${mockSchedule.id}`);
+    expect(result).toEqual(item);
+  });
+
   it('POST / forwards the body to the backend and returns 201 shape', async () => {
     const backendHttp = makeBackendHttp({ post: jest.fn().mockResolvedValue(mockSchedule) });
     const controller = new RecurringBookingSchedulesController(backendHttp);

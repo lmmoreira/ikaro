@@ -30,6 +30,10 @@ import {
   CreateAvailabilityAlertUseCaseResult,
 } from '../../application/use-cases/create-availability-alert.use-case';
 import {
+  GetAvailabilityAlertUseCase,
+  GetAvailabilityAlertUseCaseResult,
+} from '../../application/use-cases/get-availability-alert.use-case';
+import {
   ListAvailabilityAlertsUseCase,
   ListAvailabilityAlertsUseCaseResult,
 } from '../../application/use-cases/list-availability-alerts.use-case';
@@ -48,6 +52,7 @@ export class AvailabilityAlertController {
     private readonly ctx: RequestContext,
     private readonly createAlert: CreateAvailabilityAlertUseCase,
     private readonly listAlerts: ListAvailabilityAlertsUseCase,
+    private readonly getAlert: GetAvailabilityAlertUseCase,
     private readonly updateAlert: UpdateAvailabilityAlertUseCase,
     private readonly cancelAlert: CancelAvailabilityAlertUseCase,
   ) {}
@@ -73,6 +78,14 @@ export class AvailabilityAlertController {
   list(): Promise<ListAvailabilityAlertsUseCaseResult> {
     const { tenantId, actorId } = this.ctx;
     return this.listAlerts.execute({ tenantId, customerId: actorId! }).catch(mapBookingError);
+  }
+
+  @Get(':id')
+  get(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<GetAvailabilityAlertUseCaseResult> {
+    const { tenantId, actorId } = this.ctx;
+    return this.getAlert
+      .execute({ alertId: id, tenantId, customerId: actorId! })
+      .catch(mapBookingError);
   }
 
   @Patch(':id')

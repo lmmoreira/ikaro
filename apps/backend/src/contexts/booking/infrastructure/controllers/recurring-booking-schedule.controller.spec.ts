@@ -22,6 +22,7 @@ import { ResourceType } from '../../domain/resource.types';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { RequestRecurringBookingScheduleUseCase } from '../../application/use-cases/request-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from '../../application/use-cases/list-recurring-booking-schedules.use-case';
+import { GetRecurringBookingScheduleUseCase } from '../../application/use-cases/get-recurring-booking-schedule.use-case';
 import { EndRecurringBookingScheduleUseCase } from '../../application/use-cases/end-recurring-booking-schedule.use-case';
 import { ApproveRecurringBookingScheduleUseCase } from '../../application/use-cases/approve-recurring-booking-schedule.use-case';
 import { RejectRecurringBookingScheduleUseCase } from '../../application/use-cases/reject-recurring-booking-schedule.use-case';
@@ -114,7 +115,8 @@ describe('RecurringBookingScheduleController', () => {
         tx,
         new AvailabilityService(),
       ),
-      new ListRecurringBookingSchedulesUseCase(scheduleRepo),
+      new ListRecurringBookingSchedulesUseCase(scheduleRepo, serviceRepo),
+      new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo),
       new EndRecurringBookingScheduleUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
       new ApproveRecurringBookingScheduleUseCase(
         scheduleRepo,
@@ -238,6 +240,64 @@ describe('RecurringBookingScheduleController', () => {
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].customerId).toBe(CUSTOMER_ID);
+    });
+  });
+
+  describe('get()', () => {
+    const body = (): Parameters<RecurringBookingScheduleController['request']>[0] => ({
+      serviceId,
+      recurrence: {
+        frequency: 'WEEKLY',
+        daysOfWeek: ['tuesday'],
+        startTime: '10:00',
+        durationMinutes: 60,
+      },
+      assignmentPolicy: 'FIXED_ASSIGNMENT',
+      resourceIds: [resourceId],
+      startsOn: STARTS_ON,
+      endsOn: ENDS_ON,
+    });
+
+    it("returns the caller's own schedule with the service name", async () => {
+      const created = await controller.request(body());
+
+      const result = await controller.get(created.id);
+
+      expect(result).toMatchObject({ id: created.id, customerId: CUSTOMER_ID, status: 'ACTIVE' });
+      expect(result.serviceName).toEqual(expect.any(String));
+    });
+
+    it('answers 404 (never 403) for another customer’s schedule', async () => {
+      const created = await controller.request(body());
+      const otherCtx = new RequestContextBuilder()
+        .withTenantId(TENANT_ID)
+        .withActorId('00000000-0000-7000-8000-000000000077')
+        .withActorType('CUSTOMER')
+        .withActorRole('CUSTOMER')
+        .build();
+      const otherController = new RecurringBookingScheduleController(
+        otherCtx,
+        undefined as never,
+        undefined as never,
+        new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo),
+        undefined as never,
+        undefined as never,
+        undefined as never,
+      );
+
+      const err = await otherController.get(created.id).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(404);
+    });
+
+    it('answers 404 for an unknown schedule', async () => {
+      const err = await controller
+        .get('00000000-0000-7000-8000-000000000099')
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(404);
     });
   });
 

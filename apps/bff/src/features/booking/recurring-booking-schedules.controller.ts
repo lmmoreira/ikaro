@@ -5,6 +5,7 @@ import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
   ApproveRecurringBookingScheduleResponse,
   EndRecurringBookingScheduleResponse,
+  RecurringBookingScheduleListItem,
   RecurringBookingScheduleListResponse,
   RecurringBookingScheduleResponse,
   RejectRecurringBookingScheduleResponse,
@@ -34,6 +35,13 @@ export class RecurringBookingSchedulesController {
     return this.backendHttp.get<RecurringBookingScheduleListResponse>(
       '/recurring-booking-schedules',
       query,
+    );
+  }
+
+  @Get(':id')
+  get(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<RecurringBookingScheduleListItem> {
+    return this.backendHttp.get<RecurringBookingScheduleListItem>(
+      `/recurring-booking-schedules/${id}`,
     );
   }
 

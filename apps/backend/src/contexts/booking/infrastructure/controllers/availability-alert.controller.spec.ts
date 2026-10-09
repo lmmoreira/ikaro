@@ -11,6 +11,7 @@ import { TenantSettings } from '../../../platform/domain/value-objects/tenant-se
 import { BookingQuoteService } from '../../application/services/booking-quote.service';
 import { CancelAvailabilityAlertUseCase } from '../../application/use-cases/cancel-availability-alert.use-case';
 import { CreateAvailabilityAlertUseCase } from '../../application/use-cases/create-availability-alert.use-case';
+import { GetAvailabilityAlertUseCase } from '../../application/use-cases/get-availability-alert.use-case';
 import { ListAvailabilityAlertsUseCase } from '../../application/use-cases/list-availability-alerts.use-case';
 import { UpdateAvailabilityAlertUseCase } from '../../application/use-cases/update-availability-alert.use-case';
 import { AvailabilityAlertController } from './availability-alert.controller';
@@ -60,6 +61,7 @@ describe('AvailabilityAlertController', () => {
         new BookingQuoteService(),
       ),
       new ListAvailabilityAlertsUseCase(alertRepo),
+      new GetAvailabilityAlertUseCase(alertRepo),
       new UpdateAvailabilityAlertUseCase(
         alertRepo,
         serviceRepo,
@@ -130,6 +132,31 @@ describe('AvailabilityAlertController', () => {
       const result = await controller.list();
 
       expect(result.items.map((item) => item.id)).toEqual([own.id]);
+    });
+  });
+
+  describe('get()', () => {
+    it("returns the caller's own alert, whatever its status", async () => {
+      const expired = new AvailabilityAlertBuilder()
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus('EXPIRED')
+        .build();
+      alertRepo.seed(expired);
+
+      const result = await controller.get(expired.id);
+
+      expect(result).toMatchObject({ id: expired.id, status: 'EXPIRED' });
+    });
+
+    it("maps another customer's alert to 404", async () => {
+      const foreign = new AvailabilityAlertBuilder().withCustomerId(OTHER_CUSTOMER_ID).build();
+      alertRepo.seed(foreign);
+
+      expect(await statusOf(controller.get(foreign.id))).toBe(404);
+    });
+
+    it('maps an unknown alert to 404', async () => {
+      expect(await statusOf(controller.get('00000000-0000-7000-8000-000000000099'))).toBe(404);
     });
   });
 

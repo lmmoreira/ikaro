@@ -75,6 +75,12 @@ Authorization: Bearer {{customerToken}}
 
 ###
 
+### One alert by id (M23-S42) → 200, whatever its status or age; 404 for another customer's
+GET {{bffUrl}}/v1/availability-alerts/{{alertId}}
+Authorization: Bearer {{customerToken}}
+
+###
+
 ### Edit — change only the weekdays → 200
 PATCH {{bffUrl}}/v1/availability-alerts/{{alertId}}
 Authorization: Bearer {{customerToken}}
