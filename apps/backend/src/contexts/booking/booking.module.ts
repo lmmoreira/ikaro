@@ -9,6 +9,7 @@ import { PlatformSettingsModule } from '../platform/platform-settings.module';
 import { StaffModule } from '../staff/staff.module';
 import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
 import { GetServicesUseCase } from './application/use-cases/get-services.use-case';
+import { RecordAvailabilityAlertOutcomeUseCase } from './application/use-cases/record-availability-alert-outcome.use-case';
 import { BookingAttachmentsController } from './infrastructure/controllers/booking-attachments.controller';
 import { BookingEntity } from './infrastructure/entities/booking.entity';
 import { BookingLineEntity } from './infrastructure/entities/booking-line.entity';
@@ -112,6 +113,6 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     AvailabilityAlertController,
   ],
   providers: bookingModuleProviders,
-  exports: [GetBookingByIdUseCase, GetServicesUseCase],
+  exports: [GetBookingByIdUseCase, GetServicesUseCase, RecordAvailabilityAlertOutcomeUseCase],
 })
 export class BookingModule {}

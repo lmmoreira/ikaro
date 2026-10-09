@@ -1,4 +1,8 @@
 import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
+import {
+  AvailabilityAlertAttemptOutcome,
+  AvailabilityAlertMatchingWindow,
+} from '../../domain/availability-alert.types';
 
 export const AVAILABILITY_ALERT_REPOSITORY = Symbol('IAvailabilityAlertRepository');
 
@@ -24,5 +28,16 @@ export interface IAvailabilityAlertRepository {
   // expiresAt is before `cutoff`, together with their notification attempts, in one transaction.
   // Returns how many alerts were deleted. An ACTIVE alert is never touched.
   deleteFinishedExpiredBefore(tenantId: string, cutoff: Date): Promise<number>;
+  // M23-S38: the Notification context's report on the EMAIL attempt of (alert, matching window).
+  // One atomic, tenant-scoped UPDATE: counts the try, sets the outcome, stores the redacted reason
+  // of a failure and clears it on SENT. Returns false when no such attempt row exists (the alert
+  // was purged by retention) so the caller can log it instead of failing.
+  recordAttemptOutcome(
+    tenantId: string,
+    alertId: string,
+    matchingWindow: AvailabilityAlertMatchingWindow,
+    outcome: Exclude<AvailabilityAlertAttemptOutcome, 'PENDING'>,
+    errorMessage: string | null,
+  ): Promise<boolean>;
   save(alert: AvailabilityAlert): Promise<void>;
 }

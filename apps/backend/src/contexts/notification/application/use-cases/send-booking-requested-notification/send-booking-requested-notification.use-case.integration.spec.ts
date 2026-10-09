@@ -26,6 +26,7 @@ const DEFAULT_TENANT_INFO: NotificationTenantInfo = {
   id: TENANT_ID,
   name: 'Lava Car',
   slug: 'lavacar',
+  hotsiteUrl: 'https://app.ikaro.test/lavacar',
   timezone: 'America/Sao_Paulo',
   locale: 'pt-BR',
   replyToEmail: null,

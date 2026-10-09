@@ -7,6 +7,10 @@ import { getActiveEntityManager } from '../../../../shared/infrastructure/transa
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { IAvailabilityAlertRepository } from '../../application/ports/availability-alert-repository.port';
 import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
+import {
+  AvailabilityAlertAttemptOutcome,
+  AvailabilityAlertMatchingWindow,
+} from '../../domain/availability-alert.types';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { AvailabilityAlertEntity } from '../entities/availability-alert.entity';
 import { toDomain, toEntity, toUpdateSet } from './typeorm-availability-alert.mapper';
@@ -102,6 +106,26 @@ export class TypeOrmAvailabilityAlertRepository implements IAvailabilityAlertRep
       .andWhere('expires_at < :cutoff', { cutoff })
       .execute();
     return result.affected ?? 0;
+  }
+
+  // The (tenant, alert, window, channel) unique key picks the row; incrementing in SQL keeps the
+  // count right when two deliveries of the same event overlap.
+  async recordAttemptOutcome(
+    tenantId: string,
+    alertId: string,
+    matchingWindow: AvailabilityAlertMatchingWindow,
+    outcome: Exclude<AvailabilityAlertAttemptOutcome, 'PENDING'>,
+    errorMessage: string | null,
+  ): Promise<boolean> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const [, affected] = (await manager.query(
+      `UPDATE "booking"."availability_alert_notification_attempts"
+          SET "outcome" = $1, "attempt_count" = "attempt_count" + 1, "last_error" = $2
+        WHERE "tenant_id" = $3 AND "alert_id" = $4 AND "channel" = 'EMAIL'
+          AND "matching_window" = tstzrange($5::timestamptz, $6::timestamptz, '[)')`,
+      [outcome, errorMessage, tenantId, alertId, matchingWindow.startsAt, matchingWindow.endsAt],
+    )) as [unknown, number];
+    return affected === 1;
   }
 
   async save(alert: AvailabilityAlert): Promise<void> {

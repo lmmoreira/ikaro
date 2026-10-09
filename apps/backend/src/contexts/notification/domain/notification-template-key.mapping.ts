@@ -177,6 +177,11 @@ export const NOTIFICATION_TEMPLATE_KEY_MAPPING = {
     recipientType: 'customerEndedByStaff',
     variables: ['contactName', 'serviceName', 'tenantName'],
   },
+  [NotificationTemplateKey.AVAILABILITY_ALERT_MATCHED_CUSTOMER]: {
+    eventName: 'AvailabilityAlertMatched',
+    recipientType: 'customer',
+    variables: ['bookingUrl', 'contactName', 'matchingWindow', 'serviceName'],
+  },
 } as const satisfies Record<NotificationTemplateKey, NotificationTemplateKeyMapping>;
 
 // The variables object a use case must supply for one or more templates: every placeholder of each

@@ -6,6 +6,8 @@ export interface NotificationTenantInfo {
   id: string;
   name: string;
   slug: string;
+  /** The tenant's public hotsite, where customers book (`<FRONTEND_URL>/<slug>`). */
+  hotsiteUrl: string;
   timezone: string;
   locale: string;
   /** The tenant's `businessInfo.email`, used as Reply-To; null when unset. */

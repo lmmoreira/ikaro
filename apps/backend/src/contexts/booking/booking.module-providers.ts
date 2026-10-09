@@ -91,6 +91,7 @@ import { CreateAvailabilityAlertUseCase } from './application/use-cases/create-a
 import { ListAvailabilityAlertsUseCase } from './application/use-cases/list-availability-alerts.use-case';
 import { UpdateAvailabilityAlertUseCase } from './application/use-cases/update-availability-alert.use-case';
 import { CancelAvailabilityAlertUseCase } from './application/use-cases/cancel-availability-alert.use-case';
+import { RecordAvailabilityAlertOutcomeUseCase } from './application/use-cases/record-availability-alert-outcome.use-case';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
 import { BookingQuoteService } from './application/services/booking-quote.service';
 import { BookingIntakeValidationService } from './application/services/booking-intake-validation.service';
@@ -223,6 +224,7 @@ export const bookingModuleProviders: Provider[] = [
   ListAvailabilityAlertsUseCase,
   UpdateAvailabilityAlertUseCase,
   CancelAvailabilityAlertUseCase,
+  RecordAvailabilityAlertOutcomeUseCase,
   ...availabilityAlertMatchingProviders,
   RaiseFutureCommitmentExceptionsForResourceUseCase,
   ListFutureCommitmentExceptionsUseCase,

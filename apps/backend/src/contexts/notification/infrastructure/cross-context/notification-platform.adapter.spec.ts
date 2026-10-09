@@ -32,7 +32,9 @@ describe('NotificationPlatformAdapter', () => {
 
   beforeEach(() => {
     getTenantById = { execute: jest.fn() };
-    adapter = new NotificationPlatformAdapter(getTenantById as unknown as GetTenantByIdUseCase);
+    adapter = new NotificationPlatformAdapter(getTenantById as unknown as GetTenantByIdUseCase, {
+      getOrThrow: () => 'https://app.ikaro.test',
+    });
   });
 
   afterEach(() => jest.resetAllMocks());
@@ -47,6 +49,7 @@ describe('NotificationPlatformAdapter', () => {
       id: tenantResult.id,
       name: tenantResult.name,
       slug: tenantResult.slug,
+      hotsiteUrl: `https://app.ikaro.test/${tenantResult.slug}`,
       timezone: tenantResult.settings.businessHours.timezone,
       locale: tenantResult.settings.localization.language,
       replyToEmail: 'hello@ikaro.example',

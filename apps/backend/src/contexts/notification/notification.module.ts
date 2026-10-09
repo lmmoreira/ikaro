@@ -65,6 +65,11 @@ import { RecurringScheduleCreatedNotificationHandler } from './infrastructure/ev
 import { RecurringScheduleApprovalRequestedNotificationHandler } from './infrastructure/events/recurring-schedule-approval-requested.handler';
 import { RecurringScheduleRejectedNotificationHandler } from './infrastructure/events/recurring-schedule-rejected.handler';
 import { RecurringScheduleEndedNotificationHandler } from './infrastructure/events/recurring-schedule-ended.handler';
+import { SendAvailabilityAlertMatchedEmailUseCase } from './application/use-cases/send-availability-alert-matched-email/send-availability-alert-matched-email.use-case';
+import { SendAvailabilityAlertMatchedNotificationUseCase } from './application/use-cases/send-availability-alert-matched-notification/send-availability-alert-matched-notification.use-case';
+import { AvailabilityAlertMatchedNotificationHandler } from './infrastructure/events/availability-alert-matched.handler';
+import { AVAILABILITY_ALERT_OUTCOME_PORT } from './application/ports/availability-alert-outcome.port';
+import { NotificationAvailabilityAlertOutcomeAdapter } from './infrastructure/cross-context/notification-availability-alert-outcome.adapter';
 import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
 
 @Module({
@@ -104,6 +109,10 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     { provide: NOTIFICATION_PLATFORM_PORT, useClass: NotificationPlatformAdapter },
     { provide: NOTIFICATION_CUSTOMER_PORT, useClass: NotificationCustomerAdapter },
     { provide: NOTIFICATION_BOOKING_PORT, useClass: NotificationBookingAdapter },
+    {
+      provide: AVAILABILITY_ALERT_OUTCOME_PORT,
+      useClass: NotificationAvailabilityAlertOutcomeAdapter,
+    },
     { provide: LOCALIZATION_PORT, useClass: JsonLocalizationAdapter },
     SendStaffInvitationUseCase,
     SendBookingRequestedNotificationUseCase,
@@ -122,6 +131,8 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendRecurringScheduleApprovalRequestedNotificationUseCase,
     SendRecurringScheduleRejectedNotificationUseCase,
     SendRecurringScheduleEndedNotificationUseCase,
+    SendAvailabilityAlertMatchedEmailUseCase,
+    SendAvailabilityAlertMatchedNotificationUseCase,
     StaffInvitedHandler,
     BookingRequestedHandler,
     BookingApprovedHandler,
@@ -138,6 +149,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     RecurringScheduleApprovalRequestedNotificationHandler,
     RecurringScheduleRejectedNotificationHandler,
     RecurringScheduleEndedNotificationHandler,
+    AvailabilityAlertMatchedNotificationHandler,
     DeadLetterHandler,
   ],
 })

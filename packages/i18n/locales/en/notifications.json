@@ -120,5 +120,11 @@
       "subject": "Your recurring schedule was ended by {{tenantName}}",
       "body": "<p>Hello, {{contactName}}!</p><p>Your recurring schedule for {{serviceName}} was ended by <strong>{{tenantName}}</strong>.</p><p>The future appointments were cancelled.</p>"
     }
+  },
+  "AvailabilityAlertMatched": {
+    "customer": {
+      "subject": "A slot opened up for {{serviceName}}",
+      "body": "<p>Hello, {{contactName}}!</p><p>A slot opened up for <strong>{{serviceName}}</strong>, the service you asked us to watch.</p><p><strong>Available from:</strong> {{matchingWindow}}</p><p>Slots are first come, first served, so book soon. This alert has now been used.</p><p><a href=\"{{bookingUrl}}\">Open the booking page</a></p>"
+    }
   }
 }

@@ -2,7 +2,11 @@ import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-d
 import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import { IAvailabilityAlertRepository } from '../../../contexts/booking/application/ports/availability-alert-repository.port';
 import { AvailabilityAlert } from '../../../contexts/booking/domain/availability-alert.aggregate';
-import { AvailabilityAlertNotificationAttempt } from '../../../contexts/booking/domain/availability-alert.types';
+import {
+  AvailabilityAlertAttemptOutcome,
+  AvailabilityAlertMatchingWindow,
+  AvailabilityAlertNotificationAttempt,
+} from '../../../contexts/booking/domain/availability-alert.types';
 
 export class InMemoryAvailabilityAlertRepository implements IAvailabilityAlertRepository {
   private readonly store = new Map<string, AvailabilityAlert>();
@@ -85,6 +89,28 @@ export class InMemoryAvailabilityAlertRepository implements IAvailabilityAlertRe
     );
     for (const alert of doomed) this.store.delete(alert.id);
     return Promise.resolve(doomed.length);
+  }
+
+  recordAttemptOutcome(
+    tenantId: string,
+    alertId: string,
+    matchingWindow: AvailabilityAlertMatchingWindow,
+    outcome: Exclude<AvailabilityAlertAttemptOutcome, 'PENDING'>,
+    errorMessage: string | null,
+  ): Promise<boolean> {
+    const attempt = this.attempts.find(
+      (a) =>
+        a.tenantId === tenantId &&
+        a.alertId === alertId &&
+        a.channel === 'EMAIL' &&
+        a.matchingWindow.startsAt.getTime() === matchingWindow.startsAt.getTime() &&
+        a.matchingWindow.endsAt.getTime() === matchingWindow.endsAt.getTime(),
+    );
+    if (!attempt) return Promise.resolve(false);
+    attempt.outcome = outcome;
+    attempt.attemptCount += 1;
+    attempt.lastError = errorMessage;
+    return Promise.resolve(true);
   }
 
   async save(alert: AvailabilityAlert): Promise<void> {
