@@ -40,7 +40,13 @@ const STATUS_LABEL_KEY = {
   CANCELLED: 'statusCancelled',
 } as const;
 
-function DetailRow({ label, value, sub }: { label: string; value: string; sub?: string }) {
+interface DetailRowProps {
+  readonly label: string;
+  readonly value: string;
+  readonly sub?: string;
+}
+
+function DetailRow({ label, value, sub }: DetailRowProps): React.JSX.Element {
   return (
     <div className="border-b border-gray-100 py-3 last:border-b-0">
       <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-400">
