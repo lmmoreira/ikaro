@@ -82,8 +82,12 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
 
     const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
 
+    // The ids come in repository order (schedules created in the same millisecond have no stable
+    // order), so only the set of ids and the single tenant-scoped call are asserted.
     expect(findByIds).toHaveBeenCalledTimes(1);
-    expect(findByIds).toHaveBeenCalledWith(['service-1', 'service-2'], TENANT);
+    const [requestedIds, requestedTenant] = findByIds.mock.calls[0];
+    expect([...requestedIds].sort()).toEqual(['service-1', 'service-2']);
+    expect(requestedTenant).toBe(TENANT);
     expect(result.items.map((i) => i.serviceName).sort()).toEqual([
       'Sala Aurora',
       'Sala Aurora',
@@ -104,7 +108,7 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
     );
   });
 
-  it('does not call the service repository for an empty page', async () => {
+  it('returns no items and looks up no service ids for an empty page', async () => {
     const findByIds = jest.spyOn(serviceRepo, 'findByIds');
 
     const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
