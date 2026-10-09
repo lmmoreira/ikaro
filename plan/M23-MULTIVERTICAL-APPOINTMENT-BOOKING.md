@@ -53,6 +53,7 @@
 | 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
 | 5 | M23-S37 | Make every shipped notification email correct — a blank daily schedule, nameless reminders, a customer link into the staff dashboard, unescaped user text, unformatted dates, missing who/why/pickup lines — and a guard that renders the real copy; backend-only |
 | 5 | M23-S38 | Email the customer when an availability alert matches (`AvailabilityAlertMatched` → Notification; records the attempt outcome); the alert flow shipped without it |
+| 5 | M23-S44 | Availability-alert email deep link: the email opens the booking page on the alert's service, with the window's date pre-selected (follow-up to S38) |
 | 5 | M23-S39 | Staff creates a one-off booking on a customer's behalf — `POST /bookings/staff` (created `APPROVED`, customer or guest), customer search by phone; backend + BFF (UC-108) |
 | 6 | M23-S40 | Staff "+ Novo" menu on the Agenda, shared customer chooser and the dashboard "Novo agendamento" flow (UC-108); S19 reuses the chooser |
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
@@ -3421,5 +3422,70 @@ The customer sees and cancels their availability alerts (UC-076). The management
   - [ ] Playwright, `.../alerts/[id]/cancel`: the customer cancels it through the confirmation page and sees it leave the active list
   - [ ] Playwright: a customer with no alert sees the empty state, and the Agendamentos tab has no "Meus avisos" row
   - [ ] Notified and expired detail (`07g`) and the load-error and loading states are covered at the unit level only (they cannot be produced through the product in a test)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S44 — Availability-alert email deep link: the email opens the booking page on the alert's service, with the window's date pre-selected
+
+**Agent:** `frontend-ts` + `backend-ts`
+**Complexity:** M
+**Docs to load:** `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts (and § the effective booking window), `docs/04-USE_CASES.md` UC-072 and UC-001, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (public booking flow), `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type
+**Dependencies:** M23-S38 (✅ Done — the email and its `bookingUrl` variable), M23-S31 (✅ Done — `availability-alert-link.ts`, the precedent for a link builder/parser pair), M23-S33 (✅ Done — the booking window the date must respect)
+**Pattern:** plain composition — one pure builder/parser pair in `features/booking/model/` (modelled on `availability-alert-link.ts`, "the one place that knows the shape"); the parsed result only seeds `useBookingSelections`' initial state. No named pattern.
+
+**Discovered:** 2026-10-09, shipping M23-S38: its email links to the hotsite home, one click short of the booking page.
+**Root cause:** `apps/web/app/[slug]/booking/page.tsx` reads only `params` and is cached (`export const revalidate = 300`); `useBookingSelections` starts with `selectedServiceIds = []` and `selectedDate = null`; nothing in the booking flow reads the URL. The S38 email therefore links to `{hotsiteUrl}` (the home, whose `BOOKING_CTA` links on to `/{slug}/booking` — `BookingCtaModule.tsx:98`) and the customer re-picks everything.
+
+**Description:**
+A customer who gets "a slot opened up" lands on the booking page with the alert's service already chosen and the date the slot opened on selected, instead of on the hotsite home.
+
+**Decisions already made (state as fact, do not re-derive):**
+1. Link shape: `/{slug}/booking?serviceId=<uuid>&date=YYYY-MM-DD`. A builder and a parser live in `features/booking/model/booking-deep-link.ts`; the parser accepts only a UUID and a real calendar date, and anything else is "absent".
+2. The email's `bookingUrl` becomes `{hotsiteUrl}/booking?serviceId=…&date=…`, built in `SendAvailabilityAlertMatchedEmailUseCase.variablesFor`; `date` is the tenant-local date of `matchingWindowStart` (the shared calendar helper, the tenant's timezone). No template or mapping change: `bookingUrl` is already a variable.
+3. Bad input never breaks the page: a `serviceId` that is not in the page's bookable (`APPOINTMENT`) services, or a `date` outside today…`maxBookingAdvanceDays`, is ignored and the plain flow shows.
+4. Out of scope: holding the slot, and any change to how alerts are created or matched.
+
+**Decisions left for `/story-discovery`:**
+- How the params are read without losing the page cache (client-side `useSearchParams` under `Suspense` is the proposal; confirm in Next 16 — reading `searchParams` in the server page would make it dynamic).
+- Landing behaviour: the service ticked on step 1 (proposal: no auto-advance, the customer sees what is chosen) versus jumping to the next step.
+- Preferred resource and duration: the event carries `resourceId` but no duration, and `chooseDuration` clears the date, so the date only survives on a service with no duration choice — decide what a duration or resource-picking service does.
+- Where the pre-selection is applied (initial state of `useBookingSelections` versus an effect).
+
+**Backend use case steps:**
+1. `SendAvailabilityAlertMatchedEmailUseCase.variablesFor`: build the deep-link URL from `context.hotsiteUrl`, the input's `serviceId` and the tenant-local date.
+
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+- `apps/web/features/booking/model/booking-deep-link.ts` (+ spec) (new)
+- `apps/web/app/[slug]/booking/page.tsx`, `apps/web/features/booking/hooks/useBookingSelections.ts`, `apps/web/features/booking/hooks/useBookingFormController.ts`, `apps/web/features/booking/components/public/BookingForm.tsx` (modify, with their specs)
+- `apps/backend/src/contexts/notification/application/use-cases/send-availability-alert-matched-email/send-availability-alert-matched-email.use-case.ts` (+ spec) (modify), and the link assertion in `availability-alert-matched-notification.handler.integration.spec.ts`
+- `apps/web/e2e/availability-alert-email-link.spec.ts` (new)
+- `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Availability Alerts (modify — the email's link)
+
+**Acceptance criteria — product:**
+- [ ] The alert email links to the booking page with the alert's service and the date it opened.
+- [ ] Opening the link shows the service already chosen and the date selected, where the flow keeps it.
+- [ ] A link with a missing, unknown or out-of-window service or date shows the normal booking page, with no error.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] The builder/parser round-trips and rejects a bad UUID and an impossible date
+  - [ ] The selections are seeded from a valid link
+  - [ ] The email's link, in pt-BR and en, with the tenant-local date near midnight
+  - [ ] A `serviceId` not in the bookable list is ignored (negative guarantee)
+  - [ ] A `date` outside the booking window is ignored (negative guarantee)
+- Integration:
+  - [ ] The matched-alert email published through the event bus contains the deep link
+- Tenant isolation:
+  - [ ] A `serviceId` of another tenant is ignored on this tenant's booking page
+- E2E:
+  - [ ] Playwright: the link opens on the chosen service and date
+  - [ ] Playwright: an invalid link shows the plain booking flow
+- [ ] The booking page stays cacheable (checked in the build output)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
