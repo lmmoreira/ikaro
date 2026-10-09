@@ -109,6 +109,8 @@ Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the 
 
 **Topbar "+ Novo ▾" menu (decided 2026-10-09):** the topbar's global create action is one button with a two-item menu — "Agendamento" (→ the one-off booking flow, as before) and "Reserva recorrente" (→ `13`), each with a one-line description, mirroring the staff Agenda's `new-menu` (`staff/prototypes/agenda/00-agenda.html`). It is part of the shared `CustomerTopbar`, so the real app shows it (desktop, `≥1024px`) on every my-account screen, drill-downs included; the prototypes draw it on `01`, `01b`, `14` and `14b` only and do not repeat it on the other drill-down screens. On mobile the topbar has no room for it, so the same menu sits in the page: the Agendamentos body (`01`) and the header of the recurring list (`14`). The empty states keep their own contextual calls to action (`14b`'s "+ Nova reserva recorrente", `07b`'s "+ Novo agendamento").
 
+**List row pattern (decided 2026-10-09; `07`, `14`):** every row in an account list has the same shape as the booking row in Agendamentos — a small icon, the **title as the link to the detail page** (hover underline; there is no "Ver detalhes" link), one or two muted meta lines, small inline text actions under them (only when an action is possible: a red "Cancelar aviso" on an active alert, a blue "Renovar" on an ended or ending recurring schedule), and the **status badge on the right**. History and read-only rows have the title link and the badge only. "Encerrar" a schedule stays on its detail page behind the confirmation page. The real app builds these as one shared account list row, not a copy per list.
+
 Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ## File map — per-screen status (all ✅ shipped)
