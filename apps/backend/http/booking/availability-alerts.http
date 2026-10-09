@@ -70,7 +70,7 @@ X-Actor-Role: CUSTOMER
 
 ###
 
-### Read one of my alerts by id, whatever its status or age (M23-S42) — 404 BOOKING_ALERT_NOT_FOUND
+### Read one of my alerts by id, whatever its status, for as long as it is retained (M23-S42; finished alerts are deleted 90 days after expiry) — 404 BOOKING_ALERT_NOT_FOUND
 ### for another customer's alert or another tenant's
 GET {{baseUrl}}/availability-alerts/{{alertId}}
 X-Tenant-ID: {{tenantId}}

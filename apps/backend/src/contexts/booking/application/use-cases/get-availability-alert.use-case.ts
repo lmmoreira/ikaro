@@ -17,9 +17,9 @@ export interface GetAvailabilityAlertUseCaseInput {
 
 export type GetAvailabilityAlertUseCaseResult = AvailabilityAlertResult;
 
-// UC-076: one of the caller's own alerts, whatever its status or age (the list only holds the 100
-// most recent). Another customer's alert (same tenant) reads as not found, exactly like another
-// tenant's.
+// UC-076: one of the caller's own alerts, whatever its status, for as long as it is retained
+// (finished alerts are purged 90 days after expiry; the list holds only the 100 most recent).
+// Another customer's alert (same tenant) reads as not found, exactly like another tenant's.
 @Injectable()
 export class GetAvailabilityAlertUseCase {
   constructor(

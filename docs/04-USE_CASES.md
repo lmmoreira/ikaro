@@ -1294,7 +1294,7 @@ Returns:
 ### **UC-076: Customer Manages an Availability Alert**
 
 - **Actor:** Authenticated customer
-- **Endpoint:** `GET /availability-alerts`, `GET /availability-alerts/:id` (one alert, whatever its status or age — M23-S42), `PATCH /availability-alerts/:id`, `DELETE /availability-alerts/:id`
+- **Endpoint:** `GET /availability-alerts`, `GET /availability-alerts/:id` (one alert, whatever its status while it is retained — finished alerts are deleted 90 days after expiry; M23-S42), `PATCH /availability-alerts/:id`, `DELETE /availability-alerts/:id`
 - **Preconditions:** Customer owns at least one availability alert for the tenant (an active one to edit or cancel; a finished one is still readable as history).
 - **Trigger:** Customer opens "Meus avisos."
 - **Main Flow:**
