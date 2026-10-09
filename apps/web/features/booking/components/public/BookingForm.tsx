@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { useBookingFormController } from '@/features/booking/hooks/useBookingFormController';
+import type { BookingDeepLinkSeed } from '@/features/booking/model/booking-deep-link';
 import { pickerStepId, resolvePickerUnits } from '@/features/booking/model/booking-steps';
 import { resolveBasketBookingWindow } from '@/features/booking/model/booking-window';
 import { buildAvailabilityAlertLink } from '@/features/booking/model/availability-alert-link';
@@ -17,7 +18,7 @@ import { ResourcePickerStep } from './ResourcePickerStep';
 import { ServiceSelectionStep } from './ServiceSelectionStep';
 import { VariableDurationStep } from './VariableDurationStep';
 
-interface BookingFormProps {
+export interface BookingFormProps {
   readonly slug: string;
   readonly services: readonly HotsiteServiceResponse[];
   readonly carouselDays: number;
@@ -26,6 +27,8 @@ interface BookingFormProps {
   readonly timezone: string;
   readonly phonePrefix: string;
   readonly addressSpec: HotsiteAddressSpec;
+  /** What the availability-alert email's link pre-selects; absent on the plain booking page. */
+  readonly seed?: BookingDeepLinkSeed | null;
 }
 
 export function BookingForm({
@@ -37,10 +40,11 @@ export function BookingForm({
   timezone,
   phonePrefix,
   addressSpec,
+  seed = null,
 }: BookingFormProps): React.JSX.Element {
   const t = useTranslations('booking');
   const router = useRouter();
-  const c = useBookingFormController({ slug, services, addressSpec });
+  const c = useBookingFormController({ slug, services, addressSpec, seed });
   const { flow, selections, formData, submission } = c;
   const { selectedServiceIds, selectedServices, selectedDate, selectedSlot } = selections;
   const { stepId } = flow;

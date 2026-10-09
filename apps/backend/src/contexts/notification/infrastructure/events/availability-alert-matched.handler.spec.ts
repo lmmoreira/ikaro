@@ -31,6 +31,8 @@ describe('AvailabilityAlertMatchedNotificationHandler', () => {
       .withTenantId('tenant-1')
       .withCorrelationId('corr-1')
       .withAlertId('alert-1')
+      .withResourceId('resource-1')
+      .withDurationMinutes(90)
       .build();
 
     await handler.handle(event);
@@ -45,6 +47,8 @@ describe('AvailabilityAlertMatchedNotificationHandler', () => {
       alertId: 'alert-1',
       matchingWindowStart: event.data.matchingWindowStart,
       matchingWindowEnd: event.data.matchingWindowEnd,
+      resourceId: 'resource-1',
+      durationMinutes: 90,
     });
   });
 

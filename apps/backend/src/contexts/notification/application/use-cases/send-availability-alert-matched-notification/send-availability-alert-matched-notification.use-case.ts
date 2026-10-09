@@ -13,6 +13,10 @@ export interface SendAvailabilityAlertMatchedNotificationUseCaseInput extends Re
   // ISO-8601 UTC instants of the window that opened (the event's matchingWindowStart / End).
   matchingWindowStart: string;
   matchingWindowEnd: string;
+  // The alert's preferred resource and duration, for the email's booking link. Optional: a
+  // message published before the event carried `durationMinutes` has neither guarantee.
+  resourceId?: string | null;
+  durationMinutes?: number | null;
 }
 
 export interface SendAvailabilityAlertMatchedNotificationUseCaseResult {

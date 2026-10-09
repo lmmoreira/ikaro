@@ -7,6 +7,7 @@ interface AvailabilityAlertMatchedData extends Record<string, unknown> {
   matchingWindowStart: string;
   matchingWindowEnd: string;
   resourceId: string | null;
+  durationMinutes: number | null;
 }
 
 // docs/03-DOMAIN_EVENTS.md § AvailabilityAlertMatched — a slot matching an ACTIVE alert's criteria

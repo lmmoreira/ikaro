@@ -13,6 +13,8 @@ import type {
 } from '@ikaro/types';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { filterBookableServices } from '@/features/booking/model/bookable-services';
+import type { BookingDeepLinkSeed } from '@/features/booking/model/booking-deep-link';
 import { buildIntakeRequestFields } from '@/features/booking/model/intake-answers';
 import { isAddressBlank } from '@/features/booking/model/personal-info';
 import {
@@ -32,12 +34,15 @@ import {
 import { useBookingFlow } from './useBookingFlow';
 import { useBookingFormData } from './useBookingFormData';
 import { useBookingSelections } from './useBookingSelections';
+import { useSeededResourcePick } from './useSeededResourcePick';
 import { useBookingSubmission } from './useBookingSubmission';
 
 interface Params {
   readonly slug: string;
   readonly services: readonly HotsiteServiceResponse[];
   readonly addressSpec: HotsiteAddressSpec;
+  /** What the availability-alert email's link pre-selects; null on the plain booking page. */
+  readonly seed?: BookingDeepLinkSeed | null;
 }
 
 const CLEARS_SLOT = new Set<string>([
@@ -80,12 +85,9 @@ function useCustomerProfile(slug: string) {
 }
 
 // The selections, the step list they produce and the fetch that finalises it.
-function useBookingFormState({ slug, services }: Params) {
-  const bookable = useMemo(
-    () => services.filter((service) => service.bookingModel === 'APPOINTMENT'),
-    [services],
-  );
-  const selections = useBookingSelections(bookable);
+function useBookingFormState({ slug, services, seed }: Params) {
+  const bookable = useMemo(() => filterBookableServices(services), [services]);
+  const selections = useBookingSelections(bookable, seed ?? null);
   const { selectedServices, picks, selectedServiceIds } = selections;
   const { data, load, refetchOptions } = useBookingFormData({ slug, selectedServices });
   const hasUnavailable = selectedServices.some((s) => data.unavailableServiceIds.includes(s.id));
@@ -221,14 +223,16 @@ function useBookingFormSubmit(
 
 // "Próximo" on Step 1: fetch the intake schemas and resource options so the step list is final,
 // then continue — unless a selected service has no pickable resource (it fails closed, on Step 1).
-function useLeaveServicesStep(state: FormState) {
+function useLeaveServicesStep(state: FormState, seed: BookingDeepLinkSeed | null) {
   const { selections, load, flow } = state;
+  const seedResourcePick = useSeededResourcePick(selections, seed);
   return async function leaveServicesStep() {
     flow.setError('services', null);
     const outcome = await load();
     if (outcome.kind === 'error') return;
     const unavailable = outcome.data.unavailableServiceIds;
     if (selections.selectedServices.some((service) => unavailable.includes(service.id))) return;
+    seedResourcePick(outcome.data.requirements);
     const next = resolveBookingSteps({
       services: selections.selectedServices,
       hasIntake: outcome.data.intakeSchema !== null,
@@ -242,7 +246,7 @@ export function useBookingFormController(params: Params) {
   const state = useBookingFormState(params);
   const pickerRecovery = usePickerRecovery(state);
   const submit = useBookingFormSubmit(params, state, pickerRecovery);
-  const leaveServicesStep = useLeaveServicesStep(state);
+  const leaveServicesStep = useLeaveServicesStep(state, params.seed ?? null);
   const { selections, flow } = state;
 
   return {

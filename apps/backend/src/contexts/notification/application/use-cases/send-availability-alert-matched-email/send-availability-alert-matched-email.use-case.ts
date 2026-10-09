@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { utcDateToLocalDate } from '../../../../../shared/utils/calendar-date';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import {
@@ -15,6 +17,28 @@ import {
 export interface SendAvailabilityAlertMatchedEmailUseCaseInput extends RecurringScheduleNotificationInput {
   // ISO-8601 UTC instant the matching window opens (the event's matchingWindowStart).
   matchingWindowStart: string;
+  // The alert's preferred resource and duration; absent on an event published before the event
+  // carried `durationMinutes`.
+  resourceId?: string | null;
+  durationMinutes?: number | null;
+}
+
+// The booking page opened on the alert's service and the day the slot opened; an empty hotsite URL
+// stays empty so the email never carries a relative link. It goes into an href, so the caller
+// escapes it.
+function bookingDeepLink(
+  hotsiteUrl: string,
+  input: SendAvailabilityAlertMatchedEmailUseCaseInput,
+  timezone: string,
+): string {
+  if (!hotsiteUrl) return hotsiteUrl;
+  const query = new URLSearchParams({
+    serviceId: input.serviceId,
+    date: utcDateToLocalDate(new Date(input.matchingWindowStart), timezone),
+  });
+  if (input.durationMinutes) query.set('durationMinutes', String(input.durationMinutes));
+  if (input.resourceId) query.set('resourceId', input.resourceId);
+  return `${hotsiteUrl}/booking?${query.toString()}`;
 }
 
 export type SendAvailabilityAlertMatchedEmailUseCaseResult =
@@ -36,7 +60,7 @@ export class SendAvailabilityAlertMatchedEmailUseCase extends BaseRecurringSched
     return {
       ...customerVariables(context),
       matchingWindow: formatEmailDateTime(input.matchingWindowStart, context.timezone, context),
-      bookingUrl: context.hotsiteUrl,
+      bookingUrl: escapeHtml(bookingDeepLink(context.hotsiteUrl, input, context.timezone)),
     };
   }
 

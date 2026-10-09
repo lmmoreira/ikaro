@@ -17,6 +17,10 @@ export interface AvailabilityAlertParams {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export function isUuid(value: string): boolean {
+  return UUID.test(value);
+}
+
 // A legged service or a bundle (more than one resource requirement, docs/02 § Service) — its
 // resource picks cannot be represented by an alert's single preferred resource.
 export function isCompositeService(service: HotsiteServiceResponse): boolean {
@@ -84,8 +88,8 @@ export function parseAvailabilityAlertParams(
   const resourceId = firstValue(searchParams.preferredResourceId);
   const minutes = Number(firstValue(searchParams.durationMinutes));
   return {
-    serviceId: serviceId !== null && UUID.test(serviceId) ? serviceId : null,
-    preferredResourceId: resourceId !== null && UUID.test(resourceId) ? resourceId : null,
+    serviceId: serviceId !== null && isUuid(serviceId) ? serviceId : null,
+    preferredResourceId: resourceId !== null && isUuid(resourceId) ? resourceId : null,
     durationMinutes: Number.isInteger(minutes) && minutes > 0 ? minutes : null,
   };
 }

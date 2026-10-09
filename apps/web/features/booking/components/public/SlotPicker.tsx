@@ -92,6 +92,7 @@ export function SlotPicker({
   if (slots.length === 0) {
     return (
       <output
+        data-testid="slot-picker-empty"
         className="flex items-start gap-2.5 border border-amber-300 bg-amber-50 p-3"
         style={{ borderRadius: isDashboardVariant ? '0.75rem' : 'var(--ba-radius)' }}
       >

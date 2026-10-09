@@ -1,8 +1,10 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/features/platform/api.server';
 import { fetchServices } from '@/features/platform/hotsite/api/services.server';
 import { BookingForm } from '@/features/booking/components/public/BookingForm';
+import { BookingFormWithDeepLink } from '@/features/booking/components/public/BookingFormWithDeepLink';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
@@ -45,21 +47,27 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
   const displayName = resolveHotsiteDisplayName(manifest);
 
+  const formProps = {
+    slug,
+    services,
+    carouselDays,
+    datePickerType,
+    // manifest.booking is optional (see @ikaro/types) — falls back to the documented tenant
+    // settings default (docs/21-TENANTS_SETTINGS_SCHEMA.md) rather than dereferencing unconditionally.
+    maxBookingAdvanceDays: manifest.booking?.maxBookingAdvanceDays ?? 90,
+    timezone: manifest.localization.timezone,
+    phonePrefix: manifest.localization.phonePrefix,
+    addressSpec: manifest.localization.address,
+  } as const;
+
   return (
     <>
       <HotsiteAuthBar slug={slug} logoUrl={manifest.branding.logoUrl} tenantName={displayName} />
-      <BookingForm
-        slug={slug}
-        services={services}
-        carouselDays={carouselDays}
-        datePickerType={datePickerType}
-        // manifest.booking is optional (see @ikaro/types) — falls back to the documented tenant
-        // settings default (docs/21-TENANTS_SETTINGS_SCHEMA.md) rather than dereferencing unconditionally.
-        maxBookingAdvanceDays={manifest.booking?.maxBookingAdvanceDays ?? 90}
-        timezone={manifest.localization.timezone}
-        phonePrefix={manifest.localization.phonePrefix}
-        addressSpec={manifest.localization.address}
-      />
+      {/* Reading the link's query string opts this subtree into client rendering, so the page's
+          static HTML carries the plain form as the Suspense fallback and stays cached. */}
+      <Suspense fallback={<BookingForm {...formProps} />}>
+        <BookingFormWithDeepLink {...formProps} />
+      </Suspense>
     </>
   );
 }

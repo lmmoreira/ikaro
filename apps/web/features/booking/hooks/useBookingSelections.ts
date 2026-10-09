@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { AvailableSlot, HotsiteServiceResponse, ResourceSelectionItem } from '@ikaro/types';
 import type { ChosenDuration } from '@/features/booking/model/basket-lines';
+import type { BookingDeepLinkSeed } from '@/features/booking/model/booking-deep-link';
 import {
   emptyIntakeAnswers,
   type IntakeAnswersValue,
@@ -51,8 +52,13 @@ interface DurationInvalidations {
 
 // The customer-selected duration and its quote. A new duration invalidates what was searched with
 // the old one (date and slot); a quote only lands on the duration it was requested for.
-function useChosenDuration({ clearDate, clearSlot }: DurationInvalidations) {
-  const [duration, setDuration] = useState<ChosenDuration | null>(null);
+function useChosenDuration(
+  { clearDate, clearSlot }: DurationInvalidations,
+  initialMinutes: number | null,
+) {
+  const [duration, setDuration] = useState<ChosenDuration | null>(
+    initialMinutes === null ? null : { minutes: initialMinutes, quotedAmount: null },
+  );
   return {
     duration,
     resetDuration: () => setDuration(null),
@@ -75,8 +81,8 @@ function useChosenDuration({ clearDate, clearSlot }: DurationInvalidations) {
 }
 
 // The searched date and the chosen slot: picking another date drops the slot found for the old one.
-function useSlotSelection() {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+function useSlotSelection(initialDate: string | null) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(initialDate);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   return {
     selectedDate,
@@ -94,18 +100,23 @@ function useSlotSelection() {
 // Everything the customer has chosen so far. Changing the selected services invalidates what was
 // derived from them — the date and slot, the resource picks, the duration and the intake answers —
 // because each belongs to the previous selection's requirements and schema.
+// A deep-link seed (the availability-alert email) only sets the starting state; the duration is
+// seeded here rather than through `chooseDuration`, which would clear the seeded date.
 export function useBookingSelections(
   services: readonly HotsiteServiceResponse[],
+  seed: BookingDeepLinkSeed | null = null,
 ): BookingSelections {
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
+    seed ? [seed.serviceId] : [],
+  );
   const [personalInfo, setPersonalInfo] = useState<PersonalInfoValue>(emptyPersonalInfo());
   const [picks, setPicks] = useState<readonly ResourceSelectionItem[]>([]);
   const [intake, setIntake] = useState<IntakeAnswersValue>(emptyIntakeAnswers());
-  const { clearDate, ...slot } = useSlotSelection();
-  const { resetDuration, ...chosenDuration } = useChosenDuration({
-    clearDate,
-    clearSlot: slot.clearSlot,
-  });
+  const { clearDate, ...slot } = useSlotSelection(seed?.date ?? null);
+  const { resetDuration, ...chosenDuration } = useChosenDuration(
+    { clearDate, clearSlot: slot.clearSlot },
+    seed?.durationMinutes ?? null,
+  );
 
   const selectedServices = useSelectedServices(services, selectedServiceIds);
 

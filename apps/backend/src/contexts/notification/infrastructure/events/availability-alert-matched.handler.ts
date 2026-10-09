@@ -39,6 +39,8 @@ export class AvailabilityAlertMatchedNotificationHandler implements OnModuleInit
         alertId: event.data.alertId,
         matchingWindowStart: event.data.matchingWindowStart,
         matchingWindowEnd: event.data.matchingWindowEnd,
+        resourceId: event.data.resourceId,
+        durationMinutes: event.data.durationMinutes,
       });
     } catch (err) {
       this.logger.error(
