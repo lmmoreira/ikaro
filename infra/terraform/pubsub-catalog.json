@@ -26,7 +26,8 @@
   {
     "event": "AvailabilityAlertMatched",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "notification"
     ]
   },
   {

@@ -120,5 +120,11 @@
       "subject": "Sua recorrência foi encerrada por {{tenantName}}",
       "body": "<p>Olá, {{contactName}}!</p><p>Sua recorrência de {{serviceName}} foi encerrada por <strong>{{tenantName}}</strong>.</p><p>Os horários futuros foram cancelados.</p>"
     }
+  },
+  "AvailabilityAlertMatched": {
+    "customer": {
+      "subject": "Abriu uma vaga para {{serviceName}}",
+      "body": "<p>Olá, {{contactName}}!</p><p>Abriu uma vaga para <strong>{{serviceName}}</strong>, o serviço que você pediu para acompanharmos.</p><p><strong>Disponível a partir de:</strong> {{matchingWindow}}</p><p>As vagas são preenchidas por ordem de chegada, então agende logo. Este aviso já foi utilizado.</p><p><a href=\"{{bookingUrl}}\">Abrir a página de agendamento</a></p>"
+    }
   }
 }

@@ -202,6 +202,8 @@ export class AvailabilityAlert extends AggregateRoot {
       channel,
       outcome: 'PENDING',
       attemptedAt: now,
+      attemptCount: 0,
+      lastError: null,
     };
     this.addDomainEvent(
       new AvailabilityAlertMatched(this.props.tenantId, correlationId, {

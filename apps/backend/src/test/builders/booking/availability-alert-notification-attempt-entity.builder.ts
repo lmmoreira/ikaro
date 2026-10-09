@@ -16,7 +16,9 @@ export class AvailabilityAlertNotificationAttemptEntityBuilder {
   private windowStart = new Date(Date.now() + 2 * DAY_MS);
   private windowEnd = new Date(Date.now() + 2 * DAY_MS + 3_600_000);
   private channel: AvailabilityAlertAttemptChannel = 'EMAIL';
-  private readonly outcome: AvailabilityAlertAttemptOutcome = 'PENDING';
+  private outcome: AvailabilityAlertAttemptOutcome = 'PENDING';
+  private attemptCount = 0;
+  private lastError: string | null = null;
   private readonly attemptedAt = new Date();
 
   withId(id: string): this {
@@ -49,6 +51,21 @@ export class AvailabilityAlertNotificationAttemptEntityBuilder {
     return this;
   }
 
+  withOutcome(outcome: AvailabilityAlertAttemptOutcome): this {
+    this.outcome = outcome;
+    return this;
+  }
+
+  withAttemptCount(attemptCount: number): this {
+    this.attemptCount = attemptCount;
+    return this;
+  }
+
+  withLastError(lastError: string | null): this {
+    this.lastError = lastError;
+    return this;
+  }
+
   build(): AvailabilityAlertNotificationAttemptEntity {
     const e = new AvailabilityAlertNotificationAttemptEntity();
     e.id = this.id;
@@ -58,6 +75,8 @@ export class AvailabilityAlertNotificationAttemptEntityBuilder {
     e.channel = this.channel;
     e.outcome = this.outcome;
     e.attemptedAt = this.attemptedAt;
+    e.attemptCount = this.attemptCount;
+    e.lastError = this.lastError;
     return e;
   }
 }

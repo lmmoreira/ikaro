@@ -8,9 +8,10 @@ export type AvailabilityAlertStatus = 'ACTIVE' | 'NOTIFIED' | 'CANCELLED' | 'EXP
 
 // docs/13-DATABASE_SCHEMA.md § availability_alert_notification_attempts. EMAIL is the only channel
 // M23-S07 writes (the CHECK also allows IN_APP). PENDING means "a match was found and handed off to
-// the Notification context" — a later story updates the outcome once the message is really sent.
+// the Notification context, nothing tried yet"; the Notification context then records SENT, or
+// FAILED when the last try failed (M23-S38 — a later successful redelivery turns FAILED into SENT).
 export type AvailabilityAlertAttemptChannel = 'EMAIL' | 'IN_APP';
-export type AvailabilityAlertAttemptOutcome = 'PENDING';
+export type AvailabilityAlertAttemptOutcome = 'PENDING' | 'SENT' | 'FAILED';
 
 // The slot that satisfied the alert — a half-open [startsAt, endsAt) UTC interval, stored as the
 // attempt's `matching_window` and the deduplication key together with the channel.
@@ -27,6 +28,10 @@ export interface AvailabilityAlertNotificationAttempt {
   channel: AvailabilityAlertAttemptChannel;
   outcome: AvailabilityAlertAttemptOutcome;
   attemptedAt: Date;
+  // How many times the email was tried, and why the last try failed (redacted); both are written
+  // by the Notification context's outcome report, never by the aggregate (M23-S38).
+  attemptCount: number;
+  lastError: string | null;
 }
 
 // Exactly one criteria representation (the domain invariant, also a DB CHECK): a finite absolute

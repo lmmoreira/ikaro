@@ -318,6 +318,26 @@
         "reviewBy": "2026-11-30"
       },
       {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/availability-alert-matched.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/availability-alert-matched.event.ts"
+        ],
+        "rationale": "Notification reacts to the availability-alert-matched domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-11-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-availability-alert-outcome.adapter.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/application/use-cases/record-availability-alert-outcome.use-case.ts"
+        ],
+        "rationale": "Notification reports the availability-alert email outcome to Booking, which owns the attempt row, through a port (M23-S38); an outcome event would need a new topic for one status column.",
+        "owner": "notification",
+        "reviewBy": "2026-11-30"
+      },
+      {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-approved.handler.ts",
         "target": "booking",
         "targetPaths": [

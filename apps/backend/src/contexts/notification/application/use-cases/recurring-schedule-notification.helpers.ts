@@ -38,6 +38,7 @@ export interface RecurringScheduleNotificationContext extends TenantEmailFormats
   locale: string;
   timezone: string;
   tenantName: string;
+  tenantSlug: string;
   serviceName: string;
   customerName: string;
   customerEmail: string;
@@ -68,6 +69,7 @@ export async function resolveRecurringScheduleContext(
     timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
     timezone: tenantInfo?.timezone ?? 'UTC',
     tenantName: tenantInfo?.name ?? '',
+    tenantSlug: tenantInfo?.slug ?? '',
     serviceName: service.serviceName,
     customerName: customer.name,
     customerEmail: customer.email,

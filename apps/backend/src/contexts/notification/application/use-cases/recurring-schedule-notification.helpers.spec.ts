@@ -58,6 +58,7 @@ describe('recurring-schedule-notification.helpers', () => {
           timeFormat: '24h',
           timezone: 'UTC',
           tenantName: 'Lava <Car>',
+          tenantSlug: 'lava-car',
           serviceName: 'Aula <b>Yoga</b>',
           customerName: 'Maria <img src=x>',
           customerEmail: 'maria@example.com',

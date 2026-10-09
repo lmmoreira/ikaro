@@ -33,4 +33,11 @@ export class AvailabilityAlertNotificationAttemptEntity {
 
   @Column({ type: 'varchar', length: 20 })
   outcome!: AvailabilityAlertAttemptOutcome;
+
+  // M23-S38: tries made by the Notification context, and the redacted reason of the last failure.
+  @Column({ name: 'attempt_count', type: 'int', default: 0 })
+  attemptCount!: number;
+
+  @Column({ name: 'last_error', type: 'varchar', length: 500, nullable: true })
+  lastError!: string | null;
 }
