@@ -107,6 +107,8 @@ Customer area uses `dashboard-topbar` + `dashboard-layout` + `main-content` (sam
 
 Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the brand slot. No bottom-nav on detail pages. The same applies to the M23 sub-pages reached from a card on Agendamentos (`07*`, `14*`, `06*`, `13*`) — forms and outcome screens too, whose submit/continue buttons sit in the action pane on desktop (`13f`'s "reserva não encontrada" state keeps its buttons inline, being a second state of the same page): the back link lives in the topbar (label "Agendamentos" on the two lists, "Reservas recorrentes"/"Meus avisos" on their details), never as a `back-link` inside the content, and a destructive action (end a schedule, cancel an alert) is a dedicated confirmation page, never an inline panel.
 
+**Topbar "+ Novo ▾" menu (decided 2026-10-09):** the topbar's global create action is one button with a two-item menu — "Agendamento" (→ the one-off booking flow, as before) and "Reserva recorrente" (→ `13`), each with a one-line description, mirroring the staff Agenda's `new-menu` (`staff/prototypes/agenda/00-agenda.html`). It is part of the shared `CustomerTopbar`, so the real app shows it (desktop, `≥1024px`) on every my-account screen, drill-downs included; the prototypes draw it on `01`, `01b`, `14` and `14b` only and do not repeat it on the other drill-down screens. On mobile the topbar has no room for it, so the same menu sits in the page: the Agendamentos body (`01`) and the header of the recurring list (`14`). The empty states keep their own contextual calls to action (`14b`'s "+ Nova reserva recorrente", `07b`'s "+ Novo agendamento").
+
 Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ## File map — per-screen status (all ✅ shipped)
@@ -250,7 +252,7 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 
 **Open questions / gaps:**
 - [x] Stories exist: `M23-S12`, `M23-S17`, `M23-S18`, `M23-S20` (remove Pause), `M23-S21` (renewal reminder e-mail), `M23-S22` ("Renovar", `13f`) — each still begins with `/story-discovery`.
-- [ ] **Entry point** (default drawn): a "Reservas recorrentes" link on the Agendamentos page → `14`, with the create button on the list. Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is still a UI decision for the implementing story.
+- [ ] **Entry point** (default drawn): a "Reservas recorrentes" link on the Agendamentos page → `14`, with creation through the topbar "+ Novo ▾" menu (see Shell pattern). Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is still a UI decision for the implementing story.
 - [ ] Every "known limitation" above.
 
 ---

@@ -118,6 +118,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `06-reserva-recorrente.html` | Gerenciar reserva recorrente (pular/reagendar/encerrar — sem pausar) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `06e-pular-fora-do-prazo.html` | Erro — pular uma ocorrência fora do prazo de cancelamento (decidido em M23-S08: a ocorrência é uma reserva) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `06f-reagendar-fora-do-prazo.html` | Erro — reagendar uma ocorrência fora do prazo de reagendamento | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `06g-encerrar-recorrencia.html` | Encerrar a reserva recorrente — página de confirmação (nunca um painel inline) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
 | `15-reagendar.html` | Reagendar: escolher o novo horário (data e hora; duração e escolhas mantidas) | UC-069 | M23-S30 | ✅ Criado |
 | `15b-reagendar-escolhas-mantidas.html` | Reagendar: pacote / jornada / profissional escolhido (escolhas mostradas só para leitura) | UC-069 A2 | M23-S30 | ✅ Criado |
 | `15c-carregando-horarios.html` | Carregando horários | UC-069 | M23-S30 | ✅ Criado |
@@ -249,7 +250,7 @@ flowchart TD
     Avisos -->|"Toca um aviso"| AvisoDetalhe["❓ GAP: .../alerts/[id]<br/>Detalhe (07f / 07g histórico)"]
     AvisoDetalhe -->|"'Cancelar aviso' (ativo)"| AvisoCancelar["❓ GAP: .../alerts/[id]/cancel<br/>Confirmação (07h / 07i erro)"]
     Agendamentos -->|"Card 'Reservas recorrentes'"| Lista["❓ GAP: /{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
-    Lista -->|"'+ Nova reserva recorrente'"| Padrao["❓ GAP: .../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
+    Lista -->|"topbar '+ Novo ▾' → 'Reserva recorrente' (any my-account screen; mobile: the same menu in the page)"| Padrao["❓ GAP: .../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
     Lista -->|"'Renovar' (encerrada ou terminando) ou link do e-mail de aviso"| Renovar["❓ GAP: .../recurring-schedules/new?renewFrom=id<br/>Pré-preenchido (13f-renovar-recorrencia)"]
     Renovar -->|"'Revisar'"| Revisar
     Lista -->|"Clica em uma reserva"| Gerenciar["❓ GAP: .../recurring-schedules/[id]<br/>Detalhe + painel de ações (06-reserva-recorrente)"]
@@ -293,7 +294,7 @@ POST  /recurring-booking-schedules/:id/end       -- end early (the `…/pause` r
 
 **Open questions / gaps:**
 - [x] Stories exist: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creation — in the booking flow, see `customer/book-a-service.md`), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload — backend, and it lands before `M23-S05`; `06d` is now the chosen UI for it, built in `M23-S17`). Each still begins with `/story-discovery`.
-- [ ] **Entry point (default drawn here):** a "Reservas recorrentes" link on the Agendamentos page leading to `14`, with the create button on that list. Alternatives to recheck: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is the same open UI decision as before.
+- [ ] **Entry point (default drawn here):** a "Reservas recorrentes" link on the Agendamentos page leading to `14`. **Creating** is the shared topbar "+ Novo ▾" menu (decided 2026-10-09): "Agendamento" (the one-off booking, as before) and "Reserva recorrente" (→ `13`), the same shape as the staff Agenda's "+ Novo" menu; `CustomerTopbar` renders it on every my-account screen, on mobile the same menu sits in the page (`01` body, `14` header). The list page has no create button of its own; the empty state (`14b`) keeps its call to action. Alternatives to recheck: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is the same open UI decision as before.
 - [x] **Conflict screen content:** `06b` shows the conflicting occurrences, which the API returns since `M23-S18` — one payload, `conflicts: [{ occurrenceStart, reason }]` with `reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS` — and `M23-S17` only renders it. Suggesting an alternative resource, which the original discovery prototype showed, is a much bigger feature and is **not** drawn here.
 - [ ] **Duration:** drawn as read-only, defined by the service. A `durationPolicy = CUSTOMER_SELECTED` service would need the variable-duration control (see `guest/prototypes/book-a-service/12-reserva-por-tempo.html`) — not drawn.
 - [ ] **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype; it is a dashboard surface, not part of this customer journey. Left open.
