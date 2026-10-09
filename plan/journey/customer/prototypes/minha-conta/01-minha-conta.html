@@ -72,6 +72,12 @@
     .new-menu-item:hover { background: #f9fafb; }
     .new-menu-item strong { display: block; font-size: 0.875rem; }
     .new-menu-item span { display: block; font-size: 0.75rem; opacity: 0.65; margin-top: 0.125rem; line-height: 1.35; }
+
+    /* ── Entry rows to the recurring and alerts lists: same icon as the Início tiles, count badge on the right ── */
+    .entry-row { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; padding: 0.75rem 1rem; background: white; border: 1px solid #f3f4f6; border-radius: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); color: var(--ba-text); }
+    .entry-icon { display: flex; align-items: center; justify-content: center; width: 2.125rem; height: 2.125rem; flex-shrink: 0; border-radius: 0.5rem; background: #eff6ff; color: #2563eb; }
+    .entry-title { flex: 1; min-width: 0; font-size: 0.875rem; font-weight: 600; }
+    .entry-count { flex-shrink: 0; font-size: 0.75rem; font-weight: 600; color: #15803d; background: #f0fdf4; border-radius: 9999px; padding: 0.25rem 0.625rem; }
   </style>
 </head>
 <body>
@@ -178,19 +184,19 @@
         </h1>
 
         <!-- "Reservas recorrentes" (M23-S12, GAP) — permanent entry to the recurring list; shown only when the customer has ANY recurring schedule (any status, so an ended one can still be reached and renewed); the count shown is the active ones. Tap → 14. Points are not repeated here: they live on Início and Fidelidade. -->
-        <a href="14-recorrentes-lista.html" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;
-           margin-bottom:0.75rem;padding:0.75rem 1rem;background:white;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);color:var(--ba-text);">
-          <span style="font-size:0.875rem;font-weight:600;">Reservas recorrentes <span style="font-weight:400;opacity:.55;">· 2 ativas</span></span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.35)"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <a class="entry-row" href="14-recorrentes-lista.html" style="margin-bottom:0.75rem;">
+          <span class="entry-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span>
+          <span class="entry-title">Reservas recorrentes</span>
+          <span class="entry-count">2 ativas</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.35)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </a>
 
         <!-- "Meus avisos" (M23-S12, GAP) — shown only when the customer has ANY alert (any status); the count shown is the active ones. Tap → 07 -->
-        <a href="07-availability-alert.html" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;
-           margin-bottom:1rem;padding:0.75rem 1rem;background:white;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);color:var(--ba-text);">
-          <span style="font-size:0.875rem;font-weight:600;">Meus avisos <span style="font-weight:400;opacity:.55;">· 2 ativos</span></span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.35)"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <a class="entry-row" href="07-availability-alert.html" style="margin-bottom:1rem;">
+          <span class="entry-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+          <span class="entry-title">Meus avisos</span>
+          <span class="entry-count">2 ativos</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.35)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </a>
 
         <!-- "+ Novo" menu (Agendamento / Reserva recorrente) — mobile only; desktop uses the topbar menu -->
