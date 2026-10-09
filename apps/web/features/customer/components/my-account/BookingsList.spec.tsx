@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { CustomerBookingListItem, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
+import type { CustomerBookingListItem } from '@ikaro/types';
 import { BookingsList } from './BookingsList';
 
 vi.mock('next-intl', () => ({
@@ -9,9 +9,8 @@ vi.mock('next-intl', () => ({
     const translations: Record<string, Record<string, string>> = {
       'customer.bookings': {
         title: 'Meus Agendamentos',
-        pointsValue: '{points} pts',
-        pointsActiveLabel: 'pontos ativos',
-        expiryStrip: '{points} pts expiram em {date}',
+        recurringEntryTitle: 'Reservas recorrentes',
+        recurringEntryActive: '{count} ativas',
         sectionUpcoming: 'Próximos ({count})',
         sectionPending: 'Pendentes ({count})',
         sectionHistory: 'Histórico ({count})',
@@ -70,13 +69,6 @@ vi.mock('next/link', () => ({
 
 const FUTURE = '2999-06-20T10:00:00.000Z';
 
-const balance: CustomerLoyaltyBalanceResponse = {
-  currentPoints: 120,
-  nextExpiryDate: '2026-08-15T00:00:00.000Z',
-  nextExpiryPoints: 12,
-  conversionRate: 0,
-};
-
 function makeItem(overrides: Partial<CustomerBookingListItem> = {}): CustomerBookingListItem {
   return {
     bookingId: `b-${Math.random().toString(36).slice(2)}`,
@@ -106,7 +98,7 @@ describe('BookingsList', () => {
       makeItem({ status: 'COMPLETED', scheduledAt: '2026-06-05T09:00:00.000Z' }),
     ];
 
-    render(<BookingsList bookings={bookings} loyaltyBalance={balance} tenantSlug="lavacar-bh" />);
+    render(<BookingsList bookings={bookings} recurringSummary={null} tenantSlug="lavacar-bh" />);
 
     expect(screen.getByText('Meus Agendamentos')).toBeInTheDocument();
     expect(screen.getByText('Próximos (1)')).toBeInTheDocument();
@@ -118,7 +110,7 @@ describe('BookingsList', () => {
     render(
       <BookingsList
         bookings={[makeItem({ status: 'PENDING' })]}
-        loyaltyBalance={balance}
+        recurringSummary={null}
         tenantSlug="lavacar-bh"
       />,
     );
@@ -129,7 +121,7 @@ describe('BookingsList', () => {
   });
 
   it('shows the empty state when there are no bookings at all', () => {
-    render(<BookingsList bookings={[]} loyaltyBalance={balance} tenantSlug="lavacar-bh" />);
+    render(<BookingsList bookings={[]} recurringSummary={null} tenantSlug="lavacar-bh" />);
 
     expect(screen.getByText('Nenhum agendamento ainda')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fazer agendamento' })).toHaveAttribute(
@@ -138,23 +130,65 @@ describe('BookingsList', () => {
     );
   });
 
-  it('renders the loyalty strip with points and expiry, linking to the loyalty page', () => {
-    render(<BookingsList bookings={[]} loyaltyBalance={balance} tenantSlug="lavacar-bh" />);
+  it('no longer renders a points strip (points live on Início and Fidelidade)', () => {
+    render(<BookingsList bookings={[]} recurringSummary={null} tenantSlug="lavacar-bh" />);
 
-    const strip = screen.getByRole('link', { name: /120 pts[\s\S]*pontos ativos/ });
-    expect(strip).toHaveAttribute('href', '/lavacar-bh/my-account/loyalty');
-    expect(screen.getByText('12 pts expiram em 2026-08-15')).toBeInTheDocument();
+    expect(screen.queryByText(/pts/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/pontos ativos/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /fidelidade/i })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href$="/my-account/loyalty"]')).toBeNull();
   });
 
-  it('hides the expiry note when nextExpiryDate is null', () => {
+  it('shows the recurring entry row with the active count when the customer has any schedule', () => {
     render(
       <BookingsList
         bookings={[]}
-        loyaltyBalance={{ ...balance, nextExpiryDate: null, nextExpiryPoints: null }}
+        recurringSummary={{ hasAny: true, activeCount: 2 }}
         tenantSlug="lavacar-bh"
       />,
     );
 
-    expect(screen.queryByText(/expiram em/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('recurring-entry-row')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/recurring-schedules',
+    );
+    expect(screen.getByTestId('recurring-entry-count')).toHaveTextContent('2 ativas');
+  });
+
+  it('still shows the entry row when every schedule has ended (count 0)', () => {
+    render(
+      <BookingsList
+        bookings={[]}
+        recurringSummary={{ hasAny: true, activeCount: 0 }}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.getByTestId('recurring-entry-count')).toHaveTextContent('0 ativas');
+  });
+
+  it('hides the entry row when the customer has no schedule', () => {
+    render(
+      <BookingsList
+        bookings={[]}
+        recurringSummary={{ hasAny: false, activeCount: 0 }}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.queryByTestId('recurring-entry-row')).not.toBeInTheDocument();
+  });
+
+  it('hides the entry row and still renders the tab when the summary is unavailable', () => {
+    render(
+      <BookingsList
+        bookings={[makeItem({ status: 'PENDING' })]}
+        recurringSummary={null}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.queryByTestId('recurring-entry-row')).not.toBeInTheDocument();
+    expect(screen.getByText('Pendentes (1)')).toBeInTheDocument();
   });
 });

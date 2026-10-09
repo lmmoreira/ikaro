@@ -7,6 +7,17 @@ export function resolveReturnTo(returnTo: string | undefined, tenantSlug: string
   return returnTo.startsWith(`/${tenantSlug}/my-account/`) ? returnTo : null;
 }
 
+/** Which back label a booking page shows for the place the customer came from. */
+export type ReturnBackLabelKey = 'backToLoyalty' | 'backToSchedule' | 'backToBookings';
+
+export function returnBackLabelKey(returnTo: string | null | undefined): ReturnBackLabelKey {
+  if (!returnTo) return 'backToBookings';
+  const path = returnTo.split('?')[0] ?? returnTo;
+  if (path.endsWith('/loyalty')) return 'backToLoyalty';
+  if (path.includes('/my-account/recurring-schedules/')) return 'backToSchedule';
+  return 'backToBookings';
+}
+
 export function appendReturnTo(path: string, returnTo: string | null | undefined): string {
   if (!returnTo) return path;
   const separator = path.includes('?') ? '&' : '?';

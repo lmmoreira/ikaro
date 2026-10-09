@@ -145,4 +145,36 @@ describe('CancelErrorPage', () => {
     );
     expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Agendamento');
   });
+  it('with a returnTo, the back button and the topbar back link return to it', () => {
+    const returnTo = '/lavacar-bh/my-account/recurring-schedules/sched-1?page=2';
+
+    function TopbarStatusProbe(): React.JSX.Element {
+      const status = useCustomerTopbarStatus();
+      return (
+        <div>
+          <p data-testid="probe-back-href">{status?.backHrefOverride ?? 'none'}</p>
+          <p data-testid="probe-back-label">{status?.backLabelOverride ?? 'none'}</p>
+        </div>
+      );
+    }
+
+    render(
+      <CustomerTopbarStatusProvider>
+        <TopbarStatusProbe />
+        <CancelErrorPage
+          booking={makeBooking()}
+          tenantSlug="lavacar-bh"
+          whatsapp={null}
+          returnTo={returnTo}
+        />
+      </CustomerTopbarStatusProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Voltar ao agendamento' })).toHaveAttribute(
+      'href',
+      returnTo,
+    );
+    expect(screen.getByTestId('probe-back-href')).toHaveTextContent(returnTo);
+    expect(screen.getByTestId('probe-back-label')).toHaveTextContent('backToSchedule');
+  });
 });

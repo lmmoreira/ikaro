@@ -151,15 +151,15 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 
 | File | Status | Story |
 |---|---|---|
-| `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` | ✅ Done (M23-S12) | M23-S12 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ❓ Gap | M23-S17 |
-| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane, same pattern as `bookings/[id]/page.tsx`) | M23-S12 |
-| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` | ❓ Gap — end confirmation page (same pattern as `bookings/[id]/cancel` and `alerts/[id]/cancel`; **not** an inline panel) | M23-S12 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ✅ Done (M23-S12) — detail page (central detail + action pane, same pattern as `bookings/[id]/page.tsx`) | M23-S12 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` | ✅ Done (M23-S12) — end confirmation page (same pattern as `bookings/[id]/cancel` and `alerts/[id]/cancel`; **not** an inline panel) | M23-S12 |
 | `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S43 |
 | `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane) | M23-S43 |
 | `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ❓ Gap — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S43 |
-| `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ❓ Gap | M23-S12 |
-| `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ `AccountListRow`, `RecurringScheduleDetail`, `RecurringSchedulePendingView`, `RecurringScheduleEndConfirm`) | ❓ Gap | M23-S12 |
+| `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ✅ Done (M23-S12) | M23-S12 |
+| `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ `AccountListRow`, `RecurringScheduleDetail`, `RecurringSchedulePendingView`, `RecurringScheduleEndConfirm`) | ✅ Done (M23-S12) | M23-S12 |
 | `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result) | ❓ Gap | M23-S17 |
 | `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` (and `availability-alerts.server.ts` for the alerts) | ❓ Gap | M23-S12 / S17 / S43 |
 | `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` and `customer.alerts.*` | ❓ Gap | M23-S12 / S17 / S43 |

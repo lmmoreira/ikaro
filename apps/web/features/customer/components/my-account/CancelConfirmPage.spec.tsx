@@ -186,4 +186,52 @@ describe('CancelConfirmPage', () => {
     );
     expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Agendamento');
   });
+  describe('with a returnTo (coming from a recurring schedule)', () => {
+    const RETURN_TO = '/lavacar-bh/my-account/recurring-schedules/sched-1?page=2';
+
+    it('a successful cancel returns to it instead of the my-account home', async () => {
+      cancelBookingMock.mockResolvedValue(undefined);
+      const user = userEvent.setup();
+      render(
+        <CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" returnTo={RETURN_TO} />,
+      );
+
+      const desktopPane = screen.getByTestId('action-pane-desktop');
+      await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
+
+      await waitFor(() => expect(pushMock).toHaveBeenCalledWith(RETURN_TO));
+      expect(pushMock).not.toHaveBeenCalledWith('/lavacar-bh/my-account');
+    });
+
+    it('a window-expired failure carries it on to the cancel/error page', async () => {
+      cancelBookingMock.mockRejectedValue(
+        new ApiError(422, 'outside window', { code: 'BOOKING_CANCELLATION_WINDOW_EXPIRED' }),
+      );
+      const user = userEvent.setup();
+      render(
+        <CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" returnTo={RETURN_TO} />,
+      );
+
+      const desktopPane = screen.getByTestId('action-pane-desktop');
+      await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
+
+      await waitFor(() =>
+        expect(pushMock).toHaveBeenCalledWith(
+          `/lavacar-bh/my-account/bookings/b1/cancel/error?returnTo=${encodeURIComponent(RETURN_TO)}`,
+        ),
+      );
+    });
+
+    it('points the topbar back link at it, labelled for the schedule', () => {
+      render(
+        <CustomerTopbarStatusProvider>
+          <TopbarStatusProbe />
+          <CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" returnTo={RETURN_TO} />
+        </CustomerTopbarStatusProvider>,
+      );
+
+      expect(screen.getByTestId('probe-back-href')).toHaveTextContent(RETURN_TO);
+      expect(screen.getByTestId('probe-back-label')).toHaveTextContent('backToSchedule');
+    });
+  });
 });
