@@ -53,16 +53,6 @@
       margin-bottom: 0.625rem; margin-top: 0;
     }
 
-    /* ── Loyalty compact strip ── */
-    .loyalty-strip {
-      display: flex; align-items: center; justify-content: space-between;
-      background: white; border: 1px solid var(--ba-secondary);
-      border-radius: var(--ba-radius); padding: 0.75rem 1rem;
-      margin-bottom: 1.25rem; box-shadow: var(--ba-shadow);
-    }
-    .loyalty-pts { font-size: 1.125rem; font-weight: 800; color: var(--ba-text); }
-    .loyalty-label { font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); }
-    .loyalty-expiry { font-size: 0.75rem; color: #92400e; background: #fef3c7; padding: 0.2rem 0.5rem; border-radius: 4px; }
 
     /* ── Desktop overrides ── */
     @media (min-width: 1024px) {
@@ -93,7 +83,7 @@
     UC-006 step 1–4 (section list) + UC-007 cancel trigger
     DATA:
       GET /v1/bookings   → full booking list (split client-side into 3 sections)
-      GET /v1/loyalty/balance → compact strip
+      GET /recurring-booking-schedules (limit=1) → total > 0 shows the "Reservas recorrentes" entry; GET /availability-alerts → any item shows "Meus avisos" (M23-S12)
   -->
 
   <!-- Prototype banner -->
@@ -187,24 +177,7 @@
           Meus Agendamentos
         </h1>
 
-        <!-- Loyalty compact strip (UC-016 summary) — tap → full loyalty view -->
-        <a href="04-fidelidade.html" style="text-decoration:none;">
-        <div class="loyalty-strip" style="cursor:pointer;">
-          <div>
-            <div class="loyalty-pts">120 pts</div>
-            <div class="loyalty-label">pontos ativos</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:0.5rem;">
-            <span class="loyalty-expiry">12 pts expiram em 15 ago</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.35)"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m9 18 6-6-6-6"/>
-            </svg>
-          </div>
-        </div>
-        </a>
-
-        <!-- "Reservas recorrentes" (M23-S12, GAP) — the customer's recurring private reservations; tap → 14 (14b when there are none) -->
+        <!-- "Reservas recorrentes" (M23-S12, GAP) — permanent entry to the recurring list; shown only when the customer has ANY recurring schedule (any status, so an ended one can still be reached and renewed); the count shown is the active ones. Tap → 14. Points are not repeated here: they live on Início and Fidelidade. -->
         <a href="14-recorrentes-lista.html" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;
            margin-bottom:0.75rem;padding:0.75rem 1rem;background:white;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);color:var(--ba-text);">
           <span style="font-size:0.875rem;font-weight:600;">Reservas recorrentes <span style="font-weight:400;opacity:.55;">· 2 ativas</span></span>
@@ -212,7 +185,7 @@
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </a>
 
-        <!-- "Meus avisos" (M23-S12, GAP) — availability alerts the customer created from the booking flow; tap → 07 -->
+        <!-- "Meus avisos" (M23-S12, GAP) — shown only when the customer has ANY alert (any status); the count shown is the active ones. Tap → 07 -->
         <a href="07-availability-alert.html" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;
            margin-bottom:1rem;padding:0.75rem 1rem;background:white;border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);color:var(--ba-text);">
           <span style="font-size:0.875rem;font-weight:600;">Meus avisos <span style="font-weight:400;opacity:.55;">· 2 ativos</span></span>

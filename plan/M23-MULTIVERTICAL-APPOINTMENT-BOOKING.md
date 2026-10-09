@@ -1205,6 +1205,7 @@ Add "Meus agendamentos recorrentes" (list/skip/reschedule-occurrence/end a `Recu
 - `apps/web/app/[slug]/my-account/alerts/page.tsx` (new)
 - `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` (new — the alert's detail page, central detail + action pane, same pattern as `bookings/[id]/page.tsx`)
 - `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` (new — the cancel confirmation page, same pattern as `bookings/[id]/cancel/page.tsx` and the team `deactivate` page; **not** an inline panel)
+- `apps/web/features/customer/components/my-account/BookingsList.tsx` (+ spec) (modify — remove the loyalty strip and add the "Reservas recorrentes" and "Meus avisos" entries, each shown only when the customer has any schedule or alert in any status, as drawn in `01`; the bookings page (`bookings/page.tsx`) then no longer fetches the loyalty balance — verify at discovery that nothing else on that page needs it)
 - `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` (+ spec) (new — location per this story's own verification note above)
 - `apps/web/features/customer/components/my-account/RecurringScheduleOccurrenceActions.tsx` (+ spec) (new)
 - `apps/web/features/customer/components/my-account/AvailabilityAlertList.tsx` (+ spec) (new)
@@ -1216,6 +1217,8 @@ Add "Meus agendamentos recorrentes" (list/skip/reschedule-occurrence/end a `Recu
 - [ ] Customer sees their availability alerts and can open one's detail page and cancel an active one from its action pane through a confirmation page (the same pattern as cancelling a booking — never an inline panel); a notified/expired alert shows as read-only history with no cancel action. There is no edit action in the UI yet (`PATCH /availability-alerts/:id` exists from M23-S06 but is not used here).
 
 - [ ] The recurring list has no create control of its own: no header button, no topbar menu change and no link to a creation route; the empty state shows its illustration and copy without a call to action until M23-S17 adds it. The topbar keeps today's "+ Novo agendamento" link.
+
+- [ ] The Agendamentos tab no longer shows a points strip; "Reservas recorrentes" and "Meus avisos" appear there only when the customer has any item of that kind (an ended schedule or a past alert still counts), and show the active count.
 
 **Acceptance criteria — technical:**
 - Unit:

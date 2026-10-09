@@ -62,6 +62,8 @@ flowchart TD
 
 **Início extension (`M23-S41`, drawn in `plan/journey/shared/customer-dashboard.html`):** two tiles, "Recorrências · N ativa(s)" and "Avisos · N ativo(s)", each linking to its list, shown only when the count is above zero (no tenant flag — zero hides them), and one amber "Renovar" card for the active schedule that ends first ("N reservas terminando" with several). A customer with neither sees today's page. Frontend only; the card depends on a server-applied renewal window field decided in `M23-S22`.
 
+**Tab roles (decided 2026-10-09):** Início is the glance (points, active counts, the "Renovar" card, a short booking preview); Agendamentos is the booking list plus the two sub-lists that are bookings in disguise — "Reservas recorrentes" and "Meus avisos" — each shown only when the customer has any item in it, in any status, so an ended schedule can still be reached and renewed; Fidelidade is the only full points view. Points are not repeated on Agendamentos.
+
 ## BFF calls in this flow
 
 | Call | When | Roles |
@@ -104,7 +106,7 @@ Folder: `customer/prototypes/minha-conta/`
 |---|---|---|---|---|
 | `index.html` | Navigation hub | — | — | ✅ Criado |
 | `00-hotsite-logged-in.html` | Hotsite logged-in state (entry point) | — | — | ✅ Criado |
-| `01-minha-conta.html` | Minha Conta — booking list + loyalty strip (clickable) | UC-006 | M13-S27 | ✅ Criado |
+| `01-minha-conta.html` | Minha Conta — booking list + entries to the recurring and alerts lists (the loyalty strip was removed 2026-10-09: points live on Início and Fidelidade) | UC-006 | M13-S27 | ✅ Criado |
 | `01b-minha-conta-empty.html` | Minha Conta — estado vazio (nenhum agendamento) | UC-006 A1 | M13-S27 | ✅ Criado |
 | `02-agendamento-detail.html` | Detalhe do Agendamento (APPROVED/PENDING) | UC-006 step 5 | M13-S28 | ✅ Criado |
 | `02b-agendamento-info-requested.html` | Detalhe — INFO_REQUESTED + form de resposta | UC-005 A2 | M13-S28 | ✅ Criado |
