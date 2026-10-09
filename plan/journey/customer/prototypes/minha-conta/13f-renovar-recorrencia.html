@@ -99,7 +99,7 @@
       Pré-preenchimento (função pura): serviço, dias da semana, horário e — para FIXED_ASSIGNMENT — o recurso da recorrência antiga.
         startsOn = dia seguinte ao endsOn antigo (ou hoje, se já passou). endsOn fica VAZIO: a cliente escolhe, respeitando o prazo máximo do serviço.
       Nada é criado aqui: a cliente segue por 13b (revisar) e o POST normal — todas as verificações de M23-S18 valem igual para uma renovação.
-      Estado B: renewFrom desconhecido, de outra cliente ou de serviço que deixou de permitir recorrência → formulário em branco + aviso; nunca uma página de erro.
+      Estado B: renewFrom desconhecido, de outra cliente ou de serviço que deixou de permitir recorrência → o formulário em branco de 13 com UMA linha de aviso acima (sem botões próprios); nunca uma página de erro.
   -->
 
   <!-- TOP BAR — drill-down pattern: back link replaces the brand slot (CustomerTopbar backHrefOverride), no tab nav / bottom nav -->
@@ -183,16 +183,11 @@
           </div>
         </div>
 
-        <p class="section-label" style="margin-top:2rem;">Estado B — reserva a renovar não encontrada</p>
-        <div class="notice">
-          <strong>Não encontramos a reserva que você queria renovar</strong>
-          <p class="meta">Ela pode ter sido removida ou não permitir mais recorrência. Você pode criar uma nova reserva recorrente normalmente.</p>
+        <p class="section-label" style="margin-top:2rem;">Estado B — reserva a renovar não encontrada (aviso sobre o formulário em branco)</p>
+        <div class="notice" role="status">
+          <p class="meta" style="margin:0;"><strong>Não encontramos a reserva que você queria renovar.</strong> Você pode criar uma nova reserva recorrente abaixo.</p>
         </div>
-        <div class="nav-buttons">
-          <a class="btn-secondary" href="14-recorrentes-lista.html">Voltar à lista</a>
-          <a class="btn-primary" href="13-nova-recorrencia.html" style="text-decoration:none;">Criar uma nova</a>
-        </div>
-
+        <p class="meta" style="margin:.5rem 0 0;font-size:.8125rem;">Logo abaixo do aviso vem o formulário em branco de <code>13-nova-recorrencia.html</code>, com os mesmos botões "Revisar" e "Cancelar". Não há tela própria nem botões extras.</p>
 
             <!-- Mobile-only actions -->
             <div class="mobile-actions" style="margin-top:1rem;">
