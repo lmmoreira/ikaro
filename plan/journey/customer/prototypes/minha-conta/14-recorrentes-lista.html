@@ -39,6 +39,7 @@
     .badge-ativa   { background: #f0fdf4; color: #15803d; }
     .badge-analise { background: #fef3c7; color: #92400e; }
     .badge-encerrada { background: #f1f5f9; color: #475569; }
+    .badge-cancelada { background: #f3f4f6; color: #6b7280; }
     .rec-renew { display: block; text-align: right; font-size: 0.8125rem; font-weight: 600; margin: -0.25rem 0.25rem 0.75rem; }
 
     .empty-state { text-align: center; padding: 3rem 1rem; color: var(--ba-text); }
@@ -203,7 +204,7 @@
           <span class="badge row-badge badge-analise">Em análise</span>
         </div>
 
-        <p class="section-label" style="margin-top:1.5rem;">Encerradas <span style="opacity:.5;">(1)</span></p>
+        <p class="section-label" style="margin-top:1.5rem;">Encerradas <span style="opacity:.5;">(2)</span></p>
         <div class="row-item">
           <div class="row-icon muted"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
           <div class="row-main">
@@ -213,6 +214,16 @@
           <div class="row-actions"><a class="row-action" href="13f-renovar-recorrencia.html">Renovar</a></div>
           </div>
           <span class="badge row-badge badge-encerrada">Encerrada</span>
+        </div>
+
+        <div class="row-item">
+          <div class="row-icon muted"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+          <div class="row-main">
+          <a class="row-title" href="06h-recorrencia-encerrada.html?cancelada">Sala de reunião</a>
+          <p class="row-meta">Toda quarta · 08:00–09:00 · 05 mai → 30 jun</p>
+          <p class="row-meta">Cancelada por você em 12 jun</p>
+          </div>
+          <span class="badge row-badge badge-cancelada">Cancelada</span>
         </div>
 
         <p style="font-size:.8125rem;opacity:.55;margin-top:1.25rem;">As reservas de uma recorrência também aparecem em Agendamentos.</p>

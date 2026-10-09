@@ -116,9 +116,9 @@
 
             <p class="section-label">Reservas do período</p>
             <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
-              <div class="detail-row"><div><div class="detail-row-value"><a href="02c-agendamento-historico.html" style="color:inherit;text-decoration:none;">25 de agosto</a> <span class="occ-state">· Concluída</span></div><div class="detail-row-sub">Sala Aurora · 1 hora · R$ 50,00</div></div></div>
-              <div class="detail-row"><div><div class="detail-row-value"><a href="02c-agendamento-historico.html" style="color:inherit;text-decoration:none;">18 de agosto</a> <span class="occ-state">· Concluída</span></div><div class="detail-row-sub">Sala Aurora · 1 hora · R$ 50,00</div></div></div>
-              <div class="detail-row"><div><div class="detail-row-value"><a href="02c-agendamento-historico.html" style="color:inherit;text-decoration:none;">11 de agosto</a> <span class="occ-state">· Cancelada por você</span></div><div class="detail-row-sub">Sala Aurora · 1 hora</div></div></div>
+              <div class="detail-row"><div><div class="detail-row-value"><a href="02c-agendamento-historico.html" style="color:inherit;text-decoration:none;">25 de agosto</a> <span class="occ-state">· Concluída</span></div><div class="detail-row-sub">1 hora · R$ 50,00</div></div></div>
+              <div class="detail-row"><div><div class="detail-row-value"><a href="02c-agendamento-historico.html" style="color:inherit;text-decoration:none;">18 de agosto</a> <span class="occ-state">· Concluída</span></div><div class="detail-row-sub">1 hora · R$ 50,00</div></div></div>
+              <div class="detail-row"><div><div class="detail-row-value"><a href="02c-agendamento-historico.html" style="color:inherit;text-decoration:none;">11 de agosto</a> <span class="occ-state">· Cancelada por você</span></div><div class="detail-row-sub">1 hora</div></div></div>
             </div>
 
             <div class="mobile-actions">
@@ -149,5 +149,13 @@
     </main>
   </div>
 
+  <script>
+    /* the list (14) links a cancelled schedule here with ?cancelada */
+    if (location.search.indexOf('cancelada') !== -1) {
+      document.body.classList.add('is-cancelled');
+      var cb = document.querySelector('input[type=checkbox]');
+      if (cb) cb.checked = true;
+    }
+  </script>
 </body>
 </html>

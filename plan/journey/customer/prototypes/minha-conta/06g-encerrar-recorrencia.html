@@ -38,10 +38,8 @@
       .detail-aside { display: block; position: sticky; top: 1.5rem; }
       .mobile-actions { display: none !important; }
     }
-      .error-box {
-      background: #fef2f2; border: 2px solid #fca5a5; border-radius: var(--ba-radius);
-      padding: 1.125rem 1rem; margin-bottom: 1.25rem;
-    }
+    .end-error { display:none; font-size:0.875rem; font-weight:500; color:#dc2626; margin-bottom:1.25rem; }
+    .end-error:target { display:block; }
   </style>
 </head>
 <body>
@@ -89,6 +87,8 @@
               Os próximos horários são liberados.
             </p>
 
+            <p id="falha" class="end-error" role="alert">Não foi possível encerrar a recorrência. Tente novamente em instantes.</p>
+
             <p class="section-label">Reserva recorrente</p>
             <div class="booking-summary">
               <div class="booking-summary-name">Toda terça, 10:00–12:00 · Sala Aurora</div>
@@ -133,5 +133,6 @@
     </main>
   </div>
 
+  <p style="text-align:center;font-size:0.75rem;opacity:.5;margin:1rem 0;">Protótipo: <a href="#falha">ver erro ao encerrar</a> · <a href="#">estado normal</a></p>
 </body>
 </html>
