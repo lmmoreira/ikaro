@@ -39,6 +39,7 @@ export class BookingRescheduledHandler implements OnModuleInit {
         newSlot: event.data.newSlot,
         previousSlot: event.data.previousSlot,
         rescheduledBy: event.data.rescheduledBy,
+        isBusiness: event.data.isBusiness,
         adminNotes: event.data.adminNotes,
         lineSummary: event.data.lineSummary,
         totalPrice: event.data.totalPrice,

@@ -139,4 +139,21 @@ describe('SendRecurringScheduleCreatedNotificationUseCase', () => {
     expect(fx.dispatcher.dispatched).toHaveLength(0);
     expect(fx.logRepo.all).toHaveLength(0);
   });
+
+  it('escapes the tenant name', async () => {
+    fx.seedTemplate(NotificationTemplateKey.RECURRING_SCHEDULE_CREATED_CUSTOMER);
+    fx.tenantPort.setTenantInfo(RECURRING_TENANT_ID, {
+      id: RECURRING_TENANT_ID,
+      name: 'Lava <img src=x>',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(baseInput);
+
+    expect(fx.dispatcher.dispatched[0].body).not.toContain('<img');
+    expect(fx.dispatcher.dispatched[0].body).toContain('Lava &lt;img src=x&gt;');
+  });
 });

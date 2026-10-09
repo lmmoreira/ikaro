@@ -4,7 +4,7 @@ import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-m
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingCancelledNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -42,6 +42,8 @@ describe('SendBookingCancelledNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
       replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     templateRepo = new InMemoryNotificationTemplateRepository();
     templateRepo.seed(
@@ -64,15 +66,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    const localizationPort = new InMemoryLocalizationPort();
-    localizationPort.setTemplate('BookingCancelled:customer', {
-      subject: 'Seu agendamento foi cancelado',
-      body: '<p>Olá, {{contactName}}! Serviços: {{serviceNames}} Data: {{localDate}}</p>',
-    });
-    localizationPort.setTemplate('BookingCancelled:admin', {
-      subject: 'Agendamento cancelado',
-      body: '<p>Cliente: {{contactName}} isBusiness: {{isBusiness}} reason: {{reason}}</p>',
-    });
+    const localizationPort = new JsonLocalizationAdapter();
     useCase = new SendBookingCancelledNotificationUseCase(
       logRepo,
       inboxRepo,
@@ -97,10 +91,12 @@ describe('SendBookingCancelledNotificationUseCase', () => {
     expect(customerMsg!.subject).toBe('Seu agendamento foi cancelado');
     expect(customerMsg!.body).toContain('João Silva');
     expect(customerMsg!.body).toContain('Lavagem Completa');
+    expect(customerMsg!.body).not.toContain('{{');
 
     const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
     expect(adminMsg).toBeDefined();
     expect(adminMsg!.subject).toBe('Agendamento cancelado');
+    expect(adminMsg!.body).not.toContain('{{');
 
     const logs = logRepo.all;
     expect(logs).toHaveLength(2);
@@ -174,10 +170,95 @@ describe('SendBookingCancelledNotificationUseCase', () => {
     expect(logRepo.all.every((l) => l.tenantId === TENANT_ID)).toBe(true);
   });
 
-  it('formats scheduledAt in tenant timezone', async () => {
+  it('writes the date and time in the tenant timezone and format', async () => {
     await useCase.execute(dto);
     const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
-    expect(customerMsg!.body).toContain('2026');
+    expect(customerMsg!.body).toContain('<strong>Data:</strong> 01/07/2026');
+    expect(customerMsg!.body).toContain('<strong>Horário:</strong> 10:00');
+    expect(customerMsg!.body).not.toContain('2026-07-01');
+  });
+
+  it('tells the manager the business cancelled, with the reason', async () => {
+    await useCase.execute(dto);
+
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    expect(adminMsg!.body).toContain('Cancelado pelo estabelecimento.');
+    expect(adminMsg!.body).toContain('<p><strong>Motivo:</strong> Unavailability</p>');
+  });
+
+  it('tells the manager the customer cancelled, and omits the reason line when none was given', async () => {
+    const byCustomer = new SendBookingCancelledNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId(EVENT_ID)
+      .withIsBusiness(false)
+      .withReason(null)
+      .build();
+
+    await useCase.execute(byCustomer);
+
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    expect(adminMsg!.body).toContain('Cancelado pelo cliente.');
+    expect(adminMsg!.body).not.toContain('Motivo');
+  });
+
+  it('gives the customer the reason when the business cancelled', async () => {
+    await useCase.execute(dto);
+
+    const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
+    expect(customerMsg!.body).toContain('<p><strong>Motivo:</strong> Unavailability</p>');
+  });
+
+  it('does not repeat to the customer the reason they gave for their own cancellation', async () => {
+    const byCustomer = new SendBookingCancelledNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId(EVENT_ID)
+      .withIsBusiness(false)
+      .withReason('Changed my mind')
+      .build();
+
+    await useCase.execute(byCustomer);
+
+    const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    expect(customerMsg!.body).not.toContain('Motivo');
+    expect(adminMsg!.body).toContain('Changed my mind');
+  });
+
+  it('writes the English copy, US date and 12-hour clock for an en tenant', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava Car',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'en',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    const customerMsg = dispatcher.dispatched.find((m) => m.to === 'joao@example.com');
+    const adminMsg = dispatcher.dispatched.find((m) => m.to === 'manager@lavacar.com.br');
+    expect(customerMsg!.body).toContain('<strong>Date:</strong> 07/01/2026');
+    expect(customerMsg!.body).toContain('<strong>Time:</strong> 10:00 AM');
+    expect(adminMsg!.body).toContain('Cancelled by the business.');
+    expect(adminMsg!.body).toContain('<strong>Reason:</strong> Unavailability');
+  });
+
+  it('escapes the names and the reason typed by people', async () => {
+    const hostile = new SendBookingCancelledNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId(EVENT_ID)
+      .withContactName('<img src=x>')
+      .withReason('<script>x</script>')
+      .build();
+
+    await useCase.execute(hostile);
+
+    for (const msg of dispatcher.dispatched) {
+      expect(msg.body).not.toContain('<img');
+      expect(msg.body).not.toContain('<script>');
+    }
+    expect(dispatcher.dispatched.some((m) => m.body.includes('&lt;img src=x&gt;'))).toBe(true);
   });
 
   it('falls back to America/Sao_Paulo timezone when tenant info is not found', async () => {

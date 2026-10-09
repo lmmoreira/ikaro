@@ -5,7 +5,7 @@ import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-m
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendStaffInvitationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -63,11 +63,7 @@ describe('SendStaffInvitationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    const localizationPort = new InMemoryLocalizationPort();
-    localizationPort.setTemplate('StaffInvited:staff', {
-      subject: 'Você foi convidado para a equipe {{tenantName}}',
-      body: '<p>Olá, {{staffName}}! <a href="{{activationLink}}">Acessar</a></p>',
-    });
+    const localizationPort = new JsonLocalizationAdapter();
     useCase = new SendStaffInvitationUseCase(
       logRepo,
       inboxRepo,
@@ -89,9 +85,11 @@ describe('SendStaffInvitationUseCase', () => {
 
     const msg = dispatcher.dispatched[0];
     expect(msg.to).toBe('maria@lavacar.com.br');
-    expect(msg.subject).toContain('Lava Car');
+    expect(msg.subject).toBe('Convite para equipe Ikaro');
+    expect(msg.body).toContain('Lava Car');
     expect(msg.body).toContain('Maria');
     expect(msg.body).toContain('/dashboard/login?tenantSlug=lavacar');
+    expect(msg.body).not.toContain('{{');
 
     const logs = logRepo.all;
     expect(logs).toHaveLength(1);
@@ -137,5 +135,34 @@ describe('SendStaffInvitationUseCase', () => {
   it('tenant isolation: log is scoped to the correct tenantId', async () => {
     await useCase.execute(dto);
     expect(logRepo.all[0].tenantId).toBe(TENANT_ID);
+  });
+
+  it('escapes the staff name', async () => {
+    staffPort.setStaff(TENANT_ID, {
+      id: STAFF_ID,
+      email: 'maria@lavacar.com.br',
+      name: '<img src=x>',
+    });
+
+    await useCase.execute(dto);
+
+    expect(dispatcher.dispatched[0].body).not.toContain('<img');
+    expect(dispatcher.dispatched[0].body).toContain('&lt;img src=x&gt;');
+  });
+
+  it('escapes the tenant name in the body and leaves the subject plain', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava <b>& Cia</b>',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    expect(dispatcher.dispatched[0].body).toContain('Lava &lt;b&gt;&amp; Cia&lt;/b&gt;');
+    expect(dispatcher.dispatched[0].body).not.toContain('<b>& Cia');
   });
 });

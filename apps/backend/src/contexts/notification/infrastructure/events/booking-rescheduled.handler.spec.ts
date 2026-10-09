@@ -42,6 +42,7 @@ describe('BookingRescheduledHandler', () => {
       endTime: '2026-07-07T11:00:00.000Z',
     });
     expect(dto.rescheduledBy).toBe('staffid-0000-4000-8000-000000000001');
+    expect(dto.isBusiness).toBe(true);
     expect(dto.adminNotes).toBeNull();
     expect(dto.lineSummary).toHaveLength(1);
     expect(dto.lineSummary[0].serviceNameAtBooking).toBe('Lavagem Completa');

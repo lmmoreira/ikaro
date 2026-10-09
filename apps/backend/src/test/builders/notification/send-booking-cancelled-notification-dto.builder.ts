@@ -5,10 +5,10 @@ export class SendBookingCancelledNotificationDtoBuilder {
   private eventId = 'cccccccc-0001-4000-8000-000000000001';
   private readonly correlationId = 'corr-cancelled-1';
   private contactEmail = 'joao@example.com';
-  private readonly contactName = 'João Silva';
+  private contactName = 'João Silva';
   private cancelledBy = 'staffid-0000-4000-8000-000000000001';
   private isBusiness = true;
-  private readonly reason: string | null = 'Unavailability';
+  private reason: string | null = 'Unavailability';
   private readonly scheduledAt = '2026-07-01T13:00:00.000Z';
   private readonly lineSummary = [
     {
@@ -36,6 +36,16 @@ export class SendBookingCancelledNotificationDtoBuilder {
 
   withCancelledBy(cancelledBy: string): this {
     this.cancelledBy = cancelledBy;
+    return this;
+  }
+
+  withContactName(contactName: string): this {
+    this.contactName = contactName;
+    return this;
+  }
+
+  withReason(reason: string | null): this {
+    this.reason = reason;
     return this;
   }
 

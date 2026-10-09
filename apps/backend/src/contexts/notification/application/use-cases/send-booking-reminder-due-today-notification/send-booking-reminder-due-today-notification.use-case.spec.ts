@@ -3,7 +3,7 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingReminderDueNotificationDtoBuilder } from '../../../../../test/builders/notification/send-booking-reminder-due-notification-dto.builder';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -40,6 +40,8 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
       replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     templateRepo.seed(
       NotificationTemplate.create({
@@ -51,11 +53,7 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    const localizationPort = new InMemoryLocalizationPort();
-    localizationPort.setTemplate('BookingReminderDueToday:customer', {
-      subject: 'Lembrete: seu agendamento é hoje!',
-      body: '<p>{{customerName}} — {{serviceNames}} — {{localDate}} {{localTime}}</p>',
-    });
+    const localizationPort = new JsonLocalizationAdapter();
 
     useCase = new SendBookingReminderDueTodayNotificationUseCase(
       logRepo,
@@ -80,7 +78,8 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
     expect(msg.to).toBe('joao@example.com');
     expect(msg.subject).toBe('Lembrete: seu agendamento é hoje!');
     expect(msg.channel).toBe('EMAIL');
-    expect(msg.body).toContain('João Silva');
+    expect(msg.body).toContain('Olá, João Silva!');
+    expect(msg.body).not.toContain('{{');
   });
 
   it('saves a notification log entry', async () => {
@@ -97,5 +96,35 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
 
     expect(second.emailSent).toBe(false);
     expect(dispatcher.dispatched).toHaveLength(1);
+  });
+
+  it('escapes the customer and service names', async () => {
+    const hostile = new SendBookingReminderDueNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId('eeeeeeee-0010-4000-8000-0000000000aa')
+      .withCustomerName('<img src=x>')
+      .build();
+
+    await useCase.execute(hostile);
+
+    expect(dispatcher.dispatched[0].body).not.toContain('<img');
+    expect(dispatcher.dispatched[0].body).toContain('&lt;img src=x&gt;');
+  });
+
+  it('writes the English copy with a 12-hour clock for an en tenant', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'LavaCar SP',
+      slug: 'lavacar-sp',
+      timezone: 'America/Sao_Paulo',
+      locale: 'en',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    const msg = dispatcher.dispatched[0];
+    expect(msg.body).toContain('Hello, João Silva!');
+    expect(msg.body).toContain('10:00 AM');
   });
 });

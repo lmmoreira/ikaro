@@ -4,6 +4,7 @@ import {
   APPLICATION_CONFIG,
   IApplicationConfig,
 } from '../../../../../shared/ports/application-config.port';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -31,6 +32,7 @@ import {
 } from '../../ports/notification-platform.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER;
@@ -75,16 +77,22 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
     }
 
     const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
+    if (input.customerId !== null && tenantInfo === null) {
+      // The customer's link is built on the tenant slug; without it there is nothing valid to send.
+      this.logger.warn('Tenant not found — skipping', { tenantId: input.tenantId });
+      return { emailSent: false };
+    }
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
     const respondLink = this.buildRespondLink(input, tenantInfo);
 
-    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, {
-      contactName: input.contactName,
-      informationNeeded: input.informationNeeded,
+    const variables: TemplateVariables<typeof TRIGGER> = {
+      contactName: escapeHtml(input.contactName),
+      informationNeeded: escapeHtml(input.informationNeeded),
       respondLink,
-    });
+    };
+    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, variables);
     return { emailSent };
   }
 
@@ -95,7 +103,8 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
     const frontendUrl = this.config.getOrThrow('FRONTEND_URL');
 
     if (input.customerId !== null) {
-      return `${frontendUrl}/dashboard/bookings/${input.bookingId}`;
+      // A customer answers from their own booking page; the dashboard is staff-only.
+      return `${frontendUrl}/${tenantInfo?.slug ?? ''}/my-account/bookings/${input.bookingId}`;
     }
 
     const secret = this.config.getOrThrow('JWT_SECRET');

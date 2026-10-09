@@ -36,7 +36,7 @@
   "BookingCancelled": {
     "customer": {
       "subject": "Seu agendamento foi cancelado",
-      "body": "<p>Olá, {{contactName}}!</p><p>Seu agendamento foi cancelado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>"
+      "body": "<p>Olá, {{contactName}}!</p><p>Seu agendamento foi cancelado.</p>{{reasonLine}}<p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>"
     },
     "admin": {
       "subject": "Agendamento cancelado",
@@ -50,7 +50,7 @@
     },
     "admin": {
       "subject": "Agendamento reagendado",
-      "body": "<p>Agendamento reagendado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>"
+      "body": "<p>Agendamento reagendado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{rescheduledByLine}}</p>"
     }
   },
   "BookingReminderDue": {
@@ -68,7 +68,7 @@
   "AdminDailyScheduleReminder": {
     "admin": {
       "subject": "Agenda do dia",
-      "body": "<p>Olá!</p><p>Veja a agenda de hoje, <strong>{{localDate}}</strong>:</p><p>{{bookingsSummary}}</p>"
+      "body": "<p>Olá!</p><p>Veja a agenda de hoje, <strong>{{localDate}}</strong>:</p>{{bookingsSummary}}"
     }
   },
   "ServicePointsEarned": {

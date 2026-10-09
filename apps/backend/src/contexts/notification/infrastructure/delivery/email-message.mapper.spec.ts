@@ -37,8 +37,23 @@ describe('toNodemailerMessage', () => {
       from: { name: 'Lava Car', address: 'noreply@ikaro.example' },
       replyTo: 'contato@lavacar.example',
       subject: 'Teste',
-      html: '<p>Olá</p>',
+      html: '<!doctype html><html><head><meta charset="utf-8"></head><body><p>Olá</p></body></html>',
+      text: 'Olá',
     });
+  });
+
+  it('states the language on the document when one is given', () => {
+    const message = toNodemailerMessage({ ...options, lang: 'pt-BR' });
+
+    expect(message.html).toContain('<html lang="pt-BR">');
+  });
+
+  it('sends both an HTML and a plain-text alternative', async () => {
+    const raw = await compose(toNodemailerMessage({ ...options, html: '<p>Olá, <b>Ana</b>!</p>' }));
+
+    expect(raw).toMatch(/Content-Type: multipart\/alternative/i);
+    expect(raw).toMatch(/Content-Type: text\/plain/i);
+    expect(raw).toMatch(/Content-Type: text\/html/i);
   });
 
   it('keeps From as the bare address and omits replyTo when neither is given', () => {

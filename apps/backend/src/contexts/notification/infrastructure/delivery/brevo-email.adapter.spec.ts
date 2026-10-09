@@ -75,7 +75,8 @@ describe('BrevoEmailAdapter', () => {
       to: 'joao@example.com',
       from: 'noreply@ikaro.example',
       subject: 'Teste',
-      html: '<p>Olá</p>',
+      html: '<!doctype html><html><head><meta charset="utf-8"></head><body><p>Olá</p></body></html>',
+      text: 'Olá',
     });
   });
 
@@ -94,7 +95,8 @@ describe('BrevoEmailAdapter', () => {
       from: { name: 'Lava Car', address: 'noreply@ikaro.example' },
       replyTo: 'contato@lavacar.example',
       subject: 'Teste',
-      html: '<p>Olá</p>',
+      html: '<!doctype html><html><head><meta charset="utf-8"></head><body><p>Olá</p></body></html>',
+      text: 'Olá',
     });
   });
 

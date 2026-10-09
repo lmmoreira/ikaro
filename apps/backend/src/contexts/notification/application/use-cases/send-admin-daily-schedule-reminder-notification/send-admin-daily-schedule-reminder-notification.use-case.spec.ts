@@ -5,7 +5,7 @@ import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructur
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { SendAdminDailyScheduleReminderNotificationDtoBuilder } from '../../../../../test/builders/notification/send-admin-daily-schedule-reminder-notification-dto.builder';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
@@ -13,16 +13,6 @@ import { SendAdminDailyScheduleReminderNotificationUseCase } from './send-admin-
 
 const TENANT_ID = 'aaaaaaaa-0003-4000-8000-000000000001';
 const EVENT_ID = 'eeeeeeee-0011-4000-8000-000000000001';
-
-const PT_BR_HEADERS = {
-  time: 'Horário',
-  customer: 'Cliente',
-  phone: 'Telefone',
-  services: 'Serviços',
-  duration: 'Duração',
-  notes: 'Notas',
-  emptyState: 'Nenhum agendamento para hoje',
-};
 
 const dto = new SendAdminDailyScheduleReminderNotificationDtoBuilder()
   .withTenantId(TENANT_ID)
@@ -36,7 +26,7 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
-  let localizationPort: InMemoryLocalizationPort;
+  let localizationPort: JsonLocalizationAdapter;
   let useCase: SendAdminDailyScheduleReminderNotificationUseCase;
 
   beforeEach(() => {
@@ -46,7 +36,7 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
     staffPort = new InMemoryNotificationStaffPort();
     tenantPort = new InMemoryNotificationPlatformPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
-    localizationPort = new InMemoryLocalizationPort();
+    localizationPort = new JsonLocalizationAdapter();
 
     tenantPort.setTenantInfo(TENANT_ID, {
       id: TENANT_ID,
@@ -55,6 +45,8 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
       replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     staffPort.setManagerEmails(TENANT_ID, ['manager1@lavacar.com', 'manager2@lavacar.com']);
     templateRepo.seed(
@@ -67,12 +59,6 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    localizationPort.setTemplate('AdminDailyScheduleReminder:admin', {
-      subject: 'Agenda do dia — {{localDate}}',
-      body: '<p>Total: {{totalBookingsToday}} — {{bookingsHtml}}</p>',
-    });
-    localizationPort.setTableHeaders('adminDailySchedule', 'pt-BR', PT_BR_HEADERS);
-
     useCase = new SendAdminDailyScheduleReminderNotificationUseCase(
       logRepo,
       inboxRepo,
@@ -87,29 +73,32 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
 
   afterEach(() => jest.resetAllMocks());
 
-  it('dispatches one email per manager with correct subject and body', async () => {
+  it('dispatches one email per manager with the date in the tenant format', async () => {
     const result = await useCase.execute(dto);
 
     expect(result.emailSent).toBe(true);
     expect(result.recipientCount).toBe(2);
-    expect(dispatcher.dispatched).toHaveLength(2);
-
-    expect(dispatcher.dispatched[0].to).toBe('manager1@lavacar.com');
-    expect(dispatcher.dispatched[1].to).toBe('manager2@lavacar.com');
-    expect(dispatcher.dispatched[0].subject).toBe('Agenda do dia — 2026-07-02');
-    expect(dispatcher.dispatched[0].body).toContain('1');
+    expect(dispatcher.dispatched.map((d) => d.to)).toEqual([
+      'manager1@lavacar.com',
+      'manager2@lavacar.com',
+    ]);
+    expect(dispatcher.dispatched[0].body).toContain('<strong>02/07/2026</strong>');
+    expect(dispatcher.dispatched[0].body).not.toContain('2026-07-02');
   });
 
-  it('uses localized column headers in the schedule table', async () => {
+  it('renders the booking table, with local time, from the shipped pt-BR copy', async () => {
     await useCase.execute(dto);
 
     const body = dispatcher.dispatched[0].body;
-    expect(body).toContain('Horário');
-    expect(body).toContain('Cliente');
-    expect(body).toContain('Serviços');
+    expect(body).toContain('<th>Horário</th>');
+    expect(body).toContain('<th>Cliente</th>');
+    expect(body).toContain(
+      '<tr><td>10:00</td><td>João Silva</td><td>+5531999990000</td><td>Lavagem Completa</td><td>60 min</td><td>-</td></tr>',
+    );
+    expect(body).not.toContain('{{');
   });
 
-  it('sets bookingsHtml to localized empty message when totalBookingsToday is 0', async () => {
+  it('shows the localized empty-state sentence when there are no bookings today', async () => {
     const emptyDto = new SendAdminDailyScheduleReminderNotificationDtoBuilder()
       .withTenantId(TENANT_ID)
       .withEventId('eeeeeeee-0011-4000-8000-000000000002')
@@ -118,10 +107,12 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
 
     await useCase.execute(emptyDto);
 
-    expect(dispatcher.dispatched[0].body).toContain('Nenhum agendamento para hoje');
+    const body = dispatcher.dispatched[0].body;
+    expect(body).toContain('Nenhum agendamento para hoje');
+    expect(body).not.toContain('<table>');
   });
 
-  it('uses English headers when tenant locale is en', async () => {
+  it('writes the English copy, a 12-hour clock and the US date for an en tenant', async () => {
     tenantPort.setTenantInfo(TENANT_ID, {
       id: TENANT_ID,
       name: 'LavaCar SP',
@@ -129,23 +120,45 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'en',
       replyToEmail: null,
-    });
-    localizationPort.setTemplateForLocale('AdminDailyScheduleReminder:admin', 'en', {
-      subject: "Today's schedule — {{localDate}}",
-      body: '<p>Total: {{totalBookingsToday}} — {{bookingsHtml}}</p>',
-    });
-    localizationPort.setTableHeaders('adminDailySchedule', 'en', {
-      ...PT_BR_HEADERS,
-      time: 'Time',
-      customer: 'Customer',
-      services: 'Services',
-      emptyState: 'No bookings for today',
+      dateFormat: 'MM/DD/YYYY',
+      timeFormat: '12h',
     });
 
     await useCase.execute(dto);
 
-    expect(dispatcher.dispatched[0].body).toContain('Time');
-    expect(dispatcher.dispatched[0].body).toContain('Customer');
+    const { body } = dispatcher.dispatched[0];
+    expect(body).toContain('<strong>07/02/2026</strong>');
+    expect(body).toContain('<th>Time</th>');
+    expect(body).toContain('<th>Customer</th>');
+    expect(body).toContain('<td>10:00 AM</td>');
+  });
+
+  it('escapes customer-typed text in the table', async () => {
+    const hostile = new SendAdminDailyScheduleReminderNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId('eeeeeeee-0011-4000-8000-000000000003')
+      .withBookingsToday([
+        {
+          bookingId: 'bbbbbbbb-0001-4000-8000-000000000009',
+          customerName: '<img src=x onerror=alert(1)>',
+          customerPhone: null,
+          lines: [{ serviceId: 'ssss-0009', serviceName: 'Wash <b>Pro</b>' }],
+          appointmentSlot: {
+            startTime: '2026-07-02T13:00:00.000Z',
+            endTime: '2026-07-02T14:00:00.000Z',
+          },
+          adminNotes: '<script>x</script>',
+        },
+      ])
+      .build();
+
+    await useCase.execute(hostile);
+
+    const body = dispatcher.dispatched[0].body;
+    expect(body).not.toContain('<img');
+    expect(body).not.toContain('<script>');
+    expect(body).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(body).toContain('Wash &lt;b&gt;Pro&lt;/b&gt;');
   });
 
   it('dispatches nothing and returns emailSent=false when no managers', async () => {

@@ -5,7 +5,7 @@ export class SendBookingRescheduledNotificationDtoBuilder {
   private eventId = 'cccccccc-0002-4000-8000-000000000001';
   private readonly correlationId = 'corr-rescheduled-1';
   private readonly contactEmail = 'joao@example.com';
-  private readonly contactName = 'João Silva';
+  private contactName = 'João Silva';
   private readonly previousSlot = {
     startTime: '2026-07-01T13:00:00.000Z',
     endTime: '2026-07-01T14:00:00.000Z',
@@ -14,6 +14,7 @@ export class SendBookingRescheduledNotificationDtoBuilder {
     startTime: '2026-07-07T13:00:00.000Z',
     endTime: '2026-07-07T14:00:00.000Z',
   };
+  private isBusiness = true;
   private readonly rescheduledBy = 'staffid-0000-4000-8000-000000000001';
   private readonly adminNotes: string | null = null;
   private readonly lineSummary = [
@@ -34,6 +35,16 @@ export class SendBookingRescheduledNotificationDtoBuilder {
     return this;
   }
 
+  withIsBusiness(isBusiness: boolean): this {
+    this.isBusiness = isBusiness;
+    return this;
+  }
+
+  withContactName(contactName: string): this {
+    this.contactName = contactName;
+    return this;
+  }
+
   build(): SendBookingRescheduledNotificationDto {
     return {
       tenantId: this.tenantId,
@@ -44,6 +55,7 @@ export class SendBookingRescheduledNotificationDtoBuilder {
       previousSlot: this.previousSlot,
       newSlot: this.newSlot,
       rescheduledBy: this.rescheduledBy,
+      isBusiness: this.isBusiness,
       adminNotes: this.adminNotes,
       lineSummary: this.lineSummary,
       totalPrice: this.totalPrice,

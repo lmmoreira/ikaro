@@ -3,6 +3,7 @@ import {
   APPLICATION_CONFIG,
   IApplicationConfig,
 } from '../../../../../shared/ports/application-config.port';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -33,6 +34,7 @@ import {
 } from '../../ports/notification-platform.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN;
@@ -88,12 +90,17 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
     const customerResponse =
       typeof input.infoPayload['notes'] === 'string' ? input.infoPayload['notes'] : '';
 
-    const emailSent = await this.dispatchTemplatesToMany(templates, input, managerEmails, {
-      submittedByEmail: input.submittedByEmail,
-      bookingId: input.bookingId,
-      customerResponse,
+    const variables: TemplateVariables<typeof TRIGGER> = {
+      submittedByEmail: escapeHtml(input.submittedByEmail),
+      customerResponse: escapeHtml(customerResponse),
       bookingLink,
-    });
+    };
+    const emailSent = await this.dispatchTemplatesToMany(
+      templates,
+      input,
+      managerEmails,
+      variables,
+    );
     return { emailSent };
   }
 }

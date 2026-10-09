@@ -31,7 +31,8 @@ describe('MailhogEmailAdapter', () => {
       from: 'noreply@ikaro.example',
       to: 'joao@example.com',
       subject: 'Teste',
-      html: '<p>Olá</p>',
+      html: '<!doctype html><html><head><meta charset="utf-8"></head><body><p>Olá</p></body></html>',
+      text: 'Olá',
     });
   });
 
@@ -50,7 +51,8 @@ describe('MailhogEmailAdapter', () => {
       replyTo: 'contato@lavacar.example',
       to: 'joao@example.com',
       subject: 'Teste',
-      html: '<p>Olá</p>',
+      html: '<!doctype html><html><head><meta charset="utf-8"></head><body><p>Olá</p></body></html>',
+      text: 'Olá',
     });
   });
 

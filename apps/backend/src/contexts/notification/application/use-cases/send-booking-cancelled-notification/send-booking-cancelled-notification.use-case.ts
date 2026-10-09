@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { formatMoney } from '../../../../../shared/utils/money-format';
-import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -30,8 +30,27 @@ import {
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
-import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import {
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_LOCALE,
+  DEFAULT_TIME_FORMAT,
+} from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
+import { formatEmailInstant, labelledLine, sentence } from '../notification-email-format.helpers';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
+
+const CUSTOMER_TRIGGER = NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER;
+const ADMIN_TRIGGER = NotificationTemplateKey.BOOKING_CANCELLED_ADMIN;
+const LINES_KEY = 'managerEmailLines';
+
+interface CancelledDisplayContext {
+  locale: string;
+  localDate: string;
+  localTime: string;
+  serviceNames: string;
+  formattedTotal: string;
+  lines: Record<string, string>;
+}
 
 export interface SendBookingCancelledNotificationUseCaseInput extends BaseContactNotificationDto {
   cancelledBy: SendBookingCancelledNotificationDto['cancelledBy'];
@@ -83,19 +102,22 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
     this.localizeTemplates(customerTemplates, this.localizationPort, ctx.locale);
     this.localizeTemplates(adminTemplates, this.localizationPort, ctx.locale);
 
-    const variables = this.buildVariables(input, ctx);
-
     const customerEmailSent = await this.dispatchTemplates(
       customerTemplates,
       input,
       input.contactEmail,
-      variables,
+      this.customerVariables(input, ctx),
     );
 
     const managerEmails = await this.staffPort.getManagerEmails(input.tenantId);
     const adminEmailSent =
       managerEmails.length > 0
-        ? await this.dispatchTemplatesToMany(adminTemplates, input, managerEmails, variables)
+        ? await this.dispatchTemplatesToMany(
+            adminTemplates,
+            input,
+            managerEmails,
+            this.adminVariables(input, ctx),
+          )
         : false;
 
     return { customerEmailSent, adminEmailSent };
@@ -103,52 +125,61 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
 
   private async resolveDisplayContext(
     input: SendBookingCancelledNotificationUseCaseInput,
-  ): Promise<{
-    locale: string;
-    localDate: string;
-    localTime: string;
-    serviceNames: string;
-    formattedTotal: string;
-  }> {
+  ): Promise<CancelledDisplayContext> {
     const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
-    const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
-    const scheduledDate = new Date(input.scheduledAt);
+    const { date, time } = formatEmailInstant(input.scheduledAt, tenantInfo?.timezone ?? 'UTC', {
+      dateFormat: tenantInfo?.dateFormat ?? DEFAULT_DATE_FORMAT,
+      timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
+    });
     return {
       locale,
-      localDate: utcDateToLocalDate(scheduledDate, timezone),
-      localTime: utcDateToLocalHHMM(scheduledDate, timezone),
-      serviceNames: input.lineSummary.map((l) => l.serviceNameAtBooking).join(', '),
+      localDate: date,
+      localTime: time,
+      serviceNames: input.lineSummary.map((l) => escapeHtml(l.serviceNameAtBooking)).join(', '),
       formattedTotal: formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency),
+      lines: this.localizationPort.getEmailTableHeaders(LINES_KEY, locale),
     };
   }
 
   private loadTemplates(tenantId: string) {
     return Promise.all([
-      this.templateRepo.findAllByTriggerEvent(
-        tenantId,
-        NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
-      ),
-      this.templateRepo.findAllByTriggerEvent(
-        tenantId,
-        NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
-      ),
+      this.templateRepo.findAllByTriggerEvent(tenantId, CUSTOMER_TRIGGER),
+      this.templateRepo.findAllByTriggerEvent(tenantId, ADMIN_TRIGGER),
     ]);
   }
 
-  private buildVariables(
+  // The customer is told why only when the business cancelled: a reason the customer typed for
+  // their own cancellation is not news to them.
+  private customerVariables(
     input: SendBookingCancelledNotificationUseCaseInput,
-    ctx: { localDate: string; localTime: string; serviceNames: string; formattedTotal: string },
-  ): Record<string, string> {
+    ctx: CancelledDisplayContext,
+  ): TemplateVariables<typeof CUSTOMER_TRIGGER> {
     return {
-      contactName: input.contactName,
+      contactName: escapeHtml(input.contactName),
       serviceNames: ctx.serviceNames,
       totalPrice: ctx.formattedTotal,
       localDate: ctx.localDate,
       localTime: ctx.localTime,
-      cancelledBy: input.cancelledBy,
-      isBusiness: String(input.isBusiness),
-      reason: input.reason ?? '',
+      reasonLine: input.isBusiness ? labelledLine(ctx.lines.reasonLabel ?? '', input.reason) : '',
+    };
+  }
+
+  // The manager is told who cancelled (the event carries isBusiness, not a name) and the reason.
+  private adminVariables(
+    input: SendBookingCancelledNotificationUseCaseInput,
+    ctx: CancelledDisplayContext,
+  ): TemplateVariables<typeof ADMIN_TRIGGER> {
+    return {
+      contactName: escapeHtml(input.contactName),
+      serviceNames: ctx.serviceNames,
+      totalPrice: ctx.formattedTotal,
+      localDate: ctx.localDate,
+      localTime: ctx.localTime,
+      cancelledByLine: sentence(
+        (input.isBusiness ? ctx.lines.cancelledByBusiness : ctx.lines.cancelledByCustomer) ?? '',
+      ),
+      reasonLine: labelledLine(ctx.lines.reasonLabel ?? '', input.reason),
     };
   }
 }

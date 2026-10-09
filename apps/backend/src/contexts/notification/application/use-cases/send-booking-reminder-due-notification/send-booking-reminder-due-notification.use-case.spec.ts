@@ -3,7 +3,7 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingReminderDueNotificationDtoBuilder } from '../../../../../test/builders/notification/send-booking-reminder-due-notification-dto.builder';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -24,7 +24,7 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
   let inboxRepo: InMemoryInboxRepository;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
-  let localizationPort: InMemoryLocalizationPort;
+  let localizationPort: JsonLocalizationAdapter;
   let useCase: SendBookingReminderDueNotificationUseCase;
 
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
     inboxRepo = new InMemoryInboxRepository();
     tenantPort = new InMemoryNotificationPlatformPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
-    localizationPort = new InMemoryLocalizationPort();
+    localizationPort = new JsonLocalizationAdapter();
 
     tenantPort.setTenantInfo(TENANT_ID, {
       id: TENANT_ID,
@@ -42,6 +42,8 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'pt-BR',
       replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
     templateRepo.seed(
       NotificationTemplate.create({
@@ -53,10 +55,6 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    localizationPort.setTemplate('BookingReminderDue:customer', {
-      subject: 'Lembrete: seu agendamento é amanhã!',
-      body: '<p>{{customerName}} — {{serviceNames}} — {{localDate}} {{localTime}}</p>',
-    });
 
     useCase = new SendBookingReminderDueNotificationUseCase(
       logRepo,
@@ -81,15 +79,17 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
     expect(msg.to).toBe('joao@example.com');
     expect(msg.subject).toBe('Lembrete: seu agendamento é amanhã!');
     expect(msg.channel).toBe('EMAIL');
-    expect(msg.body).toContain('João Silva');
+    expect(msg.body).toContain('Olá, João Silva!');
+    expect(msg.body).not.toContain('{{');
     expect(msg.body).toContain('Lavagem Completa');
   });
 
   it('derives localDate and localTime from scheduledAt + tenant timezone', async () => {
     await useCase.execute(dto);
     const msg = dispatcher.dispatched[0];
-    expect(msg.body).toMatch(/\d{4}-\d{2}-\d{2}/);
-    expect(msg.body).toMatch(/\d{2}:\d{2}/);
+    expect(msg.body).toContain('<strong>Data:</strong> 02/07/2026');
+    expect(msg.body).toContain('10:00');
+    expect(msg.body).not.toContain('2026-07-02');
   });
 
   it('falls back to America/Sao_Paulo when tenant not found', async () => {
@@ -142,5 +142,35 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
     const result = await uc.execute(dto);
     expect(result.emailSent).toBe(false);
     expect(dispatcher.dispatched).toHaveLength(0);
+  });
+
+  it('escapes the customer and service names', async () => {
+    const hostile = new SendBookingReminderDueNotificationDtoBuilder()
+      .withTenantId(TENANT_ID)
+      .withEventId('eeeeeeee-0010-4000-8000-0000000000aa')
+      .withCustomerName('<img src=x>')
+      .build();
+
+    await useCase.execute(hostile);
+
+    expect(dispatcher.dispatched[0].body).not.toContain('<img');
+    expect(dispatcher.dispatched[0].body).toContain('&lt;img src=x&gt;');
+  });
+
+  it('writes the English copy with a 12-hour clock for an en tenant', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'LavaCar SP',
+      slug: 'lavacar-sp',
+      timezone: 'America/Sao_Paulo',
+      locale: 'en',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    const msg = dispatcher.dispatched[0];
+    expect(msg.body).toContain('Hello, João Silva!');
+    expect(msg.body).toContain('10:00 AM');
   });
 });

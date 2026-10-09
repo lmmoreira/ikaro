@@ -4,7 +4,7 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
-import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
+import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendPointsExpiringSoonNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -28,6 +28,7 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
   let inboxRepo: InMemoryInboxRepository;
   let customerPort: InMemoryNotificationCustomerPort;
+  let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
 
   beforeEach(() => {
@@ -51,10 +52,16 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
         body: 'DB BODY (unused)',
       }),
     );
-    const localizationPort = new InMemoryLocalizationPort();
-    localizationPort.setTemplate('PointsExpiringSoon:customer', {
-      subject: 'Seus pontos de fidelidade estão prestes a expirar!',
-      body: '<p>{{customerName}} — {{pointsExpiringSoon}} pontos expirando em {{earliestExpiresAt}}</p>',
+    tenantPort = new InMemoryNotificationPlatformPort();
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava Car',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
+      replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
     });
 
     useCase = new SendPointsExpiringSoonNotificationUseCase(
@@ -64,8 +71,8 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
       customerPort,
       new InMemoryTransactionManager(),
       templateRepo,
-      new InMemoryNotificationPlatformPort(),
-      localizationPort,
+      tenantPort,
+      new JsonLocalizationAdapter(),
     );
   });
 
@@ -78,9 +85,10 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
     expect(dispatcher.dispatched).toHaveLength(1);
     const msg = dispatcher.dispatched[0];
     expect(msg.to).toBe('joao@example.com');
-    expect(msg.subject).toBe('Seus pontos de fidelidade estão prestes a expirar!');
+    expect(msg.subject).toBe('Seus pontos estão prestes a expirar');
     expect(msg.body).toContain('João Silva');
-    expect(msg.body).toContain('20 pontos');
+    expect(msg.body).toContain('20');
+    expect(msg.body).not.toContain('{{');
   });
 
   it('saves a notification log entry', async () => {
@@ -110,5 +118,39 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
 
     expect(result.emailSent).toBe(false);
     expect(dispatcher.dispatched).toHaveLength(0);
+  });
+
+  it('writes the expiry as the tenant-local calendar day, in the tenant format', async () => {
+    // 2026-06-09T00:00Z is still 8 June in São Paulo (UTC-3).
+    await useCase.execute(dto);
+
+    expect(dispatcher.dispatched[0].body).toContain('08/06/2026');
+    expect(dispatcher.dispatched[0].body).not.toContain('2026-06-09');
+  });
+
+  it('writes the US date for an en tenant', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava Car',
+      slug: 'lavacar',
+      timezone: 'America/Sao_Paulo',
+      locale: 'en',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    expect(dispatcher.dispatched[0].body).toContain('06/08/2026');
+  });
+
+  it('escapes the customer name', async () => {
+    customerPort.setCustomer(TENANT_ID, CUSTOMER_ID, {
+      email: 'joao@example.com',
+      name: '<img src=x>',
+    });
+
+    await useCase.execute(dto);
+
+    expect(dispatcher.dispatched[0].body).not.toContain('<img');
   });
 });

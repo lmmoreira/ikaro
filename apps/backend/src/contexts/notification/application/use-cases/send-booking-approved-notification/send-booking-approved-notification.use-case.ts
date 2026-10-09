@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { formatMoney } from '../../../../../shared/utils/money-format';
-import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
@@ -26,7 +26,13 @@ import {
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
-import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
+import {
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_LOCALE,
+  DEFAULT_TIME_FORMAT,
+} from '../../../domain/notification-locale.constants';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
+import { formatEmailInstant } from '../notification-email-format.helpers';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER;
@@ -69,29 +75,25 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
     }
 
     const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
-    const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
-    const startDate = new Date(input.approvedSlot.startTime);
-    const localDate = utcDateToLocalDate(startDate, timezone);
-    const localTime = utcDateToLocalHHMM(startDate, timezone);
-    const serviceNames = input.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
-    const formattedTotal = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
-    const lineItems = input.lineSummary
-      .map(
-        (l) =>
-          `${l.serviceNameAtBooking}: ${formatMoney(l.priceAtBooking.amount, locale, l.priceAtBooking.currency)}`,
-      )
-      .join(', ');
+    const { date, time } = formatEmailInstant(
+      input.approvedSlot.startTime,
+      tenantInfo?.timezone ?? 'UTC',
+      {
+        dateFormat: tenantInfo?.dateFormat ?? DEFAULT_DATE_FORMAT,
+        timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
+      },
+    );
+    const variables: TemplateVariables<typeof TRIGGER> = {
+      contactName: escapeHtml(input.contactName),
+      localDate: date,
+      localTime: time,
+      serviceNames: input.lineSummary.map((l) => escapeHtml(l.serviceNameAtBooking)).join(', '),
+      totalPrice: formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency),
+    };
 
-    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, {
-      contactName: input.contactName,
-      localDate,
-      localTime,
-      serviceNames,
-      lineItems,
-      totalPrice: formattedTotal,
-    });
+    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, variables);
     return { emailSent };
   }
 }

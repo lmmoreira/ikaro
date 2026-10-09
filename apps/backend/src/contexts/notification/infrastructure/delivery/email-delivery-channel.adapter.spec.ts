@@ -102,6 +102,14 @@ describe('EmailDeliveryChannelAdapter', () => {
       expect(call.html).toBe('<p>Olá, João Silva! Seu agendamento foi confirmado.</p>');
     });
 
+    it('passes the tenant language so the document states it', async () => {
+      const { adapter, emailSender } = makeAdapter();
+
+      await adapter.send(baseMessage);
+
+      expect(emailSender.sent[0].lang).toBe('pt-BR');
+    });
+
     it('does not modify subject or body — passes them verbatim', async () => {
       const { adapter, emailSender } = makeAdapter();
       const customBody = '<p>Custom pre-rendered body with {{unreplaced}} placeholder</p>';

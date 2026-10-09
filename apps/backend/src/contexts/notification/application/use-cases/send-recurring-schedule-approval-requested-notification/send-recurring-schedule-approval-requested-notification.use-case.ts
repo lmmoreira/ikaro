@@ -37,11 +37,14 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 import {
   buildScheduleSummaryVariables,
-  formatLocalDateTime,
+  customerVariables,
+  RecurringScheduleNotificationContext,
   RecurringScheduleNotificationInput,
   RecurringScheduleSummaryInput,
   resolveRecurringScheduleContext,
 } from '../recurring-schedule-notification.helpers';
+import { formatEmailDateTime } from '../notification-email-format.helpers';
+import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 
 const TRIGGER = NotificationTemplateKey.RECURRING_SCHEDULE_APPROVAL_REQUESTED_ADMIN;
 
@@ -110,12 +113,23 @@ export class SendRecurringScheduleApprovalRequestedNotificationUseCase extends B
     if (managerEmails.length === 0) return { adminEmailSent: false };
 
     this.localizeTemplates(templates, this.localizationPort, ctx.locale);
-    const adminEmailSent = await this.dispatchTemplatesToMany(templates, input, managerEmails, {
-      contactName: ctx.customerName,
-      serviceName: ctx.serviceName,
-      holdExpiresAt: formatLocalDateTime(input.approvalHoldExpiresAt, ctx.timezone, ctx.locale),
-      ...buildScheduleSummaryVariables(input, ctx.locale),
-    });
+    const adminEmailSent = await this.dispatchTemplatesToMany(
+      templates,
+      input,
+      managerEmails,
+      this.variablesFor(input, ctx),
+    );
     return { adminEmailSent };
+  }
+
+  private variablesFor(
+    input: SendRecurringScheduleApprovalRequestedNotificationUseCaseInput,
+    ctx: RecurringScheduleNotificationContext,
+  ): TemplateVariables<typeof TRIGGER> {
+    return {
+      ...customerVariables(ctx),
+      holdExpiresAt: formatEmailDateTime(input.approvalHoldExpiresAt, ctx.timezone, ctx),
+      ...buildScheduleSummaryVariables(input, ctx),
+    };
   }
 }

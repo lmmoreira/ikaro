@@ -32,6 +32,7 @@ export class EmailDeliveryChannelAdapter implements IDeliveryChannel {
       replyTo: tenantInfo?.replyToEmail ?? undefined,
       subject: message.subject,
       html: message.body,
+      lang: tenantInfo?.locale,
     });
   }
 }

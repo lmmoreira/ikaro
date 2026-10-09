@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { countrySpec } from '@ikaro/i18n';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import {
   INotificationPlatformPort,
@@ -12,6 +13,7 @@ export class NotificationPlatformAdapter implements INotificationPlatformPort {
   async getTenantInfo(tenantId: string): Promise<NotificationTenantInfo | null> {
     try {
       const result = await this.getTenantById.execute({ tenantId });
+      const spec = countrySpec(result.settings.localization.countryCode);
       return {
         id: result.id,
         name: result.name,
@@ -19,6 +21,8 @@ export class NotificationPlatformAdapter implements INotificationPlatformPort {
         timezone: result.settings.businessHours.timezone,
         locale: result.settings.localization.language,
         replyToEmail: result.settings.businessInfo?.email ?? null,
+        dateFormat: spec.dateFormat,
+        timeFormat: spec.timeFormat,
       };
     } catch {
       return null;

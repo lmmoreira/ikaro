@@ -42,8 +42,7 @@ export interface RecurringScheduleCustomerNotificationUseCaseResult {
 }
 
 // The three recurring-schedule emails that go to the schedule's customer (confirmed, not accepted
-// or expired, ended) differ only in which template they pick and which extra variables the copy
-// uses; looking up the template, resolving the customer, service and tenant locale, skipping
+// or expired, ended) differ only in which template they pick and which variables the copy uses; looking up the template, resolving the customer, service and tenant locale, skipping
 // quietly when any is gone, localizing and dispatching is the same flow (M23-S28). The subclass
 // declares its input and the two hooks, and carries no constructor of its own: Nest resolves the
 // injected ports from this class's parameter metadata.
@@ -68,13 +67,12 @@ export abstract class BaseRecurringScheduleCustomerNotificationUseCase<
 
   protected abstract templateKeyFor(input: TInput): NotificationTemplateKey;
 
-  // Variables the copy uses on top of contactName / tenantName / serviceName.
-  protected extraVariables(
-    _input: TInput,
-    _context: RecurringScheduleNotificationContext,
-  ): Record<string, string> {
-    return {};
-  }
+  // Every variable the chosen template uses, typed against its mapping entry by the subclass so a
+  // placeholder nobody supplies fails to compile instead of rendering blank.
+  protected abstract variablesFor(
+    input: TInput,
+    context: RecurringScheduleNotificationContext,
+  ): Record<string, string>;
 
   async execute(input: TInput): Promise<RecurringScheduleCustomerNotificationUseCaseResult> {
     const trigger = this.templateKeyFor(input);
@@ -104,12 +102,12 @@ export abstract class BaseRecurringScheduleCustomerNotificationUseCase<
     }
 
     this.localizeTemplates(templates, this.localizationPort, context.locale);
-    const emailSent = await this.dispatchTemplates(templates, input, context.customerEmail, {
-      contactName: context.customerName,
-      tenantName: context.tenantName,
-      serviceName: context.serviceName,
-      ...this.extraVariables(input, context),
-    });
+    const emailSent = await this.dispatchTemplates(
+      templates,
+      input,
+      context.customerEmail,
+      this.variablesFor(input, context),
+    );
     return { emailSent };
   }
 }
