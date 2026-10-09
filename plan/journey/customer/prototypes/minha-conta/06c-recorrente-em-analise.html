@@ -6,95 +6,56 @@
   <title>Reserva recorrente — em análise — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
-    details summary { list-style: none; }
-    details summary::-webkit-details-marker { display: none; }
-
-
-    .section-label {
-      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
-      text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 0 0 0.625rem;
+    .topbar-title {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      font-weight: 700; font-size: 0.9375rem; color: var(--ba-text);
+      pointer-events: none; white-space: nowrap;
     }
-    .page-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-    .page-title { font-size: 1.125rem; font-weight: 700; color: var(--ba-text); margin: 0; }
-
-    .rec-card {
-      background: white; border: 1px solid var(--ba-secondary);
-      border-radius: var(--ba-radius); margin-bottom: 0.75rem;
-      box-shadow: var(--ba-shadow); overflow: hidden;
-      text-decoration: none; display: block; color: var(--ba-text);
+    .topbar-back {
+      display: flex; align-items: center; gap: 0.375rem; text-decoration: none;
+      color: var(--ba-primary); font-size: 0.9375rem; font-weight: 600;
     }
-    .rec-card-header { display: flex; align-items: flex-start; gap: 0.875rem; padding: 1rem 1rem 0.75rem; }
-    .rec-accent { width: 0.25rem; border-radius: 4px; flex-shrink: 0; align-self: stretch; }
-    .rec-body { flex: 1; min-width: 0; }
-    .rec-name { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); }
-    .rec-meta { font-size: 0.8125rem; opacity: 0.55; color: var(--ba-text); margin-top: 0.1875rem; }
-    .rec-footer {
-      border-top: 1px solid var(--ba-secondary); padding: 0.625rem 1rem;
-      display: flex; align-items: center; justify-content: space-between; background: #fafafa;
-    }
-    .rec-footer-label { font-size: 0.8125rem; color: var(--ba-text); font-weight: 500; }
-    .rec-footer-value { font-size: 0.8125rem; color: var(--ba-primary); font-weight: 600; }
+    .topbar-end { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+    .topbar-end .list-avatar { width: 2rem; height: 2rem; font-size: 0.8125rem; }
 
-    .badge { display: inline-flex; align-items: center; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.1875rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; }
-    .badge-ativa   { background: #f0fdf4; color: #15803d; }
-    .badge-analise { background: #fef3c7; color: #92400e; }
-    .badge-pausada { background: #f1f5f9; color: #475569; }
-
-    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--ba-text); }
-    .empty-state p { font-size: 0.9375rem; margin: 0.5rem 0 1.25rem; opacity: 0.55; }
-
-    .field { margin-bottom: 1.125rem; }
-    .field-hint { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.25rem; }
-    .field-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.25rem; }
-    .form-input.invalid { border-color: #dc2626; }
-    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .chip { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.4375rem 0.75rem; border: 1px solid var(--ba-secondary); border-radius: 999px; font-size: 0.875rem; background: white; cursor: pointer; }
-    .chip.on { border-color: var(--ba-primary); background: #eff6ff; }
-    .choice { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 0.875rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; margin-bottom: 0.5rem; cursor: pointer; }
-    .choice.on { border-color: var(--ba-primary); background: #eff6ff; }
-    .readonly-value { padding: 0.625rem 0.75rem; border: 1px dashed var(--ba-secondary); border-radius: var(--ba-radius); background: #fafafa; font-size: 0.875rem; }
-
-    .row { padding: 1rem 0; border-bottom: 1px solid var(--ba-secondary); }
-    .row:last-child { border: 0; }
-    .meta { font-size: 0.8125rem; opacity: 0.7; margin-top: 0.25rem; }
-    .notice { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--ba-radius); padding: 1rem; margin-top: 1rem; }
-    .notice-error { background: #fef2f2; border-color: #fca5a5; }
-    .notice-ok { background: #f0fdf4; border-color: #86efac; }
-    .panel { display: none; margin-top: 1rem; }
-    .panel:target { display: block; }
-    .summary-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); font-size: 0.875rem; }
-    .summary-row:last-child { border: 0; }
-    .summary-row span:first-child { opacity: 0.6; }
-    .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
-    .proto-only a { margin-right: 0.75rem; }
-    .tag-proposal { display: inline-block; font-size: 0.6875rem; font-weight: 700; background: #ede9fe; color: #5b21b6; padding: 0.1875rem 0.5rem; border-radius: 4px; margin-bottom: 0.75rem; }
     .step-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.5; margin-bottom: 0.25rem; }
+    .page-title { font-size: 1.5rem; font-weight: 700; color: var(--ba-text); margin: 0; }
+    .page-lead { opacity: 0.7; }
 
-    @media (min-width: 1024px) {
-      .topbar-brand { display: flex !important; }
-      .desktop-only { display: inline-flex !important; }
-      .mobile-only  { display: none !important; }
-      .topbar-user-name { display: inline !important; }
-    }
-  
+    .card-hold { border-color: #fbbf24; background: #fffbeb; margin-top: 1rem; }
+    .card-hold h2 { font-size: 1.2rem; margin: 0; }
+    .card-hold p { margin-top: 0.75rem; line-height: 1.55; }
+    .card-steps { margin-top: 1rem; }
+    .card-steps ol { padding-left: 1.25rem; font-size: 0.875rem; line-height: 1.7; }
+
+    .notice { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--ba-radius); padding: 1rem; margin-top: 1rem; }
+    .notice p { font-size: 0.875rem; margin-top: 0.375rem; }
+
+    .aside-text { font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); margin-bottom: 1rem; line-height: 1.5; }
+    .btn-block { display: block; text-align: center; }
+    .mobile-actions { margin-top: 1rem; }
+    .mobile-actions .btn-block { padding: 0.8125rem; }
+    .detail-aside .btn-block { padding: 0.75rem; }
+
     /* Two-column layout on desktop (central content + action pane) */
     .detail-layout { display: block; }
     .detail-aside  { display: none; }
     @media (min-width: 1024px) {
       .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
       .detail-aside  { display: block; position: sticky; top: 1.5rem; }
-      .mobile-actions { display: none !important; }
+      .mobile-actions { display: none; }
     }
   </style>
 </head>
 <body>
 
   <!--
-    COMPONENT: NewRecurringSchedulePendingApproval
-    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (GAP — M23-S17; estado de análise)
+    COMPONENT: RecurringSchedulePendingView
+    PAGES:      apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (M23-S17 — shown right after creating a schedule that needs approval)
+                apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx (M23-S12 — detail of a PENDING_APPROVAL schedule)
     UC cobertos: UC-070 (branch MANUAL_APPROVAL), UC-071
     DATA:
-      Resposta 201: { id, status: "PENDING_APPROVAL", approvalHoldExpiresAt }
+      Resposta 201 (S17) / GET /recurring-booking-schedules/:id (S12): { id, status: "PENDING_APPROVAL", approvalHoldExpiresAt }
       Nenhuma reserva é criada até a aprovação (UC-071); na aprovação todas as reservas do período são criadas de uma vez, depois de repetir a
         verificação de horário/fechamentos e ocupação (uma ocorrência que deixou de ser possível não é criada e vai para as exceções do gestor).
         Se approvalHoldExpiresAt passar, o pedido expira (UC-070 A5). O período pedido (startsOn → endsOn) é exibido no resumo.
@@ -102,13 +63,13 @@
 
   <!-- TOP BAR — drill-down pattern: back link replaces the brand slot (CustomerTopbar backHrefOverride), no tab nav / bottom nav -->
   <div class="dashboard-topbar" style="position:relative;">
-    <span style="position:absolute;left:50%;transform:translateX(-50%);font-weight:700;font-size:0.9375rem;color:var(--ba-text);pointer-events:none;white-space:nowrap;">Vitta Studio</span>
-    <a href="14-recorrentes-lista.html" style="display:flex;align-items:center;gap:0.375rem;text-decoration:none;color:var(--ba-primary);font-size:0.9375rem;font-weight:600;">
+    <span class="topbar-title">Vitta Studio</span>
+    <a class="topbar-back" href="14-recorrentes-lista.html">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       Reservas recorrentes
     </a>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
-      <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;">MF</div>
+    <div class="topbar-end">
+      <div class="list-avatar">MF</div>
     </div>
   </div>
 
@@ -121,42 +82,41 @@
           <!-- MAIN CONTENT -->
           <div>
 
-        <p class="step-label">Sala Aurora · nova reserva recorrente</p>
-        <h1 class="page-title" style="font-size:1.5rem;">Estamos analisando seu pedido de recorrência</h1>
-        <p style="opacity:.7;">Toda terça, 10:00–12:00, de 19 de agosto a 11 de novembro. A Sala de reunião exige aprovação manual, então sua recorrência também passa por uma revisão — mas só uma vez para toda a série, não uma vez por semana.</p>
+            <p class="step-label">Sala Aurora · nova reserva recorrente</p>
+            <h1 class="page-title">Estamos analisando seu pedido de recorrência</h1>
+            <p class="page-lead">Toda terça, 10:00–12:00, de 19 de agosto a 11 de novembro. A Sala de reunião exige aprovação manual, então sua recorrência também passa por uma revisão — mas só uma vez para toda a série, não uma vez por semana.</p>
 
-        <div class="card" style="border-color:#fbbf24;background:#fffbeb;margin-top:1rem;">
-          <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
-          <h2 style="font-size:1.2rem;margin:0;">Ainda não geramos nenhuma reserva</h2>
-          <p style="margin-top:.75rem;line-height:1.55;">Sua solicitação está reservada para análise. A Sala Aurora fica protegida nesse horário até <strong>09:30</strong>. Enviaremos a decisão por e-mail.</p>
-        </div>
+            <div class="card card-hold">
+              <p class="step-label">Sala Aurora · toda terça · 10:00–12:00</p>
+              <h2>Ainda não geramos nenhuma reserva</h2>
+              <p>Sua solicitação está reservada para análise. A Sala Aurora fica protegida nesse horário até <strong>09:30</strong>. Enviaremos a decisão por e-mail.</p>
+            </div>
 
-        <div class="card" style="margin-top:1rem">
-          <strong>O que acontece agora</strong>
-          <ol style="padding-left:1.25rem;font-size:.875rem;line-height:1.7">
-            <li>O negócio revisa seu pedido — uma decisão única para toda a recorrência, não uma por ocorrência.</li>
-            <li>Se aprovado, a recorrência fica ativa e todas as reservas do período (19 ago a 11 nov) são criadas de uma vez, sem nova aprovação a cada semana.</li>
-            <li>Se não houver resposta até 09:30, o pedido expira e nenhuma reserva é criada — você pode solicitar novamente quando quiser.</li>
-          </ol>
-        </div>
+            <div class="card card-steps">
+              <strong>O que acontece agora</strong>
+              <ol>
+                <li>O negócio revisa seu pedido — uma decisão única para toda a recorrência, não uma por ocorrência.</li>
+                <li>Se aprovado, a recorrência fica ativa e todas as reservas do período (19 ago a 11 nov) são criadas de uma vez, sem nova aprovação a cada semana.</li>
+                <li>Se não houver resposta até 09:30, o pedido expira e nenhuma reserva é criada — você pode solicitar novamente quando quiser.</li>
+              </ol>
+            </div>
 
-        <div class="notice">
-          <strong>Uma reserva pontual é diferente</strong>
-          <p style="font-size:.875rem;margin-top:.375rem">Se você reservar a Sala Aurora uma única vez (sem recorrência), essa solicitação passa pela mesma aprovação manual — mas isoladamente, como sempre. É só a recorrência que reduz isso a uma decisão única.</p>
-        </div>
-
+            <div class="notice">
+              <strong>Uma reserva pontual é diferente</strong>
+              <p>Se você reservar a Sala Aurora uma única vez (sem recorrência), essa solicitação passa pela mesma aprovação manual — mas isoladamente, como sempre. É só a recorrência que reduz isso a uma decisão única.</p>
+            </div>
 
             <!-- Mobile-only actions -->
-            <div class="mobile-actions" style="margin-top:1rem;">
-              <a class="btn-primary" href="14-recorrentes-lista.html" style="display:block;text-align:center;padding:0.8125rem;">Ver minhas recorrências</a>
+            <div class="mobile-actions">
+              <a class="btn-primary btn-block" href="14-recorrentes-lista.html">Ver minhas recorrências</a>
             </div>
           </div>
 
           <!-- DESKTOP SIDEBAR (action pane) -->
           <div class="detail-aside">
             <div class="card">
-              <p style="font-size:0.875rem;opacity:0.6;color:var(--ba-text);margin-bottom:1rem;line-height:1.5;">Enviaremos a decisão por e-mail. O horário fica protegido durante a análise.</p>
-              <a class="btn-primary" href="14-recorrentes-lista.html" style="display:block;text-align:center;padding:0.75rem;">Ver minhas recorrências</a>
+              <p class="aside-text">Enviaremos a decisão por e-mail. O horário fica protegido durante a análise.</p>
+              <a class="btn-primary btn-block" href="14-recorrentes-lista.html">Ver minhas recorrências</a>
             </div>
           </div>
 
