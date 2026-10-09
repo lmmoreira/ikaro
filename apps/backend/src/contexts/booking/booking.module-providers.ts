@@ -87,6 +87,8 @@ import { EndRecurringBookingScheduleUseCase } from './application/use-cases/end-
 import { ApproveRecurringBookingScheduleUseCase } from './application/use-cases/approve-recurring-booking-schedule.use-case';
 import { RejectRecurringBookingScheduleUseCase } from './application/use-cases/reject-recurring-booking-schedule.use-case';
 import { ListRecurringBookingSchedulesUseCase } from './application/use-cases/list-recurring-booking-schedules.use-case';
+import { GetRecurringBookingScheduleUseCase } from './application/use-cases/get-recurring-booking-schedule.use-case';
+import { GetAvailabilityAlertUseCase } from './application/use-cases/get-availability-alert.use-case';
 import { CreateAvailabilityAlertUseCase } from './application/use-cases/create-availability-alert.use-case';
 import { ListAvailabilityAlertsUseCase } from './application/use-cases/list-availability-alerts.use-case';
 import { UpdateAvailabilityAlertUseCase } from './application/use-cases/update-availability-alert.use-case';
@@ -220,8 +222,10 @@ export const bookingModuleProviders: Provider[] = [
   ApproveRecurringBookingScheduleUseCase,
   RejectRecurringBookingScheduleUseCase,
   ListRecurringBookingSchedulesUseCase,
+  GetRecurringBookingScheduleUseCase,
   CreateAvailabilityAlertUseCase,
   ListAvailabilityAlertsUseCase,
+  GetAvailabilityAlertUseCase,
   UpdateAvailabilityAlertUseCase,
   CancelAvailabilityAlertUseCase,
   RecordAvailabilityAlertOutcomeUseCase,

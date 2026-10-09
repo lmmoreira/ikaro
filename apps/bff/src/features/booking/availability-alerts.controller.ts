@@ -46,6 +46,11 @@ export class AvailabilityAlertsController {
     return this.backendHttp.get<AvailabilityAlertListResponse>('/availability-alerts');
   }
 
+  @Get(':id')
+  get(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<AvailabilityAlertResponse> {
+    return this.backendHttp.get<AvailabilityAlertResponse>(`/availability-alerts/${id}`);
+  }
+
   @Patch(':id')
   update(
     @Param('id', CanonicalParseUUIDPipe) id: string,

@@ -29,6 +29,13 @@ Authorization: Bearer {{staffToken}}
 
 ###
 
+### One schedule by id (M23-S42) → 200 the list-item shape with "serviceName"; a customer token
+### gets 404 for a schedule that is not theirs
+GET {{bffUrl}}/v1/recurring-booking-schedules/{{pendingScheduleId}}
+Authorization: Bearer {{staffToken}}
+
+###
+
 ### Approve — 200 {id, status: "ACTIVE", occurrenceCount}
 POST {{bffUrl}}/v1/recurring-booking-schedules/{{pendingScheduleId}}/approve
 Authorization: Bearer {{staffToken}}

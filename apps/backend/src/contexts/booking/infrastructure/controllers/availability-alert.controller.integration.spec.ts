@@ -168,6 +168,35 @@ describe('AvailabilityAlertController (integration)', () => {
     expect(list.items.map((item: { id: string }) => item.id)).toEqual([created.id]);
   });
 
+  it('GET /availability-alerts/:id returns the alert by id, a closed one too, and 403 for staff', async () => {
+    const { body: created } = await request(app.getHttpServer())
+      .post('/availability-alerts')
+      .set(as(tenantA, CUSTOMER_A))
+      .send(weeklyBody(serviceA))
+      .expect(201);
+    const url = `/availability-alerts/${created.id as string}`;
+
+    const { body: active } = await request(app.getHttpServer())
+      .get(url)
+      .set(as(tenantA, CUSTOMER_A))
+      .expect(200);
+    expect(active).toEqual(created);
+
+    await ds
+      .getRepository(AvailabilityAlertEntity)
+      .update({ tenantId: tenantA, id: created.id as string }, { status: 'EXPIRED' });
+    const { body: expired } = await request(app.getHttpServer())
+      .get(url)
+      .set(as(tenantA, CUSTOMER_A))
+      .expect(200);
+    expect(expired).toMatchObject({ id: created.id, status: 'EXPIRED' });
+
+    await request(app.getHttpServer())
+      .get(url)
+      .set(actorHeaders(tenantA, CUSTOMER_A, 'MANAGER'))
+      .expect(403);
+  });
+
   it('persists a one-time range with a clamped expiry', async () => {
     const start = new Date(Date.now() + 2 * DAY_MS);
     const end = new Date(Date.now() + 2 * DAY_MS + 4 * 3_600_000);
@@ -415,6 +444,7 @@ describe('AvailabilityAlertController (integration)', () => {
         .set(as(tenantA, CUSTOMER_A2))
         .expect(200);
       expect(list.items).toEqual([]);
+      await request(app.getHttpServer()).get(url).set(as(tenantA, CUSTOMER_A2)).expect(404);
       await request(app.getHttpServer())
         .patch(url)
         .set(as(tenantA, CUSTOMER_A2))
@@ -435,6 +465,7 @@ describe('AvailabilityAlertController (integration)', () => {
         .expect(201);
       const url = `/availability-alerts/${created.id as string}`;
 
+      await request(app.getHttpServer()).get(url).set(as(tenantB, CUSTOMER_B)).expect(404);
       await request(app.getHttpServer())
         .patch(url)
         .set(as(tenantB, CUSTOMER_B))

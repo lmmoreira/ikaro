@@ -45,6 +45,7 @@ describe('AvailabilityAlertsController (component)', () => {
   describe.each([
     ['POST', '/v1/availability-alerts', createBody],
     ['GET', '/v1/availability-alerts', undefined],
+    ['GET', `/v1/availability-alerts/${ALERT_ID}`, undefined],
     ['PATCH', `/v1/availability-alerts/${ALERT_ID}`, { durationMinutes: 60 }],
     ['DELETE', `/v1/availability-alerts/${ALERT_ID}`, undefined],
   ] as const)('%s %s', (method, path, body) => {
@@ -105,6 +106,23 @@ describe('AvailabilityAlertsController (component)', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ items: [] });
     expect(backendHttpService.get).toHaveBeenCalledWith('/availability-alerts');
+  });
+
+  it('GET /:id: CUSTOMER JWT → 200 with the backend alert; rejects a non-uuid id with 400', async () => {
+    setupActiveGuardMock(httpService);
+    backendHttpService.get.mockResolvedValueOnce({ id: ALERT_ID, status: 'EXPIRED' });
+
+    const ok = await request(app.getHttpServer())
+      .get(`/v1/availability-alerts/${ALERT_ID}`)
+      .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+    const bad = await request(app.getHttpServer())
+      .get('/v1/availability-alerts/not-a-uuid')
+      .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+
+    expect(ok.status).toBe(200);
+    expect(ok.body).toEqual({ id: ALERT_ID, status: 'EXPIRED' });
+    expect(backendHttpService.get).toHaveBeenCalledWith(`/availability-alerts/${ALERT_ID}`);
+    expect(bad.status).toBe(400);
   });
 
   it('PATCH: CUSTOMER JWT → 200, forwards the id and the body; rejects an empty body with 400', async () => {

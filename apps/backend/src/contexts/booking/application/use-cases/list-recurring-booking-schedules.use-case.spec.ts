@@ -1,5 +1,7 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
+import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { ListRecurringBookingSchedulesUseCase } from './list-recurring-booking-schedules.use-case';
@@ -12,11 +14,12 @@ function schedule(
   customerId: string,
   tenantId = TENANT,
   status: 'ACTIVE' | 'PENDING_APPROVAL' = 'ACTIVE',
+  serviceId = 'service-1',
 ): RecurringBookingSchedule {
   return RecurringBookingSchedule.request({
     tenantId,
     customerId,
-    serviceId: 'service-1',
+    serviceId,
     recurrence: {
       frequency: 'WEEKLY',
       daysOfWeek: ['tuesday'],
@@ -44,11 +47,74 @@ function schedule(
 
 describe('ListRecurringBookingSchedulesUseCase', () => {
   let repo: InMemoryRecurringBookingScheduleRepository;
+  let serviceRepo: InMemoryServiceRepository;
   let useCase: ListRecurringBookingSchedulesUseCase;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     repo = new InMemoryRecurringBookingScheduleRepository(new InMemoryEventBus());
-    useCase = new ListRecurringBookingSchedulesUseCase(repo);
+    serviceRepo = new InMemoryServiceRepository();
+    await serviceRepo.save(
+      new ServiceBuilder().withId('service-1').withTenantId(TENANT).withName('Sala Aurora').build(),
+    );
+    useCase = new ListRecurringBookingSchedulesUseCase(repo, serviceRepo);
+  });
+
+  it("maps each item's serviceName from the service", async () => {
+    repo.seed(schedule('customer-a'));
+
+    const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
+
+    expect(result.items[0].serviceName).toBe('Sala Aurora');
+  });
+
+  it('reads the services of a page once, not once per row', async () => {
+    await serviceRepo.save(
+      new ServiceBuilder()
+        .withId('service-2')
+        .withTenantId(TENANT)
+        .withName('Sala Horizonte')
+        .build(),
+    );
+    repo.seed(schedule('customer-a'));
+    repo.seed(schedule('customer-b'));
+    repo.seed(schedule('customer-c', TENANT, 'ACTIVE', 'service-2'));
+    const findByIds = jest.spyOn(serviceRepo, 'findByIds');
+
+    const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
+
+    // The ids come in repository order (schedules created in the same millisecond have no stable
+    // order), so only the set of ids and the single tenant-scoped call are asserted.
+    expect(findByIds).toHaveBeenCalledTimes(1);
+    const [requestedIds, requestedTenant] = findByIds.mock.calls[0];
+    expect([...requestedIds].sort()).toEqual(['service-1', 'service-2']);
+    expect(requestedTenant).toBe(TENANT);
+    expect(result.items.map((i) => i.serviceName).sort()).toEqual([
+      'Sala Aurora',
+      'Sala Aurora',
+      'Sala Horizonte',
+    ]);
+  });
+
+  it("never resolves a service name from another tenant's service", async () => {
+    const otherTenantRepo = new InMemoryServiceRepository();
+    await otherTenantRepo.save(
+      new ServiceBuilder().withId('service-1').withTenantId(OTHER_TENANT).withName('Outro').build(),
+    );
+    const isolated = new ListRecurringBookingSchedulesUseCase(repo, otherTenantRepo);
+    repo.seed(schedule('customer-a'));
+
+    await expect(isolated.execute({ tenantId: TENANT, ...PAGE })).rejects.toThrow(
+      'Service service-1',
+    );
+  });
+
+  it('returns no items and looks up no service ids for an empty page', async () => {
+    const findByIds = jest.spyOn(serviceRepo, 'findByIds');
+
+    const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
+
+    expect(result.items).toEqual([]);
+    expect(findByIds).toHaveBeenCalledWith([], TENANT);
   });
 
   it('returns every schedule for the tenant when customerId is omitted (STAFF|MANAGER)', async () => {

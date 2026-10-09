@@ -55,6 +55,16 @@ describe('AvailabilityAlertsController', () => {
     expect(result.items).toEqual([mockAlert]);
   });
 
+  it('GET /:id reads one alert through the backend', async () => {
+    const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockAlert) });
+    const controller = new AvailabilityAlertsController(backendHttp);
+
+    const result = await controller.get(ALERT_ID);
+
+    expect(backendHttp.get).toHaveBeenCalledWith(`/availability-alerts/${ALERT_ID}`);
+    expect(result).toEqual(mockAlert);
+  });
+
   it('PATCH /:id forwards the id and the body to the backend', async () => {
     const backendHttp = makeBackendHttp({ patch: jest.fn().mockResolvedValue(mockAlert) });
     const controller = new AvailabilityAlertsController(backendHttp);

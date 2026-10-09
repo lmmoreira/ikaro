@@ -3340,7 +3340,7 @@ The BFF stays a thin proxy for all three. **Shared types (decided 2026-10-09):**
 
 **Acceptance criteria — product:**
 - [ ] Every recurring schedule in the list, for the customer and for staff, carries the service's name as it is today.
-- [ ] A customer can read any one of their own recurring schedules and any one of their own alerts by id, however old, with the same fields as the list.
+- [ ] A customer can read any one of their own recurring schedules and any one of their own alerts by id, whatever its status and for as long as the alert is retained (finished alerts are deleted 90 days after expiry), with the same fields as the list.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -3402,7 +3402,7 @@ The customer sees and cancels their availability alerts (UC-076). The management
 
 **Acceptance criteria — product:**
 - [ ] A customer sees their alerts, active ones first and the rest under "Histórico", each with its badge; a history row has no cancel action.
-- [ ] A customer opens an alert (however old) from its title and sees its detail; a notified or expired alert is read-only.
+- [ ] A customer opens an alert from its title (finished alerts stay for 90 days after expiry) and sees its detail; a notified or expired alert is read-only.
 - [ ] A customer cancels an active alert from its detail through a confirmation page and sees it leave the active list; a failure keeps the alert active and offers a retry; an alert that closed in the meantime shows the "não está mais ativo" state.
 - [ ] The Agendamentos tab shows "Meus avisos" with the active count only when the customer has any alert; if that read fails the tab still renders.
 - [ ] There is no create or edit control for alerts here.

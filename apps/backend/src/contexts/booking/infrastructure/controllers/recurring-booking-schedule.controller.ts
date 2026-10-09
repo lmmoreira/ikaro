@@ -41,6 +41,10 @@ import {
   ListRecurringBookingSchedulesUseCase,
   ListRecurringBookingSchedulesUseCaseResult,
 } from '../../application/use-cases/list-recurring-booking-schedules.use-case';
+import {
+  GetRecurringBookingScheduleUseCase,
+  GetRecurringBookingScheduleUseCaseResult,
+} from '../../application/use-cases/get-recurring-booking-schedule.use-case';
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('recurring-booking-schedules')
@@ -50,6 +54,7 @@ export class RecurringBookingScheduleController {
     private readonly ctx: RequestContext,
     private readonly requestSchedule: RequestRecurringBookingScheduleUseCase,
     private readonly listSchedules: ListRecurringBookingSchedulesUseCase,
+    private readonly getSchedule: GetRecurringBookingScheduleUseCase,
     private readonly endSchedule: EndRecurringBookingScheduleUseCase,
     private readonly approveSchedule: ApproveRecurringBookingScheduleUseCase,
     private readonly rejectSchedule: RejectRecurringBookingScheduleUseCase,
@@ -65,6 +70,21 @@ export class RecurringBookingScheduleController {
     return this.listSchedules
       .execute({
         ...query,
+        tenantId,
+        customerId: isStaffOrManager ? undefined : actorId,
+      })
+      .catch(mapBookingError);
+  }
+
+  @Get(':id')
+  get(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+  ): Promise<GetRecurringBookingScheduleUseCaseResult> {
+    const { tenantId, actorId, actorRole } = this.ctx;
+    const isStaffOrManager = actorRole === 'STAFF' || actorRole === 'MANAGER';
+    return this.getSchedule
+      .execute({
+        scheduleId: id,
         tenantId,
         customerId: isStaffOrManager ? undefined : actorId,
       })

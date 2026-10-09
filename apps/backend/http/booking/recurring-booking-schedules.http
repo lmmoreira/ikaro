@@ -105,6 +105,26 @@ X-Actor-Role: CUSTOMER
 
 ###
 
+### Customer reads one of their own schedules by id (M23-S42) — the same item as in the list, with
+### "serviceName". 404 BOOKING_RECURRING_SCHEDULE_NOT_FOUND for another customer's schedule or
+### another tenant's (a read does not reveal that it exists; ending someone else's stays 403).
+GET {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+
+###
+
+### Manager reads any schedule of the tenant by id
+GET {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
 ### Manager lists every recurring schedule for the tenant (first page of 25, newest first)
 GET {{baseUrl}}/recurring-booking-schedules
 X-Tenant-ID: {{tenantId}}
