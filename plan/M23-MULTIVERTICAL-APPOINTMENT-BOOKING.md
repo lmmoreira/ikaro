@@ -2752,7 +2752,7 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 
 ---
 
-### M23-S36 — One shared `LogDomainEventUseCase` and one thin `audit-log` handler per context replace every log-only consumer, and cover every domain event
+### M23-S36 — One shared `LogDomainEventUseCase` and one thin `audit-log` handler per context replace every log-only consumer, and cover every domain event ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
