@@ -2687,7 +2687,7 @@ An alert on a `CUSTOMER_SELECTED` service is only meaningful at a chosen duratio
 
 ---
 
-### M23-S35 — Apply the booking window to a recurring schedule's first occurrence, and never create a past occurrence
+### M23-S35 — Apply the booking window to a recurring schedule's first occurrence, and never create a past occurrence ✅ Done
 
 **Discovered:** 2026-10-07, in the M23-S33 review (PR #566), asking whether recurring schedules should respect the tenant and service booking window. M23-S33 decision 12 deliberately left them out of scope.
 **Root cause:** `RequestRecurringBookingScheduleUseCase.execute()` (`request-recurring-booking-schedule.use-case.ts`) validates only the term length (`assertValidTerm`), never where the term starts: `startsOn` is unchecked against the past, the minimum notice and the maximum days ahead, and an `AUTO_CONFIRM` schedule materializes its whole term in the same transaction. `ApproveRecurringBookingScheduleUseCase.execute()` re-enumerates the whole term from the stored `startsOn` and creates every occurrence, including ones already in the past by approval time (nothing in `materialize-recurring-schedule-occurrences.helpers.ts` filters them). A term whose weekdays never occur inside it enumerates to zero occurrences and today creates a schedule with no bookings. There is also no backend notion of a renewal: M23-S21 links to `…/new?renewFrom=<id>` and M23-S22 (not built) submits an ordinary create request, so the backend cannot tell a renewal from a new schedule.
