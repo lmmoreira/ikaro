@@ -143,7 +143,7 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ### Overview
 
-Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creation — a page of the booking flow, screens in `customer/prototypes/book-a-service/16*`), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload, backend — it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
+Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entry), `M23-S43` (availability alerts: list, detail, cancel), `M23-S42` (the service name and the by-id reads), `M23-S31` (alert creation — a page of the booking flow, screens in `customer/prototypes/book-a-service/16*`), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload, backend — it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
 
 ### File map (❓ none exist yet)
 
@@ -153,14 +153,14 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creatio
 | `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ❓ Gap | M23-S17 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane, same pattern as `bookings/[id]/page.tsx`) | M23-S12 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` | ❓ Gap — end confirmation page (same pattern as `bookings/[id]/cancel` and `alerts/[id]/cancel`; **not** an inline panel) | M23-S12 |
-| `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S12 |
-| `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane) | M23-S12 |
-| `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ❓ Gap — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S12 |
+| `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S43 |
+| `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane) | M23-S43 |
+| `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ❓ Gap — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S43 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ❓ Gap | M23-S12 |
-| `apps/web/features/customer/components/my-account/RecurringScheduleOccurrenceActions.tsx` | ❓ Gap | M23-S12 |
+| `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ `AccountListRow`, `RecurringScheduleDetail`, `RecurringSchedulePendingView`, `RecurringScheduleEndConfirm`) | ❓ Gap | M23-S12 |
 | `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result) | ❓ Gap | M23-S17 |
-| `apps/web/features/customer/hooks/useRecurringSchedules.ts` / `useCreateRecurringSchedule.ts` | ❓ Gap | M23-S12 / S17 |
-| `packages/i18n/locales/{pt-BR,en}/web.json` — `myAccount.recurringSchedules.*` | ❓ Gap | M23-S12 / S17 |
+| `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` (and `availability-alerts.server.ts` for the alerts) | ❓ Gap | M23-S12 / S17 / S43 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` and `customer.alerts.*` | ❓ Gap | M23-S12 / S17 / S43 |
 
 > Supersedes the earlier draft names (`features/booking/components/account/RecurringPrivateReservationManager.tsx`, route `/my-account/recurring-reservations/[id]`): `M23-S12` already chose `recurring-schedules` and `features/customer/components/my-account/` after checking the real precedent, and that story's own verification note applies here too — re-check at implementation time.
 
@@ -181,16 +181,16 @@ Stories: `M23-S12` (list + manage + alerts management), `M23-S31` (alert creatio
 | `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
 | `06-reserva-recorrente.html` | Detail (central detail + action pane, back link in the topbar, status badge in the topbar): skip / reschedule occurrence, end (no Pause). "Pular" opens the ordinary one-off cancel confirmation `03-cancel-confirm`; "Reagendar" opens `15-reagendar`; "Encerrar recorrência" opens `06g`. Since `M23-S08` an occurrence is its linked booking: skip = cancel that booking and reschedule = the ordinary reschedule, both subject to the tenant's cancellation / reschedule windows (refusals are drawn as `06e` / `06f`) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
 | `06g-encerrar-recorrencia.html` | End confirmation page — central detail + action pane; `POST /recurring-booking-schedules/:id/end` → back to the list (failure states not drawn — define at `/story-discovery M23-S12`) | `/{slug}/my-account/recurring-schedules/[id]/end` | M23-S12 |
-| `06e-pular-fora-do-prazo.html` / `06f-reagendar-fora-do-prazo.html` | Skip / reschedule refused because the tenant's cancellation / reschedule window has passed (same wording as one-off `03b`; the occurrence is a booking, decided in `M23-S08`) | same, error state | M23-S12 |
-| `07-availability-alert.html` | "Meus avisos": list and cancel — no create button, no edit yet (creation is a page of the booking flow, `book-a-service/16*`); entered from the "Meus avisos" link on `01-minha-conta.html` | `/{slug}/my-account/alerts` | M23-S12 |
-| `07b-avisos-vazio.html` | Empty state — points the customer to "Avise-me quando abrir" in the booking flow | same, empty | M23-S12 |
-| `07c-avisos-carregando.html` | Loading skeleton | same, loading | M23-S12 |
-| `07d-avisos-erro.html` | `GET /availability-alerts` failed — retry | same, error | M23-S12 |
-| `07e-aviso-nao-editavel.html` | `409 BOOKING_ALERT_NOT_EDITABLE` on cancel (already notified or expired, reached from `07h`) — the list refreshes, the alert moves to history | same, error | M23-S12 |
-| `07f-aviso-detalhe.html` | Alert detail (ACTIVE) — central detail + action pane with "Cancelar aviso"; same layout as `02-agendamento-detail` | `/{slug}/my-account/alerts/[id]` | M23-S12 |
-| `07g-aviso-detalhe-historico.html` | Alert detail (NOTIFIED / EXPIRED) — read-only, no cancel action | same, history | M23-S12 |
-| `07h-cancelar-aviso.html` | Cancel confirmation — central detail + action pane; same layout as `03-cancel-confirm`, `DELETE /availability-alerts/:id` | `/{slug}/my-account/alerts/[id]/cancel` | M23-S12 |
-| `07i-cancelar-aviso-erro.html` | Cancel failed (network / 5xx) — the alert stays active, retry | same, error | M23-S12 |
+| `06e-pular-fora-do-prazo.html` / `06f-reagendar-fora-do-prazo.html` | Skip / reschedule refused because the tenant's cancellation / reschedule window has passed (same wording as one-off `03b`; the occurrence is a booking, decided in `M23-S08`) | same, error state | **Superseded 2026-10-09** — not built: "Pular" and "Reagendar" open the existing booking cancel and reschedule pages, which already show these refusals |
+| `07-availability-alert.html` | "Meus avisos": list and cancel — no create button, no edit yet (creation is a page of the booking flow, `book-a-service/16*`); entered from the "Meus avisos" link on `01-minha-conta.html` | `/{slug}/my-account/alerts` | M23-S43 |
+| `07b-avisos-vazio.html` | Empty state — points the customer to "Avise-me quando abrir" in the booking flow | same, empty | M23-S43 |
+| `07c-avisos-carregando.html` | Loading skeleton | same, loading | M23-S43 |
+| `07d-avisos-erro.html` | `GET /availability-alerts` failed — retry | same, error | M23-S43 |
+| `07e-aviso-nao-editavel.html` | `409 BOOKING_ALERT_NOT_EDITABLE` on cancel (already notified or expired, reached from `07h`) — the list refreshes, the alert moves to history | same, error | M23-S43 |
+| `07f-aviso-detalhe.html` | Alert detail (ACTIVE) — central detail + action pane with "Cancelar aviso"; same layout as `02-agendamento-detail` | `/{slug}/my-account/alerts/[id]` | M23-S43 |
+| `07g-aviso-detalhe-historico.html` | Alert detail (NOTIFIED / EXPIRED) — read-only, no cancel action | same, history | M23-S43 |
+| `07h-cancelar-aviso.html` | Cancel confirmation — central detail + action pane; same layout as `03-cancel-confirm`, `DELETE /availability-alerts/:id` | `/{slug}/my-account/alerts/[id]/cancel` | M23-S43 |
+| `07i-cancelar-aviso-erro.html` | Cancel failed (network / 5xx) — the alert stays active, retry | same, error | M23-S43 |
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
 

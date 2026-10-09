@@ -47,7 +47,7 @@
 | 4 | M23-S35 | Apply the booking window to a recurring schedule's first occurrence and never create a past occurrence — new schedules and pattern-changing renewals checked, pure renewals exempt via `renewsScheduleId` (UC-070, UC-071); backend-only |
 | 4 | M23-S36 | One shared `LogDomainEventUseCase` and one thin `audit-log` handler per context replace every log-only consumer and cover every domain event (13 new subscriptions, a new `StaffActivated` topic, a coverage detector, clean-up of the replaced code); backend-only, lands before S28 |
 | 4 | M23-S42 | Account read model: the service name on the schedule list item, and by-id reads for a schedule and an alert (backend + BFF; S12, S22, S41 consume them) |
-| 5 | M23-S12 | Customer "Minha Conta" extension — recurring reservations + availability alerts management |
+| 5 | M23-S12 | Customer "Minha Conta" — recurring reservations: list, detail, end and the Agendamentos entry (the alerts half is S43) |
 | 5 | M23-S13 | Staff Agenda extension — recurrence requests in the "Precisa de ação" queue, "Filtrar agenda" balloon, approval detail screen (UC-071 UI) |
 | 5 | M23-S21 | Renewal reminder email for an ending recurring schedule (UC-070) |
 | 5 | M23-S28 | Customer and staff emails for the recurring-schedule lifecycle — `Created`/`ApprovalRequested`/`Rejected`/`Ended` → Notification (UC-070, UC-071); lands before S12 |
@@ -58,6 +58,7 @@
 | 6 | M23-S17 | Customer creates a recurring private reservation — pattern builder, review and outcome screens (UC-070) |
 | 7 | M23-S22 | Customer renews an ending recurring schedule — "Renovar" pre-filled form (UC-070) |
 | 7 | M23-S19 | Staff creates a recurring private reservation on a customer's behalf (UC-070) |
+| 6 | M23-S43 | Customer "Minha Conta": availability alerts management — list, detail and cancel (the alerts half of the former S12; depends on S12 and S42) |
 | 8 | M23-S41 | Customer Início: "Recorrências" and "Avisos" tiles (only when above zero) and a "Renovar" card for a schedule about to end (frontend only; depends on S12, S21, S22) |
 
 ```mermaid
@@ -128,6 +129,9 @@ graph TD
   S29 --> S17
   S40 --> S19
   S05 --> S22
+  S12 --> S43
+  S42 --> S43
+  S43 --> S41
 ```
 
 **Wave note (self-dry-run, corrected during `/docs-audit`):** S02 and S03 both call S01's `ResourceResolutionService` in their own description text (S02 for a variable-duration window, S03 for a reschedule's replacement window) — an audit found neither declared that as a `Dependencies:` edge, and both sat in Wave 1 alongside S01 itself. Fixed: both now depend on M23-S01 and sit in **Wave 2**. This cascades: S11 (guest/customer booking flow frontend; later split into S11a — wave 3 — and S11b — wave 4, 2026-10-03) depends on S01, S02, **and** S03 — its floor is now `max(S01=1, S02=2, S03=2) + 1` = **Wave 3**, not Wave 2. S12 (Minha Conta extension) needs both S04 (recurring CRUD) and S05 (approval + generation) BFF endpoints, plus S06/S07 (alerts CRUD + matching) — its dependency floor is `max(S04, S05, S06, S07)`'s wave, i.e. Wave 3 (S05) + 1 = **Wave 4**. S13 (staff approval-queue UI) only needs S05, so it's `Wave 3 + 1 = Wave 4` too, not Wave 3 in parallel with S05 itself.
@@ -1193,53 +1197,78 @@ Build the preset-selection + minimum-answer wizard from the relocated prototype,
 
 ---
 
-### M23-S12 — Customer "Minha Conta" extension: recurring reservations + availability alerts management
+### M23-S12 — Customer "Minha Conta": recurring reservations — list, detail, end, and the Agendamentos entry
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite-account equivalent), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, § Availability Alerts
-**Dependencies:** **M23-S42** (the service name on the schedule list item, which every row title needs, and the two by-id reads the detail pages use), **M23-S30** (the customer reschedule screen the occurrence action opens), M23-S04, M23-S05 (recurring schedules BFF and the `ENDED` status), M23-S06, M23-S07 (alerts BFF), M23-S08 (removes the schedule-side occurrence route — occurrences are now bookings — and adds the `GET /bookings?recurringScheduleId=` filter this story lists them with), M23-S28 (the customer emails for each recurring-schedule outcome, which must exist before customers can see and manage their schedules here), and M23-S20 (pause removal — pause no longer means anything once every occurrence of a fixed term exists as a booking, so this story draws no Pause action)
-**Pattern:** plain composition — extends the existing, shipped "Minha Conta" pages. **List rows (decided 2026-10-09):** the recurring-schedule and alert rows use the booking row's shape — icon, title as the link to the detail page (no "Ver detalhes" link), muted meta, small inline text actions (red "Cancelar aviso" on an active alert only; "Renovar" on a schedule is M23-S22's, not drawn by this story), status badge on the right — built as one shared account list row that `BookingsList` can adopt later, not a per-list copy; history alerts link to `07g` and carry no action. **Verification note (real-precedent check, not `CLAUDE.md` §11's stated aspirational rule):** the existing Customer-facing booking components (`BookingsList.tsx`, `CancelAction.tsx`, etc.) live under `apps/web/features/customer/components/my-account/`, not `apps/web/features/booking/`, despite §11's stated actor-scoped-view convention — verify at implementation time whether that's still the live precedent or has since been migrated (per TD31 Story 11's stated intent) before picking a location for these new components; match whichever is actually true at implementation time, don't assume the doc over the code.
-**Prototype references:** `plan/journey/customer/minha-conta.md` (M23 Cluster 3 extension section) + `plan/journey/customer/prototypes/minha-conta/06-reserva-recorrente.html` (schedule detail: central detail + action pane), `06e-pular-fora-do-prazo.html`, `06f-reagendar-fora-do-prazo.html` (window refusals), `06g-encerrar-recorrencia.html` (end confirmation page), `14-recorrentes-lista.html`, `14b-recorrentes-lista-vazia.html`, `07-availability-alert.html` (+ `07b` empty, `07c` loading, `07d` load error, `07e` cancel refused 409, `07f` alert detail, `07g` history detail, `07h` cancel confirmation, `07i` cancel error), the "Reservas recorrentes" and "Meus avisos" cards on `01-minha-conta.html` (the Agendamentos tab, `/my-account/bookings`), `dev-notes.md` (the creation-flow screens `13*`, `06b` and `06c` belong to M23-S17). **Schedule list item service name (found 2026-10-09 while drafting M23-S41):** the list item carried `serviceId` but no name, and prototype `14` titles each row with it ("Sala Aurora"); **M23-S42** adds `serviceName` to the item, so this story is frontend-only. **Detail pages read their item by id (decided 2026-10-09)** — `GET /recurring-booking-schedules/:id` and `GET /availability-alerts/:id`, both added by M23-S42 — never by finding it in the list (the alerts list is capped at the 100 most recent, so an older alert would wrongly 404). **Prototype scope note (2026-10-09):** `14` and `14b` also draw the topbar "+ Novo ▾" menu (desktop), the same menu in the page header (mobile, `14` only) and `14b`'s "+ Nova reserva recorrente" call to action; all three lead to S17's form, which does not exist yet, so **S12 does not build them** — it renders the list, the empty state's illustration and copy, and the rows exactly as drawn, and S17 adds the menu and the call to action (see S17)
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer shell), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules and § Bookings list, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
+**Dependencies:** **M23-S42** (the service name on the schedule list item and `GET /recurring-booking-schedules/:id`), **M23-S30** (the customer reschedule page an occurrence's "Reagendar" opens), M23-S04, M23-S05 (the recurring-schedule BFF and the `ENDED` status), M23-S08 (occurrences are bookings and `GET /bookings?recurringScheduleId=` lists them), M23-S20 (no Pause), M23-S28 (the customer emails for each schedule outcome, which should exist before customers manage their schedules here). The alerts half of the former S12 is **M23-S43**.
+**Pattern:** plain composition — extends the shipped "Minha Conta" pages; the rows are one shared `AccountListRow` (the booking row's shape: icon, title as the link to the detail page, muted meta, small inline text actions, status badge on the right; there is no "Ver detalhes" link) that `BookingsList` can adopt later. **Component location (verified 2026-10-09):** customer-facing components live in `apps/web/features/customer/components/my-account/` (`BookingsList`, `CancelConfirmPage`, `CustomerReschedulePage`…), while the fetchers for the `booking` domain live in `apps/web/features/booking/api/` — this story follows both.
+**Prototype references:** `plan/journey/customer/minha-conta.md` (M23 Cluster 3 extension) + `plan/journey/customer/prototypes/minha-conta/`: `14-recorrentes-lista.html` and `14b-recorrentes-lista-vazia.html` (list and empty state), `06-reserva-recorrente.html` (active schedule detail), `06h-recorrencia-encerrada.html` (ended or cancelled, read-only), `06c-recorrente-em-analise.html` (a pending schedule), `06g-encerrar-recorrencia.html` (end confirmation), and the "Reservas recorrentes" entry row on `01-minha-conta.html` (the Agendamentos tab, `/my-account/bookings`). **Superseded, not built:** `06e` and `06f` (the skip and reschedule refusals) — the existing booking cancel error page and S30's window-expired view already show them. `14` and `14b` also draw the topbar "+ Novo ▾" menu, a mobile header menu and `14b`'s call to action; those belong to M23-S17, so **S12 does not build them**.
 
 **Description:**
-Add "Meus agendamentos recorrentes" (list/skip/reschedule-occurrence/end a `RecurringBookingSchedule` — no Pause action; each row shows its term, "até dd/mm", and a schedule whose term is over shows an "Encerrada" badge (`ENDED`) — with a distinct "em análise" state for `PENDING_APPROVAL`) and "Meus avisos" (list, detail and cancel-through-a-confirmation-page of an `AvailabilityAlert` — never create, that is M23-S31; no edit in the UI yet) to the customer account area, per the relocated prototype. Alert **creation** — the "Avise-me quando abrir" button on the booking flow's calendar step and the alert page it opens (`/[slug]/booking/availability-alert`, a login-required page of the booking flow, UC-072) — is **not** part of this story and not part of S11a/S11b either: it is **M23-S31**. This story is the **management** surface only (the list page `/[slug]/my-account/alerts`); `07-availability-alert.html` is that list, with edit and cancel — no create button here, since creation always starts from the booking flow. Creating a recurring schedule is M23-S17's scope. **Decided 2026-10-09:** creation starts from the shared topbar "+ Novo ▾" menu ("Agendamento" / "Reserva recorrente"), not from a button on this list — so this story draws **no** create button on the list header, and S17 owns the `CustomerTopbar` menu (its second item points at S17's route, which does not exist before S17 ships); S17 also adds the empty-state CTA (`14b`) and the mobile in-page menu on this story's list page (`14`), so it depends on this story. Until S17 ships, the topbar keeps today's "+ Novo agendamento" link. Consumes the paginated `GET /recurring-booking-schedules` (TD45 Story 1): `{ items, pagination }`, default page size 25. **Occurrences are bookings (decided in M23-S08):** a schedule's occurrences are listed with `GET /bookings?recurringScheduleId=<id>`, "skip" cancels that occurrence's booking with the ordinary customer cancel — so it is refused inside the tenant's cancellation window, and the screen shows the same window-expired message a one-off booking's cancel shows — and "reschedule" is the ordinary customer reschedule of that booking. There is no `PATCH …/occurrences/…` route any more. A row never shows a resource read from the schedule's own assignment (it only records what was requested and is not updated when one occurrence is reassigned); the customer booking list item carries no resource today (`assignedResources` is staff-only), so whether an occurrence row shows one — which needs that field added for customers — is decided at this story's discovery.
+The customer sees and manages their recurring private reservations (UC-070 A2). This story adds the list, the detail, the end confirmation and the entry row on the Agendamentos tab; it also removes the points strip from that tab (points live on Início and Fidelidade — the tab rules are in `plan/journey/customer/minha-conta.md`). Alert management is M23-S43; creating a recurring schedule is M23-S17.
+
+**Decided at discovery (2026-10-09):**
+1. **List** (`/{slug}/my-account/recurring-schedules`): one request, `GET /recurring-booking-schedules?limit=100`, no paging UI; sections "Ativas", "Em análise" and "Encerradas". An `ENDED` schedule shows the "Encerrada" badge and a `CANCELLED` one (ended by the customer, rejected or expired) shows a grey "Cancelada" badge, both under "Encerradas". Each row is an `AccountListRow`: the service name (from M23-S42) as the title link, the recurrence and term as meta, the status badge. No inline action on a row in this story ("Renovar" is M23-S22's). No create control of its own; the empty state (`14b`) has its illustration and copy and no call to action (S17 adds it).
+2. **Detail** (`.../[id]`): reads `GET /recurring-booking-schedules/:id` (M23-S42) — never finds the item in the list. A missing or foreign id is a `404`. By status: `ACTIVE` is `06` (the next occurrences, each with "Pular" and "Reagendar", and "Encerrar recorrência"); `ENDED` and `CANCELLED` are `06h`, **read-only** (the period's bookings as history, no skip, reschedule or end; the "Renovar" and "Nova reserva recorrente" buttons are M23-S22 and M23-S17); `PENDING_APPROVAL` renders `06c`'s content as `RecurringSchedulePendingView`, the same component M23-S17 renders right after creation.
+3. **Occurrences are bookings** (M23-S08): they are read with `GET /bookings?recurringScheduleId=<id>` (the customer bookings fetcher gains a `recurringScheduleId` option and a `limit`, today it takes neither and is fixed at 50; a fixed term holds well under 100 occurrences). "Pular" is a link to the existing `/{slug}/my-account/bookings/<id>/cancel` confirmation page, whose refusal inside the cancellation window is the existing `cancel/error` page; "Reagendar" is a link to `/{slug}/my-account/bookings/<id>/reschedule` (M23-S30), which already shows its own window-expired view. `RecurringScheduleOccurrences` therefore holds links, not cancel or reschedule logic. Returning to the schedule after the action (a `returnTo`, as `BookingDetailPage` already supports) is confirmed at implementation.
+4. **End** (`.../[id]/end`): a dedicated confirmation page (`06g`), never an inline panel; confirming calls `POST /recurring-booking-schedules/:id/end` and goes back to the list; a failure shows the same inline error `CancelConfirmPage` shows (verify the exact treatment at implementation).
+5. **Occurrence rows show no resource** — the customer booking list item carries none, and the schedule's own assignment is not updated when one occurrence is reassigned.
+6. **Agendamentos tab:** `BookingsList` drops the points strip (and `bookings/page.tsx` drops its loyalty read, after confirming nothing else on that page needs it) and shows a "Reservas recorrentes" entry row, only when the customer has any schedule in any status, with the active count as a badge, linking to the list. The count read is optional: a failure hides the row and never blocks the tab.
+7. **i18n namespace** is `customer.recurringSchedules` (the real top-level namespace is `customer`, e.g. `customer.home`, `customer.bookingItem`), both locale files in the same change.
+8. **Journey docs:** the same commit flips the `❓ Gap` markers of `06`, `06c`, `06g`, `06h`, `14` and `14b` in `plan/journey/customer/minha-conta.md` and `dev-notes.md`, and marks `06e` and `06f` superseded.
+
+**Backend HTTP surface:** none — reuses `GET /recurring-booking-schedules`, `GET /recurring-booking-schedules/:id` (M23-S42), `POST /recurring-booking-schedules/:id/end` and `GET /bookings`.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** i18n keys under `customer.recurringSchedules` in `packages/i18n/locales/pt-BR/web.json` and `en/web.json`; no migration, env var or flag.
 
 **Files to create/modify:**
 - `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` (new)
-- `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` (new — the schedule's detail page, central detail + action pane, same pattern as `bookings/[id]/page.tsx`; back link in the topbar via the customer topbar context)
-- `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` (new — the end-schedule confirmation page, same pattern as `bookings/[id]/cancel/page.tsx`; **not** an inline panel)
-- `apps/web/app/[slug]/my-account/alerts/page.tsx` (new)
-- `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` (new — the alert's detail page, central detail + action pane, same pattern as `bookings/[id]/page.tsx`)
-- `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` (new — the cancel confirmation page, same pattern as `bookings/[id]/cancel/page.tsx` and the team `deactivate` page; **not** an inline panel)
-- `apps/web/features/customer/components/my-account/BookingsList.tsx` (+ spec) (modify — remove the loyalty strip and add the "Reservas recorrentes" and "Meus avisos" entries, each shown only when the customer has any schedule or alert in any status, as drawn in `01`; the bookings page (`bookings/page.tsx`) then no longer fetches the loyalty balance — verify at discovery that nothing else on that page needs it)
-- `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` (+ spec) (new — location per this story's own verification note above)
-- `apps/web/features/customer/components/my-account/RecurringScheduleOccurrenceActions.tsx` (+ spec) (new)
-- `apps/web/features/customer/components/my-account/AvailabilityAlertList.tsx` (+ spec) (new)
-- `apps/web/features/booking/api/recurring-booking-schedules.ts` (+ spec) (new — list and end fetchers for the recurring schedules, in the owning `booking` slice per `CLAUDE.md` §11; M23-S13 (approve/reject), M23-S17 and M23-S19 extend this one module, and whichever of S12/S13 lands first creates it)
-- `apps/web/features/booking/api/availability-alerts.ts` (modify — exists since M23-S31 with the create call; add the list, get and cancel calls here rather than a second alerts module)
-- `apps/web/features/customer/hooks/useRecurringSchedules.ts` (+ `useAvailabilityAlerts.ts`) (new)
-- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `myAccount.recurringSchedules`/`myAccount.alerts` namespaces, verified against the real existing `myAccount.*` shape at implementation time)
-
-**Open for discovery (audit 2026-10-09; two prototype gaps):** (1) prototype `14` opens an "Em análise" row on `06c`, which is S17's post-create outcome screen — decide whether the pending schedule's detail page is that same screen (one component, rendered right after creation by S17 and from the list by this story) or a variant of `06`; (2) `06` draws only an active schedule, so there is no detail for an `ENDED` or `CANCELLED` one (no skip, reschedule or end actions, an "Encerrada" banner, "Renovar" owned by M23-S22) — a variant has to be drawn before implementation.
+- `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` (new — a server component; back link in the topbar through the customer topbar context's `setBackHrefOverride`)
+- `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` (new — the end confirmation page)
+- `apps/web/features/customer/components/my-account/AccountListRow.tsx` (+ spec) (new — the shared row)
+- `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` (+ spec) (new)
+- `apps/web/features/customer/components/my-account/RecurringScheduleDetail.tsx` (+ spec) (new — the active and the terminal variants)
+- `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ spec) (new — the occurrences with the "Pular" and "Reagendar" links)
+- `apps/web/features/customer/components/my-account/RecurringSchedulePendingView.tsx` (+ spec) (new — also rendered by M23-S17 after creation)
+- `apps/web/features/customer/components/my-account/RecurringScheduleEndConfirm.tsx` (+ spec) (new)
+- `apps/web/features/customer/components/my-account/BookingsList.tsx` (+ spec) (modify — remove the points strip, add the entry row; the props lose `loyaltyBalance`)
+- `apps/web/app/[slug]/my-account/bookings/page.tsx` (modify — drop the loyalty read, add the optional schedules read)
+- `apps/web/features/booking/api/recurring-booking-schedules.server.ts` (+ spec) (new — list and get-by-id with `bffServerFetch`)
+- `apps/web/features/booking/api/recurring-booking-schedules.ts` (+ spec) (new — the `end` call with `bffClient`; M23-S13, S17 and S19 extend this module, and whichever of S12/S13 lands first creates it)
+- `apps/web/features/booking/api/customer.server.ts` (+ spec) (modify — `fetchCustomerBookings` gains `recurringScheduleId` and `limit`)
+- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify — same change)
+- `apps/web/e2e/my-account-recurring-schedules.spec.ts` (new) and its seeding helper under `apps/web/e2e/helpers/customer/` (new)
+- `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/dev-notes.md` (modify — the Gap flips)
 
 **Acceptance criteria — product:**
-- [ ] Customer sees their recurring schedules with correct status (`ACTIVE`/`PENDING_APPROVAL`/`ENDED`/`CANCELLED`) and their term, and can skip (cancel) or reschedule an occurrence's booking, within the cancellation and reschedule windows, or end a schedule.
-- [ ] Customer sees their availability alerts and can open one's detail page and cancel an active one from its action pane through a confirmation page (the same pattern as cancelling a booking — never an inline panel); a notified/expired alert shows as read-only history with no cancel action. There is no edit action in the UI yet (`PATCH /availability-alerts/:id` exists from M23-S06 but is not used here).
-
-- [ ] The recurring list has no create control of its own: no header button, no topbar menu change and no link to a creation route; the empty state shows its illustration and copy without a call to action until M23-S17 adds it. The topbar keeps today's "+ Novo agendamento" link.
-
-- [ ] The Agendamentos tab no longer shows a points strip; "Reservas recorrentes" and "Meus avisos" appear there only when the customer has any item of that kind (an ended schedule or a past alert still counts), and show the active count.
+- [ ] A customer sees their recurring schedules under "Ativas", "Em análise" and "Encerradas" (an ended one badged "Encerrada", a cancelled one "Cancelada"), each with its service name, recurrence and term.
+- [ ] A customer opens an active schedule and sees its upcoming occurrences; "Pular" opens that booking's usual cancel confirmation (refused inside the cancellation window by the usual error page) and "Reagendar" opens the usual reschedule page.
+- [ ] A customer can end an active schedule through a confirmation page and then finds it under "Encerradas".
+- [ ] An ended or cancelled schedule opens read-only: its period's bookings as history, with no skip, reschedule or end.
+- [ ] A pending schedule opens the "em análise" view with the time its slot stays protected.
+- [ ] The Agendamentos tab no longer shows a points strip, and shows "Reservas recorrentes" with the active count only when the customer has any schedule (an ended one counts); if that read fails the tab still renders.
+- [ ] The recurring list has no create control of its own and its empty state has no call to action until M23-S17 adds one; the topbar keeps today's "+ Novo agendamento" link.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] List components render each status correctly per fixture, and the list and its empty state render no create control
-  - [ ] Occurrence-action component cancels vs. reschedules the occurrence's booking correctly, and shows the window-expired message when the cancel is refused
-- Integration: n/a
-- Tenant isolation: n/a — client-side; server-side isolation already covered by S04/S06
-- E2E:
-  - [ ] Playwright: customer ends a real seeded recurring schedule, and sees a seeded `ENDED` one with its "Encerrada" badge
-  - [ ] Playwright: customer opens a real seeded alert, cancels it through the confirmation page and sees it leave the active list
+  - [ ] `AccountListRow.spec.tsx`: title is the link, meta and badge render, an action renders when given and nothing when not
+  - [ ] `RecurringScheduleList.spec.tsx`: each status lands in its section with its badge (`ENDED` "Encerrada", `CANCELLED` "Cancelada"), the empty state renders, and the list and its empty state render no create control (a negative guarantee, pinned by its own test)
+  - [ ] `RecurringScheduleDetail.spec.tsx`: an `ACTIVE` schedule shows the end link; an `ENDED` and a `CANCELLED` one render no "Pular", "Reagendar" or "Encerrar" (negative guarantee, own test)
+  - [ ] `RecurringScheduleOccurrences.spec.tsx`: each occurrence's links point at its own booking's cancel and reschedule routes
+  - [ ] `RecurringSchedulePendingView.spec.tsx` and `RecurringScheduleEndConfirm.spec.tsx`: content, the confirm call and the failure state
+  - [ ] `BookingsList.spec.tsx`: no points strip (negative guarantee, own test); the entry row shows only when the customer has any schedule, with the active count; absent when the optional data is absent
+  - [ ] the bookings page: a failed schedules read leaves the tab rendering (no redirect, no throw)
+  - [ ] `customer.server.spec.ts`: `fetchCustomerBookings` sends `recurringScheduleId` and `limit` when given and its old query otherwise
+- Integration: n/a — web stories have no integration tier
+- Tenant isolation: n/a — client-side; server-side isolation is covered by M23-S04 and M23-S42
+- E2E (every route is touched):
+  - [ ] Playwright, `/{slug}/my-account/recurring-schedules`: a customer with a real, seeded active schedule sees it in "Ativas", opens its detail, sees its occurrences, and "Pular" lands on that occurrence's cancel confirmation page
+  - [ ] Playwright, `.../[id]/end`: the customer ends the schedule through the confirmation page and finds it under "Encerradas"
+  - [ ] Playwright: a customer with no schedule sees the empty state, and the Agendamentos tab has no "Reservas recorrentes" row
+  - [ ] Playwright: the Agendamentos tab shows the "Reservas recorrentes" row for a customer with a schedule
+  - [ ] An `ENDED` badge is covered at the unit level only (an `ENDED` row is written by a job, not seeded through the product)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -1372,7 +1401,7 @@ Add the customer-side creation flow for a recurring private reservation: a patte
    | Outcome | Screen |
    |---|---|
    | `201` `ACTIVE` | `13c` |
-   | `201` `PENDING_APPROVAL` | `06c` (with `approvalHoldExpiresAt`) |
+   | `201` `PENDING_APPROVAL` | `06c` (with `approvalHoldExpiresAt`) — rendered with M23-S12's `RecurringSchedulePendingView`, the same component S12 shows for a pending schedule opened from the list |
    | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `06b` — lists the conflicting occurrences from the `409` body (M23-S18) |
    | `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` whose list carries `CLOSED` / `OUTSIDE_HOURS` reasons (M23-S18 locked "reject at creation") | `06d` — the same occurrence list with those reasons; occupancy and hours reasons can appear together in one list |
    | `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `13d` |
@@ -1400,7 +1429,7 @@ Add the customer-side creation flow for a recurring private reservation: a patte
 **Backend HTTP surface:** reuses `POST /recurring-booking-schedules` (M23-S04); the `409` occurrence list is M23-S18's change.
 **BFF endpoint spec:** reuses `POST /recurring-booking-schedules` as the existing thin proxy, unchanged.
 **Prototype references:** `plan/journey/customer/minha-conta.md` (M23 Cluster 3 extension) + `plan/journey/customer/prototypes/minha-conta/13-nova-recorrencia.html`, `13b-nova-recorrencia-revisar.html`, `13c-nova-recorrencia-sucesso.html`, `13d-nova-recorrencia-limite.html`, `13e-nova-recorrencia-erro.html`, `06b-reserva-recorrente-erro.html`, `06c-recorrente-em-analise.html`, `06d-reserva-recorrente-erro-horario.html` (only if M23-S18 locks "reject at creation"), `14-recorrentes-lista.html`, `14b-recorrentes-lista-vazia.html`, `dev-notes.md`
-**New migration / i18n keys / env vars / feature flags:** no migration, env var or feature flag. i18n keys: a new `myAccount.recurringSchedules.new.*` group in both `packages/i18n/locales/{pt-BR,en}/web.json` (form labels and hints, the two steps, the per-outcome result copy, the three occurrence-reason labels, the weekday-required message, the actions), verified against the file's real `myAccount.*` shape at implementation time; weekday names reuse the existing weekday keys if their shape fits. **No new error-code translations:** every `BOOKING_RECURRING_SCHEDULE_*` code this flow can receive (including `BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED`, added by M23-S18) is already present in both `errors.json` files; only the occurrence-reason labels are new copy here (decision B).
+**New migration / i18n keys / env vars / feature flags:** no migration, env var or feature flag. i18n keys: a new `customer.recurringSchedules.new.*` group in both `packages/i18n/locales/{pt-BR,en}/web.json` (form labels and hints, the two steps, the per-outcome result copy, the three occurrence-reason labels, the weekday-required message, the actions), verified against the file's real `customer.*` shape at implementation time; weekday names reuse the existing weekday keys if their shape fits. **No new error-code translations:** every `BOOKING_RECURRING_SCHEDULE_*` code this flow can receive (including `BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED`, added by M23-S18) is already present in both `errors.json` files; only the occurrence-reason labels are new copy here (decision B).
 
 **Files to create/modify:**
 - `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` (new)
@@ -1410,7 +1439,7 @@ Add the customer-side creation flow for a recurring private reservation: a patte
 - `apps/web/features/customer/components/CustomerTopbar.tsx` (+ spec) (modify — replace the "+ Novo agendamento" link with the "+ Novo ▾" menu; the `customer.topbar.newBooking` i18n key becomes the menu's label set in both locales, with the two item labels and descriptions)
 - `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` (+ spec) (modify — exists once M23-S12 ships: the empty-state CTA and the mobile in-page menu in the header; no desktop create button, the topbar menu is the entry)
 - the Agendamentos list page's mobile "+ Novo agendamento" button (modify — becomes the same two-item menu; `HomeDashboard.tsx`/`BookingDetailPage.tsx` keep their own contextual CTAs)
-- `apps/web/features/customer/hooks/useCreateRecurringSchedule.ts` (+ spec) (new; it sits beside M23-S12's `useRecurringSchedules.ts`, and its fetcher module path is whatever S12 ships)
+- `apps/web/features/customer/hooks/useCreateRecurringSchedule.ts` (+ spec) (new; its fetcher extends the `apps/web/features/booking/api/recurring-booking-schedules.ts` module M23-S12 creates)
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify — same change)
 - `apps/web/e2e/my-account-recurring-schedule-create.spec.ts` (new; reusable flow helpers go under `apps/web/e2e/helpers/customer/`)
 - `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/dev-notes.md`, `plan/journey/customer/prototypes/minha-conta/index.html` (modify — flip the `13*`/`14*`/`06b`/`06c` `❓ GAP` status in the same commit, and `06d` if it is kept)
@@ -2499,8 +2528,8 @@ On the booking flow's calendar (date and time) step, when the basket holds exact
 - [ ] For a legged or bundled service the page shows no resource field and the note; for a customer-selected-duration service the duration always arrives from the flow.
 - [ ] A one-time range that ends in the past, an end before the start, a weekly preference with no weekday or an end time not after the start each show their own field error and nothing is sent.
 - [ ] A customer at the 10-active-alert cap sees a clear message on save and is pointed to "Meus avisos".
-- [ ] A saved alert appears in M23-S12's "Meus avisos" (cross-check once S12 lands).
-  - ⚠️ Cross-check deferred: "Meus avisos" does not exist until M23-S12 — verify there that a saved alert appears, 2026-10-07
+- [ ] A saved alert appears in M23-S43's "Meus avisos" (cross-check once S43 lands).
+  - ⚠️ Cross-check deferred: "Meus avisos" does not exist until M23-S43 — verify there that a saved alert appears, 2026-10-07
 
 **Acceptance criteria — technical:**
 - Unit: the link builder (flow state → alert-page URL; null for a multi-service basket, an ineligible service or a legged service's resource); the button's visibility in every step state; the form's payload conversion from tenant-local to offset ISO and each validation error; each server error mapping (422 criteria, 422 ineligible, 409 cap, generic); the login gate's `returnTo` link keeps the query string; the confirmation's "Voltar ao site" target; an axe check that the page paints `--ba-background`.
@@ -3210,13 +3239,13 @@ Give staff one place to create something for a customer who phoned or messaged.
 **Agent:** frontend-ts
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer shell, Início), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules and § Availability Alerts, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys
-**Dependencies:** M23-S12 (the two list pages the tiles link to and the fetchers), M23-S42 (the service name on the schedule list item), M23-S21 (the renewal lead time and the server-side `renewable` flag on the list item, and the trigger this card mirrors), M23-S22 (the "Renovar" form the card opens)
+**Dependencies:** M23-S12 (the recurring list the tile links to, and the fetchers), M23-S43 (the alerts list the other tile links to), M23-S42 (the service name on the schedule list item), M23-S21 (the renewal lead time and the server-side `renewable` flag on the list item, and the trigger this card mirrors), M23-S22 (the "Renovar" form the card opens)
 **Pattern:** plain composition — extends the shipped `HomeDashboard`; the two selectors are pure functions beside `booking-sections.ts`; no named pattern applies.
 
 **Prototype references:** `plan/journey/shared/customer-dashboard.html` (the two extra tiles, the amber renewal card, and the prototype-only "ver como cliente sem recorrências nem avisos" toggle that shows today's page unchanged); targets `plan/journey/customer/prototypes/minha-conta/14-recorrentes-lista.html`, `07-availability-alert.html` and `13f-renovar-recorrencia.html`.
 
 **Description:**
-The Início tab (`/{slug}/my-account`) shows two tiles today, Pontos and Agendamentos, and the next bookings. Recurring reservations and availability alerts have their own lists (M23-S12) but nothing on Início points to them. This story adds, without changing the page for anyone who has neither:
+The Início tab (`/{slug}/my-account`) shows two tiles today, Pontos and Agendamentos, and the next bookings. Recurring reservations and availability alerts have their own lists (M23-S12, M23-S43) but nothing on Início points to them. This story adds, without changing the page for anyone who has neither:
 
 1. **Two conditional tiles**, "Recorrências · N ativa(s)" and "Avisos · N ativo(s)", each linking to its list (`/{slug}/my-account/recurring-schedules`, `/{slug}/my-account/alerts`). A tile renders only when its count is above zero. There is **no tenant-feature flag**: a tenant without recurring services or alerts simply returns zero, so the count rule already hides the tile (the simpler of the two options, decided here).
 2. **One contextual "Renovar" card** between the tiles and "Próximos agendamentos": the `ACTIVE` schedule that ends first, when it is inside the "about to end" window — "<service> termina em N dias", its recurrence and end date, and a "Renovar" button to `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>` (M23-S22). With more than one schedule inside the window the card says "N reservas terminando" and links to the recurring list instead. The card and M23-S21's reminder email share one lead time, but not the same moment: the email fires on the single day `endsOn = today + leadDays`, while the card shows for the whole window up to that day (the schedules the list item flags `renewable`).
@@ -3325,3 +3354,69 @@ The BFF stays a thin proxy for all three; only the response type gains the field
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
+
+---
+
+### M23-S43 — Customer "Minha Conta": availability alerts management — list, detail and cancel
+
+**Agent:** `frontend-ts`
+**Complexity:** M
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer shell), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Availability Alerts, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
+**Dependencies:** M23-S12 (the shared `AccountListRow`, the Agendamentos entry-row pattern and the topbar back-link usage), M23-S42 (`GET /availability-alerts/:id`), M23-S31 (✅ Done — alert creation and the client alerts module), M23-S06, M23-S07 (the alerts BFF)
+**Pattern:** plain composition — reuses M23-S12's `AccountListRow`; the cancel confirmation follows the booking cancel page and the team `deactivate` page; no named pattern applies.
+**Prototype references:** `plan/journey/customer/prototypes/minha-conta/07-availability-alert.html` (list), `07b-avisos-vazio.html` (empty), `07c-avisos-carregando.html` (loading), `07d-avisos-erro.html` (load error), `07e-aviso-nao-editavel.html` (cancel refused, `409`), `07f-aviso-detalhe.html` (active detail), `07g-aviso-detalhe-historico.html` (notified or expired detail), `07h-cancelar-aviso.html` (cancel confirmation), `07i-cancelar-aviso-erro.html` (cancel failure), the "Meus avisos" entry row on `01-minha-conta.html`, and `dev-notes.md`. Alert creation is not here — it is the booking flow's page (M23-S31, `book-a-service/16*`).
+
+**Description:**
+The customer sees and cancels their availability alerts (UC-076). The management surface only: no create control (creation starts in the booking flow) and no edit in the UI yet (`PATCH /availability-alerts/:id` exists from M23-S06 and is not used here).
+
+**Decided at discovery (2026-10-09):**
+1. **List** (`/{slug}/my-account/alerts`): `GET /availability-alerts` (the 100 most recent, history included), active alerts first, then "Histórico". Rows are M23-S12's `AccountListRow`: the title is the link to the detail page, an active alert has a red inline "Cancelar aviso" and a green "Ativo" badge, a history row has only the title link (to `07g`) and its "Avisado" or "Expirado" badge. Loading, empty and load-error states are `07c`, `07b` and `07d`.
+2. **Detail** (`.../alerts/[id]`): reads `GET /availability-alerts/:id` (M23-S42), never the list. A missing or foreign id is a `404`. An active alert is `07f` with a "Cancelar aviso" action in its pane; a notified or expired one is `07g`, read-only.
+3. **Cancel** (`.../alerts/[id]/cancel`): a dedicated confirmation page (`07h`), never an inline panel; `DELETE /availability-alerts/:id`. A network or `5xx` failure is `07i` (the alert stays active, with "Tentar novamente"); a `409 BOOKING_ALERT_NOT_EDITABLE` (notified or expired in the meantime) is `07e`.
+4. **Agendamentos tab:** a "Meus avisos" entry row, only when the customer has any alert in any status, with the active count as a badge, linking to the list; the count read is optional and its failure never blocks the tab.
+5. **i18n namespace** is `customer.alerts`, both locale files in the same change.
+6. **Journey docs:** the same commit flips the `❓ Gap` markers of `07` to `07i` in `minha-conta.md` and `dev-notes.md`.
+
+**Backend HTTP surface:** none — reuses `GET /availability-alerts`, `GET /availability-alerts/:id` (M23-S42) and `DELETE /availability-alerts/:id`.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** i18n keys under `customer.alerts` in `packages/i18n/locales/pt-BR/web.json` and `en/web.json`; no migration, env var or flag.
+
+**Files to create/modify:**
+- `apps/web/app/[slug]/my-account/alerts/page.tsx` (new)
+- `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` (new — a server component)
+- `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` (new)
+- `apps/web/features/customer/components/my-account/AvailabilityAlertList.tsx` (+ spec) (new)
+- `apps/web/features/customer/components/my-account/AvailabilityAlertDetail.tsx` (+ spec) (new — the active and the history variants)
+- `apps/web/features/customer/components/my-account/AvailabilityAlertCancelConfirm.tsx` (+ spec) (new — also the `07e` and `07i` states)
+- `apps/web/features/customer/components/my-account/BookingsList.tsx` (+ spec) (modify — the "Meus avisos" entry row, beside M23-S12's)
+- `apps/web/app/[slug]/my-account/bookings/page.tsx` (modify — the optional alerts read)
+- `apps/web/features/booking/api/availability-alerts.server.ts` (+ spec) (new — list and get-by-id with `bffServerFetch`)
+- `apps/web/features/booking/api/availability-alerts.ts` (+ spec) (modify — exists since M23-S31 with the create call; add the cancel call)
+- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify — same change)
+- `apps/web/e2e/my-account-alerts.spec.ts` (new); it seeds through `apps/web/e2e/helpers/availability-alert.ts` (modify if a list/cancel helper is needed)
+- `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/dev-notes.md` (modify — the Gap flips)
+
+**Acceptance criteria — product:**
+- [ ] A customer sees their alerts, active ones first and the rest under "Histórico", each with its badge; a history row has no cancel action.
+- [ ] A customer opens an alert (however old) from its title and sees its detail; a notified or expired alert is read-only.
+- [ ] A customer cancels an active alert from its detail through a confirmation page and sees it leave the active list; a failure keeps the alert active and offers a retry; an alert that closed in the meantime shows the "não está mais ativo" state.
+- [ ] The Agendamentos tab shows "Meus avisos" with the active count only when the customer has any alert; if that read fails the tab still renders.
+- [ ] There is no create or edit control for alerts here.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `AvailabilityAlertList.spec.tsx`: active and history rows with their badges and actions, the empty, loading and error states, and no create control (negative guarantee, own test)
+  - [ ] `AvailabilityAlertDetail.spec.tsx`: an active alert shows the cancel action; a notified and an expired one render none (negative guarantee, own test)
+  - [ ] `AvailabilityAlertCancelConfirm.spec.tsx`: the confirm call, the `409` state and the failure state keep the alert active
+  - [ ] `BookingsList.spec.tsx`: the "Meus avisos" row shows only when the customer has any alert, with the active count; absent when the data is absent
+  - [ ] the bookings page: a failed alerts read leaves the tab rendering
+  - [ ] `availability-alerts.spec.ts`: the cancel call
+- Integration: n/a — web stories have no integration tier
+- Tenant isolation: n/a — client-side; server-side isolation is covered by M23-S06 and M23-S42
+- E2E (every route is touched):
+  - [ ] Playwright, `/{slug}/my-account/alerts`: a customer with a real alert (created through the booking flow helper) sees it in the list and opens its detail
+  - [ ] Playwright, `.../alerts/[id]/cancel`: the customer cancels it through the confirmation page and sees it leave the active list
+  - [ ] Playwright: a customer with no alert sees the empty state, and the Agendamentos tab has no "Meus avisos" row
+  - [ ] Notified and expired detail (`07g`) and the load-error and loading states are covered at the unit level only (they cannot be produced through the product in a test)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
