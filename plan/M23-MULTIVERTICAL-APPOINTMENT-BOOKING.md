@@ -2837,7 +2837,7 @@ Make the booking window apply to where a recurring schedule starts, let a genuin
 
 ---
 
-### M23-S37 — Make every shipped notification email correct: unsupplied or mismatched variables, a wrong link, raw HTML, unformatted dates, and a guard that renders the real copy
+### M23-S37 — Make every shipped notification email correct: unsupplied or mismatched variables, a wrong link, raw HTML, unformatted dates, and a guard that renders the real copy ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
