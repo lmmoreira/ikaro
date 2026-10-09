@@ -1,17 +1,6 @@
-import { AvailabilityAlertMatched } from '../../../booking/domain/events/availability-alert-matched.event';
+import { AvailabilityAlertMatchedEventBuilder } from '../../../../test/builders/booking';
 import { SendAvailabilityAlertMatchedNotificationUseCase } from '../../application/use-cases/send-availability-alert-matched-notification/send-availability-alert-matched-notification.use-case';
 import { AvailabilityAlertMatchedNotificationHandler } from './availability-alert-matched.handler';
-
-function buildEvent(): AvailabilityAlertMatched {
-  return new AvailabilityAlertMatched('tenant-1', 'corr-1', {
-    alertId: 'alert-1',
-    customerId: 'customer-1',
-    serviceId: 'service-1',
-    matchingWindowStart: '2030-03-04T13:00:00.000Z',
-    matchingWindowEnd: '2030-03-04T14:00:00.000Z',
-    resourceId: null,
-  });
-}
 
 describe('AvailabilityAlertMatchedNotificationHandler', () => {
   const subscribe = jest.fn();
@@ -38,7 +27,11 @@ describe('AvailabilityAlertMatchedNotificationHandler', () => {
 
   it('calls exactly one use case with the event ids, window and correlation id', async () => {
     execute.mockResolvedValue({ emailSent: true });
-    const event = buildEvent();
+    const event = new AvailabilityAlertMatchedEventBuilder()
+      .withTenantId('tenant-1')
+      .withCorrelationId('corr-1')
+      .withAlertId('alert-1')
+      .build();
 
     await handler.handle(event);
 
@@ -47,17 +40,19 @@ describe('AvailabilityAlertMatchedNotificationHandler', () => {
       tenantId: 'tenant-1',
       eventId: event.eventId,
       correlationId: 'corr-1',
-      customerId: 'customer-1',
-      serviceId: 'service-1',
+      customerId: event.data.customerId,
+      serviceId: event.data.serviceId,
       alertId: 'alert-1',
-      matchingWindowStart: '2030-03-04T13:00:00.000Z',
-      matchingWindowEnd: '2030-03-04T14:00:00.000Z',
+      matchingWindowStart: event.data.matchingWindowStart,
+      matchingWindowEnd: event.data.matchingWindowEnd,
     });
   });
 
   it('rethrows a failure so the message is nacked', async () => {
     execute.mockRejectedValue(new Error('smtp down'));
 
-    await expect(handler.handle(buildEvent())).rejects.toThrow('smtp down');
+    await expect(
+      handler.handle(new AvailabilityAlertMatchedEventBuilder().build()),
+    ).rejects.toThrow('smtp down');
   });
 });
