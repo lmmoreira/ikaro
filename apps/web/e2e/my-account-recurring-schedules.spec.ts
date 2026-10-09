@@ -93,7 +93,10 @@ test.describe('customer my-account: recurring reservations (M23-S12, UC-070)', (
         .click();
       await expect(customer.page).toHaveURL(`${LIST_URL}/${schedule.id}/end`);
 
-      await customer.page.getByTestId('end-schedule-confirm').first().click();
+      await customer.page
+        .getByTestId('action-pane-desktop')
+        .getByTestId('end-schedule-confirm')
+        .click();
       await expect(customer.page).toHaveURL(LIST_URL);
 
       const ended = customer.page.getByTestId('section-ended');

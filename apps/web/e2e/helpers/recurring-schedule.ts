@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import type { RecurringBookingScheduleListItem } from '@ikaro/types';
-import { setBookingPolicy } from './services';
+import { setBookingPolicy, setResourceRequirements } from './services';
+import { seedResource } from './booking-form/flow';
 import { seedFixedService, type SeededService } from './booking-form/seeds';
 
 const WEB_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
@@ -14,11 +15,23 @@ export function tenantDate(daysAhead: number): string {
   );
 }
 
-// M23-S12 — a fixed-duration service that accepts recurring schedules (the policy flag is off by
-// default), seeded by a signed-in manager `page`.
+// M23-S12 — a fixed-duration service that accepts recurring schedules, seeded by a signed-in
+// manager `page`. Recurrence needs a single-resource service (no bundle or leg), and the policy
+// flag is off by default. The service gets its own room in a fungible pool, which matches the
+// RESOLVE_PER_OCCURRENCE policy the schedules are created with and keeps one test's occurrences
+// from ever taking another test's slot.
 export async function seedRecurrenceEligibleService(page: Page): Promise<SeededService> {
+  const room = await seedResource(page, 'ROOM');
   const service = await seedFixedService(page, 'e2e-recorrencia');
-  await setBookingPolicy(page, service.serviceId, { recurrenceEligible: true });
+  await setResourceRequirements(page, service.serviceId, [
+    { type: 'ROOM', selectionMode: 'AUTO_FUNGIBLE_POOL', resourcePoolIds: [room.id] },
+  ]);
+  // AUTO_CONFIRM: an unset approval mode counts as manual, which would leave every schedule
+  // PENDING_APPROVAL with no bookings to list.
+  await setBookingPolicy(page, service.serviceId, {
+    recurrenceEligible: true,
+    defaultApprovalMode: 'AUTO_CONFIRM',
+  });
   return service;
 }
 
@@ -59,7 +72,7 @@ export async function createRecurringScheduleViaApi(
       },
     });
     if (res.status() === 201) return (await res.json()) as CreatedSchedule;
-    failures.push(`${startTime}: ${res.status()}`);
+    failures.push(`${startTime}: ${res.status()} ${await res.text()}`);
     if (res.status() !== 409) break;
   }
   throw new Error(`could not create a recurring schedule — ${failures.join(', ')}`);
