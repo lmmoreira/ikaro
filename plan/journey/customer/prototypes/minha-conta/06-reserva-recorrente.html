@@ -63,7 +63,7 @@
                 "Reagendar esta ocorrência" opens the ordinary reschedule screen 15-reagendar (M23-S30); a refusal is 06f.
     UC cobertos: UC-070 A2 (pular / reagendar uma ocorrência, encerrar) — não existe "pausar" (removido em 2026-09-29: com o prazo fixo todas as reservas já existem)
     DATA:
-      GET   /recurring-booking-schedules  (lista, filtrada pelo id)
+      GET   /recurring-booking-schedules/:id  (leitura por id — M23-S42)
       GET   /bookings?recurringScheduleId=  (lista as ocorrências da recorrência)
       PATCH /bookings/:id/cancel  (pular — sujeita à janela de cancelamento)
       PATCH /bookings/:id/reschedule  (reagendar — o mesmo fluxo de qualquer reserva)
