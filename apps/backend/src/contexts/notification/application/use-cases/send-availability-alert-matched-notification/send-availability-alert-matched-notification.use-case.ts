@@ -1,55 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  APPLICATION_CONFIG,
-  IApplicationConfig,
-} from '../../../../../shared/ports/application-config.port';
-import { IInboxRepository, INBOX_REPOSITORY } from '../../../../../shared/ports/inbox.port';
-import {
-  ITransactionManager,
-  TRANSACTION_MANAGER,
-} from '../../../../../shared/ports/transaction-manager.port';
+import { AppLogger } from '../../../../../shared/observability/app-logger';
 import { redactEmailForLogging } from '../../../../../shared/utils/redact-email-for-logging';
-import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
-import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import {
   AVAILABILITY_ALERT_OUTCOME_PORT,
   IAvailabilityAlertOutcomePort,
 } from '../../ports/availability-alert-outcome.port';
-import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
-import {
-  INotificationBookingPort,
-  NOTIFICATION_BOOKING_PORT,
-} from '../../ports/notification-booking.port';
-import {
-  INotificationCustomerPort,
-  NOTIFICATION_CUSTOMER_PORT,
-} from '../../ports/notification-customer.port';
-import {
-  INotificationDispatcher,
-  NOTIFICATION_DISPATCHER,
-} from '../../ports/notification-dispatcher.port';
-import {
-  INotificationLogRepository,
-  NOTIFICATION_LOG_REPOSITORY,
-} from '../../ports/notification-log-repository.port';
-import {
-  INotificationPlatformPort,
-  NOTIFICATION_PLATFORM_PORT,
-} from '../../ports/notification-platform.port';
-import {
-  INotificationTemplateRepository,
-  NOTIFICATION_TEMPLATE_REPOSITORY,
-} from '../../ports/notification-template-repository.port';
-import {
-  BaseRecurringScheduleCustomerNotificationUseCase,
-  RecurringScheduleCustomerNotificationUseCaseResult,
-} from '../base-recurring-schedule-customer-notification.use-case';
-import { formatEmailDateTime } from '../notification-email-format.helpers';
-import {
-  customerVariables,
-  RecurringScheduleNotificationContext,
-  RecurringScheduleNotificationInput,
-} from '../recurring-schedule-notification.helpers';
+import { SendAvailabilityAlertMatchedEmailUseCase } from '../send-availability-alert-matched-email/send-availability-alert-matched-email.use-case';
+import { RecurringScheduleNotificationInput } from '../recurring-schedule-notification.helpers';
 
 export interface SendAvailabilityAlertMatchedNotificationUseCaseInput extends RecurringScheduleNotificationInput {
   alertId: string;
@@ -58,73 +15,39 @@ export interface SendAvailabilityAlertMatchedNotificationUseCaseInput extends Re
   matchingWindowEnd: string;
 }
 
-export type SendAvailabilityAlertMatchedNotificationUseCaseResult =
-  RecurringScheduleCustomerNotificationUseCaseResult;
+export interface SendAvailabilityAlertMatchedNotificationUseCaseResult {
+  emailSent: boolean;
+}
 
 // Matches the VARCHAR(500) of availability_alert_notification_attempts.last_error.
 const MAX_ERROR_LENGTH = 500;
 
-// UC-072 (M23-S38): tells the customer a slot opened inside their alert's window. The customer
-// email shape is the recurring-schedule one (M23-S28); on top of it the use case reports how each
-// try went to the Booking context, which owns the attempt row. A send that throws is reported
-// FAILED and rethrown so Pub/Sub redelivers; the redelivery that succeeds turns it into SENT.
-// A redelivery after success claims nothing (inbox) and reports nothing.
+// UC-072 (M23-S38): emails the customer that a slot opened and reports how the try went to the
+// Booking context, which owns the attempt row. A send that throws is reported FAILED and
+// rethrown so Pub/Sub redelivers; the redelivery that succeeds turns it into SENT. A redelivery
+// after success claims nothing (inbox) and reports nothing.
 @Injectable()
-export class SendAvailabilityAlertMatchedNotificationUseCase extends BaseRecurringScheduleCustomerNotificationUseCase<SendAvailabilityAlertMatchedNotificationUseCaseInput> {
+export class SendAvailabilityAlertMatchedNotificationUseCase {
+  private readonly logger = new AppLogger(SendAvailabilityAlertMatchedNotificationUseCase.name);
+
   constructor(
-    @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,
-    @Inject(INBOX_REPOSITORY) inboxRepo: IInboxRepository,
-    @Inject(NOTIFICATION_DISPATCHER) dispatcher: INotificationDispatcher,
-    @Inject(NOTIFICATION_CUSTOMER_PORT) customerPort: INotificationCustomerPort,
-    @Inject(NOTIFICATION_BOOKING_PORT) servicePort: INotificationBookingPort,
-    @Inject(NOTIFICATION_PLATFORM_PORT) tenantPort: INotificationPlatformPort,
-    @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
-    @Inject(NOTIFICATION_TEMPLATE_REPOSITORY) templateRepo: INotificationTemplateRepository,
-    @Inject(LOCALIZATION_PORT) localizationPort: ILocalizationPort,
-    @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
+    private readonly sendEmail: SendAvailabilityAlertMatchedEmailUseCase,
     @Inject(AVAILABILITY_ALERT_OUTCOME_PORT)
     private readonly outcomePort: IAvailabilityAlertOutcomePort,
-  ) {
-    super(
-      logRepo,
-      inboxRepo,
-      dispatcher,
-      customerPort,
-      servicePort,
-      tenantPort,
-      txManager,
-      templateRepo,
-      localizationPort,
-    );
-  }
-
-  protected templateKeyFor(): NotificationTemplateKey {
-    return NotificationTemplateKey.AVAILABILITY_ALERT_MATCHED_CUSTOMER;
-  }
-
-  protected variablesFor(
-    input: SendAvailabilityAlertMatchedNotificationUseCaseInput,
-    context: RecurringScheduleNotificationContext,
-  ): TemplateVariables<NotificationTemplateKey.AVAILABILITY_ALERT_MATCHED_CUSTOMER> {
-    return {
-      ...customerVariables(context),
-      matchingWindow: formatEmailDateTime(input.matchingWindowStart, context.timezone, context),
-      bookingUrl: `${this.config.getOrThrow('FRONTEND_URL')}/${encodeURIComponent(context.tenantSlug)}`,
-    };
-  }
+  ) {}
 
   async execute(
     input: SendAvailabilityAlertMatchedNotificationUseCaseInput,
   ): Promise<SendAvailabilityAlertMatchedNotificationUseCaseResult> {
-    let result: SendAvailabilityAlertMatchedNotificationUseCaseResult;
+    let result: { emailSent: boolean };
     try {
-      result = await super.execute(input);
+      result = await this.sendEmail.execute(input);
     } catch (err) {
       await this.report(input, 'FAILED', failureReason(err));
       throw err;
     }
     if (result.emailSent) await this.report(input, 'SENT', null);
-    return result;
+    return { emailSent: result.emailSent };
   }
 
   // Reporting is bookkeeping: losing it must neither unsend an email that went out nor hide the

@@ -7,9 +7,10 @@ export class InMemoryAvailabilityAlertOutcomePort implements IAvailabilityAlertO
   readonly reports: AvailabilityAlertOutcomeReport[] = [];
   private failWith?: Error;
 
-  async recordOutcome(report: AvailabilityAlertOutcomeReport): Promise<void> {
-    if (this.failWith) throw this.failWith;
+  recordOutcome(report: AvailabilityAlertOutcomeReport): Promise<void> {
+    if (this.failWith) return Promise.reject(this.failWith);
     this.reports.push(report);
+    return Promise.resolve();
   }
 
   // Every following report throws, to prove a lost report never masks the real result.
