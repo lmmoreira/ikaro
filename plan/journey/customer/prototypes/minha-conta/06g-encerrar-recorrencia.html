@@ -47,7 +47,7 @@
   <!--
     COMPONENT: EndRecurringSchedulePage  (GAP — M23-S12)
     PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx  (GAP — M23-S12) — same pattern as my-account/bookings/[id]/cancel (03-cancel-confirm) and alerts/[id]/cancel (07h)
-    ACTION:     POST /recurring-booking-schedules/:id/end  → 200 { id, status: "ENDED" } → back to the list 14 (the schedule moves to "Encerradas"; future occurrence bookings are cancelled, history is kept)
+    ACTION:     POST /recurring-booking-schedules/:id/end  → 200 { id, status: "CANCELLED", cancelledBookingIds } → back to the list 14 (the schedule moves to "Encerradas" with the grey "Cancelada" badge — ENDED is only set by the term-over job; future occurrence bookings are cancelled, history is kept)
                 Failure states (already ended / network / 5xx) are not drawn — to define at /story-discovery M23-S12
     SCENARIO:   confirm page — central detail + action pane. "Encerrar recorrência" confirms; "Manter recorrência" goes back to the detail.
   -->

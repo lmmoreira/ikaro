@@ -51,6 +51,10 @@
       .mobile-actions { display: none !important; }
     }
       .info-box { display:flex; gap:.625rem; background:#eff6ff; border:1px solid #bfdbfe; border-radius:var(--ba-radius); padding:.875rem; margin-bottom:1.5rem; font-size:.875rem; color:#1e3a8a; line-height:1.55; }
+    .pager { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; padding:0.75rem 0; font-size:0.8125rem; color:var(--ba-text); }
+    .pager a, .pager span.pager-off { padding:0.375rem 0.75rem; border:1px solid var(--ba-secondary); border-radius:var(--ba-radius); text-decoration:none; color:var(--ba-primary); font-weight:600; background:white; }
+    .pager span.pager-off { opacity:.4; color:var(--ba-text); }
+    .pager-pos { opacity:.6; }
   </style>
 </head>
 <body>
@@ -68,7 +72,8 @@
       PATCH /bookings/:id/cancel  (pular — sujeita à janela de cancelamento)
       PATCH /bookings/:id/reschedule  (reagendar — o mesmo fluxo de qualquer reserva)
       POST  /recurring-booking-schedules/:id/end  (via 06g)
-    NOTE: the resource on each occurrence row is NOT yet returned for customers (assignedResources is staff-only) — M23-S12 decides whether to add it; until then treat "Sala Aurora" as illustrative.
+    PAGINAÇÃO (decidido em M23-S12, 2026-10-09): "Próximas reservas" mostra 5 por página (?page=N, lida no servidor; GET /bookings devolve total/page/limit, ordem cronológica) — assim o cliente chega a qualquer ocorrência futura para pular ou reagendar. "Pular" e "Reagendar" levam returnTo=<esta página, com ?page=N> e voltam para ela.
+    NOTE: o recurso não é devolvido ao cliente (assignedResources é só da equipe) e o item da recorrência não o traz — não há linha "Recurso" aqui. O preço por reserva e a contagem vêm das ocorrências carregadas.
     "Renovar" abre 13f; mostrado quando o prazo termina em breve (regra a fechar no /story-discovery de M23-S22).
   -->
 
@@ -97,16 +102,20 @@
 
             <p class="section-label">Recorrência</p>
             <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
-              <div class="detail-row"><div><div class="detail-row-label">Recurso</div><div class="detail-row-value">Sala Aurora</div></div></div>
               <div class="detail-row"><div><div class="detail-row-label">Dia e horário</div><div class="detail-row-value">Toda terça · 10:00–12:00</div><div class="detail-row-sub">2 horas · R$ 100,00 por reserva</div></div></div>
               <div class="detail-row"><div><div class="detail-row-label">Período</div><div class="detail-row-value">até 11 de novembro</div><div class="detail-row-sub">As 13 reservas do período já estão criadas</div></div></div>
             </div>
 
             <p class="section-label">Próximas reservas</p>
             <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
-              <div class="detail-row"><div><div class="detail-row-value">19 de agosto · Confirmada</div><div class="detail-row-sub">2 horas · R$ 100,00</div><div class="detail-row-sub"><a href="03-cancel-confirm.html">Pular esta ocorrência</a> · <a href="15-reagendar.html">Reagendar esta ocorrência</a></div></div></div>
-              <div class="detail-row"><div><div class="detail-row-value">26 de agosto · Confirmada</div><div class="detail-row-sub">2 horas · R$ 100,00</div><div class="detail-row-sub"><a href="03-cancel-confirm.html">Pular esta ocorrência</a> · <a href="15-reagendar.html">Reagendar esta ocorrência</a></div></div></div>
+              <div class="detail-row"><div><div class="detail-row-value">19 de agosto · Confirmada</div><div class="detail-row-sub">2 horas · R$ 100,00</div><div class="detail-row-sub"><a href="03-cancel-confirm.html?returnTo=06-reserva-recorrente.html?page=1">Pular esta ocorrência</a> · <a href="15-reagendar.html?returnTo=06-reserva-recorrente.html?page=1">Reagendar esta ocorrência</a></div></div></div>
+              <div class="detail-row"><div><div class="detail-row-value">26 de agosto · Confirmada</div><div class="detail-row-sub">2 horas · R$ 100,00</div><div class="detail-row-sub"><a href="03-cancel-confirm.html?returnTo=06-reserva-recorrente.html?page=1">Pular esta ocorrência</a> · <a href="15-reagendar.html?returnTo=06-reserva-recorrente.html?page=1">Reagendar esta ocorrência</a></div></div></div>
+              <div class="detail-row"><div><div class="detail-row-value">02 de setembro · Confirmada</div><div class="detail-row-sub">2 horas · R$ 100,00</div><div class="detail-row-sub"><a href="03-cancel-confirm.html?returnTo=06-reserva-recorrente.html?page=1">Pular esta ocorrência</a> · <a href="15-reagendar.html?returnTo=06-reserva-recorrente.html?page=1">Reagendar esta ocorrência</a></div></div></div>
+              <div class="detail-row"><div><div class="detail-row-value">09 de setembro · Confirmada</div><div class="detail-row-sub">2 horas · R$ 100,00</div><div class="detail-row-sub"><a href="03-cancel-confirm.html?returnTo=06-reserva-recorrente.html?page=1">Pular esta ocorrência</a> · <a href="15-reagendar.html?returnTo=06-reserva-recorrente.html?page=1">Reagendar esta ocorrência</a></div></div></div>
+              <div class="detail-row"><div><div class="detail-row-value">16 de setembro · Confirmada</div><div class="detail-row-sub">2 horas · R$ 100,00</div><div class="detail-row-sub"><a href="03-cancel-confirm.html?returnTo=06-reserva-recorrente.html?page=1">Pular esta ocorrência</a> · <a href="15-reagendar.html?returnTo=06-reserva-recorrente.html?page=1">Reagendar esta ocorrência</a></div></div></div>
             </div>
+
+            <nav class="pager" aria-label="Paginação das reservas"><span class="pager-off">‹ Anterior</span><span class="pager-pos">Página 1 de 3</span><a href="06-reserva-recorrente.html?page=2">Próxima ›</a></nav>
 
             <div class="info-box"><span>ℹ️</span><span>Para parar só uma semana, use "Pular esta ocorrência" — o prazo é o mesmo de cancelamento de qualquer reserva. Encerrar libera todos os próximos horários; o histórico permanece disponível.</span></div>
 
