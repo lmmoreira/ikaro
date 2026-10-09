@@ -60,6 +60,8 @@ flowchart TD
 | `/{slug}/my-account/loyalty` | `MinhaFidelidadePage` | M13-S29 | ✅ Existente |
 | Tenant switch modal/page (UC-023) | `TrocarEmpresaPage` — avatar dropdown trigger | M13-S30 | ✅ Existente |
 
+**Início extension (`M23-S41`, drawn in `plan/journey/shared/customer-dashboard.html`):** two tiles, "Recorrências · N ativa(s)" and "Avisos · N ativo(s)", each linking to its list, shown only when the count is above zero (no tenant flag — zero hides them), and one amber "Renovar" card for the active schedule that ends first ("N reservas terminando" with several). A customer with neither sees today's page. Frontend only; the card depends on a server-applied renewal window field decided in `M23-S22`.
+
 ## BFF calls in this flow
 
 | Call | When | Roles |
