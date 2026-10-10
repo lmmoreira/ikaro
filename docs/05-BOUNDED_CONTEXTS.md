@@ -154,7 +154,7 @@ Notification Context subscribes:
 - `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; rest have no consumers in MVP
 - `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → `Raised`/`Resolved` consumed by Notification
 - `TenantSchedulingBootstrapped` (M23 Cluster 3) → no consumers in MVP
-- `BookingNoShow` (M23 Cluster 3) → audit-log-only consumer in M23-S09, Notification (customer email) added by M23-S25; explicitly **not** consumed by Loyalty (no points for a no-show)
+- `BookingNoShow` (M23 Cluster 3) → shared `audit-log` consumer (M23-S36), Notification (customer email) added by M23-S25; explicitly **not** consumed by Loyalty (no points for a no-show)
 - `ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Waitlisted`/`Cancelled` (M24 Cluster 4) → consumed by Notification
 - `WaitlistPromoted` (M24 Cluster 4) → consumed by Notification
 - `ClassSessionBookingCompleted` (M24 Cluster 4) → consumed by **Loyalty** (inserts a `LoyaltyEntry` via `class_session_booking_id`) and Notification — the SESSION-family counterpart to `BookingCompleted`

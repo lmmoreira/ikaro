@@ -437,8 +437,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 #### **BookingNoShow**
 - **Trigger:** UC-074 — after an appointment's scheduled end time.
 - **State change:** `Booking.status → NO_SHOW` (new terminal state).
-- **Data:** `{ bookingId, actorId, reason, occurredAt }` (`tenantId`/`correlationId` are envelope fields)
-- **Consumers:** M23-S09 ships an audit-log-only consumer (so the topic is provisioned); the retryable customer email through the Notification Context arrives in M23-S25, which also extends `data` with the booking contact snapshot (`contactEmail`, `contactName`) the email needs. Loyalty does **not** award completion points for this event. A manager's correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not `BookingNoShow` again.
+- **Data:** `{ bookingId, actorId, reason, occurredAt }` (`tenantId`/`correlationId` are envelope fields); M23-S25 adds, without bumping `eventVersion`, the fields the customer email needs, in the same shape as `BookingCancelled`: `customerId: string | null`, `contactEmail`, `contactName`, `scheduledAt` (ISO-8601 UTC), `lineSummary` (`serviceId`, `serviceNameAtBooking`, `priceAtBooking` per line)
+- **Consumers:** the shared booking `audit-log` consumer (M23-S36); the retryable customer email through the Notification Context (M23-S25, consumer `notification`, tenant locale, never shows `reason`). Loyalty does **not** award completion points for this event. A manager's correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not `BookingNoShow` again.
 
 ---
 

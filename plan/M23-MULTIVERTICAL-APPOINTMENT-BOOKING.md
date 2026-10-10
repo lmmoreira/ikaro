@@ -1909,7 +1909,7 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 **Agent:** `backend-ts`
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-074, `docs/03-DOMAIN_EVENTS.md` § `BookingNoShow`, `docs/05-BOUNDED_CONTEXTS.md` (Notification consumers), `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type and § Event Handlers, `docs/ENGINEERING_RULES_INFRA.md`, `infra/terraform/README.md` § New-resource PR-sequencing playbook
-**Dependencies:** M23-S09 (ships the `BookingNoShow` event, its topic and an audit-log-only consumer; this story adds the real Notification consumer and extends the event payload).
+**Dependencies:** M23-S09 (✅ Done — ships the `BookingNoShow` event and its topic; this story adds the Notification consumer and extends the event payload), M23-S36 (✅ Done — the shared `audit-log` consumer already covers `BookingNoShow`), M23-S28 (✅ Done — the email conventions and the template-migration recipe this story follows).
 **Pattern:** plain composition — the existing domain event → thin handler → one `BaseNotificationUseCase` subclass shape that `BookingCancelled` already uses (`booking-cancelled.handler.ts` → `SendBookingCancelledNotificationUseCase`). No new pattern.
 
 **Discovered:** 2026-09-30, in M23-S09's `/story-discovery`. UC-074 step 3, `docs/03` and `docs/05` all say the Notification Context emails the customer on `BookingNoShow`, but S09 is backend/BFF state-machine work and deliberately ships only an audit-log consumer to keep it small. No story owned the email.
@@ -1917,7 +1917,7 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 **Description:**
 When a staff member or manager marks an appointment as a no-show (UC-074), the customer receives an email saying the business recorded that they did not attend, which appointment it was, and how to get in touch if that is a mistake. It goes to the booking's own contact snapshot (`contactEmail` / `contactName`), so it reaches guest bookings too, and delivery is retried independently of the booking's state change (the event is delivered through the transactional outbox).
 
-`BookingNoShow.data` is `{ bookingId, actorId, reason, occurredAt }` today, which has no recipient. This story extends it, additively and without bumping `eventVersion`, with the fields the email needs: `customerId: string | null`, `contactEmail`, `contactName`, `scheduledAt`, `lineSummary` (`serviceNameAtBooking` per line) — the same shape `BookingCancelled` already carries. The event is built inside `Booking.markNoShow()`, where the contact snapshot is in scope; S09's audit-log consumer ignores the extra fields.
+`BookingNoShow.data` is `{ bookingId, actorId, reason, occurredAt }` today, which has no recipient. This story extends it, additively and without bumping `eventVersion`, with the fields the email needs: `customerId: string | null`, `contactEmail`, `contactName`, `scheduledAt`, `lineSummary` (`serviceNameAtBooking` per line) — the same shape `BookingCancelled` already carries. The event is built inside `Booking.markNoShow()`, where the contact snapshot is in scope; the shared `audit-log` consumer logs the extra fields with the rest of the payload.
 
 A correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not a new `BookingNoShow`, so this story sends nothing on a correction.
 
@@ -1927,14 +1927,19 @@ A correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not a new
 3. **The staff member's free-text `reason` is not shown to the customer.** It is an internal note on the audit row; the email uses fixed copy only.
 4. **Devops (playbook, "new Pub/Sub topic" row's mechanics):** the topic already exists from S09; this story adds a new `subscribe()` call site with consumer name `notification`, so `pubsub-catalog.json` is regenerated (not hand-edited) and PR1 needs the `infra-app-mix-ok` label plus a PR-body note. After it merges and its `envs/*` apply runs: dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve `staging-foundation` then `production-foundation`, and confirm the new subscription's IAM bindings with `gcloud pubsub subscriptions get-iam-policy` in both projects (nothing in CI fails if this is skipped).
 
-**Decisions left for `/story-discovery`:**
-- **Audit-log consumer:** S09's audit-log-only consumer exists solely to provision the topic. Once the Notification consumer subscribes it is redundant — keep it (zero cost, one extra subscription) or remove it (a subscription removal has its own Terraform sequencing)?
-- **Email locale:** the tenant's locale or the customer's own (`BookingRescheduled` uses the tenant's today; M23-S21 proposes the customer's)?
-- **Copy:** the exact pt-BR and en wording, including whether to mention the business's contact details.
+**Decisions locked in `/story-discovery` (2026-10-10):**
+5. **Audit-log consumer stays unchanged.** M23-S36 replaced S09's audit-log-only consumer with the shared `BookingAuditLogHandler`, which already subscribes `BookingNoShow` as `audit-log`; the CI-enforced `domain-event-audit-coverage` detector requires that line for every event. Nothing is removed and no Terraform sequencing is involved.
+6. **Email locale is the tenant's** (`getTenantInfo().locale`, falling back to `DEFAULT_LOCALE`), the same as `BookingCancelled`, `BookingRescheduled` and the S28 emails. A guest booking has no customer locale anyway; whether emails should follow the customer's own language is a cross-cutting question for S21, not this story.
+7. **Base class: `BaseNotificationUseCase` directly, not S28's `BaseRecurringScheduleCustomerNotificationUseCase`.** That base resolves the customer and service through ports and skips when either is gone; this email goes to the booking's own `contactEmail` and needs neither. Reuse S28's conventions: variables typed with `TemplateVariables<typeof BOOKING_NO_SHOW_CUSTOMER>`, `escapeHtml` on the contact name and service names, `formatEmailInstant` with the tenant's `dateFormat`/`timeFormat`, and no copy hardcoded in code.
+8. **Copy and variables.** Variables: `contactName`, `serviceNames`, `localDate`, `localTime`, `tenantName`. No price (nothing is charged for a no-show). No contact details: the tenant's `businessInfo.email` is already the Reply-To header (`NotificationTenantInfo.replyToEmail`), so the copy says to reply to the email. A tenant without that email gets the same copy; `tenantName` names the business (the same as S28's `customerEndedByStaff` email).
+   - pt-BR — subject: "Seu agendamento foi registrado como não comparecimento"; body: "Olá, {{contactName}}! Registramos que você não compareceu ao agendamento de {{serviceNames}} em {{localDate}} às {{localTime}}. Se isso foi um engano, responda este e-mail para falar com {{tenantName}}."
+   - en — subject: "Your appointment was recorded as a no-show"; body: "Hello, {{contactName}}! We recorded that you did not attend your {{serviceNames}} appointment on {{localDate}} at {{localTime}}. If this is a mistake, reply to this email to reach {{tenantName}}."
+   - Final markup follows the existing `<p>` / `<strong>` style of `BookingCancelled.customer`; the wording above is what is approved.
+9. **Migration timestamp:** the next free one after `1748500000031` across every context's migrations folder (check before naming; `1748500000032` expected). It follows `1748500000029-AddRecurringScheduleTemplates.ts`: global rows in both locales plus a per-tenant copy in each tenant's own locale (read from `platform.tenants.settings`), every insert `ON CONFLICT DO NOTHING`.
 
 **Backend use case steps:**
 1. **`Booking.markNoShow()`** (S09, modified): builds `BookingNoShow` with the extended payload.
-2. **`SendBookingNoShowNotificationUseCase`** (notification context, extends `BaseNotificationUseCase`): resolves the locale, fetches the template via `findAllByTriggerEvent`, dispatches to `contactEmail`; idempotent on `eventId` through the base class.
+2. **`SendBookingNoShowNotificationUseCase`** (notification context, extends `BaseNotificationUseCase`): resolves the tenant locale, fetches the template via `findAllByTriggerEvent`, dispatches to `contactEmail`; idempotent on `eventId` through the base class. Its input type carries no `reason`.
 3. **`BookingNoShowHandler`** (notification context): `subscribe()` with consumer name `notification`, calls exactly that one use case with `event.correlationId`, rethrows on failure.
 
 **Backend HTTP surface:** none.
@@ -1961,9 +1966,13 @@ A correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not a new
 - Unit:
   - [ ] `SendBookingNoShowNotificationUseCase` dispatches the localized template to `contactEmail` (pt-BR and en), and a second delivery of the same `eventId` sends nothing
   - [ ] `BookingNoShowHandler` calls exactly one use case, passes `correlationId`, and rethrows on failure
-  - [ ] `Booking.markNoShow()` puts `contactEmail`, `contactName`, `scheduledAt` and `lineSummary` in the event; the mapping spec covers the new key
-- Integration:
+  - [ ] `Booking.markNoShow()` puts `customerId`, `contactEmail`, `contactName`, `scheduledAt` and `lineSummary` in the event and leaves `reason` as it was; `BookingNoShowEventBuilder` carries the new fields; the mapping spec covers the new key and its `variables` list matches both locales' placeholders
+  - [ ] Negative guarantee: the use case is given a distinctive `reason` upstream and that text never appears in the rendered body (the input type carries no `reason`)
+  - [ ] Contact name and service names are HTML-escaped; the date and time use the tenant's timezone and `dateFormat`/`timeFormat`; a tenant with no template row skips without sending; a guest booking (`customerId: null`) is still emailed
+- Integration (extend `notification-emails.handler.integration.spec.ts`):
   - [ ] A `BookingNoShow` event through the event bus produces one `notification_logs` row for the tenant's resolved template (template migration applied, including the existing-tenant copy)
+  - [ ] An English-locale tenant gets the English row; re-running the migration changes nothing (idempotent)
+  - [ ] Negative guarantee: a no-show followed by a correction to `COMPLETED` (`BookingCompleted`) leaves exactly one no-show email and adds no second one
 - Tenant isolation:
   - [ ] Tenant A's event never resolves Tenant B's template row or writes a Tenant B log row
 - E2E: none — backend-only, no UI
