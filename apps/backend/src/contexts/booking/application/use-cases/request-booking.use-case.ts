@@ -10,11 +10,6 @@ import {
 import { Booking } from '../../domain/booking.aggregate';
 import { Service } from '../../domain/service.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import {
-  BookingServiceNotActiveError,
-  BookingServiceNotInTenantError,
-  BookingServiceSessionNotBookableError,
-} from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import {
   IResourceOccupancyRepository,
@@ -40,6 +35,7 @@ import {
   resolveVariableServiceInputs,
   VariableServiceResolution,
 } from './booking-request.helpers';
+import { resolveBookableServices } from './booking-request-subject.helpers';
 import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
 import { assertWithinEffectiveBookingWindow, BookingWindowRequest } from './booking-window.helpers';
@@ -76,7 +72,7 @@ export class RequestBookingUseCase {
   async execute(input: RequestBookingUseCaseInput): Promise<RequestBookingUseCaseResult> {
     const { tenantId } = input;
 
-    const serviceMap = await this.resolveServices(input.serviceIds, tenantId);
+    const serviceMap = await resolveBookableServices(this.serviceRepo, input.serviceIds, tenantId);
     assertWithinEffectiveBookingWindow(input, serviceMap.values());
     const { contactAddress, pickupAddress } = this.resolveAddresses(input);
     const variableResolution = await resolveVariableServiceInputs(
@@ -140,23 +136,6 @@ export class RequestBookingUseCase {
     });
 
     return this.toResult(booking, candidatesByLine);
-  }
-
-  private async resolveServices(
-    serviceIds: string[],
-    tenantId: string,
-  ): Promise<Map<string, Service>> {
-    const services = await this.serviceRepo.findByIds(serviceIds, tenantId);
-    const serviceMap = new Map(services.map((s) => [s.id, s]));
-    for (const serviceId of new Set(serviceIds)) {
-      const service = serviceMap.get(serviceId);
-      if (!service) throw new BookingServiceNotInTenantError(serviceId);
-      if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
-      if (service.bookingModel !== 'APPOINTMENT') {
-        throw new BookingServiceSessionNotBookableError(serviceId);
-      }
-    }
-    return serviceMap;
   }
 
   private resolveAddresses(input: RequestBookingUseCaseInput): {

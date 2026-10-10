@@ -238,6 +238,71 @@ X-Tenant-Slug: {{tenantSlug}}
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# POST /v1/bookings/staff — staff books on a customer's behalf  UC-108  (STAFF | MANAGER)
+# Created APPROVED at once; the minimum notice is not applied. Send exactly one of
+# `customerId` or the full contact trio (name, phone, email). The staff id comes from the token.
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### HAPPY PATH — staff books for an existing customer (find the id with GET /v1/customers?search=)
+POST {{bffUrl}}/v1/bookings/staff
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "customerId": "{{customerId}}",
+  "scheduledAt": "2026-06-15T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+### HAPPY PATH — staff books for a person who is not in the system (guest booking)
+POST {{bffUrl}}/v1/bookings/staff
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "contactName": "Pessoa Nova",
+  "contactPhone": "+5531977777777",
+  "contactEmail": "nova@example.com",
+  "scheduledAt": "2026-06-15T14:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+### ERROR — both customerId and contact fields → 400
+POST {{bffUrl}}/v1/bookings/staff
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "customerId": "{{customerId}}",
+  "contactName": "Pessoa Nova",
+  "contactPhone": "+5531977777777",
+  "contactEmail": "nova@example.com",
+  "scheduledAt": "2026-06-15T15:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+### ERROR — CUSTOMER token → 403
+POST {{bffUrl}}/v1/bookings/staff
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "customerId": "{{customerId}}",
+  "scheduledAt": "2026-06-15T16:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # POST /v1/bookings/authenticated — authenticated customer booking  UC-002
 # ─────────────────────────────────────────────────────────────────────────────
 

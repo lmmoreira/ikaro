@@ -47,6 +47,7 @@ import { ListResourcesUseCase } from './application/use-cases/list-resources.use
 import { CascadeStaffDeactivationUseCase } from './application/use-cases/cascade-staff-deactivation.use-case';
 import { CreateServiceUseCase } from './application/use-cases/create-service.use-case';
 import { RequestAuthenticatedBookingUseCase } from './application/use-cases/request-authenticated-booking.use-case';
+import { CreateBookingByStaffUseCase } from './application/use-cases/create-booking-by-staff.use-case';
 import { RequestBookingUseCase } from './application/use-cases/request-booking.use-case';
 import { DeactivateServiceUseCase } from './application/use-cases/deactivate-service.use-case';
 import { GetAvailabilityUseCase } from './application/use-cases/get-availability.use-case';
@@ -171,6 +172,7 @@ export const bookingModuleProviders: Provider[] = [
   CreateServiceUseCase,
   RequestBookingUseCase,
   RequestAuthenticatedBookingUseCase,
+  CreateBookingByStaffUseCase,
   GetServicesUseCase,
   GetServiceByIdUseCase,
   GetBookingByIdUseCase,

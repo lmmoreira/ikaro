@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
+import { escapeLikePattern } from '../../../../shared/utils/escape-like-pattern';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Address, AddressProps } from '../../../../shared/value-objects/address';
 import { Email } from '../../../../shared/value-objects/email.vo';
@@ -12,6 +13,8 @@ import {
 } from '../../application/ports/customer-repository.port';
 import { Customer } from '../../domain/customer.aggregate';
 import { CustomerEntity } from '../entities/customer.entity';
+
+const PHONE_SEARCH_MIN_DIGITS = 4;
 
 @Injectable()
 export class TypeOrmCustomerRepository implements ICustomerRepository {
@@ -40,24 +43,39 @@ export class TypeOrmCustomerRepository implements ICustomerRepository {
     search: string | undefined,
     limit: number,
   ): Promise<{ rows: CustomerSearchRow[]; total: number }> {
-    const where = this.buildSearchWhere(tenantId, search);
-    const [entities, total] = await this.repo.findAndCount({
-      where,
-      take: limit,
-      order: { name: 'ASC' },
-    });
+    const qb = this.repo
+      .createQueryBuilder('c')
+      .where('c.tenantId = :tenantId', { tenantId })
+      .orderBy('c.name', 'ASC')
+      .take(limit);
+    if (search) qb.andWhere(this.buildSearchMatch(search));
+    const [entities, total] = await qb.getManyAndCount();
     return {
-      rows: entities.map((e) => ({ customerId: e.id, name: e.name, email: e.email })),
+      rows: entities.map((e) => ({
+        customerId: e.id,
+        name: e.name,
+        email: e.email,
+        phone: e.phone,
+      })),
       total,
     };
   }
 
-  private buildSearchWhere(tenantId: string, search: string | undefined) {
-    if (!search) return { tenantId };
-    return [
-      { tenantId, name: ILike(`%${search}%`) },
-      { tenantId, email: ILike(`%${search}%`) },
-    ];
+  // Name and email match the term as typed; the phone matches on digits only, so "(31) 99999-9999"
+  // and "31999999999" find the same customer whatever format is stored. Below
+  // PHONE_SEARCH_MIN_DIGITS the phone clause is left out — a term with no digits ("Maria") would
+  // otherwise become an empty pattern that matches every customer. Every wrapped term is escaped.
+  private buildSearchMatch(search: string): Brackets {
+    const term = `%${escapeLikePattern(search)}%`;
+    const digits = search.replace(/\D/g, '');
+    return new Brackets((qb) => {
+      qb.where('c.name ILIKE :term', { term }).orWhere('c.email ILIKE :term', { term });
+      if (digits.length >= PHONE_SEARCH_MIN_DIGITS) {
+        qb.orWhere("regexp_replace(c.phone, '\\D', '', 'g') LIKE :digits", {
+          digits: `%${digits}%`,
+        });
+      }
+    });
   }
 
   async save(customer: Customer): Promise<void> {

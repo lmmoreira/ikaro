@@ -65,6 +65,37 @@ export const AuthenticatedBookingBodySchema = z.object({
   attendees: z.array(BookingAttendeeInputSchema).max(50).optional(),
 });
 
+// M23-S39 (UC-108) — mirrors the backend's CreateBookingByStaffSchema (create-booking-by-staff.dto.ts):
+// strict shapes, exactly one of `customerId` or the full contact trio, no photos. The staff id is
+// never in the body; the backend reads it from the forwarded X-Actor-ID.
+const staffBookingShape = {
+  scheduledAt: z.iso.datetime(),
+  serviceIds: z.array(z.uuid()).min(1).max(20),
+  pickupAddress: AddressShapeSchema.optional(),
+  notes: z.string().trim().min(1).max(1000).optional(),
+  resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
+  durationMinutes: z.number().int().positive().optional(),
+  participantCount: z.number().int().positive().optional(),
+  intakeSchemaVersion: z.number().int().positive().optional(),
+  intakeAnswers: BookingIntakeAnswersSchema.optional(),
+  consentAccepted: z.boolean().optional(),
+  attendees: z.array(BookingAttendeeInputSchema).max(50).optional(),
+};
+
+export const StaffBookingBodySchema = z.union([
+  z.strictObject({ ...staffBookingShape, customerId: z.uuid() }),
+  z.strictObject({
+    ...staffBookingShape,
+    contactEmail: z.email(),
+    contactName: z.string().min(1),
+    contactPhone: z.string().refine((v) => isValidPhoneNumber(v), {
+      error: 'contactPhone must be in E.164 format',
+      params: { code: PhoneErrorCode.FORMAT_INVALID },
+    }),
+    contactAddress: AddressShapeSchema.optional(),
+  }),
+]);
+
 export const RejectBookingBodySchema = z.object({
   reason: z.string().trim().min(10),
 });
@@ -177,6 +208,7 @@ export type AttachmentSignedUrlBody = z.infer<typeof AttachmentSignedUrlBodySche
 
 export type RequestBookingBody = z.infer<typeof RequestBookingBodySchema>;
 export type AuthenticatedBookingBody = z.infer<typeof AuthenticatedBookingBodySchema>;
+export type StaffBookingBody = z.infer<typeof StaffBookingBodySchema>;
 export type RejectBookingBody = z.infer<typeof RejectBookingBodySchema>;
 export type RequestMoreInfoBody = z.infer<typeof RequestMoreInfoBodySchema>;
 export type SubmitBookingInfoBody = z.infer<typeof SubmitBookingInfoBodySchema>;

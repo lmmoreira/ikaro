@@ -15,6 +15,7 @@ function makeCustomer(overrides?: Partial<CustomerSearchItem>): CustomerSearchIt
     customerId: 'c-1',
     name: 'João Silva',
     email: 'joao@example.com',
+    phone: '+5531999999999',
     currentPoints: 120,
     ...overrides,
   };

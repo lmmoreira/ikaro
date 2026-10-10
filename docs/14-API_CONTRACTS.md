@@ -1157,7 +1157,7 @@ Auth: JWT + MANAGER only.
 - `GET /customers?search=&limit=20` -> (Admin) Search customers in tenant by name, email or phone.
   - Requires JWT with `MANAGER|STAFF` role.
   - Query params:
-    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name`, `email` and `phone` (a phone term is matched on its digits, so "(31) 99999-9999" and "31999999999" find the same customer — M23-S39; the wildcard characters in the term are escaped). When omitted, returns all customers up to `limit`.
+    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name`, `email` and `phone` (a phone term is matched on its digits, so "(31) 99999-9999" and "31999999999" find the same customer — M23-S39; the phone is matched only when the term holds at least 4 digits, so a term like "Maria" never matches on phone; the wildcard characters in the term are escaped). When omitted, returns all customers up to `limit`.
     - `limit` (optional, integer, default 20) — max results to return.
   - Response:
     ```json

@@ -62,6 +62,7 @@ import { AddRecurringScheduleTemplates1748500000029 } from '../contexts/notifica
 import { AddAvailabilityAlertAttemptTracking1748500000030 } from '../contexts/booking/infrastructure/migrations/1748500000030-AddAvailabilityAlertAttemptTracking';
 import { AddAvailabilityAlertMatchedTemplate1748500000031 } from '../contexts/notification/infrastructure/migrations/1748500000031-AddAvailabilityAlertMatchedTemplate';
 import { AddBookingNoShowCustomerTemplate1748500000032 } from '../contexts/notification/infrastructure/migrations/1748500000032-AddBookingNoShowCustomerTemplate';
+import { AddBookingCreatedByStaffId1748500000033 } from '../contexts/booking/infrastructure/migrations/1748500000033-AddBookingCreatedByStaffId';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -243,6 +244,7 @@ export default async function globalSetup(): Promise<void> {
       AddAvailabilityAlertAttemptTracking1748500000030,
       AddAvailabilityAlertMatchedTemplate1748500000031,
       AddBookingNoShowCustomerTemplate1748500000032,
+      AddBookingCreatedByStaffId1748500000033,
     ],
     synchronize: false,
     migrationsRun: false,

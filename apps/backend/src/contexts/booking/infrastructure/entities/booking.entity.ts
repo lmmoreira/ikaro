@@ -166,6 +166,11 @@ export class BookingEntity {
   @Column({ name: 'recurring_schedule_id', type: 'uuid', nullable: true })
   recurringScheduleId!: string | null;
 
+  // Set only when staff created this booking on the customer's behalf (UC-108, M23-S39) — null for
+  // every self-service booking. No FK: a cross-context reference to staff.staff.
+  @Column({ name: 'created_by_staff_id', type: 'uuid', nullable: true })
+  createdByStaffId!: string | null;
+
   @VersionColumn({ name: 'version', default: 1 })
   version!: number;
 }

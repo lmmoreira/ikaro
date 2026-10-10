@@ -12,7 +12,7 @@ const mockProfile: CustomerProfileResponse = {
 };
 
 const mockBackendSearch: {
-  items: { customerId: string; name: string; email: string }[];
+  items: { customerId: string; name: string; email: string; phone: string | null }[];
   total: number;
 } = {
   items: [
@@ -20,6 +20,7 @@ const mockBackendSearch: {
       customerId: '20000000-0000-4000-8000-000000000001',
       name: 'João Silva',
       email: 'joao@example.com',
+      phone: '+5531999999999',
     },
   ],
   total: 1,
@@ -49,6 +50,7 @@ describe('CustomersController', () => {
       });
       expect(getMock).toHaveBeenCalledTimes(2);
       expect(result.items[0]?.currentPoints).toBe(50);
+      expect(result.items[0]?.phone).toBe('+5531999999999');
       expect(result.total).toBe(1);
     });
 

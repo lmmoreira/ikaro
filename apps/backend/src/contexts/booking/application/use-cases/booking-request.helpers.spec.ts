@@ -82,6 +82,7 @@ describe('persistRequestedBooking', () => {
     booking: ReturnType<BookingBuilder['build']>,
     serviceMap: Map<string, ReturnType<ServiceBuilder['build']>>,
     resourceSelections: Parameters<typeof persistRequestedBooking>[1]['resourceSelections'] = [],
+    occupancyLockState?: 'HOLD' | 'COMMITTED',
   ) =>
     persistRequestedBooking(
       {
@@ -102,6 +103,7 @@ describe('persistRequestedBooking', () => {
         operations: [],
         serviceMap,
         resourceSelections,
+        occupancyLockState,
       },
     );
 
@@ -164,6 +166,39 @@ describe('persistRequestedBooking', () => {
     await expect(run(booking, new Map([[service.id, service]]))).rejects.toThrow(
       BookingServiceConcurrentModificationError,
     );
+  });
+
+  describe('occupancy lock state', () => {
+    const lineOf = async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(service);
+      const line = new BookingLineBuilder().withServiceId(service.id).build();
+      const booking = new BookingBuilder().withTenantId(TENANT_A).withLines([line]).build();
+      return { service, line, booking };
+    };
+
+    // The fixture's LOCATION-fallback service is degenerate, so its HOLD is downgraded to
+    // REQUESTED (assign helper) — either way it is not the COMMITTED exclusivity an APPROVED
+    // booking takes.
+    it('takes a pending HOLD/REQUESTED occupancy by default — a PENDING booking awaits approval', async () => {
+      const { service, line, booking } = await lineOf();
+
+      await run(booking, new Map([[service.id, service]]));
+
+      const rows = await occupancyRepo.findOccupancyByBookingLines(TENANT_A, [line.lineId]);
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((r) => r.lockState !== 'COMMITTED')).toBe(true);
+    });
+
+    it('takes a COMMITTED occupancy with no expiry when the booking starts APPROVED', async () => {
+      const { service, line, booking } = await lineOf();
+
+      await run(booking, new Map([[service.id, service]]), [], 'COMMITTED');
+
+      const rows = await occupancyRepo.findOccupancyByBookingLines(TENANT_A, [line.lineId]);
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((r) => r.lockState === 'COMMITTED' && r.holdExpiresAt === null)).toBe(true);
+    });
   });
 
   it('resolves a CUSTOMER_CHOICE requirement via resourceSelections and returns it in candidatesByLine', async () => {

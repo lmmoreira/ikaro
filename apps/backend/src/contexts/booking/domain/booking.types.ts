@@ -89,6 +89,9 @@ export interface BookingProps {
   // Set only when M23-S05 materializes a recurring schedule's occurrences — always null for a
   // one-off booking (requestBooking() never sets it). docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule.
   recurringScheduleId: string | null;
+  // Set only when staff created the booking on the customer's behalf (UC-108, M23-S39) — null for
+  // every self-service booking and every recurring occurrence. No FK: a cross-context reference.
+  createdByStaffId: string | null;
 }
 
 // M23-S05 (UC-070/071) — one occurrence of a recurring schedule, created directly APPROVED. The
@@ -134,4 +137,10 @@ export interface RequestBookingInput {
   participantCount?: number;
   intake?: BookingIntakeSnapshot;
   attendeeInputs?: BookingAttendeeInput[];
+}
+
+// M23-S39 (UC-108) — a one-off booking staff creates for a customer or a guest, directly APPROVED.
+// The staff member is the approver, so `staffId` becomes both `approvedBy` and `createdByStaffId`.
+export interface CreateBookingByStaffInput extends RequestBookingInput {
+  staffId: string;
 }

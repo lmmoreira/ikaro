@@ -141,4 +141,60 @@ describe('assertWithinEffectiveBookingWindow', () => {
     ).toThrow(BookingTooFarAheadError);
     expect(() => assertWithinEffectiveBookingWindow(request(10), [service({})])).not.toThrow();
   });
+
+  describe('ignoreMinAdvance (staff-created booking, UC-108)', () => {
+    const insideMinNotice = () => ({
+      scheduledAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+      timezone: TIMEZONE,
+      tenantBookingWindow: TENANT,
+    });
+
+    // Negative guarantee: the default path keeps enforcing the minimum notice.
+    it('still enforces the minimum notice when the option is not passed', () => {
+      expect(() => assertWithinEffectiveBookingWindow(insideMinNotice(), [service({})])).toThrow(
+        BookingTooSoonError,
+      );
+      expect(() =>
+        assertWithinEffectiveBookingWindow(insideMinNotice(), [service({})], {
+          ignoreMinAdvance: false,
+        }),
+      ).toThrow(BookingTooSoonError);
+    });
+
+    it('skips the minimum notice, tenant-wide and per-service', () => {
+      const options = { ignoreMinAdvance: true };
+
+      expect(() =>
+        assertWithinEffectiveBookingWindow(insideMinNotice(), [service({})], options),
+      ).not.toThrow();
+      expect(() =>
+        assertWithinEffectiveBookingWindow(
+          insideMinNotice(),
+          [service({ minBookingAdvanceHoursOverride: 48 })],
+          options,
+        ),
+      ).not.toThrow();
+    });
+
+    it('still rejects a start in the past', () => {
+      const past = {
+        ...insideMinNotice(),
+        scheduledAt: new Date(Date.now() - 60_000).toISOString(),
+      };
+
+      expect(() =>
+        assertWithinEffectiveBookingWindow(past, [service({})], { ignoreMinAdvance: true }),
+      ).toThrow(BookingScheduledInPastError);
+    });
+
+    it('still rejects a start beyond the maximum advance', () => {
+      expect(() =>
+        assertWithinEffectiveBookingWindow(
+          request(10),
+          [service({ maxBookingAdvanceDaysOverride: 5 })],
+          { ignoreMinAdvance: true },
+        ),
+      ).toThrow(BookingTooFarAheadError);
+    });
+  });
 });

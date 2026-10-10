@@ -21,6 +21,7 @@ import { ResourceType } from '../../domain/resource.types';
 import { BookingController } from './booking.controller';
 import { RequestBookingUseCase } from '../../application/use-cases/request-booking.use-case';
 import { RequestAuthenticatedBookingUseCase } from '../../application/use-cases/request-authenticated-booking.use-case';
+import { CreateBookingByStaffUseCase } from '../../application/use-cases/create-booking-by-staff.use-case';
 import { ListBookingsUseCase } from '../../application/use-cases/list-bookings.use-case';
 import { GetBookingByIdUseCase } from '../../application/use-cases/get-booking-by-id.use-case';
 import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
@@ -28,6 +29,7 @@ import { BookingQuoteService } from '../../application/services/booking-quote.se
 import { BookingIntakeValidationService } from '../../application/services/booking-intake-validation.service';
 import { PhotoExistenceService } from '../../application/services/photo-existence.service';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { IBookingCustomerPort } from '../../application/ports/booking-customer.port';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000110';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000110';
@@ -87,6 +89,7 @@ describe('BookingController', () => {
         repo,
         new InMemoryTransactionManager(),
       ),
+      createBookingByStaff: makeStaffUseCase(customerProfilePort, repo),
       requestAuthenticatedBooking: new RequestAuthenticatedBookingUseCase(
         customerProfilePort,
         serviceRepo,
@@ -116,6 +119,7 @@ describe('BookingController', () => {
       staffCtx,
       uc.requestBooking,
       uc.requestAuthenticatedBooking,
+      uc.createBookingByStaff,
       uc.listBookings,
       uc.getBooking,
     );
@@ -124,6 +128,7 @@ describe('BookingController', () => {
       customerCtx,
       ucC.requestBooking,
       ucC.requestAuthenticatedBooking,
+      ucC.createBookingByStaff,
       ucC.listBookings,
       ucC.getBooking,
     );
@@ -136,6 +141,22 @@ describe('BookingController', () => {
       new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.LOCATION).build(),
     );
   });
+
+  const makeStaffUseCase = (port: IBookingCustomerPort, repo: InMemoryBookingRepository) =>
+    new CreateBookingByStaffUseCase(
+      port,
+      serviceRepo,
+      resourceRepo,
+      occupancyRepo,
+      intakeSchemaRepo,
+      new AvailabilityService(),
+      new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
+      new PhotoExistenceService(storageService),
+      new BookingQuoteService(),
+      new BookingIntakeValidationService(intakeSchemaRepo),
+      repo,
+      new InMemoryTransactionManager(),
+    );
 
   const validBody = () => ({
     contactEmail: 'guest@example.com',
@@ -216,6 +237,7 @@ describe('BookingController', () => {
           repoB,
           new InMemoryTransactionManager(),
         ),
+        makeStaffUseCase(new InMemoryBookingCustomerPort(), repoB),
         new ListBookingsUseCase(repoB),
         new GetBookingByIdUseCase(
           repoB,
@@ -299,6 +321,7 @@ describe('BookingController', () => {
           repoC,
           new InMemoryTransactionManager(),
         ),
+        makeStaffUseCase(noPhonePort, repoC),
         new ListBookingsUseCase(repoC),
         new GetBookingByIdUseCase(
           repoC,
@@ -312,6 +335,50 @@ describe('BookingController', () => {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
       expect(err).not.toBeInstanceOf(CustomerPhoneNotSetError);
+    });
+  });
+
+  describe('createByStaff()', () => {
+    it('creates an APPROVED booking for a customer, recording the acting staff member', async () => {
+      const result = await controller.createByStaff({
+        customerId: CUSTOMER_ID,
+        scheduledAt: `${futureDate(1)}T10:00:00.000Z`,
+        serviceIds: [serviceId],
+      });
+
+      expect(result.status).toBe('APPROVED');
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved?.createdByStaffId).toBe(STAFF_ID);
+      expect(saved?.approvedBy).toBe(STAFF_ID);
+      expect(saved?.type).toBe('CUSTOMER');
+    });
+
+    it('creates an APPROVED guest booking from the contact trio', async () => {
+      const result = await controller.createByStaff({
+        contactName: 'Pessoa Nova',
+        contactPhone: '+5531977777777',
+        contactEmail: 'nova@example.com',
+        scheduledAt: `${futureDate(1)}T11:00:00.000Z`,
+        serviceIds: [serviceId],
+      });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved?.type).toBe('GUEST');
+      expect(saved?.customerId).toBeNull();
+      expect(saved?.status).toBe(BookingStatus.APPROVED);
+    });
+
+    it('maps an unknown customer to 404', async () => {
+      const err = await controller
+        .createByStaff({
+          customerId: '00000000-0000-4000-8000-000000009998',
+          scheduledAt: `${futureDate(1)}T10:00:00.000Z`,
+          serviceIds: [serviceId],
+        })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });
 

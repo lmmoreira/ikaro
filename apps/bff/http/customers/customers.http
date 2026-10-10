@@ -37,13 +37,19 @@ Content-Type: application/json
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /v1/customers?search=&limit= — staff/manager searches customers
-# Returns CustomerSearchListResponse: { items: [{ customerId, name, email, currentPoints }], total }
+# Returns CustomerSearchListResponse: { items: [{ customerId, name, email, phone, currentPoints }], total }
 # ─────────────────────────────────────────────────────────────────────────────
 
 ###
 
 ### HAPPY PATH — search by name fragment (min 5 chars)
 GET {{bffUrl}}/v1/customers?search=joaos&limit=20
+Authorization: Bearer {{staffToken}}
+
+###
+
+### HAPPY PATH — search by phone, any typed format (M23-S39) — each item carries `phone`
+GET {{bffUrl}}/v1/customers?search=(31)%2099999-8888&limit=20
 Authorization: Bearer {{staffToken}}
 
 ###

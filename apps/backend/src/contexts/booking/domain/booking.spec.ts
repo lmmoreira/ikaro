@@ -723,3 +723,109 @@ describe('Booking.materializeRecurringOccurrence()', () => {
     );
   });
 });
+
+describe('Booking.createByStaff()', () => {
+  const CUSTOMER_ID = '00000000-0000-7000-8000-000000000012';
+
+  function createByStaff(overrides: Partial<Parameters<typeof Booking.createByStaff>[0]> = {}) {
+    return Booking.createByStaff({
+      tenantId: TENANT_ID,
+      staffId: STAFF_ID,
+      correlationId: CORRELATION_ID,
+      type: 'CUSTOMER',
+      customerId: CUSTOMER_ID,
+      contactEmail: 'ana@test.com',
+      contactName: 'Ana Souza',
+      contactPhone: '+5531999999999',
+      scheduledAt: new Date(Date.now() + 86_400_000),
+      lineInputs: [lineInput().withDurationMinsAtBooking(60).build()],
+      ...overrides,
+    });
+  }
+
+  it('creates a CUSTOMER booking directly APPROVED, approved and created by the staff member', () => {
+    const booking = createByStaff();
+
+    expect(booking.status).toBe(BookingStatus.APPROVED);
+    expect(booking.type).toBe('CUSTOMER');
+    expect(booking.customerId).toBe(CUSTOMER_ID);
+    expect(booking.approvedBy).toBe(STAFF_ID);
+    expect(booking.createdByStaffId).toBe(STAFF_ID);
+    expect(booking.approvedAt).toBeInstanceOf(Date);
+    expect(booking.linesModified).toBe(true);
+    expect(booking.recurringScheduleId).toBeNull();
+  });
+
+  it('creates a GUEST booking directly APPROVED with no customer', () => {
+    const booking = createByStaff({ type: 'GUEST', customerId: undefined });
+
+    expect(booking.status).toBe(BookingStatus.APPROVED);
+    expect(booking.type).toBe('GUEST');
+    expect(booking.customerId).toBeNull();
+    expect(booking.createdByStaffId).toBe(STAFF_ID);
+  });
+
+  it.each(['CUSTOMER', 'GUEST'] as const)(
+    'raises BookingApproved and no BookingRequested for a %s booking',
+    (type) => {
+      const booking = createByStaff({
+        type,
+        customerId: type === 'CUSTOMER' ? CUSTOMER_ID : undefined,
+      });
+
+      expect(booking.domainEvents).toHaveLength(1);
+      const event = booking.domainEvents[0] as BookingApproved;
+      expect(event).toBeInstanceOf(BookingApproved);
+      expect(event.correlationId).toBe(CORRELATION_ID);
+      expect(event.data.approvedBy).toBe(STAFF_ID);
+      expect(event.data.contactEmail).toBe('ana@test.com');
+      expect(event.data.customerId).toBe(type === 'CUSTOMER' ? CUSTOMER_ID : null);
+      expect(event.data.lineSummary).toHaveLength(1);
+    },
+  );
+
+  // Negative guarantee: creation is not a transition, so no audit row is written (M23-S26).
+  it('records no status transition, even though it is created APPROVED', () => {
+    expect(createByStaff().drainStatusTransitions()).toEqual([]);
+  });
+
+  it('carries the slot, totals and lines of its services', () => {
+    const scheduledAt = new Date(Date.now() + 2 * 86_400_000);
+    const booking = createByStaff({
+      scheduledAt,
+      lineInputs: [
+        lineInput().withPriceAtBooking(Money.from(80, 'BRL')).withDurationMinsAtBooking(20).build(),
+        lineInput().withPriceAtBooking(Money.from(50, 'BRL')).withDurationMinsAtBooking(15).build(),
+      ],
+    });
+
+    expect(booking.scheduledAt).toEqual(scheduledAt);
+    expect(booking.totalDurationMins).toBe(35);
+    expect(booking.totalPrice.amount.toFixed(2)).toBe('130.00');
+    const event = booking.domainEvents[0] as BookingApproved;
+    expect(event.data.approvedSlot.endTime).toBe(
+      new Date(scheduledAt.getTime() + 35 * 60_000).toISOString(),
+    );
+  });
+
+  it('requires at least one line', () => {
+    expect(() => createByStaff({ lineInputs: [] })).toThrow(BookingLineRequiredError);
+  });
+
+  it('requires a pickup address when a line demands one, and accepts it when given', () => {
+    const lineInputs = [lineInput().withRequiresPickupAddressAtBooking(true).build()];
+
+    expect(() => createByStaff({ lineInputs })).toThrow(PickupAddressRequiredError);
+    expect(createByStaff({ lineInputs, pickupAddress: pickupAddr }).pickupAddress).not.toBeNull();
+  });
+
+  it('is already APPROVED, so approve() refuses it', () => {
+    expect(() => createByStaff().approve(STAFF, CORRELATION_ID)).toThrow(
+      InvalidBookingTransitionError,
+    );
+  });
+
+  it('leaves createdByStaffId null for a self-service request', () => {
+    expect(request().createdByStaffId).toBeNull();
+  });
+});

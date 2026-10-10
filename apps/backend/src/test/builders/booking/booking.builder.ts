@@ -57,6 +57,7 @@ export class BookingBuilder {
   private intake: BookingIntakeSnapshot | null = null;
   private attendees: BookingAttendee[] = [];
   private recurringScheduleId: string | null = null;
+  private createdByStaffId: string | null = null;
 
   static forStatus(
     tenantId: string,
@@ -207,6 +208,11 @@ export class BookingBuilder {
     return this;
   }
 
+  withCreatedByStaffId(createdByStaffId: string | null): this {
+    this.createdByStaffId = createdByStaffId;
+    return this;
+  }
+
   withRecurringScheduleId(recurringScheduleId: string | null): this {
     this.recurringScheduleId = recurringScheduleId;
     return this;
@@ -255,6 +261,7 @@ export class BookingBuilder {
       intake: this.intake,
       attendees: this.attendees,
       recurringScheduleId: this.recurringScheduleId,
+      createdByStaffId: this.createdByStaffId,
     };
     return Booking.reconstitute(props, this.linesModified);
   }

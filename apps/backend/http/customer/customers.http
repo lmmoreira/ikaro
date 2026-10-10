@@ -22,6 +22,17 @@ X-Correlation-ID: test-corr-id
 
 ###
 
+### GET /customers?search=<phone digits> — matches the phone on its digits, any typed format (M23-S39)
+# Each result carries `phone`. A term needs at least 4 digits for the phone to be matched.
+GET {{baseUrl}}/customers?search=(31)%2099999-8888&limit=20
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+X-Correlation-ID: test-corr-id
+
+###
+
 ### GET /customers — list all customers up to limit (search omitted)
 GET {{baseUrl}}/customers?limit=20
 X-Tenant-ID: {{tenantId}}

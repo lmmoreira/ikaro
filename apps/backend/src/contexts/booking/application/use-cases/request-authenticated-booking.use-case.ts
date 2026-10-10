@@ -1,19 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { Address } from '../../../../shared/value-objects/address';
-import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { Booking } from '../../domain/booking.aggregate';
-import {
-  BookingCustomerNotFoundError,
-  BookingServiceNotActiveError,
-  BookingServiceNotInTenantError,
-  BookingServiceSessionNotBookableError,
-  CustomerPhoneNotSetError,
-} from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import {
   IBookingCustomerPort,
@@ -41,11 +33,15 @@ import {
 } from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
 import {
-  createBookingAddress,
   persistRequestedBooking,
   resolveVariableServiceInputs,
   VariableServiceResolution,
 } from './booking-request.helpers';
+import {
+  findCustomerWithPhone,
+  resolveBookableServices,
+  resolvePickupAddress,
+} from './booking-request-subject.helpers';
 import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
 import { assertWithinEffectiveBookingWindow, BookingWindowRequest } from './booking-window.helpers';
@@ -84,9 +80,16 @@ export class RequestAuthenticatedBookingUseCase {
   ): Promise<RequestAuthenticatedBookingUseCaseResult> {
     const { tenantId, customerId, countryCode } = input;
 
-    const customer = await this.findCustomerWithPhone(customerId, tenantId);
-    const serviceMap = await this.resolveBookableServices(input);
-    const pickupAddress = this.resolvePickupAddress(input, customer, countryCode, serviceMap);
+    const customer = await findCustomerWithPhone(this.customerProfilePort, customerId, tenantId);
+    const serviceMap = await resolveBookableServices(this.serviceRepo, input.serviceIds, tenantId);
+    assertWithinEffectiveBookingWindow(input, serviceMap.values());
+    const pickupAddress = resolvePickupAddress(
+      input.pickupAddress,
+      customer.defaultAddress,
+      countryCode,
+      input.serviceIds,
+      serviceMap,
+    );
     const variableResolution = await resolveVariableServiceInputs(
       {
         intakeSchemaRepo: this.intakeSchemaRepo,
@@ -212,53 +215,6 @@ export class RequestAuthenticatedBookingUseCase {
       intake: variableResolution.intake ?? undefined,
       attendeeInputs: variableResolution.attendeeInputs,
     });
-  }
-
-  private async findCustomerWithPhone(
-    customerId: string,
-    tenantId: string,
-  ): Promise<CustomerProfileDto & { phone: string }> {
-    const customer = await this.customerProfilePort.findById(customerId, tenantId);
-    if (!customer) throw new BookingCustomerNotFoundError(customerId);
-    if (!customer.phone) throw new CustomerPhoneNotSetError();
-    return customer as CustomerProfileDto & { phone: string };
-  }
-
-  // The services must exist, be active appointment services, and the requested start must fit the
-  // booking window they allow together.
-  private async resolveBookableServices(
-    input: RequestAuthenticatedBookingUseCaseInput,
-  ): Promise<Map<string, Service>> {
-    const services = await this.serviceRepo.findByIds(input.serviceIds, input.tenantId);
-    const serviceMap = new Map(services.map((s) => [s.id, s]));
-    for (const serviceId of new Set(input.serviceIds)) {
-      const service = serviceMap.get(serviceId);
-      if (!service) throw new BookingServiceNotInTenantError(serviceId);
-      if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
-      if (service.bookingModel !== 'APPOINTMENT') {
-        throw new BookingServiceSessionNotBookableError(serviceId);
-      }
-    }
-    assertWithinEffectiveBookingWindow(input, serviceMap.values());
-    return serviceMap;
-  }
-
-  private resolvePickupAddress(
-    input: RequestAuthenticatedBookingUseCaseInput,
-    customer: CustomerProfileDto,
-    countryCode: string,
-    serviceMap: Map<string, Service>,
-  ): Address | undefined {
-    if (input.pickupAddress) {
-      return createBookingAddress(
-        { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
-        CountryCode.create(countryCode).spec.address,
-        'pickupAddress',
-      );
-    }
-    const requiresPickup = input.serviceIds.some((id) => serviceMap.get(id)?.requiresPickupAddress);
-    if (requiresPickup && customer.defaultAddress) return customer.defaultAddress;
-    return undefined;
   }
 
   private toResult(

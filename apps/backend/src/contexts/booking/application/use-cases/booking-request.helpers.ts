@@ -57,6 +57,9 @@ export interface PersistRequestedBookingParams {
   // Customer's CUSTOMER_CHOICE picks from the request body (M23-S01) — AUTO_ANY/
   // AUTO_FUNGIBLE_POOL/NONE requirements ignore this entirely.
   resourceSelections: ResourceSelectionInput[];
+  // HOLD (default) for a booking that starts PENDING; COMMITTED for one created directly APPROVED
+  // (M23-S39) — approval-time exclusivity applies to it from the first insert, with no expiry.
+  occupancyLockState?: 'HOLD' | 'COMMITTED';
 }
 
 // Bundled to keep persistRequestedBooking() under SonarCloud's max-parameters threshold (S107) —
@@ -264,6 +267,7 @@ export async function persistRequestedBooking(
 ): Promise<Map<string, ResolvedLineCandidates>> {
   const { booking, tenantId, scheduledAt, timezone, operations, serviceMap, resourceSelections } =
     params;
+  const lockState = params.occupancyLockState ?? 'HOLD';
 
   return deps.txManager.run(async () => {
     const candidatesByLine = await resolveAndCheckCandidates(deps, {
@@ -279,13 +283,12 @@ export async function persistRequestedBooking(
     await lockAndVerifyServiceModels(deps.serviceRepo, serviceIds, tenantId, serviceMap);
     await deps.bookingRepo.save(booking);
 
-    const holdExpiresAt = resolveHoldExpiresAt(serviceMap);
     await assignBookingLinesOccupancy(
       deps.occupancyRepo,
       candidatesByLine,
       tenantId,
-      'HOLD',
-      holdExpiresAt,
+      lockState,
+      lockState === 'HOLD' ? resolveHoldExpiresAt(serviceMap) : null,
     );
 
     await deps.txManager.scheduleAfterCommit(() =>
