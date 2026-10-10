@@ -49,9 +49,10 @@
         "target": "staff",
         "targetPaths": [
           "apps/backend/src/contexts/staff/application/use-cases/get-staff-by-id.use-case.ts",
+          "apps/backend/src/contexts/staff/application/use-cases/get-staff.use-case.ts",
           "apps/backend/src/contexts/staff/domain/errors/staff-domain.error.ts"
         ],
-        "rationale": "Booking checks staff active/schedulable status through the existing cross-context adapter (M21-S01, Resource-STAFF-wrap validation).",
+        "rationale": "Booking checks staff active/schedulable status through the existing cross-context adapter (M21-S01, Resource-STAFF-wrap validation); get-staff.use-case.ts resolves the actor names on the staff booking-detail status history in one batched, tenant-scoped read, because the BFF's own /staff list is manager-only (M23-S27).",
         "owner": "booking"
       },
       {

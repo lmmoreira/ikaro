@@ -7,14 +7,25 @@ import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import {
   useCancelBooking,
+  useCorrectNoShow,
+  useMarkNoShow,
   useRejectBooking,
   useRequestMoreInfo,
 } from '@/features/booking/hooks/useBookingMutations';
+import {
+  resolveCorrectFailureState,
+  resolveNoShowFailureState,
+  type CorrectNoShowFailureState,
+  type NoShowFailureState,
+} from '@/features/booking/model/booking-no-show';
 import { AdminCancelBookingSheet } from './AdminCancelBookingSheet';
+import { CorrectNoShowSheet } from './CorrectNoShowSheet';
+import { NoShowSheet } from './NoShowSheet';
 import { RejectBookingSheet } from './RejectBookingSheet';
 import { RequestInfoSheet } from './RequestInfoSheet';
 
-export type BookingDetailSheetState = 'reject' | 'info' | 'cancel' | null;
+export type BookingDetailSheetState =
+  'reject' | 'info' | 'cancel' | 'no-show' | 'correct-no-show' | null;
 
 function extractValidationMessage(
   err: unknown,
@@ -29,6 +40,10 @@ function extractValidationMessage(
 
 interface BookingDetailSheetsProps {
   readonly bookingId: string;
+  readonly contactName: string;
+  // UC-074 correction copy: the points it awards (null for a guest) and the services it names.
+  readonly correctionPoints: number | null;
+  readonly correctionServices: string;
   readonly sheetState: BookingDetailSheetState;
   readonly isSubmitting: boolean;
   readonly locale: SupportedLocale;
@@ -38,6 +53,10 @@ interface BookingDetailSheetsProps {
   readonly onInfoRequested: (message: string) => void;
   readonly onCancelled: (reason?: string) => void;
   readonly onSettleError: (message: string, isValidationError: boolean) => void;
+  readonly onNoShowMarked: () => void;
+  readonly onNoShowFailed: (state: NoShowFailureState) => void;
+  readonly onNoShowCorrected: () => void;
+  readonly onCorrectFailed: (state: CorrectNoShowFailureState) => void;
 }
 
 // Extracted from BookingDetailPage (TD37-S5A) — the 3 admin action sheets and their submit/
@@ -45,6 +64,9 @@ interface BookingDetailSheetsProps {
 // card around them.
 export function BookingDetailSheets({
   bookingId,
+  contactName,
+  correctionPoints,
+  correctionServices,
   sheetState,
   isSubmitting,
   locale,
@@ -54,11 +76,17 @@ export function BookingDetailSheets({
   onInfoRequested,
   onCancelled,
   onSettleError,
+  onNoShowMarked,
+  onNoShowFailed,
+  onNoShowCorrected,
+  onCorrectFailed,
 }: BookingDetailSheetsProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
   const rejectBookingMutation = useRejectBooking();
   const requestMoreInfoMutation = useRequestMoreInfo();
   const cancelBookingMutation = useCancelBooking();
+  const markNoShowMutation = useMarkNoShow();
+  const correctNoShowMutation = useCorrectNoShow();
 
   return (
     <>
@@ -118,6 +146,50 @@ export function BookingDetailSheets({
             } catch {
               onSettleError(t('cancelError'), false);
               throw new Error(t('cancelError'));
+            }
+          }}
+        />
+      )}
+
+      {sheetState === 'no-show' && (
+        <NoShowSheet
+          open
+          isSubmitting={isSubmitting}
+          contactName={contactName}
+          onClose={onClose}
+          onSubmit={async (reason) => {
+            onSubmittingStart();
+            try {
+              await markNoShowMutation.mutateAsync({
+                id: bookingId,
+                ...(reason ? { body: { reason } } : {}),
+              });
+              onNoShowMarked();
+            } catch (err) {
+              onNoShowFailed(resolveNoShowFailureState(err));
+            }
+          }}
+        />
+      )}
+
+      {sheetState === 'correct-no-show' && (
+        <CorrectNoShowSheet
+          open
+          isSubmitting={isSubmitting}
+          contactName={contactName}
+          points={correctionPoints}
+          services={correctionServices}
+          onClose={onClose}
+          onSubmit={async (reason) => {
+            onSubmittingStart();
+            try {
+              await correctNoShowMutation.mutateAsync({
+                id: bookingId,
+                body: { correctedStatus: 'COMPLETED', reason },
+              });
+              onNoShowCorrected();
+            } catch (err) {
+              onCorrectFailed(resolveCorrectFailureState(err));
             }
           }}
         />

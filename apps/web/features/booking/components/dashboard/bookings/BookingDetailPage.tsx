@@ -3,11 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import {
-  BOOKING_STATUS,
-  type SlotConflictSuggestion,
-  type StaffBookingDetailResponse,
-} from '@ikaro/types';
+import { type SlotConflictSuggestion, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Badge } from '@/shared/components/ui/badge';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
@@ -15,7 +11,16 @@ import { cn } from '@/shared/utils/cn';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useApproveBooking } from '@/features/booking/hooks/useBookingMutations';
+import { useNoShowAvailability } from '@/features/booking/hooks/useNoShowAvailability';
 import { buildApproveHandler } from '@/features/booking/model/booking-approve-action';
+import { buildBookingSheetOutcomes } from '@/features/booking/model/booking-sheet-outcomes';
+import { buildNoShowOutcomeHandlers } from '@/features/booking/model/booking-no-show-actions';
+import {
+  hasNoShowHistory,
+  resolveCorrectionPoints,
+} from '@/features/booking/model/booking-no-show';
+import { useTenant } from '@/providers/tenant-provider';
+import { BookingStatusHistory } from './BookingStatusHistory';
 import { BookingDetailAsideCard } from './BookingDetailAsideCard';
 import { BookingDetailMain } from './BookingDetailMain';
 import { BookingDetailMainBanner, type BookingDetailActionState } from './BookingDetailMainBanner';
@@ -26,7 +31,7 @@ import {
   buildBookingStatusLabels,
 } from '@/features/booking/model/booking-status';
 import { appendReturnTo } from '@/features/booking/model/booking-navigation';
-import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
+import { useBookingDetailTopbarSync } from '@/features/booking/hooks/useBookingDetailTopbarSync';
 
 type ActionState = BookingDetailActionState;
 type SheetState = BookingDetailSheetState;
@@ -69,9 +74,17 @@ export function BookingDetailPage({
   );
   const [inlineError, setInlineError] = useState<string | null>(null);
   const approveBookingMutation = useApproveBooking();
-  const topbarStatus = useDashboardTopbarStatus();
-  const setTopbarBookingStatus = topbarStatus?.setBookingStatus;
-  const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
+  const { role } = useTenant();
+  const { noShowAvailableAt, noShowEndLabel } = useNoShowAvailability(booking);
+  const correctionPoints = resolveCorrectionPoints(booking);
+  const sheetOutcomes = buildBookingSheetOutcomes({ setBooking, setActionState, setSheetState });
+  const noShowOutcome = buildNoShowOutcomeHandlers({
+    bookingId: booking.bookingId,
+    setBooking,
+    setActionState,
+    setSheetState,
+  });
+  useBookingDetailTopbarSync(booking.status, returnTo);
   const backHref = returnTo ?? '/dashboard/bookings';
 
   const serviceIds = useMemo(() => booking.lines.map((line) => line.serviceId), [booking.lines]);
@@ -80,17 +93,6 @@ export function BookingDetailPage({
     [booking.scheduledAt, booking.totalDurationMins, formatTime],
   );
   const statusLabels = buildBookingStatusLabels(t);
-
-  useEffect(() => {
-    setTopbarBookingStatus?.(booking.status);
-  }, [booking.status, setTopbarBookingStatus]);
-
-  useEffect(() => {
-    setBackHrefOverride?.(returnTo);
-    return () => {
-      setBackHrefOverride?.(null);
-    };
-  }, [returnTo, setBackHrefOverride]);
 
   useEffect(() => {
     if (initialActionState !== 'slot-conflict') return;
@@ -119,13 +121,6 @@ export function BookingDetailPage({
       active = false;
     };
   }, [booking.scheduledAt, initialActionState, serviceIds, t, tenantSlug]);
-
-  useEffect(
-    () => () => {
-      setTopbarBookingStatus?.(null);
-    },
-    [setTopbarBookingStatus],
-  );
 
   const handleApprove = buildApproveHandler({
     bookingId: booking.bookingId,
@@ -169,6 +164,11 @@ export function BookingDetailPage({
             actionState={actionState}
             booking={booking}
             approvedRangeLabel={approvedRangeLabel}
+            noShowEndLabel={noShowEndLabel}
+            correctionPoints={correctionPoints}
+            onRefresh={noShowOutcome.onRefresh}
+            onRetryNoShow={() => setSheetState('no-show')}
+            onRetryCorrect={() => setSheetState('correct-no-show')}
           />
 
           {actionState === 'slot-conflict' && (
@@ -187,6 +187,10 @@ export function BookingDetailPage({
           )}
 
           <BookingDetailMain booking={booking} />
+
+          {hasNoShowHistory(booking.statusHistory) && (
+            <BookingStatusHistory entries={booking.statusHistory} />
+          )}
         </div>
 
         <aside className="lg:block">
@@ -195,6 +199,10 @@ export function BookingDetailPage({
               actionState={actionState}
               booking={booking}
               backHref={backHref}
+              noShowAvailableAt={noShowAvailableAt}
+              canCorrectNoShow={role === 'MANAGER'}
+              onOpenNoShow={() => setSheetState('no-show')}
+              onOpenCorrectNoShow={() => setSheetState('correct-no-show')}
               onBackWithoutApprove={() => {
                 setActionState('idle');
                 setSlotSuggestions([]);
@@ -221,6 +229,9 @@ export function BookingDetailPage({
 
       <BookingDetailSheets
         bookingId={booking.bookingId}
+        contactName={booking.contactName}
+        correctionPoints={correctionPoints}
+        correctionServices={booking.lines.map((line) => line.serviceName).join(', ')}
         sheetState={sheetState}
         isSubmitting={actionState === 'submitting'}
         locale={locale}
@@ -229,33 +240,17 @@ export function BookingDetailPage({
           setActionState('submitting');
           setInlineError(null);
         }}
-        onRejected={(reason) => {
-          setBooking((current) => ({
-            ...current,
-            status: BOOKING_STATUS.REJECTED,
-            rejectionReason: reason,
-          }));
-          setSheetState(null);
-          setActionState('rejected');
-        }}
-        onInfoRequested={(message) => {
-          setBooking((current) => ({
-            ...current,
-            status: BOOKING_STATUS.INFO_REQUESTED,
-            infoRequestMessage: message,
-          }));
-          setSheetState(null);
-          setActionState('info-requested');
-        }}
-        onCancelled={() => {
-          setBooking((current) => ({ ...current, status: BOOKING_STATUS.CANCELLED }));
-          setSheetState(null);
-          setActionState('cancelled');
-        }}
+        onRejected={sheetOutcomes.onRejected}
+        onInfoRequested={sheetOutcomes.onInfoRequested}
+        onCancelled={sheetOutcomes.onCancelled}
         onSettleError={(message, isValidationError) => {
           setActionState('idle');
           if (!isValidationError) setInlineError(message);
         }}
+        onNoShowMarked={noShowOutcome.onNoShowMarked}
+        onNoShowFailed={noShowOutcome.onNoShowFailed}
+        onNoShowCorrected={noShowOutcome.onNoShowCorrected}
+        onCorrectFailed={noShowOutcome.onCorrectFailed}
       />
     </div>
   );

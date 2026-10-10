@@ -787,6 +787,8 @@ Append-only, source-exclusive across the two booking families (appointment resch
 
 Append-only audit of a booking's status changes — who moved it, from what, to what, why, when. `bookings` itself keeps only the latest actor and time per transition type (`approved_by`, `completed_by`, …), so a no-show followed by a correction would otherwise leave no history. M23-S09 introduced it for the no-show (`APPROVED → NO_SHOW`) and its correction (`NO_SHOW → COMPLETED`); since M23-S26 the `Booking` aggregate records every transition and `TypeOrmBookingRepository.save()` appends them, so the table is **complete for every transition from M23-S26 onward** (no backfill — bookings that changed status before it shipped have no rows). Same shape as M24's `class_session_booking_transitions`.
 
+**Read path (M23-S27):** the staff booking detail (`GET /bookings/:id`, STAFF/MANAGER callers only) reads a booking's rows through `IBookingStatusTransitionRepository.findByBooking(tenantId, bookingId)` — tenant-scoped, ordered by `(occurred_at, id)` — and returns them as `statusHistory`; the customer-facing read never loads this table.
+
 | Column | Type | Constraints |
 |---|---|---|
 | id | UUID | NOT NULL — UUIDv7 (time-ordered) |

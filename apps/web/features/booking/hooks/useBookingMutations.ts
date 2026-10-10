@@ -3,12 +3,16 @@ import {
   approveBooking,
   cancelBooking,
   completeBooking,
+  correctNoShow,
+  markNoShow,
   rejectBooking,
   requestMoreInfo,
   rescheduleBooking,
   submitBookingInfo,
   type CancelBookingRequest,
   type CompleteBookingRequest,
+  type CorrectNoShowRequest,
+  type MarkNoShowRequest,
   type RescheduleBookingRequest,
   type SubmitInfoRequest,
 } from '@/features/booking/api/booking';
@@ -76,6 +80,23 @@ export function useCompleteBooking() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: CompleteBookingRequest }) =>
       completeBooking(id, body),
+    onSuccess: invalidate,
+  });
+}
+
+export function useMarkNoShow() {
+  const invalidate = useInvalidateBookings();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body?: MarkNoShowRequest }) => markNoShow(id, body),
+    onSuccess: invalidate,
+  });
+}
+
+export function useCorrectNoShow() {
+  const invalidate = useInvalidateBookings();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: CorrectNoShowRequest }) =>
+      correctNoShow(id, body),
     onSuccess: invalidate,
   });
 }

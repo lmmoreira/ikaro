@@ -45,6 +45,7 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     approvedBy: null,
     completedAt: '2026-06-16T10:50:00.000Z',
     rejectionReason: null,
+    statusHistory: [],
     ...overrides,
   };
 }

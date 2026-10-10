@@ -396,9 +396,9 @@ export interface CompleteBookingResponse {
 
 ---
 
-## ❓ GAP — M23 Cluster 3 extension (UC-070 staff variant, UC-071, UC-074, not yet built)
+## ❓ GAP — M23 Cluster 3 extension (UC-070 staff variant, UC-071 not yet built; UC-074 no-show ✅ shipped by M23-S27)
 
-> Everything above this line is shipped. Everything below is new, unimplemented scope. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
+> Everything above this line is shipped, as is the UC-074 section below (M23-S27). The rest below is new, unimplemented scope. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
 
 **Prototype screens (revised 2026-10-08):**
 - `00-agenda.html` (extended) — the recurrence-request card in "Precisa de ação" and the floating **"Filtrar agenda"** balloon. Card: teal `Recorrência` badge, teal left border, pattern as title, "Decidir até HH:mm", one **"Ver pedido"** button (no quick approve — one decision creates the whole term). Balloon: checkboxes grouped *Precisa de ação* (Agendamentos, Recorrências) and *Confirmados* (Hoje, Próximos dias); default all on; "Padrão" resets; a count badge on the trigger shows how many are hidden; empty state "Limpar filtro". The header count is computed from what is visible.
@@ -430,7 +430,7 @@ export interface CompleteBookingResponse {
 | File | Status |
 |---|---|
 | `apps/web/features/booking/components/dashboard/bookings/` — recurrence card in `BookingQueuePage.tsx`, a `RecurringScheduleCard`, a `RecurringScheduleApprovalDetail` page, the "Filtrar agenda" balloon, and `apps/web/app/dashboard/bookings/recurring/[id]/page.tsx` | ❓ Gap — M23-S13 (the real folder is `dashboard/bookings/`; the plan's old `agenda/` folder does not exist) |
-| `03-booking-detail-approved.html`'s no-show action (+ `03c`–`03g`) | ❓ Gap — extend existing `BookingDetailPage` / `BookingActionPanel`, no new route. Prototype screens added 2026-09-30 (see "UC-074 — Não comparecimento" below). **Owner: M23-S27, not M23-S09** (S09 ships the backend/BFF and the minimal `NO_SHOW` status display only) |
+| `03-booking-detail-approved.html`'s no-show action (+ `03c`–`03g`) | ✅ Created — M23-S27: `NoShowSheet`, `CorrectNoShowSheet`, `BookingStatusHistory`, `BookingNoShowBanner`, the `BookingActionPanel` / `BookingDetailAsideCard` branches, and `useNoShowAvailability`; no new route. The backend/BFF came with M23-S09 |
 | `apps/web/app/dashboard/bookings/recurring/new/page.tsx` | ❓ Gap — M23-S19 (route proposed; see the route question below) |
 | `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleCustomerStep.tsx`, `NewRecurringScheduleForStaff.tsx`, `NewRecurringScheduleForStaffResult.tsx` | ❓ Gap — M23-S19 (the Agenda page's real folder is `dashboard/bookings/`, next to `BookingQueuePage.tsx`; `M23-S13`'s plan cites an `agenda/` folder that does not exist) |
 
@@ -529,14 +529,15 @@ POST /bookings/:id/no-show/correct   body { correctedStatus: 'COMPLETED', reason
 | correct `403` | `03g #permissao` |
 | correct network / `5xx` | `03g #falha` |
 
-**Field constraints:** no-show `reason` optional, max 500, an **internal** note (never shown to the customer, in the email or on `customer/prototypes/minha-conta/02f`). Correction `reason` required, trimmed, 10–500 characters — a proposal (same minimum as Reject) to lock at M23-S27's discovery. The correction completes every line at its booked price: no photos, notes or points-discount fields in `03g`.
+**Field constraints:** no-show `reason` optional, max 500, an **internal** note (never shown to the customer, in the email or on `customer/prototypes/minha-conta/02f`). Correction `reason` required, trimmed, 10–500 characters — locked at M23-S27's discovery (2026-10-10; same minimum as Reject). The correction completes every line at its booked price: no photos, notes or points-discount fields in `03g`.
 
-**Status history (`03d`, `03f`, `03g`):** read from `booking_status_transitions` (created by M23-S09; complete for all transitions once M23-S26 ships). M23-S27 decides whether the history is part of `GET /bookings/:id` or a separate read — M23-S09 adds no read endpoint for it.
+**Status history (`03d`, `03f`, `03g`):** read from `booking_status_transitions` (created by M23-S09; complete for all transitions from M23-S26). It is part of the staff `GET /bookings/:id` (`statusHistory`, oldest first); the backend resolves the actor names (the BFF's `/staff` list is manager-only), and the UI falls back to the role label when `actorName` is `null` (guest, system, or an unresolvable staff member).
 
 **`.status-no-show`** (violet) was added to `plan/journey/shared/tokens.css`; the customer list and detail use it too (`customer/prototypes/minha-conta/01`, `02f`).
 
 **Known limitations of this prototype (gap variants, not silently dropped):**
-- ⚠ **The customer email** ("foi avisado por email" in `03`, `03d`) depends on `M23-S25`; drop the sentence if the UI ships first.
-- ⚠ **The history card** in `03d`/`03f`/`03g` assumes a read the backend does not expose yet (see above).
+- ✅ **The customer email** ("foi avisado por email" in `03`, `03d`) shipped with `M23-S25`.
+- ✅ **The history card** in `03d`/`03f`/`03g` is read from the staff `GET /bookings/:id` (see above).
 - ⚠ **Role switch in `03f`** is a hash toggle for the prototype; in production the role comes from the JWT.
-- ⚠ **The `NO_SHOW` web status display** (label, colour, icon in `booking-status.ts`, `BookingStatusIcon.tsx`, `schedule-page-controller-result.ts`) ships with `M23-S09`, not with the UI story.
+- ⚠ **The `NO_SHOW` web status display** (label, colour, icon in `booking-status.ts`, `BookingStatusIcon.tsx`, `schedule-page-controller-result.ts`) shipped with `M23-S09`, not with the UI story.
+- ⚠ **Deviations from the drawn screens (M23-S27):** the sheets' dismiss button reads "Cancelar" (the existing sheets' key) instead of "Voltar"; the history timestamp reads "{date} às {time}" instead of "hoje às HH:mm"; the `correcting` state of `dev-notes` is the open sheet (`sheetState = 'correct-no-show'`), not an `actionState`.

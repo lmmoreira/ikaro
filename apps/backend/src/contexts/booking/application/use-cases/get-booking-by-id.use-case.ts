@@ -8,12 +8,21 @@ import { Money } from '../../../../shared/value-objects/money';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
+import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
+import {
+  BOOKING_STATUS_TRANSITION_REPOSITORY,
+  IBookingStatusTransitionRepository,
+} from '../ports/booking-status-transition-repository.port';
 import {
   IResourceOccupancyRepository,
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { TenantBookingWindow } from './booking-window.helpers';
+import {
+  BookingStatusHistoryEntryDetail,
+  loadStatusHistory,
+} from './booking-status-history.helpers';
 import {
   BookingRescheduleOptionsDetail,
   buildRescheduleOptions,
@@ -27,6 +36,9 @@ export type GetBookingByIdUseCaseInput = {
   cancellationWindowHours: number;
   requestingCustomerId?: string;
   tenantBookingWindow?: TenantBookingWindow;
+  // Staff-facing reads only (M23-S27): loads the booking's status history. Off by default so the
+  // customer read and the loyalty adapter's read never touch the transitions table.
+  includeStatusHistory?: boolean;
 };
 
 export interface BookingLineDetail {
@@ -87,6 +99,8 @@ export interface GetBookingByIdUseCaseResult {
   reschedule: BookingRescheduleOptionsDetail | null;
   // Sum of lines' pointsValueAtBooking — non-null only once COMPLETED.
   pointsEarned: number | null;
+  // Oldest first; null unless the caller asked for it (includeStatusHistory).
+  statusHistory: BookingStatusHistoryEntryDetail[] | null;
 }
 
 @Injectable()
@@ -98,6 +112,9 @@ export class GetBookingByIdUseCase {
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(BOOKING_STATUS_TRANSITION_REPOSITORY)
+    private readonly transitionRepo: IBookingStatusTransitionRepository,
+    @Inject(BOOKING_STAFF_PORT) private readonly staffPort: IBookingStaffPort,
   ) {}
 
   async execute(input: GetBookingByIdUseCaseInput): Promise<GetBookingByIdUseCaseResult> {
@@ -118,7 +135,11 @@ export class GetBookingByIdUseCase {
         ? await this.resolveRescheduleOptions(booking, input, input.tenantBookingWindow)
         : null;
 
-    return this.toResult(booking, cancellationWindowHours, reschedule);
+    const statusHistory = input.includeStatusHistory
+      ? await loadStatusHistory(this.transitionRepo, this.staffPort, booking)
+      : null;
+
+    return this.toResult(booking, cancellationWindowHours, reschedule, statusHistory);
   }
 
   private async resolveRescheduleOptions(
@@ -197,18 +218,22 @@ export class GetBookingByIdUseCase {
     booking: Booking,
     cancellationWindowHours: number,
     reschedule: BookingRescheduleOptionsDetail | null,
+    statusHistory: BookingStatusHistoryEntryDetail[] | null,
   ): Promise<GetBookingByIdUseCaseResult> {
     const [beforeServicePhotoUrls, afterServicePhotoUrls] = await Promise.all([
       this.signPhotoUrls(booking.beforeServicePhotoUrls),
       this.signPhotoUrls(booking.afterServicePhotoUrls),
     ]);
 
-    return this.buildResult(
-      booking,
-      cancellationWindowHours,
-      { beforeServicePhotoUrls, afterServicePhotoUrls },
-      reschedule,
-    );
+    return {
+      ...this.buildResult(
+        booking,
+        cancellationWindowHours,
+        { beforeServicePhotoUrls, afterServicePhotoUrls },
+        reschedule,
+      ),
+      statusHistory,
+    };
   }
 
   private buildResult(
@@ -216,7 +241,7 @@ export class GetBookingByIdUseCase {
     cancellationWindowHours: number,
     signedPhotoUrls: { beforeServicePhotoUrls: string[]; afterServicePhotoUrls: string[] },
     reschedule: BookingRescheduleOptionsDetail | null,
-  ): GetBookingByIdUseCaseResult {
+  ): Omit<GetBookingByIdUseCaseResult, 'statusHistory'> {
     return {
       id: booking.id,
       status: booking.status,

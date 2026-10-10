@@ -2,7 +2,7 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Review the daily booking queue, action each request — approve, reject, or request more information — and manage an approved booking through to completion, cancellation, or reschedule  
-**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating a recurrence on a customer's behalf), UC-071, UC-074, UC-108 (staff creating a one-off booking on a customer's behalf) (❓ Gap — M23 Cluster 3, recurring-schedule creation on behalf + approval + appointment no-show)  
+**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating a recurrence on a customer's behalf), UC-071, UC-074, UC-108 (staff creating a one-off booking on a customer's behalf) (M23 Cluster 3 — UC-074 appointment no-show ✅ Criado by M23-S27; ❓ Gap for recurring-schedule creation on behalf + approval)  
 **Status:** Draft
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
@@ -138,16 +138,16 @@ Folder: `staff/prototypes/agenda/`
 | `10b-novo-agendamento-resultado.html` | Inline outcomes: created `APPROVED`, 409 slot taken, outside the window, customer without phone, customer not found, network/5xx | UC-108 | M23-S40 | ❓ Gap (M23 Cluster 3) |
 | `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recurso, dias, horário, período) para o cliente escolhido | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09c-nova-recorrencia-resultado.html` | Desfechos: criada, aguardando aprovação, conflito, limite, falha, cliente não encontrado | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
-| `03-booking-detail-approved.html` — "Marcar não compareceu" (extended) | Nova ação + bottom sheet (motivo opcional) no detalhe de um agendamento aprovado | UC-074 | M23-S09 (backend/BFF) · M23-S27 | ❓ Gap (M23 Cluster 3) |
-| `03c-no-show-not-yet-ended.html` | Atendimento ainda não terminou: ação desativada com dica; erro 422 `BOOKING_NOT_YET_ENDED` (`#rejeitado`) | UC-074 A1 | M23-S27 | ❓ Gap (M23 Cluster 3) |
-| `03d-no-show-success.html` | Sucesso inline (`actionState = 'no-show'`), status "Não compareceu" | UC-074 | M23-S27 | ❓ Gap (M23 Cluster 3) |
-| `03e-no-show-error.html` | Erros: 409 `BOOKING_ALREADY_TERMINAL` (`#terminal`) e falha de rede/5xx (`#falha`) | UC-074 A2 | M23-S27 | ❓ Gap (M23 Cluster 3) |
-| `03f-booking-detail-no-show.html` | Detalhe de um não comparecimento + histórico; gerente vê "Corrigir para concluído", staff não (`#equipe`) | UC-074 A3 | M23-S27 | ❓ Gap (M23 Cluster 3) |
-| `03g-correct-no-show.html` | Correção (somente gerente): motivo obrigatório (10–500), sucesso com pontos, falha, 403 | UC-074 A3 | M23-S27 | ❓ Gap (M23 Cluster 3) |
+| `03-booking-detail-approved.html` — "Marcar não compareceu" (extended) | Nova ação + bottom sheet (motivo opcional) no detalhe de um agendamento aprovado | UC-074 | M23-S09 (backend/BFF) · M23-S27 | ✅ Criado |
+| `03c-no-show-not-yet-ended.html` | Atendimento ainda não terminou: ação desativada com dica; erro 422 `BOOKING_NOT_YET_ENDED` (`#rejeitado`) | UC-074 A1 | M23-S27 | ✅ Criado |
+| `03d-no-show-success.html` | Sucesso inline (`actionState = 'no-show'`), status "Não compareceu" | UC-074 | M23-S27 | ✅ Criado |
+| `03e-no-show-error.html` | Erros: 409 `BOOKING_ALREADY_TERMINAL` (`#terminal`) e falha de rede/5xx (`#falha`) | UC-074 A2 | M23-S27 | ✅ Criado |
+| `03f-booking-detail-no-show.html` | Detalhe de um não comparecimento + histórico; gerente vê "Corrigir para concluído", staff não (`#equipe`) | UC-074 A3 | M23-S27 | ✅ Criado |
+| `03g-correct-no-show.html` | Correção (somente gerente): motivo obrigatório (10–500), sucesso com pontos, falha, 403 | UC-074 A3 | M23-S27 | ✅ Criado |
 
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
 
-## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
+## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built — except UC-074 no-show, ✅ Criado by M23-S27)
 
 > Promoted from `docs/discovery/multivertical-booking/`. **UC-071's approval queue lives inside the existing "Precisa de ação" block of the Agenda (decided 2026-10-08)** — a recurrence request is something that needs a staff decision now, exactly like a pending booking, so it sits in the same hot list instead of a separate tab. See "Recurrence requests in the Agenda" below. UC-074 (no-show) extends `03-booking-detail-approved.html`'s existing Cancel/Complete/Reschedule action set with a new "Marcar não compareceu" action — same route and component, no new page; the prototype adds its states as `03c`–`03g` (added 2026-09-30 after the M23-S09 discovery; the UI itself is a future frontend story, M23-S09 ships the backend/BFF only). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 
@@ -225,20 +225,20 @@ flowchart TD
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Det["/dashboard/bookings/:id<br/>Detalhe APPROVED (real, shipped)<br/>03-booking-detail-approved"] -->|"Antes do fim do atendimento"| Desat["❓ GAP: ação desativada + dica<br/>(03c)"]
-    Det -->|"'Marcar não compareceu' (após o fim)"| Sheet["❓ GAP: bottom sheet, motivo opcional<br/>(03 — sheet)"]
+    Det["/dashboard/bookings/:id<br/>Detalhe APPROVED (real, shipped)<br/>03-booking-detail-approved"] -->|"Antes do fim do atendimento"| Desat["ação desativada + dica<br/>(03c)"]
+    Det -->|"'Marcar não compareceu' (após o fim)"| Sheet["bottom sheet, motivo opcional<br/>(03 — sheet)"]
     Sheet -->|"'Confirmar'"| Post(("POST /bookings/:id/no-show"))
-    Post -->|"200"| Ok["❓ GAP: sucesso inline, NO_SHOW<br/>(03d)"]
-    Post -->|"409 já encerrado"| Terminal["❓ GAP: (03e #terminal)"]
-    Post -->|"422 ainda não terminou"| Rej["❓ GAP: (03c #rejeitado)"]
-    Post -->|"rede/5xx"| Falha["❓ GAP: (03e #falha)"]
-    Ok -->|"Detalhe"| NS["❓ GAP: detalhe NO_SHOW + histórico<br/>(03f)"]
-    NS -->|"Gerente: 'Corrigir para concluído'"| Fix["❓ GAP: folha de correção, motivo obrigatório<br/>(03g)"]
+    Post -->|"200"| Ok["sucesso inline, NO_SHOW<br/>(03d)"]
+    Post -->|"409 já encerrado"| Terminal["(03e #terminal)"]
+    Post -->|"422 ainda não terminou"| Rej["(03c #rejeitado)"]
+    Post -->|"rede/5xx"| Falha["(03e #falha)"]
+    Ok -->|"Detalhe"| NS["detalhe NO_SHOW + histórico<br/>(03f)"]
+    NS -->|"Gerente: 'Corrigir para concluído'"| Fix["folha de correção, motivo obrigatório<br/>(03g)"]
     NS -->|"Staff: sem botão (#equipe)"| Nada["sem ação disponível"]
     Fix -->|"POST /bookings/:id/no-show/correct"| Corr(("BookingCompleted → pontos"))
-    Corr -->|"200"| CorrOk["❓ GAP: (03g #sucesso)"]
-    Corr -->|"403"| Perm["❓ GAP: (03g #permissao)"]
-    Corr -->|"rede/5xx"| CorrFalha["❓ GAP: (03g #falha)"]
+    Corr -->|"200"| CorrOk["(03g #sucesso)"]
+    Corr -->|"403"| Perm["(03g #permissao)"]
+    Corr -->|"rede/5xx"| CorrFalha["(03g #falha)"]
 ```
 
 **Open questions / gaps:**
@@ -256,6 +256,6 @@ flowchart TD
 - [x] **Fixed term — decided 2026-09-29; prototypes `08`, `09b`, `09c` updated in the same-day prototype pass:** a recurring schedule always has an end date, chosen up to the service's maximum term (90 days by default); every occurrence is checked at creation and created once (immediately, or when staff approve). `09b` therefore needs an end-date field with a "máx. N dias" hint and no "sem data final" copy; `09c` needs its "geradas… até 90 dias à frente" success copy replaced (the whole term appears at once) and `#conflito` needs the reason labels; and `08` should show the requested term ("até dd/mm") instead of "sem data de término", with a note that approving creates every occurrence of the term at once (after the checks re-run — an occurrence that no longer passes is not created and goes to the exception worklist).
 - [ ] Variable-duration services and bundled services are out of scope here, as in the customer flow (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` tracks bundles).
 - [x] **No-show: who can do what — decided 2026-09-30 (M23-S09 discovery):** marking is `STAFF|MANAGER`; correcting is `MANAGER` only and its only target is `COMPLETED`. The staff view simply does not render "Corrigir para concluído" (hidden, not disabled); "Marcar não compareceu" before the end time is disabled with the hint "Disponível após o término do atendimento (HH:mm)".
-- [ ] **No-show: correction reason validation.** Drawn as required, trimmed, 10–500 characters (same minimum as Reject) — a proposal to lock at M23-S27's `/story-discovery`.
-- [ ] **No-show: the customer email** ("foi avisado por email" in `03`, `03d`) depends on `M23-S25`; until it ships the UI must drop that sentence. The staff member's reason is internal and never appears in the email or on the customer's screen (`customer/prototypes/minha-conta/02f`).
+- [x] **No-show: correction reason validation — locked 2026-10-10 (M23-S27 discovery):** required, trimmed, 10–500 characters (same minimum as Reject); the confirm button is disabled until valid.
+- [x] **No-show: the customer email** ("foi avisado por email" in `03`, `03d`) shipped with `M23-S25`, so the sentence is true. The staff member's reason is internal and never appears in the email or on the customer's screen (`customer/prototypes/minha-conta/02f`).
 - [x] **No-show: the UI story** is `M23-S27` (dashboard actions and sheets, the status-history read, and the customer `02f` detail), created 2026-09-30; it depends on `M23-S09`, `M23-S25` and `M23-S26`. The read-only `NO_SHOW` status display (badge, history list, read-only details) ships earlier, inside `M23-S09`, because the shared status type forces it.

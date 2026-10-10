@@ -68,6 +68,7 @@ export class BookingController {
         cancellationWindowHours: settings.booking.cancellationWindowHours,
         requestingCustomerId: actorType === 'CUSTOMER' ? actorId : undefined,
         tenantBookingWindow: this.tenantBookingWindow(),
+        includeStatusHistory: actorType === 'STAFF',
       })
       .catch(mapBookingError);
   }

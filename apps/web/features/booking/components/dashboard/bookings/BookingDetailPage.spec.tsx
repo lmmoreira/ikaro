@@ -2,9 +2,11 @@
 import { renderWithIntl } from '@/test-utils';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
+import { ApiError, ForbiddenError } from '@/shared/lib/api/errors';
+import { TenantProvider } from '@/providers/tenant-provider';
+import { getBooking } from '@/features/booking/api/booking';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import { BookingDetailPage } from './BookingDetailPage';
 
@@ -26,12 +28,18 @@ vi.mock('@/features/booking/api/availability', () => ({
   fetchBookingAvailability: vi.fn(),
 }));
 
+vi.mock('@/features/booking/api/booking', () => ({
+  getBooking: vi.fn(),
+}));
+
 const approveBookingMutateAsync = vi.hoisted(() => vi.fn());
 const cancelBookingMutateAsync = vi.hoisted(() => vi.fn());
 const completeBookingMutateAsync = vi.hoisted(() => vi.fn());
 const rejectBookingMutateAsync = vi.hoisted(() => vi.fn());
 const requestMoreInfoMutateAsync = vi.hoisted(() => vi.fn());
 const rescheduleBookingMutateAsync = vi.hoisted(() => vi.fn());
+const markNoShowMutateAsync = vi.hoisted(() => vi.fn());
+const correctNoShowMutateAsync = vi.hoisted(() => vi.fn());
 const setBookingStatus = vi.hoisted(() => vi.fn());
 
 vi.mock('@/features/booking/hooks/useBookingMutations', () => ({
@@ -41,6 +49,8 @@ vi.mock('@/features/booking/hooks/useBookingMutations', () => ({
   useRejectBooking: () => ({ mutateAsync: rejectBookingMutateAsync }),
   useRequestMoreInfo: () => ({ mutateAsync: requestMoreInfoMutateAsync }),
   useRescheduleBooking: () => ({ mutateAsync: rescheduleBookingMutateAsync }),
+  useMarkNoShow: () => ({ mutateAsync: markNoShowMutateAsync }),
+  useCorrectNoShow: () => ({ mutateAsync: correctNoShowMutateAsync }),
 }));
 
 vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
@@ -90,6 +100,7 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     approvedBy: null,
     completedAt: null,
     rejectionReason: null,
+    statusHistory: [],
     ...overrides,
   };
 }
@@ -104,6 +115,9 @@ beforeEach(() => {
   requestMoreInfoMutateAsync.mockReset();
   rescheduleBookingMutateAsync.mockReset();
   setBookingStatus.mockReset();
+  markNoShowMutateAsync.mockReset();
+  correctNoShowMutateAsync.mockReset();
+  vi.mocked(getBooking).mockReset();
 });
 
 describe('BookingDetailPage', () => {
@@ -415,5 +429,208 @@ describe('BookingDetailPage', () => {
 
     expect(await screen.findByText('Agendamento cancelado')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+  });
+
+  describe('no-show (UC-074)', () => {
+    // 10:00–10:30 UTC: ended at the first time, not yet ended at the second.
+    const AFTER_END = new Date('2026-06-16T12:00:00.000Z');
+    const BEFORE_END = new Date('2026-06-16T09:00:00.000Z');
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function renderAt(
+      now: Date,
+      booking: StaffBookingDetailResponse,
+      role: 'STAFF' | 'MANAGER' = 'STAFF',
+    ) {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(now);
+      return renderWithIntl(
+        <TenantProvider tenantId="t-1" tenantSlug="lavacar-bh" role={role}>
+          <BookingDetailPage booking={booking} tenantSlug="lavacar-bh" />
+        </TenantProvider>,
+      );
+    }
+
+    const approved = () => makeBooking({ status: 'APPROVED' });
+    const noShow = (overrides?: Partial<StaffBookingDetailResponse>) =>
+      makeBooking({
+        status: 'NO_SHOW',
+        statusHistory: [
+          {
+            fromStatus: 'APPROVED',
+            toStatus: 'NO_SHOW',
+            reason: 'Cliente não atendeu o telefone.',
+            actorType: 'MANAGER',
+            actorId: 'staff-1',
+            actorName: 'Ana Pereira',
+            occurredAt: '2026-06-16T10:42:00.000Z',
+          },
+        ],
+        ...overrides,
+      });
+
+    async function markNoShow(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByRole('button', { name: 'Marcar não compareceu' }));
+      await user.click(screen.getByRole('button', { name: 'Confirmar não comparecimento' }));
+    }
+
+    it('marks a no-show after the end time and shows the success state, then the re-read history', async () => {
+      const user = userEvent.setup();
+      markNoShowMutateAsync.mockResolvedValue({ bookingId: 'b-1', status: 'NO_SHOW' });
+      vi.mocked(getBooking).mockResolvedValue(noShow());
+      renderAt(AFTER_END, approved());
+
+      await user.click(screen.getByRole('button', { name: 'Marcar não compareceu' }));
+      await user.type(screen.getByRole('textbox'), 'Cliente não atendeu o telefone.');
+      await user.click(screen.getByRole('button', { name: 'Confirmar não comparecimento' }));
+
+      expect(markNoShowMutateAsync).toHaveBeenCalledWith({
+        id: 'b-1',
+        body: { reason: 'Cliente não atendeu o telefone.' },
+      });
+      expect(await screen.findByTestId('booking-no-show-marked')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Motivo: Cliente não atendeu o telefone\./),
+      ).toBeInTheDocument();
+    });
+
+    it('marks a no-show without a reason as an empty request', async () => {
+      const user = userEvent.setup();
+      markNoShowMutateAsync.mockResolvedValue({ bookingId: 'b-1', status: 'NO_SHOW' });
+      vi.mocked(getBooking).mockResolvedValue(noShow());
+      renderAt(AFTER_END, approved());
+
+      await markNoShow(user);
+
+      expect(markNoShowMutateAsync).toHaveBeenCalledWith({ id: 'b-1' });
+    });
+
+    it('disables the action before the end time with the hint', () => {
+      renderAt(BEFORE_END, approved());
+
+      expect(screen.getByRole('button', { name: 'Marcar não compareceu' })).toBeDisabled();
+      expect(screen.getByText(/Disponível após o término do atendimento \(/)).toBeInTheDocument();
+    });
+
+    it('shows the already-closed banner on a 409 and re-reads the booking', async () => {
+      const user = userEvent.setup();
+      markNoShowMutateAsync.mockRejectedValue(
+        new ApiError(409, 'closed', { code: 'BOOKING_ALREADY_TERMINAL' }),
+      );
+      vi.mocked(getBooking).mockResolvedValue(makeBooking({ status: 'COMPLETED' }));
+      renderAt(AFTER_END, approved());
+
+      await markNoShow(user);
+
+      expect(await screen.findByTestId('booking-no-show-terminal')).toBeInTheDocument();
+      expect(getBooking).toHaveBeenCalledWith('b-1');
+      // The re-read shows what the booking is now: the status badge and the action rail follow it.
+      expect(await screen.findByText('Concluído')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Marcar não compareceu' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows the not-yet-ended banner on a 422 and leaves the booking approved', async () => {
+      const user = userEvent.setup();
+      markNoShowMutateAsync.mockRejectedValue(
+        new ApiError(422, 'early', { code: 'BOOKING_NOT_YET_ENDED' }),
+      );
+      renderAt(AFTER_END, approved());
+
+      await markNoShow(user);
+
+      expect(await screen.findByTestId('booking-no-show-not-ended')).toBeInTheDocument();
+      expect(getBooking).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Marcar não compareceu' })).toBeEnabled();
+    });
+
+    it('shows the retry banner on a network failure and retrying reopens the sheet', async () => {
+      const user = userEvent.setup();
+      markNoShowMutateAsync.mockRejectedValue(new ApiError(0, 'Network Error'));
+      renderAt(AFTER_END, approved());
+
+      await markNoShow(user);
+      expect(await screen.findByTestId('booking-no-show-error')).toBeInTheDocument();
+      expect(getBooking).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+      expect(
+        screen.getByRole('button', { name: 'Confirmar não comparecimento' }),
+      ).toBeInTheDocument();
+    });
+
+    it('shows the history card and the correction button to a manager on a NO_SHOW booking', () => {
+      renderAt(AFTER_END, noShow(), 'MANAGER');
+
+      expect(screen.getByText('Histórico de status')).toBeInTheDocument();
+      expect(screen.getByText(/Ana Pereira \(Gerente\)/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Corrigir para concluído' })).toBeInTheDocument();
+    });
+
+    it('hides the correction button from staff on a NO_SHOW booking', () => {
+      renderAt(AFTER_END, noShow(), 'STAFF');
+
+      expect(screen.getByText('Histórico de status')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Corrigir para concluído' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not show a history card for a booking that never was a no-show', () => {
+      renderAt(AFTER_END, makeBooking({ status: 'COMPLETED' }));
+
+      expect(screen.queryByText('Histórico de status')).not.toBeInTheDocument();
+    });
+
+    it('corrects a no-show to completed and names the points awarded', async () => {
+      const user = userEvent.setup();
+      correctNoShowMutateAsync.mockResolvedValue({ bookingId: 'b-1', status: 'COMPLETED' });
+      vi.mocked(getBooking).mockResolvedValue(makeBooking({ status: 'COMPLETED' }));
+      renderAt(AFTER_END, noShow(), 'MANAGER');
+
+      await user.click(screen.getByRole('button', { name: 'Corrigir para concluído' }));
+      expect(screen.getByRole('button', { name: 'Confirmar correção' })).toBeDisabled();
+      await user.type(screen.getByRole('textbox'), 'Cliente chegou atrasado e foi atendido.');
+      await user.click(screen.getByRole('button', { name: 'Confirmar correção' }));
+
+      expect(correctNoShowMutateAsync).toHaveBeenCalledWith({
+        id: 'b-1',
+        body: { correctedStatus: 'COMPLETED', reason: 'Cliente chegou atrasado e foi atendido.' },
+      });
+      expect(await screen.findByTestId('booking-no-show-corrected')).toHaveTextContent(
+        'João Silva recebeu 5 pontos de fidelidade (Lavagem Simples)',
+      );
+    });
+
+    it('shows the manager-only banner on a 403 and leaves the booking a no-show', async () => {
+      const user = userEvent.setup();
+      correctNoShowMutateAsync.mockRejectedValue(new ForbiddenError('no', undefined));
+      renderAt(AFTER_END, noShow(), 'MANAGER');
+
+      await user.click(screen.getByRole('button', { name: 'Corrigir para concluído' }));
+      await user.type(screen.getByRole('textbox'), 'Cliente chegou atrasado e foi atendido.');
+      await user.click(screen.getByRole('button', { name: 'Confirmar correção' }));
+
+      expect(await screen.findByTestId('booking-no-show-correct-forbidden')).toBeInTheDocument();
+      expect(screen.getByText('Histórico de status')).toBeInTheDocument();
+      expect(getBooking).not.toHaveBeenCalled();
+    });
+
+    it('shows the retry banner when the correction fails on the network', async () => {
+      const user = userEvent.setup();
+      correctNoShowMutateAsync.mockRejectedValue(new ApiError(0, 'Network Error'));
+      renderAt(AFTER_END, noShow(), 'MANAGER');
+
+      await user.click(screen.getByRole('button', { name: 'Corrigir para concluído' }));
+      await user.type(screen.getByRole('textbox'), 'Cliente chegou atrasado e foi atendido.');
+      await user.click(screen.getByRole('button', { name: 'Confirmar correção' }));
+
+      expect(await screen.findByTestId('booking-no-show-correct-error')).toBeInTheDocument();
+    });
   });
 });

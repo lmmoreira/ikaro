@@ -118,6 +118,8 @@ Authorization: Bearer {{managerToken}}
 ### MANAGER views booking detail — StaffBookingDetailResponse, includes loyaltyBalance (M13-S04)
 # loyaltyBalance is populated when the booking has a customerId (enriched via
 # GET /customers/:customerId/loyalty/balance), null for guest bookings.
+# statusHistory (M23-S27) lists every status change oldest first, with the backend-resolved
+# actorName (null for a guest/system actor or an unresolvable staff member — render a role label).
 GET {{bffUrl}}/v1/bookings/{{bookingId}}
 Authorization: Bearer {{managerToken}}
 

@@ -9,6 +9,13 @@ export class InMemoryBookingStatusTransitionRepository implements IBookingStatus
     return Promise.resolve();
   }
 
+  findByBooking(tenantId: string, bookingId: string): Promise<BookingStatusTransition[]> {
+    const rows = this.store
+      .filter((t) => t.tenantId === tenantId && t.bookingId === bookingId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime() || a.id.localeCompare(b.id));
+    return Promise.resolve(rows);
+  }
+
   // Test-only accessor — not part of the port.
   all(): BookingStatusTransition[] {
     return [...this.store];

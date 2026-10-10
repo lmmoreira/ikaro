@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { BookingStatusTransitionEntityBuilder } from '../../../../test/builders/booking/index';
 import { BookingStatusTransition } from '../../domain/booking-status-transition';
 import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
 import { TypeOrmBookingStatusTransitionRepository } from './typeorm-booking-status-transition.repository';
@@ -20,7 +21,7 @@ describe('TypeOrmBookingStatusTransitionRepository', () => {
         TypeOrmBookingStatusTransitionRepository,
         {
           provide: getRepositoryToken(BookingStatusTransitionEntity),
-          useValue: { manager: { insert: jest.fn() } },
+          useValue: { manager: { insert: jest.fn() }, find: jest.fn() },
         },
       ],
     }).compile();
@@ -97,6 +98,42 @@ describe('TypeOrmBookingStatusTransitionRepository', () => {
       expect.objectContaining({ toStatus: 'INFO_REQUESTED' }),
       expect.objectContaining({ toStatus: 'APPROVED' }),
     ]);
+  });
+
+  it('reads a booking history tenant-scoped, oldest first, and maps rows back to transitions', async () => {
+    const occurredAt = new Date('2026-06-01T15:00:00.000Z');
+    ormRepo.find.mockResolvedValue([
+      new BookingStatusTransitionEntityBuilder()
+        .withTenantId(TENANT)
+        .withId('00000000-0000-7000-8000-0000000000c1')
+        .withBookingId(BOOKING_ID)
+        .withFromStatus('APPROVED')
+        .withToStatus('NO_SHOW')
+        .withReason('Cliente não atendeu o telefone.')
+        .withActorType('MANAGER')
+        .withActorId(ACTOR_ID)
+        .withOccurredAt(occurredAt)
+        .withCorrelationId(CORRELATION_ID)
+        .build(),
+    ]);
+
+    const result = await repo.findByBooking(TENANT, BOOKING_ID);
+
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: { tenantId: TENANT, bookingId: BOOKING_ID },
+      order: { occurredAt: 'ASC', id: 'ASC' },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      tenantId: TENANT,
+      bookingId: BOOKING_ID,
+      fromStatus: 'APPROVED',
+      toStatus: 'NO_SHOW',
+      reason: 'Cliente não atendeu o telefone.',
+      actorType: 'MANAGER',
+      actorId: ACTOR_ID,
+      occurredAt,
+    });
   });
 
   it('does nothing when there are no transitions', async () => {

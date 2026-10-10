@@ -1,3 +1,5 @@
+import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
@@ -56,6 +58,7 @@ describe('BookingController', () => {
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .withActorId(STAFF_ID)
+      .withActorType('STAFF')
       .withActorRole('MANAGER')
       .build();
     const customerCtx = new RequestContextBuilder()
@@ -108,6 +111,8 @@ describe('BookingController', () => {
         new InMemoryServiceRepository(),
         new InMemoryResourceOccupancyRepository(),
         new InMemoryTransactionManager(),
+        new InMemoryBookingStatusTransitionRepository(),
+        new InMemoryBookingStaffPort(),
       ),
     });
 
@@ -223,6 +228,8 @@ describe('BookingController', () => {
           new InMemoryServiceRepository(),
           new InMemoryResourceOccupancyRepository(),
           new InMemoryTransactionManager(),
+          new InMemoryBookingStatusTransitionRepository(),
+          new InMemoryBookingStaffPort(),
         ),
       );
       const err = await ctrl
@@ -306,6 +313,8 @@ describe('BookingController', () => {
           new InMemoryServiceRepository(),
           new InMemoryResourceOccupancyRepository(),
           new InMemoryTransactionManager(),
+          new InMemoryBookingStatusTransitionRepository(),
+          new InMemoryBookingStaffPort(),
         ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);
@@ -371,6 +380,20 @@ describe('BookingController', () => {
       expect(result.id).toBe(booking.id);
       expect(result.contactEmail).toBe(booking.contactEmail.address);
       expect(result.lines).toHaveLength(1);
+    });
+
+    it('asks for the status history on a staff read and not on a customer read (M23-S27)', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
+      await bookingRepo.save(booking);
+
+      const staffResult = await controller.getOne(booking.id);
+      const customerResult = await customerController.getOne(booking.id);
+
+      expect(staffResult.statusHistory).toEqual([]);
+      expect(customerResult.statusHistory).toBeNull();
     });
 
     it('maps BookingNotFoundError to 404', async () => {

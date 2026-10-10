@@ -5,9 +5,11 @@ import {
   approveBooking,
   cancelBooking,
   completeBooking,
+  correctNoShow,
   getBooking,
   listAllBookings,
   listBookings,
+  markNoShow,
   rejectBooking,
   requestMoreInfo,
   rescheduleBooking,
@@ -174,6 +176,48 @@ describe('rejectBooking', () => {
       .reply(200, { bookingId: 'b-1', status: 'REJECTED', rejectedAt: '' });
     const res = await rejectBooking('b-1', { reason: 'No availability' });
     expect(res.status).toBe('REJECTED');
+  });
+});
+
+describe('markNoShow', () => {
+  it('posts the optional reason to /bookings/:id/no-show', async () => {
+    mock.onPost('/bookings/b-1/no-show').reply(200, { bookingId: 'b-1', status: 'NO_SHOW' });
+
+    const res = await markNoShow('b-1', { reason: 'Cliente não atendeu o telefone.' });
+
+    expect(res.status).toBe('NO_SHOW');
+    expect(JSON.parse(mock.history.post[0].data)).toEqual({
+      reason: 'Cliente não atendeu o telefone.',
+    });
+  });
+
+  it('posts an empty body when no reason is given', async () => {
+    mock.onPost('/bookings/b-1/no-show').reply(200, { bookingId: 'b-1', status: 'NO_SHOW' });
+
+    await markNoShow('b-1');
+
+    expect(JSON.parse(mock.history.post[0].data)).toEqual({});
+  });
+});
+
+describe('correctNoShow', () => {
+  it('posts the corrected status and reason to /bookings/:id/no-show/correct', async () => {
+    mock.onPost('/bookings/b-1/no-show/correct').reply(200, {
+      bookingId: 'b-1',
+      status: 'COMPLETED',
+      completedAt: '2026-06-16T11:05:00.000Z',
+    });
+
+    const res = await correctNoShow('b-1', {
+      correctedStatus: 'COMPLETED',
+      reason: 'Cliente chegou atrasado e foi atendido.',
+    });
+
+    expect(res.status).toBe('COMPLETED');
+    expect(JSON.parse(mock.history.post[0].data)).toEqual({
+      correctedStatus: 'COMPLETED',
+      reason: 'Cliente chegou atrasado e foi atendido.',
+    });
   });
 });
 

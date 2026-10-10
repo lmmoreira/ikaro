@@ -52,6 +52,7 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     approvedBy: null,
     completedAt: null,
     rejectionReason: null,
+    statusHistory: [],
     ...overrides,
   };
 }
@@ -61,6 +62,10 @@ function baseProps(overrides: Partial<Parameters<typeof BookingDetailAsideCard>[
     actionState: 'idle' as const,
     booking: makeBooking(),
     backHref: '/dashboard/bookings',
+    noShowAvailableAt: null,
+    canCorrectNoShow: false,
+    onOpenNoShow: vi.fn(),
+    onOpenCorrectNoShow: vi.fn(),
     onBackWithoutApprove: vi.fn(),
     onOpenComplete: vi.fn(),
     onOpenReschedule: vi.fn(),
@@ -128,11 +133,126 @@ describe('BookingDetailAsideCard', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders no action pane for a NO_SHOW booking (never the triage approve/reject actions)', () => {
-    const { container } = renderWithIntl(
-      <BookingDetailAsideCard {...baseProps({ booking: makeBooking({ status: 'NO_SHOW' }) })} />,
+  describe('no-show (UC-074)', () => {
+    it('opens the no-show sheet from the approved booking panel', async () => {
+      const user = userEvent.setup();
+      const onOpenNoShow = vi.fn();
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({ booking: makeBooking({ status: 'APPROVED' }), onOpenNoShow })}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Marcar não compareceu' }));
+
+      expect(onOpenNoShow).toHaveBeenCalledTimes(1);
+    });
+
+    it('passes the end time down so the approved panel disables the action', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            booking: makeBooking({ status: 'APPROVED' }),
+            noShowAvailableAt: '17:30',
+          })}
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Marcar não compareceu' })).toBeDisabled();
+      expect(screen.getByText('Disponível após o término do atendimento (17:30).')).toBeVisible();
+    });
+
+    it('offers the correction on a NO_SHOW booking to a manager, never the triage actions', async () => {
+      const user = userEvent.setup();
+      const onOpenCorrectNoShow = vi.fn();
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            booking: makeBooking({ status: 'NO_SHOW' }),
+            canCorrectNoShow: true,
+            onOpenCorrectNoShow,
+          })}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Corrigir para concluído' }));
+
+      expect(onOpenCorrectNoShow).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+    });
+
+    it('hides the correction from staff on a NO_SHOW booking', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({ booking: makeBooking({ status: 'NO_SHOW' }), canCorrectNoShow: false })}
+        />,
+      );
+
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(screen.getByTestId('no-show-read-only-note')).toBeInTheDocument();
+    });
+
+    it('right after marking, shows back-to-agenda with the manager-correction note, not the correction', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            actionState: 'no-show',
+            booking: makeBooking({ status: 'NO_SHOW' }),
+            canCorrectNoShow: true,
+          })}
+        />,
+      );
+
+      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(
+        screen.getByText('Se foi um engano, um gerente pode corrigir o registro.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Corrigir para concluído' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('right after correcting, shows back-to-agenda', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            actionState: 'corrected',
+            booking: makeBooking({ status: 'COMPLETED' }),
+          })}
+        />,
+      );
+
+      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+    });
+
+    it.each(['no-show-not-ended', 'no-show-error', 'no-show-terminal'] as const)(
+      'keeps the approved panel under the %s banner so the action can be retried',
+      (actionState) => {
+        renderWithIntl(
+          <BookingDetailAsideCard
+            {...baseProps({ actionState, booking: makeBooking({ status: 'APPROVED' }) })}
+          />,
+        );
+
+        expect(screen.getByRole('button', { name: 'Marcar não compareceu' })).toBeEnabled();
+      },
     );
 
-    expect(container).toBeEmptyDOMElement();
+    it.each(['correct-error', 'correct-forbidden'] as const)(
+      'keeps the correction available under the %s banner',
+      (actionState) => {
+        renderWithIntl(
+          <BookingDetailAsideCard
+            {...baseProps({
+              actionState,
+              booking: makeBooking({ status: 'NO_SHOW' }),
+              canCorrectNoShow: true,
+            })}
+          />,
+        );
+
+        expect(screen.getByRole('button', { name: 'Corrigir para concluído' })).toBeEnabled();
+      },
+    );
   });
 });
