@@ -50,14 +50,16 @@ export class BookingIntakeValidationService {
   ): Promise<ResolvedIntake> {
     const activeSchema = await this.intakeSchemaRepo.findActiveByServiceId(serviceId, tenantId);
     if (!activeSchema) return NO_INTAKE;
-    if (options.intakeOptional && !hasIntakeSubmission(input)) return NO_INTAKE;
 
+    // The version is checked before deciding whether anything was submitted, so a version that
+    // never existed is refused even when it is the only thing staff sent.
     const schema = await this.resolveSchemaVersion(
       serviceId,
       tenantId,
       activeSchema,
       input.intakeSchemaVersion,
     );
+    if (options.intakeOptional && !hasIntakeSubmission(input)) return NO_INTAKE;
 
     this.validateAnswers(
       schema,

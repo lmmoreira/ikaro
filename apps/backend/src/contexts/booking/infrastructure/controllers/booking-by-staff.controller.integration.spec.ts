@@ -471,6 +471,17 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
       expect(body.code).toBe('BOOKING_INTAKE_ANSWER_MISSING');
     });
 
+    it('still refuses an unknown intakeSchemaVersion sent on its own', async () => {
+      const { body } = await post({
+        customerId,
+        scheduledAt: slot(9, 19),
+        serviceIds: [intakeServiceId],
+        intakeSchemaVersion: 999,
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_INTAKE_ANSWER_MISSING');
+    });
+
     it('still rejects an answer of the wrong type from staff', async () => {
       const res = await post({
         customerId,

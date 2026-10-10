@@ -386,6 +386,29 @@ describe('BookingIntakeValidationService', () => {
       ).rejects.toThrow(BookingIntakeAnswerMissingError);
     });
 
+    // Regression: an unknown version is refused even when it is the only thing sent.
+    it('still rejects an unknown schema version sent on its own', async () => {
+      await repo.publish(strictSchema());
+
+      await expect(
+        service.resolve(SERVICE_ID, TENANT_ID, { intakeSchemaVersion: 999 }, optional),
+      ).rejects.toThrow(BookingIntakeAnswerMissingError);
+    });
+
+    it('records no intake when staff send only the currently-active version', async () => {
+      const schema = strictSchema();
+      await repo.publish(schema);
+
+      const result = await service.resolve(
+        SERVICE_ID,
+        TENANT_ID,
+        { intakeSchemaVersion: schema.version },
+        optional,
+      );
+
+      expect(result).toEqual({ intake: null, attendeeInputs: [] });
+    });
+
     it('still rejects a schema version this service never published', async () => {
       await repo.publish(strictSchema());
 
