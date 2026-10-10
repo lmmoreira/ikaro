@@ -1311,7 +1311,9 @@ Add `recurringHorizonDays: number | null` to both type declarations (no runtime/
 
 ---
 
-### M23-S17 — Customer creates a recurring private reservation — pattern builder, review and outcome screens
+### M23-S17 — Customer creates a recurring private reservation — pattern builder, review and outcome screens ✅ Done
+
+  - ⚠️ Gaps: (1) the web service filter omits `assertServiceEligible`'s selection-mode and pickup-address checks; (2) the mobile E2E covers the empty Agendamentos tab only (the with-bookings case is unit-tested); (3) default-location and multi-requirement services cannot recur — all tracked in TD49 (Story 3 and Stories 0–2), 2026-10-10
 
 **Agent:** frontend-ts
 **Complexity:** L
