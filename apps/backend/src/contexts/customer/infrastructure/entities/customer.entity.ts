@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
+import type { AddressProps } from '../../../../shared/value-objects/address';
 
 @Entity('customers', { schema: 'customer' })
 @Index(['tenantId'])
@@ -23,7 +24,7 @@ export class CustomerEntity {
   phone!: string | null;
 
   @Column({ name: 'default_address', type: 'jsonb', nullable: true })
-  defaultAddress!: Record<string, unknown> | null;
+  defaultAddress!: AddressProps | null;
 
   @Column({ name: 'created_at', type: 'timestamptz', update: false })
   createdAt!: Date;

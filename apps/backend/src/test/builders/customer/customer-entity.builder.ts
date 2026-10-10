@@ -1,4 +1,5 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
+import type { AddressProps } from '../../../shared/value-objects/address';
 import { CustomerEntity } from '../../../contexts/customer/infrastructure/entities/customer.entity';
 
 export class CustomerEntityBuilder {
@@ -8,7 +9,7 @@ export class CustomerEntityBuilder {
   private email = 'customer@example.com';
   private name = 'Cliente Teste';
   private phone: string | null = null;
-  private readonly defaultAddress: Record<string, unknown> | null = null;
+  private readonly defaultAddress: AddressProps | null = null;
   private readonly createdAt = new Date('2026-01-01T00:00:00Z');
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
 
