@@ -133,6 +133,26 @@
           Meus Agendamentos
         </h1>
 
+        <!-- "+ Novo" menu (Agendamento / Reserva recorrente) — mobile only; desktop uses the topbar menu.
+             Same block as 01-minha-conta.html: without it a customer with no bookings could not start a
+             recurring reservation on mobile (the empty state below only offers the one-off CTA). -->
+        <div class="new-wrap mobile-only" style="display:block;margin-bottom:1.5rem;">
+          <button type="button" class="btn-primary new-btn" aria-haspopup="menu" aria-expanded="false" onclick="toggleNew(this)" style="font-size:0.8125rem;padding:0.4375rem 0.875rem;display:inline-flex;align-items:center;gap:0.375rem;white-space:nowrap;">
+            + Novo
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="new-menu" role="menu">
+            <a class="new-menu-item" role="menuitem" href="../book-a-service/01-service-selection.html">
+              <strong>Agendamento</strong>
+              <span>Reservar um horário avulso</span>
+            </a>
+            <a class="new-menu-item" role="menuitem" href="13-nova-recorrencia.html">
+              <strong>Reserva recorrente</strong>
+              <span>Reservar o mesmo horário toda semana</span>
+            </a>
+          </div>
+        </div>
+
         <!-- Empty state (UC-006 A1) -->
         <div class="card">
           <div class="empty-state">
