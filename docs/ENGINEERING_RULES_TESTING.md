@@ -222,3 +222,21 @@ const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
 3. **A non-UUID or missing correlation id in test headers.** A `NOT NULL UUID` `correlation_id` column rejects `'test-correlation-id'`, and a spec that sends no `x-correlation-id` at all gets `null` (the real `CorrelationMiddleware` always substitutes a UUIDv7, but the test harness does not mount it). Use a real UUID in `actorHeaders()` and in any spec-local header helper.
 
 **Cheapest check:** run the *full* integration project once before opening the PR, not just the specs for the touched context — in M23-S26 the failures were in `loyalty`, `notification` and `shared/outbox` specs far from the changed code, found only because the whole suite ran (76 suites).
+
+---
+
+## An E2E that seeds a recurring-schedule service needs one resource requirement, an explicit `AUTO_CONFIRM`, and a room of its own
+
+**`POST /recurring-booking-schedules` refuses a service the seeded fixed service is not (`assertServiceEligible`), and answers `PENDING_APPROVAL` with no bookings when the approval mode is unset.** A plain `createService()` has no resource requirement and `defaultApprovalMode: null`, so a spec that only flips `recurrenceEligible` fails in two different, misleading ways. Seed it like this (`apps/web/e2e/helpers/recurring-schedule.ts` → `seedRecurrenceEligibleService`):
+
+1. **Exactly one resource requirement, of a mode that matches the policy.** `resourceRequirements.length !== 1` is a `422` (`legged-or-bundled`); `RESOLVE_PER_OCCURRENCE` needs `AUTO_ANY` or `AUTO_FUNGIBLE_POOL`, `FIXED_ASSIGNMENT` needs `CUSTOMER_CHOICE`.
+2. **`defaultApprovalMode: 'AUTO_CONFIRM'` in the same `setBookingPolicy` call.** `null` counts as manual, so the schedule is created `PENDING_APPROVAL` and no occurrence booking exists for the page under test to list.
+3. **A room created for that one test.** Occurrences hold real slots; two specs recurring on the shared default pool answer each other `409`. A candidate-start-time loop in the creation helper covers the residual clash, and must break on any status that is not `409` and put the response body in its error — a bare status code hid the eligibility `422` above through a full CI round.
+
+(M23-S12, 2026-10-10: four of five new scenarios failed in CI on the first two causes before a single page was exercised; the E2E had never run locally.)
+
+---
+
+## On a customer account or dashboard detail page every action exists twice — scope an E2E click to `action-pane-desktop`
+
+**The action pane is rendered once for mobile (`action-pane-mobile`, `lg:hidden`) and once for desktop (`action-pane-desktop`, `hidden lg:block`), with identical `data-testid`s inside both.** At Playwright's default desktop viewport the mobile copy is `display: none`, so `getByTestId('…').first()` resolves to the hidden one and `click()` waits for visibility until it times out. Chain from the pane: `page.getByTestId('action-pane-desktop').getByTestId('end-schedule-confirm').click()` (as `my-account-detail-cancel.spec.ts` already does for the cancel button). A list that is rendered only once (an occurrence row's skip link) does not need this.

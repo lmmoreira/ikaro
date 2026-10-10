@@ -55,6 +55,8 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
    **If the push is rejected or fails because `main` moved** (another session merged while you worked; `git status -sb` shows `ahead 1, behind N`), the plan commit exists only locally, so `git pull --rebase origin main` it onto the new head — the merge-never-rebase rule is for branches already pushed and reviewed — and push again. Confirm with `git log origin/main -1`, not the exit status.
 
+   **Before rebasing, look at what is local-only: `git log origin/main..main --format='%h %an %s'`.** The main checkout is shared by every session working in this repo, so a "diverged" `main` is often another session's commit that it has not pushed yet (M23-S12, 2026-10-10: `chore(plan): mark M23-S44 done` appeared there seconds before this story's merge). Anything you did not commit is not yours to rebase, reset or push: wait for its owner to push (a short poll of `git fetch` plus `git rev-list --count origin/main..main` until it is 0), then `git pull --ff-only` and commit on top. Only your own unpushed commit takes the rebase above.
+
 8. Report the result:
 
    ```text
