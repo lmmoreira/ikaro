@@ -270,6 +270,8 @@ Every new `NotificationTemplateKey` touches several files across layers — miss
 
 **Gotcha — existing tenants don't automatically get new template rows.** `copyGlobalDefaultsForTenant` only runs once, on `TenantProvisioned` (new-tenant creation). Adding a new key seeds the *global* default row fine, but every tenant provisioned *before* that migration has no per-tenant copy — `findAllByTriggerEvent(tenantId, NEW_KEY)` returns empty, the use case's `templates.length === 0` guard fires, and the notification silently never sends for any pre-existing tenant. There is currently no backfill mechanism. If a new notification type must reach existing tenants, the new migration must also `INSERT ... SELECT` the new global row into every existing tenant's rows directly (mirroring `copyGlobalDefaultsForTenant`'s own query), not rely on the provisioning event.
 
+**A URL variable in a template (`bookingUrl`, any link) lands in an `href`, and the template engine does not escape variables.** Pass it through `escapeHtml` (`src/shared/utils/escape-html.ts`) in the use case's `variablesFor`, so the `&` between query parameters arrives as `&amp;`. When the web app parses the link, build it with the shared builder in `@ikaro/types` (`docs/ENGINEERING_RULES_SHARED.md` § A value one app produces and another parses). In the use case spec, parse the `href` back (`new URL(href.replaceAll('&amp;', '&'))`) instead of matching a substring, and cover a tenant with an empty `hotsiteUrl`: the link must stay empty, never become a relative one. A test that checks "no internal identifier in the body" must strip `href` values first, because a link may carry ids by design. (M23-S44.)
+
 ---
 
 
@@ -337,8 +339,9 @@ Cron triggers (`*.job.ts`, M17-S03) use the identical naming pattern via `regist
 
 `waitFor()` at `src/test/utils/wait-for.ts`. Use in story integration specs to poll async side effects.
 
----
+**Adding a field to an event that is already published: type it optional in the event class (`field?: T | null`).** Pub/Sub redelivers messages published before the change, so a consumer deserialises payloads that lack the field, and a required type tells TypeScript that case cannot happen. The aggregate that raises the event still always sets it (pin that in the aggregate spec), `eventVersion` stays when the change is purely additive, and every consumer input and use case treats the field as optional. `docs/03-DOMAIN_EVENTS.md` records it as such. (M23-S44: `AvailabilityAlertMatched.durationMinutes`.)
 
+---
 
 ## A lock only orders callers who both acquire it — it does not bypass an independent cache sitting behind the read it's protecting
 

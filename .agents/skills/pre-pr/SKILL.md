@@ -140,6 +140,9 @@ Check changed files for:
 - `deepMerge` implemented inline instead of imported from `src/shared/utils/deep-merge`
 - Function bodies that re-implement string trimming, digit-stripping, or format conversion already in a shared VO or util
 
+### Diff against the story's locked decisions
+Re-read the story's "Decisions already made", its "Locked at `/story-discovery`" notes and its "Files to create/modify" list, and compare each against the diff. A decision not implemented as written, a listed file that is missing or moved, or a listed artifact (a builder, a helper, a doc, a test) that was dropped is a **deviation**. Do not open the PR with one unannounced: tell the user in the same message what the story said, what shipped and why, and when it is deliberate update the story text in the PR's own commit. A reviewer must never be the first to find one. (M23-S44: the story specified a builder and a round-trip test, the implementation shipped only the parser, and Codex raised it as a Critical in round 1.)
+
 ---
 
 ## Step 3b — bad-smell-audit (mandatory, per changed layer)
@@ -200,6 +203,8 @@ Total issues: 0
 ```
 
 **If all steps pass**, proceed directly to `gh pr create` (per CLAUDE.md §9) — no permission prompt; this was authorized when `/story-discovery` returned READY. State that all checks passed and the PR is being opened, then open it.
+
+**If the diff touches both `infra/terraform/**` and `apps/**`/`packages/**`** (typically a regenerated `infra/terraform/pubsub-catalog.json` beside app code), pass `--label infra-app-mix-ok` in the same `gh pr create` call and put the playbook's PR-body note in the body. The `no-infra-app-mix` check reads the labels present when the PR event fires, so a label added afterwards does not clear it (`docs/CI_TRAPS.md` § CI workflow configuration traps).
 
 **If any step failed**, list the blocking issues and stop. Do not open the PR.
 

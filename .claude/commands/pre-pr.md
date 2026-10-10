@@ -140,6 +140,9 @@ Check changed files for:
 - `deepMerge` implemented inline instead of imported from `src/shared/utils/deep-merge`
 - Function bodies that re-implement string trimming, digit-stripping, or format conversion already in a shared VO or util
 
+### Diff against the story's locked decisions
+Re-read the story's "Decisions already made", its "Locked at `/story-discovery`" notes and its "Files to create/modify" list, and compare each against the diff. A decision not implemented as written, a listed file that is missing or moved, or a listed artifact (a builder, a helper, a doc, a test) that was dropped is a **deviation**. Do not open the PR with one unannounced: tell the user in the same message what the story said, what shipped and why, and when it is deliberate update the story text in the PR's own commit. A reviewer must never be the first to find one. (M23-S44: the story specified a builder and a round-trip test, the implementation shipped only the parser, and Codex raised it as a Critical in round 1.)
+
 ---
 
 ## Step 3b — bad-smell-audit (mandatory, per changed layer)

@@ -155,3 +155,12 @@ Treat this table as a starting point, not the full list — `ls apps/web/shared/
 4. A deliberate deviation (the primitive cannot do what the story needs) is recorded in the story with the reason; it is never silent.
 
 ---
+
+## Every `apps/web` route renders per request — verify the rendering mode before designing around a cache
+
+The root layout sets `export const dynamic = 'force-dynamic'` (`apps/web/app/layout.tsx`, with its reasoning in the comment above it), so a production `next build` lists every HTML route as `ƒ` (dynamic), `app/[slug]/page.tsx` and `app/[slug]/booking/page.tsx` included. A page-level `export const revalidate = 300` does not make that page's HTML cacheable. What is cached is the **data**: `fetchManifest` and `fetchServices` carry `next.revalidate` and tags, and the hotsite and booking pages share them.
+
+- **Before locking a design on "this page is cached" (or "static", "ISR", "stays cacheable"), read `app/layout.tsx` and the build's route table** (`pnpm --filter @ikaro/web build`, the `Route (app)` list: `○` static, `ƒ` dynamic; a local build needs the user's yes, CLAUDE.md §0) — not the page's `revalidate` export. (M23-S44 locked "the booking page stays cached" and an acceptance criterion on it in discovery, on the strength of that export; the build showed `ƒ` before and after the change, so there was nothing to preserve and the criterion had to be rewritten after merge.)
+- On a dynamic route `useSearchParams` is available during the server render, so the component that reads it renders with the real query string and a `Suspense` fallback is never shown. The boundary is still worth keeping, with the plain component as its fallback: Next client-renders everything up to the nearest boundary on a prerendered route and fails the production build without one, so it keeps the route correct if the layout ever stops forcing dynamic rendering.
+- Live booking data (availability, quotes, resource options) is fetched in the browser through `bffClient` and is never cached by Next.
+- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § Cache behaviour still describes the hotsite HTML as ISR-cached; until that is reconciled, treat the build's route table as the source of truth.

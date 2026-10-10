@@ -229,6 +229,16 @@ cd - && git worktree remove /tmp/<name>-main-test --force
 
 ---
 
+## A `Trivy Image Scan` that fails in seconds on a Docker Hub error is registry trouble, not your change
+
+**Symptom:** `Trivy Image Scan (bff)` and/or `(web)` fail after 12–25 s while `(backend)` can pass in the same run, and `All Checks Passed` fails only because of those rows. `gh run view <run-id> --log-failed` shows the image build dying at the first `FROM` or while booting buildkit, with no scan finding at all: `unexpected status from HEAD request to https://registry-1.docker.io/v2/library/node/manifests/sha256:… 429 Too Many Requests`, and later `failed to fetch oauth token … https://auth.docker.io/token: 504 Gateway Timeout` or `net/http: request canceled (Client.Timeout exceeded …)` pulling `moby/buildkit:buildx-stable-1`.
+
+**It is not your diff** when no Dockerfile, lockfile or dependency changed. Never edit a Dockerfile or the workflow in the feature PR to "fix" it.
+
+**What to do:** read the failing job's log (never assume the cause), then `gh run rerun <run-id> --failed`, which re-runs only the failed jobs. A re-run minutes later usually meets the same throttle, so space retries out by tens of minutes. After about three failed re-runs over ~20 minutes it is a stuck condition for `/pr-land`: tell the user, quoting the exact error. The durable fix — authenticated Docker Hub pulls in the Trivy jobs, or a mirrored base image — is its own TD, not a patch in the story's PR. (M23-S44, PR #581, 2026-10-10: Docker Hub throttled and then its auth service returned 504s for about an hour; all three scans passed on a re-run once it recovered.)
+
+---
+
 ## `proxy.ts` unit tests passing does not mean the CSP actually works in a browser
 
 `proxy.spec.ts` calls `proxy(request)` directly and asserts on the returned `Content-Security-Policy` header string — this proves the header-building logic is correct, it does **not** prove the policy actually permits everything the rendered page needs. Discovered in AUD-007 (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md`): 28/28 unit tests green, `tsc`/`eslint` clean, and `script-src` was still wrong — scoping `'unsafe-inline'` to only the hotsite route (reasoning: "dashboard has no developer-authored inline `<script>` tag") missed that **Next.js injects its own inline hydration/RSC-payload `<script>` tags into every server-rendered page**, hotsite or not. `/dashboard/login` was actually broken (real CSP violations blocking hydration) until this was caught by loading the page in an actual browser.

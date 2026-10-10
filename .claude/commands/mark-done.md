@@ -53,6 +53,8 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
    No Co-Authored-By line needed for plan-only commits.
 
+   **If the push is rejected or fails because `main` moved** (another session merged while you worked; `git status -sb` shows `ahead 1, behind N`), the plan commit exists only locally, so `git pull --rebase origin main` it onto the new head — the merge-never-rebase rule is for branches already pushed and reviewed — and push again. Confirm with `git log origin/main -1`, not the exit status.
+
 8. Report the result:
 
    ```text

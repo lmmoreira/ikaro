@@ -150,6 +150,7 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 ### 4g. Cross-context data access
 - Data from another context is accessed via events, BFF orchestration, or a named port — not direct repo injection
 - Port interfaces referenced in the story are named explicitly
+- **A story whose producer and consumer sit in different apps** (the backend builds a link or payload, the web parses it): the story names the shared builder/parser module in `@ikaro/types` and a round-trip test (`docs/ENGINEERING_RULES_SHARED.md` § A value one app produces and another parses). A builder placed in the consuming app alone leaves the contract duplicated.
 
 ### 4h. API contract
 - BFF endpoint: method, path, auth requirement (role/JWT), and response body fields are all specified
@@ -224,6 +225,8 @@ For every interactive control the story's UI needs (a calendar, a date or time p
 ### 4t. Mechanism feasibility and value reachability
 - **For every locked decision that depends on a mechanism** (a template variable, a framework hook, a port method, a DB feature), grep the framework or catalog that must provide it and confirm it exists and fits *before* the decision is written as fact. A decision the platform cannot carry is a **RISK** raised in Step 6, not a surprise at implementation (M23-S28: "one template with an `{{endedByLine}}` variable" was locked at discovery; the localization catalog only holds whole templates, so it became two templates mid-implementation — `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type).
 - **For every case the story designs around** (a locale tag, a status, a role, a null), find who can actually produce it: the provisioning input, the UI field (editable or read-only), the callers that really send it. A permissive schema or a doc line is not evidence; if nothing in the product writes the value, do not plan handling or a backfill for it (`docs/ENGINEERING_RULES_SHARED.md` § Before designing around a value or a case). When a doc and the code disagree, the code wins and the doc fix goes into the story's scope.
+
+- **For every design that depends on a caching or rendering mode** ("the page is cached", "static", "ISR", "stays cacheable"), read `apps/web/app/layout.tsx` and the `next build` route table, not the page's `revalidate` export. Every `apps/web` route is `ƒ` (dynamic) today (`docs/ENGINEERING_RULES_FRONTEND.md` § Every `apps/web` route renders per request). A local build needs the user's yes. (M23-S44: discovery locked "the booking page stays cached" and an acceptance criterion on it; the build showed `ƒ` before and after.)
 
 ---
 
