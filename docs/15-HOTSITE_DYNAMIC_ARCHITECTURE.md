@@ -526,6 +526,8 @@ Next.js has **two independent caches** for hotsite requests:
 - **Full Route Cache** (`export const revalidate` on the page/layout) — caches the final rendered HTML
 - **Data Cache** (`next: { revalidate: N }` on individual `fetch()` calls) — caches individual API responses
 
+**Today only the Data Cache is in effect.** The root layout sets `export const dynamic = 'force-dynamic'` (`apps/web/app/layout.tsx`; it keeps `PublicEnvScript`'s values from being frozen at build time, TD29), so a production `next build` reports every route, `/[slug]` and `/[slug]/booking` included, as `ƒ` (dynamic). The Full Route Cache never stores the HTML, and the page-level `export const revalidate = 300` has no effect on it. That export stays a literal, in sync with the constant below, so the route behaves as described here if the layout ever stops forcing dynamic rendering. What is cached is the manifest and services data, which the hotsite and the booking page share. (Verified with the `next build` route table, M23-S44, 2026-10-10.)
+
 Both must use the **same TTL** or they diverge. Use the shared constant from `apps/web/features/platform/hotsite/revalidate.ts`:
 
 ```typescript
@@ -568,13 +570,15 @@ export async function fetchManifest(slug: string): Promise<HotsiteManifestRespon
 The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits are reflected immediately without cache busting.
 
 **Cache behaviour:**
-- First request → fetched from BFF, cached for 300 s
-- Subsequent requests within 5 min → served from Next.js cache (no BFF call)
+- First request → the manifest (and services) are fetched from the BFF and cached in the Data Cache for 300 s
+- Subsequent requests within 5 min → served from the Data Cache (no BFF call)
 - After 5 min → revalidated in the background, stale served in the meantime
-- Admin publishes/unpublishes (UC-027) → triggers on-demand revalidation (`revalidatePath('/[slug]')` via a secured `/api/revalidate` route, M12-S10) — changes go live immediately rather than waiting for the 5-minute ISR window
+- Admin publishes/unpublishes (UC-027) → triggers on-demand revalidation (`revalidatePath('/[slug]')` plus `revalidateTag(…, { expire: 0 })` for the manifest, services and published-slugs tags, via a secured `/api/revalidate` route, M12-S10) — changes go live immediately rather than waiting for the 5-minute Data Cache window
 - Image URLs embedded in the manifest (`branding.logoUrl`, `seo.ogImageUrl`, module `*Url`, `GalleryImage.url`) are **permanent public addresses** (M12-S10 — see §4 "Image hosting & URL resolution"), not expiring signed URLs — this is what makes caching the manifest payload itself safe; nothing inside it can go stale mid-window
 
 **Rule:** Never hardcode `300` or any revalidation number in a `fetch()` call or page export — always import from `features/platform/hotsite/revalidate.ts` so all TTLs move together.
+
+> **Correction (M23-S44, 2026-10-10):** the ISR rationale in the next two paragraphs predates the root layout's `force-dynamic` (see the bold note at the start of this section). Every route already renders per request, so reading `cookies()`/`headers()` in the `[slug]` tree would no longer change the HTML's rendering mode, and no ISR cache of the HTML exists to lose. The pattern stays the compliant one — `HotsiteAuthBar` resolves its auth state after hydration — but the cost the paragraphs describe is not currently paid by anyone; what stays cached is the manifest and services data.
 
 **Session-aware widgets must not break this cache (M13-S42).** Any UI that needs to know whether the current visitor is logged in (e.g. `HotsiteAuthBar`) must be a `'use client'` component that fetches its own auth state *after* hydration — via a same-origin proxy route, see `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §4 — and must **never** call `cookies()` from `next/headers` anywhere in the `[slug]` page/layout server-render tree. Calling `cookies()` there forces Next.js to treat the whole route as dynamic per-request, silently disabling the ISR cache above for every visitor, not just logged-in ones.
 
