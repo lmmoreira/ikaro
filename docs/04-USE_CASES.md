@@ -1273,7 +1273,7 @@ Returns:
 ### **UC-075: System Bootstraps a New Tenant From a Preset**
 
 - **Actor:** Manager, during tenant onboarding
-- **Endpoint:** `POST /onboarding/bootstrap` *(planned — M23-S10; not built yet, no controller exists in the backend or BFF)*
+- **Endpoint:** `POST /onboarding/bootstrap` *(planned — M24-S21; not built yet, no controller exists in the backend or BFF)*
 - **Preconditions:** Tenant has no published scheduling configuration and the manager has supplied every minimum answer for a supported preset.
 - **Trigger:** Manager confirms a business preset and its minimum answers.
 - **Main Flow:**

@@ -1,14 +1,14 @@
 # M23 — Multi-Vertical Scheduling: Appointment Booking & Extensions
 
 **Phase:** Local Development
-**Goal:** Let customers and guests actually book against the resource model M21/M22 introduced — chosen-staff, fungible-pool, auto-any, bundled, and multi-leg resolution; variable-duration reservations; versioned intake/attendees — and give the appointment family its three standing-commitment extensions: recurring private reservations, availability alerts, and future-commitment exceptions, plus the no-show terminal state and tenant onboarding bootstrap.
+**Goal:** Let customers and guests actually book against the resource model M21/M22 introduced — chosen-staff, fungible-pool, auto-any, bundled, and multi-leg resolution; variable-duration reservations; versioned intake/attendees — and give the appointment family its three standing-commitment extensions: recurring private reservations, availability alerts, and future-commitment exceptions, plus the no-show terminal state.
 **Depends on:** M21 (`Resource` aggregate), M22 (`Service.resourceRequirements`/`legs`, the resource-scoped availability engine, `resource_occupancy`)
 **Blocks:** M24 (Classes & Sessions) — reuses this milestone's `booking_quote_revisions` and resource-resolution precedent for the session family's own resource pool. (M23's recurring schedules are fixed-term and materialized once, so there is no generation pattern to reuse — M24 owns its own `ClassSession` rolling worker.)
 **Design rationale:** `docs/discovery/multivertical-booking/multivertical-booking.md` (promoted via `/discovery-to-milestone` on 2026-09-01) — kept as the permanent *why*; this file and the canonical docs it cites (`docs/04-USE_CASES.md` UC-061–077, `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`/`FutureCommitmentException`, `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`) are the source of truth for implementation — nothing below should require opening the discovery doc to understand.
 
 ## Non-Goals
 
-- **Everything Cluster 4** (`ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract`) — deferred to M24. UC-075's SESSION-preset branch (Presets D/E/F) stays inert until then; this milestone completes onboarding only for Presets A/B/C/G.
+- **Everything Cluster 4** (`ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract`) — deferred to M24. UC-075 (the tenant onboarding bootstrap and wizard, every preset) — moved to the end of M24 on 2026-10-10 as `M24-S21` (backend/BFF, formerly M23-S10), `M24-S05` (SESSION presets) and `M24-S22` (wizard, formerly M23-S15), so all seven presets are built once. Until then a new tenant is configured by hand.
 - **Cross-family resource exclusivity proof** (an APPOINTMENT service and a SESSION template sharing a resource) — `resource_occupancy`'s shared exclusion constraint already protects it structurally (M22), but it isn't testable end-to-end until M24 exists alongside this milestone.
 - **Manual admin loyalty adjustments, payment processing** — unrelated to this cluster, no change here.
 
@@ -20,7 +20,6 @@
 | 1 | M23-S06 | `AvailabilityAlert` aggregate — backend CRUD + BFF (UC-072 create, UC-076 manage) |
 | 1 | M23-S08 | Future-commitment worklist — raise (from resource and staff deactivation), resolve one or many (bulk reassign), dismiss; removes the S04 occurrence-exception path (UC-047, UC-048, UC-070 A2, UC-073, UC-077), backend + BFF |
 | 1 | M23-S09 | Appointment no-show terminal status + correction (UC-074) |
-| 1 | M23-S10 | Tenant onboarding bootstrap from preset — Presets A/B/C/G (UC-075) |
 | 2 | M23-S02 | Variable-duration reservations + versioned intake/attendees (UC-067, UC-068) |
 | 2 | M23-S03 | Reschedule extension — resource/bundle/leg-aware, quote revisions (UC-069) |
 | 2 | M23-S04 | `RecurringBookingSchedule` aggregate — create/skip/reschedule/end, backend + BFF (UC-070, minus approval/generation; Pause shipped here and was removed by M23-S20) |
@@ -32,7 +31,6 @@
 | 2 | M23-S26 | Append every booking status transition to `booking_status_transitions` (no backfill) |
 | 3 | M23-S27 | Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail (UC-074) |
 | 2 | M23-S14 | Manager "Exceções de Agenda" worklist frontend (UC-073/077) |
-| 2 | M23-S15 | Manager onboarding wizard frontend (UC-075) |
 | 3 | M23-S11a | Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, one resource picker and the booking-details success box (depends on S29) |
 | 4 | M23-S11b | Guest/customer booking flow frontend, part 2 — bundle/journey confirmation and variable duration (depends on S11a) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
@@ -117,7 +115,6 @@ graph TD
   S06 --> S12
   S07 --> S12
   S08 --> S14
-  S10 --> S15
   S09 --> S25
   S09 --> S26
   S05 --> S26
@@ -141,7 +138,7 @@ graph TD
 
 **Update (2026-09-29, fixed-term recurrence — decided in M23-S18's `/story-discovery`):** a recurring schedule is no longer open-ended and there is no rolling generation. `endsOn` is required and may not be later than `startsOn` + the service's maximum term (`recurringHorizonDays`, 90 days by default); every occurrence of the term is checked at creation (working hours and closures, then occupancy) and materialized as a linked booking once — in the creation transaction for `AUTO_CONFIRM`, at approval for `MANUAL_APPROVAL`. A customer who wants to continue creates a new schedule, so a forgotten schedule cannot hold slots indefinitely. Consequences: M23-S05 loses `GenerateRecurringBookingOccurrencesJob` (approve/reject, the expiry job and one-shot materialization remain); M23-S18 owns the term validation, the hours-and-closures check and the one `409` occurrence payload; M23-S16 relabels the setting as the maximum term; M23-S17 adds an end-date field. Two consequences found by the follow-up `/docs-audit` (2026-09-29): a schedule whose term is over is moved to a new `ENDED` status by a second step of M23-S05's approval-expiry job (so the `status = 'ACTIVE'` cap, overlap and list queries never count an expired schedule), and Pause is removed (with every occurrence already a booking it has no effect and nothing can resume it) by **M23-S20** (Wave 3, before S05 and S12). The renewal path is **M23-S21** (the reminder email, Wave 5) and **M23-S22** (the "Renovar" pre-filled form, Wave 7, which needs a journey/prototype pass first). Wave placement of the existing stories is unchanged.
 
-**Likely-independent stories (preview — not authoritative):** S06, S08, S09, and S10 share no files with each other or with S01 (four independent new/small aggregates, all Wave 1) — a candidate `/run-batch` group. S02 and S03 touch different methods of the same booking-creation/reschedule use cases (`RequestBookingUseCase`/`RequestAuthenticatedBookingUseCase` for S02, `RescheduleBookingUseCase` for S03) and share no files with each other, but **both now have a real `Dependencies:` edge to S01** — not independent of S01, only of each other. `/run-batch` re-derives this live; this is a courtesy preview.
+**Likely-independent stories (preview — not authoritative):** S06, S08, and S09 share no files with each other or with S01 (three independent new/small aggregates, all Wave 1) — a candidate `/run-batch` group. S02 and S03 touch different methods of the same booking-creation/reschedule use cases (`RequestBookingUseCase`/`RequestAuthenticatedBookingUseCase` for S02, `RescheduleBookingUseCase` for S03) and share no files with each other, but **both now have a real `Dependencies:` edge to S01** — not independent of S01, only of each other. `/run-batch` re-derives this live; this is a courtesy preview.
 
 ---
 
@@ -727,55 +724,9 @@ Add `NO_SHOW` as a new terminal status reachable from `APPROVED` (`APPROVED → 
 
 ---
 
-### M23-S10 — Tenant onboarding bootstrap from preset (Presets A/B/C/G)
+### M23-S10 — Tenant onboarding bootstrap from preset (Presets A/B/C/G) ➡️ Moved to M24-S21
 
-**Agent:** `backend-ts` + `bff-ts`
-**Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` UC-075, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` (preset taxonomy, minimum-answer shape per preset), `docs/14-API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/03-DOMAIN_EVENTS.md` § `TenantSchedulingBootstrapped`, `docs/02-DOMAIN_MODEL.md` § `Resource` (M21), `Service` extensions (M22)
-**Dependencies:** M21-S01 (`Resource`), M22 (`Service` extensions)
-**Pattern:** Orchestration use case — one transaction creating a `Resource`/`Service` graph in dependency order; no new named pattern, but this is the first use case in the Booking context to orchestrate two aggregate types' creation atomically, so verify the transaction-manager usage against `docs/ENGINEERING_RULES_BACKEND.md` § Transactions closely (cross-aggregate writes, single `txManager.run()`).
-
-**Description:**
-`BootstrapTenantSchedulingUseCase` takes a `presetId` (A/B/C/G only — a SESSION preset D/E/F is accepted at the API layer per the contract but this story's implementation only completes the appointment-only presets; a SESSION preset's session-half stays inert exactly as UC-075 A1 describes, real work deferred to M24) and per-preset minimum answers, and creates: the tenant's `Resource` graph (staff/room/equipment wrappers, skipping the `LOCATION` row if M21-S02's backfill already ran — check first, never duplicate), the `Service` graph (with `resourceRequirements`/booking policy pre-filled per the preset), and working hours, all in one transaction. Failure at any point rolls back the whole configuration (UC-075 A3) — no partially-configured tenant is ever published.
-
-**Backend use case steps:**
-1. Validate the preset's minimum answers (`422` on invalid, A2, returns to the relevant wizard step).
-2. Inside one `txManager.run()`: create/verify the `LOCATION` resource, create additional resources per the preset's answers (e.g. named staff for a salon preset), create services with pre-filled `resourceRequirements`/policy per the preset's technical mapping, set working hours.
-3. Publish `TenantSchedulingBootstrapped` after commit.
-4. Return the generated configuration as an editable review (a read projection of what was just created, not a new aggregate).
-
-**Backend HTTP surface:** new `POST /onboarding/bootstrap`. `MANAGER`-only. Body/response exactly per `docs/14-API_CONTRACTS.md`.
-
-**BFF endpoint spec:** new `apps/bff/src/features/booking/onboarding.controller.ts` + `.schemas.ts` + `.types.ts` — the per-preset minimum-answer shape needs its own Zod union, one variant per preset; don't collapse into a loose `Record<string, unknown>` (violates the schema-level-enforcement rule in `CLAUDE.md` §7's critical invariants list for a similar per-type-data shape).
-
-**Files to create/modify:**
-- `apps/backend/src/contexts/booking/domain/services/preset-configuration.service.ts` (+ `.spec.ts`) (new — pure mapping from preset+answers to the concrete `Resource`/`Service` graph; kept separate from the use case so the mapping table is unit-testable in isolation)
-- `apps/backend/src/contexts/booking/application/use-cases/bootstrap-tenant-scheduling.use-case.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
-- `apps/backend/src/contexts/booking/application/dtos/bootstrap-tenant-scheduling.dto.ts` (new — one variant per preset A/B/C/G)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/onboarding.controller.ts` (+ specs) (new)
-- `packages/types/src/error-codes.ts` + both `errors.json` (modify — `BOOKING_ONBOARDING_ANSWERS_INVALID`, `BOOKING_ONBOARDING_ALREADY_CONFIGURED`)
-- `apps/bff/src/features/booking/onboarding.controller.ts` (+ `.schemas.ts`, `.types.ts`, specs) (new)
-- `apps/backend/http/booking/onboarding.http` (new)
-
-**Acceptance criteria — product:**
-- [ ] Manager completing Preset A/B/C/G's minimum-answer wizard gets a fully working scheduling configuration in one action.
-- [ ] Invalid minimum answers return to the relevant wizard step, never a generic error.
-- [ ] A failure partway through never leaves a half-configured tenant.
-- [ ] A SESSION preset (D/E/F) bootstraps its appointment half correctly; the session half is visibly inert, not broken or silently dropped.
-
-**Acceptance criteria — technical:**
-- Unit:
-  - [ ] Preset-configuration mapping produces the exact expected `Resource`/`Service` graph per preset (one test per preset A/B/C/G)
-  - [ ] Rejects invalid minimum answers per preset with a field-level error
-- Integration:
-  - [ ] Full bootstrap for each of A/B/C/G persists real `resources`/`services` rows in one transaction
-  - [ ] A forced mid-transaction failure leaves zero rows (rollback verified)
-  - [ ] Re-running bootstrap on an already-configured tenant is rejected (`BOOKING_ONBOARDING_ALREADY_CONFIGURED`), not silently duplicated
-- Tenant isolation:
-  - [ ] Bootstrap only ever writes rows for the calling tenant
-- E2E: none — covered by S15
-- [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+Moved to M24 on 2026-10-10 (decided by the product owner: the onboarding wizard and its bootstrap are postponed to the end of M24, where all seven presets are built together). The full spec is `M24-S21` in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. Nothing else in M23 depends on it.
 
 ---
 
@@ -1162,39 +1113,9 @@ Build the manager worklist page from the relocated prototype — list open excep
 
 ---
 
-### M23-S15 — Manager onboarding wizard frontend
+### M23-S15 — Manager onboarding wizard frontend ➡️ Moved to M24-S22
 
-**Agent:** `frontend-ts`
-**Complexity:** L
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md`
-**Dependencies:** M23-S10 (BFF endpoints)
-**Pattern:** plain composition — a new multi-step wizard; no existing precedent to extend, but follows the same step-form conventions as the hotsite booking flow.
-**Prototype references:** `plan/journey/manager/onboarding.md`, `plan/journey/manager/prototypes/onboarding/01-onboarding-preset.html`, `01b-onboarding-preset-erro.html`, `dev-notes.md`
-
-**Description:**
-Build the preset-selection + minimum-answer wizard from the relocated prototype, ending in the "generated configuration as editable review" screen. Surfaces per-preset validation errors inline (422 → wizard step, per UC-075 A2).
-
-**Files to create/modify:**
-- `apps/web/app/dashboard/onboarding/page.tsx` (new)
-- `apps/web/features/booking/components/dashboard/onboarding/OnboardingPresetPicker.tsx` (+ spec) (new)
-- `apps/web/features/booking/components/dashboard/onboarding/OnboardingAnswersForm.tsx` (+ spec) (new — one variant per preset A/B/C/G, plus D/E/F showing the appointment-half-only caveat)
-- `apps/web/features/booking/components/dashboard/onboarding/OnboardingReview.tsx` (+ spec) (new)
-- `apps/web/features/booking/api/onboarding.ts` (new)
-- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `dashboard.onboardingPage` namespace)
-
-**Acceptance criteria — product:**
-- [ ] Manager completes the wizard for any of Presets A/B/C/G and reviews the generated configuration.
-- [ ] Invalid answers surface inline at the relevant step, not a generic error page.
-
-**Acceptance criteria — technical:**
-- Unit:
-  - [ ] Preset picker + per-preset answer form render/validate correctly per fixture
-- Integration: n/a
-- Tenant isolation: n/a — client-side
-- E2E:
-  - [ ] Playwright: full bootstrap wizard for at least one preset end-to-end against the real BFF/backend
-- [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+Moved to M24 on 2026-10-10 together with M23-S10. The full spec is `M24-S22` in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`.
 
 ---
 
