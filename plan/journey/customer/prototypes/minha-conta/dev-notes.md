@@ -141,7 +141,7 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ## M23 Cluster 3 extension (UC-070 create + manage ✅ built by M23-S12/S17; UC-072, UC-076 availability alerts ❓ GAP, not yet built)
 
-> Everything above is shipped. Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
+> Everything above is shipped, and so are the recurring-reservation screens below (M23-S12, M23-S17). The availability alerts (UC-072, UC-076) are still unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
 
 ### Overview
 
@@ -246,10 +246,10 @@ POST /recurring-booking-schedules
 
 ### Known limitations of this prototype (gap variants, not silently dropped)
 
-- ⚠ **`06b` shows data the API now returns (M23-S18) but the screen is not built yet.** It lists the conflicting occurrences from the `409` body's `conflicts: [{ occurrenceStart, reason }]` (`reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`); `M23-S17` only renders it, falling back to the generic message when the body has no list (which is also what an overlap with the customer's own active schedule returns — see S17's decision G). The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
+- ✅ **`06b` is built (M23-S17) on the data the API returns since M23-S18.** It lists the conflicting occurrences from the `409` body's `conflicts: [{ occurrenceStart, reason }]` (`reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`); `M23-S17` only renders it, falling back to the generic message when the body has no list (which is also what an overlap with the customer's own active schedule returns — see S17's decision G). The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
 - ⚠ **`06b`'s original dates were inconsistent** ("a cada quatro semanas" between dates two weeks apart, on days that were not Tuesdays); corrected to 26 ago and 23 set.
 - ⚠ **Duration is read-only.** A `durationPolicy = CUSTOMER_SELECTED` service needs the variable-duration control (`guest/prototypes/book-a-service/12-reserva-por-tempo.html`), not drawn.
-- ⚠ **`06d` shows data the API now returns (M23-S18) but the screen is not built yet.** Working hours and closures are validated at creation (decided 2026-09-29: reject the whole request with the occurrence list, `CLOSED` / `OUTSIDE_HOURS` mixed with `OCCUPIED` in one payload); `M23-S17` builds the screen.
+- ✅ **`06d` is built (M23-S17), the same component as `06b`.** Working hours and closures are validated at creation (decided 2026-09-29: reject the whole request with the occurrence list, `CLOSED` / `OUTSIDE_HOURS` mixed with `OCCUPIED` in one payload).
 - ⚠ **Fixed term (2026-09-29).** The whole term is created at once (immediately, or when staff approve), the end date is required and capped, and there is no Pause, no rolling generation and no open-ended schedule. `13`/`13b`/`13c`/`13e`/`06`/`14` were updated for it. A finished schedule shows as "Encerrada" (`ENDED`, set by a job in `M23-S05`).
 - ⚠ **Renewal (`13f`) has no story-level rule for when "Renovar" appears on an active schedule** — drawn for the window of the reminder e-mail (`M23-S21`); to be fixed in `M23-S22`'s `/story-discovery`. The by-id read that `13f` needs is not built yet (`M23-S21`).
 - ⚠ **A bundled service cannot recur**, so the form never shows a multi-resource picker. Tracked in `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.
