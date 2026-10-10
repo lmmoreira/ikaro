@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { RecurringBookingScheduleListItem } from '@ikaro/types';
 import { RecurringScheduleList } from './RecurringScheduleList';
@@ -140,20 +140,30 @@ describe('RecurringScheduleList', () => {
     expect(screen.getAllByRole('link')).toHaveLength(2);
   });
 
-  it('renders the empty state with no create control', () => {
+  it('renders the empty state with its own call to action opening the creation form', () => {
     render(<RecurringScheduleList tenantSlug="lavacar" schedules={[]} />);
 
     expect(screen.getByTestId('recurring-schedules-empty')).toBeInTheDocument();
     expect(screen.getByText('emptyTitle')).toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recurring-schedules-empty-cta')).toHaveAttribute(
+      'href',
+      '/lavacar/my-account/recurring-schedules/new',
+    );
   });
 
-  it('renders no create control when there are schedules either', () => {
+  it('puts the "+ Novo" menu in the page header on mobile only, and has no create button of its own', () => {
     render(<RecurringScheduleList tenantSlug="lavacar" schedules={[makeSchedule()]} />);
 
-    expect(screen.queryByRole('link', { name: /nova|novo|new/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    // The desktop entry is the topbar menu: nothing else on the list creates a schedule.
+    expect(screen.queryByTestId('recurring-schedules-empty-cta')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /createCta/ })).not.toBeInTheDocument();
+    const menu = screen.getByTestId('mobile-new-menu');
+    expect(menu.className).toContain('lg:hidden');
+    fireEvent.click(within(menu).getByTestId('new-menu-trigger'));
+    expect(screen.getByTestId('new-menu-recurring')).toHaveAttribute(
+      'href',
+      '/lavacar/my-account/recurring-schedules/new',
+    );
   });
 
   it('hides a section that has no schedules', () => {

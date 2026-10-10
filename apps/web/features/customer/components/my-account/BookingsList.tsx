@@ -7,6 +7,7 @@ import type { CustomerBookingListItem } from '@ikaro/types';
 import type { RecurringSummary } from '@/features/booking/api/recurring-booking-schedules.server';
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { splitBookingSections } from '../../booking-sections';
+import { NewReservationMenu } from '../NewReservationMenu';
 import { BookingEmptyState } from './BookingEmptyState';
 import { BookingListItem } from './BookingListItem';
 
@@ -53,7 +54,12 @@ export function BookingsList({
 
   return (
     <div className="w-full">
-      <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+        <div className="lg:hidden" data-testid="mobile-new-menu">
+          <NewReservationMenu tenantSlug={tenantSlug} />
+        </div>
+      </div>
 
       {recurringSummary?.hasAny === true && (
         <Link

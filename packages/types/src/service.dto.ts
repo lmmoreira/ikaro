@@ -70,6 +70,11 @@ export type ServicePricingPolicy = 'FIXED' | 'PER_TIME_INCREMENT';
 export const MIN_RECURRING_HORIZON_DAYS = 1;
 export const MAX_RECURRING_HORIZON_DAYS = 180;
 
+// Platform default when ServiceBookingPolicyItem.recurringHorizonDays is null — the schedule's
+// maximum term. Shared so the backend's term check and the customer form's date limit cannot
+// drift apart.
+export const DEFAULT_RECURRING_HORIZON_DAYS = 90;
+
 export interface ServiceBookingPolicyItem {
   defaultApprovalMode: ServiceApprovalMode | null;
   manualHoldMinutes: number | null;

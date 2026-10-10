@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingListItem } from '@ikaro/types';
 import { BookingsList } from './BookingsList';
@@ -88,6 +88,23 @@ function makeItem(overrides: Partial<CustomerBookingListItem> = {}): CustomerBoo
     ...overrides,
   };
 }
+
+describe('BookingsList mobile "+ Novo" menu', () => {
+  it.each([
+    ['with bookings', [makeItem({ status: 'APPROVED' })]],
+    ['with no bookings', []],
+  ])('is in the page header, hidden from lg up, %s', (_label, bookings) => {
+    render(<BookingsList bookings={bookings} recurringSummary={null} tenantSlug="lavacar-bh" />);
+
+    expect(screen.getByTestId('mobile-new-menu').className).toContain('lg:hidden');
+    fireEvent.click(screen.getByTestId('new-menu-trigger'));
+    expect(screen.getByTestId('new-menu-booking')).toHaveAttribute('href', '/lavacar-bh/booking');
+    expect(screen.getByTestId('new-menu-recurring')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/recurring-schedules/new',
+    );
+  });
+});
 
 describe('BookingsList', () => {
   it('renders the three sections with count badges when all have items', () => {

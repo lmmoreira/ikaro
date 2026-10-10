@@ -2,8 +2,8 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
-**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070, UC-076 (❓ Gap — M23 Cluster 3, recurring private reservation creation and management + availability alerts) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
-**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 and M24 Cluster 4 extensions not yet built, see the ❓ GAP sections in `dev-notes.md`.
+**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070 (✅ Done — M23 Cluster 3: management `M23-S12`, creation `M23-S17`) · UC-076 (❓ Gap — M23 Cluster 3, availability alerts: list/cancel `M23-S43`, creation `M23-S31`) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
+**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 is partly built (reschedule `M23-S30`, recurring reservations `M23-S12`/`S17`; the availability alerts are not) and the M24 Cluster 4 extension is not, see the ❓ GAP sections in `dev-notes.md`.
 
 ## Flow
 
@@ -135,9 +135,9 @@ Folder: `customer/prototypes/minha-conta/`
 | `15i-conflito-pacote-jornada.html` | Erro: parte do pacote / etapa indisponível (409) | UC-069 A2 | M23-S30 | ✅ Criado |
 | `15j-fora-do-prazo.html` | Erro: reagendamento fora do prazo (422) | UC-069 | M23-S30 | ✅ Criado |
 | `15k-erro-envio.html` | Erro ao enviar (rede / outros) | UC-069 | M23-S30 | ✅ Criado |
-| `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ✅ Criado (M23-S17) |
 | `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ✅ Criado (M23-S12 — o detalhe de uma recorrência em análise; M23-S17 a reaproveita logo após criar) |
-| `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (decidido em M23-S18: recusa na criação; a API já devolve a lista) | UC-070 A1 | M23-S17 (constrói a tela) | ❓ Gap (M23 Cluster 3) |
+| `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (decidido em M23-S18: recusa na criação; a API já devolve a lista) | UC-070 A1 | M23-S17 (constrói a tela) | ✅ Criado (M23-S17) |
 | `07-availability-alert.html` | Meus avisos — lista e cancelar aviso de disponibilidade (sem editar por enquanto) (sem botão de criar: a criação sempre parte do fluxo de agendamento); entrada: link "Meus avisos" em Agendamentos (`01`) | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07b-avisos-vazio.html` | Meus avisos — vazio (orienta a usar "Avise-me quando abrir" ao agendar) | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07c-avisos-carregando.html` | Meus avisos — carregando | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
@@ -147,14 +147,14 @@ Folder: `customer/prototypes/minha-conta/`
 | `07g-aviso-detalhe-historico.html` | Detalhe de um aviso já avisado/expirado — somente leitura, sem cancelar | UC-076 A1 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07h-cancelar-aviso.html` | Confirmar o cancelamento do aviso — detalhe central + painel de ações, mesmo padrão de `03-cancel-confirm` | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07i-cancelar-aviso-erro.html` | Falha ao cancelar (rede / 5xx) — o aviso continua ativo, com "Tentar novamente" | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `13-nova-recorrencia.html` | Nova reserva recorrente — padrão (serviço, recurso, dias, horário, período) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
-| `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
-| `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
-| `13d-nova-recorrencia-limite.html` | Erro — limite de recorrências ativas (409 A4) | UC-070 A4 | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `13-nova-recorrencia.html` | Nova reserva recorrente — padrão (serviço, recurso, dias, horário, período) | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
+| `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
+| `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
+| `13d-nova-recorrencia-limite.html` | Erro — limite de recorrências ativas (409 A4) | UC-070 A4 | M23-S17 | ✅ Criado (M23-S17) |
 | `13f-renovar-recorrencia.html` | Renovar — formulário pré-preenchido (A) e aviso de reserva não encontrada sobre o formulário em branco (B, não é uma tela) | UC-070 | M23-S22 | ❓ Gap (M23 Cluster 3) |
-| `13e-nova-recorrencia-erro.html` | Erro — validação do padrão e falha de envio | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
-| `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status, prazo de cada uma e "Renovar" | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12 — sem "Renovar", sem o botão de criar e sem o menu "+ Novo ▾", que são de M23-S22 / M23-S17) |
-| `14b-recorrentes-lista-vazia.html` | Minhas reservas recorrentes — estado vazio | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12 — sem "Renovar", sem o botão de criar e sem o menu "+ Novo ▾", que são de M23-S22 / M23-S17) |
+| `13e-nova-recorrencia-erro.html` | Erro — validação do padrão e falha de envio | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
+| `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status, prazo de cada uma e "Renovar" | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12 — sem "Renovar", sem "Renovar" (M23-S22); o botão de criar e o menu "+ Novo ▾" são de M23-S17, já feitos) |
+| `14b-recorrentes-lista-vazia.html` | Minhas reservas recorrentes — estado vazio | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12 — sem "Renovar", sem "Renovar" (M23-S22); o botão de criar e o menu "+ Novo ▾" são de M23-S17, já feitos) |
 | `08-turmas-lista.html` | Minhas Turmas — lista de matrículas | UC-089/091/094/095 | — | ❓ Gap (M24 Cluster 4) |
 | `09-turma-detail.html` | Detalhe da matrícula (turma fixa) | UC-094 | — | ❓ Gap (M24 Cluster 4) |
 | `09b-turma-detail-waitlist.html` | Detalhe — status `WAITLISTED`/`PROMOTION_PENDING` | UC-090/091 | — | ❓ Gap (M24 Cluster 4) |
@@ -241,7 +241,7 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 - [x] **Promotion offer deadline:** returned by the backend as `offerExpiresAt`; the client does not derive offer state from a local 24-hour calculation.
 - [x] **The canonical persistence/domain names are `Service`, `ClassScheduleTemplate`, `ClassSessionBooking`, and `RecurringEnrollment`.** `ClassType`/`Enrollment` are BFF read-model labels only, never aggregates.
 
-## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built)
+## M23 — Multi-Vertical Scheduling, Cluster 3 extension (recurring reservations ✅ built; availability alerts ❓ Gap)
 
 > Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation area (UC-070 — **creating** a schedule and **managing** it) and "Meus avisos" — the manager of the customer's availability alerts (UC-076, `M23-S12`). Alert **creation** is not here: it is a page of the booking flow (UC-072, `M23-S31`, `customer/book-a-service.md` § Availability alert page). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 >
@@ -255,7 +255,7 @@ flowchart TD
     Avisos -->|"Toca um aviso"| AvisoDetalhe["❓ GAP: .../alerts/[id]<br/>Detalhe (07f / 07g histórico)"]
     AvisoDetalhe -->|"'Cancelar aviso' (ativo)"| AvisoCancelar["❓ GAP: .../alerts/[id]/cancel<br/>Confirmação (07h / 07i erro)"]
     Agendamentos -->|"Card 'Reservas recorrentes'"| Lista["/{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
-    Lista -->|"topbar '+ Novo ▾' → 'Reserva recorrente' (any my-account screen; mobile: the same menu in the page)"| Padrao["❓ GAP: .../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
+    Lista -->|"topbar '+ Novo ▾' → 'Reserva recorrente' (any my-account screen; mobile: the same menu in the page)"| Padrao[".../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
     Lista -->|"'Renovar' (encerrada ou terminando) ou link do e-mail de aviso"| Renovar["❓ GAP: .../recurring-schedules/new?renewFrom=id<br/>Pré-preenchido (13f-renovar-recorrencia)"]
     Renovar -->|"'Revisar'"| Revisar
     Lista -->|"Clica em uma encerrada ou cancelada"| Terminal[".../recurring-schedules/[id] (status terminal)<br/>Somente leitura + Renovar / Nova reserva (06h)"]
@@ -265,15 +265,15 @@ flowchart TD
     Gerenciar -->|"'Pular esta ocorrência'"| PularOcc["Cancelar a reserva da ocorrência<br/>(03-cancel-confirm; recusa fora do prazo = 03b / 06e)"]
     Gerenciar -->|"'Reagendar esta ocorrência'"| ReagOcc["Reagendar a reserva da ocorrência<br/>(15-reagendar, M23-S30; recusa = 06f)"]
 
-    Padrao -->|"'Revisar'"| Revisar["❓ GAP: mesma rota, passo 2<br/>Revisar (13b-nova-recorrencia-revisar)"]
-    Padrao -->|"validação 400"| ErroForm["❓ GAP: mesma rota, erro<br/>(13e-nova-recorrencia-erro)"]
+    Padrao -->|"'Revisar'"| Revisar["mesma rota, passo 2<br/>Revisar (13b-nova-recorrencia-revisar)"]
+    Padrao -->|"validação 400"| ErroForm["mesma rota, erro<br/>(13e-nova-recorrencia-erro)"]
     Revisar -->|"'Confirmar recorrência'"| Envio(("POST /recurring-booking-schedules"))
 
-    Envio -->|"201 ACTIVE"| Sucesso["❓ GAP: mesma rota, sucesso<br/>(13c-nova-recorrencia-sucesso)"]
-    Envio -->|"201 PENDING_APPROVAL"| Analise["❓ GAP: mesma rota, em análise<br/>(06c-recorrente-em-analise)"]
-    Envio -->|"409 conflito de ocupação"| Conflito["❓ GAP: mesma rota, erro<br/>(06b-reserva-recorrente-erro)"]
-    Envio -->|"409 fora do horário / dia fechado<br/>(decidido em M23-S18: recusa na criação)"| ConflitoHorario["❓ GAP: mesma rota, erro<br/>(06d-reserva-recorrente-erro-horario)"]
-    Envio -->|"409 limite de recorrências ativas"| Limite["❓ GAP: mesma rota, erro<br/>(13d-nova-recorrencia-limite)"]
+    Envio -->|"201 ACTIVE"| Sucesso["mesma rota, sucesso<br/>(13c-nova-recorrencia-sucesso)"]
+    Envio -->|"201 PENDING_APPROVAL"| Analise["mesma rota, em análise<br/>(06c-recorrente-em-analise)"]
+    Envio -->|"409 conflito de ocupação"| Conflito["mesma rota, erro<br/>(06b-reserva-recorrente-erro)"]
+    Envio -->|"409 fora do horário / dia fechado<br/>(decidido em M23-S18: recusa na criação)"| ConflitoHorario["mesma rota, erro<br/>(06d-reserva-recorrente-erro-horario)"]
+    Envio -->|"409 limite de recorrências ativas"| Limite["mesma rota, erro<br/>(13d-nova-recorrencia-limite)"]
     Envio -->|"erro rede/5xx"| ErroForm
 
     Sucesso --> Gerenciar
@@ -301,7 +301,7 @@ POST  /recurring-booking-schedules/:id/end       -- end early (the `…/pause` r
 **Open questions / gaps:**
 - [x] Stories exist: `M23-S12` (recurring reservations: list, detail, end, and the Agendamentos entry), `M23-S43` (availability alerts: list, detail, cancel), `M23-S42` (the service name and the by-id reads), `M23-S31` (alert creation — in the booking flow, see `customer/book-a-service.md`), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload — backend, and it lands before `M23-S05`; `06d` is now the chosen UI for it, built in `M23-S17`). Each still begins with `/story-discovery`.
 - [x] **Schedule detail variants (audit 2026-10-09, drawn 2026-10-09):** `06` is the active schedule; `06h` is the `ENDED`/`CANCELLED` read-only detail (the ended pane has "Renovar" and "Nova reserva recorrente", the cancelled one only the latter — same shape as a completed booking's "Fazer novo agendamento" pane); a `PENDING_APPROVAL` schedule opens `06c`, rendered right after creation by `M23-S17` and from the list by `M23-S12` (one component).
-- [ ] **Entry point (default drawn here):** a "Reservas recorrentes" link on the Agendamentos page leading to `14`. **Creating** is the shared topbar "+ Novo ▾" menu (decided 2026-10-09): "Agendamento" (the one-off booking, as before) and "Reserva recorrente" (→ `13`), the same shape as the staff Agenda's "+ Novo" menu; `CustomerTopbar` renders it on every my-account screen, on mobile the same menu sits in the page (`01` body, `14` header). The list page has no create button of its own; the empty state (`14b`) keeps its call to action. Alternatives to recheck: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is the same open UI decision as before.
+- [x] **Entry point (decided 2026-10-10 at M23-S17's `/story-discovery`, built by it):** the menu's second item is "Reserva recorrente"; on mobile the menu sits in the page header beside the title (Início, Agendamentos incl. its empty state, the recurring list). Originally drawn as: a "Reservas recorrentes" link on the Agendamentos page leading to `14`. **Creating** is the shared topbar "+ Novo ▾" menu (decided 2026-10-09): "Agendamento" (the one-off booking, as before) and "Reserva recorrente" (→ `13`), the same shape as the staff Agenda's "+ Novo" menu; `CustomerTopbar` renders it on every my-account screen, on mobile the same menu sits in the page (`01` body, `14` header). The list page has no create button of its own; the empty state (`14b`) keeps its call to action. Alternatives to recheck: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is the same open UI decision as before.
 - [x] **Conflict screen content:** `06b` shows the conflicting occurrences, which the API returns since `M23-S18` — one payload, `conflicts: [{ occurrenceStart, reason }]` with `reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS` — and `M23-S17` only renders it. Suggesting an alternative resource, which the original discovery prototype showed, is a much bigger feature and is **not** drawn here.
 - [ ] **Duration:** drawn as read-only, defined by the service. A `durationPolicy = CUSTOMER_SELECTED` service would need the variable-duration control (see `guest/prototypes/book-a-service/12-reserva-por-tempo.html`) — not drawn.
 - [ ] **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype; it is a dashboard surface, not part of this customer journey. Left open.

@@ -139,20 +139,20 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ---
 
-## ❓ GAP — M23 Cluster 3 extension (UC-070 create + manage, UC-072, UC-076, not yet built)
+## M23 Cluster 3 extension (UC-070 create + manage ✅ built by M23-S12/S17; UC-072, UC-076 availability alerts ❓ GAP, not yet built)
 
-> Everything above is shipped. Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
+> Everything above is shipped, and so are the recurring-reservation screens below (M23-S12, M23-S17). The availability alerts (UC-072, UC-076) are still unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
 
 ### Overview
 
 Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entry), `M23-S43` (availability alerts: list, detail, cancel), `M23-S42` (the service name and the by-id reads), `M23-S31` (alert creation — a page of the booking flow, screens in `customer/prototypes/book-a-service/16*`), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload, backend — it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
 
-### File map (❓ none exist yet)
+### File map (each row carries its own status)
 
 | File | Status | Story |
 |---|---|---|
 | `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` | ✅ Done (M23-S12) | M23-S12 |
-| `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ❓ Gap | M23-S17 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ✅ Done | M23-S17 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ✅ Done (M23-S12) — detail page (central detail + action pane, same pattern as `bookings/[id]/page.tsx`) | M23-S12 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` | ✅ Done (M23-S12) — end confirmation page (same pattern as `bookings/[id]/cancel` and `alerts/[id]/cancel`; **not** an inline panel) | M23-S12 |
 | `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S43 |
@@ -160,9 +160,11 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 | `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ❓ Gap — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S43 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ✅ Done (M23-S12) | M23-S12 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ `AccountListRow`, `RecurringScheduleDetail`, `RecurringSchedulePendingView`, `RecurringScheduleEndConfirm`) | ✅ Done (M23-S12) | M23-S12 |
-| `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result) | ❓ Gap | M23-S17 |
-| `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` (and `availability-alerts.server.ts` for the alerts) | ❓ Gap | M23-S12 / S17 / S43 |
-| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` and `customer.alerts.*` | ❓ Gap | M23-S12 / S17 / S43 |
+| `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result, the page container, and the shared `NewReservationMenu`) | ✅ Done | M23-S17 |
+| `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` | ✅ Done (M23-S12 reads and end, M23-S17 create) | M23-S12 / S17 |
+| `apps/web/features/booking/api/availability-alerts.server.ts` / `.ts` | ❓ Gap | M23-S43 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` (incl. `.new.*`) and `customer.newMenu.*` | ✅ Done | M23-S12 / S17 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.alerts.*` | ❓ Gap | M23-S43 |
 
 > Supersedes the earlier draft names (`features/booking/components/account/RecurringPrivateReservationManager.tsx`, route `/my-account/recurring-reservations/[id]`): `M23-S12` already chose `recurring-schedules` and `features/customer/components/my-account/` after checking the real precedent, and that story's own verification note applies here too — re-check at implementation time.
 
@@ -196,7 +198,7 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
 
-**File:** `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (GAP)
+**File:** `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (✅ Done — M23-S17)
 
 **BFF call:**
 ```
@@ -236,12 +238,18 @@ POST /recurring-booking-schedules
 
 **Mobile notes:** the shell provides the bottom nav; the form is a single column, weekday chips wrap.
 
+### Built by M23-S17 (2026-10) — what the code does beyond the drawn screens
+
+- **Where the "+ Novo ▾" menu sits on mobile:** in the page header, right of the title, on Início (full-width button), Agendamentos (`01`, and its empty state `01b`) and the recurring list (`14`). Desktop: the topbar, on every my-account screen. `14b` keeps its own call to action.
+- **First occurrence in the booking window:** the form checks the first occurrence (first chosen weekday on or after the start date, in the tenant timezone) against the service's minimum notice and maximum advance before sending, and shows the catalog message above the form (`13e` A4); a pattern none of whose weekdays falls in the term shows A5. The `422`s of the same codes are the backstop.
+- **The service list does not say "requer aprovação":** the public service shape carries no approval mode, so the option reads "{name} — {duração} · {preço}"; the customer learns it from the outcome (`06c`).
+
 ### Known limitations of this prototype (gap variants, not silently dropped)
 
-- ⚠ **`06b` shows data the API now returns (M23-S18) but the screen is not built yet.** It lists the conflicting occurrences from the `409` body's `conflicts: [{ occurrenceStart, reason }]` (`reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`); `M23-S17` only renders it, falling back to the generic message when the body has no list (which is also what an overlap with the customer's own active schedule returns — see S17's decision G). The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
+- ✅ **`06b` is built (M23-S17) on the data the API returns since M23-S18.** It lists the conflicting occurrences from the `409` body's `conflicts: [{ occurrenceStart, reason }]` (`reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`); `M23-S17` only renders it, falling back to the generic message when the body has no list (which is also what an overlap with the customer's own active schedule returns — see S17's decision G). The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
 - ⚠ **`06b`'s original dates were inconsistent** ("a cada quatro semanas" between dates two weeks apart, on days that were not Tuesdays); corrected to 26 ago and 23 set.
 - ⚠ **Duration is read-only.** A `durationPolicy = CUSTOMER_SELECTED` service needs the variable-duration control (`guest/prototypes/book-a-service/12-reserva-por-tempo.html`), not drawn.
-- ⚠ **`06d` shows data the API now returns (M23-S18) but the screen is not built yet.** Working hours and closures are validated at creation (decided 2026-09-29: reject the whole request with the occurrence list, `CLOSED` / `OUTSIDE_HOURS` mixed with `OCCUPIED` in one payload); `M23-S17` builds the screen.
+- ✅ **`06d` is built (M23-S17), the same component as `06b`.** Working hours and closures are validated at creation (decided 2026-09-29: reject the whole request with the occurrence list, `CLOSED` / `OUTSIDE_HOURS` mixed with `OCCUPIED` in one payload).
 - ⚠ **Fixed term (2026-09-29).** The whole term is created at once (immediately, or when staff approve), the end date is required and capped, and there is no Pause, no rolling generation and no open-ended schedule. `13`/`13b`/`13c`/`13e`/`06`/`14` were updated for it. A finished schedule shows as "Encerrada" (`ENDED`, set by a job in `M23-S05`).
 - ⚠ **Renewal (`13f`) has no story-level rule for when "Renovar" appears on an active schedule** — drawn for the window of the reminder e-mail (`M23-S21`); to be fixed in `M23-S22`'s `/story-discovery`. The by-id read that `13f` needs is not built yet (`M23-S21`).
 - ⚠ **A bundled service cannot recur**, so the form never shows a multi-resource picker. Tracked in `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`.

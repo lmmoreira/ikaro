@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { DEFAULT_RECURRING_HORIZON_DAYS } from '@ikaro/types';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -13,7 +14,6 @@ import {
 } from '../../domain/recurring-booking-schedule.aggregate';
 import {
   assertValidTerm,
-  DEFAULT_RECURRING_HORIZON_DAYS,
   RecurrenceOccurrence,
   RecurrenceRule,
 } from '../../domain/recurrence-rule.helpers';

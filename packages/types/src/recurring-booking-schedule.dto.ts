@@ -33,3 +33,25 @@ export interface RecurringBookingScheduleListResponse {
   items: RecurringBookingScheduleListItem[];
   pagination: Pagination;
 }
+
+// POST /recurring-booking-schedules — mirrors RequestRecurringBookingScheduleBodySchema in
+// @ikaro/validation (apps/web never consumes that package). `resourceIds` is exactly one entry
+// and only for FIXED_ASSIGNMENT; `customerId` is for a staff-side creation on a customer's
+// behalf (a customer's own request never sends it).
+export interface CreateRecurringBookingScheduleRequest {
+  serviceId: string;
+  recurrence: RecurrenceRule;
+  assignmentPolicy: RecurringScheduleAssignmentPolicy;
+  resourceIds?: string[];
+  startsOn: string; // YYYY-MM-DD, tenant-local
+  endsOn: string; // YYYY-MM-DD, tenant-local
+  customerId?: string;
+}
+
+// 201 body: ACTIVE when the service auto-confirms, PENDING_APPROVAL (with the hold's end) when it
+// needs staff approval.
+export interface CreateRecurringBookingScheduleResponse {
+  id: string;
+  status: 'ACTIVE' | 'PENDING_APPROVAL';
+  approvalHoldExpiresAt: string | null;
+}

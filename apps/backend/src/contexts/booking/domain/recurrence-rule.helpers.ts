@@ -19,10 +19,6 @@ export interface RecurrenceRule {
   durationMinutes: number;
 }
 
-// Platform default when Service.bookingPolicy.recurringHorizonDays is null — the schedule's
-// maximum term (docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule).
-export const DEFAULT_RECURRING_HORIZON_DAYS = 90;
-
 export interface RecurrenceOccurrence {
   // UTC instant the occurrence starts at.
   occurrenceStart: Date;

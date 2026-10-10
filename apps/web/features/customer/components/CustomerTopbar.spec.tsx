@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useEffect } from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { CustomerTopbar } from './CustomerTopbar';
@@ -53,13 +53,16 @@ describe('CustomerTopbar', () => {
     expect(screen.getByTestId('topbar-user-name')).toHaveTextContent('');
   });
 
-  it('renders the new-booking link pointing to /{slug}/booking', () => {
+  it('renders the "+ Novo" menu with a one-off booking and a recurring reservation', () => {
     render(<CustomerTopbar {...DEFAULT_PROPS} />);
 
-    const link = screen
-      .getAllByRole('link')
-      .find((el) => el.getAttribute('href') === '/lavacar-bh/booking');
-    expect(link).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('new-menu-trigger'));
+
+    expect(screen.getByTestId('new-menu-booking')).toHaveAttribute('href', '/lavacar-bh/booking');
+    expect(screen.getByTestId('new-menu-recurring')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/recurring-schedules/new',
+    );
   });
 
   it('renders the back-to-site link pointing to /{slug}', () => {

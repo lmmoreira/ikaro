@@ -6,6 +6,7 @@ import { Calendar, Star } from 'lucide-react';
 import type { CustomerBookingListItem, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { countActiveBookings, selectHomePreview } from '../../booking-sections';
+import { NewReservationMenu } from '../NewReservationMenu';
 import { BookingEmptyState } from './BookingEmptyState';
 import { BookingListItem } from './BookingListItem';
 
@@ -98,12 +99,9 @@ export function HomeDashboard({
         )}
       </section>
 
-      <Link
-        href={`/${tenantSlug}/booking`}
-        className="mt-6 block rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 lg:hidden"
-      >
-        {t('newBooking')}
-      </Link>
+      <div className="mt-6 lg:hidden" data-testid="mobile-new-menu">
+        <NewReservationMenu tenantSlug={tenantSlug} fullWidth />
+      </div>
     </div>
   );
 }

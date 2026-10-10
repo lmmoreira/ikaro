@@ -15,6 +15,7 @@ import {
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
 import { useCustomerTopbarStatus } from './customer-topbar-status-context';
+import { NewReservationMenu } from './NewReservationMenu';
 
 interface CustomerTopbarProps {
   readonly tenantName: string;
@@ -77,12 +78,9 @@ export function CustomerTopbar({
           </Badge>
         )}
 
-        <Link
-          href={`/${tenantSlug}/booking`}
-          className="hidden items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-blue-700 lg:flex"
-        >
-          + {t('topbar.newBooking')}
-        </Link>
+        <div className="hidden lg:block">
+          <NewReservationMenu tenantSlug={tenantSlug} />
+        </div>
 
         <details className="relative" data-testid="avatar-dropdown">
           <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
