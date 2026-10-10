@@ -35,6 +35,7 @@ vi.mock('next-intl', () => ({
       'customer.bookingDetail': {
         backToBookings: 'Agendamentos',
         backToLoyalty: 'Fidelidade',
+        backToSchedule: 'Recorrência',
         dateTimeTitle: 'Data e horário',
         dateLabel: 'Data',
         timeLabel: 'Horário',
@@ -166,6 +167,21 @@ describe('BookingDetailPage', () => {
       '/lavacar-bh/my-account/loyalty',
     );
     expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Fidelidade');
+  });
+
+  it('uses returnTo and a schedule label when reached from a recurring schedule', () => {
+    renderWithTopbarStatus(
+      <BookingDetailPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        returnTo="/lavacar-bh/my-account/recurring-schedules/sched-1?page=2"
+      />,
+    );
+
+    expect(screen.getByTestId('probe-back-href')).toHaveTextContent(
+      '/lavacar-bh/my-account/recurring-schedules/sched-1?page=2',
+    );
+    expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Recorrência');
   });
 
   it('APPROVED within window: shows the cancel action, no info form', () => {

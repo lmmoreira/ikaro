@@ -40,6 +40,26 @@ describe('fetchCustomerBookings', () => {
     );
   });
 
+  it('sends the recurring-schedule filter, status, day, page and limit when given', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ items: [] }));
+    await fetchCustomerBookings('token', {
+      recurringScheduleId: 'sched-1',
+      status: 'APPROVED',
+      from: '2026-08-19',
+      page: 2,
+      limit: 5,
+    });
+    const url = bffServerFetch.mock.calls[0]?.[1] as string;
+    const query = new URLSearchParams(url.split('?')[1]);
+    expect(Object.fromEntries(query)).toEqual({
+      status: 'APPROVED',
+      limit: '5',
+      page: '2',
+      from: '2026-08-19',
+      recurringScheduleId: 'sched-1',
+    });
+  });
+
   it('returns the parsed body on success', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ items: [] }));
     await expect(fetchCustomerBookings('token')).resolves.toEqual({ items: [] });

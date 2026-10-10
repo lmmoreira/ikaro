@@ -2,16 +2,18 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ChevronRight } from 'lucide-react';
-import type { CustomerBookingListItem, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
-import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { ChevronRight, Repeat } from 'lucide-react';
+import type { CustomerBookingListItem } from '@ikaro/types';
+import type { RecurringSummary } from '@/features/booking/api/recurring-booking-schedules.server';
+import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { splitBookingSections } from '../../booking-sections';
 import { BookingEmptyState } from './BookingEmptyState';
 import { BookingListItem } from './BookingListItem';
 
 interface BookingsListProps {
   readonly bookings: readonly CustomerBookingListItem[];
-  readonly loyaltyBalance: CustomerLoyaltyBalanceResponse;
+  /** `null` when the schedules read failed — the entry row is simply not shown. */
+  readonly recurringSummary: RecurringSummary | null;
   readonly tenantSlug: string;
 }
 
@@ -42,11 +44,10 @@ function BookingSection({
 
 export function BookingsList({
   bookings,
-  loyaltyBalance,
+  recurringSummary,
   tenantSlug,
 }: BookingsListProps): React.JSX.Element {
   const t = useTranslations('customer.bookings');
-  const { formatDate } = useFormatting();
   const { upcoming, pending, history } = splitBookingSections(bookings);
   const isEmpty = upcoming.length === 0 && pending.length === 0 && history.length === 0;
 
@@ -54,28 +55,29 @@ export function BookingsList({
     <div className="w-full">
       <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
 
-      <Link
-        href={`/${tenantSlug}/my-account/loyalty`}
-        className="mt-3 flex items-center justify-between rounded-xl border border-blue-50 bg-white px-4 py-3 shadow-sm"
-      >
-        <div>
-          <p className="text-lg font-extrabold text-gray-900">
-            {t('pointsValue', { points: loyaltyBalance.currentPoints })}
-          </p>
-          <p className="text-xs text-gray-500">{t('pointsActiveLabel')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {loyaltyBalance.nextExpiryDate !== null && loyaltyBalance.nextExpiryPoints !== null && (
-            <span className="rounded text-xs text-amber-800 bg-amber-100 px-2 py-0.5">
-              {t('expiryStrip', {
-                points: loyaltyBalance.nextExpiryPoints,
-                date: formatDate(new Date(loyaltyBalance.nextExpiryDate)),
-              })}
+      {recurringSummary?.hasAny === true && (
+        <Link
+          href={recurringScheduleListPath(tenantSlug)}
+          data-testid="recurring-entry-row"
+          className="mt-3 flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <Repeat className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <p className="text-sm font-semibold text-gray-900">{t('recurringEntryTitle')}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              data-testid="recurring-entry-count"
+              className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
+            >
+              {t('recurringEntryActive', { count: recurringSummary.activeCount })}
             </span>
-          )}
-          <ChevronRight className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
-        </div>
-      </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+          </div>
+        </Link>
+      )}
 
       {isEmpty ? (
         <div className="mt-6">

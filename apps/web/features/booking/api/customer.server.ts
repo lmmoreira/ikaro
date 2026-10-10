@@ -8,11 +8,31 @@ import { assertOk, CustomerFetchError } from '@/shared/lib/api/errors';
 const ALL_BOOKING_STATUSES = 'PENDING,INFO_REQUESTED,APPROVED,COMPLETED,CANCELLED,REJECTED,NO_SHOW';
 const CUSTOMER_BOOKINGS_LIMIT = 50;
 
-export async function fetchCustomerBookings(token: string): Promise<CustomerBookingListResponse> {
+export interface FetchCustomerBookingsOptions {
+  /** Only this recurring schedule's occurrence bookings (M23-S08). */
+  readonly recurringScheduleId?: string;
+  /** Comma-separated BookingStatus values; defaults to every status. */
+  readonly status?: string;
+  /** A tenant-local calendar day (YYYY-MM-DD): bookings from that day on. */
+  readonly from?: string;
+  /** 1-based page; defaults to the first. */
+  readonly page?: number;
+  readonly limit?: number;
+}
+
+export async function fetchCustomerBookings(
+  token: string,
+  options: FetchCustomerBookingsOptions = {},
+): Promise<CustomerBookingListResponse> {
   const query = new URLSearchParams({
-    status: ALL_BOOKING_STATUSES,
-    limit: String(CUSTOMER_BOOKINGS_LIMIT),
+    status: options.status ?? ALL_BOOKING_STATUSES,
+    limit: String(options.limit ?? CUSTOMER_BOOKINGS_LIMIT),
   });
+  if (options.page !== undefined) query.set('page', String(options.page));
+  if (options.from !== undefined) query.set('from', options.from);
+  if (options.recurringScheduleId !== undefined) {
+    query.set('recurringScheduleId', options.recurringScheduleId);
+  }
   const res = await bffServerFetch(token, `/bookings?${query}`);
   await assertOk(res, CustomerFetchError);
   return res.json() as Promise<CustomerBookingListResponse>;

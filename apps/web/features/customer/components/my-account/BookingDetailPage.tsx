@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { BOOKING_STATUS } from '@ikaro/types';
+import { returnBackLabelKey } from '../../booking-navigation';
 import { canCancelBooking, canRescheduleBooking } from '../../booking-sections';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { BookingDetailMain } from './BookingDetailMain';
@@ -74,7 +75,7 @@ export function BookingDetailPage({
 
   useEffect(() => {
     const backHref = returnTo ?? `/${tenantSlug}/my-account/bookings`;
-    const backLabel = returnTo?.endsWith('/loyalty') ? t('backToLoyalty') : t('backToBookings');
+    const backLabel = t(returnBackLabelKey(returnTo));
     setBackHrefOverride?.(backHref);
     setBackLabelOverride?.(backLabel);
     return () => {

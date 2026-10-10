@@ -12,12 +12,15 @@ interface CancelErrorPageProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
   readonly whatsapp: string | null;
+  /** Where the customer came from (e.g. a recurring schedule's page) — the back link returns there. */
+  readonly returnTo?: string | null;
 }
 
 export function CancelErrorPage({
   booking,
   tenantSlug,
   whatsapp,
+  returnTo = null,
 }: CancelErrorPageProps): React.JSX.Element {
   const t = useTranslations('customer.cancelError');
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
@@ -28,20 +31,22 @@ export function CancelErrorPage({
 
   const serviceNames = booking.lines.map((line) => line.serviceName).join(', ');
   const scheduledAt = booking.scheduledAt === null ? null : new Date(booking.scheduledAt);
+  const backHref = returnTo ?? `/${tenantSlug}/my-account/bookings/${booking.bookingId}`;
   const deadline = booking.cancellableUntil === null ? null : new Date(booking.cancellableUntil);
 
   useEffect(() => {
     setBookingStatus?.(booking.status);
-    setBackHrefOverride?.(`/${tenantSlug}/my-account/bookings/${booking.bookingId}`);
-    setBackLabelOverride?.(t('backToBooking'));
+    setBackHrefOverride?.(backHref);
+    setBackLabelOverride?.(returnTo === null ? t('backToBooking') : t('backToSchedule'));
     return () => {
       setBookingStatus?.(null);
       setBackHrefOverride?.(null);
       setBackLabelOverride?.(null);
     };
   }, [
-    booking.bookingId,
+    backHref,
     booking.status,
+    returnTo,
     setBackHrefOverride,
     setBackLabelOverride,
     setBookingStatus,
@@ -88,7 +93,7 @@ export function CancelErrorPage({
       )}
 
       <Link
-        href={`/${tenantSlug}/my-account/bookings/${booking.bookingId}`}
+        href={backHref}
         className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
       >
         {t('backButton')}

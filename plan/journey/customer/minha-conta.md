@@ -119,11 +119,11 @@ Folder: `customer/prototypes/minha-conta/`
 | `04-fidelidade.html` | Minha Fidelidade — saldo + tabs ganhos/resgates | UC-016 | M13-S29 | ✅ Criado |
 | `04b-fidelidade-empty.html` | Fidelidade — estado vazio (0 pontos) | UC-016 | M13-S29 | ✅ Criado |
 | `05-trocar-empresa.html` | Trocar empresa — seleção de tenant (UC-023 trigger) | UC-023 | M13-S30 | ✅ Criado |
-| `06-reserva-recorrente.html` | Gerenciar reserva recorrente (pular/reagendar/encerrar — sem pausar) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `06-reserva-recorrente.html` | Gerenciar reserva recorrente (pular/reagendar/encerrar — sem pausar) | UC-070 A2 | M23-S12 | ✅ Criado (M23-S12) |
 | `06e-pular-fora-do-prazo.html` | Erro — pular uma ocorrência fora do prazo de cancelamento (decidido em M23-S08: a ocorrência é uma reserva) | UC-070 A2 | M23-S12 | Substituída (2026-10-09): reaproveita a página de erro do cancelamento de qualquer reserva / a tela de prazo vencido de `15j` |
 | `06f-reagendar-fora-do-prazo.html` | Erro — reagendar uma ocorrência fora do prazo de reagendamento | UC-070 A2 | M23-S12 | Substituída (2026-10-09): reaproveita a página de erro do cancelamento de qualquer reserva / a tela de prazo vencido de `15j` |
-| `06g-encerrar-recorrencia.html` | Encerrar a reserva recorrente — página de confirmação (nunca um painel inline) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
-| `06h-recorrencia-encerrada.html` | Reserva recorrente encerrada ou cancelada — detalhe somente leitura; painel com "Renovar" (encerrada) e "Nova reserva recorrente" (M23-S22 / M23-S17) | UC-070 A2 | M23-S12 | ❓ Gap (M23 Cluster 3) |
+| `06g-encerrar-recorrencia.html` | Encerrar a reserva recorrente — página de confirmação (nunca um painel inline) | UC-070 A2 | M23-S12 | ✅ Criado (M23-S12) |
+| `06h-recorrencia-encerrada.html` | Reserva recorrente encerrada ou cancelada — detalhe somente leitura; painel com "Renovar" (encerrada) e "Nova reserva recorrente" (M23-S22 / M23-S17) | UC-070 A2 | M23-S12 | ✅ Criado (M23-S12) |
 | `15-reagendar.html` | Reagendar: escolher o novo horário (data e hora; duração e escolhas mantidas) | UC-069 | M23-S30 | ✅ Criado |
 | `15b-reagendar-escolhas-mantidas.html` | Reagendar: pacote / jornada / profissional escolhido (escolhas mostradas só para leitura) | UC-069 A2 | M23-S30 | ✅ Criado |
 | `15c-carregando-horarios.html` | Carregando horários | UC-069 | M23-S30 | ✅ Criado |
@@ -136,7 +136,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `15j-fora-do-prazo.html` | Erro: reagendamento fora do prazo (422) | UC-069 | M23-S30 | ✅ Criado |
 | `15k-erro-envio.html` | Erro ao enviar (rede / outros) | UC-069 | M23-S30 | ✅ Criado |
 | `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ❓ Gap (M23 Cluster 3) |
-| `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ❓ Gap (M23 Cluster 3) |
+| `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ✅ Criado (M23-S12 — o detalhe de uma recorrência em análise; M23-S17 a reaproveita logo após criar) |
 | `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (decidido em M23-S18: recusa na criação; a API já devolve a lista) | UC-070 A1 | M23-S17 (constrói a tela) | ❓ Gap (M23 Cluster 3) |
 | `07-availability-alert.html` | Meus avisos — lista e cancelar aviso de disponibilidade (sem editar por enquanto) (sem botão de criar: a criação sempre parte do fluxo de agendamento); entrada: link "Meus avisos" em Agendamentos (`01`) | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07b-avisos-vazio.html` | Meus avisos — vazio (orienta a usar "Avise-me quando abrir" ao agendar) | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
@@ -153,8 +153,8 @@ Folder: `customer/prototypes/minha-conta/`
 | `13d-nova-recorrencia-limite.html` | Erro — limite de recorrências ativas (409 A4) | UC-070 A4 | M23-S17 | ❓ Gap (M23 Cluster 3) |
 | `13f-renovar-recorrencia.html` | Renovar — formulário pré-preenchido (A) e aviso de reserva não encontrada sobre o formulário em branco (B, não é uma tela) | UC-070 | M23-S22 | ❓ Gap (M23 Cluster 3) |
 | `13e-nova-recorrencia-erro.html` | Erro — validação do padrão e falha de envio | UC-070 | M23-S17 | ❓ Gap (M23 Cluster 3) |
-| `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status, prazo de cada uma e "Renovar" | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ❓ Gap (M23 Cluster 3) |
-| `14b-recorrentes-lista-vazia.html` | Minhas reservas recorrentes — estado vazio | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ❓ Gap (M23 Cluster 3) |
+| `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status, prazo de cada uma e "Renovar" | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12 — sem "Renovar", sem o botão de criar e sem o menu "+ Novo ▾", que são de M23-S22 / M23-S17) |
+| `14b-recorrentes-lista-vazia.html` | Minhas reservas recorrentes — estado vazio | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12 — sem "Renovar", sem o botão de criar e sem o menu "+ Novo ▾", que são de M23-S22 / M23-S17) |
 | `08-turmas-lista.html` | Minhas Turmas — lista de matrículas | UC-089/091/094/095 | — | ❓ Gap (M24 Cluster 4) |
 | `09-turma-detail.html` | Detalhe da matrícula (turma fixa) | UC-094 | — | ❓ Gap (M24 Cluster 4) |
 | `09b-turma-detail-waitlist.html` | Detalhe — status `WAITLISTED`/`PROMOTION_PENDING` | UC-090/091 | — | ❓ Gap (M24 Cluster 4) |
@@ -254,13 +254,13 @@ flowchart TD
     Agendamentos["/{slug}/my-account/bookings<br/>Agendamentos (real, shipped)"] -->|"Card 'Meus avisos'"| Avisos["❓ GAP: /{slug}/my-account/alerts<br/>Meus avisos (07 / 07b–07e)"]
     Avisos -->|"Toca um aviso"| AvisoDetalhe["❓ GAP: .../alerts/[id]<br/>Detalhe (07f / 07g histórico)"]
     AvisoDetalhe -->|"'Cancelar aviso' (ativo)"| AvisoCancelar["❓ GAP: .../alerts/[id]/cancel<br/>Confirmação (07h / 07i erro)"]
-    Agendamentos -->|"Card 'Reservas recorrentes'"| Lista["❓ GAP: /{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
+    Agendamentos -->|"Card 'Reservas recorrentes'"| Lista["/{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
     Lista -->|"topbar '+ Novo ▾' → 'Reserva recorrente' (any my-account screen; mobile: the same menu in the page)"| Padrao["❓ GAP: .../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
     Lista -->|"'Renovar' (encerrada ou terminando) ou link do e-mail de aviso"| Renovar["❓ GAP: .../recurring-schedules/new?renewFrom=id<br/>Pré-preenchido (13f-renovar-recorrencia)"]
     Renovar -->|"'Revisar'"| Revisar
-    Lista -->|"Clica em uma encerrada ou cancelada"| Terminal["❓ GAP: .../recurring-schedules/[id] (status terminal)<br/>Somente leitura + Renovar / Nova reserva (06h)"]
-    Lista -->|"Clica em uma reserva"| Gerenciar["❓ GAP: .../recurring-schedules/[id]<br/>Detalhe + painel de ações (06-reserva-recorrente)"]
-    Gerenciar -->|"'Encerrar recorrência'"| Encerrar["❓ GAP: .../recurring-schedules/[id]/end<br/>Confirmação (06g-encerrar-recorrencia)"]
+    Lista -->|"Clica em uma encerrada ou cancelada"| Terminal[".../recurring-schedules/[id] (status terminal)<br/>Somente leitura + Renovar / Nova reserva (06h)"]
+    Lista -->|"Clica em uma reserva"| Gerenciar[".../recurring-schedules/[id]<br/>Detalhe + painel de ações (06-reserva-recorrente)"]
+    Gerenciar -->|"'Encerrar recorrência'"| Encerrar[".../recurring-schedules/[id]/end<br/>Confirmação (06g-encerrar-recorrencia)"]
     Encerrar -->|"Confirma"| Lista
     Gerenciar -->|"'Pular esta ocorrência'"| PularOcc["Cancelar a reserva da ocorrência<br/>(03-cancel-confirm; recusa fora do prazo = 03b / 06e)"]
     Gerenciar -->|"'Reagendar esta ocorrência'"| ReagOcc["Reagendar a reserva da ocorrência<br/>(15-reagendar, M23-S30; recusa = 06f)"]

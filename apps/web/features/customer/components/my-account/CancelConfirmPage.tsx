@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { BookingErrorCode, type CustomerBookingDetailResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { cancelBookingAsCustomer } from '@/features/booking/api/customer';
+import { appendReturnTo } from '../../booking-navigation';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -13,11 +14,14 @@ import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 interface CancelConfirmPageProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
+  /** Where the customer came from (e.g. a recurring schedule's page) — success and back return there. */
+  readonly returnTo?: string | null;
 }
 
 export function CancelConfirmPage({
   booking,
   tenantSlug,
+  returnTo = null,
 }: CancelConfirmPageProps): React.JSX.Element {
   const t = useTranslations('customer.cancelConfirm');
   const locale = useResolvedLocale();
@@ -35,8 +39,8 @@ export function CancelConfirmPage({
 
   useEffect(() => {
     setBookingStatus?.(booking.status);
-    setBackHrefOverride?.(`/${tenantSlug}/my-account/bookings/${booking.bookingId}`);
-    setBackLabelOverride?.(t('backToBooking'));
+    setBackHrefOverride?.(returnTo ?? `/${tenantSlug}/my-account/bookings/${booking.bookingId}`);
+    setBackLabelOverride?.(returnTo === null ? t('backToBooking') : t('backToSchedule'));
     return () => {
       setBookingStatus?.(null);
       setBackHrefOverride?.(null);
@@ -45,6 +49,7 @@ export function CancelConfirmPage({
   }, [
     booking.bookingId,
     booking.status,
+    returnTo,
     setBackHrefOverride,
     setBackLabelOverride,
     setBookingStatus,
@@ -57,14 +62,19 @@ export function CancelConfirmPage({
     setErrorMessage(null);
     try {
       await cancelBookingAsCustomer(booking.bookingId);
-      router.push(`/${tenantSlug}/my-account`);
+      router.push(returnTo ?? `/${tenantSlug}/my-account`);
     } catch (err) {
       const code = extractProblemCode(err);
       // Only a genuine cancellation-window expiry gets the dedicated deadline-explanation
       // screen — any other failure (e.g. the booking already reached a terminal status)
       // previously also redirected there, showing a fabricated deadline for the wrong reason.
       if (code === BookingErrorCode.CANCELLATION_WINDOW_EXPIRED) {
-        router.push(`/${tenantSlug}/my-account/bookings/${booking.bookingId}/cancel/error`);
+        router.push(
+          appendReturnTo(
+            `/${tenantSlug}/my-account/bookings/${booking.bookingId}/cancel/error`,
+            returnTo,
+          ),
+        );
         return;
       }
       setErrorMessage(resolveErrorMessage(code, locale));
