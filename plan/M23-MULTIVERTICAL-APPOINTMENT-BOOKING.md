@@ -2097,26 +2097,29 @@ Give staff and managers the UI for UC-074, on the existing booking detail route 
 *Status history.* `03d`, `03f` and `03g` show a history card read from `booking_status_transitions`. No endpoint exposes it yet, so this story extends the booking detail read.
 
 **Decisions already made (state as fact, do not re-derive):**
-1. **The history is part of the booking detail read.** Backend `GET /bookings/:id` (staff-facing detail use case) gains `statusHistory: [{ fromStatus, toStatus, reason, actorType, actorId, occurredAt }]`, ordered by `occurred_at`, tenant-scoped through a new method on S09's `IBookingStatusTransitionRepository` — no new endpoint, no new cross-context port. The customer-facing detail never includes it.
-2. **Actor names are resolved in the BFF** (BFF orchestration is the preferred cross-context read), falling back to the role label ("Gerente" / "Equipe") when an actor cannot be resolved. The backend returns ids only.
+1. **The history is part of the booking detail read.** Backend `GET /bookings/:id` (staff-facing detail use case) gains `statusHistory: [{ fromStatus, toStatus, reason, actorType, actorId, occurredAt }]`, ordered by `occurred_at` with the UUIDv7 `id` as tiebreak (S26 decision 12), tenant-scoped through a new `findByBooking(tenantId, bookingId)` on S09's `IBookingStatusTransitionRepository` — no new endpoint. The customer-facing detail never includes it.
+2. **Actor names are resolved in the backend, not the BFF** (locked at `/story-discovery`, 2026-10-10). The BFF cannot do it: backend `GET /staff` and the BFF `StaffController` are `MANAGER`-only, so a `STAFF` caller of the booking detail would get a `403`, and the list is capped at 100 per page. `GetBookingByIdUseCase` resolves staff names through the **existing** `IBookingStaffPort` / `BookingStaffAdapter` (extended with `findNamesByIds(staffIds, tenantId): Promise<Map<string, string | null>>`, one batched, tenant-scoped read backed by a staff-context use case or repository method) — the last-resort cross-context path, justified because events and BFF orchestration cannot serve a synchronous read for a `STAFF` caller. Each `statusHistory` entry carries `actorName: string | null`: `STAFF`/`MANAGER` → the staff member's name; `CUSTOMER` → the booking's `contactName`; `GUEST` → `"Cliente"`; `SYSTEM` → `"Sistema"` (the last two as i18n-neutral values the web localizes by `actorType`). A staff actor whose name is missing, null or unresolvable returns `null` and the web falls back to the role label ("Gerente" for `MANAGER`, "Equipe" for `STAFF`). The BFF passes the field through unchanged.
 3. **The role comes from the existing session/JWT**, the same source the other role-gated dashboard controls use; the BFF `@Roles` on the routes (S09) is the real enforcement, the hidden button is presentation only.
 4. **Copy and validation are the prototype's** (pt-BR strings verbatim; the correction reason minimum of 10 characters was a prototype proposal — confirm it at this story's discovery).
 5. **No new route and no new page.** The dashboard-section registries (sidebar, proxy, bottom nav, topbar titles) are untouched; the detail route already exists.
 
-**Decisions left for `/story-discovery`:**
-- The correction reason's minimum length (10 as drawn, or just non-empty).
-- Whether a manager who is also the booking's marker sees any difference (no, as drawn).
-- How `BookingDetailPage`'s `ActionState` union grows (`no-show`, `no-show-error`, `correct-…` as named in `dev-notes.md`) and whether `BookingDetailMainBanner` or a new banner owns them.
+6. **The correction reason is trimmed, 10–500 characters** (same minimum as Reject); the confirm button stays disabled until valid.
+7. **A manager who is also the booking's marker sees no difference** from any other manager.
+8. **`ActionState` grows** with `no-show`, `no-show-terminal`, `no-show-not-ended`, `no-show-error`, `correcting`, `corrected`, `correct-error`, `correct-forbidden`. `BookingDetailMainBanner` owns every banner (it already renders the `NO_SHOW` status banner from `booking.status`); `BookingDetailAsideCard` owns the panel and gains a `NO_SHOW` branch (it returns `null` for `NO_SHOW` today, S09) holding the "no action" text, the manager-only "Corrigir para concluído" button and the back-to-agenda action. No new banner component.
+9. **E2E seeding uses a direct-DB helper.** The API rejects a past `scheduledAt` and the e2e suite has no DB access, so an approved booking whose end time has passed cannot be created through the product. The e2e gains a `pg` devDependency and a helper that creates and approves a booking through the normal helpers and then backdates `scheduled_at` with SQL (`apps/web/e2e/helpers/booking/`); the CI Playwright job passes it the DB connection. The `422 BOOKING_NOT_YET_ENDED` banner cannot come from that seed (the backend would accept it), so it is covered by a not-yet-ended booking with the browser clock moved past the end time.
 
 **Backend use case steps:**
-1. `GetBookingByIdUseCase` (staff detail) reads the booking's transitions through `IBookingStatusTransitionRepository.findByBooking(tenantId, bookingId)` and returns them as `statusHistory`; the customer read is unchanged.
+1. `GetBookingByIdUseCase` (staff detail) reads the booking's transitions through `IBookingStatusTransitionRepository.findByBooking(tenantId, bookingId)`.
+2. It collects the distinct `STAFF`/`MANAGER` actor ids, resolves them in one call to `IBookingStaffPort.findNamesByIds(staffIds, tenantId)`, and maps `CUSTOMER`/`GUEST`/`SYSTEM` actors per decision 2.
+3. It returns the entries as `statusHistory`; the customer read is unchanged and never loads the transitions.
 
 **Backend HTTP surface:** extends `GET /bookings/:id` (response gains `statusHistory`); no new route.
-**BFF endpoint spec:** `GET /bookings/:id` (existing staff detail) passes `statusHistory` through `bookings.mapper.ts`, resolving `actorName` per decision 2; `@ikaro/types` gains the `BookingStatusHistoryEntry` type and the detail DTO field. The no-show and correct routes already exist (S09).
+**BFF endpoint spec:** `GET /bookings/:id` (existing staff detail) passes `statusHistory` (with its backend-resolved `actorName`) through `bookings.mapper.ts` with no extra backend call; `@ikaro/types` gains the `BookingStatusHistoryEntry` type and the detail DTO field. The no-show and correct routes already exist (S09).
 **New migration / i18n keys / env vars / feature flags:** no migration; new `web.json` keys in both `pt-BR` and `en` for the action, the two sheets, the banners, the history card and the customer notice; the two error codes already exist (S09); no env var, no feature flag.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/application/ports/booking-status-transition-repository.port.ts`, `infrastructure/repositories/typeorm-booking-status-transition.repository.ts` (+ specs, + integration spec), `apps/backend/src/test/repositories/booking/in-memory-booking-status-transition.repository.ts` (modify — `findByBooking`)
+- `apps/backend/src/contexts/booking/application/ports/booking-staff.port.ts`, `infrastructure/cross-context/booking-staff.adapter.ts` (+ spec) (modify — `findNamesByIds`), the staff-context batched read it calls (+ spec, + integration spec), `apps/backend/src/test/` in-memory/double for `IBookingStaffPort` if one exists; `packages/architecture-check/architecture-policy.json` only if the new call adds a cross-context edge the existing `booking-staff.adapter.ts` entry does not cover (needs an explicit yes)
 - `apps/backend/src/contexts/booking/application/use-cases/get-booking-by-id.use-case.ts` (+ spec), its controller (+ specs) and `apps/backend/http/booking/bookings.http` (modify)
 - `apps/bff/src/features/booking/bookings.mapper.ts`, `bookings.types.ts`, `bookings.controller.ts` (+ specs), `apps/bff/http/booking/bookings.http` (modify); `packages/types/src/booking.dto.ts` (modify)
 - `apps/web/features/booking/api/booking.ts` (+ spec) and `apps/web/features/booking/hooks/useBookingMutations.ts` (+ spec) (modify — `markNoShow`, `correctNoShow`)
@@ -2124,7 +2127,7 @@ Give staff and managers the UI for UC-074, on the existing booking detail route 
 - `apps/web/features/booking/components/dashboard/bookings/BookingActionPanel.tsx`, `BookingDetailSheets.tsx`, `BookingDetailMainBanner.tsx`, `BookingDetailAsideCard.tsx`, `BookingDetailPage.tsx` (+ specs) (modify)
 - `apps/web/features/customer/components/my-account/BookingDetailMain.tsx`, `BookingDetailPage.tsx` (+ specs) (modify — the `02f` notice)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify)
-- the Playwright spec and helpers under `apps/web/e2e/` for the staff booking lifecycle (modify/new)
+- the Playwright specs and helpers under `apps/web/e2e/` (new `staff-no-show.spec.ts`; new `apps/web/e2e/helpers/booking/` DB-backdate helper and a seeded-`NO_SHOW` helper), `apps/web/package.json` + `pnpm-lock.yaml` (modify — `pg`, `@types/pg` devDependencies) and `.github/workflows/pr-tests.yml` (modify — the Playwright step gets the DB connection); both config edits need an explicit yes
 - `plan/journey/staff/prototypes/agenda/dev-notes.md`, `plan/journey/staff/agenda.md`, `plan/journey/customer/minha-conta.md` (modify — flip the ❓ Gap rows to ✅ Criado)
 
 **Acceptance criteria — product:**
@@ -2141,17 +2144,22 @@ Give staff and managers the UI for UC-074, on the existing booking detail route 
   - [ ] "Corrigir para concluído" renders for a manager and is absent for staff
   - [ ] `BookingStatusHistory` renders the entries in order with actor names and the role-label fallback
   - [ ] The customer detail renders the `02f` notice and never the reason; both locales render every new string
-  - Backend/BFF: `statusHistory` is returned ordered and tenant-scoped and is absent from the customer read; the mapper resolves names and falls back to the role label
+  - Backend/BFF: `statusHistory` is returned ordered and tenant-scoped and is absent from the customer read; staff actors get their name, `CUSTOMER` the contact name, `GUEST`/`SYSTEM` their labels, and an unresolvable staff actor `actorName: null` (the web renders the role label)
+  - `findNamesByIds` is one batched tenant-scoped call and returns `null` for an unknown or nameless staff id
 - Integration (backend/BFF only):
-  - [ ] `GET /bookings/:id` returns the history rows written by S09/S26 for that booking and none from another booking
+  - [ ] `GET /bookings/:id` returns the history rows written by S09/S26 for that booking and none from another booking, in `occurred_at`/`id` order
+  - [ ] `findNamesByIds` never returns a staff name from another tenant
+  - [ ] A `STAFF` (not manager) caller receives the history with resolved names (no `403`)
 - Tenant isolation:
   - [ ] Tenant A's booking history is never returned to a Tenant B caller (`404` on the detail read)
-- E2E:
-  - [ ] Playwright, `/dashboard/bookings/:id`: staff marks a seeded ended appointment as a no-show and sees the inline state
-  - [ ] Playwright, same route: a seeded not-yet-ended appointment shows the action disabled with the hint
-  - [ ] Playwright, same route: a manager opens a seeded `NO_SHOW` booking, corrects it with a reason, and sees the points and the updated history
-  - [ ] Playwright, same route: a staff member opens a seeded `NO_SHOW` booking and sees no correction button
-  - [ ] Playwright, `/{slug}/my-account`: the customer sees the no-show in history and opens the read-only detail
+- E2E (Playwright, real stack, in `apps/web/e2e/staff-no-show.spec.ts`; every approved-and-ended booking is seeded by the DB-backdate helper, decision 9):
+  - [ ] Staff marks an ended appointment as a no-show with a reason, then without one, and sees the inline "Não compareceu" state and the history card
+  - [ ] A not-yet-ended appointment shows the action disabled with the "Disponível após o término do atendimento (HH:mm)" hint in the tenant timezone
+  - [ ] With the browser clock moved past the end time of a not-yet-ended booking, submitting returns `422` and shows the `#rejeitado` banner with the booking unchanged
+  - [ ] A manager corrects a seeded `NO_SHOW` booking: confirm stays disabled until the trimmed reason has 10–500 characters, then the success state names the points awarded and the history shows the correction
+  - [ ] A staff member opens a seeded `NO_SHOW` booking and the correction button is absent from the DOM
+  - [ ] `/{slug}/my-account`: the customer sees the no-show in history as "Não compareceu", opens the read-only `02f` detail with no actions, and never sees the internal reason
+  - [ ] A user of another tenant opening the booking gets the not-found page (tenant isolation, end to end)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
