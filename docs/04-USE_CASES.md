@@ -1138,6 +1138,7 @@ Returns:
   - **A3: A required intake question or the consent checkbox is left unanswered** → The form validates the displayed schema client-side and shows an inline error on each missing field. If the server rejects anyway (`422 BOOKING_INTAKE_ANSWER_MISSING`), the response names the fields only in `detail`, so the form shows a summary banner without field highlights and keeps every answer.
   - **A4: `serviceIds` contains more than one intake-bearing and/or `CUSTOMER_SELECTED` service** → same `422` rejection as UC-067 A4 — one shared basket-scope rule for both extensions.
   - **A5: `intakeAnswers`/`attendees` are submitted for a service with no active intake schema** → Silently ignored (not persisted, not an error) — the precondition never applied, so there is nothing to validate against.
+  - **A6: Staff book on the customer's behalf (UC-108)** → the intake is optional for staff: no required answer, consent, participant count or attendees is demanded (UC-108 A7). Everything above applies to a customer or guest booking unchanged.
 - **Postconditions:** Historical bookings remain readable under the form version used at submission.
 - **Events Triggered:** None beyond the resulting booking-request event.
 

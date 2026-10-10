@@ -50,6 +50,9 @@ export class BookingIntakeValidationService {
   ): Promise<ResolvedIntake> {
     const activeSchema = await this.intakeSchemaRepo.findActiveByServiceId(serviceId, tenantId);
     if (!activeSchema) return NO_INTAKE;
+    // An untouched text field arrives as "" or spaces; staff did not answer it, so it is neither
+    // a submission nor something to store.
+    const submitted = options.intakeOptional ? withoutBlankAnswers(input) : input;
 
     // The version is checked before deciding whether anything was submitted, so a version that
     // never existed is refused even when it is the only thing staff sent.
@@ -57,28 +60,28 @@ export class BookingIntakeValidationService {
       serviceId,
       tenantId,
       activeSchema,
-      input.intakeSchemaVersion,
+      submitted.intakeSchemaVersion,
     );
-    if (options.intakeOptional && !hasIntakeSubmission(input)) return NO_INTAKE;
+    if (options.intakeOptional && !hasIntakeSubmission(submitted)) return NO_INTAKE;
 
     this.validateAnswers(
       schema,
-      input.intakeAnswers ?? {},
-      input.participantCount,
+      submitted.intakeAnswers ?? {},
+      submitted.participantCount,
       options.intakeOptional,
     );
-    if (!input.consentAccepted && !options.intakeOptional) {
+    if (!submitted.consentAccepted && !options.intakeOptional) {
       throw new BookingIntakeAnswerMissingError(['consentAccepted']);
     }
 
     return {
       intake: {
         intakeSchemaVersion: schema.version,
-        intakeAnswers: input.intakeAnswers ?? {},
-        consentAcceptedAt: input.consentAccepted ? new Date() : null,
-        consentVersion: input.consentAccepted ? schema.consentVersion : null,
+        intakeAnswers: submitted.intakeAnswers ?? {},
+        consentAcceptedAt: submitted.consentAccepted ? new Date() : null,
+        consentVersion: submitted.consentAccepted ? schema.consentVersion : null,
       },
-      attendeeInputs: schema.requiresNamedAttendees ? (input.attendees ?? []) : [],
+      attendeeInputs: schema.requiresNamedAttendees ? (submitted.attendees ?? []) : [],
     };
   }
 
@@ -141,4 +144,13 @@ function hasIntakeSubmission(input: IntakeSubmissionInput): boolean {
     (input.attendees?.length ?? 0) > 0 ||
     input.participantCount !== undefined
   );
+}
+
+function withoutBlankAnswers(input: IntakeSubmissionInput): IntakeSubmissionInput {
+  const answers = Object.fromEntries(
+    Object.entries(input.intakeAnswers ?? {}).filter(
+      ([, value]) => typeof value !== 'string' || value.trim() !== '',
+    ),
+  );
+  return { ...input, intakeAnswers: answers };
 }

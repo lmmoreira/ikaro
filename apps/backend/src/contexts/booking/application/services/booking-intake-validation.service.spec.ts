@@ -363,6 +363,33 @@ describe('BookingIntakeValidationService', () => {
       });
     });
 
+    it('treats blank and whitespace-only text answers as not submitted', async () => {
+      await repo.publish(strictSchema());
+
+      const result = await service.resolve(
+        SERVICE_ID,
+        TENANT_ID,
+        { intakeAnswers: { vehiclePlate: '', hasPet: '   ' } },
+        optional,
+      );
+
+      expect(result.intake).toBeNull();
+    });
+
+    it('keeps the answers staff filled in and drops the blank ones next to them', async () => {
+      const schema = strictSchema();
+      await repo.publish(schema);
+
+      const result = await service.resolve(
+        SERVICE_ID,
+        TENANT_ID,
+        { intakeAnswers: { vehiclePlate: 'ABC1D23', hasPet: '' } },
+        optional,
+      );
+
+      expect(result.intake?.intakeAnswers).toEqual({ vehiclePlate: 'ABC1D23' });
+    });
+
     it('keeps the attendees staff entered when the schema asks for named attendees', async () => {
       await repo.publish(strictSchema());
 

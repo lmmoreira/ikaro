@@ -55,6 +55,7 @@ describe('CreateBookingByStaffSchema', () => {
     ['a non-uuid customerId', { ...base, customerId: 'not-a-uuid' }],
     ['a phone that is not E.164', { ...base, ...guest, contactPhone: '31977777777' }],
     ['an empty service list', { ...base, customerId: CUSTOMER_ID, serviceIds: [] }],
+    ['a contact name over 255 characters', { ...base, ...guest, contactName: 'a'.repeat(256) }],
     ['an invalid scheduledAt', { ...base, customerId: CUSTOMER_ID, scheduledAt: 'tomorrow' }],
   ])('rejects %s', (_label, body) => {
     expect(CreateBookingByStaffSchema.safeParse(body).success).toBe(false);

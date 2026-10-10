@@ -471,7 +471,8 @@ const StaffBookingForCustomerSchema = z.strictObject({
 const StaffBookingForGuestSchema = z.strictObject({
   ...staffBookingShape,
   contactEmail: z.email(),
-  contactName: z.string().min(1),
+  // bookings.contact_name is VARCHAR(255): an oversized name is a 400, not a database error.
+  contactName: z.string().min(1).max(255),
   contactPhone: z.string().refine((v) => isValidPhoneNumber(v), {
     error: 'contactPhone must be in E.164 format',
     params: { code: PhoneErrorCode.FORMAT_INVALID },

@@ -12,12 +12,14 @@ import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booki
 import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingCustomerNotFoundError,
   BookingScheduledInPastError,
   BookingServiceSessionNotBookableError,
+  BookingDurationOutOfRangeError,
   BookingIntakeAnswerMissingError,
   BookingSlotUnavailableError,
   BookingTooFarAheadError,
@@ -417,6 +419,153 @@ describe('CreateBookingByStaffUseCase', () => {
       const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
       expect(saved!.intake!.consentAcceptedAt).toBeInstanceOf(Date);
       expect(saved!.intake!.consentVersion).toBe(1);
+    });
+  });
+
+  // The staff entry point must hand the booking-flow fields to the same shared steps a customer's
+  // request uses; these pin that wiring (the steps themselves are covered through the other two
+  // use cases).
+  describe('booking-flow fields reach the shared steps', () => {
+    it('applies a customer-selected duration and quotes the price', async () => {
+      const variable = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 60,
+          pricePerIncrementAmount: 50,
+          minimumChargeAmount: null,
+        })
+        .build();
+      await serviceRepo.save(variable);
+
+      const result = await useCase.execute({
+        ...customerInput(),
+        serviceIds: [variable.id],
+        durationMinutes: 90,
+      });
+
+      expect(result.lines[0].durationMinsAtBooking).toBe(90);
+      expect(result.lines[0].priceAtBooking.amount).toBe(100);
+    });
+
+    // Not an intake field: staff are not exempt from choosing a duration.
+    it('still requires a duration for a customer-selected-duration service', async () => {
+      const variable = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 30,
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 60,
+          pricePerIncrementAmount: 50,
+          minimumChargeAmount: null,
+        })
+        .build();
+      await serviceRepo.save(variable);
+
+      await expect(
+        useCase.execute({ ...customerInput(), serviceIds: [variable.id] }),
+      ).rejects.toBeInstanceOf(BookingDurationOutOfRangeError);
+    });
+
+    it('books the resource staff picked for a customer-choice requirement', async () => {
+      const rooms = [
+        new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build(),
+        new ResourceBuilder().withTenantId(TENANT_A).withType(ResourceType.ROOM).build(),
+      ];
+      for (const room of rooms) await resourceRepo.save(room);
+      const roomService = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.ROOM,
+            selectionMode: 'CUSTOMER_CHOICE',
+          }),
+        ])
+        .build();
+      await serviceRepo.save(roomService);
+
+      const result = await useCase.execute({
+        ...customerInput(),
+        serviceIds: [roomService.id],
+        resourceSelections: [
+          {
+            serviceId: roomService.id,
+            legIndex: null,
+            resourceType: ResourceType.ROOM,
+            resourceId: rooms[1].id,
+          },
+        ],
+      });
+
+      const occupancy = await occupancyRepo.findOccupancyByBookingLines(
+        TENANT_A,
+        result.lines.map((l) => l.lineId),
+      );
+      expect(occupancy.map((o) => o.resourceId)).toEqual([rooms[1].id]);
+    });
+
+    it('stores the named attendees and participant count staff entered', async () => {
+      const groupService = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(groupService);
+      await intakeSchemaRepo.publish(
+        ServiceBookingIntakeSchema.publish({
+          tenantId: TENANT_A,
+          serviceId: groupService.id,
+          previousVersion: 0,
+          questions: [],
+          consentText: 'Aceito os termos',
+          requiresNamedAttendees: true,
+          participantCountRequired: true,
+        }),
+      );
+
+      const result = await useCase.execute({
+        ...customerInput(),
+        serviceIds: [groupService.id],
+        participantCount: 2,
+        attendees: [{ name: 'Ana' }, { name: 'Bia', isMinor: true }],
+      });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.participantCount).toBe(2);
+      expect(saved!.attendees.map((a) => [a.name, a.isMinor])).toEqual([
+        ['Ana', false],
+        ['Bia', true],
+      ]);
+    });
+
+    it('stores no intake when staff send only blank text answers', async () => {
+      const blankService = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(blankService);
+      await intakeSchemaRepo.publish(
+        ServiceBookingIntakeSchema.publish({
+          tenantId: TENANT_A,
+          serviceId: blankService.id,
+          previousVersion: 0,
+          questions: [
+            { fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true },
+          ],
+          consentText: 'Aceito os termos',
+          requiresNamedAttendees: false,
+          participantCountRequired: false,
+        }),
+      );
+
+      const result = await useCase.execute({
+        ...customerInput(),
+        serviceIds: [blankService.id],
+        intakeAnswers: { vehiclePlate: '   ' },
+      });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.intake).toBeNull();
     });
   });
 });

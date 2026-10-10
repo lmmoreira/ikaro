@@ -53,30 +53,6 @@ export interface AuthenticatedBookingRequest extends BookingFlowRequestFields {
   beforeServicePhotoUrls?: string[];
 }
 
-// M23-S39 (UC-108) — staff books on a customer's behalf. Exactly one of `customerId` (a customer of
-// the tenant) or the contact trio (a person not in the system, booked as a guest) is sent; the
-// acting staff id comes from the session, never the body.
-interface StaffBookingRequestBase extends BookingFlowRequestFields {
-  scheduledAt: string; // ISO-8601 datetime
-  serviceIds: string[];
-  pickupAddress?: Address;
-  notes?: string;
-}
-
-export interface CreateBookingForCustomerByStaffRequest extends StaffBookingRequestBase {
-  customerId: string;
-}
-
-export interface CreateBookingForGuestByStaffRequest extends StaffBookingRequestBase {
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string;
-  contactAddress?: Address;
-}
-
-export type CreateBookingByStaffRequest =
-  CreateBookingForCustomerByStaffRequest | CreateBookingForGuestByStaffRequest;
-
 // One leg's resolved schedule/resource entry on a legged-service booking line.
 export interface BookingLineItineraryLegResponse {
   legIndex: number;
