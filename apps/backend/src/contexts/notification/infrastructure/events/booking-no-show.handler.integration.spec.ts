@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { IEventBus } from '../../../../shared/ports/event-bus.port';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
+import { BookingCompletedEventBuilder } from '../../../../test/builders/booking/booking-completed-event.builder';
 import { BookingNoShowEventBuilder } from '../../../../test/builders/booking/booking-no-show-event.builder';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
@@ -119,6 +120,27 @@ describe('Story: BookingNoShow → customer email (integration)', () => {
     await eventBus.publish(event);
 
     expect(dispatcher.dispatched.map((m) => m.to)).toEqual(['guest@example.com']);
+  });
+
+  it('a manager correcting the no-show to COMPLETED sends no second email', async () => {
+    const noShow = new BookingNoShowEventBuilder()
+      .withTenantId(tenantA.tenantId)
+      .withContactEmail('corrected@example.com')
+      .build();
+    const correction = new BookingCompletedEventBuilder()
+      .withTenantId(tenantA.tenantId)
+      .withContactEmail('corrected@example.com')
+      .build();
+
+    await eventBus.publish(noShow);
+    await eventBus.publish(correction);
+
+    expect(dispatcher.dispatched.filter((m) => m.to === 'corrected@example.com')).toHaveLength(1);
+    const noShowLogs = await ds
+      .getRepository(NotificationLogEntity)
+      .find({ where: { tenantId: tenantA.tenantId, notificationType: KEY } });
+    expect(noShowLogs.filter((l) => l.eventId === noShow.eventId)).toHaveLength(1);
+    expect(noShowLogs.some((l) => l.eventId === correction.eventId)).toBe(false);
   });
 
   it('replaying the same event sends nothing more', async () => {
