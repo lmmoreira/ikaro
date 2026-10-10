@@ -1198,7 +1198,7 @@ Build the preset-selection + minimum-answer wizard from the relocated prototype,
 
 ---
 
-### M23-S12 — Customer "Minha Conta": recurring reservations — list, detail, end, and the Agendamentos entry
+### M23-S12 — Customer "Minha Conta": recurring reservations — list, detail, end, and the Agendamentos entry ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
