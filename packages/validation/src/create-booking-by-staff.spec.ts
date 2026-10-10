@@ -1,4 +1,4 @@
-import { CreateBookingByStaffSchema } from './create-booking-by-staff.dto';
+import { CreateBookingByStaffSchema } from './booking';
 
 const SERVICE_ID = '30000000-0000-4000-8000-000000000391';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000391';

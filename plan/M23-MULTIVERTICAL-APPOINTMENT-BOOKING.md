@@ -3135,6 +3135,14 @@ Add the server side of UC-108. A staff member books a one-off appointment for so
 - `apps/backend/http/booking/bookings.http`, `apps/bff/http/booking/bookings.http`, and the customers `.http` files (modify)
 - Docs (already updated 2026-10-08 with the UC-108 promotion; the story re-checks them): `docs/04-USE_CASES.md`, `docs/02-DOMAIN_MODEL.md`, `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md`
 
+**Shipped differently from the list above (recorded at `/pre-pr`, 2026-10-10):**
+- **The request-body schema is shared, not duplicated.** `CreateBookingByStaffSchema` lives in `packages/validation/src/booking.ts` (+ `create-booking-by-staff.spec.ts` there) and is imported by both the backend DTO (`create-booking-by-staff.dto.ts`, now a re-export) and the BFF (`StaffBookingBodySchema`), instead of the two hand-written copies the story's file list implied (`/bad-smell-audit bff --pr` BFF-5).
+- **Shared steps live in a new file.** The extracted service-resolution, customer-lookup and pickup-fallback helpers are in `booking-request-subject.helpers.ts` (+ spec), not `booking-request.helpers.ts`, which would have passed the 250-line cap. `resolveBookableServices` / `findCustomerWithPhone` / `resolvePickupAddress` are the three exports.
+- **`persistRequestedBooking` gained `occupancyLockState`** (`'HOLD'` default, `'COMMITTED'` for a booking created `APPROVED`); the story did not list it, but an `APPROVED` booking needs COMMITTED occupancy from its first insert.
+- **No `bookings.mapper.ts`, `bookings.types.ts`, `customers.mapper.ts` or `customers.schemas.ts` change.** The BFF has no customer mapper — its search controller spreads the backend item, so `phone` flows through once `customers.types.ts` and `@ikaro/types` declare it — and the booking response shape is unchanged.
+- **`customer.controller.ts` is unchanged** (the route already passes `search` through); `typeorm-customer.repository.ts` now builds the search with a query builder.
+- **Also touched:** `apps/backend/eslint.config.js` (the new migration joins the reviewed `TYPEORM_BYPASS` allowlist, like every migration before it), `customer.entity.ts` (the `default_address` column is typed `AddressProps | null`, removing two `as unknown as` casts that `/pre-pr` check 12 flagged in the repository), `apps/backend/src/test/integration-global-setup.ts` (the migration), the customer `CustomerBuilder.withPhone()`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` and `LoyaltySearchResults.spec.tsx` (its fixture needed the now-required `phone`).
+
 **Acceptance criteria — product:**
 - [ ] A staff member can book an appointment for an existing customer; the booking is `APPROVED` at once and the customer receives the confirmation email.
 - [ ] A staff member can book for a person who is not in the system by giving name, phone and email; it is a guest booking, `APPROVED` at once, and that person receives the confirmation email.
