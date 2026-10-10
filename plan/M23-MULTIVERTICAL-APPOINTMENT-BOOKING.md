@@ -1746,52 +1746,67 @@ A fixed-term recurring schedule ends by itself, and a customer who still wants t
 
 ### M23-S22 — Customer renews an ending recurring schedule ("Renovar")
 
-**Agent:** frontend-ts
+**Agent:** frontend-ts (+ a small backend/BFF/types read addition, decided at discovery 2026-10-10)
 **Complexity:** M
 **Docs to load:** docs/04-USE_CASES.md UC-070, docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md (customer-account equivalent), docs/24-BFF_ARCHITECTURE.md § Web → BFF Transport Layer, docs/14-API_CONTRACTS.md § Recurring Private Reservation Schedules, docs/ENGINEERING_RULES_FRONTEND.md, docs/ENGINEERING_RULES_SHARED.md § Authoring new i18n UI copy keys, docs/08-TESTING_STRATEGY.md § apps/web Testing Infrastructure
-**Dependencies:** M23-S17 (the creation route, form, validation and outcome mapping this story pre-fills), M23-S12 (the recurring-schedules list this story adds the button to), M23-S21 (the email deep link and the `renewable` flag), M23-S42 (the by-id read), M23-S05 (the `ENDED` status the list shows)
+**Dependencies:** M23-S17 (the creation route, form, validation and outcome mapping this story pre-fills), M23-S12 (the recurring-schedules list this story adds the button to), M23-S42 (the by-id read), M23-S05 (the `ENDED` status the list shows). **M23-S21 is not a dependency of this story (decided 2026-10-10):** its `renewable` flag and its email only add a second entry point to the same `?renewFrom` pre-fill, so S22 ships first with "Renovar" on `ENDED` schedules and S21 (the email) lands on top; the "Renovar" on an `ACTIVE` schedule about to end moves to M23-S41 (see its scope note).
 **Note (M23-S35, 2026-10-08):** the "Renovar" form must send `renewsScheduleId` (the schedule being renewed) with the same service, weekdays, start time and duration, and a `startsOn` no later than that schedule's `endsOn` plus one day; only then does the backend skip the minimum-notice and maximum-days checks. A renewal made after the old term started books only the future occurrences (S35 decision 5), and a request that does not qualify is simply treated as a new schedule, so the form must not rely on the exemption for correctness.
 **Pattern:** plain composition — a pure pre-fill mapper feeding S17's existing form, plus one button; no new pattern.
 
 
 **Description:**
-Because a recurring schedule is fixed-term, a customer who wants to continue creates a new one. This story removes the retyping: a "Renovar" action on the recurring-schedules list — the small blue inline text action under the row's meta, per M23-S12's list row pattern, not a separate button (on an ended schedule, and on an active one whose term is about to end), and the reminder email's deep link `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>`, both open M23-S17's creation form pre-filled from the schedule being renewed — the same service, weekdays, time and, for a fixed-resource schedule, the same resource; the new start date defaults to the day after the old `endsOn` (or today if that is past), and the end date is left for the customer to choose within the service's maximum term. Nothing is created until the customer confirms through S17's normal review step, so every check S18 makes still applies to the renewal exactly as to any new schedule.
+Because a recurring schedule is fixed-term, a customer who wants to continue creates a new one. This story removes the retyping: a "Renovar" action on an **ended** schedule — the small blue inline text action under the row's meta in the recurring list (`14`), per M23-S12's list row pattern, not a separate button, and the primary button in the ended schedule's detail pane (`06h`) — opens M23-S17's creation form pre-filled from the schedule being renewed (`13f`): the same service, weekdays, time and, for a fixed-resource schedule, the same resource. The new start date defaults to the day after the old `endsOn` (or today if that is past), and the end date is left empty for the customer to choose within the service's maximum term. Nothing is created until the customer confirms through S17's normal review step. The same pre-fill is reached by the URL `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>`, which the reminder email (M23-S21) and the Início card (M23-S41) link to; a link that cannot be honored opens the blank form with a one-line notice above it (`13f` state B: "Não encontramos a reserva que você queria renovar. Você pode criar uma nova reserva recorrente abaixo.").
 
 **Decisions already made (state as fact, do not re-derive):**
-1. **No new route.** It is S17's `new` route with an optional `renewFrom` query parameter; the pre-fill is a pure function of the old schedule, kept free of `CustomerShell` imports like S17's other helpers.
-2. **The customer's own schedules only.** An unknown id, another customer's id or a schedule whose service is no longer eligible falls back to the blank form with a one-line notice — never an error page, never data from a schedule the caller does not own.
+1. **No new route.** It is S17's `new` route with an optional `renewFrom` query parameter. The route (a server component) reads the schedule, builds the pre-fill and passes it to S17's existing `NewRecurringSchedulePage` through its `initialDraft` prop plus a new `renewal` prop (`{ scheduleId, serviceName, previous: { recurrence line, startsOn, endsOn } }`) for the banner; the pre-fill is a pure function, kept free of `CustomerShell` imports like S17's other helpers.
+2. **Which schedules are renewable here:** only the caller's own `ACTIVE` or `ENDED` schedule whose service is still in the recurrence-eligible list. An unknown id, another customer's id (the by-id read answers `404` for both), a `PENDING_APPROVAL` or `CANCELLED` schedule, or a schedule whose service is no longer eligible falls back to the blank form with the notice — never an error page, never data from a schedule the caller does not own. A `401`/`403` from the read still redirects to the login, like every other account route. The list and the detail show "Renovar" **only on `ENDED`** in this story (no age limit: a schedule that ended long ago simply meets the normal booking window); no "Renovar" on `PENDING_APPROVAL`, `CANCELLED`, and — until M23-S41 adds it behind S21's `renewable` flag — `ACTIVE`.
 3. **Renewal is a new schedule**, not an extension: the old one stays as history, `ENDED`.
-4. **Design system:** `CustomerShell` (Tailwind + shadcn), never `--ba-*`; all copy through `useTranslations()` with keys in both locale files.
-5. **The by-id read comes from M23-S42** (`GET /recurring-booking-schedules/:id`); this story adds no backend or BFF work — the `renewable` flag on the list item that decides when "Renovar" shows is added by M23-S21 (which owns the lead time), and the service name by M23-S42.
+4. **The fixed resource needs the read to carry it (found at discovery, 2026-10-10).** The schedule result (list item and by-id read) exposed `assignmentPolicy` but not the resource, and `toRecurringBookingScheduleResult` dropped `schedule.resourceAssignments`. This story adds `resourceIds: string[]` to the result (the schedule's current assignments, so a manager's reassignment is honored; empty for `RESOLVE_PER_OCCURRENCE`), through the BFF pass-through and `@ikaro/types`; `docs/14-API_CONTRACTS.md` is updated in the same change. The only backend change; no migration, no new endpoint.
+5. **The request carries `renewsScheduleId`** (added to `CreateRecurringBookingScheduleRequest` in `@ikaro/types`; the BFF and backend already accept it through the shared `@ikaro/validation` schema). The backend treats the request as a renewal only when it keeps the service, weekdays, start time and duration and starts no later than the old `endsOn` + 1 day, and otherwise as a new schedule that meets the booking window (see the M23-S35 note above), so the form never relies on the exemption for correctness.
+6. **`Começa em` stays editable (min = today, as in S17) and S17's client-side first-occurrence window check (`checkFirstOccurrence`) is skipped in renewal mode.** That check enforces minimum notice and maximum days ahead, which the backend exempts for a qualifying renewal, so keeping it would refuse valid renewals (an active schedule ending tomorrow whose first new occurrence is hours away). No frontend copy of the backend's renewal rule: if the customer changes the pattern so it no longer qualifies, the backend's `422` is already mapped by S17 to the pattern-refusal notice. (This replaces the 2026-10-10 journey note that put a minimum of "old `endsOn` + 1" on the field — the exemption needs `startsOn` *no later than* that day, and an earlier start on a still-active schedule collides with its own occurrences.)
+7. **A non-throwing by-id reader** beside `fetchCustomerRecurringScheduleOrRedirect` (it calls `notFound()` on `404`, which the fallback cannot use): same `GET /recurring-booking-schedules/:id` (M23-S42), returns `null` on `404`, redirects to the login on `401`/`403`, rethrows anything else. "Today" for the default start date is the tenant-local date from the manifest timezone, computed the way the detail route does.
+8. **Design system:** `CustomerShell` (Tailwind + shadcn), never `--ba-*`; the date and select controls are S17's existing ones; all copy through `useTranslations()` with keys in both locale files.
 
-**Decisions left for `/story-discovery`:**
-- **When the list shows "Renovar" on an `ACTIVE` schedule** (proposal: only when its term ends within the tenant's reminder lead time, so the button appears when the email would have been sent).
-- **Prototype:** drawn (2026-09-29) — `13f` (state A: the pre-filled form with the "Renovando sua reserva de …" banner; state B: the not-found notice over the blank `13` form), the "Renovar" entry points on `14`, `06` and `06h`. Two points to settle at discovery and reflect back into the prototype: (1) which service/term rules lock the `Começa em` field — keep it editable but with the minimum at the old `endsOn` + 1 day, so the renewal exemption of the note above stays reachable; (2) the "Renovar" visibility rule on an `ACTIVE` schedule, which reads the `renewable` flag owned by M23-S21 (S22 owns only the button).
+**Decisions left for `/story-discovery`:** none — all settled 2026-10-10.
 
-**Prototype references:** `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/` — `13f-renovar-recorrencia.html` (renewal form, states A/B), `14-recorrentes-lista.html` (list "Renovar"), `06-reserva-recorrente.html` (active detail), `06h-recorrencia-encerrada.html` (ended detail).
-**New migration / i18n keys / env vars / feature flags:** i18n keys in `packages/i18n/locales/{pt-BR,en}/web.json` for the button, the banner and the notice; no migration, env var or feature flag.
+**Prototype references:** `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/` — `13f-renovar-recorrencia.html` (renewal form, states A/B), `14-recorrentes-lista.html` (list "Renovar" — the `ENDED` rows only in this story), `06h-recorrencia-encerrada.html` (ended detail); `06-reserva-recorrente.html` (active detail) is **not** changed by this story (its "Renovar" belongs to M23-S41). The reminder email has no screen.
+**Pattern:** plain composition — a pure pre-fill mapper feeding S17's existing form, plus the "Renovar" links; no new pattern.
+**UI reuse:** the form, its date field (`NewRecurringScheduleDateField` over the shared `Popover` + `Calendar`), the service/resource selects, the review step and the conflict list are all S17's; the banner and the notice are plain text blocks; "Renovar" is the list row's small inline action and the detail pane's existing primary button style (`RecurringScheduleDetail`).
+**New migration / i18n keys / env vars / feature flags:** i18n keys in `packages/i18n/locales/{pt-BR,en}/web.json` under `customer.recurringSchedules` for the "Renovar" action, the banner (title with the service name, and the line with the previous term) and the not-found notice; no migration, env var or feature flag.
 
-**Files to create/modify:** (paths to be confirmed against what M23-S12 and M23-S17 actually ship — verify each at discovery, do not assume)
-- `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` (+ spec) (modify — the "Renovar" action)
-- the creation form and route from M23-S17 (modify — read `renewFrom`, apply the pre-fill, show the banner and the fallback notice) (+ specs)
-- `apps/web/features/customer/utils/` or `hooks/` — a new pure pre-fill mapper (+ spec) and `useRecurringSchedule(id)` (+ spec) if a by-id hook does not exist
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-result.helpers.ts` (+ spec) and `list-recurring-booking-schedules.use-case.spec.ts` / `get-recurring-booking-schedule.use-case.spec.ts` (modify — `resourceIds` on the result)
+- `packages/types/src/recurring-booking-schedule.dto.ts` (modify — `resourceIds` on the list item; `renewsScheduleId?` on the create request); `apps/bff/src/features/booking/recurring-booking-schedules.types.ts` (modify only if it restates the item)
+- `docs/14-API_CONTRACTS.md` (modify — the item shape, `resourceIds`)
+- `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` (modify — read `renewFrom`, build the pre-fill, pass `initialDraft` and `renewal`)
+- `apps/web/features/booking/api/recurring-booking-schedules.server.ts` (+ spec) (modify — the non-throwing reader)
+- `apps/web/features/booking/model/recurring-schedule-form.ts` (+ spec) (modify — `buildRenewalDraft`, `renewsScheduleId` in `buildCreateRequest`)
+- `apps/web/features/customer/components/my-account/NewRecurringSchedulePage.tsx` (+ spec) and `NewRecurringScheduleForm.tsx` (+ spec) (modify — the `renewal` prop: banner, notice, skipped window check)
+- `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` (+ spec) and `RecurringScheduleDetail.tsx` (+ spec) (modify — "Renovar" on `ENDED`)
+- `apps/web/features/customer/recurring-schedule-model.ts` (+ spec) (modify — a `recurringScheduleRenewPath(slug, id)` helper beside `recurringScheduleNewPath`)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify)
-- the Playwright spec and helpers under `apps/web/e2e/` for the customer recurring flow (modify/new)
+- `apps/web/e2e/my-account-recurring-schedules.spec.ts`, `my-account-recurring-schedule-create.spec.ts` and `apps/web/e2e/helpers/recurring-schedule.ts` (modify — the four scenarios below)
+- `plan/journey/customer/minha-conta.md`, `prototypes/minha-conta/dev-notes.md`, `index.html`-listed status and `plan/journey/README.md` (modify — flip `13f` from Gap to built when this ships)
 
 **Acceptance criteria — product:**
-- [ ] A customer sees "Renovar" on an ended recurring schedule and on one that is about to end, and it opens the creation form already filled with that schedule's service, days, time and (for a fixed resource) resource.
-- [ ] The renewal starts the day after the old one ends and the customer picks the end date; nothing is booked until they confirm.
-- [ ] The email link behaves the same way; for an unknown or someone else's id the customer just gets the normal blank form with a short notice.
-- [ ] A renewal that cannot be honored (a closure, an occupied slot) is refused with the same conflict list as any new schedule.
+- [ ] A customer sees "Renovar" on an ended recurring schedule (list row and detail), and it opens the creation form already filled with that schedule's service, days, time and (for a fixed resource) resource, under a "Renovando sua reserva de …" banner.
+- [ ] The renewal starts the day after the old one ends (or today when that is past) and the customer picks the end date; the start date can still be changed; nothing is booked until they confirm.
+- [ ] Opening `…/new?renewFrom=<id>` behaves the same for the customer's own `ACTIVE` or `ENDED` schedule; for an unknown id, someone else's, a pending or cancelled schedule, or a service that no longer allows recurrence the customer gets the normal blank form with the short notice.
+- [ ] A renewal that cannot be honored (a closure, an occupied slot) is refused with the same conflict list as any new schedule, and nothing is created.
+- [ ] No "Renovar" on pending, cancelled or active schedules in this story.
 
 **Acceptance criteria — technical:**
 - Unit (Vitest, jsdom/node):
-  - [ ] The pre-fill mapper returns the expected form state for a fixed-resource and for an automatic-resource schedule; the start date is the day after `endsOn`, or today when that is in the past
-  - [ ] The form applies the pre-fill from `renewFrom`, shows the banner, and falls back to blank plus the notice for a not-found or ineligible schedule
-  - [ ] The list shows "Renovar" for `ENDED` and for an `ACTIVE` schedule for which the list item's `renewable` flag (M23-S21) is true, and not for `PENDING_APPROVAL` or `CANCELLED`
+  - [ ] `buildRenewalDraft`: a fixed-resource schedule fills `resourceId` from `resourceIds[0]`; an automatic-resource schedule leaves it null; `startsOn` is the day after `endsOn`, or today when that is in the past; `endsOn` is left empty; `PENDING_APPROVAL`, `CANCELLED` and a service missing from the eligible list return null
+  - [ ] `buildCreateRequest` includes `renewsScheduleId` only for a renewal
+  - [ ] `NewRecurringSchedulePage` with a `renewal` prop shows the banner and pre-filled values; a first occurrence that would be refused as too soon in a normal creation **still proceeds to review in renewal mode** (pins the skipped window check — a negative guarantee), and is refused without the prop (existing behavior unchanged)
+  - [ ] The non-throwing reader returns null on `404`, redirects on `401`/`403`, rethrows `5xx`
+  - [ ] The route shows the notice over the blank form when the reader returns null or the pre-fill is null
+  - [ ] The list and the ended detail show "Renovar" for `ENDED` (link to `new?renewFrom=<id>`) and not for `PENDING_APPROVAL`, `CANCELLED` or `ACTIVE`
   - [ ] Both locales render every new string
-- Integration: n/a — web stories have no integration tier
-- Tenant isolation: n/a — client-side; the hook takes `tenantId` only from `useTenant()` and the read is tenant- and owner-scoped server-side (M23-S21)
+  - [ ] Backend: `toRecurringBookingScheduleResult` carries `resourceIds` (the assigned resources for `FIXED_ASSIGNMENT`, empty for `RESOLVE_PER_OCCURRENCE`), asserted in the list and get use-case specs
+- Integration: the existing recurring-schedule controller integration spec asserts the by-id read returns `resourceIds` for a fixed-assignment schedule
+- Tenant isolation: the by-id read of another customer's or another tenant's schedule is `404` (existing coverage — extend the assertion to cover the new field not leaking); a POST with another customer's `renewsScheduleId` is `404` (existing)
 - E2E:
   - [ ] Playwright, route `/{slug}/my-account/recurring-schedules`: a seeded `ENDED` schedule shows "Renovar"; clicking it opens the pre-filled form
   - [ ] Playwright, route `/{slug}/my-account/recurring-schedules/new?renewFrom=<seeded id>`: the form is pre-filled, the customer picks an end date, confirms, and sees the created state
@@ -1799,6 +1814,7 @@ Because a recurring schedule is fixed-term, a customer who wants to continue cre
   - [ ] Playwright, same route: a renewal colliding with seeded occupancy shows the conflict list with nothing created
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+- [ ] Journey status flipped (`13f` built) in the same change (stale-reference sweep, §4p)
 
 ---
 
@@ -3234,6 +3250,7 @@ Give staff one place to create something for a customer who phoned or messaged.
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer shell, Início), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules and § Availability Alerts, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys
 **Dependencies:** M23-S12 (the recurring list the tile links to, and the fetchers), M23-S43 (the alerts list the other tile links to), M23-S42 (the service name on the schedule list item), M23-S21 (the renewal lead time and the server-side `renewable` flag on the list item, and the trigger this card mirrors), M23-S22 (the "Renovar" form the card opens)
 **Pattern:** plain composition — extends the shipped `HomeDashboard`; the two selectors are pure functions beside `booking-sections.ts`; no named pattern applies.
+**Scope note (M23-S22 discovery, 2026-10-10):** M23-S22 ships "Renovar" on `ENDED` schedules and the `?renewFrom` pre-fill, and deliberately leaves the "Renovar" on an `ACTIVE` schedule about to end to this story: once M23-S21 adds the `renewable` flag, this story also shows "Renovar" on the recurring list rows (`14`) and the active detail (`06`) for an `ACTIVE` schedule whose `renewable` is true (a small addition beside the Início card, same link and `recurringScheduleRenewPath` helper).
 
 **Prototype references:** `plan/journey/shared/customer-dashboard.html` (the two extra tiles, the amber renewal card, and the prototype-only "ver como cliente sem recorrências nem avisos" toggle that shows today's page unchanged); targets `plan/journey/customer/prototypes/minha-conta/14-recorrentes-lista.html`, `07-availability-alert.html` and `13f-renovar-recorrencia.html`.
 
