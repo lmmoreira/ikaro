@@ -106,6 +106,7 @@ describe('LoyaltyBookingAdapter', () => {
       cancellableUntil: null,
       reschedule: null,
       pointsEarned: null,
+      statusHistory: null,
     });
 
     const result = await adapter.findBookingServices(TENANT_ID, BOOKING_ID);

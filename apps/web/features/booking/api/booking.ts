@@ -42,6 +42,15 @@ export interface CompleteBookingRequest {
   };
 }
 
+export interface MarkNoShowRequest {
+  readonly reason?: string;
+}
+
+export interface CorrectNoShowRequest {
+  readonly correctedStatus: 'COMPLETED';
+  readonly reason: string;
+}
+
 export interface SubmitInfoRequest {
   readonly response: string;
   readonly photoUrls?: readonly string[];
@@ -56,6 +65,17 @@ export interface RescheduleBookingResponse {
   readonly bookingId: string;
   readonly status: string;
   readonly scheduledAt: string;
+}
+
+export interface MarkNoShowResponse {
+  readonly bookingId: string;
+  readonly status: string;
+}
+
+export interface CorrectNoShowResponse {
+  readonly bookingId: string;
+  readonly status: string;
+  readonly completedAt: string;
 }
 
 export interface CompleteBookingResponse {
@@ -125,6 +145,22 @@ export async function completeBooking(
   body: CompleteBookingRequest,
 ): Promise<CompleteBookingResponse> {
   const res = await bffClient.patch<CompleteBookingResponse>(`/bookings/${id}/complete`, body);
+  return res.data;
+}
+
+export async function markNoShow(
+  id: string,
+  body: MarkNoShowRequest = {},
+): Promise<MarkNoShowResponse> {
+  const res = await bffClient.post<MarkNoShowResponse>(`/bookings/${id}/no-show`, body);
+  return res.data;
+}
+
+export async function correctNoShow(
+  id: string,
+  body: CorrectNoShowRequest,
+): Promise<CorrectNoShowResponse> {
+  const res = await bffClient.post<CorrectNoShowResponse>(`/bookings/${id}/no-show/correct`, body);
   return res.data;
 }
 

@@ -207,6 +207,7 @@ describe('toStaffBookingDetail()', () => {
     cancellableUntil: null,
     reschedule: null,
     pointsEarned: null,
+    statusHistory: null,
   };
 
   it('maps backend booking detail fields and the given loyaltyBalance to StaffBookingDetailResponse', () => {
@@ -240,6 +241,7 @@ describe('toStaffBookingDetail()', () => {
       approvedBy: null,
       completedAt: null,
       rejectionReason: null,
+      statusHistory: [],
     });
   });
 
@@ -258,6 +260,30 @@ describe('toStaffBookingDetail()', () => {
     expect(result.discountPointsUsed).toBe(240);
     expect(result.discountAmount).toEqual({ amount: 24, currency: 'BRL' });
     expect(result.completedAt).toBe('2026-06-01T15:00:00.000Z');
+  });
+
+  it('passes the backend-resolved status history through unchanged', () => {
+    const statusHistory: BookingDetailResponse['statusHistory'] = [
+      {
+        fromStatus: 'APPROVED',
+        toStatus: 'NO_SHOW',
+        reason: 'Cliente não atendeu o telefone.',
+        actorType: 'STAFF',
+        actorId: '00000000-0000-7000-8000-0000000000a1',
+        actorName: 'Camila Duarte',
+        occurredAt: '2026-06-01T15:00:00.000Z',
+      },
+    ];
+
+    const result = toStaffBookingDetail({ ...backendDetail, statusHistory }, null);
+
+    expect(result.statusHistory).toEqual(statusHistory);
+  });
+
+  it('maps an absent status history to an empty list', () => {
+    expect(
+      toStaffBookingDetail({ ...backendDetail, statusHistory: null }, null).statusHistory,
+    ).toEqual([]);
   });
 
   it('passes through the given loyaltyBalance value', () => {
@@ -467,6 +493,7 @@ describe('toCustomerBookingDetail()', () => {
     cancellableUntil: null,
     reschedule: null,
     pointsEarned: null,
+    statusHistory: null,
   };
 
   it('maps backend booking detail fields to CustomerBookingDetailResponse', () => {
@@ -713,6 +740,7 @@ describe('toGuestBookingRead()', () => {
     cancellableUntil: null,
     reschedule: null,
     pointsEarned: null,
+    statusHistory: null,
   };
 
   it('maps backend booking detail fields to GuestBookingReadResponse', () => {

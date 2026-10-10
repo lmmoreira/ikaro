@@ -1,3 +1,5 @@
+import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
@@ -108,6 +110,8 @@ describe('BookingController', () => {
         new InMemoryServiceRepository(),
         new InMemoryResourceOccupancyRepository(),
         new InMemoryTransactionManager(),
+        new InMemoryBookingStatusTransitionRepository(),
+        new InMemoryBookingStaffPort(),
       ),
     });
 
@@ -223,6 +227,8 @@ describe('BookingController', () => {
           new InMemoryServiceRepository(),
           new InMemoryResourceOccupancyRepository(),
           new InMemoryTransactionManager(),
+          new InMemoryBookingStatusTransitionRepository(),
+          new InMemoryBookingStaffPort(),
         ),
       );
       const err = await ctrl
@@ -306,6 +312,8 @@ describe('BookingController', () => {
           new InMemoryServiceRepository(),
           new InMemoryResourceOccupancyRepository(),
           new InMemoryTransactionManager(),
+          new InMemoryBookingStatusTransitionRepository(),
+          new InMemoryBookingStaffPort(),
         ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);

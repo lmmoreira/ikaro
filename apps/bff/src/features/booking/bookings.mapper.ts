@@ -162,5 +162,6 @@ export function toStaffBookingDetail(
     approvedBy: detail.approvedBy,
     completedAt: detail.completedAt,
     rejectionReason: detail.rejectionReason,
+    statusHistory: detail.statusHistory ?? [],
   };
 }

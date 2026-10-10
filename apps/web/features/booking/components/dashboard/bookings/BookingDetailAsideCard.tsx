@@ -9,7 +9,13 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { BookingActionPanel } from './BookingActionPanel';
 import type { BookingDetailActionState } from './BookingDetailMainBanner';
 
-function BackToAgendaActionsCard({ backHref }: { readonly backHref: string }): React.JSX.Element {
+function BackToAgendaActionsCard({
+  backHref,
+  note,
+}: {
+  readonly backHref: string;
+  readonly note?: string;
+}): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
 
   return (
@@ -18,7 +24,8 @@ function BackToAgendaActionsCard({ backHref }: { readonly backHref: string }): R
         {t('actionsSection')}
       </p>
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="space-y-3 p-4">
+          {note && <p className="text-xs leading-5 text-gray-500">{note}</p>}
           <Button asChild className="w-full">
             <Link href={backHref}>{t('backToAgenda')}</Link>
           </Button>
@@ -32,6 +39,11 @@ interface BookingDetailAsideCardProps {
   readonly actionState: BookingDetailActionState;
   readonly booking: StaffBookingDetailResponse;
   readonly backHref: string;
+  // UC-074: the appointment's end time (tenant timezone) while it has not passed, else null.
+  readonly noShowAvailableAt: string | null;
+  readonly canCorrectNoShow: boolean;
+  readonly onOpenNoShow: () => void;
+  readonly onOpenCorrectNoShow: () => void;
   readonly onBackWithoutApprove: () => void;
   readonly onOpenComplete: () => void;
   readonly onOpenReschedule: () => void;
@@ -47,6 +59,10 @@ export function BookingDetailAsideCard({
   actionState,
   booking,
   backHref,
+  noShowAvailableAt,
+  canCorrectNoShow,
+  onOpenNoShow,
+  onOpenCorrectNoShow,
   onBackWithoutApprove,
   onOpenComplete,
   onOpenReschedule,
@@ -58,8 +74,12 @@ export function BookingDetailAsideCard({
   const t = useTranslations('dashboard.bookingDetail');
   const { formatTime } = useFormatting();
 
-  if (actionState === 'approved' || actionState === 'rejected') {
+  if (actionState === 'approved' || actionState === 'rejected' || actionState === 'corrected') {
     return <BackToAgendaActionsCard backHref={backHref} />;
+  }
+
+  if (actionState === 'no-show') {
+    return <BackToAgendaActionsCard backHref={backHref} note={t('noShowMarkedAsideNote')} />;
   }
 
   if (actionState === 'slot-conflict') {
@@ -93,6 +113,21 @@ export function BookingDetailAsideCard({
           onOpenComplete={onOpenComplete}
           onOpenReschedule={onOpenReschedule}
           onOpenCancel={onOpenCancel}
+          onOpenNoShow={onOpenNoShow}
+          noShowAvailableAt={noShowAvailableAt}
+        />
+      </div>
+    );
+  }
+
+  if (booking.status === BOOKING_STATUS.NO_SHOW) {
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
+        <BookingActionPanel
+          bookingStatus={BOOKING_STATUS.NO_SHOW}
+          isSubmitting={actionState === 'submitting'}
+          canCorrect={canCorrectNoShow}
+          onOpenCorrect={onOpenCorrectNoShow}
         />
       </div>
     );
@@ -119,11 +154,7 @@ export function BookingDetailAsideCard({
     return <BackToAgendaActionsCard backHref={backHref} />;
   }
 
-  if (
-    booking.status === BOOKING_STATUS.REJECTED ||
-    booking.status === BOOKING_STATUS.CANCELLED ||
-    booking.status === BOOKING_STATUS.NO_SHOW
-  ) {
+  if (booking.status === BOOKING_STATUS.REJECTED || booking.status === BOOKING_STATUS.CANCELLED) {
     return null;
   }
 

@@ -51,6 +51,8 @@ vi.mock('next-intl', () => ({
         completedNote: 'Serviço concluído. Pontos já adicionados.',
         noShowTitle: 'Não comparecimento registrado',
         noShowBody: 'O estabelecimento registrou que você não compareceu.',
+        noShowContact: 'Se foi um engano, entre em contato com o estabelecimento.',
+        noShowNote: 'Este agendamento foi encerrado como não comparecimento.',
         newBookingCta: 'Fazer novo agendamento',
         viewPointsCta: 'Ver meus pontos →',
       },
@@ -371,16 +373,46 @@ describe('BookingDetailPage', () => {
     expect(screen.queryByRole('link', { name: 'Fazer novo agendamento' })).not.toBeInTheDocument();
   });
 
-  it('shows the read-only no-show notice and no actions for a NO_SHOW booking', () => {
+  it('shows the 02f notice with the contact line, and no cancel or reschedule action, for a NO_SHOW booking', () => {
     render(
       <BookingDetailPage booking={makeBooking({ status: 'NO_SHOW' })} tenantSlug="beloauto" />,
     );
 
-    expect(screen.getByTestId('booking-no-show-notice')).toHaveTextContent(
-      'Não comparecimento registrado',
-    );
+    const notice = screen.getByTestId('booking-no-show-notice');
+    expect(notice).toHaveTextContent('Não comparecimento registrado');
+    expect(notice).toHaveTextContent('Se foi um engano, entre em contato com o estabelecimento.');
     expect(screen.queryByRole('button', { name: /cancelar/i })).not.toBeInTheDocument();
-    expect(screen.queryByTestId('action-pane-desktop')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reagendar/i })).not.toBeInTheDocument();
+  });
+
+  it('offers a new booking and the points page, with the no-show note, for a NO_SHOW booking', () => {
+    render(
+      <BookingDetailPage booking={makeBooking({ status: 'NO_SHOW' })} tenantSlug="beloauto" />,
+    );
+
+    expect(
+      screen.getAllByText('Este agendamento foi encerrado como não comparecimento.').length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Fazer novo agendamento' })[0]).toHaveAttribute(
+      'href',
+      '/beloauto/booking',
+    );
+    expect(screen.getAllByRole('link', { name: 'Ver meus pontos →' })[0]).toHaveAttribute(
+      'href',
+      '/beloauto/my-account/loyalty',
+    );
+  });
+
+  it("never shows the staff member's internal reason, even if the payload carried it", () => {
+    const booking = {
+      ...makeBooking({ status: 'NO_SHOW' }),
+      statusHistory: [{ toStatus: 'NO_SHOW', reason: 'Motivo interno da equipe' }],
+      noShowReason: 'Motivo interno da equipe',
+    } as unknown as CustomerBookingDetailResponse;
+
+    render(<BookingDetailPage booking={booking} tenantSlug="beloauto" />);
+
+    expect(screen.queryByText(/Motivo interno da equipe/)).not.toBeInTheDocument();
   });
 
   it('does not show the no-show notice for other statuses', () => {

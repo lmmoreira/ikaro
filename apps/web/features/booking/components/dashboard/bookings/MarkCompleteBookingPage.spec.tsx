@@ -87,6 +87,7 @@ function makeBooking(): StaffBookingDetailResponse {
     approvedBy: null,
     completedAt: null,
     rejectionReason: null,
+    statusHistory: [],
   };
 }
 

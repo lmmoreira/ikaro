@@ -10,6 +10,19 @@ export class InMemoryBookingStaffPort implements IBookingStaffPort {
     this.store.set(staffId, profile);
   }
 
+  private readonly names = new Map<string, string | null>();
+
+  setName(staffId: string, name: string | null): void {
+    this.names.set(staffId, name);
+  }
+
+  findNamesByIds(
+    staffIds: readonly string[],
+    _tenantId: string,
+  ): Promise<Map<string, string | null>> {
+    return Promise.resolve(new Map(staffIds.map((id) => [id, this.names.get(id) ?? null])));
+  }
+
   async findActiveById(staffId: string, _tenantId: string): Promise<BookingStaffProfileDto | null> {
     const profile = this.store.get(staffId);
     if (!profile?.isActive) return null;

@@ -20,7 +20,7 @@ describe('TypeOrmBookingStatusTransitionRepository', () => {
         TypeOrmBookingStatusTransitionRepository,
         {
           provide: getRepositoryToken(BookingStatusTransitionEntity),
-          useValue: { manager: { insert: jest.fn() } },
+          useValue: { manager: { insert: jest.fn() }, find: jest.fn() },
         },
       ],
     }).compile();
@@ -97,6 +97,42 @@ describe('TypeOrmBookingStatusTransitionRepository', () => {
       expect.objectContaining({ toStatus: 'INFO_REQUESTED' }),
       expect.objectContaining({ toStatus: 'APPROVED' }),
     ]);
+  });
+
+  it('reads a booking history tenant-scoped, oldest first, and maps rows back to transitions', async () => {
+    const occurredAt = new Date('2026-06-01T15:00:00.000Z');
+    ormRepo.find.mockResolvedValue([
+      Object.assign(new BookingStatusTransitionEntity(), {
+        tenantId: TENANT,
+        id: '00000000-0000-7000-8000-0000000000c1',
+        bookingId: BOOKING_ID,
+        fromStatus: 'APPROVED',
+        toStatus: 'NO_SHOW',
+        reason: 'Cliente não atendeu o telefone.',
+        actorType: 'MANAGER',
+        actorId: ACTOR_ID,
+        occurredAt,
+        correlationId: CORRELATION_ID,
+      }),
+    ]);
+
+    const result = await repo.findByBooking(TENANT, BOOKING_ID);
+
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: { tenantId: TENANT, bookingId: BOOKING_ID },
+      order: { occurredAt: 'ASC', id: 'ASC' },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      tenantId: TENANT,
+      bookingId: BOOKING_ID,
+      fromStatus: 'APPROVED',
+      toStatus: 'NO_SHOW',
+      reason: 'Cliente não atendeu o telefone.',
+      actorType: 'MANAGER',
+      actorId: ACTOR_ID,
+      occurredAt,
+    });
   });
 
   it('does nothing when there are no transitions', async () => {

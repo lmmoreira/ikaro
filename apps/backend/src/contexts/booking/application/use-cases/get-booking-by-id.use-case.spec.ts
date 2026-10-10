@@ -1,3 +1,5 @@
+import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
+import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
 import { Money } from '../../../../shared/value-objects/money';
@@ -9,6 +11,7 @@ import { InMemoryResourceOccupancyRepository } from '../../../../test/repositori
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { BookingStatusTransition } from '../../domain/booking-status-transition';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
@@ -24,6 +27,8 @@ describe('GetBookingByIdUseCase', () => {
   let storageService: InMemoryStorageService;
   let serviceRepo: InMemoryServiceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
+  let transitionRepo: InMemoryBookingStatusTransitionRepository;
+  let staffPort: InMemoryBookingStaffPort;
   let useCase: GetBookingByIdUseCase;
 
   beforeEach(() => {
@@ -31,12 +36,16 @@ describe('GetBookingByIdUseCase', () => {
     storageService = new InMemoryStorageService();
     serviceRepo = new InMemoryServiceRepository();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    transitionRepo = new InMemoryBookingStatusTransitionRepository();
+    staffPort = new InMemoryBookingStaffPort();
     useCase = new GetBookingByIdUseCase(
       repo,
       storageService,
       serviceRepo,
       occupancyRepo,
       new InMemoryTransactionManager(),
+      transitionRepo,
+      staffPort,
     );
   });
 
@@ -303,6 +312,175 @@ describe('GetBookingByIdUseCase', () => {
           cancellationWindowHours: 48,
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
+    });
+  });
+
+  describe('status history (M23-S27)', () => {
+    const MANAGER_ID = '20000000-0000-4000-8000-000000000125';
+    const DEACTIVATED_STAFF_ID = '20000000-0000-4000-8000-000000000126';
+
+    // Distinct, increasing times so the ordering assertion does not depend on the UUIDv7 tiebreak.
+    let tick = 0;
+    const transition = (
+      bookingId: string,
+      tenantId: string,
+      overrides: Partial<Parameters<typeof BookingStatusTransition.record>[0]>,
+    ) => {
+      const recorded = BookingStatusTransition.record({
+        tenantId,
+        bookingId,
+        fromStatus: 'APPROVED',
+        toStatus: 'NO_SHOW',
+        actorType: 'STAFF',
+        actorId: STAFF_ID,
+        correlationId: '30000000-0000-4000-8000-000000000001',
+        ...overrides,
+      });
+      return BookingStatusTransition.reconstitute({
+        id: recorded.id,
+        tenantId: recorded.tenantId,
+        bookingId: recorded.bookingId,
+        fromStatus: recorded.fromStatus,
+        toStatus: recorded.toStatus,
+        reason: recorded.reason,
+        actorType: recorded.actorType,
+        actorId: recorded.actorId,
+        occurredAt: new Date(Date.UTC(2026, 5, 1, 12, 0, tick++)),
+        correlationId: recorded.correlationId,
+      });
+    };
+
+    it('returns null and never reads the transitions unless the caller asks for the history', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(booking);
+      await transitionRepo.saveAll([transition(booking.id, TENANT_A, {})]);
+      const findSpy = jest.spyOn(transitionRepo, 'findByBooking');
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+      });
+
+      expect(result.statusHistory).toBeNull();
+      expect(findSpy).not.toHaveBeenCalled();
+    });
+
+    it('returns the entries oldest first with staff names, the contact name and no name for guest or system', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withContactName('João Silva')
+        .build();
+      await repo.save(booking);
+      staffPort.setName(STAFF_ID, 'Camila Duarte');
+      staffPort.setName(MANAGER_ID, 'Rafael Gomes');
+      await transitionRepo.saveAll([
+        transition(booking.id, TENANT_A, {
+          fromStatus: 'PENDING',
+          toStatus: 'INFO_REQUESTED',
+          reason: 'Envie uma foto',
+          actorType: 'STAFF',
+          actorId: STAFF_ID,
+        }),
+        transition(booking.id, TENANT_A, {
+          fromStatus: 'INFO_REQUESTED',
+          toStatus: 'PENDING',
+          actorType: 'CUSTOMER',
+          actorId: CUSTOMER_ID,
+        }),
+        transition(booking.id, TENANT_A, {
+          fromStatus: 'PENDING',
+          toStatus: 'APPROVED',
+          actorType: 'MANAGER',
+          actorId: MANAGER_ID,
+        }),
+        transition(booking.id, TENANT_A, {
+          fromStatus: 'APPROVED',
+          toStatus: 'CANCELLED',
+          actorType: 'GUEST',
+          actorId: null,
+        }),
+        transition(booking.id, TENANT_A, {
+          fromStatus: 'CANCELLED',
+          toStatus: 'CANCELLED',
+          actorType: 'SYSTEM',
+          actorId: null,
+        }),
+      ]);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+        includeStatusHistory: true,
+      });
+
+      expect(
+        result.statusHistory!.map((e) => [e.toStatus, e.actorType, e.actorId, e.actorName]),
+      ).toEqual([
+        ['INFO_REQUESTED', 'STAFF', STAFF_ID, 'Camila Duarte'],
+        ['PENDING', 'CUSTOMER', CUSTOMER_ID, 'João Silva'],
+        ['APPROVED', 'MANAGER', MANAGER_ID, 'Rafael Gomes'],
+        ['CANCELLED', 'GUEST', null, null],
+        ['CANCELLED', 'SYSTEM', null, null],
+      ]);
+      expect(result.statusHistory![0]).toMatchObject({
+        fromStatus: 'PENDING',
+        reason: 'Envie uma foto',
+      });
+      expect(typeof result.statusHistory![0].occurredAt).toBe('string');
+    });
+
+    it('gives a staff actor with no resolvable name a null name', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(booking);
+      await transitionRepo.saveAll([
+        transition(booking.id, TENANT_A, { actorType: 'MANAGER', actorId: DEACTIVATED_STAFF_ID }),
+      ]);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+        includeStatusHistory: true,
+      });
+
+      expect(result.statusHistory![0].actorName).toBeNull();
+    });
+
+    it("never returns another booking's or another tenant's rows", async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      const other = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(booking);
+      await repo.save(other);
+      await transitionRepo.saveAll([
+        transition(other.id, TENANT_A, {}),
+        transition(booking.id, TENANT_B, {}),
+      ]);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+        includeStatusHistory: true,
+      });
+
+      expect(result.statusHistory).toEqual([]);
+    });
+
+    it('does not reveal a booking, or its history, to a caller from another tenant', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(booking);
+      await transitionRepo.saveAll([transition(booking.id, TENANT_A, {})]);
+
+      await expect(
+        useCase.execute({
+          bookingId: booking.id,
+          tenantId: TENANT_B,
+          cancellationWindowHours: 48,
+          includeStatusHistory: true,
+        }),
+      ).rejects.toThrow(BookingNotFoundError);
     });
   });
 

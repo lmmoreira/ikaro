@@ -1,4 +1,10 @@
-import { BookingRescheduleOptions, BookingStatus, BookingType, ResourceType } from '@ikaro/types';
+import {
+  BookingRescheduleOptions,
+  BookingStatus,
+  BookingStatusHistoryEntry,
+  BookingType,
+  ResourceType,
+} from '@ikaro/types';
 
 // One leg's resolved schedule/resource entry on a legged-service booking line (UC-065) — mirrors
 // the backend's identical BookingLineItineraryLeg shape (M23-S01).
@@ -167,4 +173,6 @@ export interface BookingDetailResponse {
   cancellableUntil: string | null;
   reschedule: BookingRescheduleOptions | null;
   pointsEarned: number | null;
+  // Present only on the staff-facing read (M23-S27); the backend resolves the actor names.
+  statusHistory: BookingStatusHistoryEntry[] | null;
 }

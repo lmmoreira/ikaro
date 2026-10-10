@@ -184,6 +184,20 @@ export interface CustomerBookingListResponse {
   limit: number;
 }
 
+// M23-S27 — one status change of a booking, as the staff booking detail shows it. `actorName` is the
+// staff member's name or the booking's contact name (for a CUSTOMER actor); it is null for a GUEST
+// or SYSTEM actor and for a staff member who cannot be resolved or has no name, and the UI then
+// shows a role label ("Gerente" for MANAGER, "Equipe" for STAFF).
+export interface BookingStatusHistoryEntry {
+  fromStatus: BookingStatus;
+  toStatus: BookingStatus;
+  reason: string | null;
+  actorType: 'STAFF' | 'MANAGER' | 'CUSTOMER' | 'GUEST' | 'SYSTEM';
+  actorId: string | null;
+  actorName: string | null;
+  occurredAt: string;
+}
+
 export interface StaffBookingDetailResponse {
   bookingId: string;
   status: BookingStatus;
@@ -225,6 +239,9 @@ export interface StaffBookingDetailResponse {
   approvedBy: string | null; // staffId UUID
   completedAt: string | null;
   rejectionReason: string | null;
+
+  // M23-S27 — every status change of the booking, oldest first (staff-facing only).
+  statusHistory: BookingStatusHistoryEntry[];
 }
 
 export interface BookingRescheduleKeptPick {

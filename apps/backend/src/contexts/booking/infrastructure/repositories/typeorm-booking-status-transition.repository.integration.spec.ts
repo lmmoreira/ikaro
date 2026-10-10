@@ -218,6 +218,28 @@ describe('Booking status transitions (integration)', () => {
     expect(await rowsFor(TENANT_B, booking.id)).toEqual([]);
   });
 
+  it("reads one booking's history in order and never another booking's or tenant's", async () => {
+    const transitionRepo = new TypeOrmBookingStatusTransitionRepository(
+      dataSource.getRepository(BookingStatusTransitionEntity),
+    );
+    const booking = await saveBooking(BookingStatus.APPROVED);
+    const other = await saveBooking(BookingStatus.APPROVED);
+    booking.markNoShow(STAFF, uuidv7(), 'Cliente não atendeu.', new Date());
+    await save(booking);
+    booking.correctNoShow(MANAGER, uuidv7(), 'Cliente chegou atrasado e foi atendido.');
+    await save(booking);
+    other.cancel(STAFF, uuidv7());
+    await save(other);
+
+    const history = await transitionRepo.findByBooking(TENANT_A, booking.id);
+
+    expect(history.map((t) => [t.fromStatus, t.toStatus, t.actorType])).toEqual([
+      ['APPROVED', 'NO_SHOW', 'STAFF'],
+      ['NO_SHOW', 'COMPLETED', 'MANAGER'],
+    ]);
+    expect(await transitionRepo.findByBooking(TENANT_B, booking.id)).toEqual([]);
+  });
+
   it('saves an untouched booking without adding a row', async () => {
     const booking = await saveBooking(BookingStatus.PENDING);
     booking.approve(STAFF, uuidv7());

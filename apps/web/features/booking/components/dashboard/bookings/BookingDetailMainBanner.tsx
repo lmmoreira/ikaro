@@ -4,6 +4,11 @@ import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { BookingCompletionSummary } from './BookingCompletionSummary';
+import {
+  BookingNoShowBanner,
+  isBookingNoShowActionState,
+  type BookingNoShowActionState,
+} from './BookingNoShowBanner';
 import { BookingStatusBannerIcon } from './BookingStatusBannerIcon';
 
 export type BookingDetailActionState =
@@ -13,12 +18,19 @@ export type BookingDetailActionState =
   | 'rejected'
   | 'info-requested'
   | 'slot-conflict'
-  | 'cancelled';
+  | 'cancelled'
+  | BookingNoShowActionState;
 
 interface BookingDetailMainBannerProps {
   readonly actionState: BookingDetailActionState;
   readonly booking: StaffBookingDetailResponse;
   readonly approvedRangeLabel: string;
+  // UC-074 (M23-S27) — what the no-show outcome banners need and can trigger.
+  readonly noShowEndLabel: string;
+  readonly correctionPoints: number | null;
+  readonly onRefresh: () => void;
+  readonly onRetryNoShow: () => void;
+  readonly onRetryCorrect: () => void;
 }
 
 // Extracted from BookingDetailPage (TD37-S5A) — the status banner is a self-contained switch
@@ -27,8 +39,27 @@ export function BookingDetailMainBanner({
   actionState,
   booking,
   approvedRangeLabel,
+  noShowEndLabel,
+  correctionPoints,
+  onRefresh,
+  onRetryNoShow,
+  onRetryCorrect,
 }: BookingDetailMainBannerProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.bookingDetail');
+
+  if (isBookingNoShowActionState(actionState)) {
+    return (
+      <BookingNoShowBanner
+        actionState={actionState}
+        booking={booking}
+        noShowEndLabel={noShowEndLabel}
+        correctionPoints={correctionPoints}
+        onRefresh={onRefresh}
+        onRetryNoShow={onRetryNoShow}
+        onRetryCorrect={onRetryCorrect}
+      />
+    );
+  }
 
   if (actionState === 'approved') {
     return (

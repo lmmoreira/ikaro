@@ -19,15 +19,18 @@ interface BookingDetailPageProps {
   readonly returnTo?: string | null;
 }
 
-interface CompletedActionPaneProps {
+interface ClosedActionPaneProps {
   readonly tenantSlug: string;
+  // The note explaining why this closed booking has no actions of its own.
+  readonly noteKey: 'completedNote' | 'noShowNote';
 }
 
-function CompletedActionPane({ tenantSlug }: CompletedActionPaneProps): React.JSX.Element {
+// COMPLETED and NO_SHOW share one pane (02c / 02f): a note, a way to book again, and the points.
+function ClosedActionPane({ tenantSlug, noteKey }: ClosedActionPaneProps): React.JSX.Element {
   const t = useTranslations('customer.bookingDetail');
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-      <p className="mb-4 text-sm leading-relaxed text-gray-500">{t('completedNote')}</p>
+      <p className="mb-4 text-sm leading-relaxed text-gray-500">{t(noteKey)}</p>
       <Link
         href={`/${tenantSlug}/booking`}
         className="block rounded-lg bg-blue-600 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
@@ -64,7 +67,11 @@ export function BookingDetailPage({
     isInfoRequested && booking.infoResponseMessage === null && !infoJustSubmitted;
   // Every non-terminal state gets the same two-column layout, with a sticky action pane on
   // desktop — INFO_REQUESTED stacks the response form above the cancel option in that pane.
-  const hasSidebarAction = showCancel || showReschedule || status === BOOKING_STATUS.COMPLETED;
+  const hasSidebarAction =
+    showCancel ||
+    showReschedule ||
+    status === BOOKING_STATUS.COMPLETED ||
+    status === BOOKING_STATUS.NO_SHOW;
 
   useEffect(() => {
     setTopbarBookingStatus?.(status);
@@ -86,7 +93,10 @@ export function BookingDetailPage({
 
   function renderActionPane(): React.JSX.Element {
     if (status === BOOKING_STATUS.COMPLETED) {
-      return <CompletedActionPane tenantSlug={tenantSlug} />;
+      return <ClosedActionPane tenantSlug={tenantSlug} noteKey="completedNote" />;
+    }
+    if (status === BOOKING_STATUS.NO_SHOW) {
+      return <ClosedActionPane tenantSlug={tenantSlug} noteKey="noShowNote" />;
     }
     return (
       <div className="flex flex-col gap-3">
@@ -137,6 +147,7 @@ export function BookingDetailPage({
             >
               <p className="font-bold">{t('noShowTitle')}</p>
               <p className="mt-1 leading-6">{t('noShowBody')}</p>
+              <p className="mt-1 leading-6">{t('noShowContact')}</p>
             </div>
           )}
           <BookingDetailMain booking={{ ...booking, status }} />
