@@ -75,7 +75,8 @@
   {
     "event": "BookingNoShow",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "notification"
     ]
   },
   {

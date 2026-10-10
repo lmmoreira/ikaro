@@ -163,6 +163,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/notification/infrastructure/migrations/1748300000010-AddNotificationLogUniqueConstraint.ts',
   'src/contexts/notification/infrastructure/migrations/1748500000029-AddRecurringScheduleTemplates.ts',
   'src/contexts/notification/infrastructure/migrations/1748500000031-AddAvailabilityAlertMatchedTemplate.ts',
+  'src/contexts/notification/infrastructure/migrations/1748500000032-AddBookingNoShowCustomerTemplate.ts',
   'src/contexts/notification/infrastructure/repositories/typeorm-notification-log.repository.ts',
   'src/contexts/notification/infrastructure/repositories/typeorm-notification-template.repository.ts',
   'src/contexts/platform/infrastructure/migrations/1700000000000-BootstrapSchemas.ts',

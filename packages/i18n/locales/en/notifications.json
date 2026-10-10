@@ -53,6 +53,12 @@
       "body": "<p>Booking rescheduled.</p><p><strong>Customer:</strong> {{contactName}}</p><p><strong>Previous date:</strong> {{previousLocalDate}} at {{previousLocalTime}}</p><p><strong>New date:</strong> {{newLocalDate}} at {{newLocalTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{rescheduledByLine}}</p>"
     }
   },
+  "BookingNoShow": {
+    "customer": {
+      "subject": "Your appointment was recorded as a no-show",
+      "body": "<p>Hello, {{contactName}}!</p><p>We recorded that you did not attend your {{serviceNames}} appointment on {{localDate}} at {{localTime}}.</p><p>If this is a mistake, reply to this email to reach {{tenantName}}.</p>"
+    }
+  },
   "BookingReminderDue": {
     "customer": {
       "subject": "Reminder: your booking is tomorrow!",
