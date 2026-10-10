@@ -18,13 +18,12 @@ export function NewRecurringScheduleRenewalNotice({
 
   if (renewing === null) {
     return (
-      <div
-        role="status"
+      <output
         data-testid="new-schedule-renewal-not-found"
-        className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+        className="block rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
       >
         <strong>{tn('renewNotFound')}</strong> {tn('renewNotFoundHint')}
-      </div>
+      </output>
     );
   }
 

@@ -27,7 +27,8 @@ export interface RecurringBookingScheduleListItem {
   status: RecurringScheduleStatus;
   assignmentPolicy: RecurringScheduleAssignmentPolicy;
   // The current resource assignments: one entry for FIXED_ASSIGNMENT, empty for RESOLVE_PER_OCCURRENCE.
-  resourceIds: string[];
+  // Optional so a consumer that reads an older response (a rolling deploy) still type-checks.
+  resourceIds?: string[];
   approvalHoldExpiresAt: string | null;
 }
 

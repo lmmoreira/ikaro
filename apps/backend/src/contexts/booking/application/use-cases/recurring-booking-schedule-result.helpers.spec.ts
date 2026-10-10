@@ -2,7 +2,10 @@ import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedul
 import { ResourceType } from '../../domain/resource.types';
 import { toRecurringBookingScheduleResult } from './recurring-booking-schedule-result.helpers';
 
-function schedule(status: 'ACTIVE' | 'PENDING_APPROVAL'): RecurringBookingSchedule {
+function schedule(
+  status: 'ACTIVE' | 'PENDING_APPROVAL',
+  assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE' = 'FIXED_ASSIGNMENT',
+): RecurringBookingSchedule {
   return RecurringBookingSchedule.request({
     tenantId: '10000000-0000-4000-8000-000000000401',
     customerId: 'customer-a',
@@ -16,15 +19,18 @@ function schedule(status: 'ACTIVE' | 'PENDING_APPROVAL'): RecurringBookingSchedu
     startsOn: '2026-09-01',
     endsOn: '2026-11-24',
     maxTermDays: 90,
-    assignmentPolicy: 'FIXED_ASSIGNMENT',
-    resourceAssignments: [
-      {
-        resourceId: 'res-1',
-        resourceType: ResourceType.ROOM,
-        requirementId: null,
-        requiredQuantityPosition: null,
-      },
-    ],
+    assignmentPolicy,
+    resourceAssignments:
+      assignmentPolicy === 'FIXED_ASSIGNMENT'
+        ? [
+            {
+              resourceId: 'res-1',
+              resourceType: ResourceType.ROOM,
+              requirementId: null,
+              requiredQuantityPosition: null,
+            },
+          ]
+        : [],
     status,
     approvalHoldExpiresAt: status === 'PENDING_APPROVAL' ? new Date('2099-01-01T00:00:00Z') : null,
     createdByStaffId: null,
@@ -57,26 +63,7 @@ describe('toRecurringBookingScheduleResult', () => {
   });
 
   it('has no resource ids when the resource is resolved per occurrence', () => {
-    const s = RecurringBookingSchedule.request({
-      tenantId: '10000000-0000-4000-8000-000000000401',
-      customerId: 'customer-a',
-      serviceId: 'service-1',
-      recurrence: {
-        frequency: 'WEEKLY',
-        daysOfWeek: ['tuesday'],
-        startTime: '10:00',
-        durationMinutes: 120,
-      },
-      startsOn: '2026-09-01',
-      endsOn: '2026-11-24',
-      maxTermDays: 90,
-      assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
-      resourceAssignments: [],
-      status: 'ACTIVE',
-      approvalHoldExpiresAt: null,
-      createdByStaffId: null,
-      correlationId: 'corr-1',
-    });
+    const s = schedule('ACTIVE', 'RESOLVE_PER_OCCURRENCE');
 
     expect(toRecurringBookingScheduleResult(s, 'Sala Aurora').resourceIds).toEqual([]);
   });

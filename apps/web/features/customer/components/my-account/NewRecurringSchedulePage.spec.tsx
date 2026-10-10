@@ -460,3 +460,38 @@ describe('NewRecurringSchedulePage — a renewal', () => {
     expect(screen.queryByTestId('new-schedule-renewal-not-found')).not.toBeInTheDocument();
   });
 });
+
+describe('NewRecurringSchedulePage — a renewal whose fixed resource is no longer offered', () => {
+  it('replaces the stale resource with the first one offered, so the request names a real resource', async () => {
+    const roomService = eligibleService({ resourceRequirements: [choiceRequirement('ROOM')] });
+    fetchServiceResourceOptions.mockResolvedValue({
+      requirements: [
+        {
+          serviceId: roomService.id,
+          legIndex: null,
+          resourceType: 'ROOM',
+          selectionMode: 'CUSTOMER_CHOICE',
+          requiredQuantity: 1,
+          options: [{ resourceId: 'room-a', name: 'Sala Aurora' }],
+        },
+      ],
+    });
+    createRecurringScheduleAsCustomer.mockResolvedValue({
+      id: 's-4',
+      status: 'ACTIVE',
+      approvalHoldExpiresAt: null,
+    });
+    renderPage({
+      services: [roomService],
+      initialDraft: { ...READY, resourceId: 'room-gone' },
+    });
+
+    await screen.findByRole('radio', { name: 'Sala Aurora' });
+    await reviewAndConfirm();
+
+    await screen.findByTestId('new-schedule-created');
+    expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).toMatchObject({
+      resourceIds: ['room-a'],
+    });
+  });
+});

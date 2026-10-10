@@ -27,7 +27,7 @@ export function buildRenewalDraft(
   const dayAfterEnd = addIsoDays(schedule.endsOn, 1);
   return {
     serviceId: schedule.serviceId,
-    resourceId: requiresResourceChoice(service) ? (schedule.resourceIds[0] ?? null) : null,
+    resourceId: requiresResourceChoice(service) ? (schedule.resourceIds?.[0] ?? null) : null,
     daysOfWeek: schedule.recurrence.daysOfWeek,
     startTime: schedule.recurrence.startTime,
     startsOn: dayAfterEnd > today ? dayAfterEnd : today,

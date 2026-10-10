@@ -77,14 +77,18 @@ export function NewRecurringScheduleForm({
 
   const resourceOptions = useRecurringResourceOptions(tenantSlug, draft.serviceId, needsResource);
   const firstResourceId = resourceOptions.data?.[0]?.resourceId ?? null;
+  const resourceIsOffered =
+    draft.resourceId !== null &&
+    (resourceOptions.data?.some((option) => option.resourceId === draft.resourceId) ?? false);
 
   // The prototype preselects the first resource: a customer who has no preference does not have to
-  // pick one, and the list is never "unselected" with a single resource.
+  // pick one, and the list is never "unselected" with a single resource. A pre-filled resource that
+  // is no longer offered (deactivated since a renewal's schedule was made) is replaced the same way.
   useEffect(() => {
-    if (needsResource && draft.resourceId === null && firstResourceId !== null) {
+    if (needsResource && !resourceIsOffered && firstResourceId !== null) {
       onChange({ resourceId: firstResourceId });
     }
-  }, [needsResource, draft.resourceId, firstResourceId, onChange]);
+  }, [needsResource, resourceIsOffered, firstResourceId, onChange]);
 
   const today = earliestStartDate(new Date(), timezone);
   const maxTermDays = service === null ? null : resolveMaxTermDays(service);
