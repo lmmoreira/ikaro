@@ -396,9 +396,9 @@ export interface CompleteBookingResponse {
 
 ---
 
-## ❓ GAP — M23 Cluster 3 extension (UC-070 staff variant, UC-071, UC-074, not yet built)
+## ❓ GAP — M23 Cluster 3 extension (UC-070 staff variant, UC-071 not yet built; UC-074 no-show ✅ shipped by M23-S27)
 
-> Everything above this line is shipped. Everything below is new, unimplemented scope. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
+> Everything above this line is shipped, as is the UC-074 section below (M23-S27). The rest below is new, unimplemented scope. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
 
 **Prototype screens (revised 2026-10-08):**
 - `00-agenda.html` (extended) — the recurrence-request card in "Precisa de ação" and the floating **"Filtrar agenda"** balloon. Card: teal `Recorrência` badge, teal left border, pattern as title, "Decidir até HH:mm", one **"Ver pedido"** button (no quick approve — one decision creates the whole term). Balloon: checkboxes grouped *Precisa de ação* (Agendamentos, Recorrências) and *Confirmados* (Hoje, Próximos dias); default all on; "Padrão" resets; a count badge on the trigger shows how many are hidden; empty state "Limpar filtro". The header count is computed from what is visible.

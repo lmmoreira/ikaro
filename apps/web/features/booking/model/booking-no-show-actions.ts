@@ -24,15 +24,21 @@ export interface NoShowOutcomeHandlers {
   readonly onRefresh: () => void;
 }
 
+// The newest re-read per booking. The handlers are rebuilt on every render, so the counter lives at
+// module level: an earlier, slower response must never overwrite what a later one already showed.
+const latestRefetch = new Map<string, number>();
+
 // Re-reads the detail so the status history (and a status another user changed) is current. A
 // failed re-read keeps what the page already shows.
 async function refetchBooking(
   bookingId: string,
   setBooking: NoShowOutcomeDeps['setBooking'],
 ): Promise<void> {
+  const sequence = (latestRefetch.get(bookingId) ?? 0) + 1;
+  latestRefetch.set(bookingId, sequence);
   try {
     const fresh = await getBooking(bookingId);
-    setBooking(() => fresh);
+    if (latestRefetch.get(bookingId) === sequence) setBooking(() => fresh);
   } catch {
     // keep the local state
   }

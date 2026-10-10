@@ -372,8 +372,8 @@ describe('GetBookingByIdUseCase', () => {
         .withContactName('João Silva')
         .build();
       await repo.save(booking);
-      staffPort.setName(STAFF_ID, 'Camila Duarte');
-      staffPort.setName(MANAGER_ID, 'Rafael Gomes');
+      staffPort.setName(TENANT_A, STAFF_ID, 'Camila Duarte');
+      staffPort.setName(TENANT_A, MANAGER_ID, 'Rafael Gomes');
       await transitionRepo.saveAll([
         transition(booking.id, TENANT_A, {
           fromStatus: 'PENDING',
@@ -429,6 +429,24 @@ describe('GetBookingByIdUseCase', () => {
         reason: 'Envie uma foto',
       });
       expect(typeof result.statusHistory![0].occurredAt).toBe('string');
+    });
+
+    it("never shows a name stored under another tenant's staff id", async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(booking);
+      staffPort.setName(TENANT_B, STAFF_ID, 'Pessoa de Outro Tenant');
+      await transitionRepo.saveAll([
+        transition(booking.id, TENANT_A, { actorType: 'STAFF', actorId: STAFF_ID }),
+      ]);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+        includeStatusHistory: true,
+      });
+
+      expect(result.statusHistory![0].actorName).toBeNull();
     });
 
     it('gives a staff actor with no resolvable name a null name', async () => {

@@ -120,4 +120,32 @@ describe('buildNoShowOutcomeHandlers', () => {
     expect(s.setActionState).toHaveBeenCalledWith('idle');
     expect(getBooking).toHaveBeenCalledWith('b-1');
   });
+
+  it('ignores an earlier re-read that resolves after a later one', async () => {
+    const stale = {
+      bookingId: 'b-1',
+      status: 'NO_SHOW',
+      statusHistory: [],
+    } as unknown as StaffBookingDetailResponse;
+    const latest = {
+      bookingId: 'b-1',
+      status: 'COMPLETED',
+      statusHistory: [],
+    } as unknown as StaffBookingDetailResponse;
+    let resolveFirst: (value: StaffBookingDetailResponse) => void = () => undefined;
+    vi.mocked(getBooking)
+      .mockImplementationOnce(
+        () => new Promise<StaffBookingDetailResponse>((resolve) => (resolveFirst = resolve)),
+      )
+      .mockResolvedValueOnce(latest);
+    const s = setup();
+
+    s.handlers.onNoShowMarked();
+    s.handlers.onNoShowCorrected();
+    await flush();
+    resolveFirst(stale);
+    await flush();
+
+    expect(s.current()).toBe(latest);
+  });
 });

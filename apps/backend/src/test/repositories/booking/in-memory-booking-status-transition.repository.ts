@@ -12,11 +12,7 @@ export class InMemoryBookingStatusTransitionRepository implements IBookingStatus
   findByBooking(tenantId: string, bookingId: string): Promise<BookingStatusTransition[]> {
     const rows = this.store
       .filter((t) => t.tenantId === tenantId && t.bookingId === bookingId)
-      .sort(
-        (a, b) =>
-          a.occurredAt.getTime() - b.occurredAt.getTime() ||
-          (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-      );
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime() || a.id.localeCompare(b.id));
     return Promise.resolve(rows);
   }
 
