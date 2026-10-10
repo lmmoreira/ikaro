@@ -159,7 +159,7 @@ For even better performance with large datasets (Phase 2), consider cursor-based
 Used by the Next.js hotsite renderer to fetch full branding and layout for a tenant slug.
 - `GET /platform/manifest/:slug`
 - **Public** — no auth required; no `X-Tenant-Slug` header needed (slug is the path param)
-- **Response headers:** `Cache-Control: public, max-age=300` (Next.js ISR respects this)
+- **Response headers:** `Cache-Control: public, max-age=300` (for other HTTP clients and caches; the web app's own cache lifetime comes from `next.revalidate` in `fetchManifest`, see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 6)
 - **Response:** `200 OK` with **Hotsite Manifest**:
   ```json
   {
