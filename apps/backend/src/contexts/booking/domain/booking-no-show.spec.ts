@@ -41,7 +41,36 @@ describe('Booking.markNoShow()', () => {
       actorId: STAFF_ID,
       reason: null,
       occurredAt: AFTER_END.toISOString(),
+      customerId: booking.customerId,
+      contactEmail: booking.contactEmail.address,
+      contactName: booking.contactName,
+      scheduledAt: SCHEDULED_AT.toISOString(),
+      lineSummary: booking.lines.map((l) => ({
+        serviceId: l.serviceId,
+        serviceNameAtBooking: l.serviceNameAtBooking,
+        priceAtBooking: {
+          amount: l.priceAtBooking.amount.toFixed(2),
+          currency: l.priceAtBooking.currency,
+        },
+      })),
     });
+  });
+
+  it('carries the booking contact snapshot the customer email needs, for a guest booking too', () => {
+    const booking = approvedBooking()
+      .withCustomerId(null)
+      .withContactEmail('guest@example.com')
+      .withContactName('Visitante')
+      .build();
+
+    booking.markNoShow(STAFF, CORRELATION_ID, 'Nota interna', AFTER_END);
+
+    const data = (booking.domainEvents[0] as BookingNoShow).data;
+    expect(data.customerId).toBeNull();
+    expect(data.contactEmail).toBe('guest@example.com');
+    expect(data.contactName).toBe('Visitante');
+    expect(data.lineSummary?.length).toBeGreaterThan(0);
+    expect(data.reason).toBe('Nota interna');
   });
 
   it('carries a trimmed reason in the event and drops a blank one', () => {

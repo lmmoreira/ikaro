@@ -53,6 +53,12 @@
       "body": "<p>Agendamento reagendado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{rescheduledByLine}}</p>"
     }
   },
+  "BookingNoShow": {
+    "customer": {
+      "subject": "Seu agendamento foi registrado como não comparecimento",
+      "body": "<p>Olá, {{contactName}}!</p><p>Registramos que você não compareceu ao agendamento de {{serviceNames}} em {{localDate}} às {{localTime}}.</p><p>Se isso foi um engano, responda este e-mail para falar com {{tenantName}}.</p>"
+    }
+  },
   "BookingReminderDue": {
     "customer": {
       "subject": "Lembrete: seu agendamento é amanhã!",

@@ -328,6 +328,14 @@
         "reviewBy": "2026-11-30"
       },
       {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-no-show.handler.ts",
+        "target": "booking",
+        "targetPaths": ["apps/backend/src/contexts/booking/domain/events/booking-no-show.event.ts"],
+        "rationale": "Notification reacts to the booking-no-show domain event.",
+        "owner": "notification",
+        "reviewBy": "2026-11-30"
+      },
+      {
         "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-availability-alert-outcome.adapter.ts",
         "target": "booking",
         "targetPaths": [

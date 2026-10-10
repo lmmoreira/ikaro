@@ -98,6 +98,12 @@ export const NOTIFICATION_TEMPLATE_KEY_MAPPING = {
       'totalPrice',
     ],
   },
+  [NotificationTemplateKey.BOOKING_NO_SHOW_CUSTOMER]: {
+    eventName: 'BookingNoShow',
+    recipientType: 'customer',
+    variables: ['contactName', 'localDate', 'localTime', 'serviceNames', 'tenantName'],
+  },
+
   [NotificationTemplateKey.BOOKING_REMINDER_DUE]: {
     eventName: 'BookingReminderDue',
     recipientType: 'customer',

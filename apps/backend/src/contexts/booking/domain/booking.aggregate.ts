@@ -610,6 +610,11 @@ export class Booking extends AggregateRoot {
         actorId: actor.id,
         reason: normalizedReason,
         occurredAt: now.toISOString(),
+        customerId: this.props.customerId,
+        contactEmail: this.props.contactEmail.address,
+        contactName: this.props.contactName,
+        scheduledAt: this.props.scheduledAt.toISOString(),
+        lineSummary: this.lineSummaryPayload(),
       }),
     );
   }

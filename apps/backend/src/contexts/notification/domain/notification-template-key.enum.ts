@@ -9,6 +9,7 @@ export enum NotificationTemplateKey {
   BOOKING_CANCELLED_ADMIN = 'booking-cancelled-admin',
   BOOKING_RESCHEDULED_CUSTOMER = 'booking-rescheduled-customer',
   BOOKING_RESCHEDULED_ADMIN = 'booking-rescheduled-admin',
+  BOOKING_NO_SHOW_CUSTOMER = 'booking-no-show-customer',
   BOOKING_REMINDER_DUE = 'booking-reminder-due',
   BOOKING_REMINDER_DUE_TODAY = 'booking-reminder-due-today',
   ADMIN_DAILY_SCHEDULE_REMINDER = 'admin-daily-schedule-reminder',

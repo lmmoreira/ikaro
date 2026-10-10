@@ -21,6 +21,7 @@ import { SendBookingRejectedNotificationUseCase } from './application/use-cases/
 import { SendBookingInfoRequestedNotificationUseCase } from './application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case';
 import { SendBookingInfoSubmittedNotificationUseCase } from './application/use-cases/send-booking-info-submitted-notification/send-booking-info-submitted-notification.use-case';
 import { SendBookingCancelledNotificationUseCase } from './application/use-cases/send-booking-cancelled-notification/send-booking-cancelled-notification.use-case';
+import { SendBookingNoShowNotificationUseCase } from './application/use-cases/send-booking-no-show-notification/send-booking-no-show-notification.use-case';
 import { SendBookingRescheduledNotificationUseCase } from './application/use-cases/send-booking-rescheduled-notification/send-booking-rescheduled-notification.use-case';
 import { SendServicePointsEarnedNotificationUseCase } from './application/use-cases/send-service-points-earned-notification/send-service-points-earned-notification.use-case';
 import { SendBookingReminderDueNotificationUseCase } from './application/use-cases/send-booking-reminder-due-notification/send-booking-reminder-due-notification.use-case';
@@ -46,6 +47,7 @@ import { BookingRejectedHandler } from './infrastructure/events/booking-rejected
 import { BookingInfoRequestedHandler } from './infrastructure/events/booking-info-requested.handler';
 import { BookingInfoSubmittedHandler } from './infrastructure/events/booking-info-submitted.handler';
 import { BookingCancelledHandler } from './infrastructure/events/booking-cancelled.handler';
+import { BookingNoShowHandler } from './infrastructure/events/booking-no-show.handler';
 import { BookingRescheduledHandler } from './infrastructure/events/booking-rescheduled.handler';
 import { ServicePointsEarnedHandler } from './infrastructure/events/service-points-earned.handler';
 import { BookingReminderHandler } from './infrastructure/events/booking-reminder.handler';
@@ -121,6 +123,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendBookingInfoRequestedNotificationUseCase,
     SendBookingInfoSubmittedNotificationUseCase,
     SendBookingCancelledNotificationUseCase,
+    SendBookingNoShowNotificationUseCase,
     SendBookingRescheduledNotificationUseCase,
     SendServicePointsEarnedNotificationUseCase,
     SendBookingReminderDueNotificationUseCase,
@@ -140,6 +143,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     BookingInfoRequestedHandler,
     BookingInfoSubmittedHandler,
     BookingCancelledHandler,
+    BookingNoShowHandler,
     BookingRescheduledHandler,
     ServicePointsEarnedHandler,
     BookingReminderHandler,
