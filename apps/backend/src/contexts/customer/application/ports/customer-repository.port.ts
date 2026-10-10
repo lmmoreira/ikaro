@@ -11,6 +11,7 @@ export interface CustomerSearchRow {
   customerId: string;
   name: string;
   email: string;
+  phone: string | null;
 }
 
 export interface ICustomerRepository {

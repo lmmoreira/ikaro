@@ -2,9 +2,12 @@ import { z } from 'zod';
 import {
   MAX_RECURRING_HORIZON_DAYS,
   MIN_RECURRING_HORIZON_DAYS,
+  PhoneErrorCode,
   TimeOfDayErrorCode,
 } from '@ikaro/types';
+import { AddressShapeSchema } from './address';
 import { isValidTimeOfDay } from './date';
+import { isValidPhoneNumber } from './phone';
 
 // M21-S01 — shared by the backend (resource.dto.ts) and BFF (resource.schemas.ts) request
 // schemas for the Resource Management endpoints; both need the identical shape with no per-app
@@ -435,3 +438,51 @@ export const CorrectBookingNoShowSchema = z.object({
   correctedStatus: z.literal('COMPLETED'),
   reason: z.string().trim().min(10).max(500),
 });
+
+// M23-S39 (UC-108) — body of `POST /bookings/staff`, shared by the BFF and the backend so the two
+// can never drift. It is the guest booking body (RequestBookingSchema, which stays per-app) minus
+// `beforeServicePhotoUrls` — the staff flow collects no photos — plus exactly one way to say who
+// the booking is for. Both shapes are strict: a body that names `customerId` *and* any contact
+// field, that names neither, or that carries `approvedBy`/`createdByStaffId` is a 400 — the acting
+// staff id comes from the request context only.
+const staffBookingShape = {
+  scheduledAt: z.iso.datetime(),
+  // Same bound as the guest and authenticated bodies (a basket locks every distinct service).
+  serviceIds: z.array(z.uuid()).min(1).max(20),
+  pickupAddress: AddressShapeSchema.optional(),
+  notes: z.string().trim().min(1).max(1000).optional(),
+  resourceSelections: z.array(ResourceSelectionSchema).max(100).optional(),
+  durationMinutes: z.number().int().positive().optional(),
+  participantCount: z.number().int().positive().optional(),
+  intakeSchemaVersion: z.number().int().positive().optional(),
+  intakeAnswers: BookingIntakeAnswersSchema.optional(),
+  consentAccepted: z.boolean().optional(),
+  attendees: z.array(BookingAttendeeInputSchema).max(50).optional(),
+};
+
+// A customer of the tenant — name, email, phone and default address come from the Customer row.
+const StaffBookingForCustomerSchema = z.strictObject({
+  ...staffBookingShape,
+  customerId: z.uuid(),
+});
+
+// A person who is not in the system — a Customer needs a Google account, so staff book them as a
+// guest. Name, phone and email are all required (UC-001 contact rules).
+const StaffBookingForGuestSchema = z.strictObject({
+  ...staffBookingShape,
+  contactEmail: z.email(),
+  // bookings.contact_name is VARCHAR(255): an oversized name is a 400, not a database error.
+  contactName: z.string().min(1).max(255),
+  contactPhone: z.string().refine((v) => isValidPhoneNumber(v), {
+    error: 'contactPhone must be in E.164 format',
+    params: { code: PhoneErrorCode.FORMAT_INVALID },
+  }),
+  contactAddress: AddressShapeSchema.optional(),
+});
+
+export const CreateBookingByStaffSchema = z.union([
+  StaffBookingForCustomerSchema,
+  StaffBookingForGuestSchema,
+]);
+
+export type CreateBookingByStaffBody = z.infer<typeof CreateBookingByStaffSchema>;

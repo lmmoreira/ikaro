@@ -122,6 +122,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/booking/infrastructure/migrations/1748500000027-WidenBookingStatusTransitionReasonToText.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000028-AddStaffCancelledToRecurringBookingScheduleCancellationReason.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000030-AddAvailabilityAlertAttemptTracking.ts',
+  'src/contexts/booking/infrastructure/migrations/1748500000033-AddBookingCreatedByStaffId.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000017-CreateRecurringBookingSchedules.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000018-RequireRecurringBookingScheduleEndsOn.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000019-RemoveRecurringBookingSchedulePausedStatus.ts',

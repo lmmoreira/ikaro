@@ -642,6 +642,92 @@ X-Correlation-ID: test-corr-006c
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — staff books for an existing customer (UC-108)
+# Created APPROVED; X-Actor-ID is the acting staff member (never taken from the body).
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings/staff
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-s39-001
+
+{
+  "customerId": "{{customerId}}",
+  "scheduledAt": "2026-06-16T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — staff books for a person who is not in the system (guest booking)
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings/staff
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-s39-002
+
+{
+  "contactName": "Pessoa Nova",
+  "contactPhone": "+5531977777777",
+  "contactEmail": "nova@example.com",
+  "scheduledAt": "2026-06-16T14:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — both customerId and contact fields → 400
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings/staff
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-s39-003
+
+{
+  "customerId": "{{customerId}}",
+  "contactName": "Pessoa Nova",
+  "contactPhone": "+5531977777777",
+  "contactEmail": "nova@example.com",
+  "scheduledAt": "2026-06-16T15:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — CUSTOMER role → 403
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings/staff
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-s39-004
+
+{
+  "customerId": "{{customerId}}",
+  "scheduledAt": "2026-06-16T16:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — authenticated customer booking (UC-002)
 # X-Actor-ID is forwarded by BFF from JWT sub claim
 # ─────────────────────────────────────────────────────────────────────────────

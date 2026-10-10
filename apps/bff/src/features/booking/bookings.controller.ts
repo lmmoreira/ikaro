@@ -53,6 +53,8 @@ import {
   RequestBookingBodySchema,
   RequestMoreInfoBody,
   RequestMoreInfoBodySchema,
+  StaffBookingBody,
+  StaffBookingBodySchema,
   RescheduleBookingBody,
   RescheduleBookingBodySchema,
   StaffListBookingsQuery,
@@ -131,6 +133,17 @@ export class BookingsController {
     @Body(new ZodValidationPipe(AuthenticatedBookingBodySchema)) body: AuthenticatedBookingBody,
   ): Promise<BookingResponse> {
     return this.backendHttp.post<BookingResponse>('/bookings/authenticated', body);
+  }
+
+  // UC-108 — staff books on a customer's behalf. The backend takes the acting staff id from the
+  // forwarded X-Actor-ID, so the body carries no staff field.
+  @Post('staff')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles('STAFF', 'MANAGER')
+  createByStaff(
+    @Body(new ZodValidationPipe(StaffBookingBodySchema)) body: StaffBookingBody,
+  ): Promise<BookingResponse> {
+    return this.backendHttp.post<BookingResponse>('/bookings/staff', body);
   }
 
   @Patch(':id/cancel')

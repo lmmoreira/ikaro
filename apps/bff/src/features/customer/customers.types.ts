@@ -1,5 +1,5 @@
 export interface CustomerSearchResponse {
-  items: { customerId: string; name: string; email: string }[];
+  items: { customerId: string; name: string; email: string; phone: string | null }[];
   total: number;
 }
 

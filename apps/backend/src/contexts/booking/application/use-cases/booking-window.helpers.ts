@@ -65,17 +65,25 @@ export interface BookingWindowRequest {
   tenantBookingWindow: TenantBookingWindow;
 }
 
-// The one call every customer-facing entry point makes: resolve the window the chosen services
-// allow, then check the requested start against it.
+export interface EffectiveBookingWindowOptions {
+  // A staff-created booking (UC-108) skips the minimum notice so a same-day phone booking works;
+  // the past-start check and the maximum advance still apply. Customers never pass this.
+  ignoreMinAdvance?: boolean;
+}
+
+// The one call every booking entry point makes: resolve the window the chosen services allow, then
+// check the requested start against it.
 export function assertWithinEffectiveBookingWindow(
   request: BookingWindowRequest,
   services: Iterable<Service>,
+  options: EffectiveBookingWindowOptions = {},
 ): void {
+  const window = resolveEffectiveBookingWindow(request.tenantBookingWindow, services);
   assertWithinBookingWindow({
     startsAt: new Date(request.scheduledAt),
     now: new Date(),
     timezone: request.timezone,
-    window: resolveEffectiveBookingWindow(request.tenantBookingWindow, services),
+    window: options.ignoreMinAdvance ? { ...window, minAdvanceHours: 0 } : window,
   });
 }
 

@@ -37,6 +37,7 @@ import {
   BookingProps,
   BookingStatus,
   BookingType,
+  CreateBookingByStaffInput,
   MaterializeRecurringOccurrenceInput,
   RequestBookingInput,
   RescheduleDurationChange,
@@ -219,6 +220,9 @@ export class Booking extends AggregateRoot {
   get recurringScheduleId(): string | null {
     return this.props.recurringScheduleId;
   }
+  get createdByStaffId(): string | null {
+    return this.props.createdByStaffId;
+  }
 
   static requestBooking(input: RequestBookingInput): Booking {
     const {
@@ -291,6 +295,35 @@ export class Booking extends AggregateRoot {
     return booking;
   }
 
+  // M23-S39 (UC-108): a one-off booking staff create for a customer who phoned or walked in,
+  // directly APPROVED (the second entry state requestBooking() never produces). Like the recurring
+  // occurrence above, creation is not a status transition, so no booking_status_transitions row is
+  // written; unlike it, this raises BookingApproved (and no BookingRequested) so the customer or
+  // guest gets the confirmation email and no manager is asked to decide anything.
+  static createByStaff(input: CreateBookingByStaffInput): Booking {
+    const { tenantId, lineInputs, pickupAddress, staffId, correlationId } = input;
+    if (!lineInputs.length) throw new BookingLineRequiredError();
+    if (lineInputs.some((l) => l.requiresPickupAddressAtBooking) && !pickupAddress) {
+      throw new PickupAddressRequiredError();
+    }
+
+    const id = input.id ?? uuidv7();
+    const { lines, totalDurationMins, totalPrice } = Booking.buildLines(id, tenantId, lineInputs);
+    const attendees = (input.attendeeInputs ?? []).map((attendeeInput) =>
+      BookingAttendee.create(id, tenantId, attendeeInput),
+    );
+    const booking = new Booking({
+      ...Booking.buildRequestedProps(id, input, lines, attendees, totalDurationMins, totalPrice),
+      status: BookingStatus.APPROVED,
+      approvedAt: new Date(),
+      approvedBy: staffId,
+      createdByStaffId: staffId,
+    });
+    booking._linesModified = true;
+    booking.addDomainEvent(booking.buildApprovedEvent(correlationId, staffId));
+    return booking;
+  }
+
   private static buildLines(
     bookingId: string,
     tenantId: string,
@@ -336,6 +369,7 @@ export class Booking extends AggregateRoot {
       intake: input.intake ?? null,
       attendees,
       recurringScheduleId: null,
+      createdByStaffId: null,
       discountAmount: null,
       lines,
       beforeServicePhotoUrls: [...(input.beforeServicePhotoUrls ?? [])],
@@ -442,25 +476,26 @@ export class Booking extends AggregateRoot {
     this.props.approvedAt = new Date();
     this.props.approvedBy = actor.id;
 
+    this.addDomainEvent(this.buildApprovedEvent(correlationId, actor.id));
+  }
+
+  private buildApprovedEvent(correlationId: string, approvedBy: string): BookingApproved {
     const endTime = new Date(
       this.props.scheduledAt.getTime() + this.props.totalDurationMins * 60_000,
     );
-
-    this.addDomainEvent(
-      new BookingApproved(this.props.tenantId, correlationId, {
-        bookingId: this.props.id,
-        customerId: this.props.customerId,
-        contactEmail: this.props.contactEmail.address,
-        contactName: this.props.contactName,
-        approvedSlot: {
-          startTime: this.props.scheduledAt.toISOString(),
-          endTime: endTime.toISOString(),
-        },
-        totalPrice: this.totalPricePayload(),
-        lineSummary: this.lineSummaryPayload(),
-        approvedBy: actor.id,
-      }),
-    );
+    return new BookingApproved(this.props.tenantId, correlationId, {
+      bookingId: this.props.id,
+      customerId: this.props.customerId,
+      contactEmail: this.props.contactEmail.address,
+      contactName: this.props.contactName,
+      approvedSlot: {
+        startTime: this.props.scheduledAt.toISOString(),
+        endTime: endTime.toISOString(),
+      },
+      totalPrice: this.totalPricePayload(),
+      lineSummary: this.lineSummaryPayload(),
+      approvedBy,
+    });
   }
 
   reject(actor: StaffBookingActor, reason: string, correlationId: string): void {

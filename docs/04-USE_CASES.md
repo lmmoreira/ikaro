@@ -1138,6 +1138,7 @@ Returns:
   - **A3: A required intake question or the consent checkbox is left unanswered** → The form validates the displayed schema client-side and shows an inline error on each missing field. If the server rejects anyway (`422 BOOKING_INTAKE_ANSWER_MISSING`), the response names the fields only in `detail`, so the form shows a summary banner without field highlights and keeps every answer.
   - **A4: `serviceIds` contains more than one intake-bearing and/or `CUSTOMER_SELECTED` service** → same `422` rejection as UC-067 A4 — one shared basket-scope rule for both extensions.
   - **A5: `intakeAnswers`/`attendees` are submitted for a service with no active intake schema** → Silently ignored (not persisted, not an error) — the precondition never applied, so there is nothing to validate against.
+  - **A6: Staff book on the customer's behalf (UC-108)** → the intake is optional for staff: no required answer, consent, participant count or attendees is demanded (UC-108 A7). Everything above applies to a customer or guest booking unchanged.
 - **Postconditions:** Historical bookings remain readable under the form version used at submission.
 - **Events Triggered:** None beyond the resulting booking-request event.
 
@@ -1893,6 +1894,7 @@ Returns:
   - **A3: The chosen customer has no phone** → `422` `BOOKING_CUSTOMER_PHONE_NOT_SET`.
   - **A4: `customerId` unknown in this tenant** → `404` `BOOKING_CUSTOMER_NOT_FOUND`.
   - **A5: The service is not an `APPOINTMENT` service** → the same `422` UC-001 returns.
+  - **A7: The service has an intake schema (UC-068)** → staff may skip every intake field — answers, consent, participant count and attendees. Nothing is stored when none is sent; whatever is sent is kept (answers still type-checked), and the consent is recorded only when staff tick it. A customer is not given this option.
   - **A6: A recurrence for someone not in the system** → not offered: UC-070 requires an account, so the customer chooser disables the "new contact" option for "Recorrência".
 - **Postconditions:** An `APPROVED` booking exists and occupies its resources. A customer booking earns loyalty points at completion like any other; a guest booking earns none (UC-001 A4). A guest booking is not linked to an account that is created later (same as UC-001 today).
 - **Events Triggered:** `BookingApproved`.

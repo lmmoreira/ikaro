@@ -788,6 +788,114 @@ describe('BookingsController (component)', () => {
     });
   });
 
+  describe('POST /v1/bookings/staff (M23-S39, UC-108)', () => {
+    const customerId = '20000000-0000-4000-8000-000000000001';
+    const forCustomer = { ...validAuthBody, customerId };
+    const forGuest = {
+      ...validAuthBody,
+      contactName: 'Pessoa Nova',
+      contactPhone: '+5531977777777',
+      contactEmail: 'nova@example.com',
+    };
+
+    it('returns 401 when no JWT is provided', async () => {
+      const res = await request(app.getHttpServer()).post('/v1/bookings/staff').send(forCustomer);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for a CUSTOMER JWT', async () => {
+      const token = makeCustomerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/bookings/staff')
+        .set('Authorization', `Bearer ${token}`)
+        .send(forCustomer);
+
+      expect(res.status).toBe(403);
+      expect(backendHttpService.post).not.toHaveBeenCalledWith(
+        '/bookings/staff',
+        expect.anything(),
+      );
+    });
+
+    it.each([
+      ['both customerId and the contact trio', { ...forCustomer, ...forGuest }],
+      ['neither customerId nor a contact', validAuthBody],
+      ['an incomplete contact trio', { ...validAuthBody, contactName: 'Só Nome' }],
+      ['an invalid contactPhone', { ...forGuest, contactPhone: '31999999999' }],
+      ['beforeServicePhotoUrls', { ...forCustomer, beforeServicePhotoUrls: ['tmp/t/u/car.jpg'] }],
+      ['a createdByStaffId in the body', { ...forCustomer, createdByStaffId: customerId }],
+      ['an approvedBy in the body', { ...forCustomer, approvedBy: customerId }],
+      ['an empty serviceIds', { ...forCustomer, serviceIds: [] }],
+    ])('returns 400 for %s, without calling the backend', async (_label, body) => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockClear();
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/bookings/staff')
+        .set('Authorization', `Bearer ${token}`)
+        .send(body);
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.post).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['MANAGER', makeManagerJwt],
+      ['STAFF', makeStaffJwt],
+    ])('creates a booking for a customer with a %s JWT', async (_role, makeJwt) => {
+      const token = makeJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockResolvedValueOnce({
+        ...mockBookingResponse,
+        status: 'APPROVED',
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/bookings/staff')
+        .set('Authorization', `Bearer ${token}`)
+        .send(forCustomer);
+
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('APPROVED');
+      expect(backendHttpService.post).toHaveBeenCalledWith('/bookings/staff', forCustomer);
+    });
+
+    it('creates a guest booking from the contact trio', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockResolvedValueOnce({
+        ...mockBookingResponse,
+        status: 'APPROVED',
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/bookings/staff')
+        .set('Authorization', `Bearer ${token}`)
+        .send(forGuest);
+
+      expect(res.status).toBe(201);
+      expect(backendHttpService.post).toHaveBeenCalledWith('/bookings/staff', forGuest);
+    });
+
+    it('propagates 409 from the backend when the slot is taken', async () => {
+      const { HttpException: HE } = await import('@nestjs/common');
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockRejectedValueOnce(
+        new HE({ status: 409, detail: 'booking-slot-unavailable' }, 409),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/bookings/staff')
+        .set('Authorization', `Bearer ${token}`)
+        .send(forCustomer);
+
+      expect(res.status).toBe(409);
+    });
+  });
+
   describe('POST /v1/bookings/authenticated', () => {
     it('returns 401 when no JWT is provided', async () => {
       const res = await request(app.getHttpServer())

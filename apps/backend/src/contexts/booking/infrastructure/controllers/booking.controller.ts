@@ -1,6 +1,21 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
+import {
+  CreateBookingByStaffDto,
+  CreateBookingByStaffSchema,
+} from '../../application/dtos/create-booking-by-staff.dto';
 import {
   RequestBookingDto,
   RequestBookingSchema,
@@ -17,6 +32,10 @@ import {
   RequestAuthenticatedBookingUseCase,
   RequestAuthenticatedBookingUseCaseResult,
 } from '../../application/use-cases/request-authenticated-booking.use-case';
+import {
+  CreateBookingByStaffUseCase,
+  CreateBookingByStaffUseCaseResult,
+} from '../../application/use-cases/create-booking-by-staff.use-case';
 import { ListBookingsDto, ListBookingsSchema } from '../../application/dtos/list-bookings.dto';
 import {
   ListBookingsUseCase,
@@ -38,6 +57,7 @@ export class BookingController {
     private readonly ctx: RequestContext,
     private readonly requestBooking: RequestBookingUseCase,
     private readonly requestAuthenticatedBooking: RequestAuthenticatedBookingUseCase,
+    private readonly createBookingByStaff: CreateBookingByStaffUseCase,
     private readonly listBookings: ListBookingsUseCase,
     private readonly getBooking: GetBookingByIdUseCase,
   ) {}
@@ -104,6 +124,27 @@ export class BookingController {
         tenantId,
         correlationId,
         customerId: customerId!,
+        countryCode: settings.localization.countryCode,
+        timezone: settings.businessHours.timezone,
+        tenantBookingWindow: this.tenantBookingWindow(),
+      })
+      .catch(mapBookingError);
+  }
+
+  // UC-108 — the acting staff id is the request context's, never the body's.
+  @Post('staff')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(StaffOrManagerRoleGuard)
+  createByStaff(
+    @Body(new ZodValidationPipe(CreateBookingByStaffSchema)) body: CreateBookingByStaffDto,
+  ): Promise<CreateBookingByStaffUseCaseResult> {
+    const { tenantId, correlationId, actorId: staffId, settings } = this.ctx;
+    return this.createBookingByStaff
+      .execute({
+        ...body,
+        tenantId,
+        correlationId,
+        staffId: staffId!,
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
         tenantBookingWindow: this.tenantBookingWindow(),

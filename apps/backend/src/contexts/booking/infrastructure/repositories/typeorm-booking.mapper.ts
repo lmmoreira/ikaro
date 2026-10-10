@@ -44,8 +44,8 @@ function toDomainIntake(entity: BookingEntity): BookingIntakeSnapshot | null {
   return {
     intakeSchemaVersion: entity.intakeSchemaVersion,
     intakeAnswers: entity.intakeAnswers as Record<string, string | boolean>,
-    consentAcceptedAt: entity.consentAcceptedAt!,
-    consentVersion: entity.consentVersion!,
+    consentAcceptedAt: entity.consentAcceptedAt,
+    consentVersion: entity.consentVersion,
   };
 }
 
@@ -99,6 +99,7 @@ function toDomainProps(
     intake: toDomainIntake(entity),
     attendees,
     recurringScheduleId: entity.recurringScheduleId,
+    createdByStaffId: entity.createdByStaffId,
     ...toDomainLifecycleProps(entity),
   };
 }
@@ -185,6 +186,7 @@ function assignCoreFields(entity: BookingEntity, booking: Booking): void {
   entity.consentAcceptedAt = booking.intake?.consentAcceptedAt ?? null;
   entity.consentVersion = booking.intake?.consentVersion ?? null;
   entity.recurringScheduleId = booking.recurringScheduleId;
+  entity.createdByStaffId = booking.createdByStaffId;
 }
 
 function assignPriceFields(entity: BookingEntity, booking: Booking): void {

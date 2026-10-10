@@ -4,6 +4,7 @@ export interface CustomerSearchItem {
   readonly customerId: string;
   readonly name: string;
   readonly email: string;
+  readonly phone: string | null;
   readonly currentPoints: number;
 }
 

@@ -5,6 +5,7 @@ export class CustomerBuilder {
   private googleOAuthId = 'google-sub-1';
   private email = 'customer@example.com';
   private name = 'João Silva';
+  private phone: string | null = null;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -26,7 +27,14 @@ export class CustomerBuilder {
     return this;
   }
 
+  withPhone(phone: string | null): this {
+    this.phone = phone;
+    return this;
+  }
+
   build(): Customer {
-    return Customer.create(this.tenantId, this.googleOAuthId, this.email, this.name);
+    const customer = Customer.create(this.tenantId, this.googleOAuthId, this.email, this.name);
+    if (this.phone) customer.updateProfile(this.name, this.phone, null);
+    return customer;
   }
 }

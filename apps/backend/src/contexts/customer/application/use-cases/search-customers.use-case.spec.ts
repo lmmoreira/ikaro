@@ -74,6 +74,67 @@ describe('SearchCustomersUseCase', () => {
     expect(result.items[0]?.email).toBe('alice@acme.com');
   });
 
+  it('returns the phone of each customer, null when none is set', async () => {
+    await repo.save(
+      new CustomerBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Ana')
+        .withEmail('ana@example.com')
+        .withPhone('+5531999999999')
+        .build(),
+    );
+    await repo.save(
+      new CustomerBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Bia')
+        .withEmail('bia@example.com')
+        .build(),
+    );
+
+    const result = await useCase.execute({ tenantId: TENANT_A, limit: 20 });
+
+    expect(result.items.map((i) => i.phone)).toEqual(['+5531999999999', null]);
+  });
+
+  it('finds a customer by the digits of their phone, in any typed format', async () => {
+    await repo.save(
+      new CustomerBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Ana')
+        .withEmail('ana@example.com')
+        .withPhone('+5531999998888')
+        .build(),
+    );
+    await repo.save(
+      new CustomerBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Bia')
+        .withEmail('bia@example.com')
+        .withPhone('+5531977776666')
+        .build(),
+    );
+
+    for (const term of ['(31) 99999-8888', '31999998888', '99998888']) {
+      const result = await useCase.execute({ tenantId: TENANT_A, search: term, limit: 20 });
+      expect(result.items.map((i) => i.name)).toEqual(['Ana']);
+    }
+  });
+
+  it('does not match every customer on a term with no digits', async () => {
+    await repo.save(
+      new CustomerBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Ana')
+        .withEmail('ana@example.com')
+        .withPhone('+5531999998888')
+        .build(),
+    );
+
+    const result = await useCase.execute({ tenantId: TENANT_A, search: 'zzzzz', limit: 20 });
+
+    expect(result.items).toHaveLength(0);
+  });
+
   it('tenant-isolation: does not return customers from another tenant', async () => {
     const cA = new CustomerBuilder()
       .withTenantId(TENANT_A)

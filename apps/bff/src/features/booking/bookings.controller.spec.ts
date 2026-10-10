@@ -953,6 +953,57 @@ describe('BookingsController', () => {
     });
   });
 
+  describe('createByStaff()', () => {
+    const staffBody = {
+      customerId: '20000000-0000-4000-8000-000000000001',
+      scheduledAt: '2026-06-15T10:00:00.000Z',
+      serviceIds: [SERVICE_ID],
+    };
+
+    it('calls post /bookings/staff with the body and returns the booking', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue({ ...mockBookingResponse, status: 'APPROVED' }),
+      });
+      const controller = new BookingsController(backendHttp);
+
+      const result = await controller.createByStaff(staffBody);
+
+      expect(backendHttp.post).toHaveBeenCalledWith('/bookings/staff', staffBody);
+      expect(result.status).toBe('APPROVED');
+    });
+
+    it('forwards the guest contact shape unchanged', async () => {
+      const guestBody = {
+        contactName: 'Pessoa Nova',
+        contactPhone: '+5531977777777',
+        contactEmail: 'nova@example.com',
+        scheduledAt: '2026-06-15T10:00:00.000Z',
+        serviceIds: [SERVICE_ID],
+      };
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue(mockBookingResponse),
+      });
+      const controller = new BookingsController(backendHttp);
+
+      await controller.createByStaff(guestBody);
+
+      expect(backendHttp.post).toHaveBeenCalledWith('/bookings/staff', guestBody);
+    });
+
+    it('propagates backend errors (409 slot unavailable)', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest
+          .fn()
+          .mockRejectedValue(new HttpException({ status: 409, detail: 'slot unavailable' }, 409)),
+      });
+      const controller = new BookingsController(backendHttp);
+
+      const err = await controller.createByStaff(staffBody).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(409);
+    });
+  });
+
   describe('createAuthenticated()', () => {
     const authBody = {
       scheduledAt: '2026-06-15T10:00:00.000Z',
