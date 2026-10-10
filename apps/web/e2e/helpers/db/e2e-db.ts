@@ -10,6 +10,10 @@ import { Client } from 'pg';
 const DB_URL =
   process.env.PLAYWRIGHT_DB_URL ?? 'postgres://ikaro_migrator:ikaro_migrator@localhost:5432/ikaro';
 
+// The seeded `lavacar-beloauto` tenant every E2E booking belongs to. A booking's identity is
+// `(tenant_id, id)`, so every statement below filters on both.
+const E2E_TENANT_ID = '00000000-0000-7000-8000-000000000001';
+
 async function withClient<T>(run: (client: Client) => Promise<T>): Promise<T> {
   const client = new Client({ connectionString: DB_URL });
   await client.connect();
@@ -24,9 +28,9 @@ async function shiftBooking(bookingId: string, hoursFromNow: number): Promise<vo
   await withClient(async (client) => {
     const result = await client.query(
       `UPDATE booking.bookings
-          SET scheduled_at = now() + make_interval(hours => $2::int)
-        WHERE id = $1`,
-      [bookingId, hoursFromNow],
+          SET scheduled_at = now() + make_interval(hours => $3::int)
+        WHERE tenant_id = $1 AND id = $2`,
+      [E2E_TENANT_ID, bookingId, hoursFromNow],
     );
     if (result.rowCount !== 1) {
       throw new Error(`shiftBooking: expected to update 1 booking, updated ${result.rowCount}`);

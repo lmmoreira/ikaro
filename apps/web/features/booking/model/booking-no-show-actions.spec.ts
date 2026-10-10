@@ -30,7 +30,7 @@ function setup() {
   return { handlers, setBooking, setActionState, setSheetState, current: () => current };
 }
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = () => Promise.resolve().then(() => Promise.resolve());
 
 describe('buildNoShowOutcomeHandlers', () => {
   beforeEach(() => {
