@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingListItem, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
 import { HomeDashboard } from './HomeDashboard';
@@ -16,7 +16,11 @@ vi.mock('next-intl', () => ({
         expiryStrip: '{points} pts expiram em {date}',
         upcomingTitle: 'Próximos agendamentos',
         viewAll: 'Ver todos os agendamentos →',
-        newBooking: '+ Novo agendamento',
+      },
+      'customer.newMenu': {
+        label: 'Novo',
+        booking: 'Agendamento',
+        recurring: 'Reserva recorrente',
       },
       'customer.bookingItem': {
         statusPending: 'Aguardando',
@@ -163,11 +167,15 @@ describe('HomeDashboard', () => {
     expect(screen.getByText('Nenhum agendamento ainda')).toBeInTheDocument();
   });
 
-  it('renders the mobile new-booking CTA linking to the booking flow', () => {
+  it('renders the mobile "+ Novo" menu, hidden from lg up, with both destinations', () => {
     renderHome([]);
-    expect(screen.getByRole('link', { name: '+ Novo agendamento' })).toHaveAttribute(
+
+    expect(screen.getByTestId('mobile-new-menu').className).toContain('lg:hidden');
+    fireEvent.click(screen.getByTestId('new-menu-trigger'));
+    expect(screen.getByTestId('new-menu-booking')).toHaveAttribute('href', '/lavacar-bh/booking');
+    expect(screen.getByTestId('new-menu-recurring')).toHaveAttribute(
       'href',
-      '/lavacar-bh/booking',
+      '/lavacar-bh/my-account/recurring-schedules/new',
     );
   });
 });

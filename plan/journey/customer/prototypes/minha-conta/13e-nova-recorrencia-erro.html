@@ -170,6 +170,18 @@
           </div>
         </div>
 
+        <p class="section-label" style="margin-top:1.75rem;">Estado A4 — primeira ocorrência fora da janela de reserva (M23-S17, decisões J/K)</p>
+        <div class="card notice-error">
+          <p style="font-size:.875rem;color:#dc2626;margin:0;" role="alert">Esse horário exige mais antecedência.</p>
+          <p style="font-size:.75rem;opacity:.6;margin-top:.4rem;">Aparece acima do formulário, com o padrão mantido. A mesma regra é aplicada antes do envio; o servidor responde <code>BOOKING_TOO_SOON</code>, <code>BOOKING_TOO_FAR_AHEAD</code> ou <code>BOOKING_SCHEDULED_IN_PAST</code>, e a mensagem é a do catálogo de erros.</p>
+        </div>
+
+        <p class="section-label" style="margin-top:1.75rem;">Estado A5 — nenhum dia escolhido cai no período (M23-S17, decisão K)</p>
+        <div class="card notice-error">
+          <p style="font-size:.875rem;color:#dc2626;margin:0;" role="alert">Nenhum dos dias da semana selecionados cai entre as datas de início e de término.</p>
+          <p style="font-size:.75rem;opacity:.6;margin-top:.4rem;">Mesmo lugar e mesmo comportamento do A4; o código é <code>BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES</code>.</p>
+        </div>
+
         <p class="section-label" style="margin-top:1.75rem;">Estado B — falha de envio</p>
         <div class="card notice-error">
           <h2 style="font-size:1.1rem;color:#dc2626;margin:0;">Não foi possível enviar sua solicitação</h2>

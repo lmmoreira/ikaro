@@ -46,6 +46,11 @@ export function recurringScheduleListPath(tenantSlug: string): string {
   return `/${tenantSlug}/my-account/recurring-schedules`;
 }
 
+/** The creation flow (M23-S17): one route, the review and the outcomes are states of it. */
+export function recurringScheduleNewPath(tenantSlug: string): string {
+  return `${recurringScheduleListPath(tenantSlug)}/new`;
+}
+
 /** The detail page, optionally on a given occurrence page — page 1 stays the bare URL. */
 export function recurringScheduleDetailPath(
   tenantSlug: string,

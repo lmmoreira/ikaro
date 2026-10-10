@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
 import { CustomerShell } from './CustomerShell';
@@ -86,13 +86,16 @@ describe('CustomerShell', () => {
     expect(loyaltyLink?.className).toContain('border-transparent');
   });
 
-  it('renders the "+ Novo agendamento" link pointing to /{slug}/booking', () => {
+  it('renders the "+ Novo" menu in the topbar, with both destinations', () => {
     render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
 
-    const newBookingLinks = screen
-      .getAllByRole('link')
-      .filter((el) => el.getAttribute('href') === '/lavacar-bh/booking');
-    expect(newBookingLinks.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(screen.getByTestId('new-menu-trigger'));
+
+    expect(screen.getByTestId('new-menu-booking')).toHaveAttribute('href', '/lavacar-bh/booking');
+    expect(screen.getByTestId('new-menu-recurring')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/recurring-schedules/new',
+    );
   });
 
   it('renders the back-to-site link pointing to /{slug}', () => {

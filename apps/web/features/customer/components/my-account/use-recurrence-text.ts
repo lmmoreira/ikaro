@@ -33,6 +33,8 @@ interface RecurrenceText {
   /** "até 11/11/2026" while it runs, "02/06/2026 → 25/08/2026" otherwise. */
   readonly termText: (schedule: RecurringBookingScheduleListItem) => string;
   readonly formatDateKey: (dateKey: string) => string;
+  /** "Toda terça" / "Toda semana: seg e qua" — the weekdays alone, without the time. */
+  readonly daysText: (recurrence: RecurrenceRule) => string;
 }
 
 export function useRecurrenceText(): RecurrenceText {
@@ -54,6 +56,7 @@ export function useRecurrenceText(): RecurrenceText {
 
   return {
     formatDateKey,
+    daysText,
     recurrenceLine: (recurrence) =>
       t('recurrenceLine', {
         days: daysText(recurrence),

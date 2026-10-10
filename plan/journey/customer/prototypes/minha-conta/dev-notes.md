@@ -152,7 +152,7 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 | File | Status | Story |
 |---|---|---|
 | `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` | ✅ Done (M23-S12) | M23-S12 |
-| `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ❓ Gap | M23-S17 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ✅ Done | M23-S17 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ✅ Done (M23-S12) — detail page (central detail + action pane, same pattern as `bookings/[id]/page.tsx`) | M23-S12 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` | ✅ Done (M23-S12) — end confirmation page (same pattern as `bookings/[id]/cancel` and `alerts/[id]/cancel`; **not** an inline panel) | M23-S12 |
 | `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S43 |
@@ -160,7 +160,7 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 | `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ❓ Gap — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S43 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ✅ Done (M23-S12) | M23-S12 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ `AccountListRow`, `RecurringScheduleDetail`, `RecurringSchedulePendingView`, `RecurringScheduleEndConfirm`) | ✅ Done (M23-S12) | M23-S12 |
-| `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result) | ❓ Gap | M23-S17 |
+| `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result, the page container, and the shared `NewReservationMenu`) | ✅ Done | M23-S17 |
 | `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` (and `availability-alerts.server.ts` for the alerts) | ❓ Gap | M23-S12 / S17 / S43 |
 | `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` and `customer.alerts.*` | ❓ Gap | M23-S12 / S17 / S43 |
 
@@ -235,6 +235,12 @@ POST /recurring-booking-schedules
 | network / `5xx` | `13e`, state B — the typed pattern is preserved |
 
 **Mobile notes:** the shell provides the bottom nav; the form is a single column, weekday chips wrap.
+
+### Built by M23-S17 (2026-10) — what the code does beyond the drawn screens
+
+- **Where the "+ Novo ▾" menu sits on mobile:** in the page header, right of the title, on Início (full-width button), Agendamentos (`01`, and its empty state `01b`) and the recurring list (`14`). Desktop: the topbar, on every my-account screen. `14b` keeps its own call to action.
+- **First occurrence in the booking window:** the form checks the first occurrence (first chosen weekday on or after the start date, in the tenant timezone) against the service's minimum notice and maximum advance before sending, and shows the catalog message above the form (`13e` A4); a pattern none of whose weekdays falls in the term shows A5. The `422`s of the same codes are the backstop.
+- **The service list does not say "requer aprovação":** the public service shape carries no approval mode, so the option reads "{name} — {duração} · {preço}"; the customer learns it from the outcome (`06c`).
 
 ### Known limitations of this prototype (gap variants, not silently dropped)
 

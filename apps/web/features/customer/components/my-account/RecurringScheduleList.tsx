@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Repeat } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { RecurringBookingScheduleListItem, RecurringScheduleStatus } from '@ikaro/types';
@@ -9,8 +10,10 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import {
   RECURRING_SCHEDULE_STATUS_CLASSES,
   recurringScheduleDetailPath,
+  recurringScheduleNewPath,
   splitRecurringScheduleSections,
 } from '../../recurring-schedule-model';
+import { NewReservationMenu } from '../NewReservationMenu';
 import { AccountListRow } from './AccountListRow';
 import { useRecurrenceText } from './use-recurrence-text';
 
@@ -112,7 +115,12 @@ export function RecurringScheduleList({
 
   return (
     <div className="w-full">
-      <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+        <div className="lg:hidden" data-testid="mobile-new-menu">
+          <NewReservationMenu tenantSlug={tenantSlug} />
+        </div>
+      </div>
 
       {isEmpty ? (
         <section
@@ -122,6 +130,13 @@ export function RecurringScheduleList({
           <Repeat className="h-10 w-10 text-gray-300" aria-hidden="true" />
           <p className="mt-4 text-base font-semibold text-gray-900">{t('emptyTitle')}</p>
           <p className="mt-1 max-w-sm text-sm text-gray-500">{t('emptyBody')}</p>
+          <Link
+            href={recurringScheduleNewPath(tenantSlug)}
+            data-testid="recurring-schedules-empty-cta"
+            className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            {t('createCta')}
+          </Link>
         </section>
       ) : (
         <div className="mt-4">

@@ -9,8 +9,15 @@ import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { useRecurrenceText } from './use-recurrence-text';
 
+// Only what the view shows, so the creation flow can render it from the pattern it just sent and
+// the 201 body without a second read.
+export type PendingScheduleFacts = Pick<
+  RecurringBookingScheduleListItem,
+  'serviceName' | 'recurrence' | 'startsOn' | 'endsOn' | 'approvalHoldExpiresAt'
+>;
+
 interface RecurringSchedulePendingViewProps {
-  readonly schedule: RecurringBookingScheduleListItem;
+  readonly schedule: PendingScheduleFacts;
   readonly tenantSlug: string;
 }
 
