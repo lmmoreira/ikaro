@@ -1893,6 +1893,7 @@ Returns:
   - **A3: The chosen customer has no phone** → `422` `BOOKING_CUSTOMER_PHONE_NOT_SET`.
   - **A4: `customerId` unknown in this tenant** → `404` `BOOKING_CUSTOMER_NOT_FOUND`.
   - **A5: The service is not an `APPOINTMENT` service** → the same `422` UC-001 returns.
+  - **A7: The service has an intake schema (UC-068)** → staff may skip every intake field — answers, consent, participant count and attendees. Nothing is stored when none is sent; whatever is sent is kept (answers still type-checked), and the consent is recorded only when staff tick it. A customer is not given this option.
   - **A6: A recurrence for someone not in the system** → not offered: UC-070 requires an account, so the customer chooser disables the "new contact" option for "Recorrência".
 - **Postconditions:** An `APPROVED` booking exists and occupies its resources. A customer booking earns loyalty points at completion like any other; a guest booking earns none (UC-001 A4). A guest booking is not linked to an account that is created later (same as UC-001 today).
 - **Events Triggered:** `BookingApproved`.

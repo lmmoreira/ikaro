@@ -12,8 +12,9 @@ import { BookingLine, BookingLineInput } from './booking-line.entity';
 export interface BookingIntakeSnapshot {
   intakeSchemaVersion: number;
   intakeAnswers: Record<string, string | boolean>;
-  consentAcceptedAt: Date;
-  consentVersion: number;
+  // Null when staff created the booking and the customer's consent was not collected (UC-108).
+  consentAcceptedAt: Date | null;
+  consentVersion: number | null;
 }
 
 // Split out of booking.aggregate.ts to keep it under the file-length cap — re-exported from

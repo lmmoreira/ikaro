@@ -275,4 +275,128 @@ describe('BookingIntakeValidationService', () => {
       }),
     ).rejects.toThrow(BookingIntakeAnswerMissingError);
   });
+
+  describe("intakeOptional (staff booking on a customer's behalf, UC-108)", () => {
+    const strictSchema = () =>
+      ServiceBookingIntakeSchema.publish({
+        tenantId: TENANT_ID,
+        serviceId: SERVICE_ID,
+        previousVersion: 0,
+        questions: [
+          { fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true },
+          { fieldKey: 'hasPet', label: 'Pet', type: 'BOOLEAN', required: false },
+        ],
+        consentText: 'Aceito os termos',
+        requiresNamedAttendees: true,
+        participantCountRequired: true,
+      });
+    const optional = { intakeOptional: true };
+
+    // Negative guarantee: without the option the same schema is fully enforced.
+    it.each([undefined, { intakeOptional: false }])(
+      'still demands the required answer, consent and participant count for a customer (%p)',
+      async (options) => {
+        await repo.publish(strictSchema());
+
+        await expect(service.resolve(SERVICE_ID, TENANT_ID, {}, options)).rejects.toThrow(
+          BookingIntakeAnswerMissingError,
+        );
+      },
+    );
+
+    it('records no intake at all when staff skip everything', async () => {
+      await repo.publish(strictSchema());
+
+      const result = await service.resolve(SERVICE_ID, TENANT_ID, {}, optional);
+
+      expect(result).toEqual({ intake: null, attendeeInputs: [] });
+    });
+
+    it('records no intake when staff send only empty values', async () => {
+      await repo.publish(strictSchema());
+
+      const result = await service.resolve(
+        SERVICE_ID,
+        TENANT_ID,
+        { intakeAnswers: {}, consentAccepted: false, attendees: [] },
+        optional,
+      );
+
+      expect(result.intake).toBeNull();
+    });
+
+    it('stores what staff did enter, with no consent recorded when none was given', async () => {
+      const schema = strictSchema();
+      await repo.publish(schema);
+
+      const result = await service.resolve(
+        SERVICE_ID,
+        TENANT_ID,
+        { intakeAnswers: { vehiclePlate: 'ABC1D23' } },
+        optional,
+      );
+
+      expect(result.intake).toEqual({
+        intakeSchemaVersion: schema.version,
+        intakeAnswers: { vehiclePlate: 'ABC1D23' },
+        consentAcceptedAt: null,
+        consentVersion: null,
+      });
+    });
+
+    it('records the consent when staff do tick it', async () => {
+      const schema = strictSchema();
+      await repo.publish(schema);
+
+      const result = await service.resolve(
+        SERVICE_ID,
+        TENANT_ID,
+        { consentAccepted: true },
+        optional,
+      );
+
+      expect(result.intake).toEqual({
+        intakeSchemaVersion: schema.version,
+        intakeAnswers: {},
+        consentAcceptedAt: expect.any(Date),
+        consentVersion: schema.consentVersion,
+      });
+    });
+
+    it('keeps the attendees staff entered when the schema asks for named attendees', async () => {
+      await repo.publish(strictSchema());
+
+      const result = await service.resolve(
+        SERVICE_ID,
+        TENANT_ID,
+        { attendees: [{ name: 'Ana' }], participantCount: 1 },
+        optional,
+      );
+
+      expect(result.attendeeInputs).toEqual([{ name: 'Ana' }]);
+    });
+
+    // An answer that was entered must still be the right type — skipping is not the same as
+    // storing garbage.
+    it('still rejects an answer of the wrong type', async () => {
+      await repo.publish(strictSchema());
+
+      await expect(
+        service.resolve(SERVICE_ID, TENANT_ID, { intakeAnswers: { hasPet: 'yes' } }, optional),
+      ).rejects.toThrow(BookingIntakeAnswerMissingError);
+    });
+
+    it('still rejects a schema version this service never published', async () => {
+      await repo.publish(strictSchema());
+
+      await expect(
+        service.resolve(
+          SERVICE_ID,
+          TENANT_ID,
+          { intakeSchemaVersion: 999, intakeAnswers: { vehiclePlate: 'X' } },
+          optional,
+        ),
+      ).rejects.toThrow(BookingIntakeAnswerMissingError);
+    });
+  });
 });

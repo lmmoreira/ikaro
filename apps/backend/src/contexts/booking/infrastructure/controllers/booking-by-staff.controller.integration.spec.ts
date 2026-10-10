@@ -381,4 +381,105 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
       ).toBe(403);
     });
   });
+
+  describe('intake (staff may skip it, a customer may not)', () => {
+    let intakeServiceId: string;
+
+    beforeAll(async () => {
+      const service = new ServiceEntityBuilder()
+        .withTenantId(tenantAId)
+        .withName('Serviço com Formulário')
+        .withDurationMinutes(30)
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(ServiceEntity).save(service);
+      intakeServiceId = service.id;
+      await request(app.getHttpServer())
+        .post(`/services/${intakeServiceId}/intake-schema`)
+        .set(staff())
+        .send({
+          questions: [
+            { fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true },
+          ],
+          consentText: 'Aceito os termos',
+        })
+        .expect(201);
+    });
+
+    const intakeColumns = async (bookingId: string) =>
+      (
+        await ds.query(
+          `SELECT intake_schema_version, intake_answers, consent_accepted_at, consent_version
+             FROM booking.bookings WHERE tenant_id = $1 AND id = $2`,
+          [tenantAId, bookingId],
+        )
+      )[0];
+
+    it('creates the booking with no intake stored when staff skip every field', async () => {
+      const { body } = await post({
+        customerId,
+        scheduledAt: slot(9, 9),
+        serviceIds: [intakeServiceId],
+      }).expect(201);
+
+      expect(body.status).toBe('APPROVED');
+      expect(await intakeColumns(body.bookingId)).toEqual({
+        intake_schema_version: null,
+        intake_answers: null,
+        consent_accepted_at: null,
+        consent_version: null,
+      });
+    });
+
+    it('stores the answers staff entered, with no consent recorded', async () => {
+      const { body } = await post({
+        customerId,
+        scheduledAt: slot(9, 11),
+        serviceIds: [intakeServiceId],
+        intakeAnswers: { vehiclePlate: 'ABC1D23' },
+      }).expect(201);
+
+      const row = await intakeColumns(body.bookingId);
+      expect(row.intake_schema_version).toBe(1);
+      expect(row.intake_answers).toEqual({ vehiclePlate: 'ABC1D23' });
+      expect(row.consent_accepted_at).toBeNull();
+      expect(row.consent_version).toBeNull();
+    });
+
+    it('records the consent when staff tick it', async () => {
+      const { body } = await post({
+        contactName: 'Pessoa de Passagem',
+        contactPhone: '+5531966666666',
+        contactEmail: 'passagem2@staff-booking.test',
+        scheduledAt: slot(9, 13),
+        serviceIds: [intakeServiceId],
+        consentAccepted: true,
+      }).expect(201);
+
+      const row = await intakeColumns(body.bookingId);
+      expect(row.consent_accepted_at).not.toBeNull();
+      expect(row.consent_version).toBe(1);
+    });
+
+    it('still refuses a customer booking the same service without the required intake', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, customerId, 'CUSTOMER', CORRELATION_ID))
+        .send({ scheduledAt: slot(9, 15), serviceIds: [intakeServiceId] })
+        .expect(422);
+
+      expect(body.code).toBe('BOOKING_INTAKE_ANSWER_MISSING');
+    });
+
+    it('still rejects an answer of the wrong type from staff', async () => {
+      const res = await post({
+        customerId,
+        scheduledAt: slot(9, 17),
+        serviceIds: [intakeServiceId],
+        intakeAnswers: { vehiclePlate: true },
+      });
+
+      expect(res.status).toBe(422);
+    });
+  });
 });

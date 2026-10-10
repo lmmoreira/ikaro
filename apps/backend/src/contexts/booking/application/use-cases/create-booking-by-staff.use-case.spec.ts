@@ -18,12 +18,14 @@ import {
   BookingCustomerNotFoundError,
   BookingScheduledInPastError,
   BookingServiceSessionNotBookableError,
+  BookingIntakeAnswerMissingError,
   BookingSlotUnavailableError,
   BookingTooFarAheadError,
   BookingTooSoonError,
   CustomerPhoneNotSetError,
   PickupAddressRequiredError,
 } from '../../domain/errors/booking-domain.error';
+import { ServiceBookingIntakeSchema } from '../../domain/service-booking-intake-schema';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { BookingIntakeValidationService } from '../services/booking-intake-validation.service';
@@ -332,6 +334,89 @@ describe('CreateBookingByStaffUseCase', () => {
       await expect(useCase.execute(guestInput())).rejects.toBeInstanceOf(
         BookingSlotUnavailableError,
       );
+    });
+  });
+
+  describe('intake (staff may skip it, a customer may not)', () => {
+    let intakeServiceId: string;
+
+    beforeEach(async () => {
+      const intakeService = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(intakeService);
+      intakeServiceId = intakeService.id;
+      await intakeSchemaRepo.publish(
+        ServiceBookingIntakeSchema.publish({
+          tenantId: TENANT_A,
+          serviceId: intakeServiceId,
+          previousVersion: 0,
+          questions: [
+            { fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', required: true },
+          ],
+          consentText: 'Aceito os termos',
+          requiresNamedAttendees: false,
+          participantCountRequired: true,
+        }),
+      );
+    });
+
+    // Negative guarantee: the same service still demands the intake from a customer.
+    it('refuses a customer booking that skips the required intake', async () => {
+      await expect(
+        customerUseCase.execute({
+          scheduledAt,
+          serviceIds: [intakeServiceId],
+          tenantId: TENANT_A,
+          correlationId: CORRELATION_ID,
+          customerId: CUSTOMER_ID,
+          countryCode: 'BR',
+          timezone: 'America/Sao_Paulo',
+          tenantBookingWindow: window,
+        }),
+      ).rejects.toBeInstanceOf(BookingIntakeAnswerMissingError);
+    });
+
+    it('creates the booking when staff skip every intake field, with no intake recorded', async () => {
+      const result = await useCase.execute({ ...customerInput(), serviceIds: [intakeServiceId] });
+
+      expect(result.status).toBe(BookingStatus.APPROVED);
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.intake).toBeNull();
+      expect(saved!.attendees).toEqual([]);
+    });
+
+    it('does the same for a guest booking', async () => {
+      const result = await useCase.execute({ ...guestInput(), serviceIds: [intakeServiceId] });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.type).toBe('GUEST');
+      expect(saved!.intake).toBeNull();
+    });
+
+    it('stores the answers staff did enter, with no consent recorded', async () => {
+      const result = await useCase.execute({
+        ...customerInput(),
+        serviceIds: [intakeServiceId],
+        intakeAnswers: { vehiclePlate: 'ABC1D23' },
+      });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.intake).toMatchObject({
+        intakeAnswers: { vehiclePlate: 'ABC1D23' },
+        consentAcceptedAt: null,
+        consentVersion: null,
+      });
+    });
+
+    it('records the consent when staff tick it', async () => {
+      const result = await useCase.execute({
+        ...customerInput(),
+        serviceIds: [intakeServiceId],
+        consentAccepted: true,
+      });
+
+      const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+      expect(saved!.intake!.consentAcceptedAt).toBeInstanceOf(Date);
+      expect(saved!.intake!.consentVersion).toBe(1);
     });
   });
 });

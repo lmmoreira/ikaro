@@ -26,6 +26,7 @@ import { BookingQuoteService } from '../services/booking-quote.service';
 import {
   BookingIntakeValidationService,
   IntakeSubmissionInput,
+  ResolveIntakeOptions,
 } from '../services/booking-intake-validation.service';
 import {
   PhotoPromotionOperation,
@@ -201,6 +202,7 @@ export async function resolveVariableServiceInputs(
   serviceMap: Map<string, Service>,
   tenantId: string,
   input: VariableServiceInput,
+  options: ResolveIntakeOptions = {},
 ): Promise<VariableServiceResolution> {
   const variableServiceId = await findVariableServiceId(
     deps.intakeSchemaRepo,
@@ -216,6 +218,7 @@ export async function resolveVariableServiceInputs(
     variableServiceId,
     tenantId,
     input,
+    options,
   );
 
   return {

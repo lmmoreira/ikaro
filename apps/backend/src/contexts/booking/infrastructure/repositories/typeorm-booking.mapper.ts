@@ -44,8 +44,8 @@ function toDomainIntake(entity: BookingEntity): BookingIntakeSnapshot | null {
   return {
     intakeSchemaVersion: entity.intakeSchemaVersion,
     intakeAnswers: entity.intakeAnswers as Record<string, string | boolean>,
-    consentAcceptedAt: entity.consentAcceptedAt!,
-    consentVersion: entity.consentVersion!,
+    consentAcceptedAt: entity.consentAcceptedAt,
+    consentVersion: entity.consentVersion,
   };
 }
 

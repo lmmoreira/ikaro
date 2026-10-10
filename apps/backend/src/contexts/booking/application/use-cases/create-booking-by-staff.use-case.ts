@@ -116,6 +116,8 @@ export class CreateBookingByStaffUseCase {
       serviceMap,
       tenantId,
       input,
+      // Staff may skip the intake on the customer's behalf (UC-108).
+      { intakeOptional: true },
     );
 
     const booking = this.buildBooking(input, subject, serviceMap, variableResolution);

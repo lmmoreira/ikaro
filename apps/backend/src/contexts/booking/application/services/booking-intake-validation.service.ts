@@ -23,6 +23,13 @@ export interface ResolvedIntake {
 
 const NO_INTAKE: ResolvedIntake = { intake: null, attendeeInputs: [] };
 
+export interface ResolveIntakeOptions {
+  // A staff member booking on a customer's behalf (UC-108) may skip the intake: no required
+  // answer, no participant count and no consent is demanded, and whatever they do enter is stored.
+  // Customers never pass this.
+  intakeOptional?: boolean;
+}
+
 // UC-068 — validates a booking request's intake submission against the target service's
 // currently-active (or an explicitly-displayed prior, UC-068 A1) intake schema, and builds the
 // immutable snapshot Booking.requestBooking() stores. A service with no active schema silently
@@ -39,9 +46,11 @@ export class BookingIntakeValidationService {
     serviceId: string,
     tenantId: string,
     input: IntakeSubmissionInput,
+    options: ResolveIntakeOptions = {},
   ): Promise<ResolvedIntake> {
     const activeSchema = await this.intakeSchemaRepo.findActiveByServiceId(serviceId, tenantId);
     if (!activeSchema) return NO_INTAKE;
+    if (options.intakeOptional && !hasIntakeSubmission(input)) return NO_INTAKE;
 
     const schema = await this.resolveSchemaVersion(
       serviceId,
@@ -50,8 +59,13 @@ export class BookingIntakeValidationService {
       input.intakeSchemaVersion,
     );
 
-    this.validateAnswers(schema, input.intakeAnswers ?? {}, input.participantCount);
-    if (!input.consentAccepted) {
+    this.validateAnswers(
+      schema,
+      input.intakeAnswers ?? {},
+      input.participantCount,
+      options.intakeOptional,
+    );
+    if (!input.consentAccepted && !options.intakeOptional) {
       throw new BookingIntakeAnswerMissingError(['consentAccepted']);
     }
 
@@ -59,8 +73,8 @@ export class BookingIntakeValidationService {
       intake: {
         intakeSchemaVersion: schema.version,
         intakeAnswers: input.intakeAnswers ?? {},
-        consentAcceptedAt: new Date(),
-        consentVersion: schema.consentVersion,
+        consentAcceptedAt: input.consentAccepted ? new Date() : null,
+        consentVersion: input.consentAccepted ? schema.consentVersion : null,
       },
       attendeeInputs: schema.requiresNamedAttendees ? (input.attendees ?? []) : [],
     };
@@ -95,22 +109,34 @@ export class BookingIntakeValidationService {
     schema: ServiceBookingIntakeSchema,
     answers: Record<string, string | boolean>,
     participantCount: number | undefined,
+    intakeOptional = false,
   ): void {
     const invalid: string[] = [];
     for (const question of schema.questions) {
       const value = answers[question.fieldKey];
       const isMissing = value === undefined || (typeof value === 'string' && value.trim() === '');
       if (isMissing) {
-        if (question.required) invalid.push(question.fieldKey);
+        if (question.required && !intakeOptional) invalid.push(question.fieldKey);
         continue;
       }
       const isCorrectType =
         question.type === 'BOOLEAN' ? typeof value === 'boolean' : typeof value === 'string';
       if (!isCorrectType) invalid.push(question.fieldKey);
     }
-    if (schema.participantCountRequired && participantCount === undefined) {
+    if (schema.participantCountRequired && participantCount === undefined && !intakeOptional) {
       invalid.push('participantCount');
     }
     if (invalid.length) throw new BookingIntakeAnswerMissingError(invalid);
   }
+}
+
+// Whether the request carries anything at all for the intake: an answer, the consent, attendees or
+// a participant count. Used to tell "staff skipped the intake" from "staff entered part of it".
+function hasIntakeSubmission(input: IntakeSubmissionInput): boolean {
+  return (
+    Object.keys(input.intakeAnswers ?? {}).length > 0 ||
+    input.consentAccepted === true ||
+    (input.attendees?.length ?? 0) > 0 ||
+    input.participantCount !== undefined
+  );
 }
