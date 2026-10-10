@@ -1609,6 +1609,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         customerId: CUSTOMER_ID,
         serviceId,
         serviceName: expect.any(String),
+        resourceIds: expect.any(Array),
       });
     });
 

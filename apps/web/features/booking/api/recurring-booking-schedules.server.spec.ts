@@ -19,6 +19,7 @@ vi.mock('next/navigation', () => ({ redirect, notFound }));
 
 import { CustomerFetchError } from '@/shared/lib/api/errors';
 import {
+  fetchCustomerRecurringScheduleOrNull,
   fetchCustomerRecurringScheduleOrRedirect,
   fetchCustomerRecurringSchedules,
   fetchRecurringSummary,
@@ -131,5 +132,39 @@ describe('fetchCustomerRecurringScheduleOrRedirect', () => {
     ).rejects.toBeInstanceOf(CustomerFetchError);
     expect(redirect).not.toHaveBeenCalled();
     expect(notFound).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchCustomerRecurringScheduleOrNull', () => {
+  it('returns the schedule on success', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse(schedule('ENDED')));
+    await expect(fetchCustomerRecurringScheduleOrNull('token', 'abc', 'lavacar')).resolves.toEqual(
+      schedule('ENDED'),
+    );
+    expect(bffServerFetch).toHaveBeenCalledWith('token', '/recurring-booking-schedules/abc');
+  });
+
+  it('returns null on a 404 — an unknown or foreign schedule — without a not-found page', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse(null, false, 404));
+    await expect(
+      fetchCustomerRecurringScheduleOrNull('token', 'abc', 'lavacar'),
+    ).resolves.toBeNull();
+    expect(notFound).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403])('redirects a %s to the tenant login', async (status) => {
+    bffServerFetch.mockResolvedValue(jsonResponse(null, false, status));
+    await expect(fetchCustomerRecurringScheduleOrNull('token', 'abc', 'lavacar')).rejects.toThrow(
+      'NEXT_REDIRECT',
+    );
+    expect(redirect).toHaveBeenCalledWith('/lavacar/login');
+  });
+
+  it('rethrows any other failure', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse(null, false, 500));
+    await expect(
+      fetchCustomerRecurringScheduleOrNull('token', 'abc', 'lavacar'),
+    ).rejects.toBeInstanceOf(CustomerFetchError);
   });
 });

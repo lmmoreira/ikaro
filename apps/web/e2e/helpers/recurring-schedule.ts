@@ -56,6 +56,16 @@ const CANDIDATE_START_TIMES: readonly string[] = Array.from({ length: 20 }, (_, 
 export interface CreatedSchedule {
   readonly id: string;
   readonly status: string;
+  /** The start time the backend accepted. */
+  readonly startTime: string;
+}
+
+export interface ScheduleTerm {
+  /** Days from today (tenant calendar) to the first day of the term. */
+  readonly startsInDays?: number;
+  readonly termDays?: number;
+  /** Start times to try, in order; defaults to a working day in half-hour steps. */
+  readonly startTimes?: readonly string[];
 }
 
 // A weekday schedule over a four-week term (about 20 occurrences — four pages of five), created
@@ -63,9 +73,11 @@ export interface CreatedSchedule {
 export async function createRecurringScheduleViaApi(
   page: Page,
   serviceId: string,
+  term: ScheduleTerm = {},
 ): Promise<CreatedSchedule> {
+  const { startsInDays = 5, termDays = 27, startTimes = CANDIDATE_START_TIMES } = term;
   const failures: string[] = [];
-  for (const startTime of CANDIDATE_START_TIMES) {
+  for (const startTime of startTimes) {
     const res = await page.request.post(`${WEB_URL}/v1/recurring-booking-schedules`, {
       data: {
         serviceId,
@@ -76,11 +88,13 @@ export async function createRecurringScheduleViaApi(
           durationMinutes: 30,
         },
         assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(5 + 27),
+        startsOn: tenantDate(startsInDays),
+        endsOn: tenantDate(startsInDays + termDays),
       },
     });
-    if (res.status() === 201) return (await res.json()) as CreatedSchedule;
+    if (res.status() === 201) {
+      return { ...((await res.json()) as Omit<CreatedSchedule, 'startTime'>), startTime };
+    }
     failures.push(`${startTime}: ${res.status()} ${await res.text()}`);
     if (res.status() !== 409) break;
   }

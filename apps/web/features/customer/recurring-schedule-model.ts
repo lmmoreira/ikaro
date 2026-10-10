@@ -51,6 +51,16 @@ export function recurringScheduleNewPath(tenantSlug: string): string {
   return `${recurringScheduleListPath(tenantSlug)}/new`;
 }
 
+/** The creation flow opened pre-filled from a schedule being renewed (the reminder email links here too). */
+export function recurringScheduleRenewPath(tenantSlug: string, scheduleId: string): string {
+  return `${recurringScheduleNewPath(tenantSlug)}?renewFrom=${scheduleId}`;
+}
+
+/** The "Renovar" action is offered on an ended schedule only; a running one waits for the server's `renewable` flag. */
+export function offersRenewal(status: RecurringScheduleStatus): boolean {
+  return status === 'ENDED';
+}
+
 /** The detail page, optionally on a given occurrence page — page 1 stays the bare URL. */
 export function recurringScheduleDetailPath(
   tenantSlug: string,

@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HotsiteServiceResponse } from '@ikaro/types';
+import type { HotsiteServiceResponse, RecurringBookingScheduleListItem } from '@ikaro/types';
 import {
   earliestStartDate,
   type RecurringScheduleDraft,
@@ -66,6 +66,7 @@ function renderPage(
   options: {
     services?: HotsiteServiceResponse[];
     initialDraft?: Partial<RecurringScheduleDraft>;
+    renewing?: RecurringBookingScheduleListItem | null;
   } = {},
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -75,6 +76,7 @@ function renderPage(
         services={options.services ?? [eligibleService()]}
         tenantSlug="lavacar-bh"
         initialDraft={options.initialDraft}
+        renewing={options.renewing}
       />
     </QueryClientProvider>,
   );
@@ -352,5 +354,109 @@ describe('NewRecurringSchedulePage — no eligible service', () => {
   it('says so instead of rendering an empty form', () => {
     renderPage({ services: [] });
     expect(screen.getByTestId('new-schedule-no-services')).toBeInTheDocument();
+  });
+});
+
+describe('NewRecurringSchedulePage — a renewal', () => {
+  const ended: RecurringBookingScheduleListItem = {
+    id: 'ended-1',
+    customerId: 'c1',
+    serviceId: 'service-1',
+    serviceName: 'Sala Aurora',
+    recurrence: {
+      frequency: 'WEEKLY',
+      daysOfWeek: ['tuesday'],
+      startTime: '10:00',
+      durationMinutes: 120,
+    },
+    startsOn: '2026-08-19',
+    endsOn: '2026-11-11',
+    status: 'ENDED',
+    assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+    resourceIds: [],
+    approvalHoldExpiresAt: null,
+  };
+  // Today at 00:00 is already past: a new schedule is refused client-side, a renewal is not.
+  const STARTED: Partial<RecurringScheduleDraft> = {
+    ...READY,
+    startsOn: today,
+    endsOn: today,
+    startTime: '00:00',
+  };
+
+  it('shows the banner for the schedule being renewed and the renewal heading', () => {
+    renderPage({ initialDraft: READY, renewing: ended });
+
+    expect(screen.getByTestId('new-schedule-renewal-banner')).toHaveTextContent(
+      'Renovando sua reserva de Sala Aurora',
+    );
+    expect(screen.getByRole('heading', { name: 'Renovar reserva recorrente' })).toBeInTheDocument();
+  });
+
+  it('leaves the booking-window check to the backend, so a renewal reaches the review step', () => {
+    renderPage({ initialDraft: STARTED, renewing: ended });
+
+    press('new-schedule-review');
+
+    expect(screen.getAllByTestId('new-schedule-confirm').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('new-schedule-notice')).not.toBeInTheDocument();
+  });
+
+  it('still refuses the same pattern client-side when it is not a renewal', () => {
+    renderPage({ initialDraft: STARTED });
+
+    press('new-schedule-review');
+
+    expect(screen.queryAllByTestId('new-schedule-confirm')).toHaveLength(0);
+    expect(screen.getByTestId('new-schedule-notice')).toBeInTheDocument();
+  });
+
+  it('names the renewed schedule in the request', async () => {
+    createRecurringScheduleAsCustomer.mockResolvedValue({
+      id: 's-2',
+      status: 'ACTIVE',
+      approvalHoldExpiresAt: null,
+    });
+    renderPage({ initialDraft: READY, renewing: ended });
+
+    await reviewAndConfirm();
+
+    await screen.findByTestId('new-schedule-created');
+    expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).toMatchObject({
+      renewsScheduleId: 'ended-1',
+    });
+  });
+
+  it('does not send renewsScheduleId for a normal creation', async () => {
+    createRecurringScheduleAsCustomer.mockResolvedValue({
+      id: 's-3',
+      status: 'ACTIVE',
+      approvalHoldExpiresAt: null,
+    });
+    renderPage({ initialDraft: READY });
+
+    await reviewAndConfirm();
+
+    await screen.findByTestId('new-schedule-created');
+    expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).not.toHaveProperty(
+      'renewsScheduleId',
+    );
+  });
+
+  it('shows the not-found notice over the blank form when the link could not be honored', () => {
+    renderPage({ renewing: null });
+
+    expect(screen.getByTestId('new-schedule-renewal-not-found')).toHaveTextContent(
+      'Não encontramos a reserva que você queria renovar.',
+    );
+    expect(screen.queryByTestId('new-schedule-renewal-banner')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Nova reserva recorrente' })).toBeInTheDocument();
+  });
+
+  it('shows neither banner nor notice on a plain creation', () => {
+    renderPage();
+
+    expect(screen.queryByTestId('new-schedule-renewal-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('new-schedule-renewal-not-found')).not.toBeInTheDocument();
   });
 });

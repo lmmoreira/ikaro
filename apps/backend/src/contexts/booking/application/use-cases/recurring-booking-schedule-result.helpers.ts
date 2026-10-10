@@ -20,6 +20,7 @@ export function toRecurringBookingScheduleResult(
     endsOn: schedule.endsOn,
     status: schedule.status,
     assignmentPolicy: schedule.assignmentPolicy,
+    resourceIds: schedule.resourceAssignments.map((assignment) => assignment.resourceId),
     approvalHoldExpiresAt: schedule.approvalHoldExpiresAt?.toISOString() ?? null,
   };
 }

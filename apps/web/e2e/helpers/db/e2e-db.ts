@@ -50,3 +50,23 @@ export function backdateBooking(bookingId: string, hoursAgo = 6): Promise<void> 
 export function postponeBooking(bookingId: string, hoursAhead = 48): Promise<void> {
   return shiftBooking(bookingId, hoursAhead);
 }
+
+// The job that marks a recurring schedule ENDED only runs once `endsOn` has passed, and the product
+// cannot create a schedule in the past, so a spec that needs an ENDED schedule (the renewal's
+// precondition) flips a live one here. Its bookings stay, which is what the colliding-renewal spec
+// relies on; every other step of that spec goes through the real BFF.
+export async function markScheduleEnded(scheduleId: string): Promise<void> {
+  await withClient(async (client) => {
+    const result = await client.query(
+      `UPDATE booking.recurring_booking_schedules
+          SET status = 'ENDED'
+        WHERE tenant_id = $1 AND id = $2`,
+      [E2E_TENANT_ID, scheduleId],
+    );
+    if (result.rowCount !== 1) {
+      throw new Error(
+        `markScheduleEnded: expected to update 1 schedule, updated ${result.rowCount}`,
+      );
+    }
+  });
+}

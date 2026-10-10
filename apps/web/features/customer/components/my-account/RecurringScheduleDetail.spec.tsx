@@ -50,6 +50,7 @@ function makeSchedule(
     endsOn: '2026-11-11',
     status: 'ACTIVE',
     assignmentPolicy: 'FIXED_ASSIGNMENT',
+    resourceIds: [],
     approvalHoldExpiresAt: null,
     ...overrides,
   };
@@ -117,6 +118,12 @@ describe('RecurringScheduleDetail — ACTIVE', () => {
     expect(screen.queryByText(/perReservation/)).not.toBeInTheDocument();
   });
 
+  it('offers no "Renovar" on a running schedule (it waits for the server flag)', () => {
+    renderDetail(makeSchedule(), page);
+
+    expect(screen.queryByTestId('renew-schedule-button')).not.toBeInTheDocument();
+  });
+
   it('has no resource row (the schedule item carries none)', () => {
     renderDetail(makeSchedule(), page);
 
@@ -150,13 +157,31 @@ describe.each([
     expect(screen.queryByTestId('end-schedule-link')).not.toBeInTheDocument();
   });
 
-  it('creates nothing either: no renew or new-reservation action in this story', () => {
+  it('has no new-reservation action (not part of the renewal story)', () => {
     renderDetail(makeSchedule({ status }), terminalPage);
 
     expect(
-      screen.queryByRole('link', { name: /renov|renew|nova reserva|new reservation/i }),
+      screen.queryByRole('link', { name: /nova reserva|new reservation/i }),
     ).not.toBeInTheDocument();
   });
+
+  it(
+    status === 'ENDED'
+      ? 'offers "Renovar", opening the creation form pre-filled from this schedule'
+      : 'offers no "Renovar" — a cancelled schedule is not renewed',
+    () => {
+      renderDetail(makeSchedule({ id: 'sched-9', status }), terminalPage);
+
+      if (status === 'ENDED') {
+        expect(screen.getAllByTestId('renew-schedule-button')[0]).toHaveAttribute(
+          'href',
+          '/lavacar/my-account/recurring-schedules/new?renewFrom=sched-9',
+        );
+      } else {
+        expect(screen.queryByTestId('renew-schedule-button')).not.toBeInTheDocument();
+      }
+    },
+  );
 });
 
 describe('RecurringScheduleDetail — PENDING_APPROVAL', () => {

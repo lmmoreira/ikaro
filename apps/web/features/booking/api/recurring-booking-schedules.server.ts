@@ -50,6 +50,27 @@ async function fetchCustomerRecurringSchedule(
   return res.json() as Promise<RecurringBookingScheduleListItem>;
 }
 
+/**
+ * The pre-fill source of a renewal link: the customer's own schedule, or null when the id is
+ * unknown or not theirs (a `404` never says which) so the caller can fall back to the blank form.
+ * A session that no longer authenticates this customer still goes to the login.
+ */
+export async function fetchCustomerRecurringScheduleOrNull(
+  token: string,
+  scheduleId: string,
+  tenantSlug: string,
+): Promise<RecurringBookingScheduleListItem | null> {
+  try {
+    return await fetchCustomerRecurringSchedule(token, scheduleId);
+  } catch (err) {
+    if (err instanceof CustomerFetchError) {
+      if (err.status === 404) return null;
+      if (err.status === 401 || err.status === 403) redirect(`/${tenantSlug}/login`);
+    }
+    throw err;
+  }
+}
+
 // Used by every recurring-schedules/[id]/** route. 404 means the schedule does not exist or
 // belongs to another customer/tenant (a read never reveals which); 401/403 means the session no
 // longer authenticates this customer at this tenant.

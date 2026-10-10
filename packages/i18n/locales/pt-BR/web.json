@@ -765,6 +765,11 @@
         "durationFromService": "{duration} — definida pelo serviço",
         "fieldStartsOn": "Começa em",
         "fieldEndsOn": "Termina em",
+        "renewTitle": "Renovar reserva recorrente",
+        "renewBannerTitle": "Renovando sua reserva de {service}",
+        "renewBannerBody": "{recurrence} · período anterior: {start} → {end}. Ajuste o que quiser — nada é reservado até você confirmar.",
+        "renewNotFound": "Não encontramos a reserva que você queria renovar.",
+        "renewNotFoundHint": "Você pode criar uma nova reserva recorrente abaixo.",
         "endsOnHint": "Escolha até quando a reserva se repete — no máximo {maxTermDays} dias, até {latest}. Depois disso você pode renovar.",
         "howTitle": "Como funciona",
         "howBody": "Todas as reservas do período são verificadas e criadas de uma vez, e o horário fica garantido até a data final. Você pode pular, reagendar ou encerrar a recorrência quando quiser.",
@@ -833,7 +838,8 @@
         "ariaPeriod": "Período do horário de início",
         "datePlaceholder": "Escolher data"
       },
-      "createCta": "+ Nova reserva recorrente"
+      "createCta": "+ Nova reserva recorrente",
+      "renewAction": "Renovar"
     },
     "newMenu": {
       "label": "Novo",
