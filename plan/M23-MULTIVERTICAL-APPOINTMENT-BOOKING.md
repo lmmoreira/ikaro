@@ -3083,7 +3083,7 @@ Send the customer one email when their alert matches: the service, the window th
 
 ---
 
-### M23-S39 — Staff creates a one-off booking on a customer's behalf — `POST /bookings/staff` (created `APPROVED`, customer or guest) and customer search by phone, backend + BFF
+### M23-S39 — Staff creates a one-off booking on a customer's behalf — `POST /bookings/staff` (created `APPROVED`, customer or guest) and customer search by phone, backend + BFF ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
@@ -3167,6 +3167,7 @@ Add the server side of UC-108. A staff member books a one-off appointment for so
 - [ ] A same-day booking inside the tenant's minimum-notice window succeeds when staff create it, and the same slot is still refused to a customer.
 - [ ] A start in the past, or beyond the maximum advance, is refused.
 - [ ] A slot another booking already occupies, or a closed day, is refused with the same errors a customer sees.
+  - ⚠️ A closed day is not refused on the booking write path for any channel (customers get 201 too); parity with customers holds — tracked in TD50, 2026-10-10
 - [ ] Staff can find a customer by typing part of their phone number, in any format.
 - [ ] The booking shows no manager "new request" alert and no "waiting for approval" state.
 
