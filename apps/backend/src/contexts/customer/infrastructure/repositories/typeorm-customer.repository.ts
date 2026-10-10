@@ -71,7 +71,7 @@ export class TypeOrmCustomerRepository implements ICustomerRepository {
     return new Brackets((qb) => {
       qb.where('c.name ILIKE :term', { term }).orWhere('c.email ILIKE :term', { term });
       if (digits.length >= PHONE_SEARCH_MIN_DIGITS) {
-        qb.orWhere("regexp_replace(c.phone, '\\D', '', 'g') LIKE :digits", {
+        qb.orWhere(String.raw`regexp_replace(c.phone, '\D', '', 'g') LIKE :digits`, {
           digits: `%${digits}%`,
         });
       }

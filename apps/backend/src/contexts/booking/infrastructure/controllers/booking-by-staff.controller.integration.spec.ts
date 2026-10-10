@@ -214,13 +214,17 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
   });
 
   it('refuses a guest booking for a pickup-required service with no address', async () => {
-    await post({
-      contactName: 'Sem Endereço',
-      contactPhone: '+5531955555555',
-      contactEmail: 'semendereco@staff-booking.test',
-      scheduledAt: slot(4, 11),
-      serviceIds: [pickupServiceId],
-    }).expect(400);
+    expect(
+      (
+        await post({
+          contactName: 'Sem Endereço',
+          contactPhone: '+5531955555555',
+          contactEmail: 'semendereco@staff-booking.test',
+          scheduledAt: slot(4, 11),
+          serviceIds: [pickupServiceId],
+        })
+      ).status,
+    ).toBe(400);
   });
 
   it('returns 409 for the second of two concurrent requests for the same slot', async () => {
@@ -237,35 +241,45 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
     const base = () => ({ scheduledAt: slot(6, 9), serviceIds: [serviceId] });
 
     it('returns 400 when both customerId and contact fields are sent', async () => {
-      await post({
-        ...base(),
-        customerId,
-        contactName: 'X',
-        contactPhone: '+5531955555555',
-        contactEmail: 'x@staff-booking.test',
-      }).expect(400);
+      expect(
+        (
+          await post({
+            ...base(),
+            customerId,
+            contactName: 'X',
+            contactPhone: '+5531955555555',
+            contactEmail: 'x@staff-booking.test',
+          })
+        ).status,
+      ).toBe(400);
     });
 
     it('returns 400 when neither is sent', async () => {
-      await post(base()).expect(400);
+      expect((await post(base())).status).toBe(400);
     });
 
     it('returns 400 when the contact trio is incomplete', async () => {
-      await post({ ...base(), contactName: 'Só Nome', contactPhone: '+5531955555555' }).expect(400);
+      expect(
+        (await post({ ...base(), contactName: 'Só Nome', contactPhone: '+5531955555555' })).status,
+      ).toBe(400);
     });
 
     it('returns 400 for beforeServicePhotoUrls — the staff flow collects no photos', async () => {
-      await post({
-        ...base(),
-        customerId,
-        beforeServicePhotoUrls: [`tmp/${tenantAId}/upload-1/car.jpg`],
-      }).expect(400);
+      expect(
+        (
+          await post({
+            ...base(),
+            customerId,
+            beforeServicePhotoUrls: [`tmp/${tenantAId}/upload-1/car.jpg`],
+          })
+        ).status,
+      ).toBe(400);
     });
 
     // Negative guarantee: the acting staff id comes from the context, never the body.
     it('returns 400 for a createdByStaffId or approvedBy in the body', async () => {
-      await post({ ...base(), customerId, createdByStaffId: STAFF_ID }).expect(400);
-      await post({ ...base(), customerId, approvedBy: STAFF_ID }).expect(400);
+      expect((await post({ ...base(), customerId, createdByStaffId: STAFF_ID })).status).toBe(400);
+      expect((await post({ ...base(), customerId, approvedBy: STAFF_ID })).status).toBe(400);
     });
 
     it('returns 422 BOOKING_CUSTOMER_PHONE_NOT_SET for a chosen customer without a phone', async () => {
@@ -310,11 +324,15 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
         .build();
       await ds.getRepository(ServiceEntity).save(bService);
 
-      await post({
-        customerId,
-        scheduledAt: slot(7, 11),
-        serviceIds: [bService.id],
-      }).expect(400);
+      expect(
+        (
+          await post({
+            customerId,
+            scheduledAt: slot(7, 11),
+            serviceIds: [bService.id],
+          })
+        ).status,
+      ).toBe(400);
     });
 
     it('stamps the created booking with the caller tenant', async () => {
@@ -331,11 +349,15 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
 
   describe('window and role', () => {
     it('still refuses a start in the past with 422', async () => {
-      await post({
-        customerId,
-        scheduledAt: `${futureDate(-2)}T09:00:00.000Z`,
-        serviceIds: [serviceId],
-      }).expect(422);
+      expect(
+        (
+          await post({
+            customerId,
+            scheduledAt: `${futureDate(-2)}T09:00:00.000Z`,
+            serviceIds: [serviceId],
+          })
+        ).status,
+      ).toBe(422);
     });
 
     it('still refuses a start beyond the maximum advance with 422', async () => {
@@ -349,10 +371,14 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
     });
 
     it('returns 403 for a CUSTOMER token', async () => {
-      await post(
-        { customerId, scheduledAt: slot(8, 9), serviceIds: [serviceId] },
-        actorHeaders(tenantAId, customerId, 'CUSTOMER', CORRELATION_ID),
-      ).expect(403);
+      expect(
+        (
+          await post(
+            { customerId, scheduledAt: slot(8, 9), serviceIds: [serviceId] },
+            actorHeaders(tenantAId, customerId, 'CUSTOMER', CORRELATION_ID),
+          )
+        ).status,
+      ).toBe(403);
     });
   });
 });

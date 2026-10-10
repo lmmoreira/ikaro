@@ -8,7 +8,6 @@ import {
 import {
   AddressShapeSchema,
   CreateBookingByStaffBody,
-  CreateBookingByStaffSchema,
   BookingAttendeeInputSchema,
   BookingIntakeAnswersSchema,
   CorrectBookingNoShowSchema,
@@ -179,7 +178,7 @@ export type AttachmentSignedUrlBody = z.infer<typeof AttachmentSignedUrlBodySche
 
 // M23-S39 (UC-108) — the body is validated by the schema the backend uses, shared from
 // @ikaro/validation, so the two layers cannot drift.
-export const StaffBookingBodySchema = CreateBookingByStaffSchema;
+export { CreateBookingByStaffSchema as StaffBookingBodySchema } from '@ikaro/validation';
 
 export type RequestBookingBody = z.infer<typeof RequestBookingBodySchema>;
 export type AuthenticatedBookingBody = z.infer<typeof AuthenticatedBookingBodySchema>;
