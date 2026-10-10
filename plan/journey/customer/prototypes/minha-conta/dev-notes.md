@@ -139,7 +139,7 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ---
 
-## ❓ GAP — M23 Cluster 3 extension (UC-070 create + manage, UC-072, UC-076, not yet built)
+## M23 Cluster 3 extension (UC-070 create + manage ✅ built by M23-S12/S17; UC-072, UC-076 availability alerts ❓ GAP, not yet built)
 
 > Everything above is shipped. Everything below is new, unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
 
@@ -147,7 +147,7 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entry), `M23-S43` (availability alerts: list, detail, cancel), `M23-S42` (the service name and the by-id reads), `M23-S31` (alert creation — a page of the booking flow, screens in `customer/prototypes/book-a-service/16*`), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload, backend — it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
 
-### File map (❓ none exist yet)
+### File map (each row carries its own status)
 
 | File | Status | Story |
 |---|---|---|
@@ -161,8 +161,10 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 | `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ✅ Done (M23-S12) | M23-S12 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ `AccountListRow`, `RecurringScheduleDetail`, `RecurringSchedulePendingView`, `RecurringScheduleEndConfirm`) | ✅ Done (M23-S12) | M23-S12 |
 | `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result, the page container, and the shared `NewReservationMenu`) | ✅ Done | M23-S17 |
-| `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` (and `availability-alerts.server.ts` for the alerts) | ❓ Gap | M23-S12 / S17 / S43 |
-| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` and `customer.alerts.*` | ❓ Gap | M23-S12 / S17 / S43 |
+| `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` | ✅ Done (M23-S12 reads and end, M23-S17 create) | M23-S12 / S17 |
+| `apps/web/features/booking/api/availability-alerts.server.ts` / `.ts` | ❓ Gap | M23-S43 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` (incl. `.new.*`) and `customer.newMenu.*` | ✅ Done | M23-S12 / S17 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.alerts.*` | ❓ Gap | M23-S43 |
 
 > Supersedes the earlier draft names (`features/booking/components/account/RecurringPrivateReservationManager.tsx`, route `/my-account/recurring-reservations/[id]`): `M23-S12` already chose `recurring-schedules` and `features/customer/components/my-account/` after checking the real precedent, and that story's own verification note applies here too — re-check at implementation time.
 
@@ -196,7 +198,7 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 
 ### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
 
-**File:** `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (GAP)
+**File:** `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (✅ Done — M23-S17)
 
 **BFF call:**
 ```
