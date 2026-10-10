@@ -94,6 +94,10 @@ export function NewRecurringSchedulePage({
     setRefusal(null);
   }, []);
 
+  const formHeader =
+    renewing === undefined ? undefined : <NewRecurringScheduleRenewalNotice renewing={renewing} />;
+  const formTitle = renewing ? t('new.renewTitle') : undefined;
+
   if (service === null) {
     return (
       <NewRecurringScheduleForm
@@ -105,14 +109,12 @@ export function NewRecurringSchedulePage({
         showIssues={false}
         refusal={null}
         onReview={() => undefined}
+        header={formHeader}
       />
     );
   }
 
   const issues = validateDraft(draft, service);
-  const formHeader =
-    renewing === undefined ? undefined : <NewRecurringScheduleRenewalNotice renewing={renewing} />;
-  const formTitle = renewing ? t('new.renewTitle') : undefined;
 
   function handleReview(): void {
     if (service === null) return;

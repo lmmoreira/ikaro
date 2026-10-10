@@ -148,6 +148,7 @@ export function NewRecurringScheduleForm({
     return (
       <div className="w-full" data-testid="new-schedule-no-services">
         <h1 className="text-lg font-bold text-gray-900">{tn('title')}</h1>
+        {header}
         <p className="mt-3 text-sm text-gray-500">{tn('noServices')}</p>
       </div>
     );

@@ -355,6 +355,12 @@ describe('NewRecurringSchedulePage — no eligible service', () => {
     renderPage({ services: [] });
     expect(screen.getByTestId('new-schedule-no-services')).toBeInTheDocument();
   });
+
+  it('still tells the customer the renewal could not be found', () => {
+    renderPage({ services: [], renewing: null });
+    expect(screen.getByTestId('new-schedule-renewal-not-found')).toBeInTheDocument();
+    expect(screen.getByTestId('new-schedule-no-services')).toBeInTheDocument();
+  });
 });
 
 describe('NewRecurringSchedulePage — a renewal', () => {
