@@ -8,7 +8,9 @@ import {
   useApproveBooking,
   useCancelBooking,
   useCompleteBooking,
+  useCorrectNoShow,
   useCreateAuthenticatedBooking,
+  useMarkNoShow,
   useRejectBooking,
   useRequestMoreInfo,
   useRescheduleBooking,
@@ -23,6 +25,10 @@ vi.mock('@/features/booking/api/booking', () => ({
     .fn()
     .mockResolvedValue({ bookingId: 'b-1', status: 'REJECTED', rejectedAt: '' }),
   cancelBooking: vi.fn().mockResolvedValue({ bookingId: 'b-1', status: 'CANCELLED' }),
+  markNoShow: vi.fn().mockResolvedValue({ bookingId: 'b-1', status: 'NO_SHOW' }),
+  correctNoShow: vi
+    .fn()
+    .mockResolvedValue({ bookingId: 'b-1', status: 'COMPLETED', completedAt: '' }),
   rescheduleBooking: vi
     .fn()
     .mockResolvedValue({ bookingId: 'b-1', status: 'APPROVED', scheduledAt: '' }),
@@ -89,6 +95,39 @@ describe('useRejectBooking', () => {
     const { result } = renderHook(() => useRejectBooking(), { wrapper });
     act(() => result.current.mutate({ id: 'b-1', body: { reason: 'No slot' } }));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+});
+
+describe('useMarkNoShow', () => {
+  it('calls markNoShow on mutate and invalidates both booking caches', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useMarkNoShow(), {
+      wrapper: wrapperWithClient(queryClient),
+    });
+    act(() => result.current.mutate({ id: 'b-1', body: { reason: 'Não atendeu' } }));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['bookings', 't-1'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['schedule', 'day-grid', 't-1'] });
+  });
+});
+
+describe('useCorrectNoShow', () => {
+  it('calls correctNoShow on mutate and invalidates both booking caches', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useCorrectNoShow(), {
+      wrapper: wrapperWithClient(queryClient),
+    });
+    act(() =>
+      result.current.mutate({
+        id: 'b-1',
+        body: { correctedStatus: 'COMPLETED', reason: 'Cliente chegou atrasado.' },
+      }),
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['bookings', 't-1'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['schedule', 'day-grid', 't-1'] });
   });
 });
 
