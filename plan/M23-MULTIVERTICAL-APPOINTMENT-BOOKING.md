@@ -1920,7 +1920,7 @@ M23-S08 removed the schedule-side occurrence-exception path (the use case, the a
 
 ---
 
-### M23-S25 — Customer email on a no-show (`BookingNoShow` → Notification)
+### M23-S25 — Customer email on a no-show (`BookingNoShow` → Notification) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
