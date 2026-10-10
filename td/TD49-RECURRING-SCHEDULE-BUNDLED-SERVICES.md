@@ -64,6 +64,25 @@ Left open for Story 0's `/story-discovery` (each needs a user decision, not a co
 - Multiple locations per tenant (CLAUDE.md §12 open decision 1). The default-location case relies on the invariant that a tenant has exactly one active `LOCATION` resource; a future multi-location model would revisit it.
 - Rewriting stored service data (for example removing the M22 backfill's `NONE` location rows). The eligibility rule accepts both shapes instead.
 
+## E2E coverage plan (one view; each scenario is owned and written by the story named, never by a trailing test-only story)
+
+Playwright cannot be run for cluster states that need a server fault or a seeded cap; those stay at the unit tier, as in M23-S17. Everything below needs a real seeded tenant and goes through the real BFF and backend. The seeding helper `seedRecurrenceEligibleService()` (`apps/web/e2e/helpers/recurring-schedule.ts`) creates one `ROOM`/`AUTO_FUNGIBLE_POOL` requirement today and must gain a parameter for the other service shapes.
+
+| Service shape | Scenario | Owner |
+|---|---|---|
+| One explicit requirement (`AUTO_*` or `CUSTOMER_CHOICE`) | create, conflict, closed day, pending approval, entry points | M23-S17 (shipped) |
+| Default shape: no requirements | a customer of a tenant with no staff resources creates a schedule and finds it on the list | Story 3 |
+| Default shape: stored `NONE` location row (older service) | same scenario on a service seeded with the backfill's row | Story 3 |
+| Default shape | the form's empty state names the reason when no service qualifies; a service enabled but not recurrable is absent | Story 3 |
+| Service editor | enabling recurrence on a service that cannot recur shows the hint | Story 3 |
+| Mobile viewport | the in-page "+ Novo ▾" menu is present with bookings as well as without | Story 3 |
+| Bundle (staff `CUSTOMER_CHOICE` + room `AUTO_ANY`) | create with one pick per requirement, then find it on the list with both resources | Story 2 |
+| Bundle | a conflict on only one requirement lists the colliding occurrence and creates nothing | Story 2 |
+| Bundle, `MANUAL_APPROVAL` | a manager approves the pending schedule from the queue and the occurrences appear holding both resources; a refused approval leaves it pending | Story 2 (queue row owned by M23-S13) |
+| Mixed tenant: one default-shape and one bundle service | the form offers both and each is created through its own path | Story 2 |
+| Legged service | never offered in the form | covered by the unit filter table (Story 3); no E2E |
+| Staff creation, renewal, Agenda menu | re-run the eligibility scenarios above against the staff form, `initialDraft` and the menu | M23-S19, S22, S40, each in its own E2E |
+
 ## Story 0 — Bundled-recurrence domain and contract model
 
 **Agent:** backend-ts + bff-ts
@@ -164,7 +183,7 @@ Make the steps that run after a schedule is accepted bundle-aware. Materializati
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys
 **Dependencies:** Stories 0 and 1; M23-S17's creation flow and M23-S12's Minha Conta screens ✅ Done; M23-S13's approval queue (not done at the 2026-10-10 review) is what this story extends on the staff side, and M23-S19, S22 and S40 consume the same filter (Addendum item 7)
 **Pattern:** plain composition — reuses the one-off booking flow's per-requirement resource picker rather than building a second one.
-**Prototype references:** `plan/journey/customer/minha-conta.md` and `plan/journey/customer/prototypes/minha-conta/13-nova-recorrencia.html`, `13b-nova-recorrencia-revisar.html`, `06-reserva-recorrente.html`, `06b-reserva-recorrente-erro.html`, `06c-recorrente-em-analise.html`, `14-recorrentes-lista.html`, `dev-notes.md` — none of these depicts a bundle (the pattern builder `13` deliberately shows a single resource field), so a prototype extension (via the `plan/journey/` workflow in `CLAUDE.md` §15, starting with `/docs-audit`) is a prerequisite decision at discovery.
+**Prototype references:** `plan/journey/customer/minha-conta.md` and `plan/journey/customer/prototypes/minha-conta/13-nova-recorrencia.html`, `13b-nova-recorrencia-revisar.html`, `06-reserva-recorrente.html`, `06b-reserva-recorrente-erro.html`, `06c-recorrente-em-analise.html`, `14-recorrentes-lista.html`, `dev-notes.md` — none of these depicts a bundle (the pattern builder `13` deliberately shows a single resource field), so a prototype extension (via the `plan/journey/` workflow in `CLAUDE.md` §15, starting with `/docs-audit`) is a prerequisite decision at discovery. Files to extend: in `plan/journey/customer/prototypes/minha-conta/`, `13` (one picker per requirement), `13b` (review shows each resource), `13c` (success), `06b` (conflict names the requirement that collided), `06c` (pending), `14` and `06` (list and detail show each requirement's resource), `index.html` and `dev-notes.md` (screen inventory and file map); `plan/journey/customer/minha-conta.md` (flow diagram and checklist); and the staff approval-queue row in the staff agenda prototype (`plan/journey/staff/prototypes/agenda/`), which M23-S13 owns, so confirm its state when this story is discovered.
 
 **Description:**
 Give a customer (or staff on their behalf) a way to choose a resource per requirement when creating a recurring schedule for a bundle, show each requirement's resource in the customer's schedule list and the staff approval queue, and surface the all-or-nothing conflict as the existing "conflict" error state. The creation flow this story extends is M23-S17 (the pattern builder `NewRecurringScheduleForm`, its review step and the outcome screens); when this TD was written no M23 story built it, and M23-S17 was added on 2026-09-29 to close that gap. It draws a single resource field on purpose, so this story turns that into one selection per requirement. M23-S18's hours-and-closures check must be extended to a bundle's requirements at the same time (a closed day or a closed room fails the whole occurrence). The service filter `isRecurrenceEligibleService()` must follow the backend rule again here: Story 3 aligns it with the default-location case, and this story widens it to a multi-requirement service without legs.
@@ -186,6 +205,9 @@ Give a customer (or staff on their behalf) a way to choose a resource per requir
   - [ ] The list and the approval-queue row render every assignment
 - E2E:
   - [ ] Create a recurring schedule for a bundled service → appears in "Minha Conta" with both resources; a conflicting request shows the conflict state (a scenario for each route this story adds, per `/story-discovery` 4f)
+  - [ ] A conflict on only one requirement lists the colliding occurrence and creates nothing
+  - [ ] A `MANUAL_APPROVAL` bundle schedule is approved from the staff queue and its occurrences appear holding both resources; a refused approval leaves it pending
+  - [ ] A tenant with both a default-shape and a bundle service sees both offered in the form (the full matrix is in "E2E coverage plan")
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -196,7 +218,7 @@ Give a customer (or staff on their behalf) a way to choose a resource per requir
 **Docs to load:** `docs/04-USE_CASES.md` UC-070 and UC-055 (the editor's recurrence toggle), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (the service-shape table, § Two-layer creation-time conflict check, § Pinned selections), `docs/02-DOMAIN_MODEL.md` § RecurringBookingSchedule, `docs/13-DATABASE_SCHEMA.md` § recurring_booking_schedules and its assignments table, `docs/ENGINEERING_RULES_BACKEND.md` § Transactions and § Choosing a race-condition primitive, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys
 **Dependencies:** M23-S17 ✅ Done (its form, `recurring-schedule-form.ts` and E2E helpers are what this story extends). It can ship before Stories 0 to 2, but its `/story-discovery` must settle the policy model with Story 0 so the two do not pick incompatible shapes.
 **Pattern:** plain composition — extends `assertServiceEligible()` and the assignment building with one more service shape, resolving the tenant's `LOCATION` through the same path a one-off degenerate booking uses; no new named pattern.
-**Prototype references:** `plan/journey/customer/prototypes/minha-conta/13-nova-recorrencia.html` and `dev-notes.md`. The empty-state reasons and the editor hint are not drawn in any prototype, so the `plan/journey/` workflow of `CLAUDE.md` §15 applies (`/docs-audit` baseline first, journey and prototype update before the code) and is a prerequisite decision at discovery.
+**Prototype references:** `plan/journey/customer/prototypes/minha-conta/13-nova-recorrencia.html` and `dev-notes.md`, and the service editor `plan/journey/staff/prototypes/servicos/03-service-edit.html` (plus `03d-service-edit-policy-error.html` and `servicos/dev-notes.md`). The empty-state reasons and the editor hint are not drawn in any prototype: the editor draws only the checkbox "Permitir recorrência para clientes autenticados" and its "Duração máxima" field (`03-service-edit.html:819-820`), with no hint or disabled state. The `plan/journey/` workflow of `CLAUDE.md` §15 applies (`/docs-audit` baseline first, then `plan/journey/customer/minha-conta.md`, `plan/journey/staff/` servicos journey and both prototype folders updated before the code) and is a prerequisite decision at discovery.
 **Consumers to check:** M23-S19 (staff creation) imports the same filter and body builder, M23-S22 (renewal) reopens the form with `initialDraft`, M23-S40 hosts the staff menu. A renewal of a schedule whose service has become ineligible needs a defined behavior (Addendum item 7).
 
 **Description:**
@@ -236,6 +258,9 @@ Make a degenerate service (`resourceRequirements: []`, or exactly one unrestrict
   - [ ] Another tenant's location occupancy never blocks the request
 - E2E:
   - [ ] Playwright: a customer of a tenant with no staff resources creates a recurring schedule for a degenerate service and finds it on the list
+  - [ ] Playwright: the same on an older service seeded with the backfill's stored `NONE` location row
+  - [ ] Playwright: when no service qualifies the form's empty state names the reason, and a service that has recurrence enabled but cannot recur is absent from the form
+  - [ ] Playwright, service editor: enabling recurrence on a service that cannot recur shows the hint
   - [ ] Playwright, mobile viewport: the in-page "+ Novo ▾" menu is present with bookings as well as without
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
