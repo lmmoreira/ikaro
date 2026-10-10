@@ -111,7 +111,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `02-agendamento-detail.html` | Detalhe do Agendamento (APPROVED/PENDING) | UC-006 step 5 | M13-S28 | ✅ Criado |
 | `02b-agendamento-info-requested.html` | Detalhe — INFO_REQUESTED + form de resposta | UC-005 A2 | M13-S28 | ✅ Criado |
 | `02c-agendamento-historico.html` | Detalhe — COMPLETED (read-only, sem ações) | UC-006 step 5 | M13-S28 | ✅ Criado |
-| `02f-agendamento-nao-compareceu.html` | Detalhe — NO_SHOW (read-only, sem ações; sem motivo interno; orienta a contatar o estabelecimento) | UC-006 step 5 · UC-074 | M23-S09 (status display) · M23-S27 | ❓ Gap (M23 Cluster 3) |
+| `02f-agendamento-nao-compareceu.html` | Detalhe — NO_SHOW (read-only, sem ações; sem motivo interno; orienta a contatar o estabelecimento) | UC-006 step 5 · UC-074 | M23-S09 (status display) · M23-S27 | ✅ Criado |
 | `02d-info-sent.html` | Detalhe — após envio de resposta (booking volta a PENDING) | UC-005 A2 | M13-S28 | ✅ Criado |
 | `02e-submit-error.html` | Detalhe — erro ao enviar resposta (rede/5xx no PATCH submit-info) | UC-005 A2 | M13-S28 | ✅ Criado |
 | `03-cancel-confirm.html` | Sheet de confirmação de cancelamento | UC-007 | M13-S28 | ✅ Criado |
