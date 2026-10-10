@@ -193,6 +193,20 @@ describe('SendBookingNoShowNotificationUseCase', () => {
     expect(logRepo.all).toHaveLength(1);
   });
 
+  it('skips a BookingNoShow published before the contact snapshot existed', async () => {
+    const legacy = {
+      tenantId: TENANT_ID,
+      eventId: EVENT_ID,
+      correlationId: 'corr-no-show-1',
+    } satisfies SendBookingNoShowNotificationUseCaseInput;
+
+    const result = await useCase.execute(legacy);
+
+    expect(result).toEqual({ customerEmailSent: false });
+    expect(dispatcher.dispatched).toHaveLength(0);
+    expect(logRepo.all).toHaveLength(0);
+  });
+
   it('skips quietly when the tenant has no template row', async () => {
     templateRepo = new InMemoryNotificationTemplateRepository();
     useCase = new SendBookingNoShowNotificationUseCase(

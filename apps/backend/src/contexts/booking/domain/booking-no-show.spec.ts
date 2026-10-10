@@ -69,7 +69,7 @@ describe('Booking.markNoShow()', () => {
     expect(data.customerId).toBeNull();
     expect(data.contactEmail).toBe('guest@example.com');
     expect(data.contactName).toBe('Visitante');
-    expect(data.lineSummary.length).toBeGreaterThan(0);
+    expect(data.lineSummary?.length).toBeGreaterThan(0);
     expect(data.reason).toBe('Nota interna');
   });
 

@@ -5,7 +5,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
-import { BaseContactNotificationDto } from '../../dtos/base-contact-notification.dto';
+import { BaseNotificationDto } from '../../dtos/base-notification.dto';
 import {
   INotificationDispatcher,
   NOTIFICATION_DISPATCHER,
@@ -18,6 +18,7 @@ import { IInboxRepository, INBOX_REPOSITORY } from '../../../../../shared/ports/
 import {
   INotificationPlatformPort,
   NOTIFICATION_PLATFORM_PORT,
+  NotificationTenantInfo,
 } from '../../ports/notification-platform.port';
 import {
   INotificationTemplateRepository,
@@ -36,10 +37,13 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 const TRIGGER = NotificationTemplateKey.BOOKING_NO_SHOW_CUSTOMER;
 
 // Deliberately has no `reason`: the staff member's note is internal and never reaches the customer
-// (M23-S25), so the use case cannot render it even by mistake.
-export interface SendBookingNoShowNotificationUseCaseInput extends BaseContactNotificationDto {
-  scheduledAt: string;
-  lineSummary: Array<{ serviceNameAtBooking: string }>;
+// (M23-S25), so the use case cannot render it even by mistake. The contact snapshot is optional
+// because a BookingNoShow published before M23-S25 does not carry it.
+export interface SendBookingNoShowNotificationUseCaseInput extends BaseNotificationDto {
+  contactEmail?: string;
+  contactName?: string;
+  scheduledAt?: string;
+  lineSummary?: Array<{ serviceNameAtBooking: string }>;
 }
 
 export interface SendBookingNoShowNotificationUseCaseResult {
@@ -64,6 +68,15 @@ export class SendBookingNoShowNotificationUseCase extends BaseNotificationUseCas
   async execute(
     input: SendBookingNoShowNotificationUseCaseInput,
   ): Promise<SendBookingNoShowNotificationUseCaseResult> {
+    const { contactEmail, contactName, scheduledAt, lineSummary } = input;
+    if (!contactEmail || contactName === undefined || !scheduledAt || !lineSummary) {
+      this.logger.warn('BookingNoShow carries no contact snapshot — skipping', {
+        tenantId: input.tenantId,
+        correlationId: input.correlationId,
+      });
+      return { customerEmailSent: false };
+    }
+
     const templates = await this.templateRepo.findAllByTriggerEvent(input.tenantId, TRIGGER);
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
@@ -75,25 +88,36 @@ export class SendBookingNoShowNotificationUseCase extends BaseNotificationUseCas
 
     const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
-    const { date, time } = formatEmailInstant(input.scheduledAt, tenantInfo?.timezone ?? 'UTC', {
-      dateFormat: tenantInfo?.dateFormat ?? DEFAULT_DATE_FORMAT,
-      timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
-    });
-    const variables: TemplateVariables<typeof TRIGGER> = {
-      contactName: escapeHtml(input.contactName),
-      serviceNames: input.lineSummary.map((l) => escapeHtml(l.serviceNameAtBooking)).join(', '),
-      localDate: date,
-      localTime: time,
-      tenantName: escapeHtml(tenantInfo?.name ?? ''),
-    };
+    const variables = this.buildVariables({ contactName, scheduledAt, lineSummary }, tenantInfo);
 
     this.localizeTemplates(templates, this.localizationPort, locale);
     const customerEmailSent = await this.dispatchTemplates(
       templates,
       input,
-      input.contactEmail,
+      contactEmail,
       variables,
     );
     return { customerEmailSent };
+  }
+
+  private buildVariables(
+    snapshot: {
+      contactName: string;
+      scheduledAt: string;
+      lineSummary: Array<{ serviceNameAtBooking: string }>;
+    },
+    tenantInfo: NotificationTenantInfo | null,
+  ): TemplateVariables<typeof TRIGGER> {
+    const { date, time } = formatEmailInstant(snapshot.scheduledAt, tenantInfo?.timezone ?? 'UTC', {
+      dateFormat: tenantInfo?.dateFormat ?? DEFAULT_DATE_FORMAT,
+      timeFormat: tenantInfo?.timeFormat ?? DEFAULT_TIME_FORMAT,
+    });
+    return {
+      contactName: escapeHtml(snapshot.contactName),
+      serviceNames: snapshot.lineSummary.map((l) => escapeHtml(l.serviceNameAtBooking)).join(', '),
+      localDate: date,
+      localTime: time,
+      tenantName: escapeHtml(tenantInfo?.name ?? ''),
+    };
   }
 }

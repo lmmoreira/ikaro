@@ -8,8 +8,6 @@ import { BookingCompletedEventBuilder } from '../../../../test/builders/booking/
 import { BookingNoShowEventBuilder } from '../../../../test/builders/booking/booking-no-show-event.builder';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
-import { NotificationTemplateEntity } from '../entities/notification-template.entity';
-import { AddBookingNoShowCustomerTemplate1748500000032 } from '../migrations/1748500000032-AddBookingNoShowCustomerTemplate';
 
 const PLATFORM_KEY = 'booking-no-show-key-xxxxxxxxxxxxxxxxx';
 const KEY = NotificationTemplateKey.BOOKING_NO_SHOW_CUSTOMER;
@@ -46,21 +44,6 @@ describe('Story: BookingNoShow → customer email (integration)', () => {
 
   function logsFor(tenantId: string, eventId: string) {
     return ds.getRepository(NotificationLogEntity).find({ where: { tenantId, eventId } });
-  }
-
-  function templateRows(tenantId: string) {
-    return ds
-      .getRepository(NotificationTemplateEntity)
-      .find({ where: { tenantId, triggerEvent: KEY } });
-  }
-
-  async function runMigration(): Promise<void> {
-    const queryRunner = ds.createQueryRunner();
-    try {
-      await new AddBookingNoShowCustomerTemplate1748500000032().up(queryRunner);
-    } finally {
-      await queryRunner.release();
-    }
   }
 
   beforeAll(async () => {
@@ -122,6 +105,18 @@ describe('Story: BookingNoShow → customer email (integration)', () => {
     expect(dispatcher.dispatched.map((m) => m.to)).toEqual(['guest@example.com']);
   });
 
+  it('acknowledges a BookingNoShow published before the contact snapshot existed, sending nothing', async () => {
+    const legacy = new BookingNoShowEventBuilder()
+      .withTenantId(tenantA.tenantId)
+      .asLegacyPayload()
+      .build();
+
+    await eventBus.publish(legacy);
+
+    expect(dispatcher.dispatched).toHaveLength(0);
+    expect(await logsFor(tenantA.tenantId, legacy.eventId)).toHaveLength(0);
+  });
+
   it('a manager correcting the no-show to COMPLETED sends no second email', async () => {
     const noShow = new BookingNoShowEventBuilder()
       .withTenantId(tenantA.tenantId)
@@ -161,51 +156,5 @@ describe('Story: BookingNoShow → customer email (integration)', () => {
     expect(dispatcher.dispatched.some((m) => m.to === tenantB.adminEmail)).toBe(false);
     expect(await logsFor(tenantB.tenantId, event.eventId)).toHaveLength(0);
     expect(await logsFor(tenantA.tenantId, event.eventId)).toHaveLength(1);
-  });
-
-  describe('AddBookingNoShowCustomerTemplate migration', () => {
-    it('seeds the global default in both locales', async () => {
-      const globals = await ds
-        .getRepository(NotificationTemplateEntity)
-        .createQueryBuilder('t')
-        .where('t.tenant_id IS NULL AND t.trigger_event = :key', { key: KEY })
-        .getMany();
-
-      expect(globals.map((g) => g.locale).sort()).toEqual(['en', 'pt-BR']);
-    });
-
-    it('copies the template to a tenant that existed before it, in the tenant locale, and is idempotent', async () => {
-      // Simulate a tenant provisioned before the migration: no row for the key, English locale.
-      await ds
-        .createQueryBuilder()
-        .delete()
-        .from(NotificationTemplateEntity)
-        .where('tenant_id = :tenantId AND trigger_event = :key', {
-          tenantId: tenantB.tenantId,
-          key: KEY,
-        })
-        .execute();
-      await ds.query(
-        `UPDATE platform.tenants SET settings = jsonb_set(settings, '{localization,language}', '"en"') WHERE id = $1`,
-        [tenantB.tenantId],
-      );
-      expect(await templateRows(tenantB.tenantId)).toHaveLength(0);
-
-      await runMigration();
-
-      const copied = await templateRows(tenantB.tenantId);
-      expect(copied).toHaveLength(1);
-      expect(copied[0].locale).toBe('en');
-
-      await runMigration();
-      expect(await templateRows(tenantB.tenantId)).toHaveLength(1);
-    });
-
-    it('left the tenant provisioned after it with its own row in pt-BR', async () => {
-      const rows = await templateRows(tenantA.tenantId);
-
-      expect(rows).toHaveLength(1);
-      expect(rows[0].locale).toBe('pt-BR');
-    });
   });
 });

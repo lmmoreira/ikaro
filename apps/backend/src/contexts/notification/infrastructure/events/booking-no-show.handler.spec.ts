@@ -51,6 +51,22 @@ describe('BookingNoShowHandler', () => {
     });
   });
 
+  it('passes a pre-snapshot payload through unchanged so the use case can skip it', async () => {
+    const event = new BookingNoShowEventBuilder().withTenantId(TENANT_ID).asLegacyPayload().build();
+
+    await handler.handle(event);
+
+    expect(useCase.execute).toHaveBeenCalledWith({
+      tenantId: TENANT_ID,
+      eventId: event.eventId,
+      correlationId: event.correlationId,
+      contactEmail: undefined,
+      contactName: undefined,
+      scheduledAt: undefined,
+      lineSummary: undefined,
+    });
+  });
+
   it('never hands the internal reason to the use case', async () => {
     const event = new BookingNoShowEventBuilder()
       .withTenantId(TENANT_ID)

@@ -12,6 +12,7 @@ export class BookingNoShowEventBuilder {
   private contactName = 'Maria Souza';
   private scheduledAt = '2026-06-01T12:00:00.000Z';
   private serviceNames = ['Lavagem completa'];
+  private withContactSnapshot = true;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -53,12 +54,23 @@ export class BookingNoShowEventBuilder {
     return this;
   }
 
+  // A BookingNoShow published before the contact snapshot existed (M23-S25).
+  asLegacyPayload(): this {
+    this.withContactSnapshot = false;
+    return this;
+  }
+
   build(): BookingNoShow {
-    return new BookingNoShow(this.tenantId, this.correlationId, {
+    const base = {
       bookingId: this.bookingId,
       actorId: this.actorId,
       reason: this.reason,
       occurredAt: this.occurredAt,
+    };
+    if (!this.withContactSnapshot)
+      return new BookingNoShow(this.tenantId, this.correlationId, base);
+    return new BookingNoShow(this.tenantId, this.correlationId, {
+      ...base,
       customerId: this.customerId,
       contactEmail: this.contactEmail,
       contactName: this.contactName,
