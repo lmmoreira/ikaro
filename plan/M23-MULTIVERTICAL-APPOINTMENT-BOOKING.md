@@ -2076,7 +2076,7 @@ Every change of an existing booking's status appends one row to `booking.booking
 
 ---
 
-### M23-S27 — Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail
+### M23-S27 — Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
 **Complexity:** L
