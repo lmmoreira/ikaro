@@ -1766,9 +1766,9 @@ Because a recurring schedule is fixed-term, a customer who wants to continue cre
 
 **Decisions left for `/story-discovery`:**
 - **When the list shows "Renovar" on an `ACTIVE` schedule** (proposal: only when its term ends within the tenant's reminder lead time, so the button appears when the email would have been sent).
-- **Prototype:** there is none yet for the button, the pre-filled banner ("Renovando sua reserva de …") or the fallback notice; per CLAUDE.md §15 the journey `.md` and a prototype pass must precede this story's discovery.
+- **Prototype:** drawn (2026-09-29) — `13f` (state A: the pre-filled form with the "Renovando sua reserva de …" banner; state B: the not-found notice over the blank `13` form), the "Renovar" entry points on `14`, `06` and `06h`. Two points to settle at discovery and reflect back into the prototype: (1) which service/term rules lock the `Começa em` field — keep it editable but with the minimum at the old `endsOn` + 1 day, so the renewal exemption of the note above stays reachable; (2) the "Renovar" visibility rule on an `ACTIVE` schedule, which reads the `renewable` flag owned by M23-S21 (S22 owns only the button).
 
-**Prototype references:** none yet — to be created in the journey pass (`plan/journey/customer/minha-conta.md`, `prototypes/minha-conta/` — `14` list, `13` form) before `/story-discovery M23-S22`.
+**Prototype references:** `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/` — `13f-renovar-recorrencia.html` (renewal form, states A/B), `14-recorrentes-lista.html` (list "Renovar"), `06-reserva-recorrente.html` (active detail), `06h-recorrencia-encerrada.html` (ended detail).
 **New migration / i18n keys / env vars / feature flags:** i18n keys in `packages/i18n/locales/{pt-BR,en}/web.json` for the button, the banner and the notice; no migration, env var or feature flag.
 
 **Files to create/modify:** (paths to be confirmed against what M23-S12 and M23-S17 actually ship — verify each at discovery, do not assume)
