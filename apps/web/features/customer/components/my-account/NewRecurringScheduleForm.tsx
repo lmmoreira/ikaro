@@ -98,10 +98,7 @@ export function NewRecurringScheduleForm({
       const refused = refusal?.kind === 'TERM_EXCEEDED' ? refusal : null;
       return tn('errorTermExceeded', {
         maxTermDays: refused?.maxTermDays ?? maxTermDays ?? 0,
-        latest:
-          refused === null || refused.latestEndsOn === null
-            ? latestText
-            : formatDateKey(refused.latestEndsOn),
+        latest: refused?.latestEndsOn ? formatDateKey(refused.latestEndsOn) : latestText,
       });
     }
     return null;

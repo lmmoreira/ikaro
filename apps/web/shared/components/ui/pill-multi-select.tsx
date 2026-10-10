@@ -31,15 +31,13 @@ export function PillMultiSelect<T extends string>({
   }
 
   return (
-    <div>
-      <span className="mb-1.5 block text-sm font-semibold text-gray-900">{label}</span>
-      <div
-        className="flex flex-wrap gap-2"
-        role="group"
-        aria-label={label}
-        data-invalid={invalid || undefined}
-        aria-describedby={describedBy}
-      >
+    <fieldset
+      className="m-0 min-w-0 border-0 p-0"
+      data-invalid={invalid || undefined}
+      aria-describedby={describedBy}
+    >
+      <legend className="mb-1.5 block p-0 text-sm font-semibold text-gray-900">{label}</legend>
+      <div className="flex flex-wrap gap-2">
         {options.map((option) => {
           const selected = values.includes(option.value);
           return (
@@ -62,6 +60,6 @@ export function PillMultiSelect<T extends string>({
           );
         })}
       </div>
-    </div>
+    </fieldset>
   );
 }

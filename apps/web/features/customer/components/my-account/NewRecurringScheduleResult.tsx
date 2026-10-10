@@ -99,6 +99,10 @@ export function NewRecurringScheduleResult({
     const { conflicts } = outcome;
     const onlyOccupied = conflicts.every((conflict) => conflict.reason === 'OCCUPIED');
     const hasList = conflicts.length > 0;
+    const leadKey = onlyOccupied ? 'conflictLeadOccupied' : 'conflictLeadMixed';
+    const lead = hasList
+      ? tn(leadKey, { service: service.name })
+      : resolveErrorMessage(BookingErrorCode.RECURRING_SCHEDULE_CONFLICT, locale);
     return (
       <NewRecurringScheduleLayout
         testId="new-schedule-conflict"
@@ -124,11 +128,7 @@ export function NewRecurringScheduleResult({
           role="alert"
           className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
         >
-          {hasList
-            ? tn(onlyOccupied ? 'conflictLeadOccupied' : 'conflictLeadMixed', {
-                service: service.name,
-              })
-            : resolveErrorMessage(BookingErrorCode.RECURRING_SCHEDULE_CONFLICT, locale)}
+          {lead}
         </div>
         {hasList && (
           <NewRecurringScheduleConflictList
