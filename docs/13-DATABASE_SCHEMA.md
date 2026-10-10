@@ -636,7 +636,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 
 **Rules:**
 - Every manual-approval appointment inserts `lock_state='HOLD'` with its snapshotted expiry (`Service.manualHoldMinutes`); approval atomically converts it to `COMMITTED`, while expiry cancels and releases it. An `AUTO_CONFIRM` appointment inserts `COMMITTED` directly. A PENDING booking on a degenerate (LOCATION-fallback) service inserts `REQUESTED` instead of `HOLD` — approval converts it to `COMMITTED`, same as `HOLD`.
-- Every template create/edit/deactivate, appointment approval, and session-resource override acquires transaction-scoped advisory locks for its resources in canonical `resource_id` order — this serializes the read-check/write boundary for a not-yet-materialized future pattern (a `ClassScheduleTemplate` or `RecurringBookingSchedule` recurrence rule, Clusters 3–4), while the exclusion constraint above protects already-materialized occurrences. Not exercised in Cluster 2 alone (no recurring-pattern aggregate exists yet), but the mechanism ships now since it's part of the same shared design.
+- Every template create/edit/deactivate, appointment approval, and session-resource override acquires transaction-scoped advisory locks for its resources in canonical `resource_id` order — this serializes the read-check/write boundary for a not-yet-materialized future pattern (a `ClassScheduleTemplate` or `RecurringBookingSchedule` recurrence rule, Clusters 3–4), while the exclusion constraint above protects already-materialized occurrences. The mechanism shipped in Cluster 2 and is exercised from Cluster 3: a recurring-schedule request and its approval take the same locks (`FIXED_ASSIGNMENT` locks the chosen resources, `RESOLVE_PER_OCCURRENCE` locks the service), and the cap check runs under them.
 
 **`booking.booking_lines` — modified (M22 Cluster 2):** `+ UNIQUE(tenant_id, line_id)` — today only `PRIMARY KEY (line_id)` exists; required so `resource_occupancy`/`booking_line_resource_assignments`' composite FKs to it are expressible.
 
@@ -649,7 +649,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 
 ---
 
-### `booking.recurring_booking_schedules` / assignments / exceptions (M23 Cluster 3)
+### `booking.recurring_booking_schedules` / assignments (M23 Cluster 3)
 
 > Private appointment/reservation recurrence — distinct from `recurring_enrollments` (session family, Cluster 4). See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`.
 
@@ -673,6 +673,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | version | INTEGER | NOT NULL DEFAULT 1 — optimistic concurrency; every save() version-checks and increments it (mirrors `bookings.version`) |
 | **UNIQUE** | (tenant_id, id) | Composite FK target for the two child tables below |
 | **CHECK** | `(status = 'PENDING_APPROVAL') = (approval_hold_expires_at IS NOT NULL)` | |
+| **INDEX** | (tenant_id) | `IDX_booking_rbs_tenant` — the plain tenant-scoping index |
 | **INDEX** | (tenant_id, customer_id, status) | |
 | **INDEX** | (tenant_id, service_id, status) | |
 | **INDEX** | (tenant_id, status, approval_hold_expires_at) | Feeds the schedule-approval expiry worker |
@@ -687,7 +688,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | requirement_id | UUID | NULLABLE — FK (tenant_id, requirement_id) → `service_resource_requirements` |
 | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id, resource_type) → `resources` |
 | resource_type | VARCHAR(20) | NOT NULL |
-| required_quantity_position | INT | NULLABLE — set only for a fungible `requiredQuantity > 1` requirement |
+| required_quantity_position | INT | NULLABLE — reserved for a fungible `requiredQuantity > 1` requirement; always `null` today, because eligibility requires `requiredQuantity = 1`; `requirement_id` is also written as `null` today (`buildResourceAssignments()`). `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` starts populating both |
 | assigned_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **PK** | (tenant_id, recurring_schedule_id, resource_id) | |
 
