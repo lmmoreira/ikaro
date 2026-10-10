@@ -108,3 +108,43 @@ describe('useBookingSelections', () => {
     expect(result.current.selectedDate).toBe('2026-06-15');
   });
 });
+
+describe('useBookingSelections — deep-link seed', () => {
+  const seed = { serviceId: 'a', date: '2026-06-20', durationMinutes: null, resourceId: null };
+
+  it('starts exactly as before without a seed', () => {
+    const { result } = renderHook(() => useBookingSelections([a, b], null));
+
+    expect(result.current.selectedServiceIds).toEqual([]);
+    expect(result.current.selectedDate).toBeNull();
+    expect(result.current.duration).toBeNull();
+    expect(result.current.picks).toEqual([]);
+  });
+
+  it('starts with the link’s service ticked and its day selected', () => {
+    const { result } = renderHook(() => useBookingSelections([a, b], seed));
+
+    expect(result.current.selectedServiceIds).toEqual(['a']);
+    expect(result.current.selectedServices.map((s) => s.id)).toEqual(['a']);
+    expect(result.current.selectedDate).toBe('2026-06-20');
+    expect(result.current.selectedSlot).toBeNull();
+  });
+
+  it('starts with the link’s duration without clearing its day', () => {
+    const { result } = renderHook(() =>
+      useBookingSelections([a, b], { ...seed, durationMinutes: 90 }),
+    );
+
+    expect(result.current.duration).toEqual({ minutes: 90, quotedAmount: null });
+    expect(result.current.selectedDate).toBe('2026-06-20');
+  });
+
+  it('lets the customer change the seeded selection like any other', () => {
+    const { result } = renderHook(() => useBookingSelections([a, b], seed));
+
+    act(() => result.current.toggleService('b'));
+
+    expect(result.current.selectedServiceIds).toEqual(['a', 'b']);
+    expect(result.current.selectedDate).toBeNull();
+  });
+});

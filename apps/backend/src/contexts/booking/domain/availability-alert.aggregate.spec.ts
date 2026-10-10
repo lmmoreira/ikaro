@@ -472,6 +472,18 @@ describe('AvailabilityAlert', () => {
       expect(alert.domainEvents[0].data).toMatchObject({ resourceId: null });
     });
 
+    it("carries the alert's own duration, so the email can link the booking page at it", () => {
+      const alert = new AvailabilityAlertBuilder().withDurationMinutes(90).build();
+      alert.recordNotificationAttempt(window, 'EMAIL', 'corr-9', NOW);
+      expect(alert.domainEvents[0].data).toMatchObject({ durationMinutes: 90 });
+    });
+
+    it('carries a null duration when the alert has none', () => {
+      const alert = new AvailabilityAlertBuilder().withDurationMinutes(null).build();
+      alert.recordNotificationAttempt(window, 'EMAIL', 'corr-9', NOW);
+      expect(alert.domainEvents[0].data).toMatchObject({ durationMinutes: null });
+    });
+
     it.each(['NOTIFIED', 'CANCELLED', 'EXPIRED'] as const)(
       'is a no-op on a %s alert — no attempt, no event, nothing notified twice',
       (status) => {

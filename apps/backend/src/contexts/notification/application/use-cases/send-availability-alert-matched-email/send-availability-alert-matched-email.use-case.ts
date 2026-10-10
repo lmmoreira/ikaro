@@ -1,4 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { buildBookingDeepLinkUrl } from '@ikaro/types';
+import { utcDateToLocalDate } from '../../../../../shared/utils/calendar-date';
+import { escapeHtml } from '../../../../../shared/utils/escape-html';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
 import {
@@ -15,6 +18,10 @@ import {
 export interface SendAvailabilityAlertMatchedEmailUseCaseInput extends RecurringScheduleNotificationInput {
   // ISO-8601 UTC instant the matching window opens (the event's matchingWindowStart).
   matchingWindowStart: string;
+  // The alert's preferred resource and duration; absent on an event published before the event
+  // carried `durationMinutes`.
+  resourceId?: string | null;
+  durationMinutes?: number | null;
 }
 
 export type SendAvailabilityAlertMatchedEmailUseCaseResult =
@@ -36,7 +43,14 @@ export class SendAvailabilityAlertMatchedEmailUseCase extends BaseRecurringSched
     return {
       ...customerVariables(context),
       matchingWindow: formatEmailDateTime(input.matchingWindowStart, context.timezone, context),
-      bookingUrl: context.hotsiteUrl,
+      bookingUrl: escapeHtml(
+        buildBookingDeepLinkUrl(context.hotsiteUrl, {
+          serviceId: input.serviceId,
+          date: utcDateToLocalDate(new Date(input.matchingWindowStart), context.timezone),
+          durationMinutes: input.durationMinutes,
+          resourceId: input.resourceId,
+        }),
+      ),
     };
   }
 

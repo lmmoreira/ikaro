@@ -7,7 +7,8 @@ export class AvailabilityAlertMatchedEventBuilder {
   private alertId = uuidv7();
   private readonly customerId = uuidv7();
   private readonly serviceId = uuidv7();
-  private readonly resourceId: string | null = null;
+  private resourceId: string | null = null;
+  private durationMinutes: number | null = null;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -24,6 +25,16 @@ export class AvailabilityAlertMatchedEventBuilder {
     return this;
   }
 
+  withResourceId(resourceId: string | null): this {
+    this.resourceId = resourceId;
+    return this;
+  }
+
+  withDurationMinutes(durationMinutes: number | null): this {
+    this.durationMinutes = durationMinutes;
+    return this;
+  }
+
   build(): AvailabilityAlertMatched {
     return new AvailabilityAlertMatched(this.tenantId, this.correlationId, {
       alertId: this.alertId,
@@ -32,6 +43,7 @@ export class AvailabilityAlertMatchedEventBuilder {
       matchingWindowStart: new Date(Date.now() + 2 * 86_400_000).toISOString(),
       matchingWindowEnd: new Date(Date.now() + 2 * 86_400_000 + 3_600_000).toISOString(),
       resourceId: this.resourceId,
+      durationMinutes: this.durationMinutes,
     });
   }
 }

@@ -10,6 +10,7 @@ export * from './service.dto';
 export * from './schedule.dto';
 export * from './resource.dto';
 export * from './booking.dto';
+export * from './booking-deep-link';
 export * from './availability-alert.dto';
 export * from './recurring-booking-schedule.dto';
 export * from './loyalty.dto';

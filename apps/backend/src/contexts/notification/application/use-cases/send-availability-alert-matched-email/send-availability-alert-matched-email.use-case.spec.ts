@@ -51,7 +51,9 @@ describe('SendAvailabilityAlertMatchedEmailUseCase', () => {
     expect(message.body).toContain('Olá, Maria Souza!');
     expect(message.body).toContain('Aula de Yoga');
     expect(message.body).toContain('04/03/2030 10:00');
-    expect(message.body).toContain('href="https://app.ikaro.test/lavacar"');
+    expect(message.body).toContain(
+      `https://app.ikaro.test/lavacar/booking?serviceId=${RECURRING_SERVICE_ID}`,
+    );
     expect(message.body).not.toContain('{{');
     expect(fx.logRepo.all.map((l) => l.notificationType)).toEqual([
       'availability-alert-matched-customer',
@@ -67,6 +69,78 @@ describe('SendAvailabilityAlertMatchedEmailUseCase', () => {
     expect(message.subject).toBe('A slot opened up for Aula de Yoga');
     expect(message.body).toContain('Hello, Maria Souza!');
     expect(message.body).toContain('03/04/2030 10:00 AM');
+  });
+
+  describe('booking link', () => {
+    const RESOURCE_ID = '0192f0a0-0000-7000-8000-0000000000aa';
+
+    async function bookingHref(input: object, hotsiteUrl?: string): Promise<string> {
+      const { fx, useCase } = build();
+      if (hotsiteUrl !== undefined) {
+        fx.tenantPort.setTenantInfo(RECURRING_TENANT_ID, {
+          id: RECURRING_TENANT_ID,
+          name: 'Lava Car',
+          slug: 'lavacar',
+          timezone: 'America/Sao_Paulo',
+          locale: 'pt-BR',
+          replyToEmail: null,
+          hotsiteUrl,
+        });
+      }
+      await useCase.execute({ ...baseInput, ...input });
+      return /href="([^"]*)"/.exec(fx.dispatcher.dispatched[0].body)?.[1] ?? '';
+    }
+
+    // The href is HTML, so its query separators arrive as `&amp;`.
+    function queryOf(href: string): URLSearchParams {
+      expect(href).not.toMatch(/&(?!amp;)/);
+      return new URL(href.replaceAll('&amp;', '&')).searchParams;
+    }
+
+    it('opens the booking page on the alert service and the tenant-local day of the window', async () => {
+      const href = await bookingHref({});
+
+      expect(href.startsWith('https://app.ikaro.test/lavacar/booking?')).toBe(true);
+      expect(Object.fromEntries(queryOf(href))).toEqual({
+        serviceId: RECURRING_SERVICE_ID,
+        date: '2030-03-04',
+      });
+    });
+
+    it('takes the date in the tenant timezone, not UTC, near midnight', async () => {
+      // 02:30 UTC on 5 March is 23:30 on 4 March in America/Sao_Paulo.
+      const href = await bookingHref({ matchingWindowStart: '2030-03-05T02:30:00.000Z' });
+
+      expect(queryOf(href).get('date')).toBe('2030-03-04');
+    });
+
+    it('carries the duration and the preferred resource when the alert has them', async () => {
+      const href = await bookingHref({ durationMinutes: 90, resourceId: RESOURCE_ID });
+
+      const query = queryOf(href);
+      expect(query.get('durationMinutes')).toBe('90');
+      expect(query.get('resourceId')).toBe(RESOURCE_ID);
+    });
+
+    it('leaves out a duration and a resource the alert does not have', async () => {
+      const href = await bookingHref({ durationMinutes: null, resourceId: null });
+
+      const query = queryOf(href);
+      expect(query.has('durationMinutes')).toBe(false);
+      expect(query.has('resourceId')).toBe(false);
+    });
+
+    it('still builds the link for an event published before it carried the duration', async () => {
+      const href = await bookingHref({ durationMinutes: undefined, resourceId: undefined });
+
+      expect(queryOf(href).get('serviceId')).toBe(RECURRING_SERVICE_ID);
+    });
+
+    it('never sends a relative link when the tenant has no hotsite URL', async () => {
+      const href = await bookingHref({}, '');
+
+      expect(href).toBe('');
+    });
   });
 
   it('escapes the service name and the customer name', async () => {
@@ -88,9 +162,10 @@ describe('SendAvailabilityAlertMatchedEmailUseCase', () => {
 
     await useCase.execute(baseInput);
 
-    const { body } = fx.dispatcher.dispatched[0];
+    // The booking link carries the service id by design; what the customer reads must not.
+    const visibleText = fx.dispatcher.dispatched[0].body.replaceAll(/href="[^"]*"/g, '');
     for (const internal of [RECURRING_CUSTOMER_ID, RECURRING_SERVICE_ID]) {
-      expect(body).not.toContain(internal);
+      expect(visibleText).not.toContain(internal);
     }
   });
 

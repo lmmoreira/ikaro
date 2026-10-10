@@ -212,6 +212,20 @@ describe('Story: AvailabilityAlertMatched → customer email and attempt outcome
     });
   });
 
+  it('links the booking page on the alert service, the day and the duration', async () => {
+    const event = await matchFor(tenantA);
+    event.data.durationMinutes = 90;
+
+    await eventBus.publish(event);
+
+    expect(dispatcher.dispatched).toHaveLength(1);
+    const body = dispatcher.dispatched[0].body;
+    expect(body).toContain('/booking?');
+    expect(body).toContain(`serviceId=${tenantA.serviceId}`);
+    expect(body).toMatch(/date=\d{4}-\d{2}-\d{2}/);
+    expect(body).toContain('durationMinutes=90');
+  });
+
   it('a replay of the same event sends nothing more and counts no extra try', async () => {
     const event = await matchFor(tenantA);
 

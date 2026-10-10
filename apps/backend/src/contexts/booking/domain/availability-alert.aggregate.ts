@@ -211,6 +211,7 @@ export class AvailabilityAlert extends AggregateRoot {
         matchingWindowStart: matchingWindow.startsAt.toISOString(),
         matchingWindowEnd: matchingWindow.endsAt.toISOString(),
         resourceId: this.props.preferredResourceId,
+        durationMinutes: this.props.durationMinutes,
       }),
     );
     return true;
