@@ -569,6 +569,15 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(5);
     });
 
+    it("never finds another tenant's default-shape service and creates nothing", async () => {
+      const serviceId = await seedService({ resourceRequirements: [] });
+
+      await expect(
+        requestDefault(serviceId, { tenantId: '10000000-0000-4000-8000-000000000999' }),
+      ).rejects.toThrow(BookingServiceNotInTenantError);
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    });
+
     it('refuses FIXED_ASSIGNMENT for a default-shape service', async () => {
       const serviceId = await seedService({ resourceRequirements: [] });
 

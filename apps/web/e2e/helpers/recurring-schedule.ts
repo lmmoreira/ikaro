@@ -85,7 +85,10 @@ export async function seedBundleServiceWithRecurrenceOn(page: Page): Promise<See
 
 /** Ends a schedule as the signed-in customer, releasing the location the test held. */
 export async function endScheduleViaApi(page: Page, scheduleId: string): Promise<void> {
-  await page.request.post(`${WEB_URL}/v1/recurring-booking-schedules/${scheduleId}/end`);
+  const res = await page.request.post(
+    `${WEB_URL}/v1/recurring-booking-schedules/${scheduleId}/end`,
+  );
+  expect(res.ok(), `end schedule ${scheduleId}: ${res.status()}`).toBe(true);
 }
 
 // Start times tried in turn: tests share the tenant's default staff pool, so a slot another worker's

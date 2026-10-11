@@ -48,13 +48,13 @@ test.describe('customer my-account: recurring reservation of a default-shape ser
         const active = customer.page.getByTestId('section-active');
         await expect(active.getByTestId('recurring-schedule-row')).toHaveCount(1);
         await expect(active).toContainText(service.name);
-
-        // Release the location this test held, so later one-off bookings of default services are
-        // not blocked by a leftover weekly hold.
+      } finally {
+        // Release the location this test held, pass or fail, so later one-off bookings of default
+        // services are not blocked by a leftover weekly hold. The customer is new for this test, so
+        // every schedule it owns was created here.
         for (const schedule of await listMySchedules(customer.page)) {
           await endScheduleViaApi(customer.page, schedule.id);
         }
-      } finally {
         await customer.close();
       }
     });
@@ -73,12 +73,9 @@ test.describe('customer my-account: recurring reservation of a default-shape ser
       await customer.page.goto(NEW_SCHEDULE_PATH);
       await customer.page.getByTestId('new-schedule-service').click();
 
-      await expect(
-        customer.page.getByRole('option', { name: new RegExp(`^${offered.name}`) }),
-      ).toBeVisible();
-      await expect(
-        customer.page.getByRole('option', { name: new RegExp(`^${bundle.name}`) }),
-      ).toHaveCount(0);
+      // A string name matches as a substring, so a name with regex characters stays literal.
+      await expect(customer.page.getByRole('option', { name: offered.name })).toBeVisible();
+      await expect(customer.page.getByRole('option', { name: bundle.name })).toHaveCount(0);
     } finally {
       await customer.close();
     }

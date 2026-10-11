@@ -810,7 +810,7 @@ describe('assertPatternConflictFree', () => {
     });
   });
 
-  // TD49-S03 — the web filter (recurring-schedule-form.spec.ts) is driven by the same shape table.
+  // TD49-S03 — the web filter (recurrence-shape.spec.ts) is driven by the same shape table.
   describe('assertServiceEligible', () => {
     const location = (
       selectionMode: ResourceRequirementSelectionMode,
