@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova reserva recorrente — sem serviços — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+
+
+    .section-label {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 0 0 0.625rem;
+    }
+    .page-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .page-title { font-size: 1.125rem; font-weight: 700; color: var(--ba-text); margin: 0; }
+
+    .rec-card {
+      background: white; border: 1px solid var(--ba-secondary);
+      border-radius: var(--ba-radius); margin-bottom: 0.75rem;
+      box-shadow: var(--ba-shadow); overflow: hidden;
+      text-decoration: none; display: block; color: var(--ba-text);
+    }
+    .rec-card-header { display: flex; align-items: flex-start; gap: 0.875rem; padding: 1rem 1rem 0.75rem; }
+    .rec-accent { width: 0.25rem; border-radius: 4px; flex-shrink: 0; align-self: stretch; }
+    .rec-body { flex: 1; min-width: 0; }
+    .rec-name { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); }
+    .rec-meta { font-size: 0.8125rem; opacity: 0.55; color: var(--ba-text); margin-top: 0.1875rem; }
+    .rec-footer {
+      border-top: 1px solid var(--ba-secondary); padding: 0.625rem 1rem;
+      display: flex; align-items: center; justify-content: space-between; background: #fafafa;
+    }
+    .rec-footer-label { font-size: 0.8125rem; color: var(--ba-text); font-weight: 500; }
+    .rec-footer-value { font-size: 0.8125rem; color: var(--ba-primary); font-weight: 600; }
+
+    .badge { display: inline-flex; align-items: center; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.1875rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; }
+    .badge-ativa   { background: #f0fdf4; color: #15803d; }
+    .badge-analise { background: #fef3c7; color: #92400e; }
+    .badge-pausada { background: #f1f5f9; color: #475569; }
+
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--ba-text); }
+    .empty-state p { font-size: 0.9375rem; margin: 0.5rem 0 1.25rem; opacity: 0.55; }
+
+    .field { margin-bottom: 1.125rem; }
+    .field-hint { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.25rem; }
+    .field-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.25rem; }
+    .form-input.invalid { border-color: #dc2626; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .chip { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.4375rem 0.75rem; border: 1px solid var(--ba-secondary); border-radius: 999px; font-size: 0.875rem; background: white; cursor: pointer; }
+    .chip.on { border-color: var(--ba-primary); background: #eff6ff; }
+    .choice { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 0.875rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; margin-bottom: 0.5rem; cursor: pointer; }
+    .choice.on { border-color: var(--ba-primary); background: #eff6ff; }
+    .readonly-value { padding: 0.625rem 0.75rem; border: 1px dashed var(--ba-secondary); border-radius: var(--ba-radius); background: #fafafa; font-size: 0.875rem; }
+
+    .row { padding: 1rem 0; border-bottom: 1px solid var(--ba-secondary); }
+    .row:last-child { border: 0; }
+    .meta { font-size: 0.8125rem; opacity: 0.7; margin-top: 0.25rem; }
+    .notice { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--ba-radius); padding: 1rem; margin-top: 1rem; }
+    .notice-error { background: #fef2f2; border-color: #fca5a5; }
+    .notice-ok { background: #f0fdf4; border-color: #86efac; }
+    .panel { display: none; margin-top: 1rem; }
+    .panel:target { display: block; }
+    .summary-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); font-size: 0.875rem; }
+    .summary-row:last-child { border: 0; }
+    .summary-row span:first-child { opacity: 0.6; }
+    .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
+    .proto-only a { margin-right: 0.75rem; }
+    .tag-proposal { display: inline-block; font-size: 0.6875rem; font-weight: 700; background: #ede9fe; color: #5b21b6; padding: 0.1875rem 0.5rem; border-radius: 4px; margin-bottom: 0.75rem; }
+    .step-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.5; margin-bottom: 0.25rem; }
+
+    @media (min-width: 1024px) {
+      .topbar-brand { display: flex !important; }
+      .desktop-only { display: inline-flex !important; }
+      .mobile-only  { display: none !important; }
+      .topbar-user-name { display: inline !important; }
+    }
+  
+    /* Two-column layout on desktop (central content + action pane) */
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .mobile-actions { display: none !important; }
+    }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--ba-text); }
+    .empty-state p { font-size: 0.9375rem; margin: 0.5rem 0 1.25rem; opacity: 0.55; }
+    .variant { display: none; }
+    .variant:target, .variant.default { display: block; }
+    .dashboard-body:has(.variant:target) .variant.default:not(:target) { display: none; }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: NewRecurringScheduleForm (empty state — no offered service)   (M23 / TD49-S03)
+    PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx
+    UC cobertos: UC-070
+    QUANDO: a lista filtrada de serviços (isRecurrenceEligibleService) fica vazia. Duas variantes:
+      A  #nenhum-habilitado  — nenhum serviço do estabelecimento tem a recorrência ligada (bookingPolicy.recurrenceEligible = false em todos).
+                               Texto já existente: "Nenhum serviço permite reserva recorrente no momento." (chave noServices)
+      B  #habilitado-sem-regra — há serviço com a recorrência ligada, mas nenhum atende à regra (várias etapas ou vários recursos,
+                               exige endereço de retirada, duração escolhida pelo cliente...). O cliente não consegue agir sobre o motivo
+                               técnico, então a tela só orienta a falar com o estabelecimento (chave noServicesEnabled).
+    Em ambas o formulário não é desenhado e não há botões de passo; a ação é voltar à lista (topbar) ou "Fazer um agendamento" (reserva avulsa).
+    O motivo técnico por serviço aparece só para o gestor, na aba Políticas de reserva (staff/prototypes/servicos/03f).
+  -->
+
+  <!-- TOP BAR — drill-down pattern: back link replaces the brand slot (CustomerTopbar backHrefOverride), no tab nav / bottom nav -->
+  <div class="dashboard-topbar" style="position:relative;">
+    <span style="position:absolute;left:50%;transform:translateX(-50%);font-weight:700;font-size:0.9375rem;color:var(--ba-text);pointer-events:none;white-space:nowrap;">Vitta Studio</span>
+    <a href="14-recorrentes-lista.html" style="display:flex;align-items:center;gap:0.375rem;text-decoration:none;color:var(--ba-primary);font-size:0.9375rem;font-weight:600;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Reservas recorrentes
+    </a>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;">MF</div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="dashboard-layout">
+    <main class="main-content">
+      <div class="dashboard-body">
+
+        <h1 class="page-title" style="margin-bottom:.25rem;">Nova reserva recorrente</h1>
+
+        <div id="nenhum-habilitado" class="variant default">
+          <div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.35)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <p style="font-weight:600;opacity:.8;font-size:1rem;margin-top:.75rem;">Nenhum serviço permite reserva recorrente no momento.</p>
+            <p>Você pode fazer um agendamento avulso quando quiser.</p>
+            <a href="01-minha-conta.html" class="btn-primary" style="text-decoration:none;">Fazer um agendamento</a>
+          </div>
+        </div>
+
+        <div id="habilitado-sem-regra" class="variant">
+          <div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(17,24,39,0.35)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <p style="font-weight:600;opacity:.8;font-size:1rem;margin-top:.75rem;">Os serviços com recorrência ainda não aceitam reserva recorrente.</p>
+            <p>Fale com o estabelecimento para saber mais. Enquanto isso, você pode fazer um agendamento avulso.</p>
+            <a href="01-minha-conta.html" class="btn-primary" style="text-decoration:none;">Fazer um agendamento</a>
+          </div>
+        </div>
+
+        <p style="text-align:center;font-size:0.75rem;opacity:.5;margin:1rem 0;">Protótipo: <a href="#nenhum-habilitado">A — nenhum serviço habilitado</a> · <a href="#habilitado-sem-regra">B — habilitado, mas nenhum atende à regra</a></p>
+
+      </div>
+    </main>
+  </div>
+
+</body>
+</html>

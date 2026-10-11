@@ -177,7 +177,8 @@ Staff clicks "Desativar serviço" (danger zone button, ServiceEditStatusSection)
 | File | Screen | UC |
 |---|---|---|
 | `03-service-edit.html` — tab "Recursos" | Resource requirements, bundles, legs, buffer | UC-050, 051, 052, 053 |
-| `03-service-edit.html` — tab "Políticas de reserva" | Approval mode, hold, cancellation/reschedule windows, variable-duration/pricing | UC-055 |
+| `03-service-edit.html` — tab "Políticas de reserva" | Approval mode, hold, cancellation/reschedule windows, variable-duration/pricing, recurrence toggle + maximum term, availability-alert toggle | UC-055 |
+| `03f-service-edit-recurrence-hint.html` | Same tab with the advisory recurrence hint (TD49-S03): shown when the last-saved service cannot recur; never blocks saving | UC-055 step 3 |
 | `03d-service-edit-policy-error.html` | Error — `CUSTOMER_SELECTED` duration without a pricing policy (Políticas de reserva tab) | UC-055 A2 |
 | `03-service-edit.html` — tab "Formulário de reserva" | Question-list builder, participant/attendee toggles, consent text, version history | UC-054 |
 | `02-service-create.html` — "Modelo de agendamento" section | Booking-model picker at creation time | UC-056 |
@@ -336,3 +337,13 @@ A full pass against Nielsen-style heuristics found 2 critical issues and several
 - Clicking any non-current `.version-history-row` opens the dialog showing that version's questions (label/type/required) and consent text — read-only, matching UC-054 A1 (a past version is never editable, only ever superseded).
 - `publishIntake()` now captures a snapshot of the live form (`captureCurrentIntakeSnapshot()`) into `VERSION_SNAPSHOTS` *before* demoting the current version, and makes that demoted row clickable too — so every version that has ever been "current" in a session becomes viewable, not just the one hardcoded Versão 1 example.
 - The real implementation needs an actual historical-version read endpoint to back this (see the "Real functional gap" note above — `GET /services/:id/intake-schema` or similar) — the prototype's `VERSION_SNAPSHOTS` object is a client-side stand-in for what that endpoint would return per version.
+
+## TD49-S03 — recurrence hint on the Políticas de reserva tab (`03f`)
+
+**What it is:** a one-paragraph advisory under "Permitir recorrência para clientes autenticados" saying why the service cannot yet be booked as a recurring reservation. It explains the toggle's limit; it does not change it (UC-055 step 3: the toggle is not validated against the service's requirements, and saving stays allowed).
+
+**Where the rule lives:** the same shape table as the customer form's `isRecurrenceEligibleService()` (`features/booking/model/recurring-schedule-form.ts`), minus the toggle. The web helper returns the list of unmet reasons, so the form filter, the empty state and this hint read one function. Reasons: the service has legs · two or more resource requirements · a requirement with quantity above 1 · `requiresPickupAddress` · `durationPolicy = CUSTOMER_SELECTED` · a `NONE` requirement that is not the unrestricted location. A service with no requirement, only the default location, or one single-unit requirement shows no hint.
+
+**Props:** `ServiceBookingPolicyPanel` receives the saved `resourceRequirements`, `legs` and `requiresPickupAddress` from `ServiceEditConfigTabPanels` (today it gets only `hasLegs`). The hint reflects the last-saved service; unsaved edits in the Recursos tab are not reflected, which the copy says ("salve primeiro"). Not shown for a `SESSION` service (the panel does not exist there).
+
+**Copy (pt-BR, final wording confirmed in review):** see `03f`; keys under `dashboard.servicesPage.politicasRecurrenceHint*` in both locales.

@@ -94,9 +94,14 @@
     PAGE:       apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx  (✅ Done — M23-S17)
     UC cobertos: UC-070
     DATA:
-      Lista de serviços: endpoint já existente do BFF (booking/services). NÃO há filtro no servidor por recorrência — o cliente filtra por
-        recurrenceEligible = true, bookingModel = APPOINTMENT, sem legs e com exatamente 1 resourceRequirement, replicando assertServiceEligible.
-        Ponto aberto para M23-S17: expor um indicador de elegibilidade na API para não duplicar a regra no cliente.
+      Lista de serviços: endpoint já existente do BFF (booking/services). NÃO há filtro no servidor por recorrência — o cliente filtra com
+        isRecurrenceEligibleService(), que espelha assertServiceEligible: recurrenceEligible = true, bookingModel = APPOINTMENT, sem legs,
+        requiresPickupAddress = false, e (a) nenhum resourceRequirement, ou (b) um único requisito de quantidade 1 cujo modo é CUSTOMER_CHOICE /
+        AUTO_ANY / AUTO_FUNGIBLE_POOL, ou (c) um único requisito LOCATION sem restrição de pool e modo NONE (o serviço "padrão"). Só no cliente:
+        durationPolicy != CUSTOMER_SELECTED (a duração aqui é somente leitura). (TD49-S03: (a) e (c) passam a recorrer; um serviço de
+        funcionário + sala continua fora até as histórias 0 a 2 do TD49.)
+        Serviço sem recurso configurado (a) ou com a localização padrão (c): o campo "Recurso" não aparece (ver abaixo) e a política é RESOLVE_PER_OCCURRENCE.
+        Nenhum serviço na lista: tela 13g (duas variantes).
       POST /recurring-booking-schedules
         Body: { serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
                 assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid] (exatamente 1 se FIXED), startsOn, endsOn }
@@ -106,7 +111,7 @@
       Prazo fixo (decidido em 2026-09-29): a recorrência sempre tem data final; todas as reservas do período são verificadas e criadas de uma vez
         (na hora, ou quando a equipe aprovar). Não existe geração contínua nem "pausar". Para continuar depois, o cliente cria uma nova recorrência (ver 13f).
       O campo "Recurso" só aparece quando o serviço exige escolha do cliente (CUSTOMER_CHOICE → FIXED_ASSIGNMENT);
-      para AUTO_ANY / AUTO_FUNGIBLE_POOL ele é omitido e a política é RESOLVE_PER_OCCURRENCE.
+      para AUTO_ANY / AUTO_FUNGIBLE_POOL e para o serviço sem recurso / com a localização padrão ele é omitido e a política é RESOLVE_PER_OCCURRENCE.
       Duração: somente leitura (definida pelo serviço). Serviços de duração variável não estão desenhados.
   -->
 

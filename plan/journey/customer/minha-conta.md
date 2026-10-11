@@ -2,7 +2,7 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
-**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070 (✅ Done — M23 Cluster 3: management `M23-S12`, creation `M23-S17`, renewal of an ended schedule `M23-S22`; the "Renovar" on a schedule still running waits for `M23-S21`/`M23-S41`) · UC-076 (❓ Gap — M23 Cluster 3, availability alerts: list/cancel `M23-S43`, creation `M23-S31`) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
+**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070 (✅ Done — M23 Cluster 3: management `M23-S12`, creation `M23-S17`, renewal of an ended schedule `M23-S22`; services with no resource requirement or only the default location can recur from `TD49-S03`, and a staff + room bundle from `TD49` Stories 0 to 2; the "Renovar" on a schedule still running waits for `M23-S21`/`M23-S41`) · UC-076 (❓ Gap — M23 Cluster 3, availability alerts: list/cancel `M23-S43`, creation `M23-S31`) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
 **Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 is partly built (reschedule `M23-S30`, recurring reservations `M23-S12`/`S17`; the availability alerts are not) and the M24 Cluster 4 extension is not, see the ❓ GAP sections in `dev-notes.md`.
 
 ## Flow
@@ -152,6 +152,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
 | `13d-nova-recorrencia-limite.html` | Erro — limite de recorrências ativas (409 A4) | UC-070 A4 | M23-S17 | ✅ Criado (M23-S17) |
 | `13f-renovar-recorrencia.html` | Renovar — formulário pré-preenchido (A) e aviso de reserva não encontrada sobre o formulário em branco (B, não é uma tela) | UC-070 | M23-S22 | ✅ Criado (M23-S22) |
+| `13g-nova-recorrencia-sem-servicos.html` | Nova reserva recorrente — nenhum serviço oferecido (A: nenhum habilitado · B: habilitado, mas nenhum atende à regra) | UC-070 | TD49-S03 | ❓ Gap (TD49-S03) |
 | `13e-nova-recorrencia-erro.html` | Erro — validação do padrão e falha de envio | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
 | `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status, prazo de cada uma e "Renovar" | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12; "Renovar" nas encerradas, M23-S22; nas ativas terminando, M23-S41; o botão de criar e o menu "+ Novo ▾" são de M23-S17, já feitos) |
 | `14b-recorrentes-lista-vazia.html` | Minhas reservas recorrentes — estado vazio | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12; "Renovar" nas encerradas, M23-S22; nas ativas terminando, M23-S41; o botão de criar e o menu "+ Novo ▾" são de M23-S17, já feitos) |

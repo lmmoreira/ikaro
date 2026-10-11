@@ -109,7 +109,7 @@
   </ul>
 
   <h2>M23 Cluster 3 — Reservas recorrentes — ❓ Gap, não construído ainda</h2>
-  <p style="font-size:.875rem;opacity:.7;">Fluxo de criação: Lista (14) → Padrão (13) → Revisar (13b) → desfecho (13c · 06c · 06b · 06d · 13d · 13e). Renovação: Lista (14) ou e-mail de aviso → Padrão pré-preenchido (13f) → Revisar (13b). A recorrência tem prazo fixo (data final obrigatória, máx. 90 dias por padrão) e todas as reservas do período são criadas de uma vez; não existe "pausar". Primeira versão deliberadamente simples, a rever na discovery das stories.</p>
+  <p style="font-size:.875rem;opacity:.7;">Fluxo de criação: Lista (14) → Padrão (13) → Revisar (13b) → desfecho (13c · 06c · 06b · 06d · 13d · 13e); sem nenhum serviço oferecido: 13g. Renovação: Lista (14) ou e-mail de aviso → Padrão pré-preenchido (13f) → Revisar (13b). A recorrência tem prazo fixo (data final obrigatória, máx. 90 dias por padrão) e todas as reservas do período são criadas de uma vez; não existe "pausar". Primeira versão deliberadamente simples, a rever na discovery das stories.</p>
   <ul>
     <li><a href="14-recorrentes-lista.html">Tela 14 — Lista de reservas recorrentes (ativas / em análise / encerradas, com o prazo de cada uma e "Renovar")</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 · M23-S12</span></li>
     <li><a href="14b-recorrentes-lista-vazia.html">Tela 14b — Lista vazia, com o botão de criar</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 · M23-S12/S17</span></li>
@@ -122,6 +122,7 @@
     <li><a href="13d-nova-recorrencia-limite.html">Tela 13d — Erro: limite de recorrências ativas</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 A4 · M23-S17</span></li>
     <li><a href="13e-nova-recorrencia-erro.html">Tela 13e — Erros de validação (dia da semana, data final anterior / ausente / além do prazo) e falha de envio</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 · M23-S17</span></li>
     <li><a href="13f-renovar-recorrencia.html">Tela 13f — Renovar: formulário pré-preenchido (estado A) e reserva não encontrada (estado B)</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 · M23-S22</span></li>
+    <li><a href="13g-nova-recorrencia-sem-servicos.html">Tela 13g — Nenhum serviço oferecido: variante A (nenhum serviço habilitado) e B (habilitado, mas nenhum atende à regra)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-070 · TD49-S03</span></li>
     <li><a href="06-reserva-recorrente.html">Tela 6 — Detalhe da reserva recorrente (detalhe central + painel de ações: pular → 03, reagendar → 15, encerrar → 6g; sem "pausar")</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-070 A2 · M23-S12</span></li>
     <li><a href="06g-encerrar-recorrencia.html">Tela 6g — Encerrar recorrência: página de confirmação (detalhe central + painel de ações)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-070 A2 · M23-S12</span></li>
     <li><a href="06h-recorrencia-encerrada.html">Tela 6h — Reserva recorrente encerrada ou cancelada: detalhe somente leitura, com "Renovar" e "Nova reserva recorrente" no painel (alternar "ver como cancelada")</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-070 A2 · M23-S12</span></li>
@@ -211,6 +212,7 @@
       <li>O checkbox de confirmação explícita no cancelamento de matrícula é necessário, ou a página de confirmação já é suficiente como freio?</li>
       <li>Reservas recorrentes: a data final obrigatória (com o limite de 90 dias e a dica "depois você pode renovar") é compreensível, ou parece uma restrição arbitrária?</li>
       <li>Reservas recorrentes: quando o botão "Renovar" deve aparecer numa recorrência ativa (janela do aviso por e-mail?) — e o pré-preenchimento de 13f dispensa a revisão?</li>
+      <li>Reservas recorrentes: quando nenhum serviço pode ser oferecido (13g), a mensagem "fale com o estabelecimento" basta, ou a cliente precisa saber o motivo?</li>
       <li>Reservas recorrentes: a lista de ocorrências afetadas (06b/06d) com o motivo de cada uma ("Já reservado", "Fechado", "Fora do horário") basta para a cliente corrigir o padrão numa única tentativa?</li>
     </ul>
     <br>
