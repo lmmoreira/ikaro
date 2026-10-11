@@ -31,11 +31,11 @@ export interface RecurrenceShape {
   }[];
 }
 
-const RECURRING_SELECTION_MODES: readonly ResourceRequirementSelectionMode[] = [
+const RECURRING_SELECTION_MODES: ReadonlySet<ResourceRequirementSelectionMode> = new Set([
   'CUSTOMER_CHOICE',
   'AUTO_ANY',
   'AUTO_FUNGIBLE_POOL',
-];
+]);
 
 /** Every reason this shape cannot recur, in a stable order; empty means it can. */
 export function recurrenceShapeBlockers(shape: RecurrenceShape): RecurrenceBlocker[] {
@@ -52,7 +52,7 @@ export function recurrenceShapeBlockers(shape: RecurrenceShape): RecurrenceBlock
     const isDefaultLocation =
       requirement.type === 'LOCATION' && (requirement.resourcePoolIds ?? []).length === 0;
     const modeAllowed =
-      RECURRING_SELECTION_MODES.includes(requirement.selectionMode) ||
+      RECURRING_SELECTION_MODES.has(requirement.selectionMode) ||
       (requirement.selectionMode === 'NONE' && isDefaultLocation);
     if (!modeAllowed && shape.resourceRequirements.length === 1) blockers.push('selection-mode');
   }

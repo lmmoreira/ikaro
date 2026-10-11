@@ -62,6 +62,11 @@ export function ServiceEditPage({
   const [savedRequirements, setSavedRequirements] = useState(service.resourceRequirements);
   const [loyaltyPointsValue, setLoyaltyPointsValue] = useState(String(service.loyaltyPointsValue));
   const [requiresPickupAddress, setRequiresPickupAddress] = useState(service.requiresPickupAddress);
+  // The pickup-address value as last saved, for the Políticas tab's recurrence hint: toggling the
+  // switch changes `requiresPickupAddress` at once, but the hint follows only a successful save.
+  const [savedRequiresPickupAddress, setSavedRequiresPickupAddress] = useState(
+    service.requiresPickupAddress,
+  );
   const [isActive, setIsActive] = useState(service.isActive);
   const [fieldErrors, setFieldErrors] = useState<ServiceFormErrors>({});
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
@@ -129,12 +134,14 @@ export function ServiceEditPage({
     if (validation.normalized === null) return;
 
     const revisionAtSubmit = detalhesEditRevisionRef.current;
+    const pickupAtSubmit = requiresPickupAddress;
     setIsSubmittingLocal(true);
     try {
       await updateServiceMutation.mutateAsync({
         id: service.serviceId,
-        body: { ...validation.normalized, requiresPickupAddress },
+        body: { ...validation.normalized, requiresPickupAddress: pickupAtSubmit },
       });
+      setSavedRequiresPickupAddress(pickupAtSubmit);
       if (detalhesEditRevisionRef.current === revisionAtSubmit) {
         setTabDirty('detalhes', false);
       }
@@ -218,7 +225,7 @@ export function ServiceEditPage({
             service={service}
             hasLegs={hasLegs}
             resourceRequirements={savedRequirements}
-            requiresPickupAddress={requiresPickupAddress}
+            requiresPickupAddress={savedRequiresPickupAddress}
             onRequirementsSaved={setSavedRequirements}
             intakeSchema={intakeSchema}
             onTabDirtyChange={setTabDirty}
