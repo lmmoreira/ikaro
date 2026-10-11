@@ -339,9 +339,10 @@ export const RequestRecurringBookingScheduleBodySchema = z
     serviceId: z.uuid(),
     recurrence: RecurrenceRuleSchema,
     assignmentPolicy: z.enum(['FIXED_ASSIGNMENT', 'RESOLVE_PER_OCCURRENCE']),
-    // Exactly one resource — recurring schedules are single-resource-only for this story
-    // (bundle/multi-leg recurrence is out of scope). Required iff assignmentPolicy =
-    // FIXED_ASSIGNMENT; ignored otherwise.
+    // Exactly one resource — recurring schedules hold one resource per occurrence (bundle/multi-leg
+    // recurrence is out of scope, TD49 Stories 0 to 2). Required iff assignmentPolicy =
+    // FIXED_ASSIGNMENT; ignored otherwise, so a default-shape service, held against the tenant's
+    // location, sends none (TD49-S03).
     resourceIds: z.array(z.uuid()).length(1).optional(),
     startsOn: z.iso.date(),
     // Required: a schedule is a fixed term, never open-ended. The upper bound (the service's

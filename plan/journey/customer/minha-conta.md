@@ -152,7 +152,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
 | `13d-nova-recorrencia-limite.html` | Erro — limite de recorrências ativas (409 A4) | UC-070 A4 | M23-S17 | ✅ Criado (M23-S17) |
 | `13f-renovar-recorrencia.html` | Renovar — formulário pré-preenchido (A) e aviso de reserva não encontrada sobre o formulário em branco (B, não é uma tela) | UC-070 | M23-S22 | ✅ Criado (M23-S22) |
-| `13g-nova-recorrencia-sem-servicos.html` | Nova reserva recorrente — nenhum serviço oferecido (A: nenhum habilitado · B: habilitado, mas nenhum atende à regra) | UC-070 | TD49-S03 | ❓ Gap (TD49-S03) |
+| `13g-nova-recorrencia-sem-servicos.html` | Nova reserva recorrente — nenhum serviço oferecido (A: nenhum habilitado · B: habilitado, mas nenhum atende à regra) | UC-070 | TD49-S03 | ✅ Criado (TD49-S03) |
 | `13e-nova-recorrencia-erro.html` | Erro — validação do padrão e falha de envio | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
 | `14-recorrentes-lista.html` | Minhas reservas recorrentes — lista com status, prazo de cada uma e "Renovar" | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12; "Renovar" nas encerradas, M23-S22; nas ativas terminando, M23-S41; o botão de criar e o menu "+ Novo ▾" são de M23-S17, já feitos) |
 | `14b-recorrentes-lista-vazia.html` | Minhas reservas recorrentes — estado vazio | UC-070 | M23-S12 (S17 adiciona o botão de criar) | ✅ Criado (M23-S12; "Renovar" nas encerradas, M23-S22; nas ativas terminando, M23-S41; o botão de criar e o menu "+ Novo ▾" são de M23-S17, já feitos) |

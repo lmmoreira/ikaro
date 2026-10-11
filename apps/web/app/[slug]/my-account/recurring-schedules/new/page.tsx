@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { fetchCustomerRecurringScheduleOrNull } from '@/features/booking/api/recurring-booking-schedules.server';
-import { filterRecurrenceEligibleServices } from '@/features/booking/model/recurring-schedule-form';
+import {
+  filterRecurrenceEligibleServices,
+  noRecurrenceServicesReason,
+} from '@/features/booking/model/recurring-service-eligibility';
 import { buildRenewalDraft } from '@/features/booking/model/recurring-schedule-renewal';
 import { NewRecurringSchedulePage } from '@/features/customer/components/my-account/NewRecurringSchedulePage';
 import { fetchManifest } from '@/features/platform/api.server';
@@ -20,10 +23,14 @@ export default async function NewRecurringScheduleRoute({
 }: NewRecurringScheduleRouteProps): Promise<React.JSX.Element> {
   const { slug } = await params;
   const { renewFrom } = await searchParams;
-  const services = filterRecurrenceEligibleServices(await fetchServices(slug));
+  const allServices = await fetchServices(slug);
+  const services = filterRecurrenceEligibleServices(allServices);
+  const emptyReason = noRecurrenceServicesReason(allServices);
 
   if (renewFrom === undefined) {
-    return <NewRecurringSchedulePage services={services} tenantSlug={slug} />;
+    return (
+      <NewRecurringSchedulePage services={services} tenantSlug={slug} emptyReason={emptyReason} />
+    );
   }
 
   // A link that cannot be honored (unknown, someone else's, pending, cancelled, a service that no
@@ -41,6 +48,7 @@ export default async function NewRecurringScheduleRoute({
       tenantSlug={slug}
       initialDraft={draft ?? undefined}
       renewing={draft === null ? null : schedule}
+      emptyReason={emptyReason}
     />
   );
 }

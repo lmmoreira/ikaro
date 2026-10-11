@@ -13,14 +13,27 @@ import { ServiceBookingPolicyPanel } from './ServiceBookingPolicyPanel';
 // ServiceEditPage's sticky action panel. This harness plays that role so the panel's own
 // behavior (validation, in-flight state, dirty tracking) stays testable in isolation.
 function PolicyPanelWithAction(
-  props: Omit<Parameters<typeof ServiceBookingPolicyPanel>[0], 'onActionChange' | 'hasLegs'> & {
-    readonly hasLegs?: boolean;
-  },
+  props: Omit<
+    Parameters<typeof ServiceBookingPolicyPanel>[0],
+    'onActionChange' | 'hasLegs' | 'resourceRequirements' | 'requiresPickupAddress'
+  > &
+    Partial<
+      Pick<
+        Parameters<typeof ServiceBookingPolicyPanel>[0],
+        'hasLegs' | 'resourceRequirements' | 'requiresPickupAddress'
+      >
+    >,
 ) {
   const [action, setAction] = useState<ServiceTabAction | null>(null);
   return (
     <>
-      <ServiceBookingPolicyPanel hasLegs={false} {...props} onActionChange={setAction} />
+      <ServiceBookingPolicyPanel
+        hasLegs={false}
+        resourceRequirements={[]}
+        requiresPickupAddress={false}
+        {...props}
+        onActionChange={setAction}
+      />
       <button
         type="button"
         data-testid="policy-save"
@@ -232,5 +245,77 @@ describe('ServiceBookingPolicyPanel', () => {
     await screen.findByTestId('policy-save');
 
     expect(onDirtyChange).not.toHaveBeenLastCalledWith(false);
+  });
+  // TD49-S03 / UC-055 step 3: an advisory hint, computed from the saved service, never blocking.
+  describe('the recurrence hint', () => {
+    it('is absent for a service that can recur (no requirement)', () => {
+      renderWithIntl(
+        <PolicyPanelWithAction
+          serviceId="svc-1"
+          initialPolicy={BASE_POLICY}
+          onDirtyChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByTestId('policy-recurrence-hint')).toBeNull();
+    });
+
+    it('names a second resource and keeps saving enabled', () => {
+      renderWithIntl(
+        <PolicyPanelWithAction
+          serviceId="svc-1"
+          initialPolicy={{ ...BASE_POLICY, recurrenceEligible: true }}
+          resourceRequirements={[
+            {
+              type: 'STAFF',
+              selectionMode: 'AUTO_ANY',
+              resourcePoolIds: null,
+              requiredQuantity: 1,
+            },
+            { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
+          ]}
+          onDirtyChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('policy-recurrence-hint').textContent).toContain(
+        'mais de um recurso',
+      );
+      expect(screen.getByTestId('policy-save').hasAttribute('disabled')).toBe(false);
+    });
+
+    it.each([
+      ['legs', { hasLegs: true }, 'ele tem etapas'],
+      ['a pickup address', { requiresPickupAddress: true }, 'endereço de coleta'],
+    ])('names %s', (_label, props, expected) => {
+      renderWithIntl(
+        <PolicyPanelWithAction
+          serviceId="svc-1"
+          initialPolicy={BASE_POLICY}
+          onDirtyChange={vi.fn()}
+          {...props}
+        />,
+      );
+
+      expect(screen.getByTestId('policy-recurrence-hint').textContent).toContain(expected);
+    });
+
+    it('appears once the customer-chosen duration is selected in the same tab', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(
+        <PolicyPanelWithAction
+          serviceId="svc-1"
+          initialPolicy={BASE_POLICY}
+          onDirtyChange={vi.fn()}
+        />,
+      );
+      expect(screen.queryByTestId('policy-recurrence-hint')).toBeNull();
+
+      await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'CUSTOMER_SELECTED');
+
+      expect(screen.getByTestId('policy-recurrence-hint').textContent).toContain(
+        'o cliente escolhe a duração',
+      );
+    });
   });
 });

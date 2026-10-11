@@ -17,6 +17,7 @@ import {
   ResourceOccupancyCandidate,
 } from '../ports/resource-occupancy-repository.port';
 import { buildLineInputs } from './booking-request.mapper';
+import { effectiveRequirement } from './recurring-service-requirement.helpers';
 
 export interface MaterializeOccurrencesDeps {
   bookingRepo: IBookingRepository;
@@ -112,8 +113,9 @@ function buildOccurrenceBooking(input: {
   });
 }
 
-// A recurring-eligible service has exactly one flat requirement of quantity one (see
-// assertServiceEligible), so every occurrence holds one resource for its window plus that
+// A recurring-eligible service has exactly one flat requirement of quantity one — its own, or the
+// default LOCATION a service with none falls back to (effectiveRequirement, see
+// assertServiceEligible) — so every occurrence holds one resource for its window plus that
 // resource's own trailing buffer/turnover gap — the same window the conflict check used.
 function buildCandidate(
   availabilityService: AvailabilityService,
@@ -139,7 +141,7 @@ function buildCandidate(
     endsAt: new Date(end.getTime() + (gap?.minutes ?? 0) * 60_000),
     gapMinutes: gap?.minutes ?? null,
     gapSource: gap?.source ?? null,
-    selectionMode: service.resourceRequirements[0].selectionMode,
+    selectionMode: effectiveRequirement(service).selectionMode,
     isBundleMember: false,
   };
 }

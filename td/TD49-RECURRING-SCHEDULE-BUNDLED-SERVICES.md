@@ -257,7 +257,7 @@ Make a degenerate service (`resourceRequirements: []`, or exactly one unrestrict
   - [ ] The web filter and the backend rule agree on a table of shapes (the same table drives both specs), including `NONE` mode and `requiresPickupAddress`
   - [ ] The request for a degenerate service holds and checks the tenant `LOCATION`; the cap and lock behave as decided at discovery
   - [ ] Negative guarantees, each pinned by its own test: legs, a pickup-address service and two or more requirements are still refused when the degenerate shapes are accepted; `NONE` on a non-`LOCATION` or pool-restricted requirement is still refused; `FIXED_ASSIGNMENT` for a degenerate service is refused
-  - [ ] Parity: the verdict for the tenant `LOCATION` (hours, closures, occupancy) equals what the one-off degenerate availability returns for the same seeded data, including a `LOCATION` resource that carries its own working hours
+  - [ ] Parity: the verdict for the tenant `LOCATION` (hours, closures, occupancy) equals what the one-off degenerate availability returns for the same seeded data, with the tenant's `LOCATION`, whose working hours are always inherited (a `LOCATION` can never carry its own: `resource.aggregate.ts` locks `workingHours` to null), so no own-hours case exists to pin
   - [ ] `planOccurrenceResources` with mode `NONE` and a single resource assigns that resource to every occurrence (and its multi-`LOCATION` behavior is pinned as out of scope)
   - [ ] The empty state renders both variants in both locales; the editor hint renders each reason and is absent for a qualifying service; saving stays enabled with the hint shown
   - [ ] `buildRenewalDraft()` returns null for a schedule whose service no longer qualifies (decision 7)

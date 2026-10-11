@@ -17,8 +17,12 @@ import {
   BookingServiceResourceTypeUnavailableError,
   BookingSlotUnavailableError,
 } from '../../domain/errors/booking-domain.error';
-import { RecurringBookingScheduleConflictError } from '../../domain/errors/recurring-booking-schedule.error';
+import {
+  RecurringBookingScheduleConflictError,
+  RecurringBookingScheduleIneligibleServiceError,
+} from '../../domain/errors/recurring-booking-schedule.error';
 import { Resource } from '../../domain/resource.aggregate';
+import { ServiceLeg } from '../../domain/service-leg';
 import {
   ResourceRequirement,
   ResourceRequirementSelectionMode,
@@ -29,6 +33,7 @@ import { Service } from '../../domain/service.aggregate';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import {
   assertPatternConflictFree,
+  assertServiceEligible,
   ConflictCheckDeps,
   ConflictCheckParams,
 } from './recurring-booking-schedule-request.helpers';
@@ -127,6 +132,18 @@ describe('assertPatternConflictFree', () => {
           resourcePoolIds: requirement.resourcePoolIds,
         }),
       ])
+      .build();
+  }
+
+  function buildDefaultService(shape: 'no requirement' | 'a stored NONE location row'): Service {
+    return new ServiceBuilder()
+      .withTenantId(TENANT)
+      .withBookingModel('APPOINTMENT')
+      .withResourceRequirements(
+        shape === 'no requirement'
+          ? []
+          : [ResourceRequirement.create({ type: ResourceType.LOCATION, selectionMode: 'NONE' })],
+      )
       .build();
   }
 
@@ -593,11 +610,10 @@ describe('assertPatternConflictFree', () => {
       params: ConflictCheckParams,
     ): Promise<boolean> {
       const slotConflictService = new BookingSlotConflictService(occupancyRepo, tenantLock);
-      const requirement = service.resourceRequirements[0];
       const resourceSelections = params.resourceIds.map((resourceId) => ({
         serviceId: service.id,
         legIndex: null,
-        resourceType: requirement.type,
+        resourceType: service.resourceRequirements[0].type,
         resourceId,
       }));
       try {
@@ -686,6 +702,262 @@ describe('assertPatternConflictFree', () => {
         expect(await batchedAccepts(params)).toBe(await perOccurrenceAccepts(service, params));
       },
     );
+
+    // TD49-S03: the default service shape is held against the tenant's LOCATION in both paths.
+    const degenerateScenarios: { name: string; busyOccurrences: number[] }[] = [
+      { name: 'nothing is busy', busyOccurrences: [] },
+      { name: 'the location is busy on one occurrence', busyOccurrences: [2] },
+      { name: 'the location is busy on the first and last occurrences', busyOccurrences: [0, 4] },
+    ];
+
+    it.each(
+      (['no requirement', 'a stored NONE location row'] as const).flatMap((shape) =>
+        degenerateScenarios.map((scenario) => ({ shape, ...scenario })),
+      ),
+    )(
+      'a default service with $shape agrees with the per-occurrence check when $name',
+      async ({ shape, busyOccurrences }) => {
+        const [location] = await seedResources(1, 10, ResourceType.LOCATION);
+        busyOccurrences.forEach((index) => occupy(location, occurrenceStart(index)));
+        const service = buildDefaultService(shape);
+        const params = buildParams(service, OCCURRENCE_COUNT);
+
+        expect(await batchedAccepts(params)).toBe(await perOccurrenceAccepts(service, params));
+      },
+    );
+  });
+
+  // TD49-S03 — the default ("degenerate") service shape: no requirement, or the unrestricted
+  // LOCATION row the M22 backfill stored with mode NONE. Held against the tenant's single LOCATION.
+  describe('the default service shape', () => {
+    const shapes = ['no requirement', 'a stored NONE location row'] as const;
+
+    it.each(shapes)(
+      'accepts a free term for %s and plans the LOCATION for every occurrence',
+      async (shape) => {
+        const [location] = await seedResources(1, 0, ResourceType.LOCATION);
+        const lockSpy = jest.spyOn(tenantLock, 'lockResources');
+        const windowsSpy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
+
+        const plan = await assertPatternConflictFree(
+          deps,
+          buildParams(buildDefaultService(shape), 8),
+        );
+
+        expect(plan).toHaveLength(8);
+        expect(plan.every((resource) => resource.id === location.id)).toBe(true);
+        expect(lockSpy).toHaveBeenCalledTimes(1);
+        expect(lockSpy).toHaveBeenCalledWith(TENANT, [location.id]);
+        expect(windowsSpy).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(shapes)(
+      'rejects %s when the LOCATION is busy on only the 5th occurrence',
+      async (shape) => {
+        const [location] = await seedResources(1, 0, ResourceType.LOCATION);
+        occupy(location, occurrenceStart(4));
+
+        const error = await assertPatternConflictFree(
+          deps,
+          buildParams(buildDefaultService(shape), 8),
+        ).catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+        expect((error as RecurringBookingScheduleConflictError).conflicts).toEqual([
+          { occurrenceStart: occurrenceStart(4), reason: 'OCCUPIED' },
+        ]);
+      },
+    );
+
+    it('lists a closed day and a time outside the business hours like a one-off booking would', async () => {
+      await seedResources(1, 0, ResourceType.LOCATION);
+      await closureRepo.save(
+        new ScheduleClosureBuilder().withTenantId(TENANT).withDate(occurrenceLocalDate(1)).build(),
+      );
+      const outsideHours = buildParams(buildDefaultService('no requirement'), 3);
+      outsideHours.recurrence = { ...outsideHours.recurrence, startTime: '07:00' };
+      outsideHours.occurrences = outsideHours.occurrences.map((occurrence) => ({
+        ...occurrence,
+        occurrenceStart: new Date(occurrence.occurrenceStart.getTime() - 3 * 60 * 60_000),
+      }));
+
+      const error = await assertPatternConflictFree(deps, outsideHours).catch(
+        (caught: unknown) => caught,
+      );
+
+      expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+      expect(
+        (error as RecurringBookingScheduleConflictError).conflicts.map(
+          (conflict) => conflict.reason,
+        ),
+      ).toEqual(['OUTSIDE_HOURS', 'CLOSED', 'OUTSIDE_HOURS']);
+    });
+
+    it("never lets another tenant's occupancy on its own LOCATION block the request", async () => {
+      const [location] = await seedResources(1, 0, ResourceType.LOCATION);
+      occupy(location, occurrenceStart(2), { tenantId: OTHER_TENANT });
+
+      await expect(
+        assertPatternConflictFree(deps, buildParams(buildDefaultService('no requirement'), 5)),
+      ).resolves.toHaveLength(5);
+    });
+
+    it('fails as unavailable when the tenant has no active LOCATION resource', async () => {
+      await expect(
+        assertPatternConflictFree(deps, buildParams(buildDefaultService('no requirement'), 3)),
+      ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
+    });
+  });
+
+  // TD49-S03 — the web filter (recurring-schedule-form.spec.ts) is driven by the same shape table.
+  describe('assertServiceEligible', () => {
+    const location = (
+      selectionMode: ResourceRequirementSelectionMode,
+      resourcePoolIds?: string[],
+    ) =>
+      ResourceRequirement.create({ type: ResourceType.LOCATION, selectionMode, resourcePoolIds });
+    const room = (selectionMode: ResourceRequirementSelectionMode, requiredQuantity = 1) =>
+      ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode, requiredQuantity });
+    const staff = ResourceRequirement.create({
+      type: ResourceType.STAFF,
+      selectionMode: 'AUTO_ANY',
+    });
+
+    function service(
+      requirements: ResourceRequirement[],
+      options: { legs?: boolean; pickup?: boolean; recurrence?: boolean } = {},
+    ): Service {
+      return new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .withBookingPolicy({ recurrenceEligible: options.recurrence ?? true })
+        .withRequiresPickupAddress(options.pickup ?? false)
+        .withResourceRequirements(requirements)
+        .withLegs(
+          options.legs
+            ? [
+                ServiceLeg.create({
+                  legIndex: 0,
+                  name: 'Etapa',
+                  durationMinutes: 30,
+                  resourceRequirements: [room('AUTO_ANY')],
+                  transitionGapAfterMinutes: 0,
+                }),
+              ]
+            : null,
+        )
+        .build();
+    }
+
+    type Policy = 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
+    type IneligibleReason = ConstructorParameters<
+      typeof RecurringBookingScheduleIneligibleServiceError
+    >[0];
+    const accepted: [string, () => Service, Policy][] = [
+      ['no requirement', () => service([]), 'RESOLVE_PER_OCCURRENCE'],
+      [
+        'a stored unrestricted NONE location',
+        () => service([location('NONE')]),
+        'RESOLVE_PER_OCCURRENCE',
+      ],
+      [
+        'a stored unrestricted NONE location with an empty pool list',
+        () => service([location('NONE', [])]),
+        'RESOLVE_PER_OCCURRENCE',
+      ],
+      [
+        'one CUSTOMER_CHOICE room, fixed',
+        () => service([room('CUSTOMER_CHOICE')]),
+        'FIXED_ASSIGNMENT',
+      ],
+      ['one AUTO_ANY room', () => service([room('AUTO_ANY')]), 'RESOLVE_PER_OCCURRENCE'],
+      [
+        'one AUTO_FUNGIBLE_POOL room',
+        () => service([room('AUTO_FUNGIBLE_POOL')]),
+        'RESOLVE_PER_OCCURRENCE',
+      ],
+      ['an AUTO_ANY location', () => service([location('AUTO_ANY')]), 'RESOLVE_PER_OCCURRENCE'],
+    ];
+    const refused: [string, () => Service, Policy, IneligibleReason][] = [
+      [
+        'a service with legs',
+        () => service([], { legs: true }),
+        'RESOLVE_PER_OCCURRENCE',
+        'legged-or-bundled',
+      ],
+      [
+        'two requirements (staff + room)',
+        () => service([staff, room('AUTO_ANY')]),
+        'RESOLVE_PER_OCCURRENCE',
+        'legged-or-bundled',
+      ],
+      [
+        'a requirement of quantity 2',
+        () => service([room('AUTO_FUNGIBLE_POOL', 2)]),
+        'RESOLVE_PER_OCCURRENCE',
+        'legged-or-bundled',
+      ],
+      [
+        'a pickup-address service with no requirement',
+        () => service([], { pickup: true }),
+        'RESOLVE_PER_OCCURRENCE',
+        'requires-pickup-address',
+      ],
+      [
+        'recurrence switched off on a default service',
+        () => service([], { recurrence: false }),
+        'RESOLVE_PER_OCCURRENCE',
+        'recurrence-not-enabled',
+      ],
+      [
+        'a NONE room (NONE is accepted for the unrestricted location only)',
+        () => service([room('NONE')]),
+        'RESOLVE_PER_OCCURRENCE',
+        'selection-mode-mismatch',
+      ],
+      [
+        'a NONE location restricted to a pool',
+        () => service([location('NONE', [uuidv7()])]),
+        'RESOLVE_PER_OCCURRENCE',
+        'selection-mode-mismatch',
+      ],
+      [
+        'FIXED_ASSIGNMENT on a service with no requirement',
+        () => service([]),
+        'FIXED_ASSIGNMENT',
+        'selection-mode-mismatch',
+      ],
+      [
+        'FIXED_ASSIGNMENT on a stored NONE location',
+        () => service([location('NONE')]),
+        'FIXED_ASSIGNMENT',
+        'selection-mode-mismatch',
+      ],
+      [
+        'RESOLVE_PER_OCCURRENCE on a CUSTOMER_CHOICE room',
+        () => service([room('CUSTOMER_CHOICE')]),
+        'RESOLVE_PER_OCCURRENCE',
+        'selection-mode-mismatch',
+      ],
+    ];
+
+    it.each(accepted)('accepts %s', (_name, build, policy) => {
+      expect(() => assertServiceEligible(build(), policy)).not.toThrow();
+    });
+
+    it.each(refused)('refuses %s', (_name, build, policy, reason) => {
+      let thrown: unknown;
+      try {
+        assertServiceEligible(build(), policy);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(RecurringBookingScheduleIneligibleServiceError);
+      expect((thrown as Error).message).toBe(
+        new RecurringBookingScheduleIneligibleServiceError(reason).message,
+      );
+    });
   });
 
   // M23-S18 — working hours and closures: the same rule availability applies, checked for every

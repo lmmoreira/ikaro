@@ -67,6 +67,7 @@ function renderPage(
     services?: HotsiteServiceResponse[];
     initialDraft?: Partial<RecurringScheduleDraft>;
     renewing?: RecurringBookingScheduleListItem | null;
+    emptyReason?: 'NONE_ENABLED' | 'NONE_QUALIFY';
   } = {},
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -77,6 +78,7 @@ function renderPage(
         tenantSlug="lavacar-bh"
         initialDraft={options.initialDraft}
         renewing={options.renewing}
+        emptyReason={options.emptyReason}
       />
     </QueryClientProvider>,
   );
@@ -354,6 +356,30 @@ describe('NewRecurringSchedulePage — no eligible service', () => {
   it('says so instead of rendering an empty form', () => {
     renderPage({ services: [] });
     expect(screen.getByTestId('new-schedule-no-services')).toBeInTheDocument();
+  });
+
+  it('names no technical reason when no service has recurrence enabled', () => {
+    renderPage({ services: [], emptyReason: 'NONE_ENABLED' });
+    expect(screen.getByTestId('new-schedule-no-services')).toHaveTextContent(
+      'Nenhum serviço permite reserva recorrente no momento.',
+    );
+  });
+
+  it('points to the business when recurrence is enabled but no service qualifies', () => {
+    renderPage({ services: [], emptyReason: 'NONE_QUALIFY' });
+    const empty = screen.getByTestId('new-schedule-no-services');
+    expect(empty).toHaveTextContent(
+      'Os serviços com recorrência ainda não aceitam reserva recorrente.',
+    );
+    expect(empty).toHaveTextContent('Fale com o estabelecimento');
+  });
+
+  it('offers a one-off booking from either empty state', () => {
+    renderPage({ services: [] });
+    expect(screen.getByRole('link', { name: 'Fazer um agendamento' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/\/booking$/),
+    );
   });
 
   it('still tells the customer the renewal could not be found', () => {

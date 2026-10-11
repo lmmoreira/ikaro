@@ -41,29 +41,6 @@ const MS_PER_HOUR = 3_600_000;
 
 // ── Which services the form offers ──────────────────────────────────────────────────────────────
 
-/**
- * Mirrors the backend's `assertServiceEligible()`: a recurrence-eligible appointment service with
- * no legs, exactly one resource requirement of quantity 1, and a fixed duration. The backend stays
- * the authority — a service this lets through but the backend refuses ends in the generic failure.
- */
-export function isRecurrenceEligibleService(service: HotsiteServiceResponse): boolean {
-  const [requirement] = service.resourceRequirements;
-  return (
-    service.bookingPolicy.recurrenceEligible &&
-    service.bookingModel === 'APPOINTMENT' &&
-    (service.legs === null || service.legs.length === 0) &&
-    service.resourceRequirements.length === 1 &&
-    requirement?.requiredQuantity === 1 &&
-    service.bookingPolicy.durationPolicy !== 'CUSTOMER_SELECTED'
-  );
-}
-
-export function filterRecurrenceEligibleServices(
-  services: readonly HotsiteServiceResponse[],
-): HotsiteServiceResponse[] {
-  return services.filter(isRecurrenceEligibleService);
-}
-
 /** Only a `CUSTOMER_CHOICE` requirement shows the resource control (and becomes FIXED_ASSIGNMENT). */
 export function requiresResourceChoice(service: HotsiteServiceResponse): boolean {
   return service.resourceRequirements[0]?.selectionMode === 'CUSTOMER_CHOICE';

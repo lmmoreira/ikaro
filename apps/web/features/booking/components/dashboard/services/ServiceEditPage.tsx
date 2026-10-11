@@ -58,6 +58,8 @@ export function ServiceEditPage({
   // session. A legged service's duration is its legs' span (computed by the backend, so locked)
   // and it can never be customer-selected, so the policy panel needs the same fact.
   const [hasLegs, setHasLegs] = useState(service.legs !== null);
+  // The flat requirements as last saved, for the Políticas tab's recurrence hint.
+  const [savedRequirements, setSavedRequirements] = useState(service.resourceRequirements);
   const [loyaltyPointsValue, setLoyaltyPointsValue] = useState(String(service.loyaltyPointsValue));
   const [requiresPickupAddress, setRequiresPickupAddress] = useState(service.requiresPickupAddress);
   const [isActive, setIsActive] = useState(service.isActive);
@@ -215,6 +217,9 @@ export function ServiceEditPage({
             activeTab={activeTab}
             service={service}
             hasLegs={hasLegs}
+            resourceRequirements={savedRequirements}
+            requiresPickupAddress={requiresPickupAddress}
+            onRequirementsSaved={setSavedRequirements}
             intakeSchema={intakeSchema}
             onTabDirtyChange={setTabDirty}
             onTabActionChange={handleTabActionChange}

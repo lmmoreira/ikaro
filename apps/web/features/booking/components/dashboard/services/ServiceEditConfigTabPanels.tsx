@@ -1,7 +1,11 @@
 'use client';
 
 import { useCallback } from 'react';
-import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
+import type {
+  ResourceRequirementItem,
+  ServiceIntakeSchemaResponse,
+  StaffServiceResponse,
+} from '@ikaro/types';
 import type { ServiceEditTabKey } from '@/features/booking/types/service';
 import type { ServiceTabAction } from './service-tab-action';
 import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
@@ -19,6 +23,11 @@ interface ServiceEditConfigTabPanelsProps {
   readonly onLegsSaved?: (totalSpanMinutes: number) => void;
   // Overrides `service.legs` once a legs save lands in this session (legs bar a customer-chosen duration).
   readonly hasLegs?: boolean;
+  // The flat requirements as last saved and the live "requires pickup address" value, for the
+  // Políticas tab's recurrence hint; they override `service.*` once the page has newer values.
+  readonly resourceRequirements?: ResourceRequirementItem[];
+  readonly requiresPickupAddress?: boolean;
+  readonly onRequirementsSaved?: (requirements: ResourceRequirementItem[]) => void;
 }
 
 // Split out of ServiceEditPage to stay under docs/CODE_STANDARDS.md's function-length limit —
@@ -34,6 +43,9 @@ export function ServiceEditConfigTabPanels({
   onTabActionChange,
   onLegsSaved,
   hasLegs = service.legs !== null,
+  resourceRequirements = service.resourceRequirements,
+  requiresPickupAddress = service.requiresPickupAddress,
+  onRequirementsSaved,
 }: ServiceEditConfigTabPanelsProps): React.JSX.Element {
   // One stable callback per tab — a panel's registration effect depends on its identity.
   const onRecursosAction = useCallback(
@@ -65,6 +77,7 @@ export function ServiceEditConfigTabPanels({
           onDirtyChange={(value) => onTabDirtyChange('recursos', value)}
           onActionChange={onRecursosAction}
           onLegsSaved={onLegsSaved}
+          onRequirementsSaved={onRequirementsSaved}
         />
       </div>
 
@@ -78,6 +91,8 @@ export function ServiceEditConfigTabPanels({
           serviceId={service.serviceId}
           initialPolicy={service.bookingPolicy}
           hasLegs={hasLegs}
+          resourceRequirements={resourceRequirements}
+          requiresPickupAddress={requiresPickupAddress}
           onDirtyChange={(value) => onTabDirtyChange('politicas', value)}
           onActionChange={onPoliticasAction}
         />

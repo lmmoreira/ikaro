@@ -1,10 +1,7 @@
 import type { HotsiteServiceResponse, RecurringBookingScheduleListItem } from '@ikaro/types';
 import { addIsoDays } from './booking-window';
-import {
-  isRecurrenceEligibleService,
-  requiresResourceChoice,
-  type RecurringScheduleDraft,
-} from './recurring-schedule-form';
+import { requiresResourceChoice, type RecurringScheduleDraft } from './recurring-schedule-form';
+import { isRecurrenceEligibleService } from './recurring-service-eligibility';
 
 // The pure pre-fill of a renewal: no React, no shell or my-account imports.
 
