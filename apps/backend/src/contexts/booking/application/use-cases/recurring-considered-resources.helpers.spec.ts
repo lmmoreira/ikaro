@@ -88,6 +88,35 @@ describe('resolveConsideredRequirements / lockConsideredResources', () => {
     expect(considered[1].resources.map((r) => r.id).sort()).toEqual(rooms.map((r) => r.id).sort());
   });
 
+  it('never offers a resource picked for a customer-chosen requirement to an automatic one', async () => {
+    const [chosen, other] = await seed(ResourceType.ROOM, 2);
+
+    const considered = await resolve(
+      service([
+        requirement(ResourceType.ROOM, 'AUTO_ANY'),
+        requirement(ResourceType.ROOM, 'CUSTOMER_CHOICE'),
+      ]),
+      [{ resourceType: ResourceType.ROOM, resourceId: chosen.id }],
+    );
+
+    expect(considered[0].resources.map((r) => r.id)).toEqual([other.id]);
+    expect(considered[1].resources.map((r) => r.id)).toEqual([chosen.id]);
+  });
+
+  it('fails as unavailable when the picks leave an automatic requirement nothing', async () => {
+    const [chosen] = await seed(ResourceType.ROOM);
+
+    await expect(
+      resolve(
+        service([
+          requirement(ResourceType.ROOM, 'AUTO_ANY'),
+          requirement(ResourceType.ROOM, 'CUSTOMER_CHOICE'),
+        ]),
+        [{ resourceType: ResourceType.ROOM, resourceId: chosen.id }],
+      ),
+    ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
+  });
+
   it('resolves a service with no requirement against the tenant location', async () => {
     const [location] = await seed(ResourceType.LOCATION);
 

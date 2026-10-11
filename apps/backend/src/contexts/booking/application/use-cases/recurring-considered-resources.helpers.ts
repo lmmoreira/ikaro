@@ -1,3 +1,4 @@
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { BookingServiceResourceTypeUnavailableError } from '../../domain/errors/booking-domain.error';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -59,9 +60,11 @@ export async function resolveConsideredRequirements(
     activeResourcesByType: new Map(),
     excludeBookingLineIds: [],
   };
-  const considered: ConsideredRequirement[] = [];
+  // A resource picked for a CUSTOMER_CHOICE requirement is that requirement's alone: an automatic
+  // requirement never considers it, so no occurrence can hold one resource twice.
+  const pickedIds = new Set(picks.map(({ resourceId }) => resourceId));
   // Strictly one requirement after another: they share the resolution context's resource cache.
-  for (const requirement of requirements) {
+  return mapSequentially(requirements, async (requirement): Promise<ConsideredRequirement> => {
     const pick = picks.find((candidate) => candidate.requirement === requirement);
     const resources = pick
       ? await resolveRequirementResources(
@@ -71,17 +74,19 @@ export async function resolveConsideredRequirements(
           params.firstOccurrenceStart,
           null,
         )
-      : await resolveAutomaticResources(requirement, ctx);
-    considered.push({ requirement, resources, anyFreeResourceSuffices: pick === undefined });
-  }
-  return considered;
+      : await resolveAutomaticResources(requirement, ctx, pickedIds);
+    return { requirement, resources, anyFreeResourceSuffices: pick === undefined };
+  });
 }
 
 async function resolveAutomaticResources(
   requirement: ResourceRequirement,
   ctx: ResolutionContext,
+  pickedIds: ReadonlySet<string>,
 ): Promise<Resource[]> {
-  const eligible = await resolveEligibleResources(requirement, ctx);
+  const eligible = (await resolveEligibleResources(requirement, ctx)).filter(
+    (resource) => !pickedIds.has(resource.id),
+  );
   if (eligible.length === 0) {
     throw new BookingServiceResourceTypeUnavailableError(requirement.type);
   }

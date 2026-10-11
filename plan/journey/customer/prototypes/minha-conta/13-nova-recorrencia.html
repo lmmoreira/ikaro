@@ -104,7 +104,7 @@
         Nenhum serviço na lista: tela 13g (duas variantes).
       POST /recurring-booking-schedules
         Body: { serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
-                assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid] (exatamente 1 se FIXED), startsOn, endsOn }
+                resourceSelections?: [{ resourceType, resourceId }] (um por requisito CUSTOMER_CHOICE; a política é derivada pelo servidor), startsOn, endsOn }
         endsOn é OBRIGATÓRIO e no máximo startsOn + prazo máximo do serviço (Service.bookingPolicy.recurringHorizonDays, 90 dias por padrão).
         Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
         Erros: 400 validação · 409 conflito (lista de ocorrências com motivo) / limite de 50 ativas · 422 serviço inelegível ou data final ausente / anterior ao início / além do prazo máximo

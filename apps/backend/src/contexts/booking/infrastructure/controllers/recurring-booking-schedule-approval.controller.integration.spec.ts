@@ -266,6 +266,23 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
       expect(row.approvedByStaffId).toBeNull();
     });
 
+    it('lets exactly one of two concurrent approvals for the same room and slot succeed', async () => {
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+      const { body: first } = await requestSchedule(fixture).expect(201);
+      const { body: second } = await requestSchedule(fixture).expect(201);
+
+      const [one, two] = await Promise.all([
+        decide(first.id, 'approve'),
+        decide(second.id, 'approve'),
+      ]);
+
+      expect([one.status, two.status].sort((a, b) => a - b)).toEqual([200, 409]);
+      const held = await ds
+        .getRepository(ResourceOccupancyEntity)
+        .count({ where: { tenantId, resourceId: fixture.resourceId } });
+      expect(held).toBe(5); // one schedule's five occurrences, never both
+    });
+
     it('answers 409 NOT_PENDING_APPROVAL when the request was already resolved', async () => {
       const fixture = await seedFixture('MANUAL_APPROVAL');
       const { body: pending } = await requestSchedule(fixture).expect(201);

@@ -1,5 +1,6 @@
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
+import { RecurringBookingScheduleConflictError } from '../../domain/errors/recurring-booking-schedule.error';
 import { ResourceType } from '../../domain/resource.types';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceOccupancyWindow } from '../ports/resource-occupancy-repository.port';
@@ -312,6 +313,35 @@ describe('planBundleOccurrences', () => {
     ]);
 
     for (const [first, second] of result) expect(first.id).not.toBe(second.id);
+  });
+
+  it('plans a customer-chosen resource before an automatic requirement that could also use it', async () => {
+    const [a, b] = [make(ResourceType.ROOM, 'Sala A'), make(ResourceType.ROOM, 'Sala B')].sort(
+      (x, y) => x.id.localeCompare(y.id),
+    );
+
+    const result = await plan([
+      { selectionMode: 'AUTO_ANY', resources: [a, b] },
+      { selectionMode: 'CUSTOMER_CHOICE', resources: [a] },
+    ]);
+
+    expect(result.map(([auto, chosen]) => [auto.id, chosen.id])).toEqual(
+      OCCURRENCES.map(() => [b.id, a.id]),
+    );
+  });
+
+  it('reports every occurrence as a conflict when the requirements share too few resources', async () => {
+    const sala = make(ResourceType.ROOM, 'Sala A');
+
+    const error = await plan([
+      { selectionMode: 'AUTO_ANY', resources: [sala] },
+      { selectionMode: 'AUTO_FUNGIBLE_POOL', resources: [sala] },
+    ]).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+    expect(
+      (error as RecurringBookingScheduleConflictError).conflicts.map((c) => c.occurrenceStart),
+    ).toEqual(OCCURRENCES.map((o) => o.occurrenceStart));
   });
 
   it('plans a NONE requirement on its single resource', async () => {
