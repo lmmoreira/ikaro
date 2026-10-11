@@ -227,7 +227,6 @@ describe('RequestRecurringBookingScheduleBodySchema renewsScheduleId (M23-S35)',
       startTime: '10:00',
       durationMinutes: 60,
     },
-    assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' as const,
     startsOn: '2026-11-03',
     endsOn: '2026-12-01',
   };

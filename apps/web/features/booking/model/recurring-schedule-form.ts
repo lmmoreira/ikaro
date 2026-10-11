@@ -162,13 +162,18 @@ export function earliestStartDate(now: Date, timezone: string): string {
 
 // ── The request ─────────────────────────────────────────────────────────────────────────────────
 
-/** The exact `POST /recurring-booking-schedules` body: the policy follows the service's selection mode. */
+/**
+ * The exact `POST /recurring-booking-schedules` body. The server derives the assignment policy from
+ * the service, so the body only carries the customer's pick for a `CUSTOMER_CHOICE` requirement,
+ * keyed by that requirement's resource type (TD49 Story 0).
+ */
 export function buildCreateRequest(
   draft: RecurringScheduleDraft,
   service: HotsiteServiceResponse,
   renewsScheduleId?: string,
 ): CreateRecurringBookingScheduleRequest {
   const resourceId = requiresResourceChoice(service) ? draft.resourceId : null;
+  const resourceType = service.resourceRequirements[0]?.type;
   return {
     serviceId: draft.serviceId,
     recurrence: {
@@ -177,8 +182,9 @@ export function buildCreateRequest(
       startTime: draft.startTime,
       durationMinutes: service.durationMinutes,
     },
-    assignmentPolicy: resourceId === null ? 'RESOLVE_PER_OCCURRENCE' : 'FIXED_ASSIGNMENT',
-    ...(resourceId === null ? {} : { resourceIds: [resourceId] }),
+    ...(resourceId === null || resourceType === undefined
+      ? {}
+      : { resourceSelections: [{ resourceType, resourceId }] }),
     startsOn: draft.startsOn,
     endsOn: draft.endsOn,
     ...(renewsScheduleId === undefined ? {} : { renewsScheduleId }),

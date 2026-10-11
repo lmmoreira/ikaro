@@ -17,6 +17,7 @@ import {
   ScheduleOpeningBuilder,
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { addDaysUTC } from '../../../../shared/utils/calendar-date';
 import {
   EMPTY_BUSINESS_HOURS,
@@ -37,6 +38,7 @@ import {
   RecurringBookingScheduleTermExceededError,
 } from '../../domain/errors/recurring-booking-schedule.error';
 import {
+  BookingResourceSelectionRequiredError,
   BookingScheduledInPastError,
   BookingServiceNotInTenantError,
   BookingTooFarAheadError,
@@ -165,8 +167,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       },
       startsOn: STARTS_ON,
       endsOn: ENDS_ON,
-      assignmentPolicy: 'FIXED_ASSIGNMENT',
-      resourceIds: [resourceId],
+      resourceSelections: [{ resourceType: 'ROOM', resourceId }],
       actorType: 'CUSTOMER',
       actorId: CUSTOMER_ID,
     });
@@ -196,8 +197,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       },
       startsOn: STARTS_ON,
       endsOn: ENDS_ON,
-      assignmentPolicy: 'FIXED_ASSIGNMENT',
-      resourceIds: [resourceId],
+      resourceSelections: [{ resourceType: 'ROOM', resourceId }],
       actorType: 'CUSTOMER',
       actorId: CUSTOMER_ID,
     });
@@ -224,8 +224,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       },
       startsOn: STARTS_ON,
       endsOn: ENDS_ON,
-      assignmentPolicy: 'FIXED_ASSIGNMENT',
-      resourceIds: [resourceId],
+      resourceSelections: [{ resourceType: 'ROOM', resourceId }],
       actorType: 'STAFF',
       actorId: STAFF_ID,
       bodyCustomerId: CUSTOMER_ID,
@@ -268,8 +267,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
       }),
@@ -329,8 +327,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
       }),
@@ -355,8 +352,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
       }),
@@ -381,8 +377,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
       }),
@@ -390,16 +385,29 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
   });
 
-  it('rejects a bundle (2+ resourceRequirements) service', async () => {
-    const serviceId = await seedService({
-      resourceRequirements: [
-        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
-        ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
-      ],
-    });
+  describe('a bundle (several resourceRequirements)', () => {
+    let equipmentId: string;
 
-    await expect(
-      useCase.execute({
+    async function seedBundle(): Promise<string> {
+      const equipment = new ResourceBuilder()
+        .withTenantId(TENANT)
+        .withType(ResourceType.EQUIPMENT)
+        .build();
+      await resourceRepo.save(equipment);
+      equipmentId = equipment.id;
+      return seedService({
+        resourceRequirements: [
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ],
+      });
+    }
+
+    function requestBundle(
+      serviceId: string,
+      overrides: Partial<Parameters<RequestRecurringBookingScheduleUseCase['execute']>[0]> = {},
+    ) {
+      return useCase.execute({
         tenantId: TENANT,
         tenantBookingWindow: TENANT_WINDOW,
         correlationId: CORRELATION_ID,
@@ -413,12 +421,86 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
-      }),
-    ).rejects.toThrow(RecurringBookingScheduleIneligibleServiceError);
+        ...overrides,
+      });
+    }
+
+    it('creates an ACTIVE FIXED_ASSIGNMENT schedule that stores only the customer-chosen resource and holds both per occurrence', async () => {
+      const serviceId = await seedBundle();
+
+      const result = await requestBundle(serviceId);
+
+      expect(result.status).toBe('ACTIVE');
+      const saved = await scheduleRepo.findById(result.id, TENANT);
+      expect(saved?.assignmentPolicy).toBe('FIXED_ASSIGNMENT');
+      expect(saved?.resourceAssignments).toEqual([
+        expect.objectContaining({
+          resourceId,
+          resourceType: ResourceType.ROOM,
+          requirementId: null,
+          requiredQuantityPosition: null,
+        }),
+      ]);
+      const bookings = await bookingRepo.findAllByTenant(TENANT);
+      expect(bookings).toHaveLength(5);
+      const windows = await occupancyRepo.findActiveWindows(
+        TENANT,
+        [resourceId, equipmentId],
+        new Date(0),
+        new Date('2100-01-01T00:00:00Z'),
+      );
+      expect(windows.filter((w) => w.resourceId === resourceId)).toHaveLength(5);
+      expect(windows.filter((w) => w.resourceId === equipmentId)).toHaveLength(5);
+    });
+
+    it('refuses the whole request and persists nothing when only the automatic resource is busy in one occurrence', async () => {
+      const serviceId = await seedBundle();
+      const second = addDaysUTC(STARTS_ON, 14);
+      occupancyRepo.seed(TENANT, uuidv7(), {
+        resourceId: equipmentId,
+        resourceType: ResourceType.EQUIPMENT,
+        resourceName: 'Projetor',
+        legIndex: null,
+        quantityPosition: null,
+        selectionMode: 'AUTO_ANY',
+        isBundleMember: false,
+        gapMinutes: null,
+        gapSource: null,
+        startsAt: new Date(`${second}T13:00:00Z`),
+        endsAt: new Date(`${second}T15:00:00Z`),
+      });
+
+      await expect(requestBundle(serviceId)).rejects.toThrow(RecurringBookingScheduleConflictError);
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+      expect(await scheduleRepo.countActiveByResource(TENANT, resourceId)).toBe(0);
+    });
+
+    it('requires a pick for the customer-chosen requirement', async () => {
+      const serviceId = await seedBundle();
+
+      await expect(requestBundle(serviceId, { resourceSelections: [] })).rejects.toThrow(
+        BookingResourceSelectionRequiredError,
+      );
+    });
+
+    it('derives RESOLVE_PER_OCCURRENCE and stores no assignment for a bundle of automatic requirements', async () => {
+      await seedBundle();
+      const serviceId = await seedService({
+        resourceRequirements: [
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+          ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+        ],
+      });
+
+      const result = await requestBundle(serviceId, { resourceSelections: [] });
+
+      const saved = await scheduleRepo.findById(result.id, TENANT);
+      expect(saved?.assignmentPolicy).toBe('RESOLVE_PER_OCCURRENCE');
+      expect(saved?.resourceAssignments).toEqual([]);
+    });
   });
 
   it('creates zero resource assignments for RESOLVE_PER_OCCURRENCE', async () => {
@@ -442,8 +524,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       },
       startsOn: STARTS_ON,
       endsOn: ENDS_ON,
-      assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
-      resourceIds: [],
+      resourceSelections: [],
       actorType: 'CUSTOMER',
       actorId: CUSTOMER_ID,
     });
@@ -471,8 +552,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
       }),
@@ -517,8 +597,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
-        resourceIds: [],
+        resourceSelections: [],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
         ...overrides,
@@ -578,16 +657,16 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
     });
 
-    it('refuses FIXED_ASSIGNMENT for a default-shape service', async () => {
+    it('ignores a pick sent for a default-shape service: nothing is stored, the policy is derived', async () => {
       const serviceId = await seedService({ resourceRequirements: [] });
 
-      await expect(
-        requestDefault(serviceId, {
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [locationId],
-        }),
-      ).rejects.toThrow(RecurringBookingScheduleIneligibleServiceError);
-      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+      const result = await requestDefault(serviceId, {
+        resourceSelections: [{ resourceType: 'LOCATION', resourceId: locationId }],
+      });
+
+      const saved = await scheduleRepo.findById(result.id, TENANT);
+      expect(saved?.assignmentPolicy).toBe('RESOLVE_PER_OCCURRENCE');
+      expect(saved?.resourceAssignments).toEqual([]);
     });
 
     it('counts against the per-service RESOLVE_PER_OCCURRENCE cap of 50', async () => {
@@ -641,8 +720,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         recurrence: { frequency: 'WEEKLY', daysOfWeek: ['tuesday'], startTime, durationMinutes },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
         ...overrides,
@@ -731,8 +809,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         },
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
         ...overrides,
@@ -972,8 +1049,7 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
         recurrence: TUESDAY_10_LOCAL,
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         actorType: 'CUSTOMER',
         actorId: CUSTOMER_ID,
         ...overrides,

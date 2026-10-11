@@ -37,15 +37,20 @@ export interface RecurringBookingScheduleListResponse {
   pagination: Pagination;
 }
 
+export interface RecurringScheduleResourceSelection {
+  resourceType: 'LOCATION' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
+  resourceId: string;
+}
+
 // POST /recurring-booking-schedules — mirrors RequestRecurringBookingScheduleBodySchema in
-// @ikaro/validation (apps/web never consumes that package). `resourceIds` is exactly one entry
-// and only for FIXED_ASSIGNMENT; `customerId` is for a staff-side creation on a customer's
-// behalf (a customer's own request never sends it).
+// @ikaro/validation (apps/web never consumes that package). `resourceSelections` has one entry per
+// CUSTOMER_CHOICE requirement of the service (none otherwise); the server derives the assignment
+// policy. `customerId` is for a staff-side creation on a customer's behalf (a customer's own request
+// never sends it).
 export interface CreateRecurringBookingScheduleRequest {
   serviceId: string;
   recurrence: RecurrenceRule;
-  assignmentPolicy: RecurringScheduleAssignmentPolicy;
-  resourceIds?: string[];
+  resourceSelections?: RecurringScheduleResourceSelection[];
   startsOn: string; // YYYY-MM-DD, tenant-local
   endsOn: string; // YYYY-MM-DD, tenant-local
   customerId?: string;

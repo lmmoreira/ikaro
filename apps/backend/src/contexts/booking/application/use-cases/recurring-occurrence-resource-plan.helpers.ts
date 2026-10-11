@@ -68,6 +68,45 @@ export async function planOccurrenceResources(
   });
 }
 
+export interface BundlePlanParams {
+  tenantId: string;
+  timezone: string;
+  occurrences: RecurrenceOccurrence[];
+  // The (resource, occurrence) pairs the whole-term check found unusable, across all requirements.
+  unavailableWindows: ResourceOccupancyWindow[];
+  // One entry per requirement of the service, in its order.
+  requirements: { selectionMode: ResourceRequirementSelectionMode; resources: Resource[] }[];
+}
+
+// planOccurrenceResources() for every requirement of a bundle: the result is one list per
+// occurrence, one resource per requirement in the service's order. Requirements are planned one
+// after another, and a resource an earlier requirement took in an occurrence is unavailable to the
+// later ones in that same occurrence (two requirements of one type must never hold the same
+// resource twice).
+export async function planBundleOccurrences(
+  occupancyRepo: IResourceOccupancyRepository,
+  params: BundlePlanParams,
+): Promise<Resource[][]> {
+  const taken: ResourceOccupancyWindow[] = [];
+  const perRequirement: Resource[][] = [];
+  for (const { selectionMode, resources } of params.requirements) {
+    const planned = await planOccurrenceResources(occupancyRepo, {
+      tenantId: params.tenantId,
+      timezone: params.timezone,
+      selectionMode,
+      resources,
+      occurrences: params.occurrences,
+      unavailableWindows: [...params.unavailableWindows, ...taken],
+    });
+    planned.forEach((resource, index) => {
+      const startsAt = params.occurrences[index].occurrenceStart;
+      taken.push({ resourceId: resource.id, startsAt, endsAt: startsAt });
+    });
+    perRequirement.push(planned);
+  }
+  return params.occurrences.map((_, index) => perRequirement.map((planned) => planned[index]));
+}
+
 // One query for the whole term: every active window of the considered resources between the
 // first occurrence's local day start and the last one's local day end.
 function loadDayWindows(

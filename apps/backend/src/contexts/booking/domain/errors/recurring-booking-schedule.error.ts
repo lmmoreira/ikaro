@@ -79,11 +79,11 @@ export class RecurringBookingScheduleIneligibleServiceError extends BookingDomai
       'recurrence-not-enabled': 'This service does not have recurring reservations enabled',
       'not-appointment': 'Recurring schedules only apply to APPOINTMENT services',
       'legged-or-bundled':
-        'Recurring schedules only apply to a flat, single-resource-requirement service',
+        'Recurring schedules do not apply to a service with legs or a multi-unit resource requirement',
       'requires-pickup-address':
         'Recurring schedules do not apply to a service that requires a pickup address',
       'selection-mode-mismatch':
-        "The requested assignmentPolicy doesn't match this service's resource requirement",
+        'A resource requirement of this service cannot be resolved per occurrence',
     };
     super(messages[reason], BookingErrorCode.RECURRING_SCHEDULE_INELIGIBLE_SERVICE);
     this.name = 'RecurringBookingScheduleIneligibleServiceError';

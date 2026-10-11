@@ -19,7 +19,6 @@ const body = {
     startTime: '10:00',
     durationMinutes: 60,
   },
-  assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' as const,
   startsOn: '2026-10-12',
   endsOn: '2026-11-09',
 };

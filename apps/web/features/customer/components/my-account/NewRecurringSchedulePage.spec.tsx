@@ -166,7 +166,6 @@ describe('NewRecurringSchedulePage — the outcomes', () => {
         startTime: '10:00',
         durationMinutes: 120,
       },
-      assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       startsOn: tomorrow,
       endsOn: addIsoDays(tomorrow, 6),
     });
@@ -340,8 +339,7 @@ describe('NewRecurringSchedulePage — a service with a customer-chosen resource
 
     await screen.findByTestId('new-schedule-created');
     expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).toMatchObject({
-      assignmentPolicy: 'FIXED_ASSIGNMENT',
-      resourceIds: ['room-b'],
+      resourceSelections: [{ resourceType: 'ROOM', resourceId: 'room-b' }],
     });
   });
 
@@ -523,7 +521,7 @@ describe('NewRecurringSchedulePage — a renewal whose fixed resource is no long
 
     await screen.findByTestId('new-schedule-created');
     expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).toMatchObject({
-      resourceIds: ['room-a'],
+      resourceSelections: [{ resourceType: 'ROOM', resourceId: 'room-a' }],
     });
   });
 });

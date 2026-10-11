@@ -203,7 +203,7 @@ describe('countOccurrences', () => {
 });
 
 describe('buildCreateRequest', () => {
-  it('builds a RESOLVE_PER_OCCURRENCE body with no resource for an auto-assigned service', () => {
+  it('builds a body with no resource selection for an auto-assigned service', () => {
     const service = eligibleService({}, { durationMinutes: 45 });
     expect(
       buildCreateRequest(
@@ -218,17 +218,17 @@ describe('buildCreateRequest', () => {
         startTime: '10:00',
         durationMinutes: 45,
       },
-      assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       startsOn: '2026-10-12',
       endsOn: '2026-11-09',
     });
   });
 
-  it('builds a FIXED_ASSIGNMENT body with exactly one resource for a CUSTOMER_CHOICE service', () => {
+  it('builds a body with one resource selection, keyed by the requirement type, for a CUSTOMER_CHOICE service', () => {
     const service = eligibleService({}, { resourceRequirements: [choiceRequirement('ROOM')] });
     const body = buildCreateRequest(draft({ resourceId: 'room-1' }), service);
-    expect(body.assignmentPolicy).toBe('FIXED_ASSIGNMENT');
-    expect(body.resourceIds).toEqual(['room-1']);
+    expect(body.resourceSelections).toEqual([{ resourceType: 'ROOM', resourceId: 'room-1' }]);
+    expect(body).not.toHaveProperty('assignmentPolicy');
+    expect(body).not.toHaveProperty('resourceIds');
   });
 
   it('names the schedule being renewed only for a renewal', () => {

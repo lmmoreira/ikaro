@@ -64,8 +64,9 @@ describe('RecurringBookingSchedulesController', () => {
         startTime: '10:00',
         durationMinutes: 60,
       },
-      assignmentPolicy: 'FIXED_ASSIGNMENT' as const,
-      resourceIds: ['00000000-0000-4000-8000-000000000003'],
+      resourceSelections: [
+        { resourceType: 'ROOM' as const, resourceId: '00000000-0000-4000-8000-000000000003' },
+      ],
       startsOn: '2026-09-01',
       endsOn: '2026-11-24',
     };

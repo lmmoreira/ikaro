@@ -23,6 +23,31 @@ Content-Type: application/json
 
 ###
 
+### Create for a customer — a bundle (TD49 Story 0): one "resourceSelections" entry per
+### CUSTOMER_CHOICE requirement (here the staff member); the room is resolved per occurrence.
+### 201 {id, status, approvalHoldExpiresAt} · 409 lists every colliding occurrence · 422 when a
+### requirement needs a pick that is missing. A service with only automatic requirements, or the
+### default shape, sends no "resourceSelections" at all.
+POST {{bffUrl}}/v1/recurring-booking-schedules
+Authorization: Bearer {{staffToken}}
+Content-Type: application/json
+
+{
+  "serviceId": "{{bundleServiceId}}",
+  "customerId": "{{customerId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 60
+  },
+  "resourceSelections": [{ "resourceType": "STAFF", "resourceId": "{{staffResourceId}}" }],
+  "startsOn": "2026-10-20",
+  "endsOn": "2026-12-15"
+}
+
+###
+
 ### Pending requests — the approval queue
 GET {{bffUrl}}/v1/recurring-booking-schedules?status=PENDING_APPROVAL
 Authorization: Bearer {{staffToken}}

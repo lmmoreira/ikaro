@@ -156,8 +156,7 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
           startTime: overrides.startTime ?? '10:00',
           durationMinutes: overrides.durationMinutes ?? 60,
         },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [fixture.resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: fixture.resourceId }],
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
       });

@@ -466,7 +466,7 @@ Added 2026-09-29 as a deliberately small first pass in the same staff dashboard 
 ```
 POST /recurring-booking-schedules
   Body: { customerId, serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
-          assignmentPolicy: "FIXED_ASSIGNMENT" | "RESOLVE_PER_OCCURRENCE", resourceIds?: [uuid], startsOn, endsOn }
+          resourceSelections?: [{ resourceType, resourceId }], startsOn, endsOn }   // the server derives the assignment policy (TD49 Story 0)
   Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
 ```
 `endsOn` is **required** and at most `startsOn` + the service's maximum term (`recurringHorizonDays`, 90 days by default) — a `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` otherwise. The schedule is fixed-term: every occurrence of the term is checked and created once (immediately, or when staff approve in `08`); there is no rolling generation and no Pause. `customerId` is required for a staff actor: the backend returns `404` `BOOKING_CUSTOMER_NOT_FOUND` when it is missing, unknown, or the actor is not an active staff member.

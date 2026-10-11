@@ -146,8 +146,7 @@ describe('RecurringBookingScheduleController', () => {
           startTime: '10:00',
           durationMinutes: 60,
         },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
       });
@@ -165,8 +164,7 @@ describe('RecurringBookingScheduleController', () => {
             startTime: '10:00',
             durationMinutes: 60,
           },
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [resourceId],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId }],
           startsOn: STARTS_ON,
           endsOn: ENDS_ON,
         })
@@ -252,8 +250,7 @@ describe('RecurringBookingScheduleController', () => {
         startTime: '10:00',
         durationMinutes: 60,
       },
-      assignmentPolicy: 'FIXED_ASSIGNMENT',
-      resourceIds: [resourceId],
+      resourceSelections: [{ resourceType: 'ROOM', resourceId }],
       startsOn: STARTS_ON,
       endsOn: ENDS_ON,
     });
@@ -311,8 +308,7 @@ describe('RecurringBookingScheduleController', () => {
           startTime: '10:00',
           durationMinutes: 60,
         },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
       });
@@ -332,8 +328,7 @@ describe('RecurringBookingScheduleController', () => {
           startTime: '10:00',
           durationMinutes: 60,
         },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId }],
         startsOn: STARTS_ON,
         endsOn: ENDS_ON,
       });

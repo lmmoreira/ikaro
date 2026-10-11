@@ -134,7 +134,6 @@ export async function createRecurringScheduleViaApi(
           startTime,
           durationMinutes: 30,
         },
-        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
         startsOn: tenantDate(startsInDays),
         endsOn: tenantDate(startsInDays + termDays),
       },
