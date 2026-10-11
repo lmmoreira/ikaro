@@ -47,6 +47,7 @@ function makeSchedule(
     endsOn: '2026-11-11',
     status: 'ACTIVE',
     assignmentPolicy: 'FIXED_ASSIGNMENT',
+    resourceIds: [],
     approvalHoldExpiresAt: null,
     ...overrides,
   };
@@ -129,7 +130,7 @@ describe('RecurringScheduleList', () => {
     expect(screen.getByText('cancelledNote')).toBeInTheDocument();
   });
 
-  it('renders no inline action on a row (renewal is a later story)', () => {
+  it('renders an inline action only on the ended row — the running one has none yet', () => {
     render(
       <RecurringScheduleList
         tenantSlug="lavacar"
@@ -137,7 +138,9 @@ describe('RecurringScheduleList', () => {
       />,
     );
 
-    expect(screen.getAllByRole('link')).toHaveLength(2);
+    // Each row's title link, plus "Renovar" on the ended one.
+    expect(screen.getAllByRole('link')).toHaveLength(3);
+    expect(screen.getAllByTestId('renew-schedule-action')).toHaveLength(1);
   });
 
   it('renders the empty state with its own call to action opening the creation form', () => {
@@ -176,5 +179,28 @@ describe('RecurringScheduleList', () => {
 
     expect(screen.queryByTestId('section-pending')).not.toBeInTheDocument();
     expect(screen.queryByTestId('section-ended')).not.toBeInTheDocument();
+  });
+});
+
+describe('RecurringScheduleList — "Renovar"', () => {
+  it('offers it on an ended schedule only, linking to the pre-filled creation form', () => {
+    render(
+      <RecurringScheduleList
+        tenantSlug="lavacar"
+        schedules={[
+          makeSchedule({ id: 'e1', status: 'ENDED' }),
+          makeSchedule({ id: 'a1', status: 'ACTIVE' }),
+          makeSchedule({ id: 'p1', status: 'PENDING_APPROVAL' }),
+          makeSchedule({ id: 'c1', status: 'CANCELLED' }),
+        ]}
+      />,
+    );
+
+    const actions = screen.getAllByTestId('renew-schedule-action');
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toHaveAttribute(
+      'href',
+      '/lavacar/my-account/recurring-schedules/new?renewFrom=e1',
+    );
   });
 });

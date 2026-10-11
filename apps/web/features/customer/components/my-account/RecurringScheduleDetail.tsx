@@ -11,8 +11,10 @@ import { cn } from '@/shared/utils/cn';
 import {
   RECURRING_SCHEDULE_STATUS_CLASSES,
   isTerminalRecurringSchedule,
+  offersRenewal,
   recurringScheduleEndPath,
   recurringScheduleListPath,
+  recurringScheduleRenewPath,
 } from '../../recurring-schedule-model';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { RecurringScheduleOccurrences } from './RecurringScheduleOccurrences';
@@ -135,6 +137,15 @@ function ScheduleDetailBody({
               {t('endButton')}
             </Link>
           </>
+        )}
+        {offersRenewal(schedule.status) && (
+          <Link
+            href={recurringScheduleRenewPath(tenantSlug, schedule.id)}
+            data-testid="renew-schedule-button"
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            {t('renewAction')}
+          </Link>
         )}
         <Link
           href={listHref}

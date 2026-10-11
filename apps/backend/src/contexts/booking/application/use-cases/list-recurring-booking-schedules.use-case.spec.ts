@@ -146,6 +146,7 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
       serviceId: 'service-1',
       status: 'ACTIVE',
       assignmentPolicy: 'FIXED_ASSIGNMENT',
+      resourceIds: ['res-1'],
       approvalHoldExpiresAt: null,
     });
   });

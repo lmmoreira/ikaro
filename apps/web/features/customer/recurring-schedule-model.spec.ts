@@ -3,11 +3,13 @@ import type { RecurringBookingScheduleListItem } from '@ikaro/types';
 import {
   dateKeyToDate,
   isTerminalRecurringSchedule,
+  offersRenewal,
   parseOccurrencePage,
   recurrenceEndTime,
   recurringScheduleDetailPath,
   recurringScheduleEndPath,
   recurringScheduleListPath,
+  recurringScheduleRenewPath,
   sortedWeekdays,
   splitRecurringScheduleSections,
   totalOccurrencePages,
@@ -32,6 +34,7 @@ function makeSchedule(
     endsOn: '2026-11-11',
     status,
     assignmentPolicy: 'FIXED_ASSIGNMENT',
+    resourceIds: [],
     approvalHoldExpiresAt: null,
   };
 }
@@ -139,5 +142,24 @@ describe('sortedWeekdays', () => {
 describe('dateKeyToDate', () => {
   it('keeps the calendar day when read back in UTC', () => {
     expect(dateKeyToDate('2026-11-11').toISOString().slice(0, 10)).toBe('2026-11-11');
+  });
+});
+
+describe('recurringScheduleRenewPath', () => {
+  it('is the creation route with the schedule to renew', () => {
+    expect(recurringScheduleRenewPath('lavacar', 'abc')).toBe(
+      '/lavacar/my-account/recurring-schedules/new?renewFrom=abc',
+    );
+  });
+});
+
+describe('offersRenewal', () => {
+  it.each([
+    ['ENDED', true],
+    ['ACTIVE', false],
+    ['PENDING_APPROVAL', false],
+    ['CANCELLED', false],
+  ] as const)('%s → %s', (status, expected) => {
+    expect(offersRenewal(status)).toBe(expected);
   });
 });

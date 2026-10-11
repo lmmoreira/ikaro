@@ -48,6 +48,7 @@ const schedule: RecurringBookingScheduleListItem = {
   endsOn: '2026-11-13',
   status: 'PENDING_APPROVAL',
   assignmentPolicy: 'FIXED_ASSIGNMENT',
+  resourceIds: [],
   approvalHoldExpiresAt: '2026-08-18T09:30:00.000Z',
 };
 

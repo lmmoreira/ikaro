@@ -26,6 +26,9 @@ export interface RecurringBookingScheduleListItem {
   endsOn: string; // YYYY-MM-DD
   status: RecurringScheduleStatus;
   assignmentPolicy: RecurringScheduleAssignmentPolicy;
+  // The current resource assignments: one entry for FIXED_ASSIGNMENT, empty for RESOLVE_PER_OCCURRENCE.
+  // Optional so a consumer that reads an older response (a rolling deploy) still type-checks.
+  resourceIds?: string[];
   approvalHoldExpiresAt: string | null;
 }
 
@@ -46,6 +49,8 @@ export interface CreateRecurringBookingScheduleRequest {
   startsOn: string; // YYYY-MM-DD, tenant-local
   endsOn: string; // YYYY-MM-DD, tenant-local
   customerId?: string;
+  // The customer's previous schedule this request renews; the backend decides whether it qualifies.
+  renewsScheduleId?: string;
 }
 
 // 201 body: ACTIVE when the service auto-confirms, PENDING_APPROVAL (with the hold's end) when it

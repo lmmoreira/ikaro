@@ -49,6 +49,9 @@ interface NewRecurringScheduleFormProps {
   /** The backend (or the first-occurrence check) refused the pattern. */
   readonly refusal: PatternRefusal | null;
   readonly onReview: () => void;
+  /** Shown under the heading: the renewal banner or its not-found notice. */
+  readonly header?: React.ReactNode;
+  readonly title?: string;
 }
 
 export function NewRecurringScheduleForm({
@@ -60,6 +63,8 @@ export function NewRecurringScheduleForm({
   showIssues,
   refusal,
   onReview,
+  header,
+  title,
 }: NewRecurringScheduleFormProps): React.JSX.Element {
   const t = useTranslations('customer.recurringSchedules');
   const tn = useTranslations('customer.recurringSchedules.new');
@@ -72,14 +77,18 @@ export function NewRecurringScheduleForm({
 
   const resourceOptions = useRecurringResourceOptions(tenantSlug, draft.serviceId, needsResource);
   const firstResourceId = resourceOptions.data?.[0]?.resourceId ?? null;
+  const resourceIsOffered =
+    draft.resourceId !== null &&
+    (resourceOptions.data?.some((option) => option.resourceId === draft.resourceId) ?? false);
 
   // The prototype preselects the first resource: a customer who has no preference does not have to
-  // pick one, and the list is never "unselected" with a single resource.
+  // pick one, and the list is never "unselected" with a single resource. A pre-filled resource that
+  // is no longer offered (deactivated since a renewal's schedule was made) is replaced the same way.
   useEffect(() => {
-    if (needsResource && draft.resourceId === null && firstResourceId !== null) {
+    if (needsResource && !resourceIsOffered && firstResourceId !== null) {
       onChange({ resourceId: firstResourceId });
     }
-  }, [needsResource, draft.resourceId, firstResourceId, onChange]);
+  }, [needsResource, resourceIsOffered, firstResourceId, onChange]);
 
   const today = earliestStartDate(new Date(), timezone);
   const maxTermDays = service === null ? null : resolveMaxTermDays(service);
@@ -139,6 +148,7 @@ export function NewRecurringScheduleForm({
     return (
       <div className="w-full" data-testid="new-schedule-no-services">
         <h1 className="text-lg font-bold text-gray-900">{tn('title')}</h1>
+        {header}
         <p className="mt-3 text-sm text-gray-500">{tn('noServices')}</p>
       </div>
     );
@@ -150,8 +160,10 @@ export function NewRecurringScheduleForm({
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
           {tn('stepPattern')}
         </p>
-        <h1 className="mt-1 text-lg font-bold text-gray-900">{tn('title')}</h1>
+        <h1 className="mt-1 text-lg font-bold text-gray-900">{title ?? tn('title')}</h1>
       </div>
+
+      {header}
 
       {notice !== null && (
         <div

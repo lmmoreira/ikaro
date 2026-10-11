@@ -765,6 +765,11 @@
         "durationFromService": "{duration} — set by the service",
         "fieldStartsOn": "Starts on",
         "fieldEndsOn": "Ends on",
+        "renewTitle": "Renew recurring reservation",
+        "renewBannerTitle": "Renewing your reservation for {service}",
+        "renewBannerBody": "{recurrence} · previous term: {start} → {end}. Adjust anything you like — nothing is booked until you confirm.",
+        "renewNotFound": "We could not find the reservation you wanted to renew.",
+        "renewNotFoundHint": "You can create a new recurring reservation below.",
         "endsOnHint": "Choose how long the reservation repeats — at most {maxTermDays} days, until {latest}. You can renew after that.",
         "howTitle": "How it works",
         "howBody": "Every reservation in the period is checked and created at once, and the time is guaranteed until the end date. You can skip, reschedule or end the recurrence whenever you like.",
@@ -833,7 +838,8 @@
         "ariaPeriod": "Start time period",
         "datePlaceholder": "Pick a date"
       },
-      "createCta": "+ New recurring reservation"
+      "createCta": "+ New recurring reservation",
+      "renewAction": "Renew"
     },
     "newMenu": {
       "label": "New",

@@ -10,7 +10,9 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import {
   RECURRING_SCHEDULE_STATUS_CLASSES,
   recurringScheduleDetailPath,
+  offersRenewal,
   recurringScheduleNewPath,
+  recurringScheduleRenewPath,
   splitRecurringScheduleSections,
 } from '../../recurring-schedule-model';
 import { NewReservationMenu } from '../NewReservationMenu';
@@ -86,6 +88,17 @@ function ScheduleSection({
                 `${recurrenceLine(schedule.recurrence)} · ${termText(schedule)}`,
                 ...(detail === null ? [] : [detail]),
               ]}
+              actions={
+                offersRenewal(schedule.status) ? (
+                  <Link
+                    href={recurringScheduleRenewPath(tenantSlug, schedule.id)}
+                    data-testid="renew-schedule-action"
+                    className="font-medium text-blue-600 hover:underline"
+                  >
+                    {t('renewAction')}
+                  </Link>
+                ) : undefined
+              }
               badge={
                 <Badge
                   data-testid="recurring-schedule-status-badge"

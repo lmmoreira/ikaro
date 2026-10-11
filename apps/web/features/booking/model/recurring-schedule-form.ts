@@ -189,6 +189,7 @@ export function earliestStartDate(now: Date, timezone: string): string {
 export function buildCreateRequest(
   draft: RecurringScheduleDraft,
   service: HotsiteServiceResponse,
+  renewsScheduleId?: string,
 ): CreateRecurringBookingScheduleRequest {
   const resourceId = requiresResourceChoice(service) ? draft.resourceId : null;
   return {
@@ -203,6 +204,7 @@ export function buildCreateRequest(
     ...(resourceId === null ? {} : { resourceIds: [resourceId] }),
     startsOn: draft.startsOn,
     endsOn: draft.endsOn,
+    ...(renewsScheduleId === undefined ? {} : { renewsScheduleId }),
   };
 }
 

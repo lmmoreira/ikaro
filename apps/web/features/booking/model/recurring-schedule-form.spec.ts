@@ -289,6 +289,14 @@ describe('buildCreateRequest', () => {
     expect(body.assignmentPolicy).toBe('FIXED_ASSIGNMENT');
     expect(body.resourceIds).toEqual(['room-1']);
   });
+
+  it('names the schedule being renewed only for a renewal', () => {
+    const service = eligibleService();
+    expect(buildCreateRequest(draft(), service)).not.toHaveProperty('renewsScheduleId');
+    expect(buildCreateRequest(draft(), service, 'old-schedule').renewsScheduleId).toBe(
+      'old-schedule',
+    );
+  });
 });
 
 describe('outcome mapping', () => {

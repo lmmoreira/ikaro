@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { HotsiteServiceResponse } from '@ikaro/types';
+import type { HotsiteServiceResponse, RecurringBookingScheduleListItem } from '@ikaro/types';
 import {
   buildCreateRequest,
   checkFirstOccurrence,
@@ -20,6 +20,7 @@ import { useRecurringResourceOptions } from '../../hooks/useRecurringResourceOpt
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { NewRecurringScheduleForm } from './NewRecurringScheduleForm';
+import { NewRecurringScheduleRenewalNotice } from './NewRecurringScheduleRenewalNotice';
 import { NewRecurringScheduleResult } from './NewRecurringScheduleResult';
 import { NewRecurringScheduleReview } from './NewRecurringScheduleReview';
 import { RecurringSchedulePendingView } from './RecurringSchedulePendingView';
@@ -28,8 +29,13 @@ interface NewRecurringSchedulePageProps {
   /** The recurrence-eligible services, already filtered by the route. */
   readonly services: readonly HotsiteServiceResponse[];
   readonly tenantSlug: string;
-  /** A pre-filled pattern (the renewal of an ending schedule, M23-S22); the blank form otherwise. */
+  /** A pre-filled pattern (the renewal of an ending schedule); the blank form otherwise. */
   readonly initialDraft?: Partial<RecurringScheduleDraft>;
+  /**
+   * Set when the page was opened from a renewal link: the schedule being renewed (the banner and
+   * `renewsScheduleId`), or null when the link could not be honored (the notice over the blank form).
+   */
+  readonly renewing?: RecurringBookingScheduleListItem | null;
 }
 
 type Step = 'pattern' | 'review' | 'result';
@@ -42,6 +48,7 @@ export function NewRecurringSchedulePage({
   services,
   tenantSlug,
   initialDraft,
+  renewing,
 }: NewRecurringSchedulePageProps): React.JSX.Element {
   const t = useTranslations('customer.recurringSchedules');
   const { timezone } = useFormatting();
@@ -87,6 +94,10 @@ export function NewRecurringSchedulePage({
     setRefusal(null);
   }, []);
 
+  const formHeader =
+    renewing === undefined ? undefined : <NewRecurringScheduleRenewalNotice renewing={renewing} />;
+  const formTitle = renewing ? t('new.renewTitle') : undefined;
+
   if (service === null) {
     return (
       <NewRecurringScheduleForm
@@ -98,6 +109,7 @@ export function NewRecurringSchedulePage({
         showIssues={false}
         refusal={null}
         onReview={() => undefined}
+        header={formHeader}
       />
     );
   }
@@ -110,7 +122,11 @@ export function NewRecurringSchedulePage({
       setShowIssues(true);
       return;
     }
-    const firstOccurrenceIssue = checkFirstOccurrence(draft, service, new Date(), timezone);
+    // A renewal continues the customer's routine, so the backend exempts it from the booking window
+    // and decides; checking here would refuse a renewal the backend accepts.
+    const firstOccurrenceIssue = renewing
+      ? null
+      : checkFirstOccurrence(draft, service, new Date(), timezone);
     if (firstOccurrenceIssue !== null) {
       setRefusal(refusalForFirstOccurrence(firstOccurrenceIssue));
       return;
@@ -121,7 +137,7 @@ export function NewRecurringSchedulePage({
 
   async function handleConfirm(): Promise<void> {
     if (service === null) return;
-    const result = await create.mutateAsync(buildCreateRequest(draft, service));
+    const result = await create.mutateAsync(buildCreateRequest(draft, service, renewing?.id));
     if (result.kind === 'PATTERN_REFUSED') {
       setRefusal(result.refusal);
       setShowIssues(true);
@@ -190,6 +206,8 @@ export function NewRecurringSchedulePage({
       showIssues={showIssues}
       refusal={refusal}
       onReview={handleReview}
+      header={formHeader}
+      title={formTitle}
     />
   );
 }

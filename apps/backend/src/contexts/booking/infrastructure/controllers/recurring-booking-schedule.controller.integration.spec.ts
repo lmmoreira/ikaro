@@ -180,6 +180,34 @@ describe('RecurringBookingScheduleController (integration)', () => {
     expect(occupancyCount).toBeGreaterThanOrEqual(5);
   });
 
+  it('GET /recurring-booking-schedules/:id carries the fixed resource of a FIXED_ASSIGNMENT schedule', async () => {
+    const serviceId = await seedService('AUTO_CONFIRM');
+    const { body: created } = await request(app.getHttpServer())
+      .post('/recurring-booking-schedules')
+      .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+      .send({
+        serviceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['thursday'],
+          startTime: '15:00',
+          durationMinutes: 60,
+        },
+        assignmentPolicy: 'FIXED_ASSIGNMENT',
+        resourceIds: [resourceId],
+        startsOn: nextWeekday(4),
+        endsOn: addDays(nextWeekday(4), 14),
+      })
+      .expect(201);
+
+    const { body } = await request(app.getHttpServer())
+      .get(`/recurring-booking-schedules/${created.id as string}`)
+      .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+      .expect(200);
+
+    expect(body.resourceIds).toEqual([resourceId]);
+  });
+
   it('POST /recurring-booking-schedules persists PENDING_APPROVAL for MANUAL_APPROVAL, no resource_occupancy rows', async () => {
     const serviceId = await seedService('MANUAL_APPROVAL');
 
@@ -1609,6 +1637,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         customerId: CUSTOMER_ID,
         serviceId,
         serviceName: expect.any(String),
+        resourceIds: expect.any(Array),
       });
     });
 
