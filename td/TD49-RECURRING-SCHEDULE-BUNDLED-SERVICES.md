@@ -211,7 +211,7 @@ Give a customer (or staff on their behalf) a way to choose a resource per requir
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-## Story 3 — Default-location (degenerate) services can recur, and the eligibility filter mirrors the backend
+## Story 3 — Default-location (degenerate) services can recur, and the eligibility filter mirrors the backend ✅ Done
 
 **Agent:** backend-ts + frontend-ts
 **Complexity:** L (discovery confirmed no migration and no contract change, but the story also carries the journey/prototype work, the editor hint and five E2E scenarios)
