@@ -80,6 +80,7 @@ Playwright cannot be run for cluster states that need a server fault or a seeded
 | Bundle | a conflict on only one requirement lists the colliding occurrence and creates nothing | Story 2 |
 | Bundle, `MANUAL_APPROVAL` | a manager approves the pending schedule from the queue and the occurrences appear holding both resources; a refused approval leaves it pending | Story 2 (queue row owned by M23-S13) |
 | Mixed tenant: one default-shape and one bundle service | the form offers both and each is created through its own path | Story 2 |
+| Mixed catalog: `CUSTOMER_CHOICE`, `AUTO_ANY` and `AUTO_FUNGIBLE_POOL` services beside a pickup-address one, a recurrence-off one and a legged one | the form offers exactly the eligible ones and none of the others (Story 3 pinned the default shape and the bundle only) | Story 2 |
 | Legged service | never offered in the form | covered by the unit filter table (Story 3); no E2E |
 | Staff creation, renewal, Agenda menu | re-run the eligibility scenarios above against the staff form, `initialDraft` and the menu | M23-S19, S22, S40, each in its own E2E |
 
@@ -208,6 +209,9 @@ Give a customer (or staff on their behalf) a way to choose a resource per requir
   - [ ] A conflict on only one requirement lists the colliding occurrence and creates nothing
   - [ ] A `MANUAL_APPROVAL` bundle schedule is approved from the staff queue and its occurrences appear holding both resources; a refused approval leaves it pending
   - [ ] A tenant with both a default-shape and a bundle service sees both offered in the form (the full matrix is in "E2E coverage plan")
+  - [ ] A mixed catalog (one service per explicit selection mode, plus a pickup-address, a recurrence-off and a legged service) offers exactly the eligible ones; carried over from Story 3, which only pinned the default shape and the bundle
+- Integration (backend; carried over from Story 3, written here because the eligibility rule is final once Stories 0 and 1 have shipped):
+  - [ ] `POST /recurring-booking-schedules` returns 422 and persists nothing for a pickup-address service, a service with recurrence off and a legged service; Story 3 covered these at the use-case unit tier only
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
