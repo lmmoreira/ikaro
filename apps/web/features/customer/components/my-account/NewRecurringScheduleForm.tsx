@@ -14,6 +14,7 @@ import {
   type PatternRefusal,
   type RecurringScheduleDraft,
 } from '@/features/booking/model/recurring-schedule-form';
+import type { NoRecurrenceServicesReason } from '@/features/booking/model/recurring-service-eligibility';
 import { PillMultiSelect } from '@/shared/components/ui/pill-multi-select';
 import { TimePicker } from '@/shared/components/ui/time-picker';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
@@ -24,6 +25,7 @@ import { useRecurringResourceOptions } from '../../hooks/useRecurringResourceOpt
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { NewRecurringScheduleDateField } from './NewRecurringScheduleDateField';
 import { ActionPane, NewRecurringScheduleLayout } from './NewRecurringScheduleLayout';
+import { NewRecurringScheduleNoServices } from './NewRecurringScheduleNoServices';
 import { ResourceField, ServiceField } from './NewRecurringScheduleServiceFields';
 import { useRecurrenceText } from './use-recurrence-text';
 
@@ -52,6 +54,8 @@ interface NewRecurringScheduleFormProps {
   /** Shown under the heading: the renewal banner or its not-found notice. */
   readonly header?: React.ReactNode;
   readonly title?: string;
+  /** Which empty state to show when no service is offered (TD49-S03). */
+  readonly emptyReason?: NoRecurrenceServicesReason;
 }
 
 export function NewRecurringScheduleForm({
@@ -65,6 +69,7 @@ export function NewRecurringScheduleForm({
   onReview,
   header,
   title,
+  emptyReason = 'NONE_ENABLED',
 }: NewRecurringScheduleFormProps): React.JSX.Element {
   const t = useTranslations('customer.recurringSchedules');
   const tn = useTranslations('customer.recurringSchedules.new');
@@ -146,11 +151,11 @@ export function NewRecurringScheduleForm({
 
   if (service === null) {
     return (
-      <div className="w-full" data-testid="new-schedule-no-services">
-        <h1 className="text-lg font-bold text-gray-900">{tn('title')}</h1>
-        {header}
-        <p className="mt-3 text-sm text-gray-500">{tn('noServices')}</p>
-      </div>
+      <NewRecurringScheduleNoServices
+        tenantSlug={tenantSlug}
+        reason={emptyReason}
+        header={header}
+      />
     );
   }
 

@@ -233,6 +233,33 @@ describe('ServiceResourceRequirementsPanel', () => {
     expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
   });
 
+  it('reports the saved flat requirements so the Políticas tab hint can follow them', async () => {
+    const user = userEvent.setup();
+    stubActiveStaff('staff-1');
+    const saved = [
+      { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
+    ];
+    resourceRequirementsMutateAsync.mockResolvedValueOnce({
+      id: 'svc-1',
+      resourceRequirements: saved,
+    });
+    const onRequirementsSaved = vi.fn();
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={saved as never}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        onDirtyChange={vi.fn()}
+        onRequirementsSaved={onRequirementsSaved}
+      />,
+    );
+
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(onRequirementsSaved).toHaveBeenCalledWith(saved);
+  });
+
   it('reports the saved legs span so the Detalhes duration can follow it', async () => {
     const user = userEvent.setup();
     legsMutateAsync.mockResolvedValueOnce({ id: 'svc-1', legs: [], totalSpanMinutes: 80 });

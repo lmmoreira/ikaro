@@ -34,6 +34,8 @@ interface ServiceResourceRequirementsPanelProps {
   readonly onActionChange: ServiceTabActionChange;
   // Legs set the service's duration (their span), so the Detalhes tab needs the new value.
   readonly onLegsSaved?: (totalSpanMinutes: number) => void;
+  // The flat requirements as saved, for the Políticas tab's recurrence hint (TD49-S03).
+  readonly onRequirementsSaved?: (requirements: ResourceRequirementItem[]) => void;
 }
 
 export function ServiceResourceRequirementsPanel({
@@ -44,6 +46,7 @@ export function ServiceResourceRequirementsPanel({
   onDirtyChange,
   onActionChange,
   onLegsSaved,
+  onRequirementsSaved,
 }: ServiceResourceRequirementsPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
@@ -128,7 +131,7 @@ export function ServiceResourceRequirementsPanel({
         setLegsLockedOnServer(true);
         onLegsSaved?.(savedLegs.totalSpanMinutes);
       } else {
-        await updateResourceRequirements.mutateAsync({
+        const saved = await updateResourceRequirements.mutateAsync({
           id: serviceId,
           body: {
             resourceRequirements: requirements.map((requirement) =>
@@ -136,6 +139,7 @@ export function ServiceResourceRequirementsPanel({
             ),
           },
         });
+        onRequirementsSaved?.(saved.resourceRequirements);
         // An emptied buffer input means "no buffer" (0), not "leave the previous value
         // unchanged" — always send it so a manager can actually clear a previously-set override
         // (CodeRabbit finding: a blank input used to silently skip the PATCH entirely).

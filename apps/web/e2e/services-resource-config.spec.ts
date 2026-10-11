@@ -133,6 +133,34 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('policy-recurrence-eligible')).toBeChecked();
   });
 
+  // TD49-S03 / UC-055 step 3 — the advisory hint under the recurrence toggle, never blocking.
+  test('a service that needs staff plus a room shows why it cannot recur yet, and still saves', async ({
+    page,
+  }) => {
+    const service = await seedService(page);
+    await createResource(page, { type: 'ROOM', name: makeUniqueServiceName('e2e-sala') });
+    await createResource(page, { type: 'EQUIPMENT', name: makeUniqueServiceName('e2e-equip') });
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await expect(page.getByTestId('policy-recurrence-hint')).toBeHidden();
+
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+    await resourceTypeCheckbox(page, 'ROOM').click();
+    await resourceTypeCheckbox(page, 'EQUIPMENT').click();
+    await page.getByTestId('service-desktop-tab-action').click();
+    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+
+    // The hint follows the save in the same session, without a reload.
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await expect(page.getByTestId('policy-recurrence-hint')).toContainText('mais de um recurso');
+
+    await page.getByTestId('policy-recurrence-eligible').click();
+    await expect(page.getByTestId('service-desktop-tab-action')).toBeEnabled();
+    await page.getByTestId('service-desktop-tab-action').click();
+    await expect(page.getByTestId('policy-saved')).toBeVisible();
+  });
+
   // M23-S16 — the recurring-schedule maximum term (Service.bookingPolicy.recurringHorizonDays).
   test('sets the recurring maximum term, rejects an out-of-range one, then clears it back to the default', async ({
     page,

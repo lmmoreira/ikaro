@@ -479,6 +479,150 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     ).rejects.toThrow(BookingServiceNotInTenantError);
   });
 
+  // TD49-S03: the default service shape (no requirement, or the stored unrestricted NONE location)
+  // recurs against the tenant's single LOCATION, always as RESOLVE_PER_OCCURRENCE.
+  describe('a default-shape service', () => {
+    const shapes: { name: string; requirements: ResourceRequirement[] }[] = [
+      { name: 'no requirement', requirements: [] },
+      {
+        name: 'a stored NONE location row',
+        requirements: [
+          ResourceRequirement.create({ type: ResourceType.LOCATION, selectionMode: 'NONE' }),
+        ],
+      },
+    ];
+    let locationId: string;
+
+    beforeEach(async () => {
+      const location = new ResourceBuilder()
+        .withTenantId(TENANT)
+        .withType(ResourceType.LOCATION)
+        .build();
+      await resourceRepo.save(location);
+      locationId = location.id;
+    });
+
+    function requestDefault(serviceId: string, overrides: Record<string, unknown> = {}) {
+      return useCase.execute({
+        tenantId: TENANT,
+        tenantBookingWindow: TENANT_WINDOW,
+        correlationId: CORRELATION_ID,
+        timezone: TIMEZONE,
+        serviceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['tuesday'],
+          startTime: '10:00',
+          durationMinutes: 120,
+        },
+        startsOn: STARTS_ON,
+        endsOn: ENDS_ON,
+        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+        resourceIds: [],
+        actorType: 'CUSTOMER',
+        actorId: CUSTOMER_ID,
+        ...overrides,
+      });
+    }
+
+    it.each(shapes)(
+      'creates an ACTIVE schedule for $name, with no assignment row, and holds the LOCATION for every occurrence',
+      async ({ requirements }) => {
+        const serviceId = await seedService({ resourceRequirements: requirements });
+
+        const result = await requestDefault(serviceId);
+
+        const saved = await scheduleRepo.findById(result.id, TENANT);
+        expect(saved?.status).toBe('ACTIVE');
+        expect(saved?.assignmentPolicy).toBe('RESOLVE_PER_OCCURRENCE');
+        expect(saved?.resourceAssignments).toEqual([]);
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(5);
+        const windows = await occupancyRepo.findActiveWindows(
+          TENANT,
+          [locationId],
+          new Date(0),
+          new Date('2100-01-01T00:00:00.000Z'),
+        );
+        expect(windows).toHaveLength(5);
+      },
+    );
+
+    it('creates a PENDING_APPROVAL schedule under MANUAL_APPROVAL and materializes nothing yet', async () => {
+      const serviceId = await seedService({
+        resourceRequirements: [],
+        defaultApprovalMode: 'MANUAL_APPROVAL',
+      });
+
+      const result = await requestDefault(serviceId);
+
+      const saved = await scheduleRepo.findById(result.id, TENANT);
+      expect(saved?.status).toBe('PENDING_APPROVAL');
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    });
+
+    it('refuses a second schedule on the same LOCATION window, listing every occurrence', async () => {
+      const first = await seedService({ resourceRequirements: [] });
+      const second = await seedService({ resourceRequirements: [] });
+      await requestDefault(first);
+
+      await expect(requestDefault(second)).rejects.toThrow(RecurringBookingScheduleConflictError);
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(5);
+    });
+
+    it("never finds another tenant's default-shape service and creates nothing", async () => {
+      const serviceId = await seedService({ resourceRequirements: [] });
+
+      await expect(
+        requestDefault(serviceId, { tenantId: '10000000-0000-4000-8000-000000000999' }),
+      ).rejects.toThrow(BookingServiceNotInTenantError);
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    });
+
+    it('refuses FIXED_ASSIGNMENT for a default-shape service', async () => {
+      const serviceId = await seedService({ resourceRequirements: [] });
+
+      await expect(
+        requestDefault(serviceId, {
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [locationId],
+        }),
+      ).rejects.toThrow(RecurringBookingScheduleIneligibleServiceError);
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    });
+
+    it('counts against the per-service RESOLVE_PER_OCCURRENCE cap of 50', async () => {
+      const serviceId = await seedService({ resourceRequirements: [] });
+      for (let i = 0; i < 50; i++) {
+        scheduleRepo.seed(
+          RecurringBookingSchedule.request({
+            tenantId: TENANT,
+            customerId: CUSTOMER_ID,
+            serviceId,
+            recurrence: {
+              frequency: 'WEEKLY',
+              daysOfWeek: ['monday'],
+              startTime: '08:00',
+              durationMinutes: 60,
+            },
+            startsOn: futureDate(200 + i),
+            endsOn: futureDate(210 + i),
+            maxTermDays: 90,
+            assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+            resourceAssignments: [],
+            status: 'ACTIVE',
+            approvalHoldExpiresAt: null,
+            createdByStaffId: null,
+            correlationId: CORRELATION_ID,
+          }),
+        );
+      }
+
+      await expect(requestDefault(serviceId)).rejects.toThrow(
+        RecurringBookingScheduleCapReachedError,
+      );
+    });
+  });
+
   // M23-S05: every occurrence of the term is materialized, so a second recurring pattern on the
   // same resource collides with real occupancy rows and is reported in the one conflicts list.
   describe('materialization', () => {

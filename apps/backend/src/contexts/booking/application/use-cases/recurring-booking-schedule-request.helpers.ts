@@ -30,7 +30,9 @@ import {
   findCombinedRefusals,
   findOccupiedRefusals,
 } from './recurring-occurrence-occupancy.helpers';
+import { isDegenerateService } from './availability-resource-scope.helpers';
 import { planOccurrenceResources } from './recurring-occurrence-resource-plan.helpers';
+import { effectiveRequirement } from './recurring-service-requirement.helpers';
 import { ResolutionContext } from './resource-resolution-context.helpers';
 
 // Platform default hold when Service.bookingPolicy.manualHoldMinutes is null — matches
@@ -56,7 +58,9 @@ export function resolveApprovalStatus(policy: ServiceBookingPolicyProps): {
 // Eligibility rules locked in during M23-S04 story-discovery (2026-09-27): single-resource
 // services only (no bundle/leg recurrence), and the requirement's own selectionMode must match
 // the requested assignmentPolicy (CUSTOMER_CHOICE ↔ FIXED_ASSIGNMENT, AUTO_ANY/AUTO_FUNGIBLE_POOL
-// ↔ RESOLVE_PER_OCCURRENCE).
+// ↔ RESOLVE_PER_OCCURRENCE). TD49-S03 adds the default ("degenerate") shape — no requirement, or
+// the unrestricted LOCATION row the M22 backfill stored with mode NONE — which is held against the
+// tenant's single LOCATION and is therefore RESOLVE_PER_OCCURRENCE only; NONE matches nothing else.
 export function assertServiceEligible(
   service: Service,
   assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE',
@@ -72,17 +76,18 @@ export function assertServiceEligible(
   if (service.requiresPickupAddress) {
     throw new RecurringBookingScheduleIneligibleServiceError('requires-pickup-address');
   }
-  if (service.legs !== null || service.resourceRequirements.length !== 1) {
+  if (service.legs !== null || service.resourceRequirements.length > 1) {
     throw new RecurringBookingScheduleIneligibleServiceError('legged-or-bundled');
   }
-  const requirement = service.resourceRequirements[0];
+  const requirement = effectiveRequirement(service);
   if (requirement.requiredQuantity !== 1) {
     throw new RecurringBookingScheduleIneligibleServiceError('legged-or-bundled');
   }
+  const automaticModes = isDegenerateService(service)
+    ? ['AUTO_ANY', 'AUTO_FUNGIBLE_POOL', 'NONE']
+    : ['AUTO_ANY', 'AUTO_FUNGIBLE_POOL'];
   const expectedModes =
-    assignmentPolicy === 'FIXED_ASSIGNMENT'
-      ? ['CUSTOMER_CHOICE']
-      : ['AUTO_ANY', 'AUTO_FUNGIBLE_POOL'];
+    assignmentPolicy === 'FIXED_ASSIGNMENT' ? ['CUSTOMER_CHOICE'] : automaticModes;
   if (!expectedModes.includes(requirement.selectionMode)) {
     throw new RecurringBookingScheduleIneligibleServiceError('selection-mode-mismatch');
   }
@@ -94,7 +99,7 @@ export function buildResourceAssignments(
   resourceIds: string[],
 ): RequestRecurringBookingScheduleResourceAssignmentInput[] {
   if (assignmentPolicy !== 'FIXED_ASSIGNMENT') return [];
-  const requirement = service.resourceRequirements[0];
+  const requirement = effectiveRequirement(service);
   return resourceIds.map((resourceId) => ({
     resourceId,
     resourceType: requirement.type,
@@ -139,7 +144,7 @@ export async function assertPatternConflictFree(
   params: ConflictCheckParams,
 ): Promise<Resource[]> {
   if (params.occurrences.length === 0) return [];
-  const requirement = params.service.resourceRequirements[0];
+  const requirement = effectiveRequirement(params.service);
   const resources = await resolveConsideredResources(deps, params, requirement);
   await deps.tenantLock.lockResources(
     params.tenantId,

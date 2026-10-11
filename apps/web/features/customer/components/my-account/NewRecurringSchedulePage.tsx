@@ -14,6 +14,7 @@ import {
   type PatternRefusal,
   type RecurringScheduleDraft,
 } from '@/features/booking/model/recurring-schedule-form';
+import type { NoRecurrenceServicesReason } from '@/features/booking/model/recurring-service-eligibility';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useCreateRecurringSchedule } from '../../hooks/useCreateRecurringSchedule';
 import { useRecurringResourceOptions } from '../../hooks/useRecurringResourceOptions';
@@ -36,6 +37,8 @@ interface NewRecurringSchedulePageProps {
    * `renewsScheduleId`), or null when the link could not be honored (the notice over the blank form).
    */
   readonly renewing?: RecurringBookingScheduleListItem | null;
+  /** Which empty state to show when `services` is empty (TD49-S03). */
+  readonly emptyReason?: NoRecurrenceServicesReason;
 }
 
 type Step = 'pattern' | 'review' | 'result';
@@ -49,6 +52,7 @@ export function NewRecurringSchedulePage({
   tenantSlug,
   initialDraft,
   renewing,
+  emptyReason,
 }: NewRecurringSchedulePageProps): React.JSX.Element {
   const t = useTranslations('customer.recurringSchedules');
   const { timezone } = useFormatting();
@@ -110,6 +114,7 @@ export function NewRecurringSchedulePage({
         refusal={null}
         onReview={() => undefined}
         header={formHeader}
+        emptyReason={emptyReason}
       />
     );
   }

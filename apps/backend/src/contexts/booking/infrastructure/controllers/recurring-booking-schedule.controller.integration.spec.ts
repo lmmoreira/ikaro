@@ -47,6 +47,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
   let ds: DataSource;
   let tenantId: string;
   let resourceId: string;
+  let locationId: string;
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = TEST_KEY;
@@ -80,6 +81,23 @@ describe('RecurringBookingScheduleController (integration)', () => {
       .build();
     await ds.getRepository(ResourceEntity).save(resource);
     resourceId = resource.id;
+
+    // A tenant always has its one LOCATION resource (TD49-S03's default-shape services are held
+    // against it); use the one tenant provisioning created, or seed it when that path is not wired.
+    const existingLocation = await ds
+      .getRepository(ResourceEntity)
+      .findOne({ where: { tenantId, type: ResourceType.LOCATION, isActive: true } });
+    if (existingLocation) {
+      locationId = existingLocation.id;
+    } else {
+      const location = new ResourceEntityBuilder()
+        .withTenantId(tenantId)
+        .withType(ResourceType.LOCATION)
+        .withName('Estabelecimento')
+        .build();
+      await ds.getRepository(ResourceEntity).save(location);
+      locationId = location.id;
+    }
   });
 
   afterAll(async () => {
@@ -103,8 +121,10 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
   async function seedService(
     defaultApprovalMode: 'AUTO_CONFIRM' | 'MANUAL_APPROVAL',
-    selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL' = 'CUSTOMER_CHOICE',
+    selectionMode:
+      'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL' | 'NONE' = 'CUSTOMER_CHOICE',
     options: {
+      omitRequirement?: boolean;
       resourceType?: ResourceType;
       poolResourceIds?: string[];
       bufferAfterMinutes?: number;
@@ -124,6 +144,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       .withMaxBookingAdvanceDaysOverride(options.maxBookingAdvanceDaysOverride ?? null)
       .build();
     const saved = await ds.getRepository(ServiceEntity).save(service);
+    if (options.omitRequirement) return saved.id;
     const requirement = new ServiceResourceRequirementEntityBuilder()
       .withTenantId(ownerTenantId)
       .withServiceId(saved.id)
@@ -593,6 +614,93 @@ describe('RecurringBookingScheduleController (integration)', () => {
           .getRepository(RecurringBookingScheduleEntity)
           .count({ where: { tenantId, serviceId } }),
       ).toBe(1);
+    });
+
+    // TD49-S03: a service with no requirement (or the stored unrestricted NONE location) is held
+    // against the tenant's LOCATION and is always RESOLVE_PER_OCCURRENCE.
+    describe('a default-shape service', () => {
+      const shapes = [
+        { name: 'no requirement', omitRequirement: true },
+        { name: 'a stored NONE location row', omitRequirement: false },
+      ];
+
+      function seedDefault(shape: { omitRequirement: boolean }): Promise<string> {
+        return seedService('AUTO_CONFIRM', 'NONE', {
+          omitRequirement: shape.omitRequirement,
+          resourceType: ResourceType.LOCATION,
+        });
+      }
+
+      afterEach(async () => {
+        await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
+      });
+
+      it.each(shapes)(
+        'creates the schedule for $name with no assignment row and a COMMITTED occupancy row on the LOCATION per occurrence',
+        async (shape) => {
+          const serviceId = await seedDefault(shape);
+
+          const { body } = await postFridayPattern({
+            serviceId,
+            assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+          }).expect(201);
+
+          expect(body.status).toBe('ACTIVE');
+          expect(
+            await ds
+              .getRepository(RecurringBookingScheduleResourceAssignmentEntity)
+              .count({ where: { tenantId, recurringScheduleId: body.id as string } }),
+          ).toBe(0);
+          expect(
+            await ds.getRepository(ResourceOccupancyEntity).count({
+              where: { tenantId, resourceId: locationId, lockState: 'COMMITTED' },
+            }),
+          ).toBe(8); // eight Fridays, both ends of the seven-week term included
+        },
+      );
+
+      it.each(shapes)(
+        'rejects $name with 409 and persists nothing when only the 5th occurrence overlaps the LOCATION',
+        async (shape) => {
+          const serviceId = await seedDefault(shape);
+          await seedOccupancy(locationId, fridayOccurrence(4), {
+            resourceType: ResourceType.LOCATION,
+          });
+
+          const res = await postFridayPattern({
+            serviceId,
+            assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+          });
+
+          expect(res.status).toBe(409);
+          expect(res.body.conflicts).toEqual([
+            { occurrenceStart: fridayOccurrence(4).toISOString(), reason: 'OCCUPIED' },
+          ]);
+          expect(
+            await ds
+              .getRepository(RecurringBookingScheduleEntity)
+              .count({ where: { tenantId, serviceId } }),
+          ).toBe(0);
+        },
+      );
+
+      it('refuses FIXED_ASSIGNMENT for a default-shape service with 422 and persists nothing', async () => {
+        const serviceId = await seedDefault(shapes[0]);
+
+        const res = await postFridayPattern({
+          serviceId,
+          assignmentPolicy: 'FIXED_ASSIGNMENT',
+          resourceIds: [locationId],
+        });
+
+        expect(res.status).toBe(422);
+        expect(res.body.code).toBe('BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE');
+        expect(
+          await ds
+            .getRepository(RecurringBookingScheduleEntity)
+            .count({ where: { tenantId, serviceId } }),
+        ).toBe(0);
+      });
     });
 
     it('AUTO_ANY: rejects with 409 when every eligible resource is busy on one occurrence', async () => {

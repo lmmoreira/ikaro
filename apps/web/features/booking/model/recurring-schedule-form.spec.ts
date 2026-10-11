@@ -7,9 +7,7 @@ import {
   checkFirstOccurrence,
   countOccurrences,
   earliestStartDate,
-  filterRecurrenceEligibleServices,
   findFirstOccurrence,
-  isRecurrenceEligibleService,
   latestEndsOn,
   mapCreateFailure,
   mapCreateSuccess,
@@ -49,63 +47,6 @@ function draft(overrides: Partial<RecurringScheduleDraft> = {}): RecurringSchedu
     ...overrides,
   };
 }
-
-describe('isRecurrenceEligibleService', () => {
-  it('accepts a recurrence-eligible single-resource appointment with a fixed duration', () => {
-    expect(isRecurrenceEligibleService(eligibleService())).toBe(true);
-  });
-
-  it.each([
-    ['not recurrence-eligible', makeHotsiteService()],
-    ['a session service', eligibleService({}, { bookingModel: 'SESSION' })],
-    [
-      'a service with legs',
-      eligibleService(
-        {},
-        {
-          legs: [
-            {
-              legIndex: 0,
-              name: 'Leg',
-              durationMinutes: 30,
-              resourceRequirements: [],
-              transitionGapAfterMinutes: 0,
-            },
-          ],
-        },
-      ),
-    ],
-    [
-      'two resource requirements',
-      eligibleService(
-        {},
-        {
-          resourceRequirements: [
-            { type: 'ROOM', selectionMode: 'AUTO_ANY', requiredQuantity: 1 },
-            { type: 'STAFF', selectionMode: 'AUTO_ANY', requiredQuantity: 1 },
-          ],
-        },
-      ),
-    ],
-    [
-      'a requirement of quantity 2',
-      eligibleService(
-        {},
-        {
-          resourceRequirements: [{ type: 'ROOM', selectionMode: 'AUTO_ANY', requiredQuantity: 2 }],
-        },
-      ),
-    ],
-    ['a customer-selected duration', eligibleService({ durationPolicy: 'CUSTOMER_SELECTED' })],
-  ])('rejects %s', (_label, service) => {
-    expect(isRecurrenceEligibleService(service)).toBe(false);
-  });
-
-  it('keeps only the eligible services of a list', () => {
-    const eligible = eligibleService();
-    expect(filterRecurrenceEligibleServices([makeHotsiteService(), eligible])).toEqual([eligible]);
-  });
-});
 
 describe('resource choice and maximum term', () => {
   it('asks for a resource only for a CUSTOMER_CHOICE requirement', () => {

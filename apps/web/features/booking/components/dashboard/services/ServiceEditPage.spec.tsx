@@ -360,6 +360,27 @@ describe('ServiceEditPage', () => {
     expect(await screen.findByTestId('policy-saved')).toBeInTheDocument();
   });
 
+  it('shows the pickup-address recurrence hint only for the saved value, not the unsaved toggle', async () => {
+    const user = userEvent.setup();
+    mockUpdateService.mockResolvedValue({ id: 'svc-1' });
+    renderWithIntl(
+      <ServiceEditPage
+        service={{ ...service, requiresPickupAddress: false }}
+        intakeSchema={intakeSchema}
+      />,
+    );
+
+    await user.click(screen.getByTestId('service-pickup-switch'));
+    await user.click(screen.getByRole('tab', { name: 'Políticas de reserva' }));
+    expect(screen.queryByTestId('policy-recurrence-hint')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Detalhes' }));
+    await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
+    await user.click(screen.getByRole('tab', { name: 'Políticas de reserva' }));
+
+    expect(screen.getByTestId('policy-recurrence-hint')).toHaveTextContent('endereço de coleta');
+  });
+
   it('marks the Detalhes tab dirty when a field changes, and clears it on save', async () => {
     const user = userEvent.setup();
     mockUpdateService.mockResolvedValue({ id: 'svc-1' });

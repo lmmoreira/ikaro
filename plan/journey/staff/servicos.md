@@ -90,7 +90,7 @@ Folder: `staff/prototypes/servicos/`
 | `03c-service-edit-inactive.html` | Edit form, inactive-service variant — same 4 tabs as `03`, "Ativar" action instead of Salvar+danger-zone on Detalhes (reactivation, shipped 2026-07-31; rebuilt with tabs 2026-09-17) | UC-013 A4 | ✅ Criado |
 | `03d-service-edit-policy-error.html` | Error — variable duration without pricing policy (Políticas de reserva tab) | UC-055 A2 | ✅ Criado — shipped (M22-S04) |
 | `03e-service-edit-intake-error.html` | Error — booking-intake form with 0 questions and no consent text (Formulário de reserva tab) | UC-054 | ✅ Criado — shipped (M22-S04) |
-| `03f-service-edit-recurrence-hint.html` | Políticas de reserva tab — advisory hint under "Permitir recorrência" when the saved service cannot recur (never blocks saving) | UC-055 step 3 | ❓ Gap (TD49-S03) |
+| `03f-service-edit-recurrence-hint.html` | Políticas de reserva tab — advisory hint under "Permitir recorrência" when the saved service cannot recur (never blocks saving) | UC-055 step 3 | ✅ Criado (TD49-S03) |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |
 
 Note: the booking-model picker for UC-056 (Agendamento/Turma, at creation time) lives on `02-service-create.html`, not a separate file — see that file's own header comment.

@@ -87,4 +87,22 @@ describe('buildRenewalDraft', () => {
   it('returns null when the service no longer allows recurrence', () => {
     expect(buildRenewalDraft(schedule(), [makeHotsiteService()], '2026-10-01')).toBeNull();
   });
+
+  // TD49 Addendum item 7, decided in Story 3: a service that stopped qualifying (a second
+  // requirement added since) opens the blank form with the not-found notice, never an error.
+  it('returns null when the service became a bundle since the schedule was created', () => {
+    const bundle = eligibleService({
+      resourceRequirements: [choiceRequirement('ROOM'), choiceRequirement('STAFF')],
+    });
+    expect(
+      buildRenewalDraft(schedule({ serviceId: bundle.id }), [bundle], '2026-10-01'),
+    ).toBeNull();
+  });
+
+  it('renews a schedule of a default-shape service with no resource', () => {
+    const plain = eligibleService({ resourceRequirements: [] });
+    expect(
+      buildRenewalDraft(schedule({ serviceId: plain.id }), [plain], '2026-10-01')?.resourceId,
+    ).toBeNull();
+  });
 });

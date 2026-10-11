@@ -44,6 +44,53 @@ export async function seedRecurrenceEligibleService(
   return { ...service, roomId: room.id };
 }
 
+// TD49-S03 — a recurrence-enabled service of the DEFAULT shape, booked against the tenant's single
+// LOCATION: either with no resource requirement at all (what every new service has), or with the
+// unrestricted LOCATION row the M22 backfill stored on older services (mode NONE).
+export type DefaultServiceShape = 'NO_REQUIREMENT' | 'STORED_LOCATION';
+
+export async function seedDefaultShapeRecurringService(
+  page: Page,
+  shape: DefaultServiceShape,
+): Promise<SeededService> {
+  const service = await seedFixedService(page, 'e2e-recorrencia-padrao');
+  if (shape === 'STORED_LOCATION') {
+    await setResourceRequirements(page, service.serviceId, [
+      { type: 'LOCATION', selectionMode: 'NONE' },
+    ]);
+  }
+  await setBookingPolicy(page, service.serviceId, {
+    recurrenceEligible: true,
+    defaultApprovalMode: 'AUTO_CONFIRM',
+  });
+  return service;
+}
+
+// A recurrence-enabled service that needs a staff member AND a room: a bundle, which cannot recur
+// yet (TD49 Stories 0 to 2), so the customer's form must not offer it.
+export async function seedBundleServiceWithRecurrenceOn(page: Page): Promise<SeededService> {
+  const room = await seedResource(page, 'ROOM');
+  const staff = await seedResource(page, 'STAFF');
+  const service = await seedFixedService(page, 'e2e-recorrencia-pacote');
+  await setResourceRequirements(page, service.serviceId, [
+    { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: [room.id] },
+    { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: [staff.id] },
+  ]);
+  await setBookingPolicy(page, service.serviceId, {
+    recurrenceEligible: true,
+    defaultApprovalMode: 'AUTO_CONFIRM',
+  });
+  return service;
+}
+
+/** Ends a schedule as the signed-in customer, releasing the location the test held. */
+export async function endScheduleViaApi(page: Page, scheduleId: string): Promise<void> {
+  const res = await page.request.post(
+    `${WEB_URL}/v1/recurring-booking-schedules/${scheduleId}/end`,
+  );
+  expect(res.ok(), `end schedule ${scheduleId}: ${res.status()}`).toBe(true);
+}
+
 // Start times tried in turn: tests share the tenant's default staff pool, so a slot another worker's
 // schedule already holds answers 409 and the next one is tried; hours the tenant is closed answer
 // 409 too. Half-hour steps across a working day.

@@ -51,7 +51,7 @@ describe('planOccurrenceResources', () => {
   });
 
   function plan(
-    selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL',
+    selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL' | 'NONE',
     unavailableWindows: ResourceOccupancyWindow[] = [],
   ) {
     return planOccurrenceResources(occupancyRepo, {
@@ -73,6 +73,19 @@ describe('planOccurrenceResources', () => {
     const windowsSpy = jest.spyOn(occupancyRepo, 'findActiveWindows');
 
     const result = await plan('CUSTOMER_CHOICE');
+
+    expect(result.map((r) => r.id)).toEqual(Array(3).fill(resources[0].id));
+    expect(windowsSpy).not.toHaveBeenCalled();
+  });
+
+  // TD49-S03: a default-shape service has one LOCATION and mode NONE. With more than one the plan
+  // would treat NONE like AUTO_ANY, which differs from a one-off booking's first-eligible pick; a
+  // tenant has exactly one active LOCATION (multi-location is out of scope), so only one is pinned.
+  it('assigns the single LOCATION to every occurrence for NONE, without loading the day load', async () => {
+    resources = orderedResources(1);
+    const windowsSpy = jest.spyOn(occupancyRepo, 'findActiveWindows');
+
+    const result = await plan('NONE');
 
     expect(result.map((r) => r.id)).toEqual(Array(3).fill(resources[0].id));
     expect(windowsSpy).not.toHaveBeenCalled();

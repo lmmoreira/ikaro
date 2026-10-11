@@ -22,6 +22,16 @@ function tenantDate(daysAhead: number): string {
   );
 }
 
+// The tenant is closed on Sundays, so a booking made for one has no slot to reschedule into. Which
+// offset lands on a Sunday depends on the day the suite runs (the offsets 6 and 7 below fall on one
+// whenever it runs on a Monday or a Sunday), so the offset moves past it instead of being hard-coded.
+// The weekday is read the way the fixture builds its date (the runner's own calendar).
+function skipSunday(daysAhead: number): number {
+  const date = new Date();
+  date.setDate(date.getDate() + daysAhead);
+  return date.getDay() === 0 ? daysAhead + 1 : daysAhead;
+}
+
 async function firstSlotFromDay(
   page: Page,
   serviceId: string,
@@ -44,7 +54,7 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
     page,
   }) => {
     const customerEmail = uniqueTestEmail('reschedule-happy');
-    const setup = await createFreshApprovedBooking(page, 6, STAFF_EMAIL, {
+    const setup = await createFreshApprovedBooking(page, skipSunday(6), STAFF_EMAIL, {
       contactEmail: customerEmail,
     });
     await loginAsCustomer(page, customerEmail, TENANT_SLUG);
@@ -72,7 +82,7 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
     browser,
   }) => {
     const customerEmail = uniqueTestEmail('reschedule-conflict');
-    const setup = await createFreshApprovedBooking(page, 7, STAFF_EMAIL, {
+    const setup = await createFreshApprovedBooking(page, skipSunday(7), STAFF_EMAIL, {
       contactEmail: customerEmail,
     });
     const bookingDate = new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE }).format(

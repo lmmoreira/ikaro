@@ -2,7 +2,12 @@
 
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { ServiceBookingPolicyItem, UpdateServiceBookingPolicyRequest } from '@ikaro/types';
+import type {
+  ResourceRequirementItem,
+  ServiceBookingPolicyItem,
+  UpdateServiceBookingPolicyRequest,
+} from '@ikaro/types';
+import { recurrenceShapeBlockers } from '@/features/booking/model/recurrence-shape';
 import { useUpdateServiceBookingPolicy } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
@@ -12,13 +17,17 @@ import { isValidRecurringHorizonDays } from './recurring-horizon';
 import {
   PolicyConfirmationCard,
   PolicyBookingWindowCard,
-  PolicyWhoHowCard,
 } from './PolicyConfirmationAndWindowCards';
+import { PolicyWhoHowCard } from './PolicyWhoHowCard';
 
 interface ServiceBookingPolicyPanelProps {
   readonly serviceId: string;
   readonly initialPolicy: ServiceBookingPolicyItem;
   readonly hasLegs: boolean;
+  // Feed the advisory recurrence hint (TD49-S03): the service's flat requirements as last saved and
+  // whether it asks for a pickup address.
+  readonly resourceRequirements: readonly ResourceRequirementItem[];
+  readonly requiresPickupAddress: boolean;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onActionChange: ServiceTabActionChange;
 }
@@ -27,6 +36,8 @@ export function ServiceBookingPolicyPanel({
   serviceId,
   initialPolicy,
   hasLegs,
+  resourceRequirements,
+  requiresPickupAddress,
   onDirtyChange,
   onActionChange,
 }: ServiceBookingPolicyPanelProps): React.JSX.Element {
@@ -71,6 +82,14 @@ export function ServiceBookingPolicyPanel({
     onSubmit: handleSave,
   });
 
+  const recurrenceBlockers = recurrenceShapeBlockers({
+    bookingModel: 'APPOINTMENT', // this panel exists for appointment services only (UC-055)
+    hasLegs,
+    requiresPickupAddress,
+    durationPolicy: policy.durationPolicy,
+    resourceRequirements,
+  });
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">{t('politicasIntro')}</p>
@@ -78,7 +97,7 @@ export function ServiceBookingPolicyPanel({
       <PolicyDurationPricingCard policy={policy} hasLegs={hasLegs} onPatch={patch} />
       <PolicyConfirmationCard policy={policy} onPatch={patch} />
       <PolicyBookingWindowCard policy={policy} onPatch={patch} />
-      <PolicyWhoHowCard policy={policy} onPatch={patch} />
+      <PolicyWhoHowCard policy={policy} onPatch={patch} recurrenceBlockers={recurrenceBlockers} />
 
       {error && (
         <div

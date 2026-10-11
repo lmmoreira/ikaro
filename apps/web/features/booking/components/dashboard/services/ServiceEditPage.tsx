@@ -58,8 +58,15 @@ export function ServiceEditPage({
   // session. A legged service's duration is its legs' span (computed by the backend, so locked)
   // and it can never be customer-selected, so the policy panel needs the same fact.
   const [hasLegs, setHasLegs] = useState(service.legs !== null);
+  // The flat requirements as last saved, for the Políticas tab's recurrence hint.
+  const [savedRequirements, setSavedRequirements] = useState(service.resourceRequirements);
   const [loyaltyPointsValue, setLoyaltyPointsValue] = useState(String(service.loyaltyPointsValue));
   const [requiresPickupAddress, setRequiresPickupAddress] = useState(service.requiresPickupAddress);
+  // The pickup-address value as last saved, for the Políticas tab's recurrence hint: toggling the
+  // switch changes `requiresPickupAddress` at once, but the hint follows only a successful save.
+  const [savedRequiresPickupAddress, setSavedRequiresPickupAddress] = useState(
+    service.requiresPickupAddress,
+  );
   const [isActive, setIsActive] = useState(service.isActive);
   const [fieldErrors, setFieldErrors] = useState<ServiceFormErrors>({});
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
@@ -127,12 +134,14 @@ export function ServiceEditPage({
     if (validation.normalized === null) return;
 
     const revisionAtSubmit = detalhesEditRevisionRef.current;
+    const pickupAtSubmit = requiresPickupAddress;
     setIsSubmittingLocal(true);
     try {
       await updateServiceMutation.mutateAsync({
         id: service.serviceId,
-        body: { ...validation.normalized, requiresPickupAddress },
+        body: { ...validation.normalized, requiresPickupAddress: pickupAtSubmit },
       });
+      setSavedRequiresPickupAddress(pickupAtSubmit);
       if (detalhesEditRevisionRef.current === revisionAtSubmit) {
         setTabDirty('detalhes', false);
       }
@@ -215,6 +224,9 @@ export function ServiceEditPage({
             activeTab={activeTab}
             service={service}
             hasLegs={hasLegs}
+            resourceRequirements={savedRequirements}
+            requiresPickupAddress={savedRequiresPickupAddress}
+            onRequirementsSaved={setSavedRequirements}
             intakeSchema={intakeSchema}
             onTabDirtyChange={setTabDirty}
             onTabActionChange={handleTabActionChange}
