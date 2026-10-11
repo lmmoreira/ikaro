@@ -1744,7 +1744,7 @@ A fixed-term recurring schedule ends by itself, and a customer who still wants t
 
 ---
 
-### M23-S22 — Customer renews an ending recurring schedule ("Renovar")
+### M23-S22 — Customer renews an ending recurring schedule ("Renovar") ✅ Done
 
 **Agent:** frontend-ts (+ a small backend/BFF/types read addition, decided at discovery 2026-10-10)
 **Complexity:** M
