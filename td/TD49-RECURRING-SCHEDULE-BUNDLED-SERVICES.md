@@ -78,7 +78,8 @@ Playwright cannot be run for cluster states that need a server fault or a seeded
 | Mobile viewport | the in-page "+ Novo ▾" menu is present with bookings as well as without | Story 3 |
 | Bundle (staff `CUSTOMER_CHOICE` + room `AUTO_ANY`) | create with one pick per requirement, then find it on the list with both resources | Story 2 |
 | Bundle | a conflict on only one requirement lists the colliding occurrence and creates nothing | Story 2 |
-| Bundle, `MANUAL_APPROVAL` | a manager approves the pending schedule from the queue and the occurrences appear holding both resources; a refused approval leaves it pending | Story 2 (queue row owned by M23-S13) |
+| Bundle, `MANUAL_APPROVAL` | the customer sees it pending, and after approval through the API the list shows it active | Story 2 |
+| Bundle, `MANUAL_APPROVAL`, staff queue | a manager approves a seeded bundle request from the queue and the occurrences appear holding both resources; a refused approval leaves it pending | M23-S13 (its text carries the bundle details, 2026-10-12) |
 | Mixed tenant: one default-shape and one bundle service | the form offers both and each is created through its own path | Story 2 |
 | Mixed catalog: `CUSTOMER_CHOICE`, `AUTO_ANY` and `AUTO_FUNGIBLE_POOL` services beside a pickup-address one, a recurrence-off one and a legged one | the form offers exactly the eligible ones and none of the others (Story 3 pinned the default shape and the bundle only) | Story 2 |
 | Legged service | never offered in the form | covered by the unit filter table (Story 3); no E2E |
@@ -200,41 +201,68 @@ Make the steps that run after a schedule is accepted bundle-aware. Materializati
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-## Story 2 — Bundle-aware recurring-schedule screens
+## Story 2 — Bundle-aware customer recurring-schedule form
+
+> Re-scoped at `/story-discovery` (2026-10-12). The first draft also covered the staff approval queue and customer-side resource lines. The queue belongs to M23-S13 (not built; its bundle details are now written into that story), and customers never see a schedule's resources, so the customer list and detail do not change.
 
 **Agent:** frontend-ts
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys
-**Dependencies:** Stories 0 and 1; M23-S17's creation flow and M23-S12's Minha Conta screens ✅ Done; M23-S13's approval queue (not done at the 2026-10-10 review) is what this story extends on the staff side, and M23-S19, S22 and S40 consume the same filter (Addendum item 7)
-**Pattern:** plain composition — reuses the one-off booking flow's per-requirement resource picker rather than building a second one.
-**Prototype references:** `plan/journey/customer/minha-conta.md` and `plan/journey/customer/prototypes/minha-conta/13-nova-recorrencia.html`, `13b-nova-recorrencia-revisar.html`, `06-reserva-recorrente.html`, `06b-reserva-recorrente-erro.html`, `06c-recorrente-em-analise.html`, `14-recorrentes-lista.html`, `dev-notes.md` — none of these depicts a bundle (the pattern builder `13` deliberately shows a single resource field), so a prototype extension (via the `plan/journey/` workflow in `CLAUDE.md` §15, starting with `/docs-audit`) is a prerequisite decision at discovery. Files to extend: in `plan/journey/customer/prototypes/minha-conta/`, `13` (one picker per requirement), `13b` (review shows each resource), `13c` (success), `06b` (conflict names the requirement that collided), `06c` (pending), `14` and `06` (list and detail show each requirement's resource), `index.html` and `dev-notes.md` (screen inventory and file map); `plan/journey/customer/minha-conta.md` (flow diagram and checklist); and the staff approval-queue row in the staff agenda prototype (`plan/journey/staff/prototypes/agenda/`), which M23-S13 owns, so confirm its state when this story is discovered.
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
+**Dependencies:** Stories 0, 1 and 3, M23-S17 (the form) and M23-S22 (renewal) ✅ Done. M23-S13 (the staff queue) is **not** a dependency any more; M23-S19 and S40 consume the model this story changes.
+**Pattern:** plain composition — one `PillSelect` group per `CUSTOMER_CHOICE` requirement, built like the existing `ResourceField`; the customer shell has its own design system, so the hotsite `ResourcePicker` (which paints with `--ba-*`) is not reused.
+**Prototype references:** `plan/journey/customer/minha-conta.md`, `plan/journey/customer/prototypes/minha-conta/13h-nova-recorrencia-pacote.html` (new, drawn at discovery: the bundle form, state A one group per requirement with an info line for the automatic one, state B two of one type numbered, state C a pick missing), `13b-nova-recorrencia-revisar.html#pacote` (one row per resource), `13-nova-recorrencia.html`, `dev-notes.md`, `index.html`. When this story ships, flip the `❓ Gap (TD49-S02)` status of `13h` and of `13b`'s bundle variant to ✅ in `minha-conta.md`, `index.html` and `dev-notes.md`. `13`, `13c`, `06`, `06b`, `06c` and `14` are unchanged on purpose.
+
+**Decisions locked at discovery (2026-10-12):**
+1. **Customer side only.** The staff approval-queue row, the approval detail and the manager-approves-a-bundle E2E move to M23-S13 (its text now carries the bundle details). Staff creation (M23-S19) inherits this story's form model.
+2. **Customer list and detail do not change.** A customer never sees a schedule's resources (staff-only `assignedResources`; the list shows the service name). The picks are shown on the review step (`13b#pacote`).
+3. **A conflict keeps the standard message and the dates list.** The 409 payload carries `{ occurrenceStart, reason }` only, so the collided requirement is not named; no backend change.
+4. **Form model:** the draft holds one pick per `CUSTOMER_CHOICE` requirement (not a single `resourceId`); validation requires every pick (`RESOURCE_REQUIRED` per requirement); the body sends one `resourceSelections` entry per pick, keyed by that requirement's type, in the service's requirement order (the backend matches same-type requirements in that order, Story 0 decision 2). Two requirements of the same type are shown numbered ("Profissional 1", "Profissional 2"), otherwise the title is the type's `booking.resourcePicker.sectionTitle.*` string.
+5. **Eligibility:** `recurrence-shape.ts` drops the `several-requirements` blocker and checks quantity and selection mode on **every** requirement, as `assertServiceEligible()` does (quantity 1; `CUSTOMER_CHOICE` / `AUTO_ANY` / `AUTO_FUNGIBLE_POOL`, or `NONE` only on the unrestricted `LOCATION`). The service editor's hint loses the `several-requirements` reason: delete `politicasRecurrenceReasonSeveralRequirements` from both locales, the branch in `PolicyWhoHowCard.tsx` and its specs, and update `03f` / `staff/servicos.md` / `servicos/dev-notes.md` wording.
+6. **Renewal:** `buildRenewalDraft()` pre-fills each pick from `schedule.resourceAssignments` by resource type, in requirement order (falling back to `resourceIds[0]` only for a single-requirement service when `resourceAssignments` is absent in a rolling deploy); a pick that is no longer offered falls back to the first option, as today.
+7. **Options source:** `GET /public/services/:id/resource-options` already returns one entry per `CUSTOMER_CHOICE` requirement; `useRecurringResourceOptions` stops selecting only `requirements[0]`.
 
 **Description:**
-Give a customer (or staff on their behalf) a way to choose a resource per requirement when creating a recurring schedule for a bundle, show each requirement's resource in the customer's schedule list and the staff approval queue, and surface the all-or-nothing conflict as the existing "conflict" error state. The creation flow this story extends is M23-S17 (the pattern builder `NewRecurringScheduleForm`, its review step and the outcome screens); when this TD was written no M23 story built it, and M23-S17 was added on 2026-09-29 to close that gap. It draws a single resource field on purpose, so this story turns that into one selection per requirement. M23-S18's hours-and-closures check must be extended to a bundle's requirements at the same time (a closed day or a closed room fails the whole occurrence). The service filter `isRecurrenceEligibleService()` must follow the backend rule again here: Story 3 aligns it with the default-location case, and this story widens it to a multi-requirement service without legs.
+Let a customer request a recurring schedule for a service with several resource requirements. The form shows one pick group per `CUSTOMER_CHOICE` requirement and an info line for each automatic one, the review step lists every resource, and the request carries one `resourceSelections` entry per pick. The service filter follows the backend rule for every requirement (decision 5), which also removes the editor hint's bundle reason. M23-S18's hours-and-closures check and Story 0's conflict check already cover a bundle, so a conflict on any requirement arrives as the standard 409 and is shown by the existing conflict screen. Renewal pre-fills the picks (decision 6).
 
 **Files to create/modify:**
-- `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx`, `NewRecurringScheduleServiceFields.tsx` (the resource field), `NewRecurringScheduleReview.tsx`, `NewRecurringScheduleResult.tsx` and `NewRecurringSchedulePage.tsx` with their specs, plus `apps/web/features/booking/model/recurring-schedule-form.ts` (the filter, body builder and validation shared with M23-S19) — all shipped by M23-S17
-- `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` and its spec (shipped by M23-S12)
-- The M23-S13 approval-queue row component (path per what M23-S13 ships — confirm at discovery)
-- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — both locales, same change)
+- `apps/web/features/booking/model/recurrence-shape.ts` (+ `recurrence-shape.spec.ts`) (modify — per-requirement checks, drop `several-requirements`; the table that drives the web and backend specs gains the bundle rows)
+- `apps/web/features/booking/model/recurring-schedule-form.ts` (+ spec) (modify — the draft holds picks per requirement, `requiresResourceChoice` becomes the list of `CUSTOMER_CHOICE` requirements, `validateDraft`, `buildCreateRequest`)
+- `apps/web/features/booking/model/recurring-schedule-renewal.ts` (+ spec) (modify — pre-fill by type)
+- `apps/web/features/booking/model/recurring-service-eligibility.ts` (+ spec) (modify — comment and any bundle-specific case)
+- `apps/web/features/customer/hooks/useRecurringResourceOptions.ts` (+ spec if present) (modify — all requirements)
+- `apps/web/features/customer/components/my-account/NewRecurringScheduleServiceFields.tsx`, `NewRecurringScheduleForm.tsx`, `NewRecurringSchedulePage.tsx`, `NewRecurringScheduleReview.tsx` (+ their specs) (modify — a group per requirement, the info line, numbered titles, the review rows)
+- `apps/web/features/booking/components/dashboard/services/PolicyWhoHowCard.tsx` (+ spec) (modify — drop the bundle reason)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — new customer keys under `customer.recurringSchedules.new` for the per-requirement title with an index, the automatic-requirement line, the per-requirement required error and the review row labels; remove `politicasRecurrenceReasonSeveralRequirements`; both locales in the same change)
+- `apps/web/e2e/my-account-recurring-schedule-create.spec.ts` and `apps/web/e2e/helpers/recurring-schedule.ts` (modify — the bundle scenarios below; the bundle seeding helper exists)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule.controller.integration.spec.ts` (modify — the carried-over ineligible-service cases)
+- `plan/journey/customer/**` and `plan/journey/staff/prototypes/servicos/**` (the drawn prototypes and the wording updates listed above), `docs/04-USE_CASES.md` UC-070 (the Preconditions sentence "The customer form still offers only shapes (1) and (2)")
 
 **Acceptance criteria — product:**
-- [ ] A customer can pick a resource for each requirement of a bundled service when requesting a recurring schedule.
-- [ ] The schedule list and the staff approval queue show which resource fills each requirement.
-- [ ] A conflict on any requirement shows the standard conflict message and creates nothing.
+- [ ] A customer can request a recurring schedule for a service that needs, for example, a staff member and a room, choosing the staff member and seeing that the room is chosen automatically.
+- [ ] The review step lists every resource of the bundle before confirming.
+- [ ] A conflict on any requirement shows the standard conflict message and the colliding dates, and creates nothing.
+- [ ] A service with legs, a pickup address, a requirement of quantity above 1 or recurrence off is still never offered; the service editor no longer tells a manager that "more than one resource" blocks recurrence.
+- [ ] Renewing a bundle schedule pre-fills the staff pick.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The per-requirement picker renders one selector per requirement and blocks submit until every `CUSTOMER_CHOICE` requirement has a pick
-  - [ ] The list and the approval-queue row render every assignment
-- E2E:
-  - [ ] Create a recurring schedule for a bundled service → appears in "Minha Conta" with both resources; a conflicting request shows the conflict state (a scenario for each route this story adds, per `/story-discovery` 4f)
-  - [ ] A conflict on only one requirement lists the colliding occurrence and creates nothing
-  - [ ] A `MANUAL_APPROVAL` bundle schedule is approved from the staff queue and its occurrences appear holding both resources; a refused approval leaves it pending
-  - [ ] A tenant with both a default-shape and a bundle service sees both offered in the form (the full matrix is in "E2E coverage plan")
-  - [ ] A mixed catalog (one service per explicit selection mode, plus a pickup-address, a recurrence-off and a legged service) offers exactly the eligible ones; carried over from Story 3, which only pinned the default shape and the bundle
-- Integration (backend; carried over from Story 3, written here because the eligibility rule is final once Stories 0 and 1 have shipped):
-  - [ ] `POST /recurring-booking-schedules` returns 422 and persists nothing for a pickup-address service, a service with recurrence off and a legged service; Story 3 covered these at the use-case unit tier only
+  - [ ] The shape table (one table drives the web filter and the backend rule specs) includes bundles: two valid requirements are eligible; a quantity-2 requirement, a bad `NONE` and legs are refused
+  - [ ] The form renders one group per `CUSTOMER_CHOICE` requirement, none for the automatic one (an info line instead), numbers same-type groups, preselects the first option of each, and blocks Revisar until every group has a pick
+  - [ ] `buildCreateRequest` sends one `resourceSelections` entry per pick in requirement order, keyed by that requirement's type, and none for a service without a `CUSTOMER_CHOICE` requirement
+  - [ ] The review step lists every resource and says "escolhida automaticamente" for the automatic ones
+  - [ ] `buildRenewalDraft` pre-fills the picks by type and falls back to the first option when a pick is gone
+  - [ ] Negative guarantees, each its own test: legs, a pickup address and a quantity-above-1 requirement are still refused when a bundle is accepted; a single-requirement service still sends exactly one entry
+  - [ ] The editor hint no longer lists the bundle reason and still lists the others
+- Integration (backend; carried over from Story 3):
+  - [ ] `POST /recurring-booking-schedules` returns 422 and persists nothing for a pickup-address service, a service with recurrence off and a legged service
+- Tenant isolation:
+  - [ ] n/a for the web changes; the backend integration case above runs against a second tenant's service id as well and is refused
+- E2E (Playwright, customer; scenarios on `/recurring-schedules/new` and the list, no new route):
+  - [ ] Create a recurring schedule for a staff + room bundle (pick the staff member) and find it on the list
+  - [ ] A conflict on only one requirement (the room is busy on one date) lists the colliding date and creates nothing
+  - [ ] A `MANUAL_APPROVAL` bundle shows the pending state; after approval through the API helper the list shows it active
+  - [ ] A tenant with both a default-shape and a bundle service sees both offered, and each is created through its own path
+  - [ ] A mixed catalog (`CUSTOMER_CHOICE`, `AUTO_ANY` and `AUTO_FUNGIBLE_POOL` services beside a pickup-address, a recurrence-off and a legged one) offers exactly the eligible ones
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

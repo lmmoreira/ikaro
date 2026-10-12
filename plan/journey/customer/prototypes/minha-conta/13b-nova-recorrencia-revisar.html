@@ -98,6 +98,8 @@
         201 ACTIVE → 13c · 201 PENDING_APPROVAL → 06c · 409 conflito → 06b · 409 fora do horário (proposta M23-S18) → 06d
         409 limite → 13d · erro rede/5xx → 13e
       O bloco "Simular resultado" abaixo existe só no protótipo, para navegar pelos desfechos.
+      Pacote (TD49-S02): com mais de um requisito, o resumo lista UMA linha por recurso — o escolhido pelo cliente (CUSTOMER_CHOICE) pelo nome e o
+      automático como "escolhida automaticamente" (variante em #pacote, vinda de 13h). O nome vem da mesma consulta de opções do passo 1.
   -->
 
   <!-- TOP BAR — drill-down pattern: back link replaces the brand slot (CustomerTopbar backHrefOverride), no tab nav / bottom nav -->
@@ -131,6 +133,20 @@
           <div class="summary-row"><span>Horário</span><span>10:00–12:00 (2 horas)</span></div>
           <div class="summary-row"><span>Período</span><span>19 ago → 11 nov · 13 reservas</span></div>
           <div class="summary-row"><span>Preço</span><span>R$ 100,00 por reserva</span></div>
+        </div>
+
+        <div class="panel" id="pacote">
+          <span class="tag-proposal">Variante · serviço com profissional + sala</span>
+          <div class="card">
+            <div class="summary-row"><span>Serviço</span><span>Aula particular</span></div>
+            <div class="summary-row"><span>Profissional</span><span>Marina Alves</span></div>
+            <div class="summary-row"><span>Sala</span><span>Escolhida automaticamente</span></div>
+            <div class="summary-row"><span>Padrão</span><span>Toda terça</span></div>
+            <div class="summary-row"><span>Horário</span><span>10:00–11:00 (1 hora)</span></div>
+            <div class="summary-row"><span>Período</span><span>19 ago → 11 nov · 13 reservas</span></div>
+            <div class="summary-row"><span>Preço</span><span>R$ 150,00 por reserva</span></div>
+          </div>
+          <p class="meta">Cada reserva ocupa o profissional e uma sala. Se qualquer um dos dois não estiver disponível em alguma data, nada é criado.</p>
         </div>
 
         <div class="notice">
