@@ -102,9 +102,7 @@ export class RecurringScheduleRenewalReminderJob {
     // One transaction per tenant batch: a mid-run crash retries only this tenant's un-committed
     // rows as no-op conflicts on the next tick. Every read above ran before it opened.
     await this.txManager.run(async () => {
-      for (const command of commands) {
-        await this.outboxPublisher.publish(command);
-      }
+      await mapSequentially(commands, (command) => this.outboxPublisher.publish(command));
     });
   }
 }
