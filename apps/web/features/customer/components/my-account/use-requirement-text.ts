@@ -1,0 +1,41 @@
+import { useTranslations } from 'next-intl';
+import type { ResourceRequirementLine } from '@/features/booking/model/recurring-requirements';
+
+/**
+ * The wording of one resource requirement in the creation flow (TD49 Story 2): its title, the
+ * line for an automatic one and the messages of a pick group. A single requirement keeps the plain
+ * "Recurso" wording (`single*`); in a bundle every requirement is titled by its resource type
+ * (`bundle*`). The caller picks the set, since it already knows which form it is drawing.
+ */
+export function useRequirementText() {
+  const tr = useTranslations('booking.resourcePicker');
+  const tn = useTranslations('customer.recurringSchedules.new');
+
+  return {
+    singleTitle(): string {
+      return tn('fieldResource');
+    },
+    bundleTitle(line: ResourceRequirementLine): string {
+      return tr(`sectionTitle.${line.type}`);
+    },
+    /** The read-only line of a requirement the system resolves every week. */
+    autoLine(line: ResourceRequirementLine): string {
+      return line.selectionMode === 'AUTO_FUNGIBLE_POOL'
+        ? tn('autoPoolLine')
+        : tn(`autoAnyLine.${line.type}`);
+    },
+    /** The review step's value for a requirement the system resolves every week. */
+    autoChosen(line: ResourceRequirementLine): string {
+      return tn(`autoChosen.${line.type}`);
+    },
+    singleRequiredMessage(): string {
+      return tn('errorResourceRequired');
+    },
+    bundleRequiredMessage(line: ResourceRequirementLine): string {
+      return tr(`headingSingle.${line.type}`);
+    },
+    noOptionsMessage(line: ResourceRequirementLine): string {
+      return tn(`resourceNoOptions.${line.type}`);
+    },
+  };
+}

@@ -11,6 +11,7 @@ import {
 } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
 import { addIsoDays, lastBookableDate, tenantToday } from './booking-window';
+import { choiceRequirements } from './recurring-requirements';
 import { wallTimeToOffsetIso } from './zoned-time';
 
 // The pure rules of the customer's "new recurring reservation" form (M23-S17). No React, no shell
@@ -41,11 +42,6 @@ const MS_PER_HOUR = 3_600_000;
 
 // ── Which services the form offers ──────────────────────────────────────────────────────────────
 
-/** Only a `CUSTOMER_CHOICE` requirement shows the resource control (and becomes FIXED_ASSIGNMENT). */
-export function requiresResourceChoice(service: HotsiteServiceResponse): boolean {
-  return service.resourceRequirements[0]?.selectionMode === 'CUSTOMER_CHOICE';
-}
-
 /** The schedule's maximum term in days: the service's own, else the platform default. */
 export function resolveMaxTermDays(service: HotsiteServiceResponse): number {
   return service.bookingPolicy.recurringHorizonDays ?? DEFAULT_RECURRING_HORIZON_DAYS;
@@ -60,8 +56,11 @@ export function latestEndsOn(startsOn: string, service: HotsiteServiceResponse):
 
 export interface RecurringScheduleDraft {
   readonly serviceId: string;
-  /** Set only for a `CUSTOMER_CHOICE` service. */
-  readonly resourceId: string | null;
+  /**
+   * One entry per `CUSTOMER_CHOICE` requirement of the service, in its order (the index is
+   * `ResourceRequirementLine.choiceIndex`); null until chosen. Empty for a service without one.
+   */
+  readonly resourceIds: readonly (string | null)[];
   readonly daysOfWeek: readonly RecurringScheduleWeekday[];
   readonly startTime: string; // HH:mm, tenant-local
   readonly startsOn: string; // YYYY-MM-DD, tenant-local
@@ -77,6 +76,16 @@ export type DraftIssue =
   | 'TERM_EXCEEDED'
   | 'RESOURCE_REQUIRED';
 
+/** The choice requirements (by `choiceIndex`) that still have no pick. */
+export function missingPickIndexes(
+  draft: RecurringScheduleDraft,
+  service: HotsiteServiceResponse,
+): number[] {
+  return choiceRequirements(service)
+    .map((line) => line.choiceIndex)
+    .filter((index) => (draft.resourceIds[index] ?? null) === null);
+}
+
 /** The rules the backend really enforces, applied before sending. Empty means the draft can go. */
 export function validateDraft(
   draft: RecurringScheduleDraft,
@@ -86,9 +95,7 @@ export function validateDraft(
   if (draft.daysOfWeek.length === 0) issues.push('WEEKDAY_REQUIRED');
   if (draft.startTime === '') issues.push('START_TIME_REQUIRED');
   if (draft.startsOn === '') issues.push('START_DATE_REQUIRED');
-  if (requiresResourceChoice(service) && draft.resourceId === null) {
-    issues.push('RESOURCE_REQUIRED');
-  }
+  if (missingPickIndexes(draft, service).length > 0) issues.push('RESOURCE_REQUIRED');
   if (draft.endsOn === '') {
     issues.push('END_REQUIRED');
   } else if (draft.startsOn !== '') {
@@ -164,16 +171,24 @@ export function earliestStartDate(now: Date, timezone: string): string {
 
 /**
  * The exact `POST /recurring-booking-schedules` body. The server derives the assignment policy from
- * the service, so the body only carries the customer's pick for a `CUSTOMER_CHOICE` requirement,
- * keyed by that requirement's resource type (TD49 Story 0).
+ * the service, so the body only carries the customer's picks for the `CUSTOMER_CHOICE`
+ * requirements, one entry each, keyed by that requirement's resource type (a flat service has one
+ * requirement per type, so the type identifies it; TD49 Story 0 and 2).
  */
 export function buildCreateRequest(
   draft: RecurringScheduleDraft,
   service: HotsiteServiceResponse,
   renewsScheduleId?: string,
 ): CreateRecurringBookingScheduleRequest {
-  const resourceId = requiresResourceChoice(service) ? draft.resourceId : null;
-  const resourceType = service.resourceRequirements[0]?.type;
+  // All picks or none: the request never carries a partial set.
+  const picks = choiceRequirements(service).map((line) => ({
+    resourceType: line.type,
+    resourceId: draft.resourceIds[line.choiceIndex] ?? null,
+  }));
+  const resourceSelections = picks.flatMap(({ resourceType, resourceId }) =>
+    resourceId === null ? [] : [{ resourceType, resourceId }],
+  );
+  const complete = resourceSelections.length === picks.length;
   return {
     serviceId: draft.serviceId,
     recurrence: {
@@ -182,9 +197,7 @@ export function buildCreateRequest(
       startTime: draft.startTime,
       durationMinutes: service.durationMinutes,
     },
-    ...(resourceId === null || resourceType === undefined
-      ? {}
-      : { resourceSelections: [{ resourceType, resourceId }] }),
+    ...(complete && resourceSelections.length > 0 ? { resourceSelections } : {}),
     startsOn: draft.startsOn,
     endsOn: draft.endsOn,
     ...(renewsScheduleId === undefined ? {} : { renewsScheduleId }),

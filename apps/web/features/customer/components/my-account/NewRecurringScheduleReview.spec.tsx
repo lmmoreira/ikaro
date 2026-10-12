@@ -14,7 +14,7 @@ const SERVICE = makeHotsiteService({
 // Tuesdays between Aug 18 and Nov 10, 2026: 13 of them.
 const DRAFT: RecurringScheduleDraft = {
   serviceId: SERVICE.id,
-  resourceId: 'room-a',
+  resourceIds: ['room-a'],
   daysOfWeek: ['tuesday'],
   startTime: '10:00',
   startsOn: '2026-08-18',
@@ -30,7 +30,7 @@ function renderReview(
     <NewRecurringScheduleReview
       service={SERVICE}
       draft={DRAFT}
-      resourceName="Sala Aurora"
+      resources={[{ key: 'choice-0', label: 'Recurso', value: 'Sala Aurora' }]}
       submitting={false}
       onConfirm={onConfirm}
       onBack={onBack}
@@ -60,8 +60,22 @@ describe('NewRecurringScheduleReview', () => {
   });
 
   it('omits the resource row for an auto-assigned service', () => {
-    renderReview({ resourceName: null });
+    renderReview({ resources: [] });
     expect(screen.queryByTestId('review-resource')).not.toBeInTheDocument();
+  });
+
+  it('lists a row per resource of a bundle, the automatic ones as such', () => {
+    renderReview({
+      resources: [
+        { key: 'choice-0', label: 'Profissional', value: 'Marina Alves' },
+        { key: 'auto-1', label: 'Sala', value: 'Escolhida automaticamente' },
+      ],
+    });
+
+    expect(screen.getByText('Profissional')).toBeInTheDocument();
+    expect(screen.getByTestId('review-resource')).toHaveTextContent('Marina Alves');
+    expect(screen.getByText('Sala')).toBeInTheDocument();
+    expect(screen.getByTestId('review-resource-1')).toHaveTextContent('Escolhida automaticamente');
   });
 
   it('confirms and goes back through its two buttons', () => {

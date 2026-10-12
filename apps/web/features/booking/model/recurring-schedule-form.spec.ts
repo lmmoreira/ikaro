@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { BookingErrorCode } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
-import { choiceRequirement, hotsiteServiceBookingDefaults, makeHotsiteService } from '@/test-utils';
+import {
+  autoRequirement,
+  choiceRequirement,
+  hotsiteServiceBookingDefaults,
+  makeHotsiteService,
+  storedLocationRequirement,
+} from '@/test-utils';
 import {
   buildCreateRequest,
   checkFirstOccurrence,
@@ -11,12 +17,20 @@ import {
   latestEndsOn,
   mapCreateFailure,
   mapCreateSuccess,
+  missingPickIndexes,
   refusalForFirstOccurrence,
-  requiresResourceChoice,
   resolveMaxTermDays,
   validateDraft,
   type RecurringScheduleDraft,
 } from './recurring-schedule-form';
+import {
+  choiceRequirements,
+  isBundleForm,
+  optionsForChoice,
+  requiresResourceChoice,
+  requirementLines,
+  visibleRequirementLines,
+} from './recurring-requirements';
 
 const TZ = 'America/Sao_Paulo'; // UTC-3, no DST
 // Monday 2026-10-12 09:00 in São Paulo.
@@ -39,7 +53,7 @@ function eligibleService(
 function draft(overrides: Partial<RecurringScheduleDraft> = {}): RecurringScheduleDraft {
   return {
     serviceId: '00000000-0000-0000-0000-000000000001',
-    resourceId: null,
+    resourceIds: [],
     daysOfWeek: ['monday'],
     startTime: '10:00',
     startsOn: '2026-10-12',
@@ -58,6 +72,25 @@ describe('resource choice and maximum term', () => {
     expect(requiresResourceChoice(eligibleService())).toBe(false);
   });
 
+  it('asks for a resource when any requirement of a bundle is a CUSTOMER_CHOICE one', () => {
+    expect(
+      requiresResourceChoice(
+        eligibleService(
+          {},
+          { resourceRequirements: [autoRequirement('ROOM'), choiceRequirement('STAFF')] },
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      requiresResourceChoice(
+        eligibleService(
+          {},
+          { resourceRequirements: [autoRequirement('ROOM'), autoRequirement('STAFF')] },
+        ),
+      ),
+    ).toBe(false);
+  });
+
   it("uses the service's own maximum term, else the platform default of 90 days", () => {
     expect(resolveMaxTermDays(eligibleService({ recurringHorizonDays: 30 }))).toBe(30);
     expect(resolveMaxTermDays(eligibleService({ recurringHorizonDays: null }))).toBe(90);
@@ -68,6 +101,63 @@ describe('resource choice and maximum term', () => {
       '2026-11-11',
     );
     expect(latestEndsOn('2026-10-12', eligibleService())).toBe('2027-01-10');
+  });
+});
+
+describe('requirement lines', () => {
+  const bundle = eligibleService(
+    {},
+    {
+      resourceRequirements: [
+        choiceRequirement('STAFF'),
+        autoRequirement('ROOM'),
+        choiceRequirement('EQUIPMENT'),
+        storedLocationRequirement(),
+      ],
+    },
+  );
+
+  it('positions the customer-chosen requirements among all of them', () => {
+    expect(requirementLines(bundle)).toEqual([
+      { type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE', choiceIndex: 0 },
+      { type: 'ROOM', selectionMode: 'AUTO_ANY', choiceIndex: null },
+      { type: 'EQUIPMENT', selectionMode: 'CUSTOMER_CHOICE', choiceIndex: 1 },
+      { type: 'LOCATION', selectionMode: 'NONE', choiceIndex: null },
+    ]);
+    expect(choiceRequirements(bundle).map((line) => line.choiceIndex)).toEqual([0, 1]);
+  });
+
+  it('hides the stored default location from the form and counts the rest as a bundle', () => {
+    expect(visibleRequirementLines(bundle)).toHaveLength(3);
+    expect(isBundleForm(bundle)).toBe(true);
+  });
+
+  it('is not a bundle for one requirement, an older location + one requirement or none', () => {
+    const single = eligibleService({}, { resourceRequirements: [choiceRequirement('ROOM')] });
+    const older = eligibleService(
+      {},
+      { resourceRequirements: [storedLocationRequirement(), choiceRequirement('STAFF')] },
+    );
+    expect(isBundleForm(single)).toBe(false);
+    expect(isBundleForm(older)).toBe(false);
+    expect(isBundleForm(eligibleService())).toBe(false);
+  });
+
+  it("reads the options entry of the requirement's resource type", () => {
+    const entry = (resourceType: 'STAFF' | 'EQUIPMENT', names: string[]) => ({
+      serviceId: 's',
+      legIndex: null,
+      resourceType,
+      selectionMode: 'CUSTOMER_CHOICE' as const,
+      requiredQuantity: 1,
+      options: names.map((name) => ({ resourceId: name, name })),
+    });
+    // The server may list the entries in any order; the type finds the right one.
+    const options = [entry('EQUIPMENT', ['e']), entry('STAFF', ['a', 'b'])];
+    const [staff, equipment] = choiceRequirements(bundle);
+    expect(optionsForChoice(options, staff).map((o) => o.name)).toEqual(['a', 'b']);
+    expect(optionsForChoice(options, equipment).map((o) => o.name)).toEqual(['e']);
+    expect(optionsForChoice([], staff)).toEqual([]);
   });
 });
 
@@ -99,7 +189,34 @@ describe('validateDraft', () => {
   it('requires one resource for a CUSTOMER_CHOICE service', () => {
     const choice = eligibleService({}, { resourceRequirements: [choiceRequirement('ROOM')] });
     expect(validateDraft(draft(), choice)).toEqual(['RESOURCE_REQUIRED']);
-    expect(validateDraft(draft({ resourceId: 'r-1' }), choice)).toEqual([]);
+    expect(validateDraft(draft({ resourceIds: ['r-1'] }), choice)).toEqual([]);
+  });
+
+  it('requires a pick for every CUSTOMER_CHOICE requirement of a bundle, not for the automatic ones', () => {
+    const bundle = eligibleService(
+      {},
+      {
+        resourceRequirements: [
+          choiceRequirement('STAFF'),
+          autoRequirement('ROOM'),
+          choiceRequirement('EQUIPMENT'),
+        ],
+      },
+    );
+    expect(validateDraft(draft({ resourceIds: ['s-1', null] }), bundle)).toEqual([
+      'RESOURCE_REQUIRED',
+    ]);
+    expect(missingPickIndexes(draft({ resourceIds: ['s-1'] }), bundle)).toEqual([1]);
+    expect(missingPickIndexes(draft({ resourceIds: [] }), bundle)).toEqual([0, 1]);
+    expect(validateDraft(draft({ resourceIds: ['s-1', 'e-1'] }), bundle)).toEqual([]);
+  });
+
+  it('asks for nothing when every requirement of a bundle is automatic', () => {
+    const allAuto = eligibleService(
+      {},
+      { resourceRequirements: [autoRequirement('STAFF'), autoRequirement('ROOM')] },
+    );
+    expect(validateDraft(draft(), allAuto)).toEqual([]);
   });
 });
 
@@ -207,7 +324,7 @@ describe('buildCreateRequest', () => {
     const service = eligibleService({}, { durationMinutes: 45 });
     expect(
       buildCreateRequest(
-        draft({ daysOfWeek: ['wednesday', 'monday'], resourceId: 'ignored' }),
+        draft({ daysOfWeek: ['wednesday', 'monday'], resourceIds: ['ignored'] }),
         service,
       ),
     ).toEqual({
@@ -225,10 +342,53 @@ describe('buildCreateRequest', () => {
 
   it('builds a body with one resource selection, keyed by the requirement type, for a CUSTOMER_CHOICE service', () => {
     const service = eligibleService({}, { resourceRequirements: [choiceRequirement('ROOM')] });
-    const body = buildCreateRequest(draft({ resourceId: 'room-1' }), service);
+    const body = buildCreateRequest(draft({ resourceIds: ['room-1'] }), service);
     expect(body.resourceSelections).toEqual([{ resourceType: 'ROOM', resourceId: 'room-1' }]);
     expect(body).not.toHaveProperty('assignmentPolicy');
     expect(body).not.toHaveProperty('resourceIds');
+  });
+
+  it('sends one selection per CUSTOMER_CHOICE requirement of a bundle, keyed by its resource type', () => {
+    const bundle = eligibleService(
+      {},
+      {
+        resourceRequirements: [
+          choiceRequirement('STAFF'),
+          autoRequirement('ROOM'),
+          choiceRequirement('EQUIPMENT'),
+        ],
+      },
+    );
+    expect(
+      buildCreateRequest(draft({ resourceIds: ['staff-1', 'equip-1'] }), bundle).resourceSelections,
+    ).toEqual([
+      { resourceType: 'STAFF', resourceId: 'staff-1' },
+      { resourceType: 'EQUIPMENT', resourceId: 'equip-1' },
+    ]);
+  });
+
+  it('sends no selections for an all-automatic bundle, a default-shape service or a single automatic one', () => {
+    for (const resourceRequirements of [
+      [autoRequirement('STAFF'), autoRequirement('ROOM')],
+      [],
+      [storedLocationRequirement()],
+      [autoRequirement('ROOM')],
+    ]) {
+      const service = eligibleService({}, { resourceRequirements });
+      expect(buildCreateRequest(draft({ resourceIds: ['stale'] }), service)).not.toHaveProperty(
+        'resourceSelections',
+      );
+    }
+  });
+
+  it('never sends a partial set of picks', () => {
+    const bundle = eligibleService(
+      {},
+      { resourceRequirements: [choiceRequirement('STAFF'), choiceRequirement('ROOM')] },
+    );
+    expect(
+      buildCreateRequest(draft({ resourceIds: ['staff-1', null] }), bundle),
+    ).not.toHaveProperty('resourceSelections');
   });
 
   it('names the schedule being renewed only for a renewal', () => {

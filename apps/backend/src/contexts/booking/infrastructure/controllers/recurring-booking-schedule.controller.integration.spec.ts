@@ -12,6 +12,7 @@ import {
   ScheduleClosureEntityBuilder,
   ScheduleOpeningEntityBuilder,
   ServiceEntityBuilder,
+  ServiceLegEntityBuilder,
   ServiceResourceRequirementEntityBuilder,
   ServiceResourceRequirementPoolEntityBuilder,
 } from '../../../../test/builders/booking/index';
@@ -27,6 +28,7 @@ import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ServiceEntity } from '../entities/service.entity';
+import { ServiceLegEntity } from '../entities/service-leg.entity';
 import {
   ServiceResourceRequirementEntity,
   ServiceResourceRequirementPoolEntity,
@@ -113,6 +115,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
     await ds.getRepository(ScheduleOpeningEntity).delete({ tenantId });
     await ds.getRepository(ServiceResourceRequirementPoolEntity).delete({ tenantId });
     await ds.getRepository(ServiceResourceRequirementEntity).delete({ tenantId });
+    await ds.getRepository(ServiceLegEntity).delete({ tenantId });
     await ds.getRepository(ResourceEntity).delete({ tenantId });
     await ds.getRepository(ServiceEntity).delete({ tenantId });
     await ds.getRepository(CustomerEntity).delete({ tenantId });
@@ -694,6 +697,89 @@ describe('RecurringBookingScheduleController (integration)', () => {
             .getRepository(RecurringBookingScheduleResourceAssignmentEntity)
             .count({ where: { tenantId, recurringScheduleId: body.id as string } }),
         ).toBe(0);
+      });
+    });
+
+    // TD49 Story 2 (carried over from Story 3): the shapes the form never offers are refused by the
+    // backend too, and nothing is persisted.
+    describe('a service that can never recur', () => {
+      const countSchedules = (serviceId: string) =>
+        ds.getRepository(RecurringBookingScheduleEntity).count({ where: { tenantId, serviceId } });
+
+      it('refuses a service that needs a pickup address with 422', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY');
+        await ds.getRepository(ServiceEntity).update(
+          { tenantId, id: serviceId },
+          {
+            requiresPickupAddress: true,
+          },
+        );
+
+        const res = await postFridayPattern({ serviceId }).expect(422);
+
+        expect(res.body.code).toBe('BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE');
+        expect(await countSchedules(serviceId)).toBe(0);
+      });
+
+      it('refuses a service with recurrence switched off with 422', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY');
+        await ds.getRepository(ServiceEntity).update(
+          { tenantId, id: serviceId },
+          {
+            recurrenceEligible: false,
+          },
+        );
+
+        const res = await postFridayPattern({ serviceId }).expect(422);
+
+        expect(res.body.code).toBe('BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE');
+        expect(await countSchedules(serviceId)).toBe(0);
+      });
+
+      it('refuses a legged service with 422', async () => {
+        const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY');
+        await ds
+          .getRepository(ServiceLegEntity)
+          .save(
+            new ServiceLegEntityBuilder().withTenantId(tenantId).withServiceId(serviceId).build(),
+          );
+
+        const res = await postFridayPattern({ serviceId }).expect(422);
+
+        expect(res.body.code).toBe('BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE');
+        expect(await countSchedules(serviceId)).toBe(0);
+      });
+
+      it("never sees another tenant's service: answers BOOKING_SERVICE_NOT_IN_TENANT and persists nothing", async () => {
+        const { body: other } = await request(app.getHttpServer())
+          .post('/internal/tenants')
+          .set('X-Platform-Admin-Key', TEST_KEY)
+          .send({
+            name: 'Recurring Tenant Ineligible',
+            slug: `recurring-ineligible-${uuidv7().slice(-8)}`,
+            adminEmail: 'b@recurring.test',
+            country_code: 'BR',
+          })
+          .expect(201);
+        const otherTenantId = other.tenantId as string;
+        const foreignServiceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY', {
+          forTenantId: otherTenantId,
+        });
+
+        const res = await postFridayPattern({ serviceId: foreignServiceId });
+
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe('BOOKING_SERVICE_NOT_IN_TENANT');
+
+        expect(
+          await ds
+            .getRepository(RecurringBookingScheduleEntity)
+            .count({ where: { serviceId: foreignServiceId } }),
+        ).toBe(0);
+        await ds
+          .getRepository(ServiceResourceRequirementEntity)
+          .delete({ tenantId: otherTenantId });
+        await ds.getRepository(ServiceEntity).delete({ tenantId: otherTenantId });
       });
     });
 

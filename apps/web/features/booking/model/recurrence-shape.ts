@@ -7,11 +7,14 @@ import type { ResourceRequirementSelectionMode, ResourceType } from '@ikaro/type
 //
 // One difference from the backend is deliberate: a customer-chosen duration (`CUSTOMER_SELECTED`)
 // is blocked here only, because the form shows the duration read-only.
+//
+// Like the backend, every requirement is checked, not only the first one: a bundle (staff + room, an
+// older location + staff service) is eligible when each of its requirements has a quantity of one
+// and a mode that can be resolved per occurrence (TD49 Story 2).
 
 export type RecurrenceBlocker =
   | 'not-appointment'
   | 'legs'
-  | 'several-requirements'
   | 'quantity'
   | 'pickup-address'
   | 'selection-mode'
@@ -37,24 +40,28 @@ const RECURRING_SELECTION_MODES: ReadonlySet<ResourceRequirementSelectionMode> =
   'AUTO_FUNGIBLE_POOL',
 ]);
 
+function isResolvablePerOccurrence(
+  requirement: RecurrenceShape['resourceRequirements'][number],
+): boolean {
+  if (RECURRING_SELECTION_MODES.has(requirement.selectionMode)) return true;
+  // NONE is only the stored form of the default shape: the unrestricted tenant LOCATION.
+  return (
+    requirement.selectionMode === 'NONE' &&
+    requirement.type === 'LOCATION' &&
+    (requirement.resourcePoolIds ?? []).length === 0
+  );
+}
+
 /** Every reason this shape cannot recur, in a stable order; empty means it can. */
 export function recurrenceShapeBlockers(shape: RecurrenceShape): RecurrenceBlocker[] {
   const blockers: RecurrenceBlocker[] = [];
   if (shape.bookingModel !== 'APPOINTMENT') blockers.push('not-appointment');
   if (shape.hasLegs) blockers.push('legs');
-  if (shape.resourceRequirements.length > 1) blockers.push('several-requirements');
-  const [requirement] = shape.resourceRequirements;
-  if (requirement !== undefined) {
-    if (requirement.requiredQuantity !== 1 && shape.resourceRequirements.length === 1) {
-      blockers.push('quantity');
-    }
-    // NONE is only the stored form of the default shape: the unrestricted tenant LOCATION.
-    const isDefaultLocation =
-      requirement.type === 'LOCATION' && (requirement.resourcePoolIds ?? []).length === 0;
-    const modeAllowed =
-      RECURRING_SELECTION_MODES.has(requirement.selectionMode) ||
-      (requirement.selectionMode === 'NONE' && isDefaultLocation);
-    if (!modeAllowed && shape.resourceRequirements.length === 1) blockers.push('selection-mode');
+  if (shape.resourceRequirements.some((requirement) => requirement.requiredQuantity !== 1)) {
+    blockers.push('quantity');
+  }
+  if (!shape.resourceRequirements.every(isResolvablePerOccurrence)) {
+    blockers.push('selection-mode');
   }
   if (shape.requiresPickupAddress) blockers.push('pickup-address');
   if (shape.durationPolicy === 'CUSTOMER_SELECTED') blockers.push('customer-duration');

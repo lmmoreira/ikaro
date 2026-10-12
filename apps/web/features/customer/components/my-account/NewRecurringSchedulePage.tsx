@@ -8,12 +8,18 @@ import {
   checkFirstOccurrence,
   earliestStartDate,
   refusalForFirstOccurrence,
-  requiresResourceChoice,
   validateDraft,
   type CreateOutcome,
   type PatternRefusal,
   type RecurringScheduleDraft,
 } from '@/features/booking/model/recurring-schedule-form';
+import {
+  choiceRequirements,
+  isBundleForm,
+  isChoiceLine,
+  optionsForChoice,
+  visibleRequirementLines,
+} from '@/features/booking/model/recurring-requirements';
 import type { NoRecurrenceServicesReason } from '@/features/booking/model/recurring-service-eligibility';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useCreateRecurringSchedule } from '../../hooks/useCreateRecurringSchedule';
@@ -24,6 +30,7 @@ import { NewRecurringScheduleForm } from './NewRecurringScheduleForm';
 import { NewRecurringScheduleRenewalNotice } from './NewRecurringScheduleRenewalNotice';
 import { NewRecurringScheduleResult } from './NewRecurringScheduleResult';
 import { NewRecurringScheduleReview } from './NewRecurringScheduleReview';
+import { useRequirementText } from './use-requirement-text';
 import { RecurringSchedulePendingView } from './RecurringSchedulePendingView';
 
 interface NewRecurringSchedulePageProps {
@@ -63,7 +70,7 @@ export function NewRecurringSchedulePage({
 
   const [draft, setDraft] = useState<RecurringScheduleDraft>(() => ({
     serviceId: services[0]?.id ?? '',
-    resourceId: null,
+    resourceIds: [],
     daysOfWeek: [],
     startTime: '09:00',
     startsOn: earliestStartDate(new Date(), timezone),
@@ -86,11 +93,9 @@ export function NewRecurringSchedulePage({
   }, [listHref, setBackHrefOverride, setBackLabelOverride, t]);
 
   const service = services.find((candidate) => candidate.id === draft.serviceId) ?? null;
-  const needsResource = service !== null && requiresResourceChoice(service);
+  const needsResource = service !== null && choiceRequirements(service).length > 0;
   const resources = useRecurringResourceOptions(tenantSlug, draft.serviceId, needsResource);
-  const resourceName = needsResource
-    ? (resources.data?.find((resource) => resource.resourceId === draft.resourceId)?.name ?? null)
-    : null;
+  const text = useRequirementText();
 
   // Any edit clears the previous refusal: it described the pattern as it was.
   const handleChange = useCallback((patch: Partial<RecurringScheduleDraft>) => {
@@ -120,6 +125,37 @@ export function NewRecurringSchedulePage({
   }
 
   const issues = validateDraft(draft, service);
+  const bundle = isBundleForm(service);
+  // The review lists every resource: the picked one by name, an automatic one as such. A lone
+  // automatic requirement is not listed (it never had a row).
+  const reviewResources = visibleRequirementLines(service).flatMap((line) => {
+    if (!isChoiceLine(line)) {
+      return bundle
+        ? [
+            {
+              key: `auto-${line.type}`,
+              label: text.bundleTitle(line),
+              value: text.autoChosen(line),
+            },
+          ]
+        : [];
+    }
+    const picked = draft.resourceIds[line.choiceIndex] ?? null;
+    const name =
+      resources.data === undefined
+        ? undefined
+        : optionsForChoice(resources.data, line).find((option) => option.resourceId === picked)
+            ?.name;
+    return name === undefined
+      ? []
+      : [
+          {
+            key: `choice-${line.type}`,
+            label: bundle ? text.bundleTitle(line) : text.singleTitle(),
+            value: name,
+          },
+        ];
+  });
 
   function handleReview(): void {
     if (service === null) return;
@@ -163,7 +199,7 @@ export function NewRecurringSchedulePage({
       <NewRecurringScheduleReview
         service={service}
         draft={draft}
-        resourceName={resourceName}
+        resources={reviewResources}
         submitting={create.isPending}
         onConfirm={() => void handleConfirm()}
         onBack={() => setStep('pattern')}

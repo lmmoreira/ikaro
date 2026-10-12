@@ -10,6 +10,7 @@ import {
 import { addIsoDays } from '@/features/booking/model/booking-window';
 import { ApiError } from '@/shared/lib/api/errors';
 import {
+  autoRequirement,
   choiceRequirement,
   hotsiteServiceBookingDefaults,
   makeHotsiteService,
@@ -513,7 +514,7 @@ describe('NewRecurringSchedulePage — a renewal whose fixed resource is no long
     });
     renderPage({
       services: [roomService],
-      initialDraft: { ...READY, resourceId: 'room-gone' },
+      initialDraft: { ...READY, resourceIds: ['room-gone'] },
     });
 
     await screen.findByRole('radio', { name: 'Sala Aurora' });
@@ -523,5 +524,151 @@ describe('NewRecurringSchedulePage — a renewal whose fixed resource is no long
     expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).toMatchObject({
       resourceSelections: [{ resourceType: 'ROOM', resourceId: 'room-a' }],
     });
+  });
+});
+
+// TD49 Story 2 — a bundle: a pick for every customer-chosen requirement, the rest resolved by the system.
+describe('NewRecurringSchedulePage — a service with several resource requirements', () => {
+  const entry = (
+    serviceId: string,
+    resourceType: 'STAFF' | 'ROOM',
+    options: readonly { resourceId: string; name: string }[],
+  ) => ({
+    serviceId,
+    legIndex: null,
+    resourceType,
+    selectionMode: 'CUSTOMER_CHOICE' as const,
+    requiredQuantity: 1,
+    options: [...options],
+  });
+
+  it('sends the staff pick, lists both resources in the review and leaves the automatic room to the system', async () => {
+    const bundle = eligibleService({
+      name: 'Aula particular',
+      resourceRequirements: [choiceRequirement('STAFF'), autoRequirement('ROOM')],
+    });
+    fetchServiceResourceOptions.mockResolvedValue({
+      requirements: [
+        entry(bundle.id, 'STAFF', [
+          { resourceId: 'staff-a', name: 'Marina Alves' },
+          { resourceId: 'staff-b', name: 'Rafael Costa' },
+        ]),
+      ],
+    });
+    createRecurringScheduleAsCustomer.mockResolvedValue({
+      id: 's-9',
+      status: 'ACTIVE',
+      approvalHoldExpiresAt: null,
+    });
+    renderPage({ services: [bundle], initialDraft: READY });
+
+    fireEvent.click(await screen.findByRole('radio', { name: 'Rafael Costa' }));
+    press('new-schedule-review');
+
+    expect(await screen.findByTestId('review-resource')).toHaveTextContent('Rafael Costa');
+    expect(screen.getByTestId('review-resource-1')).toHaveTextContent('Escolhida automaticamente');
+    expect(screen.getByText('Profissional')).toBeInTheDocument();
+    expect(screen.getByText('Sala')).toBeInTheDocument();
+
+    press('new-schedule-confirm');
+    await screen.findByTestId('new-schedule-created');
+    expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).toMatchObject({
+      resourceSelections: [{ resourceType: 'STAFF', resourceId: 'staff-b' }],
+    });
+  });
+
+  it('sends one selection per chosen requirement when both are chosen by the customer', async () => {
+    const bundle = eligibleService({
+      resourceRequirements: [choiceRequirement('STAFF'), choiceRequirement('ROOM')],
+    });
+    fetchServiceResourceOptions.mockResolvedValue({
+      requirements: [
+        entry(bundle.id, 'STAFF', [{ resourceId: 'staff-a', name: 'Marina Alves' }]),
+        entry(bundle.id, 'ROOM', [
+          { resourceId: 'room-a', name: 'Sala Aurora' },
+          { resourceId: 'room-b', name: 'Sala Horizonte' },
+        ]),
+      ],
+    });
+    createRecurringScheduleAsCustomer.mockResolvedValue({
+      id: 's-10',
+      status: 'ACTIVE',
+      approvalHoldExpiresAt: null,
+    });
+    renderPage({ services: [bundle], initialDraft: READY });
+
+    fireEvent.click(await screen.findByRole('radio', { name: 'Sala Horizonte' }));
+    await reviewAndConfirm();
+
+    await screen.findByTestId('new-schedule-created');
+    expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).toMatchObject({
+      resourceSelections: [
+        { resourceType: 'STAFF', resourceId: 'staff-a' },
+        { resourceType: 'ROOM', resourceId: 'room-b' },
+      ],
+    });
+  });
+
+  it('creates an all-automatic bundle without any selection and without asking for options', async () => {
+    const bundle = eligibleService({
+      resourceRequirements: [autoRequirement('STAFF'), autoRequirement('ROOM')],
+    });
+    createRecurringScheduleAsCustomer.mockResolvedValue({
+      id: 's-11',
+      status: 'ACTIVE',
+      approvalHoldExpiresAt: null,
+    });
+    renderPage({ services: [bundle], initialDraft: READY });
+
+    press('new-schedule-review');
+    expect(await screen.findByTestId('review-resource')).toHaveTextContent(
+      'Escolhido automaticamente',
+    );
+    expect(screen.getByTestId('review-resource-1')).toHaveTextContent('Escolhida automaticamente');
+    press('new-schedule-confirm');
+
+    await screen.findByTestId('new-schedule-created');
+    expect(createRecurringScheduleAsCustomer.mock.calls[0]![0]).not.toHaveProperty(
+      'resourceSelections',
+    );
+    expect(fetchServiceResourceOptions).not.toHaveBeenCalled();
+  });
+
+  it('shows the standard conflict message when a requirement of the bundle collides', async () => {
+    const bundle = eligibleService({
+      resourceRequirements: [autoRequirement('STAFF'), autoRequirement('ROOM')],
+    });
+    createRecurringScheduleAsCustomer.mockRejectedValue(
+      new ApiError(409, 'conflict', {
+        code: 'BOOKING_RECURRING_SCHEDULE_CONFLICT',
+        conflicts: [{ occurrenceStart: '2999-06-20T13:00:00.000Z', reason: 'OCCUPIED' }],
+      }),
+    );
+    renderPage({ services: [bundle], initialDraft: READY });
+
+    await reviewAndConfirm();
+
+    expect(await screen.findAllByTestId('conflict-item')).toHaveLength(1);
+    expect(screen.getByTestId('new-schedule-conflict')).toBeInTheDocument();
+  });
+
+  it('pre-fills the staff pick when a bundle schedule is renewed', async () => {
+    const bundle = eligibleService({
+      resourceRequirements: [choiceRequirement('STAFF'), autoRequirement('ROOM')],
+    });
+    fetchServiceResourceOptions.mockResolvedValue({
+      requirements: [
+        entry(bundle.id, 'STAFF', [
+          { resourceId: 'staff-a', name: 'Marina Alves' },
+          { resourceId: 'staff-b', name: 'Rafael Costa' },
+        ]),
+      ],
+    });
+    renderPage({ services: [bundle], initialDraft: { ...READY, resourceIds: ['staff-b'] } });
+
+    expect(await screen.findByRole('radio', { name: 'Rafael Costa' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 });

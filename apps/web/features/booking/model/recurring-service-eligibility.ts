@@ -7,12 +7,11 @@ import { recurrenceShapeBlockers, type RecurrenceBlocker } from './recurrence-sh
 /**
  * Mirrors the backend's `assertServiceEligible()` (TD49-S03): a recurrence-enabled appointment
  * service with no legs and no pickup address whose resources are the default shape (none, or the
- * unrestricted tenant location) or exactly one requirement of quantity 1 with a choosable or
+ * unrestricted tenant location) or requirements that each have quantity 1 and a choosable or
  * automatic mode — plus, web only, a fixed duration (the form shows it read-only). The backend
  * stays the authority — a service this lets through but the backend refuses ends in the generic
- * failure. Deliberately narrower than the backend since TD49 Story 0: the backend also accepts a
- * flat multi-requirement service (a bundle), but the form has one resource control, so bundles stay
- * out of the list until TD49 Story 2 gives it a picker per requirement.
+ * failure. Since TD49 Story 2 it also lets a bundle through (several requirements, each checked):
+ * the form shows one pick group per customer-chosen requirement.
  */
 export function isRecurrenceEligibleService(service: HotsiteServiceResponse): boolean {
   return service.bookingPolicy.recurrenceEligible && recurrenceBlockersOf(service).length === 0;

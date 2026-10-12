@@ -2,7 +2,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { makeHotsiteService, renderWithIntl } from '@/test-utils';
-import { ResourceField, ServiceField } from './NewRecurringScheduleServiceFields';
+import { AutoResourceLine, ResourceField, ServiceField } from './NewRecurringScheduleServiceFields';
 
 const SERVICE = makeHotsiteService({
   name: 'Sala Aurora',
@@ -13,7 +13,7 @@ const SERVICE = makeHotsiteService({
 type Query = React.ComponentProps<typeof ResourceField>['query'];
 
 function query(overrides: Record<string, unknown>): Query {
-  return { isError: false, isPending: false, data: [], ...overrides } as unknown as Query;
+  return { isError: false, isPending: false, ...overrides } as unknown as Query;
 }
 
 describe('ServiceField', () => {
@@ -34,18 +34,26 @@ describe('ResourceField', () => {
     { resourceId: 'room-a', name: 'Sala Aurora' },
     { resourceId: 'room-b', name: 'Sala Horizonte' },
   ];
+  const base = {
+    title: 'Sala',
+    options,
+    requiredMessage: 'Escolha a sala',
+    noOptionsMessage: 'Nenhuma sala está disponível para este serviço no momento.',
+  };
 
-  it('offers one pill per resource and reports the pick', () => {
+  it('offers one pill per resource under its title and reports the pick', () => {
     const onChange = vi.fn();
     renderWithIntl(
       <ResourceField
-        query={query({ data: options })}
+        {...base}
+        query={query({})}
         resourceId="room-a"
         required={false}
         onChange={onChange}
       />,
     );
 
+    expect(screen.getByRole('radiogroup', { name: 'Sala' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Sala Aurora' })).toHaveAttribute(
       'aria-checked',
       'true',
@@ -57,7 +65,8 @@ describe('ResourceField', () => {
   it('says it is loading, then that it failed', () => {
     const { unmount } = renderWithIntl(
       <ResourceField
-        query={query({ isPending: true, data: undefined })}
+        {...base}
+        query={query({ isPending: true })}
         resourceId={null}
         required={false}
         onChange={vi.fn()}
@@ -68,7 +77,8 @@ describe('ResourceField', () => {
 
     renderWithIntl(
       <ResourceField
-        query={query({ isError: true, data: undefined })}
+        {...base}
+        query={query({ isError: true })}
         resourceId={null}
         required={false}
         onChange={vi.fn()}
@@ -77,15 +87,54 @@ describe('ResourceField', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível carregar os recursos');
   });
 
-  it('shows the missing-resource message when required', () => {
+  it('says so when the requirement has no options', () => {
     renderWithIntl(
       <ResourceField
-        query={query({ data: options })}
+        {...base}
+        options={[]}
+        query={query({})}
         resourceId={null}
-        required
+        required={false}
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByText('Escolha um recurso.')).toBeInTheDocument();
+    expect(screen.getByTestId('new-schedule-resource-empty')).toHaveTextContent(
+      'Nenhuma sala está disponível para este serviço no momento.',
+    );
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+  });
+
+  it('shows the missing-pick message it was given when required', () => {
+    renderWithIntl(
+      <ResourceField {...base} query={query({})} resourceId={null} required onChange={vi.fn()} />,
+    );
+    expect(screen.getByText('Escolha a sala')).toBeInTheDocument();
+  });
+
+  it('numbers each group of a bundle in a data attribute', () => {
+    renderWithIntl(
+      <ResourceField
+        {...base}
+        query={query({})}
+        resourceId={null}
+        required={false}
+        index={1}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('new-schedule-resource')).toHaveAttribute('data-index', '1');
+  });
+});
+
+describe('AutoResourceLine', () => {
+  it('is a read-only line under its title', () => {
+    renderWithIntl(
+      <AutoResourceLine title="Sala" text="Escolhida automaticamente a cada semana" />,
+    );
+    expect(screen.getByTestId('new-schedule-resource-auto')).toHaveTextContent('Sala');
+    expect(screen.getByTestId('new-schedule-resource-auto')).toHaveTextContent(
+      'Escolhida automaticamente a cada semana',
+    );
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   });
 });

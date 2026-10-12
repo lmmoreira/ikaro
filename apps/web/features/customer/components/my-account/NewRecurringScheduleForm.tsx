@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse, RecurringScheduleWeekday } from '@ikaro/types';
 import {
   earliestStartDate,
   latestEndsOn,
-  requiresResourceChoice,
   resolveMaxTermDays,
   RECURRING_WEEKDAYS,
   type DraftIssue,
@@ -21,12 +19,12 @@ import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { useRecurringResourceOptions } from '../../hooks/useRecurringResourceOptions';
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { NewRecurringScheduleDateField } from './NewRecurringScheduleDateField';
 import { ActionPane, NewRecurringScheduleLayout } from './NewRecurringScheduleLayout';
 import { NewRecurringScheduleNoServices } from './NewRecurringScheduleNoServices';
-import { ResourceField, ServiceField } from './NewRecurringScheduleServiceFields';
+import { ResourceFields, useResourcePicks } from './NewRecurringScheduleResources';
+import { ServiceField } from './NewRecurringScheduleServiceFields';
 import { useRecurrenceText } from './use-recurrence-text';
 
 const SHORT_KEY = {
@@ -78,22 +76,7 @@ export function NewRecurringScheduleForm({
   const { formatDateKey } = useRecurrenceText();
 
   const service = services.find((candidate) => candidate.id === draft.serviceId) ?? null;
-  const needsResource = service !== null && requiresResourceChoice(service);
-
-  const resourceOptions = useRecurringResourceOptions(tenantSlug, draft.serviceId, needsResource);
-  const firstResourceId = resourceOptions.data?.[0]?.resourceId ?? null;
-  const resourceIsOffered =
-    draft.resourceId !== null &&
-    (resourceOptions.data?.some((option) => option.resourceId === draft.resourceId) ?? false);
-
-  // The prototype preselects the first resource: a customer who has no preference does not have to
-  // pick one, and the list is never "unselected" with a single resource. A pre-filled resource that
-  // is no longer offered (deactivated since a renewal's schedule was made) is replaced the same way.
-  useEffect(() => {
-    if (needsResource && !resourceIsOffered && firstResourceId !== null) {
-      onChange({ resourceId: firstResourceId });
-    }
-  }, [needsResource, resourceIsOffered, firstResourceId, onChange]);
+  const picks = useResourcePicks({ service, tenantSlug, draft, onChange });
 
   const today = earliestStartDate(new Date(), timezone);
   const maxTermDays = service === null ? null : resolveMaxTermDays(service);
@@ -133,7 +116,7 @@ export function NewRecurringScheduleForm({
         <button
           type="button"
           data-testid="new-schedule-review"
-          disabled={service === null}
+          disabled={service === null || picks.blocked}
           onClick={onReview}
           className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
         >
@@ -184,17 +167,16 @@ export function NewRecurringScheduleForm({
         <ServiceField
           services={services}
           serviceId={draft.serviceId}
-          onChange={(serviceId) => onChange({ serviceId, resourceId: null })}
+          onChange={(serviceId) => onChange({ serviceId, resourceIds: [] })}
         />
 
-        {needsResource && (
-          <ResourceField
-            query={resourceOptions}
-            resourceId={draft.resourceId}
-            required={visible('RESOURCE_REQUIRED')}
-            onChange={(resourceId) => onChange({ resourceId })}
-          />
-        )}
+        <ResourceFields
+          service={service}
+          draft={draft}
+          picks={picks}
+          showRequired={visible('RESOURCE_REQUIRED')}
+          onChange={onChange}
+        />
 
         <div>
           <PillMultiSelect

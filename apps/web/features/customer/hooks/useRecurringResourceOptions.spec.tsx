@@ -16,7 +16,7 @@ function wrapper({ children }: { readonly children: React.ReactNode }) {
 beforeEach(() => vi.clearAllMocks());
 
 describe('useRecurringResourceOptions', () => {
-  it("returns the first requirement's options for the tenant and service", async () => {
+  it('returns the options of every customer-chosen requirement for the tenant and service', async () => {
     fetchServiceResourceOptions.mockResolvedValue({
       requirements: [
         {
@@ -35,8 +35,35 @@ describe('useRecurringResourceOptions', () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([{ resourceId: 'room-a', name: 'Sala Aurora' }]);
+    expect(result.current.data).toEqual([
+      expect.objectContaining({
+        resourceType: 'ROOM',
+        options: [{ resourceId: 'room-a', name: 'Sala Aurora' }],
+      }),
+    ]);
     expect(fetchServiceResourceOptions).toHaveBeenCalledWith('lavacar-bh', 'svc-1');
+  });
+
+  it('keeps one entry per requirement of a bundle, in the order the server returns them', async () => {
+    const entry = (resourceType: string, legIndex: number | null) => ({
+      serviceId: 'svc-1',
+      legIndex,
+      resourceType,
+      selectionMode: 'CUSTOMER_CHOICE',
+      requiredQuantity: 1,
+      options: [{ resourceId: `${resourceType}-1`, name: resourceType }],
+    });
+    fetchServiceResourceOptions.mockResolvedValue({
+      requirements: [entry('STAFF', null), entry('ROOM', null), entry('ROOM', 0)],
+    });
+
+    const { result } = renderHook(() => useRecurringResourceOptions('lavacar-bh', 'svc-1', true), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    // A leg's entry is not part of a flat service's recurring form.
+    expect(result.current.data?.map((item) => item.resourceType)).toEqual(['STAFF', 'ROOM']);
   });
 
   it('is an empty list for a service with no customer-chosen requirement', async () => {

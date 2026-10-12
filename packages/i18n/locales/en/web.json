@@ -763,6 +763,26 @@
         "resourceHint": "This is the resource that will be held every week.",
         "resourcesLoading": "Loading resources…",
         "resourcesError": "Could not load the resources. Please try again.",
+        "autoPoolLine": "One free unit is reserved every week",
+        "autoAnyLine": {
+          "STAFF": "Chosen automatically every week, among the free professionals",
+          "ROOM": "Chosen automatically every week, among the free rooms",
+          "EQUIPMENT": "Chosen automatically every week, among the free equipment",
+          "LOCATION": "Chosen automatically every week, among the free locations"
+        },
+        "autoChosen": {
+          "STAFF": "Chosen automatically",
+          "ROOM": "Chosen automatically",
+          "EQUIPMENT": "Chosen automatically",
+          "LOCATION": "Chosen automatically"
+        },
+        "resourceNoOptions": {
+          "STAFF": "No professional is available for this service right now.",
+          "ROOM": "No room is available for this service right now.",
+          "EQUIPMENT": "No equipment is available for this service right now.",
+          "LOCATION": "No location is available for this service right now."
+        },
+        "bundleHint": "If any of the resources is not free on a date, the whole recurrence is not created.",
         "fieldWeekdays": "Days of the week",
         "fieldStartTime": "Start time",
         "fieldDuration": "Duration",
@@ -1666,10 +1686,9 @@
       "politicasMaxAdvanceLabel": "Maximum advance (days)",
       "politicasWhoHowCardTitle": "Who and how books",
       "politicasRecurrenceLabel": "Allow recurrence for authenticated customers",
-      "politicasRecurrenceHint": "This service cannot be booked as a recurring reservation yet: {reasons}. Today only services with no resources or a single resource accept recurrence. You can still save; the option only takes effect once the service meets that rule. This notice reflects the resources already saved.",
+      "politicasRecurrenceHint": "This service cannot be booked as a recurring reservation yet: {reasons}. You can still save; the option only takes effect once the service meets that rule. This notice reflects the resources already saved.",
       "politicasRecurrenceReasonNotAppointment": "it is not an appointment service",
       "politicasRecurrenceReasonLegs": "it has stages",
-      "politicasRecurrenceReasonSeveralRequirements": "it needs more than one resource (for example, a professional and a room)",
       "politicasRecurrenceReasonQuantity": "it needs more than one unit of a resource",
       "politicasRecurrenceReasonPickupAddress": "it requires a pickup address",
       "politicasRecurrenceReasonSelectionMode": "the required resource is neither customer-chosen nor automatic",

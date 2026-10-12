@@ -68,6 +68,19 @@ export function choiceRequirement(
   return { type, selectionMode: 'CUSTOMER_CHOICE', requiredQuantity: 1 };
 }
 
+/** A requirement the system resolves every week (`AUTO_ANY` unless a pool is asked for). */
+export function autoRequirement(
+  type: 'STAFF' | 'ROOM' | 'EQUIPMENT',
+  selectionMode: 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL' = 'AUTO_ANY',
+): HotsiteServiceResponse['resourceRequirements'][number] {
+  return { type, selectionMode, requiredQuantity: 1 };
+}
+
+/** The unrestricted default-location requirement an older service stores (mode `NONE`). */
+export function storedLocationRequirement(): HotsiteServiceResponse['resourceRequirements'][number] {
+  return { type: 'LOCATION', selectionMode: 'NONE', requiredQuantity: 1 };
+}
+
 // A complete HotsiteServiceResponse; `overrides` replace whole fields (booking-flow defaults are a
 // plain fixed-duration, LOCATION-only service).
 export function makeHotsiteService(

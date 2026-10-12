@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchServiceResourceOptions } from '@/features/booking/api/public';
 
 /**
- * The resources a customer may pick for a `CUSTOMER_CHOICE` service's single requirement. The form
- * and the review step both read it; React Query shares the one request between them.
+ * The resource options of a service's `CUSTOMER_CHOICE` requirements, one entry per requirement in
+ * the service's order (a bundle has several). The form and the review step both read it; React
+ * Query shares the one request between them. A flat service has no leg index, so only entries
+ * without one are kept.
  */
 export function useRecurringResourceOptions(
   tenantSlug: string,
@@ -14,6 +16,6 @@ export function useRecurringResourceOptions(
     queryKey: ['public', 'resource-options', tenantSlug, serviceId],
     queryFn: () => fetchServiceResourceOptions(tenantSlug, serviceId),
     enabled,
-    select: (response) => response.requirements[0]?.options ?? [],
+    select: (response) => response.requirements.filter((entry) => entry.legIndex === null),
   });
 }
