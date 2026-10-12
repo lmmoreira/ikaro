@@ -330,6 +330,27 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
+#### **RecurringScheduleRenewalDue** *(Command, M23-S21)*
+- **Trigger:** Scheduled cron job (`CRON_REMINDERS_TRIGGER`, tenant-local 06:00–06:29 window) finds `ACTIVE` recurring schedules whose `endsOn` equals the tenant-local today plus `settings.booking.recurringRenewalReminderDays` and whose term is longer than that lead time. One Command per schedule; a lead time of `0` disables it. A schedule is skipped when the customer already has a successor (another `ACTIVE` or `PENDING_APPROVAL` schedule for the same service starting on or after this one's `endsOn`).
+- **State change:** none (the schedule stays `ACTIVE`)
+- **Dedup key:** `RecurringScheduleRenewalDue:{tenantId}:{recurringScheduleId}:{localDate}` — at most one e-mail per schedule, even on a retried or overlapping tick.
+- **Data:**
+  ```
+  {
+    recurringScheduleId: string
+    customerId:          string
+    recipientEmail:      string
+    customerName:        string
+    serviceName:         string
+    endsOn:              YYYY-MM-DD
+    renewalPath:         string   // /{slug}/my-account/recurring-schedules/new?renewFrom=<id>, built by the shared builder in @ikaro/types
+  }
+  ```
+- **Consumers:**
+  - **Notification Context** → email to the customer, in their locale: which reservation ends and when, with a link to renew it
+
+---
+
 #### **AdminDailyScheduleReminder**
 - **Trigger:** Scheduled cron job (06:00 tenant-local) builds the day's schedule digest. One event emitted **per tenant** — the Notification handler fans out to all managers via `INotificationStaffPort.getManagerEmails()`.
 - **State change:** none

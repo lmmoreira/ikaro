@@ -76,7 +76,7 @@ The real `SettingsForm.tsx` has 6 sections, not the 5 this file originally descr
 | Section | Fields |
 |---|---|
 | Geral | name, slug (read-only) |
-| Agendamento | cancellationWindowHours, serviceBufferMinutes, **autoApproveEnabled**, **minBookingAdvanceHours**, **maxBookingAdvanceDays**, **slotGranularityMinutes**, **welcomeStaffScreenDays** |
+| Agendamento | cancellationWindowHours, serviceBufferMinutes, **autoApproveEnabled**, **minBookingAdvanceHours**, **maxBookingAdvanceDays**, **recurringRenewalReminderDays** (M23-S21: days before a recurring reservation ends that the customer is e-mailed; 0 = off), **slotGranularityMinutes**, **welcomeStaffScreenDays** |
 | Fidelidade | loyaltyExpiryDays, **pointsPerCurrencyUnit**, **loyaltyEnableNotifications**, **loyaltyExpiryWarningDays**, **loyaltyNotificationMinPoints** |
 | Horário | timezone + per-day open/close/closed |
 | Contato | phone, email (also the Reply-To of every customer email since M18-S09, and it can appear on the site and in chatbot answers — the field shows a hint saying so), **structured address** (zipCode with ViaCEP lookup, number, street, complement, neighborhood, city, state — not one free-text line as originally drafted), **social links** (whatsapp, instagram, facebook) |

@@ -316,6 +316,23 @@ Ending is one transaction in `EndRecurringBookingScheduleUseCase`: the occurrenc
 
 Two templates share an event when the copy differs (rejected/expired, ended by whom): `trigger_event` stores the enum value, so they are told apart by the `recipientType` label in `notifications.json`. The language is the tenant's (`settings.localization.language`), never the customer's. It is set once at provisioning from the tenant's country and is read-only in Settings, so it is always `pt-BR` or `en` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` § Localization Settings); a tenant's template rows are one per `(tenant_id, trigger_event, channel)` in that language, and the migration that introduced these keys copied them to existing tenants by it. The copy is chosen at send time through `resolveSupportedLocale()` (`@ikaro/i18n`, shared with the web app). No email carries a staff name or an internal id; a customer or service that no longer exists is skipped with a warning, never retried.
 
+### Renewal window and reminder (M23-S21)
+
+One number, `settings.booking.recurringRenewalReminderDays` (N, default 7, `0` = off), drives two things that must agree: the single reminder e-mail and the `renewable` flag on the schedule list.
+
+```mermaid
+timeline
+    title ACTIVE schedule, endsOn = D (N = 7)
+    D-7 : reminder e-mail (one day only: endsOn = tenant-local today + N)
+    D-7 .. D : renewable = true (list flag; "Renovar" / Início card)
+    D+1 : job sets ENDED : renewable = true (always)
+```
+
+- **Reminder:** `RecurringScheduleRenewalReminderJob` runs on the `CRON_REMINDERS_TRIGGER` tick in each tenant's 06:00–06:29 local window and picks `ACTIVE` schedules with `endsOn = localToday + N` and `startsOn < endsOn − N` (a term not longer than N is never reminded). Exact-date matching is what makes it idempotent: the Command's dedup key is `(tenantId, scheduleId, localDate)`, so no "sent" column exists. A tick missed inside the window loses that schedule's reminder (same as booking reminders).
+- **Successor:** a schedule is skipped, and is not `renewable`, when the same customer already has an `ACTIVE` or `PENDING_APPROVAL` schedule for the same service starting on or after its `endsOn`. Detected by that heuristic; `renewsScheduleId` is not stored.
+- **`renewable` (list item):** `ACTIVE` with `localToday ≤ endsOn ≤ localToday + N` (empty window when N = 0), or `ENDED`, and no successor; never for `PENDING_APPROVAL` or `CANCELLED`. Computed server-side because a customer cannot read tenant settings.
+- **Link:** the e-mail opens `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>`, built by a shared builder/parser pair in `@ikaro/types` that the web page also parses.
+
 ---
 
 ## Booking — Future-Commitment Worklist (M23-S08)
